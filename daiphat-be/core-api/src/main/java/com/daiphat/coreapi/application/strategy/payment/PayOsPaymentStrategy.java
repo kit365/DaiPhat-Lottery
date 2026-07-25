@@ -66,4 +66,9 @@ public class PayOsPaymentStrategy implements PaymentGatewayStrategy {
     public void handleFailure(OrderModel order, TransactionModel transaction, GatewayCallbackResult callbackResult) {
         transaction.releaseGatewayAttempt(callbackResult.message());
     }
+
+    @Override
+    public boolean isPaymentCompletedOnGateway(TransactionModel transaction) {
+        return payOsGatewayPort.isPaymentPaid(transaction.getGatewayOrderCode());
+    }
 }

@@ -18,6 +18,8 @@ import com.daiphat.coreapi.application.dto.response.auth.ForgotPasswordResponse;
 import com.daiphat.coreapi.application.dto.response.auth.PasswordPolicyResponse;
 import com.daiphat.coreapi.application.dto.response.auth.VerifyOtpResponse;
 import com.daiphat.coreapi.application.port.in.auth.AuthServicePort;
+import com.daiphat.coreapi.domain.exception.DomainException;
+import com.daiphat.coreapi.domain.exception.ErrorCode;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -188,6 +190,10 @@ public class AuthController {
             @CookieValue(name = REFRESH_COOKIE_NAME, required = false) String refreshToken,
             HttpServletResponse httpResponse
     ) {
+        // Guard before @Valid/@NotBlank on AuthService — missing cookie must be 401, not 500
+        if (refreshToken == null || refreshToken.isBlank()) {
+            throw new DomainException(ErrorCode.REFRESH_TOKEN_EXPIRED);
+        }
         AuthResponse response = authServicePort.refreshToken(new RefreshTokenRequest(refreshToken));
         writeRefreshCookie(httpResponse, response);
         return ApiResponse.success(MSG_REFRESH_TOKEN_SUCCESS, response);

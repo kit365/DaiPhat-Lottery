@@ -26,5 +26,6 @@ export const usePurchasedTicketLookup = (
         queryFn: () => lotteryTicketService.lookupPurchasedTickets(queryParams),
         enabled: options?.enabled ?? true,
         placeholderData: (previous) => previous,
+        retry: 1,
     });
 };

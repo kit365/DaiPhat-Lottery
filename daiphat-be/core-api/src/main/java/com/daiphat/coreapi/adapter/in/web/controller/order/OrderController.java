@@ -13,13 +13,16 @@ import com.daiphat.coreapi.application.dto.response.order.OrderResponse;
 import com.daiphat.coreapi.application.dto.response.order.OrderDetailResponse;
 import com.daiphat.coreapi.application.dto.response.refund.OrderRefundEligibilityResponse;
 import com.daiphat.coreapi.application.dto.response.refund.RefundRequestResponse;
+import com.daiphat.coreapi.application.dto.response.order.PurchasedTicketResponse;
 import com.daiphat.coreapi.application.mapper.order.OrderApplicationMapper;
 import com.daiphat.coreapi.application.port.in.order.OrderServicePort;
+import com.daiphat.coreapi.application.port.in.order.PurchasedTicketQueryPort;
 import com.daiphat.coreapi.application.port.in.refund.OrderRefundServicePort;
 import com.daiphat.coreapi.application.dto.response.notification.NotificationReferenceAvailabilityResponse;
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
 import com.daiphat.coreapi.domain.model.enums.auth.RoleConstants;
+import com.daiphat.coreapi.domain.model.enums.order.TicketDrawResultStatus;
 import com.daiphat.coreapi.domain.model.orders.OrderModel;
 import com.daiphat.coreapi.shared.util.SearchConstants;
 import jakarta.validation.Valid;
@@ -48,6 +51,7 @@ public class OrderController {
     private final OrderServicePort orderServicePort;
     private final OrderApplicationMapper orderApplicationMapper;
     private final OrderRefundServicePort orderRefundServicePort;
+    private final PurchasedTicketQueryPort purchasedTicketQueryPort;
     private final com.daiphat.coreapi.application.port.in.lotteries.LotteryTicketServicePort lotteryTicketServicePort;
 
     @PostMapping("/online")
@@ -177,6 +181,35 @@ public class OrderController {
                         sortBy,
                         direction,
                         principal.getId()
+                )
+        );
+    }
+
+    @GetMapping("/my-tickets")
+    @PreAuthorize("isAuthenticated()")
+    public ApiResponse<PageResponse<PurchasedTicketResponse>> getMyTickets(
+            @RequestParam(defaultValue = DEFAULT_PAGE) int page,
+            @RequestParam(defaultValue = DEFAULT_SIZE) int size,
+            @RequestParam(required = false) TicketDrawResultStatus status,
+            @RequestParam(required = false) LocalDate fromDate,
+            @RequestParam(required = false) LocalDate toDate,
+            @RequestParam(required = false) String ticketNumber,
+            @RequestParam(defaultValue = DEFAULT_SORT_BY) String sortBy,
+            @RequestParam(defaultValue = DEFAULT_SORT_DIRECTION) String direction,
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal) {
+        log.info("REST request to get my purchased tickets by user: {}", principal.getId());
+        return ApiResponse.success(
+                "Lấy danh sách vé đã mua thành công.",
+                purchasedTicketQueryPort.getMyTickets(
+                        principal.getId(),
+                        page,
+                        size,
+                        status,
+                        fromDate,
+                        toDate,
+                        ticketNumber,
+                        sortBy,
+                        direction
                 )
         );
     }

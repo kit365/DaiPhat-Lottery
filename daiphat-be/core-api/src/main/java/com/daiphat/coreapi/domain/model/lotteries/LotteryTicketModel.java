@@ -165,7 +165,8 @@ public class LotteryTicketModel {
             int soldSerialCount,
             LocalTime cutoffTime
     ) {
-        this.quantity = availableSerialCount;
+        // Display quantity = every non-deleted serial linked to this lottery number.
+        this.quantity = totalSerialCount;
         if (!isWorkflowManagedStatus()) {
             this.status = resolveAggregateStatus(availableSerialCount, totalSerialCount, soldSerialCount, cutoffTime);
         }

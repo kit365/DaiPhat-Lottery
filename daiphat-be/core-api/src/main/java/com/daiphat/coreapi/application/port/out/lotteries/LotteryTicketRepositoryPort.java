@@ -1,12 +1,14 @@
 package com.daiphat.coreapi.application.port.out.lotteries;
 
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketStatus;
+import com.daiphat.coreapi.domain.model.enums.lottery.TicketSearchMode;
 import com.daiphat.coreapi.domain.model.lotteries.LotteryTicketModel;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
 import java.time.LocalDate;
 import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 public interface LotteryTicketRepositoryPort {
 
@@ -19,10 +21,18 @@ public interface LotteryTicketRepositoryPort {
     Optional<LotteryTicketModel> findByUniqueFields(Long stationId, String numbers, LocalDate drawDate);
 
     Page<LotteryTicketModel> findAll(Pageable pageable, Long stationId, Collection<Long> stationIds,
-                                     LotteryTicketStatus status, Collection<LocalDate> drawDates, String search);
+                                     LotteryTicketStatus status, Collection<LocalDate> drawDates,
+                                     LocalDate drawDateFrom, LocalDate drawDateTo, Long importBatchLineId, String search);
 
     Page<LotteryTicketModel> findAllPublic(Pageable pageable, Long stationId, Collection<Long> stationIds,
                                            Collection<LocalDate> drawDates, String search);
+
+    Page<LotteryTicketModel> findAllPublic(Pageable pageable, Long stationId, Collection<Long> stationIds,
+                                           Collection<LocalDate> drawDates, String search, TicketSearchMode searchMode);
+
+    Page<LotteryTicketModel> findAllPublic(Pageable pageable, Long stationId, Collection<Long> stationIds,
+                                           Collection<LocalDate> drawDates, String search, TicketSearchMode searchMode,
+                                           List<String> searches, List<String> tailRanges, List<String> numberTypes);
 
     java.util.List<LotteryTicketModel> findExpirableTickets(LocalDate beforeDate, Collection<LotteryTicketStatus> statuses);
 

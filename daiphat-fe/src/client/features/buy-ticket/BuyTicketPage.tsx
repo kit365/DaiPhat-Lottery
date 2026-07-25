@@ -15,6 +15,26 @@ import { apiApp } from '../../../api';
 import { LotteryTicketStatus } from '../../../constants/lottery.constants';
 import dayjs from 'dayjs';
 import 'dayjs/locale/vi';
+import {
+    DEFAULT_SOUTHERN_DRAW_TIME,
+    isTodayDrawPassed,
+    resolveSellableDrawDateParam,
+    todayIsoVn,
+    tomorrowIsoVn,
+} from '../../utils/sellableDrawDate.util';
+import { normalizeTicketSearchDigits } from '../../utils/ticketSearchQuery.util';
+import {
+    AppliedTicketFilters,
+    EMPTY_APPLIED_FILTERS,
+    NumberTypeValue,
+    PRESET_TAIL_RANGES,
+    countActiveTicketFilters,
+    hasActiveTicketFilters,
+    loadFavoriteNumbers,
+    saveFavoriteNumbers,
+    toApiTailRange,
+    toUiTailRangeLabel,
+} from '../../utils/buyTicketFilter.util';
 
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -22,12 +42,26 @@ const isIsoDrawDate = (value: string) => ISO_DATE_RE.test(value);
 
 const resolveDrawDateToken = (token: string): string => {
     if (token === 'today') {
-        return dayjs().format('YYYY-MM-DD');
+        return todayIsoVn();
     }
     if (token === 'tomorrow') {
-        return dayjs().add(1, 'day').format('YYYY-MM-DD');
+        return tomorrowIsoVn();
     }
     return token;
+};
+
+/** Token ngày mặc định: sau giờ xổ → ngày mai. */
+const defaultSellableDateToken = (drawTime: string = DEFAULT_SOUTHERN_DRAW_TIME): 'today' | 'tomorrow' =>
+    isTodayDrawPassed(drawTime) ? 'tomorrow' : 'today';
+
+const toSellableDateTokens = (
+    raw: string | null | undefined,
+    drawTime: string = DEFAULT_SOUTHERN_DRAW_TIME
+): string[] => {
+    const resolved = resolveSellableDrawDateParam(raw, new Date(), drawTime);
+    if (resolved === todayIsoVn()) return ['today'];
+    if (resolved === tomorrowIsoVn()) return ['tomorrow'];
+    return [resolved];
 };
 
 const formatViWeekdayLabel = (isoDate: string) =>
@@ -110,7 +144,7 @@ export const BuyTicketPage = () => {
     const { token, openLoginModal } = useAuthStore();
 
     // State
-    const [selectedDates, setSelectedDates] = useState<string[]>(['today']);
+    const [selectedDates, setSelectedDates] = useState<string[]>(() => [defaultSellableDateToken()]);
     const [selectedProvinces, setSelectedProvinces] = useState<string[]>([]);
     const [selectedTab, setSelectedTab] = useState<'quick' | 'manual' | 'birthday'>('quick');
     const [selectedNumbers, setSelectedNumbers] = useState<string[]>([]);
@@ -119,12 +153,24 @@ export const BuyTicketPage = () => {
     const [isProvinceOpen, setIsProvinceOpen] = useState(false);
     const [isFilterOpen, setIsFilterOpen] = useState(false);
     const [filterActiveTab, setFilterActiveTab] = useState<'all' | 'favorites' | 'range'>('favorites');
-    const [rangeCheckedBoxes, setRangeCheckedBoxes] = useState<string[]>(['00 - 09', '20 - 29', '80 - 89']);
+    const [ticketSearchInput, setTicketSearchInput] = useState('');
+    const [appliedSearch, setAppliedSearch] = useState('');
+    const [favoriteNumbers, setFavoriteNumbers] = useState<string[]>(() => loadFavoriteNumbers());
+    const [favoriteDraftInput, setFavoriteDraftInput] = useState('');
+    const [draftSelectedFavorites, setDraftSelectedFavorites] = useState<string[]>([]);
+    const [draftRanges, setDraftRanges] = useState<string[]>([]);
+    const [draftNumberTypes, setDraftNumberTypes] = useState<NumberTypeValue[]>([]);
+    const [customRangeFrom, setCustomRangeFrom] = useState('00');
+    const [customRangeTo, setCustomRangeTo] = useState('99');
+    const [appliedFilters, setAppliedFilters] = useState<AppliedTicketFilters>(EMPTY_APPLIED_FILTERS);
+    /** Tick để re-check giờ xổ khi user giữ trang mở qua giờ quay. */
+    const [clockTick, setClockTick] = useState(0);
     const selectorsRef = useRef<HTMLDivElement>(null);
     const filterRef = useRef<HTMLDivElement>(null);
     const ticketListRef = useRef<HTMLDivElement>(null);
     const appliedDeepLinkRef = useRef(false);
     const appliedTicketIdRef = useRef<string | null>(null);
+    const autoSwitchedToTomorrowRef = useRef(false);
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -141,6 +187,24 @@ export const BuyTicketPage = () => {
             document.removeEventListener('mousedown', handleClickOutside);
         };
     }, []);
+
+    useEffect(() => {
+        const timer = window.setInterval(() => setClockTick((t) => t + 1), 30_000);
+        return () => window.clearInterval(timer);
+    }, []);
+
+    // Debounce search bar → appliedSearch (min 2 digits)
+    useEffect(() => {
+        const handle = window.setTimeout(() => {
+            const digits = normalizeTicketSearchDigits(ticketSearchInput, 6);
+            setAppliedSearch(digits.length >= 2 ? digits : '');
+        }, 300);
+        return () => window.clearTimeout(handle);
+    }, [ticketSearchInput]);
+
+    useEffect(() => {
+        saveFavoriteNumbers(favoriteNumbers);
+    }, [favoriteNumbers]);
 
     // API Hooks
     const { data: stationsTodayData, isLoading: isLoadingToday } = useStationsToday();
@@ -181,6 +245,68 @@ export const BuyTicketPage = () => {
         return unique.map(mapStationToProvince);
     }, [selectedDates, stationsTodayData, stationsTomorrowData, customDrawDates, stationsCustomData]);
 
+    const allProvinceIds = useMemo(
+        () => dynamicProvinces.map((province) => String(province.id)),
+        [dynamicProvinces]
+    );
+    const activeProvinces = useMemo(
+        () =>
+            dynamicProvinces.filter((province) =>
+                selectedProvinces.some((id) => sameProvinceId(id, province.id))
+            ),
+        [dynamicProvinces, selectedProvinces]
+    );
+    const isAllProvincesSelected =
+        allProvinceIds.length > 0 && activeProvinces.length === allProvinceIds.length;
+    const selectedDatesKey = selectedDates.join(',');
+    const lastSyncedDatesKeyRef = useRef<string | null>(null);
+
+    /** Giờ xổ dùng để quyết định còn bán vé hôm nay hay không. */
+    const effectiveDrawTime = useMemo(() => {
+        if (selectedProvinces.length === 1) {
+            const station = dynamicProvinces.find((p) => sameProvinceId(p.id, selectedProvinces[0]));
+            if (station?.time) return station.time;
+        }
+        return DEFAULT_SOUTHERN_DRAW_TIME;
+    }, [selectedProvinces, dynamicProvinces]);
+
+    // clockTick buộc re-evaluate khi giữ trang mở qua giờ xổ
+    const todaySellClosed = useMemo(
+        () => isTodayDrawPassed(effectiveDrawTime),
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        [effectiveDrawTime, clockTick]
+    );
+
+    /** Sau giờ xổ: tự bỏ "hôm nay", chuyển sang ngày mai để còn vé bán. */
+    useEffect(() => {
+        if (!todaySellClosed) {
+            autoSwitchedToTomorrowRef.current = false;
+            return;
+        }
+
+        const todayIso = todayIsoVn();
+        const hasTodayToken =
+            selectedDates.includes('today') || selectedDates.includes(todayIso);
+        if (!hasTodayToken) {
+            return;
+        }
+
+        const next = selectedDates.filter((d) => d !== 'today' && d !== todayIso);
+        setSelectedDates(
+            next.length === 0
+                ? ['tomorrow']
+                : next.includes('tomorrow')
+                  ? next
+                  : [...next, 'tomorrow']
+        );
+        setSelectedNumbers([]);
+
+        if (!autoSwitchedToTomorrowRef.current) {
+            autoSwitchedToTomorrowRef.current = true;
+            toast.info('Đã qua giờ xổ hôm nay. Hệ thống chuyển sang bán vé ngày mai.');
+        }
+    }, [todaySellClosed, selectedDates]);
+
     // Re-apply deep link when chatbot query params change
     useEffect(() => {
         appliedDeepLinkRef.current = false;
@@ -192,22 +318,13 @@ export const BuyTicketPage = () => {
     }, [urlStationId, urlStationIds, urlRegion, urlDrawDate, urlTicketId]);
 
     useEffect(() => {
-        if (!urlDrawDate || !isIsoDrawDate(urlDrawDate)) {
+        if (!urlDrawDate) {
             return;
         }
-        const today = dayjs().format('YYYY-MM-DD');
-        const tomorrow = dayjs().add(1, 'day').format('YYYY-MM-DD');
-        if (urlDrawDate === today) {
-            setSelectedDates(['today']);
-        } else if (urlDrawDate === tomorrow) {
-            setSelectedDates(['tomorrow']);
-        } else {
-            // Chatbot tickets often target a later draw day beyond today/tomorrow.
-            setSelectedDates([urlDrawDate]);
-        }
-    }, [urlDrawDate]);
+        setSelectedDates(toSellableDateTokens(urlDrawDate, effectiveDrawTime));
+    }, [urlDrawDate, effectiveDrawTime]);
 
-    // Pre-select đài từ deep link (chatbot CTA)
+    // Pre-select đài từ deep link (chatbot CTA) hoặc đồng bộ khi đổi ngày quay
     useEffect(() => {
         if (appliedDeepLinkRef.current) {
             return;
@@ -241,6 +358,7 @@ export const BuyTicketPage = () => {
             if (matchedIds.length > 0) {
                 setSelectedProvinces(matchedIds.map(String));
                 appliedDeepLinkRef.current = true;
+                lastSyncedDatesKeyRef.current = selectedDatesKey;
                 return;
             }
 
@@ -250,30 +368,66 @@ export const BuyTicketPage = () => {
             }
         }
 
-        if (
-            !urlStationId &&
-            !urlStationIds &&
-            !urlRegion &&
-            selectedProvinces.length === 0 &&
-            dynamicProvinces.length > 0
-        ) {
-            setSelectedProvinces([String(dynamicProvinces[0].id)]);
+        if (urlStationId || urlStationIds || urlRegion) {
+            return;
         }
-    }, [dynamicProvinces, selectedProvinces.length, urlRegion, urlStationId, urlStationIds]);
+
+        if (dynamicProvinces.length === 0) {
+            return;
+        }
+
+        const nextAllIds = dynamicProvinces.map((province) => String(province.id));
+        const datesChanged = lastSyncedDatesKeyRef.current !== selectedDatesKey;
+
+        setSelectedProvinces((prev) => {
+            const validSelected = prev.filter((id) =>
+                dynamicProvinces.some((province) => sameProvinceId(province.id, id))
+            );
+
+            // Đổi ngày quay / chưa chọn / ID cũ không còn khớp → chọn tất cả đài của ngày hiện tại
+            if (datesChanged || prev.length === 0 || validSelected.length === 0) {
+                return nextAllIds;
+            }
+
+            // Cùng ngày nhưng danh sách đài đổi → bỏ ID đài không còn hợp lệ
+            if (validSelected.length !== prev.length) {
+                return validSelected;
+            }
+
+            return prev;
+        });
+
+        lastSyncedDatesKeyRef.current = selectedDatesKey;
+    }, [dynamicProvinces, selectedDatesKey, urlRegion, urlStationId, urlStationIds]);
 
     // Fetch tickets — resolve today/tomorrow/ISO tokens correctly
+    const selectedStationIdsForQuery = useMemo(
+        () => activeProvinces.map((province) => String(province.id)),
+        [activeProvinces]
+    );
     const drawDateFilter = selectedDates.map(resolveDrawDateToken).join(',');
+    const activeFilterCount = countActiveTicketFilters(appliedFilters);
     const { data: ticketsRes, isLoading: isLoadingTickets } = useQuery({
-        queryKey: ['public-buy-ticket-list', selectedProvinces, drawDateFilter],
-        enabled: selectedProvinces.length > 0 && Boolean(drawDateFilter),
+        queryKey: [
+            'public-buy-ticket-list',
+            selectedStationIdsForQuery,
+            drawDateFilter,
+            appliedSearch,
+            appliedFilters,
+        ],
+        enabled: selectedStationIdsForQuery.length > 0 && Boolean(drawDateFilter),
         queryFn: async () => {
             const response = await apiApp.get('/lottery-tickets/public', {
                 params: {
                     page: 1,
                     size: 100,
-                    stationIds: selectedProvinces,
+                    stationIds: selectedStationIdsForQuery,
                     drawDate: drawDateFilter,
-                    search: undefined,
+                    search: appliedSearch || undefined,
+                    searchMode: appliedSearch ? 'CONTAINS' : undefined,
+                    searches: appliedFilters.searches.length > 0 ? appliedFilters.searches : undefined,
+                    tailRanges: appliedFilters.tailRanges.length > 0 ? appliedFilters.tailRanges : undefined,
+                    numberTypes: appliedFilters.numberTypes.length > 0 ? appliedFilters.numberTypes : undefined,
                     sortBy: undefined,
                     direction: undefined,
                 },
@@ -300,6 +454,82 @@ export const BuyTicketPage = () => {
         },
     });
     const availableTickets = ticketsRes?.data?.recordList || [];
+
+    const openFilterPanel = () => {
+        const nextOpen = !isFilterOpen;
+        if (nextOpen) {
+            setDraftSelectedFavorites([...appliedFilters.searches]);
+            setDraftRanges(appliedFilters.tailRanges.map(toUiTailRangeLabel));
+            setDraftNumberTypes([...appliedFilters.numberTypes]);
+        }
+        setIsFilterOpen(nextOpen);
+    };
+
+    const applyTicketFilters = () => {
+        setAppliedFilters({
+            searches: [...draftSelectedFavorites],
+            tailRanges: draftRanges.map(toApiTailRange),
+            numberTypes: [...draftNumberTypes],
+        });
+        setIsFilterOpen(false);
+    };
+
+    const clearTicketFilters = () => {
+        setDraftSelectedFavorites([]);
+        setDraftRanges([]);
+        setDraftNumberTypes([]);
+        setAppliedFilters(EMPTY_APPLIED_FILTERS);
+        setTicketSearchInput('');
+        setAppliedSearch('');
+        setIsFilterOpen(false);
+    };
+
+    const addFavoriteNumber = (raw: string) => {
+        const digits = normalizeTicketSearchDigits(raw, 6);
+        if (digits.length < 2) {
+            toast.info('Nhập ít nhất 2 chữ số để thêm dãy yêu thích');
+            return;
+        }
+        setFavoriteNumbers((prev) => (prev.includes(digits) ? prev : [...prev, digits]));
+        setDraftSelectedFavorites((prev) => (prev.includes(digits) ? prev : [...prev, digits]));
+        setFavoriteDraftInput('');
+    };
+
+    const removeFavoriteNumber = (num: string) => {
+        setFavoriteNumbers((prev) => prev.filter((item) => item !== num));
+        setDraftSelectedFavorites((prev) => prev.filter((item) => item !== num));
+    };
+
+    const toggleDraftFavorite = (num: string) => {
+        setDraftSelectedFavorites((prev) =>
+            prev.includes(num) ? prev.filter((item) => item !== num) : [...prev, num]
+        );
+    };
+
+    const toggleDraftRange = (label: string) => {
+        setDraftRanges((prev) =>
+            prev.includes(label) ? prev.filter((item) => item !== label) : [...prev, label]
+        );
+    };
+
+    const toggleDraftNumberType = (type: NumberTypeValue) => {
+        setDraftNumberTypes((prev) =>
+            prev.includes(type) ? prev.filter((item) => item !== type) : [...prev, type]
+        );
+    };
+
+    const addCustomRange = () => {
+        const from = normalizeTicketSearchDigits(customRangeFrom, 2).padStart(2, '0').slice(-2);
+        const to = normalizeTicketSearchDigits(customRangeTo, 2).padStart(2, '0').slice(-2);
+        const fromNum = Number(from);
+        const toNum = Number(to);
+        if (Number.isNaN(fromNum) || Number.isNaN(toNum) || fromNum > toNum || fromNum < 0 || toNum > 99) {
+            toast.info('Khoảng số không hợp lệ (00–99, từ ≤ đến)');
+            return;
+        }
+        const label = `${from} - ${to}`;
+        setDraftRanges((prev) => (prev.includes(label) ? prev : [...prev, label]));
+    };
 
     // Preselect / highlight ticket from chatbot deep-link (?ticketId=)
     useEffect(() => {
@@ -352,10 +582,6 @@ export const BuyTicketPage = () => {
         const ticketData = availableTickets.find((t: any) => t.numbers === num);
         return ticketData?.quantity || 1;
     }, [selectedNumbers, availableTickets]);
-
-    const activeProvinces = dynamicProvinces.filter((p: any) =>
-        selectedProvinces.some((id) => sameProvinceId(id, p.id))
-    );
 
     const selectedTicketProvinces = useMemo(() => {
         if (selectedNumbers.length === 0) return activeProvinces;
@@ -504,9 +730,19 @@ export const BuyTicketPage = () => {
                                 {isDateOpen && (
                                     <div className="absolute top-[105%] left-0 right-0 bg-white border border-[#E5E8EB] shadow-lg rounded-xl z-20 overflow-hidden p-2">
                                         <div
-                                            className={`p-3 rounded-lg cursor-pointer flex justify-between items-center ${selectedDates.includes('today') ? 'bg-[#FFF4F4]' : 'hover:bg-gray-50'}`}
+                                            className={`p-3 rounded-lg flex justify-between items-center ${
+                                                todaySellClosed
+                                                    ? 'opacity-50 cursor-not-allowed'
+                                                    : selectedDates.includes('today')
+                                                      ? 'bg-[#FFF4F4] cursor-pointer'
+                                                      : 'hover:bg-gray-50 cursor-pointer'
+                                            }`}
                                             onClick={(e) => { 
-                                                e.stopPropagation(); 
+                                                e.stopPropagation();
+                                                if (todaySellClosed) {
+                                                    toast.info(`Đã qua giờ xổ (${effectiveDrawTime}). Chỉ còn bán vé ngày mai.`);
+                                                    return;
+                                                }
                                                 if (selectedDates.includes('today') && selectedDates.length === 1) {
                                                     return;
                                                 }
@@ -524,6 +760,9 @@ export const BuyTicketPage = () => {
                                             <div>
                                                 <div className={`font-bold ${selectedDates.includes('today') ? 'text-[#ee1314]' : 'text-[#212B36]'}`}>Hôm nay</div>
                                                 <div className="text-[14px] text-[#637381]">{dayjs().locale('vi').format('DD/MM/YYYY (dddd)').replace(/t/g, 'T').replace('Thứ', 'Thứ').replace('chủ', 'Chủ')}</div>
+                                                {todaySellClosed && (
+                                                    <div className="text-[12px] text-[#ee1314] mt-0.5">Đã hết giờ bán (sau {effectiveDrawTime})</div>
+                                                )}
                                             </div>
                                             <div className="mt-0.5">
                                                 {selectedDates.includes('today') ? (
@@ -548,7 +787,9 @@ export const BuyTicketPage = () => {
                                                     setSelectedDates(selectedDates.filter(d => d !== 'tomorrow'));
                                                 } else {
                                                     setSelectedDates([
-                                                        ...selectedDates.filter((d) => d === 'today'),
+                                                        ...(todaySellClosed
+                                                            ? []
+                                                            : selectedDates.filter((d) => d === 'today')),
                                                         'tomorrow',
                                                     ]);
                                                 }
@@ -576,9 +817,9 @@ export const BuyTicketPage = () => {
                             <div className="relative p-4 lg:p-5 cursor-pointer hover:bg-gray-50 transition-colors rounded-r-[20px]" onClick={() => { setIsProvinceOpen(!isProvinceOpen); setIsDateOpen(false); }}>
                                 <div className="flex gap-4 items-center">
                                     <div className="shrink-0">
-                                        {selectedProvinces.length > 0 ? (
+                                        {activeProvinces.length > 0 ? (
                                             <div className="w-[40px] h-[40px] rounded-full border border-[#E5E8EB] overflow-hidden flex items-center justify-center p-[2px] bg-white">
-                                                <img src={dynamicProvinces.find(p => sameProvinceId(p.id, selectedProvinces[0]))?.icon} alt="" className="w-full h-full object-contain" />
+                                                <img src={activeProvinces[0]?.icon} alt="" className="w-full h-full object-contain" />
                                             </div>
                                         ) : (
                                             <div className="w-[40px] h-[40px] rounded-full bg-gray-100 flex items-center justify-center text-gray-400">
@@ -590,13 +831,25 @@ export const BuyTicketPage = () => {
                                         <div className="text-[12px] text-[#637381] font-bold uppercase tracking-wider mb-1">Chọn đài</div>
                                         <div className="flex items-center justify-between">
                                             <div className="font-bold text-[14px] text-[#212B36] truncate max-w-[150px] sm:max-w-[200px]">
-                                                {selectedProvinces.length > 1 ? `Đã chọn ${selectedProvinces.length} đài` : (selectedProvinces.length === 1 ? (dynamicProvinces.find(p => sameProvinceId(p.id, selectedProvinces[0]))?.name || 'Đang tải đài...') : 'Vui lòng chọn đài')}
+                                                {isAllProvincesSelected
+                                                    ? 'Tất cả đài miền Nam'
+                                                    : activeProvinces.length > 1
+                                                      ? `Đã chọn ${activeProvinces.length} đài`
+                                                      : activeProvinces.length === 1
+                                                        ? (activeProvinces[0].name || 'Đang tải đài...')
+                                                        : 'Vui lòng chọn đài'}
                                             </div>
                                             <div className={`${isProvinceOpen ? 'border border-[#ee1314] rounded text-[#ee1314] w-6 h-6 flex items-center justify-center' : 'text-[#212B36]'}`}>
                                                 {isProvinceOpen ? <ChevronDown size={16} /> : <ChevronDown size={20} />}
                                             </div>
                                         </div>
-                                        <div className="text-[13px] text-[#212B36] font-medium mt-0.5">{selectedProvinces.length === 1 ? (dynamicProvinces.find(p => sameProvinceId(p.id, selectedProvinces[0]))?.time || '---') : (selectedProvinces.length > 1 ? 'Các đài miền Nam' : '---')}</div>
+                                        <div className="text-[13px] text-[#212B36] font-medium mt-0.5">
+                                            {activeProvinces.length === 1
+                                                ? (activeProvinces[0].time || '---')
+                                                : activeProvinces.length > 1
+                                                  ? 'Các đài miền Nam'
+                                                  : '---'}
+                                        </div>
                                     </div>
                                 </div>
 
@@ -605,7 +858,36 @@ export const BuyTicketPage = () => {
                                     <div className="absolute top-[105%] left-0 right-0 bg-white border border-[#E5E8EB] shadow-lg rounded-xl z-20 max-h-[350px] overflow-y-auto p-2">
                                         {isLoadingProviders ? (
                                             <div className="p-4 text-center text-[#637381]">Đang tải...</div>
-                                        ) : dynamicProvinces.map((prov: any, index: number) => {
+                                        ) : (
+                                        <>
+                                        <div
+                                            className={`p-3 rounded-lg cursor-pointer flex justify-between items-center ${isAllProvincesSelected ? 'bg-[#FFF4F4]' : 'hover:bg-gray-50'}`}
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setSelectedProvinces(allProvinceIds);
+                                            }}
+                                        >
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-[36px] h-[36px] rounded-full border border-[#E5E8EB] bg-gray-50 flex items-center justify-center text-[#637381]">
+                                                    <i className="fa-solid fa-building text-[14px]"></i>
+                                                </div>
+                                                <div>
+                                                    <div className={`font-bold ${isAllProvincesSelected ? 'text-[#ee1314]' : 'text-[#212B36]'}`}>Tất cả các đài</div>
+                                                    <div className={`text-[14px] ${isAllProvincesSelected ? 'text-[#ee1314]' : 'text-[#637381]'}`}>Hiện vé của mọi đài</div>
+                                                </div>
+                                            </div>
+                                            <div>
+                                                {isAllProvincesSelected ? (
+                                                    <div className="w-4 h-4 rounded-[4px] bg-[#ee1314] text-white flex items-center justify-center">
+                                                        <i className="fa-solid fa-check text-[12px]"></i>
+                                                    </div>
+                                                ) : (
+                                                    <div className="w-4 h-4 rounded-[4px] border border-[#C4CDD5] bg-white"></div>
+                                                )}
+                                            </div>
+                                        </div>
+                                        <div className="h-[1px] bg-[#E5E8EB] my-1 mx-3"></div>
+                                        {dynamicProvinces.map((prov: any, index: number) => {
                                             const isProvSelected = selectedProvinces.some((id) =>
                                                 sameProvinceId(id, prov.id)
                                             );
@@ -615,12 +897,17 @@ export const BuyTicketPage = () => {
                                                         className={`p-3 rounded-lg cursor-pointer flex justify-between items-center ${isProvSelected ? 'bg-[#FFF4F4]' : 'hover:bg-gray-50'}`}
                                                         onClick={(e) => { 
                                                             e.stopPropagation(); 
+                                                            // Default is "all stations"; first click narrows to that station only
+                                                            if (isAllProvincesSelected) {
+                                                                setSelectedProvinces([String(prov.id)]);
+                                                                return;
+                                                            }
                                                             if (isProvSelected) {
-                                                                setSelectedProvinces(
-                                                                    selectedProvinces.filter(
-                                                                        (p) => !sameProvinceId(p, prov.id)
-                                                                    )
+                                                                const next = selectedProvinces.filter(
+                                                                    (p) => !sameProvinceId(p, prov.id)
                                                                 );
+                                                                // Empty selection is not allowed - go back to all stations
+                                                                setSelectedProvinces(next.length === 0 ? allProvinceIds : next);
                                                             } else {
                                                                 setSelectedProvinces([
                                                                     ...selectedProvinces,
@@ -652,6 +939,8 @@ export const BuyTicketPage = () => {
                                                 </div>
                                             );
                                         })}
+                                        </>
+                                        )}
                                     </div>
                                 )}
                             </div>
@@ -659,91 +948,185 @@ export const BuyTicketPage = () => {
                         </div>
 
                         {/* Bottom Main Content Card (Tickets List) */}
-                        <div className="bg-white rounded-[20px] shadow-sm border border-[#E5E8EB] flex flex-col flex-1">
+                        <div className="bg-white rounded-[20px] shadow-sm border border-[#E5E8EB] flex flex-col flex-1 min-h-0 overflow-hidden">
                             {/* Search and Filter */}
-                            <div className="p-4 lg:p-5 border-b border-[#E5E8EB] flex flex-col md:flex-row gap-4 items-center shrink-0">
-                                <div className="flex-1 w-full flex items-center bg-white rounded-xl border border-[#E5E8EB] px-4 py-2.5">
-                                    <i className="fa-solid fa-magnifying-glass text-[#637381] mr-3"></i>
-                                    <input
-                                        type="text"
-                                        placeholder="Tìm số (VD: 12345, 68686...)"
-                                        className="flex-1 bg-transparent border-none outline-none text-[14px] text-[#212B36] placeholder:text-[#919EAB]"
-                                    />
-                                </div>
-                                <div className="relative" ref={filterRef}>
-                                    <button 
-                                        onClick={() => setIsFilterOpen(!isFilterOpen)}
-                                        className={`flex items-center gap-2 border rounded-xl px-5 py-2.5 bg-white font-medium hover:bg-gray-50 transition-colors w-full md:w-auto justify-center text-[14px] ${isFilterOpen ? 'border-[#ee1314] text-[#ee1314]' : 'border-[#E5E8EB] text-[#212B36]'}`}
+                            <div className={`relative p-4 lg:p-5 border-b border-[#E5E8EB] shrink-0 ${isFilterOpen ? 'z-40' : 'z-10'}`} ref={filterRef}>
+                                <div className="flex flex-col md:flex-row gap-4 items-center">
+                                    <div className="flex-1 w-full flex items-center bg-white rounded-xl border border-[#E5E8EB] px-4 py-2.5">
+                                        <i className="fa-solid fa-magnifying-glass text-[#637381] mr-3"></i>
+                                        <input
+                                            type="text"
+                                            inputMode="numeric"
+                                            value={ticketSearchInput}
+                                            onChange={(e) => setTicketSearchInput(normalizeTicketSearchDigits(e.target.value, 6))}
+                                            placeholder="Tìm số (VD: 12345, 68686...)"
+                                            className="flex-1 bg-transparent border-none outline-none text-[14px] text-[#212B36] placeholder:text-[#919EAB]"
+                                        />
+                                        {ticketSearchInput && (
+                                            <button
+                                                type="button"
+                                                onClick={() => { setTicketSearchInput(''); setAppliedSearch(''); }}
+                                                className="text-[#919EAB] hover:text-[#ee1314] ml-2"
+                                                aria-label="Xóa tìm kiếm"
+                                            >
+                                                <i className="fa-solid fa-xmark"></i>
+                                            </button>
+                                        )}
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={openFilterPanel}
+                                        className={`flex items-center gap-2 border rounded-xl px-5 py-2.5 bg-white font-medium hover:bg-gray-50 transition-colors w-full md:w-auto justify-center text-[14px] shrink-0 ${isFilterOpen || activeFilterCount > 0 ? 'border-[#ee1314] text-[#ee1314]' : 'border-[#E5E8EB] text-[#212B36]'}`}
                                     >
-                                        <Filter size={18} className={isFilterOpen ? 'text-[#ee1314]' : 'text-[#637381]'} /> 
-                                        Lọc dãy số 
+                                        <Filter size={18} className={isFilterOpen || activeFilterCount > 0 ? 'text-[#ee1314]' : 'text-[#637381]'} />
+                                        Lọc dãy số
+                                        {activeFilterCount > 0 && (
+                                            <span className="ml-1 min-w-[20px] h-5 px-1.5 rounded-full bg-[#ee1314] text-white text-[11px] font-bold flex items-center justify-center">
+                                                {activeFilterCount}
+                                            </span>
+                                        )}
                                         <ChevronDown size={16} className={`ml-1 ${isFilterOpen ? 'text-[#ee1314]' : 'text-[#637381]'}`} />
                                     </button>
+                                </div>
 
-                                    {/* Filter Dropdown */}
-                                    {isFilterOpen && (
-                                        <div className="absolute right-0 top-[110%] w-[750px] bg-white rounded-xl shadow-lg border border-[#E5E8EB] z-30 flex flex-col overflow-hidden">
-                                            <div className="flex flex-1">
+                                {isFilterOpen && (
+                                    <div className="absolute left-4 right-4 lg:left-5 lg:right-5 top-full mt-2 max-h-[min(70vh,520px)] bg-white rounded-2xl shadow-[0_16px_48px_rgba(33,43,54,0.16)] border border-[#E5E8EB] z-50 flex flex-col overflow-hidden">
+                                            <div className="flex flex-1 min-h-0 overflow-hidden">
                                                 {/* Left Sidebar */}
-                                                <div className="w-[200px] border-r border-[#E5E8EB] flex flex-col py-3 bg-white gap-1 px-2">
-                                                    <div 
+                                                <div className="w-[220px] min-w-[220px] border-r border-[#E2E8F0] flex flex-col p-3.5 bg-[#F8FAFC] gap-1.5 select-none">
+                                                    <button
+                                                        type="button"
                                                         onClick={() => setFilterActiveTab('all')}
-                                                        className={`flex items-center gap-3 px-3 py-2.5 rounded-lg cursor-pointer transition-colors ${filterActiveTab === 'all' ? 'bg-[#FFF4F4] text-[#ee1314]' : 'hover:bg-gray-50 text-[#637381]'}`}
+                                                        className={`flex items-center gap-3 px-4 py-3.5 rounded-xl cursor-pointer transition-all duration-200 text-left w-full ${
+                                                            filterActiveTab === 'all'
+                                                                ? 'bg-white text-[#ee1314] font-extrabold shadow-xs border border-[#ee1314]/20'
+                                                                : 'text-[#64748B] hover:bg-white/70 hover:text-[#0F172A] font-semibold'
+                                                        }`}
                                                     >
-                                                        <LayoutGrid size={18} className={filterActiveTab === 'all' ? 'text-[#ee1314]' : 'text-[#637381]'} />
-                                                        <span className={`text-[14px] ${filterActiveTab === 'all' ? 'font-bold' : 'font-medium'}`}>Tất cả dãy số</span>
-                                                    </div>
-                                                    <div 
+                                                        <LayoutGrid size={18} className={filterActiveTab === 'all' ? 'text-[#ee1314]' : 'text-[#64748B]'} />
+                                                        <span className="text-[13.5px]">Tất cả dãy số</span>
+                                                    </button>
+                                                    <button
+                                                        type="button"
                                                         onClick={() => setFilterActiveTab('favorites')}
-                                                        className={`flex items-center gap-3 px-3 py-2.5 rounded-lg cursor-pointer transition-colors relative ${filterActiveTab === 'favorites' ? 'bg-[#FFF4F4] text-[#ee1314]' : 'hover:bg-gray-50 text-[#637381]'}`}
+                                                        className={`flex items-center gap-3 px-4 py-3.5 rounded-xl cursor-pointer transition-all duration-200 text-left w-full ${
+                                                            filterActiveTab === 'favorites'
+                                                                ? 'bg-white text-[#ee1314] font-extrabold shadow-xs border border-[#ee1314]/20'
+                                                                : 'text-[#64748B] hover:bg-white/70 hover:text-[#0F172A] font-semibold'
+                                                        }`}
                                                     >
-                                                        {filterActiveTab === 'favorites' && <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-[#ee1314] rounded-r-md"></div>}
-                                                        <Heart size={18} className={filterActiveTab === 'favorites' ? 'text-[#ee1314]' : 'text-[#637381]'} />
-                                                        <span className={`text-[14px] ${filterActiveTab === 'favorites' ? 'font-bold' : 'font-medium'}`}>Dãy số yêu thích</span>
-                                                    </div>
-                                                    <div 
+                                                        <Heart size={18} className={filterActiveTab === 'favorites' ? 'text-[#ee1314]' : 'text-[#64748B]'} />
+                                                        <span className="text-[13.5px]">Dãy số yêu thích</span>
+                                                    </button>
+                                                    <button
+                                                        type="button"
                                                         onClick={() => setFilterActiveTab('range')}
-                                                        className={`flex items-center gap-3 px-3 py-2.5 rounded-lg cursor-pointer transition-colors relative ${filterActiveTab === 'range' ? 'bg-[#FFF4F4] text-[#ee1314]' : 'hover:bg-gray-50 text-[#637381]'}`}
+                                                        className={`flex items-center gap-3 px-4 py-3.5 rounded-xl cursor-pointer transition-all duration-200 text-left w-full ${
+                                                            filterActiveTab === 'range'
+                                                                ? 'bg-white text-[#ee1314] font-extrabold shadow-xs border border-[#ee1314]/20'
+                                                                : 'text-[#64748B] hover:bg-white/70 hover:text-[#0F172A] font-semibold'
+                                                        }`}
                                                     >
-                                                        {filterActiveTab === 'range' && <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-[#ee1314] rounded-r-md"></div>}
-                                                        <SlidersHorizontal size={18} className={filterActiveTab === 'range' ? 'text-[#ee1314]' : 'text-[#637381]'} />
-                                                        <span className={`text-[14px] ${filterActiveTab === 'range' ? 'font-bold' : 'font-medium'}`}>Lọc theo khoảng số</span>
-                                                    </div>
+                                                        <SlidersHorizontal size={18} className={filterActiveTab === 'range' ? 'text-[#ee1314]' : 'text-[#64748B]'} />
+                                                        <span className="text-[13.5px]">Lọc theo khoảng số</span>
+                                                    </button>
                                                 </div>
 
                                                 {/* Right Content */}
-                                                <div className="flex-1 p-6 flex flex-col bg-white">
+                                                <div className="flex-1 p-6 flex flex-col bg-white min-w-0 max-h-[420px] overflow-y-auto">
                                                     {filterActiveTab === 'favorites' && (
-                                                        <div className="animate-in fade-in slide-in-from-right-4 duration-200">
-                                                            <div className="mb-4">
-                                                                <h4 className="font-bold text-[14px] text-[#212B36] uppercase mb-1">Dãy số yêu thích</h4>
-                                                                <p className="text-[14px] text-[#637381]">Chọn nhanh các dãy số bạn lưu để lọc vé.</p>
+                                                        <div className="animate-in fade-in slide-in-from-right-4 duration-200 space-y-6">
+                                                            <div>
+                                                                <h4 className="font-extrabold text-[15px] text-[#0F172A] tracking-tight mb-1">DÃY SỐ YÊU THÍCH</h4>
+                                                                <p className="text-[13px] text-[#64748B]">Chọn nhanh các dãy số bạn đã lưu để lọc vé phù hợp.</p>
                                                             </div>
-                                                            <div className="flex items-center gap-3 mb-6">
-                                                                <div className="flex-1 flex items-center bg-white rounded-lg border border-[#E5E8EB] px-3 py-2 h-10">
-                                                                    <Search size={16} className="text-[#919EAB] mr-2" />
-                                                                    <input type="text" placeholder="Nhập dãy số yêu thích" className="flex-1 bg-transparent border-none outline-none text-[14px] text-[#212B36] placeholder:text-[#919EAB]" />
+
+                                                            {/* Add favorite number input */}
+                                                            <div className="flex items-center gap-3">
+                                                                <div className="flex-1 flex items-center bg-white rounded-xl border border-[#E2E8F0] focus-within:border-[#ee1314] focus-within:ring-2 focus-within:ring-[#ee1314]/10 px-3.5 h-11 shadow-xs transition-all">
+                                                                    <Search size={17} className="text-[#94A3B8] mr-2 shrink-0" />
+                                                                    <input
+                                                                        type="text"
+                                                                        inputMode="numeric"
+                                                                        value={favoriteDraftInput}
+                                                                        onChange={(e) => setFavoriteDraftInput(normalizeTicketSearchDigits(e.target.value, 6))}
+                                                                        onKeyDown={(e) => {
+                                                                            if (e.key === 'Enter') {
+                                                                                e.preventDefault();
+                                                                                addFavoriteNumber(favoriteDraftInput);
+                                                                            }
+                                                                        }}
+                                                                        placeholder="Nhập dãy số yêu thích (VD: 68, 888...)"
+                                                                        className="flex-1 bg-transparent border-none outline-none text-[14px] text-[#0F172A] font-bold placeholder:font-normal placeholder:text-[#94A3B8]"
+                                                                    />
                                                                 </div>
-                                                                <button className="h-10 px-4 rounded-lg border border-[#ee1314] text-[#ee1314] text-[14px] font-medium bg-white hover:bg-[#FFF4F4] flex items-center gap-1 transition-colors whitespace-nowrap">
-                                                                    <span className="text-[18px] leading-none mb-[2px]">+</span> Thêm dãy số
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => addFavoriteNumber(favoriteDraftInput)}
+                                                                    className="h-11 px-4 rounded-xl border border-[#ee1314] text-[#ee1314] hover:bg-[#ee1314] hover:text-white text-[13.5px] font-bold bg-white flex items-center justify-center gap-1.5 transition-all shadow-xs shrink-0 cursor-pointer active:scale-95"
+                                                                >
+                                                                    <i className="fa-solid fa-plus text-[12px]"></i> Thêm dãy số
                                                                 </button>
                                                             </div>
-                                                            <div className="flex flex-wrap gap-2.5 items-center mb-6">
-                                                                {['12', '34', '56', '78', '99', '68', '86', '123', '456', '888', '999'].map((num, idx) => (
-                                                                    <div key={idx} className="h-9 px-3 rounded-lg border border-[#E5E8EB] text-[#212B36] text-[14px] font-bold bg-white flex items-center justify-between min-w-[60px] gap-2">
-                                                                        <span>{num}</span>
-                                                                        <i className="fa-solid fa-xmark text-[#919EAB] text-[14px] cursor-pointer hover:text-[#ee1314]"></i>
-                                                                    </div>
-                                                                ))}
+
+                                                            {/* Saved Favorite Numbers */}
+                                                            <div className="bg-[#F8FAFC] border border-[#E2E8F0] rounded-2xl p-4">
+                                                                <div className="text-[12.5px] font-extrabold text-[#475569] uppercase tracking-wider mb-3 flex items-center gap-2">
+                                                                    <span className="w-2 h-2 rounded-full bg-[#ee1314]"></span>
+                                                                    Dãy số đã lưu ({favoriteNumbers.length})
+                                                                </div>
+                                                                <div className="flex flex-wrap gap-2.5 items-center">
+                                                                    {favoriteNumbers.length === 0 ? (
+                                                                        <p className="text-[13px] text-[#94A3B8] italic">Chưa có dãy yêu thích. Thêm hoặc chọn từ gợi ý bên dưới.</p>
+                                                                    ) : (
+                                                                        favoriteNumbers.map((num) => {
+                                                                            const selected = draftSelectedFavorites.includes(num);
+                                                                            return (
+                                                                                <div
+                                                                                    key={num}
+                                                                                    onClick={() => toggleDraftFavorite(num)}
+                                                                                    className={`h-9 px-3.5 rounded-full border text-[13.5px] font-extrabold flex items-center justify-between gap-2.5 cursor-pointer transition-all duration-150 select-none shadow-xs ${
+                                                                                        selected
+                                                                                            ? 'border-[#ee1314] bg-[#ee1314] text-white shadow-sm shadow-[#ee1314]/25 scale-[1.02]'
+                                                                                            : 'border-[#E2E8F0] text-[#1E293B] bg-white hover:border-[#ee1314]/50'
+                                                                                    }`}
+                                                                                >
+                                                                                    <span>{num}</span>
+                                                                                    <button
+                                                                                        type="button"
+                                                                                        onClick={(e) => {
+                                                                                            e.stopPropagation();
+                                                                                            removeFavoriteNumber(num);
+                                                                                        }}
+                                                                                        className={`w-4 h-4 rounded-full flex items-center justify-center transition-colors ${
+                                                                                            selected ? 'hover:bg-white/20 text-white' : 'hover:bg-[#E2E8F0] text-[#94A3B8] hover:text-[#ee1314]'
+                                                                                        }`}
+                                                                                    >
+                                                                                        <i className="fa-solid fa-xmark text-[11px]"></i>
+                                                                                    </button>
+                                                                                </div>
+                                                                            );
+                                                                        })
+                                                                    )}
+                                                                </div>
                                                             </div>
-                                                            <div className="border-t border-[#E5E8EB] mb-4"></div>
+
+                                                            {/* Number Suggestions */}
                                                             <div>
-                                                                <div className="text-[14px] font-bold text-[#212B36] mb-3">Gợi ý dãy số</div>
+                                                                <div className="text-[12.5px] font-extrabold text-[#475569] uppercase tracking-wider mb-3 flex items-center gap-2">
+                                                                    <span className="w-2 h-2 rounded-full bg-[#ee1314]"></span>
+                                                                    Gợi ý dãy số hot
+                                                                </div>
                                                                 <div className="flex flex-wrap gap-2">
-                                                                    {['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '111', '222', '333', '444', '555', '666', '777', '000'].map((num, idx) => (
-                                                                        <div key={`s-${idx}`} className="h-8 px-3 rounded-lg border border-[#E5E8EB] text-[#637381] text-[14px] bg-[#fafafa] flex items-center justify-center cursor-pointer hover:bg-[#E5E8EB]">
+                                                                    {['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '111', '222', '333', '444', '555', '666', '777', '000'].map((num) => (
+                                                                        <button
+                                                                            type="button"
+                                                                            key={`s-${num}`}
+                                                                            onClick={() => addFavoriteNumber(num)}
+                                                                            className="h-9 px-3.5 rounded-xl border border-[#E2E8F0] text-[#334155] hover:text-[#ee1314] hover:border-[#ee1314]/40 hover:bg-[#FFF4F4] text-[13.5px] font-bold bg-[#F8FAFC] flex items-center justify-center cursor-pointer transition-all shadow-xs active:scale-95"
+                                                                        >
                                                                             {num}
-                                                                        </div>
+                                                                        </button>
                                                                     ))}
                                                                 </div>
                                                             </div>
@@ -751,127 +1134,224 @@ export const BuyTicketPage = () => {
                                                     )}
 
                                                     {filterActiveTab === 'range' && (
-                                                        <div className="animate-in fade-in slide-in-from-right-4 duration-200">
-                                                            <div className="mb-5">
-                                                                <h4 className="font-bold text-[14px] text-[#212B36] uppercase mb-1">Lọc theo khoảng số</h4>
-                                                                <p className="text-[14px] text-[#637381]">Chọn khoảng số để lọc nhanh các vé phù hợp.</p>
+                                                        <div className="animate-in fade-in slide-in-from-right-4 duration-200 space-y-6">
+                                                            <div>
+                                                                <h4 className="font-extrabold text-[15px] text-[#0F172A] tracking-tight mb-1">LỌC THEO KHOẢNG SỐ</h4>
+                                                                <p className="text-[13px] text-[#64748B]">Chọn nhanh các khoảng số đuôi để lọc vé phù hợp.</p>
                                                             </div>
-                                                            <div className="grid grid-cols-5 gap-3 mb-6">
-                                                                {['00 - 09', '10 - 19', '20 - 29', '30 - 39', '40 - 49', '50 - 59', '60 - 69', '70 - 79', '80 - 89', '90 - 99'].map((range, idx) => {
-                                                                    const isChecked = rangeCheckedBoxes.includes(range);
+
+                                                            {/* Preset Tail Ranges - Modern Chip Selector */}
+                                                            <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
+                                                                {PRESET_TAIL_RANGES.map((apiRange) => {
+                                                                    const label = toUiTailRangeLabel(apiRange);
+                                                                    const isChecked = draftRanges.includes(label);
                                                                     return (
-                                                                        <div 
-                                                                            key={idx} 
-                                                                            onClick={() => {
-                                                                                if (isChecked) setRangeCheckedBoxes(prev => prev.filter(r => r !== range));
-                                                                                else setRangeCheckedBoxes(prev => [...prev, range]);
-                                                                            }}
-                                                                            className={`h-9 rounded-lg border flex items-center px-2 cursor-pointer transition-colors ${isChecked ? 'border-[#ee1314] bg-[#FFF4F4]' : 'border-[#E5E8EB] bg-white hover:border-[#ee1314]'}`}
+                                                                        <button
+                                                                            type="button"
+                                                                            key={apiRange}
+                                                                            onClick={() => toggleDraftRange(label)}
+                                                                            className={`relative h-11 px-2 rounded-xl font-bold text-[13px] flex items-center justify-center cursor-pointer transition-all duration-200 select-none whitespace-nowrap ${
+                                                                                isChecked
+                                                                                    ? 'bg-[#ee1314] text-white shadow-md shadow-[#ee1314]/25 border border-[#ee1314] scale-[1.02]'
+                                                                                    : 'bg-white text-[#334155] border border-[#E2E8F0] hover:border-[#ee1314]/50 hover:bg-[#FFF4F4]/50 hover:text-[#ee1314]'
+                                                                            }`}
                                                                         >
-                                                                            <div className={`w-4 h-4 rounded-[4px] border mr-2 flex items-center justify-center transition-colors ${isChecked ? 'bg-[#ee1314] border-[#ee1314] text-white' : 'border-[#C4CDD5] bg-white'}`}>
-                                                                                {isChecked && <i className="fa-solid fa-check text-[12px]"></i>}
-                                                                            </div>
-                                                                            <span className="text-[14px] text-[#212B36] font-medium">{range}</span>
-                                                                        </div>
+                                                                            {isChecked && (
+                                                                                <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-white text-[#ee1314] border border-[#ee1314]/20 flex items-center justify-center shadow-xs">
+                                                                                    <i className="fa-solid fa-check text-[9px] font-black"></i>
+                                                                                </span>
+                                                                            )}
+                                                                            <span className="whitespace-nowrap tracking-tight">{label}</span>
+                                                                        </button>
                                                                     );
                                                                 })}
                                                             </div>
 
-                                                            <div className="border-t border-[#E5E8EB] mb-5"></div>
-
-                                                            <div className="mb-5">
-                                                                <div className="text-[14px] font-bold text-[#212B36] uppercase mb-3">Tùy chọn thêm</div>
-                                                                <div className="flex gap-4">
-                                                                    {['Số kép', 'Số tiến', 'Số lặp', 'Đầu số', 'Đuôi số'].map((opt, idx) => (
-                                                                        <label key={idx} className="flex items-center gap-2 cursor-pointer group">
-                                                                            <div className="w-4 h-4 rounded-[4px] border border-[#C4CDD5] bg-white group-hover:border-[#ee1314] transition-colors flex items-center justify-center"></div>
-                                                                            <span className="text-[14px] text-[#212B36]">{opt}</span>
-                                                                        </label>
-                                                                    ))}
+                                                            {/* Special Number Types */}
+                                                            <div className="bg-[#F8FAFC] border border-[#E2E8F0] rounded-2xl p-4">
+                                                                <div className="text-[12.5px] font-extrabold text-[#475569] uppercase tracking-wider mb-3 flex items-center gap-2">
+                                                                    <span className="w-2 h-2 rounded-full bg-[#ee1314]"></span>
+                                                                    Tùy chọn đặc biệt
+                                                                </div>
+                                                                <div className="flex flex-wrap gap-2.5">
+                                                                    {([
+                                                                        { label: 'Số kép (00, 11...)', value: 'DOUBLE' as NumberTypeValue, icon: 'fa-clone' },
+                                                                        { label: 'Số tiến (12, 34...)', value: 'SEQUENTIAL' as NumberTypeValue, icon: 'fa-arrow-trend-up' },
+                                                                        { label: 'Số lặp (1212...)', value: 'REPEATING' as NumberTypeValue, icon: 'fa-rotate' },
+                                                                    ]).map((opt) => {
+                                                                        const checked = draftNumberTypes.includes(opt.value);
+                                                                        return (
+                                                                            <button
+                                                                                type="button"
+                                                                                key={opt.value}
+                                                                                onClick={() => toggleDraftNumberType(opt.value)}
+                                                                                className={`px-4 py-2.5 rounded-xl text-[13px] font-semibold flex items-center gap-2 transition-all duration-200 cursor-pointer ${
+                                                                                    checked
+                                                                                        ? 'bg-[#ee1314] text-white shadow-sm border border-[#ee1314]'
+                                                                                        : 'bg-white text-[#334155] border border-[#E2E8F0] hover:border-[#ee1314]/40 hover:text-[#ee1314]'
+                                                                                }`}
+                                                                            >
+                                                                                <i className={`fa-solid ${opt.icon} text-[12px] ${checked ? 'text-white' : 'text-[#ee1314]'}`}></i>
+                                                                                <span>{opt.label}</span>
+                                                                            </button>
+                                                                        );
+                                                                    })}
                                                                 </div>
                                                             </div>
 
-                                                            <div className="mb-5">
-                                                                <div className="text-[14px] font-bold text-[#212B36] uppercase mb-3">Thêm khoảng số tùy chỉnh</div>
-                                                                <div className="flex items-center gap-3">
-                                                                    <div className="flex items-center bg-white border border-[#E5E8EB] rounded-lg h-10 px-3 w-[120px]">
-                                                                        <span className="text-[#637381] text-[14px] mr-2">Từ số</span>
-                                                                        <input type="text" defaultValue="00" className="flex-1 w-full bg-transparent border-none outline-none text-[14px] text-[#212B36] font-medium" />
-                                                                        <div className="flex flex-col ml-1">
-                                                                            <ChevronUp size={12} className="text-[#637381] cursor-pointer" />
-                                                                            <ChevronDown size={12} className="text-[#637381] cursor-pointer" />
-                                                                        </div>
+                                                            {/* Custom Range Input */}
+                                                            <div className="bg-[#F8FAFC] border border-[#E2E8F0] rounded-2xl p-4">
+                                                                <div className="text-[12.5px] font-extrabold text-[#475569] uppercase tracking-wider mb-3 flex items-center gap-2">
+                                                                    <span className="w-2 h-2 rounded-full bg-[#ee1314]"></span>
+                                                                    Thêm khoảng số tùy chỉnh
+                                                                </div>
+                                                                <div className="flex flex-wrap items-center gap-3">
+                                                                    <div className="flex items-center bg-white border border-[#E2E8F0] focus-within:border-[#ee1314] focus-within:ring-2 focus-within:ring-[#ee1314]/10 rounded-xl h-10 px-3.5 shadow-xs transition-all flex-1 min-w-[130px]">
+                                                                        <span className="text-[#64748B] text-[13px] font-medium mr-2 shrink-0">Từ số</span>
+                                                                        <input
+                                                                            type="text"
+                                                                            inputMode="numeric"
+                                                                            value={customRangeFrom}
+                                                                            onChange={(e) => setCustomRangeFrom(normalizeTicketSearchDigits(e.target.value, 2))}
+                                                                            placeholder="00"
+                                                                            className="w-full bg-transparent border-none outline-none text-[14px] text-[#0F172A] font-bold text-center"
+                                                                        />
                                                                     </div>
-                                                                    <span className="text-[#637381]">-</span>
-                                                                    <div className="flex items-center bg-white border border-[#E5E8EB] rounded-lg h-10 px-3 w-[120px]">
-                                                                        <span className="text-[#637381] text-[14px] mr-2">Đến số</span>
-                                                                        <input type="text" defaultValue="99" className="flex-1 w-full bg-transparent border-none outline-none text-[14px] text-[#212B36] font-medium" />
-                                                                        <div className="flex flex-col ml-1">
-                                                                            <ChevronUp size={12} className="text-[#637381] cursor-pointer" />
-                                                                            <ChevronDown size={12} className="text-[#637381] cursor-pointer" />
-                                                                        </div>
+                                                                    <span className="text-[#94A3B8] font-bold">-</span>
+                                                                    <div className="flex items-center bg-white border border-[#E2E8F0] focus-within:border-[#ee1314] focus-within:ring-2 focus-within:ring-[#ee1314]/10 rounded-xl h-10 px-3.5 shadow-xs transition-all flex-1 min-w-[130px]">
+                                                                        <span className="text-[#64748B] text-[13px] font-medium mr-2 shrink-0">Đến số</span>
+                                                                        <input
+                                                                            type="text"
+                                                                            inputMode="numeric"
+                                                                            value={customRangeTo}
+                                                                            onChange={(e) => setCustomRangeTo(normalizeTicketSearchDigits(e.target.value, 2))}
+                                                                            placeholder="99"
+                                                                            className="w-full bg-transparent border-none outline-none text-[14px] text-[#0F172A] font-bold text-center"
+                                                                        />
                                                                     </div>
-                                                                    <button className="h-10 px-4 rounded-lg border border-[#ee1314] text-[#ee1314] text-[14px] font-medium bg-white hover:bg-[#FFF4F4] flex items-center gap-1 transition-colors">
-                                                                        <span className="text-[18px] leading-none mb-[2px]">+</span> Thêm khoảng
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={addCustomRange}
+                                                                        className="h-10 px-4 rounded-xl bg-white border border-[#ee1314] text-[#ee1314] hover:bg-[#ee1314] hover:text-white text-[13.5px] font-bold flex items-center justify-center gap-1.5 transition-all shadow-xs shrink-0 cursor-pointer active:scale-95"
+                                                                    >
+                                                                        <i className="fa-solid fa-plus text-[12px]"></i>
+                                                                        Thêm khoảng
                                                                     </button>
                                                                 </div>
                                                             </div>
 
+                                                            {/* Selected Ranges Chips */}
                                                             <div>
-                                                                <div className="text-[14px] font-bold text-[#212B36] uppercase mb-3">Khoảng đã chọn ({rangeCheckedBoxes.length})</div>
+                                                                <div className="text-[12.5px] font-extrabold text-[#475569] uppercase tracking-wider mb-2.5 flex items-center justify-between">
+                                                                    <span>Khoảng đã chọn</span>
+                                                                    <span className="px-2.5 py-0.5 rounded-full bg-[#FFF4F4] text-[#ee1314] text-[12px] font-bold">{draftRanges.length}</span>
+                                                                </div>
                                                                 <div className="flex flex-wrap gap-2">
-                                                                    {rangeCheckedBoxes.map((range, idx) => (
-                                                                        <div key={idx} className="h-9 px-3 rounded-lg border border-[#FFEBEE] bg-[#FFF4F4] text-[#ee1314] text-[14px] flex items-center gap-2">
-                                                                            <span>{range}</span>
-                                                                            <i 
-                                                                                className="fa-solid fa-xmark text-[#ee1314] opacity-50 text-[14px] cursor-pointer hover:opacity-100"
-                                                                                onClick={() => setRangeCheckedBoxes(prev => prev.filter(r => r !== range))}
-                                                                            ></i>
-                                                                        </div>
-                                                                    ))}
+                                                                    {draftRanges.length === 0 ? (
+                                                                        <p className="text-[13px] text-[#94A3B8] italic">Chưa chọn khoảng nào</p>
+                                                                    ) : (
+                                                                        draftRanges.map((range) => (
+                                                                            <div key={range} className="h-8 px-3 rounded-full border border-[#FECDD3] bg-[#FFF4F4] text-[#ee1314] text-[13px] font-bold flex items-center gap-2 shadow-xs">
+                                                                                <span>{range}</span>
+                                                                                <button
+                                                                                    type="button"
+                                                                                    onClick={() => toggleDraftRange(range)}
+                                                                                    className="w-4 h-4 rounded-full flex items-center justify-center hover:bg-[#ee1314] hover:text-white transition-colors"
+                                                                                >
+                                                                                    <i className="fa-solid fa-xmark text-[11px]"></i>
+                                                                                </button>
+                                                                            </div>
+                                                                        ))
+                                                                    )}
                                                                 </div>
                                                             </div>
                                                         </div>
                                                     )}
 
                                                     {filterActiveTab === 'all' && (
-                                                        <div className="animate-in fade-in slide-in-from-right-4 duration-200">
-                                                            <div className="mb-4">
-                                                                <h4 className="font-bold text-[14px] text-[#212B36] uppercase mb-1">Tất cả dãy số</h4>
-                                                                <p className="text-[14px] text-[#637381]">Hiển thị toàn bộ các dãy số có sẵn của đài.</p>
+                                                        <div className="animate-in fade-in slide-in-from-right-4 duration-200 space-y-4">
+                                                            <div className="flex items-center justify-between">
+                                                                <div>
+                                                                    <h4 className="font-extrabold text-[15px] text-[#0F172A] tracking-tight mb-1">TẤT CẢ DÃY SỐ</h4>
+                                                                    <p className="text-[13px] text-[#64748B]">
+                                                                        {hasActiveTicketFilters(appliedFilters) || appliedSearch
+                                                                            ? 'Đang lọc. Bấm “Xóa bộ lọc” để hiện lại toàn bộ vé đang bán.'
+                                                                            : 'Hiển thị toàn bộ các dãy số có sẵn của đài đang chọn.'}
+                                                                    </p>
+                                                                </div>
+                                                                <span className="px-3 py-1 rounded-full bg-[#FFF4F4] text-[#ee1314] border border-[#FECDD3] text-[12px] font-extrabold shrink-0">
+                                                                    {availableTickets.length} dãy số
+                                                                </span>
                                                             </div>
-                                                            <div className="text-center py-10 text-[#919EAB] border border-dashed border-[#E5E8EB] rounded-xl bg-[#fafafa]">
-                                                                Toàn bộ dãy số sẽ hiển thị ở đây
-                                                            </div>
+
+                                                            {availableTickets.length === 0 ? (
+                                                                <div className="text-center py-12 text-[#94A3B8] border border-dashed border-[#CBD5E1] rounded-2xl bg-[#F8FAFC]">
+                                                                    <i className="fa-solid fa-ticket-simple text-[24px] text-[#CBD5E1] mb-2 block"></i>
+                                                                    <p className="font-semibold text-[13.5px]">Chưa có vé số cho bộ lọc / đài hiện tại</p>
+                                                                </div>
+                                                            ) : (
+                                                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 max-h-[300px] overflow-y-auto pr-1">
+                                                                    {availableTickets.map((ticket: any) => {
+                                                                        const isSelected = appliedSearch && String(ticket.numbers) === appliedSearch;
+                                                                        return (
+                                                                            <button
+                                                                                type="button"
+                                                                                key={ticket.id ?? ticket._id ?? ticket.numbers}
+                                                                                onClick={() => {
+                                                                                    setTicketSearchInput(String(ticket.numbers || ''));
+                                                                                    setAppliedSearch(normalizeTicketSearchDigits(String(ticket.numbers || ''), 6));
+                                                                                    setIsFilterOpen(false);
+                                                                                }}
+                                                                                className={`h-11 px-3 rounded-xl border text-[14px] font-black tracking-wider flex items-center justify-center transition-all duration-200 shadow-xs cursor-pointer active:scale-95 ${
+                                                                                    isSelected
+                                                                                        ? 'bg-[#ee1314] text-white border-[#ee1314] shadow-md shadow-[#ee1314]/25 scale-[1.02]'
+                                                                                        : 'bg-[#F8FAFC] text-[#0F172A] border-[#E2E8F0] hover:bg-[#ee1314] hover:text-white hover:border-[#ee1314] hover:shadow-md hover:shadow-[#ee1314]/20'
+                                                                                }`}
+                                                                            >
+                                                                                {ticket.numbers}
+                                                                            </button>
+                                                                        );
+                                                                    })}
+                                                                </div>
+                                                            )}
                                                         </div>
                                                     )}
                                                 </div>
                                             </div>
 
-                                            {/* Bottom Actions */}
-                                            <div className="p-4 border-t border-[#E5E8EB] flex justify-end gap-3 bg-white">
-                                                <button onClick={() => setIsFilterOpen(false)} className="px-6 py-2.5 rounded-lg border border-[#E5E8EB] text-[#212B36] text-[14px] font-medium hover:bg-gray-50 transition-colors flex items-center gap-2">
-                                                    <Trash2 size={16} className="text-[#637381]" /> Xóa bộ lọc
+                                            <div className="px-6 py-4 border-t border-[#E2E8F0] flex items-center justify-between bg-[#F8FAFC]">
+                                                <button
+                                                    type="button"
+                                                    onClick={clearTicketFilters}
+                                                    className="px-4 py-2.5 rounded-xl border border-[#CBD5E1] bg-white text-[#475569] hover:text-[#ee1314] hover:border-[#ee1314]/30 hover:bg-[#FFF4F4] text-[13.5px] font-bold transition-all flex items-center gap-2 shadow-xs cursor-pointer active:scale-95"
+                                                >
+                                                    <Trash2 size={16} /> Xóa bộ lọc
                                                 </button>
-                                                <button onClick={() => setIsFilterOpen(false)} className="px-6 py-2.5 rounded-lg bg-[#ee1314] text-white text-[14px] font-bold shadow-sm hover:bg-[#d11112] transition-colors flex items-center gap-2">
-                                                    <Filter size={16} className="text-white" /> Áp dụng
+                                                <button
+                                                    type="button"
+                                                    onClick={applyTicketFilters}
+                                                    className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-[#ee1314] to-[#d11112] hover:from-[#d11112] hover:to-[#b80e0f] text-white text-[14px] font-bold shadow-md shadow-[#ee1314]/25 transition-all flex items-center gap-2 cursor-pointer active:scale-95"
+                                                >
+                                                    <Filter size={16} /> Áp dụng
                                                 </button>
                                             </div>
-                                        </div>
-                                    )}
-                                </div>
+                                    </div>
+                                )}
                             </div>
 
                             {/* Ticket List Section */}
-                            <div className="p-4 lg:p-5 flex-1 flex flex-col">
+                            <div className="p-4 lg:p-5 flex-1 flex flex-col min-h-0 overflow-hidden rounded-b-[20px] relative z-0">
                                 {/* Title */}
-                                <h2 className="font-bold text-[14px] text-[#212B36] uppercase mb-5">
+                                <h2 className="font-bold text-[14px] text-[#212B36] uppercase mb-5 shrink-0">
                                     DANH SÁCH VÉ SỐ - {activeProvinces.length > 1 ? 'CÁC ĐÀI MIỀN NAM' : (activeProvinces.length === 1 ? activeProvinces[0].name?.toUpperCase() : 'CHƯA CHỌN ĐÀI')} - {activeProvinces.length > 0 ? (activeProvinces.length === 1 ? activeProvinces[0].time : '16:15') : '--:--'} - {selectedDates.length > 1 ? 'NHIỀU NGÀY' : (selectedDates[0] === 'today' ? 'HÔM NAY' : (selectedDates[0] === 'tomorrow' ? 'NGÀY MAI' : (selectedDates[0] ? dayjs(resolveDrawDateToken(selectedDates[0])).format('DD/MM/YYYY') : 'CHƯA CHỌN NGÀY')))}
                                 </h2>
 
-                                {/* Tickets Grid (4 columns) */}
-                                <div ref={ticketListRef} className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 lg:gap-5 flex-1 content-start">
-                                    {selectedProvinces.length === 0 ? (
+                                {/* Tickets Grid (4 columns) — scrollable */}
+                                <div
+                                    ref={ticketListRef}
+                                    className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 lg:gap-5 content-start flex-1 min-h-0 max-h-[560px] overflow-y-auto overscroll-contain pt-1 pb-2 pr-1 [scrollbar-gutter:stable] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-[#C4CDD5] hover:[&::-webkit-scrollbar-thumb]:bg-[#919EAB]"
+                                >
+                                    {activeProvinces.length === 0 ? (
                                         <div className="col-span-full py-10 flex justify-center text-[#637381] font-medium">
                                             Vui lòng chọn đài mở thưởng để xem vé
                                         </div>
@@ -893,16 +1373,28 @@ export const BuyTicketPage = () => {
                                                     key={ticketKey}
                                                     data-ticket-id={ticket.id ?? ticket._id}
                                                     onClick={() => toggleNumber(num)}
-                                                    className={`relative border rounded-[20px] p-3 flex flex-col items-center cursor-pointer transition-all duration-200 hover:-translate-y-1 hover:shadow-md
+                                                    className={`relative border rounded-[20px] p-3 flex flex-col items-center cursor-pointer transition-shadow duration-200 hover:shadow-md
                                                         ${isSelected || isDeepLinked ? 'border-[#ee1314] bg-[#FFF4F4]/30' : 'border-[#E5E8EB] bg-white'}
                                                         ${isDeepLinked ? 'ring-2 ring-[#ee1314]/40' : ''}
                                                     `}
                                                 >
-
-
                                                     {/* Image */}
-                                                    <div className="w-full h-[75px] mb-3 flex justify-center items-center">
-                                                        <img src={ticketImage} alt="Vé số" className="w-[100%] max-h-full object-contain mix-blend-multiply" />
+                                                    <div className="w-full h-[75px] mb-3 flex justify-center items-center bg-[#FAFAFA] rounded-lg overflow-hidden">
+                                                        {ticketImage ? (
+                                                            <img
+                                                                src={ticketImage}
+                                                                alt={`Vé số ${num}`}
+                                                                className="w-full max-h-full object-contain"
+                                                                onError={(e) => {
+                                                                    e.currentTarget.style.display = 'none';
+                                                                    const fallback = e.currentTarget.nextElementSibling as HTMLElement | null;
+                                                                    if (fallback) fallback.classList.remove('hidden');
+                                                                }}
+                                                            />
+                                                        ) : null}
+                                                        <div className={`text-[#919EAB] text-[12px] font-medium ${ticketImage ? 'hidden' : ''}`}>
+                                                            Vé số
+                                                        </div>
                                                     </div>
 
                                                     {/* Number */}
@@ -916,19 +1408,23 @@ export const BuyTicketPage = () => {
                                     ) : (
                                         <div className="col-span-full py-10 flex flex-col items-center justify-center text-[#637381] gap-2">
                                             <i className="fa-solid fa-box-open text-3xl opacity-50"></i>
-                                            <span>Không có vé số nào cho đài này.</span>
+                                            <span>
+                                                {appliedSearch || hasActiveTicketFilters(appliedFilters)
+                                                    ? `Không tìm thấy vé khớp${appliedSearch ? ` “${appliedSearch}”` : ''} với bộ lọc hiện tại.`
+                                                    : 'Không có vé số nào cho đài này.'}
+                                            </span>
+                                            {(appliedSearch || hasActiveTicketFilters(appliedFilters)) && (
+                                                <button
+                                                    type="button"
+                                                    onClick={clearTicketFilters}
+                                                    className="mt-2 text-[#ee1314] font-medium text-[14px] hover:underline"
+                                                >
+                                                    Xóa bộ lọc
+                                                </button>
+                                            )}
                                         </div>
                                     )}
                                 </div>
-
-                                {/* Xem thêm */}
-                                {availableTickets.length > 0 && (
-                                    <div className="flex justify-center mt-8 mb-2">
-                                        <button className="flex items-center gap-2 border border-[#E5E8EB] rounded-full px-6 py-2.5 bg-white text-[#212B36] font-medium hover:bg-gray-50 transition-colors shadow-sm">
-                                            Xem thêm vé số <ChevronDown size={16} className="text-[#637381]" />
-                                        </button>
-                                    </div>
-                                )}
                             </div>
                         </div>
 

@@ -8,10 +8,13 @@ import com.daiphat.coreapi.application.dto.storage.StorageResult;
 import com.daiphat.coreapi.application.dto.storage.UploadRequest;
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.BulkCreateLotteryTicketsResponse;
+import com.daiphat.coreapi.application.dto.response.lotteries.ImportBatchLineEntryTicketsResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.ImportBatchReductionTicketResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.LotteryTicketResponse;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketStatus;
+import com.daiphat.coreapi.domain.model.enums.lottery.TicketSearchMode;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 
@@ -24,11 +27,22 @@ public interface LotteryTicketServicePort {
     LotteryTicketResponse getById(Long id);
 
     PageResponse<LotteryTicketResponse> getAll(
-            int page, int size, Long stationId, List<Long> stationIds, String status,
-            String drawDate, String search, String sortBy, String direction);
+            int page, int size, Long stationId, List<Long> stationIds, String status, String drawDate,
+            LocalDate drawDateFrom, LocalDate drawDateTo, Long importBatchLineId,
+            String search, String sortBy, String direction);
 
     PageResponse<LotteryTicketResponse> getPublicTickets(
             int page, int size, Long stationId, List<Long> stationIds, String drawDate, String search, String sortBy, String direction);
+
+    PageResponse<LotteryTicketResponse> getPublicTickets(
+            int page, int size, Long stationId, List<Long> stationIds, String drawDate,
+            String search, TicketSearchMode searchMode, String sortBy, String direction);
+
+    PageResponse<LotteryTicketResponse> getPublicTickets(
+            int page, int size, Long stationId, List<Long> stationIds, String drawDate,
+            String search, TicketSearchMode searchMode,
+            List<String> searches, List<String> tailRanges, List<String> numberTypes,
+            String sortBy, String direction);
 
     LotteryTicketResponse update(Long id, UpdateLotteryTicketRequest request, UUID editorId);
 
@@ -39,6 +53,8 @@ public interface LotteryTicketServicePort {
     void hardDeleteImportBatchTicketsForReduction(Long importBatchId, List<Long> ticketIds, int requiredSerialCount);
 
     List<ImportBatchReductionTicketResponse> listReductionTicketsByImportBatchLine(Long importBatchLineId);
+
+    ImportBatchLineEntryTicketsResponse listEntryTicketsByImportBatchLine(Long importBatchLineId);
 
     void activateTicketsForImportBatchLine(Long importBatchLineId);
 

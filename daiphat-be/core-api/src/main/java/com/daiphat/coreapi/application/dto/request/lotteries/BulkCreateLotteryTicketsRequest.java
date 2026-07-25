@@ -20,6 +20,8 @@ public record BulkCreateLotteryTicketsRequest(
 
         @Valid
         @NotEmpty(message = "Phải có ít nhất một dãy số")
-        List<CreateLotteryTicketNumberSectionRequest> tickets
+        List<CreateLotteryTicketNumberSectionRequest> tickets,
+
+        Boolean isAutoSave
 ) {
 }

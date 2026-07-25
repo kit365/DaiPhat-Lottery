@@ -71,6 +71,14 @@ public class TransactionController {
         return ApiResponse.success("Hủy link thanh toán thành công.", orderApplicationMapper.toResponse(order));
     }
 
+    @PostMapping(ORDER_ID_PATH + PAYMENT_PATH + "/sync")
+    @PreAuthorize("hasAnyAuthority('" + RoleConstants.ROLE_MEMBER + "', 'order:view', 'order:edit')")
+    public ApiResponse<OrderResponse> syncOnlinePaymentFromGateway(@PathVariable UUID orderId) {
+        log.info("REST request to sync online payment status for order: {}", orderId);
+        OrderModel order = transactionServicePort.syncOnlinePaymentFromGateway(orderId);
+        return ApiResponse.success("Đồng bộ trạng thái thanh toán thành công.", orderApplicationMapper.toResponse(order));
+    }
+
     @PatchMapping(ORDER_ID_PATH + PAYMENT_PATH + "/success")
     @PreAuthorize("hasAnyAuthority('" + RoleConstants.ROLE_MEMBER + "', 'order:edit')")
     public ApiResponse<OrderResponse> handleOnlinePaymentSuccess(

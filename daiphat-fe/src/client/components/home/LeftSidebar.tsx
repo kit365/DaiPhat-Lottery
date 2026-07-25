@@ -28,20 +28,36 @@ export const LeftSidebar: React.FC<LeftSidebarProps> = ({
     return availableProvinces.filter(p => p.toLowerCase().includes(searchQuery.toLowerCase()));
   }, [availableProvinces, searchQuery]);
 
+  const isAllSelected =
+    filteredProvinces.length > 0 &&
+    activeProvinces.length === filteredProvinces.length &&
+    filteredProvinces.every((province) => activeProvinces.includes(province));
+
   const handleSelectAll = () => {
-    if (activeProvinces.length === filteredProvinces.length) {
-      setActiveProvinces([]);
-    } else {
-      setActiveProvinces(filteredProvinces);
-    }
+    // Always restore full board — empty selection is not allowed
+    setActiveProvinces(filteredProvinces);
   };
 
   const handleToggleProvince = (province: string) => {
-    if (activeProvinces.includes(province)) {
-      setActiveProvinces(activeProvinces.filter(p => p !== province));
-    } else {
-      setActiveProvinces([...activeProvinces, province]);
+    // Default is "all stations". First click on a station starts filtering to that station.
+    if (isAllSelected || activeProvinces.length === 0) {
+      setActiveProvinces([province]);
+      return;
     }
+
+    // Clicking the only selected station again returns to full board
+    if (activeProvinces.length === 1 && activeProvinces[0] === province) {
+      setActiveProvinces(filteredProvinces);
+      return;
+    }
+
+    if (activeProvinces.includes(province)) {
+      const next = activeProvinces.filter((item) => item !== province);
+      setActiveProvinces(next.length === 0 ? filteredProvinces : next);
+      return;
+    }
+
+    setActiveProvinces([...activeProvinces, province]);
   };
 
   return (
@@ -106,12 +122,12 @@ export const LeftSidebar: React.FC<LeftSidebarProps> = ({
                 <div className="relative flex items-center justify-center">
                   <input
                     type="checkbox"
-                    checked={activeProvinces.length === filteredProvinces.length && activeProvinces.length > 0}
+                    checked={isAllSelected}
                     onChange={handleSelectAll}
                     className="absolute opacity-0 w-0 h-0"
                   />
-                  <div className={`w-[16px] h-[16px] rounded flex items-center justify-center border transition-all ${activeProvinces.length === filteredProvinces.length && activeProvinces.length > 0 ? 'bg-[#ee1314] border-[#ee1314]' : 'bg-white border-gray-300'}`}>
-                    {activeProvinces.length === filteredProvinces.length && activeProvinces.length > 0 && (
+                  <div className={`w-[16px] h-[16px] rounded flex items-center justify-center border transition-all ${isAllSelected ? 'bg-[#ee1314] border-[#ee1314]' : 'bg-white border-gray-300'}`}>
+                    {isAllSelected && (
                       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5 text-white -translate-y-[0.5px]">
                         <path fillRule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clipRule="evenodd" />
                       </svg>

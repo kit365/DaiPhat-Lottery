@@ -26,6 +26,7 @@ import { ComplaintDetailTab } from './client/features/profile/pages/tabs/Complai
 import { BlogListPage, BlogDetailPage } from './client/features/blog';
 import { CartPage, CheckoutPage, CheckoutResultPage } from './client/features/cart';
 import { BuyTicketPage } from './client/features/buy-ticket/BuyTicketPage';
+import { TicketSearchPage } from './client/pages/ticket-search/TicketSearchPage';
 import { LoginPage } from './client/features/auth/pages/LoginPage';
 import { RegisterPage } from './client/features/auth/pages/RegisterPage';
 import { ForgotPasswordPage as ClientForgotPasswordPage } from './client/features/auth/pages/ForgotPasswordPage';
@@ -119,6 +120,7 @@ function App() {
           ))}
 
           <Route path="/buy-ticket" element={<BuyTicketPage />} />
+          <Route path="/ticket-search" element={<TicketSearchPage />} />
           <Route path="/cart" element={<CartPage />} />
           <Route path="/checkout" element={<CheckoutPage />} />
           <Route path="/checkout/result" element={<CheckoutResultPage />} />

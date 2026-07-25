@@ -8,6 +8,9 @@ import com.daiphat.coreapi.application.dto.request.lotteries.CreateLotteryTicket
 import com.daiphat.coreapi.application.dto.request.lotteries.UpdateLotteryTicketRequest;
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.BulkCreateLotteryTicketsResponse;
+import com.daiphat.coreapi.application.dto.response.lotteries.ImportBatchLineEntrySerialResponse;
+import com.daiphat.coreapi.application.dto.response.lotteries.ImportBatchLineEntryTicketResponse;
+import com.daiphat.coreapi.application.dto.response.lotteries.ImportBatchLineEntryTicketsResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.ImportBatchReductionTicketResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.LotteryTicketResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.LotteryTicketSerialResponse;
@@ -26,6 +29,7 @@ import com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchLineStatus;
 import com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchStatus;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketStatus;
+import com.daiphat.coreapi.domain.model.enums.lottery.TicketSearchMode;
 import com.daiphat.coreapi.domain.model.lotteries.ImportBatchLineModel;
 import com.daiphat.coreapi.domain.model.lotteries.ImportBatchModel;
 import com.daiphat.coreapi.domain.model.lotteries.LotteryStationModel;
@@ -113,7 +117,7 @@ public class LotteryTicketService implements LotteryTicketServicePort {
                 .orElseGet(() -> {
                     requestedTicket.setNumbers(ticketNumber.value());
                     requestedTicket.setPriceSnapshot(station.getPrice());
-                    requestedTicket.setQuantity(0);
+
                     requestedTicket.setStatus(LotteryTicketStatus.IN_STOCK);
                     return lotteryTicketRepositoryPort.save(requestedTicket);
                 });
@@ -132,7 +136,7 @@ public class LotteryTicketService implements LotteryTicketServicePort {
         );
 
         LotteryTicketModel saved = recomputeTicketAggregate(resolvedTicket.getId());
-        saved = applyImportBatchProgress(saved, importBatchLine, importBatch);
+        saved = applyImportBatchProgress(saved, importBatchLine, importBatch, request.isAutoSave());
 
         log.info("Lottery ticket imported with id: {}", saved.getId());
         return mapToDetailResponse(saved);
@@ -172,6 +176,7 @@ public class LotteryTicketService implements LotteryTicketServicePort {
                             .drawDate(resolvedDrawDate)
                             .numbers(section.numbers())
                             .serials(section.serials())
+                            .isAutoSave(request.isAutoSave())
                             .build(),
                     importedById
             ));
@@ -194,6 +199,7 @@ public class LotteryTicketService implements LotteryTicketServicePort {
     @Transactional(readOnly = true)
     public PageResponse<LotteryTicketResponse> getAll(
             int page, int size, Long stationId, List<Long> stationIds, String status, String drawDate,
+            LocalDate drawDateFrom, LocalDate drawDateTo, Long importBatchLineId,
             String search, String sortBy, String direction) {
 
         PageRequest pageable = PageRequest.of(
@@ -207,14 +213,21 @@ public class LotteryTicketService implements LotteryTicketServicePort {
         List<Long> normalizedStationIds = normalizeStationIds(stationId, stationIds);
 
         Page<LotteryTicketModel> ticketPage = lotteryTicketRepositoryPort
-                .findAll(pageable, stationId, normalizedStationIds, statusEnum, parsedDrawDates, search);
+                .findAll(pageable, stationId, normalizedStationIds, statusEnum, parsedDrawDates, drawDateFrom, drawDateTo, importBatchLineId, search);
 
         Map<Long, String> stationNameCache = new HashMap<>();
-        Map<Long, LotteryTicketSerialModel> serialsByTicketId = lotteryTicketSerialService.findRepresentativeSerialsByTicketIds(
-                ticketPage.getContent().stream().map(LotteryTicketModel::getId).toList()
-        );
+        List<Long> ticketIds = ticketPage.getContent().stream().map(LotteryTicketModel::getId).toList();
+        Map<Long, LotteryTicketSerialModel> serialsByTicketId =
+                lotteryTicketSerialService.findRepresentativeSerialsByTicketIds(ticketIds);
+        Map<Long, Long> serialQuantityByTicketId =
+                lotteryTicketSerialService.countSerialsByTicketIds(ticketIds);
         List<LotteryTicketResponse> responses = ticketPage.getContent().stream()
-                .map(ticket -> mapToResponse(ticket, serialsByTicketId.get(ticket.getId()), stationNameCache))
+                .map(ticket -> mapToResponse(
+                        ticket,
+                        serialsByTicketId.get(ticket.getId()),
+                        stationNameCache,
+                        serialQuantityByTicketId.getOrDefault(ticket.getId(), 0L).intValue()
+                ))
                 .toList();
 
         return PageResponse.from(responses, ticketPage.getTotalElements(), page, size);
@@ -225,6 +238,24 @@ public class LotteryTicketService implements LotteryTicketServicePort {
     public PageResponse<LotteryTicketResponse> getPublicTickets(
             int page, int size, Long stationId, List<Long> stationIds, String drawDate,
             String search, String sortBy, String direction) {
+        return getPublicTickets(page, size, stationId, stationIds, drawDate, search, null, null, null, null, sortBy, direction);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PageResponse<LotteryTicketResponse> getPublicTickets(
+            int page, int size, Long stationId, List<Long> stationIds, String drawDate,
+            String search, TicketSearchMode searchMode, String sortBy, String direction) {
+        return getPublicTickets(page, size, stationId, stationIds, drawDate, search, searchMode, null, null, null, sortBy, direction);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PageResponse<LotteryTicketResponse> getPublicTickets(
+            int page, int size, Long stationId, List<Long> stationIds, String drawDate,
+            String search, TicketSearchMode searchMode,
+            List<String> searches, List<String> tailRanges, List<String> numberTypes,
+            String sortBy, String direction) {
 
         PageRequest pageable = PageRequest.of(
                 Math.max(0, page - 1),
@@ -236,14 +267,31 @@ public class LotteryTicketService implements LotteryTicketServicePort {
         List<Long> normalizedStationIds = normalizeStationIds(stationId, stationIds);
 
         Page<LotteryTicketModel> ticketPage = lotteryTicketRepositoryPort
-                .findAllPublic(pageable, stationId, normalizedStationIds, parsedDrawDates, search);
+                .findAllPublic(
+                        pageable,
+                        stationId,
+                        normalizedStationIds,
+                        parsedDrawDates,
+                        search,
+                        searchMode,
+                        searches,
+                        tailRanges,
+                        numberTypes
+                );
 
         Map<Long, String> stationNameCache = new HashMap<>();
-        Map<Long, LotteryTicketSerialModel> serialsByTicketId = lotteryTicketSerialService.findRepresentativeSerialsByTicketIds(
-                ticketPage.getContent().stream().map(LotteryTicketModel::getId).toList()
-        );
+        List<Long> ticketIds = ticketPage.getContent().stream().map(LotteryTicketModel::getId).toList();
+        Map<Long, LotteryTicketSerialModel> serialsByTicketId =
+                lotteryTicketSerialService.findRepresentativeSerialsByTicketIds(ticketIds);
+        Map<Long, Long> serialQuantityByTicketId =
+                lotteryTicketSerialService.countSerialsByTicketIds(ticketIds);
         List<LotteryTicketResponse> responses = ticketPage.getContent().stream()
-                .map(ticket -> mapToResponse(ticket, serialsByTicketId.get(ticket.getId()), stationNameCache))
+                .map(ticket -> mapToResponse(
+                        ticket,
+                        serialsByTicketId.get(ticket.getId()),
+                        stationNameCache,
+                        serialQuantityByTicketId.getOrDefault(ticket.getId(), 0L).intValue()
+                ))
                 .toList();
 
         return PageResponse.from(responses, ticketPage.getTotalElements(), page, size);
@@ -394,7 +442,8 @@ public class LotteryTicketService implements LotteryTicketServicePort {
             }
 
             if (line.getStatus() != ImportBatchLineStatus.OPEN
-                    && line.getStatus() != ImportBatchLineStatus.IMPORTING) {
+                    && line.getStatus() != ImportBatchLineStatus.IMPORTING
+                    && line.getStatus() != ImportBatchLineStatus.PAUSED) {
                 throw new DomainException(ErrorCode.IMPORT_BATCH_TICKET_DELETE_LINE_IMPORTED);
             }
 
@@ -437,7 +486,7 @@ public class LotteryTicketService implements LotteryTicketServicePort {
             ImportBatchLineModel line = importBatchLineRepositoryPort.findById(lineId)
                     .orElseThrow(() -> new DomainException(ErrorCode.IMPORT_BATCH_NOT_FOUND));
             int importedCount = (int) lotteryTicketSerialService.countByImportBatchLineId(lineId);
-            line.updateImportProgress(importedCount, now);
+            line.updateImportProgress(importedCount, now, false);
             importBatchLineRepositoryPort.save(line);
         }
 
@@ -480,6 +529,59 @@ public class LotteryTicketService implements LotteryTicketServicePort {
         }
 
         return tickets;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public ImportBatchLineEntryTicketsResponse listEntryTicketsByImportBatchLine(Long importBatchLineId) {
+        ImportBatchLineModel line = importBatchLineRepositoryPort.findById(importBatchLineId)
+                .orElseThrow(() -> new DomainException(ErrorCode.IMPORT_BATCH_NOT_FOUND));
+
+        List<LotteryTicketSerialModel> serials =
+                lotteryTicketSerialService.findAllByImportBatchLineId(importBatchLineId);
+
+        Map<Long, List<LotteryTicketSerialModel>> serialsByTicketId = serials.stream()
+                .filter(serial -> serial.getTicketId() != null)
+                .collect(Collectors.groupingBy(
+                        LotteryTicketSerialModel::getTicketId,
+                        LinkedHashMap::new,
+                        Collectors.toList()
+                ));
+
+        List<ImportBatchLineEntryTicketResponse> tickets = new ArrayList<>();
+        for (Map.Entry<Long, List<LotteryTicketSerialModel>> entry : serialsByTicketId.entrySet()) {
+            LotteryTicketModel ticket = getTicketOrThrow(entry.getKey());
+            List<ImportBatchLineEntrySerialResponse> serialResponses = entry.getValue().stream()
+                    .sorted(Comparator.comparing(
+                            LotteryTicketSerialModel::getId,
+                            Comparator.nullsLast(Long::compareTo)
+                    ))
+                    .map(serial -> ImportBatchLineEntrySerialResponse.builder()
+                            .id(serial.getId())
+                            .serialNumber(serial.getSerialNumber())
+                            .ticketImg(serial.getTicketImg())
+                            .status(serial.getStatus() != null ? serial.getStatus().name() : null)
+                            .build())
+                    .toList();
+
+            tickets.add(ImportBatchLineEntryTicketResponse.builder()
+                    .id(ticket.getId())
+                    .numbers(ticket.getNumbers())
+                    .status(ticket.getStatus() != null ? ticket.getStatus().name() : null)
+                    .serials(serialResponses)
+                    .build());
+        }
+
+        tickets.sort(Comparator.comparing(
+                ImportBatchLineEntryTicketResponse::id,
+                Comparator.nullsLast(Long::compareTo)
+        ));
+
+        return ImportBatchLineEntryTicketsResponse.builder()
+                .importBatchId(line.getImportBatchId())
+                .importBatchLineId(line.getId())
+                .tickets(tickets)
+                .build();
     }
 
     @Override
@@ -636,25 +738,29 @@ public class LotteryTicketService implements LotteryTicketServicePort {
                         resolveBatchCode(serial)
                 ))
                 .toList();
+        int serialQuantity = serials.size();
         return lotteryTicketApplicationMapper.toResponseDetail(
                 model,
                 serialResponses,
                 stationName,
-                serials.isEmpty() ? null : resolveBatchCode(serials.getFirst())
+                serials.isEmpty() ? null : resolveBatchCode(serials.getFirst()),
+                serialQuantity
         );
     }
 
     private LotteryTicketResponse mapToResponse(
             LotteryTicketModel model,
             LotteryTicketSerialModel serial,
-            Map<Long, String> stationNameCache
+            Map<Long, String> stationNameCache,
+            int serialQuantity
     ) {
         String stationName = resolveStationName(model.getStationId(), stationNameCache);
         return lotteryTicketApplicationMapper.toResponse(
                 model,
                 serial,
                 stationName,
-                resolveBatchCode(serial)
+                resolveBatchCode(serial),
+                serialQuantity
         );
     }
 
@@ -812,11 +918,12 @@ public class LotteryTicketService implements LotteryTicketServicePort {
     private LotteryTicketModel applyImportBatchProgress(
             LotteryTicketModel ticket,
             ImportBatchLineModel importBatchLine,
-            ImportBatchModel importBatch
+            ImportBatchModel importBatch,
+            Boolean isAutoSave
     ) {
         LocalDateTime now = LocalDateTime.now();
         int importedCount = (int) lotteryTicketSerialService.countByImportBatchLineId(importBatchLine.getId());
-        importBatchLine.updateImportProgress(importedCount, now);
+        importBatchLine.updateImportProgress(importedCount, now, isAutoSave);
 
         int declareQuantity = importBatchLine.getDeclareQuantity() != null ? importBatchLine.getDeclareQuantity() : 0;
 
@@ -828,10 +935,11 @@ public class LotteryTicketService implements LotteryTicketServicePort {
         refreshedBatch.recalculateAggregates();
         refreshedBatch.refreshImportStatus(now);
 
+        boolean isAutoSaveTriggered = isAutoSave != null && isAutoSave;
         boolean batchJustCompleted = refreshedBatch.getStatus() == ImportBatchStatus.IMPORTED;
         importBatchRepositoryPort.save(refreshedBatch);
 
-        if (batchJustCompleted) {
+        if (batchJustCompleted && !isAutoSaveTriggered) {
             refreshedBatch.getActiveLines().forEach(line ->
                     activateImportBatchLineTickets(line.getId())
             );

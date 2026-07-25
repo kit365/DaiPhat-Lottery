@@ -130,9 +130,13 @@ export const getImportBatchLineCancelledAlertMessage = (cancelReason?: string) =
     return 'Dòng nhập lô cho nhà đài này đã bị hủy. Không thể nhập thêm vé.';
 };
 
+export const IMPORT_BATCH_LINE_PAUSED_ENTRY_MESSAGE =
+    'Đang tạm dừng nhập vé. Vui lòng tiếp tục nhập (Resume) trên phiếu nhập lô để thêm vé.';
+
 export const IMPORT_BATCH_LINE_STATUS_LABELS: Record<string, string> = {
     OPEN: 'Nháp',
     IMPORTING: 'Đang nhập lô',
+    PAUSED: 'Tạm dừng nhập',
     IMPORTED: 'Đã nhập đủ',
     CANCELLED: 'Đã hủy',
 };
@@ -147,6 +151,7 @@ export const getImportBatchLineStatusChipColor = (
 ): 'default' | 'warning' | 'error' | 'success' | 'info' => {
     if (status === 'IMPORTED') return 'success';
     if (status === 'IMPORTING') return 'info';
+    if (status === 'PAUSED') return 'warning';
     if (status === 'CANCELLED') return 'error';
     if (status === 'OPEN') return 'warning';
     return 'default';

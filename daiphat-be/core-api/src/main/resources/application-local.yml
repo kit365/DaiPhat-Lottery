@@ -14,6 +14,7 @@ spring:
   flyway:
     enabled: true
     out-of-order: true
+    repair-on-migrate: true
   servlet:
     multipart:
       max-file-size: 5MB
@@ -49,6 +50,8 @@ daiphat:
       allowed-origins:
         - http://localhost:5173
         - http://127.0.0.1:5173
+        - http://localhost:5174
+        - http://127.0.0.1:5174
       allowed-methods:
         - GET
         - POST

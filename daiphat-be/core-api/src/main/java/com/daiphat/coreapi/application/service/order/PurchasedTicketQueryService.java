@@ -66,6 +66,8 @@ public class PurchasedTicketQueryService implements PurchasedTicketQueryPort {
         Map<Long, List<LotteryResultDetailModel>> detailCache = new HashMap<>();
 
         List<PurchasedTicketResponse> responses = detailPage.getContent().stream()
+                .filter(detail -> detail.getLotteryTicketSerial() != null
+                        && detail.getLotteryTicketSerial().getTicket() != null)
                 .map(detail -> mapDetail(detail, resultCache, detailCache))
                 .filter(response -> status == null || response.drawResultStatus() == status)
                 .toList();
@@ -81,12 +83,15 @@ public class PurchasedTicketQueryService implements PurchasedTicketQueryPort {
         OrderEntity order = detail.getOrder();
         LotteryTicketSerialEntity serial = detail.getLotteryTicketSerial();
         LotteryTicketEntity ticket = serial.getTicket();
+        String stationName = ticket.getStation() != null ? ticket.getStation().getName() : null;
 
         TicketDrawResultStatus drawResultStatus = TicketDrawResultStatus.PENDING_DRAW;
         String matchedPrizeCode = null;
         String matchedPrizeDisplayName = null;
 
-        if (ticket.getDrawDate() != null && !ticket.getDrawDate().isAfter(LocalDate.now())) {
+        if (ticket.getDrawDate() != null
+                && !ticket.getDrawDate().isAfter(LocalDate.now())
+                && ticket.getStation() != null) {
             Optional<LotteryResultModel> resultOpt = resolveResult(
                     ticket.getStation().getId(),
                     ticket.getDrawDate(),
@@ -118,7 +123,7 @@ public class PurchasedTicketQueryService implements PurchasedTicketQueryPort {
                 .ticketId(ticket.getId())
                 .serialNumber(serial.getSerialNumber())
                 .numbers(ticket.getNumbers())
-                .stationName(ticket.getStation().getName())
+                .stationName(stationName)
                 .drawDate(ticket.getDrawDate())
                 .price(detail.getPrice())
                 .purchasedAt(order.getCreatedAt())

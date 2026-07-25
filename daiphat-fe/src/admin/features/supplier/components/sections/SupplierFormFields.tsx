@@ -29,12 +29,14 @@ interface SupplierFormFieldsProps {
     control: Control<SupplierFormValues>;
     missingFields?: SupplierActivationField[];
     onActiveToggle?: (nextActive: boolean) => boolean;
+    hideIsActive?: boolean;
 }
 
 export const SupplierFormFields = ({
     control,
     missingFields = [],
     onActiveToggle,
+    hideIsActive = false,
 }: SupplierFormFieldsProps) => {
     const fieldHelper = (field: SupplierActivationField, defaultText?: string) =>
         isFieldMissing(missingFields, field) ? getActivationFieldHelperText(field) : defaultText;
@@ -164,7 +166,15 @@ export const SupplierFormFields = ({
                 <Controller
                     name="taxCode"
                     control={control}
-                    render={({ field }) => <TextField {...field} label="Mã số thuế" fullWidth />}
+                    render={({ field, fieldState }) => (
+                        <TextField
+                            {...field}
+                            label="Mã số thuế"
+                            fullWidth
+                            error={!!fieldState.error}
+                            helperText={fieldState.error?.message}
+                        />
+                    )}
                 />
                 <Box sx={{ width: '100%' }} data-activation-field="paymentTermDays">
                     <Controller
@@ -272,30 +282,32 @@ export const SupplierFormFields = ({
                 </Box>
             </Stack>
 
-            <Controller
-                name="isActive"
-                control={control}
-                render={({ field }) => (
-                    <FormControlLabel
-                        control={
-                            <Switch
-                                checked={field.value}
-                                onChange={(e) => {
-                                    const nextActive = e.target.checked;
-                                    if (nextActive && onActiveToggle && !onActiveToggle(true)) {
-                                        return;
-                                    }
-                                    if (!nextActive) {
-                                        onActiveToggle?.(false);
-                                    }
-                                    field.onChange(nextActive);
-                                }}
-                            />
-                        }
-                        label={field.value ? 'Hoạt động' : 'Ngừng hoạt động'}
-                    />
-                )}
-            />
+            {!hideIsActive && (
+                <Controller
+                    name="isActive"
+                    control={control}
+                    render={({ field }) => (
+                        <FormControlLabel
+                            control={
+                                <Switch
+                                    checked={field.value}
+                                    onChange={(e) => {
+                                        const nextActive = e.target.checked;
+                                        if (nextActive && onActiveToggle && !onActiveToggle(true)) {
+                                            return;
+                                        }
+                                        if (!nextActive) {
+                                            onActiveToggle?.(false);
+                                        }
+                                        field.onChange(nextActive);
+                                    }}
+                                />
+                            }
+                            label={field.value ? 'Hoạt động' : 'Ngừng hoạt động'}
+                        />
+                    )}
+                />
+            )}
         </Stack>
     );
 };

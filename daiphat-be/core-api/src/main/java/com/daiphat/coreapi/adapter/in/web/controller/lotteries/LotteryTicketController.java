@@ -17,6 +17,7 @@ import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketStatus;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.converter.json.MappingJacksonValue;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.GrantedAuthority;
@@ -28,6 +29,7 @@ import org.springframework.web.multipart.MultipartFile;
 import org.springframework.http.MediaType;
 import com.daiphat.coreapi.shared.util.StorageUtils;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @RestController
@@ -91,13 +93,16 @@ public class LotteryTicketController {
             @RequestParam(required = false) List<Long> stationIds,
             @RequestParam(required = false) String status,
             @RequestParam(required = false) String drawDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate drawDateFrom,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate drawDateTo,
+            @RequestParam(required = false) Long importBatchLineId,
             @RequestParam(required = false) String search,
             @RequestParam(required = false) String sortBy,
             @RequestParam(required = false) String direction,
             @AuthenticationPrincipal AuthenticatedUserPrincipal principal) {
         log.info("REST request to query lottery tickets page: {}, size: {}", page, size);
         PageResponse<LotteryTicketResponse> response = lotteryTicketServicePort.getAll(
-                page, size, stationId, stationIds, status, drawDate, search, sortBy, direction);
+                page, size, stationId, stationIds, status, drawDate, drawDateFrom, drawDateTo, importBatchLineId, search, sortBy, direction);
         ApiResponse<PageResponse<LotteryTicketResponse>> apiResponse = ApiResponse.success(null, response);
         MappingJacksonValue mappingJacksonValue = new MappingJacksonValue(apiResponse);
         mappingJacksonValue.setSerializationView(resolveLotteryTicketView(principal));
@@ -112,11 +117,18 @@ public class LotteryTicketController {
             @RequestParam(required = false) List<Long> stationIds,
             @RequestParam(required = false) String drawDate,
             @RequestParam(required = false) String search,
+            @RequestParam(required = false) String searchMode,
+            @RequestParam(required = false) List<String> searches,
+            @RequestParam(required = false) List<String> tailRanges,
+            @RequestParam(required = false) List<String> numberTypes,
             @RequestParam(required = false) String sortBy,
             @RequestParam(required = false) String direction) {
         log.info("REST public request to query lottery tickets page: {}, size: {}", page, size);
         PageResponse<LotteryTicketResponse> response = lotteryTicketServicePort.getPublicTickets(
-                page, size, stationId, stationIds, drawDate, search, sortBy, direction);
+                page, size, stationId, stationIds, drawDate, search,
+                com.daiphat.coreapi.domain.model.enums.lottery.TicketSearchMode.from(searchMode),
+                searches, tailRanges, numberTypes,
+                sortBy, direction);
         MappingJacksonValue mappingJacksonValue = new MappingJacksonValue(ApiResponse.success(null, response));
         mappingJacksonValue.setSerializationView(Views.Public.class);
         return mappingJacksonValue;
@@ -130,11 +142,18 @@ public class LotteryTicketController {
             @RequestParam(required = false) List<Long> stationIds,
             @RequestParam(defaultValue = HOME_DEFAULT_DRAW_DATE) String drawDate,
             @RequestParam(required = false) String search,
+            @RequestParam(required = false) String searchMode,
+            @RequestParam(required = false) List<String> searches,
+            @RequestParam(required = false) List<String> tailRanges,
+            @RequestParam(required = false) List<String> numberTypes,
             @RequestParam(defaultValue = DEFAULT_HOME_SORT_BY) String sortBy,
             @RequestParam(defaultValue = DEFAULT_HOME_SORT_DIRECTION) String direction) {
         log.info("REST home request to query lottery tickets page: {}, size: {}", page, size);
         PageResponse<LotteryTicketResponse> response = lotteryTicketServicePort.getPublicTickets(
-                page, size, stationId, stationIds, resolveHomeDrawDate(drawDate), search, sortBy, direction);
+                page, size, stationId, stationIds, resolveHomeDrawDate(drawDate), search,
+                com.daiphat.coreapi.domain.model.enums.lottery.TicketSearchMode.from(searchMode),
+                searches, tailRanges, numberTypes,
+                sortBy, direction);
         MappingJacksonValue mappingJacksonValue = new MappingJacksonValue(ApiResponse.success(null, response));
         mappingJacksonValue.setSerializationView(Views.Public.class);
         return mappingJacksonValue;
@@ -218,8 +237,18 @@ public class LotteryTicketController {
     }
 
     private String resolveHomeDrawDate(String drawDate) {
+        var today = com.daiphat.coreapi.shared.util.DrawScheduleUtils.today();
+        var defaultSellable = com.daiphat.coreapi.shared.util.DrawScheduleUtils.resolveDefaultSellableDrawDate();
+
         if (drawDate == null || drawDate.isBlank() || HOME_DEFAULT_DRAW_DATE.equalsIgnoreCase(drawDate)) {
-            return java.time.LocalDate.now().toString();
+            return defaultSellable.toString();
+        }
+        if ("tomorrow".equalsIgnoreCase(drawDate.trim())) {
+            return today.plusDays(1).toString();
+        }
+        // Explicit calendar today after cutoff → roll to tomorrow (no longer sellable).
+        if (drawDate.trim().equals(today.toString()) && !defaultSellable.equals(today)) {
+            return defaultSellable.toString();
         }
         return drawDate;
     }

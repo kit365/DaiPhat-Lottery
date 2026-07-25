@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Header } from '../../components/layout/header';
-import { useStationsToday, useStationsTomorrow } from '../../../admin/features/station/hooks/useStation';
+import { useStationsByDrawDate } from '../../../admin/features/station/hooks/useStation';
 import { useLotteryTicketSearch } from '../../hooks/useLotteryTicketSearch';
 import { usePurchasedTicketLookup } from '../../hooks/usePurchasedTicketLookup';
 import { useAuthStore } from '../../../stores/useAuthStore';
@@ -16,6 +16,11 @@ import {
 } from '../../components/ticket-search/PurchasedTicketLookupForm';
 import { PurchasedTicketList } from '../../components/ticket-search/PurchasedTicketList';
 import { PublicLotteryTicket, PurchasedTicket, TicketSearchMode } from '../../../types/lottery-ticket.type';
+import { resolveSellableDrawDateParam } from '../../utils/sellableDrawDate.util';
+import {
+    normalizeTicketSearchDigits,
+    normalizeTicketSearchMode,
+} from '../../utils/ticketSearchQuery.util';
 
 type TabKey = 'available' | 'purchased';
 
@@ -28,12 +33,10 @@ export const TicketSearchPage: React.FC = () => {
     const [purchasedPage, setPurchasedPage] = useState(1);
 
     const [availableFilters, setAvailableFilters] = useState<AvailableSearchFilters>({
-        search: searchParams.get('search') || '',
-        searchMode: (searchParams.get('searchMode') as TicketSearchMode) || 'SUFFIX',
-        drawDate: (searchParams.get('drawDate') as 'today' | 'tomorrow') || 'today',
+        search: normalizeTicketSearchDigits(searchParams.get('search')),
+        searchMode: normalizeTicketSearchMode(searchParams.get('searchMode')) as TicketSearchMode,
+        drawDate: resolveSellableDrawDateParam(searchParams.get('drawDate')),
         stationId: searchParams.get('stationId') || '',
-        minPrice: searchParams.get('minPrice') || '',
-        maxPrice: searchParams.get('maxPrice') || '',
     });
 
     const [purchasedFilters, setPurchasedFilters] = useState<PurchasedSearchFilters>({
@@ -43,12 +46,20 @@ export const TicketSearchPage: React.FC = () => {
         ticketNumber: searchParams.get('ticketNumber') || '',
     });
 
-    const { data: stationsToday } = useStationsToday();
-    const { data: stationsTomorrow } = useStationsTomorrow();
-    const stations = useMemo(() => {
-        const source = availableFilters.drawDate === 'today' ? stationsToday : stationsTomorrow;
-        return (source || []).map((s: any) => ({ id: s.id || s._id, name: s.name }));
-    }, [availableFilters.drawDate, stationsToday, stationsTomorrow]);
+    const { data: stationsByDate } = useStationsByDrawDate(availableFilters.drawDate);
+    const stations = useMemo(
+        () => (stationsByDate || []).map((s: any) => ({ id: s.id || s._id, name: s.name })),
+        [stationsByDate]
+    );
+
+    // Sau giờ xổ: nếu đang chọn ngày hôm nay thì tự chuyển sang ngày mai.
+    useEffect(() => {
+        if (activeTab !== 'available') return;
+        const next = resolveSellableDrawDateParam(availableFilters.drawDate);
+        if (next !== availableFilters.drawDate) {
+            setAvailableFilters((prev) => ({ ...prev, drawDate: next }));
+        }
+    }, [activeTab, availableFilters.drawDate]);
 
     useEffect(() => {
         if (activeTab !== 'available') return;
@@ -62,6 +73,9 @@ export const TicketSearchPage: React.FC = () => {
         setSearchParams(params, { replace: true });
     }, [activeTab, availableFilters, availablePage, setSearchParams]);
 
+    const canSearchAvailable =
+        availableFilters.search.trim().length >= 2 || !!availableFilters.stationId;
+
     const { data: availableData, isLoading: loadingAvailable } = useLotteryTicketSearch(
         {
             page: availablePage,
@@ -70,11 +84,9 @@ export const TicketSearchPage: React.FC = () => {
             drawDate: availableFilters.drawDate,
             search: availableFilters.search.trim() || undefined,
             searchMode: availableFilters.searchMode,
-            minPrice: availableFilters.minPrice ? Number(availableFilters.minPrice) : undefined,
-            maxPrice: availableFilters.maxPrice ? Number(availableFilters.maxPrice) : undefined,
         },
         {
-            enabled: activeTab === 'available' && (availableFilters.search.trim().length >= 2 || !!availableFilters.stationId),
+            enabled: activeTab === 'available' && canSearchAvailable,
         }
     );
 
@@ -100,6 +112,16 @@ export const TicketSearchPage: React.FC = () => {
             openLoginModal();
             return;
         }
+        if (tab === 'purchased') {
+            const params = new URLSearchParams();
+            params.set('tab', 'purchased');
+            if (purchasedFilters.status) params.set('status', purchasedFilters.status);
+            if (purchasedFilters.fromDate) params.set('fromDate', purchasedFilters.fromDate);
+            if (purchasedFilters.toDate) params.set('toDate', purchasedFilters.toDate);
+            if (purchasedFilters.ticketNumber) params.set('ticketNumber', purchasedFilters.ticketNumber);
+            setSearchParams(params);
+            return;
+        }
         const params = new URLSearchParams(searchParams);
         params.set('tab', tab);
         setSearchParams(params);
@@ -112,6 +134,9 @@ export const TicketSearchPage: React.FC = () => {
                 <div className="mb-6">
                     <Link to="/" className="text-[13px] text-[#637381] hover:text-[#ee1314]">← Trang chủ</Link>
                     <h1 className="text-[24px] font-black text-[#212B36] mt-2">Tra cứu & tìm kiếm vé</h1>
+                    <p className="text-[14px] text-[#637381] mt-1">
+                        Chọn đài, ngày quay và nhập đuôi số (2–6 chữ số) để tìm vé đang bán.
+                    </p>
                 </div>
 
                 <div className="flex gap-2 mb-6">
@@ -142,14 +167,20 @@ export const TicketSearchPage: React.FC = () => {
                                     setAvailableFilters((prev) => ({ ...prev, ...patch }));
                                 }}
                             />
-                            <AvailableTicketList
-                                tickets={availableTickets}
-                                isLoading={loadingAvailable}
-                                drawDate={availableFilters.drawDate}
-                                page={availablePage}
-                                totalPages={availablePagination?.totalPages ?? 1}
-                                onPageChange={setAvailablePage}
-                            />
+                            {!canSearchAvailable ? (
+                                <div className="py-10 text-center text-[#637381] text-[14px]">
+                                    Nhập ít nhất 2 chữ số hoặc chọn đài để bắt đầu tìm vé.
+                                </div>
+                            ) : (
+                                <AvailableTicketList
+                                    tickets={availableTickets}
+                                    isLoading={loadingAvailable}
+                                    drawDate={availableFilters.drawDate}
+                                    page={availablePage}
+                                    totalPages={availablePagination?.totalPages ?? 1}
+                                    onPageChange={setAvailablePage}
+                                />
+                            )}
                         </>
                     ) : !token ? (
                         <div className="py-12 text-center">

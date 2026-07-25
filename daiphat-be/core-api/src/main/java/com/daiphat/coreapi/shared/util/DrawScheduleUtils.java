@@ -51,6 +51,29 @@ public final class DrawScheduleUtils {
         throw new DomainException(ErrorCode.LOTTERY_STATION_INVALID_DRAW_SCHEDULE);
     }
 
+    /**
+     * Default public sellable draw date for "today" / blank home queries.
+     * After the southern draw cutoff (typically 16:15), rolls forward to tomorrow.
+     */
+    public static LocalDate resolveDefaultSellableDrawDate(LocalTime cutoff) {
+        return resolveDefaultSellableDrawDate(today(), nowTime(), cutoff);
+    }
+
+    public static LocalDate resolveDefaultSellableDrawDate() {
+        return resolveDefaultSellableDrawDate(LocalTime.of(16, 15));
+    }
+
+    /** Testable overload — inject clock parts instead of wall-clock Vietnam time. */
+    public static LocalDate resolveDefaultSellableDrawDate(LocalDate today, LocalTime now, LocalTime cutoff) {
+        LocalTime effectiveCutoff = cutoff != null ? cutoff : LocalTime.of(16, 15);
+        LocalDate effectiveToday = today != null ? today : today();
+        LocalTime effectiveNow = now != null ? now : nowTime();
+        if (!effectiveNow.isBefore(effectiveCutoff)) {
+            return effectiveToday.plusDays(1);
+        }
+        return effectiveToday;
+    }
+
     public static void validate(List<DayOfWeek> drawDays, LocalTime drawTime) {
         if (drawDays == null || drawDays.isEmpty() || drawTime == null) {
             throw new DomainException(ErrorCode.LOTTERY_STATION_INVALID_DRAW_SCHEDULE);

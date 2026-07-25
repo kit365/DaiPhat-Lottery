@@ -1,22 +1,42 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Header } from '../../components/layout/header';
-import { Trash2, ChevronRight, Minus, Plus, ShieldCheck, ArrowRight, CheckCircle2, Clock, Info } from 'lucide-react';
-import { useCartStore } from '../../../stores/useCartStore';
+import { Trash2, ChevronRight } from 'lucide-react';
+import { useCartStore, CartItem } from '../../../stores/useCartStore';
 import { useAuthStore } from '../../../stores/useAuthStore';
 import { Checkbox } from '../../components/ui/Checkbox';
 import OrderSummary from './components/OrderSummary';
+import { CartQuantityControl } from './components/CartQuantityControl';
+import { validateAndSyncCartStock } from '../../utils/cartStock.util';
+import { AppToast as toast } from '../../../utils/toast.util';
 
 export const CartPage = () => {
     const navigate = useNavigate();
-    const { items, updateQuantity, removeItem, clearCart, addItem } = useCartStore();
+    const { items, updateQuantity, removeItem } = useCartStore();
     const { token, openLoginModal } = useAuthStore();
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
+
+    // Đồng bộ tồn kho thực tế từ DB khi vào giỏ
+    useEffect(() => {
+        validateAndSyncCartStock();
+    }, []);
 
     // Auto-select new items
     useEffect(() => {
         setSelectedIds(items.map(i => i.id));
     }, [items.length]);
+
+    const getMaxStock = (item: CartItem) =>
+        typeof item.maxStock === 'number' ? item.maxStock : 999;
+
+    const handleIncreaseQty = (item: CartItem) => {
+        const max = getMaxStock(item);
+        if (item.quantity >= max) {
+            toast.error(`Vé số ${item.numbers} chỉ còn ${max} vé`);
+            return;
+        }
+        updateQuantity(item.id, 1);
+    };
 
     const toggleSelectAll = () => {
         if (selectedIds.length === items.length) {
@@ -38,7 +58,7 @@ export const CartPage = () => {
         setSelectedIds(remainingIds);
     };
 
-    const selectedItems = items.filter(i => selectedIds.includes(i.id));
+    const selectedItems = items.filter(i => selectedIds.includes(i.id) && i.quantity > 0);
     const totalAmount = selectedItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
     const totalTickets = selectedItems.reduce((sum, item) => sum + item.quantity, 0);
 
@@ -135,11 +155,12 @@ export const CartPage = () => {
 
                                             {/* Số lượng */}
                                             <div className="flex flex-col items-center">
-                                                <div className="flex items-center border border-[#E5E8EB] rounded bg-white h-7 w-[80px] overflow-hidden">
-                                                    <button onClick={() => updateQuantity(item.id, -1)} disabled={item.quantity <= 1} className="flex-1 h-full flex items-center justify-center text-[#637381] hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"><Minus size={12} /></button>
-                                                    <span className="w-7 h-full flex items-center justify-center text-[13px] font-bold text-[#212B36] border-x border-[#E5E8EB]">{item.quantity}</span>
-                                                    <button onClick={() => updateQuantity(item.id, 1)} disabled={item.quantity >= (item.maxStock || 999)} className="flex-1 h-full flex items-center justify-center text-[#637381] hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"><Plus size={12} /></button>
-                                                </div>
+                                                <CartQuantityControl
+                                                    item={item}
+                                                    onDecrease={() => updateQuantity(item.id, -1)}
+                                                    onIncrease={() => handleIncreaseQty(item)}
+                                                    onRemove={() => removeItem(item.id)}
+                                                />
                                             </div>
 
                                             {/* Đơn giá */}

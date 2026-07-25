@@ -8,4 +8,5 @@ export const QUERY_KEYS = {
     IMPORT_BATCH_INCOMPLETE: 'import-batch-incomplete',
     IMPORT_BATCH_WITHOUT_LINES: 'import-batch-without-lines',
     IMPORT_BATCH_REDUCTION_TICKETS: 'import-batch-reduction-tickets',
+    IMPORT_BATCH_LINE_ENTRY_TICKETS: 'import-batch-line-entry-tickets',
 } as const;

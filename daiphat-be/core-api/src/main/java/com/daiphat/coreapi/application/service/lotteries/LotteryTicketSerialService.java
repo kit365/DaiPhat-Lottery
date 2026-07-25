@@ -189,6 +189,16 @@ public class LotteryTicketSerialService implements LotteryTicketSerialServicePor
     }
 
     @Override
+    public Map<Long, Long> countAvailableSerialsByTicketIds(Collection<Long> ticketIds) {
+        return lotteryTicketSerialRepositoryPort.countByTicketIdsAndStatuses(ticketIds, AVAILABLE_STATUSES);
+    }
+
+    @Override
+    public Map<Long, Long> countSerialsByTicketIds(Collection<Long> ticketIds) {
+        return lotteryTicketSerialRepositoryPort.countByTicketIds(ticketIds);
+    }
+
+    @Override
     public long countByStatuses(Long ticketId, Collection<LotteryTicketSerialStatus> statuses) {
         return lotteryTicketSerialRepositoryPort.countByTicketIdAndStatuses(ticketId, statuses);
     }
@@ -238,6 +248,11 @@ public class LotteryTicketSerialService implements LotteryTicketSerialServicePor
     @Override
     public List<Long> findDistinctTicketIdsByImportBatchLineId(Long importBatchLineId) {
         return lotteryTicketSerialRepositoryPort.findDistinctTicketIdsByImportBatchLineId(importBatchLineId);
+    }
+
+    @Override
+    public List<LotteryTicketSerialModel> findAllByImportBatchLineId(Long importBatchLineId) {
+        return lotteryTicketSerialRepositoryPort.findAllByImportBatchLineId(importBatchLineId);
     }
 
     @Override

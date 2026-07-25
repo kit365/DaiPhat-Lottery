@@ -10,6 +10,7 @@ import com.daiphat.coreapi.application.dto.response.lotteries.ImportBatchBlocked
 import com.daiphat.coreapi.application.dto.response.lotteries.ImportBatchClassificationPreviewResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.ImportBatchEligibleStationResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.ImportBatchEligibleStationsResponse;
+import com.daiphat.coreapi.application.dto.response.lotteries.ImportBatchLineEntryTicketsResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.ImportBatchReductionLineResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.ImportBatchReductionTicketsResponse;
 import com.daiphat.coreapi.application.port.out.lotteries.ImportBatchLineRepositoryPort;
@@ -244,7 +245,7 @@ public class ImportBatchService implements ImportBatchServicePort {
             throw new DomainException(ErrorCode.IMPORT_BATCH_LAST_LINE_CANNOT_DELETE);
         }
 
-        ensureUniqueStationsFromUpdate(request.lines());
+        ensureUniqueStationsFromUpdate(request.lines(), existingById);
 
         for (UpdateImportBatchLineRequest lineRequest : request.lines()) {
             if (lineRequest.id() == null || !Boolean.TRUE.equals(lineRequest.removed())) {
@@ -274,10 +275,13 @@ public class ImportBatchService implements ImportBatchServicePort {
                 updateOpenLine(batch, existingLine, lineRequest, now);
             } else if (existingLine.getStatus() == ImportBatchLineStatus.IMPORTING) {
                 updateImportingLine(batch, existingLine, lineRequest, now);
-            } else if (existingLine.getStatus() == ImportBatchLineStatus.IMPORTED) {
-                verifyImportedLineUnchanged(existingLine, lineRequest);
+            } else if (existingLine.getStatus() == ImportBatchLineStatus.PAUSED) {
+                updatePausedLine(batch, existingLine, lineRequest, now, request);
+            } else if (existingLine.getStatus() == ImportBatchLineStatus.IMPORTED
+                    || existingLine.getStatus() == ImportBatchLineStatus.CANCELLED) {
+                verifyTerminalLineUnchanged(existingLine, lineRequest);
             } else {
-                verifyCancelledLineUnchanged(existingLine, lineRequest);
+                throw new DomainException(ErrorCode.IMPORT_BATCH_LINE_NOT_EDITABLE);
             }
         }
 
@@ -295,8 +299,14 @@ public class ImportBatchService implements ImportBatchServicePort {
         if (batch.getImportMode() != ImportBatchImportMode.IN_DAY) {
             return;
         }
-        if (request.invoiceEvidenceUrl() != null) {
-            batch.setInvoiceEvidenceUrl(trimToNull(request.invoiceEvidenceUrl()));
+        if (request.invoiceEvidenceUrl() == null) {
+            return;
+        }
+        // Invoice evidence is immutable on edit — clients may only resend the existing URL.
+        String requested = trimToNull(request.invoiceEvidenceUrl());
+        String existing = trimToNull(batch.getInvoiceEvidenceUrl());
+        if (!Objects.equals(existing, requested)) {
+            throw new DomainException(ErrorCode.IMPORT_BATCH_INVOICE_EVIDENCE_LOCKED);
         }
     }
 
@@ -305,9 +315,9 @@ public class ImportBatchService implements ImportBatchServicePort {
             return;
         }
 
-        boolean hasImportedLine = batch.getActiveLines().stream()
-                .anyMatch(line -> line.getStatus() == ImportBatchLineStatus.IMPORTED);
-        if (hasImportedLine) {
+        // Supplier can only change while no ticket import has started (DRAFT only).
+        // RECEIVING / PARTIALLY_IMPORTED already attribute inventory & payables to the current vendor.
+        if (batch.getStatus() != ImportBatchStatus.DRAFT) {
             throw new DomainException(ErrorCode.IMPORT_BATCH_SUPPLIER_LOCKED_IMPORTED_LINES);
         }
 
@@ -360,7 +370,8 @@ public class ImportBatchService implements ImportBatchServicePort {
             int page,
             int size,
             Long lotteryStationId,
-            LocalDate drawDate,
+            LocalDate drawDateFrom,
+            LocalDate drawDateTo,
             ImportBatchStatus status,
             ImportBatchType batchType,
             String sortBy,
@@ -376,7 +387,8 @@ public class ImportBatchService implements ImportBatchServicePort {
         Page<ImportBatchModel> resultPage = importBatchRepositoryPort.findAll(
                 pageable,
                 lotteryStationId,
-                drawDate,
+                drawDateFrom,
+                drawDateTo,
                 status,
                 batchType
         );
@@ -522,7 +534,8 @@ public class ImportBatchService implements ImportBatchServicePort {
         }
 
         if (line.getStatus() == ImportBatchLineStatus.OPEN
-                || line.getStatus() == ImportBatchLineStatus.IMPORTING) {
+                || line.getStatus() == ImportBatchLineStatus.IMPORTING
+                || line.getStatus() == ImportBatchLineStatus.PAUSED) {
             lotteryTicketServicePort.purgeImportBatchLineTickets(lineId);
         }
 
@@ -542,6 +555,58 @@ public class ImportBatchService implements ImportBatchServicePort {
         }
 
         return importBatchApplicationMapper.toResponse(saved);
+    }
+
+    @Override
+    @Transactional
+    public ImportBatchResponse pauseLine(Long batchId, Long lineId) {
+        ImportBatchModel batch = getImportBatchOrThrow(batchId);
+        importBatchDraftExpiryService.cancelIfOverdue(batch);
+        batch = getImportBatchOrThrow(batchId);
+
+        if (!batch.isEditable()) {
+            throw new DomainException(ErrorCode.IMPORT_BATCH_INVALID_STATUS);
+        }
+
+        ImportBatchLineModel line = importBatchLineRepositoryPort.findById(lineId)
+                .orElseThrow(() -> new DomainException(ErrorCode.IMPORT_BATCH_NOT_FOUND));
+
+        if (!Objects.equals(line.getImportBatchId(), batchId) || line.isDeleted()) {
+            throw new DomainException(ErrorCode.IMPORT_BATCH_NOT_FOUND);
+        }
+
+        LocalDateTime now = LocalDateTime.now(clock);
+        line.pauseImport(now);
+        importBatchLineRepositoryPort.save(line);
+
+        batch.setLines(importBatchLineRepositoryPort.findByImportBatchId(batchId));
+        return importBatchApplicationMapper.toResponse(importBatchRepositoryPort.save(batch));
+    }
+
+    @Override
+    @Transactional
+    public ImportBatchResponse resumeLine(Long batchId, Long lineId) {
+        ImportBatchModel batch = getImportBatchOrThrow(batchId);
+        importBatchDraftExpiryService.cancelIfOverdue(batch);
+        batch = getImportBatchOrThrow(batchId);
+
+        if (!batch.isEditable()) {
+            throw new DomainException(ErrorCode.IMPORT_BATCH_INVALID_STATUS);
+        }
+
+        ImportBatchLineModel line = importBatchLineRepositoryPort.findById(lineId)
+                .orElseThrow(() -> new DomainException(ErrorCode.IMPORT_BATCH_NOT_FOUND));
+
+        if (!Objects.equals(line.getImportBatchId(), batchId) || line.isDeleted()) {
+            throw new DomainException(ErrorCode.IMPORT_BATCH_NOT_FOUND);
+        }
+
+        LocalDateTime now = LocalDateTime.now(clock);
+        line.resumeImport(now);
+        importBatchLineRepositoryPort.save(line);
+
+        batch.setLines(importBatchLineRepositoryPort.findByImportBatchId(batchId));
+        return importBatchApplicationMapper.toResponse(importBatchRepositoryPort.save(batch));
     }
 
     private void validateInDayCreateAllowed(CreateImportBatchRequest request) {
@@ -574,13 +639,27 @@ public class ImportBatchService implements ImportBatchServicePort {
         }
     }
 
-    private void ensureUniqueStationsFromUpdate(List<UpdateImportBatchLineRequest> lines) {
+    private void ensureUniqueStationsFromUpdate(
+            List<UpdateImportBatchLineRequest> lines,
+            Map<Long, ImportBatchLineModel> existingById
+    ) {
         Set<Long> stationIds = new HashSet<>();
         for (UpdateImportBatchLineRequest line : lines) {
             if (Boolean.TRUE.equals(line.removed())) {
                 continue;
             }
-            if (!stationIds.add(line.lotteryStationId())) {
+            Long stationId = line.lotteryStationId();
+            if (stationId == null || stationId <= 0) {
+                if (line.id() != null && existingById.containsKey(line.id())) {
+                    stationId = existingById.get(line.id()).getLotteryStationId();
+                } else {
+                    continue;
+                }
+            }
+            if (stationId == null) {
+                continue;
+            }
+            if (!stationIds.add(stationId)) {
                 throw new DomainException(ErrorCode.IMPORT_BATCH_DUPLICATE_STATION);
             }
         }
@@ -670,8 +749,14 @@ public class ImportBatchService implements ImportBatchServicePort {
         validateDeclareQuantity(lineRequest.declareQuantity());
         validateImportCost(lineRequest.importCost());
 
-        if (!Objects.equals(line.getLotteryStationId(), lineRequest.lotteryStationId())) {
-            throw new DomainException(ErrorCode.IMPORT_BATCH_LINE_NOT_EDITABLE);
+        Long requestedStationId = resolveRequestedStationId(line, lineRequest);
+        if (!Objects.equals(line.getLotteryStationId(), requestedStationId)) {
+            // OPEN lines have no imported tickets yet. Allow station changes while the batch
+            // itself is still editable (DRAFT / RECEIVING / PARTIALLY_IMPORTED).
+            if (!batch.isEditable()) {
+                throw new DomainException(ErrorCode.IMPORT_BATCH_LINE_NOT_EDITABLE);
+            }
+            applyOpenLineStationChange(batch, line, requestedStationId, now);
         }
 
         line.setDeclareQuantity(lineRequest.declareQuantity());
@@ -682,39 +767,131 @@ public class ImportBatchService implements ImportBatchServicePort {
         importBatchLineRepositoryPort.save(line);
     }
 
+    private void applyOpenLineStationChange(
+            ImportBatchModel batch,
+            ImportBatchLineModel line,
+            Long stationId,
+            LocalDateTime now
+    ) {
+        LotteryStationModel station = getActiveStationOrThrow(stationId);
+        validateStationEligibility(batch.getDrawDate(), station, batch.getImportMode(), batch.getId());
+        validateStationAvailableForBatch(batch.getId(), batch.getDrawDate(), stationId);
+
+        ImportBatchTypeResolver.ClassificationResult classification = importBatchTypeResolver.resolve(
+                stationId,
+                batch.getDrawDate(),
+                station,
+                batch.getImportMode()
+        );
+
+        line.setLotteryStationId(stationId);
+        line.applyResolvedBatchType(classification.resolvedBatchType());
+        line.setBatchCode(importBatchCodeGenerator.generateLineCode(
+                station,
+                classification.resolvedBatchType(),
+                batch.getDrawDate()
+        ));
+        line.setUpdatedAt(now);
+    }
+
     private void updateImportingLine(
             ImportBatchModel batch,
             ImportBatchLineModel line,
             UpdateImportBatchLineRequest lineRequest,
             LocalDateTime now
     ) {
-        validateDeclareQuantity(lineRequest.declareQuantity());
         validateImportCost(lineRequest.importCost());
-        validateDeclareQuantityNotBelowImported(lineRequest.declareQuantity(), line.getTotalQuantity());
 
-        if (!Objects.equals(line.getLotteryStationId(), lineRequest.lotteryStationId())) {
+        // Declare quantity is locked while actively importing — pause first.
+        if (!Objects.equals(line.getDeclareQuantity(), lineRequest.declareQuantity())) {
+            throw new DomainException(ErrorCode.IMPORT_BATCH_LINE_DECLARE_QUANTITY_LOCKED_IMPORTING);
+        }
+
+        Long requestedStationId = resolveRequestedStationId(line, lineRequest);
+        if (!Objects.equals(line.getLotteryStationId(), requestedStationId)) {
+            // Station is locked once ticket import has started (IMPORTING / PAUSED).
             throw new DomainException(ErrorCode.IMPORT_BATCH_LINE_NOT_EDITABLE);
         }
 
-        line.setDeclareQuantity(lineRequest.declareQuantity());
         line.setImportCost(lineRequest.importCost());
         line.recalculateDeclaredCostValue();
         int importedCount = line.getTotalQuantity() != null ? line.getTotalQuantity() : 0;
-        line.updateImportProgress(importedCount, now);
+        line.updateImportProgress(importedCount, now, false);
         importBatchLineRepositoryPort.save(line);
     }
 
-    private void verifyImportedLineUnchanged(ImportBatchLineModel line, UpdateImportBatchLineRequest lineRequest) {
-        if (!Objects.equals(line.getLotteryStationId(), lineRequest.lotteryStationId())
+    private void updatePausedLine(
+            ImportBatchModel batch,
+            ImportBatchLineModel line,
+            UpdateImportBatchLineRequest lineRequest,
+            LocalDateTime now,
+            UpdateImportBatchRequest request
+    ) {
+        validateImportCost(lineRequest.importCost());
+
+        boolean declareChanged = !Objects.equals(line.getDeclareQuantity(), lineRequest.declareQuantity());
+        boolean adjustmentFlow = Boolean.TRUE.equals(request.adjustPausedDeclareQuantity());
+
+        if (declareChanged && !adjustmentFlow) {
+            throw new DomainException(ErrorCode.IMPORT_BATCH_LINE_DECLARE_QUANTITY_REQUIRES_ADJUSTMENT_FLOW);
+        }
+
+        if (declareChanged) {
+            validateDeclareQuantity(lineRequest.declareQuantity());
+            validateDeclareQuantityNotBelowImported(lineRequest.declareQuantity(), line.getTotalQuantity());
+        }
+
+        int importedCount = line.getTotalQuantity() != null ? line.getTotalQuantity() : 0;
+        boolean completingAsImported = declareChanged
+                && lineRequest.declareQuantity() != null
+                && lineRequest.declareQuantity() == importedCount;
+        boolean hasTicketRemovals = request.removedTicketIds() != null && !request.removedTicketIds().isEmpty();
+        // Completing a line by matching declare to imported (no ticket deletes) requires explicit confirm.
+        if (completingAsImported
+                && !hasTicketRemovals
+                && !Boolean.TRUE.equals(request.confirmPausedLineImported())) {
+            throw new DomainException(ErrorCode.IMPORT_BATCH_LINE_IMPORTED_CONFIRMATION_REQUIRED);
+        }
+
+        Long requestedStationId = resolveRequestedStationId(line, lineRequest);
+        if (!Objects.equals(line.getLotteryStationId(), requestedStationId)) {
+            throw new DomainException(ErrorCode.IMPORT_BATCH_LINE_NOT_EDITABLE);
+        }
+
+        if (declareChanged) {
+            line.setDeclareQuantity(lineRequest.declareQuantity());
+        }
+        line.setImportCost(lineRequest.importCost());
+        line.recalculateDeclaredCostValue();
+        line.updateImportProgress(importedCount, now, false);
+        importBatchLineRepositoryPort.save(line);
+    }
+
+    /**
+     * Missing or non-positive station IDs from the client mean "keep the current station".
+     * This prevents declare-quantity edits on DRAFT/OPEN lines from being rejected with
+     * {@link ErrorCode#IMPORT_BATCH_LINE_NOT_EDITABLE} when the payload omits/zeros stationId.
+     */
+    private Long resolveRequestedStationId(
+            ImportBatchLineModel line,
+            UpdateImportBatchLineRequest lineRequest
+    ) {
+        Long requestedStationId = lineRequest.lotteryStationId();
+        if (requestedStationId == null || requestedStationId <= 0) {
+            return line.getLotteryStationId();
+        }
+        return requestedStationId;
+    }
+
+    private void verifyTerminalLineUnchanged(ImportBatchLineModel line, UpdateImportBatchLineRequest lineRequest) {
+        Long requestedStationId = resolveRequestedStationId(line, lineRequest);
+        if (!Objects.equals(line.getLotteryStationId(), requestedStationId)
                 || !Objects.equals(line.getDeclareQuantity(), lineRequest.declareQuantity())
                 || line.getImportCost() == null
+                || lineRequest.importCost() == null
                 || line.getImportCost().compareTo(lineRequest.importCost()) != 0) {
             throw new DomainException(ErrorCode.IMPORT_BATCH_LINE_NOT_EDITABLE);
         }
-    }
-
-    private void verifyCancelledLineUnchanged(ImportBatchLineModel line, UpdateImportBatchLineRequest lineRequest) {
-        verifyImportedLineUnchanged(line, lineRequest);
     }
 
     private void validateDeclareQuantityNotBelowImported(Integer declareQuantity, Integer importedQuantity) {
@@ -739,7 +916,8 @@ public class ImportBatchService implements ImportBatchServicePort {
         }
 
         if (line.getStatus() == ImportBatchLineStatus.OPEN
-                || line.getStatus() == ImportBatchLineStatus.IMPORTING) {
+                || line.getStatus() == ImportBatchLineStatus.IMPORTING
+                || line.getStatus() == ImportBatchLineStatus.PAUSED) {
             lotteryTicketServicePort.purgeImportBatchLineTickets(line.getId());
         }
         line.softDelete(now);
@@ -842,22 +1020,20 @@ public class ImportBatchService implements ImportBatchServicePort {
     }
 
     private void applyDeclareQuantityReductionIfNeeded(ImportBatchModel batch, UpdateImportBatchRequest request) {
-        int currentImported = batch.getTotalImportedQuantity() != null ? batch.getTotalImportedQuantity() : 0;
-        int newTotal = request.totalDeclareQuantity();
-
-        if (newTotal >= currentImported) {
+        int requiredExcess = computeRequiredDeclareQuantityReductionExcess(batch, request);
+        if (requiredExcess <= 0) {
             return;
         }
 
-        int excess = currentImported - newTotal;
-        validateDeclareQuantityReductionIsPossible(batch, excess);
+        validateDeclareQuantityReductionIsPossible(batch, requiredExcess);
 
         List<Long> removedTicketIds = request.removedTicketIds() != null ? request.removedTicketIds() : List.of();
         if (removedTicketIds.isEmpty()) {
+            int currentImported = batch.getTotalImportedQuantity() != null ? batch.getTotalImportedQuantity() : 0;
             throw new DomainException(
                     ErrorCode.IMPORT_BATCH_DECLARE_QUANTITY_BELOW_IMPORTED,
                     null,
-                    newTotal,
+                    request.totalDeclareQuantity(),
                     currentImported
             );
         }
@@ -865,14 +1041,53 @@ public class ImportBatchService implements ImportBatchServicePort {
         lotteryTicketServicePort.hardDeleteImportBatchTicketsForReduction(
                 batch.getId(),
                 removedTicketIds,
-                excess
+                requiredExcess
         );
+    }
+
+    /**
+     * When line updates are present, excess is driven by per-line declare vs imported.
+     * Otherwise fall back to batch-total vs batch-imported (header-only reduction).
+     */
+    private int computeRequiredDeclareQuantityReductionExcess(
+            ImportBatchModel batch,
+            UpdateImportBatchRequest request
+    ) {
+        if (request.lines() != null && !request.lines().isEmpty()) {
+            Map<Long, ImportBatchLineModel> linesById = batch.getActiveLines().stream()
+                    .filter(line -> line.getId() != null)
+                    .collect(Collectors.toMap(ImportBatchLineModel::getId, line -> line, (a, b) -> a));
+
+            int lineExcess = 0;
+            for (UpdateImportBatchLineRequest lineRequest : request.lines()) {
+                if (lineRequest.id() == null || Boolean.TRUE.equals(lineRequest.removed())) {
+                    continue;
+                }
+                ImportBatchLineModel existing = linesById.get(lineRequest.id());
+                if (existing == null) {
+                    continue;
+                }
+                if (existing.getStatus() != ImportBatchLineStatus.OPEN
+                        && existing.getStatus() != ImportBatchLineStatus.IMPORTING
+                        && existing.getStatus() != ImportBatchLineStatus.PAUSED) {
+                    continue;
+                }
+                int imported = existing.getTotalQuantity() != null ? existing.getTotalQuantity() : 0;
+                int newDeclare = lineRequest.declareQuantity() != null ? lineRequest.declareQuantity() : 0;
+                lineExcess += Math.max(0, imported - newDeclare);
+            }
+            return lineExcess;
+        }
+
+        int currentImported = batch.getTotalImportedQuantity() != null ? batch.getTotalImportedQuantity() : 0;
+        return Math.max(0, currentImported - request.totalDeclareQuantity());
     }
 
     private void validateDeclareQuantityReductionIsPossible(ImportBatchModel batch, int excess) {
         int removableImported = batch.getActiveLines().stream()
                 .filter(line -> line.getStatus() == ImportBatchLineStatus.OPEN
-                        || line.getStatus() == ImportBatchLineStatus.IMPORTING)
+                        || line.getStatus() == ImportBatchLineStatus.IMPORTING
+                        || line.getStatus() == ImportBatchLineStatus.PAUSED)
                 .mapToInt(line -> line.getTotalQuantity() != null ? line.getTotalQuantity() : 0)
                 .sum();
 
@@ -890,7 +1105,8 @@ public class ImportBatchService implements ImportBatchServicePort {
 
         for (ImportBatchLineModel line : batch.getActiveLines()) {
             boolean deletable = line.getStatus() == ImportBatchLineStatus.OPEN
-                    || line.getStatus() == ImportBatchLineStatus.IMPORTING;
+                    || line.getStatus() == ImportBatchLineStatus.IMPORTING
+                    || line.getStatus() == ImportBatchLineStatus.PAUSED;
             int importedQuantity = line.getTotalQuantity() != null ? line.getTotalQuantity() : 0;
 
             if (deletable) {
@@ -914,6 +1130,23 @@ public class ImportBatchService implements ImportBatchServicePort {
                 .removableImportedQuantity(removableImported)
                 .lines(lineResponses)
                 .build();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public ImportBatchLineEntryTicketsResponse getLineEntryTickets(Long batchId, Long lineId) {
+        ImportBatchModel batch = getImportBatchOrThrow(batchId);
+        ImportBatchLineModel line = batch.getActiveLines().stream()
+                .filter(item -> Objects.equals(item.getId(), lineId))
+                .findFirst()
+                .orElseThrow(() -> new DomainException(ErrorCode.IMPORT_BATCH_NOT_FOUND));
+
+        ImportBatchLineEntryTicketsResponse response =
+                lotteryTicketServicePort.listEntryTicketsByImportBatchLine(line.getId());
+        if (!Objects.equals(response.importBatchId(), batchId)) {
+            throw new DomainException(ErrorCode.IMPORT_BATCH_NOT_FOUND);
+        }
+        return response;
     }
 
     private void validateDeclaredQuantityMatchesLines(ImportBatchModel batch) {

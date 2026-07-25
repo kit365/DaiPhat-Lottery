@@ -36,7 +36,8 @@ public interface ImportBatchRepositoryPort {
     Page<ImportBatchModel> findAll(
             Pageable pageable,
             Long lotteryStationId,
-            LocalDate drawDate,
+            LocalDate drawDateFrom,
+            LocalDate drawDateTo,
             ImportBatchStatus status,
             ImportBatchType batchType
     );

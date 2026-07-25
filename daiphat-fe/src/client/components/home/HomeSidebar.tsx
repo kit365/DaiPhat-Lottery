@@ -1,7 +1,8 @@
 import React from 'react';
-import { useAuthStore } from '../../../stores/useAuthStore';
+import { Link } from 'react-router-dom';
 import { LotoTable } from "./LotoTable";
 import { LotteryResult } from '../../types/lottery';
+import { TicketSearchWidget } from '../ticket-search/TicketSearchWidget';
 
 interface HomeSidebarProps {
   showLoto?: boolean;
@@ -16,12 +17,12 @@ interface HomeSidebarProps {
 }
 
 export const HomeSidebar: React.FC<HomeSidebarProps> = ({ showLoto, setShowLoto, dataList, history, onDateChange, selectedDigit, hoveredDigit, onDigitSelect, onDigitHover }) => {
-  const { openLoginModal } = useAuthStore();
-
   return (
     <aside className="w-full lg:w-[260px] xl:w-[340px] flex flex-col-reverse lg:flex-col gap-4">
-      <div
-        onClick={openLoginModal}
+      <TicketSearchWidget />
+
+      <Link
+        to="/buy-ticket"
         className="relative overflow-hidden rounded-[16px] shadow-sm cursor-pointer transition-transform hover:scale-[1.02] active:scale-[0.98] w-full min-h-[150px] flex items-center p-5 group bg-[#e41212]"
       >
         {/* Background Image */}
@@ -44,16 +45,16 @@ export const HomeSidebar: React.FC<HomeSidebarProps> = ({ showLoto, setShowLoto,
               TRÚNG LỚN
             </h3>
           </div>
-          <button
-            className="bg-gradient-to-r from-[#ffe169] to-[#ffc107] hover:from-[#fff] hover:to-[#ffe169] text-[#c62828] px-4 py-2 rounded-full font-bold text-[12px] transition-all shadow-[0_4px_10px_rgba(255,213,79,0.3)] uppercase font-client-main flex items-center gap-1 w-max pointer-events-none"
+          <span
+            className="bg-gradient-to-r from-[#ffe169] to-[#ffc107] group-hover:from-[#fff] group-hover:to-[#ffe169] text-[#c62828] px-4 py-2 rounded-full font-bold text-[12px] transition-all shadow-[0_4px_10px_rgba(255,213,79,0.3)] uppercase font-client-main flex items-center gap-1 w-max"
           >
             Mua vé ngay
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
               <path fillRule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clipRule="evenodd" />
             </svg>
-          </button>
+          </span>
         </div>
-      </div>
+      </Link>
 
       {/* Loto Table - Shown conditionally on mobile, always on desktop if data exists */}
       {showLoto && dataList.length > 0 && (

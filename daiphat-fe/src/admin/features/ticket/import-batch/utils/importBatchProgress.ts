@@ -89,6 +89,8 @@ export const buildImportBatchProgressSegments = (
 
 export const isLineCancelled = (line: ImportBatchLine) => line.status === 'CANCELLED';
 
+export const isLinePaused = (line: ImportBatchLine) => line.status === 'PAUSED';
+
 export const isLineActionable = (line: ImportBatchLine) => isLineIncomplete(line);
 
 export const isLineIncomplete = (line: ImportBatchLine) =>

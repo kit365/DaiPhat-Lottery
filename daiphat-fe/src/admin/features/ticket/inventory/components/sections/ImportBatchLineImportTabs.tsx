@@ -1,8 +1,10 @@
 import AddIcon from '@mui/icons-material/Add';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
+import PauseCircleOutlineIcon from '@mui/icons-material/PauseCircleOutline';
 import {
     Alert,
     Box,
+    Chip,
     Fab,
     Paper,
     Stack,
@@ -16,7 +18,13 @@ import dayjs from 'dayjs';
 import { Control, FieldArrayWithId, FieldErrors, useFormState } from 'react-hook-form';
 import type { ImportBatchLine, ImportBatchStatus } from '../../../import-batch/types/importBatch.type';
 import { LoadingButton } from '../../../../../components/ui/LoadingButton';
-import { getBatchTypeLabel, getImportBatchLineCancelledAlertMessage } from '../../../import-batch/utils/batchTypeLabels';
+import {
+    getBatchTypeLabel,
+    getImportBatchLineCancelledAlertMessage,
+    getImportBatchLineStatusChipColor,
+    getImportBatchLineStatusLabel,
+    IMPORT_BATCH_LINE_PAUSED_ENTRY_MESSAGE,
+} from '../../../import-batch/utils/batchTypeLabels';
 import {
     displayImportBatchLineCodeRaw,
     formatImportBatchLineCode,
@@ -26,6 +34,7 @@ import {
     getLineImportProgress,
     getLineStationColor,
     isLineCancelled,
+    isLinePaused,
 } from '../../../import-batch/utils/importBatchProgress';
 import { TicketImportProgressTrack } from '../../../import-batch/components/sections/TicketImportProgressTrack';
 import { CreateTicketFormValues } from '../../schemas/ticket.schema';
@@ -77,6 +86,7 @@ export const ImportBatchLineImportTabs = ({
     const activeLine = lines.find((line) => String(line.id) === String(activeLineId));
     const activeProgress = activeLine ? getLineImportProgress(activeLine) : null;
     const activeStationColors = activeLine ? getLineStationColor(lines, activeLine) : null;
+    const linePaused = !!activeLine && isLinePaused(activeLine);
     const canImport =
         (batchStatus === 'DRAFT' ||
             batchStatus === 'RECEIVING' ||
@@ -84,7 +94,8 @@ export const ImportBatchLineImportTabs = ({
         !!activeLine &&
         activeProgress &&
         !activeProgress.isComplete &&
-        !isLineCancelled(activeLine);
+        !isLineCancelled(activeLine) &&
+        !linePaused;
 
     const activeTabIndex = Math.max(
         0,
@@ -92,7 +103,7 @@ export const ImportBatchLineImportTabs = ({
     );
 
     const quotaHint =
-        remainingSerialQuota !== undefined && remainingSerialQuota > 0
+        remainingSerialQuota !== undefined && remainingSerialQuota > 0 && canImport
             ? `Còn lại ${remainingSerialQuota} vé có thể nhập`
             : undefined;
 
@@ -119,6 +130,7 @@ export const ImportBatchLineImportTabs = ({
                     const { imported, declared, isComplete } = getLineImportProgress(line);
                     const stationColor = getLineStationColor(lines, line);
                     const cancelled = isLineCancelled(line);
+                    const paused = isLinePaused(line);
                     return (
                         <Tab
                             key={line.id}
@@ -136,6 +148,11 @@ export const ImportBatchLineImportTabs = ({
                                         }}
                                     />
                                     <span>{resolveStationName(line.lotteryStationId)}</span>
+                                    {paused && (
+                                        <PauseCircleOutlineIcon
+                                            sx={{ fontSize: 16, color: 'warning.main' }}
+                                        />
+                                    )}
                                     {isComplete && (
                                         <CheckCircleOutlineIcon
                                             sx={{ fontSize: 16, color: 'success.main' }}
@@ -158,12 +175,47 @@ export const ImportBatchLineImportTabs = ({
             </Tabs>
 
             {activeLine && activeProgress && activeStationColors && (
-                <Box sx={{ p: 2.5 }}>
+                <Box
+                    sx={{
+                        p: 2.5,
+                        ...(linePaused
+                            ? {
+                                  bgcolor: 'rgba(255, 171, 0, 0.04)',
+                              }
+                            : {}),
+                    }}
+                >
+                    <Stack
+                        direction="row"
+                        spacing={1}
+                        alignItems="center"
+                        flexWrap="wrap"
+                        useFlexGap
+                        sx={{ mb: 2 }}
+                    >
+                        <Typography variant="body2" color="text.secondary">
+                            Trạng thái dòng
+                        </Typography>
+                        <Chip
+                            size="small"
+                            label={getImportBatchLineStatusLabel(activeLine.status)}
+                            color={getImportBatchLineStatusChipColor(activeLine.status)}
+                            sx={{ fontWeight: 600 }}
+                        />
+                    </Stack>
+
                     {isLineCancelled(activeLine) && (
                         <Alert severity="error" sx={{ mb: 2 }}>
                             {getImportBatchLineCancelledAlertMessage(activeLine.cancelReason)}
                         </Alert>
                     )}
+
+                    {linePaused && (
+                        <Alert severity="warning" sx={{ mb: 2 }} icon={<PauseCircleOutlineIcon />}>
+                            {IMPORT_BATCH_LINE_PAUSED_ENTRY_MESSAGE}
+                        </Alert>
+                    )}
+
                     <Stack
                         direction={{ xs: 'column', md: 'row' }}
                         spacing={2}
@@ -263,7 +315,19 @@ export const ImportBatchLineImportTabs = ({
                         Danh sách dãy số
                     </Typography>
 
-                    <Stack spacing={1.5} sx={{ pb: 10 }}>
+                    <Stack
+                        spacing={1.5}
+                        sx={{
+                            pb: 10,
+                            ...(linePaused
+                                ? {
+                                      opacity: 0.55,
+                                      pointerEvents: 'none',
+                                      userSelect: 'none',
+                                  }
+                                : {}),
+                        }}
+                    >
                         {sectionFields.map((section, sectionIndex) => (
                             <TicketNumberSectionBlock
                                 key={section.id}
