@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { keepPreviousData } from '@tanstack/react-query';
 import { 
     Box, 
     Card, 
@@ -45,24 +46,57 @@ import { LotteryTicketStatus } from '../../../../../constants/lottery.constants'
 import { useStationsByDrawDate } from '../../../station/hooks/useStation';
 import dayjs from 'dayjs';
 import { useCreateOrder } from '../../hooks/useOrder';
+import { useProcessCounterPayment } from '../../hooks/useCounterPayment';
+import { CounterPaymentQrDialog } from '../sections/CounterPaymentQrDialog';
 import { CreateDirectOrderRequest, OrderReceiveType, DirectOrderTransactionRequest } from '../../../../../types/order.type';
+import { PaymentResult } from '../../../../../types/transaction.type';
 import { toast } from 'react-toastify';
-import { useUsers } from '../../../users/hooks/useUsers';
+import { useSearchCustomers } from '../../../users/hooks/useUsers';
+import {
+    defaultSellableDrawDate,
+    minSellableDrawDate,
+} from '../../../../../client/utils/sellableDrawDate.util';
 
 const PHONE_REGEX = /^(0|84)(3|5|7|8|9)[0-9]{8}$/;
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+const clampSellableDates = (dates: string[]): string[] => {
+    const minDate = minSellableDrawDate();
+    const next = (Array.isArray(dates) ? dates : []).filter((d) => d >= minDate);
+    return next.length > 0 ? next : [defaultSellableDrawDate()];
+};
+
+/** Map lựa chọn SortButton → params API lottery-tickets. Số vé 6 chữ số → sort chuỗi = sort số. */
+const mapCounterTicketSort = (sortByUI: string): { sortBy?: string; direction?: string } => {
+    switch (sortByUI) {
+        case 'numbers_asc':
+            return { sortBy: 'numbers', direction: 'ASC' };
+        case 'numbers_desc':
+            return { sortBy: 'numbers', direction: 'DESC' };
+        case 'default':
+        default:
+            return { sortBy: 'createdAt', direction: 'DESC' };
+    }
+};
+
 export const CounterOrderCreatePage = () => {
     const [activeStep, setActiveStep] = useState(1);
     const [searchQuery, setSearchQuery] = useState('');
-    const [filters, setFilters] = useState<any>({
-        dateRange: [dayjs().format('YYYY-MM-DD')]
-    });
+    const [filters, setFilters] = useState<any>(() => ({
+        dateRange: [defaultSellableDrawDate()],
+    }));
+    const [clockTick, setClockTick] = useState(0);
     const [sortByUI, setSortByUI] = useState('default');
     const [settings, setSettings] = useState({ density: 'compact', showColumns: [] });
     const [selectedTickets, setSelectedTickets] = useState<Record<string, { qty: number, ticket: any }>>({});
     const [page, setPage] = useState(0);
     const [rowsPerPage, setRowsPerPage] = useState(10);
+    /** Lưu page trước khi search để restore khi xoá ô tìm kiếm. */
+    const pageBeforeSearchRef = useRef(0);
+    const pageRef = useRef(page);
+    const searchQueryRef = useRef(searchQuery);
+    pageRef.current = page;
+    searchQueryRef.current = searchQuery;
     const [customerInfo, setCustomerInfo] = useState({ customerId: '', name: '', phone: '', email: '', note: '' });
     const [customerSearchInput, setCustomerSearchInput] = useState('');
     const [debouncedCustomerSearch, setDebouncedCustomerSearch] = useState('');
@@ -71,33 +105,57 @@ export const CounterOrderCreatePage = () => {
     const normalizedCustomerEmail = customerInfo.email.trim();
 
     useEffect(() => {
+        const timer = window.setInterval(() => setClockTick((t) => t + 1), 30_000);
+        return () => window.clearInterval(timer);
+    }, []);
+
+    // Sau giờ xổ: bỏ ngày hôm nay khỏi filter, chuyển sang ngày còn bán được
+    useEffect(() => {
+        setFilters((prev: any) => {
+            const current = Array.isArray(prev.dateRange) ? prev.dateRange : [];
+            const next = clampSellableDates(current);
+            if (current.join(',') === next.join(',')) return prev;
+            return { ...prev, dateRange: next };
+        });
+    }, [clockTick]);
+
+    useEffect(() => {
         const timer = setTimeout(() => {
             setDebouncedCustomerSearch(customerSearchInput);
         }, 500);
         return () => clearTimeout(timer);
     }, [customerSearchInput]);
 
-    const { data: customers = [], isLoading: isSearchingUsers } = useUsers(
-        { q: debouncedCustomerSearch, limit: 10, customerSearch: true } as any,
+    const { data: customers = [], isLoading: isSearchingUsers } = useSearchCustomers(
+        { q: debouncedCustomerSearch, limit: 10 },
         {
             enabled: debouncedCustomerSearch.length >= 2,
-            select: (res: any) => res?.data || [],
+            select: (res: any) => (Array.isArray(res?.data) ? res.data : []),
         } as any
-    ) as unknown as { data: any[]; isLoading: boolean };
+    );
 
-    const { data: matchedExistingCustomer = null } = useUsers(
-        { q: normalizedCustomerEmail, limit: 10, customerSearch: true } as any,
+    const { data: matchedExistingCustomer = null } = useSearchCustomers(
+        { q: normalizedCustomerEmail, limit: 10 },
         {
             enabled: !customerInfo.customerId && normalizedCustomerEmail.length >= 3,
             select: (res: any) => {
-                const users = res?.data || [];
+                const users = Array.isArray(res?.data) ? res.data : [];
                 return users.find((user: any) => (user.email || '').trim().toLowerCase() === normalizedCustomerEmail.toLowerCase()) || null;
             },
         } as any
-    ) as unknown as { data: any };
+    );
     const [paymentMethod, setPaymentMethod] = useState<'CASH' | 'BANK' | 'PARTIAL'>('CASH');
     const [cashAmount, setCashAmount] = useState<string>('');
     const [openConfirm, setOpenConfirm] = useState(false);
+    const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
+    const [pendingPaymentOrder, setPendingPaymentOrder] = useState<{
+        orderId: string;
+        orderCode?: string;
+        amount: number;
+        transactionId: number;
+    } | null>(null);
+    const [paymentResult, setPaymentResult] = useState<PaymentResult | null>(null);
+    const [isPreparingPayment, setIsPreparingPayment] = useState(false);
     const [openAccountLinkPrompt, setOpenAccountLinkPrompt] = useState(false);
     const [accountLinkPromptSource, setAccountLinkPromptSource] = useState<'BLUR' | 'CHECKOUT'>('BLUR');
     const [guestAccountBypassEmail, setGuestAccountBypassEmail] = useState('');
@@ -113,54 +171,120 @@ export const CounterOrderCreatePage = () => {
     }, [matchedExistingCustomer, hasCheckedEmailBlur, customerInfo.customerId, normalizedCustomerEmail, guestAccountBypassEmail]);
 
     const { mutate: createOrder, isPending: isCreating } = useCreateOrder();
+    const { mutateAsync: processCounterPayment } = useProcessCounterPayment();
 
-    const selectedDrawDates = filters.dateRange && filters.dateRange.length > 0
-        ? filters.dateRange
-        : [dayjs().format('YYYY-MM-DD')];
-    const { data: scheduleStations } = useStationsByDrawDate(selectedDrawDates);
-    const previousDrawDatesKeyRef = useRef(selectedDrawDates.join(','));
+    const resetCounterForm = () => {
+        setSelectedTickets({});
+        setCustomerInfo({ customerId: '', name: '', phone: '', email: '', note: '' });
+        setCustomerSearchInput('');
+        setDebouncedCustomerSearch('');
+        setCashAmount('');
+        setPaymentMethod('CASH');
+        setActiveStep(1);
+        setGuestAccountBypassEmail('');
+        setHasCheckedEmailBlur(false);
+    };
+
+    const closePaymentDialog = () => {
+        setPaymentDialogOpen(false);
+        setPendingPaymentOrder(null);
+        setPaymentResult(null);
+        setIsPreparingPayment(false);
+    };
+
+    const selectedDrawDates = useMemo(() => {
+        if (Array.isArray(filters.dateRange) && filters.dateRange.length > 0) {
+            return clampSellableDates(filters.dateRange);
+        }
+        return [defaultSellableDrawDate()];
+        // clockTick chỉ cập nhật filters.dateRange qua effect riêng — không đưa vào đây
+        // để tránh tạo mảng mới → refetch → totalRecords tạm 0 → nhảy page.
+    }, [filters.dateRange]);
+    const selectedDrawDatesKey = selectedDrawDates.join(',');
+
+    const { data: scheduleStations, isFetched: isStationsFetched } = useStationsByDrawDate(selectedDrawDates);
+    const previousDrawDatesKeyRef = useRef(selectedDrawDatesKey);
 
     useEffect(() => {
-        const stationList = Array.isArray(scheduleStations) ? scheduleStations : [];
-        const allIds = stationList.map((station: any) => (station.id || station._id).toString());
-        const drawDatesKey = selectedDrawDates.join(',');
-        const didDrawDatesChange = previousDrawDatesKeyRef.current !== drawDatesKey;
+        if (!isStationsFetched || !Array.isArray(scheduleStations)) {
+            return;
+        }
+
+        const allIds = scheduleStations.map((station: any) => (station.id || station._id).toString());
+        const didDrawDatesChange = previousDrawDatesKeyRef.current !== selectedDrawDatesKey;
 
         setFilters((prev: any) => {
-            const currentRegion = Array.isArray(prev.region) ? prev.region : [];
+            const nextDateRange = clampSellableDates(
+                Array.isArray(prev.dateRange) && prev.dateRange.length > 0
+                    ? prev.dateRange
+                    : [defaultSellableDrawDate()]
+            );
 
+            // Đổi ngày quay → chọn lại toàn bộ đài của ngày đó
             if (didDrawDatesChange) {
-                return { ...prev, region: allIds };
+                return { ...prev, dateRange: nextDateRange, region: allIds };
             }
 
-            const nextRegion = currentRegion.length === 0
-                ? allIds
-                : currentRegion.filter((id: string) => allIds.includes(id));
+            // Lần đầu vào trang (region chưa khởi tạo) → mặc định chọn hết
+            if (prev.region === undefined) {
+                return { ...prev, dateRange: nextDateRange, region: allIds };
+            }
 
-            const changed = currentRegion.length !== nextRegion.length
+            const currentRegion = Array.isArray(prev.region) ? prev.region : [];
+            // Cho phép [] (user bỏ chọn hết). Chỉ loại id không còn trong lịch.
+            const nextRegion = currentRegion.filter((id: string) => allIds.includes(id));
+
+            const regionChanged = currentRegion.length !== nextRegion.length
                 || currentRegion.some((id: string, index: number) => nextRegion[index] !== id);
+            const dateChanged = !Array.isArray(prev.dateRange)
+                || prev.dateRange.length === 0
+                || prev.dateRange.join(',') !== nextDateRange.join(',');
 
-            if (!changed && currentRegion.length > 0) {
+            if (!regionChanged && !dateChanged) {
                 return prev;
             }
 
-            return { ...prev, region: nextRegion.length > 0 ? nextRegion : allIds };
+            return {
+                ...prev,
+                dateRange: nextDateRange,
+                region: nextRegion,
+            };
         });
 
-        previousDrawDatesKeyRef.current = drawDatesKey;
-    }, [scheduleStations, selectedDrawDates]);
+        previousDrawDatesKeyRef.current = selectedDrawDatesKey;
+    }, [isStationsFetched, scheduleStations, selectedDrawDatesKey]);
 
-    const { data: ticketsRes, isLoading } = useTickets({
-        status: LotteryTicketStatus.IN_STOCK,
-        search: searchQuery || undefined,
-        stationIds: filters.region && filters.region.length > 0 ? filters.region.map((id: string) => Number(id)) : undefined,
-        drawDate: filters.dateRange && filters.dateRange.length > 0 ? filters.dateRange : undefined,
-        page: page + 1,
-        limit: rowsPerPage,
-    });
+    const selectedRegionIds = Array.isArray(filters.region) ? filters.region : [];
+    const canFetchTickets = Array.isArray(filters.region) && selectedRegionIds.length > 0;
+    const ticketSort = useMemo(() => mapCounterTicketSort(sortByUI), [sortByUI]);
 
-    const paginatedTickets = (ticketsRes as any)?.data?.recordList || [];
-    const totalRecords = (ticketsRes as any)?.data?.pagination?.totalRecords || 0;
+    const { data: ticketsRes, isFetching: isTicketsFetching } = useTickets(
+        {
+            status: LotteryTicketStatus.IN_STOCK,
+            search: searchQuery || undefined,
+            stationIds: canFetchTickets ? selectedRegionIds.map((id: string) => Number(id)) : undefined,
+            drawDate: selectedDrawDates,
+            page: page + 1,
+            limit: rowsPerPage,
+            sortBy: ticketSort.sortBy,
+            direction: ticketSort.direction,
+        },
+        { enabled: canFetchTickets, placeholderData: keepPreviousData }
+    );
+
+    const paginatedTickets = canFetchTickets ? ((ticketsRes as any)?.data?.recordList || []) : [];
+    const totalRecords = canFetchTickets ? ((ticketsRes as any)?.data?.pagination?.totalRecords || 0) : 0;
+
+    // Chỉ clamp khi đã có total thật của query hiện tại.
+    // Khi đang fetch: data cũ/placeholder có thể total=0 hoặc total của search hẹp →
+    // nếu clamp lúc đó sẽ kéo page về 0 (lỗi nhảy về trang 1 khi sang trang 3/4).
+    useEffect(() => {
+        if (!canFetchTickets || isTicketsFetching) return;
+        const maxPage = Math.max(0, Math.ceil(totalRecords / rowsPerPage) - 1);
+        if (page > maxPage) {
+            setPage(maxPage);
+        }
+    }, [totalRecords, rowsPerPage, page, canFetchTickets, isTicketsFetching]);
 
     const groupedTickets = useMemo(() => {
         const groups: { [key: string]: { stationName: string; stationCode: string; tickets: any[] } } = {};
@@ -278,6 +402,13 @@ export const CounterOrderCreatePage = () => {
     const handleCreateOrder = () => {
         const transactions: DirectOrderTransactionRequest[] = [];
         const normalizedPaymentMethod = paymentMethod === 'PARTIAL' && remainingTransferAmount === 0 ? 'CASH' : paymentMethod;
+        const onlineAmount =
+            normalizedPaymentMethod === 'BANK'
+                ? totalPrice
+                : normalizedPaymentMethod === 'PARTIAL'
+                    ? remainingTransferAmount
+                    : 0;
+        const needsOnlinePayment = onlineAmount > 0;
 
         if (normalizedPaymentMethod === 'CASH') {
             transactions.push({ type: 'OFFLINE', amount: totalPrice });
@@ -309,14 +440,55 @@ export const CounterOrderCreatePage = () => {
         };
 
         createOrder(payload, {
-            onSuccess: (res) => {
-                toast.success('Tạo đơn hàng thành công!');
+            onSuccess: async (res) => {
+                const order = res?.data;
+                const orderId = order?.id;
+                const onlineTx = Array.isArray(order?.transactions)
+                    ? order.transactions.find((tx: any) => {
+                        const type = String(tx.type || '').toUpperCase();
+                        const status = String(tx.status || 'PENDING').toUpperCase();
+                        return type === 'ONLINE' && status === 'PENDING';
+                    })
+                    : null;
+
                 setOpenConfirm(false);
-                setSelectedTickets({});
-                setCustomerInfo({ customerId: '', name: '', phone: '', email: '', note: '' });
-                setCashAmount('');
-                setPaymentMethod('CASH');
-                setActiveStep(1);
+
+                if (!needsOnlinePayment) {
+                    toast.success('Tạo đơn hàng thành công!');
+                    resetCounterForm();
+                    return;
+                }
+
+                if (!orderId || !onlineTx?.id) {
+                    toast.error('Đã tạo đơn nhưng không tìm thấy giao dịch chuyển khoản. Vào chi tiết đơn để tiếp tục thanh toán.');
+                    resetCounterForm();
+                    return;
+                }
+
+                setPendingPaymentOrder({
+                    orderId: String(orderId),
+                    orderCode: order?.orderCode,
+                    amount: onlineAmount,
+                    transactionId: Number(onlineTx.id),
+                });
+                setPaymentResult(null);
+                setPaymentDialogOpen(true);
+                setIsPreparingPayment(true);
+
+                try {
+                    const paymentRes = await processCounterPayment({
+                        orderId: String(orderId),
+                        transactionId: Number(onlineTx.id),
+                    });
+                    setPaymentResult(paymentRes?.data || null);
+                    if (!paymentRes?.data?.checkoutUrl && !paymentRes?.data?.qrCode) {
+                        toast.error('Không tạo được mã thanh toán PayOS');
+                    }
+                } catch (err: any) {
+                    toast.error(err?.response?.data?.message || 'Không thể tạo phiên thanh toán');
+                } finally {
+                    setIsPreparingPayment(false);
+                }
             },
             onError: (err: any) => {
                 toast.error(err.response?.data?.message || 'Có lỗi xảy ra khi tạo đơn hàng');
@@ -325,22 +497,59 @@ export const CounterOrderCreatePage = () => {
         });
     };
 
+    const handlePaymentPaid = useCallback(() => {
+        toast.success('Thanh toán thành công — đơn đã được tạo!');
+        closePaymentDialog();
+        resetCounterForm();
+    }, []);
+
+    const handlePaymentDialogClose = useCallback(() => {
+        toast.info('Đơn đang chờ thanh toán. Bạn có thể mở lại từ danh sách đơn hàng.');
+        closePaymentDialog();
+        resetCounterForm();
+    }, []);
+
     const handleChangeRowsPerPage = (event: React.ChangeEvent<HTMLInputElement>) => {
         setRowsPerPage(parseInt(event.target.value, 10));
         setPage(0);
     };
 
     const handleFilterChange = (fieldId: string, values: string[]) => {
-        setFilters((prev: any) => ({ ...prev, [fieldId]: values }));
+        setFilters((prev: any) => {
+            if (fieldId === 'dateRange') {
+                return { ...prev, dateRange: clampSellableDates(values) };
+            }
+
+            return { ...prev, [fieldId]: values };
+        });
+        setPage(0);
     };
 
     const handleClearFilters = () => {
-        const allIds = Array.isArray(scheduleStations) ? scheduleStations.map((p: any) => (p.id || p._id).toString()) : [];
         setFilters({
-            region: allIds,
-            dateRange: [dayjs().format('YYYY-MM-DD')]
+            region: [],
+            dateRange: [defaultSellableDrawDate()],
         });
+        pageBeforeSearchRef.current = 0;
+        setPage(0);
+        setSearchQuery('');
     };
+
+    const handleSearchChange = useCallback((value: string) => {
+        const prev = searchQueryRef.current;
+        if (!prev && value) {
+            // Bắt đầu search từ danh sách đang phân trang
+            pageBeforeSearchRef.current = pageRef.current;
+            setPage(0);
+        } else if (prev && !value) {
+            // Xoá search → quay lại đúng trang trước đó
+            setPage(pageBeforeSearchRef.current);
+        } else if (value) {
+            // Đổi từ khoá khi đang search → luôn xem trang 1 của kết quả mới
+            setPage(0);
+        }
+        setSearchQuery(value);
+    }, []);
 
     return (
         <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: 'calc(100vh - 100px)' }}>
@@ -373,9 +582,12 @@ export const CounterOrderCreatePage = () => {
                         filters={{ ...filters, search: searchQuery }}
                         onFilterChange={handleFilterChange}
                         onClearFilters={handleClearFilters}
-                        onSearchChange={setSearchQuery}
+                        onSearchChange={handleSearchChange}
                         sortByUI={sortByUI}
-                        onSortChange={setSortByUI}
+                        onSortChange={(next) => {
+                            setSortByUI(next);
+                            setPage(0);
+                        }}
                         settings={settings}
                         onSettingsChange={setSettings}
                     />
@@ -584,7 +796,7 @@ export const CounterOrderCreatePage = () => {
                             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
                                 <Autocomplete
                                     options={[
-                                        ...(customers || []),
+                                        ...(Array.isArray(customers) ? customers : []),
                                         ...(customerInfo.customerId ? [{
                                             id: customerInfo.customerId,
                                             fullName: customerInfo.name,
@@ -831,6 +1043,9 @@ export const CounterOrderCreatePage = () => {
                 <DialogContent>
                     <DialogContentText>
                         Bạn có chắc chắn muốn chốt đơn hàng này không?
+                        {(paymentMethod === 'BANK' || (paymentMethod === 'PARTIAL' && remainingTransferAmount > 0)) && (
+                            <> Sau khi xác nhận, hệ thống sẽ hiện mã QR để khách thanh toán.</>
+                        )}
                     </DialogContentText>
                     <Box sx={{ mt: 2, p: 2, bgcolor: 'var(--palette-background-neutral)', borderRadius: 1 }}>
                         <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
@@ -869,6 +1084,17 @@ export const CounterOrderCreatePage = () => {
                     </Button>
                 </DialogActions>
             </Dialog>
+
+            <CounterPaymentQrDialog
+                open={paymentDialogOpen}
+                orderId={pendingPaymentOrder?.orderId || ''}
+                orderCode={pendingPaymentOrder?.orderCode}
+                amount={pendingPaymentOrder?.amount || 0}
+                payment={paymentResult}
+                loading={isPreparingPayment}
+                onPaid={handlePaymentPaid}
+                onClose={handlePaymentDialogClose}
+            />
         </Box>
     );
 };
