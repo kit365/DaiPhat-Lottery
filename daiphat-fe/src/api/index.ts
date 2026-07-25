@@ -26,11 +26,22 @@ type ApiRequestConfig = InternalAxiosRequestConfig & {
     skipGlobalErrorToast?: boolean;
 };
 
-// Request Interceptor: Attach Token
+// Request Interceptor: Attach Token (skip public auth endpoints)
 apiApp.interceptors.request.use((config) => {
-    const token = useAuthStore.getState().token;
-    if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
+    const url = config.url || "";
+    const isPublicAuth =
+        url.includes("/auth/login") ||
+        url.includes("/auth/register") ||
+        url.includes("/auth/google") ||
+        url.includes("/auth/refresh-token") ||
+        url.includes("/auth/forgot-password") ||
+        url.includes("/auth/verify-email");
+
+    if (!isPublicAuth) {
+        const token = useAuthStore.getState().token;
+        if (token) {
+            config.headers.Authorization = `Bearer ${token}`;
+        }
     }
     return config;
 });
@@ -166,7 +177,7 @@ apiApp.interceptors.response.use(
                 isRefreshing = true;
 
                 return new Promise((resolve, reject) => {
-                    apiApp.post('/auth/refresh-token')
+                    apiApp.post('/auth/refresh-token', null, { skipGlobalErrorToast: true } as ApiRequestConfig)
                         .then(({ data }) => {
                             const newAccessToken = data?.data?.accessToken || data?.data?.access_token;
                             const expiresIn = data?.data?.expiresIn || data?.data?.expires_in;
@@ -183,7 +194,8 @@ apiApp.interceptors.response.use(
                         })
                         .catch((err) => {
                             processQueue(err, null);
-                            handleExpiredSession();
+                            // Missing/invalid refresh cookie used to 500 and spam "server error" toasts
+                            handleExpiredSession(false);
                             reject(err);
                         })
                         .finally(() => {

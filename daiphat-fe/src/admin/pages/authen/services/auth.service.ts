@@ -21,7 +21,9 @@ const normalizeAuthResponse = <T extends ApiResponse<any>>(response: T): T => {
 
 export const authService = {
     login: async (data: LoginFormValues & { rememberMe?: boolean }): Promise<LoginResponse> => {
-        const response = await apiApp.post<LoginResponse>(AUTH_ENDPOINTS.login, data);
+        const response = await apiApp.post<LoginResponse>(AUTH_ENDPOINTS.login, data, {
+            skipGlobalErrorToast: true,
+        } as any);
         return normalizeAuthResponse(response.data);
     },
 
@@ -52,8 +54,12 @@ export const authService = {
         return normalizeAuthResponse(response.data);
     },
 
-    getMe: async (): Promise<GetMeResponse> => {
-        const response = await apiApp.get<GetMeResponse>(USER_ENDPOINTS.currentUser);
+    getMe: async (accessToken?: string): Promise<GetMeResponse> => {
+        const response = await apiApp.get<GetMeResponse>(USER_ENDPOINTS.currentUser, {
+            ...(accessToken
+                ? { headers: { Authorization: `Bearer ${accessToken}` }, skipGlobalErrorToast: true }
+                : {}),
+        } as any);
         const user = response.data?.data || response.data;
         if (response.data && user) {
             response.data.data = {

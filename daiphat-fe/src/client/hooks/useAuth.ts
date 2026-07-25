@@ -45,6 +45,10 @@ export const useAuth = () => {
         mutationFn: (data: LoginFormValues) => authService.login(data),
         onMutate: () => {
             setPendingVerificationIdentifier(null);
+            // Clear broken session so login isn't racing with refresh-token failures
+            Cookies.remove(STORAGE_KEYS.TOKEN, { path: "/" });
+            Cookies.remove(STORAGE_KEYS.REFRESH_TOKEN, { path: "/" });
+            logoutStore();
         },
         onSuccess: async (response: any) => {
             setPendingVerificationIdentifier(null);
@@ -54,19 +58,9 @@ export const useAuth = () => {
             const expiresIn = authData?.expires_in ?? authData?.expiresIn;
 
             if (isSuccess && accessToken) {
-                const cookieOptions = {
-                    expires: expiresIn ? expiresIn / 86400 : 7,
-                    path: '/'
-                };
-                Cookies.set(STORAGE_KEYS.TOKEN, accessToken, cookieOptions);
-                useAuthStore.getState().set({
-                    token: accessToken,
-                    expiresAt: expiresIn ? Date.now() + expiresIn * 1000 : null
-                });
-
                 const meResponse = authData?.user
                     ? { isSuccess: true, success: true, data: authData.user }
-                    : await authService.getMe();
+                    : await authService.getMe(accessToken);
                 const meSuccess = meResponse.isSuccess ?? meResponse.success;
                 const userInfo = meResponse.data;
 
@@ -84,6 +78,11 @@ export const useAuth = () => {
                     return;
                 }
 
+                const cookieOptions = {
+                    expires: expiresIn ? expiresIn / 86400 : 7,
+                    path: '/'
+                };
+                Cookies.set(STORAGE_KEYS.TOKEN, accessToken, cookieOptions);
                 loginStore(userInfo as User, accessToken, expiresIn);
                 queryClient.setQueryData([QUERY_KEYS.CLIENT_ME, accessToken], {
                     isSuccess: true,
@@ -98,16 +97,25 @@ export const useAuth = () => {
             }
         },
         onError: (error: any) => {
-            const message = error.response?.data?.message || "Tên đăng nhập hoặc mật khẩu không đúng.";
+            const status = error.response?.status;
+            const message = error.response?.data?.message;
             const isUnverifiedEmail =
-                message.includes("Email chưa được xác thực") ||
-                message.includes("Tài khoản chưa được kích hoạt");
+                typeof message === "string" &&
+                (message.includes("Email chưa được xác thực") ||
+                    message.includes("Tài khoản chưa được kích hoạt"));
 
             if (isUnverifiedEmail) {
                 setPendingVerificationIdentifier(loginForm.getValues("username"));
-            } else {
-                setPendingVerificationIdentifier(null);
+                return;
+            }
+
+            setPendingVerificationIdentifier(null);
+            if (status === 401) {
+                AppToast.error(message || "Tên đăng nhập hoặc mật khẩu không đúng.");
+            } else if (message) {
                 AppToast.error(message);
+            } else {
+                AppToast.error("Không thể đăng nhập. Vui lòng thử lại.");
             }
         }
     });
