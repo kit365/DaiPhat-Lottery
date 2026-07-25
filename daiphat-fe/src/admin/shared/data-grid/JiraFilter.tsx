@@ -21,6 +21,10 @@ export interface FilterField {
     label: string;
     options: Option[];
     type?: 'date';
+    /** YYYY-MM-DD — chặn chọn ngày trước mốc này (DatePicker). */
+    minDate?: string;
+    /** false → ẩn ô tìm kiếm trong tab này (mặc định hiện). */
+    searchable?: boolean;
 }
 
 interface JiraFilterProps {
@@ -31,26 +35,44 @@ interface JiraFilterProps {
     trigger?: (props: { onClick: (e: React.MouseEvent<HTMLButtonElement>) => void; totalFilterCount: number }) => React.ReactNode;
 }
 
+/** Chỉ chặn đóng khi click vào lịch DatePicker (không dùng .MuiModal-root vì Popover cũng là Modal). */
+const isInsideDatePickerPortal = (target: EventTarget | null) => {
+    if (!(target instanceof Element)) return false;
+    return Boolean(
+        target.closest('.MuiPickersPopper-root, .MuiPickersLayout-root, .MuiDateCalendar-root')
+    );
+};
+
 export const JiraFilter: React.FC<JiraFilterProps> = ({ fields, selectedFilters, onFilterChange, onClearAll, trigger }) => {
     const [anchorEl, setAnchorEl] = useState<HTMLButtonElement | null>(null);
     const [activeTabId, setActiveTabId] = useState<string>(fields[0]?.id || '');
     const [searchQuery, setSearchQuery] = useState('');
+    const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
+    const [customDateValue, setCustomDateValue] = useState<dayjs.Dayjs | null>(null);
 
     const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
+        if (anchorEl) {
+            handleClose();
+            return;
+        }
         setAnchorEl(event.currentTarget);
     };
 
     const handleClose = () => {
         setAnchorEl(null);
         setSearchQuery('');
+        setIsDatePickerOpen(false);
+        setCustomDateValue(null);
     };
 
     const open = Boolean(anchorEl);
     const id = open ? 'jira-filter-popover' : undefined;
 
-    const activeField = fields.find(f => f.id === activeTabId);
-    const isDate = activeField?.type === 'date';
-    const activeSelected = selectedFilters[activeTabId] || [];
+    const resolvedActiveTabId = fields.some((field) => field.id === activeTabId)
+        ? activeTabId
+        : (fields[0]?.id || '');
+    const activeField = fields.find(f => f.id === resolvedActiveTabId);
+    const activeSelected = selectedFilters[resolvedActiveTabId] || [];
 
     const filteredOptions = useMemo(() => {
         if (!activeField) return [];
@@ -83,7 +105,7 @@ export const JiraFilter: React.FC<JiraFilterProps> = ({ fields, selectedFilters,
             newSelected.splice(currentIndex, 1);
         }
 
-        onFilterChange(activeTabId, newSelected);
+        onFilterChange(resolvedActiveTabId, newSelected);
     };
 
     const totalFilterCount = Object.values(selectedFilters).reduce((acc, curr) => acc + curr.length, 0);
@@ -136,7 +158,18 @@ export const JiraFilter: React.FC<JiraFilterProps> = ({ fields, selectedFilters,
                 id={id}
                 open={open}
                 anchorEl={anchorEl}
-                onClose={handleClose}
+                disableScrollLock
+                onClose={(event, reason) => {
+                    // Escape luôn đóng; click ngoài chỉ bỏ qua nếu đang tương tác với lịch
+                    if (reason === 'backdropClick' || reason === 'escapeKeyDown') {
+                        if (reason === 'backdropClick' && (isDatePickerOpen || isInsideDatePickerPortal(event?.target ?? null))) {
+                            return;
+                        }
+                        handleClose();
+                        return;
+                    }
+                    handleClose();
+                }}
                 anchorOrigin={{
                     vertical: 'bottom',
                     horizontal: 'left',
@@ -168,19 +201,23 @@ export const JiraFilter: React.FC<JiraFilterProps> = ({ fields, selectedFilters,
                             )}
                             {fields.map((field) => {
                                 const fieldCount = (selectedFilters[field.id] || []).length;
+                                const isActive = resolvedActiveTabId === field.id;
                                 return (
                                     <ListItem disablePadding key={field.id}>
                                         <ListItemButton 
-                                            selected={activeTabId === field.id}
+                                            selected={isActive}
                                             onClick={() => {
                                                 setActiveTabId(field.id);
                                                 setSearchQuery('');
                                             }}
                                             sx={{
-                                                borderLeft: activeTabId === field.id ? '3px solid #00A76F' : '3px solid transparent',
-                                                backgroundColor: activeTabId === field.id ? 'rgba(0, 167, 111, 0.08)' : 'transparent',
+                                                borderLeft: isActive ? '3px solid #00A76F' : '3px solid transparent',
+                                                backgroundColor: isActive ? 'rgba(0, 167, 111, 0.08)' : 'transparent',
                                                 py: 0.75,
                                                 px: 2,
+                                                '&:hover': {
+                                                    backgroundColor: isActive ? 'rgba(0, 167, 111, 0.12)' : 'rgba(9, 30, 66, 0.04)',
+                                                },
                                                 '&.Mui-selected': {
                                                     backgroundColor: 'rgba(0, 167, 111, 0.08)',
                                                     '&:hover': {
@@ -193,12 +230,12 @@ export const JiraFilter: React.FC<JiraFilterProps> = ({ fields, selectedFilters,
                                                 primary={field.label} 
                                                 primaryTypographyProps={{ 
                                                     fontSize: '14px', 
-                                                    fontWeight: activeTabId === field.id ? 600 : 400,
-                                                    color: activeTabId === field.id ? '#00A76F' : '#42526E'
+                                                    fontWeight: isActive ? 600 : 400,
+                                                    color: isActive ? '#00A76F' : '#42526E'
                                                 }} 
                                             />
                                             {fieldCount > 0 && (
-                                                <Box sx={{ bgcolor: '#00A76F', color: 'white', borderRadius: '10px', px: 1, py: 0.2, fontSize: '11px', fontWeight: 600 }}>
+                                                <Box sx={{ bgcolor: '#00A76F', color: 'white', borderRadius: '10px', px: 1, py: 0.2, fontSize: '11px', fontWeight: 600, flexShrink: 0 }}>
                                                     {fieldCount}
                                                 </Box>
                                             )}
@@ -210,8 +247,8 @@ export const JiraFilter: React.FC<JiraFilterProps> = ({ fields, selectedFilters,
                     </Box>
 
                     {/* Right Content */}
-                    <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', p: 1.5 }}>
-                        {activeField && (
+                    <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', p: 1.5, minWidth: 0, overflow: 'hidden' }}>
+                        {activeField && activeField.searchable !== false && (
                         <TextField
                             fullWidth
                             size="small"
@@ -243,14 +280,21 @@ export const JiraFilter: React.FC<JiraFilterProps> = ({ fields, selectedFilters,
                         />
                         )}
 
-                        <List sx={{ mt: 1, overflowY: 'auto', flex: 1 }}>
+                        <List sx={{ mt: 1, overflowY: 'auto', flex: 1, minHeight: 0 }}>
                             {filteredOptions.map((option) => (
                                 <ListItem key={option.value} disablePadding>
                                     <ListItemButton 
                                         role={undefined} 
                                         onClick={() => handleToggle(option.value)} 
                                         dense 
-                                        sx={{ py: 0.5, px: 1, borderRadius: '3px' }}
+                                        sx={{
+                                            py: 0.5,
+                                            px: 1,
+                                            borderRadius: '3px',
+                                            '&:hover': {
+                                                backgroundColor: 'rgba(9, 30, 66, 0.04)',
+                                            },
+                                        }}
                                     >
                                         <Checkbox
                                             edge="start"
@@ -261,9 +305,13 @@ export const JiraFilter: React.FC<JiraFilterProps> = ({ fields, selectedFilters,
                                             sx={{
                                                 p: 0.5,
                                                 mr: 1,
+                                                color: '#6B778C',
                                                 '&.Mui-checked': {
                                                     color: '#00A76F',
-                                                }
+                                                },
+                                                '&:hover': {
+                                                    backgroundColor: 'transparent',
+                                                },
                                             }}
                                         />
                                         {option.bgColor || option.color ? (
@@ -292,10 +340,14 @@ export const JiraFilter: React.FC<JiraFilterProps> = ({ fields, selectedFilters,
                         </List>
 
                         {activeField && activeField.type === 'date' && (
-                            <Box sx={{ mt: 1, borderTop: '1px solid #DFE1E6', pt: 1.5 }}>
+                            <Box sx={{ mt: 1, borderTop: '1px solid #DFE1E6', pt: 1.5, flexShrink: 0 }}>
                                 <LocalizationProvider dateAdapter={AdapterDayjs} adapterLocale="en-gb">
                                     <DatePicker
                                         label="Chọn ngày cụ thể"
+                                        value={customDateValue}
+                                        minDate={activeField.minDate ? dayjs(activeField.minDate) : undefined}
+                                        onOpen={() => setIsDatePickerOpen(true)}
+                                        onClose={() => setIsDatePickerOpen(false)}
                                         slotProps={{
                                             textField: { 
                                                 size: 'small', 
@@ -305,13 +357,21 @@ export const JiraFilter: React.FC<JiraFilterProps> = ({ fields, selectedFilters,
                                                     '&:hover fieldset': { borderColor: '#B3BAC5 !important' },
                                                     '&.Mui-focused fieldset': { borderColor: '#00A76F !important', borderWidth: '2px !important' }
                                                 }
-                                            }
+                                            },
+                                            popper: {
+                                                placement: 'bottom-start',
+                                                sx: { zIndex: (theme) => theme.zIndex.modal + 2 },
+                                            },
                                         }}
                                         onChange={(newValue) => {
-                                            if (newValue) {
+                                            setCustomDateValue(newValue);
+                                            if (newValue?.isValid()) {
                                                 const dateStr = newValue.format('YYYY-MM-DD');
+                                                if (activeField.minDate && dateStr < activeField.minDate) {
+                                                    return;
+                                                }
                                                 if (!activeSelected.includes(dateStr)) {
-                                                    onFilterChange(activeTabId, [...activeSelected, dateStr]);
+                                                    onFilterChange(resolvedActiveTabId, [...activeSelected, dateStr]);
                                                 }
                                             }
                                         }}
@@ -332,6 +392,14 @@ export const JiraFilter: React.FC<JiraFilterProps> = ({ fields, selectedFilters,
                         sx={{ textTransform: 'none', color: '#42526E', fontWeight: 500, minWidth: 'auto', p: '4px 8px', '&:hover': { bgcolor: '#091E420F' } }}
                     >
                         Xóa tất cả
+                    </Button>
+                    <Button
+                        variant="text"
+                        onClick={handleClose}
+                        startIcon={<CloseIcon sx={{ fontSize: '16px !important' }} />}
+                        sx={{ textTransform: 'none', color: '#42526E', fontWeight: 600, minWidth: 'auto', p: '4px 8px', '&:hover': { bgcolor: '#091E420F' } }}
+                    >
+                        Đóng
                     </Button>
                 </Box>
             </Popover>
