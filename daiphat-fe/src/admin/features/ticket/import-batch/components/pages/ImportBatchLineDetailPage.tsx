@@ -22,8 +22,11 @@ import {
     Select,
     MenuItem,
     FormControl,
-    Tooltip
+    Tooltip,
+    Dialog,
+    DialogContent
 } from '@mui/material';
+import { AppToast } from '../../../../../../utils/toast.util';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import SearchIcon from '@mui/icons-material/Search';
 import { useQueryClient } from '@tanstack/react-query';
@@ -126,17 +129,15 @@ const CollapsibleRow = ({
                         {open ? <KeyboardArrowUpIcon /> : <KeyboardArrowDownIcon />}
                     </IconButton>
                 </TableCell>
-                {cancelMode !== 'NONE' && (
-                    <TableCell sx={{ width: 50, py: 1.5 }} align="center">
-                        <Checkbox
-                            size="small"
-                            disabled={cancelableCount === 0}
-                            checked={isTicketChecked}
-                            indeterminate={isTicketIndeterminate}
-                            onChange={(e) => onSelectTicket(ticket, e.target.checked)}
-                        />
-                    </TableCell>
-                )}
+                <TableCell sx={{ width: 50, py: 1.5 }} align="center">
+                    <Checkbox
+                        size="small"
+                        disabled={cancelableCount === 0}
+                        checked={isTicketChecked}
+                        indeterminate={isTicketIndeterminate}
+                        onChange={(e) => onSelectTicket(ticket, e.target.checked)}
+                    />
+                </TableCell>
                 <TableCell sx={{ py: 1.5 }} align="center" onClick={() => setOpen(!open)}>
                     <Typography variant="body2" fontWeight={700} color="text.secondary">
                         {index + 1}
@@ -188,25 +189,14 @@ const CollapsibleRow = ({
                             }}
                         >
                             <TableCell sx={{ width: 50, py: 1 }} />
-                            {cancelMode !== 'NONE' && (
-                                <TableCell sx={{ width: 50, py: 1 }} align="center">
-                                    <Tooltip title={cancelMode === 'TICKET' ? "Đang ở chế độ hủy theo dãy số vé" : ""}>
-                                        <span>
-                                            <Checkbox
-                                                size="small"
-                                                disabled={cancelMode === 'TICKET'}
-                                                checked={isSerialChecked}
-                                                onChange={(e) => onSelectSerial(ticket, s, e.target.checked)}
-                                                sx={{
-                                                    opacity: cancelMode === 'TICKET' ? 0.35 : 1,
-                                                    pointerEvents: cancelMode === 'TICKET' ? 'none' : 'auto'
-                                                }}
-                                            />
-                                        </span>
-                                    </Tooltip>
-                                </TableCell>
-                            )}
-                            <TableCell align="center" sx={{ py: 1 }} onClick={() => cancelMode === 'SERIAL' && onSelectSerial(ticket, s, !isSerialChecked)}>
+                            <TableCell sx={{ width: 50, py: 1 }} align="center">
+                                <Checkbox
+                                    size="small"
+                                    checked={isSerialChecked}
+                                    onChange={(e) => onSelectSerial(ticket, s, e.target.checked)}
+                                />
+                            </TableCell>
+                            <TableCell align="center" sx={{ py: 1 }} onClick={() => onSelectSerial(ticket, s, !isSerialChecked)}>
                                 <Typography variant="caption" fontWeight={600} color="text.secondary">
                                     {`${index + 1}.${sIndex + 1}`}
                                 </Typography>
@@ -323,7 +313,8 @@ export const ImportBatchLineDetailPage = () => {
     }, [filteredTickets]);
 
     const totalCancelableSerialsCount = cancelableSerials.length;
-    const isReporting = cancelMode !== 'NONE' && selectedSerials.length >= 1;
+    const [isReportDialogOpen, setIsReportDialogOpen] = React.useState(false);
+    const [dialogCancelMode, setDialogCancelMode] = React.useState<'TICKET' | 'SERIAL'>('TICKET');
 
     const handleSelectAll = (checked: boolean) => {
         if (checked) {
@@ -334,7 +325,6 @@ export const ImportBatchLineDetailPage = () => {
     };
 
     const handleSelectTicket = (ticket: any, checked: boolean) => {
-        if (cancelMode !== 'TICKET' && cancelMode !== 'SERIAL') return;
         const ticketSerialIds = (ticket.serials || []).map((s: any) => String(s.id));
         if (checked) {
             const cancelableOfTicket = (ticket.serials || []).map((s: any) => ({
@@ -355,8 +345,6 @@ export const ImportBatchLineDetailPage = () => {
     };
 
     const handleSelectSerial = (ticket: any, serial: any, checked: boolean) => {
-        if (cancelMode === 'TICKET') return; 
-
         if (checked) {
             setSelectedSerials(prev => {
                 if (prev.some(x => String(x.id) === String(serial.id))) return prev;
@@ -374,12 +362,11 @@ export const ImportBatchLineDetailPage = () => {
     };
 
     const handleCancelReport = () => {
-        setCancelMode('NONE');
-        setSelectedSerials([]);
+        setIsReportDialogOpen(false);
     };
 
     const handleReportSuccess = () => {
-        setCancelMode('NONE');
+        setIsReportDialogOpen(false);
         setSelectedSerials([]);
         queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.TICKETS] });
     };
@@ -552,7 +539,7 @@ export const ImportBatchLineDetailPage = () => {
                 width: '100%', 
                 alignItems: 'stretch' 
             }}>
-                <Box sx={{ display: 'flex', flexDirection: 'column', width: { xs: '100%', md: isReporting ? '50%' : '100%' }, height: 'calc(100vh - 280px)', maxHeight: 'calc(100vh - 280px)' }}>
+                <Box sx={{ display: 'flex', flexDirection: 'column', width: '100%', height: 'calc(100vh - 280px)', maxHeight: 'calc(100vh - 280px)' }}>
                     <Stack direction={{ xs: 'column', md: 'row' }} alignItems={{ xs: 'stretch', md: 'center' }} justifyContent="space-between" spacing={2} sx={{ mb: 2 }}>
                         <Stack direction="row" alignItems="center" spacing={1.5} sx={{ flexWrap: 'wrap', gap: 1.25 }}>
                             <TextField
@@ -600,47 +587,22 @@ export const ImportBatchLineDetailPage = () => {
                         </Stack>
 
                         <Stack direction="row" alignItems="center" spacing={1.5}>
-                            {cancelMode === 'NONE' ? (
-                                <React.Fragment>
-                                    <Button 
-                                        variant="contained" 
-                                        color="error" 
-                                        size="small" 
-                                        startIcon={<ReportProblemIcon />} 
-                                        onClick={() => setCancelMode('TICKET')}
-                                        sx={{ textTransform: 'none', fontWeight: 700, borderRadius: '8px', boxShadow: 'none', py: 0.8, px: 2 }}
-                                    >
-                                        Hủy dãy số vé
-                                    </Button>
-                                    <Button 
-                                        variant="outlined" 
-                                        color="error" 
-                                        size="small" 
-                                        startIcon={<ReportProblemIcon />} 
-                                        onClick={() => setCancelMode('SERIAL')}
-                                        sx={{ textTransform: 'none', fontWeight: 700, borderRadius: '8px', py: 0.8, px: 2 }}
-                                    >
-                                        Hủy số serial vé
-                                    </Button>
-                                </React.Fragment>
-                            ) : (
-                                <Stack direction="row" alignItems="center" spacing={1}>
-                                    <Chip
-                                        label={cancelMode === 'TICKET' ? "Đang chọn: Hủy dãy số vé" : "Đang chọn: Hủy số serial vé"}
-                                        color="error"
-                                        variant="filled"
-                                        sx={{ fontWeight: 700, fontSize: '0.8rem' }}
-                                    />
-                                    <Button 
-                                        variant="outlined" 
-                                        size="small" 
-                                        onClick={() => { setCancelMode('NONE'); setSelectedSerials([]); }}
-                                        sx={{ textTransform: 'none', fontWeight: 700, borderRadius: '8px', color: '#64748b', borderColor: '#cbd5e1' }}
-                                    >
-                                        Thoát
-                                    </Button>
-                                </Stack>
-                            )}
+                            <Button 
+                                variant="contained" 
+                                color="error" 
+                                size="small" 
+                                startIcon={<ReportProblemIcon />} 
+                                onClick={() => {
+                                    if (selectedSerials.length === 0) {
+                                        AppToast.error('Vui lòng chọn ít nhất một vé sê-ri hoặc dãy số để tiến hành báo hủy!');
+                                        return;
+                                    }
+                                    setIsReportDialogOpen(true);
+                                }}
+                                sx={{ textTransform: 'none', fontWeight: 700, borderRadius: '8px', boxShadow: 'none', py: 0.8, px: 2 }}
+                            >
+                                Tiến hành hủy vé {selectedSerials.length > 0 && `(${selectedSerials.length})`}
+                            </Button>
                         </Stack>
                     </Stack>
 
@@ -672,22 +634,20 @@ export const ImportBatchLineDetailPage = () => {
                                 <TableHead sx={{ bgcolor: '#f1f5f9' }}>
                                     <TableRow>
                                         <TableCell sx={{ width: 50, py: 2 }} />
-                                        {cancelMode !== 'NONE' && (
-                                            <TableCell sx={{ width: 50, py: 2 }} align="center">
-                                                <Checkbox
-                                                    indeterminate={
-                                                        selectedSerials.length > 0 && 
-                                                        selectedSerials.length < totalCancelableSerialsCount
-                                                    }
-                                                    checked={
-                                                        totalCancelableSerialsCount > 0 && 
-                                                        selectedSerials.length === totalCancelableSerialsCount
-                                                    }
-                                                    onChange={(e) => handleSelectAll(e.target.checked)}
-                                                    size="small"
-                                                />
-                                            </TableCell>
-                                        )}
+                                        <TableCell sx={{ width: 50, py: 2 }} align="center">
+                                            <Checkbox
+                                                indeterminate={
+                                                    selectedSerials.length > 0 && 
+                                                    selectedSerials.length < totalCancelableSerialsCount
+                                                }
+                                                checked={
+                                                    totalCancelableSerialsCount > 0 && 
+                                                    selectedSerials.length === totalCancelableSerialsCount
+                                                }
+                                                onChange={(e) => handleSelectAll(e.target.checked)}
+                                                size="small"
+                                            />
+                                        </TableCell>
                                         <TableCell sx={{ fontWeight: 700, py: 2, color: '#475569', width: 60 }} align="center">STT</TableCell>
                                         <TableCell sx={{ fontWeight: 700, py: 2, color: '#475569' }}>Dãy số nổi bật</TableCell>
                                         <TableCell sx={{ fontWeight: 700, py: 2, color: '#475569' }} align="center">Số lượng</TableCell>
@@ -701,7 +661,7 @@ export const ImportBatchLineDetailPage = () => {
                                             key={ticket.id} 
                                             ticket={ticket} 
                                             index={index} 
-                                            cancelMode={cancelMode}
+                                            cancelMode={dialogCancelMode}
                                             selectedSerials={selectedSerials}
                                             onSelectTicket={handleSelectTicket}
                                             onSelectSerial={handleSelectSerial}
@@ -712,22 +672,38 @@ export const ImportBatchLineDetailPage = () => {
                         </TableContainer>
                     )}
                 </Box>
-
-                {isReporting && (
-                    <Box sx={{ display: 'flex', flexDirection: 'column', width: { xs: '100%', md: '50%' }, height: 'calc(100vh - 280px)', maxHeight: 'calc(100vh - 280px)' }}>
-                        <ReportSerialFaultPane
-                            serials={selectedSerials}
-                            ticketNumbers={reportTicketNumbers}
-                            ticketId={reportTicketId}
-                            importBatchLineId={line.id}
-                            stationId={line.lotteryStationId}
-                            drawDate={batch.drawDate}
-                            onCancel={handleCancelReport}
-                            onSuccess={handleReportSuccess}
-                        />
-                    </Box>
-                )}
             </Box>
+
+            {/* Modal Dialog Pop-up for Fault Reporting */}
+            <Dialog
+                open={isReportDialogOpen}
+                onClose={handleCancelReport}
+                maxWidth="lg"
+                fullWidth
+                PaperProps={{
+                    sx: {
+                        borderRadius: '20px',
+                        p: 3,
+                        maxHeight: '90vh',
+                        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+                        bgcolor: '#fff'
+                    }
+                }}
+            >
+                <DialogContent sx={{ p: 0, overflowY: 'auto' }}>
+                    <ReportSerialFaultPane
+                        serials={selectedSerials}
+                        ticketNumbers={reportTicketNumbers}
+                        ticketId={reportTicketId}
+                        importBatchLineId={line.id}
+                        stationId={line.lotteryStationId}
+                        drawDate={batch.drawDate}
+                        cancelMode={dialogCancelMode}
+                        onCancel={handleCancelReport}
+                        onSuccess={handleReportSuccess}
+                    />
+                </DialogContent>
+            </Dialog>
         </Box>
     );
 };

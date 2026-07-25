@@ -26,12 +26,26 @@ type ApiRequestConfig = InternalAxiosRequestConfig & {
     skipGlobalErrorToast?: boolean;
 };
 
-// Request Interceptor: Attach Token
+// Request Interceptor: Attach Token; let browser set multipart boundary for FormData.
 apiApp.interceptors.request.use((config) => {
     const token = useAuthStore.getState().token;
     if (token) {
         config.headers.Authorization = `Bearer ${token}`;
     }
+
+    // Instance default is application/json. For FormData uploads we must clear
+    // Content-Type so the browser/axios can set multipart/form-data with boundary.
+    // Setting "multipart/form-data" manually (without boundary) causes Spring 400s.
+    if (typeof FormData !== "undefined" && config.data instanceof FormData) {
+        const headers = config.headers as { delete?: (name: string) => void } & Record<string, unknown>;
+        if (typeof headers.delete === "function") {
+            headers.delete("Content-Type");
+        } else {
+            delete headers["Content-Type"];
+            delete headers["content-type"];
+        }
+    }
+
     return config;
 });
 

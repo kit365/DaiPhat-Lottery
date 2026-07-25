@@ -163,10 +163,6 @@ export const uploadTicketImage = async (id: string | number, file: File): Promis
     formData.append('file', file);
     const response = await apiApp.post(`${BASE_URL}/${id}/image`, formData, {
         ...withAuth(),
-        headers: {
-            ...withAuth().headers,
-            'Content-Type': 'multipart/form-data',
-        },
     });
     return response.data;
 };
@@ -178,10 +174,6 @@ export const uploadTicketSerialImage = async (id: string | number, file: File): 
     formData.append('file', file);
     const response = await apiApp.post(`/lottery-ticket-serials/${id}/image`, formData, {
         ...withAuth(),
-        headers: {
-            ...withAuth().headers,
-            'Content-Type': 'multipart/form-data',
-        },
     });
     return response.data;
 };
