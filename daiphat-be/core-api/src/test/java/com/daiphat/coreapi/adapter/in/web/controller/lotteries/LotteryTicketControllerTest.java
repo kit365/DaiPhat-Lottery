@@ -1903,15 +1903,18 @@ class LotteryTicketControllerTest {
     void getPublicTickets_passesSuffixSearchMode() {
         PageResponse<LotteryTicketResponse> serviceResponse = buildPageResponse(1, 10);
         when(lotteryTicketServicePort.getPublicTickets(1, 10, PRODUCT_ID, null, "2026-07-24", "68",
-                com.daiphat.coreapi.domain.model.enums.lottery.TicketSearchMode.SUFFIX, "createdAt", "desc"))
+                com.daiphat.coreapi.domain.model.enums.lottery.TicketSearchMode.SUFFIX,
+                null, null, null, "createdAt", "desc"))
                 .thenReturn(serviceResponse);
 
         MappingJacksonValue response = lotteryTicketController.getPublicTickets(
-                1, 10, PRODUCT_ID, null, "2026-07-24", "68", "SUFFIX", "createdAt", "desc");
+                1, 10, PRODUCT_ID, null, "2026-07-24", "68", "SUFFIX",
+                null, null, null, "createdAt", "desc");
 
         assertThat(response.getSerializationView()).isEqualTo(Views.Public.class);
         verify(lotteryTicketServicePort).getPublicTickets(1, 10, PRODUCT_ID, null, "2026-07-24", "68",
-                com.daiphat.coreapi.domain.model.enums.lottery.TicketSearchMode.SUFFIX, "createdAt", "desc");
+                com.daiphat.coreapi.domain.model.enums.lottery.TicketSearchMode.SUFFIX,
+                null, null, null, "createdAt", "desc");
     }
 
     @Test
@@ -1922,16 +1925,19 @@ class LotteryTicketControllerTest {
         when(lotteryTicketServicePort.getPublicTickets(
                 eq(1), eq(20), eq(PRODUCT_ID), eq(null), eq(tomorrow), eq("68"),
                 eq(com.daiphat.coreapi.domain.model.enums.lottery.TicketSearchMode.SUFFIX),
+                eq(null), eq(null), eq(null),
                 eq("createdAt"), eq("desc")))
                 .thenReturn(serviceResponse);
 
         MappingJacksonValue response = lotteryTicketController.getHomeTickets(
-                1, 20, PRODUCT_ID, null, "tomorrow", "68", "suffix", "createdAt", "desc");
+                1, 20, PRODUCT_ID, null, "tomorrow", "68", "suffix",
+                null, null, null, "createdAt", "desc");
 
         assertThat(response.getSerializationView()).isEqualTo(Views.Public.class);
         verify(lotteryTicketServicePort).getPublicTickets(
                 1, 20, PRODUCT_ID, null, tomorrow, "68",
                 com.daiphat.coreapi.domain.model.enums.lottery.TicketSearchMode.SUFFIX,
+                null, null, null,
                 "createdAt", "desc");
     }
 
@@ -1945,14 +1951,17 @@ class LotteryTicketControllerTest {
         when(lotteryTicketServicePort.getPublicTickets(
                 eq(1), eq(20), eq(null), eq(null), eq(defaultSellable), eq(null),
                 eq(com.daiphat.coreapi.domain.model.enums.lottery.TicketSearchMode.CONTAINS),
+                eq(null), eq(null), eq(null),
                 eq("createdAt"), eq("desc")))
                 .thenReturn(serviceResponse);
 
-        lotteryTicketController.getHomeTickets(1, 20, null, null, "today", null, null, "createdAt", "desc");
+        lotteryTicketController.getHomeTickets(1, 20, null, null, "today", null, null,
+                null, null, null, "createdAt", "desc");
 
         verify(lotteryTicketServicePort).getPublicTickets(
                 1, 20, null, null, defaultSellable, null,
                 com.daiphat.coreapi.domain.model.enums.lottery.TicketSearchMode.CONTAINS,
+                null, null, null,
                 "createdAt", "desc");
     }
 }
