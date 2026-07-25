@@ -1,16 +1,14 @@
 import { Toolbar, Box, Button, Badge, SvgIcon } from "@mui/material";
-import { useEffect, useMemo, type Dispatch, type SetStateAction, useState, useRef } from "react";
-import { useTranslation } from "react-i18next";
+import { useMemo, useState, useRef, useEffect } from "react";
 import { useStationsByDrawDate } from "../../../station/hooks/useStation";
 import { Search } from "../../../../components/ui/Search";
 import { JiraFilter, toolbarStyles } from "../../../../shared/data-grid";
-import { SettingsList } from "../../../../components/ui/SettingsList";
 import { SortButton } from "../../../../components/ui/SortButton";
 import Tooltip from '@mui/material/Tooltip';
 import Menu from '@mui/material/Menu';
 import MenuItem from '@mui/material/MenuItem';
 import { toast } from "react-toastify";
-import dayjs from "dayjs";
+import { minSellableDrawDate } from "../../../../../client/utils/sellableDrawDate.util";
 
 const CustomViewColumnIcon = (props: any) => (
     <SvgIcon {...props} viewBox="0 0 24 24">
@@ -132,29 +130,36 @@ export const CounterToolbar = ({
     sortByUI,
     onSortChange,
 }: ToolbarProps) => {
-    const { t } = useTranslation();
-    const selectedDrawDates = filters.dateRange && filters.dateRange.length > 0
-        ? filters.dateRange
-        : [dayjs().format('YYYY-MM-DD')];
-    const { data: providersData } = useStationsByDrawDate(selectedDrawDates);
+    const [clockTick, setClockTick] = useState(0);
+    useEffect(() => {
+        const timer = window.setInterval(() => setClockTick((t) => t + 1), 30_000);
+        return () => window.clearInterval(timer);
+    }, []);
+
+    const minDrawDate = minSellableDrawDate();
+
+    const selectedDrawDates = useMemo(() => {
+        if (Array.isArray(filters.dateRange) && filters.dateRange.length > 0) {
+            const valid = filters.dateRange.filter((d: string) => d >= minDrawDate);
+            if (valid.length > 0) return valid;
+        }
+        return [minDrawDate];
+    }, [filters.dateRange, minDrawDate, clockTick]);
+
+    // Ổn định key để không refetch stations mỗi lần mảng mới cùng nội dung
+    const selectedDrawDatesKey = selectedDrawDates.join(',');
+    const stableDrawDates = useMemo(
+        () => selectedDrawDatesKey.split(',').filter(Boolean),
+        [selectedDrawDatesKey]
+    );
+
+    const { data: providersData } = useStationsByDrawDate(stableDrawDates);
     
     const sortOptions = useMemo(() => [
         { value: 'default', label: "Mặc định" },
-        { value: 'newest', label: "Mới nhất" },
-        { value: 'price_desc', label: "Mệnh giá: Cao → Thấp" },
-        { value: 'price_asc', label: "Mệnh giá: Thấp → Cao" }
+        { value: 'numbers_asc', label: "Số vé: Thấp → Cao" },
+        { value: 'numbers_desc', label: "Số vé: Cao → Thấp" }
     ], []);
-
-    useEffect(() => {
-        const providerList = Array.isArray(providersData) ? providersData : [];
-        const allowedIds = new Set(providerList.map((p: any) => (p.id || p._id).toString()));
-        const selectedRegionIds = filters.region || [];
-        const nextRegionIds = selectedRegionIds.filter((id: string) => allowedIds.has(id));
-
-        if (nextRegionIds.length !== selectedRegionIds.length) {
-            onFilterChange('region', nextRegionIds);
-        }
-    }, [filters.region, onFilterChange, providersData]);
 
     const filterFields = useMemo(() => {
         const providerList = Array.isArray(providersData) ? providersData : [];
@@ -163,31 +168,17 @@ export const CounterToolbar = ({
             label: p.name
         }));
 
-        const today = dayjs().format('YYYY-MM-DD');
-        const tomorrow = dayjs().add(1, 'day').format('YYYY-MM-DD');
-
         return [
             {
                 id: 'region',
                 label: "Nhà đài",
-                options: providerOptions
+                options: providerOptions,
+                searchable: false,
             },
-            {
-                id: 'dateRange',
-                label: "Ngày quay",
-                type: 'date' as const,
-                options: [
-                    { value: today, label: `Hôm nay (${dayjs(today).format('DD/MM/YYYY')})` },
-                    { value: tomorrow, label: `Ngày mai (${dayjs(tomorrow).format('DD/MM/YYYY')})` },
-                ]
-            }
         ];
     }, [providersData]);
 
-    const totalFilterCount = [
-        ...(filters.region || []),
-        ...(filters.dateRange || [])
-    ].length;
+    const totalFilterCount = (filters.region || []).length;
 
     return (
         <Toolbar 
@@ -212,7 +203,6 @@ export const CounterToolbar = ({
                     fields={filterFields}
                     selectedFilters={{
                         region: filters.region || [],
-                        dateRange: filters.dateRange || []
                     }}
                     onFilterChange={onFilterChange}
                     onClearAll={onClearFilters}
@@ -223,22 +213,15 @@ export const CounterToolbar = ({
                             disableElevation
                             onClick={onClick}
                             startIcon={
-                                <Badge
-                                    badgeContent={totalFilterCount}
-                                    color="primary"
-                                    variant="dot"
-                                    sx={{ '& .MuiBadge-badge': { backgroundColor: "#FF5630" } }}
-                                >
-                                    <SvgIcon sx={{ fontSize: '1.125rem !important' }} viewBox="0 0 24 24">
-                                        <g fill="none" fillRule="evenodd">
-                                            <path d="m12.593 23.258l-.011.002l-.071.035l-.02.004l-.014-.004l-.071-.035q-.016-.005-.024.005l-.004.01l-.017.428l.005.02l.01.013l.104.074l.015.004l.012-.004l.104-.074l.012-.016l.004-.017l-.017-.427q-.004-.016-.017-.018m.265-.113l-.013.002l-.185.093l-.01.01l-.003.011l.018.43l.005.012l.008.007l.201.093q.019.005.029-.008l.004-.014l-.034-.614q-.005-.018-.02-.022m-.715.002a.02.02 0 0 0-.027.006l-.006.014l-.034.614q.001.018.017.024l.015-.002l.201-.093l.01-.008l.004-.011l.017-.43l-.003-.012l-.01-.01z" />
-                                            <path
-                                                fill="#1C252E"
-                                                d="M3 4.5A1.5 1.5 0 0 1 4.5 3h15A1.5 1.5 0 0 1 21 4.5v2.086A2 2 0 0 1 20.414 8L15 13.414v7.424a1.1 1.1 0 0 1-1.592.984l-3.717-1.858A1.25 1.25 0 0 1 9 18.846v-5.432L3.586 8A2 2 0 0 1 3 6.586z"
-                                            />
-                                        </g>
-                                    </SvgIcon>
-                                </Badge>
+                                <SvgIcon sx={{ fontSize: '1.125rem !important' }} viewBox="0 0 24 24">
+                                    <g fill="none" fillRule="evenodd">
+                                        <path d="m12.593 23.258l-.011.002l-.071.035l-.02.004l-.014-.004l-.071-.035q-.016-.005-.024.005l-.004.01l-.017.428l.005.02l.01.013l.104.074l.015.004l.012-.004l.104-.074l.012-.016l.004-.017l-.017-.427q-.004-.016-.017-.018m.265-.113l-.013.002l-.185.093l-.01.01l-.003.011l.018.43l.005.012l.008.007l.201.093q.019.005.029-.008l.004-.014l-.034-.614q-.005-.018-.02-.022m-.715.002a.02.02 0 0 0-.027.006l-.006.014l-.034.614q.001.018.017.024l.015-.002l.201-.093l.01-.008l.004-.011l.017-.43l-.003-.012l-.01-.01z" />
+                                        <path
+                                            fill="#1C252E"
+                                            d="M3 4.5A1.5 1.5 0 0 1 4.5 3h15A1.5 1.5 0 0 1 21 4.5v2.086A2 2 0 0 1 20.414 8L15 13.414v7.424a1.1 1.1 0 0 1-1.592.984l-3.717-1.858A1.25 1.25 0 0 1 9 18.846v-5.432L3.586 8A2 2 0 0 1 3 6.586z"
+                                        />
+                                    </g>
+                                </SvgIcon>
                             }
                             sx={{
                                 textTransform: 'none',

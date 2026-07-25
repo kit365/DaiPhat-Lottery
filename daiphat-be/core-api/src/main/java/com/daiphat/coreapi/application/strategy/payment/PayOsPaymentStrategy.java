@@ -36,7 +36,14 @@ public class PayOsPaymentStrategy implements PaymentGatewayStrategy {
                 paymentLink.gatewayOrderCode(),
                 transaction.getPaymentRef(),
                 paymentLink.checkoutUrl(),
-                transaction.getStatus().name()
+                transaction.getStatus().name(),
+                paymentLink.qrCode(),
+                paymentLink.accountNumber(),
+                paymentLink.accountName(),
+                paymentLink.amount(),
+                paymentLink.description(),
+                paymentLink.bin(),
+                paymentLink.expiredAt()
         );
     }
 
