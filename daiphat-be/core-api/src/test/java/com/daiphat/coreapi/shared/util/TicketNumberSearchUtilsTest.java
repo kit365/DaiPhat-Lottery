@@ -9,6 +9,7 @@ import org.junit.jupiter.params.provider.CsvSource;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -76,6 +77,31 @@ class TicketNumberSearchUtilsTest {
         void nullMode_defaultsToContains() {
             assertThat(TicketNumberSearchUtils.matches("126868", "68", null)).isTrue();
             assertThat(TicketNumberSearchUtils.matches("681234", "68", null)).isTrue();
+        }
+    }
+
+    @Nested
+    @DisplayName("tail ranges + number types")
+    class TailAndTypes {
+        @Test
+        void tailTwoDigits() {
+            assertThat(TicketNumberSearchUtils.tailTwoDigits("250018")).isEqualTo("18");
+            assertThat(TicketNumberSearchUtils.tailTwoDigits("9")).isNull();
+        }
+
+        @Test
+        void matchesAnyTailRange() {
+            assertThat(TicketNumberSearchUtils.matchesAnyTailRange("250018", List.of("00-09", "10-19"))).isTrue();
+            assertThat(TicketNumberSearchUtils.matchesAnyTailRange("250099", List.of("00-09"))).isFalse();
+        }
+
+        @Test
+        void doubleSequentialRepeating() {
+            assertThat(TicketNumberSearchUtils.isDoubleTail("250011")).isTrue();
+            assertThat(TicketNumberSearchUtils.isSequentialTail("250012")).isTrue();
+            assertThat(TicketNumberSearchUtils.isSequentialTail("250021")).isFalse();
+            assertThat(TicketNumberSearchUtils.isRepeatingNumber("111111")).isTrue();
+            assertThat(TicketNumberSearchUtils.isRepeatingNumber("111112")).isFalse();
         }
     }
 

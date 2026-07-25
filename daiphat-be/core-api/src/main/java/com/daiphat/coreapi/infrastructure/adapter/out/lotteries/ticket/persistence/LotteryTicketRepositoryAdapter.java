@@ -92,7 +92,7 @@ public class LotteryTicketRepositoryAdapter implements LotteryTicketRepositoryPo
     @Override
     public Page<LotteryTicketModel> findAllPublic(
             Pageable pageable, Long stationId, Collection<Long> stationIds, Collection<LocalDate> drawDates, String search) {
-        return findAllPublic(pageable, stationId, stationIds, drawDates, search, null);
+        return findAllPublic(pageable, stationId, stationIds, drawDates, search, null, null, null, null);
     }
 
     @Override
@@ -103,13 +103,30 @@ public class LotteryTicketRepositoryAdapter implements LotteryTicketRepositoryPo
             Collection<LocalDate> drawDates,
             String search,
             com.daiphat.coreapi.domain.model.enums.lottery.TicketSearchMode searchMode) {
+        return findAllPublic(pageable, stationId, stationIds, drawDates, search, searchMode, null, null, null);
+    }
+
+    @Override
+    public Page<LotteryTicketModel> findAllPublic(
+            Pageable pageable,
+            Long stationId,
+            Collection<Long> stationIds,
+            Collection<LocalDate> drawDates,
+            String search,
+            com.daiphat.coreapi.domain.model.enums.lottery.TicketSearchMode searchMode,
+            List<String> searches,
+            List<String> tailRanges,
+            List<String> numberTypes) {
         return lotteryTicketRepository.findAll(
                         LotteryTicketSpecification.filterPublic(
                                 stationId,
                                 stationIds != null ? List.copyOf(stationIds) : List.of(),
                                 drawDates != null ? List.copyOf(drawDates) : List.of(),
                                 search,
-                                searchMode
+                                searchMode,
+                                searches,
+                                tailRanges,
+                                numberTypes
                         ),
                         pageable
                 )

@@ -8,6 +8,7 @@ import org.springframework.data.domain.Pageable;
 
 import java.time.LocalDate;
 import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 public interface LotteryTicketRepositoryPort {
 
@@ -28,6 +29,10 @@ public interface LotteryTicketRepositoryPort {
 
     Page<LotteryTicketModel> findAllPublic(Pageable pageable, Long stationId, Collection<Long> stationIds,
                                            Collection<LocalDate> drawDates, String search, TicketSearchMode searchMode);
+
+    Page<LotteryTicketModel> findAllPublic(Pageable pageable, Long stationId, Collection<Long> stationIds,
+                                           Collection<LocalDate> drawDates, String search, TicketSearchMode searchMode,
+                                           List<String> searches, List<String> tailRanges, List<String> numberTypes);
 
     java.util.List<LotteryTicketModel> findExpirableTickets(LocalDate beforeDate, Collection<LotteryTicketStatus> statuses);
 
