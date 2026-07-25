@@ -61,7 +61,10 @@ public final class PurchasedTicketSpecification {
             }
             if (ticketNumber != null && !ticketNumber.isBlank()) {
                 String pattern = "%" + ticketNumber.trim().toLowerCase() + "%";
-                predicates.add(cb.like(cb.lower(ticket.get("numbers")), pattern));
+                predicates.add(cb.or(
+                        cb.like(cb.lower(ticket.get("numbers")), pattern),
+                        cb.like(cb.lower(serial.get("serialNumber")), pattern)
+                ));
             }
 
             return cb.and(predicates.toArray(new Predicate[0]));
