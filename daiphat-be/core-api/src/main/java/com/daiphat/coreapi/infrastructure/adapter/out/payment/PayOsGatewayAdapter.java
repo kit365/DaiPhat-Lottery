@@ -167,7 +167,17 @@ public class PayOsGatewayAdapter implements PayOsGatewayPort {
                 .build();
 
         CreatePaymentLinkResponse response = payOS.paymentRequests().create(request);
-        return new PaymentLinkResult(gatewayOrderCode, response.getCheckoutUrl());
+        return new PaymentLinkResult(
+                gatewayOrderCode,
+                response.getCheckoutUrl(),
+                response.getQrCode(),
+                response.getAccountNumber(),
+                response.getAccountName(),
+                response.getAmount(),
+                response.getDescription(),
+                response.getBin(),
+                response.getExpiredAt()
+        );
     }
 
     private ExistingLinkInfo fetchExistingPaymentInfo(Long gatewayOrderCode) {
