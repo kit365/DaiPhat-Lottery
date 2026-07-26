@@ -13,16 +13,14 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+/**
+ * (station_id, numbers, draw_date) is unique among live rows only. The constraint is a partial
+ * index (uk_lottery_ticket_station_numbers_draw_date ... WHERE deleted_at IS NULL) owned by
+ * Flyway, because digit replacement soft deletes the mistyped lottery number and keeps the row.
+ * It cannot be expressed as a JPA @UniqueConstraint.
+ */
 @Entity
-@Table(
-        name = "lottery_tickets",
-        uniqueConstraints = {
-                @UniqueConstraint(
-                        name = "uk_lottery_ticket_station_numbers_draw_date",
-                        columnNames = {"station_id", "numbers", "draw_date"}
-                )
-        }
-)
+@Table(name = "lottery_tickets")
 @Getter
 @Setter
 @NoArgsConstructor
@@ -91,9 +89,6 @@ public class LotteryTicketEntity extends BaseEntity {
 
     @Transient
     private LocalDateTime returnedAt;
-
-    @Column(name = "replace_ticket_id")
-    private Long replaceTicketId;
 
     @PrePersist
     @PreUpdate
