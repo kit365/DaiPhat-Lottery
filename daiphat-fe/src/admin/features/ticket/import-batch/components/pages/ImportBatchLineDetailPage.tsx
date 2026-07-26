@@ -56,24 +56,27 @@ import { Breadcrumb } from '../../../../../components/ui/Breadcrumb';
 const getTicketStatusBadgeClass = (status?: string | null): string => {
     const normalized = normalizeTicketStatus(status);
     switch (normalized) {
+        // Ticket aggregate statuses
         case 'IN_STOCK':
             return 'admin-status-badge--active';
-        case 'SOLD':
-            return 'admin-status-badge--success';
+        case 'IMPORTING':
+            return 'admin-status-badge--pending';
         case 'SOLD_OUT':
         case 'EXPIRED':
-        case 'INTERNAL_FAULT':
-        case 'ISSUER_FAULT':
-        case 'DAMAGED':
-        case 'LOST':
-        case 'VOIDED':
             return 'admin-status-badge--inactive';
+        // Serial statuses (nested rows reuse this helper)
+        case 'SOLD':
+            return 'admin-status-badge--success';
         case 'RESERVED':
         case 'PROXY_HOLDING':
         case 'PENDING_RETURN':
         case 'RETURNED':
             return 'admin-status-badge--pending';
+        case 'DAMAGED':
+        case 'LOST':
+            return 'admin-status-badge--inactive';
         default:
+            // Unknown / legacy cached values
             return 'admin-status-badge--draft';
     }
 };
@@ -175,7 +178,7 @@ const CollapsibleRow = ({
             </TableRow>
             {open && ticket.serials && ticket.serials.length > 0 ? (
                 ticket.serials.map((s: any, sIndex: number) => {
-                    const sStatusLabel = getTicketStatusLabel(s.status) || s.status || '—';
+                    const sStatusLabel = s.statusDisplayName || getTicketStatusLabel(s.status) || s.status || '—';
                     const isSerialChecked = selectedSerials.some(x => String(x.id) === String(s.id));
 
                     return (
@@ -305,7 +308,8 @@ export const ImportBatchLineDetailPage = () => {
                     serialNumber: s.serialNumber,
                     status: s.status,
                     ticketId: ticket.id,
-                    ticketNumbers: ticket.numbers
+                    ticketNumbers: ticket.numbers,
+                    ticketStatus: ticket.status
                 });
             });
         });
@@ -563,12 +567,14 @@ export const ImportBatchLineDetailPage = () => {
                                     sx={{ borderRadius: '8px', fontSize: '0.85rem' }}
                                 >
                                     <MenuItem value="ALL">Tất cả trạng thái</MenuItem>
+                                    <MenuItem value="IMPORTING">Đang nhập lô</MenuItem>
                                     <MenuItem value="IN_STOCK">Trong kho</MenuItem>
-                                    <MenuItem value="SOLD">Đã bán</MenuItem>
-                                    <MenuItem value="INTERNAL_FAULT">Nhân viên làm hỏng</MenuItem>
-                                    <MenuItem value="VOIDED">Hủy do lỗi nhập liệu</MenuItem>
-                                    <MenuItem value="LOST">Thất lạc / Mất</MenuItem>
-                                    <MenuItem value="RESERVED">Đang giữ chỗ</MenuItem>
+                                    <MenuItem value="SOLD_OUT">Hết hàng</MenuItem>
+                                    <MenuItem value="EXPIRED">Hết hạn</MenuItem>
+                                    <MenuItem value="SOLD">Đã bán (sê-ri)</MenuItem>
+                                    <MenuItem value="RESERVED">Đang giữ chỗ (sê-ri)</MenuItem>
+                                    <MenuItem value="DAMAGED">Hư hỏng (sê-ri)</MenuItem>
+                                    <MenuItem value="LOST">Thất lạc (sê-ri)</MenuItem>
                                 </Select>
                             </FormControl>
                             <FormControl size="small" sx={{ width: 155, bgcolor: '#fff' }}>
@@ -592,14 +598,23 @@ export const ImportBatchLineDetailPage = () => {
                                 color="error" 
                                 size="small" 
                                 startIcon={<ReportProblemIcon />} 
+                                disabled={selectedSerials.length === 0}
                                 onClick={() => {
-                                    if (selectedSerials.length === 0) {
-                                        AppToast.error('Vui lòng chọn ít nhất một vé sê-ri hoặc dãy số để tiến hành báo hủy!');
-                                        return;
-                                    }
                                     setIsReportDialogOpen(true);
                                 }}
-                                sx={{ textTransform: 'none', fontWeight: 700, borderRadius: '8px', boxShadow: 'none', py: 0.8, px: 2 }}
+                                sx={{
+                                    textTransform: 'none',
+                                    fontWeight: 700,
+                                    borderRadius: '8px',
+                                    boxShadow: 'none',
+                                    py: 0.8,
+                                    px: 2,
+                                    '&.Mui-disabled': {
+                                        bgcolor: '#f1f5f9',
+                                        color: '#94a3b8',
+                                        borderColor: '#cbd5e1'
+                                    }
+                                }}
                             >
                                 Tiến hành hủy vé {selectedSerials.length > 0 && `(${selectedSerials.length})`}
                             </Button>
@@ -685,12 +700,16 @@ export const ImportBatchLineDetailPage = () => {
                         borderRadius: '20px',
                         p: 3,
                         maxHeight: '90vh',
+                        height: '90vh',
                         boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
-                        bgcolor: '#fff'
+                        bgcolor: '#fff',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        overflow: 'hidden'
                     }
                 }}
             >
-                <DialogContent sx={{ p: 0, overflowY: 'auto' }}>
+                <DialogContent sx={{ p: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', height: '100%' }}>
                     <ReportSerialFaultPane
                         serials={selectedSerials}
                         ticketNumbers={reportTicketNumbers}

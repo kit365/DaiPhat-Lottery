@@ -49,72 +49,30 @@ interface Props {
     onClose: () => void;
 }
 
-const getTicketStatusColors = (status?: string | null) => {
-    const normalized = normalizeTicketStatus(status);
-    switch (normalized) {
-        case 'IN_STOCK':
-            return {
-                bg: 'rgba(2, 136, 209, 0.08)',
-                color: '#0288d1',
-                border: '1px solid rgba(2, 136, 209, 0.3)',
-            };
-        case 'SOLD':
-            return {
-                bg: 'rgba(46, 125, 50, 0.08)',
-                color: '#2e7d32',
-                border: '1px solid rgba(46, 125, 50, 0.3)',
-            };
-        case 'SOLD_OUT':
-        case 'EXPIRED':
-        case 'INTERNAL_FAULT':
-        case 'ISSUER_FAULT':
-        case 'DAMAGED':
-        case 'LOST':
-        case 'VOIDED':
-            return {
-                bg: 'rgba(211, 47, 47, 0.08)',
-                color: '#d32f2f',
-                border: '1px solid rgba(211, 47, 47, 0.3)',
-            };
-        case 'RESERVED':
-        case 'PROXY_HOLDING':
-        case 'PENDING_RETURN':
-        case 'RETURNED':
-            return {
-                bg: 'rgba(237, 108, 2, 0.08)',
-                color: '#ed6c02',
-                border: '1px solid rgba(237, 108, 2, 0.3)',
-            };
-        default:
-            return {
-                bg: 'rgba(0, 0, 0, 0.04)',
-                color: 'text.secondary',
-                border: '1px solid rgba(0, 0, 0, 0.12)',
-            };
-    }
-};
-
 const getTicketStatusBadgeClass = (status?: string | null): string => {
     const normalized = normalizeTicketStatus(status);
     switch (normalized) {
+        // Ticket aggregate statuses
         case 'IN_STOCK':
             return 'admin-status-badge--active';
-        case 'SOLD':
-            return 'admin-status-badge--success';
+        case 'IMPORTING':
+            return 'admin-status-badge--pending';
         case 'SOLD_OUT':
         case 'EXPIRED':
-        case 'INTERNAL_FAULT':
-        case 'ISSUER_FAULT':
-        case 'DAMAGED':
-        case 'LOST':
-        case 'VOIDED':
             return 'admin-status-badge--inactive';
+        // Serial statuses (nested rows reuse this helper)
+        case 'SOLD':
+            return 'admin-status-badge--success';
         case 'RESERVED':
         case 'PROXY_HOLDING':
         case 'PENDING_RETURN':
         case 'RETURNED':
             return 'admin-status-badge--pending';
+        case 'DAMAGED':
+        case 'LOST':
+            return 'admin-status-badge--inactive';
         default:
+            // Unknown / legacy cached values
             return 'admin-status-badge--draft';
     }
 };
@@ -197,7 +155,7 @@ const CollapsibleRow = ({ ticket, index, onReportFault }: { ticket: any; index: 
             </TableRow>
             {open && ticket.serials && ticket.serials.length > 0 ? (
                 ticket.serials.map((s: any, sIndex: number) => {
-                    const sStatusLabel = getTicketStatusLabel(s.status) || s.status || '—';
+                    const sStatusLabel = s.statusDisplayName || getTicketStatusLabel(s.status) || s.status || '—';
                     return (
                         <TableRow 
                             key={s.id} 
@@ -281,9 +239,9 @@ export const ImportBatchLineDetailModal = ({ line, batch, stationName, onClose }
 
     const handleOpenReportModal = (ticket: any, serial?: any) => {
         if (serial) {
-            setReportSerials([{ id: serial.id, serialNumber: serial.serialNumber, status: serial.status }]);
+            setReportSerials([{ id: serial.id, serialNumber: serial.serialNumber, status: serial.status, ticketId: ticket.id, ticketNumbers: ticket.numbers, ticketStatus: ticket.status }]);
         } else {
-            setReportSerials((ticket.serials || []).map((s: any) => ({ id: s.id, serialNumber: s.serialNumber, status: s.status })));
+            setReportSerials((ticket.serials || []).map((s: any) => ({ id: s.id, serialNumber: s.serialNumber, status: s.status, ticketId: ticket.id, ticketNumbers: ticket.numbers, ticketStatus: ticket.status })));
         }
         setReportTicketNumbers(ticket.numbers);
         setReportTicketId(ticket.id);

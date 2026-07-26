@@ -104,9 +104,28 @@ export const getTicketById = async (id: string | number): Promise<ApiResponse<an
     return response.data;
 };
 
+/** Cập nhật vé — không gửi `status` (do hệ thống suy ra từ sê-ri / cutoff) */
+export type UpdateTicketPayload = {
+    numbers?: string;
+    drawDate?: string;
+    stationId?: number | string;
+    serials?: Array<{
+        id?: number;
+        serialNumber: string;
+        ticketImg?: string;
+    }>;
+    [key: string]: unknown;
+};
+
 /** Cập nhật vé */
-export const updateTicket = async (id: string | number, data: any): Promise<ApiResponse<any>> => {
-    const response = await apiApp.put(`${BASE_URL}/${id}`, data, withAuth());
+export const updateTicket = async (
+    id: string | number,
+    data: UpdateTicketPayload
+): Promise<ApiResponse<any>> => {
+    const payload = { ...data };
+    // Status is system-derived; never send it on update even if a caller includes it.
+    delete payload.status;
+    const response = await apiApp.put(`${BASE_URL}/${id}`, payload, withAuth());
     return response.data;
 };
 

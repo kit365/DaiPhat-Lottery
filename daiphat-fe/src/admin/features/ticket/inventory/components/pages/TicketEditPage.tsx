@@ -12,11 +12,7 @@ import { useForm, Controller, useFieldArray, useFormState } from "react-hook-for
 import { zodResolver } from "@hookform/resolvers/zod";
 import { buildLegacyUpdateTicketSchema, LegacyUpdateTicketFormValues } from "../../schemas/ticket.schema";
 import {
-    TICKET_STATUS_OPTIONS,
-    canTransitionTicketStatus,
-    getAllowedTicketStatusTransitions,
     getTicketStatusLabel,
-    getTicketStatusTransitionHint,
     normalizeTicketStatus,
 } from "../../constants/ticket-status.config";
 import { LoadingButton } from "../../../../../components/ui/LoadingButton";
@@ -97,7 +93,6 @@ export const TicketEditPage = () => {
             stationId: "",
             serials: [{ serialNumber: "", ticketImg: undefined }],
             numbers: "",
-            status: "",
         },
     });
 
@@ -109,11 +104,9 @@ export const TicketEditPage = () => {
     const { isSubmitted } = useFormState({ control });
 
     const originalStatus = normalizeTicketStatus(ticketDetail?.status);
-    const allowedStatusValues = new Set(getAllowedTicketStatusTransitions(ticketDetail?.status));
-    const canManuallyChangeStatus = allowedStatusValues.size > 1;
     const ticketSerials = Array.isArray(ticketDetail?.serials) ? ticketDetail.serials : [];
     const hasLockedSerials = ticketSerials.some((serial: any) => ["RESERVED", "SOLD"].includes(normalizeTicketStatus(serial?.status)));
-    const isTicketEditable = ["IN_STOCK", "ISSUER_FAULT"].includes(originalStatus) && !hasLockedSerials;
+    const isTicketEditable = originalStatus === "IN_STOCK" && !hasLockedSerials;
 
     const [expandedDetail, setExpandedDetail] = useState(true);
     const [expandedSerials, setExpandedSerials] = useState(true);
@@ -226,7 +219,6 @@ export const TicketEditPage = () => {
                 stationId: (ticketDetail.stationId || ticketDetail.productId || ticketDetail.providerId || "").toString(),
                 serials,
                 numbers: ticketDetail.numbers || "",
-                status: normalizeTicketStatus(ticketDetail.status),
             });
             setResetKey((prev) => prev + 1);
         }
@@ -259,8 +251,6 @@ export const TicketEditPage = () => {
             return;
         }
 
-        const nextStatus = normalizeTicketStatus(data.status);
-
         const payload: Record<string, unknown> = {
             numbers: data.numbers,
             drawDate: ticketDetail?.drawDate || finalDrawDate,
@@ -272,8 +262,6 @@ export const TicketEditPage = () => {
                     : {}),
             })),
         };
-
-        // Status is automatically updated, manual transition removed.
 
         if (id) {
             update({ id, data: payload }, {
@@ -470,7 +458,7 @@ export const TicketEditPage = () => {
                             <Stack p="calc(3 * var(--spacing))" gap="calc(3 * var(--spacing))">
                                 {!isTicketEditable && (
                                     <Typography variant="body2" color="warning.main">
-                                        Vé này chỉ được sửa khi ở trạng thái Trong kho hoặc Lỗi in ấn, và không có sê-ri nào đang giữ chỗ hoặc đã bán.
+                                        Vé này chỉ được sửa khi ở trạng thái Trong kho, và không có sê-ri nào đang giữ chỗ hoặc đã bán.
                                     </Typography>
                                 )}
                                 
@@ -667,7 +655,7 @@ export const TicketEditPage = () => {
                             <LoadingButton
                                 type="submit"
                                 loading={isPending}
-                                disabled={!isTicketEditable && !canManuallyChangeStatus}
+                                disabled={!isTicketEditable}
                                 label={"Lưu thay đổi"}
                                 loadingLabel="Đang lưu..."
                                 sx={{ minHeight: "3rem", minWidth: "4rem" }}

@@ -1,14 +1,8 @@
 export enum LotteryTicketStatus {
+    IMPORTING = 'IMPORTING',
     IN_STOCK = 'IN_STOCK',
     SOLD_OUT = 'SOLD_OUT',
     EXPIRED = 'EXPIRED',
-    RESERVED = 'RESERVED',
-    SOLD = 'SOLD',
-    PROXY_HOLDING = 'PROXY_HOLDING',
-    PENDING_RETURN = 'PENDING_RETURN',
-    RETURNED = 'RETURNED',
-    INTERNAL_FAULT = 'INTERNAL_FAULT',
-    ISSUER_FAULT = 'ISSUER_FAULT'
 }
 
 export enum LotteryTicketSerialStatus {
@@ -21,6 +15,7 @@ export enum LotteryTicketSerialStatus {
     EXPIRED = 'EXPIRED',
     DAMAGED = 'DAMAGED',
     LOST = 'LOST',
+    VOIDED = 'VOIDED',
 }
 
 export enum LotteryTicketSerialFaultedBy {
