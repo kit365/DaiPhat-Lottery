@@ -72,10 +72,6 @@ export const refundAdminApi = {
 
         const response = await apiApp.post(`${STAFF_BASE}/transfer-evidence/upload`, formData, {
             ...withAuth(),
-            headers: {
-                ...withAuth().headers,
-                'Content-Type': 'multipart/form-data',
-            },
         });
 
         const url = response.data?.data?.url;
