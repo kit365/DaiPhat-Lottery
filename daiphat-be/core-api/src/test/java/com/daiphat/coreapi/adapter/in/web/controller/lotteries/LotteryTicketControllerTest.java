@@ -9,7 +9,6 @@ import com.daiphat.coreapi.application.dto.response.base.Views;
 import com.daiphat.coreapi.application.dto.response.lotteries.LotteryTicketResponse;
 import com.daiphat.coreapi.application.port.in.lotteries.LotteryTicketServicePort;
 import com.daiphat.coreapi.domain.model.enums.auth.RoleConstants;
-import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketStatus;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import org.junit.jupiter.api.AfterEach;
@@ -333,7 +332,7 @@ class LotteryTicketControllerTest {
         Long anotherProductId = 666L;
         setAuthentication(principal, RoleConstants.ADMIN, "ticket:view");
 
-        when(lotteryTicketServicePort.getAll(3, 20, anotherProductId, null, "RESERVED", "2026-06-12", null, null, null, "654321", "drawDate", "asc"))
+        when(lotteryTicketServicePort.getAll(3, 20, anotherProductId, null, "IN_STOCK", "2026-06-12", null, null, null, "654321", "drawDate", "asc"))
                 .thenReturn(serviceResponse);
 
         MappingJacksonValue response = lotteryTicketController.getAll(
@@ -341,7 +340,7 @@ class LotteryTicketControllerTest {
                 20,
                 anotherProductId,
                 null,
-                "RESERVED",
+                "IN_STOCK",
                 "2026-06-12",
                 null,
                 null,
@@ -359,7 +358,7 @@ class LotteryTicketControllerTest {
         assertThat(body).isNotNull();
         assertThat(body.getData()).isEqualTo(serviceResponse);
 
-        verify(lotteryTicketServicePort).getAll(3, 20, anotherProductId, null, "RESERVED", "2026-06-12", null, null, null, "654321", "drawDate", "asc");
+        verify(lotteryTicketServicePort).getAll(3, 20, anotherProductId, null, "IN_STOCK", "2026-06-12", null, null, null, "654321", "drawDate", "asc");
     }
 
     @Test
@@ -369,7 +368,7 @@ class LotteryTicketControllerTest {
         PageResponse<LotteryTicketResponse> serviceResponse = buildPageResponse(1, 10);
         setAuthentication(principal, RoleConstants.ROLE_STREET_AGENT, "ticket:view");
 
-        when(lotteryTicketServicePort.getAll(1, 10, null, null, "SOLD", null, null, null, null, "0001", "updatedAt", "desc"))
+        when(lotteryTicketServicePort.getAll(1, 10, null, null, "SOLD_OUT", null, null, null, null, "0001", "updatedAt", "desc"))
                 .thenReturn(serviceResponse);
 
         MappingJacksonValue response = lotteryTicketController.getAll(
@@ -377,7 +376,7 @@ class LotteryTicketControllerTest {
                 10,
                 null,
                 null,
-                "SOLD",
+                "SOLD_OUT",
                 null,
                 null,
                 null,
@@ -397,7 +396,7 @@ class LotteryTicketControllerTest {
         assertThat(body.getData().getRecordList().getFirst().verified()).isTrue();
         assertThat(body.getData().getRecordList().getFirst().returnedAt()).isEqualTo(LocalDateTime.of(2026, 6, 15, 8, 30));
 
-        verify(lotteryTicketServicePort).getAll(1, 10, null, null, "SOLD", null, null, null, null, "0001", "updatedAt", "desc");
+        verify(lotteryTicketServicePort).getAll(1, 10, null, null, "SOLD_OUT", null, null, null, null, "0001", "updatedAt", "desc");
     }
 
     @Test
@@ -517,7 +516,7 @@ class LotteryTicketControllerTest {
         Long anotherProductId = 777L;
         setAuthentication(principal, RoleConstants.ROLE_MEMBER);
 
-        when(lotteryTicketServicePort.getAll(4, 15, anotherProductId, null, "SOLD", "2026-06-18", null, null, null, "888999", "drawDate", "asc"))
+        when(lotteryTicketServicePort.getAll(4, 15, anotherProductId, null, "SOLD_OUT", "2026-06-18", null, null, null, "888999", "drawDate", "asc"))
                 .thenReturn(serviceResponse);
 
         MappingJacksonValue response = lotteryTicketController.getAll(
@@ -525,7 +524,7 @@ class LotteryTicketControllerTest {
                 15,
                 anotherProductId,
                 null,
-                "SOLD",
+                "SOLD_OUT",
                 "2026-06-18",
                 null,
                 null,
@@ -546,7 +545,7 @@ class LotteryTicketControllerTest {
         assertThat(body.getData().getPagination().getCurrentPage()).isEqualTo(4);
         assertThat(body.getData().getPagination().getLimit()).isEqualTo(15);
 
-        verify(lotteryTicketServicePort).getAll(4, 15, anotherProductId, null, "SOLD", "2026-06-18", null, null, null, "888999", "drawDate", "asc");
+        verify(lotteryTicketServicePort).getAll(4, 15, anotherProductId, null, "SOLD_OUT", "2026-06-18", null, null, null, "888999", "drawDate", "asc");
     }
 
     @Test
@@ -881,7 +880,7 @@ class LotteryTicketControllerTest {
         assertThat(firstRecord).doesNotContainKey("verified");
         assertThat(firstRecord).doesNotContainKey("importedById");
 
-        verify(lotteryTicketServicePort).getAll(1, 10, null, null, null, null, null, null, null);
+        verify(lotteryTicketServicePort).getAll(1, 10, null, null, null, null, null, null, null, null, null, null);
     }
 
     @Test
@@ -1296,7 +1295,6 @@ class LotteryTicketControllerTest {
                 "https://cdn.example.com/tickets/updated.png",
                 "888999",
                 LocalDate.of(2026, 7, 5),
-                com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketStatus.RESERVED,
                 null
         );
 
@@ -1309,8 +1307,8 @@ class LotteryTicketControllerTest {
                 .numbers("888999")
                 .drawDate(LocalDate.of(2026, 7, 5))
                 .batchCode("BATCH-UPD")
-                .status("RESERVED")
-                .statusDisplayName("Đã đặt trước")
+                .status("IN_STOCK")
+                .statusDisplayName("Trong kho")
                 .importedById(IMPORTED_BY_ID)
                 .verified(true)
                 .updatedAt(LocalDateTime.now())
@@ -1327,7 +1325,7 @@ class LotteryTicketControllerTest {
         assertThat(response.getMessage()).isEqualTo("Cập nhật thông tin vé số thành công.");
         assertThat(response.getData()).isEqualTo(expectedResponse);
         assertThat(response.getData().serialNumber()).isEqualTo("A888888");
-        assertThat(response.getData().status()).isEqualTo("RESERVED");
+        assertThat(response.getData().status()).isEqualTo("IN_STOCK");
 
         verify(lotteryTicketServicePort).update(TICKET_ID, request, USER_ID);
     }
@@ -1339,7 +1337,6 @@ class LotteryTicketControllerTest {
                 null,
                 "654321",
                 null,
-                com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketStatus.SOLD,
                 null
         );
 
@@ -1347,8 +1344,8 @@ class LotteryTicketControllerTest {
                 .id(TICKET_ID)
                 .stationId(PRODUCT_ID)
                 .numbers("654321")
-                .status("SOLD")
-                .statusDisplayName("Đã bán")
+                .status("IN_STOCK")
+                .statusDisplayName("Trong kho")
                 .lastModifiedBy("operator01")
                 .build();
 
@@ -1360,7 +1357,7 @@ class LotteryTicketControllerTest {
         assertThat(response).isNotNull();
         assertThat(response.isSuccess()).isTrue();
         assertThat(response.getData().numbers()).isEqualTo("654321");
-        assertThat(response.getData().status()).isEqualTo("SOLD");
+        assertThat(response.getData().status()).isEqualTo("IN_STOCK");
 
         verify(lotteryTicketServicePort).update(TICKET_ID, request, USER_ID);
     }
@@ -1370,7 +1367,6 @@ class LotteryTicketControllerTest {
     void update_partialUpdate_returnsUpdatedTicket() {
         UpdateLotteryTicketRequest request = new UpdateLotteryTicketRequest(
                 "https://cdn.example.com/tickets/new-image.png",
-                null,
                 null,
                 null,
                 null
@@ -1482,126 +1478,6 @@ class LotteryTicketControllerTest {
     }
 
     // ============================================================
-    // CHANGE STATUS LOTTERY TICKET TESTS
-    // ============================================================
-
-    @Test
-    @DisplayName("[DP-325] PATCH /lottery-tickets/{id}/status: Admin đổi trạng thái vé số sang RESERVED thành công")
-    void changeStatus_asAdmin_toReserved_returnsUpdatedTicket() {
-        LotteryTicketStatus newStatus = LotteryTicketStatus.RESERVED;
-        LotteryTicketResponse expectedResponse = LotteryTicketResponse.builder()
-                .id(TICKET_ID)
-                .stationId(PRODUCT_ID)
-                .serialNumber("A123456")
-                .status("RESERVED")
-                .statusDisplayName("Đã đặt trước")
-                .build();
-
-        when(lotteryTicketServicePort.changeStatus(TICKET_ID, newStatus)).thenReturn(expectedResponse);
-
-        ApiResponse<LotteryTicketResponse> response = lotteryTicketController.changeStatus(TICKET_ID, newStatus);
-
-        assertThat(response).isNotNull();
-        assertThat(response.isSuccess()).isTrue();
-        assertThat(response.getMessage()).isEqualTo("Cập nhật trạng thái vé số thành công.");
-        assertThat(response.getData()).isEqualTo(expectedResponse);
-        assertThat(response.getData().status()).isEqualTo("RESERVED");
-        assertThat(response.getData().statusDisplayName()).isEqualTo("Đã đặt trước");
-
-        verify(lotteryTicketServicePort).changeStatus(TICKET_ID, newStatus);
-    }
-
-    @Test
-    @DisplayName("[DP-325] PATCH /lottery-tickets/{id}/status: Operator đổi trạng thái vé số sang SOLD thành công")
-    void changeStatus_asOperator_toSold_returnsUpdatedTicket() {
-        LotteryTicketStatus newStatus = LotteryTicketStatus.SOLD;
-        LotteryTicketResponse expectedResponse = LotteryTicketResponse.builder()
-                .id(TICKET_ID)
-                .stationId(PRODUCT_ID)
-                .serialNumber("A123456")
-                .status("SOLD")
-                .statusDisplayName("Đã bán")
-                .build();
-
-        when(lotteryTicketServicePort.changeStatus(TICKET_ID, newStatus)).thenReturn(expectedResponse);
-
-        ApiResponse<LotteryTicketResponse> response = lotteryTicketController.changeStatus(TICKET_ID, newStatus);
-
-        assertThat(response).isNotNull();
-        assertThat(response.isSuccess()).isTrue();
-        assertThat(response.getData().status()).isEqualTo("SOLD");
-
-        verify(lotteryTicketServicePort).changeStatus(TICKET_ID, newStatus);
-    }
-
-    @Test
-    @DisplayName("[DP-325] PATCH /lottery-tickets/{id}/status: Đổi trạng thái vé số sang RETURNED thành công")
-    void changeStatus_toReturned_returnsUpdatedTicket() {
-        LotteryTicketStatus newStatus = LotteryTicketStatus.RETURNED;
-        LotteryTicketResponse expectedResponse = LotteryTicketResponse.builder()
-                .id(TICKET_ID)
-                .stationId(PRODUCT_ID)
-                .status("RETURNED")
-                .statusDisplayName("Đã trả lại")
-                .build();
-
-        when(lotteryTicketServicePort.changeStatus(TICKET_ID, newStatus)).thenReturn(expectedResponse);
-
-        ApiResponse<LotteryTicketResponse> response = lotteryTicketController.changeStatus(TICKET_ID, newStatus);
-
-        assertThat(response).isNotNull();
-        assertThat(response.isSuccess()).isTrue();
-        assertThat(response.getData().status()).isEqualTo("RETURNED");
-        assertThat(response.getData().statusDisplayName()).isEqualTo("Đã trả lại");
-
-        verify(lotteryTicketServicePort).changeStatus(TICKET_ID, newStatus);
-    }
-
-    @Test
-    @DisplayName("[DP-325] PATCH /lottery-tickets/{id}/status: Đổi trạng thái vé số sang CANCELLED thành công")
-    void changeStatus_toCancelled_returnsUpdatedTicket() {
-        LotteryTicketStatus newStatus = LotteryTicketStatus.ISSUER_FAULT;
-        LotteryTicketResponse expectedResponse = LotteryTicketResponse.builder()
-                .id(TICKET_ID)
-                .stationId(PRODUCT_ID)
-                .status("CANCELLED")
-                .statusDisplayName("Đã hủy")
-                .build();
-
-        when(lotteryTicketServicePort.changeStatus(TICKET_ID, newStatus)).thenReturn(expectedResponse);
-
-        ApiResponse<LotteryTicketResponse> response = lotteryTicketController.changeStatus(TICKET_ID, newStatus);
-
-        assertThat(response).isNotNull();
-        assertThat(response.isSuccess()).isTrue();
-        assertThat(response.getData().status()).isEqualTo("CANCELLED");
-
-        verify(lotteryTicketServicePort).changeStatus(TICKET_ID, newStatus);
-    }
-
-    @Test
-    @DisplayName("[DP-325] PATCH /lottery-tickets/{id}/status: Đổi trạng thái vé số sang IN_STOCK thành công")
-    void changeStatus_toInStock_returnsUpdatedTicket() {
-        LotteryTicketStatus newStatus = LotteryTicketStatus.IN_STOCK;
-        LotteryTicketResponse expectedResponse = LotteryTicketResponse.builder()
-                .id(TICKET_ID)
-                .stationId(PRODUCT_ID)
-                .status("IN_STOCK")
-                .statusDisplayName("Còn trong kho")
-                .build();
-
-        when(lotteryTicketServicePort.changeStatus(TICKET_ID, newStatus)).thenReturn(expectedResponse);
-
-        ApiResponse<LotteryTicketResponse> response = lotteryTicketController.changeStatus(TICKET_ID, newStatus);
-
-        assertThat(response).isNotNull();
-        assertThat(response.isSuccess()).isTrue();
-        assertThat(response.getData().status()).isEqualTo("IN_STOCK");
-
-        verify(lotteryTicketServicePort).changeStatus(TICKET_ID, newStatus);
-    }
-
-    // ============================================================
     // GET BY ID ERROR CASES TESTS
     // ============================================================
 
@@ -1705,7 +1581,6 @@ class LotteryTicketControllerTest {
                 "https://cdn.example.com/new.png",
                 "999888",
                 LocalDate.of(2026, 7, 5),
-                com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketStatus.RESERVED,
                 null
         );
 
@@ -1724,14 +1599,6 @@ class LotteryTicketControllerTest {
         ApiResponse<LotteryTicketResponse> response = lotteryTicketController.verify(TICKET_ID, principal);
 
         verify(lotteryTicketServicePort).verify(TICKET_ID, USER_ID);
-    }
-
-    @Test
-    @DisplayName("[DP-325] PATCH /lottery-tickets/{id}/status: Member-only không có quyền đổi trạng thái vé")
-    void changeStatus_asMemberOnly_shouldNotBeCalledDirectly() {
-        ApiResponse<LotteryTicketResponse> response = lotteryTicketController.changeStatus(TICKET_ID, LotteryTicketStatus.RESERVED);
-
-        verify(lotteryTicketServicePort).changeStatus(TICKET_ID, LotteryTicketStatus.RESERVED);
     }
 
     @Test
@@ -1755,7 +1622,6 @@ class LotteryTicketControllerTest {
                 "https://cdn.example.com/updated.png",
                 "888999",
                 LocalDate.of(2026, 7, 5),
-                com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketStatus.RESERVED,
                 null
         );
 
@@ -1791,26 +1657,6 @@ class LotteryTicketControllerTest {
 
         verify(lotteryTicketServicePort).verify(TICKET_ID, USER_ID);
     }
-
-    // ============================================================
-    // CHANGE STATUS ERROR CASES TESTS
-    // ============================================================
-
-    @Test
-    @DisplayName("[DP-325] PATCH /lottery-tickets/{id}/status: Đổi trạng thái vé không tồn tại trả về exception")
-    void changeStatus_ticketNotFound_throwsException() {
-        when(lotteryTicketServicePort.changeStatus(TICKET_ID, LotteryTicketStatus.RESERVED))
-                .thenThrow(new RuntimeException("Vé số không tồn tại"));
-
-        org.junit.jupiter.api.Assertions.assertThrows(
-                RuntimeException.class,
-                () -> lotteryTicketController.changeStatus(TICKET_ID, LotteryTicketStatus.RESERVED)
-        );
-
-        verify(lotteryTicketServicePort).changeStatus(TICKET_ID, LotteryTicketStatus.RESERVED);
-    }
-
-
 
     // ============================================================
     // DELETE LOTTERY TICKET - SUCCESS CASES
