@@ -7,7 +7,6 @@ import { ExportButton } from '../../../../../components/ui/ExportButton';
 import { SettingsList } from '../../../../../components/ui/SettingsList';
 import { useStations } from '../../../../station/hooks/useStation';
 import { TICKET_STATUS_OPTIONS } from '../../constants/ticket-status.config';
-import dayjs from 'dayjs';
 
 interface ToolbarProps {
     settings: IGridSettings;
@@ -40,9 +39,6 @@ export const TicketToolbar = ({
             value: (p.id || p._id).toString(),
             label: p.name,
         }));
-
-        const today = dayjs().format('YYYY-MM-DD');
-        const tomorrow = dayjs().add(1, 'day').format('YYYY-MM-DD');
 
         return [
             {

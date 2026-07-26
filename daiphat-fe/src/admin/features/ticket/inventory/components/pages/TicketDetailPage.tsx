@@ -59,6 +59,14 @@ export const TicketDetailPage = () => {
         }
     }), [outerTheme]);
 
+    const filteredSerials = useMemo(() => {
+        return (ticketDetail?.serials || []).filter((serial: any) => {
+            const matchesSearch = !searchSerial || (serial.serialNumber || "").toLowerCase().includes(searchSerial.toLowerCase());
+            const matchesStatus = filterStatus === "ALL" || (serial.status || "").toUpperCase() === filterStatus;
+            return matchesSearch && matchesStatus;
+        });
+    }, [ticketDetail?.serials, searchSerial, filterStatus]);
+
     if (isLoadingTicket) {
         return <Box display="flex" justifyContent="center" alignItems="center" height="400px"><CircularProgress /></Box>
     }
@@ -79,14 +87,6 @@ export const TicketDetailPage = () => {
         ticketStatus === "SOLD_OUT" || ticketStatus === "EXPIRED" ? "warning" :
         ticketStatus === "SOLD" || ticketStatus === "INTERNAL_FAULT" || ticketStatus === "ISSUER_FAULT" ? "error" :
         "default";
-
-    const filteredSerials = useMemo(() => {
-        return (ticketDetail.serials || []).filter((serial: any) => {
-            const matchesSearch = !searchSerial || (serial.serialNumber || "").toLowerCase().includes(searchSerial.toLowerCase());
-            const matchesStatus = filterStatus === "ALL" || (serial.status || "").toUpperCase() === filterStatus;
-            return matchesSearch && matchesStatus;
-        });
-    }, [ticketDetail.serials, searchSerial, filterStatus]);
 
     return (
         <>

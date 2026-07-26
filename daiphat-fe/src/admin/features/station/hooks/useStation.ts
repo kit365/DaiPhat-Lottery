@@ -116,6 +116,7 @@ export const useStationsByDrawDate = (drawDate?: string | string[]) => {
         queryKey: [QUERY_KEYS.STATIONS_BY_DRAW_DATE, drawDates],
         queryFn: () => getStationsByDrawDate(drawDates),
         enabled: drawDates.length > 0,
+        placeholderData: keepPreviousData,
     });
 };
 
