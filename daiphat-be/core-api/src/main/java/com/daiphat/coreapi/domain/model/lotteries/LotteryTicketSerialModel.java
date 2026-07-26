@@ -151,7 +151,8 @@ public class LotteryTicketSerialModel {
         }
         if (this.status != LotteryTicketSerialStatus.SOLD
                 && this.status != LotteryTicketSerialStatus.RESERVED
-                && this.status != LotteryTicketSerialStatus.IN_STOCK) {
+                && this.status != LotteryTicketSerialStatus.IN_STOCK
+                && this.status != LotteryTicketSerialStatus.EXPIRED) {
             throw new DomainException(ErrorCode.LOTTERY_TICKET_INVALID_STATUS);
         }
         this.status = faultStatus;
