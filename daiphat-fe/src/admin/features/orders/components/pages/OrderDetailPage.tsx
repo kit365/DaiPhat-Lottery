@@ -547,7 +547,6 @@ export const OrderDetailPage = () => {
                                                 <TableCell sx={{ color: 'var(--palette-text-secondary)', fontWeight: 600, borderBottom: 'none' }}>Loại vé</TableCell>
                                                 <TableCell sx={{ color: 'var(--palette-text-secondary)', fontWeight: 600, borderBottom: 'none' }}>Giá</TableCell>
                                                 <TableCell sx={{ color: 'var(--palette-text-secondary)', fontWeight: 600, borderBottom: 'none' }}>Trạng thái</TableCell>
-                                                <TableCell align="center" sx={{ color: 'var(--palette-text-secondary)', fontWeight: 600, borderBottom: 'none' }}>Thao tác</TableCell>
                                             </TableRow>
                                         </TableHead>
                                         <TableBody>
@@ -624,11 +623,6 @@ export const OrderDetailPage = () => {
                                                                 />
                                                             );
                                                         })()}
-                                                    </TableCell>
-                                                    <TableCell align="center">
-                                                        <Button variant="outlined" size="small" endIcon={<Icon icon="solar:square-top-down-linear" style={{ transform: 'rotate(-45deg)' }} />} sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600, color: 'var(--palette-success-main)', borderColor: 'var(--palette-success-main)', '&:hover': { bgcolor: 'var(--palette-success-lighter)', borderColor: 'var(--palette-success-main)' } }}>
-                                                            Xem kết quả
-                                                        </Button>
                                                     </TableCell>
                                                 </TableRow>
                                             ))}
