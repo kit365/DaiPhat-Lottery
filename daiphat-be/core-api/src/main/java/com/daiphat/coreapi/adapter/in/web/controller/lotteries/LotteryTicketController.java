@@ -200,16 +200,6 @@ public class LotteryTicketController {
         return ApiResponse.success("Thay đổi dãy số cho vé số thành công.", response);
     }
 
-    @PatchMapping(ID_PATH + "/status")
-    @PreAuthorize("hasAnyAuthority('ticket:edit')")
-    public ApiResponse<LotteryTicketResponse> changeStatus(
-            @PathVariable Long id,
-            @RequestParam LotteryTicketStatus status) {
-        log.info("REST request to change lottery ticket status: {} to {}", id, status);
-        LotteryTicketResponse response = lotteryTicketServicePort.changeStatus(id, status);
-        return ApiResponse.success("Cập nhật trạng thái vé số thành công.", response);
-    }
-
     @PostMapping(value = "/images/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @PreAuthorize("hasAnyAuthority('ticket:create', 'ticket:edit')")
     public ApiResponse<StorageResult> uploadAsset(@RequestPart("file") MultipartFile file) {

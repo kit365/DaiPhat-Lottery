@@ -60,8 +60,6 @@ public interface LotteryTicketServicePort {
 
     LotteryTicketResponse verify(Long id, UUID verifierId);
 
-    LotteryTicketResponse changeStatus(Long id, LotteryTicketStatus status);
-
     LotteryTicketResponse uploadImage(Long id, UploadRequest request);
 
     StorageResult uploadAsset(UploadRequest request);
