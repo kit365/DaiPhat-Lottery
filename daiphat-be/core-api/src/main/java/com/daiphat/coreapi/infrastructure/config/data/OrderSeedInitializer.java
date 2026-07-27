@@ -153,6 +153,13 @@ public class OrderSeedInitializer implements ApplicationRunner {
     private void resetSeedTicketSerials() {
         List<LotteryTicketSerialEntity> seedSerials =
                 lotteryTicketSerialRepository.findBySerialNumberStartingWithAndDeletedAtIsNull(TICKET_SERIAL_PREFIX);
+        if (seedSerials.isEmpty()) {
+            return;
+        }
+
+        // Break self-FK before delete: newer replacement serials point at older seed serials.
+        List<Long> seedSerialIds = seedSerials.stream().map(LotteryTicketSerialEntity::getId).toList();
+        lotteryTicketSerialRepository.clearReplacedForTicketIdRefs(seedSerialIds);
 
         Set<Long> ticketIds = new HashSet<>();
         for (LotteryTicketSerialEntity serial : seedSerials) {
@@ -166,9 +173,7 @@ public class OrderSeedInitializer implements ApplicationRunner {
             }
         }
 
-        if (!seedSerials.isEmpty()) {
-            log.info("Removed {} previous SEED-* ticket serials.", seedSerials.size());
-        }
+        log.info("Removed {} previous SEED-* ticket serials.", seedSerials.size());
     }
 
     private void seedAvailableTickets(UserEntity operator, LotteryStationEntity station, SeedTime time) {

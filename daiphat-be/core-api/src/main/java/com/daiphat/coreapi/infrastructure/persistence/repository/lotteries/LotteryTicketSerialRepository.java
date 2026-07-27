@@ -29,6 +29,14 @@ public interface LotteryTicketSerialRepository extends JpaRepository<LotteryTick
 
     List<LotteryTicketSerialEntity> findBySerialNumberStartingWithAndDeletedAtIsNull(String serialNumberPrefix);
 
+    @org.springframework.data.jpa.repository.Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("""
+            UPDATE LotteryTicketSerialEntity s
+            SET s.replacedForTicketId = NULL
+            WHERE s.replacedForTicketId IN :serialIds
+            """)
+    int clearReplacedForTicketIdRefs(@Param("serialIds") Collection<Long> serialIds);
+
     long countByTicket_IdAndStatusInAndDeletedAtIsNull(Long ticketId, Collection<LotteryTicketSerialStatus> statuses);
 
     @Query("""

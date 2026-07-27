@@ -255,11 +255,18 @@ public class LotteryImportBatchSeedInitializer implements ApplicationRunner {
         List<LotteryTicketSerialEntity> seedSerials =
                 lotteryTicketSerialRepository.findBySerialNumberStartingWithAndDeletedAtIsNull(SERIAL_PREFIX);
         Set<Long> ticketIds = new HashSet<>();
-        for (LotteryTicketSerialEntity serial : seedSerials) {
-            if (serial.getTicket() != null && serial.getTicket().getId() != null) {
-                ticketIds.add(serial.getTicket().getId());
+        if (!seedSerials.isEmpty()) {
+            // Break self-FK before delete: replacement serials keep replaced_for_ticket_id
+            // pointing at older IBSEED rows from prior runs.
+            List<Long> seedSerialIds = seedSerials.stream().map(LotteryTicketSerialEntity::getId).toList();
+            lotteryTicketSerialRepository.clearReplacedForTicketIdRefs(seedSerialIds);
+
+            for (LotteryTicketSerialEntity serial : seedSerials) {
+                if (serial.getTicket() != null && serial.getTicket().getId() != null) {
+                    ticketIds.add(serial.getTicket().getId());
+                }
+                lotteryTicketSerialRepository.delete(serial);
             }
-            lotteryTicketSerialRepository.delete(serial);
         }
 
         for (Long ticketId : ticketIds) {
