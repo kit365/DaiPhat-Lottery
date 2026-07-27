@@ -31,7 +31,8 @@ export const getTickets = async (params?: any): Promise<ApiResponse<any>> => {
             importBatchLineId: params?.importBatchLineId,
             search: params?.search,
             sortBy: params?.sortBy,
-            direction: params?.direction
+            direction: params?.direction,
+            balanceByStation: params?.balanceByStation,
         },
         paramsSerializer: {
             indexes: null,

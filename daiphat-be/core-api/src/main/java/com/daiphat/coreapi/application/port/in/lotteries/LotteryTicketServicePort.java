@@ -26,10 +26,18 @@ public interface LotteryTicketServicePort {
 
     LotteryTicketResponse getById(Long id);
 
+    default PageResponse<LotteryTicketResponse> getAll(
+            int page, int size, Long stationId, List<Long> stationIds, String status, String drawDate,
+            LocalDate drawDateFrom, LocalDate drawDateTo, Long importBatchLineId,
+            String search, String sortBy, String direction) {
+        return getAll(page, size, stationId, stationIds, status, drawDate, drawDateFrom, drawDateTo,
+                importBatchLineId, search, sortBy, direction, false);
+    }
+
     PageResponse<LotteryTicketResponse> getAll(
             int page, int size, Long stationId, List<Long> stationIds, String status, String drawDate,
             LocalDate drawDateFrom, LocalDate drawDateTo, Long importBatchLineId,
-            String search, String sortBy, String direction);
+            String search, String sortBy, String direction, boolean balanceByStation);
 
     PageResponse<LotteryTicketResponse> getPublicTickets(
             int page, int size, Long stationId, List<Long> stationIds, String drawDate, String search, String sortBy, String direction);

@@ -100,10 +100,7 @@ public class LotteryTicketModel {
         if (totalSerialCount == 0) {
             return LotteryTicketStatus.IN_STOCK;
         }
-        // Voided/damaged/lost serials are not a ticket-level status. Cancellation of the
-        // lottery number itself is expressed via softDelete(), not a VOIDED enum value
-        // (the DB check constraint only allows IMPORTING/IN_STOCK/SOLD_OUT/EXPIRED).
-        return soldSerialCount > 0 ? LotteryTicketStatus.SOLD_OUT : LotteryTicketStatus.IN_STOCK;
+        return LotteryTicketStatus.SOLD_OUT;
     }
 
     public void syncAggregateState(
@@ -112,8 +109,8 @@ public class LotteryTicketModel {
             int soldSerialCount,
             LocalTime cutoffTime
     ) {
-        // Display quantity = every non-deleted serial linked to this lottery number.
-        this.quantity = totalSerialCount;
+        // Display available quantity = IN_STOCK serials available to be purchased.
+        this.quantity = availableSerialCount;
         // IMPORTING belongs to the import-batch flow and cannot be derived from serials,
         // so only the draw cutoff is allowed to move a ticket out of it.
         if (this.status == LotteryTicketStatus.IMPORTING && !isExpired(cutoffTime)) {

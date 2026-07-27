@@ -49,6 +49,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -197,12 +198,29 @@ public class LotteryTicketService implements LotteryTicketServicePort {
         return mapToDetailResponse(model);
     }
 
+    private static final int BALANCE_BY_STATION_MAX_TICKETS = 2_000;
+
     @Override
     @Transactional(readOnly = true)
     public PageResponse<LotteryTicketResponse> getAll(
             int page, int size, Long stationId, List<Long> stationIds, String status, String drawDate,
             LocalDate drawDateFrom, LocalDate drawDateTo, Long importBatchLineId,
-            String search, String sortBy, String direction) {
+            String search, String sortBy, String direction, boolean balanceByStation) {
+
+        LotteryTicketStatus statusEnum = parseStatus(status);
+        List<LocalDate> parsedDrawDates = parseDrawDates(drawDate);
+        List<Long> normalizedStationIds = normalizeStationIds(stationId, stationIds);
+        boolean shouldBalance = balanceByStation
+                && !hasText(search)
+                && normalizedStationIds != null
+                && normalizedStationIds.size() > 1;
+
+        if (shouldBalance) {
+            return getAllBalancedByStation(
+                    page, size, stationId, normalizedStationIds, statusEnum, parsedDrawDates,
+                    drawDateFrom, drawDateTo, importBatchLineId, sortBy, direction
+            );
+        }
 
         PageRequest pageable = PageRequest.of(
                 Math.max(0, page - 1),
@@ -210,20 +228,103 @@ public class LotteryTicketService implements LotteryTicketServicePort {
                 SortUtils.createSort(sortBy, direction)
         );
 
-        LotteryTicketStatus statusEnum = parseStatus(status);
-        List<LocalDate> parsedDrawDates = parseDrawDates(drawDate);
-        List<Long> normalizedStationIds = normalizeStationIds(stationId, stationIds);
-
         Page<LotteryTicketModel> ticketPage = lotteryTicketRepositoryPort
                 .findAll(pageable, stationId, normalizedStationIds, statusEnum, parsedDrawDates, drawDateFrom, drawDateTo, importBatchLineId, search);
 
+        return mapTicketPage(ticketPage, page, size);
+    }
+
+    private PageResponse<LotteryTicketResponse> getAllBalancedByStation(
+            int page,
+            int size,
+            Long stationId,
+            List<Long> normalizedStationIds,
+            LotteryTicketStatus statusEnum,
+            List<LocalDate> parsedDrawDates,
+            LocalDate drawDateFrom,
+            LocalDate drawDateTo,
+            Long importBatchLineId,
+            String sortBy,
+            String direction
+    ) {
+        int safePage = Math.max(1, page);
+        int safeSize = Math.max(1, size);
+        List<Long> stationOrder = normalizedStationIds.stream().sorted().toList();
+        Sort sort = SortUtils.createSort(sortBy, direction);
+
+        Map<Long, List<LotteryTicketModel>> ticketsByStation = new LinkedHashMap<>();
+        long totalElements = 0;
+        int perStationFetch = (safePage * safeSize + stationOrder.size() - 1) / stationOrder.size();
+        perStationFetch = Math.min(
+                perStationFetch,
+                Math.max(1, BALANCE_BY_STATION_MAX_TICKETS / stationOrder.size())
+        );
+
+        for (Long sid : stationOrder) {
+            PageRequest stationPageable = PageRequest.of(0, perStationFetch, sort);
+            Page<LotteryTicketModel> stationPage = lotteryTicketRepositoryPort.findAll(
+                    stationPageable, sid, List.of(sid), statusEnum, parsedDrawDates,
+                    drawDateFrom, drawDateTo, importBatchLineId, null
+            );
+            ticketsByStation.put(sid, stationPage.getContent());
+            totalElements += stationPage.getTotalElements();
+        }
+
+        if (totalElements == 0) {
+            return PageResponse.from(List.of(), 0, safePage, safeSize);
+        }
+
+        List<LotteryTicketModel> merged = roundRobinMergeByStation(ticketsByStation, stationOrder);
+        int fromIndex = (safePage - 1) * safeSize;
+        if (fromIndex >= merged.size()) {
+            return PageResponse.from(List.of(), totalElements, safePage, safeSize);
+        }
+        int toIndex = Math.min(fromIndex + safeSize, merged.size());
+        List<LotteryTicketModel> pageTickets = merged.subList(fromIndex, toIndex);
+        return mapTicketModels(pageTickets, totalElements, safePage, safeSize);
+    }
+
+    private static List<LotteryTicketModel> roundRobinMergeByStation(
+            Map<Long, List<LotteryTicketModel>> ticketsByStation,
+            List<Long> stationOrder
+    ) {
+        Map<Long, Integer> cursor = new HashMap<>();
+        stationOrder.forEach(stationId -> cursor.put(stationId, 0));
+
+        List<LotteryTicketModel> merged = new ArrayList<>();
+        boolean added;
+        do {
+            added = false;
+            for (Long stationId : stationOrder) {
+                List<LotteryTicketModel> stationTickets = ticketsByStation.getOrDefault(stationId, List.of());
+                int index = cursor.getOrDefault(stationId, 0);
+                if (index < stationTickets.size()) {
+                    merged.add(stationTickets.get(index));
+                    cursor.put(stationId, index + 1);
+                    added = true;
+                }
+            }
+        } while (added);
+        return merged;
+    }
+
+    private PageResponse<LotteryTicketResponse> mapTicketPage(Page<LotteryTicketModel> ticketPage, int page, int size) {
+        return mapTicketModels(ticketPage.getContent(), ticketPage.getTotalElements(), page, size);
+    }
+
+    private PageResponse<LotteryTicketResponse> mapTicketModels(
+            List<LotteryTicketModel> tickets,
+            long totalElements,
+            int page,
+            int size
+    ) {
         Map<Long, String> stationNameCache = new HashMap<>();
-        List<Long> ticketIds = ticketPage.getContent().stream().map(LotteryTicketModel::getId).toList();
+        List<Long> ticketIds = tickets.stream().map(LotteryTicketModel::getId).toList();
         Map<Long, LotteryTicketSerialModel> serialsByTicketId =
                 lotteryTicketSerialService.findRepresentativeSerialsByTicketIds(ticketIds);
         Map<Long, Long> serialQuantityByTicketId =
                 lotteryTicketSerialService.countSerialsByTicketIds(ticketIds);
-        List<LotteryTicketResponse> responses = ticketPage.getContent().stream()
+        List<LotteryTicketResponse> responses = tickets.stream()
                 .map(ticket -> mapToResponse(
                         ticket,
                         serialsByTicketId.get(ticket.getId()),
@@ -231,8 +332,7 @@ public class LotteryTicketService implements LotteryTicketServicePort {
                         serialQuantityByTicketId.getOrDefault(ticket.getId(), 0L).intValue()
                 ))
                 .toList();
-
-        return PageResponse.from(responses, ticketPage.getTotalElements(), page, size);
+        return PageResponse.from(responses, totalElements, page, size);
     }
 
     @Override

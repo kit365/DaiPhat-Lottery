@@ -341,7 +341,48 @@ class LotteryTicketServiceTest {
     }
 
     @Test
-    @DisplayName("[DP-281][DP-234] GET_ALL: Lấy danh sách vé số với bộ lọc status")
+    @DisplayName("GET_ALL: Cân bằng vé theo đài khi balanceByStation=true")
+    void getAll_balanceByStation_interleavesTicketsAcrossStations() {
+        Long stationB = 444L;
+        LotteryTicketModel ticketA1 = LotteryTicketModel.builder().id(1001L).stationId(PRODUCT_ID).numbers("100001").drawDate(createRequest.drawDate()).status(LotteryTicketStatus.IN_STOCK).build();
+        LotteryTicketModel ticketA2 = LotteryTicketModel.builder().id(1002L).stationId(PRODUCT_ID).numbers("100002").drawDate(createRequest.drawDate()).status(LotteryTicketStatus.IN_STOCK).build();
+        LotteryTicketModel ticketB1 = LotteryTicketModel.builder().id(2001L).stationId(stationB).numbers("200001").drawDate(createRequest.drawDate()).status(LotteryTicketStatus.IN_STOCK).build();
+        LotteryTicketModel ticketB2 = LotteryTicketModel.builder().id(2002L).stationId(stationB).numbers("200002").drawDate(createRequest.drawDate()).status(LotteryTicketStatus.IN_STOCK).build();
+
+        when(lotteryTicketRepositoryPort.findAll(
+                any(PageRequest.class), eq(PRODUCT_ID), eq(List.of(PRODUCT_ID)), any(), any(), any(), any(), any(), any()))
+                .thenReturn(new PageImpl<>(List.of(ticketA1, ticketA2), PageRequest.of(0, 5), 20));
+        when(lotteryTicketRepositoryPort.findAll(
+                any(PageRequest.class), eq(stationB), eq(List.of(stationB)), any(), any(), any(), any(), any(), any()))
+                .thenReturn(new PageImpl<>(List.of(ticketB1, ticketB2), PageRequest.of(0, 5), 30));
+        when(lotteryTicketSerialService.findRepresentativeSerialsByTicketIds(anyList())).thenReturn(Map.of());
+        when(lotteryTicketSerialService.countSerialsByTicketIds(anyList())).thenReturn(Map.of());
+        when(lotteryTicketApplicationMapper.toResponse(any(), any(), any(), any(), anyInt())).thenReturn(mappedResponse);
+
+        PageResponse<LotteryTicketResponse> response = lotteryTicketService.getAll(
+                1,
+                10,
+                null,
+                List.of(PRODUCT_ID, stationB),
+                "IN_STOCK",
+                null,
+                null,
+                null,
+                null,
+                null,
+                "createdAt",
+                "desc",
+                true);
+
+        assertThat(response.getRecordList()).hasSize(4);
+        assertThat(response.getPagination().getTotalRecords()).isEqualTo(50);
+        verify(lotteryTicketRepositoryPort).findAll(
+                any(PageRequest.class), eq(PRODUCT_ID), eq(List.of(PRODUCT_ID)), any(), any(), any(), any(), any(), any());
+        verify(lotteryTicketRepositoryPort).findAll(
+                any(PageRequest.class), eq(stationB), eq(List.of(stationB)), any(), any(), any(), any(), any(), any());
+    }
+
+    @Test
     void getAll_withStatusFilter_returnsFilteredTickets() {
         Page<LotteryTicketModel> ticketPage = new PageImpl<>(
                 List.of(existingModel),
