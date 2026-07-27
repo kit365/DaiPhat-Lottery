@@ -247,6 +247,44 @@ private static final String DEFAULT_CUSTOMER_NAME = "Kiet";
         assertThat(result.getTransactions()).hasSize(1);
         assertThat(result.getTransactions().getFirst().getStatus()).isEqualTo(TransactionStatus.COMPLETED);
         verify(orderRepositoryPort).save(any(OrderModel.class));
+        org.mockito.Mockito.verify(eventPublisher, org.mockito.Mockito.never())
+                .publishEvent(any(com.daiphat.coreapi.application.event.OrderStatusChangedEvent.class));
+    }
+
+    @Test
+    @DisplayName("[DP-346] CREATE: Đơn tại quầy tiền mặt gửi thông báo hoàn thành cho khách đã liên kết tài khoản")
+    void createDirectOrder_cashPayment_publishesCompletedNotificationForLinkedCustomer() {
+        UUID operatorId = UUID.randomUUID();
+        UUID customerId = UUID.randomUUID();
+        CreateDirectOrderRequest request = new CreateDirectOrderRequest(
+                customerId,
+                "Member Default",
+                "0934977242",
+                "member@daiphat.com",
+                SINGLE_TICKET_ITEM,
+                null,
+                "Thu tai quay",
+                List.of(
+                        new DirectOrderTransactionRequest(TransactionType.OFFLINE, BigDecimal.valueOf(10_000), "Tien mat")
+                )
+        );
+
+        when(userLookupServicePort.findByIdOrThrow(operatorId)).thenReturn(mock(UserModel.class));
+        when(userLookupServicePort.findByIdOrThrow(customerId)).thenReturn(mock(UserModel.class));
+        when(lotteryTicketServicePort.sellOfflineForOrder(List.of(101L))).thenReturn(List.of(
+                new OrderTicketSnapshot(101L, 1001L, BigDecimal.valueOf(10_000), LocalDate.now().plusDays(1))
+        ));
+        when(orderRepositoryPort.existsByOrderCode(anyString())).thenReturn(false);
+        when(orderRepositoryPort.save(any(OrderModel.class))).thenAnswer(invocation -> {
+            OrderModel saved = invocation.getArgument(0);
+            saved.setId(UUID.randomUUID());
+            return saved;
+        });
+
+        OrderModel result = orderService.createDirectOrder(request, operatorId);
+
+        assertThat(result.getStatus()).isEqualTo(OrderStatus.COMPLETED);
+        org.mockito.Mockito.verify(eventPublisher).publishEvent(any(com.daiphat.coreapi.application.event.OrderStatusChangedEvent.class));
     }
 
     @Test
