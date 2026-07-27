@@ -112,13 +112,14 @@ export const SupplierCreatePage = () => {
             />
             <Title title="Thêm nhà cung cấp" />
 
-            <form onSubmit={handleSubmit(onSubmit)}>
+            <form onSubmit={handleSubmit(onSubmit)} noValidate>
                 <CollapsibleCard title="Thông tin nhà cung cấp" expanded onToggle={() => undefined}>
                     <Stack spacing={3} sx={{ p: 3 }}>
                         <SupplierFormFields
                             control={control}
                             missingFields={missingFields}
                             onActiveToggle={handleActiveToggle}
+                            hideIsActive={true}
                         />
                         <LoadingButton
                             type="submit"

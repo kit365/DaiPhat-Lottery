@@ -1,12 +1,13 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { OrderStatus, OrderType, GetMyOrdersParams, OrderResponse } from '../../../../../types/order.type';
 import { useGetMyOrders, useGetMyOrderDetail } from '../../../../hooks/useOrder';
 import { useProcessPayment } from '../../../../hooks/useTransaction';
-import { PaymentGateway } from '../../../../../types/transaction.type';
+import { PaymentGateway, PaymentResult } from '../../../../../types/transaction.type';
 import { isRefundWindowOpen } from '../../../../../types/refund.type';
 import { AppToast } from '../../../../../utils/toast.util';
 import { RefundRequestModal } from '../../../../components/refund/RefundRequestModal';
+import { PaymentQrDialog } from '../../../../components/payment/PaymentQrDialog';
 import { useGetMyRefunds } from '../../../../hooks/useRefund';
 import { OrderRowActionsMenu } from '../components/OrderRowActionsMenu';
 import { ProfileTablePagination } from '../components/ProfileTablePagination';
@@ -71,6 +72,10 @@ export const OrdersTab = () => {
     const processPaymentMutation = useProcessPayment();
 
     const [refundOrderId, setRefundOrderId] = useState<string | null>(null);
+    const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
+    const [paymentResult, setPaymentResult] = useState<PaymentResult | null>(null);
+    const [isPreparingPayment, setIsPreparingPayment] = useState(false);
+    const [payingOrder, setPayingOrder] = useState<OrderResponse | null>(null);
     const { data: refundOrderData, isLoading: isLoadingRefundOrder } = useGetMyOrderDetail(refundOrderId || '');
 
     const { data: allRefundsData } = useGetMyRefunds({ limit: 100, page: 1 });
@@ -111,6 +116,11 @@ export const OrdersTab = () => {
             return;
         }
 
+        setPayingOrder(order);
+        setPaymentResult(null);
+        setPaymentDialogOpen(true);
+        setIsPreparingPayment(true);
+
         processPaymentMutation.mutate({
             orderId: order.id,
             data: {
@@ -119,14 +129,42 @@ export const OrdersTab = () => {
             }
         }, {
             onSuccess: (paymentRes: any) => {
-                if (paymentRes.success && paymentRes.data?.checkoutUrl) {
-                    window.location.href = paymentRes.data.checkoutUrl;
+                if (paymentRes.success && paymentRes.data) {
+                    setPaymentResult(paymentRes.data);
+                    if (!paymentRes.data.qrCode && !paymentRes.data.checkoutUrl) {
+                        AppToast.error("Không tạo được mã thanh toán");
+                    }
                 } else {
-                    AppToast.error("Không lấy được đường dẫn thanh toán");
+                    AppToast.error("Không lấy được thông tin thanh toán");
                 }
+            },
+            onError: () => {
+                AppToast.error("Không thể tạo phiên thanh toán");
+            },
+            onSettled: () => {
+                setIsPreparingPayment(false);
             }
         });
     };
+
+    const handlePaymentPaid = useCallback(() => {
+        AppToast.success('Thanh toán thành công!');
+        const orderId = payingOrder?.id;
+        setPaymentDialogOpen(false);
+        setPaymentResult(null);
+        setPayingOrder(null);
+        setIsPreparingPayment(false);
+        if (orderId) {
+            navigate(`/profile/orders/${orderId}`);
+        }
+    }, [navigate, payingOrder?.id]);
+
+    const handlePaymentDialogClose = useCallback(() => {
+        setPaymentDialogOpen(false);
+        setPaymentResult(null);
+        setPayingOrder(null);
+        setIsPreparingPayment(false);
+    }, []);
 
     // Reset page when filters change
     useEffect(() => {
@@ -419,6 +457,17 @@ export const OrdersTab = () => {
                     order={refundOrderData.data}
                 />
             )}
+
+            <PaymentQrDialog
+                open={paymentDialogOpen}
+                orderId={payingOrder?.id || ''}
+                orderCode={payingOrder?.orderCode}
+                amount={Number(payingOrder?.totalAmount) || 0}
+                payment={paymentResult}
+                loading={isPreparingPayment}
+                onPaid={handlePaymentPaid}
+                onClose={handlePaymentDialogClose}
+            />
         </div>
     );
 };

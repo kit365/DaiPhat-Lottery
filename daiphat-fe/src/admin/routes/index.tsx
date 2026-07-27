@@ -51,7 +51,7 @@ const StreetAgentListPage = lazy(() => import("../features/street-agent").then(m
 const StreetAgentCreatePage = lazy(() => import("../features/street-agent").then(m => ({ default: m.StreetAgentCreatePage })));
 const StreetAgentEditPage = lazy(() => import("../features/street-agent").then(m => ({ default: m.StreetAgentEditPage })));
 const SettingsPage = lazy(() => import("../pages/settings/SettingsPage").then(m => ({ default: m.SettingsPage })));
-const SystemConfigListPage = lazy(() => import("../pages/settings/SystemConfigListPage").then(m => ({ default: m.SystemConfigListPage })));
+const SystemConfigListPage = lazy(() => import("../features/system-config/components/pages/SystemConfigListPage").then(m => ({ default: m.SystemConfigListPage })));
 const GeneralStatisticsPage = lazy(() => import("../pages/dashboard/statistics/GeneralStatisticsPage").then(m => ({ default: m.GeneralStatisticsPage })));
 const OrderStatisticsPage = lazy(() => import("../pages/dashboard/statistics/OrderStatisticsPage").then(m => ({ default: m.OrderStatisticsPage })));
 const StaffStatisticsPage = lazy(() => import("../pages/dashboard/statistics/StaffStatisticsPage").then(m => ({ default: m.StaffStatisticsPage })));
@@ -75,6 +75,9 @@ const RefundListPage = lazy(() => import("../pages/refund/RefundListPage").then(
 const RefundDetailPage = lazy(() => import("../pages/refund/RefundDetailPage").then(m => ({ default: m.RefundDetailPage })));
 const RefundCreatePage = lazy(() => import("../pages/refund/RefundCreatePage").then(m => ({ default: m.RefundCreatePage })));
 const OrderCancelWithRefundPage = lazy(() => import("../pages/refund/OrderCancelWithRefundPage").then(m => ({ default: m.OrderCancelWithRefundPage })));
+const SupportTicketListPage = lazy(() => import("../features/support-ticket").then(m => ({ default: m.SupportTicketListPage })));
+const SupportTicketDetailPage = lazy(() => import("../features/support-ticket").then(m => ({ default: m.SupportTicketDetailPage })));
+const TicketCategoryListPage = lazy(() => import("../features/support-ticket").then(m => ({ default: m.TicketCategoryListPage })));
 
 export const AdminRoutes = [
     { index: true, element: <Navigate to="/admin/dashboard" replace /> },
@@ -136,6 +139,9 @@ export const AdminRoutes = [
     { path: "refunds/list", element: <PermissionGuard permission={PERMISSIONS.REFUND.VIEW}><RefundListPage /></PermissionGuard> },
     { path: "refunds/detail/:id", element: <PermissionGuard permission={PERMISSIONS.REFUND.VIEW}><RefundDetailPage /></PermissionGuard> },
     { path: "refunds/create", element: <PermissionGuard permission={PERMISSIONS.REFUND.PROCESS}><RefundCreatePage /></PermissionGuard> },
+    { path: "support-tickets/list", element: <PermissionGuard permission={PERMISSIONS.SUPPORT_TICKET.VIEW}><SupportTicketListPage /></PermissionGuard> },
+    { path: "support-tickets/detail/:id", element: <PermissionGuard permission={PERMISSIONS.SUPPORT_TICKET.VIEW}><SupportTicketDetailPage /></PermissionGuard> },
+    { path: "support-tickets/categories", element: <PermissionGuard permission={PERMISSIONS.SUPPORT_TICKET.VIEW}><TicketCategoryListPage /></PermissionGuard> },
     { path: "dashboard/settings/*", element: <PermissionGuard permission={PERMISSIONS.SETTINGS.VIEW}><SettingsPage /></PermissionGuard> },
     { path: "settings/system-config/list", element: <PermissionGuard permission={PERMISSIONS.SETTINGS.VIEW}><SystemConfigListPage /></PermissionGuard> },
     { path: "chat", element: <PermissionGuard permission={PERMISSIONS.CHAT.VIEW}><ChatPage /></PermissionGuard> },

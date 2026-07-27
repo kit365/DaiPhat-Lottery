@@ -24,7 +24,7 @@ export const useExpiredTickets = () => {
         return data.data.recordList.map((item: any) => ({
             id: item._id,
             name: item.name,
-            quantity: item.quantity,
+            quantity: item.serials?.length || item.quantity || 0,
             expiryDate: item.expiryDate ? new Date(item.expiryDate) : null,
             discardedAt: item.discardedAt ? new Date(item.discardedAt) : new Date(),
         }));

@@ -1,4 +1,4 @@
-import { Box, Stack, ThemeProvider, useTheme, createTheme, Button, Typography, CircularProgress, Chip, Table, TableBody, TableCell, TableContainer, TableHead, TableRow } from "@mui/material"
+import { Box, Stack, ThemeProvider, useTheme, createTheme, Button, Typography, CircularProgress, Chip, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TextField, Select, MenuItem } from "@mui/material"
 import { Breadcrumb } from "../../../../../components/ui/Breadcrumb"
 import { Title } from "../../../../../components/ui/Title"
 import { useState, useMemo } from "react"
@@ -7,6 +7,7 @@ import { prefixAdmin } from "../../../../../constants/routes";
 import { useTicketDetail } from "../../hooks/useTicket";
 import { useParams, useNavigate } from "react-router-dom";
 import { formatImportBatchCode } from "../../../import-batch/utils/importBatchCode";
+import { resolveAvailableTicketQuantity } from "../../utils/ticketQuantity";
 import dayjs from "dayjs";
 import { useStations } from '../../../../station/hooks/useStation';
 
@@ -37,6 +38,8 @@ export const TicketDetailPage = () => {
 
     const [expandedDetail, setExpandedDetail] = useState(true);
     const [expandedSerials, setExpandedSerials] = useState(true);
+    const [searchSerial, setSearchSerial] = useState("");
+    const [filterStatus, setFilterStatus] = useState("ALL");
     const outerTheme = useTheme();
 
     const localTheme = useMemo(() => createTheme(outerTheme, {
@@ -56,6 +59,14 @@ export const TicketDetailPage = () => {
         }
     }), [outerTheme]);
 
+    const filteredSerials = useMemo(() => {
+        return (ticketDetail?.serials || []).filter((serial: any) => {
+            const matchesSearch = !searchSerial || (serial.serialNumber || "").toLowerCase().includes(searchSerial.toLowerCase());
+            const matchesStatus = filterStatus === "ALL" || (serial.status || "").toUpperCase() === filterStatus;
+            return matchesSearch && matchesStatus;
+        });
+    }, [ticketDetail?.serials, searchSerial, filterStatus]);
+
     if (isLoadingTicket) {
         return <Box display="flex" justifyContent="center" alignItems="center" height="400px"><CircularProgress /></Box>
     }
@@ -69,6 +80,7 @@ export const TicketDetailPage = () => {
     const providerName = provider ? provider.name : 'Không xác định';
     const canEditTicket = ["IN_STOCK", "ISSUER_FAULT"].includes((ticketDetail.status || "").toUpperCase())
         && !(ticketDetail.serials || []).some((serial: any) => ["RESERVED", "SOLD"].includes((serial.status || "").toUpperCase()));
+    const availableQuantity = resolveAvailableTicketQuantity(ticketDetail);
     const ticketStatus = (ticketDetail.status || "").toUpperCase();
     const ticketStatusColor =
         ticketStatus === "IN_STOCK" ? "success" :
@@ -160,7 +172,7 @@ export const TicketDetailPage = () => {
 
                                 <Box sx={{ gridColumn: { xs: "span 12", md: "span 4" } }}>
                                     <Typography variant="caption" color="text.secondary">Số lượng</Typography>
-                                    <Typography variant="body1" fontWeight={600}>{ticketDetail.quantity ?? 'N/A'} tờ</Typography>
+                                    <Typography variant="body1" fontWeight={600}>{availableQuantity} tờ</Typography>
                                 </Box>
 
                                 <Box sx={{ gridColumn: { xs: "span 12", md: "span 4" } }}>
@@ -245,10 +257,37 @@ export const TicketDetailPage = () => {
                         expanded={expandedSerials}
                         onToggle={() => setExpandedSerials(!expandedSerials)}
                     >
-                        <Box sx={{ px: { xs: 1.5, md: 2 }, pb: 2, pt: 0.5 }}>
-                            {(ticketDetail.serials || []).length === 0 ? (
+                        <Box sx={{ px: { xs: 1.5, md: 2 }, pt: 1 }}>
+                            <Box sx={{ display: 'flex', gap: 2, mb: 2, flexWrap: 'wrap' }}>
+                                <TextField
+                                    size="small"
+                                    placeholder="Tìm kiếm sê-ri..."
+                                    value={searchSerial}
+                                    onChange={(e) => setSearchSerial(e.target.value)}
+                                    sx={{ minWidth: 200 }}
+                                />
+                                <Select
+                                    size="small"
+                                    value={filterStatus}
+                                    onChange={(e) => setFilterStatus(e.target.value)}
+                                    sx={{ minWidth: 180 }}
+                                >
+                                    <MenuItem value="ALL">Tất cả trạng thái</MenuItem>
+                                    <MenuItem value="IN_STOCK">Trong kho</MenuItem>
+                                    <MenuItem value="RESERVED">Đang giữ</MenuItem>
+                                    <MenuItem value="SOLD">Đã bán</MenuItem>
+                                    <MenuItem value="EXPIRED">Hết hạn</MenuItem>
+                                    <MenuItem value="DAMAGED">Hư hỏng</MenuItem>
+                                    <MenuItem value="LOST">Thất lạc</MenuItem>
+                                    <MenuItem value="ISSUER_FAULT">Lỗi nhà đài</MenuItem>
+                                    <MenuItem value="INTERNAL_FAULT">Lỗi nội bộ</MenuItem>
+                                </Select>
+                            </Box>
+                        </Box>
+                        <Box sx={{ px: { xs: 1.5, md: 2 }, pb: 2 }}>
+                            {filteredSerials.length === 0 ? (
                                 <Typography variant="body2" color="text.secondary" sx={{ px: 1, py: 2 }}>
-                                    Không có sê-ri.
+                                    Không có sê-ri nào phù hợp.
                                 </Typography>
                             ) : (
                                 <TableContainer>
@@ -277,7 +316,7 @@ export const TicketDetailPage = () => {
                                             </TableRow>
                                         </TableHead>
                                         <TableBody>
-                                            {(ticketDetail.serials || []).map((serial: any, index: number) => {
+                                            {filteredSerials.map((serial: any, index: number) => {
                                                 const statusSx = getSerialStatusChipSx(serial.status);
                                                 return (
                                                     <TableRow

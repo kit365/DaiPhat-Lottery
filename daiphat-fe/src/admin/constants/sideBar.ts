@@ -12,6 +12,7 @@ import SettingsIcon from "@mui/icons-material/Settings";
 import ShoppingCartIcon from "@mui/icons-material/ShoppingCart";
 import RateReviewIcon from "@mui/icons-material/RateReview";
 import ChatIcon from "@mui/icons-material/Chat";
+import SupportAgentIcon from "@mui/icons-material/SupportAgent";
 import PaymentsIcon from "@mui/icons-material/Payments";
 import EmojiEventsIcon from "@mui/icons-material/EmojiEvents";
 import FactCheckIcon from "@mui/icons-material/FactCheck";
@@ -100,6 +101,16 @@ export const menuManagementData = [
         Icon: PaymentsIcon,
         path: ROUTES.ADMIN.REFUNDS.LIST,
         permission: PERMISSIONS.REFUND.VIEW,
+    },
+    {
+        id: "support-tickets",
+        label: "Khiếu nại / Hỗ trợ",
+        Icon: SupportAgentIcon,
+        permission: PERMISSIONS.SUPPORT_TICKET.VIEW,
+        children: [
+            { id: "list", label: "Danh sách khiếu nại", path: ROUTES.ADMIN.SUPPORT_TICKETS.LIST, permission: PERMISSIONS.SUPPORT_TICKET.VIEW },
+            { id: "categories", label: "Danh mục khiếu nại", path: ROUTES.ADMIN.SUPPORT_TICKETS.CATEGORIES, permission: PERMISSIONS.SUPPORT_TICKET.VIEW },
+        ]
     },
     {
         id: "chat",

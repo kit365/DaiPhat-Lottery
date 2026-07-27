@@ -58,14 +58,35 @@ public class ImportBatchLineModel {
 
     public boolean isEditable() {
         return !isDeleted()
-                && (status == ImportBatchLineStatus.OPEN || status == ImportBatchLineStatus.IMPORTING);
+                && (status == ImportBatchLineStatus.OPEN
+                || status == ImportBatchLineStatus.IMPORTING
+                || status == ImportBatchLineStatus.PAUSED);
     }
 
+    /**
+     * IMPORTING lines must be paused before delete. OPEN / PAUSED / CANCELLED may be removed.
+     */
     public boolean isDeletable() {
         return !isDeleted()
                 && (status == ImportBatchLineStatus.OPEN
-                || status == ImportBatchLineStatus.IMPORTING
+                || status == ImportBatchLineStatus.PAUSED
                 || status == ImportBatchLineStatus.CANCELLED);
+    }
+
+    public void pauseImport(LocalDateTime now) {
+        if (isDeleted() || status != ImportBatchLineStatus.IMPORTING) {
+            throw new DomainException(ErrorCode.IMPORT_BATCH_LINE_NOT_PAUSABLE);
+        }
+        this.status = ImportBatchLineStatus.PAUSED;
+        this.updatedAt = now;
+    }
+
+    public void resumeImport(LocalDateTime now) {
+        if (isDeleted() || status != ImportBatchLineStatus.PAUSED) {
+            throw new DomainException(ErrorCode.IMPORT_BATCH_LINE_NOT_RESUMABLE);
+        }
+        this.status = ImportBatchLineStatus.IMPORTING;
+        this.updatedAt = now;
     }
 
     public boolean isExemptFromAutoCancellation() {
@@ -112,16 +133,21 @@ public class ImportBatchLineModel {
         this.totalCostValue = cost.multiply(BigDecimal.valueOf(quantity));
     }
 
-    public void updateImportProgress(int importedCount, LocalDateTime now) {
+    public void updateImportProgress(int importedCount, LocalDateTime now, Boolean isAutoSave) {
         this.totalQuantity = importedCount;
         recalculateTotalCostValue();
 
+        boolean isAutoSaveTriggered = isAutoSave != null && isAutoSave;
         int declared = declareQuantity != null ? declareQuantity : 0;
-        if (declared > 0 && importedCount >= declared) {
+        if (declared > 0 && importedCount >= declared && !isAutoSaveTriggered) {
             this.status = ImportBatchLineStatus.IMPORTED;
             if (this.importedAt == null) {
                 this.importedAt = now;
             }
+            return;
+        }
+        // Keep an explicit pause until the operator resumes via further import or deletes the line.
+        if (this.status == ImportBatchLineStatus.PAUSED) {
             return;
         }
         if (importedCount > 0) {

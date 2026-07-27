@@ -288,7 +288,17 @@ public enum ErrorCode {
     ),
     IMPORT_BATCH_LINE_NOT_DELETABLE(
             "LT_091",
-            "Chỉ có thể xóa dòng phiếu nhập lô chưa hoàn tất.",
+            "Không thể xóa dòng phiếu ở trạng thái hiện tại. Dòng đang nhập cần tạm dừng trước khi xóa.",
+            HttpStatus.BAD_REQUEST
+    ),
+    IMPORT_BATCH_LINE_NOT_PAUSABLE(
+            "LT_102",
+            "Chỉ có thể tạm dừng dòng phiếu đang ở trạng thái Đang nhập.",
+            HttpStatus.BAD_REQUEST
+    ),
+    IMPORT_BATCH_LINE_NOT_RESUMABLE(
+            "LT_103",
+            "Chỉ có thể tiếp tục nhập dòng phiếu đang ở trạng thái Tạm dừng nhập.",
             HttpStatus.BAD_REQUEST
     ),
     IMPORT_BATCH_LAST_LINE_CANNOT_DELETE(
@@ -303,12 +313,32 @@ public enum ErrorCode {
     ),
     IMPORT_BATCH_LINE_NOT_EDITABLE(
             "LT_094",
-            "Dòng phiếu nhập lô không thể chỉnh sửa ở trạng thái hiện tại.",
+            "Dòng phiếu nhập lô không thể chỉnh sửa ở trạng thái hiện tại (đã nhập đủ hoặc đã hủy). Dòng đang nhập không được đổi nhà đài.",
+            HttpStatus.BAD_REQUEST
+    ),
+    IMPORT_BATCH_LINE_DECLARE_QUANTITY_LOCKED_IMPORTING(
+            "LT_104",
+            "Không thể sửa số lượng khai báo khi dòng đang nhập. Vui lòng tạm dừng nhập trước khi chỉnh sửa.",
+            HttpStatus.BAD_REQUEST
+    ),
+    IMPORT_BATCH_LINE_DECLARE_QUANTITY_REQUIRES_ADJUSTMENT_FLOW(
+            "LT_105",
+            "Không thể sửa số lượng khai báo trực tiếp khi dòng đang tạm dừng. Vui lòng dùng chức năng Điều chỉnh số lượng khai báo.",
+            HttpStatus.BAD_REQUEST
+    ),
+    IMPORT_BATCH_LINE_IMPORTED_CONFIRMATION_REQUIRED(
+            "LT_106",
+            "Số lượng khai báo khớp số vé đã nhập. Vui lòng xác nhận để đánh dấu dòng là Đã nhập đủ.",
+            HttpStatus.BAD_REQUEST
+    ),
+    IMPORT_BATCH_INVOICE_EVIDENCE_LOCKED(
+            "LT_107",
+            "Không thể thay đổi ảnh biên lai khi chỉnh sửa phiếu nhập lô. Ảnh biên lai chỉ xem được.",
             HttpStatus.BAD_REQUEST
     ),
     IMPORT_BATCH_SUPPLIER_LOCKED_IMPORTED_LINES(
             "LT_097",
-            "Không thể thay đổi nhà cung cấp vì phiếu nhập đã có lô vé được nhập hoàn tất.",
+            "Không thể thay đổi nhà cung cấp khi phiếu nhập lô đã chuyển sang trạng thái Đang nhập hoặc Nhập một phần.",
             HttpStatus.BAD_REQUEST
     ),
     IMPORT_BATCH_DECLARE_QUANTITY_BELOW_IMPORTED(
@@ -323,7 +353,7 @@ public enum ErrorCode {
     ),
     IMPORT_BATCH_DECLARE_QUANTITY_REDUCTION_IMPORTED_ONLY(
             "LT_099",
-            "Không thể giảm số lượng khai báo vì phần vé thừa nằm ở các dòng đã nhập hoàn tất (IMPORTED). Chỉ được xóa vé ở dòng OPEN hoặc IMPORTING.",
+            "Không thể giảm số lượng khai báo vì phần vé thừa nằm ở các dòng đã nhập hoàn tất (IMPORTED). Chỉ được xóa vé ở dòng OPEN, IMPORTING hoặc PAUSED.",
             HttpStatus.BAD_REQUEST
     ),
     IMPORT_BATCH_DECLARE_QUANTITY_REDUCTION_TICKETS_INVALID(
@@ -355,13 +385,59 @@ public enum ErrorCode {
     TICKET_REF_INVALID("TKT_008", "Đối tượng tham chiếu không hợp lệ.", HttpStatus.BAD_REQUEST),
     TICKET_REF_ORDER_MISMATCH("TKT_009", "Đơn hàng không thuộc tài khoản của bạn.", HttpStatus.BAD_REQUEST),
     TICKET_ATTACHMENT_ONLY_ALLOWED("TKT_010", "Ở trạng thái chờ phản hồi, chỉ được cập nhật tệp đính kèm.", HttpStatus.BAD_REQUEST),
-    TICKET_COMMENT_NOT_ALLOWED("TKT_011", "Không thể gửi tin nhắn khi yêu cầu đã được giải quyết hoặc đã đóng.", HttpStatus.BAD_REQUEST),
+    TICKET_COMMENT_NOT_ALLOWED("TKT_011", "Không thể gửi tin nhắn khi yêu cầu đã được giải quyết, từ chối hoặc đã đóng.", HttpStatus.BAD_REQUEST),
     TICKET_COMMENT_TURN_VIOLATION("TKT_012", "Vui lòng chờ phản hồi từ bên còn lại trước khi gửi tin nhắn mới.", HttpStatus.BAD_REQUEST),
     TICKET_COMMENT_CONTENT_INVALID("TKT_013", "Nội dung tin nhắn không được để trống.", HttpStatus.BAD_REQUEST),
     TICKET_CANNOT_ASSIGN("TKT_014", "Chỉ có thể tiếp nhận yêu cầu hỗ trợ đang ở trạng thái mới tạo.", HttpStatus.BAD_REQUEST),
     TICKET_CANNOT_RESOLVE("TKT_015", "Không thể giải quyết yêu cầu hỗ trợ ở trạng thái hiện tại.", HttpStatus.BAD_REQUEST),
     TICKET_RESOLUTION_INVALID("TKT_016", "Nội dung phương án giải quyết không được để trống.", HttpStatus.BAD_REQUEST),
     TICKET_OPERATOR_MUST_ASSIGN_FIRST("TKT_017", "Vui lòng tiếp nhận ticket trước khi trả lời khách hàng.", HttpStatus.BAD_REQUEST),
+    TICKET_REF_REFUND_MISMATCH(
+            "TKT_018",
+            "Yêu cầu hoàn tiền không tồn tại hoặc không thuộc tài khoản của bạn.",
+            HttpStatus.BAD_REQUEST),
+    TICKET_REFUND_COMPLAINT_TOO_EARLY(
+            "TKT_019",
+            "Yêu cầu hoàn tiền vẫn trong thời gian cam kết xử lý (%d giờ). Vui lòng chờ trong khi chúng tôi xử lý yêu cầu của bạn.",
+            HttpStatus.BAD_REQUEST),
+    TICKET_REFUND_COMPLAINT_STATUS_INVALID(
+            "TKT_020",
+            "Trạng thái yêu cầu hoàn tiền không hợp lệ cho loại khiếu nại này.",
+            HttpStatus.BAD_REQUEST),
+    TICKET_REFUND_COMPLAINT_WINDOW_EXPIRED(
+            "TKT_021",
+            "Yêu cầu hoàn tiền này đã hết thời hạn khiếu nại (hết hạn sau %d ngày).",
+            HttpStatus.BAD_REQUEST),
+    TICKET_CANNOT_REJECT("TKT_022", "Không thể từ chối yêu cầu hỗ trợ ở trạng thái hiện tại.", HttpStatus.BAD_REQUEST),
+    TICKET_CANNOT_ACCEPT_RESOLUTION(
+            "TKT_023",
+            "Chỉ có thể xác nhận hài lòng khi yêu cầu đang ở trạng thái đã giải quyết.",
+            HttpStatus.BAD_REQUEST),
+    TICKET_CANNOT_REOPEN_RESOLUTION(
+            "TKT_024",
+            "Chỉ có thể mở lại yêu cầu khi đang ở trạng thái đã giải quyết.",
+            HttpStatus.BAD_REQUEST),
+    TICKET_STAFF_ACTION_INVALID("TKT_025", "Hành động phản hồi của nhân viên không hợp lệ.", HttpStatus.BAD_REQUEST),
+    TICKET_REASON_COMMENT_REQUIRED(
+            "TKT_026",
+            "Phải có bình luận lý do hợp lệ khi giải quyết hoặc từ chối yêu cầu.",
+            HttpStatus.BAD_REQUEST),
+    TICKET_CANNOT_AUTO_CLOSE(
+            "TKT_027",
+            "Chỉ có thể tự động đóng yêu cầu đang ở trạng thái đã giải quyết.",
+            HttpStatus.BAD_REQUEST),
+    TICKET_ORDER_COMPLAINT_NOT_ELIGIBLE(
+            "TKT_028",
+            "%s",
+            HttpStatus.BAD_REQUEST),
+    TICKET_ORDER_COMPLAINT_CATEGORY_MISMATCH(
+            "TKT_029",
+            "Loại khiếu nại không phù hợp với trạng thái đơn hàng hiện tại.",
+            HttpStatus.BAD_REQUEST),
+    TICKET_ORDER_COMPLAINT_EVIDENCE_REQUIRED(
+            "TKT_030",
+            "Khiếu nại lỗi đồng bộ thanh toán yêu cầu đính kèm biên lai chuyển khoản.",
+            HttpStatus.BAD_REQUEST),
 
     // Chat Errors
     CONVERSATION_NOT_FOUND("CHT_001", "Không tìm thấy cuộc trò chuyện.", HttpStatus.NOT_FOUND),
@@ -386,7 +462,8 @@ public enum ErrorCode {
     // System Config Errors
     SYSTEM_CONFIG_NOT_FOUND("CFG_001", "Cấu hình hệ thống không tồn tại.", HttpStatus.NOT_FOUND),
     SYSTEM_CONFIG_VALUE_INVALID("CFG_002", "Giá trị cấu hình không hợp lệ với kiểu dữ liệu.", HttpStatus.BAD_REQUEST),
-    SYSTEM_CONFIG_TYPE_INVALID("CFG_003", "Loại cấu hình không hợp lệ.", HttpStatus.BAD_REQUEST);
+    SYSTEM_CONFIG_TYPE_INVALID("CFG_003", "Loại cấu hình không hợp lệ.", HttpStatus.BAD_REQUEST),
+    SYSTEM_CONFIG_NOT_EDITABLE("CFG_004", "Cấu hình này không cho phép chỉnh sửa bởi Admin.", HttpStatus.FORBIDDEN);
 
     private final String code;
     private final String message;

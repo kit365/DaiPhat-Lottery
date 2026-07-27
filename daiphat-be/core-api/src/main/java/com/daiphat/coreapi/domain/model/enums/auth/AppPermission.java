@@ -184,6 +184,11 @@ public enum AppPermission {
     CHAT_MANAGE(PermissionConstants.CHAT + PermissionConstants.MANAGE, 
             "Hỗ trợ & Chat", "Quản lý chat", "Quyền trả lời và quản lý các phiên hỗ trợ", 390),
 
+    SUPPORT_TICKET_VIEW(PermissionConstants.SUPPORT_TICKET + PermissionConstants.VIEW, 
+            "Khiếu nại & Hỗ trợ", "Xem khiếu nại", "Quyền xem danh sách và chi tiết khiếu nại của khách hàng", 380),
+    SUPPORT_TICKET_PROCESS(PermissionConstants.SUPPORT_TICKET + PermissionConstants.PROCESS, 
+            "Khiếu nại & Hỗ trợ", "Xử lý khiếu nại", "Quyền giải quyết, tiếp nhận, hoặc từ chối khiếu nại", 370),
+
     // MODULE: HỆ THỐNG KHÁC
     CALENDAR_VIEW(PermissionConstants.CALENDAR + PermissionConstants.VIEW, 
             "Hệ thống & Calendar", "Xem Calendar", "Quyền truy cập giao diện lịch", 200),
@@ -207,7 +212,8 @@ public enum AppPermission {
             PermissionConstants.PROVIDER,
             PermissionConstants.SUPPLIER,
             PermissionConstants.REFUND,
-            PermissionConstants.CHAT
+            PermissionConstants.CHAT,
+            PermissionConstants.SUPPORT_TICKET
     );
 
     /**

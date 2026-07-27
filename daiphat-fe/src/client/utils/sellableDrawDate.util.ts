@@ -87,10 +87,11 @@ export const shouldOfferLotteryResults = (
   return false;
 };
 
+/** Chuẩn hoá drawDate từ URL / form về khoảng còn bán được. */
 export const resolveSellableDrawDateParam = (
-  raw: string | null | undefined,
-  now: Date = new Date(),
-  drawTime: string = DEFAULT_SOUTHERN_DRAW_TIME
+    raw: string | null | undefined,
+    now: Date = new Date(),
+    drawTime: string = DEFAULT_SOUTHERN_DRAW_TIME
 ): string => {
     const min = minSellableDrawDate(now, drawTime);
     const max = maxSellableDrawDate(now);

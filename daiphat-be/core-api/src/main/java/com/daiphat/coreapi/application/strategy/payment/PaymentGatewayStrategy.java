@@ -19,4 +19,12 @@ public interface PaymentGatewayStrategy {
     void handleSuccess(OrderModel order, TransactionModel transaction, GatewayCallbackResult callbackResult);
 
     void handleFailure(OrderModel order, TransactionModel transaction, GatewayCallbackResult callbackResult);
+
+    /**
+     * Xác minh giao dịch đã được thanh toán trên cổng thanh toán (PayOS...).
+     * Dùng để đồng bộ khi webhook chưa kịp cập nhật đơn.
+     */
+    default boolean isPaymentCompletedOnGateway(TransactionModel transaction) {
+        return false;
+    }
 }

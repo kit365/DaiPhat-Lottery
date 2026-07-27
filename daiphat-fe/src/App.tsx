@@ -15,6 +15,7 @@ import { OrdersTab } from './client/features/profile/pages/tabs/OrdersTab';
 import { OrderDetailTab } from './client/features/profile/pages/tabs/OrderDetailTab';
 import { FavoritesTab } from './client/features/profile/pages/tabs/FavoritesTab';
 import { NotificationsTab } from './client/features/profile/pages/tabs/NotificationsTab';
+import { ResultNotificationSettingsTab } from './client/features/profile/pages/tabs/ResultNotificationSettingsTab';
 import { SecurityTab } from './client/features/profile/pages/tabs/SecurityTab';
 import { RefundsTab } from './client/features/profile/pages/tabs/RefundsTab';
 import { RefundDetailTab } from './client/features/profile/pages/tabs/RefundDetailTab';
@@ -25,6 +26,7 @@ import { ComplaintDetailTab } from './client/features/profile/pages/tabs/Complai
 import { BlogListPage, BlogDetailPage } from './client/features/blog';
 import { CartPage, CheckoutPage, CheckoutResultPage } from './client/features/cart';
 import { BuyTicketPage } from './client/features/buy-ticket/BuyTicketPage';
+import { TicketSearchPage } from './client/pages/ticket-search/TicketSearchPage';
 import { LoginPage } from './client/features/auth/pages/LoginPage';
 import { RegisterPage } from './client/features/auth/pages/RegisterPage';
 import { ForgotPasswordPage as ClientForgotPasswordPage } from './client/features/auth/pages/ForgotPasswordPage';
@@ -125,6 +127,7 @@ function App() {
           ))}
 
           <Route path="/buy-ticket" element={<BuyTicketPage />} />
+          <Route path="/ticket-search" element={<TicketSearchPage />} />
           <Route path="/cart" element={<CartPage />} />
           <Route path="/checkout" element={<CheckoutPage />} />
           <Route path="/checkout/result" element={<CheckoutResultPage />} />
@@ -146,6 +149,7 @@ function App() {
               <Route path="tickets" element={<TicketsTab />} />
               <Route path="favorites" element={<FavoritesTab />} />
               <Route path="notifications" element={<NotificationsTab />} />
+              <Route path="result-notifications" element={<ResultNotificationSettingsTab />} />
               <Route path="settings" element={<SecurityTab />} />
             </Route>
           </Route>

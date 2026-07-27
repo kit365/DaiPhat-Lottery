@@ -30,4 +30,14 @@ public class TicketCategoryController {
                 "Lấy danh sách danh mục yêu cầu hỗ trợ thành công.",
                 ticketCategoryServicePort.getActiveCategories());
     }
+
+    @org.springframework.web.bind.annotation.PutMapping("/{id}")
+    @PreAuthorize("hasAnyAuthority('" + RoleConstants.ADMIN + "', '" + RoleConstants.ROLE_STAFF_OPERATOR + "')")
+    public ApiResponse<TicketCategoryResponse> updateCategory(
+            @org.springframework.web.bind.annotation.PathVariable Long id,
+            @jakarta.validation.Valid @org.springframework.web.bind.annotation.RequestBody com.daiphat.coreapi.application.dto.request.support.UpdateTicketCategoryRequest request) {
+        return ApiResponse.success(
+                "Cập nhật danh mục thành công.",
+                ticketCategoryServicePort.updateCategory(id, request));
+    }
 }

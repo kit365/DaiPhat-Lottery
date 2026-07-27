@@ -20,6 +20,10 @@ public class SystemConfigApplicationMapper {
                 .configType(model.getConfigType() != null ? model.getConfigType().name() : null)
                 .dataType(model.getDataType() != null ? model.getDataType().name() : null)
                 .description(model.getDescription())
+                .configName(model.getConfigName())
+                .unit(model.getUnit())
+                .validationRules(model.getValidationRules())
+                .isEditable(model.getIsEditable())
                 .updatedAt(model.getUpdatedAt())
                 .updatedBy(model.getLastModifiedBy())
                 .build();
@@ -35,6 +39,9 @@ public class SystemConfigApplicationMapper {
             model.setConfigValue(String.valueOf(number));
         } else {
             model.setConfigValue(request.configValue().trim());
+        }
+        if (request.configName() != null) {
+            model.setConfigName(request.configName().trim());
         }
         model.setDescription(request.description().trim());
     }

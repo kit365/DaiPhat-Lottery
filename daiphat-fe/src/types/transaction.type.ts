@@ -48,11 +48,19 @@ export interface CancelPaymentRequest {
 
 export interface PaymentResult {
     transactionId: number;
+    type?: string;
     gateway: PaymentGateway;
     gatewayOrderCode: number;
     paymentRef: string;
     checkoutUrl: string;
     status: string;
+    qrCode?: string | null;
+    accountNumber?: string | null;
+    accountName?: string | null;
+    amount?: number | null;
+    description?: string | null;
+    bin?: string | null;
+    expiredAt?: number | null;
 }
 
 export interface PendingPaymentCountdownResult {

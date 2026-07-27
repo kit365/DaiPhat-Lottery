@@ -97,9 +97,9 @@ export const ImageUploadPreview: React.FC<ImageUploadPreviewProps> = ({
                 <button
                     type="button"
                     onClick={() => inputRef.current?.click()}
-                    className="w-full py-8 border-2 border-dashed border-[#E5E8EB] rounded-xl bg-[#FAFBFC] hover:border-[#ee1314]/50 hover:bg-[#FFF4F4]/30 transition-colors cursor-pointer flex flex-col items-center gap-2"
+                    className="w-full py-4 border-2 border-dashed border-[#E5E8EB] rounded-xl bg-[#FAFBFC] hover:border-[#ee1314]/50 hover:bg-[#FFF4F4]/30 transition-colors cursor-pointer flex flex-col items-center gap-1.5"
                 >
-                    <div className="w-12 h-12 rounded-full bg-[#FFF4F4] text-[#ee1314] flex items-center justify-center text-xl">
+                    <div className="w-10 h-10 rounded-full bg-[#FFF4F4] text-[#ee1314] flex items-center justify-center text-lg">
                         <i className="fa-solid fa-image"></i>
                     </div>
                     <span className="text-[14px] font-bold text-[#454F5B]">Chọn hình ảnh</span>

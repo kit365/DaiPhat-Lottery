@@ -1,4 +1,4 @@
-package com.daiphat.coreapi.infrastructure.adapter.out;
+package com.daiphat.coreapi.infrastructure.adapter.out.lotteries.prizestructure.persistence;
 
 import com.daiphat.coreapi.application.port.out.lotteries.PrizeStructureRepositoryPort;
 import com.daiphat.coreapi.domain.model.lotteries.PrizeStructureModel;

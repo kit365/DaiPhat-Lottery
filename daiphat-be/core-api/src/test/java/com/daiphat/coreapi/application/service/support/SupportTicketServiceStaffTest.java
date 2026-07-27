@@ -7,6 +7,7 @@ import com.daiphat.coreapi.application.event.SupportTicketResolvedEvent;
 import com.daiphat.coreapi.application.mapper.support.SupportApplicationMapper;
 import com.daiphat.coreapi.application.port.out.file.StoragePort;
 import com.daiphat.coreapi.application.port.out.order.OrderRepositoryPort;
+import com.daiphat.coreapi.application.port.out.settings.SystemConfigRepositoryPort;
 import com.daiphat.coreapi.application.port.out.support.SupportTicketCommentRepositoryPort;
 import com.daiphat.coreapi.application.port.out.support.SupportTicketRepositoryPort;
 import com.daiphat.coreapi.application.port.out.support.TicketCategoryRepositoryPort;
@@ -66,6 +67,12 @@ class SupportTicketServiceStaffTest {
     private SupportApplicationMapper supportApplicationMapper;
     @Mock
     private ApplicationEventPublisher eventPublisher;
+    @Mock
+    private RefundComplaintEligibilityService refundComplaintEligibilityService;
+    @Mock
+    private OrderComplaintEligibilityService orderComplaintEligibilityService;
+    @Mock
+    private SystemConfigRepositoryPort systemConfigRepositoryPort;
 
     private SupportTicketService supportTicketService;
 
@@ -79,7 +86,10 @@ class SupportTicketServiceStaffTest {
                 userRepositoryPort,
                 storagePort,
                 supportApplicationMapper,
-                eventPublisher);
+                eventPublisher,
+                refundComplaintEligibilityService,
+                orderComplaintEligibilityService,
+                systemConfigRepositoryPort);
     }
 
     @Test
@@ -125,6 +135,13 @@ class SupportTicketServiceStaffTest {
         when(supportTicketRepositoryPort.findById(TICKET_ID)).thenReturn(Optional.of(ticket));
         when(supportTicketRepositoryPort.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
         when(supportTicketCommentRepositoryPort.findByTicketIdOrderByCreatedAtAsc(TICKET_ID)).thenReturn(List.of());
+        when(supportTicketCommentRepositoryPort.save(any())).thenAnswer(invocation -> {
+            SupportTicketCommentModel comment = invocation.getArgument(0);
+            if (comment.getId() == null) {
+                comment.setId(100L);
+            }
+            return comment;
+        });
         when(supportApplicationMapper.toTicketResponse(any(), any())).thenReturn(mockResponse(TicketStatus.RESOLVED));
 
         supportTicketService.resolveByStaff(TICKET_ID, STAFF_ID, new ResolveSupportTicketRequest("Đã hoàn tiền"));
@@ -133,17 +150,15 @@ class SupportTicketServiceStaffTest {
         verify(supportTicketRepositoryPort).save(ticketCaptor.capture());
         assertThat(ticketCaptor.getValue().getStatus()).isEqualTo(TicketStatus.RESOLVED);
         assertThat(ticketCaptor.getValue().getResponse()).isEqualTo("Đã hoàn tiền");
+        assertThat(ticketCaptor.getValue().getResolvedReasonId()).isEqualTo(100L);
         assertThat(ticketCaptor.getValue().getResolvedAt()).isNotNull();
 
-        ArgumentCaptor<SupportTicketCommentModel> commentCaptor = ArgumentCaptor.forClass(SupportTicketCommentModel.class);
-        verify(supportTicketCommentRepositoryPort).save(commentCaptor.capture());
-        assertThat(commentCaptor.getValue().getContent()).isEqualTo("Ticket đã được giải quyết");
-
+        verify(supportTicketCommentRepositoryPort, org.mockito.Mockito.atLeast(2)).save(any());
         verify(eventPublisher).publishEvent(any(SupportTicketResolvedEvent.class));
     }
 
     @Test
-    void resolveByStaff_whenClosed_throwsCannotResolve() {
+    void resolveByStaff_whenClosed_throwsCommentNotAllowed() {
         when(supportTicketRepositoryPort.findById(TICKET_ID))
                 .thenReturn(Optional.of(ticket(TicketStatus.CLOSED)));
 
@@ -151,7 +166,7 @@ class SupportTicketServiceStaffTest {
                         TICKET_ID, STAFF_ID, new ResolveSupportTicketRequest("Done")))
                 .isInstanceOf(DomainException.class)
                 .extracting(ex -> ((DomainException) ex).getErrorCode())
-                .isEqualTo(ErrorCode.TICKET_CANNOT_RESOLVE);
+                .isEqualTo(ErrorCode.TICKET_COMMENT_NOT_ALLOWED);
     }
 
     @Test
@@ -172,15 +187,61 @@ class SupportTicketServiceStaffTest {
     void getTicketsForStaff_usesRepositoryWithStatuses() {
         SupportTicketModel ticket = ticket(TicketStatus.OPEN);
         Page<SupportTicketModel> page = new PageImpl<>(List.of(ticket));
-        when(supportTicketRepositoryPort.findAllForStaff(any(Pageable.class), any(), eq(null), eq(null)))
+        when(supportTicketRepositoryPort.findAllForStaff(
+                        any(Pageable.class), any(), eq(null), eq(null), eq(null), eq(null), eq(null)))
                 .thenReturn(page);
         when(userRepositoryPort.findById(CUSTOMER_ID))
                 .thenReturn(Optional.of(UserModel.builder().firstName("Customer").lastName("A").build()));
 
-        var result = supportTicketService.getTicketsForStaff(1, 10, "OPEN,IN_PROGRESS", null, null, "dueAt", "asc");
+        var result = supportTicketService.getTicketsForStaff(
+                1, 10, "OPEN,IN_PROGRESS", null, null, "dueAt", "asc", null, null, null);
 
         assertThat(result.getRecordList()).hasSize(1);
-        verify(supportTicketRepositoryPort).findAllForStaff(any(Pageable.class), any(), eq(null), eq(null));
+        verify(supportTicketRepositoryPort).findAllForStaff(
+                any(Pageable.class), any(), eq(null), eq(null), eq(null), eq(null), eq(null));
+    }
+
+    @Test
+    void getTicketsForStaff_withRefundFilters_passesToRepository() {
+        Page<SupportTicketModel> page = new PageImpl<>(List.of());
+        when(supportTicketRepositoryPort.findAllForStaff(
+                        any(Pageable.class), any(), eq(null), eq(null),
+                        eq(com.daiphat.coreapi.domain.model.enums.support.TicketRefType.REFUND_REQUEST),
+                        eq(5L),
+                        eq(List.of("REFUND_SLOW_PROCESSING", "REFUND_PAID_ISSUE"))))
+                .thenReturn(page);
+
+        supportTicketService.getTicketsForStaff(
+                1, 10, null, null, null, "dueAt", "asc",
+                "REFUND_REQUEST", 5L, "REFUND_SLOW_PROCESSING,REFUND_PAID_ISSUE");
+
+        verify(supportTicketRepositoryPort).findAllForStaff(
+                any(Pageable.class), any(), eq(null), eq(null),
+                eq(com.daiphat.coreapi.domain.model.enums.support.TicketRefType.REFUND_REQUEST),
+                eq(5L),
+                eq(List.of("REFUND_SLOW_PROCESSING", "REFUND_PAID_ISSUE")));
+    }
+
+    @Test
+    void getByIdForStaff_enrichesDetailResponse() {
+        SupportTicketModel ticket = ticket(TicketStatus.OPEN);
+        when(supportTicketRepositoryPort.findById(TICKET_ID)).thenReturn(Optional.of(ticket));
+        when(supportTicketCommentRepositoryPort.findByTicketIdOrderByCreatedAtAsc(TICKET_ID)).thenReturn(List.of());
+        when(supportApplicationMapper.toTicketResponse(any(), any())).thenReturn(mockResponse(TicketStatus.OPEN));
+        when(ticketCategoryRepositoryPort.findById(1L)).thenReturn(Optional.of(
+                com.daiphat.coreapi.domain.model.support.TicketCategoryModel.builder()
+                        .id(1L)
+                        .name("Hoàn tiền chậm")
+                        .code("REFUND_SLOW_PROCESSING")
+                        .build()));
+        when(userRepositoryPort.findById(CUSTOMER_ID))
+                .thenReturn(Optional.of(UserModel.builder().firstName("Customer").lastName("A").build()));
+
+        SupportTicketResponse response = supportTicketService.getByIdForStaff(TICKET_ID, STAFF_ID);
+
+        assertThat(response.customerName()).isEqualTo("A Customer");
+        assertThat(response.ticketCategoryName()).isEqualTo("Hoàn tiền chậm");
+        assertThat(response.ticketCategoryCode()).isEqualTo("REFUND_SLOW_PROCESSING");
     }
 
     private SupportTicketModel ticket(TicketStatus status) {
@@ -196,6 +257,7 @@ class SupportTicketServiceStaffTest {
     private SupportTicketResponse mockResponse(TicketStatus status) {
         return new SupportTicketResponse(
                 TICKET_ID, 1L, CUSTOMER_ID, STAFF_ID, "Issue", "desc", null, null, null,
-                status, null, null, null, null, null, List.of());
+                status, null, null, null, null, null, null, null, List.of(),
+                null, null, null, null);
     }
 }

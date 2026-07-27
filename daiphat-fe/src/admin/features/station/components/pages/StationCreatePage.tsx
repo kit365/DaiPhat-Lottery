@@ -74,6 +74,7 @@ export const StationCreatePage = () => {
             region: "",
             drawDays: [],
             drawTime: "16:15",
+            commissionRate: 0.1,
         },
     });
 
@@ -127,6 +128,7 @@ export const StationCreatePage = () => {
                             maxNumber: 999999,
                             drawDays: [],
                             drawTime: "16:15",
+                            commissionRate: 0.1,
                             displayOrder: 0,
                             image: "",
                         });
@@ -209,6 +211,33 @@ export const StationCreatePage = () => {
                                                             field.onChange(0);
                                                         } else if (!isNaN(Number(rawValue))) {
                                                             field.onChange(Number(rawValue));
+                                                        }
+                                                    }}
+                                                    fullWidth
+                                                />
+                                            )}
+                                        />
+                                    </Box>
+                                    <Box sx={{ gridColumn: { xs: "span 12", md: "span 6" } }}>
+                                        <Controller
+                                            name="commissionRate"
+                                            control={control}
+                                            render={({ field, fieldState }) => (
+                                                <TextField
+                                                    {...field}
+                                                    label="Tỉ lệ hoa hồng (VD: 0.05 = 5%)"
+                                                    value={field.value !== undefined && field.value !== null ? field.value : ''}
+                                                    error={!!fieldState.error}
+                                                    helperText={fieldState.error?.message}
+                                                    onChange={(e) => {
+                                                        const rawValue = e.target.value;
+                                                        if (rawValue === '') {
+                                                            field.onChange('');
+                                                            return;
+                                                        }
+                                                        const numValue = Number(rawValue);
+                                                        if (!isNaN(numValue) && numValue >= 0 && numValue <= 1) {
+                                                            field.onChange(rawValue);
                                                         }
                                                     }}
                                                     fullWidth

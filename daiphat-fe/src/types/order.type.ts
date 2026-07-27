@@ -127,6 +127,19 @@ export interface OrderFilterParams {
 
 export type GetMyOrdersParams = OrderFilterParams;
 
+export interface OrderComplaintEligibilityResponse {
+    eligible: boolean;
+    categoryCode: string;
+    reasonCode: string;
+    message: string;
+    requiresEvidence: boolean;
+    remainingSeconds: number | null;
+    eligibleAt: string | null;
+    expiresAt: string | null;
+    orderId: string;
+    orderStatus: string;
+}
+
 export interface OrderResponse {
     id: string;
     userId: string;
@@ -155,4 +168,5 @@ export interface OrderResponse {
     refundGraceMinutes?: number;
     refundPaymentSuccessAt?: string;
     refundDeadlineAt?: string;
+    complaintEligibility?: OrderComplaintEligibilityResponse;
 }

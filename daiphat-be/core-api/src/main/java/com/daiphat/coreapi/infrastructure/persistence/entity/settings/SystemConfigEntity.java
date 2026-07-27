@@ -55,6 +55,20 @@ public class SystemConfigEntity {
     @Column(nullable = false, length = 255)
     private String description;
 
+    @Column(name = "config_name", nullable = false, length = 100)
+    @lombok.Builder.Default
+    private String configName = "";
+
+    @Column(length = 30)
+    private String unit;
+
+    @Column(name = "validation_rules", columnDefinition = "TEXT")
+    private String validationRules;
+
+    @Column(name = "is_editable", nullable = false)
+    @lombok.Builder.Default
+    private Boolean isEditable = true;
+
     @Column(name = "is_active", nullable = false)
     @lombok.Builder.Default
     private Boolean isActive = true;

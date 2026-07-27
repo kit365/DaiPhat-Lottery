@@ -12,6 +12,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 @Entity
 @Table(
         name = "lottery_tickets",
@@ -46,9 +47,16 @@ public class LotteryTicketEntity extends BaseEntity {
     @Column(name = "draw_date", nullable = false)
     private LocalDate drawDate;
 
-    @Column(nullable = false)
-    @Builder.Default
-    private Integer quantity = 1;
+    /**
+     * Legacy column restored by V202607151430 (NOT NULL). Import-batch flow resolves
+     * display batch codes from import_batch_lines; this field still must be persisted.
+     */
+    @Column(name = "batch_code", nullable = false, length = 100)
+    private String batchCode;
+
+
+    @org.hibernate.annotations.Formula("(select count(s.id) from lottery_ticket_serials s where s.ticket_id = id and s.status = 'IN_STOCK' and s.deleted_at is null)")
+    private Integer quantity;
 
     @Column(name = "price_snapshot", nullable = false, precision = 15)
     private BigDecimal priceSnapshot;
@@ -62,8 +70,7 @@ public class LotteryTicketEntity extends BaseEntity {
     @Builder.Default
     private Boolean active = true;
 
-    @OneToMany(mappedBy = "ticket", fetch = FetchType.LAZY)
-    @Builder.Default
+    @OneToMany(mappedBy = "ticket", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<LotteryTicketSerialEntity> serials = new ArrayList<>();
 
     @Transient
@@ -84,4 +91,12 @@ public class LotteryTicketEntity extends BaseEntity {
 
     @Transient
     private LocalDateTime returnedAt;
+
+    @PrePersist
+    @PreUpdate
+    void ensureBatchCode() {
+        if (batchCode == null || batchCode.isBlank()) {
+            batchCode = "LEGACY-" + (id != null ? id : UUID.randomUUID());
+        }
+    }
 }

@@ -70,6 +70,9 @@ export const useBulkCreateTickets = () => {
             queryClient.invalidateQueries({ queryKey: [GLOBAL_QUERY_KEYS.IMPORT_BATCH_DETAIL] });
             queryClient.invalidateQueries({ queryKey: [GLOBAL_QUERY_KEYS.IMPORT_BATCH_INCOMPLETE] });
             queryClient.invalidateQueries({ queryKey: [GLOBAL_QUERY_KEYS.IMPORT_BATCH_ACTIVE_DRAFT] });
+            queryClient.invalidateQueries({
+                queryKey: [GLOBAL_QUERY_KEYS.IMPORT_BATCH_LINE_ENTRY_TICKETS],
+            });
         },
     });
 };

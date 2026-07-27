@@ -66,17 +66,17 @@ public class PayOsGatewayAdapter implements PayOsGatewayPort {
 
         log.info("PayOS Request - Return URL: {}, Cancel URL: {}", effectiveReturnUrl, effectiveCancelUrl);
 
-        // Append internal order code so FE can display it
-        effectiveReturnUrl += "?internalCode=" + order.getOrderCode();
-        effectiveCancelUrl += "?internalCode=" + order.getOrderCode();
-
-        log.info("PayOS Request - Return URL: {}, Cancel URL: {}", effectiveReturnUrl, effectiveCancelUrl);
-
         Long gatewayOrderCode = currentGatewayOrderCode;
         for (int attempt = 0; attempt < MAX_CREATE_RETRIES; attempt++) {
             transaction.setGatewayOrderCode(gatewayOrderCode);
             try {
-                return createPaymentLink(gatewayOrderCode, expectedAmount, description, effectiveReturnUrl, effectiveCancelUrl);
+                return createPaymentLink(
+                        gatewayOrderCode,
+                        expectedAmount,
+                        description,
+                        effectiveReturnUrl,
+                        effectiveCancelUrl
+                );
             } catch (Exception ex) {
                 String message = ex.getMessage() != null ? ex.getMessage() : "";
                 if (!isAlreadyExistsError(message)) {
@@ -114,6 +114,12 @@ public class PayOsGatewayAdapter implements PayOsGatewayPort {
             log.warn("Could not cancel PayOS link for gatewayOrderCode {}: {}", gatewayOrderCode, ex.getMessage());
             return false;
         }
+    }
+
+    @Override
+    public boolean isPaymentPaid(Long gatewayOrderCode) {
+        ExistingLinkInfo existingLink = fetchExistingPaymentInfo(gatewayOrderCode);
+        return existingLink != null && existingLink.status() == PaymentLinkStatus.PAID;
     }
 
     @Override
@@ -161,7 +167,17 @@ public class PayOsGatewayAdapter implements PayOsGatewayPort {
                 .build();
 
         CreatePaymentLinkResponse response = payOS.paymentRequests().create(request);
-        return new PaymentLinkResult(gatewayOrderCode, response.getCheckoutUrl());
+        return new PaymentLinkResult(
+                gatewayOrderCode,
+                response.getCheckoutUrl(),
+                response.getQrCode(),
+                response.getAccountNumber(),
+                response.getAccountName(),
+                response.getAmount(),
+                response.getDescription(),
+                response.getBin(),
+                response.getExpiredAt()
+        );
     }
 
     private ExistingLinkInfo fetchExistingPaymentInfo(Long gatewayOrderCode) {

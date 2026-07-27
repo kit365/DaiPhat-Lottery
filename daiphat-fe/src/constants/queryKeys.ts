@@ -3,6 +3,7 @@ export const QUERY_KEYS = {
     AUTH_ME: 'admin-me',
     CLIENT_ME: 'client-me',
     CLIENT_NOTIFICATIONS: 'client-notifications',
+    CLIENT_NOTIFICATION_SETTINGS: 'client-notification-settings',
     ADMIN_NOTIFICATIONS: 'admin-notifications',
 
     // Admin / Staff
@@ -34,6 +35,7 @@ export const QUERY_KEYS = {
     IMPORT_BATCH_INCOMPLETE: 'import-batch-incomplete',
     IMPORT_BATCH_WITHOUT_LINES: 'import-batch-without-lines',
     IMPORT_BATCH_REDUCTION_TICKETS: 'import-batch-reduction-tickets',
+    IMPORT_BATCH_LINE_ENTRY_TICKETS: 'import-batch-line-entry-tickets',
 
     // Supplier
     SUPPLIERS: 'suppliers',
@@ -46,6 +48,8 @@ export const QUERY_KEYS = {
     CLIENT_MY_ORDERS: 'client-my-orders',
     CLIENT_MY_ORDER_DETAIL: 'client-my-order-detail',
     CLIENT_PENDING_PAYMENT_COUNTDOWN: 'client-pending-payment-countdown',
+    CLIENT_LOTTERY_TICKET_SEARCH: 'client-lottery-ticket-search',
+    CLIENT_MY_TICKETS: 'client-my-tickets',
 
     // Transaction (Client)
     CLIENT_TRANSACTION_TYPES: 'client-transaction-types',
@@ -64,12 +68,9 @@ export const QUERY_KEYS = {
     CLIENT_MY_COMPLAINTS: 'client-my-complaints',
     CLIENT_COMPLAINT_DETAIL: 'client-complaint-detail',
     CLIENT_TICKET_COMMENTS: 'client-ticket-comments',
+    CLIENT_ORDER_COMPLAINT_ELIGIBILITY: 'client-order-complaint-eligibility',
 
-    // Support / Complaints (Admin)
-    ADMIN_SUPPORT_TICKETS: 'admin-support-tickets',
-    ADMIN_SUPPORT_TICKET_DETAIL: 'admin-support-ticket-detail',
-    ADMIN_SUPPORT_TICKET_COMMENTS: 'admin-support-ticket-comments',
-    ADMIN_TICKET_CATEGORIES: 'admin-ticket-categories',
+    // Refunds (Admin)
     ADMIN_REFUNDS: 'admin-refunds',
     ADMIN_REFUND_DETAIL: 'admin-refund-detail',
 

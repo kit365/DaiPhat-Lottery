@@ -36,7 +36,14 @@ public class PayOsPaymentStrategy implements PaymentGatewayStrategy {
                 paymentLink.gatewayOrderCode(),
                 transaction.getPaymentRef(),
                 paymentLink.checkoutUrl(),
-                transaction.getStatus().name()
+                transaction.getStatus().name(),
+                paymentLink.qrCode(),
+                paymentLink.accountNumber(),
+                paymentLink.accountName(),
+                paymentLink.amount(),
+                paymentLink.description(),
+                paymentLink.bin(),
+                paymentLink.expiredAt()
         );
     }
 
@@ -65,5 +72,10 @@ public class PayOsPaymentStrategy implements PaymentGatewayStrategy {
     @Override
     public void handleFailure(OrderModel order, TransactionModel transaction, GatewayCallbackResult callbackResult) {
         transaction.releaseGatewayAttempt(callbackResult.message());
+    }
+
+    @Override
+    public boolean isPaymentCompletedOnGateway(TransactionModel transaction) {
+        return payOsGatewayPort.isPaymentPaid(transaction.getGatewayOrderCode());
     }
 }

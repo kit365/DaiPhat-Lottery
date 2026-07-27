@@ -7,7 +7,6 @@ import { ExportButton } from '../../../../../components/ui/ExportButton';
 import { SettingsList } from '../../../../../components/ui/SettingsList';
 import { useStations } from '../../../../station/hooks/useStation';
 import { TICKET_STATUS_OPTIONS } from '../../constants/ticket-status.config';
-import dayjs from 'dayjs';
 
 interface ToolbarProps {
     settings: IGridSettings;
@@ -41,9 +40,6 @@ export const TicketToolbar = ({
             label: p.name,
         }));
 
-        const today = dayjs().format('YYYY-MM-DD');
-        const tomorrow = dayjs().add(1, 'day').format('YYYY-MM-DD');
-
         return [
             {
                 id: 'status',
@@ -57,15 +53,6 @@ export const TicketToolbar = ({
                 id: 'provider',
                 label: 'Nhà đài',
                 options: stationOptions,
-            },
-            {
-                id: 'drawDate',
-                label: 'Ngày quay',
-                type: 'date' as const,
-                options: [
-                    { value: today, label: `Hôm nay (${dayjs(today).format('DD/MM/YYYY')})` },
-                    { value: tomorrow, label: `Ngày mai (${dayjs(tomorrow).format('DD/MM/YYYY')})` },
-                ],
             },
         ];
     }, [stationsData]);
@@ -86,7 +73,6 @@ export const TicketToolbar = ({
                     selectedFilters={{
                         status: filters.status || [],
                         provider: filters.provider || [],
-                        drawDate: filters.drawDate || [],
                     }}
                     onFilterChange={onFilterChange}
                     onClearAll={onClearFilters}
