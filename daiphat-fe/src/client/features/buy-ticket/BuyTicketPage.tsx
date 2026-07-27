@@ -15,6 +15,8 @@ import { apiApp } from '../../../api';
 import { LotteryTicketStatus } from '../../../constants/lottery.constants';
 import dayjs from 'dayjs';
 import 'dayjs/locale/vi';
+import { getPublicSchedule } from '../schedule/services/scheduleService';
+import { resolveNextStationDrawDateIso } from '../../utils/stationDrawDate.util';
 
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -206,6 +208,39 @@ export const BuyTicketPage = () => {
             setSelectedDates([urlDrawDate]);
         }
     }, [urlDrawDate]);
+
+    // Deep link chỉ có stationId: chọn đúng ngày quay sắp tới của đài (vd. Cần Thơ – Thứ 4).
+    useEffect(() => {
+        if (!urlStationId || urlDrawDate) {
+            return;
+        }
+
+        let cancelled = false;
+        const stationId = Number(urlStationId);
+        if (Number.isNaN(stationId)) {
+            return;
+        }
+
+        void (async () => {
+            try {
+                const stations = await getPublicSchedule({ stationId });
+                const station = stations[0];
+                if (!station || cancelled) {
+                    return;
+                }
+                const nextDrawDate = resolveNextStationDrawDateIso(station.drawDays, station.drawTime);
+                if (nextDrawDate) {
+                    setSelectedDates([nextDrawDate]);
+                }
+            } catch {
+                // Giữ ngày mặc định nếu không tải được lịch đài.
+            }
+        })();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [urlStationId, urlDrawDate]);
 
     // Pre-select đài từ deep link (chatbot CTA)
     useEffect(() => {
