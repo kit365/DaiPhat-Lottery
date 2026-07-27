@@ -107,7 +107,7 @@ const DrawDateCell = (params: GridRenderCellParams) => {
     const date = params.value;
     if (!date) return null;
 
-    const { data: stationsData } = useStations({ size: 1000 });
+    const { data: stationsData } = useStations({ limit: 1000 });
     const stations = stationsData?.data?.recordList || [];
     const stationId = params.row.stationId || params.row.providerId;
     const station = stations.find((p: any) => (p.id || p._id)?.toString() === stationId?.toString());
@@ -132,19 +132,13 @@ const ticketStatusModifier = (status?: string | null): string => {
     switch (normalized) {
         case 'IN_STOCK':
             return 'admin-status-badge--active';
-        case 'SOLD':
-            return 'admin-status-badge--success';
+        case 'IMPORTING':
+            return 'admin-status-badge--pending';
         case 'SOLD_OUT':
         case 'EXPIRED':
-        case 'INTERNAL_FAULT':
-        case 'ISSUER_FAULT':
             return 'admin-status-badge--inactive';
-        case 'RESERVED':
-        case 'PROXY_HOLDING':
-        case 'PENDING_RETURN':
-        case 'RETURNED':
-            return 'admin-status-badge--pending';
         default:
+            // Unknown / legacy cached values
             return 'admin-status-badge--draft';
     }
 };

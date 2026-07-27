@@ -2,6 +2,7 @@ package com.daiphat.coreapi.application.service.lotteries;
 
 import com.daiphat.coreapi.application.dto.request.lotteries.CreateLotteryTicketSerialRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.UpdateLotteryTicketSerialRequest;
+import com.daiphat.coreapi.application.dto.request.lotteries.ReportSerialFaultRequest;
 import com.daiphat.coreapi.application.port.in.lotteries.LotteryTicketSerialServicePort;
 import com.daiphat.coreapi.application.port.out.lotteries.LotteryTicketSerialRepositoryPort;
 import com.daiphat.coreapi.application.port.out.order.OrderRepositoryPort;
@@ -62,6 +63,7 @@ public class LotteryTicketSerialService implements LotteryTicketSerialServicePor
                 .ticketImg(request.ticketImg())
                 .serialNumber(normalizedSerial)
                 .inputSource(InputSource.MANUAL)
+                .replacedForTicketId(request.replacedForTicketId())
                 .build();
         serial.initializeImport(importedById);
         return lotteryTicketSerialRepositoryPort.save(serial);
@@ -306,5 +308,23 @@ public class LotteryTicketSerialService implements LotteryTicketSerialServicePor
                     "Không thể xóa sê-ri đã có lịch sử đơn hàng tham chiếu."
             );
         }
+    }
+
+    @Override
+    @Transactional
+    public LotteryTicketSerialModel reportFault(Long id, ReportSerialFaultRequest request) {
+        LotteryTicketSerialModel serial = getByIdOrThrow(id);
+        
+        if (request.status() == LotteryTicketSerialStatus.DAMAGED) {
+            serial.markDamaged(request.faultedBy(), request.damagedReason(), request.damagedEvidenceUrl());
+        } else if (request.status() == LotteryTicketSerialStatus.LOST) {
+            serial.markLost(request.faultedBy(), request.damagedReason());
+        } else if (request.status() == LotteryTicketSerialStatus.VOIDED) {
+            serial.markVoided(request.faultedBy(), request.damagedReason());
+        } else {
+            throw new DomainException(ErrorCode.INVALID_INPUT, "Trạng thái báo lỗi không hợp lệ (chỉ hỗ trợ DAMAGED, LOST hoặc VOIDED).");
+        }
+        
+        return lotteryTicketSerialRepositoryPort.save(serial);
     }
 }

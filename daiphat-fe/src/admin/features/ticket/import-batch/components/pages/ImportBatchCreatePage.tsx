@@ -126,10 +126,20 @@ export const ImportBatchCreatePage = () => {
     const uploadReceipt = useCallback(async (file: File) => uploadAdminImage(file), []);
 
     const buildCreatePayload = async (formData: CreateImportBatchFormValues, forceCreate?: boolean) => {
-        const invoiceEvidenceUrl =
-            formData.importMode === 'IN_DAY'
-                ? await resolveInvoiceEvidenceUrl(formData.invoiceEvidenceUrl, uploadReceipt)
-                : undefined;
+        let invoiceEvidenceUrl: string | undefined;
+        try {
+            invoiceEvidenceUrl =
+                formData.importMode === 'IN_DAY'
+                    ? await resolveInvoiceEvidenceUrl(formData.invoiceEvidenceUrl, uploadReceipt)
+                    : undefined;
+        } catch (err: unknown) {
+            const message =
+                (err as { response?: { data?: { message?: string } }; message?: string })?.response?.data
+                    ?.message ||
+                (err as { message?: string })?.message ||
+                'Tải ảnh biên lai thất bại.';
+            throw new Error(message);
+        }
 
         return {
             drawDate: formData.drawDate,

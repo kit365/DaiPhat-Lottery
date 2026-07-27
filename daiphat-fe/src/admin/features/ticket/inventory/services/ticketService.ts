@@ -104,9 +104,28 @@ export const getTicketById = async (id: string | number): Promise<ApiResponse<an
     return response.data;
 };
 
+/** Cập nhật vé — không gửi `status` (do hệ thống suy ra từ sê-ri / cutoff) */
+export type UpdateTicketPayload = {
+    numbers?: string;
+    drawDate?: string;
+    stationId?: number | string;
+    serials?: Array<{
+        id?: number;
+        serialNumber: string;
+        ticketImg?: string;
+    }>;
+    [key: string]: unknown;
+};
+
 /** Cập nhật vé */
-export const updateTicket = async (id: string | number, data: any): Promise<ApiResponse<any>> => {
-    const response = await apiApp.put(`${BASE_URL}/${id}`, data, withAuth());
+export const updateTicket = async (
+    id: string | number,
+    data: UpdateTicketPayload
+): Promise<ApiResponse<any>> => {
+    const payload = { ...data };
+    // Status is system-derived; never send it on update even if a caller includes it.
+    delete payload.status;
+    const response = await apiApp.put(`${BASE_URL}/${id}`, payload, withAuth());
     return response.data;
 };
 
@@ -163,10 +182,6 @@ export const uploadTicketImage = async (id: string | number, file: File): Promis
     formData.append('file', file);
     const response = await apiApp.post(`${BASE_URL}/${id}/image`, formData, {
         ...withAuth(),
-        headers: {
-            ...withAuth().headers,
-            'Content-Type': 'multipart/form-data',
-        },
     });
     return response.data;
 };
@@ -178,10 +193,31 @@ export const uploadTicketSerialImage = async (id: string | number, file: File): 
     formData.append('file', file);
     const response = await apiApp.post(`/lottery-ticket-serials/${id}/image`, formData, {
         ...withAuth(),
-        headers: {
-            ...withAuth().headers,
-            'Content-Type': 'multipart/form-data',
-        },
     });
+    return response.data;
+};
+
+export const reportTicketSerialFault = async (
+    id: string | number,
+    data: {
+        status: 'DAMAGED' | 'LOST' | 'VOIDED';
+        faultedBy: 'INTERNAL_FAULT' | 'ISSUER_FAULT' | 'DATA_ENTRY_FAULT';
+        damagedReason?: string;
+        damagedEvidenceUrl?: string;
+    }
+): Promise<ApiResponse<any>> => {
+    const response = await apiApp.post(`/lottery-ticket-serials/${id}/report-fault`, data, withAuth());
+    return response.data;
+};
+
+/** Thay đổi dãy số cho vé số */
+export const replaceTicketDigits = async (
+    id: string | number,
+    data: {
+        newNumbers: string;
+        newTicketImg?: string;
+    }
+): Promise<ApiResponse<any>> => {
+    const response = await apiApp.post(`/lottery-tickets/${id}/replace-digits`, data, withAuth());
     return response.data;
 };

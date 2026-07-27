@@ -60,8 +60,6 @@ public interface LotteryTicketServicePort {
 
     LotteryTicketResponse verify(Long id, UUID verifierId);
 
-    LotteryTicketResponse changeStatus(Long id, LotteryTicketStatus status);
-
     LotteryTicketResponse uploadImage(Long id, UploadRequest request);
 
     StorageResult uploadAsset(UploadRequest request);
@@ -83,4 +81,6 @@ public interface LotteryTicketServicePort {
             java.util.Collection<String> numbers);
 
     java.util.List<com.daiphat.coreapi.application.dto.response.lotteries.LotteryTicketSerialResponse> getReplacementCandidates(Long stationId, String numbers, java.time.LocalDate drawDate);
+
+    LotteryTicketResponse replaceDigits(Long id, com.daiphat.coreapi.application.dto.request.lotteries.ReplaceTicketDigitsRequest request, UUID editorId);
 }

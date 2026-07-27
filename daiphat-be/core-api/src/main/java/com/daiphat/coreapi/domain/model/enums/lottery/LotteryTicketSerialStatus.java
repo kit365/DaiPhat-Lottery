@@ -15,7 +15,8 @@ public enum LotteryTicketSerialStatus implements LabeledEnum {
     RETURNED("Đã trả nhà đài"),
     EXPIRED("Hết hạn"),
     DAMAGED("Vé hỏng / rách"),
-    LOST("Vé thất lạc");
+    LOST("Vé thất lạc"),
+    VOIDED("Hủy do lỗi nhập liệu");
 
     private final String displayName;
 

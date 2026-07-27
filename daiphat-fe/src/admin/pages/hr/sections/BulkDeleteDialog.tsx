@@ -101,7 +101,7 @@ export const BulkDeleteDialog: React.FC<BulkDeleteDialogProps> = ({
 
     const onSubmit = async (data: any) => {
         if (!data.staffIds || data.staffIds.length === 0) {
-            toast.error('Vui lòng chọn ít nhất một nhân viên');
+            toast.error('Vui l�ng ch?n �t nh?t m?t nh�n vi�n');
             return;
         }
         onDelete({
@@ -123,7 +123,7 @@ export const BulkDeleteDialog: React.FC<BulkDeleteDialogProps> = ({
                 <Stack direction="row" spacing={1.5} alignItems="center">
                     <Icon icon="solar:trash-bin-trash-bold-duotone" width={24} color="var(--palette-error-main)" />
                     <Typography variant="h6" sx={{ fontWeight: 700 }}>
-                        Xóa ca làm việc hàng loạt
+                        X�a ca l�m vi?c h�ng lo?t
                     </Typography>
                 </Stack>
                 <IconButton onClick={onClose} size="small" sx={{ color: 'var(--palette-text-secondary)' }}>
@@ -135,7 +135,7 @@ export const BulkDeleteDialog: React.FC<BulkDeleteDialogProps> = ({
                     <DialogContent>
                         <Box sx={{ mb: 3, p: 2, bgcolor: alpha('#FF5630', 0.08), borderRadius: "var(--shape-borderRadius-md)", border: '1px solid', borderColor: alpha('#FF5630', 0.16) }}>
                             <Typography variant="body2" sx={{ color: '#B71D18', fontWeight: 600 }}>
-                                Lưu ý: Hệ thống sẽ xóa các ca làm việc của nhân viên được chọn trong khoảng thời gian này.
+                                Luu �: H? th?ng s? x�a c�c ca l�m vi?c c?a nh�n vi�n du?c ch?n trong kho?ng th?i gian n�y.
                             </Typography>
                         </Box>
 
@@ -143,14 +143,14 @@ export const BulkDeleteDialog: React.FC<BulkDeleteDialogProps> = ({
                             <Controller
                                 name="staffIds"
                                 control={control}
-                                rules={{ required: 'Vui lòng chọn ít nhất một nhân viên' }}
+                                rules={{ required: 'Vui l�ng ch?n �t nh?t m?t nh�n vi�n' }}
                                 render={({ field, fieldState: { error } }) => (
                                     <TextField
                                         {...field}
                                         select
                                         fullWidth
-                                        label="Nhân viên"
-                                        placeholder="Chọn nhân viên"
+                                        label="Nh�n vi�n"
+                                        placeholder="Ch?n nh�n vi�n"
                                         error={!!error}
                                         helperText={error?.message}
                                         onChange={(e) => {
@@ -170,7 +170,7 @@ export const BulkDeleteDialog: React.FC<BulkDeleteDialogProps> = ({
                                             multiple: true,
                                             renderValue: (selected: any) => {
                                                 const s = selected || [];
-                                                if (s.length === (accounts?.length || 0) && (accounts?.length || 0) > 0) return 'Tất cả nhân viên';
+                                                if (s.length === (accounts?.length || 0) && (accounts?.length || 0) > 0) return 'T?t c? nh�n vi�n';
                                                 return (accounts || [])
                                                     .filter((a: any) => s.includes(a._id))
                                                     .map((a: any) => a.fullName)
@@ -188,7 +188,7 @@ export const BulkDeleteDialog: React.FC<BulkDeleteDialogProps> = ({
                                                 checked={selectedStaffIds.length === (accounts?.length || 0) && (accounts?.length || 0) > 0}
                                                 indeterminate={selectedStaffIds.length > 0 && selectedStaffIds.length < (accounts?.length || 0)}
                                             />
-                                            <ListItemText primary="Chọn tất cả nhân viên" sx={{ '& .MuiTypography-root': { fontWeight: 700 } }} />
+                                            <ListItemText primary="Ch?n t?t c? nh�n vi�n" sx={{ '& .MuiTypography-root': { fontWeight: 700 } }} />
                                         </MenuItem>
                                         {(accounts || []).map((account: any) => (
                                             <MenuItem key={account._id} value={account._id}>
@@ -208,7 +208,7 @@ export const BulkDeleteDialog: React.FC<BulkDeleteDialogProps> = ({
                                         render={({ field }) => (
                                             <DatePicker
                                                 {...field}
-                                                label="Từ ngày"
+                                                label="T? ng�y"
                                                 slotProps={{
                                                     textField: {
                                                         fullWidth: true,
@@ -230,7 +230,7 @@ export const BulkDeleteDialog: React.FC<BulkDeleteDialogProps> = ({
                                         render={({ field }) => (
                                             <DatePicker
                                                 {...field}
-                                                label="Đến ngày"
+                                                label="�?n ng�y"
                                                 slotProps={{
                                                     textField: {
                                                         fullWidth: true,
@@ -260,7 +260,7 @@ export const BulkDeleteDialog: React.FC<BulkDeleteDialogProps> = ({
                                 borderColor: 'rgba(145, 158, 171, 0.32)',
                             }}
                         >
-                            Hủy
+                            H?y
                         </Button>
                         <Button
                             type="submit"
@@ -279,7 +279,7 @@ export const BulkDeleteDialog: React.FC<BulkDeleteDialogProps> = ({
                                 }
                             }}
                         >
-                            {loading ? 'Đang xóa...' : 'Xác nhận xóa'}
+                            {loading ? '�ang x�a...' : 'X�c nh?n x�a'}
                         </Button>
                     </DialogActions>
                 </LocalizationProvider>

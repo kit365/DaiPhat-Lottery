@@ -13,7 +13,10 @@ public class OrderPaymentExpireScheduler {
 
     private final TransactionServicePort transactionServicePort;
 
-    @Scheduled(fixedRateString = "${daiphat.order.pending-payment-expire-rate-ms}")
+    @Scheduled(
+            fixedRateString = "${daiphat.order.pending-payment-expire-rate-ms}",
+            initialDelay = 30000
+    )
     public void expirePendingPayments() {
         int expiredCount = transactionServicePort.expirePendingPayments();
         if (expiredCount > 0) {

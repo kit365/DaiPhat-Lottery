@@ -33,7 +33,7 @@ export const TicketDetailPage = () => {
     const navigate = useNavigate();
 
     const { data: ticketDetail, isLoading: isLoadingTicket } = useTicketDetail(id);
-    const { data: providersRes } = useStations({ size: 1000 });
+    const { data: providersRes } = useStations({ limit: 1000 });
     const providers = (providersRes as any)?.data?.recordList || [];
 
     const [expandedDetail, setExpandedDetail] = useState(true);
@@ -78,14 +78,14 @@ export const TicketDetailPage = () => {
     const providerId = ticketDetail.stationId || ticketDetail.productId || ticketDetail.providerId;
     const provider = providers.find((p: any) => (p.id || p._id)?.toString() === providerId?.toString());
     const providerName = provider ? provider.name : 'Không xác định';
-    const canEditTicket = ["IN_STOCK", "ISSUER_FAULT"].includes((ticketDetail.status || "").toUpperCase())
+    const canEditTicket = (ticketDetail.status || "").toUpperCase() === "IN_STOCK"
         && !(ticketDetail.serials || []).some((serial: any) => ["RESERVED", "SOLD"].includes((serial.status || "").toUpperCase()));
     const availableQuantity = resolveAvailableTicketQuantity(ticketDetail);
     const ticketStatus = (ticketDetail.status || "").toUpperCase();
     const ticketStatusColor =
         ticketStatus === "IN_STOCK" ? "success" :
+        ticketStatus === "IMPORTING" ? "info" :
         ticketStatus === "SOLD_OUT" || ticketStatus === "EXPIRED" ? "warning" :
-        ticketStatus === "SOLD" || ticketStatus === "INTERNAL_FAULT" || ticketStatus === "ISSUER_FAULT" ? "error" :
         "default";
 
     return (

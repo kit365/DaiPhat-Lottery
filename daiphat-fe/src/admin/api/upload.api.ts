@@ -16,12 +16,9 @@ export const uploadAdminImage = async (file: File): Promise<string> => {
     const formData = new FormData();
     formData.append('file', file);
 
+    // Do not set Content-Type manually — axios/browser must include the multipart boundary.
     const response = await apiApp.post('/lottery-tickets/images/upload', formData, {
         ...withAuth(),
-        headers: {
-            ...withAuth().headers,
-            'Content-Type': 'multipart/form-data',
-        },
     });
 
     const url = response.data?.data?.url;
