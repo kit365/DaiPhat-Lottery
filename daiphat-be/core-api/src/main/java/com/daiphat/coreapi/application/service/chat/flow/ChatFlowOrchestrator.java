@@ -69,10 +69,20 @@ public class ChatFlowOrchestrator {
             return restartResult.get();
         }
 
+        Optional<ChatFlowHandleResult> showResult = handleScheduleShow(conversation, message);
+        if (showResult.isPresent()) {
+            return showResult.get();
+        }
+
         // Resume "hỏi đuôi → user trả số" before classify/switch so bare digits never fall to UNKNOWN.
         Optional<ChatFlowHandleResult> pendingTicketSearch = continuePendingTicketFragment(conversation, message);
         if (pendingTicketSearch.isPresent()) {
             return pendingTicketSearch.get();
+        }
+
+        Optional<ChatFlowHandleResult> pendingScheduleSlot = continuePendingScheduleSlot(conversation, message);
+        if (pendingScheduleSlot.isPresent()) {
+            return pendingScheduleSlot.get();
         }
 
         ChatClassifyResponse classification = classify(message, conversation);
@@ -114,11 +124,71 @@ public class ChatFlowOrchestrator {
         return outcome.map(value -> new ChatFlowHandleResult(null, value));
     }
 
+    /**
+     * Resume WEB_SCHEDULE slot answers (e.g. "Tất cả", "Cần Thơ") even when flow TTL expired
+     * or classify returns UNKNOWN — before starting a fresh schedule flow.
+     */
+    private Optional<ChatFlowHandleResult> continuePendingScheduleSlot(
+            ConversationModel conversation,
+            MessageModel message
+    ) {
+        ChatFlowService scheduleFlow = flowServicesByIntent.get(ChatIntent.WEB_SCHEDULE.name());
+        if (scheduleFlow == null || !conversation.isBotOwned()) {
+            return Optional.empty();
+        }
+        PendingFlowState flow = conversation.findActiveFlow(ChatIntent.WEB_SCHEDULE.name()).orElse(null);
+        // Free-text "Gợi ý vé" must not be treated as answering an open schedule date/location slot.
+        // (SCHEDULE_SET_GOAL:TICKET chips still resume via tryResumeSlotAnswer.)
+        if (looksLikeStandaloneTicketSuggest(message.getContent())) {
+            return Optional.empty();
+        }
+        Optional<ChatIntentOutcome> outcome = scheduleFlow.tryResumeSlotAnswer(conversation, flow, message, null);
+        return outcome.map(value -> new ChatFlowHandleResult(null, value));
+    }
+
+    private static boolean looksLikeStandaloneTicketSuggest(String content) {
+        if (content == null || content.isBlank()) {
+            return false;
+        }
+        String trimmed = content.trim();
+        if (trimmed.startsWith(ChatScheduleConstants.TOKEN_SET_GOAL_PREFIX)) {
+            return false;
+        }
+        String normalized = trimmed.toLowerCase()
+                .replace("đ", "d")
+                .replaceAll("[àáạảãâầấậẩẫăằắặẳẵ]", "a")
+                .replaceAll("[èéẹẻẽêềếệểễ]", "e")
+                .replaceAll("[ìíịỉĩ]", "i")
+                .replaceAll("[òóọỏõôồốộổỗơờớợởỡ]", "o")
+                .replaceAll("[ùúụủũưừứựửữ]", "u")
+                .replaceAll("[ỳýỵỷỹ]", "y");
+        return normalized.contains("goi y ve")
+                || normalized.contains("goi y so")
+                || (normalized.contains("goi y") && (normalized.contains("ve") || normalized.contains("so")));
+    }
+
     private Optional<ChatFlowHandleResult> handleScheduleRestart(
             ConversationModel conversation,
             MessageModel message
     ) {
         if (!conversation.isBotOwned() || !isScheduleRestartToken(message.getContent())) {
+            return Optional.empty();
+        }
+        ChatFlowService scheduleFlow = flowServicesByIntent.get(ChatIntent.WEB_SCHEDULE.name());
+        if (scheduleFlow == null) {
+            return Optional.empty();
+        }
+        ChatClassifyResponse synthetic = syntheticScheduleClassification();
+        ChatIntentOutcome outcome = scheduleFlow.startFlow(conversation, message, synthetic);
+        return Optional.of(new ChatFlowHandleResult(synthetic, outcome));
+    }
+
+    /** Hub footer Lịch/Kết quả — hiện card ngay, không phụ thuộc slot đang mở. */
+    private Optional<ChatFlowHandleResult> handleScheduleShow(
+            ConversationModel conversation,
+            MessageModel message
+    ) {
+        if (!conversation.isBotOwned() || !isScheduleShowToken(message.getContent())) {
             return Optional.empty();
         }
         ChatFlowService scheduleFlow = flowServicesByIntent.get(ChatIntent.WEB_SCHEDULE.name());
@@ -235,6 +305,10 @@ public class ChatFlowOrchestrator {
 
     private static boolean isScheduleRestartToken(String content) {
         return content != null && ChatScheduleConstants.TOKEN_RESTART.equals(content.trim());
+    }
+
+    private static boolean isScheduleShowToken(String content) {
+        return content != null && content.trim().startsWith(ChatScheduleConstants.TOKEN_SHOW_PREFIX);
     }
 
     private static ChatClassifyResponse syntheticScheduleClassification() {
