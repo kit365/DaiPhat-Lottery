@@ -1,12 +1,13 @@
 class LotteryTicket {
   const LotteryTicket({
     required this.id,
-    required this.productId,
+    required this.stationId,
     required this.stationName,
     required this.ticketImg,
     required this.serialNumber,
     required this.numbers,
     required this.drawDate,
+    required this.quantity,
     required this.batchCode,
     required this.status,
     required this.statusDisplayName,
@@ -24,12 +25,13 @@ class LotteryTicket {
   });
 
   final int id;
-  final int? productId;
+  final int? stationId;
   final String stationName;
   final String? ticketImg;
   final String serialNumber;
   final String numbers;
   final DateTime? drawDate;
+  final int quantity;
   final String? batchCode;
   final String status;
   final String statusDisplayName;
@@ -48,17 +50,18 @@ class LotteryTicket {
   factory LotteryTicket.fromJson(Map<String, dynamic> json) {
     return LotteryTicket(
       id: (json['id'] as num?)?.toInt() ?? 0,
-      productId: (json['productId'] as num?)?.toInt(),
+      stationId: (json['stationId'] as num?)?.toInt(),
       stationName: json['stationName']?.toString() ?? '',
       ticketImg: json['ticketImg']?.toString(),
       serialNumber: json['serialNumber']?.toString() ?? '',
       numbers: json['numbers']?.toString() ?? '',
       drawDate: _parseDateTime(json['drawDate']),
+      quantity: (json['quantity'] as num?)?.toInt() ?? 0,
       batchCode: json['batchCode']?.toString(),
       status: json['status']?.toString() ?? '',
       statusDisplayName: json['statusDisplayName']?.toString() ?? '',
       verified: json['verified'] as bool? ?? false,
-      priceSnapshot: (json['priceSnapshot'] as num?)?.toInt(),
+      priceSnapshot: _parsePrice(json['priceSnapshot']),
       importedById: json['importedById']?.toString(),
       importedAt: _parseDateTime(json['importedAt']),
       verifiedById: json['verifiedById']?.toString(),
@@ -74,5 +77,11 @@ class LotteryTicket {
   static DateTime? _parseDateTime(dynamic value) {
     if (value == null) return null;
     return DateTime.tryParse(value.toString());
+  }
+
+  static int? _parsePrice(dynamic value) {
+    if (value == null) return null;
+    if (value is num) return value.toInt();
+    return int.tryParse(value.toString().split('.').first);
   }
 }

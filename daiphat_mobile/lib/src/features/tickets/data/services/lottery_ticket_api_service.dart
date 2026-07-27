@@ -9,13 +9,15 @@ class LotteryTicketApiService {
 
   final ApiClient _apiClient;
 
-  Future<PageResponse<LotteryTicket>> getLotteryTickets({
+  /// Catalog vé đang bán — khớp FE `GET /lottery-tickets/public`.
+  Future<PageResponse<LotteryTicket>> getPublicLotteryTickets({
     int page = 1,
     int size = 100,
     int? stationId,
-    String? status,
+    List<int>? stationIds,
     String? drawDate,
     String? search,
+    String? searchMode,
     String? sortBy,
     String? direction,
   }) async {
@@ -25,14 +27,18 @@ class LotteryTicketApiService {
     };
 
     if (stationId != null) queryParameters['stationId'] = stationId;
-    if (status != null && status.trim().isNotEmpty) {
-      queryParameters['status'] = status.trim();
+    if (stationIds != null && stationIds.isNotEmpty) {
+      queryParameters['stationIds'] = stationIds;
     }
     if (drawDate != null && drawDate.trim().isNotEmpty) {
       queryParameters['drawDate'] = drawDate.trim();
     }
     if (search != null && search.trim().isNotEmpty) {
       queryParameters['search'] = search.trim();
+      queryParameters['searchMode'] =
+          (searchMode != null && searchMode.trim().isNotEmpty)
+          ? searchMode.trim()
+          : 'CONTAINS';
     }
     if (sortBy != null && sortBy.trim().isNotEmpty) {
       queryParameters['sortBy'] = sortBy.trim();
@@ -42,8 +48,9 @@ class LotteryTicketApiService {
     }
 
     final response = await _apiClient.get(
-      '/lottery-tickets',
+      '/lottery-tickets/public',
       queryParameters: queryParameters,
+      includeAuth: false,
     );
 
     final apiResponse = ApiResponse<PageResponse<LotteryTicket>>.fromJson(
@@ -84,4 +91,3 @@ class LotteryTicketApiService {
     return apiResponse.data!;
   }
 }
-
