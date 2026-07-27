@@ -1,6 +1,7 @@
 package com.daiphat.coreapi.domain.model.enums.chat;
 
 public enum ChatSchedulePendingSlot {
+    GOAL,
     LOCATION,
     LOCATION_CHOICE,
     DATE,

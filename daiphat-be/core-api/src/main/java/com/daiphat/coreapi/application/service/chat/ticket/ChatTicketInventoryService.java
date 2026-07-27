@@ -9,12 +9,15 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
 /**
  * Queries available (IN_STOCK) lottery tickets from DB for chat replies.
@@ -27,9 +30,7 @@ import java.util.stream.IntStream;
 public class ChatTicketInventoryService {
 
     /**
-     * Sentinel meaning "the upcoming sale window": today plus the next {@link #UPCOMING_DRAW_WINDOW_DAYS} days.
-     * Every station draws weekly, so a 7-day window always covers each station's next draw.
-     * Tickets whose draw already happened today are excluded at query level (public cutoff filter).
+     * Sentinel for the default public sellable draw date (same rule as home / buy-ticket page).
      */
     public static final String DRAW_DATE_TODAY = "today";
     public static final int DEFAULT_LIMIT = 5;
@@ -42,10 +43,12 @@ public class ChatTicketInventoryService {
 
     static final int UPCOMING_DRAW_WINDOW_DAYS = 7;
 
-    private static final String SORT_BY_DRAW_DATE = "drawDate";
+    private static final String SORT_BY_NUMBERS = "numbers";
     private static final String SORT_DIRECTION_ASC = "asc";
     private static final int MATCH_PAGE_SIZE = 40;
     private static final int MATCH_MAX_PAGES = 5;
+    private static final int SUGGEST_PAGE_SIZE = 40;
+    private static final int SUGGEST_MAX_PAGES = 15;
 
     private final LotteryTicketServicePort lotteryTicketServicePort;
 
@@ -61,29 +64,97 @@ public class ChatTicketInventoryService {
             String drawDate,
             int limit
     ) {
-        int size = Math.max(1, Math.min(limit, 20));
+        return findAvailable(search, stationId, drawDate, limit, null);
+    }
+
+    /**
+     * Suggest tickets for chat, optionally skipping IDs already shown (e.g. "Gợi ý khác").
+     * When every remaining ticket was excluded, wraps around from the start.
+     */
+    public List<LotteryTicketResponse> findAvailable(
+            String search,
+            Long stationId,
+            String drawDate,
+            int limit,
+            Collection<Long> excludeIds
+    ) {
+        int target = Math.max(1, Math.min(limit, 20));
+        Set<Long> excluded = toExcludeSet(excludeIds);
+
+        List<LotteryTicketResponse> picked = collectAvailable(search, stationId, drawDate, target, excluded);
+        if (!picked.isEmpty() || excluded.isEmpty()) {
+            return picked.stream().limit(target).toList();
+        }
+
+        // All remaining tickets were already suggested — start a fresh cycle from the top.
+        return collectAvailable(search, stationId, drawDate, target, Set.of())
+                .stream()
+                .limit(target)
+                .toList();
+    }
+
+    private List<LotteryTicketResponse> collectAvailable(
+            String search,
+            Long stationId,
+            String drawDate,
+            int target,
+            Set<Long> excluded
+    ) {
         String resolvedDrawDate = resolveDrawDateFilter(drawDate);
         String resolvedSearch = (search == null || search.isBlank()) ? null : search.trim();
+        List<LotteryTicketResponse> picked = new ArrayList<>(target);
 
         try {
-            PageResponse<LotteryTicketResponse> page = lotteryTicketServicePort.getPublicTickets(
-                    1,
-                    size,
-                    stationId,
-                    null,
-                    resolvedDrawDate,
-                    resolvedSearch,
-                    SORT_BY_DRAW_DATE,
-                    SORT_DIRECTION_ASC
-            );
-            if (page == null || page.getRecordList() == null) {
-                return List.of();
+            for (int page = 1; page <= SUGGEST_MAX_PAGES && picked.size() < target; page++) {
+                PageResponse<LotteryTicketResponse> response = lotteryTicketServicePort.getPublicTickets(
+                        page,
+                        SUGGEST_PAGE_SIZE,
+                        stationId,
+                        null,
+                        resolvedDrawDate,
+                        resolvedSearch,
+                        SORT_BY_NUMBERS,
+                        SORT_DIRECTION_ASC
+                );
+                List<LotteryTicketResponse> records = response != null ? response.getRecordList() : null;
+                if (records == null || records.isEmpty()) {
+                    break;
+                }
+                for (LotteryTicketResponse ticket : records) {
+                    if (ticket == null) {
+                        continue;
+                    }
+                    Long id = ticket.id();
+                    if (id != null && excluded.contains(id)) {
+                        continue;
+                    }
+                    picked.add(ticket);
+                    if (picked.size() >= target) {
+                        break;
+                    }
+                }
+                if (response.getPagination() != null && response.getPagination().isLast()) {
+                    break;
+                }
             }
-            return page.getRecordList();
         } catch (Exception ex) {
             log.warn("Failed to query public tickets for chat inventory search={}", resolvedSearch, ex);
             return List.of();
         }
+        return picked;
+    }
+
+    private static Set<Long> toExcludeSet(Collection<Long> excludeIds) {
+        if (excludeIds == null || excludeIds.isEmpty()) {
+            return Set.of();
+        }
+        Set<Long> excluded = new HashSet<>();
+        for (Long id : excludeIds) {
+            if (id != null) {
+                excluded.add(id);
+            }
+        }
+        return excluded;
     }
 
     /**
@@ -116,7 +187,7 @@ public class ChatTicketInventoryService {
                         null,
                         resolvedDrawDate,
                         fragment,
-                        SORT_BY_DRAW_DATE,
+                        SORT_BY_NUMBERS,
                         SORT_DIRECTION_ASC
                 );
                 List<LotteryTicketResponse> records = response != null ? response.getRecordList() : null;
@@ -227,10 +298,10 @@ public class ChatTicketInventoryService {
 
     static String resolveDrawDateFilter(String drawDate) {
         if (drawDate == null || drawDate.isBlank() || DRAW_DATE_TODAY.equalsIgnoreCase(drawDate.trim())) {
-            LocalDate today = DrawScheduleUtils.today();
-            return IntStream.range(0, UPCOMING_DRAW_WINDOW_DAYS)
-                    .mapToObj(offset -> today.plusDays(offset).toString())
-                    .collect(Collectors.joining(","));
+            return DrawScheduleUtils.resolveDefaultSellableDrawDate().toString();
+        }
+        if ("tomorrow".equalsIgnoreCase(drawDate.trim())) {
+            return DrawScheduleUtils.today().plusDays(1).toString();
         }
         return drawDate.trim();
     }

@@ -35,8 +35,19 @@ public final class ChatScheduleTestFixtures {
         slotAnswers.setAllStationsExact(List.of("tat ca", "all", "1"));
         slotAnswers.setAllStationsContains(List.of("tat ca dai", "xem tat ca"));
         slotAnswers.setPickStationExact(List.of("2"));
-        slotAnswers.setPickStationContains(List.of("dai cu the", "chon dai", "chon mot dai"));
+        slotAnswers.setPickStationContains(List.of("dai cu the", "chon dai", "chon mot dai", "chon dai cu the"));
         properties.setSlotAnswers(slotAnswers);
+        properties.setRegionTodayPhrases(List.of(
+                "dai quay hom nay",
+                "dai hom nay",
+                "hom nay quay",
+                "xem dai hom nay"
+        ));
+        properties.setWeekSchedulePhrases(List.of(
+                "lich ca tuan",
+                "lich tuan",
+                "xem lich tuan"
+        ));
         properties.setNationAllPhrases(List.of(
                 "ca 3 mien", "ca ba mien", "tat ca mien", "toan quoc", "ca nuoc"
         ));

@@ -55,6 +55,8 @@ class ChatFlowOrchestratorTest {
     @Mock
     private ChatIntentHandlerStrategy accountIntentHandler;
     @Mock
+    private ChatIntentHandlerStrategy suggestIntentHandler;
+    @Mock
     private ChatIntentHandlerStrategy unknownIntentHandler;
     @Mock
     private AiServiceConfigPort aiServiceConfigPort;
@@ -72,6 +74,7 @@ class ChatFlowOrchestratorTest {
         when(scheduleFlowService.flowIntent()).thenReturn(ChatIntent.WEB_SCHEDULE.name());
         when(searchFlowService.flowIntent()).thenReturn(ChatIntent.WEB_SEARCH.name());
         when(accountIntentHandler.supportedIntent()).thenReturn(ChatIntent.WEB_ACCOUNT);
+        when(suggestIntentHandler.supportedIntent()).thenReturn(ChatIntent.WEB_SUGGEST);
         when(unknownIntentHandler.supportedIntent()).thenReturn(ChatIntent.UNKNOWN);
         org.mockito.Mockito.lenient()
                 .when(aiServiceConfigPort.switchIntentThreshold())
@@ -80,7 +83,7 @@ class ChatFlowOrchestratorTest {
         orchestrator = new ChatFlowOrchestrator(
                 classifier,
                 List.of(scheduleFlowService, searchFlowService),
-                List.of(accountIntentHandler, unknownIntentHandler),
+                List.of(accountIntentHandler, suggestIntentHandler, unknownIntentHandler),
                 chatFlowProperties,
                 aiServiceConfigPort
         );
@@ -187,6 +190,28 @@ class ChatFlowOrchestratorTest {
         verify(classifier, never()).classify(any(), any());
         verify(unknownIntentHandler, never()).resolve(any());
         verify(searchFlowService).tryResumeSlotAnswer(eq(conversation), eq(flow), eq(message), eq(null));
+    }
+
+    @Test
+    @DisplayName("Gợi ý vé không bị nuốt bởi slot lịch đang mở → dispatch WEB_SUGGEST")
+    void handle_whenSuggestTicketsWhileSchedulePending_switchesToSuggest() {
+        ConversationModel conversation = openConversation();
+        conversation.setPendingIntent(ChatIntent.WEB_SCHEDULE.name());
+        conversation.setPendingSlot(ChatSchedulePendingSlot.DATE_MODE);
+        MessageModel message = customerMessage("gợi ý vé số cho tôi");
+        ChatClassifyResponse classification = classification(ChatIntent.WEB_SUGGEST, 0.9);
+
+        when(classifier.classify("gợi ý vé số cho tôi", CONVERSATION_ID)).thenReturn(classification);
+        when(suggestIntentHandler.resolve(any())).thenReturn(
+                new ChatIntentOutcome.BotReply("TICKET_SUGGEST:[]", "Gợi ý vé", ChatIntent.WEB_SUGGEST.name())
+        );
+
+        ChatFlowHandleResult result = orchestrator.handle(conversation, message);
+
+        assertThat(((ChatIntentOutcome.BotReply) result.outcome()).intent()).isEqualTo(ChatIntent.WEB_SUGGEST.name());
+        verify(scheduleFlowService, never()).tryResumeSlotAnswer(any(), any(), any(), any());
+        verify(scheduleFlowService, never()).tryContinue(any(), any(), any(), any());
+        verify(suggestIntentHandler).resolve(any());
     }
 
     @Test

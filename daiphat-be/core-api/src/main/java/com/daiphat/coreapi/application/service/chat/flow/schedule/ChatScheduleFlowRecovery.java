@@ -58,6 +58,9 @@ public class ChatScheduleFlowRecovery {
             if (trimmed.startsWith(TOKEN_RESULT_PREFIX) || TOKEN_RESTART.equals(trimmed)) {
                 return false;
             }
+            if (trimmed.startsWith(TOKEN_PICK_STATION_LIST_PREFIX)) {
+                return true;
+            }
             if (pendingSlotFromToken(trimmed).isPresent()) {
                 return true;
             }
@@ -140,6 +143,9 @@ public class ChatScheduleFlowRecovery {
             if (token.startsWith(TOKEN_ASK_STATION_PREFIX)) {
                 sawAskStation = true;
             }
+            if (token.startsWith(TOKEN_PICK_STATION_LIST_PREFIX)) {
+                sawAskStation = true;
+            }
         }
 
         if (sawAskStation) {
@@ -176,11 +182,19 @@ public class ChatScheduleFlowRecovery {
             }
             return;
         }
+        if (trimmed.startsWith(TOKEN_PICK_STATION_LIST_PREFIX)) {
+            mergePickStationListContext(trimmed.substring(TOKEN_PICK_STATION_LIST_PREFIX.length()).trim(), mergedSlots);
+            return;
+        }
         if (trimmed.startsWith(TOKEN_CONFIRM_STATION_PREFIX)) {
             String confirmIds = parseConfirmStationIds(trimmed.substring(TOKEN_CONFIRM_STATION_PREFIX.length()).trim());
             if (!confirmIds.isBlank()) {
                 mergedSlots.put(SLOT_CONFIRM_STATION_IDS, confirmIds);
             }
+            return;
+        }
+        if (trimmed.startsWith(TOKEN_STATION_READY_PREFIX)) {
+            mergeStationReadyContext(trimmed.substring(TOKEN_STATION_READY_PREFIX.length()).trim(), mergedSlots);
             return;
         }
         if (trimmed.startsWith(TOKEN_ASK_DATE_MODE + ":")) {
@@ -203,8 +217,17 @@ public class ChatScheduleFlowRecovery {
         if (trimmed.startsWith(TOKEN_ASK_STATION_PREFIX)) {
             return Optional.of(ChatSchedulePendingSlot.LOCATION.name());
         }
+        if (trimmed.startsWith(TOKEN_PICK_STATION_LIST_PREFIX)) {
+            return Optional.of(ChatSchedulePendingSlot.LOCATION.name());
+        }
         if (trimmed.startsWith(TOKEN_CONFIRM_STATION_PREFIX)) {
             return Optional.of(ChatSchedulePendingSlot.CONFIRM_STATION.name());
+        }
+        if (trimmed.startsWith(TOKEN_STATION_READY_PREFIX)) {
+            return Optional.of(ChatSchedulePendingSlot.DATE_MODE.name());
+        }
+        if (TOKEN_ASK_GOAL.equals(trimmed)) {
+            return Optional.of(ChatSchedulePendingSlot.GOAL.name());
         }
         if (trimmed.startsWith(TOKEN_ASK_DATE_MODE + ":")) {
             return Optional.of(ChatSchedulePendingSlot.DATE_MODE.name());
@@ -216,8 +239,68 @@ public class ChatScheduleFlowRecovery {
             case TOKEN_ASK_DATE_MODE -> Optional.of(ChatSchedulePendingSlot.DATE_MODE.name());
             case TOKEN_ASK_DATE -> Optional.of(ChatSchedulePendingSlot.DATE.name());
             case TOKEN_ASK_LOCATION -> Optional.of(ChatSchedulePendingSlot.LOCATION.name());
+            case TOKEN_ASK_GOAL -> Optional.of(ChatSchedulePendingSlot.GOAL.name());
             default -> Optional.empty();
         };
+    }
+
+    private static void mergePickStationListContext(String payload, Map<String, String> mergedSlots) {
+        if (payload == null || payload.isBlank()) {
+            return;
+        }
+        mergedSlots.put(SLOT_SCOPE, SCOPE_PICK_STATION);
+        for (String part : payload.split(":")) {
+            String trimmed = part.trim();
+            if (trimmed.isBlank()) {
+                continue;
+            }
+            int separatorIndex = trimmed.indexOf('=');
+            if (separatorIndex <= 0 || separatorIndex >= trimmed.length() - 1) {
+                continue;
+            }
+            String key = trimmed.substring(0, separatorIndex).trim();
+            String value = trimmed.substring(separatorIndex + 1).trim();
+            if (key.isBlank() || value.isBlank()) {
+                continue;
+            }
+            switch (key) {
+                case RESULT_PARAM_REGION -> mergedSlots.put(SLOT_REGION, value);
+                case RESULT_PARAM_DATE -> mergedSlots.put(SLOT_DRAW_DATE, value);
+                case SLOT_GOAL -> mergedSlots.put(SLOT_GOAL, value.toUpperCase());
+                default -> {
+                }
+            }
+        }
+        int stationsIndex = payload.indexOf(RESULT_PARAM_STATIONS + "=");
+        if (stationsIndex >= 0) {
+            String stationsValue = payload.substring(stationsIndex + (RESULT_PARAM_STATIONS + "=").length());
+            // Strip trailing meta that may have been appended after station names.
+            stationsValue = stationsValue.replaceAll(":(goal|hasNext|page)=[^:]+$", "");
+            mergedSlots.put(SLOT_CONFIRM_STATION_IDS, parsePickStationListIds(stationsValue));
+        }
+    }
+
+    private static String parsePickStationListIds(String payload) {
+        if (payload == null || payload.isBlank()) {
+            return "";
+        }
+        StringBuilder builder = new StringBuilder();
+        for (String part : payload.split(",")) {
+            String trimmed = part.trim();
+            if (trimmed.isEmpty()) {
+                continue;
+            }
+            int colonIndex = trimmed.indexOf(':');
+            String idPart = colonIndex >= 0 ? trimmed.substring(0, colonIndex).trim() : trimmed;
+            if (idPart.isBlank()) {
+                continue;
+            }
+            if (!builder.isEmpty()) {
+                builder.append(',');
+            }
+            builder.append(idPart);
+        }
+        return builder.toString();
     }
 
     private static void mergeAskDateContext(String payload, Map<String, String> mergedSlots) {
@@ -243,6 +326,7 @@ public class ChatScheduleFlowRecovery {
                 case RESULT_PARAM_STATION -> mergedSlots.put(SLOT_STATION_ID, value);
                 case RESULT_PARAM_STATIONS -> mergedSlots.put(SLOT_STATION_IDS, value);
                 case "scope" -> mergedSlots.put(SLOT_SCOPE, value);
+                case SLOT_GOAL -> mergedSlots.put(SLOT_GOAL, value.toUpperCase());
                 default -> {
                 }
             }
@@ -259,11 +343,47 @@ public class ChatScheduleFlowRecovery {
         ChatSchedulePendingSlot pendingSlot = ChatSchedulePendingSlot.valueOf(flow.pendingSlot());
         Map<String, String> slots = flow.collectedSlots() != null ? flow.collectedSlots() : Map.of();
         return switch (pendingSlot) {
-            case LOCATION -> true;
+            case GOAL -> true;
+            case LOCATION -> {
+                Map<String, String> safeSlots = slots;
+                // Danh sách đài theo ngày (RESULT) bắt buộc còn drawDate — thiếu thì rebuild từ token bot.
+                if (SCOPE_PICK_STATION.equals(safeSlots.get(SLOT_SCOPE))) {
+                    yield hasText(safeSlots.get(SLOT_DRAW_DATE));
+                }
+                yield hasText(safeSlots.get(SLOT_REGION)) || hasText(safeSlots.get(SLOT_DRAW_DATE));
+            }
             case LOCATION_CHOICE -> hasText(slots.get(SLOT_REGION));
             case CONFIRM_STATION -> hasText(slots.get(SLOT_CONFIRM_STATION_IDS));
             case DATE, DATE_MODE -> hasLocation(slots);
         };
+    }
+
+    private static void mergeStationReadyContext(String payload, Map<String, String> mergedSlots) {
+        if (payload == null || payload.isBlank()) {
+            return;
+        }
+        mergedSlots.put(SLOT_SCOPE, SCOPE_STATION);
+        for (String part : payload.split(":")) {
+            String trimmed = part.trim();
+            if (trimmed.isBlank()) {
+                continue;
+            }
+            int separatorIndex = trimmed.indexOf('=');
+            if (separatorIndex <= 0 || separatorIndex >= trimmed.length() - 1) {
+                continue;
+            }
+            String key = trimmed.substring(0, separatorIndex).trim();
+            String value = trimmed.substring(separatorIndex + 1).trim();
+            if (key.isBlank() || value.isBlank()) {
+                continue;
+            }
+            switch (key) {
+                case RESULT_PARAM_REGION -> mergedSlots.put(SLOT_REGION, value);
+                case RESULT_PARAM_STATION -> mergedSlots.put(SLOT_STATION_ID, value);
+                default -> {
+                }
+            }
+        }
     }
 
     private static boolean hasLocation(Map<String, String> slots) {

@@ -33,6 +33,7 @@ import {
     useMediaQuery,
     createTheme,
 } from '@mui/material';
+import { formatChatMessageContent } from '../../../../../client/utils/ticketSuggestToken.util';
 import { LoadingButton } from '../../../../components/ui/LoadingButton';
 import { Icon } from '@iconify/react';
 import { useCallback, useRef, useEffect, useLayoutEffect, useState, useMemo } from 'react';
@@ -778,7 +779,7 @@ export const ChatWindow = ({ conversationId, onToggleDetails }: ChatWindowProps)
                                         }}
                                     >
                                         <Typography variant="body2" sx={{ lineHeight: 1.5, wordBreak: 'break-word', whiteSpace: 'pre-wrap' }}>
-                                            {msg.content}
+                                            {isBot ? formatChatMessageContent(msg.content ?? '') : msg.content}
                                         </Typography>
                                     </Box>
                                     <Typography

@@ -10,3 +10,10 @@ export const getPublicSchedule = async (
     const response = await apiApp.get<ApiResponse<LotteryStationSchedule[]>>(SCHEDULE_API_URL, { params });
     return response.data.data || [];
 };
+
+export const getDrawingToday = async (region?: string): Promise<LotteryStationSchedule[]> => {
+    const response = await apiApp.get<ApiResponse<LotteryStationSchedule[]>>('/lottery-stations/schedule/today', {
+        params: region ? { region } : undefined,
+    });
+    return response.data.data || [];
+};

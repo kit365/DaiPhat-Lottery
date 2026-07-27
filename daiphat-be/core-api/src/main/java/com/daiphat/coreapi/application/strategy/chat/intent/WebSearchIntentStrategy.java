@@ -3,6 +3,7 @@ package com.daiphat.coreapi.application.strategy.chat.intent;
 import com.daiphat.coreapi.application.dto.chat.intent.ChatIntentContext;
 import com.daiphat.coreapi.application.dto.chat.intent.ChatIntentOutcome;
 import com.daiphat.coreapi.application.dto.response.lotteries.LotteryTicketResponse;
+import com.daiphat.coreapi.application.service.chat.intent.classifier.JavaKeywordIntentClassifier;
 import com.daiphat.coreapi.application.service.chat.ticket.ChatTicketInventoryService;
 import com.daiphat.coreapi.domain.model.chat.ConversationModel;
 import com.daiphat.coreapi.domain.model.chat.PendingFlowState;
@@ -204,11 +205,7 @@ public class WebSearchIntentStrategy implements ChatIntentHandlerStrategy {
     }
 
     private static boolean containsPrefixCue(String normalized) {
-        return normalized.contains("so dau")
-                || normalized.contains("dau so")
-                || normalized.contains(" dau ")
-                || normalized.endsWith(" dau")
-                || normalized.startsWith("dau ");
+        return JavaKeywordIntentClassifier.containsPrefixCue(normalized);
     }
 
     private static String normalizeForCue(String message) {
