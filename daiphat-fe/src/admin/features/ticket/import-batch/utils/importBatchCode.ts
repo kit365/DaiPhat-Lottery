@@ -72,11 +72,12 @@ export const formatImportBatchSelectLabel = (batch: ImportBatchLabelSource) => {
 export const formatImportBatchOptionLabel = formatImportBatchSelectLabel;
 
 /** Display helper for line-level batch codes. */
-export const formatImportBatchLineCode = (batchCode?: string) => {
-    if (!batchCode?.trim()) {
+export const formatImportBatchLineCode = (batchCode?: any) => {
+    const str = typeof batchCode === 'string' ? batchCode : (batchCode?.batchCode || '');
+    if (!str?.trim()) {
         return '—';
     }
-    const trimmed = batchCode.trim();
+    const trimmed = str.trim();
     const match = trimmed.match(IMPORT_BATCH_LINE_CODE_PATTERN);
     if (!match) {
         return trimmed;
@@ -90,8 +91,14 @@ export const formatImportBatchLineCode = (batchCode?: string) => {
 /** @deprecated use {@link formatImportBatchLineCode} for lines or {@link formatImportBatchHeaderCode} for headers */
 export const formatImportBatchCode = formatImportBatchLineCode;
 
-export const displayImportBatchLineCodeRaw = (batchCode?: string) =>
-    batchCode?.trim() || '—';
+export const displayImportBatchLineCodeRaw = (batchCode?: any) => {
+    if (typeof batchCode === 'string') return batchCode.trim() || '—';
+    if (batchCode && typeof batchCode === 'object') {
+        const code = batchCode.batchCode || batchCode.code;
+        if (typeof code === 'string') return code.trim() || '—';
+    }
+    return '—';
+};
 
 /** Single line: stored batch code + stored batch type enum. */
 export const formatImportBatchLineCodeAndTypeStored = (line: Pick<ImportBatchLine, 'batchCode' | 'batchType'>) => {

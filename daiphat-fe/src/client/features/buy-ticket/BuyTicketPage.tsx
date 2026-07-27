@@ -12,7 +12,6 @@ import {
     useStationsTomorrow,
 } from '../../../admin/features/station/hooks/useStation';
 import { apiApp } from '../../../api';
-import { LotteryTicketStatus } from '../../../constants/lottery.constants';
 import dayjs from 'dayjs';
 import 'dayjs/locale/vi';
 import {

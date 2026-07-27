@@ -127,7 +127,7 @@ export const TicketCreatePage = () => {
     const draftPersistReadyRef = useRef(false);
     const [lineFormDrafts, setLineFormDrafts] = useState<Record<string, LineFormDraft>>({});
 
-    const { data: providersRes } = useStations({ size: 1000 });
+    const { data: providersRes } = useStations({ limit: 1000 });
     const providers = (providersRes as any)?.data?.recordList || [];
     const { data: regionsRes } = useRegions();
     const regions = regionsRes?.data || [];

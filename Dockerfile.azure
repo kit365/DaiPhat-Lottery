@@ -21,6 +21,8 @@ COPY daiphat-be/core-api/pom.xml ./
 COPY daiphat-be/core-api/src ./src
 COPY --from=frontend-build /workspace/daiphat-fe/dist ./src/main/resources/static
 
+# maven.test.skip skips both test compilation and execution (unlike -DskipTests,
+# which still compiles tests and can fail the image build on stale test sources).
 RUN --mount=type=cache,target=/root/.m2 \
     mvn -B clean package -Dmaven.test.skip=true -Dcheckstyle.skip
 

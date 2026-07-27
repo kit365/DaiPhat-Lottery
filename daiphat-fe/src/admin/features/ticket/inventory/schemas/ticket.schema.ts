@@ -150,7 +150,6 @@ export const buildLegacyUpdateTicketSchema = (lengthRules: TicketNumberLengthRul
             serials: z.array(serialItemSchema).min(1, 'Phải có ít nhất 1 số sê-ri'),
             numbers: buildNumbersFieldSchema(lengthRules),
             drawDate: z.string().optional(),
-            status: z.string().optional(),
         })
     );
 

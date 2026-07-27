@@ -22,6 +22,7 @@ import com.daiphat.coreapi.application.port.in.lotteries.LotteryTicketServicePor
 import com.daiphat.coreapi.application.port.out.lotteries.ImportBatchLineRepositoryPort;
 import com.daiphat.coreapi.application.port.out.lotteries.ImportBatchRepositoryPort;
 import com.daiphat.coreapi.application.port.out.lotteries.LotteryTicketRepositoryPort;
+import com.daiphat.coreapi.application.port.out.lotteries.LotteryTicketSerialRepositoryPort;
 import com.daiphat.coreapi.application.port.out.order.OrderRepositoryPort;
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
@@ -48,6 +49,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -65,9 +67,7 @@ import java.util.stream.Collectors;
 public class LotteryTicketService implements LotteryTicketServicePort {
     private static final List<LotteryTicketStatus> EXPIRABLE_STATUSES = List.of(
             LotteryTicketStatus.IN_STOCK,
-            LotteryTicketStatus.SOLD_OUT,
-            LotteryTicketStatus.RESERVED,
-            LotteryTicketStatus.PROXY_HOLDING
+            LotteryTicketStatus.SOLD_OUT
     );
     private static final List<LotteryTicketSerialStatus> NON_EDITABLE_SERIAL_STATUSES =
             List.of(
@@ -76,8 +76,11 @@ public class LotteryTicketService implements LotteryTicketServicePort {
             );
     private static final List<LotteryTicketSerialStatus> SOLD_SERIAL_STATUSES =
             List.of(LotteryTicketSerialStatus.SOLD);
+    private static final List<LotteryTicketSerialStatus> PROXY_HELD_SERIAL_STATUSES =
+            List.of(LotteryTicketSerialStatus.PROXY_HOLDING);
 
     private final LotteryTicketRepositoryPort lotteryTicketRepositoryPort;
+    private final LotteryTicketSerialRepositoryPort lotteryTicketSerialRepositoryPort;
     private final ImportBatchRepositoryPort importBatchRepositoryPort;
     private final ImportBatchLineRepositoryPort importBatchLineRepositoryPort;
     private final ImportBatchDraftExpiryService importBatchDraftExpiryService;
@@ -195,12 +198,29 @@ public class LotteryTicketService implements LotteryTicketServicePort {
         return mapToDetailResponse(model);
     }
 
+    private static final int BALANCE_BY_STATION_MAX_TICKETS = 2_000;
+
     @Override
     @Transactional(readOnly = true)
     public PageResponse<LotteryTicketResponse> getAll(
             int page, int size, Long stationId, List<Long> stationIds, String status, String drawDate,
             LocalDate drawDateFrom, LocalDate drawDateTo, Long importBatchLineId,
-            String search, String sortBy, String direction) {
+            String search, String sortBy, String direction, boolean balanceByStation) {
+
+        LotteryTicketStatus statusEnum = parseStatus(status);
+        List<LocalDate> parsedDrawDates = parseDrawDates(drawDate);
+        List<Long> normalizedStationIds = normalizeStationIds(stationId, stationIds);
+        boolean shouldBalance = balanceByStation
+                && !hasText(search)
+                && normalizedStationIds != null
+                && normalizedStationIds.size() > 1;
+
+        if (shouldBalance) {
+            return getAllBalancedByStation(
+                    page, size, stationId, normalizedStationIds, statusEnum, parsedDrawDates,
+                    drawDateFrom, drawDateTo, importBatchLineId, sortBy, direction
+            );
+        }
 
         PageRequest pageable = PageRequest.of(
                 Math.max(0, page - 1),
@@ -208,20 +228,103 @@ public class LotteryTicketService implements LotteryTicketServicePort {
                 SortUtils.createSort(sortBy, direction)
         );
 
-        LotteryTicketStatus statusEnum = parseStatus(status);
-        List<LocalDate> parsedDrawDates = parseDrawDates(drawDate);
-        List<Long> normalizedStationIds = normalizeStationIds(stationId, stationIds);
-
         Page<LotteryTicketModel> ticketPage = lotteryTicketRepositoryPort
                 .findAll(pageable, stationId, normalizedStationIds, statusEnum, parsedDrawDates, drawDateFrom, drawDateTo, importBatchLineId, search);
 
+        return mapTicketPage(ticketPage, page, size);
+    }
+
+    private PageResponse<LotteryTicketResponse> getAllBalancedByStation(
+            int page,
+            int size,
+            Long stationId,
+            List<Long> normalizedStationIds,
+            LotteryTicketStatus statusEnum,
+            List<LocalDate> parsedDrawDates,
+            LocalDate drawDateFrom,
+            LocalDate drawDateTo,
+            Long importBatchLineId,
+            String sortBy,
+            String direction
+    ) {
+        int safePage = Math.max(1, page);
+        int safeSize = Math.max(1, size);
+        List<Long> stationOrder = normalizedStationIds.stream().sorted().toList();
+        Sort sort = SortUtils.createSort(sortBy, direction);
+
+        Map<Long, List<LotteryTicketModel>> ticketsByStation = new LinkedHashMap<>();
+        long totalElements = 0;
+        int perStationFetch = (safePage * safeSize + stationOrder.size() - 1) / stationOrder.size();
+        perStationFetch = Math.min(
+                perStationFetch,
+                Math.max(1, BALANCE_BY_STATION_MAX_TICKETS / stationOrder.size())
+        );
+
+        for (Long sid : stationOrder) {
+            PageRequest stationPageable = PageRequest.of(0, perStationFetch, sort);
+            Page<LotteryTicketModel> stationPage = lotteryTicketRepositoryPort.findAll(
+                    stationPageable, sid, List.of(sid), statusEnum, parsedDrawDates,
+                    drawDateFrom, drawDateTo, importBatchLineId, null
+            );
+            ticketsByStation.put(sid, stationPage.getContent());
+            totalElements += stationPage.getTotalElements();
+        }
+
+        if (totalElements == 0) {
+            return PageResponse.from(List.of(), 0, safePage, safeSize);
+        }
+
+        List<LotteryTicketModel> merged = roundRobinMergeByStation(ticketsByStation, stationOrder);
+        int fromIndex = (safePage - 1) * safeSize;
+        if (fromIndex >= merged.size()) {
+            return PageResponse.from(List.of(), totalElements, safePage, safeSize);
+        }
+        int toIndex = Math.min(fromIndex + safeSize, merged.size());
+        List<LotteryTicketModel> pageTickets = merged.subList(fromIndex, toIndex);
+        return mapTicketModels(pageTickets, totalElements, safePage, safeSize);
+    }
+
+    private static List<LotteryTicketModel> roundRobinMergeByStation(
+            Map<Long, List<LotteryTicketModel>> ticketsByStation,
+            List<Long> stationOrder
+    ) {
+        Map<Long, Integer> cursor = new HashMap<>();
+        stationOrder.forEach(stationId -> cursor.put(stationId, 0));
+
+        List<LotteryTicketModel> merged = new ArrayList<>();
+        boolean added;
+        do {
+            added = false;
+            for (Long stationId : stationOrder) {
+                List<LotteryTicketModel> stationTickets = ticketsByStation.getOrDefault(stationId, List.of());
+                int index = cursor.getOrDefault(stationId, 0);
+                if (index < stationTickets.size()) {
+                    merged.add(stationTickets.get(index));
+                    cursor.put(stationId, index + 1);
+                    added = true;
+                }
+            }
+        } while (added);
+        return merged;
+    }
+
+    private PageResponse<LotteryTicketResponse> mapTicketPage(Page<LotteryTicketModel> ticketPage, int page, int size) {
+        return mapTicketModels(ticketPage.getContent(), ticketPage.getTotalElements(), page, size);
+    }
+
+    private PageResponse<LotteryTicketResponse> mapTicketModels(
+            List<LotteryTicketModel> tickets,
+            long totalElements,
+            int page,
+            int size
+    ) {
         Map<Long, String> stationNameCache = new HashMap<>();
-        List<Long> ticketIds = ticketPage.getContent().stream().map(LotteryTicketModel::getId).toList();
+        List<Long> ticketIds = tickets.stream().map(LotteryTicketModel::getId).toList();
         Map<Long, LotteryTicketSerialModel> serialsByTicketId =
                 lotteryTicketSerialService.findRepresentativeSerialsByTicketIds(ticketIds);
         Map<Long, Long> serialQuantityByTicketId =
                 lotteryTicketSerialService.countSerialsByTicketIds(ticketIds);
-        List<LotteryTicketResponse> responses = ticketPage.getContent().stream()
+        List<LotteryTicketResponse> responses = tickets.stream()
                 .map(ticket -> mapToResponse(
                         ticket,
                         serialsByTicketId.get(ticket.getId()),
@@ -229,8 +332,7 @@ public class LotteryTicketService implements LotteryTicketServicePort {
                         serialQuantityByTicketId.getOrDefault(ticket.getId(), 0L).intValue()
                 ))
                 .toList();
-
-        return PageResponse.from(responses, ticketPage.getTotalElements(), page, size);
+        return PageResponse.from(responses, totalElements, page, size);
     }
 
     @Override
@@ -332,10 +434,7 @@ public class LotteryTicketService implements LotteryTicketServicePort {
             model.setDrawDate(nextDrawDate);
         }
         // batchCode is resolved from import batch line when mapping responses.
-
-        if (request.status() != null && request.status() != model.getStatus()) {
-            applyStatusTransition(model, request.status());
-        }
+        // Status is not editable: it is recomputed from the serials below.
 
         lotteryTicketRepositoryPort.save(model);
 
@@ -629,30 +728,6 @@ public class LotteryTicketService implements LotteryTicketServicePort {
 
     @Override
     @Transactional
-    public LotteryTicketResponse changeStatus(Long id, LotteryTicketStatus status) {
-        log.info("Changing status of lottery ticket with id: {} to {}", id, status);
-
-        if (status == null) {
-            throw new DomainException(ErrorCode.LOTTERY_TICKET_STATUS_REQUIRED);
-        }
-
-        LotteryTicketModel model = getTicketOrThrow(id);
-
-        switch (status) {
-            case PROXY_HOLDING -> model.holdForProxy();
-            case IN_STOCK -> model.recallFromProxy();
-            case INTERNAL_FAULT -> model.markInternalFault();
-            case ISSUER_FAULT -> model.markIssuerFault();
-            default -> throw new DomainException(ErrorCode.LOTTERY_TICKET_INVALID_STATUS);
-        }
-
-        LotteryTicketModel saved = lotteryTicketRepositoryPort.save(model);
-        syncStationInventory(model.getStationId());
-        return mapToDetailResponse(saved);
-    }
-
-    @Override
-    @Transactional
     public List<OrderTicketSnapshot> reserveForOrder(List<Long> ticketIds) {
         List<LotteryTicketModel> tickets = getTicketsOrThrow(ticketIds);
         validateRequestedSerialAvailability(tickets, false);
@@ -709,12 +784,14 @@ public class LotteryTicketService implements LotteryTicketServicePort {
             if (!ticket.isExpired(station.getDrawTime())) {
                 continue;
             }
-            LotteryTicketStatus previousStatus = ticket.getStatus();
+            // Proxy holding is tracked per serial, so capture it before the serials expire.
+            boolean hadProxyHeldSerials =
+                    lotteryTicketSerialService.countByStatuses(ticket.getId(), PROXY_HELD_SERIAL_STATUSES) > 0;
             lotteryTicketSerialService.expireActiveSerials(ticket.getId());
             ticket.expire();
             lotteryTicketRepositoryPort.save(ticket);
             syncStationInventory(ticket.getStationId());
-            if (previousStatus == LotteryTicketStatus.PROXY_HOLDING) {
+            if (hadProxyHeldSerials) {
                 eventPublisher.publishEvent(LotteryTicketProxyExpiredEvent.builder()
                         .ticketId(ticket.getId())
                         .ticketNumber(ticket.getNumbers())
@@ -1084,19 +1161,6 @@ public class LotteryTicketService implements LotteryTicketServicePort {
         }
     }
 
-    private void applyStatusTransition(LotteryTicketModel model, LotteryTicketStatus status) {
-        switch (status) {
-            case RESERVED -> model.reserve();
-            case SOLD -> model.sellOnline();
-            case PROXY_HOLDING -> model.holdForProxy();
-            case PENDING_RETURN -> model.requestReturn();
-            case RETURNED -> model.confirmReturned();
-            case INTERNAL_FAULT -> model.markInternalFault();
-            case ISSUER_FAULT -> model.markIssuerFault();
-            default -> throw new DomainException(ErrorCode.LOTTERY_TICKET_INVALID_STATUS);
-        }
-    }
-
     private LotteryTicketNumber toTicketNumber(String numbers, LotteryStationModel station) {
         if (station.getRegion() == null) {
             throw new DomainException(ErrorCode.LOTTERY_STATION_SYNC_REGION_REQUIRED);
@@ -1149,11 +1213,7 @@ public class LotteryTicketService implements LotteryTicketServicePort {
         long availableSerialCount = lotteryTicketSerialService.countAvailableSerials(ticketId);
         int totalSerialCount = lotteryTicketSerialService.findAllByTicketId(ticketId).size();
         int soldSerialCount = (int) lotteryTicketSerialService.countByStatuses(ticketId, SOLD_SERIAL_STATUSES);
-        if (ticket.getStatus() == LotteryTicketStatus.PROXY_HOLDING && ticket.isExpired(cutoffTime)) {
-            ticket.expire();
-        } else {
-            ticket.syncAggregateState((int) availableSerialCount, totalSerialCount, soldSerialCount, cutoffTime);
-        }
+        ticket.syncAggregateState((int) availableSerialCount, totalSerialCount, soldSerialCount, cutoffTime);
         LotteryTicketModel saved = lotteryTicketRepositoryPort.save(ticket);
         syncStationInventory(saved.getStationId());
         return saved;
@@ -1202,7 +1262,7 @@ public class LotteryTicketService implements LotteryTicketServicePort {
         if (!ticket.isEditableStatus()) {
             throw new DomainException(
                     ErrorCode.LOTTERY_TICKET_INVALID_STATUS,
-                    "Chỉ được chỉnh sửa vé ở trạng thái IN_STOCK hoặc ISSUER_FAULT."
+                    "Chỉ được chỉnh sửa vé ở trạng thái IMPORTING hoặc IN_STOCK."
             );
         }
 
@@ -1255,5 +1315,86 @@ public class LotteryTicketService implements LotteryTicketServicePort {
                 .stream()
                 .map(lotteryTicketApplicationMapper::toSerialResponse)
                 .toList();
+    }
+
+    @Override
+    @Transactional
+    public LotteryTicketResponse replaceDigits(
+            Long id,
+            com.daiphat.coreapi.application.dto.request.lotteries.ReplaceTicketDigitsRequest request,
+            UUID editorId
+    ) {
+        LotteryTicketModel oldTicket = getTicketOrThrow(id);
+
+        String newNumbers = request.newNumbers() != null ? request.newNumbers().trim() : "";
+        if (newNumbers.isBlank()) {
+            throw new DomainException(ErrorCode.INVALID_INPUT, "Dãy số thay thế không được để trống.");
+        }
+        if (newNumbers.equals(oldTicket.getNumbers().trim())) {
+            throw new DomainException(ErrorCode.INVALID_INPUT, "Dãy số vé mới phải khác với dãy số vé bị lỗi hiện tại.");
+        }
+
+        Optional<LotteryTicketModel> existingNewTicket = lotteryTicketRepositoryPort
+                .findByUniqueFields(oldTicket.getStationId(), newNumbers, oldTicket.getDrawDate());
+
+        LotteryTicketModel newTicket;
+        if (existingNewTicket.isPresent()) {
+            newTicket = existingNewTicket.get();
+            if (request.newTicketImg() != null && !request.newTicketImg().isBlank()) {
+                newTicket.setTicketImg(request.newTicketImg());
+            }
+        } else {
+            newTicket = LotteryTicketModel.builder()
+                    .stationId(oldTicket.getStationId())
+                    .numbers(newNumbers)
+                    .drawDate(oldTicket.getDrawDate())
+                    .ticketImg(request.newTicketImg() != null && !request.newTicketImg().isBlank() ? request.newTicketImg() : oldTicket.getTicketImg())
+                    .priceSnapshot(oldTicket.getPriceSnapshot())
+                    .status(LotteryTicketStatus.IN_STOCK)
+                    .active(true)
+                    .build();
+        }
+
+        LotteryTicketModel savedNewTicket = lotteryTicketRepositoryPort.save(newTicket);
+
+        List<LotteryTicketSerialModel> oldSerials = lotteryTicketSerialService.findAllByTicketId(oldTicket.getId());
+        for (LotteryTicketSerialModel oldSerial : oldSerials) {
+            if (oldSerial.getStatus() != LotteryTicketSerialStatus.VOIDED &&
+                oldSerial.getStatus() != LotteryTicketSerialStatus.DAMAGED &&
+                oldSerial.getStatus() != LotteryTicketSerialStatus.LOST) {
+                oldSerial.markVoided(com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialFaultedBy.DATA_ENTRY_FAULT, "Hủy do nhập sai dãy số (thay bằng dãy số " + newNumbers + ")");
+                lotteryTicketSerialRepositoryPort.save(oldSerial);
+            }
+
+            boolean alreadyExists = lotteryTicketSerialRepositoryPort
+                    .existsByTicketIdAndSerialNumber(savedNewTicket.getId(), oldSerial.getSerialNumber());
+
+            if (!alreadyExists) {
+                LotteryTicketSerialModel newSerial = LotteryTicketSerialModel.builder()
+                        .ticketId(savedNewTicket.getId())
+                        .importBatchId(oldSerial.getImportBatchId())
+                        .importBatchLineId(oldSerial.getImportBatchLineId())
+                        .ticketImg(request.newTicketImg() != null && !request.newTicketImg().isBlank() ? request.newTicketImg() : oldSerial.getTicketImg())
+                        .serialNumber(oldSerial.getSerialNumber())
+                        .inputSource(oldSerial.getInputSource())
+                        .status(LotteryTicketSerialStatus.IN_STOCK)
+                        .replacedForTicketId(oldSerial.getId())
+                        .build();
+                newSerial.initializeImport(editorId);
+                lotteryTicketSerialRepositoryPort.save(newSerial);
+            }
+        }
+
+        // Ticket-level VOIDED is not allowed (DB check + simplified enum). Cancel the mistyped
+        // lottery number via soft delete; serial VOIDED rows keep the audit trail, and the
+        // replacement serials point back through replaced_for_ticket_id.
+        oldTicket.softDelete();
+        lotteryTicketRepositoryPort.save(oldTicket);
+
+        LotteryTicketModel finalNewTicket = recomputeTicketAggregate(savedNewTicket.getId());
+
+        syncStationInventory(oldTicket.getStationId());
+
+        return lotteryTicketApplicationMapper.toResponse(finalNewTicket);
     }
 }

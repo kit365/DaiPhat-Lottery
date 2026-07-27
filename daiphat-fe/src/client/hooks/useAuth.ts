@@ -31,7 +31,8 @@ export const useAuth = () => {
     // No useEffect syncing to Zustand needed — components read directly from here
     const getMeQuery = useQuery({
         queryKey: [QUERY_KEYS.CLIENT_ME, token],
-        queryFn: authService.getMe,
+        // Wrap so React Query's QueryFunctionContext is not passed as accessToken.
+        queryFn: () => authService.getMe(),
         enabled: !!token,
         staleTime: 0,         // always refetch when invalidated
         gcTime: 1000 * 60 * 5,

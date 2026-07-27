@@ -3,6 +3,7 @@ package com.daiphat.coreapi.application.port.in.lotteries;
 import com.daiphat.coreapi.application.dto.request.lotteries.CreateLotteryTicketRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.CreateLotteryTicketSerialRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.UpdateLotteryTicketSerialRequest;
+import com.daiphat.coreapi.application.dto.request.lotteries.ReportSerialFaultRequest;
 import com.daiphat.coreapi.application.dto.response.order.EnumOptionResponse;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus;
 import com.daiphat.coreapi.domain.model.lotteries.LotteryTicketModel;
@@ -17,6 +18,8 @@ import java.util.Optional;
 import java.util.UUID;
 
 public interface LotteryTicketSerialServicePort {
+
+    LotteryTicketSerialModel reportFault(Long id, ReportSerialFaultRequest request);
 
     LotteryTicketSerialModel upsertSerialForTicket(
             LotteryTicketModel ticket,

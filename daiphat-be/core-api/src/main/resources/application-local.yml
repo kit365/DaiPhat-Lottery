@@ -70,6 +70,25 @@ daiphat:
     password-policy:
       min-length: 6
       max-length: 100
+  blog:
+    seed:
+      enabled: true
+  lottery:
+    seed:
+      enabled: true
+      tickets-per-station-per-date: 20
+      serials-per-ticket: 10
+      southern-stations:
+        enabled: true
+  order:
+    seed:
+      enabled: true
+      pending-pickup:
+        enabled: true
+  sample-order:
+    seed:
+      enabled: true
+
 logging:
   level:
     root: INFO

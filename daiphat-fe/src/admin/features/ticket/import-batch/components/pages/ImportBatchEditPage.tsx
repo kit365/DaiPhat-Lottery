@@ -158,7 +158,7 @@ export const ImportBatchEditPage = () => {
     const { mutateAsync: pauseLineAsync, isPending: isPausePending } = usePauseImportBatchLine();
     const { mutateAsync: resumeLineAsync, isPending: isResumePending } = useResumeImportBatchLine();
     const { data: activeSuppliers = [], isLoading: isLoadingSuppliers } = useActiveSuppliers();
-    const { data: providersRes } = useStations({ size: 1000 });
+    const { data: providersRes } = useStations({ limit: 1000 });
     const providers = useMemo(
         () => (providersRes as { data?: { recordList?: Array<{ id?: number; _id?: number; name?: string }> } })?.data?.recordList ?? [],
         [providersRes]

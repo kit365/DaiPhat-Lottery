@@ -8,6 +8,8 @@ import com.daiphat.coreapi.application.port.in.lotteries.LotteryTicketSerialServ
 import com.daiphat.coreapi.application.port.in.lotteries.LotteryTicketServicePort;
 import com.daiphat.coreapi.domain.model.lotteries.LotteryTicketSerialModel;
 import com.daiphat.coreapi.shared.util.StorageUtils;
+import com.daiphat.coreapi.application.dto.request.lotteries.ReportSerialFaultRequest;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
@@ -41,6 +43,17 @@ public class LotteryTicketSerialController {
         log.info("REST request to upload image for lottery ticket serial: {}", id);
         LotteryTicketSerialModel serial = lotteryTicketSerialServicePort.uploadImage(id, StorageUtils.toUploadRequest(file));
         return ApiResponse.success("Tải ảnh sê-ri vé số thành công.",
+                lotteryTicketServicePort.getById(serial.getTicketId()));
+    }
+
+    @PostMapping("/{id}/report-fault")
+    @PreAuthorize("hasAnyAuthority('ticket:edit')")
+    public ApiResponse<LotteryTicketResponse> reportFault(
+            @PathVariable Long id,
+            @Valid @RequestBody ReportSerialFaultRequest request) {
+        log.info("REST request to report fault on lottery ticket serial: {}", id);
+        LotteryTicketSerialModel serial = lotteryTicketSerialServicePort.reportFault(id, request);
+        return ApiResponse.success("Báo cáo hủy vé thành công.",
                 lotteryTicketServicePort.getById(serial.getTicketId()));
     }
 }

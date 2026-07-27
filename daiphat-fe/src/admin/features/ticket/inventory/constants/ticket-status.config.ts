@@ -3,29 +3,19 @@ export type TicketStatusOption = {
     label: string;
 };
 
-/** Trạng thái vé số — khớp enum LotteryTicketStatus trên backend */
+/** Trạng thái vé số (aggregate) — khớp enum LotteryTicketStatus trên backend */
 export const TICKET_STATUS_OPTIONS: TicketStatusOption[] = [
+    { value: "IMPORTING", label: "Đang nhập lô" },
     { value: "IN_STOCK", label: "Trong kho" },
     { value: "SOLD_OUT", label: "Hết hàng" },
     { value: "EXPIRED", label: "Hết hạn" },
-    { value: "RESERVED", label: "Đang giữ chỗ" },
-    { value: "SOLD", label: "Đã bán" },
-    { value: "PROXY_HOLDING", label: "Đại lý giữ hộ" },
-    { value: "PENDING_RETURN", label: "Chờ trả nhà đài" },
-    { value: "RETURNED", label: "Đã trả nhà đài" },
-    { value: "INTERNAL_FAULT", label: "Nhân viên làm hỏng" },
-    { value: "ISSUER_FAULT", label: "Lỗi in ấn từ nhà cung cấp" },
 ];
 
 /**
- * Chỉ cho phép các transition ngoại lệ do admin/operator xử lý thủ công.
- * Key = trạng thái hiện tại, value = các trạng thái có thể chọn.
+ * Không còn transition thủ công — cả 4 trạng thái đều do hệ thống suy ra
+ * từ trạng thái sê-ri và thời điểm cắt sổ.
  */
-export const TICKET_STATUS_TRANSITIONS: Record<string, string[]> = {
-    IN_STOCK: ["SOLD_OUT", "EXPIRED"],
-    SOLD_OUT: ["IN_STOCK", "EXPIRED"],
-    EXPIRED: [],
-};
+export const TICKET_STATUS_TRANSITIONS: Record<string, string[]> = {};
 
 export const normalizeTicketStatus = (status?: string | null): string => {
     if (!status) return "";
@@ -37,12 +27,11 @@ export const getTicketStatusLabel = (status?: string | null): string => {
     return TICKET_STATUS_OPTIONS.find((opt) => opt.value === normalized)?.label || status || "";
 };
 
-/** Trạng thái hiện tại + các trạng thái được phép chọn trên form sửa */
+/** Không còn transition thủ công — chỉ trả về chính trạng thái hiện tại */
 export const getAllowedTicketStatusTransitions = (currentStatus?: string | null): string[] => {
     const normalized = normalizeTicketStatus(currentStatus);
     if (!normalized) return [];
-    const nextStatuses = TICKET_STATUS_TRANSITIONS[normalized] || [];
-    return [normalized, ...nextStatuses];
+    return [normalized];
 };
 
 export const canTransitionTicketStatus = (
@@ -51,15 +40,10 @@ export const canTransitionTicketStatus = (
 ): boolean => {
     const from = normalizeTicketStatus(fromStatus);
     const to = normalizeTicketStatus(toStatus);
-    if (!from || !to || from === to) return true;
-    return getAllowedTicketStatusTransitions(from).includes(to);
+    if (!from || !to) return true;
+    return from === to;
 };
 
-export const getTicketStatusTransitionHint = (currentStatus?: string | null): string => {
-    const normalized = normalizeTicketStatus(currentStatus);
-    const nextStatuses = TICKET_STATUS_TRANSITIONS[normalized] || [];
-    if (nextStatuses.length === 0) {
-        return "Trạng thái này do hệ thống tự tính, không thể đổi thủ công.";
-    }
-    return `Có thể chuyển sang: ${nextStatuses.map(getTicketStatusLabel).join(", ")}.`;
+export const getTicketStatusTransitionHint = (_currentStatus?: string | null): string => {
+    return "Trạng thái này do hệ thống tự tính từ sê-ri và thời điểm cắt sổ, không thể đổi thủ công.";
 };
