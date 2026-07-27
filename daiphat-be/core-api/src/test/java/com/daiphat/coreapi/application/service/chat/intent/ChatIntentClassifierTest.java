@@ -181,6 +181,32 @@ class ChatIntentClassifierTest {
     }
 
     @Test
+    void classify_timDau_mapsToWebSearchWithPrefixMode() {
+        ChatClassifyResponse result = classifier.classify("tìm đầu 57", 17L);
+
+        assertThat(result.getIntent()).isEqualTo(ChatIntent.WEB_SEARCH.name());
+        assertThat(result.getEntities()).containsEntry("ticket_fragment", "57");
+        assertThat(result.getEntities()).containsEntry("ticket_match_mode", "prefix");
+    }
+
+    @Test
+    void classify_askPrefixWithoutDigits_mapsToWebSearch() {
+        ChatClassifyResponse result = classifier.classify("bạn có tìm được số đầu không", 18L);
+
+        assertThat(result.getIntent()).isEqualTo(ChatIntent.WEB_SEARCH.name());
+        assertThat(result.getEntities()).containsEntry("ticket_match_mode", "prefix");
+        verify(chatAiPort, never()).classifyMessage(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
+    void classify_searchWithEscalateKeyword_prefersWebSearch() {
+        ChatClassifyResponse result = classifier.classify("nhân viên ơi tìm đuôi 68", 19L);
+
+        assertThat(result.getIntent()).isEqualTo(ChatIntent.WEB_SEARCH.name());
+        assertThat(result.getEntities()).containsEntry("ticket_fragment", "68");
+    }
+
+    @Test
     void classify_fullSixDigits_mapsToExactMode() {
         ChatClassifyResponse result = classifier.classify("tìm vé 334455", 15L);
 
@@ -210,6 +236,18 @@ class ChatIntentClassifierTest {
         ChatClassifyResponse result = classifier.classify("gợi ý mua vé cho tôi", 15L);
 
         assertThat(result.getIntent()).isEqualTo(ChatIntent.WEB_SUGGEST.name());
+    }
+
+    @Test
+    void classify_goiYVeWithExcludeIds_mapsToWebSuggestNotSearch() {
+        // "Gợi ý khác" appends previously shown ticket ids — must not become đuôi search.
+        ChatClassifyResponse result = classifier.classify(
+                "gợi ý vé số cho tôi|exclude=12,34,4716,88,99",
+                20L
+        );
+
+        assertThat(result.getIntent()).isEqualTo(ChatIntent.WEB_SUGGEST.name());
+        assertThat(result.getEntities()).doesNotContainKey("ticket_fragment");
     }
 
     @Test

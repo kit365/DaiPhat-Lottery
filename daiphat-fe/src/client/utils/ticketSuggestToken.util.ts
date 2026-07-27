@@ -96,6 +96,13 @@ export const parseTicketSuggestToken = (content: string): ParsedTicketSuggest | 
       .filter((ticket): ticket is ChatSuggestedTicket => ticket !== null);
 
     if (tickets.length === 0) {
+      if (leading) {
+        return {
+          text: leading,
+          tickets: [],
+          isEmptyMatch: /chưa có|không có số|kho chưa/i.test(leading),
+        };
+      }
       return null;
     }
 
@@ -112,6 +119,54 @@ export const parseTicketSuggestToken = (content: string): ParsedTicketSuggest | 
   } catch {
     return null;
   }
+};
+
+/** Human-readable text without the machine `TICKET_SUGGEST:` payload. */
+export const stripTicketSuggestToken = (content: string): string => {
+  const text = content?.trim() ?? '';
+  if (!text) {
+    return '';
+  }
+
+  const parsed = parseTicketSuggestToken(text);
+  if (parsed?.text) {
+    return parsed.text;
+  }
+
+  const tokenIndex = text.indexOf(TICKET_SUGGEST_TOKEN_PREFIX);
+  if (tokenIndex < 0) {
+    return text;
+  }
+
+  const leading = text.slice(0, tokenIndex).trim();
+  return leading || 'Đại Phát đã gửi gợi ý vé số cho khách.';
+};
+
+/** Formats bot content for staff/admin chat (no raw JSON tokens). */
+export const formatChatMessageContent = (content: string): string => {
+  const text = content?.trim() ?? '';
+  if (!text) {
+    return '';
+  }
+
+  const parsed = parseTicketSuggestToken(text);
+  if (!parsed) {
+    return stripTicketSuggestToken(text);
+  }
+
+  const lines = [parsed.text].filter(Boolean);
+  if (parsed.tickets.length > 0) {
+    const ticketLines = parsed.tickets.map((ticket) => {
+      const station = ticket.stationName ? ` (${ticket.stationName})` : '';
+      const price =
+        ticket.price != null && !Number.isNaN(ticket.price)
+          ? ` — ${ticket.price.toLocaleString('vi-VN')}đ`
+          : '';
+      return `• ${ticket.numbers}${station}${price}`;
+    });
+    lines.push(ticketLines.join('\n'));
+  }
+  return lines.join('\n\n');
 };
 
 /**
