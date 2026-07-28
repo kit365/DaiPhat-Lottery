@@ -45,6 +45,7 @@ public class LotteryTicketSerialModel {
     private LotteryTicketSerialFaultedBy faultedBy;
     private String damagedEvidenceUrl;
     private String damagedReason;
+    private Long replacedForTicketId;
     private LocalDateTime deletedAt;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
@@ -135,6 +136,11 @@ public class LotteryTicketSerialModel {
         this.damagedEvidenceUrl = null;
     }
 
+    public void markVoided(LotteryTicketSerialFaultedBy faultedBy, String reason) {
+        markFaulted(LotteryTicketSerialStatus.VOIDED, faultedBy, reason);
+        this.damagedEvidenceUrl = null;
+    }
+
     private void markFaulted(
             LotteryTicketSerialStatus faultStatus,
             LotteryTicketSerialFaultedBy faultedBy,
@@ -145,7 +151,8 @@ public class LotteryTicketSerialModel {
         }
         if (this.status != LotteryTicketSerialStatus.SOLD
                 && this.status != LotteryTicketSerialStatus.RESERVED
-                && this.status != LotteryTicketSerialStatus.IN_STOCK) {
+                && this.status != LotteryTicketSerialStatus.IN_STOCK
+                && this.status != LotteryTicketSerialStatus.EXPIRED) {
             throw new DomainException(ErrorCode.LOTTERY_TICKET_INVALID_STATUS);
         }
         this.status = faultStatus;

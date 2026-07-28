@@ -100,4 +100,7 @@ public class LotteryTicketSerialEntity extends BaseEntity {
 
     @Column(name = "damaged_reason", length = 500)
     private String damagedReason;
+
+    @Column(name = "replaced_for_ticket_id")
+    private Long replacedForTicketId;
 }

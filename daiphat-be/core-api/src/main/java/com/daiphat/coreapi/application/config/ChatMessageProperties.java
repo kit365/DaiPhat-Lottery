@@ -27,10 +27,15 @@ public class ChatMessageProperties {
         private String askLocation;
         private String askDate;
         private String askDateMode;
+        private String askResultDateMode;
+        private String askResultStation;
+        private String askResultNoStation;
         private String askDateYear;
         private String askConfirmStation;
         private String askRegionChoice;
         private String askStationInRegion;
+        private String askGoal;
+        private String stationReady;
         private String regionNotFound;
         private String dateNotFound;
         private String stationNotFound;
@@ -43,12 +48,33 @@ public class ChatMessageProperties {
             return askDateYear.replace("{date}", safeDate);
         }
 
+        public String askResultStation(String dateLabel) {
+            if (askResultStation == null) {
+                return "Chọn đài muốn xem kết quả ngày " + (dateLabel != null ? dateLabel : "") + ":";
+            }
+            return askResultStation.replace("{date}", dateLabel != null ? dateLabel : "");
+        }
+
+        public String askResultNoStation(String dateLabel) {
+            if (askResultNoStation == null) {
+                return "Ngày " + (dateLabel != null ? dateLabel : "") + " không có đài nào quay. Bạn chọn ngày khác nhé.";
+            }
+            return askResultNoStation.replace("{date}", dateLabel != null ? dateLabel : "");
+        }
+
         public String askRegionChoice(String regionLabel) {
             return replaceRegion(askRegionChoice, regionLabel);
         }
 
         public String askStationInRegion(String regionLabel) {
             return replaceRegion(askStationInRegion, regionLabel != null ? regionLabel : "miền này");
+        }
+
+        public String stationReady(String stationName) {
+            if (stationReady == null) {
+                return "Bạn đã chọn đài " + (stationName != null ? stationName : "") + ".";
+            }
+            return stationReady.replace("{station}", stationName != null ? stationName : "này");
         }
 
         public String askConfirmStation(List<String> stationNames) {

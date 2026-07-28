@@ -170,6 +170,16 @@ export const getBatchTypeLabel = (type?: string) => {
     return IMPORT_BATCH_TYPE_LABELS[type] ?? type;
 };
 
+export const getBatchTypeColor = (
+    type?: string
+): 'default' | 'primary' | 'secondary' | 'error' | 'info' | 'success' | 'warning' => {
+    if (type === 'NEW') return 'primary';
+    if (type === 'SUPPLEMENTARY') return 'secondary';
+    if (type === 'LATE_IMPORT') return 'warning';
+    if (type === 'ADJUSTMENT' || type === 'ADDITIONAL') return 'info';
+    return 'default';
+};
+
 export const IMPORT_MODE_LABELS: Record<string, string> = {
     IN_DAY: 'Nhập vé trong ngày',
     SAME_DAY: 'Nhập vé trong ngày',

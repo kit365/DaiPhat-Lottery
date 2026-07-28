@@ -29,6 +29,14 @@ public interface LotteryTicketSerialRepository extends JpaRepository<LotteryTick
 
     List<LotteryTicketSerialEntity> findBySerialNumberStartingWithAndDeletedAtIsNull(String serialNumberPrefix);
 
+    @org.springframework.data.jpa.repository.Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("""
+            UPDATE LotteryTicketSerialEntity s
+            SET s.replacedForTicketId = NULL
+            WHERE s.replacedForTicketId IN :serialIds
+            """)
+    int clearReplacedForTicketIdRefs(@Param("serialIds") Collection<Long> serialIds);
+
     long countByTicket_IdAndStatusInAndDeletedAtIsNull(Long ticketId, Collection<LotteryTicketSerialStatus> statuses);
 
     @Query("""
@@ -57,7 +65,9 @@ public interface LotteryTicketSerialRepository extends JpaRepository<LotteryTick
 
     @Query("""
             SELECT COUNT(s) FROM LotteryTicketSerialEntity s
-            WHERE s.deletedAt IS NULL AND s.importBatchLine.id = :importBatchLineId
+            WHERE s.deletedAt IS NULL 
+              AND s.importBatchLine.id = :importBatchLineId
+              AND s.status <> com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus.VOIDED
             """)
     long countByImportBatchLineId(@Param("importBatchLineId") Long importBatchLineId);
 
@@ -78,6 +88,7 @@ public interface LotteryTicketSerialRepository extends JpaRepository<LotteryTick
             WHERE s.deletedAt IS NULL
               AND s.ticket.id = :ticketId
               AND s.importBatchLine.id = :importBatchLineId
+              AND s.status <> com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus.VOIDED
             """)
     long countByTicketIdAndImportBatchLineId(
             @Param("ticketId") Long ticketId,

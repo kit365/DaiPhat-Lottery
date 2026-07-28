@@ -31,7 +31,7 @@ export const TicketToolbar = ({
     onClearFilters,
     onSearchChange,
 }: ToolbarProps) => {
-    const { data: stationsData } = useStations({ size: 1000 });
+    const { data: stationsData } = useStations({ limit: 1000 });
 
     const filterFields = useMemo(() => {
         const stationList = stationsData?.data?.recordList || [];

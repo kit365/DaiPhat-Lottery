@@ -78,6 +78,18 @@ daiphat:
           - dai cu the
           - chon dai
           - chon mot dai
+          - chon dai cu the
+      region-today-phrases:
+        - dai quay hom nay
+        - dai hom nay
+        - hom nay quay
+        - xem dai hom nay
+        - dai quay ngay hom nay
+      week-schedule-phrases:
+        - lich ca tuan
+        - lich tuan
+        - xem lich tuan
+        - lich ca tuan mien nam
       nation-all-phrases:
         - ca 3 mien
         - ca ba mien
@@ -105,12 +117,6 @@ daiphat:
         MIEN_NAM:
           - miền nam
           - mien nam
-        MIEN_TRUNG:
-          - miền trung
-          - mien trung
-        MIEN_BAC:
-          - miền bắc
-          - mien bac
       stations:
         - name: "Hồ Chí Minh"
           aliases:
@@ -222,20 +228,6 @@ daiphat:
             - đà lạt
             - lam dong
             - lâm đồng
-        - name: "Đà Nẵng"
-          aliases:
-            - da nang
-            - đà nẵng
-        - name: "Khánh Hòa"
-          aliases:
-            - khanh hoa
-            - khánh hòa
-            - nha trang
-        - name: "Hà Nội"
-          aliases:
-            - ha noi
-            - hà nội
-            - hn
       weekdays:
         MONDAY:
           - thứ 2

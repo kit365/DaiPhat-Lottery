@@ -18,6 +18,9 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { Breadcrumb } from '../../../../../components/ui/Breadcrumb';
 import { Title } from '../../../../../components/ui/Title';
 import { CollapsibleCard } from '../../../../../components/ui/CollapsibleCard';
+import { useState } from 'react';
+import { IconButton } from '@mui/material';
+import VisibilityIcon from '@mui/icons-material/Visibility';
 import { CanAccess } from '../../../../../components/auth/CanAccess';
 import { PERMISSIONS } from '../../../../../constants/permission.constants';
 import { prefixAdmin, ROUTES } from '../../../../../constants/routes';
@@ -34,6 +37,7 @@ import {
     getImportModeLabel,
     formatImportBatchCancelReason,
     importBatchStatusChipSx,
+    getBatchTypeColor,
 } from '../../utils/batchTypeLabels';
 import {
     displayImportBatchLineCodeRaw,
@@ -55,7 +59,7 @@ export const ImportBatchDetailPage = () => {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
     const { data: batch, isLoading } = useImportBatchDetail(id);
-    const { data: providersRes } = useStations({ size: 1000 });
+    const { data: providersRes } = useStations({ limit: 1000 });
     const providers = (providersRes as any)?.data?.recordList || [];
 
     const resolveStationName = (stationId: number) =>
@@ -70,7 +74,7 @@ export const ImportBatchDetailPage = () => {
     const canEditBatch = batch ? isImportBatchEditable(batch) : false;
     const canImportTickets = batch ? hasTicketImportEligibleLines(batch) : false;
     const hasUnsavedDraft = id ? hasUnsavedImportBatchEditDraft(id) : false;
-
+    
     const cancelledReasonText =
         batch?.status === 'CANCELLED' ? formatImportBatchCancelReason(batch.cancelReason) : undefined;
 
@@ -283,11 +287,10 @@ export const ImportBatchDetailPage = () => {
                                     <TableCell>Loại lô</TableCell>
                                     <TableCell>Mã lô nhập</TableCell>
                                     <TableCell>Trạng thái dòng</TableCell>
-                                    <TableCell align="right">Khai báo</TableCell>
-                                    <TableCell align="right">Đã nhập</TableCell>
+                                    <TableCell align="center">Đã nhập</TableCell>
                                     <TableCell align="right">Giá vốn</TableCell>
-                                    <TableCell align="right">GT khai báo</TableCell>
                                     <TableCell align="right">GT đã nhập</TableCell>
+                                    <TableCell align="center">Thao tác</TableCell>
                                 </TableRow>
                             </TableHead>
                             <TableBody>
@@ -301,6 +304,7 @@ export const ImportBatchDetailPage = () => {
                                                 <Chip
                                                     label={getBatchTypeLabel(line.batchType)}
                                                     size="small"
+                                                    color={getBatchTypeColor(line.batchType)}
                                                 />
                                             </TableCell>
                                             <TableCell>
@@ -328,19 +332,29 @@ export const ImportBatchDetailPage = () => {
                                                     </Typography>
                                                 )}
                                             </TableCell>
-                                            <TableCell align="right">{line.declareQuantity}</TableCell>
-                                            <TableCell align="right">{line.totalQuantity}</TableCell>
+                                            <TableCell align="center">
+                                                <Typography
+                                                    variant="body2"
+                                                    fontWeight={600}
+                                                    color={
+                                                        line.totalQuantity >= line.declareQuantity
+                                                            ? 'success.main'
+                                                            : 'warning.main'
+                                                    }
+                                                >
+                                                    {line.totalQuantity}/{line.declareQuantity}
+                                                </Typography>
+                                            </TableCell>
                                             <TableCell align="right">
                                                 {Number(line.importCost).toLocaleString('vi-VN')}
                                             </TableCell>
                                             <TableCell align="right">
-                                                {Number(
-                                                    line.declaredCostValue ??
-                                                        line.declareQuantity * line.importCost
-                                                ).toLocaleString('vi-VN')}
-                                            </TableCell>
-                                            <TableCell align="right">
                                                 {Number(line.totalCostValue).toLocaleString('vi-VN')}
+                                            </TableCell>
+                                            <TableCell align="center">
+                                                <IconButton size="small" color="primary" onClick={() => navigate(ROUTES.ADMIN.IMPORT_BATCH.LINE_DETAIL(batch.id, line.id))}>
+                                                    <VisibilityIcon fontSize="small" />
+                                                </IconButton>
                                             </TableCell>
                                         </TableRow>
                                     );

@@ -84,11 +84,19 @@ public class ImportBatchCodeGenerator {
         if (batchType == null) {
             return "UNK";
         }
-        return switch (batchType) {
-            case NEW -> "NEW";
-            case SUPPLEMENTARY -> "SUPP";
-            case LATE_IMPORT -> "LATE";
-            case ADJUSTMENT -> "ADJ";
-        };
+        // Avoid enum switch (emits SwitchMap synthetic class) — fragile under IDE hot-reload.
+        if (batchType == ImportBatchType.NEW) {
+            return "NEW";
+        }
+        if (batchType == ImportBatchType.SUPPLEMENTARY) {
+            return "SUPP";
+        }
+        if (batchType == ImportBatchType.LATE_IMPORT) {
+            return "LATE";
+        }
+        if (batchType == ImportBatchType.ADJUSTMENT) {
+            return "ADJ";
+        }
+        return "UNK";
     }
 }

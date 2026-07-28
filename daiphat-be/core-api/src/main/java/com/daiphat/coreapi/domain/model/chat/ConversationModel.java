@@ -159,11 +159,16 @@ public class ConversationModel {
     }
 
     public static LastMessageFrom fromSenderType(MessageSenderType senderType) {
-        return switch (senderType) {
-            case CUSTOMER -> LastMessageFrom.CUSTOMER;
-            case OPERATOR -> LastMessageFrom.STAFF;
-            case AI_SYSTEM -> LastMessageFrom.BOT;
-        };
+        if (senderType == MessageSenderType.CUSTOMER) {
+            return LastMessageFrom.CUSTOMER;
+        }
+        if (senderType == MessageSenderType.OPERATOR) {
+            return LastMessageFrom.STAFF;
+        }
+        if (senderType == MessageSenderType.AI_SYSTEM) {
+            return LastMessageFrom.BOT;
+        }
+        throw new IllegalArgumentException("Unsupported sender type: " + senderType);
     }
 
     public static String manualCloseCustomerCopy() {

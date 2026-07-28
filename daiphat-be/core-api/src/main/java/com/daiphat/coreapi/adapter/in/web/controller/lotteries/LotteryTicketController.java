@@ -6,6 +6,7 @@ import com.daiphat.coreapi.adapter.in.web.security.AuthenticatedUserPrincipal;
 import com.daiphat.coreapi.application.dto.request.lotteries.BulkCreateLotteryTicketsRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.CreateLotteryTicketRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.UpdateLotteryTicketRequest;
+import com.daiphat.coreapi.application.dto.request.lotteries.ReplaceTicketDigitsRequest;
 import com.daiphat.coreapi.application.dto.storage.StorageResult;
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.response.base.Views;
@@ -99,10 +100,12 @@ public class LotteryTicketController {
             @RequestParam(required = false) String search,
             @RequestParam(required = false) String sortBy,
             @RequestParam(required = false) String direction,
+            @RequestParam(defaultValue = "false") boolean balanceByStation,
             @AuthenticationPrincipal AuthenticatedUserPrincipal principal) {
         log.info("REST request to query lottery tickets page: {}, size: {}", page, size);
         PageResponse<LotteryTicketResponse> response = lotteryTicketServicePort.getAll(
-                page, size, stationId, stationIds, status, drawDate, drawDateFrom, drawDateTo, importBatchLineId, search, sortBy, direction);
+                page, size, stationId, stationIds, status, drawDate, drawDateFrom, drawDateTo, importBatchLineId,
+                search, sortBy, direction, balanceByStation);
         ApiResponse<PageResponse<LotteryTicketResponse>> apiResponse = ApiResponse.success(null, response);
         MappingJacksonValue mappingJacksonValue = new MappingJacksonValue(apiResponse);
         mappingJacksonValue.setSerializationView(resolveLotteryTicketView(principal));
@@ -188,14 +191,15 @@ public class LotteryTicketController {
         return ApiResponse.success("Xác minh vé số thành công.", response);
     }
 
-    @PatchMapping(ID_PATH + "/status")
-    @PreAuthorize("hasAnyAuthority('ticket:edit')")
-    public ApiResponse<LotteryTicketResponse> changeStatus(
+    @PostMapping(ID_PATH + "/replace-digits")
+    @PreAuthorize("hasAnyAuthority('ticket:edit', 'ticket:create')")
+    public ApiResponse<LotteryTicketResponse> replaceDigits(
             @PathVariable Long id,
-            @RequestParam LotteryTicketStatus status) {
-        log.info("REST request to change lottery ticket status: {} to {}", id, status);
-        LotteryTicketResponse response = lotteryTicketServicePort.changeStatus(id, status);
-        return ApiResponse.success("Cập nhật trạng thái vé số thành công.", response);
+            @Valid @RequestBody ReplaceTicketDigitsRequest request,
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal) {
+        log.info("REST request to replace ticket digits for ticketId: {} by user: {}", id, principal.getUsername());
+        LotteryTicketResponse response = lotteryTicketServicePort.replaceDigits(id, request, principal.getId());
+        return ApiResponse.success("Thay đổi dãy số cho vé số thành công.", response);
     }
 
     @PostMapping(value = "/images/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)

@@ -57,41 +57,6 @@ public class LotteryTicketModel {
 
 
 
-    public void reserve() {
-        ensureStatus(LotteryTicketStatus.IN_STOCK);
-        this.status = LotteryTicketStatus.RESERVED;
-    }
-
-
-
-    public void sellOnline() {
-        ensureStatusIn(LotteryTicketStatus.IN_STOCK, LotteryTicketStatus.RESERVED, LotteryTicketStatus.SOLD_OUT);
-        this.status = LotteryTicketStatus.SOLD;
-    }
-
-
-
-    public void holdForProxy() {
-        ensureStatusIn(LotteryTicketStatus.IN_STOCK, LotteryTicketStatus.SOLD_OUT);
-        this.status = LotteryTicketStatus.PROXY_HOLDING;
-    }
-
-    public void recallFromProxy() {
-        ensureStatus(LotteryTicketStatus.PROXY_HOLDING);
-        this.status = LotteryTicketStatus.IN_STOCK;
-    }
-
-    public void requestReturn() {
-        ensureStatusIn(LotteryTicketStatus.SOLD, LotteryTicketStatus.PROXY_HOLDING);
-        this.status = LotteryTicketStatus.PENDING_RETURN;
-    }
-
-    public void confirmReturned() {
-        ensureStatus(LotteryTicketStatus.PENDING_RETURN);
-        this.status = LotteryTicketStatus.RETURNED;
-        this.returnedAt = LocalDateTime.now();
-    }
-
     public void verify(UUID verifierId) {
         if (this.verified) {
             throw new DomainException(ErrorCode.LOTTERY_TICKET_ALREADY_VERIFIED);
@@ -99,26 +64,6 @@ public class LotteryTicketModel {
         this.verified = true;
         this.verifiedById = verifierId;
         this.verifiedAt = LocalDateTime.now();
-    }
-
-    public void markInternalFault() {
-        ensureStatusIn(
-                LotteryTicketStatus.IN_STOCK,
-                LotteryTicketStatus.RESERVED,
-                LotteryTicketStatus.SOLD_OUT,
-                LotteryTicketStatus.PROXY_HOLDING
-        );
-        this.status = LotteryTicketStatus.INTERNAL_FAULT;
-    }
-
-    public void markIssuerFault() {
-        ensureStatusIn(
-                LotteryTicketStatus.IN_STOCK,
-                LotteryTicketStatus.RESERVED,
-                LotteryTicketStatus.SOLD_OUT,
-                LotteryTicketStatus.PROXY_HOLDING
-        );
-        this.status = LotteryTicketStatus.ISSUER_FAULT;
     }
 
     public void expire() {
@@ -155,9 +100,8 @@ public class LotteryTicketModel {
         if (totalSerialCount == 0) {
             return LotteryTicketStatus.IN_STOCK;
         }
-        return soldSerialCount > 0 ? LotteryTicketStatus.SOLD_OUT : LotteryTicketStatus.IN_STOCK;
+        return LotteryTicketStatus.SOLD_OUT;
     }
-
 
     public void syncAggregateState(
             int availableSerialCount,
@@ -165,18 +109,14 @@ public class LotteryTicketModel {
             int soldSerialCount,
             LocalTime cutoffTime
     ) {
-        // Display quantity = every non-deleted serial linked to this lottery number.
-        this.quantity = totalSerialCount;
-        if (!isWorkflowManagedStatus()) {
-            this.status = resolveAggregateStatus(availableSerialCount, totalSerialCount, soldSerialCount, cutoffTime);
+        // Display available quantity = IN_STOCK serials available to be purchased.
+        this.quantity = availableSerialCount;
+        // IMPORTING belongs to the import-batch flow and cannot be derived from serials,
+        // so only the draw cutoff is allowed to move a ticket out of it.
+        if (this.status == LotteryTicketStatus.IMPORTING && !isExpired(cutoffTime)) {
+            return;
         }
-    }
-
-    private boolean isWorkflowManagedStatus() {
-        return switch (this.status) {
-            case RESERVED, SOLD, PROXY_HOLDING, PENDING_RETURN, RETURNED, INTERNAL_FAULT, ISSUER_FAULT -> true;
-            default -> false;
-        };
+        this.status = resolveAggregateStatus(availableSerialCount, totalSerialCount, soldSerialCount, cutoffTime);
     }
 
     public void validateDrawDate(LocalDate drawDate) {
@@ -189,36 +129,23 @@ public class LotteryTicketModel {
 
     public boolean isEditableStatus() {
         return this.status == LotteryTicketStatus.IN_STOCK
-                || this.status == LotteryTicketStatus.ISSUER_FAULT
                 || this.status == LotteryTicketStatus.IMPORTING;
     }
 
     public boolean isSoftDeletableStatus() {
         return this.status == LotteryTicketStatus.IN_STOCK
-                || this.status == LotteryTicketStatus.ISSUER_FAULT
+                || this.status == LotteryTicketStatus.IMPORTING
                 || this.status == LotteryTicketStatus.EXPIRED;
     }
 
+    /**
+     * Cancels this lottery number by marking soft deletion timestamp.
+     */
     public void softDelete() {
         this.deletedAt = LocalDateTime.now();
     }
 
     public boolean isDeleted() {
         return this.deletedAt != null;
-    }
-
-    private void ensureStatus(LotteryTicketStatus expectedStatus) {
-        if (this.status != expectedStatus) {
-            throw new DomainException(ErrorCode.LOTTERY_TICKET_INVALID_STATUS);
-        }
-    }
-
-    private void ensureStatusIn(LotteryTicketStatus... allowedStatuses) {
-        for (LotteryTicketStatus allowedStatus : allowedStatuses) {
-            if (this.status == allowedStatus) {
-                return;
-            }
-        }
-        throw new DomainException(ErrorCode.LOTTERY_TICKET_INVALID_STATUS);
     }
 }

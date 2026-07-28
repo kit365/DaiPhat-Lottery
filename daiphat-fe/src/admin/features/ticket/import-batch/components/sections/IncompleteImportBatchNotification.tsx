@@ -132,7 +132,7 @@ export const IncompleteImportBatchNotification = ({
     const navigate = useNavigate();
     const [detailOpen, setDetailOpen] = useState(false);
     const { data: batches = [], isLoading } = useIncompleteImportBatches();
-    const { data: providersRes } = useStations({ size: 1000 });
+    const { data: providersRes } = useStations({ limit: 1000 });
     const providers = (providersRes as any)?.data?.recordList || [];
 
     const resolveStationName = useMemo(

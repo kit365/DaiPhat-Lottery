@@ -35,6 +35,7 @@ import { PERMISSIONS } from "../../../../constants/permission.constants";
 import { OrderInspectionSection } from "../sections/OrderInspectionSection";
 import { OrderHandoverConfirmDialog } from "../sections/OrderHandoverConfirmDialog";
 import { getOrderStatusBadge } from "../../constants/orderStatus.constants";
+import { resolveOrderPaymentMethodLabel } from "../../../../../utils/orderPayment.util";
 
 const PAYMENT_STATUS_OPTIONS: { [key: string]: { label: string; color: string; bg: string } } = {
     unpaid: { label: "Chưa thanh toán", color: "var(--palette-error-dark)", bg: "var(--palette-error-lighter)" },
@@ -414,7 +415,7 @@ export const OrderDetailPage = () => {
                                         </Typography>
                                         <IconButton size="small" sx={{ p: 0.5, color: 'var(--palette-primary-main)' }} onClick={() => {
                                             navigator.clipboard.writeText(order.orderCode || order.id?.slice(-6).toUpperCase() || 'ERROR');
-                                            toast.success("Đã copy mã đơn hàng");
+                                            toast.success("Đã sao chép mã đơn hàng");
                                         }}>
                                             <Icon icon="solar:copy-bold-duotone" width={16} />
                                         </IconButton>
@@ -729,7 +730,7 @@ export const OrderDetailPage = () => {
                                 <Box>
                                     <Typography variant="caption" sx={{ color: 'var(--palette-text-disabled)', display: 'block', mb: 0.5 }}>Phương thức</Typography>
                                     <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'var(--palette-text-primary)' }}>
-                                        {order.paymentMethod === 'BANK_TRANSFER' ? 'PayOS (Chuyển khoản QR)' : (order.paymentMethod || 'Tiền mặt')}
+                                        {resolveOrderPaymentMethodLabel(order.transactions, order.orderType)}
                                     </Typography>
                                 </Box>
                                 <Box>

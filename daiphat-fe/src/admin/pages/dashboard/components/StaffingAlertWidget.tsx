@@ -15,7 +15,7 @@ export const StaffingAlertWidget = () => {
     const staffingData = statusRes?.data || [];
     
     const understaffedShifts = staffingData.filter((s: any) => 
-        s.requirements.some((r: any) => r.status === "thiếu")
+        s.requirements.some((r: any) => r.status === "thi?u")
     );
 
     if (isLoading) return null;
@@ -32,11 +32,11 @@ export const StaffingAlertWidget = () => {
             <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 3 }}>
                 <Stack direction="row" spacing={1} alignItems="center">
                     <Icon icon="solar:shield-warning-bold-duotone" width={24} color={understaffedShifts.length > 0 ? COLORS.error : COLORS.success} />
-                    <Typography variant="h6" sx={{ fontWeight: 700 }}>Định mức nhân sự hôm nay</Typography>
+                    <Typography variant="h6" sx={{ fontWeight: 700 }}>�?nh m?c nh�n s? h�m nay</Typography>
                 </Stack>
                 {understaffedShifts.length > 0 && (
                     <Chip 
-                        label={`${understaffedShifts.length} ca thiếu người`} 
+                        label={`${understaffedShifts.length} ca thi?u ngu?i`} 
                         color="error" 
                         size="small" 
                         sx={{ fontWeight: 700 }}
@@ -48,20 +48,20 @@ export const StaffingAlertWidget = () => {
                 <Table size="small">
                     <TableHead>
                         <TableRow>
-                            <TableCell sx={{ color: 'text.secondary', fontWeight: 600 }}>Tình trạng thiếu hụt theo ca</TableCell>
-                            <TableCell align="right" sx={{ color: 'text.secondary', fontWeight: 600 }}>Cảnh báo</TableCell>
+                            <TableCell sx={{ color: 'text.secondary', fontWeight: 600 }}>T�nh tr?ng thi?u h?t theo ca</TableCell>
+                            <TableCell align="right" sx={{ color: 'text.secondary', fontWeight: 600 }}>C?nh b�o</TableCell>
                         </TableRow>
                     </TableHead>
                     <TableBody>
                         {staffingData.map((shift: any) => (
-                            shift.requirements.filter((r: any) => r.status === "thiếu").map((req: any) => (
+                            shift.requirements.filter((r: any) => r.status === "thi?u").map((req: any) => (
                                 <TableRow key={`${shift.shiftId}-${req.roleId}`}>
                                     <TableCell sx={{ fontWeight: 600 }}>
-                                        Ca trực: {shift.shiftId.substring(shift.shiftId.length - 4)} (Thiếu vai trò)
+                                        Ca tr?c: {shift.shiftId.substring(shift.shiftId.length - 4)} (Thi?u vai tr�)
                                     </TableCell>
                                     <TableCell align="right">
                                         <Chip 
-                                            label={`Thiếu ${Math.abs(req.diff)} người`} 
+                                            label={`Thi?u ${Math.abs(req.diff)} ngu?i`} 
                                             size="small"
                                             color="error"
                                             variant="soft"
@@ -82,7 +82,7 @@ export const StaffingAlertWidget = () => {
                     endIcon={<Icon icon="solar:arrow-right-bold" />}
                     onClick={() => window.location.href = "/admin/schedules"}
                 >
-                    Điều chỉnh lịch
+                    �i?u ch?nh l?ch
                 </Button>
             </Box>
         </Card>

@@ -15,10 +15,11 @@ const BASE_URL = '/lottery-results';
 const DEFAULT_REGION = 'MIEN_NAM';
 
 export const lotteryService = {
-  async getBoard(date: string): Promise<ApiResponse<LotteryBoardData>> {
+  async getBoard(date: string, region: string = DEFAULT_REGION): Promise<ApiResponse<LotteryBoardData>> {
+    const resolvedRegion = region?.trim() || DEFAULT_REGION;
     const response = await apiApp.get<ApiResponse<LotteryResultLiveSummaryApiResponse>>(`${BASE_URL}/board`, {
       params: {
-        region: DEFAULT_REGION,
+        region: resolvedRegion,
         drawDate: formatDisplayDateToApi(date),
       },
     });
@@ -29,7 +30,7 @@ export const lotteryService = {
     return {
       ...response.data,
       data: {
-        region: liveBoard?.region || DEFAULT_REGION,
+        region: liveBoard?.region || resolvedRegion,
         drawDate: formatApiDateToDisplay(liveBoard?.drawDate || formatDisplayDateToApi(date)),
         drawDateIso: liveBoard?.drawDate || formatDisplayDateToApi(date),
         results,
