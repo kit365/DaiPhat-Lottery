@@ -165,58 +165,167 @@ class _LoadedView extends StatelessWidget {
     final demoTicket = _buildHardcodedTicket(state.selectedDay);
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+      padding: EdgeInsets.zero,
       children: [
-        _SearchField(
+        _BuyTicketShowcase(
           initialValue: state.searchQuery,
           onChanged: viewModel.updateSearchQuery,
         ),
-        const SizedBox(height: 24),
-        const _TicketHeroBanner(),
-        const SizedBox(height: 24),
-        _DaySegmentedControl(
-          selectedDay: state.selectedDay,
-          isTodaySellClosed: state.isTodaySellClosed,
-          onSelectToday: () => viewModel.selectDay(TicketDayFilter.today),
-          onSelectTomorrow: () => viewModel.selectDay(TicketDayFilter.tomorrow),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _DaySegmentedControl(
+                selectedDay: state.selectedDay,
+                isTodaySellClosed: state.isTodaySellClosed,
+                onSelectToday: () => viewModel.selectDay(TicketDayFilter.today),
+                onSelectTomorrow: () =>
+                    viewModel.selectDay(TicketDayFilter.tomorrow),
+              ),
+              const SizedBox(height: 18),
+              _ProvinceFilterStrip(
+                provinces: state.provinces,
+                selectedProvince: state.selectedProvince,
+                onSelectProvince: viewModel.selectProvince,
+              ),
+              const SizedBox(height: 22),
+              if (showHardcodedTicket) ...[
+                const _DemoTicketBanner(),
+                const SizedBox(height: 24),
+              ],
+              _TicketSectionHeader(
+                title: 'Danh sách vé đang mở bán',
+                count: tickets.length + (showHardcodedTicket ? 1 : 0),
+              ),
+              const SizedBox(height: 12),
+              if (showHardcodedTicket)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 14),
+                  child: _TicketCard(
+                    ticket: demoTicket,
+                    isDemo: true,
+                    onTap: () => onOpenDetail(demoTicket),
+                    onBuyNow: () => onBuyNow(demoTicket),
+                  ),
+                ),
+              ...tickets.map(
+                (ticket) => Padding(
+                  padding: const EdgeInsets.only(bottom: 14),
+                  child: _TicketCard(
+                    ticket: ticket,
+                    onTap: () => onOpenDetail(ticket),
+                    onBuyNow: () => onBuyNow(ticket),
+                  ),
+                ),
+              ),
+              if (tickets.isEmpty) const _EmptyState(),
+            ],
+          ),
         ),
-        const SizedBox(height: 18),
-        _ProvinceFilterStrip(
-          provinces: state.provinces,
-          selectedProvince: state.selectedProvince,
-          onSelectProvince: viewModel.selectProvince,
-        ),
-        const SizedBox(height: 22),
-        if (showHardcodedTicket) ...[
-          const _DemoTicketBanner(),
-          const SizedBox(height: 24),
-        ],
-        _TicketSectionHeader(
-          title: 'Danh sách vé đang mở bán',
-          count: tickets.length + (showHardcodedTicket ? 1 : 0),
-        ),
-        const SizedBox(height: 12),
-        if (showHardcodedTicket)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 14),
-            child: _TicketCard(
-              ticket: demoTicket,
-              isDemo: true,
-              onTap: () => onOpenDetail(demoTicket),
-              onBuyNow: () => onBuyNow(demoTicket),
+      ],
+    );
+  }
+}
+
+class _BuyTicketShowcase extends StatelessWidget {
+  const _BuyTicketShowcase({
+    required this.initialValue,
+    required this.onChanged,
+  });
+
+  final String initialValue;
+  final ValueChanged<String> onChanged;
+
+  static const double _topPadding = 8;
+  static const double _searchBannerGap = 14;
+  static const double _searchFieldHeight = 50;
+  static const double _redTailPadding = 10;
+
+  double get _redBackgroundHeight =>
+      _topPadding +
+      _searchFieldHeight +
+      _searchBannerGap +
+      (_TicketHeroBanner.height / 2) +
+      _redTailPadding;
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Positioned(
+          top: 0,
+          left: 0,
+          right: 0,
+          height: _redBackgroundHeight,
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  AppColors.primaryDark,
+                  const Color(0xFFE70F20),
+                  const Color(0xFFF3272E).withValues(alpha: 0.92),
+                  const Color(0xFFF9F9FC),
+                ],
+                stops: const [0, .45, .82, 1],
+              ),
+              borderRadius: const BorderRadius.vertical(
+                bottom: Radius.circular(28),
+              ),
+              boxShadow: const [
+                BoxShadow(
+                  color: Color(0x1ACB101D),
+                  blurRadius: 18,
+                  spreadRadius: -6,
+                  offset: Offset(0, 8),
+                ),
+              ],
             ),
           ),
-        ...tickets.map(
-          (ticket) => Padding(
-            padding: const EdgeInsets.only(bottom: 14),
-            child: _TicketCard(
-              ticket: ticket,
-              onTap: () => onOpenDetail(ticket),
-              onBuyNow: () => onBuyNow(ticket),
+        ),
+        Positioned(
+          right: -56,
+          top: 28,
+          child: Container(
+            width: 190,
+            height: 190,
+            decoration: const BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: RadialGradient(
+                colors: [Color(0x45FFB85C), Color(0x00FFB85C)],
+              ),
             ),
           ),
         ),
-        if (tickets.isEmpty) const _EmptyState(),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, _topPadding, 16, 18),
+          child: Column(
+            children: [
+              Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(999),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Color(0x26000000),
+                      blurRadius: 18,
+                      spreadRadius: -5,
+                      offset: Offset(0, 8),
+                    ),
+                  ],
+                ),
+                child: _SearchField(
+                  initialValue: initialValue,
+                  onChanged: onChanged,
+                ),
+              ),
+              const SizedBox(height: _searchBannerGap),
+              const _TicketHeroBanner(),
+            ],
+          ),
+        ),
       ],
     );
   }
@@ -379,6 +488,7 @@ class _SearchFieldState extends State<_SearchField> {
 class _TicketHeroBanner extends StatelessWidget {
   const _TicketHeroBanner();
 
+  static const double height = 194;
   static const String _bannerImageAsset = 'assets/images/hero_banner.jpg';
   static const String _bannerTitle = 'Nhận may mắn\nliền tay';
   static const String _bannerCtaLabel = 'Khám phá ngay';
@@ -386,11 +496,10 @@ class _TicketHeroBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 178,
+      height: height,
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: const Color(0xFFE8D9D4), width: 1.2),
+        borderRadius: BorderRadius.circular(22),
         boxShadow: const [
           BoxShadow(
             color: Color(0x12000000),
@@ -488,6 +597,29 @@ class _TicketHeroBanner extends StatelessWidget {
                     ],
                   ),
                 ),
+              ],
+            ),
+          ),
+          Positioned(
+            bottom: 10,
+            left: 0,
+            right: 0,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                for (var index = 0; index < 5; index++)
+                  AnimatedContainer(
+                    duration: const Duration(milliseconds: 220),
+                    width: index == 0 ? 15 : 5,
+                    height: 5,
+                    margin: const EdgeInsets.symmetric(horizontal: 2.5),
+                    decoration: BoxDecoration(
+                      color: index == 0
+                          ? Colors.white
+                          : Colors.white.withValues(alpha: .58),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                  ),
               ],
             ),
           ),
@@ -1724,14 +1856,6 @@ class _BuyTicketHeader extends StatelessWidget {
           end: Alignment.bottomCenter,
           colors: [AppColors.primary, AppColors.primaryDark],
         ),
-        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(26)),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.primary.withValues(alpha: 0.28),
-            blurRadius: 24,
-            offset: const Offset(0, 10),
-          ),
-        ],
       ),
       child: SafeArea(
         bottom: false,
