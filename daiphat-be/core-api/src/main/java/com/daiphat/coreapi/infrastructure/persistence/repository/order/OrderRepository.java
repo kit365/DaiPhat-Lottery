@@ -97,11 +97,6 @@ public interface OrderRepository extends JpaRepository<OrderEntity, UUID>, JpaSp
                     where od.lotteryTicketSerial.id = :lotteryTicketSerialId
                        or replacedSerial.id = :lotteryTicketSerialId
                 )
-                or exists (
-                    select 1
-                    from OrderDetailSerialEntity ods
-                    where ods.lotteryTicketSerial.id = :lotteryTicketSerialId
-                )
             )
             """)
     boolean existsOrderDetailByLotteryTicketSerialId(@Param("lotteryTicketSerialId") Long lotteryTicketSerialId);
