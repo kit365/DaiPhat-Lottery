@@ -20,6 +20,9 @@ import java.util.UUID;
 @Builder
 public class LotteryTicketModel {
 
+    public static final String ALL_SERIALS_FAULTY_STATUS_REASON =
+            "Dãy vé không còn hiệu lực: tất cả sê-ri vật lý đã được báo hỏng hoặc thất lạc.";
+
     private Long id;
     private Long stationId;
     private String ticketImg;
@@ -49,6 +52,8 @@ public class LotteryTicketModel {
     private LocalDateTime returnedAt;
 
     private LocalDateTime deletedAt;
+
+    private String statusReason;
 
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
@@ -89,6 +94,7 @@ public class LotteryTicketModel {
             long availableSerialCount,
             long totalSerialCount,
             long soldSerialCount,
+            long faultySerialCount,
             LocalTime cutoffTime
     ) {
         if (isExpired(cutoffTime)) {
@@ -100,16 +106,21 @@ public class LotteryTicketModel {
         if (totalSerialCount == 0) {
             return LotteryTicketStatus.IN_STOCK;
         }
-        // Voided/damaged/lost serials are not a ticket-level status. Cancellation of the
-        // lottery number itself is expressed via softDelete(), not a VOIDED enum value
-        // (the DB check constraint only allows IMPORTING/IN_STOCK/SOLD_OUT/EXPIRED).
-        return soldSerialCount > 0 ? LotteryTicketStatus.SOLD_OUT : LotteryTicketStatus.IN_STOCK;
+        if (soldSerialCount > 0) {
+            return LotteryTicketStatus.SOLD_OUT;
+        }
+        if (faultySerialCount == totalSerialCount) {
+            // No salable unit remains and every serial was reported DAMAGED or LOST.
+            return LotteryTicketStatus.SOLD_OUT;
+        }
+        return LotteryTicketStatus.IN_STOCK;
     }
 
     public void syncAggregateState(
             int availableSerialCount,
             int totalSerialCount,
             int soldSerialCount,
+            int faultySerialCount,
             LocalTime cutoffTime
     ) {
         // Display quantity = every non-deleted serial linked to this lottery number.
@@ -119,7 +130,21 @@ public class LotteryTicketModel {
         if (this.status == LotteryTicketStatus.IMPORTING && !isExpired(cutoffTime)) {
             return;
         }
-        this.status = resolveAggregateStatus(availableSerialCount, totalSerialCount, soldSerialCount, cutoffTime);
+        LotteryTicketStatus resolvedStatus = resolveAggregateStatus(
+                availableSerialCount,
+                totalSerialCount,
+                soldSerialCount,
+                faultySerialCount,
+                cutoffTime);
+        this.status = resolvedStatus;
+
+        if (faultySerialCount == totalSerialCount
+                && totalSerialCount > 0
+                && resolvedStatus == LotteryTicketStatus.SOLD_OUT) {
+            this.statusReason = ALL_SERIALS_FAULTY_STATUS_REASON;
+        } else if (ALL_SERIALS_FAULTY_STATUS_REASON.equals(this.statusReason)) {
+            this.statusReason = null;
+        }
     }
 
     public void validateDrawDate(LocalDate drawDate) {
