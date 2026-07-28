@@ -550,17 +550,18 @@ class ProfileView extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
               _buildUtilityItemIcon(
                 Icons.notifications_active_outlined,
                 'Thông báo',
                 onTap: () => context.push(AppRoute.notifications.path),
               ),
+              const SizedBox(width: 10),
               _buildUtilityItemAsset(
                 'assets/images/icons/icon_tui_than_tai.png',
                 'Gieo quẻ',
               ),
+              const SizedBox(width: 10),
               _buildUtilityItemIcon(
                 Icons.calendar_month_outlined,
                 'Lịch mở thưởng',
@@ -580,9 +581,14 @@ class ProfileView extends StatelessWidget {
     return Expanded(
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 3),
+        borderRadius: BorderRadius.circular(14),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 11),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: const Color(0xFFF0E6E4)),
+          ),
           child: Column(
             children: [
               Container(
@@ -613,8 +619,13 @@ class ProfileView extends StatelessWidget {
 
   Widget _buildUtilityItemAsset(String assetPath, String label) {
     return Expanded(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 11),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: const Color(0xFFF0E6E4)),
+        ),
         child: Column(
           children: [
             Image.asset(assetPath, width: 48, height: 48),
@@ -648,13 +659,26 @@ class ProfileView extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 8),
-          _buildListItem(Icons.security_outlined, 'Bảo mật'),
-          _buildListItem(Icons.help_outline, 'Trung tâm hỗ trợ'),
-          _buildListItem(Icons.info_outline, 'Giới thiệu về Đại Phát'),
+          _buildListItem(
+            Icons.security_outlined,
+            'Bảo mật',
+            iconColor: const Color(0xFF242424),
+          ),
+          _buildListItem(
+            Icons.help_outline,
+            'Trung tâm hỗ trợ',
+            iconColor: const Color(0xFF242424),
+          ),
+          _buildListItem(
+            Icons.info_outline,
+            'Giới thiệu về Đại Phát',
+            iconColor: const Color(0xFF242424),
+          ),
           _buildListItem(
             Icons.logout,
             'Đăng xuất',
             showDivider: false,
+            iconColor: const Color(0xFF242424),
             onTap: () async {
               await viewModel.logout();
               if (context.mounted) {
@@ -672,6 +696,7 @@ class ProfileView extends StatelessWidget {
     String title, {
     bool showDivider = true,
     VoidCallback? onTap,
+    Color iconColor = AppColors.primary,
   }) {
     return Column(
       children: [
@@ -680,7 +705,7 @@ class ProfileView extends StatelessWidget {
           visualDensity: const VisualDensity(vertical: -2),
           contentPadding: EdgeInsets.zero,
           minLeadingWidth: 24,
-          leading: Icon(icon, color: AppColors.primary, size: 20),
+          leading: Icon(icon, color: iconColor, size: 20),
           title: Text(
             title,
             style: GoogleFonts.publicSans(
