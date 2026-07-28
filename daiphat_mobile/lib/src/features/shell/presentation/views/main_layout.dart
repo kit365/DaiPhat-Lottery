@@ -48,14 +48,6 @@ class _MainLayoutState extends State<MainLayout> {
     super.dispose();
   }
 
-  void _goToBlog() {
-    _pageController.animateToPage(
-      0,
-      duration: const Duration(milliseconds: 300),
-      curve: Curves.easeInOut,
-    );
-  }
-
   void _goToMain() {
     _pageController.animateToPage(
       1,
@@ -66,7 +58,7 @@ class _MainLayoutState extends State<MainLayout> {
 
   int _getNavIndex(BuildContext context) {
     if (_onBlogPage) {
-      return 3;
+      return 0;
     }
 
     final location = GoRouterState.of(context).uri.path;
@@ -77,10 +69,10 @@ class _MainLayoutState extends State<MainLayout> {
       return 2;
     }
     if (location.startsWith(AppRoute.cart.path)) {
-      return 4;
+      return 3;
     }
     if (location.startsWith(AppRoute.profile.path)) {
-      return 5;
+      return 4;
     }
     return 0;
   }
@@ -97,15 +89,13 @@ class _MainLayoutState extends State<MainLayout> {
         break;
       case 2:
         _goToMain();
+        context.go(AppRoute.home.path);
         break;
       case 3:
-        _goToBlog();
-        break;
-      case 4:
         _goToMain();
         context.go(AppRoute.cart.path);
         break;
-      case 5:
+      case 4:
         _goToMain();
         if (widget.loginViewModel.isAuthenticated) {
           context.go(AppRoute.profile.path);
@@ -134,82 +124,171 @@ class _MainLayoutState extends State<MainLayout> {
           widget.child,
         ],
       ),
-      bottomNavigationBar: Container(
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          boxShadow: [
-            BoxShadow(
-              color: Color(0x12000000),
-              blurRadius: 12,
-              offset: Offset(0, -3),
-            ),
-          ],
-        ),
-        child: NavigationBar(
-          backgroundColor: Colors.white,
-          surfaceTintColor: Colors.transparent,
-          elevation: 0,
-          height: 70,
-          selectedIndex: navIndex,
-          onDestinationSelected: (index) => _onNavTap(index, context),
-          indicatorColor: const Color(0xFFFFF0F0),
-          labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-          destinations: [
-            const NavigationDestination(
-              icon: Icon(Icons.home_outlined),
-              selectedIcon: Icon(Icons.home, color: AppColors.primary),
-              label: 'Trang chủ',
-            ),
-            const NavigationDestination(
-              icon: Icon(Icons.confirmation_number_outlined),
-              selectedIcon: Icon(
-                Icons.confirmation_number,
-                color: AppColors.primary,
+      bottomNavigationBar: _AnimatedBottomNavigation(
+        selectedIndex: navIndex,
+        onTap: (index) => _onNavTap(index, context),
+      ),
+    );
+  }
+}
+
+class _AnimatedBottomNavigation extends ConsumerWidget {
+  const _AnimatedBottomNavigation({
+    required this.selectedIndex,
+    required this.onTap,
+  });
+
+  final int selectedIndex;
+  final ValueChanged<int> onTap;
+
+  static const _items = <({String label, IconData icon, IconData activeIcon})>[
+    (
+      label: 'Trang chủ',
+      icon: Icons.home_outlined,
+      activeIcon: Icons.home_rounded,
+    ),
+    (
+      label: 'Mua vé',
+      icon: Icons.confirmation_number_outlined,
+      activeIcon: Icons.confirmation_number_rounded,
+    ),
+    (
+      label: 'Kết quả',
+      icon: Icons.emoji_events_outlined,
+      activeIcon: Icons.emoji_events_rounded,
+    ),
+    (
+      label: 'Giỏ hàng',
+      icon: Icons.shopping_cart_outlined,
+      activeIcon: Icons.shopping_cart_rounded,
+    ),
+    (
+      label: 'Cá nhân',
+      icon: Icons.person_outline_rounded,
+      activeIcon: Icons.person_rounded,
+    ),
+  ];
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final cartCount = ref.watch(cartTicketCountProvider);
+    final bottomInset = MediaQuery.paddingOf(context).bottom;
+
+    return Container(
+      height: 70 + bottomInset,
+      padding: EdgeInsets.fromLTRB(8, 7, 8, bottomInset),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
+        boxShadow: [
+          BoxShadow(
+            color: Color(0x1A3B1412),
+            blurRadius: 24,
+            spreadRadius: -6,
+            offset: Offset(0, -6),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          for (var index = 0; index < _items.length; index++)
+            Expanded(
+              child: _AnimatedNavItem(
+                item: _items[index],
+                selected: selectedIndex == index,
+                badgeCount: index == 3 ? cartCount : 0,
+                onTap: () => onTap(index),
               ),
-              label: 'Mua vé',
             ),
-            const NavigationDestination(
-              icon: Icon(Icons.emoji_events_outlined),
-              selectedIcon: Icon(Icons.emoji_events, color: AppColors.primary),
-              label: 'Kết quả',
-            ),
-            const NavigationDestination(
-              icon: Icon(Icons.article_outlined),
-              selectedIcon: Icon(Icons.article, color: AppColors.primary),
-              label: 'Tin tức',
-            ),
-            NavigationDestination(
-              icon: Consumer(
-                builder: (context, ref, child) {
-                  final count = ref.watch(cartTicketCountProvider);
-                  return Badge(
-                    isLabelVisible: count > 0,
-                    label: Text('$count'),
-                    child: const Icon(Icons.shopping_cart_outlined),
-                  );
-                },
-              ),
-              selectedIcon: Consumer(
-                builder: (context, ref, child) {
-                  final count = ref.watch(cartTicketCountProvider);
-                  return Badge(
-                    isLabelVisible: count > 0,
-                    label: Text('$count'),
-                    child: const Icon(
-                      Icons.shopping_cart,
-                      color: AppColors.primary,
+        ],
+      ),
+    );
+  }
+}
+
+class _AnimatedNavItem extends StatelessWidget {
+  const _AnimatedNavItem({
+    required this.item,
+    required this.selected,
+    required this.badgeCount,
+    required this.onTap,
+  });
+
+  final ({String label, IconData icon, IconData activeIcon}) item;
+  final bool selected;
+  final int badgeCount;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: item.label,
+      child: InkResponse(
+        onTap: onTap,
+        radius: 34,
+        child: TweenAnimationBuilder<double>(
+          tween: Tween(begin: 0, end: selected ? 1 : 0),
+          duration: const Duration(milliseconds: 280),
+          curve: Curves.easeOutCubic,
+          builder: (context, value, child) {
+            final activeColor = Color.lerp(
+              const Color(0xFF2E2928),
+              AppColors.primary,
+              value,
+            )!;
+            return Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 280),
+                  curve: Curves.easeOutCubic,
+                  width: selected ? 48 : 36,
+                  height: 31,
+                  decoration: BoxDecoration(
+                    color: Color.lerp(
+                      Colors.transparent,
+                      const Color(0xFFFFE7EA),
+                      value,
                     ),
-                  );
-                },
-              ),
-              label: 'Giỏ hàng',
-            ),
-            const NavigationDestination(
-              icon: Icon(Icons.person_outline),
-              selectedIcon: Icon(Icons.person, color: AppColors.primary),
-              label: 'Cá nhân',
-            ),
-          ],
+                    borderRadius: BorderRadius.circular(18),
+                  ),
+                  alignment: Alignment.center,
+                  child: Transform.translate(
+                    offset: Offset(0, -1.5 * value),
+                    child: Badge(
+                      isLabelVisible: badgeCount > 0,
+                      backgroundColor: AppColors.primary,
+                      label: Text(
+                        badgeCount > 9 ? '9+' : '$badgeCount',
+                        style: const TextStyle(
+                          fontSize: 9,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      child: Icon(
+                        selected ? item.activeIcon : item.icon,
+                        color: activeColor,
+                        size: 22 + (2 * value),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 2),
+                AnimatedDefaultTextStyle(
+                  duration: const Duration(milliseconds: 220),
+                  style: TextStyle(
+                    fontSize: 10,
+                    height: 1,
+                    color: activeColor,
+                    fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                  ),
+                  child: Text(item.label),
+                ),
+              ],
+            );
+          },
         ),
       ),
     );
