@@ -918,44 +918,6 @@ class _TicketSectionHeader extends StatelessWidget {
   }
 }
 
-class _FavoriteButton extends StatefulWidget {
-  const _FavoriteButton();
-
-  @override
-  State<_FavoriteButton> createState() => _FavoriteButtonState();
-}
-
-class _FavoriteButtonState extends State<_FavoriteButton> {
-  bool _selected = false;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkResponse(
-      onTap: () => setState(() => _selected = !_selected),
-      radius: 22,
-      child: AnimatedScale(
-        scale: _selected ? 1.12 : 1,
-        duration: const Duration(milliseconds: 180),
-        curve: Curves.easeOutBack,
-        child: Container(
-          width: 34,
-          height: 34,
-          decoration: BoxDecoration(
-            color: _selected ? const Color(0xFFFFECEE) : Colors.white,
-            shape: BoxShape.circle,
-            border: Border.all(color: const Color(0xFFF0DFDC)),
-          ),
-          child: Icon(
-            _selected ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-            color: const Color(0xFFD61A27),
-            size: 18,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 class _TicketCard extends StatelessWidget {
   const _TicketCard({
     required this.ticket,
@@ -1049,9 +1011,9 @@ class _TicketCard extends StatelessWidget {
                 painter: _DashedLinePainter(),
               ),
               SizedBox(
-                width: 132,
+                width: 96,
                 child: Padding(
-                  padding: const EdgeInsets.fromLTRB(10, 13, 10, 10),
+                  padding: const EdgeInsets.fromLTRB(8, 13, 10, 10),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
@@ -1064,36 +1026,27 @@ class _TicketCard extends StatelessWidget {
                         ),
                       ),
                       const Spacer(),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        children: [
-                          SizedBox(
-                            height: 35,
-                            child: ElevatedButton(
-                              onPressed: onBuyNow,
-                              style: ElevatedButton.styleFrom(
-                                elevation: 0,
-                                backgroundColor: const Color(0xFFE51B29),
-                                foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 10,
-                                ),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(999),
-                                ),
-                              ),
-                              child: const Text(
-                                'Mua ngay',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
+                      SizedBox(
+                        height: 35,
+                        child: ElevatedButton(
+                          onPressed: onBuyNow,
+                          style: ElevatedButton.styleFrom(
+                            elevation: 0,
+                            backgroundColor: const Color(0xFFE51B29),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(horizontal: 14),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(999),
                             ),
                           ),
-                          const SizedBox(width: 6),
-                          const _FavoriteButton(),
-                        ],
+                          child: const Text(
+                            'Mua ngay',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
                       ),
                     ],
                   ),
@@ -1864,9 +1817,8 @@ class _BuyTicketHeader extends StatelessWidget {
           child: Row(
             children: [
               _HeaderSquareButton(
-                icon: Icons.menu_rounded,
+                icon: Icons.arrow_back_ios_new_rounded,
                 onTap: onBack,
-                translucent: true,
               ),
               Expanded(
                 child: Text(
@@ -1910,14 +1862,12 @@ class _HeaderSquareButton extends StatelessWidget {
     required this.icon,
     required this.onTap,
     this.badgeCount = 0,
-    this.translucent = false,
     this.onLongPress,
   });
 
   final IconData icon;
   final VoidCallback onTap;
   final int badgeCount;
-  final bool translucent;
   final VoidCallback? onLongPress;
 
   @override
@@ -1932,13 +1882,8 @@ class _HeaderSquareButton extends StatelessWidget {
             width: 42,
             height: 42,
             decoration: BoxDecoration(
-              color: translucent
-                  ? Colors.white.withValues(alpha: 0.06)
-                  : Colors.white,
+              color: Colors.white,
               borderRadius: BorderRadius.circular(999),
-              border: translucent
-                  ? Border.all(color: Colors.white.withValues(alpha: 0.45))
-                  : null,
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withValues(alpha: 0.08),
@@ -1947,11 +1892,7 @@ class _HeaderSquareButton extends StatelessWidget {
                 ),
               ],
             ),
-            child: Icon(
-              icon,
-              color: translucent ? Colors.white : AppColors.primary,
-              size: 21,
-            ),
+            child: Icon(icon, color: AppColors.primary, size: 20),
           ),
           if (badgeCount > 0)
             Positioned(
