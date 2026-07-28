@@ -1,12 +1,23 @@
 import { describe, expect, it } from 'vitest';
 import {
+  buildHubActionChips,
   resolveContextualQuickReplies,
   scheduleResultFollowUpChips,
   ticketSuggestFollowUpChips,
   SCHEDULE_RESTART_MESSAGE,
+  SUGGEST_TICKETS_MESSAGE,
+  SEARCH_SUFFIX_MESSAGE,
   shouldShowContextualQuickReplies,
 } from './chatQuickReplies.util';
 import { SCHEDULE_TOKEN_RESTART } from './scheduleToken.util';
+
+const HUB_LABELS_DEFAULT = [
+  'Lịch Miền Nam',
+  'Kết quả',
+  'Gợi ý vé',
+  'Tìm đuôi số',
+  'Gặp nhân viên',
+];
 
 describe('resolveContextualQuickReplies', () => {
   it('returns welcome chips before customer messages', () => {
@@ -17,11 +28,12 @@ describe('resolveContextualQuickReplies', () => {
     expect(result.chips.map((chip) => chip.label)).toEqual([
       'Tra cứu lịch quay',
       'Tra cứu kết quả',
+      'Gợi ý vé',
       'Hỗ trợ đơn hàng',
     ]);
   });
 
-  it('does not duplicate footer chips after schedule result', () => {
+  it('after schedule result replaces Lịch Miền Nam with Tra cứu lịch khác', () => {
     const result = resolveContextualQuickReplies(
       {
         id: '42',
@@ -31,10 +43,19 @@ describe('resolveContextualQuickReplies', () => {
       },
       { hasCustomerMessages: true }
     );
-    expect(result.chips).toHaveLength(0);
+    expect(result.chips.map((chip) => chip.label)).toEqual([
+      'Tra cứu lịch khác',
+      'Kết quả',
+      'Gợi ý vé',
+      'Tìm đuôi số',
+      'Gặp nhân viên',
+    ]);
+    expect(result.chips.find((chip) => chip.id === 'hub-schedule-restart')?.message).toBe(
+      SCHEDULE_TOKEN_RESTART
+    );
   });
 
-  it('does not duplicate footer chips after ticket suggest cards', () => {
+  it('keeps hub chips visible after ticket suggest cards', () => {
     const result = resolveContextualQuickReplies(
       {
         id: '43',
@@ -44,61 +65,29 @@ describe('resolveContextualQuickReplies', () => {
       },
       { hasCustomerMessages: true }
     );
-    expect(result.chips).toHaveLength(0);
+    expect(result.chips.map((chip) => chip.label)).toEqual(HUB_LABELS_DEFAULT);
   });
 
-  it('skips chips when bot message already has inline actions', () => {
+  it('shows hub chips during schedule inline steps', () => {
     const result = resolveContextualQuickReplies(
       { id: '1', sender: 'bot', variant: 'schedule-ask-date-mode', text: 'Chọn ngày' },
       { hasCustomerMessages: true }
     );
-    expect(result.chips).toHaveLength(0);
+    expect(result.chips.map((chip) => chip.label)).toEqual(HUB_LABELS_DEFAULT);
   });
 
-  it('always returns the base follow-up chips after a plain bot bubble', () => {
+  it('returns hub chips after a plain bot bubble', () => {
     const result = resolveContextualQuickReplies(
       {
         id: '1',
         sender: 'bot',
         variant: 'bubble',
         intent: 'OTHER_KNOWLEDGE',
-        text: 'Đại Phát tra sổ mơ dân gian giúp quý khách: mơ thấy "bò" thường gắn với các số 09, 19, 49.',
+        text: 'Đại Phát tra sổ mơ dân gian giúp quý khách.',
       },
       { hasCustomerMessages: true }
     );
-    expect(result.hint).toBeUndefined();
-    expect(result.chips.map((chip) => chip.label)).toEqual([
-      'Gợi ý khác',
-      'Tìm đuôi số',
-      'Gặp nhân viên',
-    ]);
-  });
-
-  it('appends the base chips after context-specific order chips', () => {
-    const result = resolveContextualQuickReplies(
-      { id: '2', sender: 'bot', variant: 'bubble', text: 'Đơn hàng của bạn đang được chuẩn bị.' },
-      { hasCustomerMessages: true }
-    );
-    expect(result.chips.map((chip) => chip.label)).toEqual([
-      'Xem đơn mới nhất',
-      'Tra cứu lịch quay',
-      'Gợi ý khác',
-      'Tìm đuôi số',
-      'Gặp nhân viên',
-    ]);
-  });
-
-  it('does not render the duplicated generic staff-support hint', () => {
-    const result = resolveContextualQuickReplies(
-      { id: '3', sender: 'bot', variant: 'bubble', text: 'AI tạm thời không khả dụng' },
-      { hasCustomerMessages: true }
-    );
-    expect(result.hint).toBeUndefined();
-    expect(result.chips.map((chip) => chip.label)).toEqual([
-      'Gợi ý khác',
-      'Tìm đuôi số',
-      'Gặp nhân viên',
-    ]);
+    expect(result.chips.map((chip) => chip.label)).toEqual(HUB_LABELS_DEFAULT);
   });
 
   it('only offers staff support while AI is disabled', () => {
@@ -121,43 +110,80 @@ describe('resolveContextualQuickReplies', () => {
       },
     ]);
   });
+});
 
-  it('keeps ticket-suggest footer empty when AI is disabled (inline staff chip owns the CTA)', () => {
-    const result = resolveContextualQuickReplies(
-      {
-        id: '5',
-        sender: 'bot',
-        variant: 'ticket-suggest',
-        text: 'Đại Phát gợi ý vé.',
-      },
-      { hasCustomerMessages: true, isAiEnabled: false }
+describe('buildHubActionChips', () => {
+  it('uses station-specific labels when station is known', () => {
+    const chips = buildHubActionChips({
+      id: '1',
+      sender: 'bot',
+      scheduleStationId: 7,
+      scheduleStationName: 'Bạc Liêu',
+      scheduleRegion: 'MIEN_NAM',
+    });
+    expect(chips.map((chip) => chip.label)).toEqual([
+      'Lịch Bạc Liêu',
+      'Kết quả Bạc Liêu',
+      'Vé Bạc Liêu',
+      'Tìm đuôi số',
+      'Gặp nhân viên',
+    ]);
+  });
+
+  it('sends in-chat messages — never navigate actions', () => {
+    const chips = buildHubActionChips();
+    expect(chips.every((chip) => chip.action === 'send' || chip.action === 'staff')).toBe(true);
+    expect(chips.find((chip) => chip.id === 'hub-schedule')?.message).toBe(
+      'SCHEDULE_SHOW:goal=SCHEDULE:region=MIEN_NAM:scope=all'
     );
-    expect(result.chips).toHaveLength(0);
+    expect(chips.find((chip) => chip.id === 'hub-results')?.message).toBe(
+      'SCHEDULE_SET_GOAL:RESULT'
+    );
+    expect(chips.find((chip) => chip.id === 'hub-ticket')?.message).toBe(SUGGEST_TICKETS_MESSAGE);
+    expect(chips.find((chip) => chip.id === 'hub-search')?.message).toBe(SEARCH_SUFFIX_MESSAGE);
+  });
+
+  it('shows station schedule token and result set-goal when station is known', () => {
+    const chips = buildHubActionChips({
+      id: '1',
+      sender: 'bot',
+      scheduleStationId: 7,
+      scheduleStationName: 'Bạc Liêu',
+      scheduleRegion: 'MIEN_NAM',
+    });
+    expect(chips.find((chip) => chip.id === 'hub-schedule')?.message).toBe(
+      'SCHEDULE_SHOW:goal=SCHEDULE:station=7'
+    );
+    expect(chips.find((chip) => chip.id === 'hub-results')?.message).toBe(
+      'SCHEDULE_SET_GOAL:RESULT'
+    );
   });
 });
 
 describe('scheduleResultFollowUpChips', () => {
-  it('returns buy ticket and restart actions only', () => {
+  it('only offers restart — hub lives in footer', () => {
     const chips = scheduleResultFollowUpChips({
       id: '42',
       sender: 'bot',
       variant: 'schedule-result',
       scheduleRegion: 'MIEN_NAM',
     });
-    expect(chips).toHaveLength(2);
-    expect(chips[0]).toMatchObject({ label: 'Xem vé Miền Nam', action: 'buy-ticket', primary: true });
-    expect(chips[1]).toMatchObject({ label: 'Tra cứu lịch khác', message: SCHEDULE_TOKEN_RESTART });
+    expect(chips).toHaveLength(1);
+    expect(chips[0]).toMatchObject({ label: 'Tra cứu lịch khác', message: SCHEDULE_TOKEN_RESTART });
   });
 });
 
 describe('ticketSuggestFollowUpChips', () => {
-  it('offers suggest again, search, and staff', () => {
+  it('only offers suggest again — hub lives in footer', () => {
     const chips = ticketSuggestFollowUpChips();
-    expect(chips.map((chip) => chip.label)).toEqual(['Gợi ý khác', 'Tìm đuôi số', 'Gặp nhân viên']);
+    expect(chips.map((chip) => chip.label)).toEqual(['Gợi ý số khác']);
+    expect(chips[0].action).toBe('send');
+    expect(chips[0].message).toBe(SUGGEST_TICKETS_MESSAGE);
   });
 
-  it('always labels the search chip as tìm đuôi số', () => {
-    expect(ticketSuggestFollowUpChips()[1].label).toBe('Tìm đuôi số');
+  it('appends previously shown ticket ids so BE can exclude them', () => {
+    const chips = ticketSuggestFollowUpChips([1, 2, 2, 5]);
+    expect(chips[0].message).toBe(`${SUGGEST_TICKETS_MESSAGE}|exclude=1,2,5`);
   });
 });
 
@@ -173,21 +199,10 @@ describe('shouldShowContextualQuickReplies', () => {
     ).toBe(false);
   });
 
-  it('keeps chips visible while input is focused but empty', () => {
+  it('shows when chips exist and input is empty — even without bot last message', () => {
     expect(
       shouldShowContextualQuickReplies({
-        lastMessage: { id: '1', sender: 'bot', variant: 'bubble' },
-        inputValue: '',
-        isInteractive: true,
-        replies: { chips: [{ id: 'a', label: 'A', action: 'send', message: 'a' }] },
-      })
-    ).toBe(true);
-  });
-
-  it('shows when last bot message has chips and input is empty', () => {
-    expect(
-      shouldShowContextualQuickReplies({
-        lastMessage: { id: '1', sender: 'bot', variant: 'bubble' },
+        lastMessage: null,
         inputValue: '',
         isInteractive: true,
         replies: { chips: [{ id: 'a', label: 'A', action: 'send', message: 'a' }] },

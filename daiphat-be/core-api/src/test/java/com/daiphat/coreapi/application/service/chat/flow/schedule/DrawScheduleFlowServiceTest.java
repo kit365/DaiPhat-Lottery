@@ -8,6 +8,9 @@ import com.daiphat.coreapi.application.config.ChatScheduleProperties;
 import com.daiphat.coreapi.application.config.ChatMessageProperties;
 import com.daiphat.coreapi.application.constant.chat.schedule.ChatScheduleMessages;
 import com.daiphat.coreapi.application.dto.response.chat.ChatClassifyResponse;
+import com.daiphat.coreapi.application.dto.response.lotteries.LotteryStationResponse;
+import com.daiphat.coreapi.application.port.in.lotteries.LotteryStationServicePort;
+import com.daiphat.coreapi.application.service.chat.ticket.ChatTicketInventoryService;
 import com.daiphat.coreapi.application.dto.chat.intent.ChatIntentOutcome;
 import com.daiphat.coreapi.domain.model.chat.ConversationModel;
 import com.daiphat.coreapi.domain.model.chat.PendingFlowState;
@@ -71,6 +74,12 @@ class DrawScheduleFlowServiceTest {
     @Mock
     private ChatScheduleFlowRecovery flowRecovery;
 
+    @Mock
+    private LotteryStationServicePort lotteryStationService;
+
+    @Mock
+    private ChatTicketInventoryService chatTicketInventoryService;
+
     private DrawScheduleFlowService flowService;
     private ChatScheduleParser parser;
 
@@ -78,7 +87,9 @@ class DrawScheduleFlowServiceTest {
     void setUp() {
         ChatScheduleProperties properties = ChatScheduleTestFixtures.minimalProperties();
         parser = spy(new ChatScheduleParser(properties, stations));
-        flowService = new DrawScheduleFlowService(parser, stations, flowRecovery, messageProperties());
+        flowService = new DrawScheduleFlowService(
+                parser, stations, flowRecovery, messageProperties(), lotteryStationService, chatTicketInventoryService);
+        when(lotteryStationService.getByDrawDate(any())).thenReturn(List.of());
         when(flowRecovery.restoreIfNeeded(any(), any())).thenAnswer(invocation -> {
             PendingFlowState flow = invocation.getArgument(1);
             if (flow != null) {
@@ -341,7 +352,7 @@ class DrawScheduleFlowServiceTest {
         ChatIntentOutcome outcome = continueFlow(conversation, customerMessage("đài cụ thể"));
 
         assertThat(((ChatIntentOutcome.BotReply) outcome).content())
-                .isEqualTo(TOKEN_ASK_STATION_PREFIX + LotteryRegionCode.MIEN_NAM.code());
+                .startsWith(TOKEN_PICK_STATION_LIST_PREFIX);
         assertThat(conversation.getPendingSlot()).isEqualTo(ChatSchedulePendingSlot.LOCATION);
         assertThat(conversation.collectedSlot(SLOT_SCOPE)).isEqualTo(SCOPE_PICK_STATION);
     }
@@ -462,6 +473,31 @@ class DrawScheduleFlowServiceTest {
                 .contains(RESULT_PARAM_SCOPE_ALL)
                 .contains(RESULT_PARAM_DATE + "=");
         assertThat(conversation.hasPendingScheduleFlow()).isFalse();
+    }
+
+    @Test
+    void tryResumeSlotAnswer_selectStationToken_confirmsStationAndShowsReady() {
+        ConversationModel conversation = openConversation();
+        conversation.setPendingIntent(ChatIntent.WEB_SCHEDULE.name());
+        conversation.setPendingSlot(ChatSchedulePendingSlot.CONFIRM_STATION);
+        conversation.putCollectedSlot(SLOT_CONFIRM_STATION_IDS, "7");
+        conversation.putCollectedSlot(SLOT_REGION, LotteryRegionCode.MIEN_NAM.code());
+
+        LotteryStationModel bacLieu = station(7L, LotteryRegionCode.MIEN_NAM);
+        bacLieu.setName("Bạc Liêu");
+        when(stations.findActiveById(7L)).thenReturn(Optional.of(bacLieu));
+
+        Optional<ChatIntentOutcome> outcome = flowService.tryResumeSlotAnswer(
+                conversation,
+                null,
+                customerMessage(TOKEN_SELECT_STATION_PREFIX + "id=7"),
+                classification(Map.of())
+        );
+
+        assertThat(outcome).isPresent();
+        assertThat(((ChatIntentOutcome.BotReply) outcome.get()).content())
+                .startsWith(TOKEN_STATION_READY_PREFIX);
+        assertThat(conversation.collectedSlot(SLOT_STATION_ID)).isEqualTo("7");
     }
 
     @Test
@@ -744,6 +780,44 @@ class DrawScheduleFlowServiceTest {
     }
 
     @Test
+    void startFlow_scheduleShowToken_emitsRegionWeekSchedule() {
+        ConversationModel conversation = openConversation();
+        conversation.setPendingIntent(ChatIntent.WEB_SCHEDULE.name());
+        conversation.setPendingSlot(ChatSchedulePendingSlot.LOCATION);
+
+        MessageModel message = customerMessage(
+                TOKEN_SHOW_PREFIX + "goal=SCHEDULE:region=MIEN_NAM:scope=all"
+        );
+
+        ChatIntentOutcome outcome = flowService.startFlow(conversation, message, classification(Map.of()));
+
+        assertThat(outcome).isInstanceOf(ChatIntentOutcome.BotReply.class);
+        String content = ((ChatIntentOutcome.BotReply) outcome).content();
+        assertThat(content).startsWith(TOKEN_RESULT_PREFIX);
+        assertThat(content).contains("region=MIEN_NAM");
+        assertThat(content).contains("scope=all");
+        assertThat(conversation.getPendingSlot()).isNull();
+    }
+
+    @Test
+    void startFlow_scheduleShowResultToken_asksResultDateFirst() {
+        ConversationModel conversation = openConversation();
+
+        MessageModel message = customerMessage(
+                TOKEN_SHOW_PREFIX + "goal=RESULT:region=MIEN_NAM:scope=today"
+        );
+
+        ChatIntentOutcome outcome = flowService.startFlow(conversation, message, classification(Map.of()));
+
+        assertThat(outcome).isInstanceOf(ChatIntentOutcome.BotReply.class);
+        String content = ((ChatIntentOutcome.BotReply) outcome).content();
+        assertThat(content).startsWith(TOKEN_ASK_DATE_MODE);
+        assertThat(content).contains("goal=RESULT");
+        assertThat(conversation.getPendingSlot()).isEqualTo(ChatSchedulePendingSlot.DATE_MODE);
+        assertThat(conversation.collectedSlot(SLOT_GOAL)).isEqualTo(GOAL_RESULT);
+    }
+
+    @Test
     void tryContinue_dateModeBareScheduleIntent_restartsAndAsksLocation() {
         ConversationModel conversation = openConversation();
         conversation.setPendingIntent(ChatIntent.WEB_SCHEDULE.name());
@@ -842,7 +916,7 @@ class DrawScheduleFlowServiceTest {
     }
 
     @Test
-    void continueFlow_regionChoiceAllStationsText_asksDateMode() {
+    void continueFlow_regionChoiceAllStationsText_emitsScheduleResult() {
         ConversationModel conversation = openConversation();
         conversation.setPendingIntent(ChatIntent.WEB_SCHEDULE.name());
         conversation.setPendingSlot(ChatSchedulePendingSlot.LOCATION_CHOICE);
@@ -850,9 +924,11 @@ class DrawScheduleFlowServiceTest {
 
         ChatIntentOutcome outcome = continueFlow(conversation, customerMessage("tất cả đài"));
 
-        assertThat(((ChatIntentOutcome.BotReply) outcome).content()).isEqualTo(TOKEN_ASK_DATE_MODE);
-        assertThat(conversation.getPendingSlot()).isEqualTo(ChatSchedulePendingSlot.DATE_MODE);
-        assertThat(conversation.collectedSlot(SLOT_SCOPE)).isEqualTo(SCOPE_REGION_ALL);
+        assertThat(((ChatIntentOutcome.BotReply) outcome).content())
+                .contains(RESULT_PARAM_REGION + "=" + LotteryRegionCode.MIEN_NAM.code())
+                .contains("scope=today")
+                .contains(RESULT_PARAM_DATE + "=");
+        assertThat(conversation.hasPendingScheduleFlow()).isFalse();
     }
 
     @Test
@@ -873,7 +949,9 @@ class DrawScheduleFlowServiceTest {
                 parser,
                 stations,
                 new ChatScheduleFlowRecovery(recoveryReader),
-                messageProperties()
+                messageProperties(),
+                lotteryStationService,
+                chatTicketInventoryService
         );
 
         Optional<ChatIntentOutcome> outcome = serviceWithRecovery.tryResumeSlotAnswer(
@@ -903,7 +981,9 @@ class DrawScheduleFlowServiceTest {
                 parser,
                 stations,
                 new ChatScheduleFlowRecovery(recoveryReader),
-                messageProperties()
+                messageProperties(),
+                lotteryStationService,
+                chatTicketInventoryService
         );
 
         Optional<ChatIntentOutcome> outcome = serviceWithRecovery.tryResumeSlotAnswer(
@@ -914,9 +994,10 @@ class DrawScheduleFlowServiceTest {
         );
 
         assertThat(outcome).isPresent();
-        assertThat(((ChatIntentOutcome.BotReply) outcome.get()).content()).isEqualTo(TOKEN_ASK_DATE_MODE);
-        assertThat(conversation.getPendingSlot()).isEqualTo(ChatSchedulePendingSlot.DATE_MODE);
-        assertThat(conversation.collectedSlot(SLOT_REGION)).isEqualTo(LotteryRegionCode.MIEN_NAM.code());
+        assertThat(((ChatIntentOutcome.BotReply) outcome.get()).content())
+                .contains(RESULT_PARAM_REGION + "=" + LotteryRegionCode.MIEN_NAM.code())
+                .contains("scope=today");
+        assertThat(conversation.hasPendingScheduleFlow()).isFalse();
     }
 
     @Test
@@ -936,8 +1017,9 @@ class DrawScheduleFlowServiceTest {
 
         assertThat(outcome).isPresent();
         assertThat(((ChatIntentOutcome.BotReply) outcome.get()).content())
-                .isEqualTo(TOKEN_ASK_DATE_MODE);
-        assertThat(conversation.getPendingSlot()).isEqualTo(ChatSchedulePendingSlot.DATE_MODE);
+                .contains(RESULT_PARAM_REGION + "=" + LotteryRegionCode.MIEN_NAM.code())
+                .contains(RESULT_PARAM_SCOPE_ALL);
+        assertThat(conversation.hasPendingScheduleFlow()).isFalse();
     }
 
     private ChatIntentOutcome continueFlow(ConversationModel conversation, MessageModel message) {

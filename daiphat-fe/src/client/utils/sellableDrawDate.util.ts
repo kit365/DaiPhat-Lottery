@@ -67,6 +67,26 @@ export const minSellableDrawDate = (
 
 export const maxSellableDrawDate = (now: Date = new Date()): string => tomorrowIsoVn(now);
 
+/** true khi kỳ quay đã diễn ra (hoặc trước hôm nay) → nên mở trang kết quả thay vì mua vé. */
+export const shouldOfferLotteryResults = (
+  drawDateIso: string | undefined,
+  drawTime: string = DEFAULT_SOUTHERN_DRAW_TIME,
+  now: Date = new Date()
+): boolean => {
+  if (!drawDateIso || !ISO_DATE_RE.test(drawDateIso)) {
+    return false;
+  }
+
+  const today = todayIsoVn(now);
+  if (drawDateIso < today) {
+    return true;
+  }
+  if (drawDateIso === today) {
+    return isTodayDrawPassed(drawTime, now);
+  }
+  return false;
+};
+
 /** Chuẩn hoá drawDate từ URL / form về khoảng còn bán được. */
 export const resolveSellableDrawDateParam = (
     raw: string | null | undefined,

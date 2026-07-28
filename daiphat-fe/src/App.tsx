@@ -1,6 +1,6 @@
 import { Suspense } from 'react';
 import './App.css';
-import { BrowserRouter, Navigate, Route, Routes, Outlet } from 'react-router-dom';
+import { BrowserRouter, Navigate, Route, Routes, Outlet, useSearchParams } from 'react-router-dom';
 import { LayoutAdmin } from './admin/layouts/LayoutAdmin';
 import { HomePage } from './client/features/home/HomePage';
 import { SchedulePage } from './client/features/schedule';
@@ -64,6 +64,12 @@ const AdminThemeLayout = () => (
   </div>
 );
 
+const ResultsRedirect = () => {
+  const [searchParams] = useSearchParams();
+  const query = searchParams.toString();
+  return <Navigate to={query ? `/?${query}` : '/'} replace />;
+};
+
 function App() {
   return (
     <BrowserRouter>
@@ -107,6 +113,7 @@ function App() {
         {/* Client Side Theme Context */}
         <Route element={<ClientThemeLayout />}>
           <Route path="/" element={<HomePage />} />
+          <Route path="/results" element={<ResultsRedirect />} />
           <Route path="/lich-mo-thuong" element={<SchedulePage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />

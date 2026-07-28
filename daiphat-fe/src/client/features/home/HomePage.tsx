@@ -9,10 +9,14 @@ import { LeftSidebar } from "../../components/home/LeftSidebar";
 import { HomeSidebar } from "../../components/home/HomeSidebar";
 import { ResultsMatrix } from "../../components/home/ResultsMatrix";
 import { useLottery } from "../../hooks/useLottery";
-import { buildCountdownTarget, isTodayDisplayDate } from "../../types/lottery";
+import { buildCountdownTarget, formatApiDateToDisplay, isTodayDisplayDate } from "../../types/lottery";
 
 export const HomePage = () => {
   const [searchParams] = useSearchParams();
+  const urlDrawDate = searchParams.get('drawDate');
+  const urlStationId = searchParams.get('stationId');
+  const urlStationIds = searchParams.get('stationIds');
+  const urlRegion = searchParams.get('region');
 
   const {
     selectedProvinces,
@@ -143,6 +147,53 @@ export const HomePage = () => {
       window.history.replaceState({}, '', newUrl);
     }
   }, [searchParams]);
+
+  useEffect(() => {
+    if (!urlDrawDate) {
+      return;
+    }
+    const displayDate = /^\d{4}-\d{2}-\d{2}$/.test(urlDrawDate)
+      ? formatApiDateToDisplay(urlDrawDate)
+      : urlDrawDate;
+    setSelectedDate(displayDate);
+  }, [urlDrawDate, setSelectedDate]);
+
+  useEffect(() => {
+    if ((!urlStationId && !urlStationIds) || lotteryData.length === 0) {
+      return;
+    }
+    if (urlStationIds) {
+      const ids = urlStationIds
+        .split(',')
+        .map((id) => Number(id.trim()))
+        .filter((id) => !Number.isNaN(id));
+      if (ids.length === 0) {
+        return;
+      }
+      const matches = lotteryData.filter(
+        (item) => item.stationId != null && ids.includes(item.stationId)
+      );
+      if (matches.length > 0) {
+        setSelectedProvinces(matches.map((item) => item.province));
+      }
+      return;
+    }
+    const stationId = Number(urlStationId);
+    if (Number.isNaN(stationId)) {
+      return;
+    }
+    const match = lotteryData.find((item) => item.stationId === stationId);
+    if (match) {
+      setSelectedProvinces([match.province]);
+    }
+  }, [urlStationId, urlStationIds, lotteryData, setSelectedProvinces]);
+
+  useEffect(() => {
+    if (!urlRegion || urlStationId || urlStationIds || availableProvinces.length === 0) {
+      return;
+    }
+    setSelectedProvinces(availableProvinces);
+  }, [urlRegion, urlStationId, urlStationIds, availableProvinces, setSelectedProvinces]);
 
 
   return (

@@ -22,6 +22,8 @@ import {
     tomorrowIsoVn,
 } from '../../utils/sellableDrawDate.util';
 import { normalizeTicketSearchDigits } from '../../utils/ticketSearchQuery.util';
+import { getPublicSchedule } from '../schedule/services/scheduleService';
+import { resolveNextStationDrawDateIso } from '../../utils/stationDrawDate.util';
 import {
     AppliedTicketFilters,
     EMPTY_APPLIED_FILTERS,
@@ -322,6 +324,39 @@ export const BuyTicketPage = () => {
         }
         setSelectedDates(toSellableDateTokens(urlDrawDate, effectiveDrawTime));
     }, [urlDrawDate, effectiveDrawTime]);
+
+    // Deep link chỉ có stationId: chọn đúng ngày quay sắp tới của đài (vd. Cần Thơ – Thứ 4).
+    useEffect(() => {
+        if (!urlStationId || urlDrawDate) {
+            return;
+        }
+
+        let cancelled = false;
+        const stationId = Number(urlStationId);
+        if (Number.isNaN(stationId)) {
+            return;
+        }
+
+        void (async () => {
+            try {
+                const stations = await getPublicSchedule({ stationId });
+                const station = stations[0];
+                if (!station || cancelled) {
+                    return;
+                }
+                const nextDrawDate = resolveNextStationDrawDateIso(station.drawDays, station.drawTime);
+                if (nextDrawDate) {
+                    setSelectedDates([nextDrawDate]);
+                }
+            } catch {
+                // Giữ ngày mặc định nếu không tải được lịch đài.
+            }
+        })();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [urlStationId, urlDrawDate]);
 
     // Pre-select đài từ deep link (chatbot CTA) hoặc đồng bộ khi đổi ngày quay
     useEffect(() => {

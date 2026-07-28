@@ -29,34 +29,53 @@ import {
 } from '../../../types/chat.type';
 import { ChatSocketMessageEvent } from '../../../types/websocket.type';
 import { ChatLotterySchedule } from './ChatLotterySchedule';
+import { ChatLotteryResultSummary } from './ChatLotteryResultSummary';
 import { ChatTicketSuggestCards } from './ChatTicketSuggestCards';
 import {
   parseConfirmStationToken,
+  parsePickStationListMeta,
+  parsePickStationListRegion,
+  parsePickStationListToken,
+  parseScheduleResultSummaryToken,
   parseScheduleResultToken,
+  parseStationReadyToken,
   buildBuyTicketPath,
+  buildLotteryResultsPath,
+  buildPickStationPageMessage,
+  buildSelectStationMessage,
+  buildSetGoalMessage,
+  isSelectStationMessage,
+  resolveSelectStationDisplayLabel,
   SCHEDULE_TOKEN_ASK_DATE,
   SCHEDULE_TOKEN_ASK_DATE_MODE,
+  SCHEDULE_TOKEN_ASK_GOAL,
   SCHEDULE_TOKEN_ASK_LOCATION,
   SCHEDULE_TOKEN_ASK_STATION_PREFIX,
   SCHEDULE_TOKEN_CONFIRM_STATION_PREFIX,
+  SCHEDULE_TOKEN_PICK_STATION_LIST_PREFIX,
   SCHEDULE_TOKEN_REGION_CHOICE_PREFIX,
+  SCHEDULE_TOKEN_SET_GOAL_PREFIX,
+  SCHEDULE_TOKEN_SHOW_PREFIX,
   type ConfirmStationOption,
 } from '../../utils/scheduleToken.util';
 import {
+  type QuickReplyChip,
+  resolveContextualQuickReplies,
+  ticketSuggestFollowUpChips,
+  collectSuggestedTicketIds,
+  SCHEDULE_RESTART_DISPLAY_LABEL,
+  SCHEDULE_RESTART_MESSAGE,
+  SUGGEST_TICKETS_MESSAGE,
+  SEARCH_SUFFIX_MESSAGE,
+  isSuggestTicketsMessage,
+  shouldShowContextualQuickReplies,
+} from '../../utils/chatQuickReplies.util';
+import {
   parseTicketSuggestToken,
+  stripTicketSuggestToken,
   splitTicketSuggestText,
   type ChatSuggestedTicket,
 } from '../../utils/ticketSuggestToken.util';
-import {
-  type QuickReplyChip,
-  resolveBuyTicketPathFromChip,
-  resolveContextualQuickReplies,
-  scheduleResultFollowUpChips,
-  ticketSuggestFollowUpChips,
-  SCHEDULE_RESTART_DISPLAY_LABEL,
-  SCHEDULE_RESTART_MESSAGE,
-  shouldShowContextualQuickReplies,
-} from '../../utils/chatQuickReplies.util';
 
 interface Message {
   id: string;
@@ -65,14 +84,20 @@ interface Message {
   timestamp: string;
   intent?: string | null;
   fromStaff?: boolean;
-  variant?: 'bubble' | 'divider' | 'date' | 'schedule' | 'schedule-options' | 'schedule-ask-location' | 'schedule-ask-station' | 'schedule-ask-date' | 'schedule-ask-date-mode' | 'schedule-confirm-station' | 'schedule-region-choice' | 'schedule-result' | 'ticket-suggest' | 'typing';
+  variant?: 'bubble' | 'divider' | 'date' | 'schedule' | 'schedule-options' | 'schedule-ask-location' | 'schedule-ask-station' | 'schedule-pick-station-list' | 'schedule-ask-date' | 'schedule-ask-date-mode' | 'schedule-confirm-station' | 'schedule-station-ready' | 'schedule-ask-goal' | 'schedule-region-choice' | 'schedule-result' | 'schedule-result-summary' | 'ticket-suggest' | 'typing';
   scheduleRegion?: string;
   scheduleStationId?: number;
   scheduleStationIds?: number[];
   scheduleHighlightDate?: string;
+  scheduleStationName?: string;
+  scheduleGoal?: 'SCHEDULE' | 'RESULT' | 'TICKET';
+  pickStationListPage?: number;
+  pickStationListHasNext?: boolean;
   confirmStationOptions?: ConfirmStationOption[];
   suggestedTickets?: ChatSuggestedTicket[];
   ticketSuggestEmptyMatch?: boolean;
+  /** Nội dung thật gửi lên server (khi bubble hiển thị label khác token). */
+  sentContent?: string;
 }
 
 const SESSION_DIVIDER_PATTERNS = [
@@ -251,6 +276,10 @@ const resolveMessageVariant = (
   | 'scheduleStationId'
   | 'scheduleStationIds'
   | 'scheduleHighlightDate'
+  | 'scheduleStationName'
+  | 'scheduleGoal'
+  | 'pickStationListPage'
+  | 'pickStationListHasNext'
   | 'confirmStationOptions'
   | 'suggestedTickets'
   | 'ticketSuggestEmptyMatch'
@@ -258,25 +287,38 @@ const resolveMessageVariant = (
   const text = message.content?.trim() || '';
 
   if (message.intent === 'WEB_SCHEDULE') {
-    if (text.includes('Mình chưa nhận ra khu vực này')) {
-      return { variant: 'schedule-ask-location', text };
+    if (text.includes('Mình chưa nhận ra khu vực này') || text.includes('Mình chưa tìm thấy đài này')) {
+      return {
+        variant: 'schedule-region-choice',
+        text: 'Bạn muốn xem đài quay hôm nay, lịch cả tuần hay chọn một đài cụ thể?',
+        scheduleRegion: 'MIEN_NAM',
+      };
     }
     if (text.includes('Mình chưa nhận ra ngày/thứ này')) {
       return { variant: 'schedule-ask-date-mode', text };
     }
-    if (text.includes('Mình chưa tìm thấy đài này')) {
-      return { variant: 'schedule-ask-location', text };
-    }
     if (text === SCHEDULE_OPTIONS_CONTENT) {
-      return { variant: 'schedule-options', text: 'Bạn muốn xem lịch mở thưởng của miền nào?' };
+      return {
+        variant: 'schedule-region-choice',
+        text: 'Bạn muốn xem đài quay hôm nay, lịch cả tuần hay chọn một đài cụ thể?',
+        scheduleRegion: 'MIEN_NAM',
+      };
     }
     if (text === SCHEDULE_TOKEN_ASK_LOCATION) {
-      return { variant: 'schedule-ask-location', text: 'Bạn muốn xem lịch đài nào hoặc miền nào ạ?' };
+      return {
+        variant: 'schedule-region-choice',
+        text: 'Bạn muốn xem đài quay hôm nay, lịch cả tuần hay chọn một đài cụ thể?',
+        scheduleRegion: 'MIEN_NAM',
+      };
     }
-    if (text === SCHEDULE_TOKEN_ASK_DATE_MODE) {
+    if (text === SCHEDULE_TOKEN_ASK_DATE_MODE || text.startsWith(`${SCHEDULE_TOKEN_ASK_DATE_MODE}:`)) {
+      const isResultGoal = text.includes('goal=RESULT');
       return {
         variant: 'schedule-ask-date-mode',
-        text: 'Bạn muốn xem lịch ngày nào?',
+        text: isResultGoal
+          ? 'Bạn muốn xem kết quả ngày nào?'
+          : 'Bạn muốn xem lịch ngày nào?',
+        scheduleGoal: isResultGoal ? 'RESULT' : 'SCHEDULE',
       };
     }
     if (text === SCHEDULE_TOKEN_ASK_DATE) {
@@ -292,20 +334,74 @@ const resolveMessageVariant = (
     }
     if (text.startsWith(SCHEDULE_TOKEN_REGION_CHOICE_PREFIX)) {
       const region = text.slice(SCHEDULE_TOKEN_REGION_CHOICE_PREFIX.length);
-      const regionLabel = REGION_DISPLAY_LABELS[region] ?? region;
       return {
         variant: 'schedule-region-choice',
-        text: `Bạn muốn xem tất cả đài ${regionLabel} hay chọn đài cụ thể?`,
+        text: 'Bạn muốn xem đài quay hôm nay, lịch cả tuần hay chọn một đài cụ thể?',
+        scheduleRegion: region || 'MIEN_NAM',
+      };
+    }
+    if (text === SCHEDULE_TOKEN_ASK_GOAL) {
+      return {
+        variant: 'schedule-ask-goal',
+        text: 'Bạn muốn tra cứu lịch quay, kết quả xổ số hay xem vé ạ?',
+      };
+    }
+    const stationReady = parseStationReadyToken(text);
+    if (stationReady) {
+      return {
+        variant: 'schedule-station-ready',
+        text: stationReady.stationName
+          ? `Bạn đã chọn đài ${stationReady.stationName}. Bấm nút bên dưới để xem lịch, kết quả hoặc vé nhé.`
+          : 'Bạn đã chọn đài. Bấm nút bên dưới để xem lịch, kết quả hoặc vé nhé.',
+        scheduleRegion: stationReady.region,
+        scheduleStationId: stationReady.stationId,
+        scheduleStationName: stationReady.stationName,
+      };
+    }
+        if (text.startsWith(SCHEDULE_TOKEN_PICK_STATION_LIST_PREFIX)) {
+      const options = parsePickStationListToken(text) ?? [];
+      const meta = parsePickStationListMeta(text);
+      const region = parsePickStationListRegion(text);
+      const isResultGoal = text.includes('goal=RESULT');
+      const datePart = text
+        .slice(SCHEDULE_TOKEN_PICK_STATION_LIST_PREFIX.length)
+        .split(':')
+        .find((part) => part.startsWith('date='));
+      const drawDate = datePart?.slice('date='.length);
+      const dateLabel = drawDate && /^\d{4}-\d{2}-\d{2}$/.test(drawDate)
+        ? drawDate.split('-').reverse().join('/')
+        : drawDate;
+      return {
+        variant: 'schedule-pick-station-list',
+        text: isResultGoal && dateLabel
+          ? `Chọn đài muốn xem kết quả ngày ${dateLabel}:`
+          : 'Chọn đài bạn muốn xem, hoặc gõ tên đài khác:',
+        confirmStationOptions: options,
         scheduleRegion: region,
+        scheduleHighlightDate: drawDate,
+        scheduleGoal: isResultGoal ? 'RESULT' : undefined,
+        pickStationListPage: meta?.page ?? 0,
+        pickStationListHasNext: meta?.hasNext,
       };
     }
     if (text.startsWith(SCHEDULE_TOKEN_ASK_STATION_PREFIX)) {
-      const region = text.slice(SCHEDULE_TOKEN_ASK_STATION_PREFIX.length);
-      const regionLabel = REGION_DISPLAY_LABELS[region] ?? region;
+      const region = text.slice(SCHEDULE_TOKEN_ASK_STATION_PREFIX.length) || 'MIEN_NAM';
+      const regionLabel = REGION_DISPLAY_LABELS[region] ?? 'Miền Nam';
       return {
         variant: 'schedule-ask-station',
         text: `Bạn muốn xem đài nào ở ${regionLabel} ạ? (vd: Bến Tre, TP.HCM)`,
         scheduleRegion: region,
+      };
+    }
+    const scheduleResultSummary = parseScheduleResultSummaryToken(text);
+    if (scheduleResultSummary) {
+      return {
+        variant: 'schedule-result-summary',
+        text: 'Kết quả xổ số theo yêu cầu của bạn:',
+        scheduleRegion: scheduleResultSummary.region,
+        scheduleStationId: scheduleResultSummary.stationId,
+        scheduleStationIds: scheduleResultSummary.stationIds,
+        scheduleHighlightDate: scheduleResultSummary.highlightDate,
       };
     }
     const scheduleResult = parseScheduleResultToken(text);
@@ -326,12 +422,19 @@ const resolveMessageVariant = (
 
   const ticketSuggest = parseTicketSuggestToken(text);
   if (ticketSuggest) {
-    return {
-      variant: 'ticket-suggest',
-      text: ticketSuggest.text,
-      suggestedTickets: ticketSuggest.tickets,
-      ticketSuggestEmptyMatch: ticketSuggest.isEmptyMatch,
-    };
+    if (ticketSuggest.tickets.length > 0) {
+      return {
+        variant: 'ticket-suggest',
+        text: ticketSuggest.text,
+        suggestedTickets: ticketSuggest.tickets,
+        ticketSuggestEmptyMatch: ticketSuggest.isEmptyMatch,
+      };
+    }
+    return { variant: 'bubble', text: ticketSuggest.text };
+  }
+
+  if (text.includes('TICKET_SUGGEST:')) {
+    return { variant: 'bubble', text: stripTicketSuggestToken(text) };
   }
 
   // AI_SYSTEM replies are normal bot bubbles; only SYSTEM / notice texts are dividers.
@@ -364,10 +467,41 @@ const formatTime = (value?: string | null) => {
 const toUiMessage = (message: ChatMessageResponse): Message => {
   const resolved = resolveMessageVariant(message);
   const rawContent = message.content?.trim() ?? '';
-  const displayText =
-    message.senderType === 'CUSTOMER' && rawContent === SCHEDULE_RESTART_MESSAGE
-      ? SCHEDULE_RESTART_DISPLAY_LABEL
-      : resolved.text;
+  let displayText = resolved.text;
+  if (message.senderType === 'CUSTOMER') {
+    if (rawContent === SCHEDULE_RESTART_MESSAGE) {
+      displayText = SCHEDULE_RESTART_DISPLAY_LABEL;
+    } else if (isSelectStationMessage(rawContent)) {
+      displayText = resolveSelectStationDisplayLabel(rawContent, resolved.confirmStationOptions)
+        ?? resolved.text;
+    } else if (rawContent.startsWith(SCHEDULE_TOKEN_SET_GOAL_PREFIX)) {
+      const goal = rawContent.slice(SCHEDULE_TOKEN_SET_GOAL_PREFIX.length).trim();
+      displayText =
+        goal === 'SCHEDULE' ? 'Lịch quay'
+        : goal === 'RESULT' ? 'Kết quả'
+        : goal === 'TICKET' ? 'Gợi ý vé'
+        : resolved.text;
+    } else if (rawContent.startsWith(SCHEDULE_TOKEN_SHOW_PREFIX)) {
+      const payload = rawContent.slice(SCHEDULE_TOKEN_SHOW_PREFIX.length);
+      const parts = payload.split(':');
+      const goal = parts.find((part) => part.startsWith('goal='))?.slice('goal='.length);
+      const region = parts.find((part) => part.startsWith('region='))?.slice('region='.length);
+      const stationId = parts.find((part) => part.startsWith('station='))?.slice('station='.length);
+      if (goal === 'SCHEDULE') {
+        displayText = stationId
+          ? 'Lịch quay'
+          : `Lịch ${REGION_DISPLAY_LABELS[region ?? ''] ?? 'Miền Nam'}`;
+      } else if (goal === 'RESULT') {
+        displayText = 'Kết quả';
+      } else if (goal === 'TICKET') {
+        displayText = 'Gợi ý vé';
+      }
+    } else if (isSuggestTicketsMessage(rawContent)) {
+      displayText = rawContent.includes('|exclude=') ? 'Gợi ý số khác' : 'Gợi ý vé';
+    } else if (rawContent === SEARCH_SUFFIX_MESSAGE) {
+      displayText = 'Tìm đuôi số';
+    }
+  }
 
   return {
     id: String(message.id),
@@ -377,10 +511,18 @@ const toUiMessage = (message: ChatMessageResponse): Message => {
     intent: message.intent,
     fromStaff: message.senderType === 'OPERATOR',
     variant: resolved.variant,
+    sentContent:
+      message.senderType === 'CUSTOMER' && displayText !== rawContent && rawContent
+        ? rawContent
+        : undefined,
     scheduleRegion: resolved.scheduleRegion,
     scheduleStationId: resolved.scheduleStationId,
     scheduleStationIds: resolved.scheduleStationIds,
     scheduleHighlightDate: resolved.scheduleHighlightDate,
+    scheduleStationName: resolved.scheduleStationName,
+    scheduleGoal: resolved.scheduleGoal,
+    pickStationListPage: resolved.pickStationListPage,
+    pickStationListHasNext: resolved.pickStationListHasNext,
     confirmStationOptions: resolved.confirmStationOptions,
     suggestedTickets: resolved.suggestedTickets,
     ticketSuggestEmptyMatch: resolved.ticketSuggestEmptyMatch,
@@ -448,12 +590,28 @@ const buildMessagesFromTimeline = (pages: CustomerChatTimelineResponse[]): Messa
   return result;
 };
 
+const isCountableBotReply = (message: Message): boolean =>
+  message.sender === 'bot' &&
+  message.variant !== 'divider' &&
+  message.variant !== 'date' &&
+  message.variant !== 'typing' &&
+  message.id !== 'welcome';
+
+const isSameCustomerBubble = (message: Message, optimistic: Message): boolean => {
+  if (message.sender !== 'user') return false;
+  const messageText = message.text.trim();
+  const optimisticText = optimistic.text.trim();
+  if (messageText === optimisticText) return true;
+  if (!optimistic.sentContent) return false;
+  const sent = optimistic.sentContent.trim();
+  return message.sentContent?.trim() === sent || messageText === sent;
+};
+
 const pruneOverlayMessages = (overlay: Message[], timelineMessages: Message[]): Message[] =>
   overlay.filter((extra) => {
     if (extra.id.startsWith('optimistic-user-')) {
       return !timelineMessages.some(
-        (timelineMessage) =>
-          timelineMessage.sender === 'user' && timelineMessage.text.trim() === extra.text.trim()
+        (timelineMessage) => isSameCustomerBubble(timelineMessage, extra)
       );
     }
 
@@ -474,18 +632,91 @@ const pruneOverlayMessages = (overlay: Message[], timelineMessages: Message[]): 
     return true;
   });
 
+/** Khi bot trả lời nhanh hơn tin user lên timeline: giữ bubble user trước kết quả bot. */
+const mergeTimelineWithOverlay = (
+  timelineMessages: Message[],
+  overlayMessages: Message[],
+  options: { awaitingBotReply: boolean; botReplyCountAtSend: number }
+): Message[] => {
+  const base =
+    timelineMessages.length > 0 ? timelineMessages : [WELCOME_MESSAGE, ...timelineMessages];
+  let overlay = pruneOverlayMessages(overlayMessages, timelineMessages);
+  const stillAwaitingReply =
+    options.awaitingBotReply &&
+    countBotReplies(timelineMessages) <= options.botReplyCountAtSend;
+  if (!stillAwaitingReply) {
+    overlay = overlay.filter((message) => !message.id.startsWith('typing-'));
+  }
+
+  const optimisticUser = overlay.find((message) => message.id.startsWith('optimistic-user-'));
+  if (!optimisticUser) {
+    return stabilizeCustomerBeforeFastBotReply([...base, ...overlay]);
+  }
+
+  const typing = overlay.filter((message) => message.id.startsWith('typing-'));
+  const restOverlay = overlay.filter(
+    (message) => !message.id.startsWith('optimistic-user-') && !message.id.startsWith('typing-')
+  );
+
+  let seenBotReplies = 0;
+  const beforeSend: Message[] = [];
+  const botRepliesAfterSend: Message[] = [];
+  for (const message of base) {
+    if (isCountableBotReply(message)) {
+      seenBotReplies += 1;
+      if (seenBotReplies > options.botReplyCountAtSend) {
+        botRepliesAfterSend.push(message);
+        continue;
+      }
+    }
+    // Tin user trùng optimistic (đã lên timeline) — bỏ khỏi before để tránh double; optimistic giữ chỗ.
+    if (isSameCustomerBubble(message, optimisticUser)) {
+      continue;
+    }
+    beforeSend.push(message);
+  }
+
+  return stabilizeCustomerBeforeFastBotReply([
+    ...beforeSend,
+    optimisticUser,
+    ...typing,
+    ...botRepliesAfterSend,
+    ...restOverlay,
+  ]);
+};
+
+/** Đổi chỗ cặp bot lịch/kết quả ↔ user SCHEDULE_SHOW nếu server/WS đưa bot lên trước. */
+const stabilizeCustomerBeforeFastBotReply = (messages: Message[]): Message[] => {
+  const result = [...messages];
+  for (let index = 0; index < result.length - 1; index += 1) {
+    const current = result[index];
+    const next = result[index + 1];
+    const currentIsFastScheduleBot =
+      isCountableBotReply(current) &&
+      (current.variant === 'schedule-result' ||
+        current.variant === 'schedule' ||
+        current.variant === 'schedule-result-summary');
+    const nextIsShowRequest =
+      next.sender === 'user' &&
+      Boolean(
+        next.sentContent?.startsWith(SCHEDULE_TOKEN_SHOW_PREFIX) ||
+          next.text.startsWith('Lịch ') ||
+          next.text === 'Kết quả' ||
+          next.text.startsWith('Kết quả ')
+      );
+    if (currentIsFastScheduleBot && nextIsShowRequest) {
+      result[index] = next;
+      result[index + 1] = current;
+    }
+  }
+  return result;
+};
+
 const formatNowTime = () =>
   new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
 
 const countBotReplies = (messages: Message[]): number =>
-  messages.filter(
-    (message) =>
-      message.sender === 'bot' &&
-      message.variant !== 'divider' &&
-      message.variant !== 'date' &&
-      message.variant !== 'typing' &&
-      message.id !== 'welcome'
-  ).length;
+  messages.filter((message) => isCountableBotReply(message)).length;
 export const ChatbotPopup = () => {
   const navigate = useNavigate();
   const token = useAuthStore((state) => state.token);
@@ -545,7 +776,7 @@ export const ChatbotPopup = () => {
   const suppressInputAfterSendRef = useRef(false);
   const sendLockTimeoutRef = useRef<number | null>(null);
   const botReplyTimeoutRef = useRef<number | null>(null);
-  const releaseSendLockRef = useRef<() => void>(() => undefined);
+  const releaseSendLockRef = useRef<(options?: { immediate?: boolean }) => void>(() => undefined);
   const handleIncomingMessageRef = useRef<(payload: ChatSocketMessageEvent) => void>(() => undefined);
   const handleConversationEventRef = useRef<(event: ChatConversationSocketEvent) => void>(() => undefined);
 
@@ -555,24 +786,19 @@ export const ChatbotPopup = () => {
   );
 
   const messages = useMemo(() => {
-    const base = timelineMessages.length > 0
-      ? timelineMessages
-      : [WELCOME_MESSAGE, ...timelineMessages];
-    // Lọc overlay ngay lúc render (không đợi effect) để bubble optimistic không
-    // render trùng với tin thật từ server trong 1 frame — nguyên nhân list bị "giật".
-    let overlay = pruneOverlayMessages(overlayMessages, timelineMessages);
-    const stillAwaitingReply =
-      awaitingBotReplyRef.current &&
-      countBotReplies(timelineMessages) <= botReplyCountAtSendRef.current;
-    if (!stillAwaitingReply) {
-      overlay = overlay.filter((message) => !message.id.startsWith('typing-'));
-    }
-    return [...base, ...overlay];
+    return mergeTimelineWithOverlay(timelineMessages, overlayMessages, {
+      awaitingBotReply: awaitingBotReplyRef.current,
+      botReplyCountAtSend: botReplyCountAtSendRef.current,
+    });
   }, [timelineMessages, overlayMessages]);
 
   const displayMessages = useMemo(
     () => prepareDisplayMessages(messages, isAiEnabled),
     [isAiEnabled, messages]
+  );
+  const suggestedTicketExcludeIds = useMemo(
+    () => collectSuggestedTicketIds(displayMessages),
+    [displayMessages]
   );
   const isAuthReady = Boolean(token && userId);
 
@@ -899,6 +1125,7 @@ export const ChatbotPopup = () => {
       window.cancelAnimationFrame(scrollRafRef.current);
     }
 
+    // Instant pin — smooth scroll after a height shrink looks like "jump to top then glide down".
     scrollRafRef.current = window.requestAnimationFrame(() => {
       scrollRafRef.current = null;
       const top = container.scrollHeight;
@@ -944,15 +1171,26 @@ export const ChatbotPopup = () => {
 
     const observer = new IntersectionObserver(
       (entries) => {
+        const containerEl = messagesContainerRef.current;
         if (
-          entries[0]?.isIntersecting &&
-          initialTimelineScrollDoneRef.current &&
-          timelineQuery.hasPreviousPage &&
-          !timelineQuery.isFetchingPreviousPage &&
-          !timelinePrefetchLockRef.current
+          !entries[0]?.isIntersecting ||
+          !initialTimelineScrollDoneRef.current ||
+          !timelineQuery.hasPreviousPage ||
+          timelineQuery.isFetchingPreviousPage ||
+          timelinePrefetchLockRef.current ||
+          !containerEl
         ) {
-          handleLoadOlderMessages();
+          return;
         }
+        // Short threads: top sentinel is always visible — do not treat that as "user scrolled up".
+        if (containerEl.scrollHeight <= containerEl.clientHeight + 8) {
+          return;
+        }
+        // Only prefetch when the user is actually near the top of a long thread.
+        if (containerEl.scrollTop > 96) {
+          return;
+        }
+        handleLoadOlderMessages();
       },
       { root: container, threshold: 0, rootMargin: '120px 0px 0px 0px' }
     );
@@ -1002,8 +1240,8 @@ export const ChatbotPopup = () => {
       hasNewTailMessage &&
       (shouldStickToBottom.current || isNearBottom(container))
     ) {
-      // Smooth after the panel is ready; hard-jump only on first settle.
-      pinScrollToBottom(true, initialTimelineScrollDoneRef.current ? 'smooth' : 'auto');
+      // Instant pin keeps the viewport glued to the latest message without a visible glide.
+      pinScrollToBottom(true, 'auto');
     }
   }, [
     displayMessages,
@@ -1031,13 +1269,17 @@ export const ChatbotPopup = () => {
       if (!(shouldStickToBottom.current || wasAtBottomRef.current)) {
         return;
       }
+      const container = messagesContainerRef.current;
+      // Already glued to bottom — skip to avoid scroll thrash on tiny layout ticks.
+      if (container && getDistanceFromBottom(container) < 8) {
+        return;
+      }
       if (resizeTimer != null) {
         window.clearTimeout(resizeTimer);
       }
-      // Wait a beat so ticket cards finish laying out, then one smooth pin.
       resizeTimer = window.setTimeout(() => {
-        pinScrollToBottom(true, initialTimelineScrollDoneRef.current ? 'smooth' : 'auto');
-      }, 48);
+        pinScrollToBottom(true, 'auto');
+      }, 32);
     });
     resizeObserver.observe(content);
 
@@ -1446,36 +1688,57 @@ export const ChatbotPopup = () => {
     subscribeToConversation,
   ]);
 
-  const releaseSendLock = useCallback(() => {
+  /**
+   * Mở khóa gửi tin ngay lập tức (ref) — không để hub/button bị kẹt.
+   * Chỉ giữ suppress input ngắn để IME không gõ lại chữ cuối.
+   */
+  const releaseSendLock = useCallback((options?: { immediate?: boolean }) => {
     if (sendLockTimeoutRef.current != null) {
       window.clearTimeout(sendLockTimeoutRef.current);
+      sendLockTimeoutRef.current = null;
     }
     if (botReplyTimeoutRef.current != null) {
       window.clearTimeout(botReplyTimeoutRef.current);
       botReplyTimeoutRef.current = null;
     }
-    // Keep suppressing briefly so IME compositionend cannot re-seed the last word + re-send.
-    // Also enforce a short minimum interaction cycle to absorb rapid repeated taps.
-    const elapsed = Date.now() - sendStartedAtRef.current;
-    const releaseDelay = Math.max(200, 1_000 - elapsed);
-    sendLockTimeoutRef.current = window.setTimeout(() => {
+
+    // Ref phải clear ngay — nếu đợi timeout, lần bấm hub tiếp theo bị nuốt im lặng.
+    isSendingRef.current = false;
+    setIsSendingUi(false);
+    awaitingBotReplyRef.current = false;
+
+    const clearSuppress = () => {
       suppressInputAfterSendRef.current = false;
-      isSendingRef.current = false;
-      setIsSendingUi(false);
-      sendLockTimeoutRef.current = null;
       setInputValue((current) => (current.trim() ? '' : current));
+    };
+
+    if (options?.immediate) {
+      clearSuppress();
+      return;
+    }
+
+    const elapsed = Date.now() - sendStartedAtRef.current;
+    const releaseDelay = Math.max(150, 400 - elapsed);
+    sendLockTimeoutRef.current = window.setTimeout(() => {
+      clearSuppress();
+      sendLockTimeoutRef.current = null;
     }, releaseDelay);
   }, []);
 
   releaseSendLockRef.current = releaseSendLock;
 
-  const handleSend = async (text: string) => {
+  const handleSend = async (text: string, displayText?: string) => {
     const normalizedText = text.trim();
-    if (!normalizedText || isSendingRef.current) return;
+    if (!normalizedText) return;
 
     if (!token) {
       AppToast.info('Vui lòng đăng nhập để bắt đầu cuộc trò chuyện hỗ trợ.');
       return;
+    }
+
+    // Cho phép bấm hub khi đang chờ bot: hủy lock cũ, gửi tin mới ngay.
+    if (isSendingRef.current) {
+      releaseSendLock({ immediate: true });
     }
 
     isSendingRef.current = true;
@@ -1487,6 +1750,7 @@ export const ChatbotPopup = () => {
     wasAtBottomRef.current = true;
 
     const sendToken = `${Date.now()}`;
+    const optimisticLabel = displayText?.trim() || normalizedText;
     const isStaffThread =
       conversationStatus === 'ACTIVE' ||
       conversationStatus === 'WAITING_FOR_CUSTOMER' ||
@@ -1498,9 +1762,10 @@ export const ChatbotPopup = () => {
       {
         id: `optimistic-user-${sendToken}`,
         sender: 'user',
-        text: normalizedText,
+        text: optimisticLabel,
         timestamp: formatNowTime(),
         variant: 'bubble',
+        sentContent: normalizedText !== optimisticLabel ? normalizedText : undefined,
       },
       ...(isStaffThread
         ? []
@@ -1514,20 +1779,20 @@ export const ChatbotPopup = () => {
             },
           ]),
     ]);
-    pinScrollToBottom(true, 'smooth');
+    pinScrollToBottom(true, 'auto');
 
     if (!isStaffThread) {
       if (botReplyTimeoutRef.current != null) {
         window.clearTimeout(botReplyTimeoutRef.current);
       }
+      // Watchdog cứng: tối đa 6s phải mở lại nút — tránh kẹt vĩnh viễn khi bot/socket treo.
       botReplyTimeoutRef.current = window.setTimeout(() => {
-        awaitingBotReplyRef.current = false;
         setOverlayMessages((prev) =>
           prev.filter((message) => !message.id.startsWith(`typing-${sendToken}`))
         );
-        releaseSendLockRef.current();
+        releaseSendLockRef.current({ immediate: true });
         void refreshTimelineMessages();
-      }, 10_000);
+      }, 6_000);
     }
 
     const wantsStaff = isExplicitStaffRequestText(normalizedText);
@@ -1542,10 +1807,14 @@ export const ChatbotPopup = () => {
         });
 
         if (!detail) {
-          awaitingBotReplyRef.current = false;
           setOverlayMessages((prev) =>
-            prev.filter((message) => !message.id.startsWith(`typing-${sendToken}`))
+            prev.filter(
+              (message) =>
+                message.id !== `optimistic-user-${sendToken}` &&
+                !message.id.startsWith(`typing-${sendToken}`)
+            )
           );
+          AppToast.error('Không thể bắt đầu cuộc trò chuyện. Vui lòng thử lại.');
           return;
         }
 
@@ -1554,8 +1823,17 @@ export const ChatbotPopup = () => {
         } else {
           applyConversationDetail(detail);
         }
+      } catch {
+        setOverlayMessages((prev) =>
+          prev.filter(
+            (message) =>
+              message.id !== `optimistic-user-${sendToken}` &&
+              !message.id.startsWith(`typing-${sendToken}`)
+          )
+        );
+        AppToast.error('Không thể bắt đầu cuộc trò chuyện. Vui lòng thử lại.');
       } finally {
-        releaseSendLock();
+        releaseSendLock({ immediate: true });
       }
       return;
     }
@@ -1568,8 +1846,7 @@ export const ChatbotPopup = () => {
         if (escalated) {
           hydrateTimelineFromDetail();
           applyStaffRequestResult(escalated, conversationId, { refreshTimeline: false });
-          awaitingBotReplyRef.current = false;
-          releaseSendLock();
+          releaseSendLock({ immediate: true });
           return;
         }
       }
@@ -1582,9 +1859,11 @@ export const ChatbotPopup = () => {
           clientTimelineKey()
         );
         const cachedMessages = buildMessagesFromTimeline(cached?.pages ?? []);
-        const socketDelivered = cachedMessages.some(
-          (message) => message.sender === 'user' && message.text.trim() === normalizedText
-        );
+        const socketDelivered = cachedMessages.some((message) => {
+          if (message.sender !== 'user') return false;
+          const text = message.text.trim();
+          return text === normalizedText || text === optimisticLabel;
+        });
         if (socketDelivered) {
           return;
         }
@@ -1597,7 +1876,6 @@ export const ChatbotPopup = () => {
         });
       }, 1200);
     } catch {
-      awaitingBotReplyRef.current = false;
       setOverlayMessages((prev) =>
         prev.filter(
           (message) =>
@@ -1605,10 +1883,10 @@ export const ChatbotPopup = () => {
         )
       );
       AppToast.error('Không thể gửi tin nhắn realtime lúc này.');
-      releaseSendLock();
+      releaseSendLock({ immediate: true });
     } finally {
       if (isStaffThread) {
-        releaseSendLock();
+        releaseSendLock({ immediate: true });
       }
     }
   };
@@ -1642,27 +1920,26 @@ export const ChatbotPopup = () => {
       await handleRequestStaff();
       return;
     }
-    if (chip.action === 'buy-ticket') {
-      navigate(resolveBuyTicketPathFromChip(chip));
-      setIsOpen(false);
-      setIsMinimized(false);
-      return;
-    }
+    // Hub luôn bấm được — kể cả khi đang chờ bot trả lời.
     if (chip.message) {
-      await handleSend(chip.message);
+      await handleSend(chip.message, chip.label);
     }
   };
 
   const handleBuySuggestedTicket = (ticket: ChatSuggestedTicket) => {
-    navigate(
-      buildBuyTicketPath({
-        ticketId: ticket.id,
-        stationId: ticket.stationId,
-        highlightDate: ticket.drawDate,
-      })
-    );
+    const path = buildBuyTicketPath({
+      ticketId: ticket.id,
+      stationId: ticket.stationId,
+      highlightDate: ticket.drawDate,
+      search: ticket.numbers,
+    });
+    navigate(path);
     setIsOpen(false);
     setIsMinimized(false);
+  };
+
+  const handleSelectStation = (option: ConfirmStationOption) => {
+    void handleSend(buildSelectStationMessage(option.id, option.name), option.name);
   };
 
   // primary = 1 CTA chính/lượt (màu đỏ); secondary = gợi ý phụ (xám nhạt)
@@ -1734,7 +2011,12 @@ export const ChatbotPopup = () => {
       {!isMinimized && (
         <>
           <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-4 bg-[#f8f9fa] scrollbar-thin scrollbar-thumb-gray-200">
-            <div ref={messagesContentRef} className="flex min-h-full flex-col justify-end gap-3 mx-auto w-full max-w-md px-1">
+            {/*
+              mt-auto (not justify-end on the scroll content) keeps short threads at the bottom
+              without resetting scrollTop when message height changes — that jump caused the
+              "fly to top then scroll down" feel on every chip click.
+            */}
+            <div ref={messagesContentRef} className="flex min-h-full flex-col mx-auto w-full max-w-md px-1">
               <div ref={topSentinelRef} className="h-px w-full shrink-0" aria-hidden />
 
               {timelineQuery.isFetchingPreviousPage && (
@@ -1743,6 +2025,7 @@ export const ChatbotPopup = () => {
                 </div>
               )}
 
+              <div className="mt-auto flex flex-col gap-3">
               <div className="text-center text-xs text-gray-400 my-2">Hôm nay</div>
 
               {timelineQuery.isError && (
@@ -1771,24 +2054,6 @@ export const ChatbotPopup = () => {
                       {msg.text}
                     </span>
                   </div>
-                ) : msg.variant === 'schedule-options' || msg.variant === 'schedule-ask-location' ? (
-                  <div key={msg.id} className="flex w-full justify-start">
-                    <div className="w-8 h-8 rounded-full overflow-hidden mr-2 shrink-0 border border-gray-200 mt-auto mb-1 bg-white">
-                      <img src="https://i.ibb.co/4R7c75YN/z7824247008533-94446d3b6c16598cda67404d805c15c4.jpg" alt="Avatar" className="w-full h-full object-contain p-1" />
-                    </div>
-                    <div className="max-w-[85%] min-w-0 items-start flex flex-col">
-                      <div className="bg-white text-gray-800 rounded-2xl rounded-bl-sm shadow-sm border border-gray-100 px-4 py-2.5 text-[15px]">
-                        {msg.text}
-                        <div className="flex flex-col gap-2 mt-3">
-                          <button type="button" onClick={() => void handleSend('Miền Nam')} className="px-3 py-1.5 text-[13px] font-medium text-[#ee1314] bg-red-50 border border-red-200 rounded-xl hover:bg-[#ee1314] hover:text-white transition-colors w-full text-center">Miền Nam</button>
-                          <button type="button" onClick={() => void handleSend('Miền Trung')} className="px-3 py-1.5 text-[13px] font-medium text-[#F26522] bg-orange-50 border border-orange-200 rounded-xl hover:bg-[#F26522] hover:text-white transition-colors w-full text-center">Miền Trung</button>
-                          <button type="button" onClick={() => void handleSend('Miền Bắc')} className="px-3 py-1.5 text-[13px] font-medium text-[#F59E0B] bg-amber-50 border border-amber-200 rounded-xl hover:bg-[#F59E0B] hover:text-white transition-colors w-full text-center">Miền Bắc</button>
-                          <button type="button" onClick={() => void handleSend('Cả 3 miền')} className="px-3 py-1.5 text-[13px] font-medium text-slate-700 bg-slate-50 border border-slate-200 rounded-xl hover:bg-slate-100 transition-colors w-full text-center">Cả 3 miền</button>
-                        </div>
-                      </div>
-                      <span className="text-[11px] text-gray-400 mt-1 px-1">{msg.timestamp}</span>
-                    </div>
-                  </div>
                 ) : msg.variant === 'schedule-ask-station' ? (
                   <div key={msg.id} className="flex w-full justify-start">
                     <div className="w-8 h-8 rounded-full overflow-hidden mr-2 shrink-0 border border-gray-200 mt-auto mb-1 bg-white">
@@ -1797,6 +2062,49 @@ export const ChatbotPopup = () => {
                     <div className="max-w-[85%] min-w-0 items-start flex flex-col">
                       <div className="bg-white text-gray-800 rounded-2xl rounded-bl-sm shadow-sm border border-gray-100 px-4 py-2.5 text-[15px]">
                         {msg.text}
+                      </div>
+                      <span className="text-[11px] text-gray-400 mt-1 px-1">{msg.timestamp}</span>
+                    </div>
+                  </div>
+                ) : msg.variant === 'schedule-pick-station-list' ? (
+                  <div key={msg.id} className="flex w-full justify-start">
+                    <div className="w-8 h-8 rounded-full overflow-hidden mr-2 shrink-0 border border-gray-200 mt-auto mb-1 bg-white">
+                      <img src="https://i.ibb.co/4R7c75YN/z7824247008533-94446d3b6c16598cda67404d805c15c4.jpg" alt="Avatar" className="w-full h-full object-contain p-1" />
+                    </div>
+                    <div className="max-w-[85%] min-w-0 items-start flex flex-col">
+                      <div className="bg-white text-gray-800 rounded-2xl rounded-bl-sm shadow-sm border border-gray-100 px-4 py-2.5 text-[15px]">
+                        {msg.text}
+                        <div className="flex flex-wrap gap-2 mt-3">
+                          {(msg.confirmStationOptions ?? []).map((option) => (
+                            <button
+                              key={option.id}
+                              type="button"
+                              onClick={() => handleSelectStation(option)}
+                              className="px-3 py-1.5 text-[13px] font-medium text-[#ee1314] bg-red-50 border border-red-200 rounded-xl hover:bg-[#ee1314] hover:text-white transition-colors"
+                            >
+                              {option.name}
+                            </button>
+                          ))}
+                        </div>
+                        {(msg.pickStationListPage ?? 0) > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => void handleSend(buildPickStationPageMessage((msg.pickStationListPage ?? 0)))}
+                            className="mt-3 px-3 py-1.5 text-[13px] font-medium text-slate-700 bg-slate-50 border border-slate-200 rounded-xl hover:bg-slate-100 transition-colors w-full"
+                          >
+                            ← Trang trước
+                          </button>
+                        )}
+                        {msg.pickStationListHasNext && (
+                          <button
+                            type="button"
+                            onClick={() => void handleSend(buildPickStationPageMessage((msg.pickStationListPage ?? 0) + 2))}
+                            className="mt-2 px-3 py-1.5 text-[13px] font-medium text-slate-700 bg-slate-50 border border-slate-200 rounded-xl hover:bg-slate-100 transition-colors w-full"
+                          >
+                            Xem thêm đài →
+                          </button>
+                        )}
+                        <p className="text-[12px] text-gray-500 mt-3">Hoặc gõ tên đài khác</p>
                       </div>
                       <span className="text-[11px] text-gray-400 mt-1 px-1">{msg.timestamp}</span>
                     </div>
@@ -1811,9 +2119,16 @@ export const ChatbotPopup = () => {
                         {msg.text}
                         <div className="flex flex-wrap gap-2 mt-3">
                           <button type="button" onClick={() => void handleSend('Hôm nay')} className="px-3 py-1.5 text-[13px] font-medium text-[#ee1314] bg-red-50 border border-red-200 rounded-xl hover:bg-[#ee1314] hover:text-white transition-colors">Hôm nay</button>
-                          <button type="button" onClick={() => void handleSend('Ngày mai')} className="px-3 py-1.5 text-[13px] font-medium text-[#ee1314] bg-red-50 border border-red-200 rounded-xl hover:bg-[#ee1314] hover:text-white transition-colors">Ngày mai</button>
-                          <button type="button" onClick={() => void handleSend('Chọn ngày')} className="px-3 py-1.5 text-[13px] font-medium text-slate-700 bg-slate-50 border border-slate-200 rounded-xl hover:bg-slate-100 transition-colors">Chọn thứ/ngày</button>
-                          <button type="button" onClick={() => void handleSend('Tất cả ngày')} className="px-3 py-1.5 text-[13px] font-medium text-slate-700 bg-slate-50 border border-slate-200 rounded-xl hover:bg-slate-100 transition-colors">Tất cả ngày</button>
+                          {msg.scheduleGoal !== 'RESULT' && (
+                            <button type="button" onClick={() => void handleSend('Ngày mai')} className="px-3 py-1.5 text-[13px] font-medium text-[#ee1314] bg-red-50 border border-red-200 rounded-xl hover:bg-[#ee1314] hover:text-white transition-colors">Ngày mai</button>
+                          )}
+                          <button type="button" onClick={() => void handleSend('Hôm qua')} className="px-3 py-1.5 text-[13px] font-medium text-slate-700 bg-slate-50 border border-slate-200 rounded-xl hover:bg-slate-100 transition-colors">Hôm qua</button>
+                          <button type="button" onClick={() => void handleSend('Chọn ngày')} className="px-3 py-1.5 text-[13px] font-medium text-slate-700 bg-slate-50 border border-slate-200 rounded-xl hover:bg-slate-100 transition-colors">
+                            {msg.scheduleGoal === 'RESULT' ? 'Chọn ngày khác' : 'Chọn thứ/ngày'}
+                          </button>
+                          {msg.scheduleGoal !== 'RESULT' && (
+                            <button type="button" onClick={() => void handleSend('Tất cả ngày')} className="px-3 py-1.5 text-[13px] font-medium text-slate-700 bg-slate-50 border border-slate-200 rounded-xl hover:bg-slate-100 transition-colors">Tất cả ngày</button>
+                          )}
                         </div>
                       </div>
                       <span className="text-[11px] text-gray-400 mt-1 px-1">{msg.timestamp}</span>
@@ -1832,12 +2147,41 @@ export const ChatbotPopup = () => {
                             <button
                               key={option.id}
                               type="button"
-                              onClick={() => void handleSend(option.name)}
+                              onClick={() => handleSelectStation(option)}
                               className="px-3 py-1.5 text-[13px] font-medium text-[#ee1314] bg-red-50 border border-red-200 rounded-xl hover:bg-[#ee1314] hover:text-white transition-colors w-full text-center"
                             >
                               {option.name}
                             </button>
                           ))}
+                        </div>
+                      </div>
+                      <span className="text-[11px] text-gray-400 mt-1 px-1">{msg.timestamp}</span>
+                    </div>
+                  </div>
+                ) : msg.variant === 'schedule-station-ready' ? (
+                  <div key={msg.id} className="flex w-full justify-start">
+                    <div className="w-8 h-8 rounded-full overflow-hidden mr-2 shrink-0 border border-gray-200 mt-auto mb-1 bg-white">
+                      <img src="https://i.ibb.co/4R7c75YN/z7824247008533-94446d3b6c16598cda67404d805c15c4.jpg" alt="Avatar" className="w-full h-full object-contain p-1" />
+                    </div>
+                    <div className="max-w-[85%] min-w-0 items-start flex flex-col">
+                      <div className="bg-white text-gray-800 rounded-2xl rounded-bl-sm shadow-sm border border-gray-100 px-4 py-2.5 text-[15px]">
+                        {msg.text}
+                      </div>
+                      <span className="text-[11px] text-gray-400 mt-1 px-1">{msg.timestamp}</span>
+                    </div>
+                  </div>
+                ) : msg.variant === 'schedule-ask-goal' ? (
+                  <div key={msg.id} className="flex w-full justify-start">
+                    <div className="w-8 h-8 rounded-full overflow-hidden mr-2 shrink-0 border border-gray-200 mt-auto mb-1 bg-white">
+                      <img src="https://i.ibb.co/4R7c75YN/z7824247008533-94446d3b6c16598cda67404d805c15c4.jpg" alt="Avatar" className="w-full h-full object-contain p-1" />
+                    </div>
+                    <div className="max-w-[85%] min-w-0 items-start flex flex-col">
+                      <div className="bg-white text-gray-800 rounded-2xl rounded-bl-sm shadow-sm border border-gray-100 px-4 py-2.5 text-[15px]">
+                        {msg.text}
+                        <div className="flex flex-col gap-2 mt-3">
+                          <button type="button" onClick={() => void handleSend(buildSetGoalMessage('SCHEDULE'), 'Lịch quay')} className="px-3 py-1.5 text-[13px] font-medium text-[#ee1314] bg-red-50 border border-red-200 rounded-xl hover:bg-[#ee1314] hover:text-white transition-colors w-full text-center">Lịch quay</button>
+                          <button type="button" onClick={() => void handleSend(buildSetGoalMessage('RESULT'), 'Kết quả xổ số')} className="px-3 py-1.5 text-[13px] font-medium text-slate-700 bg-slate-50 border border-slate-200 rounded-xl hover:bg-slate-100 transition-colors w-full text-center">Kết quả xổ số</button>
+                          <button type="button" onClick={() => void handleSend(SUGGEST_TICKETS_MESSAGE, 'Gợi ý vé')} className="px-3 py-1.5 text-[13px] font-medium text-slate-700 bg-slate-50 border border-slate-200 rounded-xl hover:bg-slate-100 transition-colors w-full text-center">Gợi ý vé</button>
                         </div>
                       </div>
                       <span className="text-[11px] text-gray-400 mt-1 px-1">{msg.timestamp}</span>
@@ -1854,6 +2198,7 @@ export const ChatbotPopup = () => {
                         <div className="flex flex-wrap gap-2 mt-3">
                           <button type="button" onClick={() => void handleSend('Hôm nay')} className="px-3 py-1.5 text-[13px] font-medium text-[#ee1314] bg-red-50 border border-red-200 rounded-xl hover:bg-[#ee1314] hover:text-white transition-colors">Hôm nay</button>
                           <button type="button" onClick={() => void handleSend('Ngày mai')} className="px-3 py-1.5 text-[13px] font-medium text-[#ee1314] bg-red-50 border border-red-200 rounded-xl hover:bg-[#ee1314] hover:text-white transition-colors">Ngày mai</button>
+                          <button type="button" onClick={() => void handleSend('Hôm qua')} className="px-3 py-1.5 text-[13px] font-medium text-slate-700 bg-slate-50 border border-slate-200 rounded-xl hover:bg-slate-100 transition-colors">Hôm qua</button>
                           {['Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7', 'Chủ nhật'].map((day) => (
                             <button key={day} type="button" onClick={() => void handleSend(day)} className="px-3 py-1.5 text-[13px] font-medium text-slate-700 bg-slate-50 border border-slate-200 rounded-xl hover:bg-slate-100 transition-colors">{day}</button>
                           ))}
@@ -1871,13 +2216,61 @@ export const ChatbotPopup = () => {
                       <div className="bg-white text-gray-800 rounded-2xl rounded-bl-sm shadow-sm border border-gray-100 px-4 py-2.5 text-[15px]">
                         {msg.text}
                         <div className="flex flex-col gap-2 mt-3">
-                          <button type="button" onClick={() => void handleSend('Tất cả')} className="px-3 py-1.5 text-[13px] font-medium text-[#ee1314] bg-red-50 border border-red-200 rounded-xl hover:bg-[#ee1314] hover:text-white transition-colors w-full text-center">
-                            Xem tất cả đài {REGION_DISPLAY_LABELS[msg.scheduleRegion ?? ''] ?? 'miền này'}
+                          <button type="button" onClick={() => void handleSend('Đài quay hôm nay')} className="px-3 py-1.5 text-[13px] font-medium text-[#ee1314] bg-red-50 border border-red-200 rounded-xl hover:bg-[#ee1314] hover:text-white transition-colors w-full text-center">
+                            Đài quay hôm nay
                           </button>
-                          <button type="button" onClick={() => void handleSend('Chọn đài cụ thể')} className="px-3 py-1.5 text-[13px] font-medium text-slate-700 bg-slate-50 border border-slate-200 rounded-xl hover:bg-slate-100 transition-colors w-full text-center">
-                            Chọn đài cụ thể
+                          <button type="button" onClick={() => void handleSend('Lịch cả tuần')} className="px-3 py-1.5 text-[13px] font-medium text-slate-700 bg-slate-50 border border-slate-200 rounded-xl hover:bg-slate-100 transition-colors w-full text-center">
+                            Lịch cả tuần
+                          </button>
+                          <button type="button" onClick={() => void handleSend('Chọn đài')} className="px-3 py-1.5 text-[13px] font-medium text-slate-700 bg-slate-50 border border-slate-200 rounded-xl hover:bg-slate-100 transition-colors w-full text-center">
+                            Chọn đài
                           </button>
                         </div>
+                      </div>
+                      <span className="text-[11px] text-gray-400 mt-1 px-1">{msg.timestamp}</span>
+                    </div>
+                  </div>
+                ) : msg.variant === 'schedule-result-summary' ? (
+                  <div key={msg.id} className="flex w-full justify-start">
+                    <div className="w-8 h-8 rounded-full overflow-hidden mr-2 shrink-0 border border-gray-200 mt-auto mb-1 bg-white">
+                      <img src="https://i.ibb.co/4R7c75YN/z7824247008533-94446d3b6c16598cda67404d805c15c4.jpg" alt="Avatar" className="w-full h-full object-contain p-1" />
+                    </div>
+                    <div className="w-full max-w-[95%] min-w-0 items-start flex flex-col">
+                      {isAiEnabled && (
+                        <p className="text-[14px] text-gray-700 mb-2 px-1">{msg.text}</p>
+                      )}
+                      <div className="bg-white rounded-2xl rounded-bl-sm shadow-sm border border-gray-100 overflow-hidden w-full">
+                        <ChatLotteryResultSummary
+                          region={msg.scheduleRegion}
+                          stationId={msg.scheduleStationId}
+                          stationIds={msg.scheduleStationIds}
+                          drawDate={msg.scheduleHighlightDate}
+                        />
+                      </div>
+                      <div className="flex gap-2 mt-2 w-full max-w-[95%] overflow-x-auto flex-nowrap pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                        <button
+                          type="button"
+                          onClick={() => navigate(buildLotteryResultsPath({
+                            stationId: msg.scheduleStationId,
+                            stationIds: msg.scheduleStationIds,
+                            drawDate: msg.scheduleHighlightDate,
+                            region: msg.scheduleStationId == null && !msg.scheduleStationIds?.length
+                              ? msg.scheduleRegion
+                              : undefined,
+                          }))}
+                          disabled={isEscalating || isInitializing || isLoadingOpen}
+                          className="px-3 py-1.5 text-[13px] font-medium text-white bg-[#ee1314] border border-[#ee1314] rounded-xl hover:bg-red-700 transition-colors shrink-0 disabled:opacity-60 disabled:cursor-not-allowed"
+                        >
+                          Xem chi tiết
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => void handleSend(SCHEDULE_RESTART_MESSAGE)}
+                          disabled={isEscalating || isInitializing || isLoadingOpen}
+                          className="px-3 py-1.5 text-[13px] font-medium text-slate-700 bg-slate-50 border border-slate-200 rounded-xl hover:bg-slate-100 transition-colors shrink-0 disabled:opacity-60 disabled:cursor-not-allowed"
+                        >
+                          {SCHEDULE_RESTART_DISPLAY_LABEL}
+                        </button>
                       </div>
                       <span className="text-[11px] text-gray-400 mt-1 px-1">{msg.timestamp}</span>
                     </div>
@@ -1899,21 +2292,6 @@ export const ChatbotPopup = () => {
                           highlightDate={msg.scheduleHighlightDate}
                         />
                       </div>
-                      {msg.variant === 'schedule-result' && (
-                        <div className="flex gap-2 mt-2 w-full max-w-[95%] overflow-x-auto flex-nowrap pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                          {scheduleResultFollowUpChips(msg).map((chip) => (
-                            <button
-                              key={chip.id}
-                              type="button"
-                              onClick={() => void handleQuickReply(chip)}
-                              disabled={isEscalating || isInitializing || isLoadingOpen}
-                              className={`${quickReplyChipClass(chip.primary)} shrink-0 disabled:opacity-60 disabled:cursor-not-allowed`}
-                            >
-                              {chip.label}
-                            </button>
-                          ))}
-                        </div>
-                      )}
                       <span className="text-[11px] text-gray-400 mt-1 px-1">{msg.timestamp}</span>
                     </div>
                   </div>
@@ -1968,12 +2346,12 @@ export const ChatbotPopup = () => {
                             />
                             {isAiEnabled ? (
                               <div className="flex gap-2 mt-2 w-full max-w-[95%] overflow-x-auto flex-nowrap pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                                {ticketSuggestFollowUpChips().map((chip) => (
+                                {ticketSuggestFollowUpChips(suggestedTicketExcludeIds).map((chip) => (
                                   <button
                                     key={chip.id}
                                     type="button"
                                     onClick={() => void handleQuickReply(chip)}
-                                    disabled={isEscalating || isInitializing || isLoadingOpen || isSendingUi}
+                                    disabled={isEscalating || isInitializing || isLoadingOpen}
                                     className={`${quickReplyChipClass(chip.primary)} shrink-0 disabled:opacity-60 disabled:cursor-not-allowed`}
                                   >
                                     {chip.label}
@@ -2077,6 +2455,7 @@ export const ChatbotPopup = () => {
               )}
 
               <div ref={messagesEndRef} />
+              </div>
             </div>
           </div>
 
@@ -2092,7 +2471,7 @@ export const ChatbotPopup = () => {
                       key={chip.id}
                       type="button"
                       onClick={() => void handleQuickReply(chip)}
-                      disabled={isEscalating || isInitializing || isLoadingOpen || isSendingUi}
+                      disabled={isEscalating || isInitializing || isLoadingOpen}
                       className={`${quickReplyChipClass(chip.primary)} shrink-0 disabled:opacity-60 disabled:cursor-not-allowed`}
                     >
                       {chip.label}

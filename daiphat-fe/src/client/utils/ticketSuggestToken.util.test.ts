@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
+  formatChatMessageContent,
   parseTicketSuggestToken,
   splitTicketSuggestText,
+  stripTicketSuggestToken,
   TICKET_SUGGEST_TOKEN_PREFIX,
 } from './ticketSuggestToken.util';
 
@@ -42,6 +44,22 @@ describe('parseTicketSuggestToken', () => {
 
   it('returns null for plain bubbles', () => {
     expect(parseTicketSuggestToken('Xin chào')).toBeNull();
+  });
+
+  it('strips token when JSON is invalid', () => {
+    const content = 'Hiện chưa có vé khớp.\n\nTICKET_SUGGEST:[{bad json';
+    expect(stripTicketSuggestToken(content)).toBe('Hiện chưa có vé khớp.');
+  });
+
+  it('formats admin-readable ticket list', () => {
+    const content =
+      'Dưới đây là 2 vé đang bán:\n\n' +
+      `${TICKET_SUGGEST_TOKEN_PREFIX}` +
+      '[{"id":1,"numbers":"579361","stationName":"Bến Tre","price":10000},{"id":2,"numbers":"579362","stationName":"TP.HCM","price":10000}]';
+
+    expect(formatChatMessageContent(content)).toContain('579361');
+    expect(formatChatMessageContent(content)).toContain('Bến Tre');
+    expect(formatChatMessageContent(content)).not.toContain('TICKET_SUGGEST');
   });
 });
 

@@ -48,34 +48,37 @@ public class JavaKeywordIntentClassifier {
     private final ChatScheduleStationResolver scheduleStations;
 
     public ChatClassifyResponse classify(String message) {
-        String normalized = scheduleParser.normalize(message);
+        // FE "Gợi ý khác" appends "|exclude=1,2,3" — strip before classify so ticket IDs
+        // are not mistaken for đuôi/đầu search fragments.
+        String classifyMessage = stripSuggestExcludePayload(message);
+        String normalized = scheduleParser.normalize(classifyMessage);
 
-        if (containsAny(normalized, intentProperties.getEscalateKeywords())) {
-            return buildDefault(ChatIntent.ESCALATE_REQUEST, Map.of());
+        // Suggest before inventory search: "gợi ý vé ...|exclude=4716" still contains digits + "ve"
+        // which would otherwise win as WEB_SEARCH.
+        if (isSuggestIntent(normalized)) {
+            return buildDefault(ChatIntent.WEB_SUGGEST, Map.of());
         }
 
-        // Inventory search must win before schedule/suggest: phrases like "có số đuôi là 55"
-        // were fuzzy-matched to đài names (e.g. "duoi la" ≈ "da lat") and wrongly opened lịch.
+        // Ticket search wins over escalation when both cues appear (e.g. "nhân viên tìm đuôi 12").
         if (isTicketInventorySearchIntent(normalized)) {
             Map<String, String> entities = extractTicketEntities(normalized);
             return buildDefault(ChatIntent.WEB_SEARCH, entities);
         }
 
-        // Suggest before account: "gợi ý ... mua vé" is inventory suggestion, not order support.
-        if (isSuggestIntent(normalized)) {
-            return buildDefault(ChatIntent.WEB_SUGGEST, Map.of());
+        if (containsAny(normalized, intentProperties.getEscalateKeywords())) {
+            return buildDefault(ChatIntent.ESCALATE_REQUEST, Map.of());
         }
 
         if (containsAny(normalized, intentProperties.getAccountKeywords())) {
             return buildDefault(ChatIntent.WEB_ACCOUNT, Map.of());
         }
 
-        if (scheduleParser.matchesSlotAnswer(message)) {
+        if (scheduleParser.matchesSlotAnswer(classifyMessage)) {
             return build(ChatIntent.WEB_SCHEDULE, AiIntentConfigKey.SLOT_ANSWER_CONFIDENCE, Map.of());
         }
 
-        if (isScheduleIntent(normalized, message)) {
-            Map<String, String> entities = buildScheduleEntities(message);
+        if (isScheduleIntent(normalized, classifyMessage)) {
+            Map<String, String> entities = buildScheduleEntities(classifyMessage);
             AiIntentConfigKey confidenceKey = entities.isEmpty()
                     ? AiIntentConfigKey.WITHOUT_ENTITY_CONFIDENCE
                     : AiIntentConfigKey.WITH_ENTITY_CONFIDENCE;
@@ -103,6 +106,21 @@ public class JavaKeywordIntentClassifier {
         }
 
         return buildDefault(ChatIntent.UNKNOWN, Map.of());
+    }
+
+    /**
+     * Removes FE protocol payload {@code |exclude=1,2,3} used by "Gợi ý khác".
+     * Raw message is still available to {@code WebSuggestIntentStrategy} via MessageModel.
+     */
+    static String stripSuggestExcludePayload(String message) {
+        if (message == null || message.isBlank()) {
+            return message;
+        }
+        int marker = message.toLowerCase(java.util.Locale.ROOT).indexOf("|exclude=");
+        if (marker < 0) {
+            return message;
+        }
+        return message.substring(0, marker).trim();
     }
 
     /**
@@ -178,8 +196,7 @@ public class JavaKeywordIntentClassifier {
             entities.put(ENTITY_TICKET_MATCH_MODE, MATCH_SUFFIX);
             return;
         }
-        if (normalized.contains("so dau") || normalized.contains("dau so")
-                || normalized.contains(" dau ") || normalized.endsWith(" dau") || normalized.startsWith("dau ")) {
+        if (containsPrefixCue(normalized)) {
             entities.put(ENTITY_TICKET_MATCH_MODE, MATCH_PREFIX);
             return;
         }
@@ -188,6 +205,19 @@ public class JavaKeywordIntentClassifier {
             return;
         }
         entities.put(ENTITY_TICKET_MATCH_MODE, MATCH_SUFFIX);
+    }
+
+    public static boolean containsPrefixCue(String normalized) {
+        if (normalized == null || normalized.isBlank()) {
+            return false;
+        }
+        if (normalized.contains("so dau") || normalized.contains("dau so")) {
+            return true;
+        }
+        if (normalized.contains("co dau") || normalized.contains("tim dau")) {
+            return true;
+        }
+        return normalized.matches(".*\\bdau\\b.*");
     }
 
     private boolean isScheduleIntent(String normalizedText, String originalMessage) {
