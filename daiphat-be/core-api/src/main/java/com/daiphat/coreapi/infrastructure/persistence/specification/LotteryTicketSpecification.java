@@ -59,6 +59,9 @@ public final class LotteryTicketSpecification {
             }
             if (status != null) {
                 predicates.add(cb.equal(root.get(LotteryTicketEntity_.status), status));
+                if (status == LotteryTicketStatus.IN_STOCK) {
+                    predicates.add(cb.greaterThan(root.get(LotteryTicketEntity_.quantity), 0));
+                }
             }
             if (drawDates != null && !drawDates.isEmpty()) {
                 predicates.add(root.get(LotteryTicketEntity_.drawDate).in(drawDates));

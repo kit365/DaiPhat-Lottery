@@ -258,6 +258,10 @@ export const CounterOrderCreatePage = () => {
     const canFetchTickets = Array.isArray(filters.region) && selectedRegionIds.length > 0;
     const ticketSort = useMemo(() => mapCounterTicketSort(sortByUI), [sortByUI]);
 
+    const shouldBalanceByStation = canFetchTickets
+        && selectedRegionIds.length > 1
+        && !searchQuery.trim();
+
     const { data: ticketsRes, isFetching: isTicketsFetching } = useTickets(
         {
             status: LotteryTicketStatus.IN_STOCK,
@@ -268,6 +272,7 @@ export const CounterOrderCreatePage = () => {
             limit: rowsPerPage,
             sortBy: ticketSort.sortBy,
             direction: ticketSort.direction,
+            balanceByStation: shouldBalanceByStation,
         },
         { enabled: canFetchTickets, placeholderData: keepPreviousData }
     );

@@ -44,7 +44,7 @@ class BuyTicketView extends ConsumerStatefulWidget {
 }
 
 class _BuyTicketViewState extends ConsumerState<BuyTicketView> {
-  bool _showHardcodedTicket = true;
+  bool _showHardcodedTicket = false;
 
   void _toggleHardcodedTicket() {
     setState(() {
@@ -211,6 +211,7 @@ class _LoadedView extends StatelessWidget {
         const SizedBox(height: 20),
         _DaySegmentedControl(
           selectedDay: state.selectedDay,
+          isTodaySellClosed: state.isTodaySellClosed,
           onSelectToday: () => viewModel.selectDay(TicketDayFilter.today),
           onSelectTomorrow: () => viewModel.selectDay(TicketDayFilter.tomorrow),
         ),
@@ -500,11 +501,13 @@ class _TicketHeroBanner extends StatelessWidget {
 class _DaySegmentedControl extends StatelessWidget {
   const _DaySegmentedControl({
     required this.selectedDay,
+    required this.isTodaySellClosed,
     required this.onSelectToday,
     required this.onSelectTomorrow,
   });
 
   final TicketDayFilter selectedDay;
+  final bool isTodaySellClosed;
   final VoidCallback onSelectToday;
   final VoidCallback onSelectTomorrow;
 
@@ -512,6 +515,7 @@ class _DaySegmentedControl extends StatelessWidget {
   Widget build(BuildContext context) {
     const selectedTextColor = AppColors.primary;
     const unselectedTextColor = Color(0xFF5C4A45);
+    const disabledTextColor = Color(0xFFB0A5A1);
     const trackColor = Color(0xFFF0F0F0);
 
     return LayoutBuilder(
@@ -588,7 +592,7 @@ class _DaySegmentedControl extends StatelessWidget {
                       child: Material(
                         color: Colors.transparent,
                         child: InkWell(
-                          onTap: onSelectToday,
+                          onTap: isTodaySellClosed ? null : onSelectToday,
                           hoverColor: trackColor,
                           focusColor: trackColor,
                           highlightColor: trackColor,
@@ -596,11 +600,15 @@ class _DaySegmentedControl extends StatelessWidget {
                           borderRadius: BorderRadius.circular(999),
                           child: Center(
                             child: Text(
-                              'Hôm Nay',
+                              isTodaySellClosed
+                                  ? 'Hôm Nay (đóng)'
+                                  : 'Hôm Nay',
                               style: TextStyle(
-                                fontSize: 15,
+                                fontSize: isTodaySellClosed ? 13 : 15,
                                 fontWeight: FontWeight.w700,
-                                color: selectedDay == TicketDayFilter.today
+                                color: isTodaySellClosed
+                                    ? disabledTextColor
+                                    : selectedDay == TicketDayFilter.today
                                     ? selectedTextColor
                                     : unselectedTextColor,
                               ),
@@ -1167,19 +1175,6 @@ class TicketDetailView extends ConsumerWidget {
                     child: LinearProgressIndicator(
                       color: AppColors.primary,
                       backgroundColor: Color(0xFFFFE1D9),
-                    ),
-                  ),
-                if (ticketDetailAsync.hasError)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 8),
-                    child: Text(
-                      'Khong tai duoc chi tiet moi nhat, dang hien thi du lieu tu danh sach.',
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        color: AppColors.textMuted,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                      ),
                     ),
                   ),
                 Row(

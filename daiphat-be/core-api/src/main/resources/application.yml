@@ -60,8 +60,11 @@ daiphat:
       closing-time: "14:00"
       window-minutes: 30
       timezone: Asia/Ho_Chi_Minh
-  support-ticket:
-    auto-close-rate-ms: 60000
+    seed:
+      enabled: ${ORDER_SEED_ENABLED:false}
+  sample-order:
+    seed:
+      enabled: ${SAMPLE_ORDER_SEED_ENABLED:false}
   chat:
     ai:
       confidence-threshold: 0.7
@@ -83,6 +86,7 @@ daiphat:
         scheduler-rate-ms: 10000
   lottery:
     seed:
+      enabled: ${LOTTERY_TICKET_SEED_ENABLED:false}
       southern-stations:
         # Upsert 21 đài Miền Nam + lịch quay (Thứ 2–CN) mỗi lần startup
         enabled: ${LOTTERY_SEED_SOUTHERN_STATIONS_ENABLED:true}
@@ -90,7 +94,6 @@ daiphat:
       user-agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36
     draw-reminder-minutes: 30
     draw-reminder-cron: "0 * * * * *"
-    # Quét mỗi 5 phút để vé chuyển EXPIRED ngay sau giờ quay (16:15) thay vì chờ đến tối
     expire-cron: "0 */5 * * * *"
     station-next-draw-recalculate-cron: "0 0 0 * * *"
     result-poll-seconds: 60

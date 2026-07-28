@@ -100,10 +100,12 @@ public class LotteryTicketController {
             @RequestParam(required = false) String search,
             @RequestParam(required = false) String sortBy,
             @RequestParam(required = false) String direction,
+            @RequestParam(defaultValue = "false") boolean balanceByStation,
             @AuthenticationPrincipal AuthenticatedUserPrincipal principal) {
         log.info("REST request to query lottery tickets page: {}, size: {}", page, size);
         PageResponse<LotteryTicketResponse> response = lotteryTicketServicePort.getAll(
-                page, size, stationId, stationIds, status, drawDate, drawDateFrom, drawDateTo, importBatchLineId, search, sortBy, direction);
+                page, size, stationId, stationIds, status, drawDate, drawDateFrom, drawDateTo, importBatchLineId,
+                search, sortBy, direction, balanceByStation);
         ApiResponse<PageResponse<LotteryTicketResponse>> apiResponse = ApiResponse.success(null, response);
         MappingJacksonValue mappingJacksonValue = new MappingJacksonValue(apiResponse);
         mappingJacksonValue.setSerializationView(resolveLotteryTicketView(principal));

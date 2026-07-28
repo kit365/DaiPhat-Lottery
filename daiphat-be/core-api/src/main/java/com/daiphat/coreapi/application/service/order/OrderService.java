@@ -161,6 +161,9 @@ public class OrderService implements OrderServicePort {
 
         OrderModel saved = orderRepositoryPort.save(order);
         registerPendingPaymentCountdown(saved);
+        if (saved.getStatus() == OrderStatus.COMPLETED) {
+            publishCustomerOrderStatusChanged(saved);
+        }
         log.info("Created direct order with id: {}", saved.getId());
         return saved;
     }

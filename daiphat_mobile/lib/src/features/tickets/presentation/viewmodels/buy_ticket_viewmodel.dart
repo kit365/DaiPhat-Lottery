@@ -7,6 +7,7 @@ import 'package:daiphat_mobile/src/shared/providers/api_providers.dart';
 import '../../data/models/lottery_ticket.dart';
 import '../../data/repositories/lottery_ticket_repository.dart';
 import '../../data/services/lottery_ticket_api_service.dart';
+import '../../utils/sellable_draw_date.dart';
 
 enum TicketDayFilter { today, tomorrow }
 
@@ -26,6 +27,7 @@ class LotteryTicketListItem {
     this.batchCode,
     this.imageUrl,
     this.price,
+    this.quantity = 0,
   });
 
   final int id;
@@ -42,6 +44,7 @@ class LotteryTicketListItem {
   final String? batchCode;
   final String? imageUrl;
   final int? price;
+  final int quantity;
 
   String get stationDisplayText {
     final value = stationName?.trim();
@@ -65,15 +68,15 @@ class BuyTicketState {
     required this.searchQuery,
     required this.selectedProvince,
     required this.selectedDay,
-    required this.onlyInStock,
     required this.tickets,
   });
 
   final String searchQuery;
   final String selectedProvince;
   final TicketDayFilter selectedDay;
-  final bool onlyInStock;
   final List<LotteryTicketListItem> tickets;
+
+  bool get isTodaySellClosed => SellableDrawDate.isTodayDrawPassed();
 
   List<String> get provinces => <String>{
     'Tat ca dai',
@@ -82,39 +85,29 @@ class BuyTicketState {
 
   List<LotteryTicketListItem> get filteredTickets {
     return tickets.where((ticket) {
-      final matchesDay = ticket.dayFilter == selectedDay;
-      final matchesStock = !onlyInStock || ticket.status == 'IN_STOCK';
-      return matchesDay && matchesStock;
+      final matchesProvince =
+          selectedProvince == 'Tat ca dai' ||
+          ticket.stationDisplayText == selectedProvince;
+      return matchesProvince;
     }).toList();
   }
 
-  String get todayLabel => _formatDate(_targetDate(TicketDayFilter.today));
+  String get todayLabel => _formatDate(SellableDrawDate.todayVn());
 
-  String get tomorrowLabel =>
-      _formatDate(_targetDate(TicketDayFilter.tomorrow));
+  String get tomorrowLabel => _formatDate(SellableDrawDate.tomorrowVn());
 
   BuyTicketState copyWith({
     String? searchQuery,
     String? selectedProvince,
     TicketDayFilter? selectedDay,
-    bool? onlyInStock,
     List<LotteryTicketListItem>? tickets,
   }) {
     return BuyTicketState(
       searchQuery: searchQuery ?? this.searchQuery,
       selectedProvince: selectedProvince ?? this.selectedProvince,
       selectedDay: selectedDay ?? this.selectedDay,
-      onlyInStock: onlyInStock ?? this.onlyInStock,
       tickets: tickets ?? this.tickets,
     );
-  }
-
-  static DateTime _targetDate(TicketDayFilter filter) {
-    final now = DateTime.now();
-    final base = DateTime(now.year, now.month, now.day);
-    return filter == TicketDayFilter.today
-        ? base
-        : base.add(const Duration(days: 1));
   }
 
   static String _formatDate(DateTime date) {
@@ -149,27 +142,45 @@ final buyTicketViewModelProvider =
 class BuyTicketViewModel extends AsyncNotifier<BuyTicketState> {
   @override
   FutureOr<BuyTicketState> build() async {
-    return _load();
+    return _load(selectedDay: _defaultDayFilter());
   }
 
   LotteryTicketRepository get _repository =>
       ref.read(lotteryTicketRepositoryProvider);
 
+  TicketDayFilter _defaultDayFilter() {
+    return SellableDrawDate.isTodayDrawPassed()
+        ? TicketDayFilter.tomorrow
+        : TicketDayFilter.today;
+  }
+
+  String _drawDateIsoFor(TicketDayFilter day) {
+    return day == TicketDayFilter.today
+        ? SellableDrawDate.todayIsoVn()
+        : SellableDrawDate.tomorrowIsoVn();
+  }
+
   Future<BuyTicketState> _load({
     String searchQuery = '',
     String selectedProvince = 'Tat ca dai',
     TicketDayFilter selectedDay = TicketDayFilter.today,
-    bool onlyInStock = true,
   }) async {
+    // Sau giờ xổ, tab "Hôm nay" không còn bán — chuyển sang ngày mai.
+    var day = selectedDay;
+    if (day == TicketDayFilter.today && SellableDrawDate.isTodayDrawPassed()) {
+      day = TicketDayFilter.tomorrow;
+    }
+
+    final trimmedSearch = searchQuery.trim();
     final tickets = await _repository.fetchOpenTickets(
-      search: searchQuery.isEmpty ? null : searchQuery,
+      drawDate: _drawDateIsoFor(day),
+      search: trimmedSearch.length >= 2 ? trimmedSearch : null,
     );
 
     return BuyTicketState(
       searchQuery: searchQuery,
       selectedProvince: selectedProvince,
-      selectedDay: selectedDay,
-      onlyInStock: onlyInStock,
+      selectedDay: day,
       tickets: tickets.map(mapLotteryTicketToListItem).toList(),
     );
   }
@@ -181,8 +192,7 @@ class BuyTicketViewModel extends AsyncNotifier<BuyTicketState> {
       () => _load(
         searchQuery: query.trim(),
         selectedProvince: current?.selectedProvince ?? 'Tat ca dai',
-        selectedDay: current?.selectedDay ?? TicketDayFilter.today,
-        onlyInStock: current?.onlyInStock ?? true,
+        selectedDay: current?.selectedDay ?? _defaultDayFilter(),
       ),
     );
   }
@@ -193,16 +203,22 @@ class BuyTicketViewModel extends AsyncNotifier<BuyTicketState> {
     state = AsyncData(current.copyWith(selectedProvince: province));
   }
 
-  void selectDay(TicketDayFilter day) {
+  Future<void> selectDay(TicketDayFilter day) async {
     final current = state.asData?.value;
     if (current == null) return;
-    state = AsyncData(current.copyWith(selectedDay: day));
-  }
+    if (day == TicketDayFilter.today && SellableDrawDate.isTodayDrawPassed()) {
+      return;
+    }
+    if (day == current.selectedDay) return;
 
-  void toggleOnlyInStock() {
-    final current = state.asData?.value;
-    if (current == null) return;
-    state = AsyncData(current.copyWith(onlyInStock: !current.onlyInStock));
+    state = const AsyncLoading();
+    state = await AsyncValue.guard(
+      () => _load(
+        searchQuery: current.searchQuery,
+        selectedProvince: current.selectedProvince,
+        selectedDay: day,
+      ),
+    );
   }
 
   Future<void> refresh() async {
@@ -212,15 +228,14 @@ class BuyTicketViewModel extends AsyncNotifier<BuyTicketState> {
       () => _load(
         searchQuery: current?.searchQuery ?? '',
         selectedProvince: current?.selectedProvince ?? 'Tat ca dai',
-        selectedDay: current?.selectedDay ?? TicketDayFilter.today,
-        onlyInStock: current?.onlyInStock ?? true,
+        selectedDay: current?.selectedDay ?? _defaultDayFilter(),
       ),
     );
   }
 }
 
 LotteryTicketListItem mapLotteryTicketToListItem(LotteryTicket ticket) {
-  final drawDate = ticket.drawDate ?? DateTime.now();
+  final drawDate = ticket.drawDate ?? SellableDrawDate.todayVn();
   return LotteryTicketListItem(
     id: ticket.id,
     displayName: ticket.stationName,
@@ -236,20 +251,26 @@ LotteryTicketListItem mapLotteryTicketToListItem(LotteryTicket ticket) {
     batchCode: ticket.batchCode,
     imageUrl: ticket.ticketImg,
     price: ticket.priceSnapshot,
+    quantity: ticket.quantity,
   );
 }
 
 TicketDayFilter _resolveDayFilter(DateTime drawDate) {
-  final now = DateTime.now();
-  final today = DateTime(now.year, now.month, now.day);
-  final tomorrow = today.add(const Duration(days: 1));
+  final today = SellableDrawDate.todayVn();
+  final tomorrow = SellableDrawDate.tomorrowVn();
   final ticketDate = DateTime(drawDate.year, drawDate.month, drawDate.day);
 
   if (ticketDate == tomorrow) {
     return TicketDayFilter.tomorrow;
   }
+  if (ticketDate == today) {
+    return TicketDayFilter.today;
+  }
 
-  return TicketDayFilter.today;
+  // Ngày khác: gán theo khoảng gần nhất để UI vẫn hiển thị đúng tab đang chọn.
+  return ticketDate.isAfter(today)
+      ? TicketDayFilter.tomorrow
+      : TicketDayFilter.today;
 }
 
 String _buildDateLabel(DateTime drawDate) {

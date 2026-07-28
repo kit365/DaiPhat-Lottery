@@ -260,7 +260,7 @@ class LotteryTicketControllerTest {
                 null,
                 "123456",
                 "createdAt",
-                "desc",
+                "desc",false,
                 principal);
 
         assertThat(response).isNotNull();
@@ -306,7 +306,7 @@ class LotteryTicketControllerTest {
                 null,
                 null,
                 null,
-                null,
+                null,false,
                 principal);
 
         assertThat(response).isNotNull();
@@ -347,7 +347,7 @@ class LotteryTicketControllerTest {
                 null,
                 "654321",
                 "drawDate",
-                "asc",
+                "asc",false,
                 principal);
 
         assertThat(response.getSerializationView()).isEqualTo(Views.Admin.class);
@@ -383,7 +383,7 @@ class LotteryTicketControllerTest {
                 null,
                 "0001",
                 "updatedAt",
-                "desc",
+                "desc",false,
                 principal);
 
         assertThat(response).isNotNull();
@@ -421,7 +421,7 @@ class LotteryTicketControllerTest {
                 null,
                 "123456",
                 "createdAt",
-                "desc",
+                "desc",false,
                 principal);
 
         assertThat(response).isNotNull();
@@ -462,7 +462,7 @@ class LotteryTicketControllerTest {
                 null,
                 "123456",
                 "createdAt",
-                "desc",
+                "desc",false,
                 principal);
 
         String json = OBJECT_MAPPER
@@ -531,7 +531,7 @@ class LotteryTicketControllerTest {
                 null,
                 "888999",
                 "drawDate",
-                "asc",
+                "asc",false,
                 principal);
 
         assertThat(response).isNotNull();
@@ -570,7 +570,7 @@ class LotteryTicketControllerTest {
                 null,
                 "123456",
                 "createdAt",
-                "desc",
+                "desc",false,
                 principal);
 
         assertThat(response).isNotNull();
@@ -608,7 +608,7 @@ class LotteryTicketControllerTest {
                 null,
                 null,
                 null,
-                null,
+                null,false,
                 principal);
 
         assertThat(response).isNotNull();
@@ -725,7 +725,7 @@ class LotteryTicketControllerTest {
                 null,
                 null,
                 null,
-                null,
+                null,false,
                 principal);
 
         assertThat(response).isNotNull();
@@ -844,7 +844,7 @@ class LotteryTicketControllerTest {
                 null,
                 null,
                 null,
-                null,
+                null,false,
                 principal);
 
         String json = OBJECT_MAPPER
@@ -915,7 +915,7 @@ class LotteryTicketControllerTest {
                 null,
                 null,
                 null,
-                null,
+                null,false,
                 principal);
 
         assertThat(response.getSerializationView()).isEqualTo(Views.Public.class);
@@ -1015,7 +1015,7 @@ class LotteryTicketControllerTest {
                 null,
                 null,
                 null,
-                null,
+                null,false,
                 principal);
 
         assertThat(response).isNotNull();
@@ -1093,7 +1093,7 @@ class LotteryTicketControllerTest {
                 null,
                 "123",
                 "drawDate",
-                "asc",
+                "asc",false,
                 principal);
 
         assertThat(response).isNotNull();
@@ -1147,7 +1147,7 @@ class LotteryTicketControllerTest {
                 null,
                 null,
                 null,
-                null,
+                null,false,
                 principal);
 
         assertThat(response.getSerializationView()).isEqualTo(Views.Public.class);
@@ -1534,7 +1534,7 @@ class LotteryTicketControllerTest {
                 null,
                 null,
                 null,
-                null,
+                null,false,
                 principal);
 
         assertThat(response).isNotNull();
