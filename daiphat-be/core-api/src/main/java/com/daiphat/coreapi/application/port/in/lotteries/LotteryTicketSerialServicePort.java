@@ -19,7 +19,7 @@ import java.util.UUID;
 
 public interface LotteryTicketSerialServicePort {
 
-    LotteryTicketSerialModel reportFault(Long id, ReportSerialFaultRequest request);
+    LotteryTicketSerialModel reportFault(Long id, ReportSerialFaultRequest request, UUID actorId);
 
     LotteryTicketSerialModel upsertSerialForTicket(
             LotteryTicketModel ticket,

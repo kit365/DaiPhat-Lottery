@@ -76,6 +76,10 @@ public class LotteryTicketService implements LotteryTicketServicePort {
             );
     private static final List<LotteryTicketSerialStatus> SOLD_SERIAL_STATUSES =
             List.of(LotteryTicketSerialStatus.SOLD);
+    private static final List<LotteryTicketSerialStatus> FAULTY_SERIAL_STATUSES = List.of(
+            LotteryTicketSerialStatus.DAMAGED,
+            LotteryTicketSerialStatus.LOST
+    );
     private static final List<LotteryTicketSerialStatus> PROXY_HELD_SERIAL_STATUSES =
             List.of(LotteryTicketSerialStatus.PROXY_HOLDING);
 
@@ -90,6 +94,7 @@ public class LotteryTicketService implements LotteryTicketServicePort {
     private final StoragePort storagePort;
     private final OrderRepositoryPort orderRepositoryPort;
     private final ApplicationEventPublisher eventPublisher;
+    private final LotteryTicketAggregateSyncService lotteryTicketAggregateSyncService;
 
     @Override
     @Transactional
@@ -1213,7 +1218,13 @@ public class LotteryTicketService implements LotteryTicketServicePort {
         long availableSerialCount = lotteryTicketSerialService.countAvailableSerials(ticketId);
         int totalSerialCount = lotteryTicketSerialService.findAllByTicketId(ticketId).size();
         int soldSerialCount = (int) lotteryTicketSerialService.countByStatuses(ticketId, SOLD_SERIAL_STATUSES);
-        ticket.syncAggregateState((int) availableSerialCount, totalSerialCount, soldSerialCount, cutoffTime);
+        int faultySerialCount = (int) lotteryTicketSerialService.countByStatuses(ticketId, FAULTY_SERIAL_STATUSES);
+        ticket.syncAggregateState(
+                (int) availableSerialCount,
+                totalSerialCount,
+                soldSerialCount,
+                faultySerialCount,
+                cutoffTime);
         LotteryTicketModel saved = lotteryTicketRepositoryPort.save(ticket);
         syncStationInventory(saved.getStationId());
         return saved;
@@ -1315,6 +1326,39 @@ public class LotteryTicketService implements LotteryTicketServicePort {
                 .stream()
                 .map(lotteryTicketApplicationMapper::toSerialResponse)
                 .toList();
+    }
+
+    @Override
+    @Transactional
+    public LotteryTicketResponse finalizeIncidentCancel(Long id) {
+        getTicketOrThrow(id);
+        ensureAllSerialsFaultyReported(id);
+        lotteryTicketAggregateSyncService.syncTicketAggregate(id);
+        return lotteryTicketApplicationMapper.toResponse(getTicketOrThrow(id));
+    }
+
+    private void ensureAllSerialsFaultyReported(Long ticketId) {
+        List<LotteryTicketSerialModel> serials = lotteryTicketSerialService.findAllByTicketId(ticketId);
+        if (serials.isEmpty()) {
+            throw new DomainException(
+                    ErrorCode.LOTTERY_TICKET_INVALID_STATUS,
+                    "Vé số không có sê-ri vật lý để báo sự cố.");
+        }
+
+        List<LotteryTicketSerialModel> unreported = serials.stream()
+                .filter(serial -> !FAULTY_SERIAL_STATUSES.contains(serial.getStatus()))
+                .toList();
+        if (unreported.isEmpty()) {
+            return;
+        }
+
+        String serialNumbers = unreported.stream()
+                .map(LotteryTicketSerialModel::getSerialNumber)
+                .collect(Collectors.joining(", "));
+        throw new DomainException(
+                ErrorCode.LOTTERY_TICKET_SERIALS_INCIDENT_INCOMPLETE,
+                "Cần báo sự cố (Hỏng hoặc Mất) cho tất cả sê-ri trước khi hủy dãy vé. "
+                        + "Còn " + unreported.size() + " sê-ri chưa xử lý: " + serialNumbers);
     }
 
     @Override

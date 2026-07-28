@@ -13,26 +13,47 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class LotteryTicketSerialFaultTest {
 
     @Test
-    @DisplayName("markDamaged sets DAMAGED + faultedBy and clears reservation")
-    void markDamaged_fromSold() {
+    @DisplayName("markDamaged rejects terminal SOLD serial")
+    void markDamaged_rejectsSold() {
         LotteryTicketSerialModel serial = LotteryTicketSerialModel.builder()
                 .status(LotteryTicketSerialStatus.SOLD)
                 .build();
 
-        serial.markDamaged(LotteryTicketSerialFaultedBy.INTERNAL_FAULT, "Vé rách", "https://example.com/evidence.jpg");
-
-        assertThat(serial.getStatus()).isEqualTo(LotteryTicketSerialStatus.DAMAGED);
-        assertThat(serial.getFaultedBy()).isEqualTo(LotteryTicketSerialFaultedBy.INTERNAL_FAULT);
-        assertThat(serial.getDamagedReason()).isEqualTo("Vé rách");
-        assertThat(serial.getDamagedEvidenceUrl()).isEqualTo("https://example.com/evidence.jpg");
-        assertThat(serial.isSoftDeletableStatus()).isTrue();
+        assertThatThrownBy(() -> serial.markDamaged(LotteryTicketSerialFaultedBy.INTERNAL_FAULT, "x"))
+                .isInstanceOf(DomainException.class)
+                .extracting(ex -> ((DomainException) ex).getErrorCode())
+                .isEqualTo(ErrorCode.LOTTERY_TICKET_INVALID_STATUS);
     }
 
     @Test
-    @DisplayName("markLost sets LOST + faultedBy and clears evidence")
-    void markLost_fromSold() {
+    @DisplayName("markDamaged allows IN_STOCK serial")
+    void markDamaged_allowsInStock() {
         LotteryTicketSerialModel serial = LotteryTicketSerialModel.builder()
-                .status(LotteryTicketSerialStatus.SOLD)
+                .status(LotteryTicketSerialStatus.IN_STOCK)
+                .build();
+
+        serial.markDamaged(LotteryTicketSerialFaultedBy.INTERNAL_FAULT, "Vé rách");
+
+        assertThat(serial.getStatus()).isEqualTo(LotteryTicketSerialStatus.DAMAGED);
+    }
+
+    @Test
+    @DisplayName("markDamaged allows RESERVED serial")
+    void markDamaged_allowsReserved() {
+        LotteryTicketSerialModel serial = LotteryTicketSerialModel.builder()
+                .status(LotteryTicketSerialStatus.RESERVED)
+                .build();
+
+        serial.markDamaged(LotteryTicketSerialFaultedBy.INTERNAL_FAULT, "Vé rách");
+
+        assertThat(serial.getStatus()).isEqualTo(LotteryTicketSerialStatus.DAMAGED);
+    }
+
+    @Test
+    @DisplayName("markLost allows RESERVED serial")
+    void markLost_fromReserved() {
+        LotteryTicketSerialModel serial = LotteryTicketSerialModel.builder()
+                .status(LotteryTicketSerialStatus.RESERVED)
                 .damagedEvidenceUrl("https://example.com/old.jpg")
                 .build();
 
@@ -47,7 +68,7 @@ class LotteryTicketSerialFaultTest {
     @DisplayName("markDamaged requires faultedBy")
     void markDamaged_requiresFaultedBy() {
         LotteryTicketSerialModel serial = LotteryTicketSerialModel.builder()
-                .status(LotteryTicketSerialStatus.SOLD)
+                .status(LotteryTicketSerialStatus.IN_STOCK)
                 .build();
 
         assertThatThrownBy(() -> serial.markDamaged(null, "reason"))

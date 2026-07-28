@@ -141,6 +141,23 @@ public class LotteryTicketSerialModel {
         this.damagedEvidenceUrl = null;
     }
 
+    public boolean isInternalInventoryIncidentStatus() {
+        return this.status == LotteryTicketSerialStatus.IN_STOCK;
+    }
+
+    public boolean isActiveTransactionIncidentStatus() {
+        return this.status == LotteryTicketSerialStatus.RESERVED
+                || this.status == LotteryTicketSerialStatus.PROXY_HOLDING;
+    }
+
+    public boolean isIncidentMutableStatus() {
+        return isInternalInventoryIncidentStatus() || isActiveTransactionIncidentStatus();
+    }
+
+    public boolean isTerminalIncidentStatus() {
+        return !isIncidentMutableStatus();
+    }
+
     private void markFaulted(
             LotteryTicketSerialStatus faultStatus,
             LotteryTicketSerialFaultedBy faultedBy,
@@ -149,11 +166,12 @@ public class LotteryTicketSerialModel {
         if (faultedBy == null) {
             throw new DomainException(ErrorCode.INVALID_INPUT, "Cần chỉ định nguồn gây lỗi (faultedBy).");
         }
-        if (this.status != LotteryTicketSerialStatus.SOLD
-                && this.status != LotteryTicketSerialStatus.RESERVED
-                && this.status != LotteryTicketSerialStatus.IN_STOCK
-                && this.status != LotteryTicketSerialStatus.EXPIRED) {
-            throw new DomainException(ErrorCode.LOTTERY_TICKET_INVALID_STATUS);
+        if (!isIncidentMutableStatus()) {
+            throw new DomainException(
+                    ErrorCode.LOTTERY_TICKET_INVALID_STATUS,
+                    "Không thể báo sự cố cho sê-ri ở trạng thái " + this.status.getDisplayName()
+                            + " (chỉ đọc để tra cứu)."
+            );
         }
         this.status = faultStatus;
         this.faultedBy = faultedBy;
@@ -161,6 +179,20 @@ public class LotteryTicketSerialModel {
         this.reservedAt = null;
         this.reservationExpiresAt = null;
         this.reservedByOrderId = null;
+    }
+
+    public void assumeReservedForOrder(UUID orderId, LocalDateTime expiresAt) {
+        this.status = LotteryTicketSerialStatus.RESERVED;
+        this.reservedAt = LocalDateTime.now();
+        this.reservationExpiresAt = expiresAt;
+        this.reservedByOrderId = orderId;
+    }
+
+    public void assumeProxyHolding(UUID orderId) {
+        this.status = LotteryTicketSerialStatus.PROXY_HOLDING;
+        this.reservedByOrderId = orderId;
+        this.reservedAt = null;
+        this.reservationExpiresAt = null;
     }
 
     public boolean isEditableStatus() {
