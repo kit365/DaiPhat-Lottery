@@ -48,6 +48,14 @@ class _MainLayoutState extends State<MainLayout> {
     super.dispose();
   }
 
+  void _goToBlog() {
+    _pageController.animateToPage(
+      0,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+    );
+  }
+
   void _goToMain() {
     _pageController.animateToPage(
       1,
@@ -58,7 +66,7 @@ class _MainLayoutState extends State<MainLayout> {
 
   int _getNavIndex(BuildContext context) {
     if (_onBlogPage) {
-      return 0;
+      return 3;
     }
 
     final location = GoRouterState.of(context).uri.path;
@@ -69,10 +77,10 @@ class _MainLayoutState extends State<MainLayout> {
       return 2;
     }
     if (location.startsWith(AppRoute.cart.path)) {
-      return 3;
+      return 4;
     }
     if (location.startsWith(AppRoute.profile.path)) {
-      return 4;
+      return 5;
     }
     return 0;
   }
@@ -92,10 +100,13 @@ class _MainLayoutState extends State<MainLayout> {
         context.go(AppRoute.home.path);
         break;
       case 3:
+        _goToBlog();
+        break;
+      case 4:
         _goToMain();
         context.go(AppRoute.cart.path);
         break;
-      case 4:
+      case 5:
         _goToMain();
         if (widget.loginViewModel.isAuthenticated) {
           context.go(AppRoute.profile.path);
@@ -158,6 +169,11 @@ class _AnimatedBottomNavigation extends ConsumerWidget {
       activeIcon: Icons.emoji_events_rounded,
     ),
     (
+      label: 'Tin tức',
+      icon: Icons.article_outlined,
+      activeIcon: Icons.article_rounded,
+    ),
+    (
       label: 'Giỏ hàng',
       icon: Icons.shopping_cart_outlined,
       activeIcon: Icons.shopping_cart_rounded,
@@ -196,7 +212,7 @@ class _AnimatedBottomNavigation extends ConsumerWidget {
               child: _AnimatedNavItem(
                 item: _items[index],
                 selected: selectedIndex == index,
-                badgeCount: index == 3 ? cartCount : 0,
+                badgeCount: index == 4 ? cartCount : 0,
                 onTap: () => onTap(index),
               ),
             ),
