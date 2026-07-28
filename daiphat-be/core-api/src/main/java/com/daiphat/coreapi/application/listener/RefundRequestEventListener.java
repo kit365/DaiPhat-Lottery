@@ -66,6 +66,7 @@ public class RefundRequestEventListener {
         notification.markAsSent();
         notificationService.createNotification(notification);
 
+        // EMAIL row is delivery-tracking only; customer inbox lists IN_APP notifications.
         if (shouldSendEmail(event)) {
             sendRefundEmail(event, title, content);
         }
