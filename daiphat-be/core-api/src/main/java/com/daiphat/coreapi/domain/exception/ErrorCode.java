@@ -286,6 +286,11 @@ public enum ErrorCode {
             "Số sê-ri phải thuộc một dãy số.",
             HttpStatus.BAD_REQUEST
     ),
+    LOTTERY_TICKET_SERIALS_INCIDENT_INCOMPLETE(
+            "LT_094",
+            "Cần báo sự cố cho tất cả sê-ri trước khi hủy dãy vé.",
+            HttpStatus.BAD_REQUEST
+    ),
     IMPORT_BATCH_LINE_NOT_DELETABLE(
             "LT_091",
             "Không thể xóa dòng phiếu ở trạng thái hiện tại. Dòng đang nhập cần tạm dừng trước khi xóa.",
