@@ -462,7 +462,7 @@ class ProfileView extends StatelessWidget {
               shape: BoxShape.circle,
             ),
             child: Transform.scale(
-              scale: 1.3,
+              scale: 1.55,
               child: Image.asset(
                 assetPath,
                 width: 34,
@@ -557,8 +557,8 @@ class ProfileView extends StatelessWidget {
                 onTap: () => context.push(AppRoute.notifications.path),
               ),
               const SizedBox(width: 10),
-              _buildUtilityItemAsset(
-                'assets/images/icons/icon_tui_than_tai.png',
+              _buildUtilityItemIcon(
+                Icons.auto_fix_high,
                 'Gieo quẻ',
               ),
               const SizedBox(width: 10),
@@ -612,34 +612,6 @@ class ProfileView extends StatelessWidget {
               ),
             ],
           ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildUtilityItemAsset(String assetPath, String label) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 11),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: const Color(0xFFF0E6E4)),
-        ),
-        child: Column(
-          children: [
-            Image.asset(assetPath, width: 48, height: 48),
-            const SizedBox(height: 8),
-            Text(
-              label,
-              textAlign: TextAlign.center,
-              style: GoogleFonts.publicSans(
-                fontSize: 11,
-                fontWeight: FontWeight.w500,
-                color: AppColors.textMain,
-              ),
-            ),
-          ],
         ),
       ),
     );
