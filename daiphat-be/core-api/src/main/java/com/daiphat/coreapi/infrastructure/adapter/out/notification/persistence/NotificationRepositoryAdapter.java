@@ -22,6 +22,9 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class NotificationRepositoryAdapter implements NotificationRepositoryPort {
 
+    /** Customer inbox / badge counts only surface in-app rows; EMAIL rows track mail delivery. */
+    private static final NotificationChannel INBOX_CHANNEL = NotificationChannel.IN_APP;
+
     private final NotificationRepository notificationRepository;
     private final NotificationPersistenceMapper notificationPersistenceMapper;
     private final EntityManager entityManager;
@@ -61,32 +64,36 @@ public class NotificationRepositoryAdapter implements NotificationRepositoryPort
 
     @Override
     public Page<NotificationModel> findByUserId(UUID userId, Pageable pageable) {
-        return notificationRepository.findByUser_IdAndDeletedAtIsNullOrderByCreatedAtDesc(userId, pageable)
+        return notificationRepository
+                .findByUser_IdAndChannelAndDeletedAtIsNullOrderByCreatedAtDesc(userId, INBOX_CHANNEL, pageable)
                 .map(notificationPersistenceMapper::toDomain);
     }
 
     @Override
     public long countAllByUserId(UUID userId) {
-        return notificationRepository.countByUser_IdAndDeletedAtIsNull(userId);
+        return notificationRepository.countByUser_IdAndChannelAndDeletedAtIsNull(userId, INBOX_CHANNEL);
     }
 
     @Override
     public long countUnreadByUserId(UUID userId) {
-        return notificationRepository.countByUser_IdAndReadFalseAndDeletedAtIsNull(userId);
+        return notificationRepository.countByUser_IdAndChannelAndReadFalseAndDeletedAtIsNull(
+                userId, INBOX_CHANNEL);
     }
 
     @Override
     public long countByUserIdAndType(UUID userId, NotificationType type) {
-        return notificationRepository.countByUser_IdAndTypeAndDeletedAtIsNull(userId, type);
+        return notificationRepository.countByUser_IdAndChannelAndTypeAndDeletedAtIsNull(
+                userId, INBOX_CHANNEL, type);
     }
 
     @Override
     public int markAllAsReadByUserId(UUID userId) {
-        return notificationRepository.markAllAsReadByUserId(userId);
+        return notificationRepository.markAllAsReadByUserIdAndChannel(userId, INBOX_CHANNEL);
     }
 
     @Override
     public int softDeleteAllReadByUserId(UUID userId) {
-        return notificationRepository.softDeleteAllReadByUserId(userId, LocalDateTime.now());
+        return notificationRepository.softDeleteAllReadByUserIdAndChannel(
+                userId, INBOX_CHANNEL, LocalDateTime.now());
     }
 }
