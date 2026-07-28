@@ -21,6 +21,7 @@ export enum LotteryTicketSerialStatus {
 export enum LotteryTicketSerialFaultedBy {
     INTERNAL_FAULT = 'INTERNAL_FAULT',
     ISSUER_FAULT = 'ISSUER_FAULT',
+    DATA_ENTRY_FAULT = 'DATA_ENTRY_FAULT',
 }
 
 /** How a lottery ticket serial was created — assigned by the system, not user input. */

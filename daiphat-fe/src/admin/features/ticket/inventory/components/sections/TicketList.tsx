@@ -35,6 +35,7 @@ export const TicketList = ({
     const {
         tickets,
         pagination,
+        availableTicketStatusOptions,
         isLoading,
         error,
         filters,
@@ -103,6 +104,7 @@ export const TicketList = ({
                             settings,
                             onSettingsChange: setSettings,
                             filters,
+                            availableTicketStatusOptions,
                             onFilterChange: setFilter,
                             onClearFilters: clearFilters,
                             onSearchChange: setSearchFilter,

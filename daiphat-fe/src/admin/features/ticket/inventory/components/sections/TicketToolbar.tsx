@@ -6,7 +6,7 @@ import { Columns } from '../../../../../components/ui/Columns';
 import { ExportButton } from '../../../../../components/ui/ExportButton';
 import { SettingsList } from '../../../../../components/ui/SettingsList';
 import { useStations } from '../../../../station/hooks/useStation';
-import { TICKET_STATUS_OPTIONS } from '../../constants/ticket-status.config';
+import type { TicketStatusOption } from '../../constants/ticket-status.config';
 
 interface ToolbarProps {
     settings: IGridSettings;
@@ -18,6 +18,7 @@ interface ToolbarProps {
         drawDate?: string[];
         search?: string;
     };
+    availableTicketStatusOptions?: TicketStatusOption[];
     onFilterChange: (fieldId: string, values: string[]) => void;
     onClearFilters: () => void;
     onSearchChange: (search: string) => void;
@@ -27,6 +28,7 @@ export const TicketToolbar = ({
     settings,
     onSettingsChange,
     filters,
+    availableTicketStatusOptions = [],
     onFilterChange,
     onClearFilters,
     onSearchChange,
@@ -44,7 +46,7 @@ export const TicketToolbar = ({
             {
                 id: 'status',
                 label: 'Trạng thái',
-                options: TICKET_STATUS_OPTIONS.map((opt) => ({
+                options: availableTicketStatusOptions.map((opt) => ({
                     value: opt.value,
                     label: opt.label,
                 })),
@@ -55,7 +57,7 @@ export const TicketToolbar = ({
                 options: stationOptions,
             },
         ];
-    }, [stationsData]);
+    }, [stationsData, availableTicketStatusOptions]);
 
     return (
         <Toolbar className="admin-list-toolbar">
