@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import 'package:daiphat_mobile/src/app/routing/app_routes.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
@@ -102,69 +103,36 @@ class _BuyTicketViewState extends ConsumerState<BuyTicketView> {
     final viewModel = ref.read(buyTicketViewModelProvider.notifier);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFFFFCFB),
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        surfaceTintColor: Colors.transparent,
-        elevation: 0,
-        centerTitle: true,
-        title: const Text(
-          'Vé Đang Bán',
-          style: TextStyle(
-            fontWeight: FontWeight.w700,
-            fontSize: 21,
-            color: Colors.black,
+      backgroundColor: AppColors.pageBg,
+      body: Column(
+        children: [
+          _BuyTicketHeader(
+            showHardcodedTicket: _showHardcodedTicket,
+            onToggleDemo: _toggleHardcodedTicket,
+            onBack: () => context.go(AppRoute.home.path),
+            onOpenCart: () => context.push('/cart'),
           ),
-        ),
-        leading: Padding(
-          padding: const EdgeInsets.only(left: 8),
-          child: _HeaderActionButton(
-            icon: Icons.arrow_back_ios_new_rounded,
-            iconColor: Colors.black,
-            onTap: () => context.go(AppRoute.home.path),
-          ),
-        ),
-        leadingWidth: 56,
-        actions: [
-          _HeaderActionButton(
-            icon: Icons.shopping_cart_outlined,
-            iconColor: Colors.black,
-            onTap: () => context.push('/cart'),
-          ),
-          const SizedBox(width: 8),
-          IconButton(
-            tooltip: _showHardcodedTicket ? 'An ve demo' : 'Hien ve demo',
-            onPressed: () {
-              _toggleHardcodedTicket();
-            },
-            icon: Icon(
-              _showHardcodedTicket
-                  ? Icons.visibility_off_rounded
-                  : Icons.visibility_rounded,
-              color: const Color(0xFF5D3F3C),
+          Expanded(
+            child: state.when(
+              data: (data) => _LoadedView(
+                state: data,
+                viewModel: viewModel,
+                showHardcodedTicket: _showHardcodedTicket,
+                onOpenDetail: (ticket) => _openTicketDetail(context, ticket),
+                onBuyNow: (ticket) =>
+                    _addToCart(context, ticket, openCheckout: true),
+              ),
+              loading: () => const _LoadingState(),
+              error: (error, _) => _ErrorState(
+                message: error.toString(),
+                onRetry: () {
+                  viewModel.refresh();
+                },
+              ),
             ),
           ),
+          const _CartSummaryBar(),
         ],
-      ),
-      body: SafeArea(
-        top: false,
-        child: state.when(
-          data: (data) => _LoadedView(
-            state: data,
-            viewModel: viewModel,
-            showHardcodedTicket: _showHardcodedTicket,
-            onOpenDetail: (ticket) => _openTicketDetail(context, ticket),
-            onBuyNow: (ticket) =>
-                _addToCart(context, ticket, openCheckout: true),
-          ),
-          loading: () => const _LoadingState(),
-          error: (error, _) => _ErrorState(
-            message: error.toString(),
-            onRetry: () {
-              viewModel.refresh();
-            },
-          ),
-        ),
       ),
     );
   }
@@ -198,13 +166,14 @@ class _LoadedView extends StatelessWidget {
     final demoTicket = _buildHardcodedTicket(state.selectedDay);
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+      padding: const EdgeInsets.fromLTRB(16, 20, 16, 24),
       children: [
-        _SearchField(
-          initialValue: state.searchQuery,
-          onChanged: (value) {
-            viewModel.updateSearchQuery(value);
-          },
+        _QuickSearchCard(
+          initialQuery: state.searchQuery,
+          provinces: state.provinces,
+          selectedProvince: state.selectedProvince,
+          onSearchChanged: viewModel.updateSearchQuery,
+          onSelectProvince: viewModel.selectProvince,
         ),
         const SizedBox(height: 20),
         const _TicketHeroBanner(),
@@ -220,7 +189,10 @@ class _LoadedView extends StatelessWidget {
           const _DemoTicketBanner(),
           const SizedBox(height: 22),
         ],
-        const _TicketSectionHeader(title: 'Danh Sách Vé Đang Mở Bán'),
+        _TicketSectionHeader(
+          title: 'Vé đang mở bán',
+          count: tickets.length + (showHardcodedTicket ? 1 : 0),
+        ),
         const SizedBox(height: 16),
         if (showHardcodedTicket)
           Padding(
@@ -374,19 +346,23 @@ class _SearchFieldState extends State<_SearchField> {
         color: AppColors.ink,
       ),
       decoration: InputDecoration(
-        hintText: 'Tìm kiếm vé theo đài, ngày, bộ số...',
-        hintStyle: const TextStyle(color: Color(0xFF9C9C9C), fontSize: 15.5),
-        prefixIcon: const Icon(Icons.search_rounded, color: Color(0xFF7B6F6B)),
+        hintText: 'Nhập số, đài hoặc ngày quay...',
+        hintStyle: const TextStyle(color: Color(0xFF9C9C9C), fontSize: 14.5),
+        prefixIcon: const Icon(
+          Icons.search_rounded,
+          color: AppColors.primary,
+          size: 22,
+        ),
         filled: true,
-        fillColor: const Color(0xFFF5F5F5),
-        contentPadding: const EdgeInsets.symmetric(vertical: 16),
+        fillColor: AppColors.background,
+        contentPadding: const EdgeInsets.symmetric(vertical: 14),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(24),
-          borderSide: const BorderSide(color: Color(0xFFF5F5F5)),
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide.none,
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(24),
-          borderSide: const BorderSide(color: Color(0xFFE4DAD6), width: 1.1),
+          borderRadius: BorderRadius.circular(16),
+          borderSide: const BorderSide(color: AppColors.primary, width: 1.2),
         ),
       ),
     );
@@ -654,29 +630,38 @@ class _DaySegmentedControl extends StatelessWidget {
 }
 
 class _TicketSectionHeader extends StatelessWidget {
-  const _TicketSectionHeader({required this.title});
+  const _TicketSectionHeader({required this.title, required this.count});
 
   final String title;
+  final int count;
 
   @override
   Widget build(BuildContext context) {
     return Row(
       children: [
         Text(
-          title,
-          style: const TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w700,
-            color: Colors.black,
+          title.toUpperCase(),
+          style: GoogleFonts.barlow(
+            fontSize: 17,
+            fontWeight: FontWeight.w800,
+            color: AppColors.ink,
+            letterSpacing: 0.5,
           ),
         ),
-        const Spacer(),
-        const Text(
-          'Xem tất cả',
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w700,
-            color: AppColors.primary,
+        const SizedBox(width: 8),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
+          decoration: BoxDecoration(
+            color: AppColors.accentLight,
+            borderRadius: BorderRadius.circular(999),
+          ),
+          child: Text(
+            '$count vé',
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w800,
+              color: AppColors.goldDark,
+            ),
           ),
         ),
       ],
@@ -721,8 +706,8 @@ class _TicketCard extends StatelessWidget {
           color: Colors.transparent,
           child: Ink(
             decoration: BoxDecoration(
-              color: const Color(0xFFF9F8F4),
-              border: Border.all(color: const Color(0xFFE8E4DD), width: 1.1),
+              color: Colors.white,
+              border: Border.all(color: const Color(0xFFF1E3E0), width: 1.1),
             ),
             child: InkWell(
               onTap: onTap,
@@ -743,30 +728,55 @@ class _TicketCard extends StatelessWidget {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w500,
-                              color: Color(0xFF2A2A2A),
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.textMuted,
+                              letterSpacing: 0.3,
                             ),
                           ),
-                          const SizedBox(height: 6),
+                          const SizedBox(height: 5),
                           Text(
                             ticket.code,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: Colors.black,
-                              fontSize: 24,
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: 1.4,
+                            style: GoogleFonts.barlow(
+                              color: AppColors.ink,
+                              fontSize: 26,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 1.8,
+                              height: 1.05,
                             ),
                           ),
-                          const SizedBox(height: 8),
+                          const SizedBox(height: 6),
+                          Row(
+                            children: [
+                              const Icon(
+                                Icons.calendar_month_outlined,
+                                size: 13,
+                                color: AppColors.textMuted,
+                              ),
+                              const SizedBox(width: 4),
+                              Flexible(
+                                child: Text(
+                                  ticket.dateLabel,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontSize: 11.5,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.textMuted,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
                           Text(
                             _compactPrice(ticket.price),
-                            style: const TextStyle(
+                            style: GoogleFonts.barlow(
                               fontSize: 17,
-                              color: Color(0xFF111111),
-                              fontWeight: FontWeight.w700,
+                              color: AppColors.primaryDark,
+                              fontWeight: FontWeight.w800,
                             ),
                           ),
                         ],
@@ -780,7 +790,7 @@ class _TicketCard extends StatelessWidget {
                         style: ElevatedButton.styleFrom(
                           elevation: 0,
                           shadowColor: Colors.transparent,
-                          backgroundColor: const Color(0xFFD4121B),
+                          backgroundColor: AppColors.primary,
                           foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(horizontal: 20),
                           shape: RoundedRectangleBorder(
@@ -1294,46 +1304,6 @@ class _HeaderIcon extends StatelessWidget {
   }
 }
 
-class _HeaderActionButton extends StatelessWidget {
-  const _HeaderActionButton({
-    required this.icon,
-    required this.iconColor,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final Color iconColor;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(999),
-        child: Container(
-          width: 40,
-          height: 40,
-          decoration: BoxDecoration(
-            color: Colors.white,
-            shape: BoxShape.circle,
-            border: Border.all(color: const Color(0xFFEDEDED), width: 1.4),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.05),
-                blurRadius: 10,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
-          child: Icon(icon, color: iconColor, size: 20),
-        ),
-      ),
-    );
-  }
-}
-
 class _TicketMeta extends StatelessWidget {
   const _TicketMeta({
     required this.label,
@@ -1588,6 +1558,381 @@ class _ErrorState extends StatelessWidget {
   }
 }
 
+class _BuyTicketHeader extends StatelessWidget {
+  const _BuyTicketHeader({
+    required this.showHardcodedTicket,
+    required this.onToggleDemo,
+    required this.onBack,
+    required this.onOpenCart,
+  });
+
+  final bool showHardcodedTicket;
+  final VoidCallback onToggleDemo;
+  final VoidCallback onBack;
+  final VoidCallback onOpenCart;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [AppColors.primary, AppColors.primaryDark],
+        ),
+        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(28)),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.primary.withValues(alpha: 0.28),
+            blurRadius: 24,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: SafeArea(
+        bottom: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 10, 8, 22),
+          child: Column(
+            children: [
+              Row(
+                children: [
+                  _HeaderSquareButton(
+                    icon: Icons.arrow_back_ios_new_rounded,
+                    onTap: onBack,
+                  ),
+                  const Spacer(),
+                  Consumer(
+                    builder: (context, ref, _) {
+                      final count = ref.watch(cartTicketCountProvider);
+                      return _HeaderSquareButton(
+                        icon: Icons.shopping_cart_outlined,
+                        onTap: onOpenCart,
+                        badgeCount: count,
+                      );
+                    },
+                  ),
+                  IconButton(
+                    tooltip: showHardcodedTicket
+                        ? 'An ve demo'
+                        : 'Hien ve demo',
+                    onPressed: onToggleDemo,
+                    icon: Icon(
+                      showHardcodedTicket
+                          ? Icons.visibility_off_rounded
+                          : Icons.visibility_rounded,
+                      color: Colors.white.withValues(alpha: 0.75),
+                      size: 20,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              Text(
+                'MUA VÉ SỐ',
+                style: GoogleFonts.barlow(
+                  fontSize: 26,
+                  fontWeight: FontWeight.w900,
+                  color: Colors.white,
+                  letterSpacing: 1.6,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'ĐẠI PHÁT • MAY MẮN • THỊNH VƯỢNG',
+                style: GoogleFonts.publicSans(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.goldDark,
+                  letterSpacing: 1.2,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _HeaderSquareButton extends StatelessWidget {
+  const _HeaderSquareButton({
+    required this.icon,
+    required this.onTap,
+    this.badgeCount = 0,
+  });
+
+  final IconData icon;
+  final VoidCallback onTap;
+  final int badgeCount;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.08),
+                  blurRadius: 10,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Icon(icon, color: AppColors.primary, size: 20),
+          ),
+          if (badgeCount > 0)
+            Positioned(
+              right: -4,
+              top: -4,
+              child: Container(
+                constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                decoration: BoxDecoration(
+                  color: AppColors.goldDark,
+                  borderRadius: BorderRadius.circular(999),
+                  border: Border.all(color: Colors.white, width: 1.5),
+                ),
+                child: Center(
+                  child: Text(
+                    '$badgeCount',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _QuickSearchCard extends StatelessWidget {
+  const _QuickSearchCard({
+    required this.initialQuery,
+    required this.provinces,
+    required this.selectedProvince,
+    required this.onSearchChanged,
+    required this.onSelectProvince,
+  });
+
+  final String initialQuery;
+  final List<String> provinces;
+  final String selectedProvince;
+  final ValueChanged<String> onSearchChanged;
+  final ValueChanged<String> onSelectProvince;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.cardBorder),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0D000000),
+            blurRadius: 20,
+            offset: Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 30,
+                height: 30,
+                decoration: BoxDecoration(
+                  color: AppColors.accentLight,
+                  borderRadius: BorderRadius.circular(9),
+                ),
+                child: const Icon(
+                  Icons.bolt_rounded,
+                  size: 18,
+                  color: AppColors.goldDark,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Text(
+                'NHẬP NHANH SỐ VÉ',
+                style: GoogleFonts.barlow(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.primaryDark,
+                  letterSpacing: 0.6,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          _SearchField(initialValue: initialQuery, onChanged: onSearchChanged),
+          if (provinces.length > 1) ...[
+            const SizedBox(height: 12),
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  for (var i = 0; i < provinces.length; i++) ...[
+                    _ProvinceChip(
+                      label: provinces[i] == 'Tat ca dai'
+                          ? 'Tất cả đài'
+                          : provinces[i],
+                      selected: provinces[i] == selectedProvince,
+                      onTap: () => onSelectProvince(provinces[i]),
+                    ),
+                    if (i < provinces.length - 1) const SizedBox(width: 8),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _ProvinceChip extends StatelessWidget {
+  const _ProvinceChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: selected ? AppColors.primary : Colors.white,
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(
+            color: selected ? AppColors.primary : AppColors.cardBorder,
+          ),
+          boxShadow: selected
+              ? [
+                  BoxShadow(
+                    color: AppColors.primary.withValues(alpha: 0.25),
+                    blurRadius: 10,
+                    offset: const Offset(0, 3),
+                  ),
+                ]
+              : null,
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 12.5,
+            fontWeight: FontWeight.w700,
+            color: selected ? Colors.white : AppColors.ink,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _CartSummaryBar extends ConsumerWidget {
+  const _CartSummaryBar();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final count = ref.watch(cartTicketCountProvider);
+    final total = ref.watch(cartTotalProvider);
+    if (count == 0) {
+      return const SizedBox.shrink();
+    }
+
+    return Container(
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        border: Border(top: BorderSide(color: Color(0xFFF1E3E0))),
+        boxShadow: [
+          BoxShadow(
+            color: Color(0x14000000),
+            blurRadius: 16,
+            offset: Offset(0, -4),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'GIỎ HÀNG',
+                  style: GoogleFonts.publicSans(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.textMuted,
+                    letterSpacing: 1,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '$count vé • ${_compactPrice(total)}',
+                  style: GoogleFonts.barlow(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.ink,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          ElevatedButton.icon(
+            onPressed: () => context.push('/cart'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+              elevation: 0,
+              padding: const EdgeInsets.symmetric(
+                horizontal: 20,
+                vertical: 12,
+              ),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(999),
+              ),
+            ),
+            icon: const Icon(Icons.shopping_cart_outlined, size: 18),
+            label: const Text(
+              'Xem giỏ hàng',
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _EmptyState extends StatelessWidget {
   const _EmptyState();
 
@@ -1603,10 +1948,10 @@ class _EmptyState extends StatelessWidget {
       ),
       child: const Column(
         children: [
-          Icon(
-            Icons.confirmation_number_outlined,
-            size: 42,
-            color: Color(0xFF94A3B8),
+          Image(
+            image: AssetImage('assets/images/thantai.png'),
+            height: 110,
+            fit: BoxFit.contain,
           ),
           SizedBox(height: 12),
           Text(
