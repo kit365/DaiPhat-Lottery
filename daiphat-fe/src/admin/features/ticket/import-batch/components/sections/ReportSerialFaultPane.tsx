@@ -97,6 +97,7 @@ interface Props {
     importBatchLineId: number | string;
     stationId?: number | string;
     drawDate?: string;
+    defaultCancelMode?: 'TICKET' | 'SERIAL';
     onCancel: () => void;
     onSuccess: () => void;
 }
@@ -171,6 +172,7 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
     importBatchLineId,
     stationId,
     drawDate,
+    defaultCancelMode = 'SERIAL',
     onCancel,
     onSuccess
 }) => {
@@ -220,11 +222,12 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
         setPage(1);
         setRepPage(1);
         setActiveGroupIndex(0);
+        setCancelMode(defaultCancelMode);
         const timer = setTimeout(() => {
             setIsPreparing(false);
         }, 300);
         return () => clearTimeout(timer);
-    }, [serials]);
+    }, [serials, defaultCancelMode]);
 
     useEffect(() => {
         if (activeGroupIndex >= groups.length && groups.length > 0) {
@@ -232,7 +235,7 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
         }
     }, [groups.length, activeGroupIndex]);
 
-    const [cancelMode, setCancelMode] = useState<'TICKET' | 'SERIAL'>('SERIAL');
+    const [cancelMode, setCancelMode] = useState<'TICKET' | 'SERIAL'>(defaultCancelMode);
     const [serialProcessingMode, setSerialProcessingMode] = useState<'EACH' | 'ALL'>('EACH');
     const [bulkForm, setBulkForm] = useState<FormState>({
         selected: true,

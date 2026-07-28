@@ -761,7 +761,7 @@ export const ImportBatchLineDetailPage = () => {
                         importBatchLineId={line.id}
                         stationId={line.lotteryStationId}
                         drawDate={batch.drawDate}
-                        cancelMode={dialogCancelMode}
+                        defaultCancelMode={dialogCancelMode}
                         onCancel={handleCancelReport}
                         onSuccess={handleReportSuccess}
                     />

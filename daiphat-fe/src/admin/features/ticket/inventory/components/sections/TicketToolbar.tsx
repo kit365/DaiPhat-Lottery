@@ -1,3 +1,4 @@
+import ReportProblemIcon from '@mui/icons-material/ReportProblem';
 import { Toolbar, Box, Button, Badge, SvgIcon } from '@mui/material';
 import { useMemo, type Dispatch, type SetStateAction } from 'react';
 import { IGridSettings, JiraFilter } from '../../../../../shared/data-grid';
@@ -22,6 +23,8 @@ interface ToolbarProps {
     onFilterChange: (fieldId: string, values: string[]) => void;
     onClearFilters: () => void;
     onSearchChange: (search: string) => void;
+    cancelSelectedCount?: number;
+    onCancelTicketsClick?: () => void;
 }
 
 export const TicketToolbar = ({
@@ -32,6 +35,8 @@ export const TicketToolbar = ({
     onFilterChange,
     onClearFilters,
     onSearchChange,
+    cancelSelectedCount = 0,
+    onCancelTicketsClick,
 }: ToolbarProps) => {
     const { data: stationsData } = useStations({ limit: 1000 });
 
@@ -106,6 +111,31 @@ export const TicketToolbar = ({
                 <Columns />
                 <ExportButton />
                 <SettingsList settings={settings} onSettingsChange={onSettingsChange} />
+                {onCancelTicketsClick && (
+                    <Button
+                        variant="contained"
+                        color="error"
+                        size="small"
+                        startIcon={<ReportProblemIcon />}
+                        disabled={cancelSelectedCount === 0}
+                        onClick={onCancelTicketsClick}
+                        sx={{
+                            textTransform: 'none',
+                            fontWeight: 700,
+                            borderRadius: '8px',
+                            boxShadow: 'none',
+                            py: 0.8,
+                            px: 2,
+                            '&.Mui-disabled': {
+                                bgcolor: '#f1f5f9',
+                                color: '#94a3b8',
+                                borderColor: '#cbd5e1',
+                            },
+                        }}
+                    >
+                        Tiến hành hủy vé{cancelSelectedCount > 0 && ` (${cancelSelectedCount})`}
+                    </Button>
+                )}
             </Box>
         </Toolbar>
     );
