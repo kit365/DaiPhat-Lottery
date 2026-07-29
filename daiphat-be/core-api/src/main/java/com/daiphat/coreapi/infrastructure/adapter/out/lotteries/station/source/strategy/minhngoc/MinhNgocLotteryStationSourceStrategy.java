@@ -1,9 +1,11 @@
 package com.daiphat.coreapi.infrastructure.adapter.out.lotteries.station.source.strategy.minhngoc;
 
 import com.daiphat.coreapi.application.dto.lotteries.LotteryStationSourceItem;
+import com.daiphat.coreapi.application.service.lotteries.LotteryRegionDrawTimeResolver;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryRegionCode;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryStationSourceType;
 import com.daiphat.coreapi.infrastructure.adapter.out.lotteries.station.source.strategy.LotteryStationSourceStrategy;
+import lombok.RequiredArgsConstructor;
 import org.jsoup.nodes.Document;
 import org.springframework.stereotype.Component;
 
@@ -12,6 +14,7 @@ import java.util.List;
 import java.util.Map;
 
 @Component
+@RequiredArgsConstructor
 public class MinhNgocLotteryStationSourceStrategy implements LotteryStationSourceStrategy {
 
     private static final String SOUTHERN_CATALOG_URL = "https://www.minhngoc.net.vn/xo-so-mien-nam.html";
@@ -20,7 +23,7 @@ public class MinhNgocLotteryStationSourceStrategy implements LotteryStationSourc
     private static final String SCHEDULE_URL = "https://www.minhngoc.net.vn/thong-tin/lich-quay-so-mo-thuong.html";
     private static final String FALLBACK_SCHEDULE_URL = "https://xoso.com.vn/lich-quay-xo-so.html";
 
-
+    private final LotteryRegionDrawTimeResolver lotteryRegionDrawTimeResolver;
     private final MinhNgocStationNameNormalizer stationNameNormalizer = new MinhNgocStationNameNormalizer();
     private final MinhNgocCatalogParser catalogParser = new MinhNgocCatalogParser(stationNameNormalizer);
     private final MinhNgocScheduleParser scheduleParser = new MinhNgocScheduleParser(stationNameNormalizer);
@@ -57,7 +60,7 @@ public class MinhNgocLotteryStationSourceStrategy implements LotteryStationSourc
 
         String drawTime = scheduleParser.parseDrawTime(documents.get(SCHEDULE_URL), normalizedRegion);
         if (drawTime == null) {
-            drawTime = defaultDrawTime(normalizedRegion);
+            drawTime = lotteryRegionDrawTimeResolver.resolveFormattedDrawTime(normalizedRegion);
         }
 
         List<LotteryStationSourceItem> mergedItems = new ArrayList<>();
@@ -102,14 +105,6 @@ public class MinhNgocLotteryStationSourceStrategy implements LotteryStationSourc
             case MIEN_TRUNG -> "/ket-qua-xo-so/mien-trung/";
             case MIEN_BAC -> "/ket-qua-xo-so/mien-bac/";
             case MIEN_NAM -> "/ket-qua-xo-so/mien-nam/";
-        };
-    }
-
-    private String defaultDrawTime(String region) {
-        return switch (LotteryRegionCode.valueOf(normalizeRegion(region))) {
-            case MIEN_TRUNG -> "17:15";
-            case MIEN_BAC -> "18:15";
-            case MIEN_NAM -> "16:15";
         };
     }
 }

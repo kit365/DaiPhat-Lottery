@@ -200,7 +200,11 @@ public enum ErrorCode {
     LOTTERY_RESULT_RESYNC_NOT_ALLOWED("LT_063", "Chỉ có thể đồng bộ lại kết quả đang thiếu hoặc lỗi.", HttpStatus.CONFLICT),
 
     IMPORT_BATCH_NOT_FOUND("LT_064", "Phiếu nhập lô vé không tồn tại.", HttpStatus.NOT_FOUND),
-    IMPORT_BATCH_CUTOFF_PASSED("LT_065", "Đã quá giờ chốt nhập lô vé cho kỳ quay hôm nay.", HttpStatus.BAD_REQUEST),
+    IMPORT_BATCH_IMPORT_NOT_YET_ALLOWED(
+            "LT_065",
+            "Chưa đến giờ cho phép nhập vé của nhà cung cấp đã chọn.",
+            HttpStatus.BAD_REQUEST
+    ),
     IMPORT_BATCH_INVOICE_REQUIRED("LT_066", "Biên lai nhập lô là bắt buộc cho loại lô này.", HttpStatus.BAD_REQUEST),
     IMPORT_BATCH_INVALID_BATCH_TYPE("LT_067", "Loại lô nhập không hợp lệ.", HttpStatus.BAD_REQUEST),
     IMPORT_BATCH_DECLARE_QUANTITY_INVALID("LT_068", "Số lượng khai báo phải lớn hơn 0.", HttpStatus.BAD_REQUEST),

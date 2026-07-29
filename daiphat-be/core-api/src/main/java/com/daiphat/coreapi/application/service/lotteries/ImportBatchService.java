@@ -52,6 +52,7 @@ import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -91,12 +92,13 @@ public class ImportBatchService implements ImportBatchServicePort {
 
         ensureUniqueStations(request.lines());
         lotterySupplierServicePort.ensureActiveSupplierConfigured();
-        validateInDayCreateAllowed(request);
 
         if (request.supplierId() == null) {
             throw new DomainException(ErrorCode.IMPORT_BATCH_SUPPLIER_REQUIRED);
         }
         LotterySupplierModel supplier = lotterySupplierServicePort.getActiveModelById(request.supplierId());
+        validateSupplierImportAllowFrom(supplier);
+        validateInDayCreateAllowed(request);
 
         if (!Boolean.TRUE.equals(request.forceCreate())) {
             importBatchRepositoryPort
@@ -402,7 +404,6 @@ public class ImportBatchService implements ImportBatchServicePort {
         return List.of(
                 new EnumOptionResponse(ImportBatchType.NEW.name(), ImportBatchType.NEW.getLabel()),
                 new EnumOptionResponse(ImportBatchType.SUPPLEMENTARY.name(), ImportBatchType.SUPPLEMENTARY.getLabel()),
-                new EnumOptionResponse(ImportBatchType.LATE_IMPORT.name(), ImportBatchType.LATE_IMPORT.getLabel()),
                 new EnumOptionResponse(ImportBatchType.ADJUSTMENT.name(), ImportBatchType.ADJUSTMENT.getLabel())
         );
     }
@@ -496,8 +497,7 @@ public class ImportBatchService implements ImportBatchServicePort {
     @Transactional(readOnly = true)
     public ImportBatchTimePolicyResponse getTimePolicy() {
         return ImportBatchTimePolicyResponse.builder()
-                .lateImportTime(importBatchConfigResolver.resolveLateImportTime().format(TIME_DISPLAY))
-                .importBatchCutoffTime(importBatchConfigResolver.resolveImportBatchCutoff().format(TIME_DISPLAY))
+                .returnBufferMinutes(importBatchConfigResolver.resolveReturnBufferMinutes())
                 .build();
     }
 
@@ -607,6 +607,23 @@ public class ImportBatchService implements ImportBatchServicePort {
 
         batch.setLines(importBatchLineRepositoryPort.findByImportBatchId(batchId));
         return importBatchApplicationMapper.toResponse(importBatchRepositoryPort.save(batch));
+    }
+
+    private void validateSupplierImportAllowFrom(LotterySupplierModel supplier) {
+        if (supplier == null || supplier.getImportAllowFrom() == null) {
+            return;
+        }
+        LocalTime now = LocalDateTime.now(clock).toLocalTime();
+        if (now.isBefore(supplier.getImportAllowFrom())) {
+            throw new DomainException(
+                    ErrorCode.IMPORT_BATCH_IMPORT_NOT_YET_ALLOWED,
+                    String.format(
+                            "Chưa đến giờ cho phép nhập vé của nhà cung cấp %s (từ %s).",
+                            supplier.getName(),
+                            supplier.getImportAllowFrom().format(TIME_DISPLAY)
+                    )
+            );
+        }
     }
 
     private void validateInDayCreateAllowed(CreateImportBatchRequest request) {
