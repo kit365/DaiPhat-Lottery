@@ -13,6 +13,7 @@ export const SCHEDULE_TOKEN_PICK_STATION_LIST_PREFIX = 'SCHEDULE_PICK_STATION_LI
 export const SCHEDULE_TOKEN_REGION_CHOICE_PREFIX = 'SCHEDULE_REGION_CHOICE:';
 export const SCHEDULE_TOKEN_RESULT_PREFIX = 'SCHEDULE_RESULT:';
 export const SCHEDULE_TOKEN_RESULT_SUMMARY_PREFIX = 'SCHEDULE_RESULT_SUMMARY:';
+export const SCHEDULE_TOKEN_STATION_BUNDLE_PREFIX = 'SCHEDULE_STATION_BUNDLE:';
 export const SCHEDULE_TOKEN_RESTART = 'SCHEDULE_RESTART';
 
 export interface ParsedScheduleResult {
@@ -22,6 +23,7 @@ export interface ParsedScheduleResult {
   nationAll?: boolean;
   regionToday?: boolean;
   highlightDate?: string;
+  stationName?: string;
 }
 
 export interface BuildBuyTicketPathOptions {
@@ -123,6 +125,9 @@ const parseScheduleTokenParams = (content: string, prefix: string): ParsedSchedu
     if (key === 'date') {
       parsed.highlightDate = value;
     }
+    if (key === 'stationName') {
+      parsed.stationName = decodeURIComponent(value.replace(/\+/g, ' '));
+    }
     if (key === 'scope' && value === 'nation') {
       parsed.nationAll = true;
     }
@@ -142,6 +147,9 @@ export const parseScheduleResultToken = (content: string): ParsedScheduleResult 
 
 export const parseScheduleResultSummaryToken = (content: string): ParsedScheduleResult | null =>
   parseScheduleTokenParams(content, SCHEDULE_TOKEN_RESULT_SUMMARY_PREFIX);
+
+export const parseScheduleStationBundleToken = (content: string): ParsedScheduleResult | null =>
+  parseScheduleTokenParams(content, SCHEDULE_TOKEN_STATION_BUNDLE_PREFIX);
 
 export interface ConfirmStationOption {
   id: number;
