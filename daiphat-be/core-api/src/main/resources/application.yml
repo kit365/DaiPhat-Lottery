@@ -60,11 +60,6 @@ daiphat:
       closing-time: "14:00"
       window-minutes: 30
       timezone: Asia/Ho_Chi_Minh
-    seed:
-      enabled: ${ORDER_SEED_ENABLED:false}
-  sample-order:
-    seed:
-      enabled: ${SAMPLE_ORDER_SEED_ENABLED:false}
   chat:
     ai:
       confidence-threshold: 0.7
@@ -86,7 +81,6 @@ daiphat:
         scheduler-rate-ms: 10000
   lottery:
     seed:
-      enabled: ${LOTTERY_TICKET_SEED_ENABLED:false}
       southern-stations:
         # Upsert 21 đài Miền Nam + lịch quay (Thứ 2–CN) mỗi lần startup
         enabled: ${LOTTERY_SEED_SOUTHERN_STATIONS_ENABLED:true}
