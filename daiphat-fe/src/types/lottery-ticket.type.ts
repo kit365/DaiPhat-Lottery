@@ -4,6 +4,19 @@ export type TicketSearchMode = 'CONTAINS' | 'SUFFIX' | 'PREFIX' | 'EXACT';
 
 export type TicketDrawResultStatus = 'PENDING_DRAW' | 'WON' | 'LOST';
 
+export type SerialPayoutState = 'NONE' | 'PAYOUT_PENDING' | 'PAID_OUT';
+
+export type LotteryTicketSerialStatus =
+    | 'IN_STOCK'
+    | 'RESERVED'
+    | 'PROXY_HOLDING'
+    | 'SOLD'
+    | 'DAMAGED'
+    | 'LOST'
+    | 'EXPIRED';
+
+export type PrizePayoutRequestStatus = 'PENDING' | 'COMPLETED' | 'REJECTED' | 'CANCELLED';
+
 export interface PublicLotteryTicket {
     id: number;
     stationId: number;
@@ -43,8 +56,12 @@ export interface LookupPurchasedTicketsParams {
 export interface PurchasedTicket {
     orderId: string;
     orderCode: string;
+    orderDetailId?: number;
     ticketId: number;
+    serialId?: number;
     serialNumber?: string;
+    serialStatus?: LotteryTicketSerialStatus;
+    payoutState?: SerialPayoutState;
     numbers: string;
     stationName?: string;
     drawDate: string;
@@ -53,6 +70,9 @@ export interface PurchasedTicket {
     drawResultStatus: TicketDrawResultStatus;
     matchedPrizeCode?: string;
     matchedPrizeDisplayName?: string;
+    prizeAmount?: number;
+    activePayoutRequestId?: number;
+    activePayoutStatus?: PrizePayoutRequestStatus;
 }
 
 export type PublicLotteryTicketPage = PageResponse<PublicLotteryTicket>;

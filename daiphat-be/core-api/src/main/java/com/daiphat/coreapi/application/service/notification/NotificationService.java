@@ -8,6 +8,7 @@ import com.daiphat.coreapi.application.port.in.notification.NotificationServiceP
 import com.daiphat.coreapi.application.port.out.blog.BlogPostRepositoryPort;
 import com.daiphat.coreapi.application.port.out.notification.NotificationRepositoryPort;
 import com.daiphat.coreapi.application.port.out.order.OrderRepositoryPort;
+import com.daiphat.coreapi.application.port.out.payout.PrizePayoutRequestRepositoryPort;
 import com.daiphat.coreapi.application.port.out.refund.RefundRequestRepositoryPort;
 import com.daiphat.coreapi.application.port.out.support.SupportTicketRepositoryPort;
 import com.daiphat.coreapi.domain.exception.DomainException;
@@ -41,6 +42,7 @@ public class NotificationService implements NotificationServicePort {
     private final NotificationApplicationMapper notificationApplicationMapper;
     private final OrderRepositoryPort orderRepositoryPort;
     private final RefundRequestRepositoryPort refundRequestRepositoryPort;
+    private final PrizePayoutRequestRepositoryPort prizePayoutRequestRepositoryPort;
     private final SupportTicketRepositoryPort supportTicketRepositoryPort;
     private final BlogPostRepositoryPort blogPostRepositoryPort;
 
@@ -178,6 +180,7 @@ public class NotificationService implements NotificationServicePort {
         boolean exists = switch (referenceType) {
             case ORDER -> isOrderReferenceAvailable(referenceId);
             case REFUND, REFUND_REQUEST -> isRefundReferenceAvailable(referenceId);
+            case PRIZE_PAYOUT_REQUEST -> isPrizePayoutReferenceAvailable(referenceId);
             case SUPPORT_TICKET -> isSupportTicketReferenceAvailable(referenceId);
             case BLOG_POST -> isBlogPostReferenceAvailable(referenceId);
             default -> true;
@@ -205,6 +208,15 @@ public class NotificationService implements NotificationServicePort {
         try {
             Long refundId = Long.valueOf(referenceId.trim());
             return refundRequestRepositoryPort.findById(refundId).isPresent();
+        } catch (NumberFormatException ex) {
+            return false;
+        }
+    }
+
+    private boolean isPrizePayoutReferenceAvailable(String referenceId) {
+        try {
+            Long requestId = Long.valueOf(referenceId.trim());
+            return prizePayoutRequestRepositoryPort.findById(requestId).isPresent();
         } catch (NumberFormatException ex) {
             return false;
         }

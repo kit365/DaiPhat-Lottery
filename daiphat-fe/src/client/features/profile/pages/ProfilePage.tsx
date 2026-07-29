@@ -6,9 +6,10 @@ import { useAuth } from "../../../hooks/useAuth";
 import { useAuthStore } from "../../../../stores/useAuthStore";
 import { useNotifications } from "../../../hooks/useNotifications";
 import { useMyRefundPendingCount } from "../../../hooks/useMyRefundPendingCount";
+import { useMyPrizePayoutPendingCount } from "../../../hooks/usePrizePayout";
 import { useMySupportTicketActiveCount } from "../../../hooks/useMySupportTicketActiveCount";
 
-type TabId = 'overview' | 'info' | 'tickets' | 'orders' | 'refunds' | 'complaints' | 'bankAccounts' | 'notifications' | 'resultNotifications' | 'settings' | 'favorites';
+type TabId = 'overview' | 'info' | 'tickets' | 'orders' | 'refunds' | 'prizePayouts' | 'complaints' | 'bankAccounts' | 'notifications' | 'resultNotifications' | 'settings' | 'favorites';
 
 interface TabConfig {
     id: TabId;
@@ -24,6 +25,7 @@ const TABS: TabConfig[] = [
     { id: 'tickets', path: '/profile/tickets', label: 'Vé của tôi', icon: 'fa-solid fa-ticket-simple' },
     { id: 'orders', path: '/profile/orders', label: 'Đơn hàng của tôi', icon: 'fa-solid fa-file-invoice-dollar' },
     { id: 'refunds', path: '/profile/refunds', label: 'Yêu cầu hoàn tiền', icon: 'fa-solid fa-rotate-left' },
+    { id: 'prizePayouts', path: '/profile/prize-payouts', label: 'Yêu cầu trả thưởng', icon: 'fa-solid fa-trophy' },
     { id: 'complaints', path: '/profile/complaints', label: 'Khiếu nại / Hỗ trợ', icon: 'fa-solid fa-headset' },
     { id: 'bankAccounts', path: '/profile/bank-accounts', label: 'Tài khoản ngân hàng', icon: 'fa-solid fa-building-columns' },
     { id: 'favorites', path: '/profile/favorites', label: 'Số yêu thích', icon: 'fa-regular fa-star' },
@@ -37,6 +39,8 @@ export const ProfilePage = () => {
     const { token, openLoginModal } = useAuthStore();
     const { unreadCount } = useNotifications(4);
     const { pendingCount: pendingRefundCount } = useMyRefundPendingCount();
+    const { data: pendingPayoutRes } = useMyPrizePayoutPendingCount();
+    const pendingPayoutCount = pendingPayoutRes?.data ?? 0;
     const { activeCount: activeTicketCount } = useMySupportTicketActiveCount();
     const location = useLocation();
     const navigate = useNavigate();
@@ -60,6 +64,12 @@ export const ProfilePage = () => {
             return {
                 ...tab,
                 badge: pendingRefundCount > 0 ? pendingRefundCount : undefined,
+            };
+        }
+        if (tab.id === "prizePayouts") {
+            return {
+                ...tab,
+                badge: pendingPayoutCount > 0 ? pendingPayoutCount : undefined,
             };
         }
         if (tab.id === "complaints") {
