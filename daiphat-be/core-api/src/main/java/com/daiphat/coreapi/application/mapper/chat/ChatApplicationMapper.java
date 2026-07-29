@@ -77,6 +77,9 @@ public interface ChatApplicationMapper {
                 .createdAt(response.createdAt())
                 .updatedAt(response.updatedAt())
                 .deletedAt(response.deletedAt())
+                .escalationReason(response.escalationReason())
+                .escalatedAt(response.escalatedAt())
+                .handoffSummary(response.handoffSummary())
                 .build();
     }
 
