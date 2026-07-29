@@ -6,8 +6,10 @@ import com.daiphat.coreapi.domain.model.enums.chat.ChatIntent;
 import com.daiphat.coreapi.domain.model.enums.chat.ChatSchedulePendingSlot;
 import com.daiphat.coreapi.domain.model.enums.chat.ConversationCloseReason;
 import com.daiphat.coreapi.domain.model.enums.chat.ConversationStatus;
+import com.daiphat.coreapi.domain.model.enums.chat.EscalationReason;
 import com.daiphat.coreapi.domain.model.enums.chat.LastMessageFrom;
 import com.daiphat.coreapi.domain.model.enums.chat.MessageSenderType;
+import com.daiphat.coreapi.domain.model.enums.chat.MessageType;
 import lombok.*;
 
 import java.time.Duration;
@@ -61,6 +63,9 @@ public class ConversationModel {
     private ConversationCloseReason closeReason;
     private LocalDateTime autoCloseWarningSentAt;
     private UUID lastAssignedOperatorId;
+    private EscalationReason escalationReason;
+    private LocalDateTime escalatedAt;
+    private String handoffSummary;
 
     @Builder.Default
     private List<PendingFlowState> activeFlows = new ArrayList<>();
@@ -85,6 +90,27 @@ public class ConversationModel {
     public void waitForOperator() {
         clearPendingFlow();
         status = ConversationStatus.WAITING_FOR_OPERATOR;
+        if (escalatedAt == null) {
+            escalatedAt = LocalDateTime.now();
+        }
+    }
+
+    public void recordHandoffContext(EscalationReason reason, String summary) {
+        if (reason != null) {
+            escalationReason = reason;
+        }
+        if (summary != null && !summary.isBlank()) {
+            handoffSummary = summary.trim();
+        }
+        if (escalatedAt == null) {
+            escalatedAt = LocalDateTime.now();
+        }
+    }
+
+    public void clearHandoffContext() {
+        escalationReason = null;
+        escalatedAt = null;
+        handoffSummary = null;
     }
 
     /**
@@ -96,6 +122,7 @@ public class ConversationModel {
             throw new DomainException(ErrorCode.CONVERSATION_CANNOT_CANCEL_STAFF_REQUEST);
         }
         status = ConversationStatus.OPEN;
+        clearHandoffContext();
     }
 
     public static String cancelStaffRequestCopy() {
@@ -445,6 +472,54 @@ public class ConversationModel {
             return operatorName.trim() + " đã tiếp nhận và sẽ hỗ trợ bạn ngay.";
         }
         return "Nhân viên đã tiếp nhận và sẽ hỗ trợ bạn ngay.";
+    }
+
+    public static boolean isOperatorAcceptanceMessage(String content) {
+        if (content == null || content.isBlank()) {
+            return false;
+        }
+        return content.endsWith("đã tiếp nhận và sẽ hỗ trợ bạn ngay.");
+    }
+
+    /**
+     * Staff/admin may only read messages from operator acceptance onward.
+     * Pre-acceptance chatbot history is hidden to protect customer privacy.
+     */
+    public static Optional<LocalDateTime> resolveStaffMessageVisibilityCutoff(
+            ConversationModel conversation,
+            List<MessageModel> messages
+    ) {
+        if (conversation == null || messages == null || messages.isEmpty()) {
+            return Optional.empty();
+        }
+
+        Optional<LocalDateTime> acceptanceCutoff = messages.stream()
+                .filter(message -> message.getType() == MessageType.SYSTEM)
+                .filter(message -> isOperatorAcceptanceMessage(message.getContent()))
+                .map(MessageModel::getCreatedAt)
+                .max(LocalDateTime::compareTo);
+
+        if (conversation.getAssignedOperatorId() != null
+                || conversation.getLastAssignedOperatorId() != null
+                || conversation.getStatus() == ConversationStatus.CLOSED) {
+            return acceptanceCutoff;
+        }
+
+        return Optional.empty();
+    }
+
+    public static List<MessageModel> filterMessagesVisibleToStaff(
+            ConversationModel conversation,
+            List<MessageModel> messages
+    ) {
+        Optional<LocalDateTime> cutoff = resolveStaffMessageVisibilityCutoff(conversation, messages);
+        if (cutoff.isEmpty()) {
+            return List.of();
+        }
+        LocalDateTime boundary = cutoff.get();
+        return messages.stream()
+                .filter(message -> message.getCreatedAt() != null && !message.getCreatedAt().isBefore(boundary))
+                .toList();
     }
 
     public void assignToOperator(UUID operatorId) {

@@ -2,6 +2,7 @@ package com.daiphat.coreapi.infrastructure.persistence.entity.chat;
 
 import com.daiphat.coreapi.domain.model.enums.chat.ConversationCloseReason;
 import com.daiphat.coreapi.domain.model.enums.chat.ConversationStatus;
+import com.daiphat.coreapi.domain.model.enums.chat.EscalationReason;
 import com.daiphat.coreapi.domain.model.enums.chat.LastMessageFrom;
 import com.daiphat.coreapi.infrastructure.persistence.entity.BaseEntity;
 import com.daiphat.coreapi.infrastructure.persistence.entity.user.UserEntity;
@@ -65,4 +66,14 @@ public class ConversationEntity extends BaseEntity {
 
     @Column(name = "last_assigned_operator_id")
     private UUID lastAssignedOperatorId;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "escalation_reason", length = 40)
+    private EscalationReason escalationReason;
+
+    @Column(name = "escalated_at")
+    private LocalDateTime escalatedAt;
+
+    @Column(name = "handoff_summary", columnDefinition = "TEXT")
+    private String handoffSummary;
 }
