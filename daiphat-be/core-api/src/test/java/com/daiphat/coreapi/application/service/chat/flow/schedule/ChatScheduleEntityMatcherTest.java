@@ -45,4 +45,14 @@ class ChatScheduleEntityMatcherTest {
         assertThat(parser.mentionsRegionAllListIntent("miền nam hôm nay quay đài nào"))
                 .isTrue();
     }
+
+    @Test
+    void mentionsRegionStationCatalogQuestion_detectsCountAndList() {
+        assertThat(parser.mentionsRegionStationCatalogQuestion("ở miền nam có bao nhiêu đài, liệt kê ra"))
+                .isTrue();
+        assertThat(parser.mentionsRegionStationCatalogQuestion("miền nam có bao nhiêu đài, liệt kê ra"))
+                .isTrue();
+        assertThat(parser.mentionsRegionStationCatalogQuestion("miền nam hôm nay quay đài nào"))
+                .isFalse();
+    }
 }

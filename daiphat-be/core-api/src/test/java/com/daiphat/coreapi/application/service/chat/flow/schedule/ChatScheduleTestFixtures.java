@@ -63,6 +63,15 @@ public final class ChatScheduleTestFixtures {
                 "dai mien trung",
                 "dai mien"
         ));
+        properties.setRegionStationCatalogPhrases(List.of(
+                "liet ke",
+                "danh sach",
+                "ke ra",
+                "co bao nhieu dai",
+                "co may dai",
+                "bao nhieu dai",
+                "may dai"
+        ));
         properties.setStationExclusionPhrases(List.of("dai mien", "quay dai nao"));
         ChatScheduleProperties.RegionListIntent regionListIntent = new ChatScheduleProperties.RegionListIntent();
         regionListIntent.setStationCueWord("dai");

@@ -24,6 +24,7 @@ public class ChatScheduleProperties {
     private SlotAnswerPhrases slotAnswers = new SlotAnswerPhrases();
     private List<String> nationAllPhrases = new ArrayList<>();
     private List<String> regionAllIntentPhrases = new ArrayList<>();
+    private List<String> regionStationCatalogPhrases = new ArrayList<>();
     private List<String> regionTodayPhrases = new ArrayList<>();
     private List<String> weekSchedulePhrases = new ArrayList<>();
     private List<String> stationExclusionPhrases = new ArrayList<>();
