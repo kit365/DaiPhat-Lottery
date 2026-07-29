@@ -74,6 +74,11 @@ public class ChatFlowOrchestrator {
             return showResult.get();
         }
 
+        Optional<ChatFlowHandleResult> setGoalResult = handleScheduleSetGoal(conversation, message);
+        if (setGoalResult.isPresent()) {
+            return setGoalResult.get();
+        }
+
         // Resume "hỏi đuôi → user trả số" before classify/switch so bare digits never fall to UNKNOWN.
         Optional<ChatFlowHandleResult> pendingTicketSearch = continuePendingTicketFragment(conversation, message);
         if (pendingTicketSearch.isPresent()) {
@@ -142,8 +147,51 @@ public class ChatFlowOrchestrator {
         if (looksLikeStandaloneTicketSuggest(message.getContent())) {
             return Optional.empty();
         }
+        // "đài X xổ thứ mấy" / hỏi lịch mới — không resume slot Kết quả cũ (tránh trả KQ sai).
+        if (looksLikeNewScheduleQuery(message.getContent())) {
+            return Optional.empty();
+        }
         Optional<ChatIntentOutcome> outcome = scheduleFlow.tryResumeSlotAnswer(conversation, flow, message, null);
         return outcome.map(value -> new ChatFlowHandleResult(null, value));
+    }
+
+    private static boolean looksLikeNewScheduleQuery(String content) {
+        if (content == null || content.isBlank()) {
+            return false;
+        }
+        String trimmed = content.trim();
+        if (trimmed.startsWith(ChatScheduleConstants.TOKEN_SET_GOAL_PREFIX)
+                || trimmed.startsWith(ChatScheduleConstants.TOKEN_SHOW_PREFIX)
+                || trimmed.startsWith(ChatScheduleConstants.TOKEN_SELECT_STATION_PREFIX)) {
+            return false;
+        }
+        String normalized = trimmed.toLowerCase()
+                .replace("đ", "d")
+                .replaceAll("[àáạảãâầấậẩẫăằắặẳẵ]", "a")
+                .replaceAll("[èéẹẻẽêềếệểễ]", "e")
+                .replaceAll("[ìíịỉĩ]", "i")
+                .replaceAll("[òóọỏõôồốộổỗơờớợởỡ]", "o")
+                .replaceAll("[ùúụủũưừứựửữ]", "u")
+                .replaceAll("[ỳýỵỷỹ]", "y");
+        return normalized.contains("thu may")
+                || normalized.contains("thu nao")
+                || normalized.contains("ngay may")
+                || normalized.contains("ngay nao")
+                || normalized.contains("khi nao")
+                || normalized.contains("luc nao")
+                || normalized.contains("ngay nhat")
+                || normalized.contains("gan nhat")
+                || normalized.contains("tiep theo")
+                || normalized.contains("xo vao thu")
+                || normalized.contains("xo thu")
+                || normalized.contains("quay thu")
+                || normalized.contains("quay vao thu")
+                || normalized.contains("xem lich")
+                || normalized.contains("lich quay")
+                || normalized.contains("lich mo thuong")
+                || normalized.contains("gio quay")
+                || normalized.contains("tra cuu lich")
+                || (normalized.contains("xo") && (normalized.contains("ngay") || normalized.contains("thu")));
     }
 
     private static boolean looksLikeStandaloneTicketSuggest(String content) {
@@ -178,6 +226,24 @@ public class ChatFlowOrchestrator {
         if (scheduleFlow == null) {
             return Optional.empty();
         }
+        ChatClassifyResponse synthetic = syntheticScheduleClassification();
+        ChatIntentOutcome outcome = scheduleFlow.startFlow(conversation, message, synthetic);
+        return Optional.of(new ChatFlowHandleResult(synthetic, outcome));
+    }
+
+    /** Hub chips Lịch/Kết quả/Gợi ý vé — đổi goal sạch, không resume slot cũ (DATE_MODE, …). */
+    private Optional<ChatFlowHandleResult> handleScheduleSetGoal(
+            ConversationModel conversation,
+            MessageModel message
+    ) {
+        if (!conversation.isBotOwned() || !isScheduleSetGoalToken(message.getContent())) {
+            return Optional.empty();
+        }
+        ChatFlowService scheduleFlow = flowServicesByIntent.get(ChatIntent.WEB_SCHEDULE.name());
+        if (scheduleFlow == null) {
+            return Optional.empty();
+        }
+        conversation.clearPendingFlow(ChatIntent.WEB_SCHEDULE.name());
         ChatClassifyResponse synthetic = syntheticScheduleClassification();
         ChatIntentOutcome outcome = scheduleFlow.startFlow(conversation, message, synthetic);
         return Optional.of(new ChatFlowHandleResult(synthetic, outcome));
@@ -309,6 +375,10 @@ public class ChatFlowOrchestrator {
 
     private static boolean isScheduleShowToken(String content) {
         return content != null && content.trim().startsWith(ChatScheduleConstants.TOKEN_SHOW_PREFIX);
+    }
+
+    private static boolean isScheduleSetGoalToken(String content) {
+        return content != null && content.trim().startsWith(ChatScheduleConstants.TOKEN_SET_GOAL_PREFIX);
     }
 
     private static ChatClassifyResponse syntheticScheduleClassification() {
