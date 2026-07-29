@@ -4,11 +4,18 @@ import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.response.order.PurchasedTicketResponse;
 import com.daiphat.coreapi.application.port.in.order.PurchasedTicketQueryPort;
 import com.daiphat.coreapi.application.port.out.lotteries.LotteryResultDetailRepositoryPort;
+import com.daiphat.coreapi.application.port.out.lotteries.PrizeStructureRepositoryPort;
+import com.daiphat.coreapi.application.port.out.payout.PrizePayoutRequestRepositoryPort;
 import com.daiphat.coreapi.application.port.out.lotteries.LotteryResultRepositoryPort;
 import com.daiphat.coreapi.application.port.out.order.PurchasedTicketQueryRepositoryPort;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryResultStatus;
+import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus;
+import com.daiphat.coreapi.domain.model.enums.lottery.SerialPayoutState;
 import com.daiphat.coreapi.domain.model.enums.order.TicketDrawResultStatus;
+import com.daiphat.coreapi.domain.model.enums.payout.PrizePayoutRequestStatus;
 import com.daiphat.coreapi.domain.model.lotteries.LotteryResultDetailModel;
+import com.daiphat.coreapi.domain.model.lotteries.PrizeStructureModel;
+import com.daiphat.coreapi.domain.model.payout.PrizePayoutRequestModel;
 import com.daiphat.coreapi.domain.model.lotteries.LotteryResultModel;
 import com.daiphat.coreapi.domain.service.lottery.TicketPrizeMatcher;
 import com.daiphat.coreapi.infrastructure.persistence.entity.lotteries.LotteryTicketEntity;
@@ -23,6 +30,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.List;
@@ -37,6 +45,8 @@ public class PurchasedTicketQueryService implements PurchasedTicketQueryPort {
     private final PurchasedTicketQueryRepositoryPort purchasedTicketQueryRepositoryPort;
     private final LotteryResultRepositoryPort lotteryResultRepositoryPort;
     private final LotteryResultDetailRepositoryPort lotteryResultDetailRepositoryPort;
+    private final PrizeStructureRepositoryPort prizeStructureRepositoryPort;
+    private final PrizePayoutRequestRepositoryPort prizePayoutRequestRepositoryPort;
 
     @Override
     @Transactional(readOnly = true)
@@ -64,11 +74,18 @@ public class PurchasedTicketQueryService implements PurchasedTicketQueryPort {
 
         Map<String, Optional<LotteryResultModel>> resultCache = new HashMap<>();
         Map<Long, List<LotteryResultDetailModel>> detailCache = new HashMap<>();
+        List<Long> serialIds = detailPage.getContent().stream()
+                .map(OrderDetailEntity::getLotteryTicketSerial)
+                .filter(serial -> serial != null)
+                .map(LotteryTicketSerialEntity::getId)
+                .toList();
+        Map<Long, PrizePayoutRequestModel> pendingPayouts =
+                prizePayoutRequestRepositoryPort.findPendingBySerialIds(serialIds);
 
         List<PurchasedTicketResponse> responses = detailPage.getContent().stream()
                 .filter(detail -> detail.getLotteryTicketSerial() != null
                         && detail.getLotteryTicketSerial().getTicket() != null)
-                .map(detail -> mapDetail(detail, resultCache, detailCache))
+                .map(detail -> mapDetail(detail, resultCache, detailCache, pendingPayouts))
                 .filter(response -> status == null || response.drawResultStatus() == status)
                 .toList();
 
@@ -78,7 +95,8 @@ public class PurchasedTicketQueryService implements PurchasedTicketQueryPort {
     private PurchasedTicketResponse mapDetail(
             OrderDetailEntity detail,
             Map<String, Optional<LotteryResultModel>> resultCache,
-            Map<Long, List<LotteryResultDetailModel>> detailCache) {
+            Map<Long, List<LotteryResultDetailModel>> detailCache,
+            Map<Long, PrizePayoutRequestModel> pendingPayouts) {
 
         OrderEntity order = detail.getOrder();
         LotteryTicketSerialEntity serial = detail.getLotteryTicketSerial();
@@ -88,6 +106,7 @@ public class PurchasedTicketQueryService implements PurchasedTicketQueryPort {
         TicketDrawResultStatus drawResultStatus = TicketDrawResultStatus.PENDING_DRAW;
         String matchedPrizeCode = null;
         String matchedPrizeDisplayName = null;
+        BigDecimal prizeAmount = null;
 
         if (ticket.getDrawDate() != null
                 && !ticket.getDrawDate().isAfter(LocalDate.now())
@@ -111,17 +130,27 @@ public class PurchasedTicketQueryService implements PurchasedTicketQueryPort {
                     drawResultStatus = TicketDrawResultStatus.WON;
                     matchedPrizeCode = match.get().prizeCode();
                     matchedPrizeDisplayName = match.get().prizeDisplayName();
+                    prizeAmount = resolvePrizeAmount(match.get().prizeStructureId());
                 } else {
                     drawResultStatus = TicketDrawResultStatus.LOST;
                 }
             }
         }
 
+        SerialPayoutState payoutState = serial.getPayoutState() != null
+                ? serial.getPayoutState()
+                : SerialPayoutState.NONE;
+        PrizePayoutRequestModel pendingRequest = pendingPayouts.get(serial.getId());
+
         return PurchasedTicketResponse.builder()
                 .orderId(order.getId())
                 .orderCode(order.getOrderCode())
+                .orderDetailId(detail.getId())
                 .ticketId(ticket.getId())
+                .serialId(serial.getId())
                 .serialNumber(serial.getSerialNumber())
+                .serialStatus(serial.getStatus())
+                .payoutState(payoutState)
                 .numbers(ticket.getNumbers())
                 .stationName(stationName)
                 .drawDate(ticket.getDrawDate())
@@ -130,7 +159,19 @@ public class PurchasedTicketQueryService implements PurchasedTicketQueryPort {
                 .drawResultStatus(drawResultStatus)
                 .matchedPrizeCode(matchedPrizeCode)
                 .matchedPrizeDisplayName(matchedPrizeDisplayName)
+                .prizeAmount(prizeAmount)
+                .activePayoutRequestId(pendingRequest != null ? pendingRequest.getId() : null)
+                .activePayoutStatus(pendingRequest != null ? pendingRequest.getStatus() : null)
                 .build();
+    }
+
+    private BigDecimal resolvePrizeAmount(Long prizeStructureId) {
+        if (prizeStructureId == null) {
+            return null;
+        }
+        return prizeStructureRepositoryPort.findById(prizeStructureId)
+                .map(PrizeStructureModel::getPrizeValue)
+                .orElse(null);
     }
 
     private Optional<LotteryResultModel> resolveResult(

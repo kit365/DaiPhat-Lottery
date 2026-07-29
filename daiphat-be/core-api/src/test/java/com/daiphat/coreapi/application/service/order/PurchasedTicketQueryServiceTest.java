@@ -4,6 +4,8 @@ import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.response.order.PurchasedTicketResponse;
 import com.daiphat.coreapi.application.port.out.lotteries.LotteryResultDetailRepositoryPort;
 import com.daiphat.coreapi.application.port.out.lotteries.LotteryResultRepositoryPort;
+import com.daiphat.coreapi.application.port.out.lotteries.PrizeStructureRepositoryPort;
+import com.daiphat.coreapi.application.port.out.payout.PrizePayoutRequestRepositoryPort;
 import com.daiphat.coreapi.application.port.out.order.PurchasedTicketQueryRepositoryPort;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryResultStatus;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus;
@@ -53,6 +55,10 @@ class PurchasedTicketQueryServiceTest {
     private LotteryResultRepositoryPort lotteryResultRepositoryPort;
     @Mock
     private LotteryResultDetailRepositoryPort lotteryResultDetailRepositoryPort;
+    @Mock
+    private PrizeStructureRepositoryPort prizeStructureRepositoryPort;
+    @Mock
+    private PrizePayoutRequestRepositoryPort prizePayoutRequestRepositoryPort;
 
     private PurchasedTicketQueryService service;
 
@@ -61,7 +67,9 @@ class PurchasedTicketQueryServiceTest {
         service = new PurchasedTicketQueryService(
                 purchasedTicketQueryRepositoryPort,
                 lotteryResultRepositoryPort,
-                lotteryResultDetailRepositoryPort
+                lotteryResultDetailRepositoryPort,
+                prizeStructureRepositoryPort,
+                prizePayoutRequestRepositoryPort
         );
     }
 
