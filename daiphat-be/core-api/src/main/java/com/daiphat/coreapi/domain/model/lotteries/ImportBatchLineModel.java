@@ -112,7 +112,7 @@ public class ImportBatchLineModel {
     }
 
     public boolean requiresInvoiceEvidence() {
-        return batchType == ImportBatchType.NEW || batchType == ImportBatchType.LATE_IMPORT;
+        return batchType == ImportBatchType.NEW;
     }
 
     public boolean isImportComplete() {

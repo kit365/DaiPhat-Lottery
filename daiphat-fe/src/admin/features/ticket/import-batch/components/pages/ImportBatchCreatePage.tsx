@@ -29,8 +29,9 @@ import { LoadingButton } from '../../../../../components/ui/LoadingButton';
 import { UploadSingleFile } from '../../../../../components/upload/UploadSingleFile';
 import { uploadAdminImage } from '../../../../../api/upload.api';
 import { prefixAdmin, ROUTES } from '../../../../../constants/routes';
-import { useCreateImportBatch, useEligibleImportBatchStations, useImportBatchTimePolicy } from '../../hooks/useImportBatch';
+import { useCreateImportBatch, useEligibleImportBatchStations } from '../../hooks/useImportBatch';
 import { useActiveSuppliers } from '../../../../supplier';
+import { formatSupplierTime } from '../../../../supplier/utils/supplierTimeFields';
 import { createImportBatchSchema, CreateImportBatchFormValues } from '../../schemas/importBatch.schema';
 import { ImportBatchConfirmDialog } from '../sections/ImportBatchConfirmDialog';
 import { ImportBatchDuplicateWarningDialog } from '../sections/ImportBatchDuplicateWarningDialog';
@@ -38,6 +39,7 @@ import { ImportBatchLineRow } from '../sections/ImportBatchLineRow';
 import { IMPORT_MODE_OPTIONS } from '../../utils/batchTypeLabels';
 import {
     getDrawDateInputBounds,
+    isBeforeSupplierImportAllowFrom,
     isDrawDateToday,
     resolveImportModeLock,
 } from '../../utils/importBatchDrawDate';
@@ -109,8 +111,7 @@ export const ImportBatchCreatePage = () => {
     const totalDeclareQuantity = useWatch({ control, name: 'totalDeclareQuantity' });
     const invoiceEvidenceUrl = useWatch({ control, name: 'invoiceEvidenceUrl' });
     const lines = useWatch({ control, name: 'lines' }) ?? [];
-    const { data: timePolicy } = useImportBatchTimePolicy();
-    const cutoffTime = timePolicy?.importBatchCutoffTime ?? '15:00';
+    const [nowTick, setNowTick] = useState(() => dayjs());
 
     const { data: stationsResult, isLoading: isLoadingStations } = useEligibleImportBatchStations(
         drawDate,
@@ -240,10 +241,24 @@ export const ImportBatchCreatePage = () => {
         return supplier ? `${supplier.name} (${supplier.code})` : '';
     };
 
-    const importModeLock = useMemo(
-        () => resolveImportModeLock(drawDate, eligibleStations, cutoffTime, !isLoadingStations),
-        [drawDate, eligibleStations, cutoffTime, isLoadingStations]
+    const selectedSupplier = useMemo(
+        () => activeSuppliers.find((supplier) => supplier.id === supplierId),
+        [activeSuppliers, supplierId]
     );
+
+    const isImportAllowBlocked =
+        !!selectedSupplier &&
+        isBeforeSupplierImportAllowFrom(selectedSupplier.importAllowFrom, nowTick);
+
+    useEffect(() => {
+        if (!isImportAllowBlocked) {
+            return;
+        }
+        const timer = window.setInterval(() => setNowTick(dayjs()), 15_000);
+        return () => window.clearInterval(timer);
+    }, [isImportAllowBlocked]);
+
+    const importModeLock = useMemo(() => resolveImportModeLock(drawDate), [drawDate]);
 
     const isImportModeLocked = importModeLock.locked;
     const importModeLockReason = importModeLock.locked ? importModeLock.reason : undefined;
@@ -267,7 +282,7 @@ export const ImportBatchCreatePage = () => {
               ? 'Không có nhà đài nào phù hợp với ngày quay và loại nhập đã chọn.'
               : undefined);
 
-    // Shared receipt is required for in-day imports (NEW / LATE_IMPORT).
+    // Shared receipt is required for in-day imports (NEW).
     const showSharedReceipt = importMode === 'IN_DAY';
 
     useEffect(() => {
@@ -387,6 +402,10 @@ export const ImportBatchCreatePage = () => {
     );
 
     const onSubmit = (data: CreateImportBatchFormValues) => {
+        if (isImportAllowBlocked) {
+            toast.error('Chưa đến giờ cho phép nhập vé của nhà cung cấp đã chọn.');
+            return;
+        }
         if (!canSubmit) {
             toast.error('Vui lòng chọn nhà đài hợp lệ cho ngày quay đã chọn.');
             return;
@@ -560,6 +579,47 @@ export const ImportBatchCreatePage = () => {
                         collapsible={false}
                     >
                         <Stack spacing={3}>
+                            <Controller
+                                name="supplierId"
+                                control={control}
+                                render={({ field }) => (
+                                    <FormControl
+                                        fullWidth
+                                        sx={{ maxWidth: { sm: 360 } }}
+                                        error={isSubmitted && !!errors.supplierId}
+                                    >
+                                        <InputLabel>Nhà cung cấp</InputLabel>
+                                        <Select
+                                            {...field}
+                                            label="Nhà cung cấp"
+                                            value={field.value || ''}
+                                            disabled={isLoadingSuppliers || activeSuppliers.length === 0}
+                                        >
+                                            {activeSuppliers.map((supplier) => (
+                                                <MenuItem key={supplier.id} value={supplier.id}>
+                                                    {supplier.name} ({supplier.code})
+                                                </MenuItem>
+                                            ))}
+                                        </Select>
+                                        {isSubmitted && errors.supplierId && (
+                                            <Typography variant="caption" color="error">
+                                                {errors.supplierId.message}
+                                            </Typography>
+                                        )}
+                                    </FormControl>
+                                )}
+                            />
+
+                            {isImportAllowBlocked && (
+                                <Alert severity="warning">
+                                    Chưa đến giờ cho phép nhập vé của nhà cung cấp này
+                                    ({formatSupplierTime(selectedSupplier?.importAllowFrom)}).
+                                    Vui lòng đợi đến giờ mở cửa nhập hoặc chọn nhà cung cấp khác.
+                                </Alert>
+                            )}
+
+                            {!isImportAllowBlocked && (
+                                <>
                             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
                                 <Controller
                                     name="drawDate"
@@ -585,36 +645,6 @@ export const ImportBatchCreatePage = () => {
                                                     : undefined
                                             }
                                         />
-                                    )}
-                                />
-                                <Controller
-                                    name="supplierId"
-                                    control={control}
-                                    render={({ field }) => (
-                                        <FormControl
-                                            fullWidth
-                                            sx={{ maxWidth: { sm: 360 } }}
-                                            error={isSubmitted && !!errors.supplierId}
-                                        >
-                                            <InputLabel>Nhà cung cấp</InputLabel>
-                                            <Select
-                                                {...field}
-                                                label="Nhà cung cấp"
-                                                value={field.value || ''}
-                                                disabled={isLoadingSuppliers || activeSuppliers.length === 0}
-                                            >
-                                                {activeSuppliers.map((supplier) => (
-                                                    <MenuItem key={supplier.id} value={supplier.id}>
-                                                        {supplier.name} ({supplier.code})
-                                                    </MenuItem>
-                                                ))}
-                                            </Select>
-                                            {isSubmitted && errors.supplierId && (
-                                                <Typography variant="caption" color="error">
-                                                    {errors.supplierId.message}
-                                                </Typography>
-                                            )}
-                                        </FormControl>
                                     )}
                                 />
                                 <Controller
@@ -849,6 +879,16 @@ export const ImportBatchCreatePage = () => {
                                     Hủy
                                 </Button>
                             </Stack>
+                                </>
+                            )}
+
+                            {isImportAllowBlocked && (
+                                <Stack direction="row" spacing={2}>
+                                    <Button variant="outlined" onClick={handleCancel}>
+                                        Hủy
+                                    </Button>
+                                </Stack>
+                            )}
                         </Stack>
                     </CollapsibleCard>
                 </form>

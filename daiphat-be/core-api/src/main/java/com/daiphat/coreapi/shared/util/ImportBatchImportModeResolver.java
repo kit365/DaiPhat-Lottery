@@ -1,18 +1,13 @@
 package com.daiphat.coreapi.shared.util;
 
 import com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchImportMode;
-import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.LocalTime;
 
 @Component
-@RequiredArgsConstructor
 public class ImportBatchImportModeResolver {
-
-    private final ImportBatchConfigResolver importBatchConfigResolver;
 
     public ImportBatchImportMode resolve(LocalDate drawDate, LocalDateTime now) {
         if (drawDate == null) {
@@ -33,15 +28,7 @@ public class ImportBatchImportModeResolver {
             return ImportBatchImportMode.POST_DRAW_SUPPLEMENT;
         }
 
-        if (isAfterSameDayCutoff(now.toLocalTime())) {
-            return ImportBatchImportMode.POST_DRAW_SUPPLEMENT;
-        }
-
+        // Same-day draw: IN_DAY (availability gated by supplier.importAllowFrom elsewhere).
         return ImportBatchImportMode.IN_DAY;
-    }
-
-    private boolean isAfterSameDayCutoff(LocalTime currentTime) {
-        LocalTime cutoff = importBatchConfigResolver.resolveImportBatchCutoff();
-        return currentTime.isAfter(cutoff);
     }
 }

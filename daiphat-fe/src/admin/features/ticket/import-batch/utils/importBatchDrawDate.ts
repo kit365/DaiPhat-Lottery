@@ -2,9 +2,6 @@ import dayjs, { type Dayjs } from 'dayjs';
 import type { ImportBatchEligibleStation, ImportBatchType } from '../types/importBatch.type';
 import type { ImportBatchImportMode } from './batchTypeLabels';
 
-const DEFAULT_CUTOFF_TIME = '15:00';
-const DEFAULT_LATE_IMPORT_TIME = '14:30';
-
 /** Draw date is before today — batch type is always additional import. */
 export const isPastDrawDate = (drawDate?: string) =>
     !!drawDate && dayjs(drawDate).isBefore(dayjs(), 'day');
@@ -18,11 +15,11 @@ export const isTomorrowDrawDate = (drawDate?: string) =>
 export const isFutureBeyondTomorrow = (drawDate?: string) =>
     !!drawDate && dayjs(drawDate).isAfter(dayjs().add(1, 'day'), 'day');
 
-export const parseImportCutoffTime = (cutoffTime?: string): Dayjs | null => {
-    if (!cutoffTime?.trim()) {
+const parseClockTime = (time?: string): Dayjs | null => {
+    if (!time?.trim()) {
         return null;
     }
-    const [hourPart, minutePart] = cutoffTime.trim().split(':');
+    const [hourPart, minutePart] = time.trim().split(':');
     const hour = Number(hourPart);
     const minute = Number(minutePart);
     if (Number.isNaN(hour) || Number.isNaN(minute)) {
@@ -31,33 +28,21 @@ export const parseImportCutoffTime = (cutoffTime?: string): Dayjs | null => {
     return dayjs().hour(hour).minute(minute).second(0).millisecond(0);
 };
 
-/** Current clock is after configured same-day import cutoff (default 15:00). */
-export const isAfterImportCutoff = (cutoffTime?: string, now: Dayjs = dayjs()) => {
-    const cutoff = parseImportCutoffTime(cutoffTime ?? DEFAULT_CUTOFF_TIME);
-    if (!cutoff) {
-        return false;
-    }
-    const todayCutoff = now
-        .hour(cutoff.hour())
-        .minute(cutoff.minute())
-        .second(0)
-        .millisecond(0);
-    return now.isAfter(todayCutoff);
-};
-
-export const isInLateImportWindow = (
-    lateImportTime?: string,
-    cutoffTime?: string,
+/** True when current clock is still before the supplier's import-allow-from time. */
+export const isBeforeSupplierImportAllowFrom = (
+    importAllowFrom?: string,
     now: Dayjs = dayjs()
 ) => {
-    const late = parseImportCutoffTime(lateImportTime ?? DEFAULT_LATE_IMPORT_TIME);
-    const cutoff = parseImportCutoffTime(cutoffTime ?? DEFAULT_CUTOFF_TIME);
-    if (!late || !cutoff) {
+    const allowFrom = parseClockTime(importAllowFrom);
+    if (!allowFrom) {
         return false;
     }
-    const todayLate = now.hour(late.hour()).minute(late.minute()).second(0).millisecond(0);
-    const todayCutoff = now.hour(cutoff.hour()).minute(cutoff.minute()).second(0).millisecond(0);
-    return !now.isBefore(todayLate) && !now.isAfter(todayCutoff);
+    const todayAllowFrom = now
+        .hour(allowFrom.hour())
+        .minute(allowFrom.minute())
+        .second(0)
+        .millisecond(0);
+    return now.isBefore(todayAllowFrom);
 };
 
 /** All eligible stations resolve to post-draw additional import. */
@@ -70,13 +55,9 @@ export type ImportModeLockState =
 
 /**
  * Resolve whether import mode dropdown should be locked and to which value.
+ * Today / tomorrow → IN_DAY; past / beyond tomorrow → POST_DRAW_SUPPLEMENT.
  */
-export const resolveImportModeLock = (
-    drawDate?: string,
-    eligibleStations: ImportBatchEligibleStation[] = [],
-    cutoffTime?: string,
-    stationsLoaded = true
-): ImportModeLockState => {
+export const resolveImportModeLock = (drawDate?: string): ImportModeLockState => {
     if (isPastDrawDate(drawDate)) {
         return {
             locked: true,
@@ -101,19 +82,11 @@ export const resolveImportModeLock = (
         };
     }
 
-    if (isDrawDateToday(drawDate) && isAfterImportCutoff(cutoffTime)) {
-        return {
-            locked: true,
-            mode: 'POST_DRAW_SUPPLEMENT',
-            reason: `Tự động chọn Nhập vé bổ sung vì đã qua giờ chốt nhập lô (${cutoffTime ?? DEFAULT_CUTOFF_TIME}).`,
-        };
-    }
-
-    if (isDrawDateToday(drawDate) && !isAfterImportCutoff(cutoffTime)) {
+    if (isDrawDateToday(drawDate)) {
         return {
             locked: true,
             mode: 'IN_DAY',
-            reason: 'Tự động chọn Nhập vé trong ngày vì ngày quay là hôm nay và chưa qua giờ chốt.',
+            reason: 'Tự động chọn Nhập vé trong ngày vì ngày quay là hôm nay.',
         };
     }
 

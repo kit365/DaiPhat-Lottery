@@ -51,6 +51,10 @@ export const SupplierEditPage = () => {
             taxCode: supplier.taxCode ?? '',
             paymentTermDays: supplier.paymentTermDays ?? supplierFormDefaultValues.paymentTermDays,
             defaultImportCost: supplier.defaultImportCost ?? supplierFormDefaultValues.defaultImportCost,
+            importAllowFrom:
+                supplier.importAllowFrom?.slice(0, 5) ?? supplierFormDefaultValues.importAllowFrom,
+            returnCutOffTime:
+                supplier.returnCutOffTime?.slice(0, 5) ?? supplierFormDefaultValues.returnCutOffTime,
             isActive: supplier.isActive,
         });
         const missing = supplier.missingActivationFields ?? getMissingSupplierFields(supplier);
