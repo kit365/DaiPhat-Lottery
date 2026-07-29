@@ -8,6 +8,8 @@ import {
     PurchasedTicket,
     TicketDrawResultStatus,
 } from '../../../../../types/lottery-ticket.type';
+import { SERIAL_PAYOUT_STATE_LABELS } from '../../../../../types/prize-payout.type';
+import { PrizePayoutRequestModal } from '../../../../components/prize-payout/PrizePayoutRequestModal';
 import { AppToast as toast } from '../../../../../utils/toast.util';
 
 type StatusTab = 'Tất cả' | 'Chờ quay số' | 'Trúng thưởng' | 'Không trúng';
@@ -72,11 +74,18 @@ const splitTicketNumbers = (numbers?: string): string[] => {
 const ticketKey = (ticket: PurchasedTicket) =>
     `${ticket.orderId}-${ticket.ticketId}-${ticket.serialNumber || ticket.numbers}`;
 
+const canRequestPrizePayout = (ticket: PurchasedTicket) =>
+    ticket.drawResultStatus === 'WON'
+    && ticket.serialStatus === 'PROXY_HOLDING'
+    && (ticket.payoutState == null || ticket.payoutState === 'NONE')
+    && !ticket.activePayoutRequestId;
+
 export const TicketsTab = () => {
     const [page, setPage] = useState(1);
     const [activeTab, setActiveTab] = useState<StatusTab>('Tất cả');
     const [searchCode, setSearchCode] = useState('');
     const [selectedTicket, setSelectedTicket] = useState<PurchasedTicket | null>(null);
+    const [payoutModalOpen, setPayoutModalOpen] = useState(false);
 
     const pageSize = 10;
     const apiStatus = STATUS_TAB_TO_API[activeTab];
@@ -284,6 +293,22 @@ export const TicketsTab = () => {
                                 {formatMoney(selectedTicket.price)}
                             </span>
                         </div>
+                        {isWon && selectedTicket.prizeAmount != null && (
+                            <div className="flex items-center justify-between py-3 border-b border-dashed border-[#E5E8EB]">
+                                <span className="text-[#637381] text-[14px]">Tiền trúng (gross)</span>
+                                <span className="text-[#ee1314] font-bold text-[14px]">
+                                    {formatMoney(selectedTicket.prizeAmount)}
+                                </span>
+                            </div>
+                        )}
+                        {isWon && selectedTicket.payoutState && (
+                            <div className="flex items-center justify-between py-3 border-b border-dashed border-[#E5E8EB]">
+                                <span className="text-[#637381] text-[14px]">Trạng thái trả thưởng</span>
+                                <span className="text-[#212B36] font-medium text-[14px]">
+                                    {SERIAL_PAYOUT_STATE_LABELS[selectedTicket.payoutState]}
+                                </span>
+                            </div>
+                        )}
                         <div className="flex items-center justify-between py-3 border-b border-dashed border-[#E5E8EB] last:border-0">
                             <span className="text-[#637381] text-[14px]">Mã giao dịch (Order ID)</span>
                             <button
@@ -299,14 +324,46 @@ export const TicketsTab = () => {
                 </div>
 
                 {isWon && (
-                    <div className="bg-[#FFF4F4] rounded-2xl p-4 md:p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-3 border border-[#ee1314]/10 mb-6 md:mb-0">
-                        <div className="flex items-start md:items-center gap-3">
-                            <i className="fa-solid fa-circle-info text-[#ee1314] text-[18px] md:text-[20px] mt-0.5 md:mt-0"></i>
+                    <div className="bg-[#FFF4F4] rounded-2xl p-4 md:p-5 flex flex-col gap-4 border border-[#ee1314]/10 mb-6 md:mb-0">
+                        <div className="flex items-start gap-3">
+                            <i className="fa-solid fa-circle-info text-[#ee1314] text-[18px] mt-0.5"></i>
                             <span className="text-[#454F5B] text-[13px] md:text-[14px] leading-relaxed">
-                                Tiền thưởng sẽ được cộng vào số dư tài khoản của bạn.
+                                Tiền thưởng sẽ được chuyển vào tài khoản ngân hàng bạn cung cấp sau khi yêu cầu được duyệt (1–3 ngày làm việc).
                             </span>
                         </div>
+                        {canRequestPrizePayout(selectedTicket) ? (
+                            <button
+                                type="button"
+                                onClick={() => setPayoutModalOpen(true)}
+                                className="self-start px-5 py-2.5 bg-[#ee1314] text-white font-bold rounded-xl text-[14px] cursor-pointer"
+                            >
+                                Yêu cầu trả thưởng
+                            </button>
+                        ) : selectedTicket.activePayoutRequestId ? (
+                            <Link
+                                to={`/profile/prize-payouts/${selectedTicket.activePayoutRequestId}`}
+                                className="self-start text-[#ee1314] font-bold text-[14px] hover:underline no-underline"
+                            >
+                                Xem yêu cầu đang chờ →
+                            </Link>
+                        ) : selectedTicket.payoutState === 'PAID_OUT' ? (
+                            <span className="inline-flex items-center gap-2 text-[#1CD162] font-bold text-[14px]">
+                                <i className="fa-solid fa-circle-check"></i> Đã trả thưởng
+                            </span>
+                        ) : selectedTicket.serialStatus !== 'PROXY_HOLDING' ? (
+                            <span className="text-[#637381] text-[13px]">
+                                Vé chưa ở trạng thái đang giữ hộ — chưa thể gửi yêu cầu trả thưởng.
+                            </span>
+                        ) : null}
                     </div>
+                )}
+
+                {selectedTicket && (
+                    <PrizePayoutRequestModal
+                        isOpen={payoutModalOpen}
+                        onClose={() => setPayoutModalOpen(false)}
+                        ticket={selectedTicket}
+                    />
                 )}
 
                 <div className="hidden md:flex justify-end gap-4 mt-2">
