@@ -22,6 +22,12 @@ daiphat:
         region-not-found: "Mình chưa tìm thấy đài này. Bạn thử gõ lại tên đài Miền Nam nhé."
         date-not-found: "Mình chưa nhận ra ngày/thứ này. Bạn thử gõ hôm nay, ngày mai hoặc thứ trong tuần nhé."
         station-not-found: "Mình chưa tìm thấy đài này. Bạn thử gõ lại tên đài Miền Nam nhé."
+        station-nearest-draw-date: "Dạ, đài {station} quay vào {weekdays}. Ngày quay gần nhất với hôm nay là {date} (lúc {time}) ạ."
+        region-station-catalog: |-
+          Dạ, hiện {region} có tổng cộng {count} đài xổ số, gồm:
+          {stations}
+          Bạn cần xem lịch quay hay kết quả đài nào thì nhắn mình hỗ trợ thêm nhé ạ.
+        station-bundle-intro: "Dạ, dưới đây là lịch quay và kết quả gần nhất của đài {station} (ngày {date}) ạ:"
       account:
         no-orders: "Bạn chưa có đơn hàng nào trên tài khoản. Bạn có thể mua vé trực tuyến trên website hoặc nhắn nhân viên nếu cần hỗ trợ."
         latest-order-prefix: "Đơn hàng gần nhất của bạn: "

@@ -231,6 +231,19 @@ public class ConversationController {
         );
     }
 
+    @GetMapping("/management/{conversationId}/pre-handoff-messages")
+    @PreAuthorize("hasAnyAuthority('"
+            + RoleConstants.ROLE_STAFF_OPERATOR + "', '"
+            + RoleConstants.ADMIN + "')")
+    public ApiResponse<List<com.daiphat.coreapi.application.dto.response.chat.MessageResponse>> getPreHandoffMessages(
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal,
+            @PathVariable Long conversationId) {
+        return ApiResponse.success(
+                "Lấy lịch sử chat AI trước khi tiếp nhận thành công.",
+                conversationServicePort.getPreHandoffMessages(principal.getId(), conversationId)
+        );
+    }
+
     @PostMapping("/management/{conversationId}/escalate")
     @PreAuthorize("hasAnyAuthority('"
             + RoleConstants.ROLE_STAFF_OPERATOR + "', '"

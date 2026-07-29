@@ -29,6 +29,15 @@ public interface ConversationServicePort {
 
     ConversationDetailResponse getManagementConversationDetail(UUID userId, Long conversationId);
 
+    /**
+     * Pre-handoff AI/customer messages for assigned staff or admin only.
+     * Content is sanitized (machine tokens → human labels).
+     */
+    List<com.daiphat.coreapi.application.dto.response.chat.MessageResponse> getPreHandoffMessages(
+            UUID userId,
+            Long conversationId
+    );
+
     CustomerChatTimelineResponse getCustomerChatTimeline(
             UUID userId,
             UUID customerId,

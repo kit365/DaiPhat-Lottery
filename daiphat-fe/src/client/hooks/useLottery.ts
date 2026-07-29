@@ -33,7 +33,14 @@ export const useLottery = () => {
   const summaryRetryDelayMs = 5000;
   const maxSummaryRetries = 24;
 
-  const availableDates = useMemo(() => buildRecentDateOptions(14), []);
+  const availableDates = useMemo(() => {
+    const recent = buildRecentDateOptions(14);
+    // Cho phép ngày từ deep-link chat (quá khứ ngoài 14 ngày gần nhất).
+    if (selectedDate && !recent.includes(selectedDate)) {
+      return [selectedDate, ...recent];
+    }
+    return recent;
+  }, [selectedDate]);
 
   useEffect(() => {
     let isCancelled = false;
@@ -306,6 +313,7 @@ export const useLottery = () => {
     hoveredDigit,
     setHoveredDigit,
     lotteryData,
+    boardData,
     historyData,
     availableDates,
     availableProvinces,

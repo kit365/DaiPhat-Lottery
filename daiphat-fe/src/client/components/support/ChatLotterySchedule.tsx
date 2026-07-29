@@ -18,7 +18,7 @@ export const ChatLotterySchedule = ({ region, stationId, stationIds, highlightDa
   const { scheduleByDay, availableRegions, regionDrawTimes, highlightDayId, todayDayName, showFullWeek, isLoading, error } =
     useLotterySchedule({ region, stationId, stationIds, highlightDate });
 
-  const emphasizedDayId = showFullWeek ? todayDayName : (highlightDayId ?? todayDayName);
+  const emphasizedDayId = highlightDayId ?? todayDayName;
 
   if (isLoading) {
     return (

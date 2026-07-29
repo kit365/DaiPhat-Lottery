@@ -2,17 +2,14 @@ import { describe, expect, it } from 'vitest';
 import {
   buildHubActionChips,
   resolveContextualQuickReplies,
-  scheduleResultFollowUpChips,
   ticketSuggestFollowUpChips,
-  SCHEDULE_RESTART_MESSAGE,
   SUGGEST_TICKETS_MESSAGE,
   SEARCH_SUFFIX_MESSAGE,
   shouldShowContextualQuickReplies,
 } from './chatQuickReplies.util';
-import { SCHEDULE_TOKEN_RESTART } from './scheduleToken.util';
 
 const HUB_LABELS_DEFAULT = [
-  'Lịch Miền Nam',
+  'Xem lịch xổ',
   'Kết quả',
   'Gợi ý vé',
   'Tìm đuôi số',
@@ -26,14 +23,14 @@ describe('resolveContextualQuickReplies', () => {
       { hasCustomerMessages: false }
     );
     expect(result.chips.map((chip) => chip.label)).toEqual([
-      'Tra cứu lịch quay',
+      'Xem lịch xổ',
       'Tra cứu kết quả',
       'Gợi ý vé',
       'Hỗ trợ đơn hàng',
     ]);
   });
 
-  it('after schedule result replaces Lịch Miền Nam with Tra cứu lịch khác', () => {
+  it('keeps Xem lịch xổ after schedule result — no restart chip', () => {
     const result = resolveContextualQuickReplies(
       {
         id: '42',
@@ -43,16 +40,9 @@ describe('resolveContextualQuickReplies', () => {
       },
       { hasCustomerMessages: true }
     );
-    expect(result.chips.map((chip) => chip.label)).toEqual([
-      'Tra cứu lịch khác',
-      'Kết quả',
-      'Gợi ý vé',
-      'Tìm đuôi số',
-      'Gặp nhân viên',
-    ]);
-    expect(result.chips.find((chip) => chip.id === 'hub-schedule-restart')?.message).toBe(
-      SCHEDULE_TOKEN_RESTART
-    );
+    expect(result.chips.map((chip) => chip.label)).toEqual(HUB_LABELS_DEFAULT);
+    expect(result.chips.find((chip) => chip.id === 'hub-schedule')?.label).toBe('Xem lịch xổ');
+    expect(result.chips.some((chip) => chip.id === 'hub-schedule-restart')).toBe(false);
   });
 
   it('keeps hub chips visible after ticket suggest cards', () => {
@@ -113,7 +103,7 @@ describe('resolveContextualQuickReplies', () => {
 });
 
 describe('buildHubActionChips', () => {
-  it('uses station-specific labels when station is known', () => {
+  it('always keeps default labels even when station context exists', () => {
     const chips = buildHubActionChips({
       id: '1',
       sender: 'bot',
@@ -121,13 +111,7 @@ describe('buildHubActionChips', () => {
       scheduleStationName: 'Bạc Liêu',
       scheduleRegion: 'MIEN_NAM',
     });
-    expect(chips.map((chip) => chip.label)).toEqual([
-      'Lịch Bạc Liêu',
-      'Kết quả Bạc Liêu',
-      'Vé Bạc Liêu',
-      'Tìm đuôi số',
-      'Gặp nhân viên',
-    ]);
+    expect(chips.map((chip) => chip.label)).toEqual(HUB_LABELS_DEFAULT);
   });
 
   it('sends in-chat messages — never navigate actions', () => {
@@ -143,7 +127,7 @@ describe('buildHubActionChips', () => {
     expect(chips.find((chip) => chip.id === 'hub-search')?.message).toBe(SEARCH_SUFFIX_MESSAGE);
   });
 
-  it('shows station schedule token and result set-goal when station is known', () => {
+  it('ignores station id for hub schedule/result tokens', () => {
     const chips = buildHubActionChips({
       id: '1',
       sender: 'bot',
@@ -152,24 +136,11 @@ describe('buildHubActionChips', () => {
       scheduleRegion: 'MIEN_NAM',
     });
     expect(chips.find((chip) => chip.id === 'hub-schedule')?.message).toBe(
-      'SCHEDULE_SHOW:goal=SCHEDULE:station=7'
+      'SCHEDULE_SHOW:goal=SCHEDULE:region=MIEN_NAM:scope=all'
     );
     expect(chips.find((chip) => chip.id === 'hub-results')?.message).toBe(
       'SCHEDULE_SET_GOAL:RESULT'
     );
-  });
-});
-
-describe('scheduleResultFollowUpChips', () => {
-  it('only offers restart — hub lives in footer', () => {
-    const chips = scheduleResultFollowUpChips({
-      id: '42',
-      sender: 'bot',
-      variant: 'schedule-result',
-      scheduleRegion: 'MIEN_NAM',
-    });
-    expect(chips).toHaveLength(1);
-    expect(chips[0]).toMatchObject({ label: 'Tra cứu lịch khác', message: SCHEDULE_TOKEN_RESTART });
   });
 });
 
@@ -208,11 +179,5 @@ describe('shouldShowContextualQuickReplies', () => {
         replies: { chips: [{ id: 'a', label: 'A', action: 'send', message: 'a' }] },
       })
     ).toBe(true);
-  });
-});
-
-describe('SCHEDULE_RESTART_MESSAGE', () => {
-  it('uses backend restart token', () => {
-    expect(SCHEDULE_RESTART_MESSAGE).toBe('SCHEDULE_RESTART');
   });
 });

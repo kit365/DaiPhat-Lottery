@@ -40,6 +40,12 @@ public class ChatMessageProperties {
         private String dateNotFound;
         private String stationNotFound;
 
+        private String stationNearestDrawDate;
+
+        private String regionStationCatalog;
+
+        private String stationBundleIntro;
+
         public String askDateYear(String shortDateLabel) {
             if (askDateYear == null) {
                 return null;
@@ -82,6 +88,44 @@ public class ChatMessageProperties {
                 return askConfirmStation;
             }
             return askConfirmStation + " (" + String.join(", ", stationNames) + ")";
+        }
+
+        public String stationNearestDrawDate(String stationName, String weekdays, String date, String time) {
+            if (stationNearestDrawDate == null || stationNearestDrawDate.isBlank()) {
+                return "Dạ, đài " + safe(stationName) + " quay vào " + safe(weekdays)
+                        + ". Ngày quay gần nhất với hôm nay là " + safe(date) + " (lúc " + safe(time) + ") ạ.";
+            }
+            return stationNearestDrawDate
+                    .replace("{station}", safe(stationName))
+                    .replace("{weekdays}", safe(weekdays))
+                    .replace("{date}", safe(date))
+                    .replace("{time}", safe(time));
+        }
+
+        public String regionStationCatalog(String regionLabel, int count, String stationNames) {
+            if (regionStationCatalog == null || regionStationCatalog.isBlank()) {
+                return "Dạ, hiện " + safe(regionLabel) + " có tổng cộng " + count + " đài xổ số, gồm:\n"
+                        + safe(stationNames)
+                        + "\nBạn cần xem lịch quay hay kết quả đài nào thì nhắn mình hỗ trợ thêm nhé ạ.";
+            }
+            return regionStationCatalog
+                    .replace("{region}", safe(regionLabel))
+                    .replace("{count}", String.valueOf(count))
+                    .replace("{stations}", safe(stationNames));
+        }
+
+        public String stationBundleIntro(String stationName, String dateLabel) {
+            if (stationBundleIntro == null || stationBundleIntro.isBlank()) {
+                return "Dạ, dưới đây là lịch quay và kết quả gần nhất của đài "
+                        + safe(stationName) + " (ngày " + safe(dateLabel) + ") ạ:";
+            }
+            return stationBundleIntro
+                    .replace("{station}", safe(stationName))
+                    .replace("{date}", safe(dateLabel));
+        }
+
+        private static String safe(String value) {
+            return value != null ? value : "";
         }
 
         private String replaceRegion(String template, String regionLabel) {

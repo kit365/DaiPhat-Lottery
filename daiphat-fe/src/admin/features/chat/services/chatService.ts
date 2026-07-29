@@ -88,6 +88,19 @@ export const chatService = {
         };
     },
 
+    getPreHandoffMessages: async (conversationId: number): Promise<Message[]> => {
+        const response = await apiApp.get<ApiResponse<ChatMessageResponse[]>>(
+            `${BASE_URL}/management/${conversationId}/pre-handoff-messages`
+        );
+        const payload = response.data;
+
+        if (!payload.success || !payload.data) {
+            throw new Error(payload.message || 'Không thể tải lịch sử chat AI');
+        }
+
+        return payload.data.map(mapMessage);
+    },
+
     assignToMe: async (conversationId: number): Promise<ConversationDetailResponse> => {
         const response = await apiApp.post<ApiResponse<ConversationDetailResponse>>(
             `${BASE_URL}/management/${conversationId}/assign/me`

@@ -51,6 +51,11 @@ public interface MessageRepository extends JpaRepository<MessageEntity, Long> {
             MessageSenderType senderType
     );
 
+    long countByConversation_IdAndDeletedAtIsNullAndSenderTypeNotAndIsReadFalse(
+            Long conversationId,
+            MessageSenderType senderType
+    );
+
     List<MessageEntity> findByConversation_Customer_IdAndDeletedAtIsNullOrderByCreatedAtDescIdDesc(
             UUID customerId,
             Pageable pageable

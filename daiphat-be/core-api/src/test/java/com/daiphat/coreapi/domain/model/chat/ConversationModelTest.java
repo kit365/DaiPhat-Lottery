@@ -5,6 +5,8 @@ import com.daiphat.coreapi.domain.model.enums.chat.ChatIntent;
 import com.daiphat.coreapi.domain.model.enums.chat.ChatSchedulePendingSlot;
 import com.daiphat.coreapi.domain.model.enums.chat.ConversationStatus;
 import com.daiphat.coreapi.domain.model.enums.chat.LastMessageFrom;
+import com.daiphat.coreapi.domain.model.enums.chat.MessageSenderType;
+import com.daiphat.coreapi.domain.model.enums.chat.MessageType;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -99,6 +101,66 @@ class ConversationModelTest {
         assertThatThrownBy(conversation::cancelStaffRequest)
                 .isInstanceOf(DomainException.class)
                 .hasMessageContaining("Không thể huỷ yêu cầu gặp nhân viên");
+    }
+
+    @Test
+    void filterMessagesVisibleToStaff_hidesPreAcceptanceBotHistory() {
+        LocalDateTime botAt = LocalDateTime.of(2026, 7, 28, 21, 19);
+        LocalDateTime acceptanceAt = LocalDateTime.of(2026, 7, 28, 21, 30);
+        LocalDateTime customerAfterAt = LocalDateTime.of(2026, 7, 28, 21, 31);
+
+        ConversationModel conversation = ConversationModel.builder()
+                .id(1L)
+                .status(ConversationStatus.ACTIVE)
+                .assignedOperatorId(OPERATOR_ID)
+                .build();
+
+        List<MessageModel> messages = List.of(
+                MessageModel.builder()
+                        .conversationId(1L)
+                        .senderType(MessageSenderType.AI_SYSTEM)
+                        .content("SCHEDULE_STATION_BUNDLE:station=18")
+                        .type(MessageType.TEXT)
+                        .createdAt(botAt)
+                        .build(),
+                MessageModel.builder()
+                        .conversationId(1L)
+                        .senderType(MessageSenderType.AI_SYSTEM)
+                        .content(ConversationModel.operatorAcceptanceCopy("Kiệt Ngô"))
+                        .type(MessageType.SYSTEM)
+                        .createdAt(acceptanceAt)
+                        .build(),
+                MessageModel.builder()
+                        .conversationId(1L)
+                        .senderType(MessageSenderType.CUSTOMER)
+                        .content("Xin chào")
+                        .type(MessageType.TEXT)
+                        .createdAt(customerAfterAt)
+                        .build()
+        );
+
+        List<MessageModel> visible = ConversationModel.filterMessagesVisibleToStaff(conversation, messages);
+
+        assertThat(visible).hasSize(2);
+        assertThat(visible.getFirst().getContent()).contains("đã tiếp nhận");
+        assertThat(visible.getLast().getContent()).isEqualTo("Xin chào");
+    }
+
+    @Test
+    void filterMessagesVisibleToStaff_waitingConversationShowsNothingBeforeAcceptance() {
+        ConversationModel conversation = ConversationModel.builder()
+                .status(ConversationStatus.WAITING_FOR_OPERATOR)
+                .build();
+        List<MessageModel> messages = List.of(
+                MessageModel.builder()
+                        .senderType(MessageSenderType.CUSTOMER)
+                        .content("muốn gặp nhân viên")
+                        .type(MessageType.TEXT)
+                        .createdAt(LocalDateTime.now())
+                        .build()
+        );
+
+        assertThat(ConversationModel.filterMessagesVisibleToStaff(conversation, messages)).isEmpty();
     }
 
     @Test
