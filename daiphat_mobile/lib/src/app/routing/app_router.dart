@@ -302,7 +302,10 @@ Widget _buildRoute(
         orderId: orderId,
       );
     case AppRoute.profile:
-      return ProfileView(viewModel: profileViewModel);
+      return ProfileView(
+        viewModel: profileViewModel,
+        notificationViewModel: notificationViewModel,
+      );
     case AppRoute.profileEdit:
       return ProfileEditView(viewModel: profileViewModel);
     case AppRoute.profileDetail:
