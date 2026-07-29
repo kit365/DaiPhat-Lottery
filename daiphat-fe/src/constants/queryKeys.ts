@@ -63,6 +63,12 @@ export const QUERY_KEYS = {
     CLIENT_BANK_CATALOG: 'client-bank-catalog',
     CLIENT_ORDER_REFUND_ELIGIBILITY: 'client-order-refund-eligibility',
 
+    // Prize payout (Client)
+    CLIENT_PRIZE_PAYOUTS: 'client-prize-payouts',
+    CLIENT_PRIZE_PAYOUT_DETAIL: 'client-prize-payout-detail',
+    CLIENT_PRIZE_PAYOUT_STATUSES: 'client-prize-payout-statuses',
+    CLIENT_PRIZE_PAYOUT_PENDING_COUNT: 'client-prize-payout-pending-count',
+
     // Support / Complaints (Client)
     CLIENT_TICKET_CATEGORIES: 'client-ticket-categories',
     CLIENT_MY_COMPLAINTS: 'client-my-complaints',
@@ -73,6 +79,8 @@ export const QUERY_KEYS = {
     // Refunds (Admin)
     ADMIN_REFUNDS: 'admin-refunds',
     ADMIN_REFUND_DETAIL: 'admin-refund-detail',
+    ADMIN_PRIZE_PAYOUTS: 'admin-prize-payouts',
+    ADMIN_PRIZE_PAYOUT_DETAIL: 'admin-prize-payout-detail',
 
     // Blogs (Shared / Client-facing)
     PUBLIC_BLOG_CATEGORIES: 'public-blog-categories',
