@@ -25,10 +25,10 @@ import com.daiphat.coreapi.domain.model.enums.transaction.TransactionType;
 import com.daiphat.coreapi.domain.model.orders.OrderModel;
 import com.daiphat.coreapi.domain.model.orders.TransactionModel;
 import com.daiphat.coreapi.shared.util.EnumOptionUtils;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -37,7 +37,6 @@ import java.util.List;
 import java.util.UUID;
 
 @Service
-@RequiredArgsConstructor
 @Slf4j
 public class TransactionService implements TransactionServicePort {
 
@@ -52,6 +51,30 @@ public class TransactionService implements TransactionServicePort {
     private final PaymentAttemptCachePort paymentAttemptCachePort;
     private final ApplicationEventPublisher eventPublisher;
     private final PaymentTimeoutConfigService paymentTimeoutConfigService;
+    /** Self-proxy để gọi {@link #handleOnlinePaymentSuccess} có @Transactional sau khi query PayOS. */
+    private final TransactionServicePort self;
+
+    public TransactionService(
+            OrderRepositoryPort orderRepositoryPort,
+            UserLookupServicePort userLookupServicePort,
+            PaymentGatewayStrategyFactory paymentGatewayStrategyFactory,
+            LotteryTicketServicePort lotteryTicketServicePort,
+            PaymentCountdownCachePort paymentCountdownCachePort,
+            PaymentAttemptCachePort paymentAttemptCachePort,
+            ApplicationEventPublisher eventPublisher,
+            PaymentTimeoutConfigService paymentTimeoutConfigService,
+            @Lazy TransactionServicePort self
+    ) {
+        this.orderRepositoryPort = orderRepositoryPort;
+        this.userLookupServicePort = userLookupServicePort;
+        this.paymentGatewayStrategyFactory = paymentGatewayStrategyFactory;
+        this.lotteryTicketServicePort = lotteryTicketServicePort;
+        this.paymentCountdownCachePort = paymentCountdownCachePort;
+        this.paymentAttemptCachePort = paymentAttemptCachePort;
+        this.eventPublisher = eventPublisher;
+        this.paymentTimeoutConfigService = paymentTimeoutConfigService;
+        this.self = self;
+    }
 
     @Override
     @Transactional(noRollbackFor = DomainException.class)
@@ -89,7 +112,10 @@ public class TransactionService implements TransactionServicePort {
                 null
         ));
         reconcileDirectOrderPayment(order);
-        order.getOrderDetails().forEach(detail -> lotteryTicketServicePort.markSoldForOrder(detail.getLotteryTicketSerialId()));
+        order.getOrderDetails().forEach(detail -> lotteryTicketServicePort.markProxyHoldingForPaidOrder(
+                detail.getLotteryTicketSerialId(),
+                orderId
+        ));
         OrderModel saved = orderRepositoryPort.save(order);
         clearFailureAttempts(transaction);
         clearCountdownIfResolved(saved);
@@ -147,9 +173,10 @@ public class TransactionService implements TransactionServicePort {
     }
 
     @Override
-    @Transactional
     public OrderModel syncOnlinePaymentFromGateway(UUID orderId) {
-        OrderModel order = getOrderWithLockOrThrow(orderId);
+        // Không giữ DB lock khi gọi PayOS — tránh treo thread Tomcat + Vite proxy timeout
+        // (FE poll /payment/sync mỗi vài giây; nếu PayOS chậm sẽ storm request).
+        OrderModel order = getOrderOrThrow(orderId);
         if (order.getStatus() != OrderStatus.PENDING_PAYMENT) {
             return order;
         }
@@ -171,13 +198,22 @@ public class TransactionService implements TransactionServicePort {
                 : PaymentGateway.PAYOS;
         PaymentGatewayStrategy strategy = paymentGatewayStrategyFactory.getStrategy(gateway);
 
-        if (!strategy.isPaymentCompletedOnGateway(transaction)) {
+        boolean paidOnGateway;
+        try {
+            paidOnGateway = strategy.isPaymentCompletedOnGateway(transaction);
+        } catch (Exception ex) {
+            log.warn("Failed to query gateway payment status for order {}: {}", orderId, ex.getMessage());
+            return order;
+        }
+
+        if (!paidOnGateway) {
             log.info("Gateway payment still unpaid for order {}, gatewayOrderCode={}",
                     orderId, transaction.getGatewayOrderCode());
             return order;
         }
 
-        return handleOnlinePaymentSuccess(
+        // handleOnlinePaymentSuccess tự @Transactional + lock order khi cập nhật
+        return self.handleOnlinePaymentSuccess(
                 orderId,
                 transaction.getId(),
                 gateway,
@@ -217,7 +253,10 @@ public class TransactionService implements TransactionServicePort {
             strategy.handleSuccess(order, transaction, callbackResult);
             clearFailureAttempts(transaction);
             reconcileDirectOrderPayment(order);
-            order.getOrderDetails().forEach(detail -> lotteryTicketServicePort.markSoldForOrder(detail.getLotteryTicketSerialId()));
+            order.getOrderDetails().forEach(detail -> lotteryTicketServicePort.markProxyHoldingForPaidOrder(
+                    detail.getLotteryTicketSerialId(),
+                    order.getId()
+            ));
         } else {
             strategy.handleFailure(order, transaction, callbackResult);
             enforceFailureAttemptLimit(order, transaction);
