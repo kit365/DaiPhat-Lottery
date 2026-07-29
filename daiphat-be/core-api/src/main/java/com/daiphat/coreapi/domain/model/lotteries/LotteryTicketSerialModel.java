@@ -5,6 +5,7 @@ import com.daiphat.coreapi.domain.exception.ErrorCode;
 import com.daiphat.coreapi.domain.model.enums.lottery.InputSource;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialFaultedBy;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus;
+import com.daiphat.coreapi.domain.model.enums.lottery.SerialPayoutState;
 import lombok.*;
 
 import java.time.LocalDateTime;
@@ -26,6 +27,9 @@ public class LotteryTicketSerialModel {
 
     @Builder.Default
     private LotteryTicketSerialStatus status = LotteryTicketSerialStatus.IN_STOCK;
+
+    @Builder.Default
+    private SerialPayoutState payoutState = SerialPayoutState.NONE;
 
     @Builder.Default
     private InputSource inputSource = InputSource.MANUAL;
@@ -214,5 +218,25 @@ public class LotteryTicketSerialModel {
         if (this.status != expectedStatus) {
             throw new DomainException(ErrorCode.LOTTERY_TICKET_INVALID_STATUS);
         }
+    }
+
+    public void lockForPayout() {
+        if (payoutState == SerialPayoutState.PAID_OUT) {
+            throw new DomainException(ErrorCode.PRIZE_PAYOUT_ALREADY_REQUESTED, "Vé đã được trả thưởng.");
+        }
+        if (payoutState == SerialPayoutState.PAYOUT_PENDING) {
+            throw new DomainException(ErrorCode.PRIZE_PAYOUT_ALREADY_REQUESTED, "Vé đang có yêu cầu trả thưởng.");
+        }
+        this.payoutState = SerialPayoutState.PAYOUT_PENDING;
+    }
+
+    public void unlockPayout() {
+        if (payoutState == SerialPayoutState.PAYOUT_PENDING) {
+            this.payoutState = SerialPayoutState.NONE;
+        }
+    }
+
+    public void markPaidOut() {
+        this.payoutState = SerialPayoutState.PAID_OUT;
     }
 }
