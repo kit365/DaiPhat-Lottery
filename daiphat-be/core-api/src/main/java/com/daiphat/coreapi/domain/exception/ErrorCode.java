@@ -128,6 +128,14 @@ public enum ErrorCode {
     REFUND_ORDER_ALREADY_REQUESTED("ORD_036", "Đơn hàng đã có yêu cầu hoàn tiền.", HttpStatus.BAD_REQUEST),
     REFUND_DAILY_LIMIT_EXCEEDED("ORD_037", "Bạn đã đạt giới hạn số yêu cầu hoàn tiền trong ngày. Vui lòng thử lại vào ngày mai.", HttpStatus.BAD_REQUEST),
 
+    PRIZE_PAYOUT_NOT_FOUND("ORD_038", "Yêu cầu trả thưởng không tồn tại.", HttpStatus.NOT_FOUND),
+    PRIZE_PAYOUT_INVALID_STATUS("ORD_039", "Trạng thái yêu cầu trả thưởng không hợp lệ cho thao tác này.", HttpStatus.BAD_REQUEST),
+    PRIZE_PAYOUT_ACCESS_DENIED("ORD_040", "Bạn không có quyền truy cập yêu cầu trả thưởng này.", HttpStatus.FORBIDDEN),
+    PRIZE_PAYOUT_NOT_ELIGIBLE("ORD_041", "Vé không đủ điều kiện trả thưởng.", HttpStatus.BAD_REQUEST),
+    PRIZE_PAYOUT_ALREADY_REQUESTED("ORD_042", "Vé đã có yêu cầu trả thưởng hoặc đã được trả.", HttpStatus.BAD_REQUEST),
+    PRIZE_PAYOUT_BANK_ACCOUNT_MISMATCH("ORD_043", "Tài khoản ngân hàng không thuộc khách hàng.", HttpStatus.BAD_REQUEST),
+    PRIZE_PAYOUT_CODE_GENERATION_FAILED("ORD_044", "Không thể tạo mã yêu cầu trả thưởng.", HttpStatus.INTERNAL_SERVER_ERROR),
+
     // Lottery Errors
     // Lottery Product Errors
     LOTTERY_STATION_NOT_FOUND("LT_001", "Nhà đài không tồn tại.", HttpStatus.NOT_FOUND),
