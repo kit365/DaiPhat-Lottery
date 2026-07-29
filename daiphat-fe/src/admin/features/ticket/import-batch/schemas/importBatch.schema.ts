@@ -15,7 +15,7 @@ const importBatchLineSchema = z.object({
     declareQuantity: z.coerce.number().min(1, 'Số lượng khai báo phải lớn hơn 0'),
     importCost: z.coerce.number().min(0.01, 'Giá vốn phải lớn hơn 0'),
     resolvedBatchType: z
-        .enum(['NEW', 'SUPPLEMENTARY', 'LATE_IMPORT', 'ADJUSTMENT'])
+        .enum(['NEW', 'SUPPLEMENTARY', 'ADJUSTMENT'])
         .optional(),
     stationName: z.string().optional(),
 });
@@ -64,7 +64,7 @@ export const createImportBatchSchema = z
             stationIds.add(line.lotteryStationId);
 
             const type = line.resolvedBatchType as ImportBatchType | undefined;
-            if (data.importMode === 'IN_DAY' && (type === 'NEW' || type === 'LATE_IMPORT')) {
+            if (data.importMode === 'IN_DAY' && type === 'NEW') {
                 requiresInvoice = true;
             }
         });
@@ -88,7 +88,7 @@ const updateImportBatchLineSchema = z
         declareQuantity: z.coerce.number().optional(),
         importCost: z.coerce.number().optional(),
         resolvedBatchType: z
-            .enum(['NEW', 'SUPPLEMENTARY', 'LATE_IMPORT', 'ADJUSTMENT'])
+            .enum(['NEW', 'SUPPLEMENTARY', 'ADJUSTMENT'])
             .optional(),
         status: z.enum(['OPEN', 'IMPORTING', 'PAUSED', 'IMPORTED', 'CANCELLED']).optional(),
         readOnly: z.boolean().optional(),
@@ -198,7 +198,7 @@ export const updateImportBatchSchema = z
             }
 
             const type = line.resolvedBatchType as ImportBatchType | undefined;
-            if (data.importMode === 'IN_DAY' && (type === 'NEW' || type === 'LATE_IMPORT')) {
+            if (data.importMode === 'IN_DAY' && type === 'NEW') {
                 requiresInvoice = true;
             }
         });

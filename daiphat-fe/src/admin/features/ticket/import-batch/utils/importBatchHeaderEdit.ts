@@ -19,7 +19,7 @@ export const importBatchRequiresInvoiceEvidence = (
     if (!batchUsesSharedInvoice(importMode)) {
         return false;
     }
-    return lines.some((line) => line.batchType === 'NEW' || line.batchType === 'LATE_IMPORT');
+    return lines.some((line) => line.batchType === 'NEW');
 };
 
 export const canRemoveImportBatchLine = (status?: ImportBatchLine['status']) =>
