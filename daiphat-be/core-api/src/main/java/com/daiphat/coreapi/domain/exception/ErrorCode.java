@@ -128,6 +128,14 @@ public enum ErrorCode {
     REFUND_ORDER_ALREADY_REQUESTED("ORD_036", "Đơn hàng đã có yêu cầu hoàn tiền.", HttpStatus.BAD_REQUEST),
     REFUND_DAILY_LIMIT_EXCEEDED("ORD_037", "Bạn đã đạt giới hạn số yêu cầu hoàn tiền trong ngày. Vui lòng thử lại vào ngày mai.", HttpStatus.BAD_REQUEST),
 
+    PRIZE_PAYOUT_NOT_FOUND("ORD_038", "Yêu cầu trả thưởng không tồn tại.", HttpStatus.NOT_FOUND),
+    PRIZE_PAYOUT_INVALID_STATUS("ORD_039", "Trạng thái yêu cầu trả thưởng không hợp lệ cho thao tác này.", HttpStatus.BAD_REQUEST),
+    PRIZE_PAYOUT_ACCESS_DENIED("ORD_040", "Bạn không có quyền truy cập yêu cầu trả thưởng này.", HttpStatus.FORBIDDEN),
+    PRIZE_PAYOUT_NOT_ELIGIBLE("ORD_041", "Vé không đủ điều kiện trả thưởng.", HttpStatus.BAD_REQUEST),
+    PRIZE_PAYOUT_ALREADY_REQUESTED("ORD_042", "Vé đã có yêu cầu trả thưởng hoặc đã được trả.", HttpStatus.BAD_REQUEST),
+    PRIZE_PAYOUT_BANK_ACCOUNT_MISMATCH("ORD_043", "Tài khoản ngân hàng không thuộc khách hàng.", HttpStatus.BAD_REQUEST),
+    PRIZE_PAYOUT_CODE_GENERATION_FAILED("ORD_044", "Không thể tạo mã yêu cầu trả thưởng.", HttpStatus.INTERNAL_SERVER_ERROR),
+
     // Lottery Errors
     // Lottery Product Errors
     LOTTERY_STATION_NOT_FOUND("LT_001", "Nhà đài không tồn tại.", HttpStatus.NOT_FOUND),
@@ -200,7 +208,11 @@ public enum ErrorCode {
     LOTTERY_RESULT_RESYNC_NOT_ALLOWED("LT_063", "Chỉ có thể đồng bộ lại kết quả đang thiếu hoặc lỗi.", HttpStatus.CONFLICT),
 
     IMPORT_BATCH_NOT_FOUND("LT_064", "Phiếu nhập lô vé không tồn tại.", HttpStatus.NOT_FOUND),
-    IMPORT_BATCH_CUTOFF_PASSED("LT_065", "Đã quá giờ chốt nhập lô vé cho kỳ quay hôm nay.", HttpStatus.BAD_REQUEST),
+    IMPORT_BATCH_IMPORT_NOT_YET_ALLOWED(
+            "LT_065",
+            "Chưa đến giờ cho phép nhập vé của nhà cung cấp đã chọn.",
+            HttpStatus.BAD_REQUEST
+    ),
     IMPORT_BATCH_INVOICE_REQUIRED("LT_066", "Biên lai nhập lô là bắt buộc cho loại lô này.", HttpStatus.BAD_REQUEST),
     IMPORT_BATCH_INVALID_BATCH_TYPE("LT_067", "Loại lô nhập không hợp lệ.", HttpStatus.BAD_REQUEST),
     IMPORT_BATCH_DECLARE_QUANTITY_INVALID("LT_068", "Số lượng khai báo phải lớn hơn 0.", HttpStatus.BAD_REQUEST),
@@ -284,6 +296,11 @@ public enum ErrorCode {
     LOTTERY_TICKET_SERIAL_WITHOUT_NUMBERS(
             "LT_090",
             "Số sê-ri phải thuộc một dãy số.",
+            HttpStatus.BAD_REQUEST
+    ),
+    LOTTERY_TICKET_SERIALS_INCIDENT_INCOMPLETE(
+            "LT_094",
+            "Cần báo sự cố cho tất cả sê-ri trước khi hủy dãy vé.",
             HttpStatus.BAD_REQUEST
     ),
     IMPORT_BATCH_LINE_NOT_DELETABLE(

@@ -18,6 +18,8 @@ import { NotificationsTab } from './client/features/profile/pages/tabs/Notificat
 import { ResultNotificationSettingsTab } from './client/features/profile/pages/tabs/ResultNotificationSettingsTab';
 import { SecurityTab } from './client/features/profile/pages/tabs/SecurityTab';
 import { RefundsTab } from './client/features/profile/pages/tabs/RefundsTab';
+import { PrizePayoutsTab } from './client/features/profile/pages/tabs/PrizePayoutsTab';
+import { PrizePayoutDetailTab } from './client/features/profile/pages/tabs/PrizePayoutDetailTab';
 import { RefundDetailTab } from './client/features/profile/pages/tabs/RefundDetailTab';
 import { BankAccountsTab } from './client/features/profile/pages/tabs/BankAccountsTab';
 import { ComplaintsTab } from './client/features/profile/pages/tabs/ComplaintsTab';
@@ -143,6 +145,8 @@ function App() {
               <Route path="orders/:id" element={<OrderDetailTab />} />
               <Route path="refunds" element={<RefundsTab />} />
               <Route path="refunds/:id" element={<RefundDetailTab />} />
+              <Route path="prize-payouts" element={<PrizePayoutsTab />} />
+              <Route path="prize-payouts/:id" element={<PrizePayoutDetailTab />} />
               <Route path="complaints" element={<ComplaintsTab />} />
               <Route path="complaints/:id" element={<ComplaintDetailTab />} />
               <Route path="bank-accounts" element={<BankAccountsTab />} />

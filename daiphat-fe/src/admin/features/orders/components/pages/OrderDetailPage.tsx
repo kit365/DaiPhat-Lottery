@@ -26,7 +26,7 @@ import dayjs from "dayjs";
 import { Title } from "../../../../components/ui/Title";
 import { Breadcrumb } from "../../../../components/ui/Breadcrumb";
 import { useOrderDetail, useUpdateOrderStatus } from "../../hooks/useOrder";
-import { OrderStatus, resolveOrderDetailStatusBadge } from "../../../../../types/order.type";
+import { OrderStatus, resolveLotteryTicketSerialStatusBadge, resolveOrderDetailStatusBadge } from "../../../../../types/order.type";
 import { toast } from "react-toastify";
 import { prefixAdmin } from "../../../../constants/routes";
 import { confirmAction } from "../../../../utils/swal";
@@ -548,11 +548,28 @@ export const OrderDetailPage = () => {
                                                 <TableCell sx={{ color: 'var(--palette-text-secondary)', fontWeight: 600, borderBottom: 'none' }}>Loại vé</TableCell>
                                                 <TableCell sx={{ color: 'var(--palette-text-secondary)', fontWeight: 600, borderBottom: 'none' }}>Giá</TableCell>
                                                 <TableCell sx={{ color: 'var(--palette-text-secondary)', fontWeight: 600, borderBottom: 'none' }}>Trạng thái</TableCell>
+                                                <TableCell sx={{ color: 'var(--palette-text-secondary)', fontWeight: 600, borderBottom: 'none' }}>Hoạt động</TableCell>
                                             </TableRow>
                                         </TableHead>
                                         <TableBody>
-                                            {(order.orderDetails || []).map((detail: any, idx: number) => (
-                                                <TableRow key={idx} sx={{ '&:last-child td, &:last-child th': { border: 0 } }}>
+                                            {(order.orderDetails || []).map((detail: any) => {
+                                                const allocatedSerial = detail.allocatedSerials?.[0];
+                                                const serialStatus =
+                                                    detail.serialStatus
+                                                    || allocatedSerial?.status
+                                                    || null;
+                                                const serialStatusLabel =
+                                                    detail.serialStatusDisplayName
+                                                    || allocatedSerial?.statusDisplayName
+                                                    || null;
+                                                const serialBadge = resolveLotteryTicketSerialStatusBadge(
+                                                    serialStatus,
+                                                    serialStatusLabel
+                                                );
+                                                const activityBadge = resolveOrderDetailStatusBadge(detail.status);
+
+                                                return (
+                                                <TableRow key={detail.id || detail.lotteryTicketSerialId || detail.serialNumber} sx={{ '&:last-child td, &:last-child th': { border: 0 } }}>
                                                     <TableCell align="center">
                                                         <Stack direction="row" spacing={1} alignItems="center" justifyContent="center">
                                                             <Avatar variant="rounded" sx={{ width: 32, height: 32, bgcolor: '#ee1314', color: 'white' }}>
@@ -607,26 +624,36 @@ export const OrderDetailPage = () => {
                                                         </Typography>
                                                     </TableCell>
                                                     <TableCell>
-                                                        {(() => {
-                                                            const badge = resolveOrderDetailStatusBadge(detail.status);
-                                                            return (
-                                                                <Chip
-                                                                    label={badge.label}
-                                                                    size="small"
-                                                                    sx={{
-                                                                        fontWeight: 700,
-                                                                        height: 24,
-                                                                        fontSize: '0.75rem',
-                                                                        borderRadius: '6px',
-                                                                        color: badge.color,
-                                                                        bgcolor: badge.bgcolor,
-                                                                    }}
-                                                                />
-                                                            );
-                                                        })()}
+                                                        <Chip
+                                                            label={serialBadge.label}
+                                                            size="small"
+                                                            sx={{
+                                                                fontWeight: 700,
+                                                                height: 24,
+                                                                fontSize: '0.75rem',
+                                                                borderRadius: '6px',
+                                                                color: serialBadge.color,
+                                                                bgcolor: serialBadge.bgcolor,
+                                                            }}
+                                                        />
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        <Chip
+                                                            label={activityBadge.label}
+                                                            size="small"
+                                                            sx={{
+                                                                fontWeight: 700,
+                                                                height: 24,
+                                                                fontSize: '0.75rem',
+                                                                borderRadius: '6px',
+                                                                color: activityBadge.color,
+                                                                bgcolor: activityBadge.bgcolor,
+                                                            }}
+                                                        />
                                                     </TableCell>
                                                 </TableRow>
-                                            ))}
+                                                );
+                                            })}
                                         </TableBody>
                                     </Table>
                                 </TableContainer>

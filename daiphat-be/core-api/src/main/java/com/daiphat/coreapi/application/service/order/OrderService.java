@@ -8,6 +8,7 @@ import com.daiphat.coreapi.application.dto.request.order.DirectOrderTransactionR
 import com.daiphat.coreapi.application.dto.request.order.CreateOnlineOrderRequest;
 import com.daiphat.coreapi.application.dto.request.order.OrderTicketItemRequest;
 import com.daiphat.coreapi.application.dto.response.lotteries.LotteryTicketResponse;
+import com.daiphat.coreapi.application.dto.response.order.OrderDetailAllocatedSerialResponse;
 import com.daiphat.coreapi.application.dto.response.order.OrderDetailResponse;
 import com.daiphat.coreapi.application.dto.response.order.OrderResponse;
 import com.daiphat.coreapi.application.event.OrderStatusChangedEvent;
@@ -409,6 +410,11 @@ public class OrderService implements OrderServicePort {
                 targetTicketId = serial.getTicketId();
             }
             resolveTicket(targetTicketId, ticketsById);
+
+            List<Long> allocatedIds = detail.getAllocatedSerialIds();
+            if (allocatedIds != null) {
+                allocatedIds.forEach(id -> resolveSerial(id, serialsById));
+            }
         });
 
         java.util.Set<Long> stationIds = new java.util.LinkedHashSet<>();
@@ -453,6 +459,34 @@ public class OrderService implements OrderServicePort {
                         ));
                     }
 
+                    List<Long> allocatedIds = detail.getAllocatedSerialIds() == null
+                            ? List.of()
+                            : detail.getAllocatedSerialIds().stream().filter(java.util.Objects::nonNull).toList();
+                    if (allocatedIds.isEmpty() && displaySerialId != null) {
+                        allocatedIds = List.of(displaySerialId);
+                    }
+
+                    List<OrderDetailAllocatedSerialResponse> allocatedSerials = allocatedIds.stream()
+                            .map(id -> {
+                                LotteryTicketSerialModel allocated = resolveSerial(id, serialsById);
+                                if (allocated == null) {
+                                    return OrderDetailAllocatedSerialResponse.builder()
+                                            .id(id)
+                                            .build();
+                                }
+                                return OrderDetailAllocatedSerialResponse.builder()
+                                        .id(allocated.getId())
+                                        .serialNumber(allocated.getSerialNumber())
+                                        .status(allocated.getStatus())
+                                        .statusDisplayName(allocated.getStatus() != null
+                                                ? allocated.getStatus().getLabel()
+                                                : null)
+                                        .ticketImg(allocated.getTicketImg())
+                                        .ticketId(allocated.getTicketId())
+                                        .build();
+                            })
+                            .toList();
+
                     return OrderDetailResponse.builder()
                             .id(base.id())
                             .lotteryTicketId(displayTicketId)
@@ -465,6 +499,10 @@ public class OrderService implements OrderServicePort {
                                     ? serial.getTicketImg()
                                     : ticket != null ? ticket.ticketImg() : null)
                             .serialNumber(serial != null ? serial.getSerialNumber() : null)
+                            .serialStatus(serial != null ? serial.getStatus() : null)
+                            .serialStatusDisplayName(serial != null && serial.getStatus() != null
+                                    ? serial.getStatus().getLabel()
+                                    : null)
                             .replacedByTicketId(detail.getReplacedByTicketId() != null
                                     ? detail.getReplacedByTicketId()
                                     : (detail.isReplaced() && serial != null ? serial.getTicketId() : null))
@@ -473,6 +511,8 @@ public class OrderService implements OrderServicePort {
                             .quantity(detail.getEffectiveQuantity())
                             .status(base.status())
                             .hasReplacement(hasRep)
+                            .allocatedSerialIds(allocatedIds)
+                            .allocatedSerials(allocatedSerials)
                             .build();
                 })
                 .toList();

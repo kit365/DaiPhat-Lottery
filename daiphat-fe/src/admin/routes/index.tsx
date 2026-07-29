@@ -71,9 +71,12 @@ const ImportBatchDetailPage = lazy(() => import("../features/ticket/import-batch
 const ImportBatchLineDetailPage = lazy(() => import("../features/ticket/import-batch").then(m => ({ default: m.ImportBatchLineDetailPage })));
 const SupplierListPage = lazy(() => import("../features/supplier").then(m => ({ default: m.SupplierListPage })));
 const SupplierCreatePage = lazy(() => import("../features/supplier").then(m => ({ default: m.SupplierCreatePage })));
+const SupplierDetailPage = lazy(() => import("../features/supplier").then(m => ({ default: m.SupplierDetailPage })));
 const SupplierEditPage = lazy(() => import("../features/supplier").then(m => ({ default: m.SupplierEditPage })));
 const RefundListPage = lazy(() => import("../pages/refund/RefundListPage").then(m => ({ default: m.RefundListPage })));
 const RefundDetailPage = lazy(() => import("../pages/refund/RefundDetailPage").then(m => ({ default: m.RefundDetailPage })));
+const PrizePayoutListPage = lazy(() => import("../pages/prize-payout/PrizePayoutListPage").then(m => ({ default: m.PrizePayoutListPage })));
+const PrizePayoutDetailPage = lazy(() => import("../pages/prize-payout/PrizePayoutDetailPage").then(m => ({ default: m.PrizePayoutDetailPage })));
 const RefundCreatePage = lazy(() => import("../pages/refund/RefundCreatePage").then(m => ({ default: m.RefundCreatePage })));
 const OrderCancelWithRefundPage = lazy(() => import("../pages/refund/OrderCancelWithRefundPage").then(m => ({ default: m.OrderCancelWithRefundPage })));
 const SupportTicketListPage = lazy(() => import("../features/support-ticket").then(m => ({ default: m.SupportTicketListPage })));
@@ -99,6 +102,7 @@ export const AdminRoutes = [
     { path: "import-batch/detail/:id/line/:lineId", element: <PermissionGuard permission={PERMISSIONS.IMPORT_BATCH.VIEW}><ImportBatchLineDetailPage /></PermissionGuard> },
     { path: "supplier/list", element: <PermissionGuard permission={PERMISSIONS.SUPPLIER.VIEW}><SupplierListPage /></PermissionGuard> },
     { path: "supplier/create", element: <PermissionGuard permission={PERMISSIONS.SUPPLIER.CREATE}><SupplierCreatePage /></PermissionGuard> },
+    { path: "supplier/detail/:id", element: <PermissionGuard permission={PERMISSIONS.SUPPLIER.VIEW}><SupplierDetailPage /></PermissionGuard> },
     { path: "supplier/edit/:id", element: <PermissionGuard permission={PERMISSIONS.SUPPLIER.EDIT}><SupplierEditPage /></PermissionGuard> },
     { path: "ticket/edit/:id", element: <PermissionGuard permission={PERMISSIONS.TICKET.EDIT}><TicketEditPage /></PermissionGuard> },
     { path: "ticket/detail/:id", element: <PermissionGuard permission={PERMISSIONS.TICKET.VIEW}><TicketDetailPage /></PermissionGuard> },
@@ -141,6 +145,8 @@ export const AdminRoutes = [
     { path: "refunds/list", element: <PermissionGuard permission={PERMISSIONS.REFUND.VIEW}><RefundListPage /></PermissionGuard> },
     { path: "refunds/detail/:id", element: <PermissionGuard permission={PERMISSIONS.REFUND.VIEW}><RefundDetailPage /></PermissionGuard> },
     { path: "refunds/create", element: <PermissionGuard permission={PERMISSIONS.REFUND.PROCESS}><RefundCreatePage /></PermissionGuard> },
+    { path: "prize-payouts/list", element: <PermissionGuard permission={PERMISSIONS.PRIZE_PAYOUT.VIEW}><PrizePayoutListPage /></PermissionGuard> },
+    { path: "prize-payouts/detail/:id", element: <PermissionGuard permission={PERMISSIONS.PRIZE_PAYOUT.VIEW}><PrizePayoutDetailPage /></PermissionGuard> },
     { path: "support-tickets/list", element: <PermissionGuard permission={PERMISSIONS.SUPPORT_TICKET.VIEW}><SupportTicketListPage /></PermissionGuard> },
     { path: "support-tickets/detail/:id", element: <PermissionGuard permission={PERMISSIONS.SUPPORT_TICKET.VIEW}><SupportTicketDetailPage /></PermissionGuard> },
     { path: "support-tickets/categories", element: <PermissionGuard permission={PERMISSIONS.SUPPORT_TICKET.VIEW}><TicketCategoryListPage /></PermissionGuard> },

@@ -10,6 +10,7 @@ import { formatImportBatchCode } from "../../../import-batch/utils/importBatchCo
 import { resolveAvailableTicketQuantity } from "../../utils/ticketQuantity";
 import dayjs from "dayjs";
 import { useStations } from '../../../../station/hooks/useStation';
+import { buildSerialStatusFilterOptions } from '../../constants/serial-status-filter.config';
 
 const getSerialStatusChipSx = (status?: string) => {
     const normalized = (status || "").toUpperCase();
@@ -66,6 +67,11 @@ export const TicketDetailPage = () => {
             return matchesSearch && matchesStatus;
         });
     }, [ticketDetail?.serials, searchSerial, filterStatus]);
+
+    const availableSerialStatusOptions = useMemo(
+        () => buildSerialStatusFilterOptions(ticketDetail?.serials || []),
+        [ticketDetail?.serials]
+    );
 
     if (isLoadingTicket) {
         return <Box display="flex" justifyContent="center" alignItems="center" height="400px"><CircularProgress /></Box>
@@ -273,14 +279,11 @@ export const TicketDetailPage = () => {
                                     sx={{ minWidth: 180 }}
                                 >
                                     <MenuItem value="ALL">Tất cả trạng thái</MenuItem>
-                                    <MenuItem value="IN_STOCK">Trong kho</MenuItem>
-                                    <MenuItem value="RESERVED">Đang giữ</MenuItem>
-                                    <MenuItem value="SOLD">Đã bán</MenuItem>
-                                    <MenuItem value="EXPIRED">Hết hạn</MenuItem>
-                                    <MenuItem value="DAMAGED">Hư hỏng</MenuItem>
-                                    <MenuItem value="LOST">Thất lạc</MenuItem>
-                                    <MenuItem value="ISSUER_FAULT">Lỗi nhà đài</MenuItem>
-                                    <MenuItem value="INTERNAL_FAULT">Lỗi nội bộ</MenuItem>
+                                    {availableSerialStatusOptions.map((option) => (
+                                        <MenuItem key={option.value} value={option.value}>
+                                            {option.label}
+                                        </MenuItem>
+                                    ))}
                                 </Select>
                             </Box>
                         </Box>

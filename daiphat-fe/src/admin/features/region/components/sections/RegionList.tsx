@@ -13,7 +13,7 @@ import {
 import { Edit2 } from "lucide-react";
 import { CanAccess } from "../../../../components/auth/CanAccess";
 import { PERMISSIONS } from "../../../../constants/permission.constants";
-import { LotteryRegionResponse } from "../../types/region.type";
+import { LotteryRegionResponse, formatRegionDefaultDrawTime } from "../../types/region.type";
 
 interface RegionListProps {
     regions: LotteryRegionResponse[];
@@ -45,6 +45,7 @@ export const RegionList = ({ regions, isLoading, onEdit }: RegionListProps) => {
                                     <TableCell>Loại vé</TableCell>
                                     <TableCell>Độ dài số</TableCell>
                                     <TableCell>Dải số (Min - Max)</TableCell>
+                                    <TableCell align="center">Giờ quay mặc định</TableCell>
                                     <TableCell align="center">Số đài dự kiến</TableCell>
                                     <TableCell align="right">Hành động</TableCell>
                                 </TableRow>
@@ -60,6 +61,9 @@ export const RegionList = ({ regions, isLoading, onEdit }: RegionListProps) => {
                                         <TableCell>{region.numberLength}</TableCell>
                                         <TableCell>
                                             {region.minNumber} - {region.maxNumber}
+                                        </TableCell>
+                                        <TableCell align="center">
+                                            {formatRegionDefaultDrawTime(region.defaultDrawTime)}
                                         </TableCell>
                                         <TableCell align="center">{region.stationCount}</TableCell>
                                         <TableCell align="right">

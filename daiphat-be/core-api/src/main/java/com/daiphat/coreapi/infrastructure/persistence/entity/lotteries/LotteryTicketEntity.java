@@ -68,7 +68,11 @@ public class LotteryTicketEntity extends BaseEntity {
     @Builder.Default
     private Boolean active = true;
 
+    @Column(name = "status_reason", length = 500)
+    private String statusReason;
+
     @OneToMany(mappedBy = "ticket", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
     private List<LotteryTicketSerialEntity> serials = new ArrayList<>();
 
     @Transient

@@ -94,10 +94,11 @@ public class OrderIncidentTicketService implements OrderIncidentTicketServicePor
         OrderModel order = orderRepositoryPort.findByIdWithLock(orderId)
                 .orElseThrow(() -> new DomainException(ErrorCode.ORDER_NOT_FOUND));
 
-        if (order.getStatus() != OrderStatus.PREPARING) {
+        if (order.getStatus() != OrderStatus.PREPARING
+                && order.getStatus() != OrderStatus.PENDING_PICKUP) {
             throw new DomainException(
                     ErrorCode.ORDER_INVALID_STATUS,
-                    "Chỉ được xử lý vé sự cố khi đơn đang ở trạng thái PREPARING.");
+                    "Chỉ được xử lý vé sự cố khi đơn đang PREPARING hoặc PENDING_PICKUP.");
         }
 
         if (incidents == null || incidents.isEmpty()) {

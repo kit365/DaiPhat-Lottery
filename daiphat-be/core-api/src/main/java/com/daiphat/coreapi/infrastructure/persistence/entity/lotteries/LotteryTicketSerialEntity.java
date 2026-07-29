@@ -3,6 +3,7 @@ package com.daiphat.coreapi.infrastructure.persistence.entity.lotteries;
 import com.daiphat.coreapi.domain.model.enums.lottery.InputSource;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialFaultedBy;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus;
+import com.daiphat.coreapi.domain.model.enums.lottery.SerialPayoutState;
 import com.daiphat.coreapi.infrastructure.persistence.entity.BaseEntity;
 import com.daiphat.coreapi.infrastructure.persistence.entity.user.UserEntity;
 import jakarta.persistence.*;
@@ -103,4 +104,9 @@ public class LotteryTicketSerialEntity extends BaseEntity {
 
     @Column(name = "replaced_for_ticket_id")
     private Long replacedForTicketId;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "payout_state", nullable = false, length = 30)
+    @Builder.Default
+    private SerialPayoutState payoutState = SerialPayoutState.NONE;
 }

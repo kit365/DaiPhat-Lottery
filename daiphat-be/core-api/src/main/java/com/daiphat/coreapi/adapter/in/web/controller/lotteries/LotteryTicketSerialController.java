@@ -1,5 +1,6 @@
 package com.daiphat.coreapi.adapter.in.web.controller.lotteries;
 
+import com.daiphat.coreapi.adapter.in.web.security.AuthenticatedUserPrincipal;
 import com.daiphat.coreapi.adapter.in.web.constants.ApiConstants;
 import com.daiphat.coreapi.adapter.in.web.response.ApiResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.LotteryTicketResponse;
@@ -14,6 +15,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -50,9 +52,11 @@ public class LotteryTicketSerialController {
     @PreAuthorize("hasAnyAuthority('ticket:edit')")
     public ApiResponse<LotteryTicketResponse> reportFault(
             @PathVariable Long id,
-            @Valid @RequestBody ReportSerialFaultRequest request) {
+            @Valid @RequestBody ReportSerialFaultRequest request,
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal) {
         log.info("REST request to report fault on lottery ticket serial: {}", id);
-        LotteryTicketSerialModel serial = lotteryTicketSerialServicePort.reportFault(id, request);
+        LotteryTicketSerialModel serial = lotteryTicketSerialServicePort.reportFault(
+                id, request, principal != null ? principal.getId() : null);
         return ApiResponse.success("Báo cáo hủy vé thành công.",
                 lotteryTicketServicePort.getById(serial.getTicketId()));
     }
