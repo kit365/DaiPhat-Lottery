@@ -349,6 +349,7 @@ public class ChatTicketInventoryService {
         json.append(",\"stationName\":").append(jsonString(ticket.stationName()));
         json.append(",\"drawDate\":").append(jsonString(formatIsoDate(ticket.drawDate())));
         json.append(",\"price\":").append(ticket.priceSnapshot() != null ? ticket.priceSnapshot().toPlainString() : "null");
+        json.append(",\"quantity\":").append(ticket.quantity() != null ? ticket.quantity() : 0);
         json.append('}');
         return json.toString();
     }
