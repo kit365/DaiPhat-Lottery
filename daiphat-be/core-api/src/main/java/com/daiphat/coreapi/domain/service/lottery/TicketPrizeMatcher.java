@@ -3,6 +3,7 @@ package com.daiphat.coreapi.domain.service.lottery;
 import com.daiphat.coreapi.domain.model.enums.lottery.MatchFrom;
 import com.daiphat.coreapi.domain.model.lotteries.LotteryResultDetailModel;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 
@@ -11,7 +12,12 @@ public final class TicketPrizeMatcher {
     private TicketPrizeMatcher() {
     }
 
-    public record MatchResult(String prizeCode, String prizeDisplayName) {
+    public record MatchResult(
+            String prizeCode,
+            String prizeDisplayName,
+            Long prizeStructureId,
+            BigDecimal prizeAmount
+    ) {
     }
 
     public static Optional<MatchResult> findFirstMatch(String ticketNumbers, List<LotteryResultDetailModel> resultDetails) {
@@ -26,7 +32,9 @@ public final class TicketPrizeMatcher {
             if (matches(ticket, detail.getWinningNumber().trim(), detail.getMatchFrom(), detail.getMatchDigits())) {
                 return Optional.of(new MatchResult(
                         detail.getPrizeCode(),
-                        detail.getPrizeDisplayName() != null ? detail.getPrizeDisplayName() : detail.getPrizeCode()
+                        detail.getPrizeDisplayName() != null ? detail.getPrizeDisplayName() : detail.getPrizeCode(),
+                        detail.getPrizeStructureId(),
+                        null
                 ));
             }
         }
