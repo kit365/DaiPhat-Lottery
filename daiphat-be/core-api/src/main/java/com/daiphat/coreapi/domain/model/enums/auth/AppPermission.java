@@ -170,6 +170,11 @@ public enum AppPermission {
     REFUND_PROCESS(PermissionConstants.REFUND + PermissionConstants.PROCESS,
             "Đơn mua hộ & Hoàn tiền", "Xử lý chuyển khoản hoàn tiền", "Quyền xác nhận đã chuyển khoản hoàn tiền", 515),
 
+    PRIZE_PAYOUT_VIEW(PermissionConstants.PRIZE_PAYOUT + PermissionConstants.VIEW,
+            "Đơn mua hộ & Trả thưởng", "Xem yêu cầu trả thưởng", "Quyền xem danh sách và chi tiết yêu cầu trả thưởng", 525),
+    PRIZE_PAYOUT_PROCESS(PermissionConstants.PRIZE_PAYOUT + PermissionConstants.PROCESS,
+            "Đơn mua hộ & Trả thưởng", "Xử lý trả thưởng", "Quyền duyệt chuyển khoản hoặc từ chối yêu cầu trả thưởng", 520),
+
     // MODULE: KHUYẾN MÃI
     COUPON_VIEW(PermissionConstants.COUPON + PermissionConstants.VIEW, 
             "Mã giảm giá & Khách hàng", "Xem mã giảm giá", "Quyền xem danh sách mã khuyến mãi", 500),
@@ -212,6 +217,7 @@ public enum AppPermission {
             PermissionConstants.PROVIDER,
             PermissionConstants.SUPPLIER,
             PermissionConstants.REFUND,
+            PermissionConstants.PRIZE_PAYOUT,
             PermissionConstants.CHAT,
             PermissionConstants.SUPPORT_TICKET
     );

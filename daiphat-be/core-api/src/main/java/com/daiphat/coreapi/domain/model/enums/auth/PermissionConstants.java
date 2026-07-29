@@ -24,6 +24,7 @@ public final class PermissionConstants {
     public static final String STREET_AGENT = "streetAgent";
     public static final String ORDER = "order";
     public static final String REFUND = "refund";
+    public static final String PRIZE_PAYOUT = "prizePayout";
     public static final String TICKET_SERVICE = "ticketService";
     public static final String TICKET_SERVICE_ORDER = "ticketServiceOrder";
     public static final String COUPON = "coupon";
