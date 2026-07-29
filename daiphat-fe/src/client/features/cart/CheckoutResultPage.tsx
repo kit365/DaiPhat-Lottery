@@ -161,6 +161,18 @@ export const CheckoutResultPage = () => {
         }
     }, [navigate, resultData.orderId]);
 
+    const handlePaymentExpired = useCallback(() => {
+        AppToast.error('Phiên thanh toán đã hết hạn. Đơn hàng đã bị hủy.');
+        setPaymentDialogOpen(false);
+        setPaymentResult(null);
+        setIsPreparingPayment(false);
+        if (resultData.orderId) {
+            navigate(`/profile/orders/${resultData.orderId}`);
+        } else {
+            navigate('/profile/orders');
+        }
+    }, [navigate, resultData.orderId]);
+
     const handlePaymentDialogClose = useCallback(() => {
         setPaymentDialogOpen(false);
         setPaymentResult(null);
@@ -265,6 +277,7 @@ export const CheckoutResultPage = () => {
                 payment={paymentResult}
                 loading={isPreparingPayment}
                 onPaid={handlePaymentPaid}
+                onExpired={handlePaymentExpired}
                 onClose={handlePaymentDialogClose}
             />
         </div>

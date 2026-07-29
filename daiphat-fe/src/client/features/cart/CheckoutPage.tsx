@@ -19,10 +19,27 @@ import { PaymentQrDialog } from '../../components/payment/PaymentQrDialog';
 
 export const CheckoutPage = () => {
     const navigate = useNavigate();
-    const { items, updateQuantity, removeItem, clearCart } = useCartStore();
+    const {
+        items,
+        buyNowItems,
+        updateQuantity,
+        removeItem,
+        clearCart,
+        clearBuyNow,
+        updateBuyNowQuantity,
+        removeBuyNowItem,
+        applyBuyNowPurchaseToCart,
+    } = useCartStore();
     const { token, openLoginModal } = useAuthStore();
     const { user } = useAuth();
-    
+
+    // Khoá chế độ mua ngay theo thời điểm vào trang — tránh mất phiên khi clear buyNow sau đặt đơn.
+    const [buyNowSnapshot] = useState(() => useCartStore.getState().buyNowItems);
+    const isBuyNow = buyNowSnapshot != null;
+    const checkoutItems = isBuyNow
+        ? (buyNowItems != null ? buyNowItems : (buyNowSnapshot ?? []))
+        : items;
+
     const [name, setName] = useState('');
     const [phone, setPhone] = useState('');
     const [expectedPickupAt, setExpectedPickupAt] = useState<string>(() => {
@@ -43,6 +60,7 @@ export const CheckoutPage = () => {
         amount: number;
     } | null>(null);
     const [isPreparingPayment, setIsPreparingPayment] = useState(false);
+    const checkoutFinalizedRef = React.useRef(false);
 
     const createOrderMutation = useCreateOnlineOrder();
     const processPaymentMutation = useProcessPayment();
@@ -82,6 +100,9 @@ export const CheckoutPage = () => {
     }, [token, navigate, openLoginModal]);
 
     React.useEffect(() => {
+        // Mua ngay: không validate/đẩy về giỏ theo giỏ chính — tránh mất phiên mua ngay.
+        if (isBuyNow) return;
+
         const validateCartStock = async () => {
             const hasAdjustment = await validateAndSyncCartStock();
             if (hasAdjustment) {
@@ -91,7 +112,16 @@ export const CheckoutPage = () => {
 
         validateCartStock();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+    }, [isBuyNow]);
+
+    React.useEffect(() => {
+        if (paymentDialogOpen || checkoutFinalizedRef.current) return;
+        const hasCheckoutItems = checkoutItems.some((item) => item.quantity > 0);
+        if (!hasCheckoutItems) {
+            if (isBuyNow) clearBuyNow();
+            navigate('/cart', { replace: true });
+        }
+    }, [checkoutItems, isBuyNow, clearBuyNow, navigate, paymentDialogOpen]);
 
     const getMaxStock = (item: CartItem) =>
         typeof item.maxStock === 'number' ? item.maxStock : 999;
@@ -102,10 +132,41 @@ export const CheckoutPage = () => {
             toast.error(`Vé số ${item.numbers} chỉ còn ${max} vé`);
             return;
         }
+        if (isBuyNow) {
+            updateBuyNowQuantity(item.id, 1);
+            return;
+        }
         updateQuantity(item.id, 1);
     };
 
-    const activeItems = items.filter((item) => item.quantity > 0);
+    const handleDecreaseQty = (item: CartItem) => {
+        if (isBuyNow) {
+            updateBuyNowQuantity(item.id, -1);
+            return;
+        }
+        updateQuantity(item.id, -1);
+    };
+
+    const handleRemoveItem = (id: string) => {
+        if (isBuyNow) {
+            removeBuyNowItem(id);
+            return;
+        }
+        removeItem(id);
+    };
+
+    const finalizeSuccessfulCheckout = useCallback(() => {
+        if (checkoutFinalizedRef.current) return;
+        checkoutFinalizedRef.current = true;
+        if (isBuyNow) {
+            // Chỉ trừ vé vừa mua khỏi giỏ chính (nếu trùng), giữ các vé còn lại.
+            applyBuyNowPurchaseToCart();
+        } else {
+            clearCart();
+        }
+    }, [applyBuyNowPurchaseToCart, clearCart, isBuyNow]);
+
+    const activeItems = checkoutItems.filter((item) => item.quantity > 0);
     const totalTickets = activeItems.reduce((sum, item) => sum + item.quantity, 0);
     const subTotal = activeItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
     const deliveryFee = 0; // No delivery fee since it's pickup only
@@ -117,8 +178,22 @@ export const CheckoutPage = () => {
             return;
         }
 
-        if (!name || !phone || !expectedPickupAt) {
-            toast.error("Vui lòng điền đầy đủ thông tin bắt buộc (Tên, SĐT, Giờ đến lấy)!");
+        const trimmedName = name.trim();
+        const trimmedPhone = phone.trim();
+        const missingFieldErrors: string[] = [];
+
+        if (!trimmedName) {
+            missingFieldErrors.push('Vui lòng nhập họ và tên');
+        }
+        if (!trimmedPhone) {
+            missingFieldErrors.push('Vui lòng nhập số điện thoại');
+        }
+        if (!expectedPickupAt) {
+            missingFieldErrors.push('Vui lòng chọn thời gian đến lấy');
+        }
+
+        if (missingFieldErrors.length > 0) {
+            missingFieldErrors.forEach((msg) => toast.error(msg, { toastId: msg }));
             return;
         }
 
@@ -131,8 +206,8 @@ export const CheckoutPage = () => {
         }
 
         const payload: CreateOnlineOrderRequest = {
-            name,
-            phone,
+            name: trimmedName,
+            phone: trimmedPhone,
             items: activeItems.map(item => ({
                 lotteryTicketId: Number(item.id),
                 quantity: item.quantity
@@ -169,7 +244,7 @@ export const CheckoutPage = () => {
                             onSuccess: (paymentRes) => {
                                 if (paymentRes.success && paymentRes.data) {
                                     setPaymentResult(paymentRes.data);
-                                    clearCart();
+                                    finalizeSuccessfulCheckout();
                                     if (!paymentRes.data.qrCode && !paymentRes.data.checkoutUrl) {
                                         toast.error("Không tạo được mã thanh toán");
                                     }
@@ -187,7 +262,7 @@ export const CheckoutPage = () => {
                     } else {
                         // For cash or if no transaction id
                         toast.success("Đặt hàng thành công!");
-                        clearCart();
+                        finalizeSuccessfulCheckout();
                         navigate('/'); // Navigate to success page
                     }
                 }
@@ -213,17 +288,35 @@ export const CheckoutPage = () => {
         }
     }, [closePaymentDialog, navigate, pendingPaymentOrder?.orderId]);
 
-    const handlePaymentDialogClose = useCallback(() => {
-        toast.info('Đơn đang chờ thanh toán. Bạn có thể thanh toán lại từ Đơn hàng của tôi.');
+    const handlePaymentExpired = useCallback(() => {
+        toast.error('Phiên thanh toán đã hết hạn. Đơn hàng đã bị hủy.');
         const orderId = pendingPaymentOrder?.orderId;
-        clearCart();
         closePaymentDialog();
         if (orderId) {
             navigate(`/profile/orders/${orderId}`);
         } else {
             navigate('/profile/orders');
         }
-    }, [clearCart, closePaymentDialog, navigate, pendingPaymentOrder?.orderId]);
+    }, [closePaymentDialog, navigate, pendingPaymentOrder?.orderId]);
+
+    const handlePaymentDialogClose = useCallback(() => {
+        toast.info('Đơn đang chờ thanh toán. Bạn có thể thanh toán lại từ Đơn hàng của tôi.');
+        const orderId = pendingPaymentOrder?.orderId;
+        // Order đã tạo — trừ vé vừa mua khỏi giỏ (mua ngay) hoặc xoá giỏ (checkout thường).
+        finalizeSuccessfulCheckout();
+        closePaymentDialog();
+        if (orderId) {
+            navigate(`/profile/orders/${orderId}`);
+        } else {
+            navigate('/profile/orders');
+        }
+    }, [closePaymentDialog, finalizeSuccessfulCheckout, navigate, pendingPaymentOrder?.orderId]);
+
+    const handleBackToCart = () => {
+        // Huỷ phiên mua ngay — giữ nguyên giỏ hàng chính.
+        clearBuyNow();
+        navigate('/cart');
+    };
 
     const isSubmitting = createOrderMutation.isPending || processPaymentMutation.isPending;
 
@@ -279,7 +372,7 @@ export const CheckoutPage = () => {
                             </div>
 
                             <div className="flex flex-col">
-                                {items.map((item) => (
+                                {checkoutItems.map((item) => (
                                     <div key={item.id} className="flex flex-col lg:grid lg:grid-cols-[1.5fr_1.5fr_100px_100px_100px_80px] gap-4 items-center py-4 border-b border-dashed border-[#E5E8EB] last:border-b-0">
                                         
                                         {/* Vé số */}
@@ -305,9 +398,9 @@ export const CheckoutPage = () => {
                                         <div className="flex flex-col items-center">
                                             <CartQuantityControl
                                                 item={item}
-                                                onDecrease={() => updateQuantity(item.id, -1)}
+                                                onDecrease={() => handleDecreaseQty(item)}
                                                 onIncrease={() => handleIncreaseQty(item)}
-                                                onRemove={() => removeItem(item.id)}
+                                                onRemove={() => handleRemoveItem(item.id)}
                                             />
                                         </div>
 
@@ -323,7 +416,7 @@ export const CheckoutPage = () => {
 
                                         {/* Thao tác */}
                                         <div className="flex justify-center">
-                                            <button onClick={() => removeItem(item.id)} className="text-[#ee1314] hover:text-[#d00f10] transition-colors w-8 h-8 rounded-full hover:bg-[#FFF4F4] flex items-center justify-center">
+                                            <button onClick={() => handleRemoveItem(item.id)} className="text-[#ee1314] hover:text-[#d00f10] transition-colors w-8 h-8 rounded-full hover:bg-[#FFF4F4] flex items-center justify-center">
                                                 <Trash2 size={16} />
                                             </button>
                                         </div>
@@ -456,7 +549,7 @@ export const CheckoutPage = () => {
                                 <>
                                     <button 
                                         onClick={handleCheckout}
-                                        disabled={items.length === 0 || isSubmitting}
+                                        disabled={activeItems.length === 0 || isSubmitting}
                                         className="w-full py-3.5 bg-[#ee1314] text-white font-bold rounded-xl text-[14px] hover:bg-[#d00f10] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-md shadow-[#ee1314]/20 hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0 active:shadow-sm"
                                     >
                                         {isSubmitting ? (
@@ -467,7 +560,7 @@ export const CheckoutPage = () => {
                                         {isSubmitting ? 'Đang xử lý...' : 'Chốt đơn ngay'}
                                     </button>
                                     <button 
-                                        onClick={() => navigate('/cart')}
+                                        onClick={handleBackToCart}
                                         className="w-full py-3 bg-white text-[#637381] font-bold rounded-xl border border-[#E5E8EB] text-[14px] hover:bg-gray-50 hover:text-[#212B36] transition-colors flex items-center justify-center gap-2"
                                     >
                                         <ArrowLeft size={16} /> Về giỏ hàng
@@ -488,6 +581,7 @@ export const CheckoutPage = () => {
                 payment={paymentResult}
                 loading={isPreparingPayment}
                 onPaid={handlePaymentPaid}
+                onExpired={handlePaymentExpired}
                 onClose={handlePaymentDialogClose}
             />
         </div>

@@ -17,18 +17,36 @@ export interface CartItem {
 
 interface CartStore {
     items: CartItem[];
+    /** Phiên "Mua ngay" — thanh toán riêng, không đụng giỏ hàng chính. */
+    buyNowItems: CartItem[] | null;
     addItem: (item: CartItem) => void;
     removeItem: (id: string) => void;
     updateQuantity: (id: string, delta: number) => boolean;
     syncItemStock: (id: string, maxStock: number) => void;
     clearCart: () => void;
+    startBuyNow: (items: CartItem[]) => void;
+    clearBuyNow: () => void;
+    /** Cập nhật số lượng trong phiên mua ngay. */
+    updateBuyNowQuantity: (id: string, delta: number) => boolean;
+    removeBuyNowItem: (id: string) => void;
+    /**
+     * Sau khi thanh toán mua ngay thành công:
+     * chỉ trừ đúng các vé vừa mua khỏi giỏ chính (nếu trùng), giữ các vé còn lại.
+     */
+    applyBuyNowPurchaseToCart: () => void;
 }
 
 const resolveMaxStock = (maxStock?: number) =>
     typeof maxStock === 'number' && maxStock >= 0 ? maxStock : undefined;
 
+const clampQuantity = (quantity: number, maxStock?: number) => {
+    const max = resolveMaxStock(maxStock) ?? 999;
+    return Math.min(Math.max(0, quantity), Math.max(0, max));
+};
+
 export const useCartStore = create<CartStore>((set, get) => ({
     items: [],
+    buyNowItems: null,
     addItem: (item) => set((state) => {
         // Check if item already exists (same province, numbers, date)
         const existingItem = state.items.find(i =>
@@ -99,5 +117,60 @@ export const useCartStore = create<CartStore>((set, get) => ({
             };
         })
     })),
-    clearCart: () => set({ items: [] })
+    clearCart: () => set({ items: [] }),
+    startBuyNow: (items) => set({
+        buyNowItems: items
+            .filter((item) => item.quantity > 0)
+            .map((item) => ({ ...item })),
+    }),
+    clearBuyNow: () => set({ buyNowItems: null }),
+    updateBuyNowQuantity: (id, delta) => {
+        const buyNowItems = get().buyNowItems;
+        if (!buyNowItems) return false;
+        const item = buyNowItems.find((i) => i.id === id);
+        if (!item) return false;
+
+        const clamped = clampQuantity(item.quantity + delta, item.maxStock);
+        if (clamped === item.quantity) return false;
+
+        set({
+            buyNowItems: buyNowItems.map((i) =>
+                i.id === id ? { ...i, quantity: clamped } : i
+            ),
+        });
+        return true;
+    },
+    removeBuyNowItem: (id) => set((state) => ({
+        buyNowItems: state.buyNowItems
+            ? state.buyNowItems.filter((item) => item.id !== id)
+            : null,
+    })),
+    applyBuyNowPurchaseToCart: () => {
+        const { buyNowItems, items } = get();
+        if (!buyNowItems?.length) {
+            set({ buyNowItems: null });
+            return;
+        }
+
+        const purchasedQtyById = new Map<string, number>();
+        for (const purchased of buyNowItems) {
+            purchasedQtyById.set(
+                purchased.id,
+                (purchasedQtyById.get(purchased.id) ?? 0) + purchased.quantity
+            );
+        }
+
+        const nextItems = items
+            .map((item) => {
+                const purchasedQty = purchasedQtyById.get(item.id);
+                if (!purchasedQty) return item;
+                return {
+                    ...item,
+                    quantity: Math.max(0, item.quantity - purchasedQty),
+                };
+            })
+            .filter((item) => item.quantity > 0);
+
+        set({ items: nextItems, buyNowItems: null });
+    },
 }));

@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Header } from '../../components/layout/header';
 import { ChevronRight, Calendar as CalendarIcon, CheckCircle2, ShieldCheck, RefreshCw, ChevronDown, ChevronUp, Filter, LayoutGrid, Heart, SlidersHorizontal, Trash2, Search } from 'lucide-react';
-import { useCartStore } from '../../../stores/useCartStore';
+import { useCartStore, CartItem } from '../../../stores/useCartStore';
 import { useAuthStore } from '../../../stores/useAuthStore';
 import { AppToast as toast } from '../../../utils/toast.util';
 import {
@@ -607,82 +607,6 @@ export const BuyTicketPage = () => {
         setDraftRanges((prev) => (prev.includes(label) ? prev : [...prev, label]));
     };
 
-    const openFilterPanel = () => {
-        const nextOpen = !isFilterOpen;
-        if (nextOpen) {
-            setDraftSelectedFavorites([...appliedFilters.searches]);
-            setDraftRanges(appliedFilters.tailRanges.map(toUiTailRangeLabel));
-            setDraftNumberTypes([...appliedFilters.numberTypes]);
-        }
-        setIsFilterOpen(nextOpen);
-    };
-
-    const applyTicketFilters = () => {
-        setAppliedFilters({
-            searches: [...draftSelectedFavorites],
-            tailRanges: draftRanges.map(toApiTailRange),
-            numberTypes: [...draftNumberTypes],
-        });
-        setIsFilterOpen(false);
-    };
-
-    const clearTicketFilters = () => {
-        setDraftSelectedFavorites([]);
-        setDraftRanges([]);
-        setDraftNumberTypes([]);
-        setAppliedFilters(EMPTY_APPLIED_FILTERS);
-        setTicketSearchInput('');
-        setAppliedSearch('');
-        setIsFilterOpen(false);
-    };
-
-    const addFavoriteNumber = (raw: string) => {
-        const digits = normalizeTicketSearchDigits(raw, 6);
-        if (digits.length < 2) {
-            toast.info('Nhập ít nhất 2 chữ số để thêm dãy yêu thích');
-            return;
-        }
-        setFavoriteNumbers((prev) => (prev.includes(digits) ? prev : [...prev, digits]));
-        setDraftSelectedFavorites((prev) => (prev.includes(digits) ? prev : [...prev, digits]));
-        setFavoriteDraftInput('');
-    };
-
-    const removeFavoriteNumber = (num: string) => {
-        setFavoriteNumbers((prev) => prev.filter((item) => item !== num));
-        setDraftSelectedFavorites((prev) => prev.filter((item) => item !== num));
-    };
-
-    const toggleDraftFavorite = (num: string) => {
-        setDraftSelectedFavorites((prev) =>
-            prev.includes(num) ? prev.filter((item) => item !== num) : [...prev, num]
-        );
-    };
-
-    const toggleDraftRange = (label: string) => {
-        setDraftRanges((prev) =>
-            prev.includes(label) ? prev.filter((item) => item !== label) : [...prev, label]
-        );
-    };
-
-    const toggleDraftNumberType = (type: NumberTypeValue) => {
-        setDraftNumberTypes((prev) =>
-            prev.includes(type) ? prev.filter((item) => item !== type) : [...prev, type]
-        );
-    };
-
-    const addCustomRange = () => {
-        const from = normalizeTicketSearchDigits(customRangeFrom, 2).padStart(2, '0').slice(-2);
-        const to = normalizeTicketSearchDigits(customRangeTo, 2).padStart(2, '0').slice(-2);
-        const fromNum = Number(from);
-        const toNum = Number(to);
-        if (Number.isNaN(fromNum) || Number.isNaN(toNum) || fromNum > toNum || fromNum < 0 || toNum > 99) {
-            toast.info('Khoảng số không hợp lệ (00–99, từ ≤ đến)');
-            return;
-        }
-        const label = `${from} - ${to}`;
-        setDraftRanges((prev) => (prev.includes(label) ? prev : [...prev, label]));
-    };
-
     // Preselect / highlight ticket from chatbot deep-link (?ticketId=)
     useEffect(() => {
         if (!urlTicketId || availableTickets.length === 0) {
@@ -814,15 +738,65 @@ export const BuyTicketPage = () => {
         return true;
     };
 
+    const buildSelectedCartItems = () => {
+        const result: CartItem[] = [];
+        let hasError = false;
+
+        selectedNumbers.forEach((num) => {
+            const ticketData = availableTickets.find((t: any) => t.numbers === num);
+            if (!ticketData || (!ticketData.id && !ticketData._id)) {
+                hasError = true;
+                toast.error(`Lỗi: Không tìm thấy ID cho vé số ${num}`);
+                return;
+            }
+
+            const maxAvailableQty = ticketData?.quantity || 1;
+            if (ticketQuantity > maxAvailableQty) {
+                hasError = true;
+                toast.error(`Vé số ${num} chỉ còn ${maxAvailableQty} vé`);
+                return;
+            }
+
+            const activeProv = dynamicProvinces.find(
+                (p: any) =>
+                    sameProvinceId(p.id, ticketData.providerId ?? '') ||
+                    sameProvinceId(p.id, ticketData.stationId ?? '')
+            ) || activeProvinces[0];
+            const ticketDateStr = ticketData.drawDate
+                ? dayjs(ticketData.drawDate).format('DD/MM/YYYY')
+                : dayjs().format('DD/MM/YYYY');
+
+            result.push({
+                id: String(ticketData.id || ticketData._id),
+                province: activeProv?.name || 'Nhà đài',
+                provinceIcon: activeProv?.icon,
+                date: ticketDateStr,
+                time: activeProv?.time || '--:--',
+                kyHieu: ticketData.batchCode || '2K2',
+                numbers: num,
+                price: pricePerTicket,
+                quantity: ticketQuantity,
+                color: '#f59e0b',
+                ticketImg: ticketData.ticketImg,
+                maxStock: maxAvailableQty,
+            });
+        });
+
+        return hasError ? null : result;
+    };
+
     const handleCheckout = () => {
         if (selectedProvinces.length === 0 || selectedNumbers.length === 0) {
             toast.warning('Vui lòng chọn đài và ít nhất 1 vé số!');
             return;
         }
-        useCartStore.getState().clearCart();
-        if (addToCart()) {
-            navigate('/checkout');
-        }
+
+        // Mua ngay: thanh toán riêng vé đang chọn, KHÔNG xoá giỏ hàng đang có.
+        const buyNowItems = buildSelectedCartItems();
+        if (!buyNowItems?.length) return;
+
+        useCartStore.getState().startBuyNow(buyNowItems);
+        navigate('/checkout');
     };
 
     return (
