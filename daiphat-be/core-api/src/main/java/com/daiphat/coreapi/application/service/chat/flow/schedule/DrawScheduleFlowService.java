@@ -24,6 +24,7 @@ import com.daiphat.coreapi.domain.model.lotteries.LotteryStationModel;
 import com.daiphat.coreapi.shared.util.DrawScheduleUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.format.DateTimeParseException;
@@ -35,6 +36,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 
 import static com.daiphat.coreapi.application.constant.chat.schedule.ChatScheduleConstants.*;
 
@@ -98,8 +101,32 @@ public class DrawScheduleFlowService implements ChatFlowService {
             }
             return askDefaultRegionChoiceReply(conversation);
         }
+        Optional<ChatIntentOutcome> weekdayInquiry = tryHandleWeekdayInquiry(
+                conversation,
+                customerMessage.getContent()
+        );
+        if (weekdayInquiry.isPresent()) {
+            return weekdayInquiry.get();
+        }
+        Optional<ChatIntentOutcome> regionCatalog = tryHandleRegionStationCatalogInquiry(
+                conversation,
+                customerMessage.getContent()
+        );
+        if (regionCatalog.isPresent()) {
+            return regionCatalog.get();
+        }
         Optional<ChatIntentOutcome> earlyOutcome = mergeSlots(conversation, customerMessage.getContent(), classification);
-        return earlyOutcome.orElseGet(() -> advanceFlow(conversation));
+        if (earlyOutcome.isPresent()) {
+            return earlyOutcome.get();
+        }
+        Optional<ChatIntentOutcome> stationSchedule = tryHandleStationScheduleShortcut(
+                conversation,
+                customerMessage.getContent()
+        );
+        if (stationSchedule.isPresent()) {
+            return stationSchedule.get();
+        }
+        return advanceFlow(conversation);
     }
 
     @Override
@@ -156,6 +183,15 @@ public class DrawScheduleFlowService implements ChatFlowService {
             }
         }
         if (isStandaloneTicketSuggestMessage(customerMessage.getContent())) {
+            return Optional.empty();
+        }
+        if (parser.mentionsWeekdayInquiry(customerMessage.getContent())
+                || parser.mentionsRegionStationCatalogQuestion(customerMessage.getContent())
+                || parser.mentionsScheduleAndResult(customerMessage.getContent())
+                || (parser.mentionsScheduleIntent(customerMessage.getContent())
+                && !parser.isSelectStationToken(customerMessage.getContent())
+                && !parser.isSetGoalToken(customerMessage.getContent()))) {
+            // Câu hỏi lịch mới (vd. "xổ thứ mấy") — để startFlow xử lý, không gắn vào slot cũ.
             return Optional.empty();
         }
         Optional<String> setGoal = parser.parseSetGoal(customerMessage.getContent());
@@ -512,8 +548,12 @@ public class DrawScheduleFlowService implements ChatFlowService {
         }
 
         if (!slots.hasDate()) {
-            conversation.setPendingSlot(ChatSchedulePendingSlot.DATE_MODE);
-            return Optional.of(askDateModeReply(conversation));
+            if (SCOPE_REGION_ALL.equals(slots.scope()) && shouldAutoRegionAll(conversation)) {
+                applyDateExtraction(conversation, ChatScheduleDateExtraction.today());
+            } else {
+                conversation.setPendingSlot(ChatSchedulePendingSlot.DATE_MODE);
+                return Optional.of(askDateModeReply(conversation));
+            }
         }
 
         if (slots.stationId() != null && slots.stationIds() == null) {
@@ -551,6 +591,10 @@ public class DrawScheduleFlowService implements ChatFlowService {
         return GOAL_RESULT.equals(conversation.collectedSlot(SLOT_GOAL));
     }
 
+    private boolean isScheduleAndResultGoal(ConversationModel conversation) {
+        return GOAL_SCHEDULE_AND_RESULT.equals(conversation.collectedSlot(SLOT_GOAL));
+    }
+
     private boolean shouldAutoRegionAll(ConversationModel conversation) {
         if (Boolean.parseBoolean(conversation.collectedSlot(SLOT_REGION_ALL_INTENT))) {
             return true;
@@ -567,6 +611,10 @@ public class DrawScheduleFlowService implements ChatFlowService {
             ChatIntentOutcome ticketOutcome = executeTicketGoal(slots);
             resetScheduleFlow(conversation);
             return ticketOutcome;
+        }
+
+        if (GOAL_SCHEDULE_AND_RESULT.equals(goal)) {
+            return executeStationBundleAndClear(conversation, slots);
         }
 
         boolean allDays = ChatScheduleDateMode.ALL_DAYS.name().equals(slots.dateMode());
@@ -615,6 +663,35 @@ public class DrawScheduleFlowService implements ChatFlowService {
         return terminalReply(token);
     }
 
+    private ChatIntentOutcome executeStationBundleAndClear(ConversationModel conversation, ScheduleSlots slots) {
+        if (!SCOPE_STATION.equals(slots.scope()) || slots.stationId() == null) {
+            resetScheduleFlow(conversation);
+            return askDefaultRegionChoiceReply(conversation);
+        }
+        Optional<LotteryStationModel> stationOpt = parseStationId(slots.stationId()).flatMap(stations::findActiveById);
+        if (stationOpt.isEmpty()) {
+            resetScheduleFlow(conversation);
+            return userFacingReply(scheduleMessages().getStationNotFound());
+        }
+        LotteryStationModel station = stationOpt.get();
+        LocalTime drawTime = station.getDrawTime() != null ? station.getDrawTime() : DRAW_CUTOFF;
+        LocalDate resultDate = DrawScheduleUtils.resolveLastDrawDate(station.getDrawDays(), drawTime);
+        String region = station.getRegion() != null && station.getRegion().region() != null
+                ? station.getRegion().region()
+                : DEFAULT_SCHEDULE_REGION;
+        String dateLabel = resultDate.format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy"));
+
+        StringBuilder tokenBuilder = new StringBuilder(TOKEN_STATION_BUNDLE_PREFIX);
+        tokenBuilder.append(RESULT_PARAM_STATION).append('=').append(station.getId());
+        tokenBuilder.append(':').append(RESULT_PARAM_REGION).append('=').append(region);
+        tokenBuilder.append(":stationName=").append(encodeTokenValue(station.getName()));
+        tokenBuilder.append(':').append(RESULT_PARAM_DATE).append('=').append(resultDate);
+
+        String displayText = scheduleMessages().stationBundleIntro(station.getName(), dateLabel);
+        resetScheduleFlow(conversation);
+        return botReply(displayText, tokenBuilder.toString());
+    }
+
     private ChatIntentOutcome applyRegionTodayIntent(ConversationModel conversation) {
         conversation.putCollectedSlot(SLOT_SCOPE, SCOPE_REGION_TODAY);
         conversation.removeCollectedSlot(SLOT_STATION_ID);
@@ -646,12 +723,21 @@ public class DrawScheduleFlowService implements ChatFlowService {
         String goal = params.getOrDefault("goal", GOAL_SCHEDULE).toUpperCase();
         applyGoal(conversation, goal);
 
-        // Kết quả: luôn hỏi ngày → chọn đài quay ngày đó (không show summary ngay).
+        // Kết quả: hỏi ngày — giữ đài nếu hub gửi station=.
         if (GOAL_RESULT.equals(goal)) {
-            applyDefaultRegion(conversation);
-            conversation.removeCollectedSlot(SLOT_STATION_ID);
-            conversation.removeCollectedSlot(SLOT_STATION_IDS);
-            conversation.removeCollectedSlot(SLOT_SCOPE);
+            String stationId = params.get(RESULT_PARAM_STATION);
+            if (stationId != null && !stationId.isBlank()) {
+                parseStationId(stationId).flatMap(stations::findActiveById).ifPresentOrElse(
+                        station -> applyStation(conversation, station),
+                        () -> conversation.putCollectedSlot(SLOT_STATION_ID, stationId)
+                );
+                conversation.putCollectedSlot(SLOT_SCOPE, SCOPE_STATION);
+            } else {
+                applyDefaultRegion(conversation);
+                conversation.removeCollectedSlot(SLOT_STATION_ID);
+                conversation.removeCollectedSlot(SLOT_STATION_IDS);
+                conversation.removeCollectedSlot(SLOT_SCOPE);
+            }
             conversation.removeCollectedSlot(SLOT_DRAW_DATE);
             conversation.removeCollectedSlot(SLOT_DATE_MODE);
             return Optional.of(askResultDateModeReply(conversation));
@@ -847,6 +933,11 @@ public class DrawScheduleFlowService implements ChatFlowService {
             // Flow RESULT đã chọn đài theo ngày → luôn trả đúng đài đó.
             builder.append(RESULT_PARAM_STATION).append('=').append(slots.stationId());
             builder.append(':').append(RESULT_PARAM_REGION).append('=').append(region);
+            parseStationId(slots.stationId())
+                    .flatMap(stations::findActiveById)
+                    .map(LotteryStationModel::getName)
+                    .filter(name -> name != null && !name.isBlank())
+                    .ifPresent(name -> builder.append(":stationName=").append(encodeTokenValue(name)));
         } else if (SCOPE_STATIONS.equals(slots.scope()) && slots.stationIds() != null && !slots.stationIds().isBlank()) {
             builder.append(RESULT_PARAM_STATIONS).append('=').append(slots.stationIds());
             builder.append(':').append(RESULT_PARAM_REGION).append('=').append(region);
@@ -1016,6 +1107,11 @@ public class DrawScheduleFlowService implements ChatFlowService {
 
         applyDateExtraction(conversation, parser.extractExtraction(message));
 
+        Optional<ChatIntentOutcome> catalogOutcome = tryHandleRegionStationCatalogInquiry(conversation, message);
+        if (catalogOutcome.isPresent()) {
+            return catalogOutcome;
+        }
+
         if (parser.mentionsNationAll(message)) {
             applyDefaultRegion(conversation);
             conversation.putCollectedSlot(SLOT_SCOPE, SCOPE_REGION_ALL);
@@ -1033,6 +1129,9 @@ public class DrawScheduleFlowService implements ChatFlowService {
                     conversation.removeCollectedSlot(SLOT_STATION_ID);
                     conversation.removeCollectedSlot(SLOT_STATION_IDS);
                     clearDateSelectionForImplicitRegionAll(conversation, message);
+                    if (!parser.mentionsExplicitDateChoice(message) && !hasCollectedDate(conversation)) {
+                        applyDateExtraction(conversation, ChatScheduleDateExtraction.today());
+                    }
                     return Optional.empty();
                 }
             }
@@ -1092,6 +1191,9 @@ public class DrawScheduleFlowService implements ChatFlowService {
     }
 
     private boolean isBareScheduleQuery(String message) {
+        if (message != null && TOKEN_RESTART.equals(message.trim())) {
+            return true;
+        }
         if (!parser.matchesBareSchedulePrompt(message) && !isScheduleRestartQuery(message)) {
             return false;
         }
@@ -1262,6 +1364,9 @@ public class DrawScheduleFlowService implements ChatFlowService {
     }
 
     private boolean shouldUseRegionAllScope(String message) {
+        if (parser.mentionsRegionStationCatalogQuestion(message)) {
+            return false;
+        }
         return parser.mentionsRegionAllListIntent(message) || isImplicitRegionAllQuery(message);
     }
 
@@ -1291,7 +1396,7 @@ public class DrawScheduleFlowService implements ChatFlowService {
 
     private String formatRegionLabel(String regionCode) {
         return LotteryRegionCode.fromCode(regionCode)
-                .map(LotteryRegionCode::shortDisplayName)
+                .map(LotteryRegionCode::displayName)
                 .orElse(regionCode != null ? regionCode : "");
     }
 
@@ -1397,17 +1502,192 @@ public class DrawScheduleFlowService implements ChatFlowService {
             return;
         }
         String normalized = parser.normalize(message);
-        if (normalized.contains("ket qua") || normalized.contains("xo so") || normalized.contains("do ve")) {
+        boolean wantsSchedule = parser.mentionsScheduleIntent(message)
+                || parser.mentionsWeekdayInquiry(message)
+                || normalized.contains("lich quay")
+                || normalized.contains("lich xo")
+                || normalized.contains("lich ");
+        boolean wantsResult = normalized.contains("ket qua")
+                || normalized.contains("xo so")
+                || normalized.contains("do ve");
+        if (wantsSchedule && wantsResult) {
+            applyGoal(conversation, GOAL_SCHEDULE_AND_RESULT);
+            return;
+        }
+        if (wantsSchedule) {
+            applyGoal(conversation, GOAL_SCHEDULE);
+            return;
+        }
+        if (wantsResult) {
             applyGoal(conversation, GOAL_RESULT);
         } else if (normalized.contains("goi y") || normalized.contains("mua ve") || normalized.contains("xem ve")) {
             applyGoal(conversation, GOAL_TICKET);
-        } else if (parser.mentionsScheduleIntent(message) || normalized.contains("lich")) {
-            applyGoal(conversation, GOAL_SCHEDULE);
         }
+    }
+
+    private Optional<ChatIntentOutcome> tryHandleRegionStationCatalogInquiry(
+            ConversationModel conversation,
+            String message
+    ) {
+        if (!parser.mentionsRegionStationCatalogQuestion(message)) {
+            return Optional.empty();
+        }
+        String region = parser.findRegionCode(message);
+        if (region == null) {
+            region = DEFAULT_SCHEDULE_REGION;
+        }
+        resetScheduleFlow(conversation);
+        return Optional.of(userFacingReply(buildRegionStationCatalogAnswer(region)));
+    }
+
+    /** Hỏi "xổ thứ mấy / ngày mấy / ngày gần nhất" → trả ngày quay gần nhất (dd/MM/yyyy). */
+    private Optional<ChatIntentOutcome> tryHandleWeekdayInquiry(
+            ConversationModel conversation,
+            String message
+    ) {
+        if (!parser.mentionsWeekdayInquiry(message)) {
+            return Optional.empty();
+        }
+        return completeStationWeekSchedule(conversation, message);
+    }
+
+    /**
+     * Free-text nhắc đài + hỏi lịch/xổ → hiện lịch đài ngay (không hỏi "xem ngày nào?").
+     */
+    private Optional<ChatIntentOutcome> tryHandleStationScheduleShortcut(
+            ConversationModel conversation,
+            String message
+    ) {
+        if (isResultGoal(conversation) || !parser.looksLikeStationScheduleQuestion(message)) {
+            return Optional.empty();
+        }
+        if (!ScheduleSlots.from(conversation).hasStation()) {
+            ChatScheduleStationResolveResult resolveResult = applyStationResolve(conversation, message);
+            if (resolveResult instanceof ChatScheduleStationResolveResult.Ambiguous(var candidates)) {
+                applyGoal(conversation, GOAL_SCHEDULE);
+                return Optional.of(promptConfirmStations(conversation, candidates));
+            }
+            if (!(resolveResult instanceof ChatScheduleStationResolveResult.Single)) {
+                return Optional.empty();
+            }
+        }
+        if (!ScheduleSlots.from(conversation).hasStation()) {
+            return Optional.empty();
+        }
+        return completeStationWeekSchedule(conversation, message);
+    }
+
+    private Optional<ChatIntentOutcome> completeStationWeekSchedule(
+            ConversationModel conversation,
+            String message
+    ) {
+        applyGoalFromMessage(conversation, message);
+        conversation.putCollectedSlot(SLOT_DATE_MODE, ChatScheduleDateMode.ALL_DAYS.name());
+        conversation.removeCollectedSlot(SLOT_DRAW_DATE);
+
+        if (!ScheduleSlots.from(conversation).hasStation()) {
+            ChatScheduleStationResolveResult resolveResult = applyStationResolve(conversation, message);
+            if (resolveResult instanceof ChatScheduleStationResolveResult.Ambiguous(var candidates)) {
+                return Optional.of(promptConfirmStations(conversation, candidates));
+            }
+            if (resolveResult instanceof ChatScheduleStationResolveResult.Single(var match)) {
+                applyStation(conversation, match.station());
+            }
+        }
+
+        if (ScheduleSlots.from(conversation).hasStation()) {
+            conversation.putCollectedSlot(SLOT_SCOPE, SCOPE_STATION);
+            Optional<LotteryStationModel> station = resolveCollectedStation(conversation);
+            if (station.isPresent() && parser.mentionsWeekdayInquiry(message)) {
+                resetScheduleFlow(conversation);
+                return Optional.of(userFacingReply(buildStationNearestDrawDateAnswer(station.get())));
+            }
+            return Optional.of(executeAndClear(conversation));
+        }
+        return Optional.of(askDefaultRegionChoiceReply(conversation));
+    }
+
+    private Optional<LotteryStationModel> resolveCollectedStation(ConversationModel conversation) {
+        return parseStationId(ScheduleSlots.from(conversation).stationId())
+                .flatMap(stations::findActiveById);
+    }
+
+    private String buildStationNearestDrawDateAnswer(LotteryStationModel station) {
+        LocalTime drawTime = station.getDrawTime() != null ? station.getDrawTime() : DRAW_CUTOFF;
+        LocalDate nearestDraw = DrawScheduleUtils.resolveNextDrawDate(station.getDrawDays(), drawTime);
+        String dateLabel = nearestDraw.format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy"));
+        String timeLabel = drawTime.format(java.time.format.DateTimeFormatter.ofPattern("HH:mm"));
+        String weekdays = formatStationDrawWeekdays(station);
+        return scheduleMessages().stationNearestDrawDate(station.getName(), weekdays, dateLabel, timeLabel);
+    }
+
+    private String buildRegionStationCatalogAnswer(String regionCode) {
+        var stationPage = lotteryStationService.getAll(
+                1,
+                100,
+                null,
+                null,
+                null,
+                regionCode,
+                null,
+                true,
+                "name",
+                "asc"
+        );
+        List<LotteryStationResponse> stationList = stationPage != null && stationPage.getRecordList() != null
+                ? stationPage.getRecordList()
+                : List.of();
+        String numberedList = formatNumberedStationList(stationList);
+        return scheduleMessages().regionStationCatalog(
+                formatRegionLabel(regionCode),
+                stationList.size(),
+                numberedList
+        );
+    }
+
+    private String formatNumberedStationList(List<LotteryStationResponse> stationList) {
+        if (stationList == null || stationList.isEmpty()) {
+            return "";
+        }
+        StringBuilder builder = new StringBuilder();
+        for (int index = 0; index < stationList.size(); index++) {
+            if (index > 0) {
+                builder.append('\n');
+            }
+            builder.append(index + 1).append(". ").append(stationList.get(index).name());
+        }
+        return builder.toString();
+    }
+
+    private String formatStationDrawWeekdays(LotteryStationModel station) {
+        if (station.getDrawDays() == null || station.getDrawDays().isEmpty()) {
+            return "";
+        }
+        return station.getDrawDays().stream()
+                .map(DrawScheduleFlowService::toVietnameseDayLabel)
+                .collect(Collectors.joining(", "));
+    }
+
+    private static String toVietnameseDayLabel(DayOfWeek dayOfWeek) {
+        return switch (dayOfWeek) {
+            case MONDAY -> "Thứ 2";
+            case TUESDAY -> "Thứ 3";
+            case WEDNESDAY -> "Thứ 4";
+            case THURSDAY -> "Thứ 5";
+            case FRIDAY -> "Thứ 6";
+            case SATURDAY -> "Thứ 7";
+            case SUNDAY -> "Chủ nhật";
+        };
     }
 
     private ChatIntentOutcome afterStationSelected(ConversationModel conversation, LotteryStationModel station) {
         applyStation(conversation, station);
+        if (isScheduleAndResultGoal(conversation)) {
+            conversation.putCollectedSlot(SLOT_SCOPE, SCOPE_STATION);
+            conversation.putCollectedSlot(SLOT_DATE_MODE, ChatScheduleDateMode.ALL_DAYS.name());
+            conversation.removeCollectedSlot(SLOT_DRAW_DATE);
+            return executeStationBundleAndClear(conversation, ScheduleSlots.from(conversation));
+        }
         // Kết quả: đã có ngày + đài → hiện full KQ ngay, không hỏi lịch.
         if (isResultGoal(conversation) && hasCollectedDate(conversation)) {
             conversation.putCollectedSlot(SLOT_SCOPE, SCOPE_STATION);
@@ -1601,5 +1881,9 @@ public class DrawScheduleFlowService implements ChatFlowService {
 
     private ChatMessageProperties.ScheduleMessages scheduleMessages() {
         return chatMessageProperties.getSchedule();
+    }
+
+    private static String encodeTokenValue(String value) {
+        return URLEncoder.encode(value, StandardCharsets.UTF_8);
     }
 }

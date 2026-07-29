@@ -74,6 +74,29 @@ public final class DrawScheduleUtils {
         return effectiveToday;
     }
 
+    /**
+     * Resolves the most recent draw date that has already occurred (or today's draw after cutoff).
+     */
+    public static LocalDate resolveLastDrawDate(List<DayOfWeek> drawDays, LocalTime drawTime) {
+        validate(drawDays, drawTime);
+
+        LocalDate today = today();
+        LocalTime now = nowTime();
+
+        for (int i = 0; i <= 7; i++) {
+            LocalDate candidate = today.minusDays(i);
+            if (!drawDays.contains(candidate.getDayOfWeek())) {
+                continue;
+            }
+            if (i == 0 && now.isBefore(drawTime)) {
+                continue;
+            }
+            return candidate;
+        }
+
+        throw new DomainException(ErrorCode.LOTTERY_STATION_INVALID_DRAW_SCHEDULE);
+    }
+
     public static void validate(List<DayOfWeek> drawDays, LocalTime drawTime) {
         if (drawDays == null || drawDays.isEmpty() || drawTime == null) {
             throw new DomainException(ErrorCode.LOTTERY_STATION_INVALID_DRAW_SCHEDULE);

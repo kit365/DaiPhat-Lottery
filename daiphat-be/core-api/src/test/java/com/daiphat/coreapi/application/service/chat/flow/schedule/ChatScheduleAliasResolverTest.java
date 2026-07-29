@@ -42,6 +42,25 @@ class ChatScheduleAliasResolverTest {
     }
 
     @Test
+    void mentionsWeekdayInquiry_detectsStationDrawDayQuestion() {
+        assertThat(parser.mentionsWeekdayInquiry("tôi muốn biết đài vĩnh long xổ vào thứ mấy")).isTrue();
+        assertThat(parser.mentionsScheduleIntent("tôi muốn biết đài vĩnh long xổ vào thứ mấy")).isTrue();
+    }
+
+    @Test
+    void mentionsWeekdayInquiry_detectsNextDrawDayQuestion() {
+        assertThat(parser.mentionsWeekdayInquiry("ngày nhất Vĩnh long xổ là ngày mấy")).isTrue();
+        assertThat(parser.mentionsWeekdayInquiry("Vĩnh Long quay khi nào")).isTrue();
+        assertThat(parser.mentionsWeekdayInquiry("đài Cà Mau xổ gần nhất ngày nào")).isTrue();
+    }
+
+    @Test
+    void mentionsWeekdayInquiry_ignoresPlainStationName() {
+        assertThat(parser.mentionsWeekdayInquiry("Vĩnh Long")).isFalse();
+        assertThat(parser.mentionsWeekdayInquiry("Hôm nay")).isFalse();
+    }
+
+    @Test
     void findRegionCode_matchesLongestRegionAlias() {
         assertThat(parser.findRegionCode("lịch miền nam")).isEqualTo(LotteryRegionCode.MIEN_NAM.code());
     }
