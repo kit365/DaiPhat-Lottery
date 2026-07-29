@@ -16,6 +16,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.time.LocalTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -45,6 +46,8 @@ class LotterySupplierServiceTest {
                 .code("minh_chinh")
                 .type(LotterySupplierType.DISTRIBUTOR)
                 .contactPhone("0901234567")
+                .importAllowFrom(LocalTime.of(8, 0))
+                .returnCutOffTime(LocalTime.of(14, 30))
                 .build();
         when(lotterySupplierRepositoryPort.existsByCode("MINH_CHINH")).thenReturn(true);
 
@@ -63,6 +66,8 @@ class LotterySupplierServiceTest {
                 .type(LotterySupplierType.DISTRIBUTOR)
                 .contactPhone("0901234567")
                 .isActive(false)
+                .importAllowFrom(LocalTime.of(8, 0))
+                .returnCutOffTime(LocalTime.of(14, 30))
                 .build();
         LotterySupplierModel model = LotterySupplierModel.builder()
                 .name("Minh Chính")
@@ -105,6 +110,8 @@ class LotterySupplierServiceTest {
                 .type(LotterySupplierType.DISTRIBUTOR)
                 .contactPhone("0901234567")
                 .isActive(true)
+                .importAllowFrom(LocalTime.of(8, 0))
+                .returnCutOffTime(LocalTime.of(14, 30))
                 .build();
         LotterySupplierModel model = LotterySupplierModel.builder()
                 .name("Minh Chính")
@@ -156,6 +163,8 @@ class LotterySupplierServiceTest {
                 .code("X")
                 .type(LotterySupplierType.DISTRIBUTOR)
                 .contactPhone("1")
+                .importAllowFrom(LocalTime.of(8, 0))
+                .returnCutOffTime(LocalTime.of(14, 30))
                 .isActive(true)
                 .build()))
                 .isInstanceOf(DomainException.class)
