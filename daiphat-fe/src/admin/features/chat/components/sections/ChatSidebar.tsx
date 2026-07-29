@@ -1,6 +1,6 @@
 import { ConversationTitle } from '../components/ConversationTitle';
 import { ConversationAvatarLetter } from '../components/ConversationAvatarLetter';
-import { getConversationDisplayTitle, getConversationAvatarLetter, getAssigneeDisplayLabel, getConversationPreviewText } from '../utils';
+import { getConversationDisplayTitle, getConversationAvatarLetter, getAssigneeDisplayLabel, getConversationPreviewText, getManagementUnreadCount } from '../utils';
 import React, { useState, useEffect } from 'react';
 import { useAuthStore } from '../../../../../stores/useAuthStore';
 import {
@@ -93,7 +93,7 @@ export const ChatSidebar = ({ conversations, selectedId, onSelect }: ChatSidebar
                         const isSelected = conv.id === selectedId;
                         const lastMsg = conv.lastMessage;
                         const statusInfo = STATUS_LABELS[conv.status] || STATUS_LABELS.OPEN;
-                        const hasUnread = (conv.unreadCount ?? 0) > 0;
+                        const hasUnread = getManagementUnreadCount(conv) > 0;
                         const previewText = getConversationPreviewText(
                             conv,
                             Object.fromEntries(
@@ -140,7 +140,9 @@ export const ChatSidebar = ({ conversations, selectedId, onSelect }: ChatSidebar
                                 <Box sx={{ flexGrow: 1, minWidth: 0 }}>
                                     <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 0.5 }}>
                                         <ConversationTitle conversation={conv}  variant="subtitle2" noWrap sx={{ fontWeight: hasUnread || isSelected ? 700 : 600, fontSize: '0.9rem', color: isSelected ? 'var(--palette-primary-main)' : 'text.primary' }} />
-                                        {lastMsg?.senderType === MessageSenderRole.CUSTOMER ? (
+                                        {conv.status === ConversationStatusEnum.WAITING_FOR_OPERATOR ? (
+                                            <WaitTimer startTime={conv.escalatedAt || conv.updatedAt || ''} />
+                                        ) : lastMsg?.senderType === MessageSenderRole.CUSTOMER ? (
                                             <WaitTimer startTime={lastMsg.createdAt} />
                                         ) : (
                                             <Typography variant="caption" sx={{ color: hasUnread ? 'var(--palette-primary-main)' : 'text.disabled', fontWeight: hasUnread ? 700 : 500 }}>

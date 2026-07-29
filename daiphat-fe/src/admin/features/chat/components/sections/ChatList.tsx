@@ -1,6 +1,6 @@
 import { ConversationTitle } from '../components/ConversationTitle';
 import { ConversationAvatarLetter } from '../components/ConversationAvatarLetter';
-import { getConversationDisplayTitle, getConversationAvatarLetter, getAssigneeDisplayLabel, getConversationPreviewText } from '../utils';
+import { getConversationDisplayTitle, getConversationAvatarLetter, getAssigneeDisplayLabel, getConversationPreviewText, getManagementUnreadCount } from '../utils';
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import {
     Box,
@@ -285,7 +285,9 @@ export const ChatList = ({ conversations, onSelectConversation, onToggleMode, vi
 
     // Filter logic
     const filteredConversations = conversations.filter(conv => {
-        if (tabStatus === 'unread' && (conv.unreadCount ?? 0) === 0) return false;
+        const unreadCount = getManagementUnreadCount(conv);
+        if (tabStatus === 'unread' && unreadCount === 0) return false;
+        if (tabStatus === 'read' && unreadCount > 0) return false;
         if (!passesAssigneeFilter(conv)) return false;
         if (searchQuery) {
             const title = conv.title?.toLowerCase() || '';
@@ -301,7 +303,8 @@ export const ChatList = ({ conversations, onSelectConversation, onToggleMode, vi
 
     const statusCounts = {
         all: conversations.length,
-        unread: conversations.filter(c => (c.unreadCount ?? 0) > 0).length,
+        unread: conversations.filter((c) => getManagementUnreadCount(c) > 0).length,
+        read: conversations.filter((c) => getManagementUnreadCount(c) === 0).length,
     };
 
     const sortOptions = [
@@ -351,6 +354,7 @@ export const ChatList = ({ conversations, onSelectConversation, onToggleMode, vi
                 {[
                     { value: 'all', label: 'Tất cả', color: 'var(--palette-common-white)', bg: 'var(--palette-grey-800)', activeColor: 'var(--palette-common-white)', activeBg: 'var(--palette-grey-800)' },
                     { value: 'unread', label: 'Chưa đọc', color: 'var(--palette-error-dark)', bg: 'var(--palette-error-lighter)', activeColor: 'var(--palette-error-contrastText)', activeBg: 'var(--palette-error-main)' },
+                    { value: 'read', label: 'Đã đọc', color: 'var(--palette-success-dark)', bg: 'var(--palette-success-lighter)', activeColor: 'var(--palette-success-contrastText)', activeBg: 'var(--palette-success-main)' },
                 ].map((tab) => (
                     <Tab
                         key={tab.value}
@@ -530,7 +534,7 @@ export const ChatList = ({ conversations, onSelectConversation, onToggleMode, vi
                         ) : (
                             filteredConversations.map((row: Conversation) => {
                                 const isItemSelected = selected.indexOf(String(row.id)) !== -1;
-                                const hasUnread = (row.unreadCount ?? 0) > 0;
+                                const hasUnread = getManagementUnreadCount(row) > 0;
 
                                 return (
                                     <TableRow
@@ -588,7 +592,7 @@ export const ChatList = ({ conversations, onSelectConversation, onToggleMode, vi
                                             {row.status === ConversationStatusEnum.CLOSED ? (
                                                 <Chip label="Đã đóng" size="small" sx={{ fontWeight: 600 }} />
                                             ) : hasUnread ? (
-                                                <Chip label={`${row.unreadCount} tin nhắn mới`} size="small" color="error" sx={{ fontWeight: 600 }} />
+                                                <Chip label={`${getManagementUnreadCount(row)} tin nhắn mới`} size="small" color="error" sx={{ fontWeight: 600 }} />
                                             ) : row.lastMessage?.senderType === MessageSenderRole.CUSTOMER ? (
                                                 <WaitTimerChip startTime={row.lastMessage.createdAt} />
                                             ) : (

@@ -5,6 +5,14 @@ import { mapMessage } from '../services/chatService';
 const isActiveStatus = (status: Conversation['status']): boolean =>
     status !== ConversationStatusEnum.CLOSED;
 
+/** Số tin chưa đọc trên danh sách hỗ trợ — đã đóng không còn unread. */
+export const getManagementUnreadCount = (conversation: Conversation): number => {
+    if (conversation.status === ConversationStatusEnum.CLOSED) {
+        return 0;
+    }
+    return conversation.unreadCount ?? 0;
+};
+
 const SESSION_DIVIDER_PATTERNS = [
     'phiên hỗ trợ mới bắt đầu',
     'phiên hỗ trợ đã kết thúc',
@@ -141,6 +149,12 @@ export const getConversationPreviewText = (
     statusLabels: Record<string, string> = {},
     currentUserId?: string | null
 ): string => {
+    if (conversation.handoffSummary) {
+        const firstLine = conversation.handoffSummary.split('\n').find((line) => line.trim().length > 0);
+        if (firstLine) {
+            return firstLine.trim();
+        }
+    }
     const lastMsg = conversation.lastMessage;
     if (!lastMsg?.content) {
         return statusLabels[conversation.status] || 'Chưa có tin nhắn...';
@@ -222,7 +236,10 @@ export const groupConversationsByCustomer = (conversations: Conversation[]): Con
 
         return {
             ...primary,
-            unreadCount: group.reduce((total, conversation) => total + (conversation.unreadCount ?? 0), 0),
+            unreadCount: group.reduce(
+                (total, conversation) => total + getManagementUnreadCount(conversation),
+                0
+            ),
         };
     });
 };
@@ -253,4 +270,25 @@ export const getConversationAvatarLetter = (conv: Conversation | null | undefine
     const title = getConversationDisplayTitle(conv);
     if (title === 'Yêu cầu hỗ trợ từ khách hàng') return 'Y';
     return title.charAt(0).toUpperCase();
+};
+
+/** Human wait duration for SLA chip, e.g. "5 phút", "1 giờ 12 phút". */
+export const formatWaitDuration = (escalatedAt?: string | null): string => {
+    if (!escalatedAt) {
+        return '';
+    }
+    const started = new Date(escalatedAt).getTime();
+    if (Number.isNaN(started)) {
+        return '';
+    }
+    const totalMinutes = Math.max(0, Math.floor((Date.now() - started) / 60_000));
+    if (totalMinutes < 1) {
+        return 'dưới 1 phút';
+    }
+    if (totalMinutes < 60) {
+        return `${totalMinutes} phút`;
+    }
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
+    return minutes > 0 ? `${hours} giờ ${minutes} phút` : `${hours} giờ`;
 };
