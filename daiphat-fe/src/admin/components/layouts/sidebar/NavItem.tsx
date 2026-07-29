@@ -7,6 +7,7 @@ import { useSidebar } from "../../../context/sidebar/useSidebar";
 import { useAuthStore } from "../../../../stores/useAuthStore";
 import { hasPermission, resolveRoleCode } from "../../../utils/permission.util";
 import { useRefundPendingCount } from "../../../pages/refund/hooks/useRefundPendingCount";
+import { usePrizePayoutPendingCount } from "../../../pages/prize-payout/hooks/usePrizePayoutPendingCount";
 import { usePreparingOrderCount } from "../../../features/orders/hooks/useOrder";
 
 
@@ -75,6 +76,31 @@ const RefundPendingBadgeIcon = ({ children }: { children: ReactNode }) => {
     );
 };
 
+/** Isolated so only the Prize Payout menu item polls pending counts. */
+const PrizePayoutPendingBadgeLabel = () => {
+    const { pendingCount } = usePrizePayoutPendingCount();
+    if (pendingCount <= 0) return null;
+    return (
+        <Badge
+            badgeContent={pendingCount > 99 ? '99+' : pendingCount}
+            sx={{ '& .MuiBadge-badge': sidebarBadgeSx }}
+        />
+    );
+};
+
+const PrizePayoutPendingBadgeIcon = ({ children }: { children: ReactNode }) => {
+    const { pendingCount } = usePrizePayoutPendingCount();
+    return (
+        <Badge
+            badgeContent={pendingCount > 99 ? '99+' : pendingCount}
+            invisible={pendingCount <= 0}
+            sx={{ '& .MuiBadge-badge': sidebarIconBadgeSx }}
+        >
+            {children}
+        </Badge>
+    );
+};
+
 /** Isolated so only the Orders menu item polls PREPARING counts. */
 const PreparingOrderBadgeLabel = () => {
     const { preparingCount } = usePreparingOrderCount();
@@ -106,6 +132,7 @@ export const NavItem = memo(({ item }: { item: any }) => {
     const { isOpen } = useSidebar();
     const { user } = useAuthStore();
     const showRefundBadge = item.id === 'refunds';
+    const showPrizePayoutBadge = item.id === 'prize-payouts';
     const showPreparingBadge = item.id === 'orders';
 
     const normalizedRole = resolveRoleCode(user);
@@ -193,6 +220,10 @@ export const NavItem = memo(({ item }: { item: any }) => {
                             <RefundPendingBadgeIcon>
                                 <Icon />
                             </RefundPendingBadgeIcon>
+                        ) : !isOpen && showPrizePayoutBadge ? (
+                            <PrizePayoutPendingBadgeIcon>
+                                <Icon />
+                            </PrizePayoutPendingBadgeIcon>
                         ) : !isOpen && showPreparingBadge ? (
                             <PreparingOrderBadgeIcon>
                                 <Icon />
@@ -209,6 +240,11 @@ export const NavItem = memo(({ item }: { item: any }) => {
                         {showRefundBadge && (
                             <span className="ml-auto pl-2 shrink-0 inline-flex items-center">
                                 <RefundPendingBadgeLabel />
+                            </span>
+                        )}
+                        {showPrizePayoutBadge && (
+                            <span className="ml-auto pl-2 shrink-0 inline-flex items-center">
+                                <PrizePayoutPendingBadgeLabel />
                             </span>
                         )}
                         {showPreparingBadge && (
