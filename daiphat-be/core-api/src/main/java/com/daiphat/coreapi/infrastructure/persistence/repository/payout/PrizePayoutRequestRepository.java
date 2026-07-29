@@ -26,6 +26,8 @@ public interface PrizePayoutRequestRepository extends JpaRepository<PrizePayoutR
             Collection<Long> serialIds,
             PrizePayoutRequestStatus status);
 
+    List<PrizePayoutRequestEntity> findBySerial_IdInOrderByCreatedAtDesc(Collection<Long> serialIds);
+
     long countByCustomer_IdAndStatus(UUID customerId, PrizePayoutRequestStatus status);
 
     @Query("""

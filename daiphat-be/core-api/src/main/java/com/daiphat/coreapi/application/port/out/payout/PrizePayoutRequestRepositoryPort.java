@@ -26,6 +26,9 @@ public interface PrizePayoutRequestRepositoryPort {
 
     Map<Long, PrizePayoutRequestModel> findPendingBySerialIds(Collection<Long> serialIds);
 
+    /** Latest request per serial (any status), keyed by serialId. */
+    Map<Long, PrizePayoutRequestModel> findLatestBySerialIds(Collection<Long> serialIds);
+
     Page<PrizePayoutRequestModel> findAll(
             Pageable pageable,
             UUID customerId,
