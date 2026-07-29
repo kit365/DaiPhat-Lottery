@@ -80,6 +80,10 @@ export const PERMISSIONS = {
         VIEW: "refund:view",
         PROCESS: "refund:process",
     },
+    PRIZE_PAYOUT: {
+        VIEW: "prizePayout:view",
+        PROCESS: "prizePayout:process",
+    },
     REGION: {
         VIEW: "region:view",
         CREATE: "region:create",
