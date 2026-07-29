@@ -86,10 +86,6 @@ export const BlogListPage = () => {
 
   const [searchInput, setSearchInput] = useState(searchKeyword);
 
-  useEffect(() => {
-    window.scrollTo(0, 0);
-  }, [categorySlug, page]);
-
   // Synchronize input value with search param
   useEffect(() => {
     setSearchInput(searchKeyword);

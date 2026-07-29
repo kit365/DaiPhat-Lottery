@@ -19,23 +19,36 @@ export const Pagination: React.FC<PaginationProps> = ({
   limit = 10,
   siblingCount = 1,
 }) => {
-  if (totalPages <= 1) return null;
+  // Hide controls entirely when everything fits on one page.
+  const effectiveTotalPages =
+    totalRecords != null && totalRecords > 0
+      ? Math.max(1, Math.ceil(totalRecords / Math.max(1, limit)))
+      : totalPages;
+  const pagesToShow = Math.min(totalPages, effectiveTotalPages);
+
+  if (pagesToShow <= 1) return null;
+
+  const handlePageChange = (nextPage: number) => {
+    if (nextPage === page) return;
+    onPageChange(nextPage);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
 
   // Calculate range of page numbers to display
   const getPageNumbers = () => {
     const totalNumbers = siblingCount * 2 + 5; // siblingCount + first + last + active + 2*dots
-    if (totalPages <= totalNumbers) {
-      return Array.from({ length: totalPages }, (_, i) => i + 1);
+    if (pagesToShow <= totalNumbers) {
+      return Array.from({ length: pagesToShow }, (_, i) => i + 1);
     }
 
     const leftSiblingIndex = Math.max(page - siblingCount, 1);
-    const rightSiblingIndex = Math.min(page + siblingCount, totalPages);
+    const rightSiblingIndex = Math.min(page + siblingCount, pagesToShow);
 
     const shouldShowLeftDots = leftSiblingIndex > 2;
-    const shouldShowRightDots = rightSiblingIndex < totalPages - 1;
+    const shouldShowRightDots = rightSiblingIndex < pagesToShow - 1;
 
     const firstPageIndex = 1;
-    const lastPageIndex = totalPages;
+    const lastPageIndex = pagesToShow;
 
     if (!shouldShowLeftDots && shouldShowRightDots) {
       const leftItemCount = 3 + 2 * siblingCount;
@@ -47,7 +60,7 @@ export const Pagination: React.FC<PaginationProps> = ({
       const rightItemCount = 3 + 2 * siblingCount;
       const rightRange = Array.from(
         { length: rightItemCount },
-        (_, i) => totalPages - rightItemCount + i + 1
+        (_, i) => pagesToShow - rightItemCount + i + 1
       );
       return [firstPageIndex, "...", ...rightRange];
     }
@@ -87,12 +100,12 @@ export const Pagination: React.FC<PaginationProps> = ({
       <div className="flex items-center gap-1.5 select-none">
         
         {/* First Page Button */}
-        {page > 2 && totalPages > 5 && (
+        {page > 2 && pagesToShow > 5 && (
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             type="button"
-            onClick={() => onPageChange(1)}
+            onClick={() => handlePageChange(1)}
             className="w-9 h-9 flex items-center justify-center rounded-xl bg-white border border-[#E5E8EB] text-slate-500 hover:text-[#ee1314] hover:border-[#ee1314]/30 hover:bg-[#FFF4F4]/30 transition-all duration-200 shadow-sm cursor-pointer"
             title="Trang đầu"
           >
@@ -106,7 +119,7 @@ export const Pagination: React.FC<PaginationProps> = ({
           whileTap={{ scale: 0.95 }}
           type="button"
           disabled={page === 1}
-          onClick={() => onPageChange(page - 1)}
+          onClick={() => handlePageChange(page - 1)}
           className="w-9 h-9 flex items-center justify-center rounded-xl bg-white border border-[#E5E8EB] text-slate-600 hover:text-[#ee1314] hover:border-[#ee1314]/30 hover:bg-[#FFF4F4]/30 transition-all duration-200 shadow-sm disabled:opacity-40 disabled:pointer-events-none cursor-pointer"
           title="Trang trước"
         >
@@ -134,7 +147,7 @@ export const Pagination: React.FC<PaginationProps> = ({
                 type="button"
                 whileHover={{ scale: isCurrent ? 1 : 1.08 }}
                 whileTap={{ scale: 0.95 }}
-                onClick={() => onPageChange(pNum as number)}
+                onClick={() => handlePageChange(pNum as number)}
                 className={`relative w-9 h-9 flex items-center justify-center rounded-xl text-[14px] font-bold transition-all duration-200 cursor-pointer ${
                   isCurrent
                     ? "text-white shadow-md shadow-[#ee1314]/15 border-transparent"
@@ -160,8 +173,8 @@ export const Pagination: React.FC<PaginationProps> = ({
           whileHover={{ scale: 1.05, x: 1 }}
           whileTap={{ scale: 0.95 }}
           type="button"
-          disabled={page === totalPages}
-          onClick={() => onPageChange(page + 1)}
+          disabled={page === pagesToShow}
+          onClick={() => handlePageChange(page + 1)}
           className="w-9 h-9 flex items-center justify-center rounded-xl bg-white border border-[#E5E8EB] text-slate-600 hover:text-[#ee1314] hover:border-[#ee1314]/30 hover:bg-[#FFF4F4]/30 transition-all duration-200 shadow-sm disabled:opacity-40 disabled:pointer-events-none cursor-pointer"
           title="Trang sau"
         >
@@ -169,12 +182,12 @@ export const Pagination: React.FC<PaginationProps> = ({
         </motion.button>
 
         {/* Last Page Button */}
-        {page < totalPages - 1 && totalPages > 5 && (
+        {page < pagesToShow - 1 && pagesToShow > 5 && (
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             type="button"
-            onClick={() => onPageChange(totalPages)}
+            onClick={() => handlePageChange(pagesToShow)}
             className="w-9 h-9 flex items-center justify-center rounded-xl bg-white border border-[#E5E8EB] text-slate-500 hover:text-[#ee1314] hover:border-[#ee1314]/30 hover:bg-[#FFF4F4]/30 transition-all duration-200 shadow-sm cursor-pointer"
             title="Trang cuối"
           >
