@@ -54,6 +54,7 @@ export const PrizePayoutRequestModal: React.FC<PrizePayoutRequestModalProps> = (
                     if (response.success && response.data?.id) {
                         onClose();
                         navigate(`/profile/prize-payouts/${response.data.id}`);
+                        window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
                     }
                 },
             }

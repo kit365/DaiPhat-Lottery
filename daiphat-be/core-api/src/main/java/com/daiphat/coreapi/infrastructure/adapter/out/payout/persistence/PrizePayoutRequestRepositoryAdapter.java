@@ -74,6 +74,22 @@ public class PrizePayoutRequestRepositoryAdapter implements PrizePayoutRequestRe
     }
 
     @Override
+    public Map<Long, PrizePayoutRequestModel> findLatestBySerialIds(Collection<Long> serialIds) {
+        if (serialIds == null || serialIds.isEmpty()) {
+            return Map.of();
+        }
+        Map<Long, PrizePayoutRequestModel> result = new HashMap<>();
+        prizePayoutRequestRepository.findBySerial_IdInOrderByCreatedAtDesc(serialIds).stream()
+                .map(prizePayoutRequestPersistenceMapper::toDomain)
+                .forEach(model -> {
+                    if (model.getSerialId() != null) {
+                        result.putIfAbsent(model.getSerialId(), model);
+                    }
+                });
+        return result;
+    }
+
+    @Override
     public Page<PrizePayoutRequestModel> findAll(
             Pageable pageable,
             UUID customerId,

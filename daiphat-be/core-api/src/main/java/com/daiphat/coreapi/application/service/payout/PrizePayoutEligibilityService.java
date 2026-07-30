@@ -41,6 +41,11 @@ public class PrizePayoutEligibilityService {
             PrizePayoutRequestStatus.PENDING,
             PrizePayoutRequestStatus.COMPLETED);
 
+    /** Purchased tickets held by the agent remain eligible after the draw expiry job marks them EXPIRED. */
+    private static final EnumSet<LotteryTicketSerialStatus> PAYOUT_ELIGIBLE_SERIAL_STATUSES = EnumSet.of(
+            LotteryTicketSerialStatus.PROXY_HOLDING,
+            LotteryTicketSerialStatus.EXPIRED);
+
     private final OrderDetailRepository orderDetailRepository;
     private final LotteryTicketSerialRepositoryPort lotteryTicketSerialRepositoryPort;
     private final LotteryResultRepositoryPort lotteryResultRepositoryPort;
@@ -78,10 +83,10 @@ public class PrizePayoutEligibilityService {
 
     @Transactional(readOnly = true)
     public void validateEligible(OrderDetailEntity detail, LotteryTicketSerialEntity serial) {
-        if (serial.getStatus() != LotteryTicketSerialStatus.PROXY_HOLDING) {
+        if (!PAYOUT_ELIGIBLE_SERIAL_STATUSES.contains(serial.getStatus())) {
             throw new DomainException(
                     ErrorCode.PRIZE_PAYOUT_NOT_ELIGIBLE,
-                    "Vé chưa ở trạng thái đang giữ hộ, không thể yêu cầu trả thưởng.");
+                    "Vé không đủ điều kiện trả thưởng ở trạng thái hiện tại.");
         }
 
         SerialPayoutState payoutState = serial.getPayoutState() != null ? serial.getPayoutState() : SerialPayoutState.NONE;
