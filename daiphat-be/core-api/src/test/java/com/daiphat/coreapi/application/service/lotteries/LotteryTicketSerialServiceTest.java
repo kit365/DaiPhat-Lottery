@@ -15,7 +15,6 @@ import com.daiphat.coreapi.domain.model.enums.lottery.InputSource;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus;
 import com.daiphat.coreapi.domain.model.lotteries.LotteryTicketModel;
 import com.daiphat.coreapi.domain.model.lotteries.LotteryTicketSerialModel;
-import com.daiphat.coreapi.shared.util.StorageFolderConstants;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -23,7 +22,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.LocalDateTime;
 import java.util.*;
@@ -46,6 +44,9 @@ class LotteryTicketSerialServiceTest {
     @Mock
     private OrderRepositoryPort orderRepositoryPort;
 
+    @Mock
+    private LotteryTicketSerialIncidentService lotteryTicketSerialIncidentService;
+
     private LotteryTicketSerialServicePort lotteryTicketSerialService;
 
     private final Long TICKET_ID = 1L;
@@ -57,7 +58,10 @@ class LotteryTicketSerialServiceTest {
     @BeforeEach
     void setUp() {
         lotteryTicketSerialService = new LotteryTicketSerialService(
-                lotteryTicketSerialRepositoryPort, storagePort, orderRepositoryPort);
+                lotteryTicketSerialRepositoryPort,
+                storagePort,
+                orderRepositoryPort,
+                lotteryTicketSerialIncidentService);
 
         ticketModel = LotteryTicketModel.builder().id(TICKET_ID).build();
         

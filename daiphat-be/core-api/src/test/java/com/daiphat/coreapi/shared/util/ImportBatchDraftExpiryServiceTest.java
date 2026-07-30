@@ -54,8 +54,6 @@ class ImportBatchDraftExpiryServiceTest {
     private ImportBatchLineRepositoryPort importBatchLineRepositoryPort;
     @Mock
     private LotteryStationServicePort lotteryStationServicePort;
-    @Mock
-    private ImportBatchConfigResolver importBatchConfigResolver;
 
     private Clock clock;
     private ImportBatchDraftExpiryService service;
@@ -67,10 +65,8 @@ class ImportBatchDraftExpiryServiceTest {
                 importBatchRepositoryPort,
                 importBatchLineRepositoryPort,
                 lotteryStationServicePort,
-                importBatchConfigResolver,
                 clock
         );
-        when(importBatchConfigResolver.resolveImportBatchCutoff()).thenReturn(LocalTime.of(15, 0));
         when(importBatchRepositoryPort.findDraftBatchesWithDrawDateBefore(TODAY)).thenReturn(List.of());
         when(lotteryStationServicePort.getModelById(STATION_A_ID))
                 .thenReturn(station(STATION_A_ID, "Sóc Trăng"));
@@ -83,28 +79,20 @@ class ImportBatchDraftExpiryServiceTest {
     }
 
     @Test
-    @DisplayName("cancels all open lines after cutoff and cascades batch cancellation")
-    void cancelOverdueDrafts_cancelsInDayDraftAfterCutoff() {
+    @DisplayName("does not cancel same-day IN_DAY drafts after former cutoff window")
+    void cancelOverdueDrafts_doesNotCancelSameDayInDayDraft() {
         ImportBatchLineModel lineA = openLine(1L, STATION_A_ID);
         ImportBatchLineModel lineB = openLine(2L, STATION_B_ID);
         ImportBatchModel batch = draftBatch(1L, TODAY, ImportBatchImportMode.IN_DAY, lineA, lineB);
 
-        when(importBatchRepositoryPort.findDraftInDayBatchesByDrawDate(TODAY)).thenReturn(List.of(batch));
-        when(importBatchLineRepositoryPort.findByImportBatchId(1L))
-                .thenReturn(List.of(lineA, lineB));
+        when(importBatchRepositoryPort.findDraftBatchesWithDrawDateBefore(TODAY)).thenReturn(List.of());
 
         int count = service.cancelOverdueDrafts();
 
-        assertThat(count).isEqualTo(1);
-        assertThat(lineA.getStatus()).isEqualTo(ImportBatchLineStatus.CANCELLED);
-        assertThat(lineB.getStatus()).isEqualTo(ImportBatchLineStatus.CANCELLED);
-        assertThat(lineA.getCancelReason())
-                .isEqualTo(ImportBatchLineCancelReason.importDeadlinePassed("Sóc Trăng"));
-        assertThat(lineB.getCancelReason())
-                .isEqualTo(ImportBatchLineCancelReason.importDeadlinePassed("Cần Thơ"));
-        assertThat(batch.getStatus()).isEqualTo(ImportBatchStatus.CANCELLED);
-        assertThat(batch.getCancelReason()).isEqualTo(ImportBatchCancelReason.ALL_LINES_CANCELLED);
-        verify(importBatchLineRepositoryPort, times(2)).save(any(ImportBatchLineModel.class));
+        assertThat(count).isEqualTo(0);
+        assertThat(lineA.getStatus()).isEqualTo(ImportBatchLineStatus.OPEN);
+        assertThat(lineB.getStatus()).isEqualTo(ImportBatchLineStatus.OPEN);
+        verify(importBatchLineRepositoryPort, never()).save(any(ImportBatchLineModel.class));
     }
 
     @Test
@@ -140,39 +128,37 @@ class ImportBatchDraftExpiryServiceTest {
     }
 
     @Test
-    @DisplayName("does not cancel ADJUSTMENT lines in an otherwise eligible IN_DAY batch")
-    void cancelOverdueDrafts_skipsAdjustmentLines() {
+    @DisplayName("does not cancel same-day IN_DAY batch (cutoff-based expiry removed)")
+    void cancelOverdueDrafts_skipsSameDayInDayBatch() {
         ImportBatchLineModel adjustmentLine = adjustmentLine(1L, STATION_A_ID);
         ImportBatchLineModel openLine = openLine(2L, STATION_B_ID);
         ImportBatchModel batch = draftBatch(9L, TODAY, ImportBatchImportMode.IN_DAY, adjustmentLine, openLine);
 
-        when(importBatchRepositoryPort.findDraftInDayBatchesByDrawDate(TODAY)).thenReturn(List.of(batch));
-        when(importBatchLineRepositoryPort.findByImportBatchId(9L))
-                .thenReturn(List.of(adjustmentLine, openLine));
+        when(importBatchRepositoryPort.findDraftBatchesWithDrawDateBefore(TODAY)).thenReturn(List.of());
 
         int count = service.cancelOverdueDrafts();
 
         assertThat(count).isZero();
         assertThat(adjustmentLine.getStatus()).isEqualTo(ImportBatchLineStatus.OPEN);
-        assertThat(openLine.getStatus()).isEqualTo(ImportBatchLineStatus.CANCELLED);
-        verify(importBatchRepositoryPort).save(batch);
+        assertThat(openLine.getStatus()).isEqualTo(ImportBatchLineStatus.OPEN);
+        verify(importBatchLineRepositoryPort, never()).save(any());
     }
 
     @Test
-    @DisplayName("partial line cancel completes batch when remaining non-cancelled lines are imported")
+    @DisplayName("partial cancel on past-date batch completes when remaining lines are imported")
     void cancelOverdueDrafts_partialCancel_batchCompletesWhenRemainingLinesImported() {
         ImportBatchLineModel importedLine = importedLine(1L, STATION_A_ID);
         ImportBatchLineModel openLine = openLine(2L, STATION_B_ID);
         ImportBatchModel batch = draftBatch(
                 3L,
-                TODAY,
+                YESTERDAY,
                 ImportBatchImportMode.IN_DAY,
                 importedLine,
                 openLine
         );
         batch.setStatus(ImportBatchStatus.RECEIVING);
 
-        when(importBatchRepositoryPort.findDraftInDayBatchesByDrawDate(TODAY)).thenReturn(List.of(batch));
+        when(importBatchRepositoryPort.findDraftBatchesWithDrawDateBefore(TODAY)).thenReturn(List.of(batch));
         when(importBatchLineRepositoryPort.findByImportBatchId(3L))
                 .thenReturn(List.of(importedLine, openLine));
 
@@ -186,29 +172,8 @@ class ImportBatchDraftExpiryServiceTest {
     }
 
     @Test
-    @DisplayName("does not cancel same-day IN_DAY draft before cutoff")
-    void cancelOverdueDrafts_beforeCutoff_noSameDayCancel() {
-        clock = Clock.fixed(Instant.parse("2026-07-06T14:00:00+07:00"), ZONE);
-        service = new ImportBatchDraftExpiryService(
-                importBatchRepositoryPort,
-                importBatchLineRepositoryPort,
-                lotteryStationServicePort,
-                importBatchConfigResolver,
-                clock
-        );
-
-        int count = service.cancelOverdueDrafts();
-
-        assertThat(count).isZero();
-        verify(importBatchRepositoryPort, never()).findDraftInDayBatchesByDrawDate(any());
-        verify(importBatchLineRepositoryPort, never()).save(any());
-    }
-
-    @Test
-    @DisplayName("does not cancel same-day POST_DRAW_SUPPLEMENT draft after cutoff")
-    void cancelOverdueDrafts_skipsAdditionalModeAfterCutoff() {
-        when(importBatchRepositoryPort.findDraftInDayBatchesByDrawDate(TODAY)).thenReturn(List.of());
-
+    @DisplayName("same-day drafts are not scanned for time-based expiry")
+    void cancelOverdueDrafts_sameDay_noTimeBasedScan() {
         int count = service.cancelOverdueDrafts();
 
         assertThat(count).isZero();
@@ -216,18 +181,17 @@ class ImportBatchDraftExpiryServiceTest {
     }
 
     @Test
-    @DisplayName("cancelIfOverdue cancels all lines and batch on eligible same-day batch")
-    void cancelIfOverdue_cancelsEligibleBatch() {
+    @DisplayName("cancelIfOverdue does not cancel same-day IN_DAY batch")
+    void cancelIfOverdue_skipsSameDayInDayBatch() {
         ImportBatchLineModel line = openLine(1L, STATION_A_ID);
         ImportBatchModel batch = draftBatch(4L, TODAY, ImportBatchImportMode.IN_DAY, line);
         when(importBatchLineRepositoryPort.findByImportBatchId(4L)).thenReturn(List.of(line));
 
         boolean cancelled = service.cancelIfOverdue(batch);
 
-        assertThat(cancelled).isTrue();
-        assertThat(line.getStatus()).isEqualTo(ImportBatchLineStatus.CANCELLED);
-        assertThat(batch.getStatus()).isEqualTo(ImportBatchStatus.CANCELLED);
-        assertThat(batch.getCancelReason()).isEqualTo(ImportBatchCancelReason.ALL_LINES_CANCELLED);
+        assertThat(cancelled).isFalse();
+        assertThat(line.getStatus()).isEqualTo(ImportBatchLineStatus.OPEN);
+        assertThat(batch.getStatus()).isEqualTo(ImportBatchStatus.DRAFT);
     }
 
     @Test

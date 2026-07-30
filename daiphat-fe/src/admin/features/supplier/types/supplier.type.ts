@@ -13,6 +13,8 @@ export interface LotterySupplier {
     taxCode?: string;
     paymentTermDays?: number;
     defaultImportCost?: number;
+    importAllowFrom?: string;
+    returnCutOffTime?: string;
     isActive: boolean;
     missingActivationFields?: string[];
     createdAt?: string;
@@ -30,6 +32,8 @@ export interface CreateLotterySupplierPayload {
     taxCode?: string;
     paymentTermDays?: number | null;
     defaultImportCost?: number | null;
+    importAllowFrom: string;
+    returnCutOffTime: string;
     isActive?: boolean;
 }
 

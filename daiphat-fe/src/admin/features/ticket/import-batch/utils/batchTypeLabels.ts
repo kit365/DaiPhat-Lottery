@@ -160,7 +160,6 @@ export const getImportBatchLineStatusChipColor = (
 export const IMPORT_BATCH_TYPE_LABELS: Record<string, string> = {
     NEW: 'Nhập mới',
     SUPPLEMENTARY: 'Nhập bổ sung',
-    LATE_IMPORT: 'Nhập trễ',
     ADJUSTMENT: 'Nhập vé điều chỉnh',
     ADDITIONAL: 'Nhập vé điều chỉnh',
 };
@@ -175,7 +174,6 @@ export const getBatchTypeColor = (
 ): 'default' | 'primary' | 'secondary' | 'error' | 'info' | 'success' | 'warning' => {
     if (type === 'NEW') return 'primary';
     if (type === 'SUPPLEMENTARY') return 'secondary';
-    if (type === 'LATE_IMPORT') return 'warning';
     if (type === 'ADJUSTMENT' || type === 'ADDITIONAL') return 'info';
     return 'default';
 };

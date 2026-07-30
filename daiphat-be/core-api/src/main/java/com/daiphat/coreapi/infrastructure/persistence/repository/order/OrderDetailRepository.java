@@ -62,6 +62,18 @@ public interface OrderDetailRepository extends JpaRepository<OrderDetailEntity, 
             @Param("refundRequestId") Long refundRequestId
     );
 
+    @Query("""
+            select od
+            from OrderDetailEntity od
+            join fetch od.order o
+            where od.status = com.daiphat.coreapi.domain.model.enums.order.detail.OrderDetailStatus.ACTIVE
+              and (
+                    od.lotteryTicketSerial.id = :serialId
+                    or od.replacedByTicketSerial.id = :serialId
+              )
+            """)
+    java.util.Optional<OrderDetailEntity> findActiveBySerialId(@Param("serialId") Long serialId);
+
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query(value = """
             UPDATE order_details

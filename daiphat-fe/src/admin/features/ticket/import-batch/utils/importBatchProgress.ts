@@ -156,7 +156,11 @@ export const getIncompleteImportBatchDisplayStatus = (
 
 export const findFirstIncompleteLine = (batch: ImportBatch): ImportBatchLine | undefined => {
     const incompleteLines = getIncompleteLines(batch);
-    return incompleteLines[0];
+    // Ưu tiên dòng đang mở hoặc đang nhập trước (OPEN/IMPORTING), sau đó mới đến PAUSED
+    const actionableLine = incompleteLines.find(
+        (line) => line.status === 'OPEN' || line.status === 'IMPORTING'
+    );
+    return actionableLine ?? incompleteLines[0];
 };
 
 export const getActionableLines = (batch: ImportBatch): ImportBatchLine[] =>

@@ -18,6 +18,7 @@ import lombok.Setter;
 import lombok.experimental.SuperBuilder;
 
 import java.math.BigDecimal;
+import java.time.LocalTime;
 
 @Entity
 @Table(name = "lottery_suppliers")
@@ -62,6 +63,12 @@ public class LotterySupplierEntity extends BaseEntity {
 
     @Column(name = "default_import_cost", precision = 15)
     private BigDecimal defaultImportCost;
+
+    @Column(name = "import_allow_from", nullable = false)
+    private LocalTime importAllowFrom;
+
+    @Column(name = "return_cut_off_time", nullable = false)
+    private LocalTime returnCutOffTime;
 
     @Column(name = "is_active", nullable = false)
     @Builder.Default

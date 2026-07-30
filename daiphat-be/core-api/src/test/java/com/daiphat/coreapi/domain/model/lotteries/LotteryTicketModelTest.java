@@ -21,7 +21,7 @@ class LotteryTicketModelTest {
                 .quantity(0)
                 .build();
 
-        ticket.syncAggregateState(0, 5, 5, LocalTime.of(16, 15));
+        ticket.syncAggregateState(0, 5, 5, 0, LocalTime.of(16, 15));
 
         assertThat(ticket.getQuantity()).isEqualTo(5);
         assertThat(ticket.getStatus()).isEqualTo(LotteryTicketStatus.IMPORTING);
@@ -36,7 +36,7 @@ class LotteryTicketModelTest {
                 .quantity(0)
                 .build();
 
-        ticket.syncAggregateState(0, 3, 1, LocalTime.of(16, 15));
+        ticket.syncAggregateState(0, 3, 1, 0, LocalTime.of(16, 15));
 
         assertThat(ticket.getQuantity()).isEqualTo(3);
         assertThat(ticket.getStatus()).isEqualTo(LotteryTicketStatus.EXPIRED);
@@ -50,10 +50,39 @@ class LotteryTicketModelTest {
                 .drawDate(LocalDate.now().plusDays(1))
                 .build();
 
-        ticket.syncAggregateState(0, 2, 2, LocalTime.of(16, 15));
+        ticket.syncAggregateState(0, 2, 2, 0, LocalTime.of(16, 15));
 
         assertThat(ticket.getStatus()).isEqualTo(LotteryTicketStatus.SOLD_OUT);
         assertThat(ticket.getQuantity()).isEqualTo(2);
+    }
+
+    @Test
+    @DisplayName("syncAggregateState: SOLD_OUT khi tất cả sê-ri đã báo hỏng hoặc mất")
+    void syncAggregateState_allSerialsFaulty_becomesSoldOutWithReason() {
+        LotteryTicketModel ticket = LotteryTicketModel.builder()
+                .status(LotteryTicketStatus.IN_STOCK)
+                .drawDate(LocalDate.now().plusDays(1))
+                .build();
+
+        ticket.syncAggregateState(0, 10, 0, 10, LocalTime.of(16, 15));
+
+        assertThat(ticket.getStatus()).isEqualTo(LotteryTicketStatus.SOLD_OUT);
+        assertThat(ticket.getQuantity()).isEqualTo(10);
+        assertThat(ticket.getStatusReason()).isEqualTo(LotteryTicketModel.ALL_SERIALS_FAULTY_STATUS_REASON);
+    }
+
+    @Test
+    @DisplayName("syncAggregateState: Giữ IN_STOCK khi còn sê-ri chưa báo hỏng/mất")
+    void syncAggregateState_partialFaulty_staysInStock() {
+        LotteryTicketModel ticket = LotteryTicketModel.builder()
+                .status(LotteryTicketStatus.IN_STOCK)
+                .drawDate(LocalDate.now().plusDays(1))
+                .build();
+
+        ticket.syncAggregateState(0, 10, 0, 9, LocalTime.of(16, 15));
+
+        assertThat(ticket.getStatus()).isEqualTo(LotteryTicketStatus.IN_STOCK);
+        assertThat(ticket.getStatusReason()).isNull();
     }
 
     @Test

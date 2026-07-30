@@ -15,7 +15,6 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.List;
 
 @Entity
 @EntityListeners(AuditingEntityListener.class)
@@ -73,9 +72,6 @@ public class OrderDetailEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "refund_request_id")
     private RefundRequestEntity refundRequest;
-
-    @OneToMany(mappedBy = "orderDetail", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<OrderDetailSerialEntity> allocatedSerials;
 
     @CreatedDate
     @Column(name = "created_at", updatable = false)
