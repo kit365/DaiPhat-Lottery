@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { getTickets } from '../../../ticket/inventory/services/ticketService';
 import {
     getReplacementCandidates,
@@ -45,13 +46,16 @@ import {
 import { Icon } from '@iconify/react';
 import { UploadFiles } from '../../../../components/ui/UploadFiles';
 import dayjs from 'dayjs';
-import { resolveOrderDetailStatusBadge } from '../../../../../types/order.type';
+import { resolveLotteryTicketSerialStatusBadge, resolveOrderDetailStatusBadge } from '../../../../../types/order.type';
 import {
     resolveOrderDetailTicketDisplay,
     IncidentTicketDisplay,
 } from '../../constants/incidentTicket.constants';
 import { useNavigate } from 'react-router-dom';
-import { prefixAdmin } from '../../../../constants/routes';
+import { prefixAdmin, ROUTES } from '../../../../constants/routes';
+import { refundAdminApi } from '../../../../api/refund.api';
+import { QUERY_KEYS } from '../../../../../constants/queryKeys';
+import { RefundRequestResponse } from '../../../../../types/refund.type';
 
 /** Quick suggestions for staff refund reason (UI-only; not persisted separately). */
 const STAFF_REFUND_REASON_SUGGESTIONS = [
@@ -202,6 +206,38 @@ export function OrderInspectionSection({
         [orderDetails]
     );
 
+    const hasAlreadyFaultReportedTickets = useMemo(
+        () => tickets.some((ticket) => ticket.isAlreadyFaultReported),
+        [tickets]
+    );
+
+    const { data: orderRefundsResponse, isFetching: isFetchingOrderRefunds } = useQuery({
+        queryKey: [QUERY_KEYS.ADMIN_REFUNDS, { orderId, page: 1, limit: 20 }],
+        queryFn: () => refundAdminApi.getStaffRefunds({ orderId, page: 1, limit: 20 }),
+        enabled: !!orderId && hasAlreadyFaultReportedTickets,
+        staleTime: 30_000,
+    });
+
+    const linkedRefundRequests = useMemo(() => {
+        const list = orderRefundsResponse?.data?.recordList ?? [];
+        return [...list].sort((a, b) => {
+            const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+            const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+            return bTime - aTime;
+        });
+    }, [orderRefundsResponse]);
+
+    const latestRefundRequest: RefundRequestResponse | undefined = linkedRefundRequests[0];
+
+    const handleViewRefundRequest = () => {
+        if (isFetchingOrderRefunds) return;
+        if (!latestRefundRequest?.id) {
+            toast.info('Chưa có yêu cầu hoàn tiền cho các vé đã báo lỗi của đơn này');
+            return;
+        }
+        navigate(`${ROUTES.ADMIN.REFUNDS.DETAIL}${latestRefundRequest.id}`);
+    };
+
     const incidentTickets = useMemo(() => {
         if (!orderDetails || !replacements) return [];
         return orderDetails
@@ -225,7 +261,7 @@ export function OrderInspectionSection({
     }, [orderDetails, replacements]);
 
     const loadReplacements = async (ticket: IncidentTicketDisplay) => {
-        if (!ticket.id) return;
+        if (!ticket.id || ticket.isAlreadyFaultReported) return;
         try {
             const res = await getReplacementCandidates(orderId, ticket.id);
             const candidates = res.data || [];
@@ -246,14 +282,17 @@ export function OrderInspectionSection({
 
     useEffect(() => {
         tickets.forEach(ticket => {
-            if (ticket.id != null) {
+            if (ticket.id != null && !ticket.isAlreadyFaultReported) {
                 loadReplacements(ticket);
             }
         });
     }, [tickets, orderId]);
 
     const handleReplaceTicketClick = (ticket: IncidentTicketDisplay) => {
-        const ticketId = ticket.id!;
+        if (ticket.isAlreadyFaultReported || !ticket.isIncidentEligible || ticket.id == null) {
+            return;
+        }
+        const ticketId = ticket.id;
         if (expandedRow === ticketId) {
             setExpandedRow(null);
         } else {
@@ -461,13 +500,15 @@ export function OrderInspectionSection({
                     if (onSuccess) onSuccess();
                     return;
                 }
-                // No incident replacements — just move status.
+                // No incident replacements — just open status confirm (onSuccess runs after confirm).
                 if (onMoveToReadyForPickup) {
                     onMoveToReadyForPickup();
                 }
-                if (onSuccess) onSuccess();
             } catch (error: any) {
-                toast.error(error?.response?.data?.message || 'Có lỗi xảy ra khi xử lý thay vé');
+                const fallback = hasAnyReplacement
+                    ? 'Có lỗi xảy ra khi xử lý thay vé'
+                    : 'Có lỗi xảy ra khi chuyển sang chờ nhận vé';
+                toast.error(error?.response?.data?.message || fallback);
             }
         }
     };
@@ -867,10 +908,44 @@ export function OrderInspectionSection({
             <CardContent sx={{ p: 3 }}>
                 <Stack spacing={2.5}>
                     <Box>
-                        <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
+                        <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }} spacing={1.5}>
                             <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
                                 Danh sách vé trong đơn
                             </Typography>
+                            {hasAlreadyFaultReportedTickets && (
+                                <Button
+                                    size="small"
+                                    variant="outlined"
+                                    color="warning"
+                                    onClick={handleViewRefundRequest}
+                                    disabled={isFetchingOrderRefunds}
+                                    startIcon={
+                                        isFetchingOrderRefunds ? (
+                                            <CircularProgress size={14} color="inherit" />
+                                        ) : (
+                                            <Icon icon="solar:wallet-money-bold-duotone" width={16} />
+                                        )
+                                    }
+                                    sx={{
+                                        textTransform: 'none',
+                                        fontWeight: 700,
+                                        borderRadius: '8px',
+                                        px: 1.25,
+                                        py: 0.5,
+                                        whiteSpace: 'nowrap',
+                                        bgcolor: 'var(--palette-warning-lighter)',
+                                        borderColor: 'var(--palette-warning-main)',
+                                        color: 'var(--palette-warning-dark)',
+                                        '&:hover': {
+                                            bgcolor: 'var(--palette-warning-light)',
+                                            borderColor: 'var(--palette-warning-dark)',
+                                        },
+                                    }}
+                                >
+                                    Xem đơn hoàn tiền
+                                    {latestRefundRequest?.id ? ` #${latestRefundRequest.id}` : ''}
+                                </Button>
+                            )}
                         </Stack>
                         
                         <TableContainer
@@ -904,18 +979,23 @@ export function OrderInspectionSection({
                                     )}
                                     {tickets.map((ticket) => {
                                         const disabled = !ticket.isIncidentEligible || ticket.id == null;
-                                        const badge = resolveOrderDetailStatusBadge(ticket.status);
+                                        const activityBadge = resolveOrderDetailStatusBadge(ticket.status);
+                                        const serialBadge = resolveLotteryTicketSerialStatusBadge(
+                                            ticket.serialStatus,
+                                            ticket.serialStatusDisplayName
+                                        );
                                         const candidates = ticket.id != null ? availableReplacements[ticket.id] : undefined;
                                         const isLoading = ticket.id != null && candidates === undefined;
                                         const hasRep = ticket.id != null && !isLoading && candidates.length > 0;
                                         const isReplacing = ticket.id != null && expandedRow === ticket.id;
                                         const hasStartedFilling = ticket.id != null && !!replacements[ticket.id]?.faultedBy;
                                         const hasReplaced = ticket.id != null && !!replacements[ticket.id]?.newTicketId;
+                                        const alreadyFaultReported = !!ticket.isAlreadyFaultReported;
 
                                         return (
                                             <React.Fragment key={ticket.id ?? ticket.numbers}>
                                                 <TableRow
-                                                    hover={!disabled}
+                                                    hover={!disabled && !alreadyFaultReported}
                                                     sx={{ opacity: disabled ? 0.55 : 1, '&:last-child td, &:last-child th': { border: 0 } }}
                                                 >
                                                     <TableCell align="center">
@@ -976,23 +1056,47 @@ export function OrderInspectionSection({
                                                         </Typography>
                                                     </TableCell>
                                                     <TableCell>
-                                                        <Typography
-                                                            variant="caption"
-                                                            sx={{
-                                                                fontWeight: 700,
-                                                                color: badge.color,
-                                                                bgcolor: badge.bgcolor,
-                                                                px: 1,
-                                                                py: 0.5,
-                                                                borderRadius: '6px',
-                                                            }}
-                                                        >
-                                                            {badge.label}
-                                                        </Typography>
+                                                        <Stack spacing={0.5} alignItems="flex-start">
+                                                            <Typography
+                                                                variant="caption"
+                                                                sx={{
+                                                                    fontWeight: 700,
+                                                                    color: serialBadge.color,
+                                                                    bgcolor: serialBadge.bgcolor,
+                                                                    px: 1,
+                                                                    py: 0.5,
+                                                                    borderRadius: '6px',
+                                                                }}
+                                                            >
+                                                                {serialBadge.label}
+                                                            </Typography>
+                                                            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
+                                                                {activityBadge.label}
+                                                            </Typography>
+                                                        </Stack>
                                                     </TableCell>
                                                     <TableCell align="right">
                                                         <Stack direction="row" spacing={1} alignItems="center" justifyContent="flex-end">
-                                                            {isLoading ? (
+                                                            {alreadyFaultReported ? (
+                                                                <Stack spacing={0.25} alignItems="flex-end">
+                                                                    <Typography
+                                                                        variant="caption"
+                                                                        sx={{
+                                                                            color: 'var(--palette-error-dark)',
+                                                                            fontWeight: 800,
+                                                                            bgcolor: 'var(--palette-error-lighter)',
+                                                                            px: 1,
+                                                                            py: 0.5,
+                                                                            borderRadius: '6px',
+                                                                        }}
+                                                                    >
+                                                                        Đã báo lỗi
+                                                                    </Typography>
+                                                                    <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
+                                                                        {serialBadge.label} — không cần báo lại
+                                                                    </Typography>
+                                                                </Stack>
+                                                            ) : isLoading ? (
                                                                 <Box sx={{ display: 'flex', alignItems: 'center', height: 26, px: 2 }}>
                                                                     <CircularProgress size={16} />
                                                                 </Box>
@@ -1001,6 +1105,7 @@ export function OrderInspectionSection({
                                                                     size="small"
                                                                     variant={isReplacing ? "contained" : (hasReplaced ? "contained" : "outlined")}
                                                                     color={hasReplaced && !isReplacing ? "success" : "primary"}
+                                                                    disabled={disabled}
                                                                     onClick={() => ticket.id != null && handleReplaceTicketClick(ticket)}
                                                                     sx={{ textTransform: 'none', py: 0.25, minWidth: 'auto', fontSize: '0.75rem', borderRadius: '6px', boxShadow: 'none' }}
                                                                 >
@@ -1015,6 +1120,7 @@ export function OrderInspectionSection({
                                                                         size="small"
                                                                         variant={isReplacing ? "contained" : (hasStartedFilling ? "contained" : "outlined")}
                                                                         color={hasStartedFilling && !isReplacing ? "warning" : "error"}
+                                                                        disabled={disabled}
                                                                         onClick={() => ticket.id != null && handleReplaceTicketClick(ticket)}
                                                                         sx={{ textTransform: 'none', py: 0.25, minWidth: 'auto', fontSize: '0.75rem', borderRadius: '6px', boxShadow: 'none' }}
                                                                     >
@@ -1023,7 +1129,7 @@ export function OrderInspectionSection({
                                                                 </>
                                                             )}
                                                             {/* Cancel Button */}
-                                                            {ticket.id != null && replacements[ticket.id] && (
+                                                            {!alreadyFaultReported && ticket.id != null && replacements[ticket.id] && (
                                                                 (replacements[ticket.id].faultedBy || replacements[ticket.id].newTicketId || replacements[ticket.id].damagedReason) ? (
                                                                     <IconButton 
                                                                         size="small" 
@@ -1039,7 +1145,7 @@ export function OrderInspectionSection({
                                                         </Stack>
                                                     </TableCell>
                                                 </TableRow>
-                                                {ticket.id != null && renderReplacementForm(ticket)}
+                                                {ticket.id != null && !alreadyFaultReported && renderReplacementForm(ticket)}
                                             </React.Fragment>
                                         );
                                     })}

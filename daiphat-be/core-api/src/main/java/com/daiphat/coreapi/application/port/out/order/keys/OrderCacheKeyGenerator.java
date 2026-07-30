@@ -14,4 +14,9 @@ public final class OrderCacheKeyGenerator {
     public static String paymentFailureAttempts(Long transactionId) {
         return "order:payment-attempts:" + transactionId;
     }
+
+    public static String paymentLink(Long gatewayOrderCode) {
+        return "order:payos-link:" + gatewayOrderCode;
+    }
 }
+

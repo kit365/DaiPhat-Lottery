@@ -30,7 +30,7 @@ const TABS: TabConfig[] = [
     { id: 'bankAccounts', path: '/profile/bank-accounts', label: 'Tài khoản ngân hàng', icon: 'fa-solid fa-building-columns' },
     { id: 'favorites', path: '/profile/favorites', label: 'Số yêu thích', icon: 'fa-regular fa-star' },
     { id: 'notifications', path: '/profile/notifications', label: 'Thông báo', icon: 'fa-regular fa-bell' },
-    { id: 'resultNotifications', path: '/profile/result-notifications', label: 'Kết quả xổ số', icon: 'fa-solid fa-trophy' },
+    { id: 'resultNotifications', path: '/profile/result-notifications', label: 'Nhận thông báo', icon: 'fa-solid fa-trophy' },
     { id: 'settings', path: '/profile/settings', label: 'Bảo mật', icon: 'fa-solid fa-shield-halved' },
 ];
 

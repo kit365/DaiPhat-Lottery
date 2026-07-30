@@ -190,7 +190,7 @@ public class PrizePayoutRequestService implements PrizePayoutRequestServicePort 
 
     private String resolveStatusLabel(PrizePayoutRequestStatus status) {
         return switch (status) {
-            case PENDING -> "Đang chờ";
+            case PENDING -> "Cần xử lý";
             case COMPLETED -> "Đã chuyển";
             case REJECTED -> "Từ chối";
             case CANCELLED -> "Đã hủy";

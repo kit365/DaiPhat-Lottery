@@ -159,6 +159,18 @@ export const OrdersTab = () => {
         }
     }, [navigate, payingOrder?.id]);
 
+    const handlePaymentExpired = useCallback(() => {
+        AppToast.error('Phiên thanh toán đã hết hạn. Đơn hàng đã bị hủy.');
+        const orderId = payingOrder?.id;
+        setPaymentDialogOpen(false);
+        setPaymentResult(null);
+        setPayingOrder(null);
+        setIsPreparingPayment(false);
+        if (orderId) {
+            navigate(`/profile/orders/${orderId}`);
+        }
+    }, [navigate, payingOrder?.id]);
+
     const handlePaymentDialogClose = useCallback(() => {
         setPaymentDialogOpen(false);
         setPaymentResult(null);
@@ -466,6 +478,7 @@ export const OrdersTab = () => {
                 payment={paymentResult}
                 loading={isPreparingPayment}
                 onPaid={handlePaymentPaid}
+                onExpired={handlePaymentExpired}
                 onClose={handlePaymentDialogClose}
             />
         </div>

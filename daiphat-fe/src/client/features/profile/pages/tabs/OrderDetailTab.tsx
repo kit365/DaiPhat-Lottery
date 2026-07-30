@@ -119,6 +119,7 @@ export const OrderDetailTab = () => {
     const processPaymentMutation = useProcessPayment();
     const syncPaymentMutation = useSyncPaymentFromGateway();
     const syncTriggeredRef = useRef(false);
+    const paymentExpiredHandledRef = useRef(false);
 
     const [showRefundModal, setShowRefundModal] = useState(false);
     const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
@@ -129,10 +130,19 @@ export const OrderDetailTab = () => {
     const { data: countdownData } = useGetPendingPaymentCountdown(
         order?.status === OrderStatus.PENDING_PAYMENT ? order.id : undefined
     );
+    const isPaymentCountdownExpired = countdownData?.data?.expired === true;
     const orderRefunds = useMemo(() => refundsData?.data?.recordList || [], [refundsData?.data?.recordList]);
 
     const handlePaymentPaid = useCallback(() => {
         AppToast.success('Thanh toán thành công!');
+        setPaymentDialogOpen(false);
+        setPaymentResult(null);
+        setIsPreparingPayment(false);
+        void refetchOrder();
+    }, [refetchOrder]);
+
+    const handlePaymentExpired = useCallback(() => {
+        AppToast.error('Phiên thanh toán đã hết hạn. Đơn hàng đã bị hủy.');
         setPaymentDialogOpen(false);
         setPaymentResult(null);
         setIsPreparingPayment(false);
@@ -228,6 +238,27 @@ export const OrderDetailTab = () => {
         seconds: remainingCountdownSeconds % 60,
     };
 
+    // Khi countdown hết hạn: đóng dialog, toast, refetch tới khi backend hủy đơn
+    useEffect(() => {
+        if (!order?.id || order.status !== OrderStatus.PENDING_PAYMENT || !isPaymentCountdownExpired) {
+            if (order?.status !== OrderStatus.PENDING_PAYMENT) {
+                paymentExpiredHandledRef.current = false;
+            }
+            return;
+        }
+
+        if (!paymentExpiredHandledRef.current) {
+            paymentExpiredHandledRef.current = true;
+            handlePaymentExpired();
+        }
+
+        const timer = window.setInterval(() => {
+            void refetchOrder();
+        }, 3000);
+
+        return () => window.clearInterval(timer);
+    }, [order?.id, order?.status, isPaymentCountdownExpired, handlePaymentExpired, refetchOrder]);
+
     useEffect(() => {
         const state = location.state as { openRefund?: boolean } | null;
         if (!state?.openRefund || !order || !isRefundCandidateStatus(order.status) || isLoadingEligibility) {
@@ -267,8 +298,13 @@ export const OrderDetailTab = () => {
         );
     }
 
-    const statusConfig = ORDER_STATUS_MAP[order.status];
     const isPendingPayment = order.status === OrderStatus.PENDING_PAYMENT;
+    /** Chỉ hiện đếm ngược + nút thanh toán khi còn thời gian */
+    const showPendingPaymentUi = isPendingPayment && !isPaymentCountdownExpired;
+    /** Countdown đã hết nhưng backend chưa kịp hủy → hiển thị như đã huỷ */
+    const displayStatus =
+        isPendingPayment && isPaymentCountdownExpired ? OrderStatus.CANCELLED : order.status;
+    const statusConfig = ORDER_STATUS_MAP[displayStatus];
     const isPaidOrCompleted = [OrderStatus.PAID, OrderStatus.PREPARING, OrderStatus.PENDING_PICKUP, OrderStatus.COMPLETED].includes(order.status);
 
     const handleCopyOrderCode = () => {
@@ -279,6 +315,12 @@ export const OrderDetailTab = () => {
     };
 
     const handlePaymentRedirect = () => {
+        if (isPaymentCountdownExpired || remainingCountdownSeconds <= 0) {
+            AppToast.error('Phiên thanh toán đã hết hạn. Đơn hàng đã bị hủy.');
+            void refetchOrder();
+            return;
+        }
+
         const pendingTransaction = order.transactions?.find(
             (tx: any) => tx.type === 'ONLINE' && tx.status === 'PENDING'
         ) || order.transactions?.find((tx: any) => tx.type === 'ONLINE') || order.transactions?.[0];
@@ -310,9 +352,6 @@ export const OrderDetailTab = () => {
                     AppToast.error("Không lấy được thông tin thanh toán");
                 }
             },
-            onError: () => {
-                AppToast.error("Không thể tạo phiên thanh toán");
-            },
             onSettled: () => {
                 setIsPreparingPayment(false);
             }
@@ -320,7 +359,7 @@ export const OrderDetailTab = () => {
     };
 
     return (
-        <div className={`flex flex-col gap-6 relative ${isPendingPayment ? 'pb-24 md:pb-6' : 'pb-6'}`}>
+        <div className={`flex flex-col gap-6 relative ${showPendingPaymentUi ? 'pb-24 md:pb-6' : 'pb-6'}`}>
             {/* Header Title (with back button) */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div className="flex items-center gap-3 text-[14px] font-medium text-[#637381]">
@@ -344,8 +383,8 @@ export const OrderDetailTab = () => {
                 </button>
             </div>
 
-            {/* Pending Payment Card (kept if user hasn't paid) */}
-            {isPendingPayment && (
+            {/* Pending Payment Card — chỉ hiện khi còn thời gian thanh toán */}
+            {showPendingPaymentUi && (
                 <div className="bg-[#FFF9F3] rounded-[20px] p-6 lg:p-8 border border-[#FFB020]/30 shadow-[0_4px_20px_rgba(255,176,32,0.06)] flex flex-col md:flex-row items-stretch gap-6 lg:gap-8 relative overflow-hidden mb-6">
                     <div className="absolute top-0 right-0 w-[200px] h-[200px] bg-gradient-to-br from-[#FFF9F3] to-transparent rounded-bl-full -z-10"></div>
                     <div className="flex-1 flex flex-col justify-center">
@@ -439,7 +478,7 @@ export const OrderDetailTab = () => {
             {/* Stepper trạng thái đơn hàng */}
             {order.orderType !== 'DIRECT' && (
                 <div className="mt-6">
-                    <OrderStepper order={order} />
+                    <OrderStepper order={{ ...order, status: displayStatus }} />
                 </div>
             )}
 
@@ -598,7 +637,7 @@ export const OrderDetailTab = () => {
                         <div className="flex flex-col gap-1.5">
                             <span className="text-[13px] text-[#637381]">Ngày thanh toán</span>
                             <span className="text-[14px] font-medium text-[#212B36]">
-                                {(!isPendingPayment && order.status !== OrderStatus.CANCELLED) 
+                                {(displayStatus !== OrderStatus.PENDING_PAYMENT && displayStatus !== OrderStatus.CANCELLED) 
                                     ? (order.transactions?.[0]?.createdAt ? format(new Date(order.transactions[0].createdAt), 'dd/MM/yyyy - HH:mm') : (order.createdAt ? format(new Date(order.createdAt), 'dd/MM/yyyy - HH:mm') : '-'))
                                     : '-'}
                             </span>
@@ -805,7 +844,7 @@ export const OrderDetailTab = () => {
                 </div>
             )}
 
-            {!isPendingPayment && (
+            {!showPendingPaymentUi && (
                 <div className="rounded-2xl px-5 py-4 border border-[#E5E8EB] bg-[#F8FAFC] flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-6">
                     <div className="flex items-start gap-3 min-w-0">
                         <div className="w-9 h-9 rounded-xl bg-white border border-[#E5E8EB] text-[#919EAB] flex items-center justify-center shrink-0">
@@ -825,7 +864,7 @@ export const OrderDetailTab = () => {
             )}
             
             {/* Mobile Sticky Bottom Bar */}
-            {isPendingPayment && (
+            {showPendingPaymentUi && (
                 <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-[#E5E8EB] p-4 flex items-center justify-between z-50 md:hidden shadow-[0_-4px_20px_rgba(0,0,0,0.08)]">
                     <div className="flex flex-col">
                         <span className="text-[10px] text-[#637381] font-bold uppercase tracking-wider">Hết hạn sau</span>
@@ -852,7 +891,7 @@ export const OrderDetailTab = () => {
             )}
 
             {/* Footer Notes & Guarantees for Pending Payment */}
-            {isPendingPayment && (
+            {showPendingPaymentUi && (
                 <>
                     <div className="text-center py-4 flex items-center justify-center gap-2 text-[13px] text-[#637381] font-semibold">
                         <i className="fa-regular fa-circle-check text-[#ee1314]"></i>
@@ -902,6 +941,7 @@ export const OrderDetailTab = () => {
                     payment={paymentResult}
                     loading={isPreparingPayment}
                     onPaid={handlePaymentPaid}
+                    onExpired={handlePaymentExpired}
                     onClose={handlePaymentDialogClose}
                 />
             )}

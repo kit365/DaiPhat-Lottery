@@ -25,6 +25,12 @@ export const ProfileTablePagination = ({
     const isFirst = page <= 1;
     const isLast = page >= pagination.totalPages;
 
+    const handlePageChange = (nextPage: number) => {
+        if (nextPage === page) return;
+        onPageChange(nextPage);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
     return (
         <div className="flex items-center justify-between p-5 border-t border-[#E5E8EB]">
             <div className="text-[14px] text-[#637381]">
@@ -33,7 +39,7 @@ export const ProfileTablePagination = ({
             <div className="flex items-center gap-1.5">
                 <button
                     type="button"
-                    onClick={() => onPageChange(Math.max(1, page - 1))}
+                    onClick={() => handlePageChange(Math.max(1, page - 1))}
                     disabled={isFirst}
                     className={`w-8 h-8 rounded border border-[#E5E8EB] flex items-center justify-center transition-colors ${
                         isFirst
@@ -56,7 +62,7 @@ export const ProfileTablePagination = ({
                         <button
                             key={item}
                             type="button"
-                            onClick={() => onPageChange(item)}
+                            onClick={() => handlePageChange(item)}
                             className={`w-8 h-8 rounded flex items-center justify-center font-medium text-[13px] transition-colors cursor-pointer ${
                                 item === page
                                     ? 'bg-[#ee1314] text-white'
@@ -70,7 +76,7 @@ export const ProfileTablePagination = ({
 
                 <button
                     type="button"
-                    onClick={() => onPageChange(Math.min(pagination.totalPages, page + 1))}
+                    onClick={() => handlePageChange(Math.min(pagination.totalPages, page + 1))}
                     disabled={isLast}
                     className={`w-8 h-8 rounded border border-[#E5E8EB] flex items-center justify-center transition-colors ${
                         isLast

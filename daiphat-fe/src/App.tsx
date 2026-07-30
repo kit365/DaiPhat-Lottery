@@ -39,6 +39,7 @@ import { LoadingSpinner } from './client/components/ui/LoadingSpinner';
 import { AuthGuard } from './admin/components/auth/AuthGuard';
 import { GuestGuard } from './admin/components/auth/GuestGuard';
 import { AuthInitializer } from './components/auth/AuthInitializer';
+import { ScrollToTop } from './components/ScrollToTop';
 
 import './styles/client.css'; // New Client Theme
 
@@ -76,6 +77,7 @@ function App() {
   return (
     <BrowserRouter>
       <AuthInitializer />
+      <ScrollToTop />
       <Routes>
         {/* Admin routes first so /admin/* is never captured by the client catch-all */}
         <Route path={ROUTES.ADMIN.ROOT}>

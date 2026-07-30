@@ -3,7 +3,6 @@ import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
     Calendar, 
-    Search, 
     X, 
     ChevronLeft, 
     ChevronRight, 
@@ -19,6 +18,12 @@ import { useCheckWinning } from '../../hooks/useLottery';
 interface QuickCheckTicketBannerProps {
     availableDates?: string[];
 }
+
+type FieldErrors = {
+    date?: string;
+    station?: string;
+    number?: string;
+};
 
 export const QuickCheckTicketBanner: React.FC<QuickCheckTicketBannerProps> = ({ availableDates = [] }) => {
     const [isExpanded, setIsExpanded] = useState(false);
@@ -69,8 +74,8 @@ export const QuickCheckTicketBanner: React.FC<QuickCheckTicketBannerProps> = ({ 
     
     // Custom drop-down states
     const [isStationDropdownOpen, setIsStationDropdownOpen] = useState(false);
-    const [stationSearchQuery, setStationSearchQuery] = useState('');
     const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
+    const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
 
     // Date navigation state for custom calendar
     const now = new Date();
@@ -79,6 +84,7 @@ export const QuickCheckTicketBanner: React.FC<QuickCheckTicketBannerProps> = ({ 
 
     const stationDropdownRef = useRef<HTMLDivElement>(null);
     const datePickerRef = useRef<HTMLDivElement>(null);
+    const ticketNumberInputRef = useRef<HTMLInputElement>(null);
 
     const { 
         check, 
@@ -153,23 +159,44 @@ export const QuickCheckTicketBanner: React.FC<QuickCheckTicketBannerProps> = ({ 
     }, [selectedStationId, stations]);
 
     const handleCheck = async () => {
+        setFieldErrors({});
+        setErrorMessage(null);
+
+        if (!selectedDate) {
+            setFieldErrors({ date: 'Vui lòng chọn ngày quay.' });
+            setIsStationDropdownOpen(false);
+            setIsDatePickerOpen(true);
+            return;
+        }
+
         if (!selectedStationId) {
-            setErrorMessage('Vui lòng chọn đài quay.');
+            setFieldErrors({ station: 'Vui lòng chọn đài quay.' });
+            setIsDatePickerOpen(false);
+            setIsStationDropdownOpen(true);
             return;
         }
-        if (!ticketNumber || ticketNumber.trim().length < 5) {
-            setErrorMessage('Vui lòng nhập số vé hợp lệ (5 hoặc 6 chữ số).');
+
+        const trimmedNumber = ticketNumber.trim();
+        if (!trimmedNumber) {
+            setFieldErrors({ number: 'Vui lòng nhập dãy số trên vé.' });
+            ticketNumberInputRef.current?.focus();
             return;
         }
-        
+
+        if (trimmedNumber.length < 5) {
+            setFieldErrors({ number: 'Vui lòng nhập đúng 5 hoặc 6 chữ số trên vé.' });
+            ticketNumberInputRef.current?.focus();
+            return;
+        }
+
         try {
             const displayDate = fromDateInputValue(selectedDate);
             await check(
                 Number(selectedStationId),
                 displayDate,
-                ticketNumber.trim()
+                trimmedNumber
             );
-        } catch (error) {
+        } catch {
             // Error is already handled by the hook
         }
     };
@@ -177,6 +204,7 @@ export const QuickCheckTicketBanner: React.FC<QuickCheckTicketBannerProps> = ({ 
     const handleReset = () => {
         reset();
         setTicketNumber('');
+        setFieldErrors({});
     };
 
     // Calendar utility functions
@@ -202,14 +230,6 @@ export const QuickCheckTicketBanner: React.FC<QuickCheckTicketBannerProps> = ({ 
             return `${parts[2]}/${parts[1]}/${parts[0]}`;
         }
         return dateStr;
-    };
-
-    const removeAccents = (str: string) => {
-        return str
-            .normalize('NFD')
-            .replace(/[\u0300-\u036f]/g, '')
-            .replace(/đ/g, 'd')
-            .replace(/Đ/g, 'D');
     };
 
     const generateCalendarDays = () => {
@@ -255,10 +275,6 @@ export const QuickCheckTicketBanner: React.FC<QuickCheckTicketBannerProps> = ({ 
 
         return days;
     };
-
-    const filteredStations = stations.filter(station => 
-        removeAccents(station.province.toLowerCase()).includes(removeAccents(stationSearchQuery.toLowerCase()))
-    );
 
     const modalContent = (
         <AnimatePresence>
@@ -396,9 +412,19 @@ export const QuickCheckTicketBanner: React.FC<QuickCheckTicketBannerProps> = ({ 
                                         <label className="text-[12.5px] font-bold text-slate-700">Chọn đài</label>
                                         <div className="relative" ref={stationDropdownRef}>
                                             <button 
-                                                onClick={() => setIsStationDropdownOpen(!isStationDropdownOpen)}
+                                                onClick={() => {
+                                                    setIsDatePickerOpen(false);
+                                                    setIsStationDropdownOpen(!isStationDropdownOpen);
+                                                    if (fieldErrors.station) {
+                                                        setFieldErrors((prev) => ({ ...prev, station: undefined }));
+                                                    }
+                                                }}
                                                 className={`w-full flex items-center justify-between p-2.5 rounded-xl border bg-white text-[13px] font-medium transition-all ${
-                                                    isStationDropdownOpen ? 'border-[#ee1314] ring-2 ring-red-50' : 'border-slate-200 hover:border-slate-300'
+                                                    fieldErrors.station
+                                                        ? 'border-red-400 ring-2 ring-red-50'
+                                                        : isStationDropdownOpen
+                                                            ? 'border-[#ee1314] ring-2 ring-red-50'
+                                                            : 'border-slate-200 hover:border-slate-300'
                                                 }`}
                                             >
                                                 <div className="flex items-center gap-1.5 text-slate-800">
@@ -417,26 +443,13 @@ export const QuickCheckTicketBanner: React.FC<QuickCheckTicketBannerProps> = ({ 
                                                     exit={{ opacity: 0, y: 8 }}
                                                     className="absolute left-0 right-0 top-full mt-1 bg-white border border-slate-100 rounded-xl shadow-[0_12px_32px_rgba(0,0,0,0.12)] z-50 overflow-hidden"
                                                 >
-                                                    {/* Search bar */}
-                                                    <div className="p-2 border-b border-slate-100 flex items-center gap-1.5 bg-slate-50">
-                                                        <Search size={13} className="text-slate-400 ml-0.5" />
-                                                        <input 
-                                                            type="text" 
-                                                            placeholder="Tìm kiếm đài..."
-                                                            value={stationSearchQuery}
-                                                            onChange={(e) => setStationSearchQuery(e.target.value)}
-                                                            className="w-full bg-transparent border-none outline-none text-[12.5px] text-slate-800 placeholder-slate-400 py-0.5"
-                                                        />
-                                                    </div>
-
-                                                    {/* List */}
                                                     <div className="max-h-[180px] overflow-y-auto py-0.5">
                                                         {isLoadingProvinces ? (
                                                             <div className="p-3 text-center text-slate-400 text-[11.5px]">Đang tải đài...</div>
-                                                        ) : filteredStations.length === 0 ? (
-                                                            <div className="p-3 text-center text-slate-400 text-[11.5px]">Không tìm thấy đài</div>
+                                                        ) : stations.length === 0 ? (
+                                                            <div className="p-3 text-center text-slate-400 text-[11.5px]">Không có đài trong ngày này</div>
                                                         ) : (
-                                                            filteredStations.map((station) => {
+                                                            stations.map((station) => {
                                                                 const isSelected = selectedStationId === station.id;
                                                                 return (
                                                                     <button 
@@ -445,7 +458,7 @@ export const QuickCheckTicketBanner: React.FC<QuickCheckTicketBannerProps> = ({ 
                                                                             setSelectedStationId(station.id);
                                                                             setSelectedStationName(station.province);
                                                                             setIsStationDropdownOpen(false);
-                                                                            setStationSearchQuery('');
+                                                                            setFieldErrors((prev) => ({ ...prev, station: undefined }));
                                                                         }}
                                                                         className={`w-full flex items-center justify-between px-3.5 py-2 text-left text-[12.5px] hover:bg-slate-50 transition-colors border-none bg-transparent cursor-pointer ${
                                                                             isSelected ? 'text-[#ee1314] font-semibold bg-red-50/30' : 'text-slate-700'
@@ -465,6 +478,9 @@ export const QuickCheckTicketBanner: React.FC<QuickCheckTicketBannerProps> = ({ 
                                             )}
                                             </AnimatePresence>
                                         </div>
+                                        {fieldErrors.station && (
+                                            <span className="text-[11px] text-red-500 font-medium">{fieldErrors.station}</span>
+                                        )}
                                     </div>
 
                                     {/* Datepicker Select */}
@@ -472,9 +488,19 @@ export const QuickCheckTicketBanner: React.FC<QuickCheckTicketBannerProps> = ({ 
                                         <label className="text-[12.5px] font-bold text-slate-700">Chọn ngày</label>
                                         <div className="relative" ref={datePickerRef}>
                                             <button 
-                                                onClick={() => setIsDatePickerOpen(!isDatePickerOpen)}
+                                                onClick={() => {
+                                                    setIsStationDropdownOpen(false);
+                                                    setIsDatePickerOpen(!isDatePickerOpen);
+                                                    if (fieldErrors.date) {
+                                                        setFieldErrors((prev) => ({ ...prev, date: undefined }));
+                                                    }
+                                                }}
                                                 className={`w-full flex items-center justify-between p-2.5 rounded-xl border bg-white text-[13px] font-medium transition-all ${
-                                                    isDatePickerOpen ? 'border-[#ee1314] ring-2 ring-red-50' : 'border-slate-200 hover:border-slate-300'
+                                                    fieldErrors.date
+                                                        ? 'border-red-400 ring-2 ring-red-50'
+                                                        : isDatePickerOpen
+                                                            ? 'border-[#ee1314] ring-2 ring-red-50'
+                                                            : 'border-slate-200 hover:border-slate-300'
                                                 }`}
                                             >
                                                 <div className="flex items-center gap-1.5 text-slate-800">
@@ -545,6 +571,7 @@ export const QuickCheckTicketBanner: React.FC<QuickCheckTicketBannerProps> = ({ 
                                                                         const ymd = formatDateToYMD(cell.year, cell.month, cell.day);
                                                                         setSelectedDate(ymd);
                                                                         setIsDatePickerOpen(false);
+                                                                        setFieldErrors((prev) => ({ ...prev, date: undefined }));
                                                                     }}
                                                                     className={`py-1 rounded-lg font-semibold transition-all border-none bg-transparent cursor-pointer ${
                                                                         isSelected 
@@ -571,6 +598,7 @@ export const QuickCheckTicketBanner: React.FC<QuickCheckTicketBannerProps> = ({ 
                                                                 setSelectedMonth(now.getMonth());
                                                                 setSelectedYear(now.getFullYear());
                                                                 setIsDatePickerOpen(false);
+                                                                setFieldErrors((prev) => ({ ...prev, date: undefined }));
                                                             }}
                                                             className="text-[11.5px] font-bold text-[#ee1314] hover:bg-red-50 px-3 py-1 rounded-lg transition-colors border-none bg-transparent flex items-center justify-center gap-1.5 mx-auto cursor-pointer"
                                                         >
@@ -582,6 +610,9 @@ export const QuickCheckTicketBanner: React.FC<QuickCheckTicketBannerProps> = ({ 
                                             )}
                                             </AnimatePresence>
                                         </div>
+                                        {fieldErrors.date && (
+                                            <span className="text-[11px] text-red-500 font-medium">{fieldErrors.date}</span>
+                                        )}
                                     </div>
                                 </div>
 
@@ -590,6 +621,7 @@ export const QuickCheckTicketBanner: React.FC<QuickCheckTicketBannerProps> = ({ 
                                     <label className="text-[12.5px] font-bold text-slate-700">Nhập dãy số trên vé</label>
                                     <div className="relative">
                                         <input 
+                                            ref={ticketNumberInputRef}
                                             type="text" 
                                             placeholder="Nhập dãy số (ví dụ: 123456)"
                                             maxLength={6}
@@ -597,12 +629,23 @@ export const QuickCheckTicketBanner: React.FC<QuickCheckTicketBannerProps> = ({ 
                                             onChange={(e) => {
                                                 const val = e.target.value.replace(/[^0-9]/g, '');
                                                 setTicketNumber(val);
+                                                if (fieldErrors.number) {
+                                                    setFieldErrors((prev) => ({ ...prev, number: undefined }));
+                                                }
                                             }}
-                                            className="w-full p-2.5 pl-10 rounded-xl border border-slate-200 outline-none text-[14px] font-bold text-slate-800 focus:border-[#ee1314] focus:ring-2 focus:ring-red-50 transition-all tracking-[2px] placeholder:tracking-normal placeholder:font-normal"
+                                            className={`w-full p-2.5 pl-10 rounded-xl border outline-none text-[14px] font-bold text-slate-800 transition-all tracking-[2px] placeholder:tracking-normal placeholder:font-normal ${
+                                                fieldErrors.number
+                                                    ? 'border-red-400 ring-2 ring-red-50'
+                                                    : 'border-slate-200 focus:border-[#ee1314] focus:ring-2 focus:ring-red-50'
+                                            }`}
                                         />
                                         <Ticket size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
                                     </div>
-                                    <span className="text-[11.5px] text-slate-400">Nhập đúng 6 chữ số trên vé của bạn</span>
+                                    {fieldErrors.number ? (
+                                        <span className="text-[11px] text-red-500 font-medium">{fieldErrors.number}</span>
+                                    ) : (
+                                        <span className="text-[11.5px] text-slate-400">Nhập đúng 6 chữ số trên vé của bạn</span>
+                                    )}
                                 </div>
 
                                 {/* Action search button */}
@@ -617,11 +660,10 @@ export const QuickCheckTicketBanner: React.FC<QuickCheckTicketBannerProps> = ({ 
                                 {/* Quick Selection Buttons */}
                                 <div className="mt-3 border-t border-slate-100 pt-3">
                                     <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wide block mb-2.5 text-center">Hoặc chọn nhanh</span>
-                                    <div className="grid grid-cols-3 gap-2.5">
+                                    <div className="grid grid-cols-2 gap-2.5">
                                         {[
                                             { label: 'Hôm nay', daysOffset: 0 },
                                             { label: 'Hôm qua', daysOffset: 1 },
-                                            { label: '7 ngày qua', daysOffset: 7 }
                                         ].map((opt) => {
                                             const targetDate = new Date();
                                             targetDate.setDate(targetDate.getDate() - opt.daysOffset);
@@ -635,6 +677,7 @@ export const QuickCheckTicketBanner: React.FC<QuickCheckTicketBannerProps> = ({ 
                                                         setSelectedDate(targetYMD);
                                                         setSelectedMonth(targetDate.getMonth());
                                                         setSelectedYear(targetDate.getFullYear());
+                                                        setFieldErrors((prev) => ({ ...prev, date: undefined }));
                                                     }}
                                                     className={`py-2 px-2.5 rounded-xl border text-[11.5px] font-bold transition-all border-none cursor-pointer text-center ${
                                                         isSelected 

@@ -35,7 +35,7 @@ export const PrizePayoutStatusStepper: React.FC<PrizePayoutStatusStepperProps> =
     }
 
     const steps = [
-        { key: PrizePayoutRequestStatus.PENDING, label: 'Đang chờ xử lý', icon: 'fa-solid fa-clock' },
+        { key: PrizePayoutRequestStatus.PENDING, label: 'Cần xử lý', icon: 'fa-solid fa-clock' },
         { key: PrizePayoutRequestStatus.COMPLETED, label: 'Đã chuyển khoản', icon: 'fa-solid fa-money-bill-transfer' },
     ];
 

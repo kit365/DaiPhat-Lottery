@@ -61,42 +61,61 @@ public class PurchasedTicketQueryService implements PurchasedTicketQueryPort {
             String sortBy,
             String direction) {
 
-        PageRequest pageable = PageRequest.of(
-                Math.max(0, page - 1),
-                size,
-                SortUtils.createSort(sortBy, direction)
-        );
+        var spec = PurchasedTicketSpecification.purchasedByUser(userId, fromDate, toDate, ticketNumber);
+        var sort = SortUtils.createSort(sortBy, direction);
+        int safePage = Math.max(1, page);
+        int safeSize = Math.max(1, size);
+
+        // Draw result (WON/LOST/PENDING) is computed in-memory, so status filters must
+        // paginate after mapping — not at the DB page boundary.
+        if (status != null) {
+            Page<OrderDetailEntity> allDetails = purchasedTicketQueryRepositoryPort.findPurchasedTickets(
+                    spec,
+                    PageRequest.of(0, Integer.MAX_VALUE, sort)
+            );
+            List<PurchasedTicketResponse> filtered = mapDetails(allDetails.getContent()).stream()
+                    .filter(response -> response.drawResultStatus() == status)
+                    .toList();
+            int fromIndex = Math.min((safePage - 1) * safeSize, filtered.size());
+            int toIndex = Math.min(fromIndex + safeSize, filtered.size());
+            return PageResponse.from(filtered.subList(fromIndex, toIndex), filtered.size(), safePage, safeSize);
+        }
 
         Page<OrderDetailEntity> detailPage = purchasedTicketQueryRepositoryPort.findPurchasedTickets(
-                PurchasedTicketSpecification.purchasedByUser(userId, fromDate, toDate, ticketNumber),
-                pageable
+                spec,
+                PageRequest.of(safePage - 1, safeSize, sort)
         );
+        List<PurchasedTicketResponse> responses = mapDetails(detailPage.getContent());
+        return PageResponse.from(responses, detailPage.getTotalElements(), safePage, safeSize);
+    }
 
+    private List<PurchasedTicketResponse> mapDetails(List<OrderDetailEntity> details) {
         Map<String, Optional<LotteryResultModel>> resultCache = new HashMap<>();
         Map<Long, List<LotteryResultDetailModel>> detailCache = new HashMap<>();
-        List<Long> serialIds = detailPage.getContent().stream()
+        List<Long> serialIds = details.stream()
                 .map(OrderDetailEntity::getLotteryTicketSerial)
                 .filter(serial -> serial != null)
                 .map(LotteryTicketSerialEntity::getId)
                 .toList();
-        Map<Long, PrizePayoutRequestModel> pendingPayouts =
-                prizePayoutRequestRepositoryPort.findPendingBySerialIds(serialIds);
+        Map<Long, PrizePayoutRequestModel> latestPayouts =
+                prizePayoutRequestRepositoryPort.findLatestBySerialIds(serialIds);
+        if (latestPayouts == null) {
+            latestPayouts = Map.of();
+        }
+        final Map<Long, PrizePayoutRequestModel> payoutBySerial = latestPayouts;
 
-        List<PurchasedTicketResponse> responses = detailPage.getContent().stream()
+        return details.stream()
                 .filter(detail -> detail.getLotteryTicketSerial() != null
                         && detail.getLotteryTicketSerial().getTicket() != null)
-                .map(detail -> mapDetail(detail, resultCache, detailCache, pendingPayouts))
-                .filter(response -> status == null || response.drawResultStatus() == status)
+                .map(detail -> mapDetail(detail, resultCache, detailCache, payoutBySerial))
                 .toList();
-
-        return PageResponse.from(responses, detailPage.getTotalElements(), page, size);
     }
 
     private PurchasedTicketResponse mapDetail(
             OrderDetailEntity detail,
             Map<String, Optional<LotteryResultModel>> resultCache,
             Map<Long, List<LotteryResultDetailModel>> detailCache,
-            Map<Long, PrizePayoutRequestModel> pendingPayouts) {
+            Map<Long, PrizePayoutRequestModel> latestPayouts) {
 
         OrderEntity order = detail.getOrder();
         LotteryTicketSerialEntity serial = detail.getLotteryTicketSerial();
@@ -140,7 +159,7 @@ public class PurchasedTicketQueryService implements PurchasedTicketQueryPort {
         SerialPayoutState payoutState = serial.getPayoutState() != null
                 ? serial.getPayoutState()
                 : SerialPayoutState.NONE;
-        PrizePayoutRequestModel pendingRequest = pendingPayouts.get(serial.getId());
+        PrizePayoutRequestModel latestRequest = latestPayouts.get(serial.getId());
 
         return PurchasedTicketResponse.builder()
                 .orderId(order.getId())
@@ -160,8 +179,8 @@ public class PurchasedTicketQueryService implements PurchasedTicketQueryPort {
                 .matchedPrizeCode(matchedPrizeCode)
                 .matchedPrizeDisplayName(matchedPrizeDisplayName)
                 .prizeAmount(prizeAmount)
-                .activePayoutRequestId(pendingRequest != null ? pendingRequest.getId() : null)
-                .activePayoutStatus(pendingRequest != null ? pendingRequest.getStatus() : null)
+                .activePayoutRequestId(latestRequest != null ? latestRequest.getId() : null)
+                .activePayoutStatus(latestRequest != null ? latestRequest.getStatus() : null)
                 .build();
     }
 

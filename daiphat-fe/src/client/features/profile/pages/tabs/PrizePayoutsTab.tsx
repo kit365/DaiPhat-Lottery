@@ -91,7 +91,19 @@ export const PrizePayoutsTab = () => {
                             ) : !data?.data?.recordList?.length ? (
                                 <tr>
                                     <td colSpan={5} className="py-16 text-center text-[#637381] text-[14px]">
-                                        Chưa có yêu cầu trả thưởng
+                                        <div className="flex flex-col items-center gap-3">
+                                            <p className="m-0 font-medium text-[#637381]">Chưa có yêu cầu trả thưởng</p>
+                                            <p className="m-0 text-[13px] text-[#919EAB]">
+                                                Bạn cần vào mục <span className="font-semibold text-[#454F5B]">Vé của tôi</span>, chọn 1 vé trúng để gửi yêu cầu.
+                                            </p>
+                                            <button
+                                                type="button"
+                                                onClick={() => navigate('/profile/tickets')}
+                                                className="px-4 py-2 rounded-lg bg-[#ee1314] text-white text-[13px] font-semibold hover:bg-[#d70f10] transition-colors cursor-pointer"
+                                            >
+                                                Đi tới Vé của tôi
+                                            </button>
+                                        </div>
                                     </td>
                                 </tr>
                             ) : (
