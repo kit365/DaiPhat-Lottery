@@ -29,6 +29,7 @@ export const REGION_DATA: Record<string, string[]> = {
     "Huế"
   ],
   "MIEN_NAM": [
+    "Hồ Chí Minh",
     "TP.HCM",
     "Đồng Tháp",
     "Cà Mau",

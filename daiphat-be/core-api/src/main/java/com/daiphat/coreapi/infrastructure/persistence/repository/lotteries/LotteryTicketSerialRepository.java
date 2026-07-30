@@ -29,6 +29,15 @@ public interface LotteryTicketSerialRepository extends JpaRepository<LotteryTick
 
     List<LotteryTicketSerialEntity> findBySerialNumberStartingWithAndDeletedAtIsNull(String serialNumberPrefix);
 
+    @Query("""
+            SELECT s FROM LotteryTicketSerialEntity s
+            JOIN FETCH s.ticket t
+            JOIN FETCH t.station
+            WHERE s.deletedAt IS NULL
+              AND s.serialNumber LIKE CONCAT(:prefix, '%')
+            """)
+    List<LotteryTicketSerialEntity> findBySerialNumberPrefixWithTicketFetched(@Param("prefix") String prefix);
+
     @org.springframework.data.jpa.repository.Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("""
             UPDATE LotteryTicketSerialEntity s

@@ -52,6 +52,7 @@ import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -91,12 +92,24 @@ public class ImportBatchService implements ImportBatchServicePort {
 
         ensureUniqueStations(request.lines());
         lotterySupplierServicePort.ensureActiveSupplierConfigured();
-        validateInDayCreateAllowed(request);
 
         if (request.supplierId() == null) {
             throw new DomainException(ErrorCode.IMPORT_BATCH_SUPPLIER_REQUIRED);
         }
+        LocalDateTime now = LocalDateTime.now(clock);
+        validateDrawDateRange(request.drawDate(), now);
         LotterySupplierModel supplier = lotterySupplierServicePort.getActiveModelById(request.supplierId());
+        validateSupplierImportAllowFrom(supplier);
+        validateSupplierReturnCutOff(supplier, request.drawDate(), now);
+
+        ImportBatchImportMode resolvedImportMode = importBatchImportModeResolver.resolve(request.drawDate(), now);
+        if (request.importMode() != resolvedImportMode) {
+            throw new DomainException(
+                    ErrorCode.IMPORT_BATCH_INVALID_BATCH_TYPE,
+                    "Hình thức nhập không khớp với ngày quay đã chọn."
+            );
+        }
+        validateInDayCreateAllowed(request);
 
         if (!Boolean.TRUE.equals(request.forceCreate())) {
             importBatchRepositoryPort
@@ -113,8 +126,6 @@ public class ImportBatchService implements ImportBatchServicePort {
                         );
                     });
         }
-
-        LocalDateTime now = LocalDateTime.now(clock);
 
         ImportBatchModel header = ImportBatchModel.builder()
                 .drawDate(request.drawDate())
@@ -402,7 +413,6 @@ public class ImportBatchService implements ImportBatchServicePort {
         return List.of(
                 new EnumOptionResponse(ImportBatchType.NEW.name(), ImportBatchType.NEW.getLabel()),
                 new EnumOptionResponse(ImportBatchType.SUPPLEMENTARY.name(), ImportBatchType.SUPPLEMENTARY.getLabel()),
-                new EnumOptionResponse(ImportBatchType.LATE_IMPORT.name(), ImportBatchType.LATE_IMPORT.getLabel()),
                 new EnumOptionResponse(ImportBatchType.ADJUSTMENT.name(), ImportBatchType.ADJUSTMENT.getLabel())
         );
     }
@@ -496,8 +506,7 @@ public class ImportBatchService implements ImportBatchServicePort {
     @Transactional(readOnly = true)
     public ImportBatchTimePolicyResponse getTimePolicy() {
         return ImportBatchTimePolicyResponse.builder()
-                .lateImportTime(importBatchConfigResolver.resolveLateImportTime().format(TIME_DISPLAY))
-                .importBatchCutoffTime(importBatchConfigResolver.resolveImportBatchCutoff().format(TIME_DISPLAY))
+                .returnBufferMinutes(importBatchConfigResolver.resolveReturnBufferMinutes())
                 .build();
     }
 
@@ -607,6 +616,62 @@ public class ImportBatchService implements ImportBatchServicePort {
 
         batch.setLines(importBatchLineRepositoryPort.findByImportBatchId(batchId));
         return importBatchApplicationMapper.toResponse(importBatchRepositoryPort.save(batch));
+    }
+
+    private void validateSupplierImportAllowFrom(LotterySupplierModel supplier) {
+        if (supplier == null || supplier.getImportAllowFrom() == null) {
+            return;
+        }
+        LocalTime now = LocalDateTime.now(clock).toLocalTime();
+        if (now.isBefore(supplier.getImportAllowFrom())) {
+            throw new DomainException(
+                    ErrorCode.IMPORT_BATCH_IMPORT_NOT_YET_ALLOWED,
+                    String.format(
+                            "Chưa đến giờ cho phép nhập vé của nhà cung cấp %s (từ %s).",
+                            supplier.getName(),
+                            supplier.getImportAllowFrom().format(TIME_DISPLAY)
+                    )
+            );
+        }
+    }
+
+    private void validateDrawDateRange(LocalDate drawDate, LocalDateTime now) {
+        if (drawDate == null) {
+            throw new DomainException(ErrorCode.IMPORT_BATCH_DRAW_DATE_OUT_OF_RANGE);
+        }
+        LocalDate today = now.toLocalDate();
+        LocalDate tomorrow = today.plusDays(1);
+        if (drawDate.isBefore(today) || drawDate.isAfter(tomorrow)) {
+            throw new DomainException(
+                    ErrorCode.IMPORT_BATCH_DRAW_DATE_OUT_OF_RANGE,
+                    "Ngày quay chỉ được chọn hôm nay hoặc ngày mai."
+            );
+        }
+    }
+
+    private void validateSupplierReturnCutOff(
+            LotterySupplierModel supplier,
+            LocalDate drawDate,
+            LocalDateTime now
+    ) {
+        if (supplier == null || supplier.getReturnCutOffTime() == null || drawDate == null) {
+            return;
+        }
+        if (!drawDate.equals(now.toLocalDate())) {
+            return;
+        }
+        LocalTime currentTime = now.toLocalTime();
+        if (!currentTime.isBefore(supplier.getReturnCutOffTime())) {
+            throw new DomainException(
+                    ErrorCode.IMPORT_BATCH_RETURN_CUTOFF_PASSED,
+                    String.format(
+                            "Đã qua giờ chốt trả vé của nhà cung cấp %s (%s). "
+                                    + "Không thể tạo phiếu nhập lô mới cho kỳ quay hôm nay.",
+                            supplier.getName(),
+                            supplier.getReturnCutOffTime().format(TIME_DISPLAY)
+                    )
+            );
+        }
     }
 
     private void validateInDayCreateAllowed(CreateImportBatchRequest request) {

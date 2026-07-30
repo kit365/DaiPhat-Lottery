@@ -404,11 +404,20 @@ input:-webkit-autofill:active {
 }
 
 /* First content column (skip checkbox) */
-.admin-datagrid .MuiDataGrid-columnHeader[aria-colindex="1"]:not(.MuiDataGrid-columnHeaderCheckbox),
-.admin-datagrid .MuiDataGrid-cell[aria-colindex="1"]:not(.MuiDataGrid-cellCheckbox),
+.admin-datagrid .MuiDataGrid-columnHeader[aria-colindex="1"]:not(.MuiDataGrid-columnHeaderCheckbox):not(.admin-datagrid-cancel-select-header),
+.admin-datagrid .MuiDataGrid-cell[aria-colindex="1"]:not(.MuiDataGrid-cellCheckbox):not(.admin-datagrid-cancel-select-cell),
 .admin-datagrid .MuiDataGrid-columnHeaderCheckbox + .MuiDataGrid-columnHeader,
 .admin-datagrid .MuiDataGrid-cellCheckbox + .MuiDataGrid-cell {
     padding-left: 24px !important;
+}
+
+.admin-datagrid .MuiDataGrid-columnHeader.admin-datagrid-cancel-select-header,
+.admin-datagrid .MuiDataGrid-cell.admin-datagrid-cancel-select-cell {
+    padding-left: 8px !important;
+    padding-right: 8px !important;
+    justify-content: center;
+    min-width: 72px !important;
+    max-width: 72px !important;
 }
 
 .admin-datagrid .MuiDataGrid-toolbarContainer {

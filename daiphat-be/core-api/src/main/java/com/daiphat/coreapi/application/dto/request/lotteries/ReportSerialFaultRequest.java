@@ -12,5 +12,9 @@ public record ReportSerialFaultRequest(
         LotteryTicketSerialFaultedBy faultedBy,
 
         String damagedReason,
-        String damagedEvidenceUrl
+        String damagedEvidenceUrl,
+
+        /** Optional replacement serial number for data-entry (VOIDED) incidents. */
+        String replacementSerialNumber,
+        String replacementTicketImg
 ) {}
