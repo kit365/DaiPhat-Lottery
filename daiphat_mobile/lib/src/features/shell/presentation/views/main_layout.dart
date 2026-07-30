@@ -31,16 +31,14 @@ class _MainLayoutState extends State<MainLayout> {
   void initState() {
     super.initState();
     _pageController = PageController(initialPage: 1);
-    _pageController.addListener(_onPageChanged);
   }
 
-  void _onPageChanged() {
-    final page = _pageController.page ?? 1.0;
-    final nextPage = page < 0.5
-        ? _ShellSidePage.blog
-        : page > 1.5
-        ? _ShellSidePage.chat
-        : _ShellSidePage.main;
+  void _syncSidePage(int index) {
+    final nextPage = switch (index) {
+      0 => _ShellSidePage.blog,
+      2 => _ShellSidePage.chat,
+      _ => _ShellSidePage.main,
+    };
     if (nextPage != _sidePage) {
       setState(() => _sidePage = nextPage);
     }
@@ -48,12 +46,14 @@ class _MainLayoutState extends State<MainLayout> {
 
   @override
   void dispose() {
-    _pageController.removeListener(_onPageChanged);
     _pageController.dispose();
     super.dispose();
   }
 
   void _goToBlog() {
+    if (_sidePage != _ShellSidePage.blog) {
+      setState(() => _sidePage = _ShellSidePage.blog);
+    }
     _pageController.animateToPage(
       0,
       duration: const Duration(milliseconds: 300),
@@ -62,6 +62,9 @@ class _MainLayoutState extends State<MainLayout> {
   }
 
   void _goToMain() {
+    if (_sidePage != _ShellSidePage.main) {
+      setState(() => _sidePage = _ShellSidePage.main);
+    }
     _pageController.animateToPage(
       1,
       duration: const Duration(milliseconds: 300),
@@ -70,6 +73,9 @@ class _MainLayoutState extends State<MainLayout> {
   }
 
   void _goToChat() {
+    if (_sidePage != _ShellSidePage.chat) {
+      setState(() => _sidePage = _ShellSidePage.chat);
+    }
     _pageController.animateToPage(
       2,
       duration: const Duration(milliseconds: 300),
@@ -130,19 +136,27 @@ class _MainLayoutState extends State<MainLayout> {
       body: PageView(
         controller: _pageController,
         physics: const BouncingScrollPhysics(),
+        onPageChanged: _syncSidePage,
         children: [
           BlogScreen(
+            key: const ValueKey('shell-blog'),
             onBack: () {
               _goToMain();
               context.go(AppRoute.home.path);
             },
           ),
-          widget.child,
+          KeyedSubtree(
+            key: ValueKey(GoRouterState.of(context).uri.path),
+            child: widget.child,
+          ),
           ChatScreen(
+            key: const ValueKey('shell-chat'),
             onBack: () {
               _goToMain();
               context.go(AppRoute.home.path);
             },
+            isAuthenticated: widget.loginViewModel.isAuthenticated,
+            isActive: _sidePage == _ShellSidePage.chat,
           ),
         ],
       ),
