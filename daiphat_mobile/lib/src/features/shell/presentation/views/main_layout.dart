@@ -4,7 +4,10 @@ import 'package:go_router/go_router.dart';
 import 'package:daiphat_mobile/src/app/routing/app_routes.dart';
 import 'package:daiphat_mobile/src/features/auth/presentation/viewmodels/login_viewmodel.dart';
 import 'package:daiphat_mobile/src/features/blog/presentation/views/blog_screen.dart';
+import 'package:daiphat_mobile/src/features/chat/presentation/views/chat_screen.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
+
+enum _ShellSidePage { main, blog, chat }
 
 class MainLayout extends StatefulWidget {
   final LoginViewModel loginViewModel;
@@ -22,7 +25,7 @@ class MainLayout extends StatefulWidget {
 
 class _MainLayoutState extends State<MainLayout> {
   late final PageController _pageController;
-  bool _onBlogPage = false;
+  _ShellSidePage _sidePage = _ShellSidePage.main;
 
   @override
   void initState() {
@@ -33,9 +36,13 @@ class _MainLayoutState extends State<MainLayout> {
 
   void _onPageChanged() {
     final page = _pageController.page ?? 1.0;
-    final isBlog = page < 0.5;
-    if (isBlog != _onBlogPage) {
-      setState(() => _onBlogPage = isBlog);
+    final nextPage = page < 0.5
+        ? _ShellSidePage.blog
+        : page > 1.5
+        ? _ShellSidePage.chat
+        : _ShellSidePage.main;
+    if (nextPage != _sidePage) {
+      setState(() => _sidePage = nextPage);
     }
   }
 
@@ -62,19 +69,30 @@ class _MainLayoutState extends State<MainLayout> {
     );
   }
 
-  int _getNavIndex(BuildContext context) {
-    if (_onBlogPage) {
-      return 2;
-    }
+  void _goToChat() {
+    _pageController.animateToPage(
+      2,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+    );
+  }
 
-    final location = GoRouterState.of(context).uri.path;
-    if (location.startsWith(AppRoute.buyTicket.path)) {
-      return 1;
+  int _getNavIndex(BuildContext context) {
+    switch (_sidePage) {
+      case _ShellSidePage.blog:
+        return 2;
+      case _ShellSidePage.chat:
+        return 3;
+      case _ShellSidePage.main:
+        final location = GoRouterState.of(context).uri.path;
+        if (location.startsWith(AppRoute.buyTicket.path)) {
+          return 1;
+        }
+        if (location.startsWith(AppRoute.profile.path)) {
+          return 4;
+        }
+        return 0;
     }
-    if (location.startsWith(AppRoute.profile.path)) {
-      return 3;
-    }
-    return 0;
   }
 
   void _onNavTap(int index, BuildContext context) {
@@ -91,6 +109,9 @@ class _MainLayoutState extends State<MainLayout> {
         _goToBlog();
         break;
       case 3:
+        _goToChat();
+        break;
+      case 4:
         _goToMain();
         if (widget.loginViewModel.isAuthenticated) {
           context.go(AppRoute.profile.path);
@@ -117,6 +138,12 @@ class _MainLayoutState extends State<MainLayout> {
             },
           ),
           widget.child,
+          ChatScreen(
+            onBack: () {
+              _goToMain();
+              context.go(AppRoute.home.path);
+            },
+          ),
         ],
       ),
       bottomNavigationBar: _AnimatedBottomNavigation(
@@ -151,6 +178,11 @@ class _AnimatedBottomNavigation extends StatelessWidget {
       label: 'Tin tức',
       icon: Icons.article_outlined,
       activeIcon: Icons.article_rounded,
+    ),
+    (
+      label: 'Chat',
+      icon: Icons.chat_bubble_outline_rounded,
+      activeIcon: Icons.chat_bubble_rounded,
     ),
     (
       label: 'Cá nhân',
