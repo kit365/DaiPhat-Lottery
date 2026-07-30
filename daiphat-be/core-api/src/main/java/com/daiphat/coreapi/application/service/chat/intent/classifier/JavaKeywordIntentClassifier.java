@@ -73,7 +73,9 @@ public class JavaKeywordIntentClassifier {
             return buildDefault(ChatIntent.WEB_ACCOUNT, Map.of());
         }
 
-        if (scheduleParser.matchesSlotAnswer(classifyMessage)) {
+        if (scheduleParser.matchesSlotAnswer(classifyMessage)
+                && !scheduleParser.mentionsWeekdayInquiry(classifyMessage)
+                && !scheduleParser.mentionsScheduleIntent(classifyMessage)) {
             return build(ChatIntent.WEB_SCHEDULE, AiIntentConfigKey.SLOT_ANSWER_CONFIDENCE, Map.of());
         }
 
@@ -221,6 +223,15 @@ public class JavaKeywordIntentClassifier {
     }
 
     private boolean isScheduleIntent(String normalizedText, String originalMessage) {
+        if (scheduleParser.mentionsScheduleAndResult(originalMessage)) {
+            return true;
+        }
+        if (scheduleParser.mentionsRegionStationCatalogQuestion(originalMessage)) {
+            return true;
+        }
+        if (scheduleParser.mentionsWeekdayInquiry(originalMessage)) {
+            return true;
+        }
         if (scheduleParser.mentionsScheduleIntent(originalMessage)) {
             return true;
         }

@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { InfiniteData, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { MessageCircle, X, Minus, Send } from 'lucide-react';
+import { MessageCircle, X, Minus, Maximize2, Send, Headphones, PhoneOff, Sparkles } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useAuthStore } from '../../../stores/useAuthStore';
 import { AppToast } from '../../../utils/toast.util';
@@ -30,6 +30,7 @@ import {
 import { ChatSocketMessageEvent } from '../../../types/websocket.type';
 import { ChatLotterySchedule } from './ChatLotterySchedule';
 import { ChatLotteryResultSummary } from './ChatLotteryResultSummary';
+import { ChatScheduleDatePick } from './ChatScheduleDatePick';
 import { ChatTicketSuggestCards } from './ChatTicketSuggestCards';
 import {
   parseConfirmStationToken,
@@ -38,6 +39,7 @@ import {
   parsePickStationListToken,
   parseScheduleResultSummaryToken,
   parseScheduleResultToken,
+  parseScheduleStationBundleToken,
   parseStationReadyToken,
   buildBuyTicketPath,
   buildLotteryResultsPath,
@@ -56,6 +58,7 @@ import {
   SCHEDULE_TOKEN_REGION_CHOICE_PREFIX,
   SCHEDULE_TOKEN_SET_GOAL_PREFIX,
   SCHEDULE_TOKEN_SHOW_PREFIX,
+  SCHEDULE_TOKEN_RESTART,
   type ConfirmStationOption,
 } from '../../utils/scheduleToken.util';
 import {
@@ -63,8 +66,6 @@ import {
   resolveContextualQuickReplies,
   ticketSuggestFollowUpChips,
   collectSuggestedTicketIds,
-  SCHEDULE_RESTART_DISPLAY_LABEL,
-  SCHEDULE_RESTART_MESSAGE,
   SUGGEST_TICKETS_MESSAGE,
   SEARCH_SUFFIX_MESSAGE,
   isSuggestTicketsMessage,
@@ -76,6 +77,12 @@ import {
   splitTicketSuggestText,
   type ChatSuggestedTicket,
 } from '../../utils/ticketSuggestToken.util';
+import {
+  claimPendingCustomerSends,
+  countBotReplies,
+  mergeTimelineWithOverlay,
+  pruneOverlayMessages,
+} from '../../utils/chatTimelineMerge.util';
 
 interface Message {
   id: string;
@@ -84,7 +91,7 @@ interface Message {
   timestamp: string;
   intent?: string | null;
   fromStaff?: boolean;
-  variant?: 'bubble' | 'divider' | 'date' | 'schedule' | 'schedule-options' | 'schedule-ask-location' | 'schedule-ask-station' | 'schedule-pick-station-list' | 'schedule-ask-date' | 'schedule-ask-date-mode' | 'schedule-confirm-station' | 'schedule-station-ready' | 'schedule-ask-goal' | 'schedule-region-choice' | 'schedule-result' | 'schedule-result-summary' | 'ticket-suggest' | 'typing';
+  variant?: 'bubble' | 'divider' | 'date' | 'schedule' | 'schedule-options' | 'schedule-ask-location' | 'schedule-ask-station' | 'schedule-pick-station-list' | 'schedule-ask-date' | 'schedule-ask-date-mode' | 'schedule-confirm-station' | 'schedule-station-ready' | 'schedule-ask-goal' | 'schedule-region-choice' | 'schedule-result' | 'schedule-result-summary' | 'schedule-station-bundle' | 'ticket-suggest' | 'typing';
   scheduleRegion?: string;
   scheduleStationId?: number;
   scheduleStationIds?: number[];
@@ -375,7 +382,7 @@ const resolveMessageVariant = (
         variant: 'schedule-pick-station-list',
         text: isResultGoal && dateLabel
           ? `Chọn đài muốn xem kết quả ngày ${dateLabel}:`
-          : 'Chọn đài bạn muốn xem, hoặc gõ tên đài khác:',
+          : 'Chọn đài bạn muốn xem:',
         confirmStationOptions: options,
         scheduleRegion: region,
         scheduleHighlightDate: drawDate,
@@ -402,6 +409,22 @@ const resolveMessageVariant = (
         scheduleStationId: scheduleResultSummary.stationId,
         scheduleStationIds: scheduleResultSummary.stationIds,
         scheduleHighlightDate: scheduleResultSummary.highlightDate,
+        scheduleStationName: scheduleResultSummary.stationName,
+      };
+    }
+    const scheduleStationBundle = parseScheduleStationBundleToken(text);
+    if (scheduleStationBundle) {
+      const dateLabel = scheduleStationBundle.highlightDate && /^\d{4}-\d{2}-\d{2}$/.test(scheduleStationBundle.highlightDate)
+        ? scheduleStationBundle.highlightDate.split('-').reverse().join('/')
+        : scheduleStationBundle.highlightDate;
+      const stationLabel = scheduleStationBundle.stationName ?? 'bạn chọn';
+      return {
+        variant: 'schedule-station-bundle',
+        text: `Dạ, dưới đây là lịch quay và kết quả gần nhất của đài ${stationLabel}${dateLabel ? ` (ngày ${dateLabel})` : ''} ạ:`,
+        scheduleRegion: scheduleStationBundle.region,
+        scheduleStationId: scheduleStationBundle.stationId,
+        scheduleHighlightDate: scheduleStationBundle.highlightDate,
+        scheduleStationName: scheduleStationBundle.stationName,
       };
     }
     const scheduleResult = parseScheduleResultToken(text);
@@ -469,15 +492,16 @@ const toUiMessage = (message: ChatMessageResponse): Message => {
   const rawContent = message.content?.trim() ?? '';
   let displayText = resolved.text;
   if (message.senderType === 'CUSTOMER') {
-    if (rawContent === SCHEDULE_RESTART_MESSAGE) {
-      displayText = SCHEDULE_RESTART_DISPLAY_LABEL;
+    if (rawContent === SCHEDULE_TOKEN_RESTART) {
+      // Legacy bubble — restart chip removed; show schedule label instead of raw token.
+      displayText = 'Xem lịch xổ';
     } else if (isSelectStationMessage(rawContent)) {
       displayText = resolveSelectStationDisplayLabel(rawContent, resolved.confirmStationOptions)
         ?? resolved.text;
     } else if (rawContent.startsWith(SCHEDULE_TOKEN_SET_GOAL_PREFIX)) {
       const goal = rawContent.slice(SCHEDULE_TOKEN_SET_GOAL_PREFIX.length).trim();
       displayText =
-        goal === 'SCHEDULE' ? 'Lịch quay'
+        goal === 'SCHEDULE' ? 'Xem lịch xổ'
         : goal === 'RESULT' ? 'Kết quả'
         : goal === 'TICKET' ? 'Gợi ý vé'
         : resolved.text;
@@ -485,12 +509,8 @@ const toUiMessage = (message: ChatMessageResponse): Message => {
       const payload = rawContent.slice(SCHEDULE_TOKEN_SHOW_PREFIX.length);
       const parts = payload.split(':');
       const goal = parts.find((part) => part.startsWith('goal='))?.slice('goal='.length);
-      const region = parts.find((part) => part.startsWith('region='))?.slice('region='.length);
-      const stationId = parts.find((part) => part.startsWith('station='))?.slice('station='.length);
       if (goal === 'SCHEDULE') {
-        displayText = stationId
-          ? 'Lịch quay'
-          : `Lịch ${REGION_DISPLAY_LABELS[region ?? ''] ?? 'Miền Nam'}`;
+        displayText = 'Xem lịch xổ';
       } else if (goal === 'RESULT') {
         displayText = 'Kết quả';
       } else if (goal === 'TICKET') {
@@ -590,133 +610,18 @@ const buildMessagesFromTimeline = (pages: CustomerChatTimelineResponse[]): Messa
   return result;
 };
 
-const isCountableBotReply = (message: Message): boolean =>
-  message.sender === 'bot' &&
-  message.variant !== 'divider' &&
-  message.variant !== 'date' &&
-  message.variant !== 'typing' &&
-  message.id !== 'welcome';
-
-const isSameCustomerBubble = (message: Message, optimistic: Message): boolean => {
-  if (message.sender !== 'user') return false;
-  const messageText = message.text.trim();
-  const optimisticText = optimistic.text.trim();
-  if (messageText === optimisticText) return true;
-  if (!optimistic.sentContent) return false;
-  const sent = optimistic.sentContent.trim();
-  return message.sentContent?.trim() === sent || messageText === sent;
-};
-
-const pruneOverlayMessages = (overlay: Message[], timelineMessages: Message[]): Message[] =>
-  overlay.filter((extra) => {
-    if (extra.id.startsWith('optimistic-user-')) {
-      return !timelineMessages.some(
-        (timelineMessage) => isSameCustomerBubble(timelineMessage, extra)
-      );
-    }
-
-    if (extra.id.startsWith('typing-')) {
-      return true;
-    }
-
-    if (extra.id.startsWith('local-')) {
-      return !timelineMessages.some((timelineMessage) => timelineMessage.id === extra.id);
-    }
-
-    if (extra.id.startsWith('system-')) {
-      return !timelineMessages.some(
-        (timelineMessage) => timelineMessage.variant === 'divider' && timelineMessage.text === extra.text
-      );
-    }
-
-    return true;
-  });
-
-/** Khi bot trả lời nhanh hơn tin user lên timeline: giữ bubble user trước kết quả bot. */
-const mergeTimelineWithOverlay = (
-  timelineMessages: Message[],
-  overlayMessages: Message[],
-  options: { awaitingBotReply: boolean; botReplyCountAtSend: number }
-): Message[] => {
-  const base =
-    timelineMessages.length > 0 ? timelineMessages : [WELCOME_MESSAGE, ...timelineMessages];
-  let overlay = pruneOverlayMessages(overlayMessages, timelineMessages);
-  const stillAwaitingReply =
-    options.awaitingBotReply &&
-    countBotReplies(timelineMessages) <= options.botReplyCountAtSend;
-  if (!stillAwaitingReply) {
-    overlay = overlay.filter((message) => !message.id.startsWith('typing-'));
+/** Token nội bộ → nhãn hiển thị (tránh lộ token thô trên bubble). */
+const resolveCustomerSendDisplayLabel = (raw: string): string | undefined => {
+  const trimmed = raw.trim();
+  if (trimmed === SCHEDULE_TOKEN_RESTART) {
+    return 'Xem lịch xổ';
   }
-
-  const optimisticUser = overlay.find((message) => message.id.startsWith('optimistic-user-'));
-  if (!optimisticUser) {
-    return stabilizeCustomerBeforeFastBotReply([...base, ...overlay]);
-  }
-
-  const typing = overlay.filter((message) => message.id.startsWith('typing-'));
-  const restOverlay = overlay.filter(
-    (message) => !message.id.startsWith('optimistic-user-') && !message.id.startsWith('typing-')
-  );
-
-  let seenBotReplies = 0;
-  const beforeSend: Message[] = [];
-  const botRepliesAfterSend: Message[] = [];
-  for (const message of base) {
-    if (isCountableBotReply(message)) {
-      seenBotReplies += 1;
-      if (seenBotReplies > options.botReplyCountAtSend) {
-        botRepliesAfterSend.push(message);
-        continue;
-      }
-    }
-    // Tin user trùng optimistic (đã lên timeline) — bỏ khỏi before để tránh double; optimistic giữ chỗ.
-    if (isSameCustomerBubble(message, optimisticUser)) {
-      continue;
-    }
-    beforeSend.push(message);
-  }
-
-  return stabilizeCustomerBeforeFastBotReply([
-    ...beforeSend,
-    optimisticUser,
-    ...typing,
-    ...botRepliesAfterSend,
-    ...restOverlay,
-  ]);
-};
-
-/** Đổi chỗ cặp bot lịch/kết quả ↔ user SCHEDULE_SHOW nếu server/WS đưa bot lên trước. */
-const stabilizeCustomerBeforeFastBotReply = (messages: Message[]): Message[] => {
-  const result = [...messages];
-  for (let index = 0; index < result.length - 1; index += 1) {
-    const current = result[index];
-    const next = result[index + 1];
-    const currentIsFastScheduleBot =
-      isCountableBotReply(current) &&
-      (current.variant === 'schedule-result' ||
-        current.variant === 'schedule' ||
-        current.variant === 'schedule-result-summary');
-    const nextIsShowRequest =
-      next.sender === 'user' &&
-      Boolean(
-        next.sentContent?.startsWith(SCHEDULE_TOKEN_SHOW_PREFIX) ||
-          next.text.startsWith('Lịch ') ||
-          next.text === 'Kết quả' ||
-          next.text.startsWith('Kết quả ')
-      );
-    if (currentIsFastScheduleBot && nextIsShowRequest) {
-      result[index] = next;
-      result[index + 1] = current;
-    }
-  }
-  return result;
+  return undefined;
 };
 
 const formatNowTime = () =>
   new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
 
-const countBotReplies = (messages: Message[]): number =>
-  messages.filter((message) => isCountableBotReply(message)).length;
 export const ChatbotPopup = () => {
   const navigate = useNavigate();
   const token = useAuthStore((state) => state.token);
@@ -752,6 +657,7 @@ export const ChatbotPopup = () => {
   const [overlayMessages, setOverlayMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [isSendingUi, setIsSendingUi] = useState(false);
+  const [expandedDatePickerMessageId, setExpandedDatePickerMessageId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const messagesContentRef = useRef<HTMLDivElement>(null);
@@ -779,6 +685,7 @@ export const ChatbotPopup = () => {
   const releaseSendLockRef = useRef<(options?: { immediate?: boolean }) => void>(() => undefined);
   const handleIncomingMessageRef = useRef<(payload: ChatSocketMessageEvent) => void>(() => undefined);
   const handleConversationEventRef = useRef<(event: ChatConversationSocketEvent) => void>(() => undefined);
+  const pendingCustomerSendsRef = useRef<Array<{ sendToken: string; label: string; raw: string }>>([]);
 
   const timelineMessages = useMemo(
     () => buildMessagesFromTimeline(timelineQuery.data?.pages ?? []),
@@ -789,6 +696,7 @@ export const ChatbotPopup = () => {
     return mergeTimelineWithOverlay(timelineMessages, overlayMessages, {
       awaitingBotReply: awaitingBotReplyRef.current,
       botReplyCountAtSend: botReplyCountAtSendRef.current,
+      welcomeMessage: WELCOME_MESSAGE,
     });
   }, [timelineMessages, overlayMessages]);
 
@@ -904,6 +812,25 @@ export const ChatbotPopup = () => {
         isAiEnabled,
       }),
     [hasCustomerMessages, isAiEnabled, quickReplyContextMessage]
+  );
+
+  const navigateToLotteryResults = useCallback(
+    (options: Parameters<typeof buildLotteryResultsPath>[0]) => {
+      const path = buildLotteryResultsPath(options);
+      setIsMinimized(true);
+      navigate(path);
+      const scrollTop = () => {
+        window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+        document.documentElement.scrollTop = 0;
+        document.body.scrollTop = 0;
+      };
+      scrollTop();
+      requestAnimationFrame(scrollTop);
+      window.setTimeout(scrollTop, 50);
+      window.setTimeout(scrollTop, 200);
+      window.setTimeout(scrollTop, 500);
+    },
+    [navigate]
   );
 
   const appendSystemMessage = (id: string, text: string) => {
@@ -1140,6 +1067,10 @@ export const ChatbotPopup = () => {
   }, [isMinimized, isOpen]);
 
   useEffect(() => {
+    pendingCustomerSendsRef.current = claimPendingCustomerSends(
+      pendingCustomerSendsRef.current,
+      timelineMessages
+    );
     setOverlayMessages((prev) => {
       const pruned = pruneOverlayMessages(prev, timelineMessages);
       if (!awaitingBotReplyRef.current) {
@@ -1750,15 +1681,23 @@ export const ChatbotPopup = () => {
     wasAtBottomRef.current = true;
 
     const sendToken = `${Date.now()}`;
-    const optimisticLabel = displayText?.trim() || normalizedText;
+    const optimisticLabel =
+      displayText?.trim()
+      || resolveCustomerSendDisplayLabel(normalizedText)
+      || normalizedText;
     const isStaffThread =
       conversationStatus === 'ACTIVE' ||
       conversationStatus === 'WAITING_FOR_CUSTOMER' ||
       conversationStatus === 'WAITING_FOR_OPERATOR';
     botReplyCountAtSendRef.current = countBotReplies(timelineMessages);
     awaitingBotReplyRef.current = !isStaffThread;
+    pendingCustomerSendsRef.current.push({
+      sendToken,
+      label: optimisticLabel,
+      raw: normalizedText,
+    });
     setOverlayMessages((prev) => [
-      ...prev.filter((message) => !message.id.startsWith('typing-') && !message.id.startsWith('optimistic-user-')),
+      ...prev.filter((message) => !message.id.startsWith('typing-')),
       {
         id: `optimistic-user-${sendToken}`,
         sender: 'user',
@@ -1807,6 +1746,9 @@ export const ChatbotPopup = () => {
         });
 
         if (!detail) {
+          pendingCustomerSendsRef.current = pendingCustomerSendsRef.current.filter(
+            (pending) => pending.sendToken !== sendToken
+          );
           setOverlayMessages((prev) =>
             prev.filter(
               (message) =>
@@ -1824,6 +1766,9 @@ export const ChatbotPopup = () => {
           applyConversationDetail(detail);
         }
       } catch {
+        pendingCustomerSendsRef.current = pendingCustomerSendsRef.current.filter(
+          (pending) => pending.sendToken !== sendToken
+        );
         setOverlayMessages((prev) =>
           prev.filter(
             (message) =>
@@ -1855,16 +1800,10 @@ export const ChatbotPopup = () => {
       // Chỉ khi sau 1.2s tin của khách vẫn chưa xuất hiện (socket lỗi) mới reload chi tiết
       // + refetch — tránh refetch toàn bộ timeline ngay giữa lúc bot trả lời (gây giật).
       window.setTimeout(() => {
-        const cached = queryClient.getQueryData<InfiniteData<CustomerChatTimelineResponse>>(
-          clientTimelineKey()
+        const stillPending = pendingCustomerSendsRef.current.some(
+          (pending) => pending.sendToken === sendToken
         );
-        const cachedMessages = buildMessagesFromTimeline(cached?.pages ?? []);
-        const socketDelivered = cachedMessages.some((message) => {
-          if (message.sender !== 'user') return false;
-          const text = message.text.trim();
-          return text === normalizedText || text === optimisticLabel;
-        });
-        if (socketDelivered) {
+        if (!stillPending) {
           return;
         }
         void loadConversationDetail(conversationId).then((detail) => {
@@ -1876,6 +1815,9 @@ export const ChatbotPopup = () => {
         });
       }, 1200);
     } catch {
+      pendingCustomerSendsRef.current = pendingCustomerSendsRef.current.filter(
+        (pending) => pending.sendToken !== sendToken
+      );
       setOverlayMessages((prev) =>
         prev.filter(
           (message) =>
@@ -1982,22 +1924,32 @@ export const ChatbotPopup = () => {
             <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center overflow-hidden border-2 border-white/20">
               <img src="https://i.ibb.co/4R7c75YN/z7824247008533-94446d3b6c16598cda67404d805c15c4.jpg" alt="Đại Phát" className="w-full h-full object-contain" />
             </div>
-            <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-400 border-2 border-[#df1b1c] rounded-full"></div>
+            <div className={`absolute bottom-0 right-0 w-3 h-3 border-2 border-[#df1b1c] rounded-full ${showWaitingForStaff ? 'bg-amber-400' : 'bg-green-400'}`}></div>
           </div>
           <div>
-            <h3 className="font-semibold text-base leading-tight">Chat với Đại Phát</h3>
+            <h3 className="font-semibold text-base leading-tight">
+              {showChattingWithStaff ? 'Hỗ trợ bởi Nhân viên' : showWaitingForStaff ? 'Đang chờ Nhân viên' : 'Chat với Đại Phát'}
+            </h3>
             <div className="flex items-center gap-1.5 mt-0.5">
-              <div className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse"></div>
-              <span className="text-xs text-white/90 font-medium">Đang hoạt động</span>
+              <div className={`w-1.5 h-1.5 rounded-full ${showWaitingForStaff ? 'bg-amber-300 animate-ping' : 'bg-green-400 animate-pulse'}`}></div>
+              <span className="text-xs text-white/90 font-medium">
+                {showChattingWithStaff ? 'Trò chuyện trực tiếp' : showWaitingForStaff ? 'Vui lòng chờ tiếp nhận...' : 'Đang hoạt động'}
+              </span>
             </div>
           </div>
         </div>
         <div className="flex items-center gap-1">
-          <button 
-            onClick={() => setIsMinimized(!isMinimized)} 
+          <button
+            type="button"
+            onClick={() => setIsMinimized(!isMinimized)}
             className="w-8 h-8 rounded-full hover:bg-white/20 flex items-center justify-center transition-colors"
+            aria-label={isMinimized ? 'Mở rộng cửa sổ chat' : 'Thu nhỏ cửa sổ chat'}
           >
-            <Minus className="w-5 h-5 text-white" />
+            {isMinimized ? (
+              <Maximize2 className="w-5 h-5 text-white" />
+            ) : (
+              <Minus className="w-5 h-5 text-white" />
+            )}
           </button>
           <button 
             onClick={() => setIsOpen(false)} 
@@ -2010,6 +1962,52 @@ export const ChatbotPopup = () => {
 
       {!isMinimized && (
         <>
+          {showWaitingForStaff && (
+            <div className="bg-amber-50/95 border-b border-amber-200/80 px-3.5 py-2.5 flex items-center justify-between shadow-2xs z-20 shrink-0 animate-fade-in transition-all">
+              <div className="flex items-center gap-2 text-[12.5px] font-medium text-amber-900">
+                <span className="relative flex h-2 w-2 shrink-0">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+                </span>
+                <span className="truncate">Đang kết nối nhân viên...</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => void handleCancelStaffRequest()}
+                disabled={isCancellingStaff || isEscalating}
+                className="px-2.5 py-1 text-[12px] font-semibold text-red-600 hover:text-white bg-white hover:bg-red-600 border border-red-200 hover:border-red-600 rounded-lg transition-all shadow-2xs shrink-0 disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                {isCancellingStaff ? 'Đang huỷ...' : 'Huỷ gặp nhân viên'}
+              </button>
+            </div>
+          )}
+
+          {showChattingWithStaff && (
+            <div className="bg-emerald-50/95 border-b border-emerald-200/80 px-3.5 py-2.5 flex items-center justify-between shadow-2xs z-20 shrink-0 animate-fade-in transition-all">
+              <div className="flex items-center gap-2 text-[12.5px] font-semibold text-emerald-900">
+                <span className="flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse shrink-0"></span>
+                <span className="truncate flex items-center gap-1.5">
+                  <Headphones className="w-3.5 h-3.5 text-emerald-600 inline shrink-0" />
+                  Đang chat với Nhân viên
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => void handleDisconnectStaff()}
+                disabled={isDisconnectingStaff || isEscalating}
+                className="px-2.5 py-1 text-[12px] font-semibold text-red-600 hover:text-white bg-white hover:bg-red-600 border border-red-200 hover:border-red-600 rounded-lg transition-all shadow-2xs flex items-center gap-1 shrink-0 disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                {isDisconnectingStaff ? (
+                  'Đang ngắt...'
+                ) : (
+                  <>
+                    <PhoneOff className="w-3.5 h-3.5" />
+                    <span>Ngắt kết nối</span>
+                  </>
+                )}
+              </button>
+            </div>
+          )}
           <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-4 bg-[#f8f9fa] scrollbar-thin scrollbar-thumb-gray-200">
             {/*
               mt-auto (not justify-end on the scroll content) keeps short threads at the bottom
@@ -2104,7 +2102,6 @@ export const ChatbotPopup = () => {
                             Xem thêm đài →
                           </button>
                         )}
-                        <p className="text-[12px] text-gray-500 mt-3">Hoặc gõ tên đài khác</p>
                       </div>
                       <span className="text-[11px] text-gray-400 mt-1 px-1">{msg.timestamp}</span>
                     </div>
@@ -2123,13 +2120,29 @@ export const ChatbotPopup = () => {
                             <button type="button" onClick={() => void handleSend('Ngày mai')} className="px-3 py-1.5 text-[13px] font-medium text-[#ee1314] bg-red-50 border border-red-200 rounded-xl hover:bg-[#ee1314] hover:text-white transition-colors">Ngày mai</button>
                           )}
                           <button type="button" onClick={() => void handleSend('Hôm qua')} className="px-3 py-1.5 text-[13px] font-medium text-slate-700 bg-slate-50 border border-slate-200 rounded-xl hover:bg-slate-100 transition-colors">Hôm qua</button>
-                          <button type="button" onClick={() => void handleSend('Chọn ngày')} className="px-3 py-1.5 text-[13px] font-medium text-slate-700 bg-slate-50 border border-slate-200 rounded-xl hover:bg-slate-100 transition-colors">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setExpandedDatePickerMessageId((current) =>
+                                current === msg.id ? null : msg.id
+                              )
+                            }
+                            className="px-3 py-1.5 text-[13px] font-medium text-slate-700 bg-slate-50 border border-slate-200 rounded-xl hover:bg-slate-100 transition-colors"
+                          >
                             {msg.scheduleGoal === 'RESULT' ? 'Chọn ngày khác' : 'Chọn thứ/ngày'}
                           </button>
                           {msg.scheduleGoal !== 'RESULT' && (
                             <button type="button" onClick={() => void handleSend('Tất cả ngày')} className="px-3 py-1.5 text-[13px] font-medium text-slate-700 bg-slate-50 border border-slate-200 rounded-xl hover:bg-slate-100 transition-colors">Tất cả ngày</button>
                           )}
                         </div>
+                        {expandedDatePickerMessageId === msg.id && (
+                          <ChatScheduleDatePick
+                            onSelect={(displayDate) => {
+                              setExpandedDatePickerMessageId(null);
+                              void handleSend(displayDate);
+                            }}
+                          />
+                        )}
                       </div>
                       <span className="text-[11px] text-gray-400 mt-1 px-1">{msg.timestamp}</span>
                     </div>
@@ -2199,10 +2212,12 @@ export const ChatbotPopup = () => {
                           <button type="button" onClick={() => void handleSend('Hôm nay')} className="px-3 py-1.5 text-[13px] font-medium text-[#ee1314] bg-red-50 border border-red-200 rounded-xl hover:bg-[#ee1314] hover:text-white transition-colors">Hôm nay</button>
                           <button type="button" onClick={() => void handleSend('Ngày mai')} className="px-3 py-1.5 text-[13px] font-medium text-[#ee1314] bg-red-50 border border-red-200 rounded-xl hover:bg-[#ee1314] hover:text-white transition-colors">Ngày mai</button>
                           <button type="button" onClick={() => void handleSend('Hôm qua')} className="px-3 py-1.5 text-[13px] font-medium text-slate-700 bg-slate-50 border border-slate-200 rounded-xl hover:bg-slate-100 transition-colors">Hôm qua</button>
-                          {['Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7', 'Chủ nhật'].map((day) => (
-                            <button key={day} type="button" onClick={() => void handleSend(day)} className="px-3 py-1.5 text-[13px] font-medium text-slate-700 bg-slate-50 border border-slate-200 rounded-xl hover:bg-slate-100 transition-colors">{day}</button>
-                          ))}
                         </div>
+                        <ChatScheduleDatePick
+                          onSelect={(displayDate) => {
+                            void handleSend(displayDate);
+                          }}
+                        />
                       </div>
                       <span className="text-[11px] text-gray-400 mt-1 px-1">{msg.timestamp}</span>
                     </div>
@@ -2250,29 +2265,69 @@ export const ChatbotPopup = () => {
                       <div className="flex gap-2 mt-2 w-full max-w-[95%] overflow-x-auto flex-nowrap pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                         <button
                           type="button"
-                          onClick={() => navigate(buildLotteryResultsPath({
-                            stationId: msg.scheduleStationId,
-                            stationIds: msg.scheduleStationIds,
-                            drawDate: msg.scheduleHighlightDate,
-                            region: msg.scheduleStationId == null && !msg.scheduleStationIds?.length
-                              ? msg.scheduleRegion
-                              : undefined,
-                          }))}
+                          onClick={() =>
+                            navigateToLotteryResults({
+                              stationId: msg.scheduleStationId,
+                              stationIds: msg.scheduleStationIds,
+                              drawDate: msg.scheduleHighlightDate,
+                              region:
+                                msg.scheduleStationId == null && !msg.scheduleStationIds?.length
+                                  ? msg.scheduleRegion
+                                  : undefined,
+                            })
+                          }
                           disabled={isEscalating || isInitializing || isLoadingOpen}
                           className="px-3 py-1.5 text-[13px] font-medium text-white bg-[#ee1314] border border-[#ee1314] rounded-xl hover:bg-red-700 transition-colors shrink-0 disabled:opacity-60 disabled:cursor-not-allowed"
                         >
                           Xem chi tiết
                         </button>
-                        <button
-                          type="button"
-                          onClick={() => void handleSend(SCHEDULE_RESTART_MESSAGE)}
-                          disabled={isEscalating || isInitializing || isLoadingOpen}
-                          className="px-3 py-1.5 text-[13px] font-medium text-slate-700 bg-slate-50 border border-slate-200 rounded-xl hover:bg-slate-100 transition-colors shrink-0 disabled:opacity-60 disabled:cursor-not-allowed"
-                        >
-                          {SCHEDULE_RESTART_DISPLAY_LABEL}
-                        </button>
                       </div>
                       <span className="text-[11px] text-gray-400 mt-1 px-1">{msg.timestamp}</span>
+                    </div>
+                  </div>
+                ) : msg.variant === 'schedule-station-bundle' ? (
+                  <div key={msg.id} className="flex w-full justify-start">
+                    <div className="w-8 h-8 rounded-full overflow-hidden mr-2 shrink-0 border border-gray-200 mt-auto mb-1 bg-white">
+                      <img src="https://i.ibb.co/4R7c75YN/z7824247008533-94446d3b6c16598cda67404d805c15c4.jpg" alt="Avatar" className="w-full h-full object-contain p-1" />
+                    </div>
+                    <div className="w-full max-w-[95%] min-w-0 items-start flex flex-col gap-3">
+                      {isAiEnabled && (
+                        <p className="text-[14px] text-gray-700 px-1 whitespace-pre-wrap">{msg.text}</p>
+                      )}
+                      <div className="bg-white rounded-2xl rounded-bl-sm shadow-sm border border-gray-100 overflow-hidden w-full">
+                        <p className="text-[13px] font-semibold text-gray-800 px-4 pt-3 pb-1">Lịch quay</p>
+                        <ChatLotterySchedule
+                          region={msg.scheduleRegion}
+                          stationId={msg.scheduleStationId}
+                          stationIds={msg.scheduleStationIds}
+                          highlightDate={msg.scheduleHighlightDate}
+                        />
+                      </div>
+                      <div className="bg-white rounded-2xl rounded-bl-sm shadow-sm border border-gray-100 overflow-hidden w-full">
+                        <p className="text-[13px] font-semibold text-gray-800 px-4 pt-3 pb-1">Kết quả xổ số</p>
+                        <ChatLotteryResultSummary
+                          region={msg.scheduleRegion}
+                          stationId={msg.scheduleStationId}
+                          stationIds={msg.scheduleStationIds}
+                          drawDate={msg.scheduleHighlightDate}
+                        />
+                      </div>
+                      <div className="flex gap-2 w-full max-w-[95%] overflow-x-auto flex-nowrap pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            navigateToLotteryResults({
+                              stationId: msg.scheduleStationId,
+                              drawDate: msg.scheduleHighlightDate,
+                            })
+                          }
+                          disabled={isEscalating || isInitializing || isLoadingOpen}
+                          className="px-3 py-1.5 text-[13px] font-medium text-white bg-[#ee1314] border border-[#ee1314] rounded-xl hover:bg-red-700 transition-colors shrink-0 disabled:opacity-60 disabled:cursor-not-allowed"
+                        >
+                          Xem chi tiết
+                        </button>
+                      </div>
+                      <span className="text-[11px] text-gray-400 px-1">{msg.timestamp}</span>
                     </div>
                   </div>
                 ) : msg.variant === 'schedule' || msg.variant === 'schedule-result' ? (
@@ -2377,12 +2432,12 @@ export const ChatbotPopup = () => {
                     );
                   })()
                 ) : msg.variant === 'divider' ? (
-                  <p
-                    key={msg.id}
-                    className="text-center text-[13px] text-gray-500 leading-relaxed px-4 py-1"
-                  >
-                    {msg.text}
-                  </p>
+                  <div key={msg.id} className="flex justify-center py-2 px-3">
+                    <span className="text-[12px] font-medium text-slate-600 bg-white/95 border border-slate-200/80 shadow-2xs px-3.5 py-1.5 rounded-full text-center leading-snug flex items-center justify-center gap-1.5 max-w-[90%]">
+                      <Sparkles className="w-3.5 h-3.5 text-amber-500 shrink-0 inline" />
+                      <span>{msg.text}</span>
+                    </span>
+                  </div>
                 ) : (
                   <div key={msg.id} className={`flex w-full ${msg.sender === 'bot' ? 'justify-start' : 'justify-end'}`}>
                     {msg.sender === 'bot' && (
@@ -2392,15 +2447,17 @@ export const ChatbotPopup = () => {
                     )}
                     <div className={`max-w-[85%] min-w-0 ${msg.sender === 'bot' ? 'items-start' : 'items-end'} flex flex-col`}>
                       {msg.fromStaff && (
-                        <span className="text-[11px] font-medium text-emerald-600 mb-0.5 px-1">Nhân viên hỗ trợ</span>
+                        <span className="text-[11px] font-semibold text-emerald-700 mb-1 px-1 flex items-center gap-1">
+                          <Headphones className="w-3 h-3 text-emerald-600 inline" /> Nhân viên hỗ trợ
+                        </span>
                       )}
                       <div
-                        className={`px-4 py-2.5 text-[15px] whitespace-pre-wrap ${
+                        className={`px-4 py-2.5 text-[14.5px] leading-relaxed whitespace-pre-wrap ${
                           msg.sender === 'bot'
                             ? msg.fromStaff
-                              ? 'bg-emerald-50 text-gray-800 rounded-2xl rounded-bl-sm shadow-sm border border-emerald-100'
+                              ? 'bg-emerald-50/90 text-slate-800 rounded-2xl rounded-bl-sm shadow-2xs border border-emerald-200/80'
                               : 'bg-white text-gray-800 rounded-2xl rounded-bl-sm shadow-sm border border-gray-100'
-                            : 'bg-gradient-to-r from-[#df1b1c] to-[#ff4b4b] text-white rounded-2xl rounded-br-sm shadow-md'
+                            : 'bg-gradient-to-r from-[#df1b1c] to-[#e52d2e] text-white rounded-2xl rounded-br-sm shadow-md'
                         }`}
                       >
                         {msg.text}
@@ -2412,45 +2469,10 @@ export const ChatbotPopup = () => {
               )}
 
               {showAiDisabledNotice && (
-                <p className="text-center text-[13px] text-gray-500 leading-relaxed px-4 py-1">
-                  {AI_DISABLED_FALLBACK_NOTICE}
-                </p>
-              )}
-
-              {showWaitingForStaff && (
-                <div className="flex flex-col items-center gap-2 px-3 pb-2">
-                  <p className="flex items-center justify-center text-center text-[13px] text-gray-500">
-                    Đang chờ nhân viên tiếp nhận
-                    <span className="inline-flex ml-0.5">
-                      <span className="animate-bounce" style={{ animationDelay: '0ms' }}>.</span>
-                      <span className="animate-bounce" style={{ animationDelay: '150ms' }}>.</span>
-                      <span className="animate-bounce" style={{ animationDelay: '300ms' }}>.</span>
-                    </span>
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => void handleCancelStaffRequest()}
-                    disabled={isCancellingStaff || isEscalating}
-                    className="text-[13px] font-medium text-[#df1b1c] underline underline-offset-2 disabled:opacity-60 disabled:cursor-not-allowed"
-                  >
-                    {isCancellingStaff ? 'Đang huỷ...' : 'Huỷ gặp nhân viên'}
-                  </button>
-                </div>
-              )}
-
-              {showChattingWithStaff && (
-                <div className="flex flex-col items-center gap-1.5 px-4 py-1">
-                  <p className="text-center text-[12px] text-emerald-600 font-medium">
-                    Bạn đang được hỗ trợ bởi nhân viên
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => void handleDisconnectStaff()}
-                    disabled={isDisconnectingStaff || isEscalating}
-                    className="text-[12px] font-medium text-[#df1b1c] underline underline-offset-2 disabled:opacity-60 disabled:cursor-not-allowed"
-                  >
-                    {isDisconnectingStaff ? 'Đang ngắt kết nối...' : 'Ngắt kết nối với nhân viên'}
-                  </button>
+                <div className="flex justify-center py-2 px-3">
+                  <span className="text-[12px] font-medium text-slate-600 bg-white/95 border border-slate-200/80 shadow-2xs px-3.5 py-1.5 rounded-full text-center leading-relaxed max-w-[90%]">
+                    {AI_DISABLED_FALLBACK_NOTICE}
+                  </span>
                 </div>
               )}
 

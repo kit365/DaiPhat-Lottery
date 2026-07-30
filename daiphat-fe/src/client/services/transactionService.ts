@@ -25,9 +25,12 @@ export const transactionService = {
 
     /**
      * Đồng bộ trạng thái thanh toán với PayOS khi webhook chưa cập nhật đơn.
+     * Poll nền — không spam toast global khi lỗi tạm / mạng.
      */
     syncPaymentFromGateway: async (orderId: string): Promise<ApiResponse<any>> => {
-        const response = await apiApp.post(`${BASE_URL}/${orderId}/payment/sync`);
+        const response = await apiApp.post(`${BASE_URL}/${orderId}/payment/sync`, null, {
+            skipGlobalErrorToast: true,
+        });
         return response.data;
     },
 

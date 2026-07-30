@@ -5,6 +5,7 @@ import com.daiphat.coreapi.domain.exception.ErrorCode;
 import com.daiphat.coreapi.domain.model.enums.lottery.InputSource;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialFaultedBy;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus;
+import com.daiphat.coreapi.domain.model.enums.lottery.SerialPayoutState;
 import lombok.*;
 
 import java.time.LocalDateTime;
@@ -26,6 +27,9 @@ public class LotteryTicketSerialModel {
 
     @Builder.Default
     private LotteryTicketSerialStatus status = LotteryTicketSerialStatus.IN_STOCK;
+
+    @Builder.Default
+    private SerialPayoutState payoutState = SerialPayoutState.NONE;
 
     @Builder.Default
     private InputSource inputSource = InputSource.MANUAL;
@@ -84,8 +88,35 @@ public class LotteryTicketSerialModel {
         this.reservedByOrderId = null;
     }
 
+    /**
+     * After online payment succeeds: shop holds the serial for staff inspection.
+     * Keeps {@code reservedByOrderId} so incident/replace still works during PREPARING.
+     * Final {@link #sellOnline()} happens when the order moves to PENDING_PICKUP.
+     */
+    public void confirmPaidProxyHolding(UUID orderId) {
+        if (this.status != LotteryTicketSerialStatus.IN_STOCK
+                && this.status != LotteryTicketSerialStatus.RESERVED) {
+            throw new DomainException(ErrorCode.LOTTERY_TICKET_INVALID_STATUS);
+        }
+        if (orderId == null) {
+            throw new DomainException(ErrorCode.INVALID_INPUT, "Thiếu mã đơn khi xác nhận giữ hộ vé đã thanh toán.");
+        }
+        assumeProxyHolding(orderId);
+    }
+
     public void sellOnline() {
-        if (this.status != LotteryTicketSerialStatus.IN_STOCK && this.status != LotteryTicketSerialStatus.RESERVED) {
+        // Idempotent: legacy payment already set SOLD before PENDING_PICKUP.
+        // Must not throw — a DomainException from @Transactional markSold marks the
+        // outer order-status transaction rollback-only even if the caller catches it.
+        if (this.status == LotteryTicketSerialStatus.SOLD) {
+            this.reservedAt = null;
+            this.reservationExpiresAt = null;
+            this.reservedByOrderId = null;
+            return;
+        }
+        if (this.status != LotteryTicketSerialStatus.IN_STOCK
+                && this.status != LotteryTicketSerialStatus.RESERVED
+                && this.status != LotteryTicketSerialStatus.PROXY_HOLDING) {
             throw new DomainException(ErrorCode.LOTTERY_TICKET_INVALID_STATUS);
         }
         this.status = LotteryTicketSerialStatus.SOLD;
@@ -141,6 +172,23 @@ public class LotteryTicketSerialModel {
         this.damagedEvidenceUrl = null;
     }
 
+    public boolean isInternalInventoryIncidentStatus() {
+        return this.status == LotteryTicketSerialStatus.IN_STOCK;
+    }
+
+    public boolean isActiveTransactionIncidentStatus() {
+        return this.status == LotteryTicketSerialStatus.RESERVED
+                || this.status == LotteryTicketSerialStatus.PROXY_HOLDING;
+    }
+
+    public boolean isIncidentMutableStatus() {
+        return isInternalInventoryIncidentStatus() || isActiveTransactionIncidentStatus();
+    }
+
+    public boolean isTerminalIncidentStatus() {
+        return !isIncidentMutableStatus();
+    }
+
     private void markFaulted(
             LotteryTicketSerialStatus faultStatus,
             LotteryTicketSerialFaultedBy faultedBy,
@@ -149,11 +197,14 @@ public class LotteryTicketSerialModel {
         if (faultedBy == null) {
             throw new DomainException(ErrorCode.INVALID_INPUT, "Cần chỉ định nguồn gây lỗi (faultedBy).");
         }
-        if (this.status != LotteryTicketSerialStatus.SOLD
-                && this.status != LotteryTicketSerialStatus.RESERVED
-                && this.status != LotteryTicketSerialStatus.IN_STOCK
-                && this.status != LotteryTicketSerialStatus.EXPIRED) {
-            throw new DomainException(ErrorCode.LOTTERY_TICKET_INVALID_STATUS);
+        // SOLD: allow from order-inspection path when serial was marked sold too early
+        // (legacy online payment). Warehouse reportFault still blocks SOLD via isTerminalIncidentStatus().
+        if (!isIncidentMutableStatus() && this.status != LotteryTicketSerialStatus.SOLD) {
+            throw new DomainException(
+                    ErrorCode.LOTTERY_TICKET_INVALID_STATUS,
+                    "Không thể báo sự cố cho sê-ri ở trạng thái " + this.status.getDisplayName()
+                            + " (chỉ đọc để tra cứu)."
+            );
         }
         this.status = faultStatus;
         this.faultedBy = faultedBy;
@@ -161,6 +212,20 @@ public class LotteryTicketSerialModel {
         this.reservedAt = null;
         this.reservationExpiresAt = null;
         this.reservedByOrderId = null;
+    }
+
+    public void assumeReservedForOrder(UUID orderId, LocalDateTime expiresAt) {
+        this.status = LotteryTicketSerialStatus.RESERVED;
+        this.reservedAt = LocalDateTime.now();
+        this.reservationExpiresAt = expiresAt;
+        this.reservedByOrderId = orderId;
+    }
+
+    public void assumeProxyHolding(UUID orderId) {
+        this.status = LotteryTicketSerialStatus.PROXY_HOLDING;
+        this.reservedByOrderId = orderId;
+        this.reservedAt = null;
+        this.reservationExpiresAt = null;
     }
 
     public boolean isEditableStatus() {
@@ -182,5 +247,25 @@ public class LotteryTicketSerialModel {
         if (this.status != expectedStatus) {
             throw new DomainException(ErrorCode.LOTTERY_TICKET_INVALID_STATUS);
         }
+    }
+
+    public void lockForPayout() {
+        if (payoutState == SerialPayoutState.PAID_OUT) {
+            throw new DomainException(ErrorCode.PRIZE_PAYOUT_ALREADY_REQUESTED, "Vé đã được trả thưởng.");
+        }
+        if (payoutState == SerialPayoutState.PAYOUT_PENDING) {
+            throw new DomainException(ErrorCode.PRIZE_PAYOUT_ALREADY_REQUESTED, "Vé đang có yêu cầu trả thưởng.");
+        }
+        this.payoutState = SerialPayoutState.PAYOUT_PENDING;
+    }
+
+    public void unlockPayout() {
+        if (payoutState == SerialPayoutState.PAYOUT_PENDING) {
+            this.payoutState = SerialPayoutState.NONE;
+        }
+    }
+
+    public void markPaidOut() {
+        this.payoutState = SerialPayoutState.PAID_OUT;
     }
 }

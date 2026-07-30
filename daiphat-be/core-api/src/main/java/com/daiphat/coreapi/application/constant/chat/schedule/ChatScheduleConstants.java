@@ -25,6 +25,7 @@ public final class ChatScheduleConstants {
 
     public static final String GOAL_SCHEDULE = "SCHEDULE";
     public static final String GOAL_RESULT = "RESULT";
+    public static final String GOAL_SCHEDULE_AND_RESULT = "SCHEDULE_AND_RESULT";
     public static final String GOAL_TICKET = "TICKET";
 
     public static final String SCOPE_STATION = "STATION";
@@ -52,6 +53,7 @@ public final class ChatScheduleConstants {
     public static final String TOKEN_RESULT_PREFIX = "SCHEDULE_RESULT:";
     public static final String TOKEN_PICK_STATION_LIST_PREFIX = "SCHEDULE_PICK_STATION_LIST:";
     public static final String TOKEN_RESULT_SUMMARY_PREFIX = "SCHEDULE_RESULT_SUMMARY:";
+    public static final String TOKEN_STATION_BUNDLE_PREFIX = "SCHEDULE_STATION_BUNDLE:";
 
     public static final String TOKEN_LEGACY_SCHEDULE_OPTIONS = "SCHEDULE_OPTIONS";
     /** Token từ quick-reply chip — restart WEB_SCHEDULE, không phụ thuộc classify. */

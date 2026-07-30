@@ -7,6 +7,8 @@ export interface ChatSuggestedTicket {
   stationName?: string;
   drawDate?: string;
   price?: number;
+  /** Số vé còn bán (IN_STOCK). */
+  quantity?: number;
 }
 
 export interface ParsedTicketSuggest {
@@ -53,6 +55,11 @@ const normalizeTicket = (raw: Record<string, unknown>): ChatSuggestedTicket | nu
     priceRaw == null || priceRaw === ''
       ? undefined
       : Number(priceRaw);
+  const quantityRaw = raw.quantity;
+  const quantity =
+    quantityRaw == null || quantityRaw === ''
+      ? undefined
+      : Number(quantityRaw);
 
   return {
     id,
@@ -61,6 +68,7 @@ const normalizeTicket = (raw: Record<string, unknown>): ChatSuggestedTicket | nu
     stationName: typeof raw.stationName === 'string' ? raw.stationName : undefined,
     drawDate: typeof raw.drawDate === 'string' ? raw.drawDate : undefined,
     price: price != null && !Number.isNaN(price) ? price : undefined,
+    quantity: quantity != null && !Number.isNaN(quantity) ? Math.max(0, quantity) : undefined,
   };
 };
 

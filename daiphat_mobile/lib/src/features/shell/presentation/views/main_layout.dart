@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:daiphat_mobile/src/app/routing/app_routes.dart';
 import 'package:daiphat_mobile/src/features/auth/presentation/viewmodels/login_viewmodel.dart';
 import 'package:daiphat_mobile/src/features/blog/presentation/views/blog_screen.dart';
-import 'package:daiphat_mobile/src/features/cart/providers/cart_provider.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
 
 class MainLayout extends StatefulWidget {
@@ -66,21 +64,15 @@ class _MainLayoutState extends State<MainLayout> {
 
   int _getNavIndex(BuildContext context) {
     if (_onBlogPage) {
-      return 3;
+      return 2;
     }
 
     final location = GoRouterState.of(context).uri.path;
     if (location.startsWith(AppRoute.buyTicket.path)) {
       return 1;
     }
-    if (location.startsWith('/results')) {
-      return 2;
-    }
-    if (location.startsWith(AppRoute.cart.path)) {
-      return 4;
-    }
     if (location.startsWith(AppRoute.profile.path)) {
-      return 5;
+      return 3;
     }
     return 0;
   }
@@ -96,17 +88,9 @@ class _MainLayoutState extends State<MainLayout> {
         context.go(AppRoute.buyTicket.path);
         break;
       case 2:
-        _goToMain();
-        context.go(AppRoute.home.path);
-        break;
-      case 3:
         _goToBlog();
         break;
-      case 4:
-        _goToMain();
-        context.go(AppRoute.cart.path);
-        break;
-      case 5:
+      case 3:
         _goToMain();
         if (widget.loginViewModel.isAuthenticated) {
           context.go(AppRoute.profile.path);
@@ -143,7 +127,7 @@ class _MainLayoutState extends State<MainLayout> {
   }
 }
 
-class _AnimatedBottomNavigation extends ConsumerWidget {
+class _AnimatedBottomNavigation extends StatelessWidget {
   const _AnimatedBottomNavigation({
     required this.selectedIndex,
     required this.onTap,
@@ -164,19 +148,9 @@ class _AnimatedBottomNavigation extends ConsumerWidget {
       activeIcon: Icons.confirmation_number_rounded,
     ),
     (
-      label: 'Kết quả',
-      icon: Icons.emoji_events_outlined,
-      activeIcon: Icons.emoji_events_rounded,
-    ),
-    (
       label: 'Tin tức',
       icon: Icons.article_outlined,
       activeIcon: Icons.article_rounded,
-    ),
-    (
-      label: 'Giỏ hàng',
-      icon: Icons.shopping_cart_outlined,
-      activeIcon: Icons.shopping_cart_rounded,
     ),
     (
       label: 'Cá nhân',
@@ -186,8 +160,7 @@ class _AnimatedBottomNavigation extends ConsumerWidget {
   ];
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final cartCount = ref.watch(cartTicketCountProvider);
+  Widget build(BuildContext context) {
     final bottomInset = MediaQuery.paddingOf(context).bottom;
 
     return Container(
@@ -212,7 +185,6 @@ class _AnimatedBottomNavigation extends ConsumerWidget {
               child: _AnimatedNavItem(
                 item: _items[index],
                 selected: selectedIndex == index,
-                badgeCount: index == 4 ? cartCount : 0,
                 onTap: () => onTap(index),
               ),
             ),
@@ -226,13 +198,11 @@ class _AnimatedNavItem extends StatelessWidget {
   const _AnimatedNavItem({
     required this.item,
     required this.selected,
-    required this.badgeCount,
     required this.onTap,
   });
 
   final ({String label, IconData icon, IconData activeIcon}) item;
   final bool selected;
-  final int badgeCount;
   final VoidCallback onTap;
 
   @override
@@ -273,21 +243,10 @@ class _AnimatedNavItem extends StatelessWidget {
                   alignment: Alignment.center,
                   child: Transform.translate(
                     offset: Offset(0, -1.5 * value),
-                    child: Badge(
-                      isLabelVisible: badgeCount > 0,
-                      backgroundColor: AppColors.primary,
-                      label: Text(
-                        badgeCount > 9 ? '9+' : '$badgeCount',
-                        style: const TextStyle(
-                          fontSize: 9,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                      child: Icon(
-                        selected ? item.activeIcon : item.icon,
-                        color: activeColor,
-                        size: 22 + (2 * value),
-                      ),
+                    child: Icon(
+                      selected ? item.activeIcon : item.icon,
+                      color: activeColor,
+                      size: 22 + (2 * value),
                     ),
                   ),
                 ),

@@ -84,6 +84,16 @@ public class MessageRepositoryAdapter implements MessageRepositoryPort {
     }
 
     @Override
+    public int countInboundUnreadForStaff(Long conversationId) {
+        return Math.toIntExact(
+                messageRepository.countByConversation_IdAndDeletedAtIsNullAndSenderTypeNotAndIsReadFalse(
+                        conversationId,
+                        MessageSenderType.CUSTOMER
+                )
+        );
+    }
+
+    @Override
     public int markInboundMessagesAsReadByCustomer(Long conversationId, LocalDateTime readAt) {
         List<MessageEntity> unreadMessages = messageRepository
                 .findByConversation_IdAndDeletedAtIsNullAndSenderTypeNotAndIsReadFalseAndCreatedAtLessThanEqual(

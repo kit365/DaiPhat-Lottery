@@ -48,6 +48,7 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -149,6 +150,8 @@ public class ConversationService implements ConversationServicePort {
                 .stream()
                 // OPEN = bot-only; customer has not requested staff yet
                 .filter(conversation -> !conversation.isBotOnlyOpen())
+                // CLOSED sessions are archived out of the live work queue
+                .filter(conversation -> conversation.getStatus() != ConversationStatus.CLOSED)
                 .filter(conversation -> isAdmin(user) || conversation.isVisibleInOperatorQueue(userId))
                 .sorted(managementConversationComparator())
                 .toList();
@@ -165,7 +168,62 @@ public class ConversationService implements ConversationServicePort {
             markConversationRead(conversation, userId);
             conversationRepositoryPort.save(conversation);
         }
-        return toConversationDetailResponse(conversation);
+        return toManagementConversationDetailResponse(conversation);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<MessageResponse> getPreHandoffMessages(UUID userId, Long conversationId) {
+        UserModel user = userLookupServicePort.findActiveByIdOrThrow(userId);
+        ConversationModel conversation = getConversationOrThrow(conversationId);
+        assertManagementAccess(conversation, userId, isAdmin(user));
+        if (!isAdmin(user) && !userId.equals(conversation.getAssignedOperatorId())) {
+            throw new DomainException(ErrorCode.CONVERSATION_VIEW_DENIED);
+        }
+
+        List<MessageModel> allMessages = messageRepositoryPort.findByConversationId(conversationId);
+        Optional<LocalDateTime> cutoff = ConversationModel.resolveStaffMessageVisibilityCutoff(
+                conversation,
+                allMessages
+        );
+
+        List<MessageModel> preHandoff = allMessages.stream()
+                .filter(message -> message.getCreatedAt() != null)
+                .filter(message -> cutoff.isEmpty() || message.getCreatedAt().isBefore(cutoff.get()))
+                .filter(message -> message.getType() != MessageType.SYSTEM)
+                .toList();
+
+        return preHandoff.stream()
+                .map(message -> {
+                    MessageResponse response = chatApplicationMapper.toMessageResponse(message);
+                    String readable = com.daiphat.coreapi.domain.service.chat.HandoffSummaryBuilder
+                            .toStaffReadableContent(message.getContent());
+                    if (readable == null) {
+                        return response;
+                    }
+                    return MessageResponse.builder()
+                            .id(response.id())
+                            .conversationId(response.conversationId())
+                            .parentId(response.parentId())
+                            .senderId(response.senderId())
+                            .senderType(response.senderType())
+                            .content(readable)
+                            .intent(response.intent())
+                            .confidence(response.confidence())
+                            .type(response.type())
+                            .fileUrl(response.fileUrl())
+                            .fileName(response.fileName())
+                            .isEdited(response.isEdited())
+                            .editedAt(response.editedAt())
+                            .isRead(response.isRead())
+                            .readerCount(response.readerCount())
+                            .isDeleted(response.isDeleted())
+                            .deletedAt(response.deletedAt())
+                            .createdAt(response.createdAt())
+                            .updatedAt(response.updatedAt())
+                            .build();
+                })
+                .toList();
     }
 
     @Override
@@ -177,7 +235,7 @@ public class ConversationService implements ConversationServicePort {
             Long beforeId
     ) {
         userLookupServicePort.findActiveByIdOrThrow(userId);
-        return buildCustomerChatTimeline(userId, limit, beforeCreatedAt, beforeId, null, true);
+        return buildCustomerChatTimeline(userId, limit, beforeCreatedAt, beforeId, null, true, false);
     }
 
     @Override
@@ -213,7 +271,7 @@ public class ConversationService implements ConversationServicePort {
             }
         }
 
-        return buildCustomerChatTimeline(customerId, limit, beforeCreatedAt, beforeId, conversationScope, false);
+        return buildCustomerChatTimeline(customerId, limit, beforeCreatedAt, beforeId, conversationScope, false, true);
     }
 
     private CustomerChatTimelineResponse buildCustomerChatTimeline(
@@ -222,7 +280,8 @@ public class ConversationService implements ConversationServicePort {
             LocalDateTime beforeCreatedAt,
             Long beforeId,
             Collection<Long> conversationIds,
-            boolean resolveCustomerReadState
+            boolean resolveCustomerReadState,
+            boolean applyStaffPrivacyFilter
     ) {
         if ((beforeCreatedAt == null) != (beforeId == null)) {
             throw new DomainException(
@@ -253,6 +312,7 @@ public class ConversationService implements ConversationServicePort {
         Map<Long, ConversationModel> conversationById = customerConversations.stream()
                 .collect(Collectors.toMap(ConversationModel::getId, conversation -> conversation, (left, right) -> left));
         Map<UUID, String> operatorNames = resolveTimelineOperatorNames(customerConversations);
+        Map<Long, Optional<LocalDateTime>> staffVisibilityCutoffByConversation = new HashMap<>();
 
         Long previousConversationId = null;
         if (!ascMessages.isEmpty()) {
@@ -270,13 +330,22 @@ public class ConversationService implements ConversationServicePort {
 
         List<CustomerChatTimelineItem> items = new ArrayList<>();
         for (MessageModel message : ascMessages) {
-            SessionBoundaryResponse sessionBoundary = null;
             Long conversationId = message.getConversationId();
+            ConversationModel currentConversation = conversationById.computeIfAbsent(
+                    conversationId,
+                    id -> conversationRepositoryPort.findById(id).orElse(null)
+            );
+            if (applyStaffPrivacyFilter
+                    && !isMessageVisibleToStaff(
+                    message,
+                    currentConversation,
+                    staffVisibilityCutoffByConversation
+            )) {
+                continue;
+            }
+
+            SessionBoundaryResponse sessionBoundary = null;
             if (previousConversationId == null || !previousConversationId.equals(conversationId)) {
-                ConversationModel currentConversation = conversationById.computeIfAbsent(
-                        conversationId,
-                        id -> conversationRepositoryPort.findById(id).orElse(null)
-                );
                 ConversationModel previousConversation = previousConversationId == null
                         ? null
                         : conversationById.get(previousConversationId);
@@ -287,7 +356,6 @@ public class ConversationService implements ConversationServicePort {
                 );
             }
             previousConversationId = conversationId;
-            ConversationModel currentConversation = conversationById.get(conversationId);
             MessageResponse messageResponse = chatApplicationMapper.toMessageResponse(message);
             if (resolveCustomerReadState) {
                 messageResponse = resolveCustomerMessageReadState(messageResponse, currentConversation);
@@ -376,21 +444,27 @@ public class ConversationService implements ConversationServicePort {
         }
 
         if (conversation.getStatus() == ConversationStatus.WAITING_FOR_OPERATOR) {
-            return toConversationDetailResponse(conversation);
+            return toManagementConversationDetailResponse(conversation);
         }
 
         if (!conversation.canEscalate()) {
             throw new DomainException(ErrorCode.CONVERSATION_CANNOT_ESCALATE);
         }
 
+        EscalationReason resolvedReason = reason != null ? reason : EscalationReason.STAFF_MANUAL;
+        List<MessageModel> priorMessages = messageRepositoryPort.findByConversationId(conversation.getId());
+        conversation.recordHandoffContext(
+                resolvedReason,
+                com.daiphat.coreapi.domain.service.chat.HandoffSummaryBuilder.build(priorMessages, resolvedReason)
+        );
         conversation.waitForOperator();
         ConversationModel savedConversation = conversationRepositoryPort.save(conversation);
         publishConversationEvent(
                 ConversationSocketEventType.CONVERSATION_ESCALATED,
                 savedConversation,
-                reason != null ? reason : EscalationReason.STAFF_MANUAL
+                resolvedReason
         );
-        return toConversationDetailResponse(savedConversation);
+        return toManagementConversationDetailResponse(savedConversation);
     }
 
     @Override
@@ -450,7 +524,7 @@ public class ConversationService implements ConversationServicePort {
 
         if (conversation.getAssignedOperatorId() != null) {
             if (conversation.getAssignedOperatorId().equals(operatorId)) {
-                return toConversationDetailResponse(conversation);
+                return toManagementConversationDetailResponse(conversation);
             }
             throw new DomainException(ErrorCode.CONVERSATION_ALREADY_ASSIGNED);
         }
@@ -470,7 +544,7 @@ public class ConversationService implements ConversationServicePort {
         publishConversationEvent(ConversationSocketEventType.CONVERSATION_TAKEN, savedConversation, null);
         publishConversationEvent(ConversationSocketEventType.CONVERSATION_ASSIGNED, savedConversation, null);
 
-        return toConversationDetailResponse(savedConversation);
+        return toManagementConversationDetailResponse(savedConversation);
     }
 
     @Override
@@ -481,7 +555,7 @@ public class ConversationService implements ConversationServicePort {
                 .orElseThrow(() -> new DomainException(ErrorCode.CONVERSATION_NOT_FOUND));
 
         if (conversation.getAssignedOperatorId() == null) {
-            return toConversationDetailResponse(conversation);
+            return toManagementConversationDetailResponse(conversation);
         }
 
         if (!operatorId.equals(conversation.getAssignedOperatorId())) {
@@ -494,7 +568,7 @@ public class ConversationService implements ConversationServicePort {
         publishConversationEvent(ConversationSocketEventType.CONVERSATION_UNASSIGNED, savedConversation, null);
         publishConversationEvent(ConversationSocketEventType.CONVERSATION_ESCALATED, savedConversation, EscalationReason.STAFF_MANUAL);
 
-        return toConversationDetailResponse(savedConversation);
+        return toManagementConversationDetailResponse(savedConversation);
     }
 
     @Override
@@ -509,7 +583,7 @@ public class ConversationService implements ConversationServicePort {
                 .orElseThrow(() -> new DomainException(ErrorCode.CONVERSATION_NOT_FOUND));
 
         if (conversation.getStatus() == ConversationStatus.CLOSED) {
-            return toConversationDetailResponse(conversation);
+            return toManagementConversationDetailResponse(conversation);
         }
 
         assertCanClose(conversation, operatorId, isAdmin(operator));
@@ -520,7 +594,7 @@ public class ConversationService implements ConversationServicePort {
         saveSystemDividerMessage(conversation.getId(), ConversationModel.manualCloseCustomerCopy());
         ConversationModel savedConversation = conversationRepositoryPort.save(conversation);
         publishConversationEvent(ConversationSocketEventType.CONVERSATION_CLOSED, savedConversation, null);
-        return toConversationDetailResponse(savedConversation);
+        return toManagementConversationDetailResponse(savedConversation);
     }
 
     @Override
@@ -875,16 +949,47 @@ public class ConversationService implements ConversationServicePort {
                 .thenComparing(ConversationModel::getId, Comparator.nullsLast(Comparator.reverseOrder()));
     }
 
+    private ConversationDetailResponse toManagementConversationDetailResponse(ConversationModel conversation) {
+        return toConversationDetailResponse(conversation, true);
+    }
+
     private ConversationDetailResponse toConversationDetailResponse(ConversationModel conversation) {
-        List<MessageResponse> messages = chatApplicationMapper.toMessageResponses(
-                        messageRepositoryPort.findByConversationId(conversation.getId())
-                ).stream()
+        return toConversationDetailResponse(conversation, false);
+    }
+
+    private ConversationDetailResponse toConversationDetailResponse(ConversationModel conversation, boolean staffView) {
+        List<MessageModel> messages = messageRepositoryPort.findByConversationId(conversation.getId());
+        if (staffView) {
+            messages = ConversationModel.filterMessagesVisibleToStaff(conversation, messages);
+        }
+        List<MessageResponse> messageResponses = chatApplicationMapper.toMessageResponses(messages).stream()
                 .map(message -> resolveCustomerMessageReadState(message, conversation))
                 .toList();
         return ConversationDetailResponse.builder()
                 .conversation(enrichSingleConversationResponse(conversation))
-                .messages(messages)
+                .messages(messageResponses)
                 .build();
+    }
+
+    private boolean isMessageVisibleToStaff(
+            MessageModel message,
+            ConversationModel conversation,
+            Map<Long, Optional<LocalDateTime>> staffVisibilityCutoffByConversation
+    ) {
+        if (message == null || conversation == null || message.getConversationId() == null) {
+            return false;
+        }
+        Optional<LocalDateTime> cutoff = staffVisibilityCutoffByConversation.computeIfAbsent(
+                message.getConversationId(),
+                conversationId -> ConversationModel.resolveStaffMessageVisibilityCutoff(
+                        conversation,
+                        messageRepositoryPort.findByConversationId(conversationId)
+                )
+        );
+        if (cutoff.isEmpty() || message.getCreatedAt() == null) {
+            return false;
+        }
+        return !message.getCreatedAt().isBefore(cutoff.get());
     }
 
     private ConversationResponse enrichSingleConversationResponse(ConversationModel conversation) {
@@ -1046,11 +1151,26 @@ public class ConversationService implements ConversationServicePort {
 
     private int resolveUnreadCount(Long conversationId, UUID userId) {
         return conversationRepositoryPort.findById(conversationId)
-                .map(conversation -> messageRepositoryPort.countUnreadByConversationId(
-                        conversationId,
-                        userId,
-                        conversation.resolveLastReadAtForUser(userId)
-                ))
+                .map(conversation -> {
+                    if (conversation.getStatus() == ConversationStatus.CLOSED) {
+                        return 0;
+                    }
+
+                    LocalDateTime lastReadAt = conversation.resolveLastReadAtForUser(userId);
+                    UUID readerUserId = userId;
+                    if (lastReadAt == null && conversation.getAssignedOperatorId() != null) {
+                        lastReadAt = conversation.getOperatorLastReadAt();
+                        readerUserId = conversation.getAssignedOperatorId();
+                    }
+                    if (lastReadAt == null) {
+                        return messageRepositoryPort.countInboundUnreadForStaff(conversationId);
+                    }
+                    return messageRepositoryPort.countUnreadByConversationId(
+                            conversationId,
+                            readerUserId,
+                            lastReadAt
+                    );
+                })
                 .orElse(0);
     }
 

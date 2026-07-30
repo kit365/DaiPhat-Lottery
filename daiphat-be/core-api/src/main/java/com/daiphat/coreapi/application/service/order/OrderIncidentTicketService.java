@@ -65,6 +65,8 @@ public class OrderIncidentTicketService implements OrderIncidentTicketServicePor
                     "Chỉ được xử lý vé sự cố khi đơn đang ở trạng thái PREPARING.");
         }
 
+        repairPrematureSoldSerials(order);
+
         Set<Long> requestedIds = new LinkedHashSet<>(request.orderDetailIds());
         if (requestedIds.isEmpty()) {
             throw new DomainException(ErrorCode.INVALID_INPUT, "Cần chọn ít nhất một vé sự cố.");
@@ -94,11 +96,14 @@ public class OrderIncidentTicketService implements OrderIncidentTicketServicePor
         OrderModel order = orderRepositoryPort.findByIdWithLock(orderId)
                 .orElseThrow(() -> new DomainException(ErrorCode.ORDER_NOT_FOUND));
 
-        if (order.getStatus() != OrderStatus.PREPARING) {
+        if (order.getStatus() != OrderStatus.PREPARING
+                && order.getStatus() != OrderStatus.PENDING_PICKUP) {
             throw new DomainException(
                     ErrorCode.ORDER_INVALID_STATUS,
-                    "Chỉ được xử lý vé sự cố khi đơn đang ở trạng thái PREPARING.");
+                    "Chỉ được xử lý vé sự cố khi đơn đang PREPARING hoặc PENDING_PICKUP.");
         }
+
+        repairPrematureSoldSerials(order);
 
         if (incidents == null || incidents.isEmpty()) {
             throw new DomainException(ErrorCode.INVALID_INPUT, "Cần chọn ít nhất một vé sự cố.");
@@ -171,10 +176,13 @@ public class OrderIncidentTicketService implements OrderIncidentTicketServicePor
         LotteryTicketModel replacementTicket = lotteryTicketRepositoryPort.findById(replacement.getTicketId())
                 .orElseThrow(() -> new DomainException(ErrorCode.LOTTERY_TICKET_NOT_FOUND));
 
-        LotteryTicketSerialModel soldReplacement = lotteryTicketSerialServicePort.markSold(replacement.getId());
+        LotteryTicketSerialModel heldReplacement = lotteryTicketSerialServicePort.markProxyHoldingForPaidOrder(
+                replacement.getId(),
+                order.getId()
+        );
 
-        Long newSerialId = soldReplacement.getId();
-        detail.applySerialReplacement(soldReplacement.getTicketId(), newSerialId, replacementTicket.getPriceSnapshot());
+        Long newSerialId = heldReplacement.getId();
+        detail.applySerialReplacement(heldReplacement.getTicketId(), newSerialId, replacementTicket.getPriceSnapshot());
         orderDetailSerialRepositoryPort.replaceSerialAllocation(detail.getId(), oldSerialId, newSerialId);
 
         return TicketIncidentItemResult.builder()
@@ -184,12 +192,12 @@ public class OrderIncidentTicketService implements OrderIncidentTicketServicePor
                 .numbers(numbers)
                 .stationName(stationName)
                 .oldSerialNumber(oldSerial.getSerialNumber())
-                .newSerialNumber(soldReplacement.getSerialNumber())
+                .newSerialNumber(heldReplacement.getSerialNumber())
                 .oldTicketSerialId(oldSerialId)
                 .newTicketSerialId(newSerialId)
                 .message(String.format(
                         "Đã tự động đổi sang vé %s cho bộ số %s",
-                        soldReplacement.getSerialNumber(),
+                        heldReplacement.getSerialNumber(),
                         numbers != null ? numbers : ""))
                 .build();
     }
@@ -261,10 +269,13 @@ public class OrderIncidentTicketService implements OrderIncidentTicketServicePor
         LotteryTicketModel replacementTicket = lotteryTicketRepositoryPort.findById(replacementOpt.getTicketId())
                 .orElseThrow(() -> new DomainException(ErrorCode.LOTTERY_TICKET_NOT_FOUND));
 
-        LotteryTicketSerialModel soldReplacement = lotteryTicketSerialServicePort.markSold(replacementOpt.getId());
+        LotteryTicketSerialModel heldReplacement = lotteryTicketSerialServicePort.markProxyHoldingForPaidOrder(
+                replacementOpt.getId(),
+                order.getId()
+        );
 
-        Long newSerialId = soldReplacement.getId();
-        detail.applySerialReplacement(soldReplacement.getTicketId(), newSerialId, replacementTicket.getPriceSnapshot());
+        Long newSerialId = heldReplacement.getId();
+        detail.applySerialReplacement(heldReplacement.getTicketId(), newSerialId, replacementTicket.getPriceSnapshot());
         orderDetailSerialRepositoryPort.replaceSerialAllocation(detail.getId(), oldSerialId, newSerialId);
 
         return TicketIncidentItemResult.builder()
@@ -274,14 +285,41 @@ public class OrderIncidentTicketService implements OrderIncidentTicketServicePor
                 .numbers(numbers)
                 .stationName(stationName)
                 .oldSerialNumber(oldSerial.getSerialNumber())
-                .newSerialNumber(soldReplacement.getSerialNumber())
+                .newSerialNumber(heldReplacement.getSerialNumber())
                 .oldTicketSerialId(oldSerialId)
                 .newTicketSerialId(newSerialId)
                 .message(String.format(
                         "Đã tự động đổi sang vé %s cho bộ số %s",
-                        soldReplacement.getSerialNumber(),
+                        heldReplacement.getSerialNumber(),
                         numbers != null ? numbers : ""))
                 .build();
+    }
+
+    /**
+     * Legacy online payment marked serials SOLD before staff inspection.
+     * Convert back to PROXY_HOLDING so replace/fault works during PREPARING.
+     */
+    private void repairPrematureSoldSerials(OrderModel order) {
+        if (order.getId() == null || order.getOrderDetails() == null) {
+            return;
+        }
+        if (order.getStatus() != OrderStatus.PREPARING) {
+            return;
+        }
+        for (OrderDetailModel detail : order.getOrderDetails()) {
+            if (detail.getStatus() != OrderDetailStatus.ACTIVE) {
+                continue;
+            }
+            Long serialId = resolvePrimarySerialId(detail);
+            if (serialId == null) {
+                continue;
+            }
+            LotteryTicketSerialModel serial = lotteryTicketSerialRepositoryPort.findById(serialId).orElse(null);
+            if (serial == null || serial.getStatus() != LotteryTicketSerialStatus.SOLD) {
+                continue;
+            }
+            lotteryTicketServicePort.markProxyHoldingForPaidOrder(serialId, order.getId());
+        }
     }
 
     private void applyFault(

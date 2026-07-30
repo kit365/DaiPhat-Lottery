@@ -1,6 +1,7 @@
 package com.daiphat.coreapi.application.dto.response.chat;
 
 import com.daiphat.coreapi.domain.model.enums.chat.ConversationStatus;
+import com.daiphat.coreapi.domain.model.enums.chat.EscalationReason;
 import lombok.Builder;
 
 import java.time.LocalDateTime;
@@ -19,6 +20,9 @@ public record ConversationResponse(
         Integer unreadCount,
         LocalDateTime createdAt,
         LocalDateTime updatedAt,
-        LocalDateTime deletedAt
+        LocalDateTime deletedAt,
+        EscalationReason escalationReason,
+        LocalDateTime escalatedAt,
+        String handoffSummary
 ) {
 }

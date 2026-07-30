@@ -103,6 +103,13 @@ export const menuManagementData = [
         permission: PERMISSIONS.REFUND.VIEW,
     },
     {
+        id: "prize-payouts",
+        label: "Trả thưởng",
+        Icon: EmojiEventsIcon,
+        path: ROUTES.ADMIN.PRIZE_PAYOUTS.LIST,
+        permission: PERMISSIONS.PRIZE_PAYOUT.VIEW,
+    },
+    {
         id: "support-tickets",
         label: "Khiếu nại / Hỗ trợ",
         Icon: SupportAgentIcon,

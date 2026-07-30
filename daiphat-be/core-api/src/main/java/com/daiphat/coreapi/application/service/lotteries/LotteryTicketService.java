@@ -758,6 +758,14 @@ public class LotteryTicketService implements LotteryTicketServicePort {
 
     @Override
     @Transactional
+    public void markProxyHoldingForPaidOrder(Long ticketSerialId, UUID orderId) {
+        LotteryTicketSerialModel serial = lotteryTicketSerialService.getByIdOrThrow(ticketSerialId);
+        lotteryTicketSerialService.markProxyHoldingForPaidOrder(ticketSerialId, orderId);
+        recomputeTicketAggregate(serial.getTicketId());
+    }
+
+    @Override
+    @Transactional
     public void releaseReservationForOrder(Long ticketSerialId) {
         LotteryTicketSerialModel serial = lotteryTicketSerialService.getByIdOrThrow(ticketSerialId);
         LotteryTicketModel ticket = getTicketOrThrow(serial.getTicketId());

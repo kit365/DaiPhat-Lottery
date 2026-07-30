@@ -78,6 +78,10 @@ export const ROUTES = {
             LIST: `/${prefixAdmin}/refunds/list`,
             DETAIL: `/${prefixAdmin}/refunds/detail/`,
         },
+        PRIZE_PAYOUTS: {
+            LIST: `/${prefixAdmin}/prize-payouts/list`,
+            DETAIL: `/${prefixAdmin}/prize-payouts/detail/`,
+        },
         SUPPORT_TICKETS: {
             LIST: `/${prefixAdmin}/support-tickets/list`,
             DETAIL: `/${prefixAdmin}/support-tickets/detail/`,

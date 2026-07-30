@@ -78,6 +78,12 @@ public interface LotteryTicketServicePort {
 
     void markSoldForOrder(Long ticketSerialId);
 
+    /**
+     * After online payment: hold serial for staff inspection (PROXY_HOLDING).
+     * Final SOLD happens when the order moves to PENDING_PICKUP.
+     */
+    void markProxyHoldingForPaidOrder(Long ticketSerialId, java.util.UUID orderId);
+
     void releaseReservationForOrder(Long ticketSerialId);
 
     void returnSoldTicketForOrder(Long ticketSerialId);

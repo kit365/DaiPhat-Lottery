@@ -1,5 +1,6 @@
 import React from 'react';
 import dayjs from 'dayjs';
+import { useNavigate } from 'react-router-dom';
 import { PublicLotteryTicket } from '../../../types/lottery-ticket.type';
 import { useCartStore } from '../../../stores/useCartStore';
 import {
@@ -27,6 +28,7 @@ export const AvailableTicketList: React.FC<AvailableTicketListProps> = ({
     totalPages,
     onPageChange,
 }) => {
+    const navigate = useNavigate();
     // Subscribe để nút thêm giỏ cập nhật ngay khi giỏ thay đổi
     useCartStore((s) => s.items);
 
@@ -35,6 +37,37 @@ export const AvailableTicketList: React.FC<AvailableTicketListProps> = ({
         : drawDate;
 
     const sellableTickets = filterSellableTickets(tickets);
+
+    const handleAddToCart = (ticket: PublicLotteryTicket) => {
+        if (isTicketAtCartLimit(ticket)) return;
+        addPublicTicketToCart({
+            ticket,
+            stationName: ticket.stationName || 'Vé số',
+            dateLabel,
+        });
+    };
+
+    const handleBuyNow = (ticket: PublicLotteryTicket) => {
+        const stock = getTicketStock(ticket);
+        if (stock <= 0) return;
+
+        // Mua ngay: thanh toán riêng 1 vé, không đụng giỏ hàng hiện có.
+        useCartStore.getState().startBuyNow([
+            {
+                id: String(ticket.id),
+                province: ticket.stationName || 'Vé số',
+                date: dateLabel,
+                time: '',
+                kyHieu: ticket.serialNumber || 'VE',
+                numbers: ticket.numbers,
+                price: ticket.priceSnapshot ?? 10000,
+                quantity: 1,
+                color: '#f59e0b',
+                maxStock: stock,
+            },
+        ]);
+        navigate('/checkout');
+    };
 
     if (isLoading) {
         return <div className="py-12 text-center text-[#637381]">Đang tải vé số...</div>;
@@ -72,27 +105,30 @@ export const AvailableTicketList: React.FC<AvailableTicketListProps> = ({
                                     {(ticket.priceSnapshot ?? 10000).toLocaleString('vi-VN')}đ
                                 </div>
                             </div>
-                            <button
-                                type="button"
-                                title={atLimit ? 'Đã đủ số lượng trong giỏ' : 'Thêm giỏ hàng'}
-                                aria-label={atLimit ? 'Đã đủ số lượng trong giỏ' : 'Thêm giỏ hàng'}
-                                disabled={atLimit}
-                                onClick={() => {
-                                    if (atLimit) return;
-                                    addPublicTicketToCart({
-                                        ticket,
-                                        stationName: ticket.stationName || 'Vé số',
-                                        dateLabel,
-                                    });
-                                }}
-                                className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors shrink-0 ${
-                                    atLimit
-                                        ? 'bg-[#C4CDD5] text-white cursor-not-allowed'
-                                        : 'bg-[#ee1314] hover:bg-[#d61011] text-white shadow-sm active:scale-95'
-                                }`}
-                            >
-                                <i className="fa-solid fa-cart-plus text-[17px]"></i>
-                            </button>
+                            <div className="flex items-center gap-2 shrink-0">
+                                <button
+                                    type="button"
+                                    title={atLimit ? 'Đã đủ số lượng trong giỏ' : 'Thêm giỏ hàng'}
+                                    aria-label={atLimit ? 'Đã đủ số lượng trong giỏ' : 'Thêm giỏ hàng'}
+                                    disabled={atLimit}
+                                    onClick={() => handleAddToCart(ticket)}
+                                    className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${
+                                        atLimit
+                                            ? 'bg-[#C4CDD5] text-white cursor-not-allowed'
+                                            : 'bg-white border border-[#ee1314] text-[#ee1314] hover:bg-red-50 shadow-sm active:scale-95'
+                                    }`}
+                                >
+                                    <i className="fa-solid fa-cart-plus text-[17px]"></i>
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => handleBuyNow(ticket)}
+                                    className="h-10 px-3.5 rounded-full bg-[#ee1314] hover:bg-[#d61011] text-white text-[13px] font-bold flex items-center gap-1.5 shadow-sm active:scale-95 transition-colors"
+                                >
+                                    <i className="fa-solid fa-bolt text-[12px]"></i>
+                                    Mua ngay
+                                </button>
+                            </div>
                         </div>
                     );
                 })}

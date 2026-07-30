@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Header } from "../../components/layout/header";
 
@@ -10,6 +10,12 @@ import { HomeSidebar } from "../../components/home/HomeSidebar";
 import { ResultsMatrix } from "../../components/home/ResultsMatrix";
 import { useLottery } from "../../hooks/useLottery";
 import { buildCountdownTarget, formatApiDateToDisplay, isTodayDisplayDate } from "../../types/lottery";
+
+const scrollWindowToTop = () => {
+  window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+  document.documentElement.scrollTop = 0;
+  document.body.scrollTop = 0;
+};
 
 export const HomePage = () => {
   const [searchParams] = useSearchParams();
@@ -32,6 +38,7 @@ export const HomePage = () => {
     hoveredDigit,
     setHoveredDigit,
     lotteryData,
+    boardData,
     historyData,
     availableDates,
     availableProvinces,
@@ -158,8 +165,26 @@ export const HomePage = () => {
     setSelectedDate(displayDate);
   }, [urlDrawDate, setSelectedDate]);
 
+  useLayoutEffect(() => {
+    if (urlDrawDate || urlStationId || urlStationIds || urlRegion) {
+      scrollWindowToTop();
+    }
+  }, [urlDrawDate, urlStationId, urlStationIds, urlRegion]);
+
   useEffect(() => {
-    if ((!urlStationId && !urlStationIds) || lotteryData.length === 0) {
+    if (!(urlDrawDate || urlStationId || urlStationIds || urlRegion)) {
+      return;
+    }
+    scrollWindowToTop();
+    const timers = [50, 150, 400].map((ms) => window.setTimeout(scrollWindowToTop, ms));
+    return () => {
+      timers.forEach((timer) => window.clearTimeout(timer));
+    };
+  }, [urlDrawDate, urlStationId, urlStationIds, urlRegion, isLoading, lotteryData.length]);
+
+  // Hydrate đài từ URL trên board đầy đủ (không dùng lotteryData đã filter — tránh race).
+  useEffect(() => {
+    if ((!urlStationId && !urlStationIds) || boardData.length === 0) {
       return;
     }
     if (urlStationIds) {
@@ -170,7 +195,7 @@ export const HomePage = () => {
       if (ids.length === 0) {
         return;
       }
-      const matches = lotteryData.filter(
+      const matches = boardData.filter(
         (item) => item.stationId != null && ids.includes(item.stationId)
       );
       if (matches.length > 0) {
@@ -182,11 +207,11 @@ export const HomePage = () => {
     if (Number.isNaN(stationId)) {
       return;
     }
-    const match = lotteryData.find((item) => item.stationId === stationId);
+    const match = boardData.find((item) => item.stationId === stationId);
     if (match) {
       setSelectedProvinces([match.province]);
     }
-  }, [urlStationId, urlStationIds, lotteryData, setSelectedProvinces]);
+  }, [urlStationId, urlStationIds, boardData, setSelectedProvinces]);
 
   useEffect(() => {
     if (!urlRegion || urlStationId || urlStationIds || availableProvinces.length === 0) {

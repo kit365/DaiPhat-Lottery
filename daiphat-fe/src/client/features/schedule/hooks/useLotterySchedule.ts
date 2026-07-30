@@ -59,6 +59,8 @@ export const useLotterySchedule = ({
     return undefined;
   }, [stationId, stationIds]);
 
+  const isSingleStationView = normalizedStationIds != null && normalizedStationIds.length >= 1;
+
   useEffect(() => {
     let isMounted = true;
 
@@ -70,7 +72,7 @@ export const useLotterySchedule = ({
           region,
           stationId: normalizedStationIds?.length === 1 ? normalizedStationIds[0] : undefined,
           stationIds: normalizedStationIds && normalizedStationIds.length > 1 ? normalizedStationIds : undefined,
-          drawDate: highlightDate,
+          drawDate: isSingleStationView ? undefined : highlightDate,
         });
         if (isMounted) {
           setData(result);
@@ -91,7 +93,7 @@ export const useLotterySchedule = ({
     return () => {
       isMounted = false;
     };
-  }, [region, normalizedStationIds, highlightDate]);
+  }, [region, normalizedStationIds, highlightDate, isSingleStationView]);
 
   const availableRegions = useMemo(() => {
     const regions = new Set(data.map((st) => st.region));
@@ -116,7 +118,8 @@ export const useLotterySchedule = ({
   }, [availableRegions, data]);
 
   const highlightDayId = useMemo(() => toDayIdFromDate(highlightDate), [highlightDate]);
-  const showFullWeek = !highlightDate;
+  // Một đài có thể quay nhiều thứ/tuần — luôn hiện đủ lịch, không lọc theo ngày kết quả.
+  const showFullWeek = !highlightDate || isSingleStationView;
 
   const scheduleByDay = useMemo(() => {
     const result: ScheduleByDay[] = DAYS.map((dayId) => ({
