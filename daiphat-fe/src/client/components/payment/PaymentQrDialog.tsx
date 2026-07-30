@@ -6,6 +6,10 @@ import {
     useSyncPaymentFromGateway,
 } from '../../hooks/useTransaction';
 import { AppToast as toast } from '../../../utils/toast.util';
+import {
+    isOrderPaymentCancelled,
+    isOrderPaymentSuccessful,
+} from '../../utils/paymentStatus.util';
 
 interface PaymentQrDialogProps {
     open: boolean;
@@ -16,6 +20,8 @@ interface PaymentQrDialogProps {
     loading?: boolean;
     onPaid: () => void;
     onClose: () => void;
+    /** Gọi khi phiên QR hết hạn hoặc đơn bị hủy do không thanh toán. */
+    onExpired?: () => void;
 }
 
 const formatCountdown = (seconds: number) => {
@@ -34,10 +40,12 @@ export const PaymentQrDialog: React.FC<PaymentQrDialogProps> = ({
     loading = false,
     onPaid,
     onClose,
+    onExpired,
 }) => {
-    const paidRef = useRef(false);
+    const resolvedRef = useRef(false);
+    const syncInFlightRef = useRef(false);
     const [syncing, setSyncing] = useState(false);
-    const syncPaymentMutation = useSyncPaymentFromGateway();
+    const { mutateAsync: syncPayment } = useSyncPaymentFromGateway();
     const { data: countdownRes } = useGetPendingPaymentCountdown(open ? orderId : undefined);
 
     const remainingSeconds = countdownRes?.data?.remainingSeconds ?? null;
@@ -45,25 +53,60 @@ export const PaymentQrDialog: React.FC<PaymentQrDialogProps> = ({
     const qrPayload = payment?.qrCode?.trim() || '';
     const checkoutUrl = payment?.checkoutUrl?.trim() || '';
 
-    useEffect(() => {
-        if (!open) {
-            paidRef.current = false;
+    const handleExpired = useCallback(() => {
+        if (resolvedRef.current) return;
+        resolvedRef.current = true;
+        if (onExpired) {
+            onExpired();
+        } else {
+            toast.error('Phiên thanh toán đã hết hạn. Đơn hàng đã bị hủy.');
+            onClose();
+        }
+    }, [onClose, onExpired]);
+
+    const resolvePaymentStatus = useCallback((status?: string | null) => {
+        if (resolvedRef.current || !status) return;
+
+        if (isOrderPaymentSuccessful(status)) {
+            resolvedRef.current = true;
+            onPaid();
             return;
         }
+
+        if (isOrderPaymentCancelled(status)) {
+            handleExpired();
+        }
+    }, [handleExpired, onPaid]);
+
+    useEffect(() => {
+        if (!open) {
+            resolvedRef.current = false;
+            return;
+        }
+    }, [open]);
+
+    useEffect(() => {
+        if (!open || !expired || resolvedRef.current) return;
+        handleExpired();
+    }, [open, expired, handleExpired]);
+
+    useEffect(() => {
+        if (!open || expired) return;
 
         let cancelled = false;
 
         const poll = async () => {
-            if (cancelled || paidRef.current || !orderId) return;
+            if (cancelled || resolvedRef.current || !orderId || syncInFlightRef.current) return;
+            syncInFlightRef.current = true;
             try {
-                const res = await syncPaymentMutation.mutateAsync(orderId);
-                const status = res?.data?.status;
-                if (status && status !== 'PENDING_PAYMENT') {
-                    paidRef.current = true;
-                    onPaid();
+                const res = await syncPayment(orderId);
+                if (!cancelled) {
+                    resolvePaymentStatus(res?.data?.status);
                 }
             } catch {
                 // webhook có thể tới trước — bỏ qua lỗi tạm
+            } finally {
+                syncInFlightRef.current = false;
             }
         };
 
@@ -73,27 +116,33 @@ export const PaymentQrDialog: React.FC<PaymentQrDialogProps> = ({
             cancelled = true;
             window.clearInterval(timer);
         };
-        // eslint-disable-next-line react-hooks/exhaustive-deps -- chỉ poll theo open/orderId
-    }, [open, orderId, onPaid]);
+        // mutateAsync từ useMutation ổn định — không đưa cả mutation object vào deps
+        // (countdown 1s làm re-render → effect restart → storm POST /payment/sync).
+    }, [open, expired, orderId, resolvePaymentStatus, syncPayment]);
 
     const handleManualSync = useCallback(async () => {
-        if (!orderId || paidRef.current) return;
+        if (!orderId || resolvedRef.current || expired || syncInFlightRef.current) return;
         setSyncing(true);
+        syncInFlightRef.current = true;
         try {
-            const res = await syncPaymentMutation.mutateAsync(orderId);
+            const res = await syncPayment(orderId);
             const status = res?.data?.status;
-            if (status && status !== 'PENDING_PAYMENT') {
-                paidRef.current = true;
-                onPaid();
+            if (isOrderPaymentSuccessful(status)) {
+                resolvePaymentStatus(status);
+            } else if (isOrderPaymentCancelled(status)) {
+                resolvePaymentStatus(status);
             } else {
                 toast.info('Chưa nhận được thanh toán. Vui lòng thử lại sau vài giây.');
             }
         } catch (err: any) {
-            toast.error(err?.response?.data?.message || 'Không kiểm tra được trạng thái thanh toán');
+            toast.error(err?.response?.data?.message || 'Không kiểm tra được trạng thái thanh toán', {
+                toastId: 'payment-manual-sync-error',
+            });
         } finally {
+            syncInFlightRef.current = false;
             setSyncing(false);
         }
-    }, [orderId, onPaid, syncPaymentMutation]);
+    }, [expired, orderId, resolvePaymentStatus, syncPayment]);
 
     if (!open) return null;
 
@@ -195,7 +244,7 @@ export const PaymentQrDialog: React.FC<PaymentQrDialogProps> = ({
                     <button
                         type="button"
                         onClick={handleManualSync}
-                        disabled={syncing || loading || !orderId}
+                        disabled={syncing || loading || !orderId || expired}
                         className="flex-1 px-4 py-2.5 rounded-xl bg-[#212B36] text-white text-[13px] font-bold hover:bg-[#161C24] transition-colors disabled:opacity-60 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2"
                     >
                         {syncing ? (

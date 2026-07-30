@@ -4,6 +4,8 @@ import com.daiphat.coreapi.application.config.AuthProperties;
 import com.daiphat.coreapi.application.config.PaymentProperties;
 import com.daiphat.coreapi.application.dto.order.GatewayCallbackResult;
 import com.daiphat.coreapi.application.dto.order.PaymentLinkResult;
+import com.daiphat.coreapi.application.port.out.order.PaymentCountdownCachePort;
+import com.daiphat.coreapi.application.port.out.order.PaymentLinkCachePort;
 import com.daiphat.coreapi.application.port.out.order.PaymentOrderCodePort;
 import com.daiphat.coreapi.application.port.out.order.PayOsGatewayPort;
 import com.daiphat.coreapi.domain.exception.DomainException;
@@ -23,6 +25,10 @@ import vn.payos.model.v2.paymentRequests.PaymentLinkStatus;
 import vn.payos.model.webhooks.Webhook;
 import vn.payos.model.webhooks.WebhookData;
 
+import java.time.Duration;
+import java.util.Optional;
+import java.util.UUID;
+
 @Component
 @RequiredArgsConstructor
 @Slf4j
@@ -33,11 +39,14 @@ public class PayOsGatewayAdapter implements PayOsGatewayPort {
     private static final long ONLINE_PAYMENT_MIN_AMOUNT = 10_000L;
     private static final int MAX_CREATE_RETRIES = 20;
     private static final String CANCEL_REASON = "Recreate payment link with fresh order code";
+    private static final Duration DEFAULT_LINK_CACHE_TTL = Duration.ofMinutes(30);
 
     private final PayOS payOS;
     private final AuthProperties authProperties;
     private final PaymentProperties paymentProperties;
     private final PaymentOrderCodePort paymentOrderCodePort;
+    private final PaymentLinkCachePort paymentLinkCachePort;
+    private final PaymentCountdownCachePort paymentCountdownCachePort;
     private final ObjectMapper objectMapper;
 
     @Override
@@ -70,13 +79,15 @@ public class PayOsGatewayAdapter implements PayOsGatewayPort {
         for (int attempt = 0; attempt < MAX_CREATE_RETRIES; attempt++) {
             transaction.setGatewayOrderCode(gatewayOrderCode);
             try {
-                return createPaymentLink(
+                PaymentLinkResult created = createPaymentLink(
                         gatewayOrderCode,
                         expectedAmount,
                         description,
                         effectiveReturnUrl,
                         effectiveCancelUrl
                 );
+                cachePaymentLink(order.getId(), created);
+                return created;
             } catch (Exception ex) {
                 String message = ex.getMessage() != null ? ex.getMessage() : "";
                 if (!isAlreadyExistsError(message)) {
@@ -86,9 +97,20 @@ public class PayOsGatewayAdapter implements PayOsGatewayPort {
                 }
             }
 
+            // PayOS GET does not return qrCode — reuse cached create payload when possible.
+            Optional<PaymentLinkResult> cachedLink = paymentLinkCachePort.get(gatewayOrderCode);
             ExistingLinkInfo existingLink = fetchExistingPaymentInfo(gatewayOrderCode);
+            if (cachedLink.isPresent()
+                    && existingLink != null
+                    && existingLink.isReusableFor(expectedAmount)) {
+                return cachedLink.get();
+            }
+
             if (existingLink != null && existingLink.isReusableFor(expectedAmount)) {
-                return new PaymentLinkResult(gatewayOrderCode, existingLink.checkoutUrl());
+                // Active link without cached QR: recreate so create response includes QR again.
+                cancelPaymentLink(gatewayOrderCode);
+                gatewayOrderCode = paymentOrderCodePort.getNext();
+                continue;
             }
 
             if (existingLink != null && existingLink.shouldCancelBeforeRecreate(expectedAmount)) {
@@ -109,9 +131,11 @@ public class PayOsGatewayAdapter implements PayOsGatewayPort {
         }
         try {
             payOS.paymentRequests().cancel(gatewayOrderCode, CANCEL_REASON);
+            paymentLinkCachePort.clear(gatewayOrderCode);
             return true;
         } catch (Exception ex) {
             log.warn("Could not cancel PayOS link for gatewayOrderCode {}: {}", gatewayOrderCode, ex.getMessage());
+            paymentLinkCachePort.clear(gatewayOrderCode);
             return false;
         }
     }
@@ -149,6 +173,16 @@ public class PayOsGatewayAdapter implements PayOsGatewayPort {
             log.error("PayOS callback verification failed: {}", ex.getMessage());
             throw new DomainException(ErrorCode.INTERNAL_SERVER_ERROR, ex);
         }
+    }
+
+    private void cachePaymentLink(UUID orderId, PaymentLinkResult paymentLink) {
+        Duration ttl = orderId == null
+                ? DEFAULT_LINK_CACHE_TTL
+                : paymentCountdownCachePort.getRemainingSeconds(orderId)
+                .map(Duration::ofSeconds)
+                .filter(duration -> !duration.isZero() && !duration.isNegative())
+                .orElse(DEFAULT_LINK_CACHE_TTL);
+        paymentLinkCachePort.put(paymentLink.gatewayOrderCode(), paymentLink, ttl);
     }
 
     private PaymentLinkResult createPaymentLink(

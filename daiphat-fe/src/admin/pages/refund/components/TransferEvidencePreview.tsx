@@ -5,30 +5,36 @@ interface TransferEvidencePreviewProps {
     imageUrl: string;
     title?: string;
     infoItems?: ImagePreviewInfoItem[];
+    showCaption?: boolean;
 }
 
 export const TransferEvidencePreview = ({
     imageUrl,
     title = 'Minh chứng chuyển khoản',
     infoItems,
+    showCaption = true,
 }: TransferEvidencePreviewProps) => (
     <Box>
-        <Typography variant="body2" color="text.secondary" gutterBottom>
-            {title}
-        </Typography>
-        <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1 }}>
-            Nhấn ảnh để phóng to / thu nhỏ
-        </Typography>
+        {title ? (
+            <Typography variant="body2" color="text.secondary" gutterBottom>
+                {title}
+            </Typography>
+        ) : null}
+        {showCaption ? (
+            <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1 }}>
+                Nhấn ảnh để phóng to / thu nhỏ
+            </Typography>
+        ) : null}
         <ImagePreview
             src={imageUrl}
-            alt={title}
-            dialogTitle={title}
+            alt={title || 'Biên lai chuyển khoản'}
+            dialogTitle={title || 'Biên lai chuyển khoản'}
             infoItems={infoItems}
             thumbnailSx={{
                 display: 'block',
-                maxWidth: '100%',
+                width: '100%',
+                maxWidth: 360,
                 maxHeight: 420,
-                width: 'auto',
                 borderRadius: 1,
                 border: '1px solid',
                 borderColor: 'divider',
