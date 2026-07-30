@@ -6,6 +6,7 @@ import com.daiphat.coreapi.application.port.in.notification.NotificationServiceP
 import com.daiphat.coreapi.application.port.out.blog.BlogPostRepositoryPort;
 import com.daiphat.coreapi.application.port.out.notification.NotificationRepositoryPort;
 import com.daiphat.coreapi.application.port.out.order.OrderRepositoryPort;
+import com.daiphat.coreapi.application.port.out.payout.PrizePayoutRequestRepositoryPort;
 import com.daiphat.coreapi.application.port.out.refund.RefundRequestRepositoryPort;
 import com.daiphat.coreapi.application.port.out.support.SupportTicketRepositoryPort;
 import com.daiphat.coreapi.domain.exception.DomainException;
@@ -65,6 +66,9 @@ class NotificationServiceTest {
     private RefundRequestRepositoryPort refundRequestRepositoryPort;
 
     @Mock
+    private PrizePayoutRequestRepositoryPort prizePayoutRequestRepositoryPort;
+
+    @Mock
     private SupportTicketRepositoryPort supportTicketRepositoryPort;
 
     @Mock
@@ -77,6 +81,7 @@ class NotificationServiceTest {
                 notificationApplicationMapper,
                 orderRepositoryPort,
                 refundRequestRepositoryPort,
+                prizePayoutRequestRepositoryPort,
                 supportTicketRepositoryPort,
                 blogPostRepositoryPort
         );

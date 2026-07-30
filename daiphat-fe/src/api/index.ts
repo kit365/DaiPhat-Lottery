@@ -155,6 +155,11 @@ apiApp.interceptors.response.use(
             return Promise.reject(error);
         }
 
+        // Request bị hủy (Strict Mode / đổi route / poll restart) — không báo "mất mạng"
+        if (axios.isCancel(error) || (error as AxiosError).code === "ERR_CANCELED") {
+            return Promise.reject(error);
+        }
+
         if (response) {
             const status = response.status;
             const message = (response.data as any)?.message || "Đã có lỗi xảy ra từ máy chủ!";
@@ -250,7 +255,9 @@ apiApp.interceptors.response.use(
                     console.warn(`[API Error] ${status}: ${message}`);
             }
         } else {
-            AppToast.error("Không thể kết nối tới máy chủ. Vui lòng kiểm tra mạng!");
+            AppToast.error("Không thể kết nối tới máy chủ. Vui lòng kiểm tra mạng!", {
+                toastId: "api-network-unreachable",
+            });
         }
 
         return Promise.reject(error);

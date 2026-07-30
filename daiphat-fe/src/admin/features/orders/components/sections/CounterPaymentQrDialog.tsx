@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import {
     Box,
     Button,
@@ -16,6 +16,10 @@ import {
     useCounterPaymentCountdown,
     useSyncCounterPayment,
 } from '../../hooks/useCounterPayment';
+import {
+    isOrderPaymentCancelled,
+    isOrderPaymentSuccessful,
+} from '../../../../../client/utils/paymentStatus.util';
 
 interface CounterPaymentQrDialogProps {
     open: boolean;
@@ -26,6 +30,7 @@ interface CounterPaymentQrDialogProps {
     loading?: boolean;
     onPaid: () => void;
     onClose: () => void;
+    onExpired?: () => void;
 }
 
 const formatCountdown = (seconds: number) => {
@@ -44,8 +49,10 @@ export const CounterPaymentQrDialog = ({
     loading = false,
     onPaid,
     onClose,
+    onExpired,
 }: CounterPaymentQrDialogProps) => {
-    const paidRef = useRef(false);
+    const resolvedRef = useRef(false);
+    const syncInFlightRef = useRef(false);
     const [syncing, setSyncing] = useState(false);
     const { mutateAsync: syncPayment } = useSyncCounterPayment();
     const { data: countdownRes } = useCounterPaymentCountdown(orderId, open && !!orderId);
@@ -55,25 +62,59 @@ export const CounterPaymentQrDialog = ({
     const qrPayload = payment?.qrCode?.trim() || '';
     const checkoutUrl = payment?.checkoutUrl?.trim() || '';
 
-    useEffect(() => {
-        if (!open) {
-            paidRef.current = false;
+    const handleExpired = useCallback(() => {
+        if (resolvedRef.current) return;
+        resolvedRef.current = true;
+        if (onExpired) {
+            onExpired();
+        } else {
+            onClose();
+        }
+    }, [onClose, onExpired]);
+
+    const resolvePaymentStatus = useCallback((status?: string | null) => {
+        if (resolvedRef.current || !status) return;
+
+        if (isOrderPaymentSuccessful(status)) {
+            resolvedRef.current = true;
+            onPaid();
             return;
         }
+
+        if (isOrderPaymentCancelled(status)) {
+            handleExpired();
+        }
+    }, [handleExpired, onPaid]);
+
+    useEffect(() => {
+        if (!open) {
+            resolvedRef.current = false;
+            return;
+        }
+    }, [open]);
+
+    useEffect(() => {
+        if (!open || !expired || resolvedRef.current) return;
+        handleExpired();
+    }, [open, expired, handleExpired]);
+
+    useEffect(() => {
+        if (!open || expired) return;
 
         let cancelled = false;
 
         const poll = async () => {
-            if (cancelled || paidRef.current || !orderId) return;
+            if (cancelled || resolvedRef.current || !orderId || syncInFlightRef.current) return;
+            syncInFlightRef.current = true;
             try {
                 const res = await syncPayment(orderId);
-                const status = res?.data?.status;
-                if (status && status !== 'PENDING_PAYMENT') {
-                    paidRef.current = true;
-                    onPaid();
+                if (!cancelled) {
+                    resolvePaymentStatus(res?.data?.status);
                 }
             } catch {
                 // webhook có thể tới trước sync — bỏ qua lỗi tạm thời
+            } finally {
+                syncInFlightRef.current = false;
             }
         };
 
@@ -83,19 +124,20 @@ export const CounterPaymentQrDialog = ({
             cancelled = true;
             window.clearInterval(timer);
         };
-    }, [open, orderId, syncPayment, onPaid]);
+    }, [open, expired, orderId, resolvePaymentStatus, syncPayment]);
 
     const handleManualSync = async () => {
-        if (!orderId || paidRef.current) return;
+        if (!orderId || resolvedRef.current || expired || syncInFlightRef.current) return;
         setSyncing(true);
+        syncInFlightRef.current = true;
         try {
             const res = await syncPayment(orderId);
             const status = res?.data?.status;
-            if (status && status !== 'PENDING_PAYMENT') {
-                paidRef.current = true;
-                onPaid();
+            if (isOrderPaymentSuccessful(status) || isOrderPaymentCancelled(status)) {
+                resolvePaymentStatus(status);
             }
         } finally {
+            syncInFlightRef.current = false;
             setSyncing(false);
         }
     };
@@ -221,7 +263,7 @@ export const CounterPaymentQrDialog = ({
                     onClick={handleManualSync}
                     variant="contained"
                     className="btn-primary-admin"
-                    disabled={syncing || loading || !orderId}
+                    disabled={syncing || loading || !orderId || expired}
                     startIcon={syncing ? <CircularProgress size={16} color="inherit" /> : undefined}
                 >
                     {syncing ? 'Đang kiểm tra...' : 'Đã thanh toán — kiểm tra lại'}

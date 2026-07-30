@@ -270,9 +270,6 @@ public class RefundRequestStaffService implements RefundRequestStaffServicePort 
         if (!STAFF_APPROVABLE_ORDER_STATUSES.contains(order.getStatus())) {
             throw new DomainException(ErrorCode.ORDER_INVALID_STATUS);
         }
-        if (refundRequestRepositoryPort.existsLinkedOrderDetailByOrderId(orderId)) {
-            throw new DomainException(ErrorCode.REFUND_ORDER_ALREADY_REQUESTED);
-        }
         if (order.getUserId() == null) {
             throw new DomainException(ErrorCode.INVALID_INPUT, "Đơn hàng không có khách hàng liên kết.");
         }
@@ -283,7 +280,12 @@ public class RefundRequestStaffService implements RefundRequestStaffServicePort 
                     .orElseThrow(() -> new DomainException(ErrorCode.ORDER_NOT_FOUND));
         }
 
-        BigDecimal refundAmount = calculateRefundAmount(order);
+        // Only bill details not already covered by a prior partial refund.
+        BigDecimal refundAmount = calculateUnlinkedRefundAmount(order);
+        if (refundAmount.compareTo(BigDecimal.ZERO) <= 0
+                && !hasUnlinkedOrderDetails(order)) {
+            throw new DomainException(ErrorCode.REFUND_ORDER_ALREADY_REQUESTED);
+        }
         cancelOrderForStaffApproval(order, cancelReason, cancelType);
         if (cancelType == OrderCancelType.ADMIN_FORCE_CANCEL) {
             // Faulted OUT_OF_STOCK tickets stay marked damaged/lost — do not return to stock.
@@ -292,7 +294,7 @@ public class RefundRequestStaffService implements RefundRequestStaffServicePort 
         orderRepositoryPort.save(order);
 
         RefundRequestModel refundRequest = RefundRequestModel.builder()
-                .refundType(RefundType.FULL_ORDER)
+                .refundType(hasAnyLinkedOrderDetail(order) ? RefundType.ORDER_DETAIL : RefundType.FULL_ORDER)
                 .requestedBy(order.getUserId())
                 .requestRole(RefundRequestRole.STAFF)
                 .refundAmount(refundAmount)
@@ -322,10 +324,11 @@ public class RefundRequestStaffService implements RefundRequestStaffServicePort 
             OrderModel order,
             List<com.daiphat.coreapi.application.dto.request.order.TicketIncidentItemRequest> incidents
     ) {
-        if (order.getStatus() != OrderStatus.PREPARING) {
+        if (order.getStatus() != OrderStatus.PREPARING
+                && order.getStatus() != OrderStatus.PENDING_PICKUP) {
             throw new DomainException(
                     ErrorCode.ORDER_INVALID_STATUS,
-                    "Hủy do sự cố kho chỉ áp dụng khi đơn đang ở trạng thái PREPARING.");
+                    "Hủy do sự cố kho chỉ áp dụng khi đơn đang PREPARING hoặc PENDING_PICKUP.");
         }
         if (incidents == null || incidents.isEmpty()) {
             throw new DomainException(
@@ -734,6 +737,31 @@ public class RefundRequestStaffService implements RefundRequestStaffServicePort 
         return order.getTotalAmount();
     }
 
+    /** Refund only details not already attached to a prior refund request. */
+    private BigDecimal calculateUnlinkedRefundAmount(OrderModel order) {
+        if (order.getOrderDetails() == null || order.getOrderDetails().isEmpty()) {
+            return calculateRefundAmount(order);
+        }
+        BigDecimal amount = order.getOrderDetails().stream()
+                .filter(detail -> detail.getRefundRequestId() == null)
+                .map(OrderDetailModel::getLineSubtotal)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        if (amount.compareTo(BigDecimal.ZERO) <= 0 && hasUnlinkedOrderDetails(order)) {
+            throw new DomainException(ErrorCode.REFUND_REQUEST_INVALID_AMOUNT);
+        }
+        return amount;
+    }
+
+    private boolean hasUnlinkedOrderDetails(OrderModel order) {
+        return order.getOrderDetails() != null
+                && order.getOrderDetails().stream().anyMatch(detail -> detail.getRefundRequestId() == null);
+    }
+
+    private boolean hasAnyLinkedOrderDetail(OrderModel order) {
+        return order.getOrderDetails() != null
+                && order.getOrderDetails().stream().anyMatch(detail -> detail.getRefundRequestId() != null);
+    }
+
     @Override
     @Transactional
     public RefundRequestResponse createPartialRefund(
@@ -746,10 +774,11 @@ public class RefundRequestStaffService implements RefundRequestStaffServicePort 
         OrderModel order = orderRepositoryPort.findByIdWithLock(orderId)
                 .orElseThrow(() -> new DomainException(ErrorCode.ORDER_NOT_FOUND));
 
-        if (order.getStatus() != OrderStatus.PREPARING) {
+        if (order.getStatus() != OrderStatus.PREPARING
+                && order.getStatus() != OrderStatus.PENDING_PICKUP) {
             throw new DomainException(
                     ErrorCode.ORDER_INVALID_STATUS,
-                    "Chỉ được xử lý hoàn tiền từng phần khi đơn đang ở trạng thái PREPARING.");
+                    "Chỉ được xử lý hoàn tiền từng phần khi đơn đang PREPARING hoặc PENDING_PICKUP.");
         }
 
         // Handle incidents (replacements / no-replacement outcomes)
@@ -765,100 +794,124 @@ public class RefundRequestStaffService implements RefundRequestStaffServicePort 
 
         RefundRequestModel createdRefund = null;
         if (hasNoReplacement) {
-            // Check if refund request already exists (linked via order_details)
-            List<RefundRequestModel> existingRefunds = refundRequestRepositoryPort.findAll(
-                    org.springframework.data.domain.PageRequest.of(0, 1), null, null, null, orderId, null).getContent();
-            if (existingRefunds.isEmpty()) {
-                BigDecimal refundAmount = BigDecimal.ZERO;
-                List<Long> noReplacementDetailIds = new ArrayList<>();
+            BigDecimal refundAmount = BigDecimal.ZERO;
+            List<Long> noReplacementDetailIds = new ArrayList<>();
 
-                for (com.daiphat.coreapi.application.dto.response.order.HandleOrderTicketIncidentResponse.TicketIncidentItemResult res
-                        : incidentResponse.results()) {
-                    if (res.outcome() != com.daiphat.coreapi.domain.model.enums.order.TicketIncidentOutcome.NO_REPLACEMENT) {
-                        continue;
-                    }
-                    OrderDetailModel detail = order.getOrderDetails().stream()
-                            .filter(d -> d.getId().equals(res.orderDetailId()))
-                            .findFirst()
-                            .orElse(null);
-                    if (detail == null) {
-                        continue;
-                    }
-                    noReplacementDetailIds.add(detail.getId());
-                    refundAmount = refundAmount.add(detail.getLineSubtotal());
+            for (com.daiphat.coreapi.application.dto.response.order.HandleOrderTicketIncidentResponse.TicketIncidentItemResult res
+                    : incidentResponse.results()) {
+                if (res.outcome() != com.daiphat.coreapi.domain.model.enums.order.TicketIncidentOutcome.NO_REPLACEMENT) {
+                    continue;
                 }
-
-                if (noReplacementDetailIds.isEmpty()) {
-                    throw new DomainException(
-                            ErrorCode.INVALID_INPUT,
-                            "Không có vé sự cố nào cần hoàn tiền từng phần.");
+                OrderDetailModel detail = order.getOrderDetails().stream()
+                        .filter(d -> d.getId().equals(res.orderDetailId()))
+                        .findFirst()
+                        .orElse(null);
+                if (detail == null || detail.getRefundRequestId() != null) {
+                    continue;
                 }
-
-                String refundReason = request.resolveRefundReason();
-                if (refundReason == null) {
-                    throw new DomainException(
-                            ErrorCode.INVALID_INPUT,
-                            "Vui lòng nhập lý do hoàn tiền.");
-                }
-
-                RefundRequestModel refundRequest = RefundRequestModel.builder()
-                        .requestedBy(order.getUserId())
-                        .orderId(order.getId())
-                        .refundType(RefundType.ORDER_DETAIL)
-                        .refundReason(refundReason)
-                        .createdBy(staffId.toString())
-                        .refundAmount(refundAmount)
-                        .build();
-                refundRequest.initializeForStaffIncidentCancel();
-                refundRequest = refundRequestRepositoryPort.save(refundRequest);
-
-                // order_id is not persisted on refund_requests — link OrderDetails so order can be resolved later
-                // (markTransferred / getByIdForStaff rely on order_details.refund_request_id).
-                int linked = refundRequestRepositoryPort.linkOrderDetailsByIds(
-                        noReplacementDetailIds, refundRequest.getId());
-                if (linked <= 0) {
-                    throw new DomainException(
-                            ErrorCode.REFUND_ORDER_ALREADY_REQUESTED,
-                            "Không gắn được vé sự cố vào yêu cầu hoàn tiền (có thể đã được hoàn trước đó).");
-                }
-
-                // Keep in-memory order details consistent for subsequent save/status transition.
-                for (OrderDetailModel detail : order.getOrderDetails()) {
-                    if (noReplacementDetailIds.contains(detail.getId())) {
-                        detail.setRefundRequestId(refundRequest.getId());
-                        if (detail.getStatus() == OrderDetailStatus.ACTIVE) {
-                            detail.markRefundPending();
-                        }
-                    }
-                }
-
-                refundRequest.setOrderId(order.getId());
-                refundRequest.setOrderDetailIds(noReplacementDetailIds);
-                createdRefund = refundRequestRepositoryPort.save(refundRequest);
-            } else {
-                createdRefund = existingRefunds.getFirst();
-                createdRefund.setOrderId(order.getId());
+                noReplacementDetailIds.add(detail.getId());
+                refundAmount = refundAmount.add(detail.getLineSubtotal());
             }
+
+            if (noReplacementDetailIds.isEmpty()) {
+                throw new DomainException(
+                        ErrorCode.INVALID_INPUT,
+                        "Không có vé sự cố nào cần hoàn tiền từng phần.");
+            }
+
+            String refundReason = request.resolveRefundReason();
+            if (refundReason == null) {
+                throw new DomainException(
+                        ErrorCode.INVALID_INPUT,
+                        "Vui lòng nhập lý do hoàn tiền.");
+            }
+
+            RefundRequestModel refundRequest = RefundRequestModel.builder()
+                    .requestedBy(order.getUserId())
+                    .orderId(order.getId())
+                    .refundType(RefundType.ORDER_DETAIL)
+                    .refundReason(refundReason)
+                    .createdBy(staffId.toString())
+                    .refundAmount(refundAmount)
+                    .build();
+            refundRequest.initializeForStaffIncidentCancel();
+            refundRequest = refundRequestRepositoryPort.save(refundRequest);
+
+            // order_id is not persisted on refund_requests — link OrderDetails so order can be resolved later
+            // (markTransferred / getByIdForStaff rely on order_details.refund_request_id).
+            int linked = refundRequestRepositoryPort.linkOrderDetailsByIds(
+                    noReplacementDetailIds, refundRequest.getId());
+            if (linked <= 0) {
+                throw new DomainException(
+                        ErrorCode.REFUND_ORDER_ALREADY_REQUESTED,
+                        "Không gắn được vé sự cố vào yêu cầu hoàn tiền (có thể đã được hoàn trước đó).");
+            }
+
+            // Keep in-memory order details consistent for subsequent save/status transition.
+            for (OrderDetailModel detail : order.getOrderDetails()) {
+                if (noReplacementDetailIds.contains(detail.getId())) {
+                    detail.setRefundRequestId(refundRequest.getId());
+                    if (detail.getStatus() == OrderDetailStatus.ACTIVE) {
+                        detail.markRefundPending();
+                    }
+                }
+            }
+
+            refundRequest.setOrderId(order.getId());
+            refundRequest.setOrderDetailIds(noReplacementDetailIds);
+            createdRefund = refundRequestRepositoryPort.save(refundRequest);
         }
 
-        // Change order status to PENDING_PICKUP
-        order.markPendingPickup();
-        orderRepositoryPort.save(order);
+        boolean remainingActiveDetails = order.getOrderDetails() != null
+                && order.getOrderDetails().stream().anyMatch(d -> d.getStatus() == OrderDetailStatus.ACTIVE);
 
-        if (createdRefund != null) {
-            // Partial refund during inspection: notify refund flow (bank info), not normal pickup message.
-            publishRefundStatusChanged(createdRefund);
+        // Keep order alive when only some tickets are refunded; advance PREPARING → PENDING_PICKUP
+        // so remaining tickets can be handed over. Never cancel the order here.
+        if (order.getStatus() == OrderStatus.PREPARING && remainingActiveDetails) {
+            order.markPendingPickup();
+            finalizeSoldSerialsAfterInspection(order);
+            orderRepositoryPort.save(order);
+            if (createdRefund == null) {
+                eventPublisher.publishEvent(new OrderStatusChangedEvent(
+                        order.getId(), order.getUserId(), order.getOrderCode(), OrderStatus.PENDING_PICKUP));
+            }
         } else {
-            eventPublisher.publishEvent(new OrderStatusChangedEvent(
-                    order.getId(), order.getUserId(), order.getOrderCode(), OrderStatus.PENDING_PICKUP));
+            orderRepositoryPort.save(order);
         }
 
-        // Only return a refund when this flow actually needed one (unreplaced tickets).
-        // All-replaced inspections must not create or return a Refund Request.
         if (createdRefund != null) {
+            // Partial refund: notify refund flow (bank info), not normal pickup message.
+            publishRefundStatusChanged(createdRefund);
             return toEnrichedResponse(createdRefund, loadBankAccount(createdRefund.getBankAccountId()), order.getOrderCode());
         }
-        
+
+        // All-replaced inspections must not create or return a Refund Request.
         return null;
+    }
+
+    private void finalizeSoldSerialsAfterInspection(OrderModel order) {
+        if (order.getOrderDetails() == null) {
+            return;
+        }
+        for (OrderDetailModel detail : order.getOrderDetails()) {
+            if (detail.getStatus() != OrderDetailStatus.ACTIVE) {
+                continue;
+            }
+            Long serialId = detail.getReplacedByTicketSerialId() != null
+                    ? detail.getReplacedByTicketSerialId()
+                    : detail.getLotteryTicketSerialId();
+            if (serialId == null && detail.getAllocatedSerialIds() != null && !detail.getAllocatedSerialIds().isEmpty()) {
+                serialId = detail.getAllocatedSerialIds().getFirst();
+            }
+            if (serialId == null) {
+                continue;
+            }
+            try {
+                lotteryTicketServicePort.markSoldForOrder(serialId);
+            } catch (DomainException ex) {
+                log.warn("Could not finalize SOLD for serial {} on order {}: {}",
+                        serialId, order.getId(), ex.getMessage());
+            }
+        }
     }
 }

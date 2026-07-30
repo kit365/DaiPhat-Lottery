@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Header } from '../../components/layout/header';
 import { ChevronRight, Calendar as CalendarIcon, CheckCircle2, ShieldCheck, RefreshCw, ChevronDown, ChevronUp, Filter, LayoutGrid, Heart, SlidersHorizontal, Trash2, Search } from 'lucide-react';
-import { useCartStore } from '../../../stores/useCartStore';
+import { useCartStore, CartItem } from '../../../stores/useCartStore';
 import { useAuthStore } from '../../../stores/useAuthStore';
 import { AppToast as toast } from '../../../utils/toast.util';
 import {
@@ -738,15 +738,65 @@ export const BuyTicketPage = () => {
         return true;
     };
 
+    const buildSelectedCartItems = () => {
+        const result: CartItem[] = [];
+        let hasError = false;
+
+        selectedNumbers.forEach((num) => {
+            const ticketData = availableTickets.find((t: any) => t.numbers === num);
+            if (!ticketData || (!ticketData.id && !ticketData._id)) {
+                hasError = true;
+                toast.error(`Lỗi: Không tìm thấy ID cho vé số ${num}`);
+                return;
+            }
+
+            const maxAvailableQty = ticketData?.quantity || 1;
+            if (ticketQuantity > maxAvailableQty) {
+                hasError = true;
+                toast.error(`Vé số ${num} chỉ còn ${maxAvailableQty} vé`);
+                return;
+            }
+
+            const activeProv = dynamicProvinces.find(
+                (p: any) =>
+                    sameProvinceId(p.id, ticketData.providerId ?? '') ||
+                    sameProvinceId(p.id, ticketData.stationId ?? '')
+            ) || activeProvinces[0];
+            const ticketDateStr = ticketData.drawDate
+                ? dayjs(ticketData.drawDate).format('DD/MM/YYYY')
+                : dayjs().format('DD/MM/YYYY');
+
+            result.push({
+                id: String(ticketData.id || ticketData._id),
+                province: activeProv?.name || 'Nhà đài',
+                provinceIcon: activeProv?.icon,
+                date: ticketDateStr,
+                time: activeProv?.time || '--:--',
+                kyHieu: ticketData.batchCode || '2K2',
+                numbers: num,
+                price: pricePerTicket,
+                quantity: ticketQuantity,
+                color: '#f59e0b',
+                ticketImg: ticketData.ticketImg,
+                maxStock: maxAvailableQty,
+            });
+        });
+
+        return hasError ? null : result;
+    };
+
     const handleCheckout = () => {
         if (selectedProvinces.length === 0 || selectedNumbers.length === 0) {
             toast.warning('Vui lòng chọn đài và ít nhất 1 vé số!');
             return;
         }
-        useCartStore.getState().clearCart();
-        if (addToCart()) {
-            navigate('/checkout');
-        }
+
+        // Mua ngay: thanh toán riêng vé đang chọn, KHÔNG xoá giỏ hàng đang có.
+        const buyNowItems = buildSelectedCartItems();
+        if (!buyNowItems?.length) return;
+
+        useCartStore.getState().startBuyNow(buyNowItems);
+        navigate('/checkout');
     };
 
     return (

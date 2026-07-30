@@ -101,7 +101,6 @@ export const BlogFeaturedWidget = () => {
                     return;
                   }
                   navigate(`/blogs/detail/${post.slug}`);
-                  window.scrollTo(0, 0);
                 }}
               >
                 <img 

@@ -18,6 +18,8 @@ import { NotificationsTab } from './client/features/profile/pages/tabs/Notificat
 import { ResultNotificationSettingsTab } from './client/features/profile/pages/tabs/ResultNotificationSettingsTab';
 import { SecurityTab } from './client/features/profile/pages/tabs/SecurityTab';
 import { RefundsTab } from './client/features/profile/pages/tabs/RefundsTab';
+import { PrizePayoutsTab } from './client/features/profile/pages/tabs/PrizePayoutsTab';
+import { PrizePayoutDetailTab } from './client/features/profile/pages/tabs/PrizePayoutDetailTab';
 import { RefundDetailTab } from './client/features/profile/pages/tabs/RefundDetailTab';
 import { BankAccountsTab } from './client/features/profile/pages/tabs/BankAccountsTab';
 import { ComplaintsTab } from './client/features/profile/pages/tabs/ComplaintsTab';
@@ -37,6 +39,7 @@ import { LoadingSpinner } from './client/components/ui/LoadingSpinner';
 import { AuthGuard } from './admin/components/auth/AuthGuard';
 import { GuestGuard } from './admin/components/auth/GuestGuard';
 import { AuthInitializer } from './components/auth/AuthInitializer';
+import { ScrollToTop } from './components/ScrollToTop';
 
 import './styles/client.css'; // New Client Theme
 
@@ -74,6 +77,7 @@ function App() {
   return (
     <BrowserRouter>
       <AuthInitializer />
+      <ScrollToTop />
       <Routes>
         {/* Admin routes first so /admin/* is never captured by the client catch-all */}
         <Route path={ROUTES.ADMIN.ROOT}>
@@ -143,6 +147,8 @@ function App() {
               <Route path="orders/:id" element={<OrderDetailTab />} />
               <Route path="refunds" element={<RefundsTab />} />
               <Route path="refunds/:id" element={<RefundDetailTab />} />
+              <Route path="prize-payouts" element={<PrizePayoutsTab />} />
+              <Route path="prize-payouts/:id" element={<PrizePayoutDetailTab />} />
               <Route path="complaints" element={<ComplaintsTab />} />
               <Route path="complaints/:id" element={<ComplaintDetailTab />} />
               <Route path="bank-accounts" element={<BankAccountsTab />} />

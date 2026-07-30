@@ -31,10 +31,6 @@ export const BlogDetailPage = () => {
   const { mutate: incrementView } = useIncrementPostView();
 
   useEffect(() => {
-    window.scrollTo(0, 0);
-  }, [slug]);
-
-  useEffect(() => {
     if (post?.id && !previewId) {
       incrementView(post.id);
     }
