@@ -24,11 +24,11 @@ spring:
       host: localhost
       port: 6380
   mail:
-    host: ${AUTH_LOCAL_MAIL_HOST}
-    port: ${AUTH_LOCAL_MAIL_PORT}
-    username: ${AUTH_LOCAL_MAIL_USERNAME}
-
-    password: ${AUTH_LOCAL_MAIL_PASSWORD}
+    host: ${MAIL_HOST}
+    port: ${MAIL_PORT}
+    username: ${MAIL_USERNAME}
+    password: ${MAIL_PASSWORD}
+    from: ${MAIL_FROM}
     properties:
       mail:
         smtp:
