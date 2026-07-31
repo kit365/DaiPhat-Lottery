@@ -643,9 +643,8 @@ public class RefundRequestStaffService implements RefundRequestStaffServicePort 
         }
 
         if (request.getReviewedAt() != null) {
-            if (request.getStatus() == RefundRequestStatus.APPROVED
-                    || request.getStatus() == RefundRequestStatus.PAID
-                    || request.getStatus() == RefundRequestStatus.READY_TO_PAY) {
+            if (request.getStatus().isAwaitingTransfer()
+                    || request.getStatus() == RefundRequestStatus.PAID) {
                 history.add(new RefundProcessingHistoryItem(
                         "Tiếp nhận xử lý",
                         reviewerName != null ? "Bởi: " + reviewerName : null,
