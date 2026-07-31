@@ -257,6 +257,9 @@ const prepareDisplayMessages = (messages: Message[], isAiEnabled: boolean): Mess
       if (message.fromStaff || message.sender === 'user') {
         return true;
       }
+      if (!message.text?.trim() && message.variant === 'bubble') {
+        return false;
+      }
       if (!isAiEnabled && isStaffConnectingNoticeText(message.text)) {
         return false;
       }
@@ -298,28 +301,16 @@ const resolveMessageVariant = (
 
   if (message.intent === 'WEB_SCHEDULE') {
     if (text.includes('Mình chưa nhận ra khu vực này') || text.includes('Mình chưa tìm thấy đài này')) {
-      return {
-        variant: 'schedule-region-choice',
-        text: 'Bạn muốn xem đài quay hôm nay, lịch cả tuần hay chọn một đài cụ thể?',
-        scheduleRegion: 'MIEN_NAM',
-      };
+      return { variant: 'bubble', text };
     }
     if (text.includes('Mình chưa nhận ra ngày/thứ này')) {
       return { variant: 'schedule-ask-date-mode', text };
     }
-    if (text === SCHEDULE_OPTIONS_CONTENT) {
-      return {
-        variant: 'schedule-region-choice',
-        text: 'Bạn muốn xem đài quay hôm nay, lịch cả tuần hay chọn một đài cụ thể?',
-        scheduleRegion: 'MIEN_NAM',
-      };
-    }
-    if (text === SCHEDULE_TOKEN_ASK_LOCATION) {
-      return {
-        variant: 'schedule-region-choice',
-        text: 'Bạn muốn xem đài quay hôm nay, lịch cả tuần hay chọn một đài cụ thể?',
-        scheduleRegion: 'MIEN_NAM',
-      };
+    if (text === SCHEDULE_OPTIONS_CONTENT
+        || text === SCHEDULE_TOKEN_ASK_LOCATION
+        || text.startsWith(SCHEDULE_TOKEN_REGION_CHOICE_PREFIX)) {
+      // Legacy location-choice menu removed — ignore token bubbles from old turns.
+      return { variant: 'bubble', text: '' };
     }
     if (text === SCHEDULE_TOKEN_ASK_DATE_MODE || text.startsWith(`${SCHEDULE_TOKEN_ASK_DATE_MODE}:`)) {
       const isResultGoal = text.includes('goal=RESULT');
@@ -340,14 +331,6 @@ const resolveMessageVariant = (
         variant: 'schedule-confirm-station',
         text: 'Mình tìm thấy vài đài gần giống. Bạn chọn đài nào ạ?',
         confirmStationOptions: options,
-      };
-    }
-    if (text.startsWith(SCHEDULE_TOKEN_REGION_CHOICE_PREFIX)) {
-      const region = text.slice(SCHEDULE_TOKEN_REGION_CHOICE_PREFIX.length);
-      return {
-        variant: 'schedule-region-choice',
-        text: 'Bạn muốn xem đài quay hôm nay, lịch cả tuần hay chọn một đài cụ thể?',
-        scheduleRegion: region || 'MIEN_NAM',
       };
     }
     if (text === SCHEDULE_TOKEN_ASK_GOAL) {
@@ -2365,18 +2348,7 @@ export const ChatbotPopup = () => {
                     </div>
                     <div className="max-w-[85%] min-w-0 items-start flex flex-col">
                       <div className="bg-white text-gray-800 rounded-2xl rounded-bl-sm shadow-sm border border-gray-100 px-4 py-2.5 text-[15px]">
-                        {msg.text}
-                        <div className="flex flex-col gap-2 mt-3">
-                          <button type="button" onClick={() => void handleSend('Đài quay hôm nay')} className="px-3 py-1.5 text-[13px] font-medium text-[#ee1314] bg-red-50 border border-red-200 rounded-xl hover:bg-[#ee1314] hover:text-white transition-colors w-full text-center">
-                            Đài quay hôm nay
-                          </button>
-                          <button type="button" onClick={() => void handleSend('Lịch cả tuần')} className="px-3 py-1.5 text-[13px] font-medium text-slate-700 bg-slate-50 border border-slate-200 rounded-xl hover:bg-slate-100 transition-colors w-full text-center">
-                            Lịch cả tuần
-                          </button>
-                          <button type="button" onClick={() => void handleSend('Chọn đài')} className="px-3 py-1.5 text-[13px] font-medium text-slate-700 bg-slate-50 border border-slate-200 rounded-xl hover:bg-slate-100 transition-colors w-full text-center">
-                            Chọn đài
-                          </button>
-                        </div>
+                        {msg.text || 'Bạn có thể dùng nút Xem lịch xổ / Kết quả bên dưới.'}
                       </div>
                       <span className="text-[11px] text-gray-400 mt-1 px-1">{msg.timestamp}</span>
                     </div>
