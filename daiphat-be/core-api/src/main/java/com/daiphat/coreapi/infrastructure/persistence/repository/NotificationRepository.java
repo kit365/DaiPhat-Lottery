@@ -24,31 +24,48 @@ public interface NotificationRepository extends JpaRepository<NotificationEntity
             String referenceId
     );
 
-    Page<NotificationEntity> findByUser_IdAndDeletedAtIsNullOrderByCreatedAtDesc(UUID userId, Pageable pageable);
+    Page<NotificationEntity> findByUser_IdAndChannelAndDeletedAtIsNullOrderByCreatedAtDesc(
+            UUID userId,
+            NotificationChannel channel,
+            Pageable pageable
+    );
 
-    long countByUser_IdAndDeletedAtIsNull(UUID userId);
+    long countByUser_IdAndChannelAndDeletedAtIsNull(UUID userId, NotificationChannel channel);
 
-    long countByUser_IdAndReadFalseAndDeletedAtIsNull(UUID userId);
+    long countByUser_IdAndChannelAndReadFalseAndDeletedAtIsNull(UUID userId, NotificationChannel channel);
 
-    long countByUser_IdAndTypeAndDeletedAtIsNull(UUID userId, NotificationType type);
+    long countByUser_IdAndChannelAndTypeAndDeletedAtIsNull(
+            UUID userId,
+            NotificationChannel channel,
+            NotificationType type
+    );
 
     @Modifying
     @Query("""
             update NotificationEntity notification
             set notification.read = true
             where notification.user.id = :userId
+              and notification.channel = :channel
               and notification.read = false
               and notification.deletedAt is null
             """)
-    int markAllAsReadByUserId(@Param("userId") UUID userId);
+    int markAllAsReadByUserIdAndChannel(
+            @Param("userId") UUID userId,
+            @Param("channel") NotificationChannel channel
+    );
 
     @Modifying
     @Query("""
             update NotificationEntity notification
             set notification.deletedAt = :deletedAt
             where notification.user.id = :userId
+              and notification.channel = :channel
               and notification.read = true
               and notification.deletedAt is null
             """)
-    int softDeleteAllReadByUserId(@Param("userId") UUID userId, @Param("deletedAt") LocalDateTime deletedAt);
+    int softDeleteAllReadByUserIdAndChannel(
+            @Param("userId") UUID userId,
+            @Param("channel") NotificationChannel channel,
+            @Param("deletedAt") LocalDateTime deletedAt
+    );
 }

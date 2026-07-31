@@ -14,11 +14,11 @@ export const RenderNameCell = (params: GridRenderCellParams) => {
 
     return (
         <Link
-            href={ROUTES.ADMIN.SUPPLIER.EDIT(id)}
+            href={ROUTES.ADMIN.SUPPLIER.DETAIL(id)}
             className="admin-cell-title"
             onClick={(e) => {
                 e.preventDefault();
-                navigate(ROUTES.ADMIN.SUPPLIER.EDIT(id));
+                navigate(ROUTES.ADMIN.SUPPLIER.DETAIL(id));
             }}
             underline="hover"
         >

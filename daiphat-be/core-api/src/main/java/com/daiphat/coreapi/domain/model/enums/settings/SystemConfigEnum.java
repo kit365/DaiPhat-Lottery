@@ -56,24 +56,14 @@ public enum SystemConfigEnum {
             "{\"min\":\"00:00\",\"max\":\"23:59\"}",
             true
     ),
-    LATE_IMPORT_TIME(
+    RETURN_BUFFER_TIME(
             ConfigType.TICKET_IMPORT,
-            DataType.TIME,
-            "14:30",
-            "Giờ chốt sau đó lô nhập trong ngày được phân loại LATE_IMPORT",
-            "Giờ phân loại nhập muộn",
-            "HH:mm",
-            "{\"min\":\"00:00\",\"max\":\"23:59\"}",
-            true
-    ),
-    IMPORT_BATCH_CUTOFF_TIME(
-            ConfigType.TICKET_IMPORT,
-            DataType.TIME,
-            "15:00",
-            "Giờ chốt sau đó không cho phép tạo lô nhập trong ngày (trừ lô nhập bổ sung)",
-            "Giờ chốt tạo lô nhập",
-            "HH:mm",
-            "{\"min\":\"00:00\",\"max\":\"23:59\"}",
+            DataType.INT,
+            "45",
+            "Thời gian đệm (phút) trước hạn trả vé của nhà cung cấp",
+            "Thời gian đệm trả vé",
+            "phút",
+            "{\"min\":0,\"max\":1440}",
             true
     ),
     TICKET_AUTO_IMPORT_THRESHOLD(

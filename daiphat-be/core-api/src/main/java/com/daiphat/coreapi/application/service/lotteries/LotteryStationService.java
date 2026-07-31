@@ -85,13 +85,14 @@ public class LotteryStationService implements LotteryStationServicePort {
         }
 
         LotteryStationModel model = lotteryStationApplicationMapper.toModel(request);
-        model.setRegion(resolveRegion(request.region()));
-        requireRegionHasPrizeStructures(model.getRegion());
+        LotteryRegionModel stationRegion = resolveRegion(request.region());
+        model.setRegion(stationRegion);
+        requireRegionHasPrizeStructures(stationRegion);
         model.setActive(false);
         syncNextDrawDate(model);
 
         LotteryStationModel saved = lotteryStationRepositoryPort.save(model);
-        increaseRegionStationCount(saved.getRegion());
+        increaseRegionStationCount(stationRegion);
         log.info("Lottery product created with id: {}", saved.getId());
 
         return lotteryStationApplicationMapper.toResponse(saved);
@@ -286,7 +287,7 @@ public class LotteryStationService implements LotteryStationServicePort {
         LotteryStationModel saved = lotteryStationRepositoryPort.save(model);
         if (regionChanged) {
             decreaseRegionStationCount(previousRegion);
-            increaseRegionStationCount(saved.getRegion());
+            increaseRegionStationCount(model.getRegion());
         }
         realignActiveTicketsToCurrentDraw(saved, previousNextDrawDate);
 
@@ -430,7 +431,7 @@ public class LotteryStationService implements LotteryStationServicePort {
                     .drawTime(drawTime)
                     .nextDrawDate(nextDrawDate)
                     .price(request.defaultPrice())
-                    .commissionRate(null)
+                    .commissionRate(existing != null ? existing.getCommissionRate() : null)
                     .action(action)
                     .existingStationId(existing != null ? existing.getId() : null)
                     .build());
@@ -456,14 +457,40 @@ public class LotteryStationService implements LotteryStationServicePort {
         List<LotteryStationSyncItemResponse> items = new ArrayList<>();
         int createdCount = 0;
         int updatedCount = 0;
+        int skippedCount = 0;
+        Map<String, LotteryStationModel> existingStations = indexExistingStations(stationRegion);
 
         for (ConfirmSyncLotteryStationItem item : request.items()) {
             validateCommissionRate(item.commissionRate());
             String canonicalName = item.canonicalName().trim();
 
+            if (item.action() == SyncAction.SKIPPED) {
+                skippedCount++;
+                continue;
+            }
+
             if (item.action() == SyncAction.CREATED) {
+                LotteryStationModel existingByName = existingStations.get(normalizeName(canonicalName));
+                if (existingByName != null) {
+                    LotteryStationModel updated = persistUpdatedStationFromSync(
+                            existingByName,
+                            item,
+                            stationRegion,
+                            request.defaultPrice()
+                    );
+                    updatedCount++;
+                    items.add(buildSyncItem(
+                            updated,
+                            canonicalName,
+                            SyncAction.UPDATED,
+                            "Cập nhật từ nguồn " + request.source().name()
+                    ));
+                    continue;
+                }
+
                 LotteryStationModel created = persistCreatedStationFromSync(item, request.defaultPrice(), stationRegion);
                 createdCount++;
+                existingStations.put(normalizeName(canonicalName), created);
                 items.add(buildSyncItem(
                         created,
                         canonicalName,
@@ -503,7 +530,7 @@ public class LotteryStationService implements LotteryStationServicePort {
                 .totalFetched(request.items().size())
                 .createdCount(createdCount)
                 .updatedCount(updatedCount)
-                .skippedCount(0)
+                .skippedCount(skippedCount)
                 .warnings(List.of())
                 .items(items)
                 .build();
@@ -554,7 +581,7 @@ public class LotteryStationService implements LotteryStationServicePort {
         syncNextDrawDate(station);
 
         LotteryStationModel saved = lotteryStationRepositoryPort.save(station);
-        increaseRegionStationCount(saved.getRegion());
+        increaseRegionStationCount(stationRegion);
         return saved;
     }
 
@@ -571,7 +598,9 @@ public class LotteryStationService implements LotteryStationServicePort {
         if (defaultPrice != null) {
             station.setPrice(defaultPrice);
         }
-        station.setCommissionRate(item.commissionRate());
+        if (item.commissionRate() != null) {
+            station.setCommissionRate(item.commissionRate());
+        }
         station.setDrawDays(parseDrawDays(item.drawDays(), item.canonicalName()));
         station.setDrawTime(parseDrawTime(item.drawTime(), item.canonicalName()));
         station.setActive(station.isActivationReady());
@@ -737,15 +766,18 @@ public class LotteryStationService implements LotteryStationServicePort {
     private Map<String, LotteryStationModel> indexExistingStations(LotteryRegionModel stationRegion) {
         Map<String, LotteryStationModel> indexed = new LinkedHashMap<>();
         for (LotteryStationModel station : lotteryStationRepositoryPort.findAll()) {
+            if (station.isDeleted()) {
+                continue;
+            }
             if (station.getRegion() == null
                     || !stationRegion.region().equalsIgnoreCase(station.getRegion().region())) {
                 continue;
             }
-            if (hasText(station.getProvince())) {
-                indexed.putIfAbsent(normalizeName(station.getProvince()), station);
-            }
             if (hasText(station.getName())) {
                 indexed.putIfAbsent(normalizeName(station.getName()), station);
+            }
+            if (hasText(station.getProvince())) {
+                indexed.putIfAbsent(normalizeName(station.getProvince()), station);
             }
         }
         return indexed;
@@ -800,12 +832,16 @@ public class LotteryStationService implements LotteryStationServicePort {
             throw new DomainException(ErrorCode.LOTTERY_STATION_INVALID_DRAW_SCHEDULE,
                     "Nhà đài " + stationName + " thiếu giờ quay.");
         }
-        try {
-            return LocalTime.parse(rawDrawTime.trim());
-        } catch (Exception ex) {
-            throw new DomainException(ErrorCode.LOTTERY_STATION_INVALID_DRAW_SCHEDULE,
-                    "Nhà đài " + stationName + " có giờ quay không hợp lệ.");
+        String trimmed = rawDrawTime.trim();
+        for (String pattern : List.of("HH:mm:ss", "HH:mm", "H:mm")) {
+            try {
+                return LocalTime.parse(trimmed, java.time.format.DateTimeFormatter.ofPattern(pattern));
+            } catch (Exception ignored) {
+                // try next pattern
+            }
         }
+        throw new DomainException(ErrorCode.LOTTERY_STATION_INVALID_DRAW_SCHEDULE,
+                "Nhà đài " + stationName + " có giờ quay không hợp lệ.");
     }
 
     private String normalizeName(String value) {
@@ -870,6 +906,9 @@ public class LotteryStationService implements LotteryStationServicePort {
         if (region == null) {
             return;
         }
+        if (region.getDefaultDrawTime() == null) {
+            region.setDefaultDrawTime(region.defaultDrawTimeOrFallback());
+        }
         region.increaseStationCount();
         lotteryRegionRepositoryPort.save(region);
     }
@@ -877,6 +916,9 @@ public class LotteryStationService implements LotteryStationServicePort {
     private void decreaseRegionStationCount(LotteryRegionModel region) {
         if (region == null) {
             return;
+        }
+        if (region.getDefaultDrawTime() == null) {
+            region.setDefaultDrawTime(region.defaultDrawTimeOrFallback());
         }
         region.decreaseStationCount();
         lotteryRegionRepositoryPort.save(region);

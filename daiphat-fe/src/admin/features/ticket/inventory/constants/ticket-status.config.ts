@@ -27,6 +27,22 @@ export const getTicketStatusLabel = (status?: string | null): string => {
     return TICKET_STATUS_OPTIONS.find((opt) => opt.value === normalized)?.label || status || "";
 };
 
+/** Lọc trạng thái vé số — chỉ các giá trị thực sự có trong danh sách vé hiện tại. */
+export const buildTicketStatusFilterOptions = (
+    tickets: Array<{ status?: string | null }>
+): TicketStatusOption[] => {
+    const presentStatuses = new Set<string>();
+
+    tickets.forEach((ticket) => {
+        const normalized = normalizeTicketStatus(ticket.status);
+        if (normalized) {
+            presentStatuses.add(normalized);
+        }
+    });
+
+    return TICKET_STATUS_OPTIONS.filter((option) => presentStatuses.has(option.value));
+};
+
 /** Không còn transition thủ công — chỉ trả về chính trạng thái hiện tại */
 export const getAllowedTicketStatusTransitions = (currentStatus?: string | null): string[] => {
     const normalized = normalizeTicketStatus(currentStatus);

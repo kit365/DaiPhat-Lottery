@@ -1,4 +1,5 @@
 import { OrderDetailStatus } from '../../../../types/order.type';
+import { isAlreadyFaultReportedSerialStatus } from '../../ticket/import-batch/utils/serialIncidentWorkflow';
 
 export interface IncidentTicketDisplay {
     id: number | null;
@@ -6,8 +7,14 @@ export interface IncidentTicketDisplay {
     serialNumber?: string;
     stationName: string;
     drawDate?: string;
+    /** Order-detail lifecycle status (ACTIVE, REFUND_PENDING, ...). */
     status?: string;
+    /** Physical serial status (PROXY_HOLDING, DAMAGED, ...). */
+    serialStatus?: string;
+    serialStatusDisplayName?: string;
     isIncidentEligible: boolean;
+    /** Serial already reported DAMAGED / LOST / VOIDED. */
+    isAlreadyFaultReported: boolean;
     hasReplacement?: boolean;
     stationId?: number | string;
     ticketType?: string;
@@ -27,6 +34,7 @@ export function resolveOrderDetailTicketDisplay(detail: any): IncidentTicketDisp
         null;
     const originalSerial = detail?.ticketSerial || detail?.lotteryTicketSerial || null;
     const effectiveSerial = replacementSerial || originalSerial;
+    const allocatedSerial = Array.isArray(detail?.allocatedSerials) ? detail.allocatedSerials[0] : null;
 
     const numbers =
         detail?.numbers ||
@@ -38,6 +46,7 @@ export function resolveOrderDetailTicketDisplay(detail: any): IncidentTicketDisp
     const serialNumber =
         detail?.serialNumber ||
         effectiveSerial?.serialNumber ||
+        allocatedSerial?.serialNumber ||
         ticket.serialNumber;
     const stationName =
         detail?.stationName ||
@@ -58,7 +67,21 @@ export function resolveOrderDetailTicketDisplay(detail: any): IncidentTicketDisp
     const ticketImg =
         detail?.ticketImg ||
         effectiveSerial?.ticketImg ||
+        allocatedSerial?.ticketImg ||
         ticket?.ticketImg;
+
+    const serialStatus =
+        detail?.serialStatus ||
+        allocatedSerial?.status ||
+        effectiveSerial?.status ||
+        undefined;
+    const serialStatusDisplayName =
+        detail?.serialStatusDisplayName ||
+        allocatedSerial?.statusDisplayName ||
+        effectiveSerial?.statusDisplayName ||
+        undefined;
+    const isAlreadyFaultReported = isAlreadyFaultReportedSerialStatus(serialStatus);
+    const detailActive = status === OrderDetailStatus.ACTIVE || status === 'ACTIVE';
 
     return {
         id,
@@ -67,7 +90,10 @@ export function resolveOrderDetailTicketDisplay(detail: any): IncidentTicketDisp
         stationName,
         drawDate,
         status,
-        isIncidentEligible: status === OrderDetailStatus.ACTIVE || status === 'ACTIVE',
+        serialStatus,
+        serialStatusDisplayName,
+        isAlreadyFaultReported,
+        isIncidentEligible: detailActive && !isAlreadyFaultReported,
         stationId,
         hasReplacement: detail?.hasReplacement ?? detail?.lotteryTicket?.hasReplacement ?? false,
         ticketType,

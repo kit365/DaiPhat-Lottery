@@ -31,8 +31,6 @@ class ImportBatchStationEligibilityResolverTest {
     private static final LocalDate TOMORROW = TODAY.plusDays(1);
 
     @Mock
-    private ImportBatchConfigResolver importBatchConfigResolver;
-    @Mock
     private ImportBatchLineRepositoryPort importBatchLineRepositoryPort;
 
     @InjectMocks
@@ -48,7 +46,6 @@ class ImportBatchStationEligibilityResolverTest {
                 .drawDays(List.of(DayOfWeek.MONDAY, DayOfWeek.TUESDAY, DayOfWeek.FRIDAY))
                 .drawTime(LocalTime.of(16, 15))
                 .build();
-        when(importBatchConfigResolver.resolveImportBatchCutoff()).thenReturn(LocalTime.of(15, 0));
         when(importBatchLineRepositoryPort.existsDraftLineForStationAndDrawDate(1L, TODAY)).thenReturn(false);
         when(importBatchLineRepositoryPort.existsDraftLineForStationAndDrawDate(1L, TOMORROW)).thenReturn(false);
     }
@@ -100,19 +97,19 @@ class ImportBatchStationEligibilityResolverTest {
     }
 
     @Test
-    @DisplayName("today after cutoff is eligible for POST_DRAW_SUPPLEMENT without requiring draw completion")
-    void isEligibleForSelection_todayAfterCutoff_postDraw() {
-        assertThat(resolver.isEligibleForSelection(
-                station,
-                TODAY,
-                LocalDateTime.of(TODAY, LocalTime.of(15, 30)),
-                ImportBatchImportMode.POST_DRAW_SUPPLEMENT
-        )).isTrue();
+    @DisplayName("today remains eligible for IN_DAY regardless of clock time")
+    void isEligibleForSelection_todayAnyTime_inDay() {
         assertThat(resolver.isEligibleForSelection(
                 station,
                 TODAY,
                 LocalDateTime.of(TODAY, LocalTime.of(15, 30)),
                 ImportBatchImportMode.IN_DAY
+        )).isTrue();
+        assertThat(resolver.isEligibleForSelection(
+                station,
+                TODAY,
+                LocalDateTime.of(TODAY, LocalTime.of(15, 30)),
+                ImportBatchImportMode.POST_DRAW_SUPPLEMENT
         )).isFalse();
     }
 

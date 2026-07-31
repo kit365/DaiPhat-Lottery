@@ -320,10 +320,29 @@ class RefundRequestStaffServiceTest {
     }
 
     @Test
-    @DisplayName("cancelOrderWithRefund: rejects when refund already exists")
+    @DisplayName("cancelOrderWithRefund: rejects when all details already linked to a refund")
     void cancelOrderWithRefund_duplicateRejected() {
-        when(orderRepositoryPort.findByIdWithLock(orderId)).thenReturn(Optional.of(preparingOrder()));
-        when(refundRequestRepositoryPort.existsLinkedOrderDetailByOrderId(orderId)).thenReturn(true);
+        OrderDetailModel alreadyLinked = OrderDetailModel.builder()
+                .lotteryTicketSerialId(99L)
+                .price(BigDecimal.valueOf(20000))
+                .refundRequestId(refundId)
+                .status(com.daiphat.coreapi.domain.model.enums.order.detail.OrderDetailStatus.REFUND_PENDING)
+                .build();
+        OrderModel order = OrderModel.builder()
+                .id(orderId)
+                .userId(customerId)
+                .orderCode("ORD-001")
+                .orderType(OrderType.ONLINE)
+                .status(OrderStatus.PREPARING)
+                .totalAmount(BigDecimal.valueOf(20000))
+                .transactions(List.of(TransactionModel.builder()
+                        .status(com.daiphat.coreapi.domain.model.enums.transaction.TransactionStatus.COMPLETED)
+                        .amount(BigDecimal.valueOf(20000))
+                        .paidAt(LocalDateTime.now())
+                        .build()))
+                .orderDetails(List.of(alreadyLinked))
+                .build();
+        when(orderRepositoryPort.findByIdWithLock(orderId)).thenReturn(Optional.of(order));
 
         assertThatThrownBy(() -> refundRequestStaffService.cancelOrderWithRefund(
                 orderId,

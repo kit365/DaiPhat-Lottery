@@ -28,6 +28,7 @@ import {
     sanitizeTicketNumberInput,
 } from "../../utils/ticketNumberValidation";
 import { resolveAvailableTicketQuantity } from "../../utils/ticketQuantity";
+import { buildSerialStatusFilterOptions } from "../../constants/serial-status-filter.config";
 import dayjs from "dayjs";
 import "dayjs/locale/en-gb";
 import { useParams, useNavigate } from "react-router-dom";
@@ -128,6 +129,11 @@ export const TicketEditPage = () => {
             return matchesSearch && matchesStatus;
         });
     }, [fields, searchSerial, filterStatus, ticketDetail?.serials]);
+
+    const availableSerialStatusOptions = useMemo(
+        () => buildSerialStatusFilterOptions(ticketDetail?.serials || []),
+        [ticketDetail?.serials]
+    );
 
     const [page, setPage] = useState(1);
     const itemsPerPage = 10;
@@ -477,14 +483,11 @@ export const TicketEditPage = () => {
                                         sx={{ minWidth: 180 }}
                                     >
                                         <MenuItem value="ALL">Tất cả trạng thái</MenuItem>
-                                        <MenuItem value="IN_STOCK">Trong kho</MenuItem>
-                                        <MenuItem value="RESERVED">Đang giữ</MenuItem>
-                                        <MenuItem value="SOLD">Đã bán</MenuItem>
-                                        <MenuItem value="EXPIRED">Hết hạn</MenuItem>
-                                        <MenuItem value="DAMAGED">Hư hỏng</MenuItem>
-                                        <MenuItem value="LOST">Thất lạc</MenuItem>
-                                        <MenuItem value="ISSUER_FAULT">Lỗi nhà đài</MenuItem>
-                                        <MenuItem value="INTERNAL_FAULT">Lỗi nội bộ</MenuItem>
+                                        {availableSerialStatusOptions.map((option) => (
+                                            <MenuItem key={option.value} value={option.value}>
+                                                {option.label}
+                                            </MenuItem>
+                                        ))}
                                     </Select>
                                 </Box>
 
