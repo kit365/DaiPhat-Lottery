@@ -151,6 +151,10 @@ jobs:
           } > .dozzle/users.yml
           printf 'BACKEND_IMAGE=%s\nFRONTEND_IMAGE=%s\nAI_IMAGE=%s\nDEPLOY_SHA=%s\n' \
             "$BACKEND_IMAGE" "$FRONTEND_IMAGE" "$AI_IMAGE" "$SOURCE_SHA" > .deploy.env
+          # scp-action runs in a separate container, so it must be able to read
+          # these ephemeral runner files. deploy-prod.sh locks them on the VPS.
+          chmod 755 .dozzle
+          chmod 644 .env.prod .deploy.env .dozzle/users.yml
 
       - name: Copy production stack to VPS
         uses: appleboy/scp-action@v0.1.7
