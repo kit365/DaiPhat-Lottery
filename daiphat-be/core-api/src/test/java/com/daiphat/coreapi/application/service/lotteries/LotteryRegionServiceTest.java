@@ -95,7 +95,7 @@ class LotteryRegionServiceTest {
     @Test
     @DisplayName("[DP-37] update: Cập nhật thành công")
     void update_success() {
-        UpdateLotteryRegionRequest request = new UpdateLotteryRegionRequest(0, 99999);
+        UpdateLotteryRegionRequest request = new UpdateLotteryRegionRequest(0, 99999, java.time.LocalTime.of(18, 15));
 
         when(lotteryRegionRepositoryPort.findByCode("MIEN_BAC")).thenReturn(Optional.of(regionModel));
         doAnswer(inv -> {
@@ -103,6 +103,7 @@ class LotteryRegionServiceTest {
             LotteryRegionModel model = inv.getArgument(1);
             model.setMinNumber(req.minNumber());
             model.setMaxNumber(req.maxNumber());
+            model.setDefaultDrawTime(req.defaultDrawTime());
             return null;
         }).when(lotteryRegionApplicationMapper).merge(request, regionModel);
         
@@ -119,7 +120,7 @@ class LotteryRegionServiceTest {
     @Test
     @DisplayName("[DP-37] update: Ném lỗi khi max < min")
     void update_throwsWhenMaxLessThanMin() {
-        UpdateLotteryRegionRequest request = new UpdateLotteryRegionRequest(999, 0);
+        UpdateLotteryRegionRequest request = new UpdateLotteryRegionRequest(999, 0, java.time.LocalTime.of(18, 15));
 
         when(lotteryRegionRepositoryPort.findByCode("MIEN_BAC")).thenReturn(Optional.of(regionModel));
 
@@ -133,7 +134,7 @@ class LotteryRegionServiceTest {
     @Test
     @DisplayName("[DP-37] update: Ném lỗi khi min null")
     void update_throwsWhenMinNull() {
-        UpdateLotteryRegionRequest request = new UpdateLotteryRegionRequest(null, 99999);
+        UpdateLotteryRegionRequest request = new UpdateLotteryRegionRequest(null, 99999, java.time.LocalTime.of(18, 15));
 
         when(lotteryRegionRepositoryPort.findByCode("MIEN_BAC")).thenReturn(Optional.of(regionModel));
 
@@ -145,7 +146,7 @@ class LotteryRegionServiceTest {
     @Test
     @DisplayName("[DP-37] update: Ném lỗi khi max null")
     void update_throwsWhenMaxNull() {
-        UpdateLotteryRegionRequest request = new UpdateLotteryRegionRequest(0, null);
+        UpdateLotteryRegionRequest request = new UpdateLotteryRegionRequest(0, null, java.time.LocalTime.of(18, 15));
 
         when(lotteryRegionRepositoryPort.findByCode("MIEN_BAC")).thenReturn(Optional.of(regionModel));
 

@@ -6,6 +6,7 @@ import {
     sumImportBatchLineDeclaredQuantity,
 } from '../utils/importBatchDeclaredQuantity';
 import { hasInvoiceEvidence } from '../utils/invoiceEvidence';
+import { isDrawDateWithinAllowedRange } from '../utils/importBatchDrawDate';
 
 /** URL đã upload hoặc File local — upload khi bấm xác nhận/lưu. */
 const invoiceEvidenceSchema = z.union([z.string(), z.instanceof(File)]).nullish();
@@ -15,7 +16,7 @@ const importBatchLineSchema = z.object({
     declareQuantity: z.coerce.number().min(1, 'Số lượng khai báo phải lớn hơn 0'),
     importCost: z.coerce.number().min(0.01, 'Giá vốn phải lớn hơn 0'),
     resolvedBatchType: z
-        .enum(['NEW', 'SUPPLEMENTARY', 'LATE_IMPORT', 'ADJUSTMENT'])
+        .enum(['NEW', 'SUPPLEMENTARY', 'ADJUSTMENT'])
         .optional(),
     stationName: z.string().optional(),
 });
@@ -33,6 +34,14 @@ export const createImportBatchSchema = z
         lines: z.array(importBatchLineSchema),
     })
     .superRefine((data, ctx) => {
+        if (!isDrawDateWithinAllowedRange(data.drawDate)) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: 'Ngày quay chỉ được chọn hôm nay hoặc ngày mai.',
+                path: ['drawDate'],
+            });
+        }
+
         if (data.lines.length < 1) {
             ctx.addIssue({
                 code: z.ZodIssueCode.custom,
@@ -64,7 +73,7 @@ export const createImportBatchSchema = z
             stationIds.add(line.lotteryStationId);
 
             const type = line.resolvedBatchType as ImportBatchType | undefined;
-            if (data.importMode === 'IN_DAY' && (type === 'NEW' || type === 'LATE_IMPORT')) {
+            if (data.importMode === 'IN_DAY' && type === 'NEW') {
                 requiresInvoice = true;
             }
         });
@@ -88,7 +97,7 @@ const updateImportBatchLineSchema = z
         declareQuantity: z.coerce.number().optional(),
         importCost: z.coerce.number().optional(),
         resolvedBatchType: z
-            .enum(['NEW', 'SUPPLEMENTARY', 'LATE_IMPORT', 'ADJUSTMENT'])
+            .enum(['NEW', 'SUPPLEMENTARY', 'ADJUSTMENT'])
             .optional(),
         status: z.enum(['OPEN', 'IMPORTING', 'PAUSED', 'IMPORTED', 'CANCELLED']).optional(),
         readOnly: z.boolean().optional(),
@@ -198,7 +207,7 @@ export const updateImportBatchSchema = z
             }
 
             const type = line.resolvedBatchType as ImportBatchType | undefined;
-            if (data.importMode === 'IN_DAY' && (type === 'NEW' || type === 'LATE_IMPORT')) {
+            if (data.importMode === 'IN_DAY' && type === 'NEW') {
                 requiresInvoice = true;
             }
         });

@@ -12,6 +12,8 @@ import {
     useMediaQuery,
     useTheme,
 } from "@mui/material";
+import { TimePicker } from "@mui/x-date-pickers";
+import dayjs from "dayjs";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect } from "react";
@@ -20,7 +22,7 @@ import { LoadingButton } from "../../../../components/ui/LoadingButton";
 import { CanAccess } from "../../../../components/auth/CanAccess";
 import { PERMISSIONS } from "../../../../constants/permission.constants";
 import { updateRegionSchema, UpdateRegionFormValues } from "../../schemas/region.schema";
-import { LotteryRegionResponse } from "../../types/region.type";
+import { formatRegionDefaultDrawTime, LotteryRegionResponse } from "../../types/region.type";
 import { useUpdateRegion } from "../../hooks/useRegion";
 
 interface RegionEditDialogProps {
@@ -56,6 +58,7 @@ export const RegionEditDialog = ({ region, onClose }: RegionEditDialogProps) => 
         defaultValues: {
             minNumber: 0,
             maxNumber: 999999,
+            defaultDrawTime: "16:15",
         },
     });
 
@@ -64,6 +67,7 @@ export const RegionEditDialog = ({ region, onClose }: RegionEditDialogProps) => 
             reset({
                 minNumber: region.minNumber,
                 maxNumber: region.maxNumber,
+                defaultDrawTime: formatRegionDefaultDrawTime(region.defaultDrawTime),
             });
         }
     }, [region, reset]);
@@ -133,6 +137,32 @@ export const RegionEditDialog = ({ region, onClose }: RegionEditDialogProps) => 
                                             helperText={fieldState.error?.message}
                                             onChange={(e) => field.onChange(Number(e.target.value))}
                                             fullWidth
+                                        />
+                                    )}
+                                />
+                            </Box>
+                            <Box>
+                                <Controller
+                                    name="defaultDrawTime"
+                                    control={control}
+                                    render={({ field, fieldState }) => (
+                                        <TimePicker
+                                            label="Giờ quay mặc định"
+                                            value={field.value ? dayjs(`2000-01-01T${field.value}`) : null}
+                                            onChange={(newValue) => {
+                                                field.onChange(newValue ? newValue.format("HH:mm") : "");
+                                            }}
+                                            localeText={{ cancelButtonLabel: "Hủy" }}
+                                            slotProps={{
+                                                textField: {
+                                                    fullWidth: true,
+                                                    error: !!fieldState.error,
+                                                    helperText:
+                                                        fieldState.error?.message ||
+                                                        "Giờ quay mặc định khi tạo nhà đài trong miền này",
+                                                    InputLabelProps: { shrink: true },
+                                                },
+                                            }}
                                         />
                                     )}
                                 />

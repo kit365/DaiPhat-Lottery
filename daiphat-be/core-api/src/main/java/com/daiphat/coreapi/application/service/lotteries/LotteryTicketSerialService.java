@@ -9,6 +9,7 @@ import com.daiphat.coreapi.application.port.out.order.OrderRepositoryPort;
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
 import com.daiphat.coreapi.domain.model.enums.lottery.InputSource;
+import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialFaultedBy;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus;
 import com.daiphat.coreapi.domain.model.lotteries.LotteryTicketModel;
 import com.daiphat.coreapi.domain.model.lotteries.LotteryTicketSerialModel;
@@ -41,6 +42,7 @@ public class LotteryTicketSerialService implements LotteryTicketSerialServicePor
     private final LotteryTicketSerialRepositoryPort lotteryTicketSerialRepositoryPort;
     private final StoragePort storagePort;
     private final OrderRepositoryPort orderRepositoryPort;
+    private final LotteryTicketSerialIncidentService serialIncidentService;
 
     @Override
     @Transactional
@@ -330,9 +332,22 @@ public class LotteryTicketSerialService implements LotteryTicketSerialServicePor
 
     @Override
     @Transactional
-    public LotteryTicketSerialModel reportFault(Long id, ReportSerialFaultRequest request) {
+    public LotteryTicketSerialModel reportFault(Long id, ReportSerialFaultRequest request, UUID actorId) {
         LotteryTicketSerialModel serial = getByIdOrThrow(id);
-        
+
+        if (serial.isTerminalIncidentStatus()) {
+            throw new DomainException(
+                    ErrorCode.LOTTERY_TICKET_INVALID_STATUS,
+                    "Sê-ri ở trạng thái " + serial.getStatus().getDisplayName()
+                            + " không thể báo sự cố (chỉ đọc để tra cứu).");
+        }
+
+        validateIncidentRequest(serial, request);
+
+        LotteryTicketSerialStatus priorStatus = serial.getStatus();
+        LocalDateTime priorReservationExpiresAt = serial.getReservationExpiresAt();
+        UUID priorOrderId = serial.getReservedByOrderId();
+
         if (request.status() == LotteryTicketSerialStatus.DAMAGED) {
             serial.markDamaged(request.faultedBy(), request.damagedReason(), request.damagedEvidenceUrl());
         } else if (request.status() == LotteryTicketSerialStatus.LOST) {
@@ -342,7 +357,36 @@ public class LotteryTicketSerialService implements LotteryTicketSerialServicePor
         } else {
             throw new DomainException(ErrorCode.INVALID_INPUT, "Trạng thái báo lỗi không hợp lệ (chỉ hỗ trợ DAMAGED, LOST hoặc VOIDED).");
         }
-        
-        return lotteryTicketSerialRepositoryPort.save(serial);
+
+        LotteryTicketSerialModel saved = lotteryTicketSerialRepositoryPort.save(serial);
+        serialIncidentService.handleAfterFaultReported(
+                saved,
+                priorStatus,
+                priorReservationExpiresAt,
+                priorOrderId,
+                request,
+                actorId);
+        return saved;
+    }
+
+    private void validateIncidentRequest(LotteryTicketSerialModel serial, ReportSerialFaultRequest request) {
+        if (request.status() == LotteryTicketSerialStatus.VOIDED) {
+            if (request.faultedBy() != LotteryTicketSerialFaultedBy.DATA_ENTRY_FAULT) {
+                throw new DomainException(
+                        ErrorCode.INVALID_INPUT,
+                        "Hủy sê-ri (VOIDED) chỉ áp dụng cho lỗi nhập liệu (DATA_ENTRY_FAULT).");
+            }
+            return;
+        }
+
+        if (request.status() == LotteryTicketSerialStatus.DAMAGED
+                || request.status() == LotteryTicketSerialStatus.LOST) {
+            if (serial.isInternalInventoryIncidentStatus()
+                    && request.faultedBy() != LotteryTicketSerialFaultedBy.INTERNAL_FAULT) {
+                throw new DomainException(
+                        ErrorCode.INVALID_INPUT,
+                        "Vé trong kho chỉ báo hỏng/mất với nguồn lỗi INTERNAL_FAULT.");
+            }
+        }
     }
 }

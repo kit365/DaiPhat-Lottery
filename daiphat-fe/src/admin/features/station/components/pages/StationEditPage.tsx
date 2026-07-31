@@ -86,6 +86,7 @@ export const StationEditPage = () => {
             status: "active",
             type: "TRADITIONAL",
             price: 10000,
+            commissionRate: 0.1,
             province: "",
             region: "",
             numberLength: 6,
@@ -99,9 +100,16 @@ export const StationEditPage = () => {
 
     const { data: regionsRes } = useRegions();
     const regions = regionsRes?.data || [];
-
     const regionValue = watch("region");
-    const provinceOptions = regionValue ? REGION_DATA[regionValue] || [] : [];
+    const provinceValue = watch("province");
+
+    const provinceOptions = useMemo(() => {
+        const baseOptions = regionValue ? REGION_DATA[regionValue] || [] : [];
+        if (provinceValue && !baseOptions.includes(provinceValue)) {
+            return [provinceValue, ...baseOptions];
+        }
+        return baseOptions;
+    }, [regionValue, provinceValue]);
 
     useEffect(() => {
         if (detailRes) {
@@ -111,6 +119,7 @@ export const StationEditPage = () => {
                 status: (detailRes.status === "inactive" ? "inactive" : "active") as "active" | "inactive",
                 type: detailRes.type || "TRADITIONAL",
                 price: detailRes.price || 10000,
+                commissionRate: detailRes.commissionRate !== undefined && detailRes.commissionRate !== null ? detailRes.commissionRate : "",
                 province: detailRes.province || "",
                 region: detailRes.region || "",
                 numberLength: detailRes.numberLength || 6,
@@ -193,7 +202,6 @@ export const StationEditPage = () => {
                                                     label="Tên nhà đài"
                                                     error={!!fieldState.error}
                                                     helperText={fieldState.error?.message}
-                                                    disabled
                                                     fullWidth
                                                 />
                                             )}
@@ -289,7 +297,7 @@ export const StationEditPage = () => {
                                                     label="Tỉnh/Thành phố"
                                                     error={!!fieldState.error}
                                                     helperText={fieldState.error?.message}
-                                                    disabled
+                                                    disabled={!regionValue}
                                                     fullWidth
                                                 >
                                                     {provinceOptions.map((prov) => (

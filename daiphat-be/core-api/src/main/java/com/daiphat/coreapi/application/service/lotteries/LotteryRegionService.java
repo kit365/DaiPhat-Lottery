@@ -44,8 +44,8 @@ public class LotteryRegionService implements LotteryRegionServicePort {
         validateNumbers(request.minNumber(), request.maxNumber());
         lotteryRegionApplicationMapper.merge(request, model);
         LotteryRegionModel saved = lotteryRegionRepositoryPort.save(model);
-        log.info("Updated lottery region code={} minNumber={} maxNumber={}",
-                saved.getCode(), saved.getMinNumber(), saved.getMaxNumber());
+        log.info("Updated lottery region code={} minNumber={} maxNumber={} defaultDrawTime={}",
+                saved.getCode(), saved.getMinNumber(), saved.getMaxNumber(), saved.formattedDefaultDrawTime());
         return lotteryRegionApplicationMapper.toResponse(saved);
     }
 

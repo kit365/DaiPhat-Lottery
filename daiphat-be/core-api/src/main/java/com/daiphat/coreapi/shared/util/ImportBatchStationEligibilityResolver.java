@@ -8,14 +8,12 @@ import org.springframework.stereotype.Component;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.LocalTime;
 import java.util.Optional;
 
 @Component
 @RequiredArgsConstructor
 public class ImportBatchStationEligibilityResolver {
 
-    private final ImportBatchConfigResolver importBatchConfigResolver;
     private final ImportBatchLineRepositoryPort importBatchLineRepositoryPort;
 
     public boolean isScheduledOnDrawDate(LotteryStationModel station, LocalDate drawDate) {
@@ -58,20 +56,12 @@ public class ImportBatchStationEligibilityResolver {
 
         LocalDate today = now.toLocalDate();
 
-        if (drawDate.isBefore(today)) {
-            return importMode == ImportBatchImportMode.POST_DRAW_SUPPLEMENT;
+        if (drawDate.isBefore(today) || drawDate.isAfter(today.plusDays(1))) {
+            return false;
         }
 
         if (drawDate.equals(today.plusDays(1))) {
             return importMode == ImportBatchImportMode.IN_DAY;
-        }
-
-        if (drawDate.isAfter(today.plusDays(1))) {
-            return false;
-        }
-
-        if (isAfterSameDayCutoff(now.toLocalTime())) {
-            return importMode == ImportBatchImportMode.POST_DRAW_SUPPLEMENT;
         }
 
         return importMode == ImportBatchImportMode.IN_DAY;
@@ -151,10 +141,5 @@ public class ImportBatchStationEligibilityResolver {
                     "Đài " + station.getName() + " không khả dụng cho ngày quay và loại nhập đã chọn."
             );
         }
-    }
-
-    private boolean isAfterSameDayCutoff(LocalTime currentTime) {
-        LocalTime cutoff = importBatchConfigResolver.resolveImportBatchCutoff();
-        return currentTime.isAfter(cutoff);
     }
 }

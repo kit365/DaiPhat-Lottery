@@ -13,14 +13,18 @@ import java.util.List;
 
 @Builder
 public record ConfirmSyncLotteryStationsRequest(
-        @NotNull LotteryStationSourceType source,
+        @NotNull(message = "Nguồn dữ liệu không được để trống.")
+        LotteryStationSourceType source,
 
-        @NotBlank String region,
+        @NotBlank(message = "Miền không được để trống.")
+        String region,
 
-        @NotNull @DecimalMin(value = "0", inclusive = false)
+        @NotNull(message = "Giá vé mặc định không được để trống.")
+        @DecimalMin(value = "0", inclusive = false, message = "Giá vé mặc định phải lớn hơn 0.")
         BigDecimal defaultPrice,
 
-        @NotEmpty @Valid
+        @NotEmpty(message = "Danh sách nhà đài đồng bộ không được để trống.")
+        @Valid
         List<ConfirmSyncLotteryStationItem> items
 ) {
 }

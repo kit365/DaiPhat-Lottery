@@ -91,9 +91,6 @@ public class ImportBatchCodeGenerator {
         if (batchType == ImportBatchType.SUPPLEMENTARY) {
             return "SUPP";
         }
-        if (batchType == ImportBatchType.LATE_IMPORT) {
-            return "LATE";
-        }
         if (batchType == ImportBatchType.ADJUSTMENT) {
             return "ADJ";
         }
