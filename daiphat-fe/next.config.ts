@@ -2,7 +2,17 @@ import type { NextConfig } from 'next';
 import path from 'path';
 
 const nextConfig: NextConfig = {
-  reactStrictMode: true,
+  compress: true,
+  experimental: {
+    optimizePackageImports: [
+      '@mui/material',
+      '@mui/icons-material',
+      'lucide-react',
+      'framer-motion',
+      'dayjs',
+      '@iconify/react',
+    ],
+  },
   images: {
     remotePatterns: [
       {
