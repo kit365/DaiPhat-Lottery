@@ -1,9 +1,13 @@
 name: daiphat-prod
 
+x-dozzle-infrastructure-labels: &dozzle-infrastructure-labels
+  dev.dozzle.group: Infrastructure
+
 services:
   postgres:
     image: postgres:16-alpine
     restart: unless-stopped
+    labels: *dozzle-infrastructure-labels
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-daiphat_core_db}
       POSTGRES_USER: ${POSTGRES_USER:-daiphat}
@@ -21,6 +25,7 @@ services:
   redis:
     image: redis:7-alpine
     restart: unless-stopped
+    labels: *dozzle-infrastructure-labels
     environment:
       REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
     command: >-
@@ -39,6 +44,9 @@ services:
     image: ${AI_IMAGE:-docker.io/kitops365/daiphat-ai:prod}
     pull_policy: always
     restart: unless-stopped
+    labels:
+      dev.dozzle.group: AI
+      dev.dozzle.name: AI
     healthcheck:
       test:
         [
@@ -57,6 +65,9 @@ services:
     image: ${BACKEND_IMAGE:-docker.io/kitops365/daiphat-be:prod}
     pull_policy: always
     restart: unless-stopped
+    labels:
+      dev.dozzle.group: Backend
+      dev.dozzle.name: Backend
     env_file:
       - ./.env.prod
     environment:
@@ -97,6 +108,9 @@ services:
     image: ${FRONTEND_IMAGE:-docker.io/kitops365/daiphat-fe:prod}
     pull_policy: always
     restart: unless-stopped
+    labels:
+      dev.dozzle.group: Frontend
+      dev.dozzle.name: Frontend
     environment:
       BACKEND_UPSTREAM: backend
     depends_on:
@@ -112,6 +126,7 @@ services:
   nginx:
     image: nginx:stable-alpine
     restart: unless-stopped
+    labels: *dozzle-infrastructure-labels
     environment:
       DOMAIN_NAME: ${DOMAIN_NAME:-_}
     entrypoint: ["/bin/sh", "/opt/daiphat/nginx/start.sh"]
@@ -137,6 +152,7 @@ services:
   certbot:
     image: certbot/certbot:latest
     restart: unless-stopped
+    labels: *dozzle-infrastructure-labels
     entrypoint: >-
       /bin/sh -c 'trap exit TERM;
       while :; do certbot renew --webroot -w /var/www/certbot --quiet;
@@ -152,6 +168,7 @@ services:
   docker-socket-proxy:
     image: ghcr.io/tecnativa/docker-socket-proxy:v0.4.2
     restart: unless-stopped
+    labels: *dozzle-infrastructure-labels
     environment:
       CONTAINERS: 1
       IMAGES: 1
@@ -167,6 +184,7 @@ services:
   dozzle:
     image: amir20/dozzle:v10.6.12
     restart: unless-stopped
+    labels: *dozzle-infrastructure-labels
     environment:
       DOCKER_HOST: tcp://docker-socket-proxy:2375
       DOZZLE_BASE: /dozzle
@@ -197,6 +215,7 @@ services:
       context: ./daiphat-be/infra/backup
       dockerfile: Dockerfile
     restart: unless-stopped
+    labels: *dozzle-infrastructure-labels
     env_file:
       - ./.env.prod
     environment:
