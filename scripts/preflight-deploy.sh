@@ -23,19 +23,14 @@ done
 
 docker info >/dev/null
 
-[[ -f "$repo_root/.env.local" ]] || {
-    echo "Missing $repo_root/.env.local" >&2
-    exit 1
-}
-[[ -f "$repo_root/daiphat-fe/.env" ]] || {
-    echo "Missing $repo_root/daiphat-fe/.env" >&2
+[[ -f "$repo_root/.env" ]] || {
+    echo "Missing $repo_root/.env" >&2
     exit 1
 }
 
 echo "Creating a clean preflight snapshot from commit $commit_sha"
 git -C "$repo_root" archive --format=tar HEAD | tar -xf - -C "$snapshot_dir"
-cp "$repo_root/.env.local" "$snapshot_dir/.env.local"
-cp "$repo_root/daiphat-fe/.env" "$snapshot_dir/daiphat-fe/.env"
+cp "$repo_root/.env" "$snapshot_dir/.env"
 
 compose=(docker compose -p "$project_name" -f "$snapshot_dir/docker-compose.yml")
 

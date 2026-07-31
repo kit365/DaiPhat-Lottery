@@ -26,9 +26,8 @@ jobs:
 
       - name: Create non-secret validation environment
         run: |
-          install -m 600 /dev/null .env.local
+          install -m 600 /dev/null .env
           install -m 600 /dev/null .env.prod
-          install -m 600 /dev/null daiphat-fe/.env
 
       - name: Validate local Compose stack
         run: docker compose -f docker-compose.yml config --quiet
