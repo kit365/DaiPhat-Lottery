@@ -108,7 +108,18 @@ daiphat:
           - mo thuong
           - "tim "
           - " xem"
+          - " xo"
+          - thu may
+          - ngay may
+          - ngay nao
+          - ngay nhat
+          - khi nao
+          - gan nhat
       schedule-date-context-verbs:
         - lich
         - quay
         - mo thuong
+        - xo
+        - thu may
+        - ngay may
+        - ngay nhat

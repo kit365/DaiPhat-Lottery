@@ -31,14 +31,6 @@ spring:
           starttls:
             enable: true
 
-daiphat:
-  blog:
-    seed:
-      enabled: false
-  order:
-    seed:
-      enabled: false
-
 logging:
   level:
     root: INFO

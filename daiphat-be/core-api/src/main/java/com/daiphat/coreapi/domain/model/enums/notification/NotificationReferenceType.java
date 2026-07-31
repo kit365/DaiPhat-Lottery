@@ -8,6 +8,7 @@ public enum NotificationReferenceType {
     @Deprecated
     REFUND,
     REFUND_REQUEST,
+    PRIZE_PAYOUT_REQUEST,
     LOTTERY_STATION,
     SYSTEM,
     SUPPORT_TICKET

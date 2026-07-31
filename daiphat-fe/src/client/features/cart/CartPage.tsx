@@ -12,14 +12,16 @@ import { AppToast as toast } from '../../../utils/toast.util';
 
 export const CartPage = () => {
     const navigate = useNavigate();
-    const { items, updateQuantity, removeItem } = useCartStore();
+    const { items, updateQuantity, removeItem, clearBuyNow } = useCartStore();
     const { token, openLoginModal } = useAuthStore();
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
     // Đồng bộ tồn kho thực tế từ DB khi vào giỏ
     useEffect(() => {
+        // Rời phiên mua ngay (nếu còn) — giỏ chính phải hiển thị đầy đủ.
+        clearBuyNow();
         validateAndSyncCartStock();
-    }, []);
+    }, [clearBuyNow]);
 
     // Auto-select new items
     useEffect(() => {

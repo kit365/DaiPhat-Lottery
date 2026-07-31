@@ -92,6 +92,9 @@ export interface ConversationResponse {
     createdAt?: string | null;
     updatedAt?: string | null;
     deletedAt?: string | null;
+    escalationReason?: string | null;
+    escalatedAt?: string | null;
+    handoffSummary?: string | null;
 }
 
 export interface ChatMessageResponse {

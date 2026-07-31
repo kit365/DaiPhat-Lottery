@@ -39,6 +39,8 @@ const NOTIFICATION_ROUTES: Record<string, RouteResolver> = {
         referenceId ? `/profile/refunds/${referenceId}` : null,
     [NOTIFICATION_REFERENCE_TYPE.REFUND_REQUEST]: (referenceId) =>
         referenceId ? `/profile/refunds/${referenceId}` : null,
+    [NOTIFICATION_REFERENCE_TYPE.PRIZE_PAYOUT_REQUEST]: (referenceId) =>
+        referenceId ? `/profile/prize-payouts/${referenceId}` : null,
     [NOTIFICATION_REFERENCE_TYPE.SUPPORT_TICKET]: (referenceId) =>
         referenceId ? `/profile/complaints/${referenceId}` : null,
     [NOTIFICATION_REFERENCE_TYPE.LOTTERY_STATION]: () => "/buy-ticket",

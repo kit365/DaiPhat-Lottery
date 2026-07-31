@@ -74,6 +74,14 @@ describe('parseScheduleResultSummaryToken', () => {
       highlightDate: '2026-07-27',
     });
   });
+
+  it('parses station name on single-station summary', () => {
+    const result = parseScheduleResultSummaryToken(
+      `${SCHEDULE_TOKEN_RESULT_SUMMARY_PREFIX}station=3:region=MIEN_NAM:stationName=B%E1%BA%BFn%20Tre:date=2026-07-28`
+    );
+    expect(result?.stationId).toBe(3);
+    expect(result?.stationName).toBe('Bến Tre');
+  });
 });
 
 describe('buildBuyTicketPath', () => {

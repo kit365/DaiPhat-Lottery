@@ -10,7 +10,7 @@ import {
 } from '@mui/material';
 import { Icon } from '@iconify/react';
 import { Conversation } from '../../../../../types/chat.type';
-import { getConversationDisplayTitle, getAssigneeDisplayLabel, getConversationAvatarLetter } from '../utils';
+import { getConversationDisplayTitle, getAssigneeDisplayLabel, getConversationAvatarLetter, getManagementUnreadCount } from '../utils';
 import { useAuthStore } from '../../../../../stores/useAuthStore';
 
 interface ChatDetailsProps {
@@ -72,7 +72,7 @@ export const ChatDetails = ({ conversation }: ChatDetailsProps) => {
                     <Stack direction="row" justifyContent="space-between">
                         <Typography variant="body2" color="text.secondary">Tin chưa đọc:</Typography>
                         <Typography variant="body2" sx={{ fontWeight: 600, color: 'var(--palette-primary-main)' }}>
-                            {conversation.unreadCount ?? 0}
+                            {getManagementUnreadCount(conversation)}
                         </Typography>
                     </Stack>
                 </Box>

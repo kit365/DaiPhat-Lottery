@@ -25,6 +25,8 @@ public interface MessageRepositoryPort {
 
     int countUnreadByConversationId(Long conversationId, UUID readerUserId, LocalDateTime lastReadAt);
 
+    int countInboundUnreadForStaff(Long conversationId);
+
     int markInboundMessagesAsReadByCustomer(Long conversationId, LocalDateTime readAt);
 
     int markAllInboundUnreadMessagesAsReadByCustomer(Long conversationId);

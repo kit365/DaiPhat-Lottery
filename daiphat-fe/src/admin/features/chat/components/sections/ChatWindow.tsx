@@ -9,6 +9,7 @@ import {
     buildTimelineRows,
     formatSessionBoundaryDetail,
     parseSessionCloseNotice,
+    formatWaitDuration,
     TimelineRow,
 } from '../utils';
 import {
@@ -32,6 +33,7 @@ import {
     useTheme,
     useMediaQuery,
     createTheme,
+    Collapse,
 } from '@mui/material';
 import { formatChatMessageContent } from '../../../../../client/utils/ticketSuggestToken.util';
 import { LoadingButton } from '../../../../components/ui/LoadingButton';
@@ -50,6 +52,7 @@ import {
     mergeCustomerTimelineMessage,
 } from '../../hooks/useChat';
 import { useChatSocket } from '../../hooks/useChatSocket';
+import { chatService } from '../../services/chatService';
 import { Link } from 'react-router-dom';
 import { prefixAdmin } from '../../../../constants/routes';
 import { Conversation, Message } from '../../../../../types/chat.type';
@@ -85,6 +88,9 @@ export const ChatWindow = ({ conversationId, onToggleDetails }: ChatWindowProps)
     const [message, setMessage] = useState('');
     const [closeDialogOpen, setCloseDialogOpen] = useState(false);
     const [closeReason, setCloseReason] = useState<ConversationCloseReason>('RESOLVED');
+    const [showPreHandoff, setShowPreHandoff] = useState(false);
+    const [preHandoffMessages, setPreHandoffMessages] = useState<Message[]>([]);
+    const [loadingPreHandoff, setLoadingPreHandoff] = useState(false);
 
     const outerTheme = useTheme();
     const isMobile = useMediaQuery(outerTheme.breakpoints.down('sm'));
@@ -162,6 +168,41 @@ export const ChatWindow = ({ conversationId, onToggleDetails }: ChatWindowProps)
         activeConversation.status !== 'CLOSED' &&
         (isAdmin || activeConversation.assignedOperatorId === userId);
 
+    const canExpandPreHandoff =
+        !!activeConversation &&
+        !!activeConversation.handoffSummary &&
+        (isAdmin || activeConversation.assignedOperatorId === userId);
+
+    useEffect(() => {
+        setShowPreHandoff(false);
+        setPreHandoffMessages([]);
+    }, [conversationId]);
+
+    const handleTogglePreHandoff = async () => {
+        if (!conversationId || !canExpandPreHandoff) {
+            return;
+        }
+        if (showPreHandoff) {
+            setShowPreHandoff(false);
+            return;
+        }
+        if (preHandoffMessages.length > 0) {
+            setShowPreHandoff(true);
+            return;
+        }
+        setLoadingPreHandoff(true);
+        try {
+            const messages = await chatService.getPreHandoffMessages(Number(conversationId));
+            setPreHandoffMessages(messages);
+            setShowPreHandoff(true);
+        } catch (error: unknown) {
+            const err = error as { message?: string };
+            toast.error(err?.message || 'Không thể tải lịch sử chat AI.');
+        } finally {
+            setLoadingPreHandoff(false);
+        }
+    };
+
     const resolveCustomerId = useCallback(
         (targetConversationId?: number | null) => {
             const cachedConversations =
@@ -184,6 +225,13 @@ export const ChatWindow = ({ conversationId, onToggleDetails }: ChatWindowProps)
 
             const resolvedCustomerId = resolveCustomerId(payload.conversationId);
             if (!resolvedCustomerId) {
+                return;
+            }
+
+            const incomingConversation =
+                conversations?.find((conversation) => conversation.id === payload.conversationId) ??
+                conversations?.find((conversation) => conversation.id === conversationId);
+            if (!incomingConversation?.assignedOperatorId) {
                 return;
             }
 
@@ -236,7 +284,7 @@ export const ChatWindow = ({ conversationId, onToggleDetails }: ChatWindowProps)
             );
             shouldStickToBottom.current = true;
         },
-        [conversationId, queryClient, resolveCustomerId]
+        [conversationId, conversations, queryClient, resolveCustomerId]
     );
 
     const handleConversationEvent = useCallback(
@@ -551,6 +599,10 @@ export const ChatWindow = ({ conversationId, onToggleDetails }: ChatWindowProps)
                             {activeConversation && (
                                 <> · {getAssigneeDisplayLabel(activeConversation, userId)}</>
                             )}
+                            {activeConversation?.status === ConversationStatusEnum.WAITING_FOR_OPERATOR
+                                && activeConversation.escalatedAt && (
+                                <> · Đã chờ {formatWaitDuration(activeConversation.escalatedAt)}</>
+                            )}
                         </Typography>
                         {!isConnected && (
                             <Typography variant="caption" sx={{ color: 'var(--palette-warning-main)' }}>
@@ -614,6 +666,76 @@ export const ChatWindow = ({ conversationId, onToggleDetails }: ChatWindowProps)
                     }}
                 >
                     <Box ref={topSentinelRef} sx={{ height: 1, flexShrink: 0 }} />
+                    {activeConversation?.handoffSummary && (
+                        <Box
+                            sx={{
+                                flexShrink: 0,
+                                mb: 1,
+                                p: 2,
+                                borderRadius: 2,
+                                bgcolor: 'var(--palette-warning-lighter)',
+                                border: '1px solid var(--palette-warning-light)',
+                            }}
+                        >
+                            <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1 }}>
+                                <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'var(--palette-warning-dark)' }}>
+                                    Tóm tắt trước khi gặp nhân viên
+                                </Typography>
+                                {canExpandPreHandoff && (
+                                    <Button
+                                        size="small"
+                                        variant="text"
+                                        onClick={() => void handleTogglePreHandoff()}
+                                        disabled={loadingPreHandoff}
+                                        sx={{ textTransform: 'none', fontWeight: 600 }}
+                                    >
+                                        {loadingPreHandoff
+                                            ? 'Đang tải...'
+                                            : showPreHandoff
+                                              ? 'Ẩn lịch sử AI'
+                                              : 'Xem toàn bộ lịch sử AI'}
+                                    </Button>
+                                )}
+                            </Stack>
+                            <Typography
+                                variant="body2"
+                                sx={{ whiteSpace: 'pre-wrap', color: 'text.primary', lineHeight: 1.6 }}
+                            >
+                                {activeConversation.handoffSummary}
+                            </Typography>
+                            {!canExpandPreHandoff && canClaim && (
+                                <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+                                    Nhận hội thoại để xem chi tiết lịch sử chat với AI (nếu cần).
+                                </Typography>
+                            )}
+                            <Collapse in={showPreHandoff}>
+                                <Stack spacing={1.25} sx={{ mt: 2, pt: 1.5, borderTop: '1px dashed var(--palette-divider)' }}>
+                                    {preHandoffMessages.length === 0 ? (
+                                        <Typography variant="caption" color="text.secondary">
+                                            Không có tin nhắn AI trước khi tiếp nhận.
+                                        </Typography>
+                                    ) : (
+                                        preHandoffMessages.map((msg) => (
+                                            <Box key={`pre-${msg.id}`}>
+                                                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
+                                                    {msg.senderType === MessageSenderRole.CUSTOMER
+                                                        ? 'Khách'
+                                                        : msg.senderType === MessageSenderRole.AI_SYSTEM
+                                                          ? 'AI'
+                                                          : 'Hệ thống'}
+                                                    {' · '}
+                                                    {dayjs(msg.createdAt).format('HH:mm')}
+                                                </Typography>
+                                                <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>
+                                                    {msg.content}
+                                                </Typography>
+                                            </Box>
+                                        ))
+                                    )}
+                                </Stack>
+                            </Collapse>
+                        </Box>
+                    )}
                     {(timelineQuery.isFetchingPreviousPage || timelineQuery.hasPreviousPage) && (
                         <Box sx={{ display: 'flex', justifyContent: 'center', py: 1, flexShrink: 0 }}>
                             {timelineQuery.isFetchingPreviousPage ? (
@@ -640,8 +762,12 @@ export const ChatWindow = ({ conversationId, onToggleDetails }: ChatWindowProps)
                             <CircularProgress />
                         </Box>
                     ) : !timelineRows.length ? (
-                        <Box sx={{ textAlign: 'center', mt: 8, opacity: 0.6 }}>
-                            <Typography variant="body2">Chưa có tin nhắn.</Typography>
+                        <Box sx={{ textAlign: 'center', mt: 4, opacity: 0.6 }}>
+                            <Typography variant="body2">
+                                {activeConversation?.handoffSummary
+                                    ? 'Chưa có tin nhắn sau khi tiếp nhận. Đọc tóm tắt phía trên trước khi trả lời.'
+                                    : 'Chưa có tin nhắn.'}
+                            </Typography>
                         </Box>
                     ) : (
                         timelineRows.map((row: TimelineRow, index: number) => {

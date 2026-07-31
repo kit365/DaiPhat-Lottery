@@ -211,10 +211,73 @@ public class ChatScheduleParser {
         if (normalized.isBlank()) {
             return false;
         }
+        if (mentionsWeekdayInquiry(normalized)) {
+            return true;
+        }
         return chatScheduleProperties.getIntentKeywords().stream()
                 .map(this::normalize)
                 .filter(alias -> !alias.isBlank())
                 .anyMatch(normalized::contains);
+    }
+
+    /**
+     * Free-text hỏi khi nào/thứ mấy/ngày mấy đài xổ —
+     * trả lịch cả tuần của đài, không hỏi lại ngày.
+     */
+    public boolean mentionsWeekdayInquiry(String message) {
+        String normalized = normalize(message);
+        if (normalized.isBlank()) {
+            return false;
+        }
+        // Hỏi "khi nào / thứ mấy / ngày mấy / ngày gần nhất"
+        if (normalized.contains("thu may")
+                || normalized.contains("thu nao")
+                || normalized.contains("ngay may")
+                || normalized.contains("ngay nao")
+                || normalized.contains("khi nao")
+                || normalized.contains("luc nao")
+                || normalized.contains("ngay nhat")
+                || normalized.contains("gan nhat")
+                || normalized.contains("tiep theo")
+                || normalized.contains("ky toi")
+                || normalized.contains("lan toi")
+                || normalized.contains("lan sau")) {
+            return true;
+        }
+        // "xổ/quay vào thứ…" hoặc "xổ ngày…"
+        if ((normalized.contains("xo") || normalized.contains("quay") || normalized.contains("mo thuong"))
+                && (normalized.contains(" thu")
+                || normalized.endsWith(" thu")
+                || normalized.contains(" ngay")
+                || normalized.contains("vao thu")
+                || normalized.contains("vao ngay"))) {
+            return true;
+        }
+        return normalized.contains("lich dai")
+                || normalized.contains("lich xo")
+                || normalized.contains("gio quay");
+    }
+
+    /**
+     * Có nhắc đài + ý hỏi lịch/xổ (không phải kết quả) → shortcut hiện lịch đài.
+     */
+    public boolean looksLikeStationScheduleQuestion(String message) {
+        if (message == null || message.isBlank()) {
+            return false;
+        }
+        if (mentionsWeekdayInquiry(message) || mentionsScheduleIntent(message)) {
+            return true;
+        }
+        String normalized = normalize(message);
+        if (normalized.contains("ket qua") || normalized.contains("xo so") || normalized.contains("do ve")) {
+            return false;
+        }
+        return normalized.contains("xo ")
+                || normalized.startsWith("xo")
+                || normalized.contains(" quay")
+                || normalized.contains("quay ")
+                || normalized.contains("mo thuong")
+                || normalized.contains("lich ");
     }
 
     public boolean matchesBareSchedulePrompt(String message) {
@@ -263,6 +326,9 @@ public class ChatScheduleParser {
         if (normalized.isBlank()) {
             return false;
         }
+        if (mentionsRegionStationCatalogQuestion(message)) {
+            return false;
+        }
         if (containsAny(normalized, chatScheduleProperties.getRegionAllIntentPhrases())) {
             return true;
         }
@@ -282,6 +348,44 @@ public class ChatScheduleParser {
                 .filter(alias -> !alias.isBlank())
                 .anyMatch(alias -> normalized.contains(stationCueWord + " " + alias)
                         || (!suffixToken.isBlank() && normalized.contains(alias + suffixToken)));
+    }
+
+    /**
+     * Hỏi có bao nhiêu đài / liệt kê danh sách đài trong miền — trả text, không hỏi ngày.
+     */
+    public boolean mentionsRegionStationCatalogQuestion(String message) {
+        String normalized = normalize(message);
+        if (normalized.isBlank()) {
+            return false;
+        }
+        if (!normalized.contains("dai")) {
+            return false;
+        }
+        if (containsAny(normalized, chatScheduleProperties.getRegionStationCatalogPhrases())) {
+            return true;
+        }
+        return normalized.contains("liet ke")
+                || normalized.contains("danh sach")
+                || normalized.contains("ke ra")
+                || normalized.contains("co nhung dai nao")
+                || normalized.contains("nhung dai nao");
+    }
+
+    /** Hỏi đồng thời lịch quay và kết quả. */
+    public boolean mentionsScheduleAndResult(String message) {
+        if (message == null || message.isBlank()) {
+            return false;
+        }
+        String normalized = normalize(message);
+        boolean wantsSchedule = mentionsScheduleIntent(message)
+                || mentionsWeekdayInquiry(message)
+                || normalized.contains("lich quay")
+                || normalized.contains("lich xo")
+                || normalized.contains("lich ");
+        boolean wantsResult = normalized.contains("ket qua")
+                || normalized.contains("xo so")
+                || normalized.contains("do ve");
+        return wantsSchedule && wantsResult;
     }
 
     public boolean isRestartMessage(String message) {

@@ -30,6 +30,20 @@ daiphat:
         - tim dai
         - xem lịch đài
         - xem lich dai
+        - xổ vào thứ
+        - xo vao thu
+        - xổ thứ mấy
+        - xo thu may
+        - xổ ngày mấy
+        - xo ngay may
+        - ngày nhất
+        - ngay nhat
+        - quay khi nào
+        - quay khi nao
+        - quay thứ mấy
+        - quay thu may
+        - đài nào xổ
+        - dai nao xo
       bare-intent-phrases:
         - tra cứu lịch
         - tra cuu lich
@@ -107,6 +121,18 @@ daiphat:
         - dai mien bac
         - dai mien trung
         - dai mien
+      region-station-catalog-phrases:
+        - liet ke
+        - danh sach
+        - ke ra
+        - ke het
+        - co bao nhieu dai
+        - co may dai
+        - bao nhieu dai
+        - may dai
+        - co nhung dai nao
+        - nhung dai nao
+        - tat ca cac dai
       station-exclusion-phrases:
         - dai mien
         - quay dai nao

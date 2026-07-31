@@ -8,7 +8,9 @@ import java.util.List;
 import java.util.TimeZone;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.autoconfigure.domain.EntityScan;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import com.daiphat.coreapi.application.config.AuthProperties;
@@ -16,6 +18,8 @@ import com.daiphat.coreapi.application.config.OrderRefundProperties;
 import com.daiphat.coreapi.application.config.PaymentProperties;
 
 @SpringBootApplication
+@EntityScan(basePackages = "com.daiphat.coreapi.infrastructure.persistence.entity")
+@EnableJpaRepositories(basePackages = "com.daiphat.coreapi.infrastructure.persistence.repository")
 @EnableAsync
 @EnableScheduling
 @EnableConfigurationProperties({AuthProperties.class, PaymentProperties.class, OrderRefundProperties.class})
