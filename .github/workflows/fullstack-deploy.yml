@@ -156,33 +156,52 @@ jobs:
           chmod 755 .dozzle
           chmod 644 .env.prod .deploy.env .dozzle/users.yml
 
+      - name: Configure and validate VPS SSH key
+        env:
+          SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+        run: |
+          set -euo pipefail
+          test -n "$SSH_KEY" || { echo "VPS_SSH_KEY is unavailable; use a repository Actions secret." >&2; exit 1; }
+          install -d -m 700 "$HOME/.ssh"
+          printf '%s\n' "$SSH_KEY" > "$HOME/.ssh/daiphat_vps_deploy"
+          chmod 600 "$HOME/.ssh/daiphat_vps_deploy"
+          ssh-keygen -y -f "$HOME/.ssh/daiphat_vps_deploy" >/dev/null
+          ssh-keyscan -H "$VPS_HOST" >> "$HOME/.ssh/known_hosts"
+
       - name: Copy production stack to VPS
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.VPS_HOST }}
-          username: ${{ secrets.VPS_USER }}
-          key: ${{ secrets.VPS_SSH_KEY }}
-          source: "docker-compose.prod.yml,daiphat-be/infra,scripts/deploy-prod.sh,scripts/bootstrap-tls.sh,scripts/vps-preflight.sh,.env.prod,.deploy.env,.dozzle/users.yml"
-          target: ${{ secrets.VPS_DEPLOY_PATH }}
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          VPS_DEPLOY_PATH: ${{ secrets.VPS_DEPLOY_PATH }}
+        run: |
+          set -euo pipefail
+          tar -czf - docker-compose.prod.yml daiphat-be/infra scripts/deploy-prod.sh scripts/bootstrap-tls.sh scripts/vps-preflight.sh .env.prod .deploy.env .dozzle/users.yml \
+            | ssh -i "$HOME/.ssh/daiphat_vps_deploy" -o BatchMode=yes -o ConnectTimeout=10 "$VPS_USER@$VPS_HOST" \
+              "mkdir -p '$VPS_DEPLOY_PATH' && tar -xzf - -C '$VPS_DEPLOY_PATH'"
 
       - name: Deploy and verify on VPS
-        uses: appleboy/ssh-action@v1.2.0
         env:
           DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
           DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
           VPS_DEPLOY_PATH: ${{ secrets.VPS_DEPLOY_PATH }}
-        with:
-          host: ${{ secrets.VPS_HOST }}
-          username: ${{ secrets.VPS_USER }}
-          key: ${{ secrets.VPS_SSH_KEY }}
-          envs: DOCKER_USERNAME,DOCKER_PASSWORD,VPS_DEPLOY_PATH
-          script: |
+        run: |
+          set -euo pipefail
+          printf '%s' "$DOCKER_PASSWORD" | ssh -i "$HOME/.ssh/daiphat_vps_deploy" -o BatchMode=yes -o ConnectTimeout=10 "$VPS_USER@$VPS_HOST" \
+            "docker login docker.io -u '$DOCKER_USERNAME' --password-stdin"
+          ssh -i "$HOME/.ssh/daiphat_vps_deploy" -o BatchMode=yes -o ConnectTimeout=10 "$VPS_USER@$VPS_HOST" <<EOF
             set -eu
             cd "$VPS_DEPLOY_PATH"
             chmod 700 scripts/deploy-prod.sh scripts/bootstrap-tls.sh scripts/vps-preflight.sh
-            printf '%s' "$DOCKER_PASSWORD" | docker login docker.io -u "$DOCKER_USERNAME" --password-stdin
             scripts/vps-preflight.sh "$VPS_DEPLOY_PATH"
             scripts/deploy-prod.sh
+          EOF
+
+      - name: Remove temporary VPS SSH key
+        if: always()
+        run: rm -f "$HOME/.ssh/daiphat_vps_deploy"
 
   promote-main:
     if: ${{ (inputs.source_ref || github.ref_name) == 'main' }}
