@@ -80,6 +80,44 @@ export function resolveOrderDetailStatusBadge(status?: string | null) {
     };
 }
 
+/** Badge for lottery-ticket-serial status shown on order-detail lists. */
+export function resolveLotteryTicketSerialStatusBadge(status?: string | null, statusDisplayName?: string | null) {
+    const normalized = (status || '').toUpperCase();
+    const label = statusDisplayName || SERIAL_STATUS_LABELS[normalized] || status || '—';
+    switch (normalized) {
+        case 'IN_STOCK':
+            return { label, color: '#15803d', bgcolor: '#dcfce7' };
+        case 'RESERVED':
+        case 'PROXY_HOLDING':
+            return { label, color: '#a16207', bgcolor: '#fef9c3' };
+        case 'SOLD':
+            return { label, color: '#0369a1', bgcolor: '#e0f2fe' };
+        case 'EXPIRED':
+        case 'RETURNED':
+        case 'PENDING_RETURN':
+            return { label, color: '#64748b', bgcolor: '#f1f5f9' };
+        case 'DAMAGED':
+        case 'LOST':
+        case 'VOIDED':
+            return { label, color: '#b91c1c', bgcolor: '#fee2e2' };
+        default:
+            return { label, color: '#64748b', bgcolor: '#f1f5f9' };
+    }
+}
+
+const SERIAL_STATUS_LABELS: Record<string, string> = {
+    IN_STOCK: 'Trong kho',
+    RESERVED: 'Đang giữ chỗ',
+    PROXY_HOLDING: 'Đại lý giữ hộ',
+    SOLD: 'Đã bán',
+    EXPIRED: 'Hết hạn',
+    DAMAGED: 'Hỏng',
+    LOST: 'Thất lạc',
+    VOIDED: 'Đã hủy',
+    PENDING_RETURN: 'Chờ trả',
+    RETURNED: 'Đã trả',
+};
+
 export interface OrderTicketItemRequest {
     lotteryTicketId: number;
     quantity: number;
