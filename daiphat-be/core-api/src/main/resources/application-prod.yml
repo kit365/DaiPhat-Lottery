@@ -18,6 +18,7 @@ spring:
     redis:
       host: ${CORE_REDIS_HOST}
       port: ${CORE_REDIS_PORT}
+      password: ${CORE_REDIS_PASSWORD}
   mail:
     host: ${AUTH_PROD_MAIL_HOST}
     port: ${AUTH_PROD_MAIL_PORT}

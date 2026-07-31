@@ -29,8 +29,11 @@ logs/
 
 # Runtime environment files (never commit credentials)
 .env*
+.dozzle/
 azure-app-settings.*.json
 !**/.env.properties
+!**/.env.example
+!**/.env.*.example
 mvnd/
 .mvnd/
 
