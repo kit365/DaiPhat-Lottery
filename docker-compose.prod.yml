@@ -1,24 +1,226 @@
 name: daiphat-prod
 
-# This file is for Docker preflight or a VM fallback. Azure App Service runs
-# the same APP_IMAGE and receives these variables through App Settings.
 services:
-  app:
-    platform: linux/amd64
-    image: ${APP_IMAGE:-docker.io/kitops365/daiphat:prod}
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-daiphat_core_db}
+      POSTGRES_USER: ${POSTGRES_USER:-daiphat}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      TZ: Asia/Ho_Chi_Minh
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    mem_limit: 768m
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
+    command: >-
+      sh -c 'exec redis-server --appendonly yes --requirepass "$${REDIS_PASSWORD}"
+      --maxmemory 256mb --maxmemory-policy volatile-lru'
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$${REDIS_PASSWORD}\" ping | grep PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    mem_limit: 384m
+
+  ai:
+    image: ${AI_IMAGE:-docker.io/kitops365/daiphat-ai:prod}
     pull_policy: always
     restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)",
+        ]
+      interval: 15s
+      timeout: 5s
+      start_period: 15s
+      retries: 8
+    mem_limit: 256m
+
+  backend:
+    image: ${BACKEND_IMAGE:-docker.io/kitops365/daiphat-be:prod}
+    pull_policy: always
+    restart: unless-stopped
+    env_file:
+      - ./.env.prod
     environment:
       SPRING_PROFILES_ACTIVE: prod
       SERVER_PORT: 8080
-    env_file:
-      - path: ./.env.prod
-        required: false
-    ports:
-      - "${APP_PORT:-8080}:8080"
+      CORE_POSTGRES_HOST: postgres
+      CORE_DB_PORT: 5432
+      CORE_POSTGRES_DB: ${POSTGRES_DB:-daiphat_core_db}
+      CORE_POSTGRES_USER: ${POSTGRES_USER:-daiphat}
+      CORE_POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      CORE_POSTGRES_JDBC_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-daiphat_core_db}?charSet=UTF-8
+      CORE_REDIS_HOST: redis
+      CORE_REDIS_PORT: 6379
+      CORE_REDIS_PASSWORD: ${REDIS_PASSWORD}
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: 6379
+      SPRING_DATA_REDIS_PASSWORD: ${REDIS_PASSWORD}
+      SPRING_DATA_REDIS_SSL_ENABLED: "false"
+      DAIPHAT_AI_BASE_URL: http://ai:8000
+      JAVA_TOOL_OPTIONS: ${JAVA_TOOL_OPTIONS:--Xms256m -Xmx640m -XX:+UseContainerSupport}
+      TZ: Asia/Ho_Chi_Minh
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      ai:
+        condition: service_healthy
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/actuator/health/readiness"]
-      interval: 30s
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8080/actuator/health/readiness"]
+      interval: 15s
       timeout: 5s
       start_period: 90s
-      retries: 5
+      retries: 12
+    mem_limit: 1g
+
+  frontend:
+    image: ${FRONTEND_IMAGE:-docker.io/kitops365/daiphat-fe:prod}
+    pull_policy: always
+    restart: unless-stopped
+    environment:
+      BACKEND_UPSTREAM: backend
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+    mem_limit: 128m
+
+  nginx:
+    image: nginx:stable-alpine
+    restart: unless-stopped
+    environment:
+      DOMAIN_NAME: ${DOMAIN_NAME:-_}
+    entrypoint: ["/bin/sh", "/opt/daiphat/nginx/start.sh"]
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./daiphat-be/infra/nginx:/opt/daiphat/nginx:ro
+      - certbot_conf:/etc/letsencrypt
+      - certbot_www:/var/www/certbot
+    depends_on:
+      backend:
+        condition: service_healthy
+      frontend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/actuator/health/readiness"]
+      interval: 15s
+      timeout: 5s
+      retries: 6
+    mem_limit: 128m
+
+  certbot:
+    image: certbot/certbot:latest
+    restart: unless-stopped
+    entrypoint: >-
+      /bin/sh -c 'trap exit TERM;
+      while :; do certbot renew --webroot -w /var/www/certbot --quiet;
+      sleep 12h & wait $${!}; done;'
+    volumes:
+      - certbot_conf:/etc/letsencrypt
+      - certbot_www:/var/www/certbot
+    depends_on:
+      nginx:
+        condition: service_healthy
+    mem_limit: 128m
+
+  docker-socket-proxy:
+    image: ghcr.io/tecnativa/docker-socket-proxy:v0.4.2
+    restart: unless-stopped
+    environment:
+      CONTAINERS: 1
+      IMAGES: 1
+      INFO: 1
+      POST: 0
+      LOG_LEVEL: warning
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - docker_api
+    mem_limit: 128m
+
+  dozzle:
+    image: amir20/dozzle:v10.6.12
+    restart: unless-stopped
+    environment:
+      DOCKER_HOST: tcp://docker-socket-proxy:2375
+      DOZZLE_BASE: /dozzle
+      DOZZLE_AUTH_PROVIDER: simple
+      DOZZLE_ENABLE_ACTIONS: "false"
+      DOZZLE_ENABLE_SHELL: "false"
+      DOZZLE_ENABLE_MCP: "false"
+      DOZZLE_NO_ANALYTICS: "true"
+    volumes:
+      - ./.dozzle:/data
+    ports:
+      - "127.0.0.1:${DOZZLE_LOCAL_PORT:-9999}:8080"
+    networks:
+      - default
+      - docker_api
+    depends_on:
+      docker-socket-proxy:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "/dozzle", "healthcheck"]
+      interval: 15s
+      timeout: 5s
+      retries: 6
+    mem_limit: 256m
+
+  db-backup:
+    build:
+      context: ./daiphat-be/infra/backup
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file:
+      - ./.env.prod
+    environment:
+      PGHOST: postgres
+      PGPORT: 5432
+      PGDATABASE: ${POSTGRES_DB:-daiphat_core_db}
+      PGUSER: ${POSTGRES_USER:-daiphat}
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      BACKUP_TIME: ${BACKUP_TIME:-02:30}
+      LOCAL_RETENTION_DAYS: ${LOCAL_RETENTION_DAYS:-7}
+      TZ: Asia/Ho_Chi_Minh
+    volumes:
+      - ./backups/postgres:/backups
+    depends_on:
+      postgres:
+        condition: service_healthy
+    mem_limit: 384m
+
+volumes:
+  postgres_data:
+  redis_data:
+  certbot_conf:
+  certbot_www:
+
+networks:
+  docker_api:
+    internal: true
