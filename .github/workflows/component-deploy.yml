@@ -13,7 +13,7 @@ on:
         type: string
 
 concurrency:
-  group: daiphat-production-deploy
+  group: daiphat-production-${{ inputs.component }}
   cancel-in-progress: false
 
 permissions:
@@ -189,16 +189,18 @@ jobs:
           }
           ssh-keyscan -H "$VPS_HOST" >> "$HOME/.ssh/known_hosts"
 
-      - name: Copy component deployment files to VPS
+      - name: Stage component deployment package on VPS
         env:
           VPS_HOST: ${{ secrets.VPS_HOST }}
           VPS_USER: ${{ secrets.VPS_USER }}
           VPS_DEPLOY_PATH: ${{ secrets.VPS_DEPLOY_PATH }}
         run: |
           set -euo pipefail
+          archive_name="component-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}.tar.gz"
+          echo "DEPLOY_ARCHIVE=$archive_name" >> "$GITHUB_ENV"
           tar -czf - docker-compose.prod.yml daiphat-be/infra/backup scripts/deploy-component.sh scripts/vps-preflight.sh .env.prod .dozzle/users.yml \
             | ssh -i "$HOME/.ssh/daiphat_vps_deploy" -o BatchMode=yes -o ConnectTimeout=10 "$VPS_USER@$VPS_HOST" \
-              "mkdir -p '$VPS_DEPLOY_PATH' && tar -xzf - -C '$VPS_DEPLOY_PATH'"
+              "install -d -m 700 '$VPS_DEPLOY_PATH' '$VPS_DEPLOY_PATH/.incoming' && cat > '$VPS_DEPLOY_PATH/.incoming/$archive_name'"
 
       - name: Deploy and verify component on VPS
         env:
@@ -224,10 +226,19 @@ jobs:
           # shellcheck disable=SC2087
           ssh -i "$HOME/.ssh/daiphat_vps_deploy" -o BatchMode=yes -o ConnectTimeout=10 "$VPS_USER@$VPS_HOST" <<EOF
             set -eu
-            cd "$VPS_DEPLOY_PATH"
-            chmod 700 scripts/deploy-component.sh scripts/vps-preflight.sh
-            scripts/vps-preflight.sh "$VPS_DEPLOY_PATH"
-            scripts/deploy-component.sh "$COMPONENT" "$image" "$SOURCE_SHA"
+            command -v flock >/dev/null 2>&1 || { echo "Missing required VPS command: flock" >&2; exit 1; }
+            if ! flock -w 3600 "$VPS_DEPLOY_PATH/.deploy.lock" bash -c '
+              set -eu
+              tar -xzf "$VPS_DEPLOY_PATH/.incoming/$DEPLOY_ARCHIVE" -C "$VPS_DEPLOY_PATH"
+              rm -f "$VPS_DEPLOY_PATH/.incoming/$DEPLOY_ARCHIVE"
+              cd "$VPS_DEPLOY_PATH"
+              chmod 700 scripts/deploy-component.sh scripts/vps-preflight.sh
+              scripts/vps-preflight.sh "$VPS_DEPLOY_PATH"
+              scripts/deploy-component.sh "$COMPONENT" "$image" "$SOURCE_SHA"
+            '; then
+              rm -f "$VPS_DEPLOY_PATH/.incoming/$DEPLOY_ARCHIVE"
+              exit 1
+            fi
           EOF
 
       - name: Remove temporary VPS SSH key
