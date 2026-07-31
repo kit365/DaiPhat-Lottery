@@ -1,6 +1,9 @@
 name: DaiPhat Fullstack Deploy
 
 on:
+  push:
+    branches:
+      - feature/dp-5-infs
   workflow_dispatch:
     inputs:
       source_ref:
@@ -32,13 +35,13 @@ jobs:
       - name: Checkout selected source
         uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.source_ref }}
+          ref: ${{ inputs.source_ref || github.ref_name }}
 
       - name: Resolve immutable image names
         id: source
         env:
           DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
-          SOURCE_REF: ${{ inputs.source_ref }}
+          SOURCE_REF: ${{ inputs.source_ref || github.ref_name }}
         run: |
           set -euo pipefail
           sha=$(git rev-parse HEAD)
@@ -119,7 +122,7 @@ jobs:
       - name: Checkout deployment files
         uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.source_ref }}
+          ref: ${{ inputs.source_ref || github.ref_name }}
 
       - name: Prepare protected runtime files
         env:
@@ -178,7 +181,7 @@ jobs:
             scripts/deploy-prod.sh
 
   promote-main:
-    if: ${{ inputs.source_ref == 'main' }}
+    if: ${{ (inputs.source_ref || github.ref_name) == 'main' }}
     runs-on: ubuntu-latest
     needs: [build-and-push, deploy]
     steps:
