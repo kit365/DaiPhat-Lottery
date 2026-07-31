@@ -58,6 +58,16 @@ export const ROUTES = {
             DETAIL: (id: number | string) => `/${prefixAdmin}/import-batch/detail/${id}`,
             LINE_DETAIL: (batchId: number | string, lineId: number | string) => `/${prefixAdmin}/import-batch/detail/${batchId}/line/${lineId}`,
         },
+        RETURN_BATCH: {
+            LIST: `/${prefixAdmin}/return-batch/list`,
+            CREATE: `/${prefixAdmin}/return-batch/create`,
+            EDIT: (id: number | string) => `/${prefixAdmin}/return-batch/edit/${id}`,
+            DETAIL: (id: number | string) => `/${prefixAdmin}/return-batch/detail/${id}`,
+        },
+        SUPPLIER_SETTLEMENT: {
+            LIST: `/${prefixAdmin}/supplier-settlement/list`,
+            DETAIL: (id: number | string) => `/${prefixAdmin}/supplier-settlement/detail/${id}`,
+        },
         SUPPLIER: {
             LIST: `/${prefixAdmin}/supplier/list`,
             CREATE: `/${prefixAdmin}/supplier/create`,

@@ -69,6 +69,12 @@ const ImportBatchCreatePage = lazy(() => import("../features/ticket/import-batch
 const ImportBatchEditPage = lazy(() => import("../features/ticket/import-batch").then(m => ({ default: m.ImportBatchEditPage })));
 const ImportBatchDetailPage = lazy(() => import("../features/ticket/import-batch").then(m => ({ default: m.ImportBatchDetailPage })));
 const ImportBatchLineDetailPage = lazy(() => import("../features/ticket/import-batch").then(m => ({ default: m.ImportBatchLineDetailPage })));
+const ReturnBatchListPage = lazy(() => import("../features/ticket/return-batch").then(m => ({ default: m.ReturnBatchListPage })));
+const ReturnBatchCreatePage = lazy(() => import("../features/ticket/return-batch").then(m => ({ default: m.ReturnBatchCreatePage })));
+const ReturnBatchEditPage = lazy(() => import("../features/ticket/return-batch").then(m => ({ default: m.ReturnBatchEditPage })));
+const ReturnBatchDetailPage = lazy(() => import("../features/ticket/return-batch").then(m => ({ default: m.ReturnBatchDetailPage })));
+const SupplierSettlementListPage = lazy(() => import("../features/ticket/supplier-settlement").then(m => ({ default: m.SupplierSettlementListPage })));
+const SupplierSettlementDetailPage = lazy(() => import("../features/ticket/supplier-settlement").then(m => ({ default: m.SupplierSettlementDetailPage })));
 const SupplierListPage = lazy(() => import("../features/supplier").then(m => ({ default: m.SupplierListPage })));
 const SupplierCreatePage = lazy(() => import("../features/supplier").then(m => ({ default: m.SupplierCreatePage })));
 const SupplierDetailPage = lazy(() => import("../features/supplier").then(m => ({ default: m.SupplierDetailPage })));
@@ -100,6 +106,12 @@ export const AdminRoutes = [
     { path: "import-batch/edit/:id", element: <PermissionGuard permission={PERMISSIONS.IMPORT_BATCH.CREATE}><ImportBatchEditPage /></PermissionGuard> },
     { path: "import-batch/detail/:id", element: <PermissionGuard permissions={[PERMISSIONS.IMPORT_BATCH.VIEW, PERMISSIONS.IMPORT_BATCH.CREATE, PERMISSIONS.TICKET.CREATE]}><ImportBatchDetailPage /></PermissionGuard> },
     { path: "import-batch/detail/:id/line/:lineId", element: <PermissionGuard permission={PERMISSIONS.IMPORT_BATCH.VIEW}><ImportBatchLineDetailPage /></PermissionGuard> },
+    { path: "return-batch/list", element: <PermissionGuard permissions={[PERMISSIONS.IMPORT_BATCH.VIEW, PERMISSIONS.SUPPLIER.VIEW]}><ReturnBatchListPage /></PermissionGuard> },
+    { path: "return-batch/create", element: <PermissionGuard permission={PERMISSIONS.IMPORT_BATCH.CREATE}><ReturnBatchCreatePage /></PermissionGuard> },
+    { path: "return-batch/edit/:id", element: <PermissionGuard permission={PERMISSIONS.IMPORT_BATCH.CREATE}><ReturnBatchEditPage /></PermissionGuard> },
+    { path: "return-batch/detail/:id", element: <PermissionGuard permissions={[PERMISSIONS.IMPORT_BATCH.VIEW, PERMISSIONS.IMPORT_BATCH.CREATE, PERMISSIONS.SUPPLIER.VIEW]}><ReturnBatchDetailPage /></PermissionGuard> },
+    { path: "supplier-settlement/list", element: <PermissionGuard permissions={[PERMISSIONS.IMPORT_BATCH.VIEW, PERMISSIONS.SUPPLIER.VIEW]}><SupplierSettlementListPage /></PermissionGuard> },
+    { path: "supplier-settlement/detail/:id", element: <PermissionGuard permissions={[PERMISSIONS.IMPORT_BATCH.VIEW, PERMISSIONS.SUPPLIER.VIEW]}><SupplierSettlementDetailPage /></PermissionGuard> },
     { path: "supplier/list", element: <PermissionGuard permission={PERMISSIONS.SUPPLIER.VIEW}><SupplierListPage /></PermissionGuard> },
     { path: "supplier/create", element: <PermissionGuard permission={PERMISSIONS.SUPPLIER.CREATE}><SupplierCreatePage /></PermissionGuard> },
     { path: "supplier/detail/:id", element: <PermissionGuard permission={PERMISSIONS.SUPPLIER.VIEW}><SupplierDetailPage /></PermissionGuard> },
