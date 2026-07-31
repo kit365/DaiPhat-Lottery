@@ -38,6 +38,7 @@ import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
 import dayjs from 'dayjs';
 import { ImportBatchLine, ImportBatch } from '../../types/importBatch.type';
 import { useTicketInventory } from '../../../inventory/hooks/useTicketInventory';
+import { isSerialIncidentEligible } from '../../utils/serialIncidentWorkflow';
 import { getTicketStatusLabel, normalizeTicketStatus } from '../../../inventory/constants/ticket-status.config';
 import { displayImportBatchLineCodeRaw, formatImportBatchHeaderCode } from '../../utils/importBatchCode';
 import { getBatchTypeColor, getBatchTypeLabel, getImportBatchLineStatusChipColor, getImportBatchLineStatusLabel } from '../../utils/batchTypeLabels';
@@ -206,7 +207,7 @@ const CollapsibleRow = ({ ticket, index, onReportFault }: { ticket: any; index: 
                                         e.stopPropagation();
                                         onReportFault(ticket, s);
                                     }}
-                                    disabled={s.status === 'DAMAGED' || s.status === 'LOST' || s.status === 'SOLD'}
+                                    disabled={!isSerialIncidentEligible(s.status)}
                                     sx={{ textTransform: 'none', minWidth: 'unset', fontWeight: 600, py: 0.25, borderRadius: '4px' }}
                                 >
                                     Hủy
@@ -239,9 +240,9 @@ export const ImportBatchLineDetailModal = ({ line, batch, stationName, onClose }
 
     const handleOpenReportModal = (ticket: any, serial?: any) => {
         if (serial) {
-            setReportSerials([{ id: serial.id, serialNumber: serial.serialNumber, status: serial.status, ticketId: ticket.id, ticketNumbers: ticket.numbers, ticketStatus: ticket.status }]);
+            setReportSerials([{ id: serial.id, serialNumber: serial.serialNumber, status: serial.status, ticketId: ticket.id, ticketNumbers: ticket.numbers, ticketStatus: ticket.status, reservedByOrderId: serial.reservedByOrderId }]);
         } else {
-            setReportSerials((ticket.serials || []).map((s: any) => ({ id: s.id, serialNumber: s.serialNumber, status: s.status, ticketId: ticket.id, ticketNumbers: ticket.numbers, ticketStatus: ticket.status })));
+            setReportSerials((ticket.serials || []).map((s: any) => ({ id: s.id, serialNumber: s.serialNumber, status: s.status, ticketId: ticket.id, ticketNumbers: ticket.numbers, ticketStatus: ticket.status, reservedByOrderId: s.reservedByOrderId })));
         }
         setReportTicketNumbers(ticket.numbers);
         setReportTicketId(ticket.id);

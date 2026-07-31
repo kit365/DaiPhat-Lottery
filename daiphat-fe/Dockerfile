@@ -8,8 +8,9 @@ COPY package*.json ./
 RUN --mount=type=cache,target=/root/.npm npm ci
 
 COPY . .
+ARG VITE_ENV_HASH=local
 RUN --mount=type=secret,id=env_file,required=false \
-    sh -c 'if [ -f /run/secrets/env_file ]; then set -a; . /run/secrets/env_file; set +a; fi; npm exec vite build'
+    sh -c 'echo "Using frontend environment cache key: $VITE_ENV_HASH" >/dev/null; if [ -f /run/secrets/env_file ]; then awk "/^VITE_[A-Z0-9_]*=/" /run/secrets/env_file > /tmp/vite.env; set -a; . /tmp/vite.env; set +a; fi; npm exec vite build'
 
 FROM nginx:stable-alpine AS production-stage
 COPY --from=build-stage /app/dist /usr/share/nginx/html

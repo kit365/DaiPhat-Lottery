@@ -69,4 +69,29 @@ class OrderModelRefundDetailStatusTest {
 
         assertThat(detail.getStatus()).isEqualTo(OrderDetailStatus.REFUND_PENDING);
     }
+
+    @Test
+    @DisplayName("cancelAfterPaymentForRefund skips details already REFUND_PENDING from partial refund")
+    void cancelAfterPaymentForRefund_skipsAlreadyRefundPending() {
+        OrderDetailModel alreadyPending = OrderDetailModel.builder()
+                .status(OrderDetailStatus.REFUND_PENDING)
+                .price(BigDecimal.TEN)
+                .refundRequestId(1L)
+                .build();
+        OrderDetailModel stillActive = OrderDetailModel.builder()
+                .status(OrderDetailStatus.ACTIVE)
+                .price(BigDecimal.TEN)
+                .build();
+        OrderModel order = OrderModel.builder()
+                .status(OrderStatus.PENDING_PICKUP)
+                .orderType(OrderType.ONLINE)
+                .orderDetails(new ArrayList<>(List.of(alreadyPending, stillActive)))
+                .build();
+
+        order.cancelAfterPaymentForRefund("Hủy phần còn lại do sự cố kho");
+
+        assertThat(order.getStatus()).isEqualTo(OrderStatus.CANCELLED);
+        assertThat(alreadyPending.getStatus()).isEqualTo(OrderDetailStatus.REFUND_PENDING);
+        assertThat(stillActive.getStatus()).isEqualTo(OrderDetailStatus.REFUND_PENDING);
+    }
 }

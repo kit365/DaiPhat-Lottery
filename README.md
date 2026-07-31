@@ -13,8 +13,8 @@ Production runs on one VPS with Docker Compose. PostgreSQL, Redis, the three app
 Runtime secrets remain in ignored local files and GitHub Actions Secrets.
 
 ```bash
-# Reuse the existing ignored developer env files:
-# .env.local and daiphat-fe/.env
+# Use the single ignored local environment file at the repository root:
+# .env
 docker compose up -d --build
 ```
 
@@ -43,7 +43,7 @@ The frontend test suite is active in CI. The backend production package is compi
 1. Commit infrastructure separately from unrelated feature work.
 2. Run `scripts/preflight-deploy.sh` locally.
 3. Push `feature/dp-5-infs`.
-4. In GitHub Actions, run **DaiPhat Fullstack Deploy** manually with `source_ref=feature/dp-5-infs`.
+4. In GitHub Actions, run **DaiPhat Infrastructure Deploy** once, then run **DaiPhat Backend Deploy**, **DaiPhat Frontend Deploy** and **DaiPhat AI Deploy** with `source_ref=feature/dp-5-infs`.
 5. Verify the new VPS over HTTP by IP before pointing DNS.
 
 ### 2. Enable the domain and HTTPS
@@ -59,7 +59,7 @@ Nginx switches to the HTTPS template only after a valid certificate exists. Cert
 
 ### 3. Lock releases to main
 
-After bootstrap is stable, merge to `main` and run the same workflow manually with `source_ref=main`. Verified FE, BE and AI images receive the same immutable commit tag; the moving `prod` tags are updated only after the VPS healthcheck succeeds.
+After bootstrap is stable, merge to `main` and run the relevant component workflow manually with `source_ref=main`. Each verified FE, BE or AI image receives an immutable commit tag; that component's moving `prod` tag is updated only after its VPS healthcheck succeeds.
 
 ## GitHub Secrets
 
@@ -75,7 +75,7 @@ No additional content secret is required. `ENV_FILE_CONTENT` contains the comple
 
 Flyway is the only schema manager and Hibernate `ddl-auto` remains `none`. Every environment uses the same ordered migration set and its own `flyway_schema_history`; never create migrations named for dev/UAT/prod and never edit a migration already applied to production.
 
-Every production deploy creates a PostgreSQL dump before starting a new backend image. Restic currently stores encrypted snapshots in the persistent VPS backup directory; its repository can later be changed to S3-compatible storage through `ENV_FILE_CONTENT`. A failed backup stops the deployment. Image rollback restores the previous FE, BE and AI image set and never attempts to reverse a database migration.
+Every backend or full infrastructure deploy creates a PostgreSQL dump before starting a new backend image. Restic currently stores encrypted snapshots in the persistent VPS backup directory; its repository can later be changed to S3-compatible storage through `ENV_FILE_CONTENT`. A failed backup stops the deployment. A component failure restores that component's previous image and never attempts to reverse a database migration.
 
 Useful production commands:
 

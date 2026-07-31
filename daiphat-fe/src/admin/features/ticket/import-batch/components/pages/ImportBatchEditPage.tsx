@@ -32,7 +32,6 @@ import { prefixAdmin, ROUTES } from '../../../../../constants/routes';
 import {
     useEligibleImportBatchStations,
     useImportBatchDetail,
-    useImportBatchTimePolicy,
     usePauseImportBatchLine,
     useResumeImportBatchLine,
     useUpdateImportBatch,
@@ -163,7 +162,6 @@ export const ImportBatchEditPage = () => {
         () => (providersRes as { data?: { recordList?: Array<{ id?: number; _id?: number; name?: string }> } })?.data?.recordList ?? [],
         [providersRes]
     );
-    const { data: timePolicy } = useImportBatchTimePolicy();
     const formInitializedForBatchIdRef = useRef<string | null>(null);
     const [initializedBatchId, setInitializedBatchId] = useState<string | null>(null);
     const [highlightedRowIndices, setHighlightedRowIndices] = useState<Set<number>>(new Set());
@@ -200,17 +198,12 @@ export const ImportBatchEditPage = () => {
     const lines = useWatch({ control, name: 'lines' }) ?? [];
 
     const importModeForStations = useMemo(() => {
-        const lock = resolveImportModeLock(
-            drawDate,
-            [],
-            timePolicy?.importBatchCutoffTime,
-            !!drawDate
-        );
+        const lock = resolveImportModeLock(drawDate);
         if (lock.locked) {
             return lock.mode;
         }
         return importMode ?? batch?.importMode ?? 'IN_DAY';
-    }, [drawDate, importMode, batch?.importMode, timePolicy?.importBatchCutoffTime]);
+    }, [drawDate, importMode, batch?.importMode]);
 
     const { data: stationsResult, isLoading: isLoadingStations } = useEligibleImportBatchStations(
         drawDate,
@@ -220,16 +213,7 @@ export const ImportBatchEditPage = () => {
     const eligibleStations = stationsResult?.eligible ?? [];
     const blockedStations = stationsResult?.blocked ?? [];
 
-    const importModeLock = useMemo(
-        () =>
-            resolveImportModeLock(
-                drawDate,
-                eligibleStations,
-                timePolicy?.importBatchCutoffTime,
-                !isLoadingStations
-            ),
-        [drawDate, eligibleStations, timePolicy?.importBatchCutoffTime, isLoadingStations]
-    );
+    const importModeLock = useMemo(() => resolveImportModeLock(drawDate), [drawDate]);
 
     const resolvedImportMode = importModeLock.locked ? importModeLock.mode : importMode;
     const showSharedReceipt = batchUsesSharedInvoice(resolvedImportMode);

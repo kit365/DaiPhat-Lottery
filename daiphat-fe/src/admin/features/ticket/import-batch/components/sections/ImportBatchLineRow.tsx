@@ -251,7 +251,7 @@ export const ImportBatchLineRow = memo(function ImportBatchLineRow({
                     <Chip
                         label={getBatchTypeLabel(batchType)}
                         size="small"
-                        color={batchType === 'ADJUSTMENT' || batchType === 'LATE_IMPORT' ? 'warning' : 'default'}
+                        color={batchType === 'ADJUSTMENT' ? 'warning' : 'default'}
                         sx={{
                             maxWidth: '100%',
                             '& .MuiChip-label': {

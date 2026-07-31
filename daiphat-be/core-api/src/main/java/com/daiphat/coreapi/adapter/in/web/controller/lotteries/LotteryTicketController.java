@@ -202,6 +202,15 @@ public class LotteryTicketController {
         return ApiResponse.success("Thay đổi dãy số cho vé số thành công.", response);
     }
 
+    @PostMapping(ID_PATH + "/finalize-incident-cancel")
+    @PreAuthorize("hasAnyAuthority('ticket:edit')")
+    public ApiResponse<LotteryTicketResponse> finalizeIncidentCancel(@PathVariable Long id) {
+        log.info("REST request to finalize incident cancel for lottery ticket: {}", id);
+        return ApiResponse.success(
+                "Hủy dãy vé sau khi báo sự cố toàn bộ sê-ri thành công.",
+                lotteryTicketServicePort.finalizeIncidentCancel(id));
+    }
+
     @PostMapping(value = "/images/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @PreAuthorize("hasAnyAuthority('ticket:create', 'ticket:edit')")
     public ApiResponse<StorageResult> uploadAsset(@RequestPart("file") MultipartFile file) {

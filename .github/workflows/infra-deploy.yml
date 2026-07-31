@@ -1,0 +1,152 @@
+name: DaiPhat Infrastructure Deploy
+
+on:
+  push:
+    branches:
+      - feature/dp-5-infs
+    paths:
+      - "docker-compose.prod.yml"
+      - "daiphat-be/infra/**"
+      - "scripts/**"
+      - ".github/workflows/infra-deploy.yml"
+  workflow_dispatch:
+    inputs:
+      source_ref:
+        description: Git ref to deploy
+        required: true
+        default: feature/dp-5-infs
+        type: choice
+        options:
+          - feature/dp-5-infs
+          - main
+
+concurrency:
+  group: daiphat-production-infrastructure
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy-infrastructure:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout selected source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.source_ref || github.ref_name }}
+
+      - name: Prepare protected runtime files
+        env:
+          ENV_FILE_CONTENT: ${{ secrets.ENV_FILE_CONTENT }}
+          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+        run: |
+          set -euo pipefail
+          umask 077
+          test -n "$ENV_FILE_CONTENT"
+          test -n "$DOCKER_USERNAME"
+          source_sha=$(git rev-parse HEAD)
+          mkdir -p .dozzle
+          dozzle_username=$(printf '%s\n' "$ENV_FILE_CONTENT" | awk -F= '$1 == "DOZZLE_AUTH_USERNAME" { value=substr($0, length($1)+2) } END { print value }')
+          dozzle_password_hash=$(printf '%s\n' "$ENV_FILE_CONTENT" | awk -F= '$1 == "DOZZLE_AUTH_PASSWORD_HASH" { value=substr($0, length($1)+2) } END { print value }')
+          [[ "$dozzle_username" =~ ^[A-Za-z0-9._-]+$ ]]
+          [[ "$dozzle_password_hash" =~ ^\$2[aby]\$ ]]
+          printf '%s\n' "$ENV_FILE_CONTENT" \
+            | awk -F= '$1 != "DOZZLE_AUTH_USERNAME" && $1 != "DOZZLE_AUTH_PASSWORD_HASH"' \
+            > .env.prod
+          {
+            printf 'users:\n'
+            printf '  %s:\n' "$dozzle_username"
+            printf '    name: DaiPhat Admin\n'
+            printf "    password: '%s'\n" "$dozzle_password_hash"
+            printf '    filter:\n'
+            printf '    roles: none\n'
+          } > .dozzle/users.yml
+          {
+            printf 'BACKEND_IMAGE=docker.io/%s/daiphat-be:prod\n' "$DOCKER_USERNAME"
+            printf 'FRONTEND_IMAGE=docker.io/%s/daiphat-fe:prod\n' "$DOCKER_USERNAME"
+            printf 'AI_IMAGE=docker.io/%s/daiphat-ai:prod\n' "$DOCKER_USERNAME"
+            printf 'DEPLOY_SHA=infra-%s\n' "$source_sha"
+          } > .deploy.bootstrap.env
+          chmod 755 .dozzle
+          chmod 644 .env.prod .deploy.bootstrap.env .dozzle/users.yml
+
+      - name: Configure and validate VPS SSH key
+        env:
+          SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+        run: |
+          set -euo pipefail
+          test -n "$SSH_KEY" || { echo "VPS_SSH_KEY is unavailable; use a repository Actions secret." >&2; exit 1; }
+          install -d -m 700 "$HOME/.ssh"
+          key_file="$HOME/.ssh/daiphat_vps_deploy"
+          key_material=$(printf '%s\n' "$SSH_KEY" | sed -E 's/^[[:space:]]*\*\*//; s/\*\*[[:space:]]*$//; s/\r$//')
+          first_key_line=${key_material%%$'\n'*}
+          if [[ "$first_key_line" =~ ^-----BEGIN\ (OPENSSH|RSA)\ PRIVATE\ KEY-----$ ]]; then
+            printf '%s\n' "$key_material" > "$key_file"
+          else
+            key_body=$(printf '%s' "$key_material" | tr -d '[:space:]')
+            {
+              printf '%s\n' '-----BEGIN OPENSSH PRIVATE KEY-----'
+              printf '%s\n' "$key_body" | fold -w 70
+              printf '%s\n' '-----END OPENSSH PRIVATE KEY-----'
+            } > "$key_file"
+          fi
+          chmod 600 "$key_file"
+          ssh-keygen -y -f "$key_file" >/dev/null 2>&1 || {
+            echo "VPS_SSH_KEY is not a valid OpenSSH private key after normalization." >&2
+            exit 1
+          }
+          ssh-keyscan -H "$VPS_HOST" >> "$HOME/.ssh/known_hosts"
+
+      - name: Stage infrastructure deployment package on VPS
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          VPS_DEPLOY_PATH: ${{ secrets.VPS_DEPLOY_PATH }}
+        run: |
+          set -euo pipefail
+          archive_name="infrastructure-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}.tar.gz"
+          echo "DEPLOY_ARCHIVE=$archive_name" >> "$GITHUB_ENV"
+          tar -czf - docker-compose.prod.yml daiphat-be/infra scripts/deploy-prod.sh scripts/bootstrap-tls.sh scripts/vps-preflight.sh .env.prod .deploy.bootstrap.env .dozzle/users.yml \
+            | ssh -i "$HOME/.ssh/daiphat_vps_deploy" -o BatchMode=yes -o ConnectTimeout=10 "$VPS_USER@$VPS_HOST" \
+              "install -d -m 700 '$VPS_DEPLOY_PATH' '$VPS_DEPLOY_PATH/.incoming' && cat > '$VPS_DEPLOY_PATH/.incoming/$archive_name'"
+
+      - name: Deploy and verify infrastructure on VPS
+        env:
+          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          VPS_DEPLOY_PATH: ${{ secrets.VPS_DEPLOY_PATH }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$DOCKER_PASSWORD" | ssh -i "$HOME/.ssh/daiphat_vps_deploy" -o BatchMode=yes -o ConnectTimeout=10 "$VPS_USER@$VPS_HOST" \
+            "docker login docker.io -u '$DOCKER_USERNAME' --password-stdin"
+          # Values below intentionally expand on the trusted runner before the script is sent.
+          # shellcheck disable=SC2087
+          ssh -i "$HOME/.ssh/daiphat_vps_deploy" -o BatchMode=yes -o ConnectTimeout=10 "$VPS_USER@$VPS_HOST" <<EOF
+            set -eu
+            command -v flock >/dev/null 2>&1 || { echo "Missing required VPS command: flock" >&2; exit 1; }
+            if ! flock -w 3600 "$VPS_DEPLOY_PATH/.deploy.lock" bash -c '
+              set -eu
+              tar -xzf "$VPS_DEPLOY_PATH/.incoming/$DEPLOY_ARCHIVE" -C "$VPS_DEPLOY_PATH"
+              rm -f "$VPS_DEPLOY_PATH/.incoming/$DEPLOY_ARCHIVE"
+              cd "$VPS_DEPLOY_PATH"
+              if [ ! -s .deploy.env ]; then
+                mv .deploy.bootstrap.env .deploy.env
+              else
+                rm -f .deploy.bootstrap.env
+              fi
+              chmod 700 scripts/deploy-prod.sh scripts/bootstrap-tls.sh scripts/vps-preflight.sh
+              scripts/vps-preflight.sh "$VPS_DEPLOY_PATH"
+              scripts/deploy-prod.sh
+            '; then
+              rm -f "$VPS_DEPLOY_PATH/.incoming/$DEPLOY_ARCHIVE"
+              exit 1
+            fi
+          EOF
+
+      - name: Remove temporary VPS SSH key
+        if: always()
+        run: rm -f "$HOME/.ssh/daiphat_vps_deploy"

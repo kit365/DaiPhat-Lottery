@@ -23,11 +23,13 @@ public class LotteryRegionApplicationMapper {
                 .maxLength(model.maxLength())
                 .numberLength(model.numberLength())
                 .stationCount(model.getStationCount())
+                .defaultDrawTime(model.defaultDrawTimeOrFallback())
                 .build();
     }
 
     public void merge(UpdateLotteryRegionRequest request, LotteryRegionModel model) {
         model.setMinNumber(request.minNumber());
         model.setMaxNumber(request.maxNumber());
+        model.setDefaultDrawTime(request.defaultDrawTime());
     }
 }

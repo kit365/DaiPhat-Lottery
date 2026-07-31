@@ -1,5 +1,6 @@
 export { SupplierListPage } from './components/pages/SupplierListPage';
 export { SupplierCreatePage } from './components/pages/SupplierCreatePage';
+export { SupplierDetailPage } from './components/pages/SupplierDetailPage';
 export { SupplierEditPage } from './components/pages/SupplierEditPage';
 
 export {

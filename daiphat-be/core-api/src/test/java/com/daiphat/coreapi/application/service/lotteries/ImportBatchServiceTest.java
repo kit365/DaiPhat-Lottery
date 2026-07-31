@@ -118,6 +118,8 @@ class ImportBatchServiceTest {
                 .name("Tổng đại lý Minh Chính")
                 .code("MINH_CHINH")
                 .isActive(true)
+                .importAllowFrom(LocalTime.of(0, 0))
+                .returnCutOffTime(LocalTime.of(14, 30))
                 .build();
         when(lotterySupplierServicePort.getActiveModelById(SUPPLIER_ID)).thenReturn(activeSupplier);
         when(importBatchCodeGenerator.generateHeaderCode(any())).thenReturn("PN-20260706-0001");

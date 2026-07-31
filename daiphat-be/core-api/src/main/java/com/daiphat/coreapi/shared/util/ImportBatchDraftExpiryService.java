@@ -18,19 +18,11 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.LocalTime;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 
 /**
- * Auto-cancels outdated import batch lines, then cascades to the batch header only when
- * every active line has been cancelled:
- * <ul>
- *   <li>Past draw date — IN_DAY batches only; POST_DRAW_SUPPLEMENT batches are exempt</li>
- *   <li>Same-day IN_DAY after cutoff — POST_DRAW_SUPPLEMENT batches are exempt</li>
- *   <li>ADJUSTMENT lines are exempt from all auto-cancellation triggers</li>
- * </ul>
+ * Auto-cancels outdated import batch lines for past draw dates (IN_DAY only;
+ * POST_DRAW_SUPPLEMENT and ADJUSTMENT lines are exempt).
  */
 @Service
 @RequiredArgsConstructor
@@ -40,7 +32,6 @@ public class ImportBatchDraftExpiryService {
     private final ImportBatchRepositoryPort importBatchRepositoryPort;
     private final ImportBatchLineRepositoryPort importBatchLineRepositoryPort;
     private final LotteryStationServicePort lotteryStationServicePort;
-    private final ImportBatchConfigResolver importBatchConfigResolver;
     private final Clock clock;
 
     @Transactional
@@ -48,27 +39,10 @@ public class ImportBatchDraftExpiryService {
         LocalDateTime now = LocalDateTime.now(clock);
         LocalDate today = now.toLocalDate();
         int cancelledBatchCount = 0;
-        Set<Long> processedBatchIds = new HashSet<>();
 
         for (ImportBatchModel batch : importBatchRepositoryPort.findDraftBatchesWithDrawDateBefore(today)) {
             if (processBatchExpiry(batch, now)) {
                 cancelledBatchCount++;
-            }
-            processedBatchIds.add(batch.getId());
-        }
-
-        LocalTime cutoff = importBatchConfigResolver.resolveImportBatchCutoff();
-        if (isPastCutoff(now.toLocalTime(), cutoff)) {
-            for (ImportBatchModel batch : importBatchRepositoryPort.findDraftInDayBatchesByDrawDate(today)) {
-                if (processedBatchIds.contains(batch.getId())) {
-                    continue;
-                }
-                if (!batch.isSubjectToSameDayCutoffCancellation(today)) {
-                    continue;
-                }
-                if (processBatchExpiry(batch, now)) {
-                    cancelledBatchCount++;
-                }
             }
         }
 
@@ -91,7 +65,6 @@ public class ImportBatchDraftExpiryService {
 
         ensureLinesLoaded(batch);
         LocalDate today = now.toLocalDate();
-        LocalTime cutoff = importBatchConfigResolver.resolveImportBatchCutoff();
         boolean anyLineCancelled = false;
 
         for (ImportBatchLineModel line : batch.getActiveLines()) {
@@ -99,7 +72,7 @@ public class ImportBatchDraftExpiryService {
                 continue;
             }
 
-            String cancelReason = resolveLineCancelReason(batch, line, today, now.toLocalTime(), cutoff);
+            String cancelReason = resolveLineCancelReason(batch, line, today);
             if (cancelReason == null) {
                 continue;
             }
@@ -143,22 +116,14 @@ public class ImportBatchDraftExpiryService {
     private String resolveLineCancelReason(
             ImportBatchModel batch,
             ImportBatchLineModel line,
-            LocalDate today,
-            LocalTime currentTime,
-            LocalTime cutoff
+            LocalDate today
     ) {
         if (batch.isExemptFromAutoCancellation() || line.isExemptFromAutoCancellation()) {
             return null;
         }
 
-        String stationName = resolveStationName(line.getLotteryStationId());
-
         if (batch.hasExpiredDrawDate(today)) {
-            return ImportBatchLineCancelReason.drawDateExpired(stationName);
-        }
-
-        if (batch.isSubjectToSameDayCutoffCancellation(today) && isPastCutoff(currentTime, cutoff)) {
-            return ImportBatchLineCancelReason.importDeadlinePassed(stationName);
+            return ImportBatchLineCancelReason.drawDateExpired(resolveStationName(line.getLotteryStationId()));
         }
 
         return null;
@@ -190,9 +155,5 @@ public class ImportBatchDraftExpiryService {
         return status == ImportBatchLineStatus.OPEN
                 || status == ImportBatchLineStatus.IMPORTING
                 || status == ImportBatchLineStatus.PAUSED;
-    }
-
-    private boolean isPastCutoff(LocalTime currentTime, LocalTime cutoff) {
-        return currentTime.isAfter(cutoff);
     }
 }

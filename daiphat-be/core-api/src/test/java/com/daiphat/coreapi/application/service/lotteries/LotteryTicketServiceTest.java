@@ -122,6 +122,9 @@ class LotteryTicketServiceTest {
     @Mock
     private org.springframework.context.ApplicationEventPublisher applicationEventPublisher;
 
+    @Mock
+    private LotteryTicketAggregateSyncService lotteryTicketAggregateSyncService;
+
     private LotteryStationModel productModel;
     private CreateLotteryTicketRequest createRequest;
     private LotteryTicketModel mappedModel;
@@ -142,7 +145,8 @@ class LotteryTicketServiceTest {
                 lotteryTicketSerialService,
                 storagePort,
                 orderRepositoryPort,
-                applicationEventPublisher
+                applicationEventPublisher,
+                lotteryTicketAggregateSyncService
         );
 
         productModel = LotteryStationModel.builder()
@@ -1540,5 +1544,60 @@ class LotteryTicketServiceTest {
         verify(applicationEventPublisher, never()).publishEvent(any(LotteryTicketProxyExpiredEvent.class));
     }
 
+    @Test
+    @DisplayName("FINALIZE_INCIDENT_CANCEL: Thành công khi tất cả sê-ri đã DAMAGED hoặc LOST")
+    void finalizeIncidentCancel_succeedsWhenAllSerialsFaulty() {
+        LotteryTicketSerialModel damagedSerial = LotteryTicketSerialModel.builder()
+                .id(1L)
+                .ticketId(TICKET_ID)
+                .serialNumber("SN001")
+                .status(LotteryTicketSerialStatus.DAMAGED)
+                .build();
+        LotteryTicketSerialModel lostSerial = LotteryTicketSerialModel.builder()
+                .id(2L)
+                .ticketId(TICKET_ID)
+                .serialNumber("SN002")
+                .status(LotteryTicketSerialStatus.LOST)
+                .build();
+
+        when(lotteryTicketRepositoryPort.findById(TICKET_ID)).thenReturn(Optional.of(existingModel));
+        when(lotteryTicketSerialService.findAllByTicketId(TICKET_ID)).thenReturn(List.of(damagedSerial, lostSerial));
+        when(lotteryTicketApplicationMapper.toResponse(existingModel)).thenReturn(mappedResponse);
+
+        LotteryTicketResponse response = lotteryTicketService.finalizeIncidentCancel(TICKET_ID);
+
+        assertThat(response).isEqualTo(mappedResponse);
+        verify(lotteryTicketAggregateSyncService).syncTicketAggregate(TICKET_ID);
+    }
+
+    @Test
+    @DisplayName("FINALIZE_INCIDENT_CANCEL: Từ chối khi còn sê-ri chưa báo sự cố")
+    void finalizeIncidentCancel_rejectsWhenSerialsIncomplete() {
+        LotteryTicketSerialModel damagedSerial = LotteryTicketSerialModel.builder()
+                .id(1L)
+                .ticketId(TICKET_ID)
+                .serialNumber("SN001")
+                .status(LotteryTicketSerialStatus.DAMAGED)
+                .build();
+        LotteryTicketSerialModel pendingSerial = LotteryTicketSerialModel.builder()
+                .id(2L)
+                .ticketId(TICKET_ID)
+                .serialNumber("SN002")
+                .status(LotteryTicketSerialStatus.IN_STOCK)
+                .build();
+
+        when(lotteryTicketRepositoryPort.findById(TICKET_ID)).thenReturn(Optional.of(existingModel));
+        when(lotteryTicketSerialService.findAllByTicketId(TICKET_ID)).thenReturn(List.of(damagedSerial, pendingSerial));
+
+        assertThatThrownBy(() -> lotteryTicketService.finalizeIncidentCancel(TICKET_ID))
+                .isInstanceOf(DomainException.class)
+                .satisfies(ex -> {
+                    DomainException domainException = (DomainException) ex;
+                    assertThat(domainException.getErrorCode()).isEqualTo(ErrorCode.LOTTERY_TICKET_SERIALS_INCIDENT_INCOMPLETE);
+                    assertThat(domainException.getInternalMessage()).contains("SN002");
+                });
+
+        verify(lotteryTicketAggregateSyncService, never()).syncTicketAggregate(any());
+    }
 
 }

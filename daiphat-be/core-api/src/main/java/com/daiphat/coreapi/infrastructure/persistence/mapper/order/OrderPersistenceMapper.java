@@ -6,7 +6,6 @@ import com.daiphat.coreapi.domain.model.orders.TransactionModel;
 import com.daiphat.coreapi.infrastructure.persistence.entity.lotteries.LotteryTicketEntity;
 import com.daiphat.coreapi.infrastructure.persistence.entity.lotteries.LotteryTicketSerialEntity;
 import com.daiphat.coreapi.infrastructure.persistence.entity.order.OrderDetailEntity;
-import com.daiphat.coreapi.infrastructure.persistence.entity.order.OrderDetailSerialEntity;
 import com.daiphat.coreapi.infrastructure.persistence.entity.order.OrderEntity;
 import com.daiphat.coreapi.infrastructure.persistence.entity.order.TransactionEntity;
 import com.daiphat.coreapi.infrastructure.persistence.entity.refund.RefundRequestEntity;
@@ -117,25 +116,15 @@ public class OrderPersistenceMapper {
         entity.setUpdatedAt(model.getUpdatedAt());
         entity.setCreatedBy(model.getCreatedBy());
         entity.setLastModifiedBy(model.getLastModifiedBy());
-
-        List<OrderDetailSerialEntity> allocationEntities = new ArrayList<>();
-        if (model.getId() == null
-                && model.getAllocatedSerialIds() != null
-                && !model.getAllocatedSerialIds().isEmpty()) {
-            for (Long serialId : model.getAllocatedSerialIds()) {
-                allocationEntities.add(
-                        OrderDetailSerialEntity.builder()
-                                .orderDetail(entity)
-                                .lotteryTicketSerial(lotteryTicketSerialRef(serialId))
-                                .build()
-                );
-            }
-            entity.setAllocatedSerials(allocationEntities);
-        }
         return entity;
     }
 
     private OrderDetailModel toDetailDomain(OrderDetailEntity entity) {
+        Long currentSerialId = entity.getReplacedByTicketSerial() != null
+                ? entity.getReplacedByTicketSerial().getId()
+                : (entity.getLotteryTicketSerial() != null ? entity.getLotteryTicketSerial().getId() : null);
+        List<Long> allocatedSerialIds = currentSerialId != null ? List.of(currentSerialId) : List.of();
+
         return OrderDetailModel.builder()
                 .id(entity.getId())
                 .orderId(entity.getOrder() != null ? entity.getOrder().getId() : null)
@@ -150,7 +139,7 @@ public class OrderPersistenceMapper {
                 .replacedByTicketSerialId(entity.getReplacedByTicketSerial() != null ? entity.getReplacedByTicketSerial().getId() : null)
                 .refundRequestId(entity.getRefundRequest() != null ? entity.getRefundRequest().getId() : null)
                 .quantity(entity.getQuantity() != null ? entity.getQuantity() : 1)
-                .allocatedSerialIds(resolveAllocatedSerialIds(entity))
+                .allocatedSerialIds(allocatedSerialIds)
                 .price(entity.getPrice())
                 .status(entity.getStatus())
                 .createdAt(entity.getCreatedAt())
@@ -260,18 +249,5 @@ public class OrderPersistenceMapper {
             return entity.getLotteryTicketSerial().getTicket().getId();
         }
         return null;
-    }
-
-    private List<Long> resolveAllocatedSerialIds(OrderDetailEntity entity) {
-        if (entity.getAllocatedSerials() == null || entity.getAllocatedSerials().isEmpty()) {
-            return List.of();
-        }
-        List<Long> serialIds = new ArrayList<>();
-        for (OrderDetailSerialEntity allocation : entity.getAllocatedSerials()) {
-            if (allocation.getLotteryTicketSerial() != null && allocation.getLotteryTicketSerial().getId() != null) {
-                serialIds.add(allocation.getLotteryTicketSerial().getId());
-            }
-        }
-        return serialIds;
     }
 }

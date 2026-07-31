@@ -20,6 +20,9 @@ import java.util.UUID;
 @Builder
 public class LotteryTicketModel {
 
+    public static final String ALL_SERIALS_FAULTY_STATUS_REASON =
+            "Dãy vé không còn hiệu lực: tất cả sê-ri vật lý đã được báo hỏng hoặc thất lạc.";
+
     private Long id;
     private Long stationId;
     private String ticketImg;
@@ -49,6 +52,8 @@ public class LotteryTicketModel {
     private LocalDateTime returnedAt;
 
     private LocalDateTime deletedAt;
+
+    private String statusReason;
 
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
@@ -89,6 +94,7 @@ public class LotteryTicketModel {
             long availableSerialCount,
             long totalSerialCount,
             long soldSerialCount,
+            long faultySerialCount,
             LocalTime cutoffTime
     ) {
         if (isExpired(cutoffTime)) {
@@ -100,23 +106,45 @@ public class LotteryTicketModel {
         if (totalSerialCount == 0) {
             return LotteryTicketStatus.IN_STOCK;
         }
-        return LotteryTicketStatus.SOLD_OUT;
+        if (soldSerialCount > 0) {
+            return LotteryTicketStatus.SOLD_OUT;
+        }
+        if (faultySerialCount == totalSerialCount) {
+            // No salable unit remains and every serial was reported DAMAGED or LOST.
+            return LotteryTicketStatus.SOLD_OUT;
+        }
+        return LotteryTicketStatus.IN_STOCK;
     }
 
     public void syncAggregateState(
             int availableSerialCount,
             int totalSerialCount,
             int soldSerialCount,
+            int faultySerialCount,
             LocalTime cutoffTime
     ) {
-        // Display available quantity = IN_STOCK serials available to be purchased.
-        this.quantity = availableSerialCount;
+        // Display quantity = every non-deleted serial linked to this lottery number.
+        this.quantity = totalSerialCount;
         // IMPORTING belongs to the import-batch flow and cannot be derived from serials,
         // so only the draw cutoff is allowed to move a ticket out of it.
         if (this.status == LotteryTicketStatus.IMPORTING && !isExpired(cutoffTime)) {
             return;
         }
-        this.status = resolveAggregateStatus(availableSerialCount, totalSerialCount, soldSerialCount, cutoffTime);
+        LotteryTicketStatus resolvedStatus = resolveAggregateStatus(
+                availableSerialCount,
+                totalSerialCount,
+                soldSerialCount,
+                faultySerialCount,
+                cutoffTime);
+        this.status = resolvedStatus;
+
+        if (faultySerialCount == totalSerialCount
+                && totalSerialCount > 0
+                && resolvedStatus == LotteryTicketStatus.SOLD_OUT) {
+            this.statusReason = ALL_SERIALS_FAULTY_STATUS_REASON;
+        } else if (ALL_SERIALS_FAULTY_STATUS_REASON.equals(this.statusReason)) {
+            this.statusReason = null;
+        }
     }
 
     public void validateDrawDate(LocalDate drawDate) {
