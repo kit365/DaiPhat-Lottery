@@ -405,7 +405,7 @@ export function OrderInspectionSection({
                 cancelType: 'OUT_OF_STOCK_INCIDENT' as const,
                 replacements: replacementPayload,
             },
-        });
+        } as any);
     };
 
     const quickReasons: Record<string, string[]> = {
@@ -986,7 +986,7 @@ export function OrderInspectionSection({
                                         );
                                         const candidates = ticket.id != null ? availableReplacements[ticket.id] : undefined;
                                         const isLoading = ticket.id != null && candidates === undefined;
-                                        const hasRep = ticket.id != null && !isLoading && candidates.length > 0;
+                                        const hasRep = ticket.id != null && !isLoading && !!candidates && candidates.length > 0;
                                         const isReplacing = ticket.id != null && expandedRow === ticket.id;
                                         const hasStartedFilling = ticket.id != null && !!replacements[ticket.id]?.faultedBy;
                                         const hasReplaced = ticket.id != null && !!replacements[ticket.id]?.newTicketId;

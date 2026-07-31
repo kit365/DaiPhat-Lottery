@@ -32,9 +32,10 @@ export const DepartmentDialog = ({
     const accountsRes = useAccounts();
     const accounts = useMemo(() => {
         if (!accountsRes.data) return [];
-        return Array.isArray(accountsRes.data.recordList)
-            ? accountsRes.data.recordList
-            : (Array.isArray(accountsRes.data.data) ? accountsRes.data.data : (Array.isArray(accountsRes.data) ? accountsRes.data : []));
+        const data: any = accountsRes.data;
+        return Array.isArray(data.recordList)
+            ? data.recordList
+            : (Array.isArray(data.data?.recordList) ? data.data.recordList : (Array.isArray(data.data) ? data.data : (Array.isArray(data) ? data : [])));
     }, [accountsRes.data]);
 
     const { control, handleSubmit, reset } = useForm({
@@ -204,7 +205,3 @@ export const DepartmentDialog = ({
         </Dialog>
     );
 };
-
-
-
-

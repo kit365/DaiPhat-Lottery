@@ -1,7 +1,14 @@
 import axios from 'axios';
 
-const UPLOAD_PRESET = import.meta.env.VITE_UPLOAD_PRESET;
-const CLOUDINARY_URL = import.meta.env.VITE_CLOUDINARY_URL;
+const getEnvVar = (key: string) => {
+    if (typeof process !== 'undefined' && process.env) {
+        return process.env[`NEXT_PUBLIC_${key}`] || process.env[`VITE_${key}`] || '';
+    }
+    return '';
+};
+
+const UPLOAD_PRESET = getEnvVar('UPLOAD_PRESET');
+const CLOUDINARY_URL = getEnvVar('CLOUDINARY_URL');
 
 export interface UploadedCloudinaryMedia {
     url: string;

@@ -301,7 +301,7 @@ export const SupportTicketList = () => {
                                     <TableCell align="right" onClick={(e) => e.stopPropagation()}>
                                         <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 0.5 }}>
                                             {ticket.status === TicketStatus.OPEN && (
-                                                <CanAccess permission={PERMISSIONS.SUPPORT_TICKET.MANAGE}>
+                                                <CanAccess permission={(PERMISSIONS.SUPPORT_TICKET as any).MANAGE}>
                                                     <Tooltip title="Tiếp nhận">
                                                         <IconButton
                                                             size="small"

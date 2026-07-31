@@ -60,7 +60,7 @@ export const isFieldMissing = (
     field: SupplierActivationField
 ) => missingFields.includes(field);
 
-export const missingFieldInputSx = (isMissing: boolean) =>
+export const missingFieldInputSx = (isMissing: boolean): any =>
     isMissing
         ? {
               '& .MuiOutlinedInput-notchedOutline': {

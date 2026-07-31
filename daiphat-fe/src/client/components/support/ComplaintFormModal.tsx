@@ -48,8 +48,8 @@ export const ComplaintFormModal: React.FC<ComplaintFormModalProps> = ({
     const isEditing = !!editingTicket;
 
     const { data: categoriesData } = useGetTicketCategories();
-    const { data: ordersData } = useGetMyOrders({ page: 1, limit: 100 });
-    const { data: refundsData } = useGetMyRefunds({ page: 1, limit: 100 });
+    const { data: ordersData } = useGetMyOrders({ page: 1, limit: 100 } as any);
+    const { data: refundsData } = useGetMyRefunds({ page: 1, limit: 100 } as any);
     const createMutation = useCreateComplaint();
     const updateMutation = useUpdateComplaint();
 

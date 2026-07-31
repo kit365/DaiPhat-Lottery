@@ -338,7 +338,7 @@ export const ImportBatchLineDetailModal = ({ line, batch, stationName, onClose }
                             }}
                         >
                             <Grid container spacing={3}>
-                                <Grid item xs={12} sm={6} md={4}>
+                                <Grid size={{ xs: 12, sm: 6, md: 4 }}>
                                     <Stack spacing={0.75}>
                                         <Stack direction="row" alignItems="center" spacing={1} color="text.secondary">
                                             <StorefrontIcon fontSize="small" sx={{ fontSize: '1rem', opacity: 0.8 }} />
@@ -352,7 +352,7 @@ export const ImportBatchLineDetailModal = ({ line, batch, stationName, onClose }
                                     </Stack>
                                 </Grid>
                                 
-                                <Grid item xs={12} sm={6} md={4}>
+                                <Grid size={{ xs: 12, sm: 6, md: 4 }}>
                                     <Stack spacing={0.75}>
                                         <Stack direction="row" alignItems="center" spacing={1} color="text.secondary">
                                             <LabelIcon fontSize="small" sx={{ fontSize: '1rem', opacity: 0.8 }} />
@@ -371,7 +371,7 @@ export const ImportBatchLineDetailModal = ({ line, batch, stationName, onClose }
                                     </Stack>
                                 </Grid>
 
-                                <Grid item xs={12} sm={6} md={4}>
+                                <Grid size={{ xs: 12, sm: 6, md: 4 }}>
                                     <Stack spacing={0.75}>
                                         <Stack direction="row" alignItems="center" spacing={1} color="text.secondary">
                                             <CheckCircleIcon fontSize="small" sx={{ fontSize: '1rem', opacity: 0.8 }} />
@@ -390,7 +390,7 @@ export const ImportBatchLineDetailModal = ({ line, batch, stationName, onClose }
                                     </Stack>
                                 </Grid>
 
-                                <Grid item xs={12} sm={6} md={4}>
+                                <Grid size={{ xs: 12, sm: 6, md: 4 }}>
                                     <Stack spacing={0.75}>
                                         <Stack direction="row" alignItems="center" spacing={1} color="text.secondary">
                                             <CalendarMonthIcon fontSize="small" sx={{ fontSize: '1rem', opacity: 0.8 }} />
@@ -404,7 +404,7 @@ export const ImportBatchLineDetailModal = ({ line, batch, stationName, onClose }
                                     </Stack>
                                 </Grid>
 
-                                <Grid item xs={12} sm={6} md={4}>
+                                <Grid size={{ xs: 12, sm: 6, md: 4 }}>
                                     <Stack spacing={0.75}>
                                         <Stack direction="row" alignItems="center" spacing={1} color="text.secondary">
                                             <CloudUploadIcon fontSize="small" sx={{ fontSize: '1rem', opacity: 0.8 }} />
@@ -418,7 +418,7 @@ export const ImportBatchLineDetailModal = ({ line, batch, stationName, onClose }
                                     </Stack>
                                 </Grid>
 
-                                <Grid item xs={12} sm={6} md={4}>
+                                <Grid size={{ xs: 12, sm: 6, md: 4 }}>
                                     <Stack spacing={0.75}>
                                         <Stack direction="row" alignItems="center" spacing={1} color="text.secondary">
                                             <ShowChartIcon fontSize="small" sx={{ fontSize: '1rem', opacity: 0.8 }} />

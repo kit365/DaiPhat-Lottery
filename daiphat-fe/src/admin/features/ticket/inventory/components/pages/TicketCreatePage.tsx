@@ -929,7 +929,7 @@ export const TicketCreatePage = () => {
                         {resolvedBatch && batchLines.length > 0 && (
                         <ImportBatchLineImportTabs
                             lines={batchLines}
-                            activeLineId={watchedLineId}
+                            activeLineId={watchedLineId != null ? String(watchedLineId) : ''}
                             batchStatus={resolvedBatch.status}
                             drawDate={resolvedBatch.drawDate}
                             resolveStationName={resolveStationName}

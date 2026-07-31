@@ -19,7 +19,7 @@ export const useImportBatchCreateDraft = ({
     getValues,
     formSnapshot,
 }: UseImportBatchCreateDraftOptions) => {
-    const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+    const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
     const lastPayloadRef = useRef('');
     const getValuesRef = useRef(getValues);
     getValuesRef.current = getValues;

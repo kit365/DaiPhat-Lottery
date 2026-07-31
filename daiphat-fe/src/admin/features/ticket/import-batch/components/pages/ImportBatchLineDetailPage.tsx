@@ -453,7 +453,7 @@ export const ImportBatchLineDetailPage = () => {
                     items={[
                         { label: 'Quản lý vé số' },
                         { label: 'Nhập lô vé', to: ROUTES.ADMIN.IMPORT_BATCH.LIST },
-                        { label: formatImportBatchHeaderCode(batch.importCode), to: id ? ROUTES.ADMIN.IMPORT_BATCH.DETAIL(id) : undefined },
+                        { label: formatImportBatchHeaderCode((batch as any).importCode), to: id ? ROUTES.ADMIN.IMPORT_BATCH.DETAIL(id) : undefined },
                         { label: `Dòng lô ${displayImportBatchLineCodeRaw(line?.batchCode)}` }
                     ]} 
                 />
@@ -472,7 +472,7 @@ export const ImportBatchLineDetailPage = () => {
                 }}
             >
                 <Grid container spacing={3}>
-                    <Grid item xs={12} sm={6} md={2}>
+                    <Grid size={{ xs: 12, sm: 6, md: 2 }}>
                         <Stack spacing={0.75}>
                             <Stack direction="row" alignItems="center" spacing={1} color="text.secondary">
                                 <StorefrontIcon fontSize="small" sx={{ fontSize: '1rem', opacity: 0.8 }} />
@@ -486,7 +486,7 @@ export const ImportBatchLineDetailPage = () => {
                         </Stack>
                     </Grid>
                     
-                    <Grid item xs={12} sm={6} md={2}>
+                    <Grid size={{ xs: 12, sm: 6, md: 2 }}>
                         <Stack spacing={0.75}>
                             <Stack direction="row" alignItems="center" spacing={1} color="text.secondary">
                                 <LabelIcon fontSize="small" sx={{ fontSize: '1rem', opacity: 0.8 }} />
@@ -505,7 +505,7 @@ export const ImportBatchLineDetailPage = () => {
                         </Stack>
                     </Grid>
 
-                    <Grid item xs={12} sm={6} md={2}>
+                    <Grid size={{ xs: 12, sm: 6, md: 2 }}>
                         <Stack spacing={0.75}>
                             <Stack direction="row" alignItems="center" spacing={1} color="text.secondary">
                                 <CheckCircleIcon fontSize="small" sx={{ fontSize: '1rem', opacity: 0.8 }} />
@@ -524,7 +524,7 @@ export const ImportBatchLineDetailPage = () => {
                         </Stack>
                     </Grid>
 
-                    <Grid item xs={12} sm={6} md={2}>
+                    <Grid size={{ xs: 12, sm: 6, md: 2 }}>
                         <Stack spacing={0.75}>
                             <Stack direction="row" alignItems="center" spacing={1} color="text.secondary">
                                 <CalendarMonthIcon fontSize="small" sx={{ fontSize: '1rem', opacity: 0.8 }} />
@@ -538,7 +538,7 @@ export const ImportBatchLineDetailPage = () => {
                         </Stack>
                     </Grid>
 
-                    <Grid item xs={12} sm={6} md={2}>
+                    <Grid size={{ xs: 12, sm: 6, md: 2 }}>
                         <Stack spacing={0.75}>
                             <Stack direction="row" alignItems="center" spacing={1} color="text.secondary">
                                 <CloudUploadIcon fontSize="small" sx={{ fontSize: '1rem', opacity: 0.8 }} />
@@ -552,7 +552,7 @@ export const ImportBatchLineDetailPage = () => {
                         </Stack>
                     </Grid>
 
-                    <Grid item xs={12} sm={6} md={2}>
+                    <Grid size={{ xs: 12, sm: 6, md: 2 }}>
                         <Stack spacing={0.75}>
                             <Stack direction="row" alignItems="center" spacing={1} color="text.secondary">
                                 <ShowChartIcon fontSize="small" sx={{ fontSize: '1rem', opacity: 0.8 }} />

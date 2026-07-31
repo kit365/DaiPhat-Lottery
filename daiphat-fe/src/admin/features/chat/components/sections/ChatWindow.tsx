@@ -240,7 +240,7 @@ export const ChatWindow = ({ conversationId, onToggleDetails }: ChatWindowProps)
             queryClient.setQueryData(
                 adminChatCustomerTimelineKey(resolvedCustomerId),
                 (prev) =>
-                    mergeCustomerTimelineMessage(prev, {
+                    mergeCustomerTimelineMessage(prev as any, {
                         id: incoming.id,
                         conversationId: incoming.conversationId,
                         senderId: incoming.senderId,
@@ -249,7 +249,7 @@ export const ChatWindow = ({ conversationId, onToggleDetails }: ChatWindowProps)
                         type: incoming.type,
                         createdAt: incoming.createdAt,
                         isRead: incoming.isRead ?? false,
-                    })
+                    } as any)
             );
 
             queryClient.setQueryData<Conversation[]>(

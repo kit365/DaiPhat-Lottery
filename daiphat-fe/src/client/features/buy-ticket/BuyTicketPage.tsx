@@ -616,7 +616,7 @@ export const BuyTicketPage = () => {
             return;
         }
 
-        const matched = availableTickets.find(
+        const matched: any = (availableTickets as any[]).find(
             (ticket: any) => String(ticket.id ?? ticket._id) === String(urlTicketId)
         );
         if (!matched?.numbers) {
@@ -655,7 +655,7 @@ export const BuyTicketPage = () => {
     const maxAvailable = useMemo(() => {
         if (selectedNumbers.length === 0) return 1;
         const num = selectedNumbers[0];
-        const ticketData = availableTickets.find((t: any) => t.numbers === num);
+        const ticketData = (availableTickets as any[]).find((t: any) => t.numbers === num);
         return ticketData?.quantity || 1;
     }, [selectedNumbers, availableTickets]);
 
@@ -664,7 +664,7 @@ export const BuyTicketPage = () => {
         
         const provs = new Map();
         selectedNumbers.forEach(num => {
-            const ticketData = availableTickets.find((t: any) => t.numbers === num);
+            const ticketData = (availableTickets as any[]).find((t: any) => t.numbers === num);
             if (ticketData) {
                 const prov = dynamicProvinces.find(
                     (p: any) =>
@@ -692,7 +692,7 @@ export const BuyTicketPage = () => {
 
         let hasError = false;
         selectedNumbers.forEach(num => {
-            const ticketData = availableTickets.find((t: any) => t.numbers === num);
+            const ticketData = (availableTickets as any[]).find((t: any) => t.numbers === num);
             if (!ticketData || (!ticketData.id && !ticketData._id)) {
                 hasError = true;
                 toast.error(`Lỗi: Không tìm thấy ID cho vé số ${num}`);
@@ -743,7 +743,7 @@ export const BuyTicketPage = () => {
         let hasError = false;
 
         selectedNumbers.forEach((num) => {
-            const ticketData = availableTickets.find((t: any) => t.numbers === num);
+            const ticketData = (availableTickets as any[]).find((t: any) => t.numbers === num);
             if (!ticketData || (!ticketData.id && !ticketData._id)) {
                 hasError = true;
                 toast.error(`Lỗi: Không tìm thấy ID cho vé số ${num}`);

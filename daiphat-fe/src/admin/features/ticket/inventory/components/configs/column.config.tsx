@@ -24,9 +24,9 @@ export const columnsConfig: GridColDef<ITicket>[] = [
         headerName: 'Nhà đài',
         width: 150,
         filterable: true,
-        valueGetter: (value, row) => row.stationName || row.providerName || 'Không xác định',
+        valueGetter: (value, row) => (row as any).stationName || (row as any).providerName || 'Không xác định',
         renderCell: (params) => {
-            const stationId = params.row.stationId || params.row.providerId;
+            const stationId = (params.row as any).stationId || (params.row as any).providerId;
             const color = getStationColor(stationId);
             return (
                 <span 

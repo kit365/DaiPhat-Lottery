@@ -363,7 +363,7 @@ export const ReportSerialFaultModal: React.FC<Props> = ({
                                 {form.selected && (
                                     <Box sx={{ mt: 3, pt: 2.5, borderTop: '1px solid #f1f5f9' }}>
                                         <Grid container spacing={2.5}>
-                                            <Grid item xs={12} sm={6}>
+                                            <Grid size={{ xs: 12, sm: 6 }}>
                                                 <FormControl fullWidth size="medium">
                                                     <InputLabel id={`faulted-by-label-${s.id}`} sx={{ fontWeight: 500 }}>Nguyên nhân sự cố</InputLabel>
                                                     <Select
@@ -380,7 +380,7 @@ export const ReportSerialFaultModal: React.FC<Props> = ({
                                                 </FormControl>
                                             </Grid>
 
-                                            <Grid item xs={12} sm={6}>
+                                            <Grid size={{ xs: 12, sm: 6 }}>
                                                 <FormControl fullWidth size="medium">
                                                     <InputLabel id={`status-label-${s.id}`} sx={{ fontWeight: 500 }}>Trạng thái báo hủy</InputLabel>
                                                     <Select
@@ -403,7 +403,7 @@ export const ReportSerialFaultModal: React.FC<Props> = ({
                                                 </FormControl>
                                             </Grid>
 
-                                            <Grid item xs={12}>
+                                            <Grid size={12}>
                                                 <TextField
                                                     label="Lý do hủy chi tiết"
                                                     variant="outlined"
@@ -423,7 +423,7 @@ export const ReportSerialFaultModal: React.FC<Props> = ({
                                             </Grid>
 
                                             {form.status === 'DAMAGED' && (
-                                                <Grid item xs={12}>
+                                                <Grid size={12}>
                                                     <TextField
                                                         label="Đường dẫn ảnh minh chứng"
                                                         variant="outlined"

@@ -121,7 +121,7 @@ export const AdminCreatePage = () => {
 
             <form onSubmit={handleSubmit(onSubmit)}>
                 <Grid container spacing={3}>
-                    <Grid item xs={12} md={4}>
+                    <Grid size={{ xs: 12, md: 4 }}>
                         <Card sx={{ 
                             px: "calc(3 * var(--spacing))", 
                             py: "80px", 
@@ -172,7 +172,7 @@ export const AdminCreatePage = () => {
                         </Card>
                     </Grid>
 
-                    <Grid item xs={12} md={8}>
+                    <Grid size={{ xs: 12, md: 8 }}>
                         <Card sx={{ 
                             p: 4, 
                             borderRadius: '16px',

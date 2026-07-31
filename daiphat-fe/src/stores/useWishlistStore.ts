@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { persist, devtools } from "zustand/middleware";
 import { immer } from "zustand/middleware/immer";
 import { toast } from "react-toastify";
-import { CartVariant } from "./useCartStore";
+export type CartVariant = any;
 import { STORAGE_KEYS } from "../constants/storage.constants";
 
 export interface WishlistItem {

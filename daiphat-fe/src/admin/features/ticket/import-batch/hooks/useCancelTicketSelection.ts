@@ -37,7 +37,7 @@ const mapCancelableSerial = (
     status: serial.status || '',
     ticketId: ticket.id,
     ticketNumbers: ticket.numbers,
-    ticketStatus: ticket.status,
+    ticketStatus: ticket.status || undefined,
     reservedByOrderId: serial.reservedByOrderId,
     importBatchLineId: serial.importBatchLineId,
 });

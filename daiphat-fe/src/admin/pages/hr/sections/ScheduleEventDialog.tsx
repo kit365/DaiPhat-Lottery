@@ -44,12 +44,12 @@ export const ScheduleEventDialog = ({
     departmentId,
     loading = false,
 }: ScheduleEventDialogProps) => {
-    const accountsRes = useAccounts({ departmentId, status: 'active' });
+    const accountsRes = useAccounts({ departmentId, status: 'active' } as any);
     const shiftsRes = useShifts({ departmentId, status: 'active' });
 
     const accounts = useMemo(() => {
         if (!accountsRes.data) return [];
-        const data = accountsRes.data;
+        const data = accountsRes.data as any;
         if (Array.isArray(data.data?.recordList)) return data.data.recordList;
         if (Array.isArray(data.recordList)) return data.recordList;
         if (Array.isArray(data.data)) return data.data;
@@ -59,7 +59,7 @@ export const ScheduleEventDialog = ({
 
     const shifts = useMemo(() => {
         if (!shiftsRes.data) return [];
-        const data = shiftsRes.data;
+        const data = shiftsRes.data as any;
         if (Array.isArray(data.data?.recordList)) return data.data.recordList;
         if (Array.isArray(data.recordList)) return data.recordList;
         if (Array.isArray(data.data)) return data.data;
@@ -327,7 +327,3 @@ export const ScheduleEventDialog = ({
         </Dialog>
     );
 };
-
-
-
-

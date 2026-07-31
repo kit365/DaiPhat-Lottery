@@ -74,9 +74,9 @@ export const BlogEditPage = () => {
                 content: detailRes.content || "",
                 avatar: detailRes.avatar || "",
                 category: detailRes.category || [],
-                status: detailRes.status || BLOG_STATUS.DRAFT,
+                status: (detailRes.status as any) || BLOG_STATUS.DRAFT,
                 type: detailRes.type || "blog",
-                tags: detailRes.tags || [],
+                tags: (detailRes.tags || []) as any,
                 scheduledAt: detailRes.scheduledAt || null,
             });
         }
@@ -142,12 +142,12 @@ export const BlogEditPage = () => {
                 scheduledAt: nextStatus === BLOG_STATUS.SCHEDULED ? normalizedScheduledAt : null,
             };
 
-            update({ id: id!, data: payload }, {
+            update({ id: id!, data: payload as any }, {
                 onSuccess: (response) => {
                     if (response.success) {
                         toast.success(response.message || "Cập nhật bài viết thành công");
                     } else {
-                        toast.error(response.message);
+                        toast.error(response.message || "Cập nhật bài viết thất bại");
                     }
                 },
                 onError: () => {

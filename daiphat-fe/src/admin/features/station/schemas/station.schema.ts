@@ -12,10 +12,7 @@ export const createStationSchema = z.object({
     price: z.number().min(1, "Giá vé phải lớn hơn 0"),
 
     commissionRate: z.coerce
-        .number({
-            required_error: 'Tỉ lệ hoa hồng không được để trống',
-            invalid_type_error: 'Vui lòng nhập số hợp lệ',
-        })
+        .number()
         .gt(0, 'Tỉ lệ hoa hồng phải lớn hơn 0')
         .lte(1, 'Tỉ lệ hoa hồng không được vượt quá 1 (100%)'),
 

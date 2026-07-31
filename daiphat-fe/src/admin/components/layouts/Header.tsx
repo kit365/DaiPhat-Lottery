@@ -118,7 +118,7 @@ export const Header = () => {
             y: -8,
             filter: 'brightness(1.15) drop-shadow(0 12px 24px rgba(0,0,0,0.15))',
         },
-        transition: { type: "spring", stiffness: 400, damping: 17 }
+        transition: { type: "spring" as const, stiffness: 400, damping: 17 }
     };
 
     return (

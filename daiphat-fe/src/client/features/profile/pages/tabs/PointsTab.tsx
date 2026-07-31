@@ -15,8 +15,8 @@ export const PointsTab = () => {
 
     if (!user) return null;
 
-    const currentPoints = user.totalPoint || 0;
-    const usedPoints = user.usedPoint || 0;
+    const currentPoints = (user as any).totalPoint || 0;
+    const usedPoints = (user as any).usedPoint || 0;
     const totalAccumulated = currentPoints + usedPoints;
 
     return (

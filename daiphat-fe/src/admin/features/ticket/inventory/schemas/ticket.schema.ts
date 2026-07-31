@@ -41,7 +41,7 @@ const buildTicketSectionSchema = (lengthRules: TicketNumberLengthRules) =>
 
 const withTicketSectionRefinements = <T extends z.ZodTypeAny>(schema: T) =>
     schema.superRefine(
-        (data: { ticketSections?: { numbers?: string; serials?: { serialNumber?: string }[] }[] }, ctx) => {
+        (data: any, ctx) => {
             const sections = data.ticketSections ?? [];
 
             findDuplicateNumberSectionIndices(sections).forEach((sectionIndex) => {
@@ -120,7 +120,7 @@ export type CreateTicketFormValues = z.infer<ReturnType<typeof buildCreateTicket
 
 /** Legacy flat shape used by ticket edit page */
 const legacyWithDuplicateSerialRefinement = <T extends z.ZodTypeAny>(schema: T) =>
-    schema.superRefine((data: { serials?: { serialNumber?: string }[] }, ctx) => {
+    schema.superRefine((data: any, ctx) => {
         const serials = data.serials ?? [];
         const groups = new Map<string, number[]>();
         serials.forEach((serial, index) => {

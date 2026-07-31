@@ -236,7 +236,7 @@ export const QuickCheckTicketBanner: React.FC<QuickCheckTicketBannerProps> = ({ 
         const daysInMonth = getDaysInMonth(selectedMonth, selectedYear);
         const firstDayIndex = getFirstDayOfMonth(selectedMonth, selectedYear);
 
-        const days = [];
+        const days: any[] = [];
 
         // Previous month's trailing days
         const prevMonth = selectedMonth === 0 ? 11 : selectedMonth - 1;

@@ -8,8 +8,13 @@ import { STORAGE_KEYS } from "../constants/storage.constants"
 // In dev (npm run dev), use empty BASE_URL so requests go through Vite proxy.
 // This makes them same-origin → browser sends HttpOnly cookies (incl. refresh_token).
 // In production, VITE_API_BASE_URL is set to the actual backend URL.
-const isDev = import.meta.env.DEV;
-const BASE_URL = isDev ? "" : (import.meta.env.VITE_API_BASE_URL || "");
+const getBaseUrl = () => {
+    if (typeof process !== "undefined" && process.env) {
+        return process.env.NEXT_PUBLIC_API_BASE_URL || process.env.VITE_API_BASE_URL || "";
+    }
+    return "";
+};
+const BASE_URL = getBaseUrl();
 const API_ROOT = `${BASE_URL}${API_PREFIX}${API_VERSION}`
 
 const apiApp = axios.create({

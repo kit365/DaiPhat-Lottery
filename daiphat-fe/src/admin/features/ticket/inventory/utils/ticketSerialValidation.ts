@@ -135,7 +135,7 @@ export const applySectionRelationshipFieldErrors = (
 ) => {
     issues.forEach((issue) => {
         if (issue.type === 'ticket_without_serial') {
-            setError(`ticketSections.${issue.sectionIndex}.serials.root`, {
+            setError(`ticketSections.${issue.sectionIndex}.serials.root` as any, {
                 type: 'relationship',
                 message: TICKET_WITHOUT_SERIAL_MESSAGE,
             });

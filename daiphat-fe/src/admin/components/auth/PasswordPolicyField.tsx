@@ -27,7 +27,7 @@ export const PremiumPasswordInput: React.FC<PremiumPasswordInputProps> = ({
     id
 }) => {
     const [showPassword, setShowPassword] = useState(false);
-    const { passwordPolicy } = useAuth();
+    const { passwordPolicy } = useAuth() as any;
     
     const strengthData = useMemo(() => 
         calculatePasswordStrength(value, passwordPolicy), 

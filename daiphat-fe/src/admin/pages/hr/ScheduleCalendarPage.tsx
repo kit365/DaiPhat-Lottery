@@ -56,7 +56,7 @@ export const ScheduleCalendarPage = () => {
     const departmentsRes = useDepartments();
     const departments = useMemo(() => {
         if (!departmentsRes.data) return [];
-        const data = departmentsRes.data;
+        const data: any = departmentsRes.data;
         if (Array.isArray(data.recordList)) return data.recordList;
         if (Array.isArray(data.data?.recordList)) return data.data.recordList;
         if (Array.isArray(data.data)) return data.data;
