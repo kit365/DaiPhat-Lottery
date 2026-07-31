@@ -1,0 +1,28 @@
+name: DaiPhat Backend Deploy
+
+on:
+  push:
+    branches:
+      - feature/dp-5-infs
+    paths:
+      - "daiphat-be/core-api/**"
+      - ".github/workflows/backend-deploy.yml"
+      - ".github/workflows/component-deploy.yml"
+  workflow_dispatch:
+    inputs:
+      source_ref:
+        description: Git ref to build and deploy
+        required: true
+        default: feature/dp-5-infs
+        type: choice
+        options:
+          - feature/dp-5-infs
+          - main
+
+jobs:
+  deploy-backend:
+    uses: ./.github/workflows/component-deploy.yml
+    with:
+      component: backend
+      source_ref: ${{ inputs.source_ref || github.ref_name }}
+    secrets: inherit

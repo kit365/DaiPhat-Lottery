@@ -1,0 +1,35 @@
+name: DaiPhat AI CI
+
+on:
+  pull_request:
+    paths:
+      - "daiphat-ai/**"
+      - ".github/workflows/ai-ci.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ai-ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ai:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: daiphat-ai
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: daiphat-ai/services/chat-bot/requirements.txt
+      - name: Install AI dependencies
+        run: pip install -r services/chat-bot/requirements.txt pytest
+      - name: Test AI service
+        env:
+          PYTHONPATH: .:services/chat-bot
+        run: pytest -q services/chat-bot
