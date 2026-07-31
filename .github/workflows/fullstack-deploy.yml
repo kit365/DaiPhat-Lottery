@@ -26,9 +26,6 @@ jobs:
   build-and-push:
     runs-on: ubuntu-latest
     outputs:
-      backend_image: ${{ steps.source.outputs.backend_image }}
-      frontend_image: ${{ steps.source.outputs.frontend_image }}
-      ai_image: ${{ steps.source.outputs.ai_image }}
       source_sha: ${{ steps.source.outputs.sha }}
       channel: ${{ steps.source.outputs.channel }}
     steps:
@@ -127,14 +124,19 @@ jobs:
       - name: Prepare protected runtime files
         env:
           ENV_FILE_CONTENT: ${{ secrets.ENV_FILE_CONTENT }}
-          BACKEND_IMAGE: ${{ needs.build-and-push.outputs.backend_image }}
-          FRONTEND_IMAGE: ${{ needs.build-and-push.outputs.frontend_image }}
-          AI_IMAGE: ${{ needs.build-and-push.outputs.ai_image }}
+          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
           SOURCE_SHA: ${{ needs.build-and-push.outputs.source_sha }}
+          IMAGE_CHANNEL: ${{ needs.build-and-push.outputs.channel }}
         run: |
           set -euo pipefail
           umask 077
           test -n "$ENV_FILE_CONTENT"
+          test -n "$DOCKER_USERNAME"
+          test -n "$SOURCE_SHA"
+          test -n "$IMAGE_CHANNEL"
+          BACKEND_IMAGE="docker.io/$DOCKER_USERNAME/daiphat-be:$IMAGE_CHANNEL-$SOURCE_SHA"
+          FRONTEND_IMAGE="docker.io/$DOCKER_USERNAME/daiphat-fe:$IMAGE_CHANNEL-$SOURCE_SHA"
+          AI_IMAGE="docker.io/$DOCKER_USERNAME/daiphat-ai:$IMAGE_CHANNEL-$SOURCE_SHA"
           mkdir -p .dozzle
           dozzle_username=$(printf '%s\n' "$ENV_FILE_CONTENT" | awk -F= '$1 == "DOZZLE_AUTH_USERNAME" { value=substr($0, length($1)+2) } END { print value }')
           dozzle_password_hash=$(printf '%s\n' "$ENV_FILE_CONTENT" | awk -F= '$1 == "DOZZLE_AUTH_PASSWORD_HASH" { value=substr($0, length($1)+2) } END { print value }')
@@ -235,12 +237,14 @@ jobs:
 
       - name: Promote verified image pair
         env:
-          BACKEND_IMAGE: ${{ needs.build-and-push.outputs.backend_image }}
-          FRONTEND_IMAGE: ${{ needs.build-and-push.outputs.frontend_image }}
-          AI_IMAGE: ${{ needs.build-and-push.outputs.ai_image }}
           DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+          SOURCE_SHA: ${{ needs.build-and-push.outputs.source_sha }}
+          IMAGE_CHANNEL: ${{ needs.build-and-push.outputs.channel }}
         run: |
           set -euo pipefail
+          BACKEND_IMAGE="docker.io/$DOCKER_USERNAME/daiphat-be:$IMAGE_CHANNEL-$SOURCE_SHA"
+          FRONTEND_IMAGE="docker.io/$DOCKER_USERNAME/daiphat-fe:$IMAGE_CHANNEL-$SOURCE_SHA"
+          AI_IMAGE="docker.io/$DOCKER_USERNAME/daiphat-ai:$IMAGE_CHANNEL-$SOURCE_SHA"
           docker buildx imagetools create -t "docker.io/$DOCKER_USERNAME/daiphat-be:prod" "$BACKEND_IMAGE"
           docker buildx imagetools create -t "docker.io/$DOCKER_USERNAME/daiphat-fe:prod" "$FRONTEND_IMAGE"
           docker buildx imagetools create -t "docker.io/$DOCKER_USERNAME/daiphat-ai:prod" "$AI_IMAGE"

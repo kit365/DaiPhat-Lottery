@@ -12,6 +12,13 @@ for required_file in docker-compose.prod.yml .env.prod .deploy.env .dozzle/users
     }
 done
 
+for required_var in BACKEND_IMAGE FRONTEND_IMAGE AI_IMAGE DEPLOY_SHA; do
+    grep -q "^${required_var}=." .deploy.env || {
+        echo "Missing required deployment value: $required_var" >&2
+        exit 1
+    }
+done
+
 chmod 600 .env.prod .deploy.env
 chmod 700 .dozzle
 chmod 600 .dozzle/users.yml
