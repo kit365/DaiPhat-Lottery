@@ -52,6 +52,13 @@ import { displayImportBatchLineCodeRaw, formatImportBatchHeaderCode } from '../.
 import { getBatchTypeColor, getBatchTypeLabel, getImportBatchLineStatusChipColor, getImportBatchLineStatusLabel } from '../../utils/batchTypeLabels';
 import { ROUTES } from '../../../../../constants/routes';
 import { Breadcrumb } from '../../../../../components/ui/Breadcrumb';
+import {
+    buildCancelFlowStatusFilterOptions,
+    getCancelFlowTicketStatusLabel,
+    isTicketSelectableForCancel,
+    matchesCancelFlowStatusFilter,
+} from '../../utils/cancelTicketSelection';
+import { isSerialIncidentEligible } from '../../utils/serialIncidentWorkflow';
 
 const getTicketStatusBadgeClass = (status?: string | null): string => {
     const normalized = normalizeTicketStatus(status);
@@ -97,11 +104,15 @@ const CollapsibleRow = ({
     onSelectSerial: (ticket: any, serial: any, checked: boolean) => void;
 }) => {
     const [open, setOpen] = React.useState(false);
-    const statusLabel = ticket.statusDisplayName || getTicketStatusLabel(ticket.status) || ticket.status || '—';
+    const ticketSelectable = isTicketSelectableForCancel(ticket.status);
+    const statusLabel = getCancelFlowTicketStatusLabel(ticket.status, ticket.statusDisplayName || getTicketStatusLabel(ticket.status));
 
     const cancelableSerials = React.useMemo(() => {
-        return ticket.serials || [];
-    }, [ticket.serials]);
+        if (!ticketSelectable) {
+            return [];
+        }
+        return (ticket.serials || []).filter((s: any) => isSerialIncidentEligible(s.status));
+    }, [ticket.serials, ticketSelectable]);
 
     const cancelableCount = cancelableSerials.length;
     const selectedCount = React.useMemo(() => {
@@ -135,7 +146,7 @@ const CollapsibleRow = ({
                 <TableCell sx={{ width: 50, py: 1.5 }} align="center">
                     <Checkbox
                         size="small"
-                        disabled={cancelableCount === 0}
+                        disabled={!ticketSelectable || cancelableCount === 0}
                         checked={isTicketChecked}
                         indeterminate={isTicketIndeterminate}
                         onChange={(e) => onSelectTicket(ticket, e.target.checked)}
@@ -196,6 +207,7 @@ const CollapsibleRow = ({
                                 <Checkbox
                                     size="small"
                                     checked={isSerialChecked}
+                                    disabled={!ticketSelectable || !isSerialIncidentEligible(s.status)}
                                     onChange={(e) => onSelectSerial(ticket, s, e.target.checked)}
                                 />
                             </TableCell>
@@ -273,6 +285,20 @@ export const ImportBatchLineDetailPage = () => {
     const [statusFilter, setStatusFilter] = React.useState('ALL');
     const [quantityFilter, setQuantityFilter] = React.useState('ALL');
 
+    const availableStatusFilterOptions = React.useMemo(
+        () => buildCancelFlowStatusFilterOptions(tickets || []),
+        [tickets]
+    );
+
+    React.useEffect(() => {
+        if (
+            statusFilter !== 'ALL' &&
+            !availableStatusFilterOptions.some((option) => option.value === statusFilter)
+        ) {
+            setStatusFilter('ALL');
+        }
+    }, [availableStatusFilterOptions, statusFilter]);
+
     const filteredTickets = React.useMemo(() => {
         return (tickets || []).filter((ticket: any) => {
             if (searchQuery.trim()) {
@@ -285,8 +311,10 @@ export const ImportBatchLineDetailPage = () => {
             }
 
             if (statusFilter !== 'ALL') {
-                const ticketStatusMatch = ticket.status === statusFilter;
-                const serialStatusMatch = (ticket.serials || []).some((s: any) => s.status === statusFilter);
+                const ticketStatusMatch = matchesCancelFlowStatusFilter(ticket.status, statusFilter);
+                const serialStatusMatch = (ticket.serials || []).some(
+                    (s: any) => normalizeTicketStatus(s.status) === statusFilter
+                );
                 if (!ticketStatusMatch && !serialStatusMatch) return false;
             }
 
@@ -302,14 +330,21 @@ export const ImportBatchLineDetailPage = () => {
     const cancelableSerials = React.useMemo(() => {
         const list: any[] = [];
         filteredTickets.forEach((ticket: any) => {
+            if (!isTicketSelectableForCancel(ticket.status)) {
+                return;
+            }
             (ticket.serials || []).forEach((s: any) => {
+                if (!isSerialIncidentEligible(s.status)) {
+                    return;
+                }
                 list.push({
                     id: s.id,
                     serialNumber: s.serialNumber,
                     status: s.status,
                     ticketId: ticket.id,
                     ticketNumbers: ticket.numbers,
-                    ticketStatus: ticket.status
+                    ticketStatus: ticket.status,
+                    reservedByOrderId: s.reservedByOrderId,
                 });
             });
         });
@@ -329,14 +364,22 @@ export const ImportBatchLineDetailPage = () => {
     };
 
     const handleSelectTicket = (ticket: any, checked: boolean) => {
-        const ticketSerialIds = (ticket.serials || []).map((s: any) => String(s.id));
+        if (!isTicketSelectableForCancel(ticket.status)) {
+            return;
+        }
+        const ticketSerialIds = (ticket.serials || [])
+            .filter((s: any) => isSerialIncidentEligible(s.status))
+            .map((s: any) => String(s.id));
         if (checked) {
-            const cancelableOfTicket = (ticket.serials || []).map((s: any) => ({
+            const cancelableOfTicket = (ticket.serials || [])
+                .filter((s: any) => isSerialIncidentEligible(s.status))
+                .map((s: any) => ({
                 id: s.id,
                 serialNumber: s.serialNumber,
                 status: s.status,
                 ticketId: ticket.id,
-                ticketNumbers: ticket.numbers
+                ticketNumbers: ticket.numbers,
+                reservedByOrderId: s.reservedByOrderId,
             }));
             
             setSelectedSerials(prev => {
@@ -349,6 +392,9 @@ export const ImportBatchLineDetailPage = () => {
     };
 
     const handleSelectSerial = (ticket: any, serial: any, checked: boolean) => {
+        if (!isTicketSelectableForCancel(ticket.status) || !isSerialIncidentEligible(serial.status)) {
+            return;
+        }
         if (checked) {
             setSelectedSerials(prev => {
                 if (prev.some(x => String(x.id) === String(serial.id))) return prev;
@@ -357,7 +403,8 @@ export const ImportBatchLineDetailPage = () => {
                     serialNumber: serial.serialNumber,
                     status: serial.status,
                     ticketId: ticket.id,
-                    ticketNumbers: ticket.numbers
+                    ticketNumbers: ticket.numbers,
+                    reservedByOrderId: serial.reservedByOrderId,
                 }];
             });
         } else {
@@ -567,14 +614,11 @@ export const ImportBatchLineDetailPage = () => {
                                     sx={{ borderRadius: '8px', fontSize: '0.85rem' }}
                                 >
                                     <MenuItem value="ALL">Tất cả trạng thái</MenuItem>
-                                    <MenuItem value="IMPORTING">Đang nhập lô</MenuItem>
-                                    <MenuItem value="IN_STOCK">Trong kho</MenuItem>
-                                    <MenuItem value="SOLD_OUT">Hết hàng</MenuItem>
-                                    <MenuItem value="EXPIRED">Hết hạn</MenuItem>
-                                    <MenuItem value="SOLD">Đã bán (sê-ri)</MenuItem>
-                                    <MenuItem value="RESERVED">Đang giữ chỗ (sê-ri)</MenuItem>
-                                    <MenuItem value="DAMAGED">Hư hỏng (sê-ri)</MenuItem>
-                                    <MenuItem value="LOST">Thất lạc (sê-ri)</MenuItem>
+                                    {availableStatusFilterOptions.map((option) => (
+                                        <MenuItem key={option.value} value={option.value}>
+                                            {option.label}
+                                        </MenuItem>
+                                    ))}
                                 </Select>
                             </FormControl>
                             <FormControl size="small" sx={{ width: 155, bgcolor: '#fff' }}>
@@ -717,7 +761,7 @@ export const ImportBatchLineDetailPage = () => {
                         importBatchLineId={line.id}
                         stationId={line.lotteryStationId}
                         drawDate={batch.drawDate}
-                        cancelMode={dialogCancelMode}
+                        defaultCancelMode={dialogCancelMode}
                         onCancel={handleCancelReport}
                         onSuccess={handleReportSuccess}
                     />

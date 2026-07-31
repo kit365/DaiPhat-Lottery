@@ -124,6 +124,11 @@ export const StationDetailPage = () => {
                                 </Box>
 
                                 <Box sx={{ gridColumn: { xs: "span 12", md: "span 4" } }}>
+                                    <Typography variant="caption" color="text.secondary">Tỉnh/Thành phố</Typography>
+                                    <Typography variant="body1" fontWeight={600}>{stationDetail.province || 'N/A'}</Typography>
+                                </Box>
+
+                                <Box sx={{ gridColumn: { xs: "span 12", md: "span 4" } }}>
                                     <Typography variant="caption" color="text.secondary">Thứ quay thưởng</Typography>
                                     <Typography variant="body1" fontWeight={600}>{drawDaysLabels || 'N/A'}</Typography>
                                 </Box>
@@ -133,6 +138,20 @@ export const StationDetailPage = () => {
                                     <Typography variant="body1" fontWeight={600}>{stationDetail.drawTime || 'N/A'}</Typography>
                                 </Box>
                                 
+                                <Box sx={{ gridColumn: { xs: "span 12", md: "span 4" } }}>
+                                    <Typography variant="caption" color="text.secondary">Giá vé</Typography>
+                                    <Typography variant="body1" fontWeight={600}>
+                                        {stationDetail.price != null ? `${new Intl.NumberFormat('vi-VN').format(Number(stationDetail.price))} VNĐ` : 'N/A'}
+                                    </Typography>
+                                </Box>
+
+                                <Box sx={{ gridColumn: { xs: "span 12", md: "span 4" } }}>
+                                    <Typography variant="caption" color="text.secondary">Tỉ lệ hoa hồng</Typography>
+                                    <Typography variant="body1" fontWeight={600}>
+                                        {stationDetail.commissionRate != null ? `${Number(stationDetail.commissionRate) * 100}% (${stationDetail.commissionRate})` : 'N/A'}
+                                    </Typography>
+                                </Box>
+
                                 <Box sx={{ gridColumn: { xs: "span 12", md: "span 4" } }}>
                                     <Typography variant="caption" color="text.secondary">Độ ưu tiên</Typography>
                                     <Typography variant="body1" fontWeight={600}>{stationDetail.priority !== undefined ? stationDetail.priority : 'N/A'}</Typography>

@@ -81,7 +81,8 @@ jobs:
           install -d -m 700 "$HOME/.ssh"
           key_file="$HOME/.ssh/daiphat_vps_deploy"
           key_material=$(printf '%s\n' "$SSH_KEY" | sed -E 's/^[[:space:]]*\*\*//; s/\*\*[[:space:]]*$//; s/\r$//')
-          if printf '%s\n' "$key_material" | head -n 1 | grep -Eq '^-----BEGIN (OPENSSH|RSA) PRIVATE KEY-----$'; then
+          first_key_line=${key_material%%$'\n'*}
+          if [[ "$first_key_line" =~ ^-----BEGIN\ (OPENSSH|RSA)\ PRIVATE\ KEY-----$ ]]; then
             printf '%s\n' "$key_material" > "$key_file"
           else
             key_body=$(printf '%s' "$key_material" | tr -d '[:space:]')

@@ -21,6 +21,8 @@ public class LotterySupplierApplicationMapper {
                 .taxCode(trimToNull(request.taxCode()))
                 .paymentTermDays(request.paymentTermDays())
                 .defaultImportCost(request.defaultImportCost())
+                .importAllowFrom(request.importAllowFrom())
+                .returnCutOffTime(request.returnCutOffTime())
                 .isActive(false)
                 .build();
         model.applyIsActive(request.isActive() == null || Boolean.TRUE.equals(request.isActive()));
@@ -38,6 +40,8 @@ public class LotterySupplierApplicationMapper {
         model.setTaxCode(trimToNull(request.taxCode()));
         model.setPaymentTermDays(request.paymentTermDays());
         model.setDefaultImportCost(request.defaultImportCost());
+        model.setImportAllowFrom(request.importAllowFrom());
+        model.setReturnCutOffTime(request.returnCutOffTime());
         model.applyIsActive(request.isActive());
     }
 
@@ -55,6 +59,8 @@ public class LotterySupplierApplicationMapper {
                 .taxCode(model.getTaxCode())
                 .paymentTermDays(model.getPaymentTermDays())
                 .defaultImportCost(model.getDefaultImportCost())
+                .importAllowFrom(model.getImportAllowFrom())
+                .returnCutOffTime(model.getReturnCutOffTime())
                 .isActive(model.isActive())
                 .missingActivationFields(model.getMissingActivationFields())
                 .createdAt(model.getCreatedAt())

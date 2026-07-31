@@ -71,6 +71,7 @@ const ImportBatchDetailPage = lazy(() => import("../features/ticket/import-batch
 const ImportBatchLineDetailPage = lazy(() => import("../features/ticket/import-batch").then(m => ({ default: m.ImportBatchLineDetailPage })));
 const SupplierListPage = lazy(() => import("../features/supplier").then(m => ({ default: m.SupplierListPage })));
 const SupplierCreatePage = lazy(() => import("../features/supplier").then(m => ({ default: m.SupplierCreatePage })));
+const SupplierDetailPage = lazy(() => import("../features/supplier").then(m => ({ default: m.SupplierDetailPage })));
 const SupplierEditPage = lazy(() => import("../features/supplier").then(m => ({ default: m.SupplierEditPage })));
 const RefundListPage = lazy(() => import("../pages/refund/RefundListPage").then(m => ({ default: m.RefundListPage })));
 const RefundDetailPage = lazy(() => import("../pages/refund/RefundDetailPage").then(m => ({ default: m.RefundDetailPage })));
@@ -101,6 +102,7 @@ export const AdminRoutes = [
     { path: "import-batch/detail/:id/line/:lineId", element: <PermissionGuard permission={PERMISSIONS.IMPORT_BATCH.VIEW}><ImportBatchLineDetailPage /></PermissionGuard> },
     { path: "supplier/list", element: <PermissionGuard permission={PERMISSIONS.SUPPLIER.VIEW}><SupplierListPage /></PermissionGuard> },
     { path: "supplier/create", element: <PermissionGuard permission={PERMISSIONS.SUPPLIER.CREATE}><SupplierCreatePage /></PermissionGuard> },
+    { path: "supplier/detail/:id", element: <PermissionGuard permission={PERMISSIONS.SUPPLIER.VIEW}><SupplierDetailPage /></PermissionGuard> },
     { path: "supplier/edit/:id", element: <PermissionGuard permission={PERMISSIONS.SUPPLIER.EDIT}><SupplierEditPage /></PermissionGuard> },
     { path: "ticket/edit/:id", element: <PermissionGuard permission={PERMISSIONS.TICKET.EDIT}><TicketEditPage /></PermissionGuard> },
     { path: "ticket/detail/:id", element: <PermissionGuard permission={PERMISSIONS.TICKET.VIEW}><TicketDetailPage /></PermissionGuard> },
