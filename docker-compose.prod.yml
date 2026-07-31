@@ -146,7 +146,7 @@ services:
     mem_limit: 128m
 
   docker-socket-proxy:
-    image: ghcr.io/tecnativa/docker-socket-proxy:0.4.2
+    image: ghcr.io/tecnativa/docker-socket-proxy:v0.4.2
     restart: unless-stopped
     environment:
       CONTAINERS: 1

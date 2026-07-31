@@ -136,11 +136,13 @@ jobs:
           umask 077
           test -n "$ENV_FILE_CONTENT"
           mkdir -p .dozzle
-          printf '%s' "$ENV_FILE_CONTENT" > .env.prod
           dozzle_username=$(printf '%s\n' "$ENV_FILE_CONTENT" | awk -F= '$1 == "DOZZLE_AUTH_USERNAME" { value=substr($0, length($1)+2) } END { print value }')
           dozzle_password_hash=$(printf '%s\n' "$ENV_FILE_CONTENT" | awk -F= '$1 == "DOZZLE_AUTH_PASSWORD_HASH" { value=substr($0, length($1)+2) } END { print value }')
           [[ "$dozzle_username" =~ ^[A-Za-z0-9._-]+$ ]]
           [[ "$dozzle_password_hash" =~ ^\$2[aby]\$ ]]
+          printf '%s\n' "$ENV_FILE_CONTENT" \
+            | awk -F= '$1 != "DOZZLE_AUTH_USERNAME" && $1 != "DOZZLE_AUTH_PASSWORD_HASH"' \
+            > .env.prod
           {
             printf 'users:\n'
             printf '  %s:\n' "$dozzle_username"
