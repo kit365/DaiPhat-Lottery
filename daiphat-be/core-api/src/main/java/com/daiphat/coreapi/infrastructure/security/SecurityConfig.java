@@ -58,7 +58,7 @@ public class SecurityConfig {
                                 "/swagger-ui/**",
                                 "/swagger-ui.html",
                                 "/webjars/**",
-                                "/actuator/health",
+                                "/actuator/health/**",
                                 "/actuator/info",
                                 WebSocketConfig.WS_ENDPOINT + "/**"
                         ).permitAll()
