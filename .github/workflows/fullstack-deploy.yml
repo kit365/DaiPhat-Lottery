@@ -158,13 +158,13 @@ jobs:
 
       - name: Configure and validate VPS SSH key
         env:
-          SSH_KEY_BASE64: ${{ secrets.VPS_SSH_KEY }}
+          SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
           VPS_HOST: ${{ secrets.VPS_HOST }}
         run: |
           set -euo pipefail
-          test -n "$SSH_KEY_BASE64" || { echo "VPS_SSH_KEY is unavailable; use a repository Actions secret." >&2; exit 1; }
+          test -n "$SSH_KEY" || { echo "VPS_SSH_KEY is unavailable; use a repository Actions secret." >&2; exit 1; }
           install -d -m 700 "$HOME/.ssh"
-          printf '%s' "$SSH_KEY_BASE64" | base64 --decode > "$HOME/.ssh/daiphat_vps_deploy"
+          echo "$SSH_KEY" > "$HOME/.ssh/daiphat_vps_deploy"
           chmod 600 "$HOME/.ssh/daiphat_vps_deploy"
           ssh-keygen -y -f "$HOME/.ssh/daiphat_vps_deploy" >/dev/null
           ssh-keyscan -H "$VPS_HOST" >> "$HOME/.ssh/known_hosts"
