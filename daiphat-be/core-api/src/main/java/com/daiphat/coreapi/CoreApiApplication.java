@@ -34,41 +34,45 @@ public class CoreApiApplication {
     }
 
     /**
-     * IntelliJ often runs with working directory {@code daiphat-be}, while {@code .env}
-     * lives in {@code core-api/.env}. spring-dotenv may not resolve that path, so we
-     * load the first matching file before Spring resolves placeholders.
+     * Local development has one canonical {@code .env} at the repository root. IntelliJ
+     * may run from the module or its parent, so walk upward to that root before Spring
+     * resolves placeholders.
      */
     private static void loadLocalDotEnv() {
         Path cwd = Paths.get("").toAbsolutePath().normalize();
-        Path[] candidates = {
-                cwd.resolve("core-api").resolve(".env"),
-                cwd.resolve(".env")
-        };
-
-        for (Path envFile : candidates) {
-            if (!Files.isRegularFile(envFile)) {
-                continue;
-            }
-            try {
-                List<String> lines = Files.readAllLines(envFile);
-                for (String rawLine : lines) {
-                    String line = rawLine.trim();
-                    if (line.isEmpty() || line.startsWith("#")) {
-                        continue;
-                    }
-                    int separator = line.indexOf('=');
-                    if (separator <= 0) {
-                        continue;
-                    }
-                    String key = line.substring(0, separator).trim();
-                    String value = stripQuotes(line.substring(separator + 1).trim());
-                    setLocalPropertyIfAbsent(key, value);
-                }
-            } catch (IOException ignored) {
-                // spring-dotenv may still load env from another working directory
-            }
+        Path envFile = findRepositoryEnv(cwd);
+        if (envFile == null) {
             return;
         }
+
+        try {
+            List<String> lines = Files.readAllLines(envFile);
+            for (String rawLine : lines) {
+                String line = rawLine.trim();
+                if (line.isEmpty() || line.startsWith("#")) {
+                    continue;
+                }
+                int separator = line.indexOf('=');
+                if (separator <= 0) {
+                    continue;
+                }
+                String key = line.substring(0, separator).trim();
+                String value = stripQuotes(line.substring(separator + 1).trim());
+                setLocalPropertyIfAbsent(key, value);
+            }
+        } catch (IOException ignored) {
+            // Local environment loading is optional outside the development checkout.
+        }
+    }
+
+    private static Path findRepositoryEnv(Path startingDirectory) {
+        for (Path directory = startingDirectory; directory != null; directory = directory.getParent()) {
+            Path envFile = directory.resolve(".env");
+            if (Files.isRegularFile(envFile) && Files.isRegularFile(directory.resolve("docker-compose.yml"))) {
+                return envFile;
+            }
+        }
+        return null;
     }
 
     private static void setLocalPropertyIfAbsent(String key, String value) {

@@ -1,0 +1,45 @@
+name: DaiPhat Infrastructure CI
+
+on:
+  pull_request:
+    paths:
+      - "docker-compose*.yml"
+      - "daiphat-be/infra/**"
+      - "scripts/**"
+      - ".github/actions/**"
+      - ".github/workflows/infra-ci.yml"
+      - ".github/workflows/*deploy*.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: infrastructure-ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  infrastructure:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create non-secret validation environment
+        run: |
+          install -m 600 /dev/null .env
+          install -m 600 /dev/null .env.prod
+
+      - name: Validate local Compose stack
+        run: docker compose -f docker-compose.yml config --quiet
+
+      - name: Validate production Compose stack
+        env:
+          POSTGRES_PASSWORD: ci-only-postgres-password
+          REDIS_PASSWORD: ci-only-redis-password
+        run: docker compose -f docker-compose.prod.yml config --quiet
+
+      - name: Validate infrastructure shell scripts
+        run: find scripts daiphat-be/infra -type f -name '*.sh' -print0 | xargs -0 -r -n1 bash -n
+
+      - name: Build database backup image
+        run: docker build -f daiphat-be/infra/backup/Dockerfile daiphat-be/infra/backup

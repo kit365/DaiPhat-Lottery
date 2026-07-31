@@ -57,7 +57,7 @@ services:
       dockerfile: Dockerfile
     restart: unless-stopped
     env_file:
-      - ./.env.local
+      - ./.env
     environment:
       SPRING_PROFILES_ACTIVE: local
       SERVER_PORT: 8080
@@ -106,7 +106,7 @@ services:
 
 secrets:
   frontend_env:
-    file: ${FRONTEND_LOCAL_ENV_FILE:-./daiphat-fe/.env}
+    file: ./.env
 
 volumes:
   postgres_data:

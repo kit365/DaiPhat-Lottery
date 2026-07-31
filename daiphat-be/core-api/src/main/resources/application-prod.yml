@@ -20,10 +20,11 @@ spring:
       port: ${CORE_REDIS_PORT}
       password: ${CORE_REDIS_PASSWORD}
   mail:
-    host: ${AUTH_PROD_MAIL_HOST}
-    port: ${AUTH_PROD_MAIL_PORT}
-    username: ${AUTH_PROD_MAIL_USERNAME}
-    password: ${AUTH_PROD_MAIL_PASSWORD}
+    host: ${MAIL_HOST}
+    port: ${MAIL_PORT}
+    username: ${MAIL_USERNAME}
+    password: ${MAIL_PASSWORD}
+    from: ${MAIL_FROM}
     properties:
       mail:
         smtp:
