@@ -185,6 +185,13 @@ public class DrawScheduleFlowService implements ChatFlowService {
         if (isStandaloneTicketSuggestMessage(customerMessage.getContent())) {
             return Optional.empty();
         }
+        // Digits like "1" / "12345" are ticket search answers — never consume as
+        // the removed "Đài quay hôm nay / Lịch cả tuần / Chọn đài" menu.
+        if (looksLikeBareTicketNumber(customerMessage.getContent())
+                && isLocationChoicePending(conversation)) {
+            conversation.clearPendingFlow(ChatIntent.WEB_SCHEDULE.name());
+            return Optional.empty();
+        }
         if (parser.mentionsWeekdayInquiry(customerMessage.getContent())
                 || parser.mentionsRegionStationCatalogQuestion(customerMessage.getContent())
                 || parser.mentionsScheduleAndResult(customerMessage.getContent())
@@ -358,12 +365,10 @@ public class DrawScheduleFlowService implements ChatFlowService {
         }
 
         if (isScheduleMenuPhrase(message)) {
-            String region = conversation.collectedSlot(SLOT_REGION);
-            if (region == null) {
+            if (conversation.collectedSlot(SLOT_REGION) == null) {
                 applyDefaultRegion(conversation);
-                region = DEFAULT_SCHEDULE_REGION;
             }
-            return botReply(formatRegionChoicePrompt(region), TOKEN_REGION_CHOICE_PREFIX + region);
+            return applyWeekScheduleIntent(conversation);
         }
 
         ChatScheduleStationResolveResult resolveResult = applyStationResolve(conversation, message);
@@ -384,14 +389,13 @@ public class DrawScheduleFlowService implements ChatFlowService {
             return advanceFlow(conversation);
         }
 
-        String region = conversation.collectedSlot(SLOT_REGION);
-        return botReply(formatRegionChoicePrompt(region), TOKEN_REGION_CHOICE_PREFIX + region);
+        // Unrecognized input (e.g. "1") — do not re-prompt the removed location-choice menu.
+        return null;
     }
 
     private ChatIntentOutcome handleDateModeSlot(ConversationModel conversation, String message) {
         if (isScheduleRestartMessage(message)) {
             resetScheduleFlow(conversation);
-            conversation.setPendingSlot(ChatSchedulePendingSlot.LOCATION_CHOICE);
             return askDefaultRegionChoiceReply(conversation);
         }
         if (parser.mentionsScheduleIntent(message) && !mentionsExplicitDateChoice(message)) {
@@ -518,7 +522,8 @@ public class DrawScheduleFlowService implements ChatFlowService {
         }
 
         if (!slots.hasLocation()) {
-            return Optional.of(askDefaultRegionChoiceReply(conversation));
+            applyDefaultRegion(conversation);
+            return Optional.of(applyWeekScheduleIntent(conversation));
         }
 
         if (!slots.hasStation() && slots.region() != null && SCOPE_PICK_STATION.equals(slots.scope())) {
@@ -530,39 +535,33 @@ public class DrawScheduleFlowService implements ChatFlowService {
             applyDateExtraction(conversation, ChatScheduleDateExtraction.today());
         }
 
-        if (!slots.hasStation() && slots.region() != null && slots.scope() == null && !shouldAutoRegionAll(conversation)) {
-            if (conversation.getPendingSlot() == ChatSchedulePendingSlot.DATE_MODE
-                    || conversation.getPendingSlot() == ChatSchedulePendingSlot.DATE) {
-                conversation.putCollectedSlot(SLOT_SCOPE, SCOPE_REGION_ALL);
-            } else {
-                conversation.setPendingSlot(ChatSchedulePendingSlot.LOCATION_CHOICE);
-                return Optional.of(botReply(
-                        formatRegionChoicePrompt(slots.region()),
-                        TOKEN_REGION_CHOICE_PREFIX + slots.region()
-                ));
+        // Region known but no scope yet → default to full-week schedule (no location-choice menu).
+        if (!slots.hasStation() && slots.region() != null && slots.scope() == null) {
+            conversation.putCollectedSlot(SLOT_SCOPE, SCOPE_REGION_ALL);
+            if (!slots.hasDate()) {
+                conversation.putCollectedSlot(SLOT_DATE_MODE, ChatScheduleDateMode.ALL_DAYS.name());
             }
         }
 
-        if (!slots.hasStation() && slots.region() != null && slots.scope() == null && shouldAutoRegionAll(conversation)) {
-            conversation.putCollectedSlot(SLOT_SCOPE, SCOPE_REGION_ALL);
-        }
-
         if (!slots.hasDate()) {
-            if (SCOPE_REGION_ALL.equals(slots.scope()) && shouldAutoRegionAll(conversation)) {
+            if (SCOPE_REGION_ALL.equals(conversation.collectedSlot(SLOT_SCOPE)) && shouldAutoRegionAll(conversation)) {
                 applyDateExtraction(conversation, ChatScheduleDateExtraction.today());
+            } else if (ChatScheduleDateMode.ALL_DAYS.name().equals(conversation.collectedSlot(SLOT_DATE_MODE))) {
+                // already covered by week schedule default
             } else {
                 conversation.setPendingSlot(ChatSchedulePendingSlot.DATE_MODE);
                 return Optional.of(askDateModeReply(conversation));
             }
         }
 
-        if (slots.stationId() != null && slots.stationIds() == null) {
+        ScheduleSlots refreshed = ScheduleSlots.from(conversation);
+        if (refreshed.stationId() != null && refreshed.stationIds() == null) {
             conversation.putCollectedSlot(SLOT_SCOPE, SCOPE_STATION);
-        } else if (slots.stationIds() != null && !slots.stationIds().isBlank()) {
+        } else if (refreshed.stationIds() != null && !refreshed.stationIds().isBlank()) {
             conversation.putCollectedSlot(SLOT_SCOPE, SCOPE_STATIONS);
-        } else if (SCOPE_REGION_ALL.equals(slots.scope()) || SCOPE_REGION_TODAY.equals(slots.scope())
-                || (slots.region() != null && slots.scope() == null)) {
-            if (!SCOPE_REGION_TODAY.equals(slots.scope())) {
+        } else if (SCOPE_REGION_ALL.equals(refreshed.scope()) || SCOPE_REGION_TODAY.equals(refreshed.scope())
+                || (refreshed.region() != null && refreshed.scope() == null)) {
+            if (!SCOPE_REGION_TODAY.equals(refreshed.scope())) {
                 conversation.putCollectedSlot(SLOT_SCOPE, SCOPE_REGION_ALL);
             }
         }
@@ -1386,10 +1385,6 @@ public class DrawScheduleFlowService implements ChatFlowService {
         conversation.removeCollectedSlot(SLOT_DATE_MODE);
     }
 
-    private String formatRegionChoicePrompt(String regionCode) {
-        return scheduleMessages().askRegionChoice(formatRegionLabel(regionCode));
-    }
-
     private String formatAskStationInRegion(String regionCode) {
         return scheduleMessages().askStationInRegion(formatRegionLabel(regionCode));
     }
@@ -1454,16 +1449,27 @@ public class DrawScheduleFlowService implements ChatFlowService {
     }
 
     private ChatIntentOutcome askDefaultRegionChoiceReply(ConversationModel conversation) {
+        // Location-choice menu removed — show default-region week schedule immediately.
         applyDefaultRegion(conversation);
-        conversation.setPendingSlot(ChatSchedulePendingSlot.LOCATION_CHOICE);
-        return botReply(
-                scheduleMessages().askRegionChoice(formatRegionLabel(DEFAULT_SCHEDULE_REGION)),
-                TOKEN_REGION_CHOICE_PREFIX + DEFAULT_SCHEDULE_REGION
-        );
+        return applyWeekScheduleIntent(conversation);
     }
 
     private ChatIntentOutcome askLocationReply(ConversationModel conversation) {
         return askDefaultRegionChoiceReply(conversation);
+    }
+
+    private static boolean looksLikeBareTicketNumber(String message) {
+        if (message == null) {
+            return false;
+        }
+        String trimmed = message.trim();
+        return !trimmed.isEmpty() && trimmed.length() <= 6 && trimmed.chars().allMatch(Character::isDigit);
+    }
+
+    private static boolean isLocationChoicePending(ConversationModel conversation) {
+        ChatSchedulePendingSlot slot = conversation.getPendingSlot();
+        return slot == ChatSchedulePendingSlot.LOCATION
+                || slot == ChatSchedulePendingSlot.LOCATION_CHOICE;
     }
 
     private ChatIntentOutcome askDateReply(ConversationModel conversation) {

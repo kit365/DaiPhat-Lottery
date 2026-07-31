@@ -114,8 +114,8 @@ class DrawScheduleFlowServiceTest {
                 classification(Map.of())
         );
 
-        assertThat(((ChatIntentOutcome.BotReply) outcome).content()).isEqualTo(TOKEN_ASK_LOCATION);
-        assertThat(conversation.getPendingSlot()).isEqualTo(ChatSchedulePendingSlot.LOCATION);
+        assertThat(((ChatIntentOutcome.BotReply) outcome).content()).startsWith(TOKEN_RESULT_PREFIX);
+        assertThat(conversation.getPendingSlot()).isNull();
     }
 
     @Test
@@ -133,8 +133,8 @@ class DrawScheduleFlowServiceTest {
                 classification(Map.of())
         );
 
-        assertThat(((ChatIntentOutcome.BotReply) outcome).content()).isEqualTo(TOKEN_ASK_LOCATION);
-        assertThat(conversation.getPendingSlot()).isEqualTo(ChatSchedulePendingSlot.LOCATION);
+        assertThat(((ChatIntentOutcome.BotReply) outcome).content()).startsWith(TOKEN_RESULT_PREFIX);
+        assertThat(conversation.getPendingSlot()).isNull();
         assertThat(conversation.collectedSlot(SLOT_DRAW_DATE)).isEqualTo(tuesday.toString());
     }
 
@@ -151,7 +151,7 @@ class DrawScheduleFlowServiceTest {
                 .thenReturn(ChatScheduleDateExtraction.specific(jan19));
 
         ChatIntentOutcome askLocation = flowService.startFlow(conversation, message, classification(Map.of()));
-        assertThat(((ChatIntentOutcome.BotReply) askLocation).content()).isEqualTo(TOKEN_ASK_LOCATION);
+        assertThat(((ChatIntentOutcome.BotReply) askLocation).content()).startsWith(TOKEN_RESULT_PREFIX);
 
         when(parser.findRegionCode("Miền Nam")).thenReturn(LotteryRegionCode.MIEN_NAM.code());
         ChatIntentOutcome outcome = continueFlow(conversation, customerMessage("Miền Nam"));
@@ -174,8 +174,8 @@ class DrawScheduleFlowServiceTest {
 
         ChatIntentOutcome outcome = continueFlow(conversation, customerMessage("lịch mở thưởng"));
 
-        assertThat(((ChatIntentOutcome.BotReply) outcome).content()).isEqualTo(TOKEN_ASK_LOCATION);
-        assertThat(conversation.getPendingSlot()).isEqualTo(ChatSchedulePendingSlot.LOCATION);
+        assertThat(((ChatIntentOutcome.BotReply) outcome).content()).startsWith(TOKEN_RESULT_PREFIX);
+        assertThat(conversation.getPendingSlot()).isNull();
     }
 
     @Test
@@ -191,8 +191,8 @@ class DrawScheduleFlowServiceTest {
 
         ChatIntentOutcome outcome = continueFlow(conversation, customerMessage("lịch mở thưởng"));
 
-        assertThat(((ChatIntentOutcome.BotReply) outcome).content()).isEqualTo(TOKEN_ASK_LOCATION);
-        assertThat(conversation.getPendingSlot()).isEqualTo(ChatSchedulePendingSlot.LOCATION);
+        assertThat(((ChatIntentOutcome.BotReply) outcome).content()).startsWith(TOKEN_RESULT_PREFIX);
+        assertThat(conversation.getPendingSlot()).isNull();
     }
 
     @Test
@@ -240,8 +240,8 @@ class DrawScheduleFlowServiceTest {
 
         assertThat(outcome).isInstanceOf(ChatIntentOutcome.BotReply.class);
         assertThat(((ChatIntentOutcome.BotReply) outcome).content())
-                .isEqualTo(TOKEN_ASK_LOCATION);
-        assertThat(conversation.getPendingSlot()).isEqualTo(ChatSchedulePendingSlot.LOCATION);
+                .startsWith(TOKEN_RESULT_PREFIX);
+        assertThat(conversation.getPendingSlot()).isNull();
         assertThat(conversation.getPendingIntent()).isEqualTo(ChatIntent.WEB_SCHEDULE.name());
     }
 
@@ -260,10 +260,10 @@ class DrawScheduleFlowServiceTest {
         );
 
         assertThat(((ChatIntentOutcome.BotReply) outcome).content())
-                .isEqualTo(TOKEN_ASK_LOCATION);
+                .startsWith(TOKEN_RESULT_PREFIX);
         assertThat(conversation.collectedSlot(SLOT_DRAW_DATE))
                 .isEqualTo(LocalDate.now().toString());
-        assertThat(conversation.getPendingSlot()).isEqualTo(ChatSchedulePendingSlot.LOCATION);
+        assertThat(conversation.getPendingSlot()).isNull();
     }
 
     @Test
@@ -353,7 +353,7 @@ class DrawScheduleFlowServiceTest {
 
         assertThat(((ChatIntentOutcome.BotReply) outcome).content())
                 .startsWith(TOKEN_PICK_STATION_LIST_PREFIX);
-        assertThat(conversation.getPendingSlot()).isEqualTo(ChatSchedulePendingSlot.LOCATION);
+        assertThat(conversation.getPendingSlot()).isNull();
         assertThat(conversation.collectedSlot(SLOT_SCOPE)).isEqualTo(SCOPE_PICK_STATION);
     }
 
@@ -537,8 +537,8 @@ class DrawScheduleFlowServiceTest {
 
         ChatIntentOutcome outcome = flowService.startFlow(conversation, message, classification(Map.of()));
 
-        assertThat(((ChatIntentOutcome.BotReply) outcome).content()).isEqualTo(TOKEN_ASK_LOCATION);
-        assertThat(conversation.getPendingSlot()).isEqualTo(ChatSchedulePendingSlot.LOCATION);
+        assertThat(((ChatIntentOutcome.BotReply) outcome).content()).startsWith(TOKEN_RESULT_PREFIX);
+        assertThat(conversation.getPendingSlot()).isNull();
         assertThat(conversation.collectedSlot(SLOT_DRAW_DATE)).isEqualTo(tuesday.toString());
     }
 
@@ -681,8 +681,8 @@ class DrawScheduleFlowServiceTest {
 
         ChatIntentOutcome outcome = flowService.startFlow(conversation, message, classification(Map.of()));
 
-        assertThat(((ChatIntentOutcome.BotReply) outcome).content()).isEqualTo(TOKEN_ASK_LOCATION);
-        assertThat(conversation.getPendingSlot()).isEqualTo(ChatSchedulePendingSlot.LOCATION);
+        assertThat(((ChatIntentOutcome.BotReply) outcome).content()).startsWith(TOKEN_RESULT_PREFIX);
+        assertThat(conversation.getPendingSlot()).isNull();
         assertThat(conversation.collectedSlot(SLOT_REGION)).isNull();
         assertThat(conversation.collectedSlot(SLOT_DRAW_DATE)).isNull();
         assertThat(conversation.collectedSlot(SLOT_STATION_ID)).isNull();
@@ -710,8 +710,8 @@ class DrawScheduleFlowServiceTest {
         );
 
         assertThat(outcome).isPresent();
-        assertThat(((ChatIntentOutcome.BotReply) outcome.get()).content()).isEqualTo(TOKEN_ASK_LOCATION);
-        assertThat(conversation.getPendingSlot()).isEqualTo(ChatSchedulePendingSlot.LOCATION);
+        assertThat(((ChatIntentOutcome.BotReply) outcome.get()).content()).startsWith(TOKEN_RESULT_PREFIX);
+        assertThat(conversation.getPendingSlot()).isNull();
         assertThat(conversation.collectedSlot(SLOT_REGION)).isNull();
     }
 
@@ -737,8 +737,8 @@ class DrawScheduleFlowServiceTest {
         );
 
         assertThat(outcome).isPresent();
-        assertThat(((ChatIntentOutcome.BotReply) outcome.get()).content()).isEqualTo(TOKEN_ASK_LOCATION);
-        assertThat(conversation.getPendingSlot()).isEqualTo(ChatSchedulePendingSlot.LOCATION);
+        assertThat(((ChatIntentOutcome.BotReply) outcome.get()).content()).startsWith(TOKEN_RESULT_PREFIX);
+        assertThat(conversation.getPendingSlot()).isNull();
         assertThat(conversation.collectedSlot(SLOT_REGION)).isNull();
     }
 
@@ -752,8 +752,8 @@ class DrawScheduleFlowServiceTest {
 
         ChatIntentOutcome outcome = flowService.startFlow(conversation, message, classification(Map.of()));
 
-        assertThat(((ChatIntentOutcome.BotReply) outcome).content()).isEqualTo(TOKEN_ASK_LOCATION);
-        assertThat(conversation.getPendingSlot()).isEqualTo(ChatSchedulePendingSlot.LOCATION);
+        assertThat(((ChatIntentOutcome.BotReply) outcome).content()).startsWith(TOKEN_RESULT_PREFIX);
+        assertThat(conversation.getPendingSlot()).isNull();
     }
 
     @Test
@@ -773,8 +773,8 @@ class DrawScheduleFlowServiceTest {
                 classification(Map.of(ENTITY_REGION, LotteryRegionCode.MIEN_NAM.code(), ENTITY_STATION_ID, "42"))
         );
 
-        assertThat(((ChatIntentOutcome.BotReply) outcome).content()).isEqualTo(TOKEN_ASK_LOCATION);
-        assertThat(conversation.getPendingSlot()).isEqualTo(ChatSchedulePendingSlot.LOCATION);
+        assertThat(((ChatIntentOutcome.BotReply) outcome).content()).startsWith(TOKEN_RESULT_PREFIX);
+        assertThat(conversation.getPendingSlot()).isNull();
         assertThat(conversation.collectedSlot(SLOT_REGION)).isNull();
         assertThat(conversation.collectedSlot(SLOT_STATION_ID)).isNull();
     }
@@ -840,8 +840,8 @@ class DrawScheduleFlowServiceTest {
         );
 
         assertThat(outcome).isPresent();
-        assertThat(((ChatIntentOutcome.BotReply) outcome.get()).content()).isEqualTo(TOKEN_ASK_LOCATION);
-        assertThat(conversation.getPendingSlot()).isEqualTo(ChatSchedulePendingSlot.LOCATION);
+        assertThat(((ChatIntentOutcome.BotReply) outcome.get()).content()).startsWith(TOKEN_RESULT_PREFIX);
+        assertThat(conversation.getPendingSlot()).isNull();
         assertThat(conversation.collectedSlot(SLOT_STATION_ID)).isNull();
     }
 
@@ -869,8 +869,8 @@ class DrawScheduleFlowServiceTest {
         );
 
         assertThat(outcome).isPresent();
-        assertThat(((ChatIntentOutcome.BotReply) outcome.get()).content()).isEqualTo(TOKEN_ASK_LOCATION);
-        assertThat(conversation.getPendingSlot()).isEqualTo(ChatSchedulePendingSlot.LOCATION);
+        assertThat(((ChatIntentOutcome.BotReply) outcome.get()).content()).startsWith(TOKEN_RESULT_PREFIX);
+        assertThat(conversation.getPendingSlot()).isNull();
         assertThat(conversation.collectedSlot(SLOT_REGION)).isNull();
         assertThat(conversation.collectedSlot(SLOT_STATION_ID)).isNull();
         assertThat(conversation.collectedSlot(SLOT_DRAW_DATE)).isEqualTo(tuesday.toString());
