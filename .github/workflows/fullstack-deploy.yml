@@ -164,9 +164,23 @@ jobs:
           set -euo pipefail
           test -n "$SSH_KEY" || { echo "VPS_SSH_KEY is unavailable; use a repository Actions secret." >&2; exit 1; }
           install -d -m 700 "$HOME/.ssh"
-          echo "$SSH_KEY" > "$HOME/.ssh/daiphat_vps_deploy"
-          chmod 600 "$HOME/.ssh/daiphat_vps_deploy"
-          ssh-keygen -y -f "$HOME/.ssh/daiphat_vps_deploy" >/dev/null
+          key_file="$HOME/.ssh/daiphat_vps_deploy"
+          key_material=$(printf '%s\n' "$SSH_KEY" | sed -E 's/^[[:space:]]*\*\*//; s/\*\*[[:space:]]*$//; s/\r$//')
+          if printf '%s\n' "$key_material" | head -n 1 | grep -Eq '^-----BEGIN (OPENSSH|RSA) PRIVATE KEY-----$'; then
+            printf '%s\n' "$key_material" > "$key_file"
+          else
+            key_body=$(printf '%s' "$key_material" | tr -d '[:space:]')
+            {
+              printf '%s\n' '-----BEGIN OPENSSH PRIVATE KEY-----'
+              printf '%s\n' "$key_body" | fold -w 70
+              printf '%s\n' '-----END OPENSSH PRIVATE KEY-----'
+            } > "$key_file"
+          fi
+          chmod 600 "$key_file"
+          if ! ssh-keygen -y -f "$key_file" >/dev/null 2>&1; then
+            echo "VPS_SSH_KEY is not a valid OpenSSH private key after normalization." >&2
+            exit 1
+          fi
           ssh-keyscan -H "$VPS_HOST" >> "$HOME/.ssh/known_hosts"
 
       - name: Copy production stack to VPS
