@@ -1,19 +1,16 @@
-name: DaiPhat Fullstack Deploy
+name: DaiPhat Component Deploy
 
 on:
-  push:
-    branches:
-      - feature/dp-5-infs
-  workflow_dispatch:
+  workflow_call:
     inputs:
+      component:
+        description: Application component to build and deploy
+        required: true
+        type: string
       source_ref:
         description: Git ref to build and deploy
         required: true
-        default: feature/dp-5-infs
-        type: choice
-        options:
-          - feature/dp-5-infs
-          - main
+        type: string
 
 concurrency:
   group: daiphat-production-deploy
@@ -29,16 +26,24 @@ jobs:
       source_sha: ${{ steps.source.outputs.sha }}
       channel: ${{ steps.source.outputs.channel }}
     steps:
+      - name: Validate component
+        env:
+          COMPONENT: ${{ inputs.component }}
+        run: |
+          set -euo pipefail
+          [[ "$COMPONENT" =~ ^(backend|frontend|ai)$ ]]
+
       - name: Checkout selected source
         uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.source_ref || github.ref_name }}
+          ref: ${{ inputs.source_ref }}
 
-      - name: Resolve immutable image names
+      - name: Resolve immutable image name
         id: source
         env:
+          COMPONENT: ${{ inputs.component }}
           DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
-          SOURCE_REF: ${{ inputs.source_ref || github.ref_name }}
+          SOURCE_REF: ${{ inputs.source_ref }}
         run: |
           set -euo pipefail
           sha=$(git rev-parse HEAD)
@@ -47,11 +52,14 @@ jobs:
           else
             channel=candidate
           fi
+          case "$COMPONENT" in
+            backend) repository=daiphat-be ;;
+            frontend) repository=daiphat-fe ;;
+            ai) repository=daiphat-ai ;;
+          esac
           echo "sha=$sha" >> "$GITHUB_OUTPUT"
           echo "channel=$channel" >> "$GITHUB_OUTPUT"
-          echo "backend_image=docker.io/$DOCKER_USERNAME/daiphat-be:$channel-$sha" >> "$GITHUB_OUTPUT"
-          echo "frontend_image=docker.io/$DOCKER_USERNAME/daiphat-fe:$channel-$sha" >> "$GITHUB_OUTPUT"
-          echo "ai_image=docker.io/$DOCKER_USERNAME/daiphat-ai:$channel-$sha" >> "$GITHUB_OUTPUT"
+          echo "IMAGE=docker.io/$DOCKER_USERNAME/$repository:$channel-$sha" >> "$GITHUB_ENV"
 
       - name: Login to Docker Hub
         uses: docker/login-action@v4
@@ -63,6 +71,7 @@ jobs:
         uses: docker/setup-buildx-action@v4
 
       - name: Prepare frontend build environment
+        if: ${{ inputs.component == 'frontend' }}
         env:
           ENV_FILE_CONTENT: ${{ secrets.ENV_FILE_CONTENT }}
         run: |
@@ -79,24 +88,26 @@ jobs:
           printf 'VITE_ENV_HASH=%s\n' "$(sha256sum /tmp/daiphat-fe.env | awk '{print $1}')" >> "$GITHUB_ENV"
 
       - name: Build and push backend
+        if: ${{ inputs.component == 'backend' }}
         uses: docker/build-push-action@v7
         with:
           context: ./daiphat-be/core-api
           file: ./daiphat-be/core-api/Dockerfile
           platforms: linux/amd64
           push: true
-          tags: ${{ steps.source.outputs.backend_image }}
+          tags: ${{ env.IMAGE }}
           cache-from: type=registry,ref=docker.io/${{ secrets.DOCKER_USERNAME }}/daiphat-be:buildcache
           cache-to: type=registry,ref=docker.io/${{ secrets.DOCKER_USERNAME }}/daiphat-be:buildcache,mode=max
 
       - name: Build and push frontend
+        if: ${{ inputs.component == 'frontend' }}
         uses: docker/build-push-action@v7
         with:
           context: ./daiphat-fe
           file: ./daiphat-fe/Dockerfile
           platforms: linux/amd64
           push: true
-          tags: ${{ steps.source.outputs.frontend_image }}
+          tags: ${{ env.IMAGE }}
           build-args: |
             VITE_ENV_HASH=${{ env.VITE_ENV_HASH }}
           secret-files: |
@@ -105,13 +116,14 @@ jobs:
           cache-to: type=registry,ref=docker.io/${{ secrets.DOCKER_USERNAME }}/daiphat-fe:buildcache,mode=max
 
       - name: Build and push AI
+        if: ${{ inputs.component == 'ai' }}
         uses: docker/build-push-action@v7
         with:
           context: ./daiphat-ai
           file: ./daiphat-ai/Dockerfile
           platforms: linux/amd64
           push: true
-          tags: ${{ steps.source.outputs.ai_image }}
+          tags: ${{ env.IMAGE }}
           cache-from: type=registry,ref=docker.io/${{ secrets.DOCKER_USERNAME }}/daiphat-ai:buildcache
           cache-to: type=registry,ref=docker.io/${{ secrets.DOCKER_USERNAME }}/daiphat-ai:buildcache,mode=max
 
@@ -122,24 +134,15 @@ jobs:
       - name: Checkout deployment files
         uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.source_ref || github.ref_name }}
+          ref: ${{ inputs.source_ref }}
 
       - name: Prepare protected runtime files
         env:
           ENV_FILE_CONTENT: ${{ secrets.ENV_FILE_CONTENT }}
-          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
-          SOURCE_SHA: ${{ needs.build-and-push.outputs.source_sha }}
-          IMAGE_CHANNEL: ${{ needs.build-and-push.outputs.channel }}
         run: |
           set -euo pipefail
           umask 077
           test -n "$ENV_FILE_CONTENT"
-          test -n "$DOCKER_USERNAME"
-          test -n "$SOURCE_SHA"
-          test -n "$IMAGE_CHANNEL"
-          BACKEND_IMAGE="docker.io/$DOCKER_USERNAME/daiphat-be:$IMAGE_CHANNEL-$SOURCE_SHA"
-          FRONTEND_IMAGE="docker.io/$DOCKER_USERNAME/daiphat-fe:$IMAGE_CHANNEL-$SOURCE_SHA"
-          AI_IMAGE="docker.io/$DOCKER_USERNAME/daiphat-ai:$IMAGE_CHANNEL-$SOURCE_SHA"
           mkdir -p .dozzle
           dozzle_username=$(printf '%s\n' "$ENV_FILE_CONTENT" | awk -F= '$1 == "DOZZLE_AUTH_USERNAME" { value=substr($0, length($1)+2) } END { print value }')
           dozzle_password_hash=$(printf '%s\n' "$ENV_FILE_CONTENT" | awk -F= '$1 == "DOZZLE_AUTH_PASSWORD_HASH" { value=substr($0, length($1)+2) } END { print value }')
@@ -156,12 +159,8 @@ jobs:
             printf '    filter:\n'
             printf '    roles: none\n'
           } > .dozzle/users.yml
-          printf 'BACKEND_IMAGE=%s\nFRONTEND_IMAGE=%s\nAI_IMAGE=%s\nDEPLOY_SHA=%s\n' \
-            "$BACKEND_IMAGE" "$FRONTEND_IMAGE" "$AI_IMAGE" "$SOURCE_SHA" > .deploy.env
-          # scp-action runs in a separate container, so it must be able to read
-          # these ephemeral runner files. deploy-prod.sh locks them on the VPS.
           chmod 755 .dozzle
-          chmod 644 .env.prod .deploy.env .dozzle/users.yml
+          chmod 644 .env.prod .dozzle/users.yml
 
       - name: Configure and validate VPS SSH key
         env:
@@ -184,40 +183,51 @@ jobs:
             } > "$key_file"
           fi
           chmod 600 "$key_file"
-          if ! ssh-keygen -y -f "$key_file" >/dev/null 2>&1; then
+          ssh-keygen -y -f "$key_file" >/dev/null 2>&1 || {
             echo "VPS_SSH_KEY is not a valid OpenSSH private key after normalization." >&2
             exit 1
-          fi
+          }
           ssh-keyscan -H "$VPS_HOST" >> "$HOME/.ssh/known_hosts"
 
-      - name: Copy production stack to VPS
+      - name: Copy component deployment files to VPS
         env:
           VPS_HOST: ${{ secrets.VPS_HOST }}
           VPS_USER: ${{ secrets.VPS_USER }}
           VPS_DEPLOY_PATH: ${{ secrets.VPS_DEPLOY_PATH }}
         run: |
           set -euo pipefail
-          tar -czf - docker-compose.prod.yml daiphat-be/infra scripts/deploy-prod.sh scripts/bootstrap-tls.sh scripts/vps-preflight.sh .env.prod .deploy.env .dozzle/users.yml \
+          tar -czf - docker-compose.prod.yml daiphat-be/infra/backup scripts/deploy-component.sh scripts/vps-preflight.sh .env.prod .dozzle/users.yml \
             | ssh -i "$HOME/.ssh/daiphat_vps_deploy" -o BatchMode=yes -o ConnectTimeout=10 "$VPS_USER@$VPS_HOST" \
               "mkdir -p '$VPS_DEPLOY_PATH' && tar -xzf - -C '$VPS_DEPLOY_PATH'"
 
-      - name: Deploy and verify on VPS
+      - name: Deploy and verify component on VPS
         env:
+          COMPONENT: ${{ inputs.component }}
           DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
           DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+          IMAGE_CHANNEL: ${{ needs.build-and-push.outputs.channel }}
+          SOURCE_SHA: ${{ needs.build-and-push.outputs.source_sha }}
           VPS_HOST: ${{ secrets.VPS_HOST }}
           VPS_USER: ${{ secrets.VPS_USER }}
           VPS_DEPLOY_PATH: ${{ secrets.VPS_DEPLOY_PATH }}
         run: |
           set -euo pipefail
+          case "$COMPONENT" in
+            backend) repository=daiphat-be ;;
+            frontend) repository=daiphat-fe ;;
+            ai) repository=daiphat-ai ;;
+          esac
+          image="docker.io/$DOCKER_USERNAME/$repository:$IMAGE_CHANNEL-$SOURCE_SHA"
           printf '%s' "$DOCKER_PASSWORD" | ssh -i "$HOME/.ssh/daiphat_vps_deploy" -o BatchMode=yes -o ConnectTimeout=10 "$VPS_USER@$VPS_HOST" \
             "docker login docker.io -u '$DOCKER_USERNAME' --password-stdin"
+          # Values below intentionally expand on the trusted runner before the script is sent.
+          # shellcheck disable=SC2087
           ssh -i "$HOME/.ssh/daiphat_vps_deploy" -o BatchMode=yes -o ConnectTimeout=10 "$VPS_USER@$VPS_HOST" <<EOF
             set -eu
             cd "$VPS_DEPLOY_PATH"
-            chmod 700 scripts/deploy-prod.sh scripts/bootstrap-tls.sh scripts/vps-preflight.sh
+            chmod 700 scripts/deploy-component.sh scripts/vps-preflight.sh
             scripts/vps-preflight.sh "$VPS_DEPLOY_PATH"
-            scripts/deploy-prod.sh
+            scripts/deploy-component.sh "$COMPONENT" "$image" "$SOURCE_SHA"
           EOF
 
       - name: Remove temporary VPS SSH key
@@ -225,7 +235,7 @@ jobs:
         run: rm -f "$HOME/.ssh/daiphat_vps_deploy"
 
   promote-main:
-    if: ${{ (inputs.source_ref || github.ref_name) == 'main' }}
+    if: ${{ inputs.source_ref == 'main' }}
     runs-on: ubuntu-latest
     needs: [build-and-push, deploy]
     steps:
@@ -238,16 +248,18 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
 
-      - name: Promote verified image pair
+      - name: Promote verified component image
         env:
+          COMPONENT: ${{ inputs.component }}
           DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
           SOURCE_SHA: ${{ needs.build-and-push.outputs.source_sha }}
           IMAGE_CHANNEL: ${{ needs.build-and-push.outputs.channel }}
         run: |
           set -euo pipefail
-          BACKEND_IMAGE="docker.io/$DOCKER_USERNAME/daiphat-be:$IMAGE_CHANNEL-$SOURCE_SHA"
-          FRONTEND_IMAGE="docker.io/$DOCKER_USERNAME/daiphat-fe:$IMAGE_CHANNEL-$SOURCE_SHA"
-          AI_IMAGE="docker.io/$DOCKER_USERNAME/daiphat-ai:$IMAGE_CHANNEL-$SOURCE_SHA"
-          docker buildx imagetools create -t "docker.io/$DOCKER_USERNAME/daiphat-be:prod" "$BACKEND_IMAGE"
-          docker buildx imagetools create -t "docker.io/$DOCKER_USERNAME/daiphat-fe:prod" "$FRONTEND_IMAGE"
-          docker buildx imagetools create -t "docker.io/$DOCKER_USERNAME/daiphat-ai:prod" "$AI_IMAGE"
+          case "$COMPONENT" in
+            backend) repository=daiphat-be ;;
+            frontend) repository=daiphat-fe ;;
+            ai) repository=daiphat-ai ;;
+          esac
+          image="docker.io/$DOCKER_USERNAME/$repository:$IMAGE_CHANNEL-$SOURCE_SHA"
+          docker buildx imagetools create -t "docker.io/$DOCKER_USERNAME/$repository:prod" "$image"
