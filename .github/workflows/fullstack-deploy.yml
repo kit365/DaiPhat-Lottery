@@ -76,6 +76,7 @@ jobs:
             printf 'VITE_WS_BASE_URL=https://%s\n' "$domain_name" >> /tmp/daiphat-fe.env
           fi
           test -s /tmp/daiphat-fe.env
+          printf 'VITE_ENV_HASH=%s\n' "$(sha256sum /tmp/daiphat-fe.env | awk '{print $1}')" >> "$GITHUB_ENV"
 
       - name: Build and push backend
         uses: docker/build-push-action@v7
@@ -96,6 +97,8 @@ jobs:
           platforms: linux/amd64
           push: true
           tags: ${{ steps.source.outputs.frontend_image }}
+          build-args: |
+            VITE_ENV_HASH=${{ env.VITE_ENV_HASH }}
           secret-files: |
             env_file=/tmp/daiphat-fe.env
           cache-from: type=registry,ref=docker.io/${{ secrets.DOCKER_USERNAME }}/daiphat-fe:buildcache
