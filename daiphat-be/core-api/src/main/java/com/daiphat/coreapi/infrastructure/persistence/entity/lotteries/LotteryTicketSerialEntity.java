@@ -96,6 +96,19 @@ public class LotteryTicketSerialEntity extends BaseEntity {
     @Column(name = "returned_at")
     private LocalDateTime returnedAt;
 
+    @Column(name = "is_manual_override", nullable = false)
+    @Builder.Default
+    private boolean manualOverride = false;
+
+    @Column(name = "override_reason", columnDefinition = "TEXT")
+    private String overrideReason;
+
+    @Column(name = "override_evidence_url", length = 500)
+    private String overrideEvidenceUrl;
+
+    @Column(name = "return_batch_line_id")
+    private Long returnBatchLineId;
+
     @Column(name = "damaged_evidence_url", length = 500)
     private String damagedEvidenceUrl;
 

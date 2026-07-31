@@ -46,6 +46,11 @@ public class LotteryTicketSerialModel {
     private UUID verifiedById;
     private LocalDateTime verifiedAt;
     private LocalDateTime returnedAt;
+    @Builder.Default
+    private boolean manualOverride = false;
+    private String overrideReason;
+    private String overrideEvidenceUrl;
+    private Long returnBatchLineId;
     private LotteryTicketSerialFaultedBy faultedBy;
     private String damagedEvidenceUrl;
     private String damagedReason;

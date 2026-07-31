@@ -162,4 +162,26 @@ public class LotteryTicketSerialRepositoryAdapter implements LotteryTicketSerial
                 .map(lotteryTicketSerialPersistenceMapper::toDomain)
                 .toList();
     }
+
+    @Override
+    public List<LotteryTicketSerialModel> findAllByIds(Collection<Long> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return List.of();
+        }
+        return lotteryTicketSerialRepository.findByIdInAndDeletedAtIsNull(ids).stream()
+                .map(lotteryTicketSerialPersistenceMapper::toDomain)
+                .toList();
+    }
+
+    @Override
+    public List<LotteryTicketSerialModel> findAllByReturnBatchLineId(Long returnBatchLineId) {
+        return lotteryTicketSerialRepository.findByReturnBatchLineIdAndDeletedAtIsNull(returnBatchLineId).stream()
+                .map(lotteryTicketSerialPersistenceMapper::toDomain)
+                .toList();
+    }
+
+    @Override
+    public long countByReturnBatchLineId(Long returnBatchLineId) {
+        return lotteryTicketSerialRepository.countByReturnBatchLineIdAndDeletedAtIsNull(returnBatchLineId);
+    }
 }

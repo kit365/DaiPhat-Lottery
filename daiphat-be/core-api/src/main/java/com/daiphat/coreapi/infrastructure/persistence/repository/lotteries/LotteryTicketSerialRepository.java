@@ -122,4 +122,19 @@ public interface LotteryTicketSerialRepository extends JpaRepository<LotteryTick
             @Param("drawDate") java.time.LocalDate drawDate,
             @Param("status") LotteryTicketSerialStatus status
     );
+
+    List<LotteryTicketSerialEntity> findByIdInAndDeletedAtIsNull(Collection<Long> ids);
+
+    List<LotteryTicketSerialEntity> findByReturnBatchLineIdAndDeletedAtIsNull(Long returnBatchLineId);
+
+    long countByReturnBatchLineIdAndDeletedAtIsNull(Long returnBatchLineId);
+
+    @Query("""
+            SELECT COALESCE(SUM(ibl.importCost), 0)
+            FROM LotteryTicketSerialEntity s
+            JOIN s.importBatchLine ibl
+            WHERE s.deletedAt IS NULL
+              AND s.returnBatchLineId = :returnBatchLineId
+            """)
+    java.math.BigDecimal sumImportCostByReturnBatchLineId(@Param("returnBatchLineId") Long returnBatchLineId);
 }
