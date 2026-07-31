@@ -13,8 +13,8 @@ Production runs on one VPS with Docker Compose. PostgreSQL, Redis, the three app
 Runtime secrets remain in ignored local files and GitHub Actions Secrets.
 
 ```bash
-# Reuse the existing ignored developer env files:
-# .env.local and daiphat-fe/.env
+# Use the single ignored local environment file at the repository root:
+# .env
 docker compose up -d --build
 ```
 
