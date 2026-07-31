@@ -26,6 +26,7 @@ import { PERMISSIONS } from '../../../../../constants/permission.constants';
 import { prefixAdmin, ROUTES } from '../../../../../constants/routes';
 import { useImportBatchDetail } from '../../hooks/useImportBatch';
 import { useStations } from '../../../../station/hooks/useStation';
+import { formatImportCost } from '../../utils/importCostCalculator';
 import {
     getBatchTypeLabel,
     getImportBatchCancelledAlertMessage,
@@ -204,7 +205,7 @@ export const ImportBatchDetailPage = () => {
                         />
                         <TextField
                             label="Tổng giá trị khai báo (VNĐ)"
-                            value={Number(totalDeclaredCostValue).toLocaleString('vi-VN')}
+                            value={formatImportCost(Number(totalDeclaredCostValue))}
                             fullWidth
                             InputProps={{ readOnly: true }}
                         />
@@ -216,7 +217,7 @@ export const ImportBatchDetailPage = () => {
                         />
                         <TextField
                             label="Tổng giá trị đã nhập (VNĐ)"
-                            value={Number(totalImportedCostValue).toLocaleString('vi-VN')}
+                            value={formatImportCost(Number(totalImportedCostValue))}
                             fullWidth
                             InputProps={{ readOnly: true }}
                         />
@@ -346,10 +347,10 @@ export const ImportBatchDetailPage = () => {
                                                 </Typography>
                                             </TableCell>
                                             <TableCell align="right">
-                                                {Number(line.importCost).toLocaleString('vi-VN')}
+                                                {formatImportCost(line.importCost)}
                                             </TableCell>
                                             <TableCell align="right">
-                                                {Number(line.totalCostValue).toLocaleString('vi-VN')}
+                                                {formatImportCost(line.totalCostValue)}
                                             </TableCell>
                                             <TableCell align="center">
                                                 <IconButton size="small" color="primary" onClick={() => navigate(ROUTES.ADMIN.IMPORT_BATCH.LINE_DETAIL(batch.id, line.id))}>

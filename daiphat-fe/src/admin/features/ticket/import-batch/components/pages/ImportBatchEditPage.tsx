@@ -86,6 +86,7 @@ import {
 } from '../../utils/importBatchDeclareQuantityAdjustment';
 import { formatViInteger, parseNonNegativeIntegerInput } from '../../../../supplier';
 import { computeImportBatchTotals } from '../../utils/importBatchTotals';
+import { formatImportCost } from '../../utils/importCostCalculator';
 import { computeImportBatchRowLimit, IMPORT_BATCH_ROW_LIMIT_MESSAGE } from '../../utils/importBatchRowLimit';
 import {
     buildFormValuesFromBatch,
@@ -117,7 +118,7 @@ import { confirmAction, confirmDelete } from '../../../../../utils/swal';
 const emptyLine = (): UpdateImportBatchLineFormValues => ({
     lotteryStationId: 0,
     declareQuantity: 1,
-    importCost: 10000,
+    importCost: 0,
     resolvedBatchType: undefined,
     removed: false,
 });
@@ -1250,7 +1251,7 @@ export const ImportBatchEditPage = () => {
                                                     drawDate={drawDate}
                                                     eligibleStations={displayEligibleStations}
                                                     declareQuantity={line?.declareQuantity ?? 0}
-                                                    importCost={line?.importCost ?? 10000}
+                                                    importCost={line?.importCost ?? 0}
                                                     lotteryStationId={line?.lotteryStationId ?? 0}
                                                     resolvedBatchType={line?.resolvedBatchType}
                                                     selectedStationIdsInOtherRows={
@@ -1316,7 +1317,7 @@ export const ImportBatchEditPage = () => {
                             >
                                 <Typography variant="body2">
                                     <strong>Tổng giá trị lô vé nhập:</strong>{' '}
-                                    {totals.totalCost.toLocaleString('vi-VN')} VNĐ
+                                    {formatImportCost(totals.totalCost)} VNĐ
                                 </Typography>
                             </Box>
 

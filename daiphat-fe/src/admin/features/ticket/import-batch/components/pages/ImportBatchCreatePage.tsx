@@ -50,6 +50,7 @@ import {
 } from '../../utils/importBatchDeclaredQuantity';
 import { formatViInteger, parseNonNegativeIntegerInput } from '../../../../supplier';
 import { computeImportBatchTotals } from '../../utils/importBatchTotals';
+import { formatImportCost } from '../../utils/importCostCalculator';
 import { computeImportBatchRowLimit, IMPORT_BATCH_ROW_LIMIT_MESSAGE } from '../../utils/importBatchRowLimit';
 import type { ImportBatch, ImportBatchEligibleStation } from '../../types/importBatch.type';
 import { useImportBatchCreateDraft } from '../../hooks/useImportBatchCreateDraft';
@@ -67,7 +68,7 @@ import dayjs from 'dayjs';
 const emptyLine = () => ({
     lotteryStationId: 0,
     declareQuantity: 1,
-    importCost: 10000,
+    importCost: 0,
     resolvedBatchType: undefined as CreateImportBatchFormValues['lines'][0]['resolvedBatchType'],
 });
 
@@ -921,7 +922,7 @@ export const ImportBatchCreatePage = () => {
                                                         drawDate={drawDate}
                                                         eligibleStations={displayEligibleStations}
                                                         declareQuantity={lines[index]?.declareQuantity ?? 0}
-                                                        importCost={lines[index]?.importCost ?? 10000}
+                                                        importCost={lines[index]?.importCost ?? 0}
                                                         lotteryStationId={lines[index]?.lotteryStationId ?? 0}
                                                         resolvedBatchType={lines[index]?.resolvedBatchType}
                                                         stationName={lines[index]?.stationName}
@@ -975,7 +976,7 @@ export const ImportBatchCreatePage = () => {
                                     <Typography variant="body2" color="text.secondary">
                                         Tổng giá trị lô vé nhập:{' '}
                                         <Box component="span" fontWeight={700} color="text.primary">
-                                            {totals.totalCost.toLocaleString('vi-VN')} VNĐ
+                                            {formatImportCost(totals.totalCost)} VNĐ
                                         </Box>
                                     </Typography>
                                 </Box>
