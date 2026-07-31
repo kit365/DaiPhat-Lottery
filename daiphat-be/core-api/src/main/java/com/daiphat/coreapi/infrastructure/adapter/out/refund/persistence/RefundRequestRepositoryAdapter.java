@@ -82,7 +82,7 @@ public class RefundRequestRepositoryAdapter implements RefundRequestRepositoryPo
                 || refundRequestRepository.existsByBankAccount_IdAndStatus(
                 bankAccountId, RefundRequestStatus.WAITING_FOR_INFO)
                 || refundRequestRepository.existsByBankAccount_IdAndStatus(
-                bankAccountId, RefundRequestStatus.APPROVED);
+                bankAccountId, RefundRequestStatus.valueOf("APPROVED"));
     }
 
     @Override
