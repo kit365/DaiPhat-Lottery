@@ -71,6 +71,7 @@ public enum ErrorCode {
     INVALID_INPUT("SYS_006", "Dữ liệu nhập vào không hợp lệ.", HttpStatus.BAD_REQUEST),
     IMAGE_FILE_REQUIRED("SYS_007", "Vui lòng chọn một tệp hình ảnh.", HttpStatus.BAD_REQUEST),
     IMAGE_INVALID_TYPE("SYS_008", "Chỉ hỗ trợ tải lên các tệp định dạng hình ảnh.", HttpStatus.BAD_REQUEST),
+    IMAGE_UPLOAD_FAILED("SYS_009", "Không thể tải ảnh lên. Vui lòng kiểm tra cấu hình lưu trữ hoặc thử lại.", HttpStatus.BAD_GATEWAY),
     PASSWORD_CONFIRM_MISMATCH("AUTH_030", "Xác nhận mật khẩu không khớp", HttpStatus.BAD_REQUEST),
     ACCESS_DENIED("AUTH_031", "Bạn không có quyền truy cập tài nguyên này.", HttpStatus.FORBIDDEN),
 
@@ -246,6 +247,11 @@ public enum ErrorCode {
     ),
     RETURN_BATCH_DUPLICATE_STATION("LT_117", "Mỗi nhà đài chỉ được khai báo một lần trong cùng phiếu trả vé.", HttpStatus.BAD_REQUEST),
     RETURN_BATCH_SUPPLIER_REQUIRED("LT_118", "Nhà cung cấp không được để trống.", HttpStatus.BAD_REQUEST),
+    RETURN_BATCH_READ_ONLY(
+            "LT_119",
+            "Phiếu trả vé được hệ thống tạo tự động và không thể chỉnh sửa.",
+            HttpStatus.METHOD_NOT_ALLOWED
+    ),
     IMPORT_BATCH_SUPPLIER_REQUIRED("LT_080", "Nhà cung cấp không được để trống.", HttpStatus.BAD_REQUEST),
     IMPORT_BATCH_NO_SUPPLIER_CONFIGURED(
             "LT_084",

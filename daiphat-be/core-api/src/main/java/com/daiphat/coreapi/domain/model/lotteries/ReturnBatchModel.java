@@ -38,7 +38,7 @@ public class ReturnBatchModel {
     private LocalDateTime returnedAt;
     private LocalDateTime confirmedAt;
     @Builder.Default
-    private ReturnBatchStatus status = ReturnBatchStatus.PENDING;
+    private ReturnBatchStatus status = ReturnBatchStatus.PENDING_INSPECTION;
     private String note;
     @Builder.Default
     private List<ReturnBatchLineModel> lines = new ArrayList<>();
@@ -67,7 +67,8 @@ public class ReturnBatchModel {
         this.totalReturnValue = ImportCostCalculator.scaleMoney(value);
     }
 
+    /** Header fields are system-managed; inspection/handover workflow uses dedicated endpoints. */
     public boolean isEditable() {
-        return status == ReturnBatchStatus.PENDING || status == ReturnBatchStatus.RETURNED;
+        return false;
     }
 }

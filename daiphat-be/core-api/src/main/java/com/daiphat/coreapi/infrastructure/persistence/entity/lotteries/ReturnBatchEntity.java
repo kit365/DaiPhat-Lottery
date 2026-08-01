@@ -78,7 +78,7 @@ public class ReturnBatchEntity extends BaseEntity {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 30)
     @Builder.Default
-    private ReturnBatchStatus status = ReturnBatchStatus.PENDING;
+    private ReturnBatchStatus status = ReturnBatchStatus.PENDING_INSPECTION;
 
     @Column(columnDefinition = "TEXT")
     private String note;
