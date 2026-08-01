@@ -21,8 +21,8 @@ import java.util.List;
 /**
  * Computes {@code totalQuantity} / {@code totalReturnValue} for return batch headers and lines.
  * <p>
- * PENDING (no attached serials yet): eligible {@code IN_STOCK} serials from ImportBatchLines
- * matching supplier + station + drawDate → {@code importCost × count}.
+ * Open for inspection and no attached serials yet: eligible {@code IN_STOCK} serials from
+ * ImportBatchLines matching supplier + station + drawDate → {@code importCost × count}.
  * <p>
  * After serials are attached to the return batch: aggregates from attached serials only.
  * Header totals are always the sum of line totals.
@@ -49,7 +49,7 @@ public class ReturnBatchSummaryCalculator {
         boolean hasAttached = lines.stream()
                 .anyMatch(line -> lotteryTicketSerialRepositoryPort.countByReturnBatchLineId(line.getId()) > 0);
 
-        if (batch.getStatus() == ReturnBatchStatus.PENDING && !hasAttached) {
+        if (batch.getStatus() != null && batch.getStatus().isOpenForInspection() && !hasAttached) {
             recalculateFromEligibleImportInventory(batch, lines);
         } else {
             for (ReturnBatchLineModel line : lines) {

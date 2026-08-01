@@ -68,6 +68,18 @@ public class SupplierSettlementService implements SupplierSettlementServicePort 
     @Override
     @Transactional
     public void recalculateTotalImportValue(Long settlementId) {
+        recalculateAmounts(settlementId);
+    }
+
+    @Override
+    @Transactional
+    public void recalculateTotalReturnValue(Long settlementId) {
+        recalculateAmounts(settlementId);
+    }
+
+    @Override
+    @Transactional
+    public void recalculateAmounts(Long settlementId) {
         if (settlementId == null) {
             return;
         }
@@ -81,37 +93,18 @@ public class SupplierSettlementService implements SupplierSettlementServicePort 
         BigDecimal totalImportValue = ImportCostCalculator.scaleMoney(
                 supplierSettlementRepositoryPort.sumImportedCostValueBySettlementId(settlementId)
         );
-        settlement.applyTotalImportValue(totalImportValue);
-        supplierSettlementRepositoryPort.save(settlement);
-        log.debug(
-                "Recalculated supplier settlement id={} totalImportValue={}",
-                settlementId,
-                totalImportValue
-        );
-    }
-
-    @Override
-    @Transactional
-    public void recalculateTotalReturnValue(Long settlementId) {
-        if (settlementId == null) {
-            return;
-        }
-        SupplierSettlementModel settlement = supplierSettlementRepositoryPort.findById(settlementId)
-                .orElse(null);
-        if (settlement == null) {
-            log.warn("Skip settlement return recalculation; settlement {} not found", settlementId);
-            return;
-        }
-
         BigDecimal totalReturnValue = ImportCostCalculator.scaleMoney(
-                supplierSettlementRepositoryPort.sumSuccessfulReturnValueBySettlementId(settlementId)
+                supplierSettlementRepositoryPort.sumPreparedReturnValueBySettlementId(settlementId)
         );
+        settlement.applyTotalImportValue(totalImportValue);
         settlement.applyTotalReturnValue(totalReturnValue);
         supplierSettlementRepositoryPort.save(settlement);
         log.debug(
-                "Recalculated supplier settlement id={} totalReturnValue={}",
+                "Recalculated supplier settlement id={} totalImportValue={} totalReturnValue={} remainingAmount={}",
                 settlementId,
-                totalReturnValue
+                totalImportValue,
+                totalReturnValue,
+                settlement.getRemainingAmount()
         );
     }
 

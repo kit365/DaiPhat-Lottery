@@ -91,7 +91,7 @@ public class ReturnBatchRepositoryAdapter implements ReturnBatchRepositoryPort {
     public Optional<ReturnBatchModel> findPendingBySupplierAndDrawDate(Long supplierId, LocalDate drawDate) {
         return returnBatchRepository
                 .findByLotterySupplier_IdAndDrawDateAndStatusAndDeletedAtIsNull(
-                        supplierId, drawDate, ReturnBatchStatus.PENDING
+                        supplierId, drawDate, ReturnBatchStatus.PENDING_INSPECTION
                 )
                 .map(returnBatchPersistenceMapper::toDomain);
     }

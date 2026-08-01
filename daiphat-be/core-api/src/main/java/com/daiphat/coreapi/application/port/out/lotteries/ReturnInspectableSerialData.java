@@ -17,6 +17,7 @@ public record ReturnInspectableSerialData(
         Long stationId,
         String stationName,
         Long importBatchLineId,
-        BigDecimal importCost
+        BigDecimal importCost,
+        BigDecimal ticketPrice
 ) {
 }

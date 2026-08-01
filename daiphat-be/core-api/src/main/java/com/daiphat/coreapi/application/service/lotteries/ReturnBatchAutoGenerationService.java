@@ -143,7 +143,7 @@ public class ReturnBatchAutoGenerationService {
         var existingOpt = returnBatchRepositoryPort.findBySupplierAndDrawDate(supplier.getId(), drawDate);
         if (existingOpt.isPresent()) {
             ReturnBatchModel existing = existingOpt.get();
-            if (existing.getStatus() == ReturnBatchStatus.PENDING) {
+            if (existing.getStatus() != null && existing.getStatus().allowsAutoEnrichment()) {
                 enrichMissingStations(existing.getId(), stationIds);
                 // Keep summary in sync whenever import quantities change after the return window opens.
                 returnBatchSummaryCalculator.recalculate(existing.getId());
@@ -161,7 +161,7 @@ public class ReturnBatchAutoGenerationService {
                 .drawDate(drawDate)
                 .supplierSettlementId(settlement.getId())
                 .note("Tự động tạo theo lịch trả vé NCC")
-                .status(ReturnBatchStatus.PENDING)
+                .status(ReturnBatchStatus.PENDING_INSPECTION)
                 .totalQuantity(0)
                 .totalReturnValue(BigDecimal.ZERO.setScale(ImportCostCalculator.COST_SCALE))
                 .build();

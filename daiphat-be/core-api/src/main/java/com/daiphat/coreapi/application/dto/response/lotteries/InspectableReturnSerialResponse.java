@@ -19,6 +19,7 @@ public record InspectableReturnSerialResponse(
         String lotteryStationName,
         Long returnBatchLineId,
         Long importBatchLineId,
-        BigDecimal importCost
+        BigDecimal importCost,
+        BigDecimal ticketPrice
 ) {
 }

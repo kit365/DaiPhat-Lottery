@@ -7,11 +7,12 @@ import com.daiphat.coreapi.application.dto.request.lotteries.AttachReturnSerials
 import com.daiphat.coreapi.application.dto.request.lotteries.ConfirmReturnHandoverRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.ConfirmReturnInspectionRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.UpdateReturnBatchLineStatusRequest;
-import com.daiphat.coreapi.application.dto.request.lotteries.UpdateReturnBatchRequest;
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.InspectableReturnSerialResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.ReturnBatchResponse;
 import com.daiphat.coreapi.application.port.in.lotteries.ReturnBatchServicePort;
+import com.daiphat.coreapi.domain.exception.DomainException;
+import com.daiphat.coreapi.domain.exception.ErrorCode;
 import com.daiphat.coreapi.domain.model.enums.lottery.ReturnBatchStatus;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -43,16 +44,14 @@ public class ReturnBatchController {
 
     private final ReturnBatchServicePort returnBatchServicePort;
 
+    /**
+     * Manual header/line edits are disabled — return batches are system-generated and read-only.
+     * Workflow endpoints (inspect / handover / serial attach) remain available below.
+     */
     @PutMapping("/{id}")
     @PreAuthorize("hasAnyAuthority('importBatch:create')")
-    public ApiResponse<ReturnBatchResponse> update(
-            @PathVariable Long id,
-            @Valid @RequestBody UpdateReturnBatchRequest request
-    ) {
-        return ApiResponse.success(
-                "Cập nhật phiếu trả vé thành công.",
-                returnBatchServicePort.update(id, request)
-        );
+    public ApiResponse<ReturnBatchResponse> update(@PathVariable("id") Long ignoredId) {
+        throw new DomainException(ErrorCode.RETURN_BATCH_READ_ONLY);
     }
 
     @GetMapping("/{id}")
@@ -96,6 +95,15 @@ public class ReturnBatchController {
     @PreAuthorize("hasAnyAuthority('importBatch:view', 'importBatch:create')")
     public ApiResponse<List<InspectableReturnSerialResponse>> listInspectableSerials(@PathVariable Long id) {
         return ApiResponse.success(null, returnBatchServicePort.listInspectableSerials(id));
+    }
+
+    @PostMapping("/{id}/start-inspection")
+    @PreAuthorize("hasAnyAuthority('importBatch:create')")
+    public ApiResponse<ReturnBatchResponse> startInspection(@PathVariable Long id) {
+        return ApiResponse.success(
+                "Đã bắt đầu kiểm tra vé trả.",
+                returnBatchServicePort.startInspection(id)
+        );
     }
 
     @PostMapping("/{id}/confirm-inspection")

@@ -8,7 +8,6 @@ import com.daiphat.coreapi.application.dto.request.lotteries.ConfirmReturnInspec
 import com.daiphat.coreapi.application.dto.request.lotteries.CreateReturnBatchLineRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.CreateReturnBatchRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.UpdateReturnBatchLineStatusRequest;
-import com.daiphat.coreapi.application.dto.request.lotteries.UpdateReturnBatchRequest;
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.InspectableReturnSerialResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.ReturnBatchLineResponse;
@@ -101,7 +100,7 @@ public class ReturnBatchService implements ReturnBatchServicePort {
                 .drawDate(request.drawDate())
                 .supplierSettlementId(settlement.getId())
                 .note(trimToNull(request.note()))
-                .status(ReturnBatchStatus.PENDING)
+                .status(ReturnBatchStatus.PENDING_INSPECTION)
                 .totalQuantity(0)
                 .totalReturnValue(BigDecimal.ZERO.setScale(ImportCostCalculator.COST_SCALE))
                 .build();
@@ -128,45 +127,6 @@ public class ReturnBatchService implements ReturnBatchServicePort {
         return toDetailResponse(saved.getId());
     }
 
-    @Override
-    @Transactional
-    public ReturnBatchResponse update(Long id, UpdateReturnBatchRequest request) {
-        ReturnBatchModel batch = getBatchOrThrow(id);
-        if (batch.getStatus() == ReturnBatchStatus.CONFIRMED) {
-            throw new DomainException(ErrorCode.RETURN_BATCH_INVALID_STATUS);
-        }
-        if (request.note() != null) {
-            batch.setNote(trimToNull(request.note()));
-        }
-        if (request.returnReceiptUrl() != null) {
-            batch.setReturnReceiptUrl(trimToNull(request.returnReceiptUrl()));
-        }
-        returnBatchRepositoryPort.save(batch);
-
-        if (request.addLines() != null && !request.addLines().isEmpty()) {
-            if (batch.getStatus() != ReturnBatchStatus.PENDING) {
-                throw new DomainException(ErrorCode.RETURN_BATCH_INVALID_STATUS);
-            }
-            Set<Long> existingStations = returnBatchRepositoryPort.findLinesByBatchId(id).stream()
-                    .map(ReturnBatchLineModel::getLotteryStationId)
-                    .collect(Collectors.toSet());
-            ensureUniqueStations(request.addLines().stream().map(CreateReturnBatchLineRequest::lotteryStationId).toList());
-            for (CreateReturnBatchLineRequest lineRequest : request.addLines()) {
-                if (existingStations.contains(lineRequest.lotteryStationId())) {
-                    throw new DomainException(ErrorCode.RETURN_BATCH_DUPLICATE_STATION);
-                }
-                ReturnBatchLineModel line = ReturnBatchLineModel.builder()
-                        .returnBatchId(id)
-                        .lotteryStationId(lineRequest.lotteryStationId())
-                        .status(ReturnBatchLineStatus.PENDING)
-                        .totalQuantity(0)
-                        .totalReturnValue(BigDecimal.ZERO.setScale(ImportCostCalculator.COST_SCALE))
-                        .build();
-                returnBatchRepositoryPort.saveLine(line);
-            }
-        }
-        return toDetailResponse(id);
-    }
 
     @Override
     @Transactional
@@ -198,7 +158,7 @@ public class ReturnBatchService implements ReturnBatchServicePort {
         Page<ReturnBatchResponse> responsePage = returnBatchRepositoryPort
                 .findAll(pageRequest, lotterySupplierId, supplierSettlementId, status, drawDateFrom, drawDateTo, search)
                 .map(model -> {
-                    if (model.getStatus() == ReturnBatchStatus.PENDING) {
+                    if (model.getStatus() != null && model.getStatus().allowsAutoEnrichment()) {
                         syncSummaryIfReturnWindowOpen(model.getId());
                         return toDetailResponse(model.getId());
                     }
@@ -211,9 +171,6 @@ public class ReturnBatchService implements ReturnBatchServicePort {
     @Transactional(readOnly = true)
     public List<InspectableReturnSerialResponse> listInspectableSerials(Long batchId) {
         ReturnBatchModel batch = getBatchOrThrow(batchId);
-        if (batch.getStatus() != ReturnBatchStatus.PENDING) {
-            throw new DomainException(ErrorCode.RETURN_BATCH_INVALID_STATUS);
-        }
         List<ReturnBatchLineModel> lines = returnBatchRepositoryPort.findLinesByBatchId(batchId);
         Set<Long> stationIds = lines.stream()
                 .map(ReturnBatchLineModel::getLotteryStationId)
@@ -244,8 +201,27 @@ public class ReturnBatchService implements ReturnBatchServicePort {
                         .importCost(row.importCost() != null
                                 ? ImportCostCalculator.scaleMoney(row.importCost())
                                 : BigDecimal.ZERO.setScale(ImportCostCalculator.COST_SCALE))
+                        .ticketPrice(row.ticketPrice() != null
+                                ? ImportCostCalculator.scaleMoney(row.ticketPrice())
+                                : null)
                         .build())
                 .toList();
+    }
+
+    @Override
+    @Transactional
+    public ReturnBatchResponse startInspection(Long batchId) {
+        ReturnBatchModel batch = getBatchOrThrow(batchId);
+        if (batch.getStatus() == ReturnBatchStatus.INSPECTING) {
+            return toDetailResponse(batchId);
+        }
+        if (batch.getStatus() != ReturnBatchStatus.PENDING_INSPECTION) {
+            throw new DomainException(ErrorCode.RETURN_BATCH_INVALID_STATUS);
+        }
+        batch.setStatus(ReturnBatchStatus.INSPECTING);
+        returnBatchRepositoryPort.save(batch);
+        log.info("Started return inspection batchId={}", batchId);
+        return toDetailResponse(batchId);
     }
 
     @Override
@@ -256,12 +232,17 @@ public class ReturnBatchService implements ReturnBatchServicePort {
             UUID operatorId
     ) {
         ReturnBatchModel batch = getBatchOrThrow(batchId);
-        if (batch.getStatus() != ReturnBatchStatus.PENDING) {
+        if (batch.getStatus() == null || !batch.getStatus().isOpenForInspection()) {
             throw new DomainException(ErrorCode.RETURN_BATCH_INVALID_STATUS);
         }
         if (request == null || request.deliveryMode() == null
                 || request.serialIds() == null || request.serialIds().isEmpty()) {
             throw new DomainException(ErrorCode.INVALID_INPUT, "Cần chọn sê-ri và hình thức giao trả.");
+        }
+
+        if (batch.getStatus() == ReturnBatchStatus.PENDING_INSPECTION) {
+            batch.setStatus(ReturnBatchStatus.INSPECTING);
+            returnBatchRepositoryPort.save(batch);
         }
 
         List<ReturnBatchLineModel> lines = returnBatchRepositoryPort.findLinesByBatchId(batchId);
@@ -279,7 +260,6 @@ public class ReturnBatchService implements ReturnBatchServicePort {
         }
 
         LocalDateTime now = LocalDateTime.now(clock);
-        boolean supplierCollects = request.deliveryMode() == ReturnDeliveryMode.SUPPLIER_COLLECTS;
         Set<Long> touchedLineIds = new HashSet<>();
 
         for (LotteryTicketSerialModel serial : serials) {
@@ -318,12 +298,12 @@ public class ReturnBatchService implements ReturnBatchServicePort {
             batch.setReturnReceiptUrl(trimToNull(request.returnReceiptUrl()));
         }
         batch.setDeliveryMode(request.deliveryMode());
-        batch.setStatus(ReturnBatchStatus.RETURNED);
+        batch.setStatus(ReturnBatchStatus.PENDING_HANDOVER);
         batch.setReturnedAt(now);
         batch.setReturnedBy(operatorId);
         returnBatchRepositoryPort.save(batch);
 
-        if (supplierCollects && batch.getSupplierSettlementId() != null) {
+        if (batch.getSupplierSettlementId() != null) {
             supplierSettlementServicePort.recalculateTotalReturnValue(batch.getSupplierSettlementId());
         }
 
@@ -346,7 +326,7 @@ public class ReturnBatchService implements ReturnBatchServicePort {
             UUID operatorId
     ) {
         ReturnBatchModel batch = getBatchOrThrow(batchId);
-        if (batch.getStatus() != ReturnBatchStatus.RETURNED) {
+        if (batch.getStatus() != ReturnBatchStatus.PENDING_HANDOVER) {
             throw new DomainException(ErrorCode.RETURN_BATCH_INVALID_STATUS);
         }
 
@@ -379,7 +359,7 @@ public class ReturnBatchService implements ReturnBatchServicePort {
         if (request != null && request.returnReceiptUrl() != null) {
             batch.setReturnReceiptUrl(trimToNull(request.returnReceiptUrl()));
         }
-        batch.setStatus(ReturnBatchStatus.CONFIRMED);
+        batch.setStatus(ReturnBatchStatus.HANDED_OVER);
         batch.setConfirmedAt(now);
         if (batch.getReturnedAt() == null) {
             batch.setReturnedAt(now);
@@ -400,7 +380,7 @@ public class ReturnBatchService implements ReturnBatchServicePort {
     @Transactional
     public ReturnBatchResponse attachSerials(Long batchId, Long lineId, AttachReturnSerialsRequest request) {
         ReturnBatchModel batch = getBatchOrThrow(batchId);
-        if (batch.getStatus() != ReturnBatchStatus.PENDING) {
+        if (batch.getStatus() == null || !batch.getStatus().isOpenForInspection()) {
             throw new DomainException(ErrorCode.RETURN_BATCH_INVALID_STATUS);
         }
         ReturnBatchLineModel line = getLineOrThrow(batchId, lineId);
@@ -430,8 +410,16 @@ public class ReturnBatchService implements ReturnBatchServicePort {
             lotteryTicketSerialRepositoryPort.save(serial);
         }
 
+        if (batch.getStatus() == ReturnBatchStatus.PENDING_INSPECTION) {
+            batch.setStatus(ReturnBatchStatus.INSPECTING);
+            returnBatchRepositoryPort.save(batch);
+        }
+
         recalculateLineAggregates(line);
         refreshBatchAggregates(batchId);
+        if (batch.getSupplierSettlementId() != null) {
+            supplierSettlementServicePort.recalculateTotalReturnValue(batch.getSupplierSettlementId());
+        }
         return toDetailResponse(batchId);
     }
 
@@ -439,7 +427,7 @@ public class ReturnBatchService implements ReturnBatchServicePort {
     @Transactional
     public ReturnBatchResponse detachSerial(Long batchId, Long lineId, Long serialId) {
         ReturnBatchModel batch = getBatchOrThrow(batchId);
-        if (batch.getStatus() != ReturnBatchStatus.PENDING) {
+        if (batch.getStatus() == null || !batch.getStatus().isOpenForInspection()) {
             throw new DomainException(ErrorCode.RETURN_BATCH_INVALID_STATUS);
         }
         ReturnBatchLineModel line = getLineOrThrow(batchId, lineId);
@@ -461,6 +449,17 @@ public class ReturnBatchService implements ReturnBatchServicePort {
 
         recalculateLineAggregates(line);
         refreshBatchAggregates(batchId);
+
+        boolean stillHasAttached = returnBatchRepositoryPort.findLinesByBatchId(batchId).stream()
+                .anyMatch(l -> lotteryTicketSerialRepositoryPort.countByReturnBatchLineId(l.getId()) > 0);
+        if (!stillHasAttached && batch.getStatus() == ReturnBatchStatus.INSPECTING) {
+            batch.setStatus(ReturnBatchStatus.PENDING_INSPECTION);
+            returnBatchRepositoryPort.save(batch);
+        }
+
+        if (batch.getSupplierSettlementId() != null) {
+            supplierSettlementServicePort.recalculateTotalReturnValue(batch.getSupplierSettlementId());
+        }
         return toDetailResponse(batchId);
     }
 
@@ -468,7 +467,7 @@ public class ReturnBatchService implements ReturnBatchServicePort {
     @Transactional
     public ReturnBatchResponse updateLineStatus(Long batchId, Long lineId, UpdateReturnBatchLineStatusRequest request) {
         ReturnBatchModel batch = getBatchOrThrow(batchId);
-        if (batch.getStatus() == ReturnBatchStatus.CONFIRMED) {
+        if (batch.getStatus() != null && batch.getStatus().isTerminal()) {
             throw new DomainException(ErrorCode.RETURN_BATCH_INVALID_STATUS);
         }
         ReturnBatchLineModel line = getLineOrThrow(batchId, lineId);
@@ -509,13 +508,16 @@ public class ReturnBatchService implements ReturnBatchServicePort {
     @Transactional
     public ReturnBatchResponse markReturned(Long batchId, UUID operatorId) {
         ReturnBatchModel batch = getBatchOrThrow(batchId);
-        if (batch.getStatus() != ReturnBatchStatus.PENDING) {
+        if (batch.getStatus() == null || !batch.getStatus().isOpenForInspection()) {
             throw new DomainException(ErrorCode.RETURN_BATCH_INVALID_STATUS);
         }
-        batch.setStatus(ReturnBatchStatus.RETURNED);
+        batch.setStatus(ReturnBatchStatus.PENDING_HANDOVER);
         batch.setReturnedBy(operatorId);
         batch.setReturnedAt(LocalDateTime.now(clock));
         returnBatchRepositoryPort.save(batch);
+        if (batch.getSupplierSettlementId() != null) {
+            supplierSettlementServicePort.recalculateTotalReturnValue(batch.getSupplierSettlementId());
+        }
         return toDetailResponse(batchId);
     }
 
@@ -523,13 +525,14 @@ public class ReturnBatchService implements ReturnBatchServicePort {
     @Transactional
     public ReturnBatchResponse confirm(Long batchId, ConfirmReturnBatchRequest request) {
         ReturnBatchModel batch = getBatchOrThrow(batchId);
-        if (batch.getStatus() != ReturnBatchStatus.RETURNED && batch.getStatus() != ReturnBatchStatus.PENDING) {
+        if (batch.getStatus() != ReturnBatchStatus.PENDING_HANDOVER
+                && (batch.getStatus() == null || !batch.getStatus().isOpenForInspection())) {
             throw new DomainException(ErrorCode.RETURN_BATCH_INVALID_STATUS);
         }
         if (request != null && request.returnReceiptUrl() != null) {
             batch.setReturnReceiptUrl(trimToNull(request.returnReceiptUrl()));
         }
-        batch.setStatus(ReturnBatchStatus.CONFIRMED);
+        batch.setStatus(ReturnBatchStatus.HANDED_OVER);
         batch.setConfirmedAt(LocalDateTime.now(clock));
         if (batch.getReturnedAt() == null) {
             batch.setReturnedAt(batch.getConfirmedAt());
@@ -597,7 +600,7 @@ public class ReturnBatchService implements ReturnBatchServicePort {
         boolean hasAttached = lines.stream()
                 .anyMatch(line -> lotteryTicketSerialRepositoryPort.countByReturnBatchLineId(line.getId()) > 0);
 
-        if (hasAttached || batch.getStatus() != ReturnBatchStatus.PENDING) {
+        if (hasAttached || batch.getStatus() == null || !batch.getStatus().isOpenForInspection()) {
             returnBatchSummaryCalculator.recalculate(batchId);
             return;
         }

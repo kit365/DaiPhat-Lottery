@@ -84,8 +84,8 @@ public class SupplierSettlementRepositoryAdapter implements SupplierSettlementRe
     }
 
     @Override
-    public BigDecimal sumSuccessfulReturnValueBySettlementId(Long settlementId) {
-        BigDecimal sum = supplierSettlementRepository.sumSuccessfulReturnValueBySettlementId(settlementId);
+    public BigDecimal sumPreparedReturnValueBySettlementId(Long settlementId) {
+        BigDecimal sum = supplierSettlementRepository.sumPreparedReturnValueBySettlementId(settlementId);
         return sum != null ? sum : BigDecimal.ZERO;
     }
 }

@@ -28,5 +28,9 @@ public interface SupplierSettlementRepositoryPort {
 
     BigDecimal sumImportedCostValueBySettlementId(Long settlementId);
 
-    BigDecimal sumSuccessfulReturnValueBySettlementId(Long settlementId);
+    /**
+     * Sum import cost of tickets prepared for return ({@code PENDING_RETURN}/{@code RETURNED})
+     * for return batches linked to this settlement.
+     */
+    BigDecimal sumPreparedReturnValueBySettlementId(Long settlementId);
 }

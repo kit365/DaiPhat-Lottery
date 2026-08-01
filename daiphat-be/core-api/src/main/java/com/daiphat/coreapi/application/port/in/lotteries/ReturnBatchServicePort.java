@@ -6,7 +6,6 @@ import com.daiphat.coreapi.application.dto.request.lotteries.ConfirmReturnHandov
 import com.daiphat.coreapi.application.dto.request.lotteries.ConfirmReturnInspectionRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.CreateReturnBatchRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.UpdateReturnBatchLineStatusRequest;
-import com.daiphat.coreapi.application.dto.request.lotteries.UpdateReturnBatchRequest;
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.InspectableReturnSerialResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.ReturnBatchResponse;
@@ -19,8 +18,6 @@ import java.util.UUID;
 public interface ReturnBatchServicePort {
 
     ReturnBatchResponse create(CreateReturnBatchRequest request, UUID operatorId);
-
-    ReturnBatchResponse update(Long id, UpdateReturnBatchRequest request);
 
     ReturnBatchResponse getById(Long id);
 
@@ -38,6 +35,12 @@ public interface ReturnBatchServicePort {
     );
 
     List<InspectableReturnSerialResponse> listInspectableSerials(Long batchId);
+
+    /**
+     * Start ticket inspection: {@code PENDING_INSPECTION} → {@code INSPECTING}.
+     * Idempotent when already {@code INSPECTING}.
+     */
+    ReturnBatchResponse startInspection(Long batchId);
 
     ReturnBatchResponse confirmInspection(
             Long batchId,

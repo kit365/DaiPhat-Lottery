@@ -216,7 +216,8 @@ public class LotteryTicketSerialRepositoryAdapter implements LotteryTicketSerial
                             station != null ? station.getId() : null,
                             station != null ? station.getName() : null,
                             line != null ? line.getId() : null,
-                            line != null ? line.getImportCost() : null
+                            line != null ? line.getImportCost() : null,
+                            ticket != null ? ticket.getPriceSnapshot() : null
                     );
                 })
                 .toList();

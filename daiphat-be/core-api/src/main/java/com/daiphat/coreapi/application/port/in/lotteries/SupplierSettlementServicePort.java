@@ -17,13 +17,21 @@ public interface SupplierSettlementServicePort {
 
     /**
      * Recalculate totalImportValue from imported line quantities linked to this settlement.
+     * Also refreshes remainingAmount (= import − return − paid).
      */
     void recalculateTotalImportValue(Long settlementId);
 
     /**
-     * Recalculate totalReturnValue from SUCCESS return lines linked to this settlement.
+     * Recalculate totalReturnValue from tickets prepared for return
+     * ({@code PENDING_RETURN} / {@code RETURNED}), not only after full SUCCESS handover.
+     * Also refreshes remainingAmount (= import − return − paid).
      */
     void recalculateTotalReturnValue(Long settlementId);
+
+    /**
+     * Recalculate import + return + remaining in one pass (avoids duplicate loads).
+     */
+    void recalculateAmounts(Long settlementId);
 
     PageResponse<SupplierSettlementResponse> getAll(
             int page,
