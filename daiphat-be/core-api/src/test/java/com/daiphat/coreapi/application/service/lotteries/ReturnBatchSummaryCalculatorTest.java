@@ -53,7 +53,7 @@ class ReturnBatchSummaryCalculatorTest {
                 .id(1L)
                 .lotterySupplierId(7L)
                 .drawDate(DRAW_DATE)
-                .status(ReturnBatchStatus.PENDING)
+                .status(ReturnBatchStatus.PENDING_INSPECTION)
                 .build();
         ReturnBatchLineModel line = ReturnBatchLineModel.builder()
                 .id(10L)

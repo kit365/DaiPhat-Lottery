@@ -164,7 +164,7 @@ class ReturnBatchAutoGenerationServiceTest {
                         .id(99L)
                         .lotterySupplierId(1L)
                         .drawDate(DRAW_DATE)
-                        .status(ReturnBatchStatus.PENDING)
+                        .status(ReturnBatchStatus.PENDING_INSPECTION)
                         .build()));
         when(returnBatchRepositoryPort.findLinesByBatchId(99L)).thenReturn(List.of(
                 ReturnBatchLineModel.builder().id(1L).returnBatchId(99L).lotteryStationId(10L).build()
@@ -217,7 +217,7 @@ class ReturnBatchAutoGenerationServiceTest {
                         .id(99L)
                         .lotterySupplierId(1L)
                         .drawDate(DRAW_DATE)
-                        .status(ReturnBatchStatus.PENDING)
+                        .status(ReturnBatchStatus.PENDING_INSPECTION)
                         .build()));
         when(returnBatchRepositoryPort.findLinesByBatchId(99L)).thenReturn(List.of(
                 ReturnBatchLineModel.builder().id(1L).returnBatchId(99L).lotteryStationId(10L).build()

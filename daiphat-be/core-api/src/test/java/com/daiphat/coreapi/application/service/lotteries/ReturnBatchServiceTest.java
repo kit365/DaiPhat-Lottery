@@ -135,7 +135,7 @@ class ReturnBatchServiceTest {
                 .lotterySupplierId(7L)
                 .drawDate(DRAW_DATE)
                 .supplierSettlementId(50L)
-                .status(ReturnBatchStatus.PENDING)
+                .status(ReturnBatchStatus.PENDING_INSPECTION)
                 .build()));
         when(returnBatchRepositoryPort.findLinesByBatchId(10L)).thenReturn(List.of(
                 ReturnBatchLineModel.builder().id(100L).returnBatchId(10L).lotteryStationId(1L).build()
@@ -148,7 +148,7 @@ class ReturnBatchServiceTest {
         );
 
         assertThat(response.supplierSettlementId()).isEqualTo(50L);
-        assertThat(response.status()).isEqualTo(ReturnBatchStatus.PENDING);
+        assertThat(response.status()).isEqualTo(ReturnBatchStatus.PENDING_INSPECTION);
         verify(supplierSettlementServicePort).findOrCreateForImport(supplier, DRAW_DATE);
     }
 
@@ -160,7 +160,7 @@ class ReturnBatchServiceTest {
                 .lotterySupplierId(7L)
                 .drawDate(DRAW_DATE)
                 .supplierSettlementId(50L)
-                .status(ReturnBatchStatus.PENDING)
+                .status(ReturnBatchStatus.PENDING_INSPECTION)
                 .build();
         ReturnBatchLineModel line = ReturnBatchLineModel.builder()
                 .id(100L)
@@ -205,7 +205,7 @@ class ReturnBatchServiceTest {
                 .lotterySupplierId(7L)
                 .drawDate(DRAW_DATE)
                 .supplierSettlementId(50L)
-                .status(ReturnBatchStatus.PENDING)
+                .status(ReturnBatchStatus.PENDING_INSPECTION)
                 .build();
         ReturnBatchLineModel line = ReturnBatchLineModel.builder()
                 .id(100L)
