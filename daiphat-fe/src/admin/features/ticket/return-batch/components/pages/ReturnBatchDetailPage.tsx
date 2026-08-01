@@ -14,7 +14,7 @@ import {
 } from '@mui/material';
 import dayjs from 'dayjs';
 import { useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { Breadcrumb } from '../../../../../components/ui/Breadcrumb';
 import { Title } from '../../../../../components/ui/Title';
@@ -27,21 +27,23 @@ import { formatImportCost } from '../../../import-batch/utils/importCostCalculat
 import {
     useConfirmReturnHandover,
     useReturnBatchDetail,
+    useStartReturnInspection,
 } from '../../hooks/useReturnBatch';
 import {
+    canContinueInspection,
+    canStartInspection,
     getReturnBatchLineStatusBadgeClass,
     getReturnBatchLineStatusLabel,
     getReturnBatchStatusChipColor,
     getReturnBatchStatusLabel,
-    isReturnBatchEditable,
 } from '../../utils/returnBatchLabels';
 import { InspectTicketsDialog } from '../sections/InspectTicketsDialog';
 
 export const ReturnBatchDetailPage = () => {
     const { id } = useParams<{ id: string }>();
-    const navigate = useNavigate();
     const { data: batch, isLoading, isError, refetch } = useReturnBatchDetail(id);
     const confirmHandover = useConfirmReturnHandover();
+    const startInspection = useStartReturnInspection();
     const [inspectOpen, setInspectOpen] = useState(false);
 
     if (isLoading) {
@@ -72,6 +74,18 @@ export const ReturnBatchDetailPage = () => {
         }
     };
 
+    const handleInspectTickets = async () => {
+        if (canStartInspection(batch.status)) {
+            try {
+                await startInspection.mutateAsync(batch.id);
+            } catch {
+                toast.error('Không thể bắt đầu kiểm tra vé.');
+                return;
+            }
+        }
+        setInspectOpen(true);
+    };
+
     return (
         <Box sx={{ maxWidth: 1100, mx: 'auto' }}>
             <div className="mb-[calc(3*var(--spacing))] flex items-start justify-end gap-[calc(2*var(--spacing))] flex-wrap">
@@ -94,24 +108,26 @@ export const ReturnBatchDetailPage = () => {
                     />
                 </div>
                 <Stack direction="row" spacing={1} flexWrap="wrap">
-                    {isReturnBatchEditable(batch.status) && (
-                        <CanAccess permission={PERMISSIONS.IMPORT_BATCH.CREATE}>
-                            <LoadingButton
-                                label="Chỉnh sửa"
-                                onClick={() => navigate(ROUTES.ADMIN.RETURN_BATCH.EDIT(batch.id))}
-                            />
-                        </CanAccess>
-                    )}
-                    {batch.status === 'PENDING' && (
+                    {canStartInspection(batch.status) && (
                         <CanAccess permission={PERMISSIONS.IMPORT_BATCH.CREATE}>
                             <LoadingButton
                                 label="Kiểm tra vé"
+                                className="btn-primary-admin"
+                                loading={startInspection.isPending}
+                                onClick={handleInspectTickets}
+                            />
+                        </CanAccess>
+                    )}
+                    {canContinueInspection(batch.status) && (
+                        <CanAccess permission={PERMISSIONS.IMPORT_BATCH.CREATE}>
+                            <LoadingButton
+                                label="Tiếp tục kiểm tra"
                                 className="btn-primary-admin"
                                 onClick={() => setInspectOpen(true)}
                             />
                         </CanAccess>
                     )}
-                    {batch.status === 'RETURNED' && (
+                    {batch.status === 'PENDING_HANDOVER' && (
                         <CanAccess permission={PERMISSIONS.IMPORT_BATCH.CREATE}>
                             <LoadingButton
                                 label="Xác nhận bàn giao"
@@ -126,14 +142,14 @@ export const ReturnBatchDetailPage = () => {
 
             {batch.supplierSettlementId && (
                 <Alert severity="info" sx={{ mb: 2 }}>
-                    Liên kết đối soát #{batch.supplierSettlementId}. Chỉ dòng trả{' '}
-                    <strong>SUCCESS</strong> mới cộng vào tổng giá trị trả của kỳ đối soát.
+                    Liên kết đối soát #{batch.supplierSettlementId}. Giá trị trả của kỳ đối soát được
+                    cập nhật khi vé đã kiểm tra và sẵn sàng trả NCC (chờ trả / đã trả).
                 </Alert>
             )}
 
-            {batch.status === 'RETURNED' && (
+            {batch.status === 'PENDING_HANDOVER' && (
                 <Alert severity="warning" sx={{ mb: 2 }}>
-                    Vé đang ở trạng thái chờ bàn giao (PENDING_RETURN). Sau khi giao xong cho NCC, bấm{' '}
+                    Kiểm tra đã hoàn tất — vé đang chờ bàn giao nhà cung cấp. Sau khi giao xong, bấm{' '}
                     <strong>Xác nhận bàn giao</strong>.
                 </Alert>
             )}

@@ -9,7 +9,6 @@ import type {
     ReturnBatch,
     ReturnBatchLineStatus,
     ReturnBatchListParams,
-    UpdateReturnBatchPayload,
 } from '../types/returnBatch.type';
 
 const BASE_URL = '/return-batches';
@@ -38,11 +37,10 @@ export const getInspectableReturnSerials = async (
     return response.data;
 };
 
-export const updateReturnBatch = async (
-    id: number | string,
-    payload: UpdateReturnBatchPayload
+export const startReturnInspection = async (
+    id: number | string
 ): Promise<ApiResponse<ReturnBatch>> => {
-    const response = await apiApp.put(`${BASE_URL}/${id}`, payload, withAuthHeaders());
+    const response = await apiApp.post(`${BASE_URL}/${id}/start-inspection`, {}, withAuthHeaders());
     return response.data;
 };
 

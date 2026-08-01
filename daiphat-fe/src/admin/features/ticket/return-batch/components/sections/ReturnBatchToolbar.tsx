@@ -18,9 +18,10 @@ interface ToolbarProps {
 }
 
 const RETURN_BATCH_STATUS_OPTIONS = [
-    { value: 'PENDING', label: 'Đang chuẩn bị' },
-    { value: 'RETURNED', label: 'Đã giao trả' },
-    { value: 'CONFIRMED', label: 'Đã xác nhận' },
+    { value: 'PENDING_INSPECTION', label: 'Chờ kiểm tra vé' },
+    { value: 'INSPECTING', label: 'Đang kiểm tra vé' },
+    { value: 'PENDING_HANDOVER', label: 'Chờ bàn giao' },
+    { value: 'HANDED_OVER', label: 'Đã bàn giao' },
 ];
 
 export const ReturnBatchToolbar = ({

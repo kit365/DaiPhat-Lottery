@@ -1,4 +1,8 @@
-export type ReturnBatchStatus = 'PENDING' | 'RETURNED' | 'CONFIRMED';
+export type ReturnBatchStatus =
+    | 'PENDING_INSPECTION'
+    | 'INSPECTING'
+    | 'PENDING_HANDOVER'
+    | 'HANDED_OVER';
 
 export type ReturnBatchLineStatus =
     | 'PENDING'
@@ -54,6 +58,7 @@ export interface InspectableReturnSerial {
     returnBatchLineId?: number | null;
     importBatchLineId?: number | null;
     importCost?: number | null;
+    ticketPrice?: number | null;
 }
 
 export interface ReturnBatchListParams {
@@ -67,12 +72,6 @@ export interface ReturnBatchListParams {
     search?: string;
     sortBy?: string;
     direction?: string;
-}
-
-export interface UpdateReturnBatchPayload {
-    note?: string | null;
-    returnReceiptUrl?: string | null;
-    addLines?: { lotteryStationId: number }[];
 }
 
 export interface AttachReturnSerialItem {

@@ -8,7 +8,7 @@ import {
     getInspectableReturnSerials,
     getReturnBatchById,
     getReturnBatches,
-    updateReturnBatch,
+    startReturnInspection,
     updateReturnBatchLineStatus,
 } from '../services/returnBatchService';
 import type {
@@ -18,7 +18,6 @@ import type {
     ReturnBatchLineStatus,
     ReturnBatchListParams,
     ReturnBatchStatus,
-    UpdateReturnBatchPayload,
 } from '../types/returnBatch.type';
 import { QUERY_KEYS } from '../constants/queryKeys';
 
@@ -60,14 +59,13 @@ export const useInspectableReturnSerials = (batchId?: string | number, enabled =
     });
 };
 
-export const useUpdateReturnBatch = () => {
+export const useStartReturnInspection = () => {
     const queryClient = useQueryClient();
     return useMutation({
-        mutationFn: ({ id, payload }: { id: number | string; payload: UpdateReturnBatchPayload }) =>
-            updateReturnBatch(id, payload),
-        onSuccess: (_data, variables) => {
+        mutationFn: (id: number | string) => startReturnInspection(id),
+        onSuccess: (_data, id) => {
+            queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.RETURN_BATCH_DETAIL, String(id)] });
             queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.RETURN_BATCHES] });
-            queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.RETURN_BATCH_DETAIL, String(variables.id)] });
         },
     });
 };

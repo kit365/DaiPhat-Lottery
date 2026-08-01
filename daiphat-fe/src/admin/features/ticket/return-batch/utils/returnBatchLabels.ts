@@ -1,9 +1,10 @@
 import type { ReturnBatchLineStatus, ReturnBatchStatus } from '../types/returnBatch.type';
 
 export const RETURN_BATCH_STATUS_LABELS: Record<ReturnBatchStatus, string> = {
-    PENDING: 'Đang chuẩn bị trả vé',
-    RETURNED: 'Đã giao trả nhà cung cấp',
-    CONFIRMED: 'Nhà cung cấp đã xác nhận',
+    PENDING_INSPECTION: 'Chờ kiểm tra vé',
+    INSPECTING: 'Đang kiểm tra vé',
+    PENDING_HANDOVER: 'Chờ bàn giao nhà cung cấp',
+    HANDED_OVER: 'Đã bàn giao nhà cung cấp',
 };
 
 export const RETURN_BATCH_LINE_STATUS_LABELS: Record<ReturnBatchLineStatus, string> = {
@@ -25,11 +26,13 @@ export const getReturnBatchLineStatusLabel = (
 
 export const getReturnBatchStatusBadgeClass = (status?: ReturnBatchStatus | null) => {
     switch (status) {
-        case 'PENDING':
+        case 'PENDING_INSPECTION':
             return 'admin-status-badge--pending';
-        case 'RETURNED':
+        case 'INSPECTING':
             return 'admin-status-badge--active';
-        case 'CONFIRMED':
+        case 'PENDING_HANDOVER':
+            return 'admin-status-badge--active';
+        case 'HANDED_OVER':
             return 'admin-status-badge--success';
         default:
             return 'admin-status-badge--draft';
@@ -54,14 +57,25 @@ export const getReturnBatchLineStatusBadgeClass = (status?: ReturnBatchLineStatu
 export const getReturnBatchStatusChipColor = (
     status?: ReturnBatchStatus | null
 ): 'default' | 'warning' | 'info' | 'success' => {
-    if (status === 'PENDING') return 'warning';
-    if (status === 'RETURNED') return 'info';
-    if (status === 'CONFIRMED') return 'success';
+    if (status === 'PENDING_INSPECTION') return 'warning';
+    if (status === 'INSPECTING') return 'info';
+    if (status === 'PENDING_HANDOVER') return 'warning';
+    if (status === 'HANDED_OVER') return 'success';
     return 'default';
 };
 
-export const isReturnBatchEditable = (status?: ReturnBatchStatus | null) =>
-    status === 'PENDING' || status === 'RETURNED';
+/** Show the primary "Inspect Tickets" CTA (starts inspection). */
+export const canStartInspection = (status?: ReturnBatchStatus | string | null) =>
+    status === 'PENDING_INSPECTION';
 
-export const canAttachSerials = (batchStatus?: ReturnBatchStatus | null, lineStatus?: ReturnBatchLineStatus | null) =>
-    batchStatus === 'PENDING' && lineStatus === 'PENDING';
+/** Re-open inspection dialog while work is in progress. */
+export const canContinueInspection = (status?: ReturnBatchStatus | string | null) =>
+    status === 'INSPECTING';
+
+export const isOpenForInspection = (status?: ReturnBatchStatus | null) =>
+    canStartInspection(status) || canContinueInspection(status);
+
+export const canAttachSerials = (
+    batchStatus?: ReturnBatchStatus | null,
+    lineStatus?: ReturnBatchLineStatus | null
+) => isOpenForInspection(batchStatus) && lineStatus === 'PENDING';

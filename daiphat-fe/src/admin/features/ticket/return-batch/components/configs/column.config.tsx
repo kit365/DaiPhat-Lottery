@@ -1,20 +1,16 @@
 import MoreVertIcon from '@mui/icons-material/MoreVert';
 import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
-import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import { Box, IconButton, ListItemIcon, ListItemText, Menu, MenuItem, Typography } from '@mui/material';
 import { GridColDef, GridRenderCellParams } from '@mui/x-data-grid';
 import dayjs from 'dayjs';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { CanAccess } from '../../../../../components/auth/CanAccess';
-import { PERMISSIONS } from '../../../../../constants/permission.constants';
 import { ROUTES } from '../../../../../constants/routes';
 import { formatImportCost } from '../../../import-batch/utils/importCostCalculator';
 import type { ReturnBatch } from '../../types/returnBatch.type';
 import {
     getReturnBatchStatusBadgeClass,
     getReturnBatchStatusLabel,
-    isReturnBatchEditable,
 } from '../../utils/returnBatchLabels';
 
 const ActionCell = ({ row }: { row: ReturnBatch }) => {
@@ -53,21 +49,6 @@ const ActionCell = ({ row }: { row: ReturnBatch }) => {
                     </ListItemIcon>
                     <ListItemText>Xem chi tiết</ListItemText>
                 </MenuItem>
-                {isReturnBatchEditable(row.status) && (
-                    <CanAccess permission={PERMISSIONS.IMPORT_BATCH.CREATE}>
-                        <MenuItem
-                            onClick={(e) => {
-                                handleClose(e);
-                                navigate(ROUTES.ADMIN.RETURN_BATCH.EDIT(row.id));
-                            }}
-                        >
-                            <ListItemIcon>
-                                <EditOutlinedIcon fontSize="small" />
-                            </ListItemIcon>
-                            <ListItemText>Chỉnh sửa</ListItemText>
-                        </MenuItem>
-                    </CanAccess>
-                )}
             </Menu>
         </Box>
     );
@@ -150,7 +131,7 @@ export const returnBatchColumnsConfig: GridColDef[] = [
         field: 'status',
         headerName: 'Trạng thái',
         flex: 1.2,
-        minWidth: 150,
+        minWidth: 180,
         sortable: true,
         renderCell: (params: GridRenderCellParams<ReturnBatch>) => (
             <span className={`admin-status-badge ${getReturnBatchStatusBadgeClass(params.row.status)}`}>

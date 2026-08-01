@@ -1,5 +1,4 @@
 export { ReturnBatchListPage } from './components/pages/ReturnBatchListPage';
-export { ReturnBatchEditPage } from './components/pages/ReturnBatchEditPage';
 export { ReturnBatchDetailPage } from './components/pages/ReturnBatchDetailPage';
 
 export {
@@ -7,7 +6,7 @@ export {
     useReturnBatchDetail,
     useReturnBatchList,
     useInspectableReturnSerials,
-    useUpdateReturnBatch,
+    useStartReturnInspection,
     useConfirmReturnInspection,
     useConfirmReturnHandover,
     useAttachReturnSerials,
