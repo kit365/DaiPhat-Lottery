@@ -17,7 +17,7 @@ import {
 } from '@mui/material';
 import { Icon } from '@iconify/react';
 import dayjs from 'dayjs';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from '@/components/router-compat';
 import { motion } from 'framer-motion';
 import { Title } from '../../components/ui/Title';
 import { Breadcrumb } from '../../components/ui/Breadcrumb';

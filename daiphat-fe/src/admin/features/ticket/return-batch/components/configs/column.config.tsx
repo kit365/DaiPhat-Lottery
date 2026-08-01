@@ -4,7 +4,7 @@ import { Box, IconButton, ListItemIcon, ListItemText, Menu, MenuItem, Typography
 import { GridColDef, GridRenderCellParams } from '@mui/x-data-grid';
 import dayjs from 'dayjs';
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from '@/components/router-compat';
 import { ROUTES } from '../../../../../constants/routes';
 import { formatImportCost } from '../../../import-batch/utils/importCostCalculator';
 import type { ReturnBatch } from '../../types/returnBatch.type';

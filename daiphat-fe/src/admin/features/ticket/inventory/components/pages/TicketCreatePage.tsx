@@ -80,7 +80,7 @@ import {
     resolveRegionLengthRules,
 } from '../../utils/ticketNumberValidation';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from '@/components/router-compat';
 
 type LineFormDraft = TicketLineFormDraft;
 

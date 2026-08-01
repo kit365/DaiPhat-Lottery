@@ -51,7 +51,7 @@ import {
     resolveOrderDetailTicketDisplay,
     IncidentTicketDisplay,
 } from '../../constants/incidentTicket.constants';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from '@/components/router-compat';
 import { prefixAdmin, ROUTES } from '../../../../constants/routes';
 import { refundAdminApi } from '../../../../api/refund.api';
 import { QUERY_KEYS } from '../../../../../constants/queryKeys';

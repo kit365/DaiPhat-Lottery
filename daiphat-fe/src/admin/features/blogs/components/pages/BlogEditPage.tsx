@@ -19,12 +19,7 @@ import { useParams } from "react-router-dom";
 import { useNestedBlogCategories } from "../../hooks/useBlogCategory";
 import { CategoryTreeSelectGeneric } from "../../../../components/ui/CategoryTreeSelectGeneric";
 import { confirmAction } from "../../../../utils/swal";
-
-const getMinScheduleValue = () => {
-    const now = new Date();
-    now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
-    return now.toISOString().slice(0, 16);
-};
+import { getMinScheduleValue } from "../utils/blogForm.utils";
 
 export const BlogEditPage = () => {
     const { id } = useParams();

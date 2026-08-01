@@ -30,7 +30,7 @@ import { AppToast } from '../../../../../../utils/toast.util';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import SearchIcon from '@mui/icons-material/Search';
 import { useQueryClient } from '@tanstack/react-query';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate } from '@/components/router-compat';
 import { QUERY_KEYS } from '../../../inventory/constants/queryKeys';
 import { ReportSerialFaultPane } from '../sections/ReportSerialFaultPane';
 import ReportProblemIcon from '@mui/icons-material/ReportProblem';

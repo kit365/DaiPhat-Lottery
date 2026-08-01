@@ -60,7 +60,7 @@ import { resolveInvoiceEvidenceUrl } from '../../utils/invoiceEvidence';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Controller, useFieldArray, useForm, useWatch, type Resolver } from 'react-hook-form';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from '@/components/router-compat';
 import { toast } from 'react-toastify';
 import { confirmDelete } from '../../../../../utils/swal';
 import dayjs from 'dayjs';

@@ -18,7 +18,7 @@ import {
     Typography,
 } from '@mui/material';
 import dayjs from 'dayjs';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from '@/components/router-compat';
 import { prefixAdmin } from '../../../constants/routes';
 import { PrizePayoutStatusBadge } from '../../../../client/components/prize-payout/PrizePayoutStatusBadge';
 import {

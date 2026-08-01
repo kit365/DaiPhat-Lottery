@@ -2,7 +2,7 @@ import type { ReactElement } from 'react';
 import { Avatar, Box, Link, ListItemText } from '@mui/material';
 import { GridActionsCell, GridActionsCellItem, GridRenderCellParams } from '@mui/x-data-grid';
 import { DeleteIcon, EditIcon, EyeIcon } from '../../../../../assets/icons/index';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from '@/components/router-compat';
 import { prefixAdmin } from '../../../../../constants/routes';
 import { useTicketInventory } from '../../hooks/useTicketInventory';
 import { toast } from 'react-toastify';

@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo, type ReactNode } from 'react';
-import { useLocation, useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from '@/components/router-compat';
 import {
     Alert,
     Avatar,
