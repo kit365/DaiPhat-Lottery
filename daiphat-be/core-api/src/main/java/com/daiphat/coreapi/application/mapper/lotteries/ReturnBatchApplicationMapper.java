@@ -32,6 +32,8 @@ public class ReturnBatchApplicationMapper {
                 .drawDate(model.getDrawDate())
                 .supplierSettlementId(model.getSupplierSettlementId())
                 .returnReceiptUrl(model.getReturnReceiptUrl())
+                .deliveryMode(model.getDeliveryMode())
+                .deliveryModeLabel(model.getDeliveryMode() != null ? model.getDeliveryMode().getLabel() : null)
                 .totalQuantity(model.getTotalQuantity())
                 .totalReturnValue(model.getTotalReturnValue())
                 .returnedBy(model.getReturnedBy())
