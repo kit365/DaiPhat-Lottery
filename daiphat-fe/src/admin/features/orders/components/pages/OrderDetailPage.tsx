@@ -47,7 +47,7 @@ const PAYMENT_STATUS_OPTIONS: { [key: string]: { label: string; color: string; b
 export const OrderDetailPage = () => {
     const { id } = useParams();
     const navigate = useNavigate();
-    const { data: orderRes, isLoading } = useOrderDetail(id || "");
+    const { data: orderRes, isLoading, refetch } = useOrderDetail(id || "");
     const order = orderRes?.data;
     const { mutate: updateStatus } = useUpdateOrderStatus();
     const [isInspectionStarted, setIsInspectionStarted] = useState(false);
@@ -251,7 +251,7 @@ export const OrderDetailPage = () => {
                 const wasPaid = isCancelled
                     ? hasCompletedPayment
                     : paidStatuses.includes(order.status);
-                const paymentDateSource = paymentTxn?.paidAt || order.updatedAt;
+                const paymentDateSource = paymentTxn?.paidAt || (order as any).updatedAt;
                 const paymentDate = wasPaid
                     ? dayjs(paymentDateSource).format('DD/MM/YYYY - HH:mm')
                     : '';
@@ -265,7 +265,7 @@ export const OrderDetailPage = () => {
 
                 const cancelDate = order.cancelledAt
                     ? dayjs(order.cancelledAt).format('DD/MM/YYYY - HH:mm')
-                    : dayjs(order.updatedAt).format('DD/MM/YYYY - HH:mm');
+                    : dayjs((order as any).updatedAt).format('DD/MM/YYYY - HH:mm');
 
                 let steps: MilestoneStep[];
                 if (isCancelled && !wasPaid) {
@@ -321,7 +321,7 @@ export const OrderDetailPage = () => {
                         {
                             label: 'Đang chuẩn bị',
                             date: ['PREPARING', 'PENDING_PICKUP', 'COMPLETED'].includes(order.status)
-                                ? dayjs(order.updatedAt).format('DD/MM/YYYY - HH:mm')
+                                ? dayjs((order as any).updatedAt).format('DD/MM/YYYY - HH:mm')
                                 : '',
                             completed: ['PREPARING', 'PENDING_PICKUP', 'COMPLETED'].includes(order.status),
                             variant: 'success',
@@ -329,7 +329,7 @@ export const OrderDetailPage = () => {
                         {
                             label: 'Chờ nhận vé',
                             date: ['PENDING_PICKUP', 'COMPLETED'].includes(order.status)
-                                ? dayjs(order.updatedAt).format('DD/MM/YYYY - HH:mm')
+                                ? dayjs((order as any).updatedAt).format('DD/MM/YYYY - HH:mm')
                                 : '',
                             completed: ['PENDING_PICKUP', 'COMPLETED'].includes(order.status),
                             variant: 'success',
@@ -490,7 +490,7 @@ export const OrderDetailPage = () => {
                             <Box>
                                 <Typography variant="caption" sx={{ color: 'var(--palette-text-disabled)', display: 'block', mb: 1 }}>Ghi chú</Typography>
                                 <Typography variant="body2" sx={{ fontWeight: 600, color: 'var(--palette-text-primary)' }}>
-                                    {order.note || "Không có"}
+                                    {(order as any).note || "Không có"}
                                 </Typography>
                             </Box>
                         </Card>
@@ -504,13 +504,13 @@ export const OrderDetailPage = () => {
                                 orderInfo={{
                                     customerName:
                                         order.name ||
-                                        order.user?.fullName ||
+                                        (order as any).user?.fullName ||
                                         'Khách vãng lai',
                                     phone:
                                         order.phone ||
-                                        order.user?.phone ||
-                                        order.user?.phoneNumber,
-                                    email: order.user?.email,
+                                        (order as any).user?.phone ||
+                                        (order as any).user?.phoneNumber,
+                                    email: (order as any).user?.email,
                                     status: order.status,
                                     statusLabel: currentStatus.label,
                                     paymentStatusLabel:
@@ -692,7 +692,7 @@ export const OrderDetailPage = () => {
                             </Stack>
                             <Stack direction="row" spacing={2} alignItems="flex-start" sx={{ mb: 3 }}>
                                 <Avatar
-                                    src={order.user?.avatar}
+                                    src={(order as any).user?.avatar}
                                     sx={{ width: 64, height: 64, bgcolor: 'var(--palette-background-neutral)', color: 'var(--palette-text-secondary)' }}
                                 >
                                     <Icon icon="solar:user-rounded-bold" width={32} />
@@ -700,22 +700,22 @@ export const OrderDetailPage = () => {
                                 <Stack spacing={1}>
                                     <Stack direction="row" alignItems="center" spacing={1}>
                                         <Typography variant="subtitle1" sx={{ fontWeight: 700, color: 'var(--palette-text-primary)' }}>
-                                            {order.name || order.user?.fullName || "Khách vãng lai"}
+                                            {order.name || (order as any).user?.fullName || "Khách vãng lai"}
                                         </Typography>
                                     </Stack>
-                                    {(order.phone || order.user?.phone || order.user?.phoneNumber) && (
+                                    {(order.phone || (order as any).user?.phone || (order as any).user?.phoneNumber) && (
                                         <Typography variant="body2" sx={{ color: 'var(--palette-text-primary)', fontWeight: 500 }}>
-                                            {order.phone || order.user?.phone || order.user?.phoneNumber}
+                                            {order.phone || (order as any).user?.phone || (order as any).user?.phoneNumber}
                                         </Typography>
                                     )}
-                                    {(order.email || order.user?.email) && (
+                                    {((order as any).email || (order as any).user?.email) && (
                                         <Typography variant="body2" sx={{ color: 'var(--palette-text-primary)', fontWeight: 500 }}>
-                                            {order.email || order.user?.email}
+                                            {(order as any).email || (order as any).user?.email}
                                         </Typography>
                                     )}
-                                    {(order.address || order.user?.address) && (
+                                    {((order as any).address || (order as any).user?.address) && (
                                         <Typography variant="body2" sx={{ color: 'var(--palette-text-secondary)', mt: 0.5, lineHeight: 1.5 }}>
-                                            {order.address || order.user?.address}
+                                            {(order as any).address || (order as any).user?.address}
                                         </Typography>
                                     )}
                                 </Stack>
@@ -725,8 +725,8 @@ export const OrderDetailPage = () => {
                                 fullWidth 
                                 variant="outlined" 
                                 startIcon={<Icon icon="solar:user-id-linear" />}
-                                disabled={!(order.user?.id || order.userId)}
-                                onClick={() => navigate(`/${prefixAdmin}/account-user/detail/${order.user?.id || order.userId}`)}
+                                disabled={!((order as any).user?.id || (order as any).userId)}
+                                onClick={() => navigate(`/${prefixAdmin}/account-user/detail/${(order as any).user?.id || (order as any).userId}`)}
                                 sx={{ 
                                     py: 1, 
                                     fontWeight: 700, 
@@ -769,7 +769,7 @@ export const OrderDetailPage = () => {
                                 <Box>
                                     <Typography variant="caption" sx={{ color: 'var(--palette-text-disabled)', display: 'block', mb: 0.5 }}>Thời gian thanh toán</Typography>
                                     <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'var(--palette-text-primary)' }}>
-                                        {['PAID', 'PREPARING', 'PENDING_PICKUP', 'COMPLETED'].includes(order.status) ? dayjs(order.updatedAt).format("DD/MM/YYYY - HH:mm") : "Chưa thanh toán"}
+                                        {['PAID', 'PREPARING', 'PENDING_PICKUP', 'COMPLETED'].includes(order.status) ? dayjs((order as any).updatedAt).format("DD/MM/YYYY - HH:mm") : "Chưa thanh toán"}
                                     </Typography>
                                 </Box>
                                 <Divider sx={{ borderStyle: 'dashed', my: 1 }} />

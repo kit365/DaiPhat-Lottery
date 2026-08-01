@@ -2,3 +2,8 @@
 PRD.md
 stitch_daiphat_2/
 .vercel
+node_modules/
+.next/
+tsconfig.tsbuildinfo
+*.log
+

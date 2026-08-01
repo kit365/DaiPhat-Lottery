@@ -98,7 +98,7 @@ export const BlogCreatePage = () => {
                         toast.success(response.message || "Tạo bài viết thành công");
                         reset();
                     } else {
-                        toast.error(response.message);
+                        toast.error(response.message || "Tạo bài viết thất bại");
                     }
                 },
                 onError: () => {

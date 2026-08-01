@@ -71,7 +71,7 @@ export const BlogDetailPage = () => {
 
     const [confirmDelete, setConfirmDelete] = useState(false);
 
-    const status: BlogStatus = (blog?.status || BLOG_STATUS.DRAFT).toLowerCase();
+    const status: BlogStatus = (blog?.status || BLOG_STATUS.DRAFT).toLowerCase() as BlogStatus;
     const statusCfg = getStatusConfig(status);
     const isPublished = status === BLOG_STATUS.PUBLISHED;
     const isDraft = status === BLOG_STATUS.DRAFT;
@@ -173,7 +173,7 @@ export const BlogDetailPage = () => {
         );
     }
 
-    const thumbnail = blog.avatar || blog.thumbnail || blog.featuredImage;
+    const thumbnail = blog.avatar || blog.thumbnail || (blog as any).featuredImage;
 
     // ──────────────────────────────────────────────────────────────────────────
     // Shared Header (always visible, both modes)

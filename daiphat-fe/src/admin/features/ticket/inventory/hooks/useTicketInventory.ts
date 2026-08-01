@@ -81,9 +81,10 @@ export const useTicketInventory = (initialFilters?: Partial<ITicketFilters>) => 
     });
 
     const tickets = useMemo(() => {
-        if (!data?.data?.recordList) return [];
+        const d = (data as any)?.data || (data as any);
+        if (!d?.recordList) return [];
 
-        return data.data.recordList.map((item: any) => ({
+        return d.recordList.map((item: any) => ({
             ...item,
             id: item.id || item._id,
             providerName: item.productName || item.providerName || item.stationName || 'Không xác định',
@@ -102,7 +103,7 @@ export const useTicketInventory = (initialFilters?: Partial<ITicketFilters>) => 
     }, [data]);
 
     const availableTicketStatusOptions = useMemo(
-        () => buildTicketStatusFilterOptions(statusDiscoveryData?.data?.recordList ?? []),
+        () => buildTicketStatusFilterOptions(((statusDiscoveryData as any)?.data?.recordList || (statusDiscoveryData as any)?.recordList) ?? []),
         [statusDiscoveryData]
     );
 
@@ -120,7 +121,7 @@ export const useTicketInventory = (initialFilters?: Partial<ITicketFilters>) => 
         }
     }, [availableTicketStatusOptions, filters.status]);
 
-    const pagination = data?.data?.pagination || {
+    const pagination = (data as any)?.data?.pagination || (data as any)?.pagination || {
         totalRecords: 0,
         totalPages: 0,
         currentPage: 1,

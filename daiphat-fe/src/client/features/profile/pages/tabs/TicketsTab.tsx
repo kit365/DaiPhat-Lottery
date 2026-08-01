@@ -381,7 +381,7 @@ export const TicketsTab = () => {
                                 </span>
                                 <div className="bg-white p-3 rounded-xl shadow-inner mb-3">
                                     <QRCode
-                                        value={selectedTicket.orderCode || selectedTicket.ticketId || 'DAIPHAT-LOTTERY'}
+                                        value={String(selectedTicket.orderCode || selectedTicket.ticketId || 'DAIPHAT-LOTTERY')}
                                         size={120}
                                         style={{ height: 'auto', maxWidth: '100%', width: '100%' }}
                                     />

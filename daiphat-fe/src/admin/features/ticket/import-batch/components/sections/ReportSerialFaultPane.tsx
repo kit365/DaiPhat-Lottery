@@ -1787,13 +1787,13 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
                 )}
 
                 {/* Replacement form for voided items (Shown in TICKET mode or SERIAL ALL mode) */}
-                {hasVoided && (cancelMode === 'TICKET' || serialProcessingMode === 'ALL') && (
+                {hasVoided && ((cancelMode as string) === 'TICKET' || serialProcessingMode === 'ALL') && (
                     <Box sx={{ mb: 2, p: 2, border: '1px solid #fee2e2', borderRadius: '12px', bgcolor: 'rgba(239, 68, 68, 0.01)' }}>
                         <Typography variant="caption" fontWeight={800} color="#ef4444" sx={{ mb: 1.5, display: 'block', textTransform: 'uppercase', letterSpacing: '0.5px', fontSize: '0.75rem' }}>
                             Vé số thay thế
                         </Typography>
                         
-                        {cancelMode === 'TICKET' && (
+                        {(cancelMode as string) === 'TICKET' && (
                             <>
                                 <Box sx={{ mb: 2 }}>
                                     <ToggleButtonGroup

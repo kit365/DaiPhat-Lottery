@@ -73,7 +73,7 @@ export const ProfileSetupPage: React.FC = () => {
         }
     });
 
-    const passwordValue = watch("password", "");
+    const passwordValue = watch("password", "") || "";
 
     const checkAllMet = () => {
         if (!passwordPolicy) return true; // Minimal fallback
@@ -97,7 +97,7 @@ export const ProfileSetupPage: React.FC = () => {
     const queryClient = useQueryClient();
     
     const onSubmit = async (data: SetupFormData) => {
-        if (!user.hasPassword && !data.password) {
+        if (!user?.hasPassword && !data.password) {
             toast.warning("Vui lòng thiết lập mật khẩu mới");
             return;
         }

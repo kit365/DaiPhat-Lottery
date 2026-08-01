@@ -22,7 +22,7 @@ export const UserOrderHistory = ({ userId }: UserOrderHistoryProps) => {
             userId,
             page: page + 1,
             limit: rowsPerPage
-        }),
+        } as any),
         enabled: !!userId,
     });
 

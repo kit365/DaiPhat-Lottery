@@ -167,7 +167,7 @@ export const AccountAdminQuickUpdateModal = ({ open, onClose, id }: AccountAdmin
                         </Alert>
 
                         <Grid container spacing={2.5}>
-                            <Grid item xs={12}>
+                            <Grid size={12}>
                                 <TextField
                                     select
                                     label="Status"
@@ -186,7 +186,7 @@ export const AccountAdminQuickUpdateModal = ({ open, onClose, id }: AccountAdmin
                                 </TextField>
                             </Grid>
 
-                            <Grid item xs={6}>
+                            <Grid size={6}>
                                 <TextField
                                     label="Họ"
                                     fullWidth
@@ -195,7 +195,7 @@ export const AccountAdminQuickUpdateModal = ({ open, onClose, id }: AccountAdmin
                                 />
                             </Grid>
 
-                            <Grid item xs={6}>
+                            <Grid size={6}>
                                 <TextField
                                     label="Tên"
                                     fullWidth
@@ -204,7 +204,7 @@ export const AccountAdminQuickUpdateModal = ({ open, onClose, id }: AccountAdmin
                                 />
                             </Grid>
 
-                            <Grid item xs={6}>
+                            <Grid size={6}>
                                 <TextField
                                     label="Địa chỉ email"
                                     fullWidth
@@ -213,7 +213,7 @@ export const AccountAdminQuickUpdateModal = ({ open, onClose, id }: AccountAdmin
                                 />
                             </Grid>
 
-                            <Grid item xs={6}>
+                            <Grid size={6}>
                                 <TextField
                                     label="Số điện thoại"
                                     fullWidth
@@ -222,7 +222,7 @@ export const AccountAdminQuickUpdateModal = ({ open, onClose, id }: AccountAdmin
                                 />
                             </Grid>
 
-                            <Grid item xs={12}>
+                            <Grid size={12}>
                                 <TextField
                                     select
                                     label="Vai trò"

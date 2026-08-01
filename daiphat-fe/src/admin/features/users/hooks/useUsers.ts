@@ -32,6 +32,7 @@ export const useUserStatuses = () => {
     return useQuery({
         queryKey: [QUERY_KEYS.USER_STATUSES],
         queryFn: getStatuses,
+        select: (res: any) => res?.data || res || [],
         staleTime: 5 * 60 * 1000,
         retry: false,
     });
@@ -51,6 +52,7 @@ export const useRoles = () => {
     return useQuery({
         queryKey: [QUERY_KEYS.ROLES],
         queryFn: getRoles,
+        select: (res: any) => res?.data?.recordList || res?.data || res || [],
     });
 };
 

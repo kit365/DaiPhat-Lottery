@@ -144,7 +144,7 @@ export const PERMISSIONS_GROUPED = [
     }
 ];
 
-export const ALL_PERMISSIONS = PERMISSIONS_GROUPED.flatMap(group => group.permissions);
+export const ALL_PERMISSIONS: any[] = PERMISSIONS_GROUPED.flatMap(group => group.permissions as any);
 
 export const SKILLS = [
     { id: "check_results", name: "Tra cứu kết quả" },

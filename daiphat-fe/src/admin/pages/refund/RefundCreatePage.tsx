@@ -123,7 +123,7 @@ const SectionCard = ({
 export function RefundCreatePage() {
     const location = useLocation();
     const navigate = useNavigate();
-    const state = location.state as {
+    const state = (location.state || {}) as {
         orderId?: string;
         orderCode?: string;
         replacements?: Record<

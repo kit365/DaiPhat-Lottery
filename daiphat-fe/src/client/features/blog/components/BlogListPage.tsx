@@ -177,7 +177,7 @@ export const BlogListPage = () => {
               {selectedCategory ? selectedCategory.name : 'Bài viết'}
             </h1>
             <p className="text-[#637381] text-[13px]">
-              {selectedCategory?.description || 'Cập nhật tin tức, kinh nghiệm và thông tin hữu ích mỗi ngày'}
+              {(selectedCategory as any)?.description || 'Cập nhật tin tức, kinh nghiệm và thông tin hữu ích mỗi ngày'}
             </p>
           </div>
         </div>

@@ -141,7 +141,7 @@ export const SupportTicketDetailPage = () => {
                 </Box>
                 <Stack direction="row" spacing={1} flexWrap="wrap">
                     {canAssign && (
-                        <CanAccess permission={PERMISSIONS.SUPPORT_TICKET.MANAGE}>
+                        <CanAccess permission={(PERMISSIONS.SUPPORT_TICKET as any).MANAGE}>
                             <Button
                                 variant="contained"
                                 disabled={assignMutation.isPending}

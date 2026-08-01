@@ -26,7 +26,7 @@ export const useReturnBatches = (params?: ReturnBatchListParams, options?: any) 
     return useQuery({
         queryKey: [QUERY_KEYS.RETURN_BATCHES, params],
         queryFn: () => getReturnBatches(params),
-        select: (res) => res.data,
+        select: (res: any) => res.data,
         ...options,
     });
 };
@@ -39,7 +39,7 @@ export const useReturnBatchDetail = (id?: string | number) => {
         queryKey: [QUERY_KEYS.RETURN_BATCH_DETAIL, normalizedId],
         queryFn: () => getReturnBatchById(normalizedId!),
         enabled: !!normalizedId,
-        select: (res) => res.data ?? null,
+        select: (res: any) => res.data ?? null,
         staleTime: 0,
         refetchOnMount: 'always',
     });
@@ -183,8 +183,8 @@ export const useReturnBatchList = () => {
         placeholderData: keepPreviousData,
     });
 
-    const batches = useMemo(() => data?.recordList ?? [], [data]);
-    const pagination = data?.pagination || {
+    const batches = useMemo(() => (data as any)?.recordList ?? [], [data]);
+    const pagination = (data as any)?.pagination || {
         totalRecords: 0,
         totalPages: 0,
         currentPage: 1,

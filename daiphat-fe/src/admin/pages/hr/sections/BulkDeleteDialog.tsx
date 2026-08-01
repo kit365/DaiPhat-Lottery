@@ -1,4 +1,4 @@
-﻿import React, { useMemo, useEffect } from 'react';
+import React, { useMemo, useEffect } from 'react';
 import {
     Dialog,
     DialogTitle,
@@ -67,11 +67,11 @@ export const BulkDeleteDialog: React.FC<BulkDeleteDialogProps> = ({
     departmentId,
     loading = false
 }) => {
-    const accountsRes = useAccounts({ departmentId, status: 'active' });
+    const accountsRes = useAccounts({ departmentId, status: 'active' } as any);
 
     const accounts = useMemo(() => {
         if (!accountsRes.data) return [];
-        const data = accountsRes.data;
+        const data: any = accountsRes.data;
         if (Array.isArray(data.data?.recordList)) return data.data.recordList;
         if (Array.isArray(data.recordList)) return data.recordList;
         if (Array.isArray(data.data)) return data.data;

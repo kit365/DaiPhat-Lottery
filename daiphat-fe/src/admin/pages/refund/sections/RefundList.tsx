@@ -228,7 +228,7 @@ export const RefundList = () => {
     };
 
     const handleConfirmTransfer = (id: number) => {
-        navigate(detailPath(id), { state: { openTransfer: true } });
+        navigate(detailPath(id), { state: { openTransfer: true } } as any);
     };
 
     const emptyMessage =
