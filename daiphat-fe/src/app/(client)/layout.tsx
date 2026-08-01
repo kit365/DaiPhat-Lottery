@@ -1,9 +1,14 @@
 "use client";
 
 import { Suspense } from 'react';
+import dynamic from 'next/dynamic';
 import { Footer } from '@/client/components/layout/Footer';
-import { ChatbotPopup } from '@/client/components/support/ChatbotPopup';
 import { LoadingSpinner } from '@/client/components/ui/LoadingSpinner';
+
+const ChatbotPopup = dynamic(
+  () => import('@/client/components/support/ChatbotPopup').then((mod) => mod.ChatbotPopup),
+  { ssr: false }
+);
 
 export default function ClientLayout({ children }: { children: React.ReactNode }) {
   return (
