@@ -485,6 +485,11 @@ public enum ErrorCode {
             "Không thể huỷ yêu cầu gặp nhân viên ở trạng thái hiện tại.",
             HttpStatus.BAD_REQUEST
     ),
+    CHAT_ESCALATE_SPAM_COOLDOWN(
+            "CHT_015",
+            "Bạn đang tạm hạn chế gặp nhân viên do hội thoại trước bị đánh dấu spam. Vui lòng gửi Khiếu nại/Hỗ trợ hoặc thử lại sau.",
+            HttpStatus.TOO_MANY_REQUESTS
+    ),
 
     // System Config Errors
     SYSTEM_CONFIG_NOT_FOUND("CFG_001", "Cấu hình hệ thống không tồn tại.", HttpStatus.NOT_FOUND),
