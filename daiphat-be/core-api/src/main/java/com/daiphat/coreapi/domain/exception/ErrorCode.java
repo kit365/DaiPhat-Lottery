@@ -229,6 +229,23 @@ public enum ErrorCode {
     LOTTERY_SUPPLIER_NOT_FOUND("LT_077", "Nhà cung cấp không tồn tại.", HttpStatus.NOT_FOUND),
     LOTTERY_SUPPLIER_CODE_DUPLICATE("LT_078", "Mã nhà cung cấp đã tồn tại.", HttpStatus.BAD_REQUEST),
     LOTTERY_SUPPLIER_INACTIVE("LT_079", "Nhà cung cấp đang ngừng hoạt động.", HttpStatus.BAD_REQUEST),
+    SUPPLIER_SETTLEMENT_NOT_FOUND("LT_110", "Kỳ đối soát nhà cung cấp không tồn tại.", HttpStatus.NOT_FOUND),
+    RETURN_BATCH_NOT_FOUND("LT_111", "Phiếu trả vé không tồn tại.", HttpStatus.NOT_FOUND),
+    RETURN_BATCH_LINE_NOT_FOUND("LT_112", "Dòng phiếu trả vé không tồn tại.", HttpStatus.NOT_FOUND),
+    RETURN_BATCH_INVALID_STATUS("LT_113", "Trạng thái phiếu trả vé không hợp lệ cho thao tác này.", HttpStatus.BAD_REQUEST),
+    RETURN_BATCH_LINE_INVALID_STATUS("LT_114", "Trạng thái dòng trả vé không hợp lệ cho thao tác này.", HttpStatus.BAD_REQUEST),
+    RETURN_BATCH_PENDING_EXISTS(
+            "LT_115",
+            "Đã có phiếu trả vé cho cùng nhà cung cấp và ngày quay.",
+            HttpStatus.CONFLICT
+    ),
+    RETURN_BATCH_SERIAL_NOT_ELIGIBLE(
+            "LT_116",
+            "Sê-ri không đủ điều kiện để gắn vào phiếu trả vé.",
+            HttpStatus.BAD_REQUEST
+    ),
+    RETURN_BATCH_DUPLICATE_STATION("LT_117", "Mỗi nhà đài chỉ được khai báo một lần trong cùng phiếu trả vé.", HttpStatus.BAD_REQUEST),
+    RETURN_BATCH_SUPPLIER_REQUIRED("LT_118", "Nhà cung cấp không được để trống.", HttpStatus.BAD_REQUEST),
     IMPORT_BATCH_SUPPLIER_REQUIRED("LT_080", "Nhà cung cấp không được để trống.", HttpStatus.BAD_REQUEST),
     IMPORT_BATCH_NO_SUPPLIER_CONFIGURED(
             "LT_084",

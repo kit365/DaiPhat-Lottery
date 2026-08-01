@@ -115,4 +115,17 @@ public interface ImportBatchRepository extends JpaRepository<ImportBatchEntity, 
 
     @Query(value = "SELECT nextval('import_batch_header_code_seq')", nativeQuery = true)
     long nextHeaderBatchCodeSequence();
+
+    @Query("""
+            SELECT CASE WHEN COUNT(b) > 0 THEN true ELSE false END
+            FROM ImportBatchEntity b
+            WHERE b.supplier.id = :supplierId
+              AND b.drawDate = :drawDate
+              AND b.deletedAt IS NULL
+              AND b.status <> com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchStatus.CANCELLED
+            """)
+    boolean existsNonCancelledBySupplierAndDrawDate(
+            @Param("supplierId") Long supplierId,
+            @Param("drawDate") LocalDate drawDate
+    );
 }

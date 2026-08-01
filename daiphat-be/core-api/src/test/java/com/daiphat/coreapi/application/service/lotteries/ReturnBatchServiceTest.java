@@ -23,6 +23,7 @@ import com.daiphat.coreapi.domain.model.lotteries.LotteryTicketSerialModel;
 import com.daiphat.coreapi.domain.model.lotteries.ReturnBatchLineModel;
 import com.daiphat.coreapi.domain.model.lotteries.ReturnBatchModel;
 import com.daiphat.coreapi.domain.model.lotteries.SupplierSettlementModel;
+import com.daiphat.coreapi.shared.util.ImportBatchConfigResolver;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -74,6 +75,10 @@ class ReturnBatchServiceTest {
     @Mock
     private ReturnBatchApplicationMapper returnBatchApplicationMapper;
     @Mock
+    private ReturnBatchSummaryCalculator returnBatchSummaryCalculator;
+    @Mock
+    private ImportBatchConfigResolver importBatchConfigResolver;
+    @Mock
     private Clock clock;
 
     @InjectMocks
@@ -111,7 +116,7 @@ class ReturnBatchServiceTest {
     @Test
     @DisplayName("create links settlement for supplier + drawDate")
     void create_linksSettlement() {
-        when(returnBatchRepositoryPort.findPendingBySupplierAndDrawDate(7L, DRAW_DATE))
+        when(returnBatchRepositoryPort.findBySupplierAndDrawDate(7L, DRAW_DATE))
                 .thenReturn(Optional.empty());
         when(returnBatchRepositoryPort.save(any())).thenAnswer(invocation -> {
             ReturnBatchModel model = invocation.getArgument(0);

@@ -19,6 +19,7 @@ import com.daiphat.coreapi.application.mapper.lotteries.LotteryTicketApplication
 import com.daiphat.coreapi.application.port.in.lotteries.LotteryStationServicePort;
 import com.daiphat.coreapi.application.port.in.lotteries.LotteryTicketSerialServicePort;
 import com.daiphat.coreapi.application.port.in.lotteries.LotteryTicketServicePort;
+import com.daiphat.coreapi.application.port.in.lotteries.SupplierSettlementServicePort;
 import com.daiphat.coreapi.application.port.out.lotteries.ImportBatchLineRepositoryPort;
 import com.daiphat.coreapi.application.port.out.lotteries.ImportBatchRepositoryPort;
 import com.daiphat.coreapi.application.port.out.lotteries.LotteryTicketRepositoryPort;
@@ -88,6 +89,7 @@ public class LotteryTicketService implements LotteryTicketServicePort {
     private final ImportBatchRepositoryPort importBatchRepositoryPort;
     private final ImportBatchLineRepositoryPort importBatchLineRepositoryPort;
     private final ImportBatchDraftExpiryService importBatchDraftExpiryService;
+    private final SupplierSettlementServicePort supplierSettlementServicePort;
     private final LotteryStationServicePort lotteryStationServicePort;
     private final LotteryTicketApplicationMapper lotteryTicketApplicationMapper;
     private final LotteryTicketSerialServicePort lotteryTicketSerialService;
@@ -600,6 +602,10 @@ public class LotteryTicketService implements LotteryTicketServicePort {
         refreshedBatch.refreshImportStatus(now);
         importBatchRepositoryPort.save(refreshedBatch);
 
+        if (refreshedBatch.getSupplierSettlementId() != null) {
+            supplierSettlementServicePort.recalculateTotalImportValue(refreshedBatch.getSupplierSettlementId());
+        }
+
         affectedStationIds.forEach(this::syncStationInventory);
     }
 
@@ -1028,6 +1034,10 @@ public class LotteryTicketService implements LotteryTicketServicePort {
         boolean isAutoSaveTriggered = isAutoSave != null && isAutoSave;
         boolean batchJustCompleted = refreshedBatch.getStatus() == ImportBatchStatus.IMPORTED;
         importBatchRepositoryPort.save(refreshedBatch);
+
+        if (refreshedBatch.getSupplierSettlementId() != null) {
+            supplierSettlementServicePort.recalculateTotalImportValue(refreshedBatch.getSupplierSettlementId());
+        }
 
         if (batchJustCompleted && !isAutoSaveTriggered) {
             refreshedBatch.getActiveLines().forEach(line ->

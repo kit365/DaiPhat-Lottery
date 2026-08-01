@@ -51,4 +51,6 @@ public interface ImportBatchRepositoryPort {
     List<ImportBatchModel> findEditableBatchesWithoutLines();
 
     long nextHeaderBatchCodeSequence();
+
+    boolean existsNonCancelledBySupplierAndDrawDate(Long supplierId, LocalDate drawDate);
 }

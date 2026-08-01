@@ -117,6 +117,24 @@ public class ImportBatchLineRepositoryAdapter implements ImportBatchLineReposito
     }
 
     @Override
+    public List<Long> findEligibleStationIdsBySupplierAndDrawDate(Long supplierId, LocalDate drawDate) {
+        return importBatchLineRepository.findEligibleStationIdsBySupplierAndDrawDate(supplierId, drawDate);
+    }
+
+    @Override
+    public List<ImportBatchLineModel> findEligibleBySupplierStationAndDrawDate(
+            Long supplierId,
+            Long stationId,
+            LocalDate drawDate
+    ) {
+        return importBatchLineRepository
+                .findEligibleBySupplierStationAndDrawDate(supplierId, stationId, drawDate)
+                .stream()
+                .map(importBatchLinePersistenceMapper::toDomain)
+                .toList();
+    }
+
+    @Override
     public long nextLineBatchCodeSequence() {
         return importBatchLineRepository.nextBatchCodeSequence();
     }
