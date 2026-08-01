@@ -1,4 +1,6 @@
-import { Outlet, useLocation } from "react-router-dom";
+"use client";
+
+import { Outlet, useLocation } from "@/components/router-compat";
 import { ThemeProvider } from "@mui/material/styles";
 
 import { SideBar } from "../components/layouts/sidebar/SideBar";

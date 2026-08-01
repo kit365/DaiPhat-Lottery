@@ -47,7 +47,7 @@ daiphat:
   auth:
     frontend-url: http://localhost:5173
     jwt:
-      secret: ${AUTH_JWT_SECRET}
+      secret: ${AUTH_JWT_SECRET:daiphat_super_secret_jwt_key_for_local_development_environment_32bytes}
       issuer: ${AUTH_JWT_ISSUER:daiphat-core-api}
       access-token-ttl-seconds: ${AUTH_JWT_ACCESS_TOKEN_TTL_SECONDS:900}
       refresh-token-ttl-seconds: ${AUTH_JWT_REFRESH_TOKEN_TTL_SECONDS:604800}

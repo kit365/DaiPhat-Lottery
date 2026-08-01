@@ -1,5 +1,7 @@
+"use client";
+
 import React, { lazy } from "react";
-import { Navigate } from "react-router-dom";
+import { Navigate } from "@/components/router-compat";
 import { PermissionGuard } from "../components/auth/PermissionGuard";
 import { PERMISSIONS } from "../constants/permission.constants";
 
