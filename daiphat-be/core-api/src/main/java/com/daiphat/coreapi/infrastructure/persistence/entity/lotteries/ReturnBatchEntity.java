@@ -54,6 +54,10 @@ public class ReturnBatchEntity extends BaseEntity {
     @Column(name = "return_receipt_url", length = 500)
     private String returnReceiptUrl;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "delivery_mode", length = 40)
+    private com.daiphat.coreapi.domain.model.enums.lottery.ReturnDeliveryMode deliveryMode;
+
     @Column(name = "total_quantity", nullable = false)
     @Builder.Default
     private Integer totalQuantity = 0;

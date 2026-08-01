@@ -5,6 +5,7 @@ CREATE TABLE IF NOT EXISTS return_batches (
     draw_date                DATE NOT NULL,
     supplier_settlement_id   BIGINT,
     return_receipt_url       VARCHAR(500),
+    delivery_mode            VARCHAR(40),
     total_quantity           INT NOT NULL DEFAULT 0,
     total_return_value       NUMERIC(18, 3) NOT NULL DEFAULT 0,
     returned_by              UUID,

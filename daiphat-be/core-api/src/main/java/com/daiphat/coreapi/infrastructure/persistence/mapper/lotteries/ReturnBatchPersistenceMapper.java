@@ -35,6 +35,7 @@ public class ReturnBatchPersistenceMapper {
                 .drawDate(entity.getDrawDate())
                 .supplierSettlementId(entity.getSupplierSettlementId())
                 .returnReceiptUrl(entity.getReturnReceiptUrl())
+                .deliveryMode(entity.getDeliveryMode())
                 .totalQuantity(entity.getTotalQuantity())
                 .totalReturnValue(entity.getTotalReturnValue())
                 .returnedBy(entity.getReturnedBy())
@@ -87,6 +88,7 @@ public class ReturnBatchPersistenceMapper {
                 .drawDate(model.getDrawDate())
                 .supplierSettlementId(model.getSupplierSettlementId())
                 .returnReceiptUrl(model.getReturnReceiptUrl())
+                .deliveryMode(model.getDeliveryMode())
                 .totalQuantity(model.getTotalQuantity())
                 .totalReturnValue(model.getTotalReturnValue())
                 .returnedBy(model.getReturnedBy())
@@ -135,6 +137,7 @@ public class ReturnBatchPersistenceMapper {
         entity.setDrawDate(model.getDrawDate());
         entity.setSupplierSettlementId(model.getSupplierSettlementId());
         entity.setReturnReceiptUrl(model.getReturnReceiptUrl());
+        entity.setDeliveryMode(model.getDeliveryMode());
         entity.setTotalQuantity(model.getTotalQuantity());
         entity.setTotalReturnValue(model.getTotalReturnValue());
         entity.setReturnedBy(model.getReturnedBy());
