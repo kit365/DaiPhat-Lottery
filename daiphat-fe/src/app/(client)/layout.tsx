@@ -10,6 +10,11 @@ const ChatbotPopup = dynamic(
   { ssr: false }
 );
 
+const AuthModalContainer = dynamic(
+  () => import('@/client/components/auth/AuthModalContainer').then((mod) => mod.AuthModalContainer),
+  { ssr: false }
+);
+
 export default function ClientLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="client-theme min-h-screen text-inherit font-inherit flex flex-col relative">
@@ -20,6 +25,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
       </div>
       <Footer />
       <ChatbotPopup />
+      <AuthModalContainer />
     </div>
   );
 }

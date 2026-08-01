@@ -1,3 +1,5 @@
+"use client";
+
 import { useMemo } from 'react';
 import { Header } from "../../../components/layout/header";
 import { BottomNav } from "../../../components/layout/BottomNav";

@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useEffect, useRef } from "react";
 import { useLocation, useNavigate, Link, Outlet } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";

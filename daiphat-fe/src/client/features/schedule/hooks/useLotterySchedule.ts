@@ -1,3 +1,5 @@
+"use client";
+
 import { useState, useEffect, useMemo } from 'react';
 import { getPublicSchedule } from '../services/scheduleService';
 import type { LotteryStationSchedule } from '../types/schedule.types';

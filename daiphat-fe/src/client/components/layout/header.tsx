@@ -5,11 +5,6 @@ import { Search, User as UserIcon, Home, Crosshair, Ticket, CalendarDays, Gift, 
 import { ROUTES } from "../../../admin/constants/routes";
 import { useAuthStore } from "../../../stores/useAuthStore";
 import { useCartStore } from "../../../stores/useCartStore";
-import { LoginModal } from "../../components/auth/LoginModal";
-import { RegisterModal } from "../../components/auth/RegisterModal";
-import { ProfileSetupModal } from "../../components/auth/ProfileSetupModal";
-import { VerifyModal } from "../../components/auth/VerifyModal";
-import { ForgotPasswordModal } from "../../components/auth/ForgotPasswordModal";
 import { BottomNav } from "./BottomNav";
 import { NotificationDropdown } from "./NotificationDropdown";
 import {
@@ -434,11 +429,6 @@ export const Header = () => {
       </AnimatePresence>
 
       <BottomNav />
-      {/* <LoginModal />
-      <RegisterModal /> */}
-      <ProfileSetupModal />
-      <VerifyModal />
-      <ForgotPasswordModal />
     </>
   );
 };

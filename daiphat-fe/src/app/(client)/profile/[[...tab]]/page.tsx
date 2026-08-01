@@ -1,5 +1,3 @@
-"use client";
-
 import { use } from 'react';
 import { PrivateRoute } from '@/client/features/auth/PrivateRoute';
 import { ProfilePage as ClientProfilePage } from '@/client/features/profile/pages/ProfilePage';

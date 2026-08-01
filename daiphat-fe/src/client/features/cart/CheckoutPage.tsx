@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useCallback, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Header } from '../../components/layout/header';

@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { CheckCircle2, XCircle, Calendar, Hash } from 'lucide-react';
