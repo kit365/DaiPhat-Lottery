@@ -2,19 +2,19 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tansta
 import { useMemo, useState } from 'react';
 import {
     attachReturnSerials,
-    confirmReturnBatch,
-    createReturnBatch,
+    confirmReturnHandover,
+    confirmReturnInspection,
     detachReturnSerial,
+    getInspectableReturnSerials,
     getReturnBatchById,
     getReturnBatches,
-    markReturnBatchReturned,
     updateReturnBatch,
     updateReturnBatchLineStatus,
 } from '../services/returnBatchService';
 import type {
     AttachReturnSerialsPayload,
-    ConfirmReturnBatchPayload,
-    CreateReturnBatchPayload,
+    ConfirmReturnHandoverPayload,
+    ConfirmReturnInspectionPayload,
     ReturnBatchLineStatus,
     ReturnBatchListParams,
     ReturnBatchStatus,
@@ -45,13 +45,18 @@ export const useReturnBatchDetail = (id?: string | number) => {
     });
 };
 
-export const useCreateReturnBatch = () => {
-    const queryClient = useQueryClient();
-    return useMutation({
-        mutationFn: (payload: CreateReturnBatchPayload) => createReturnBatch(payload),
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.RETURN_BATCHES] });
-        },
+export const useInspectableReturnSerials = (batchId?: string | number, enabled = false) => {
+    const normalizedId =
+        batchId !== undefined && batchId !== null && String(batchId).trim() !== ''
+            ? String(batchId)
+            : undefined;
+
+    return useQuery({
+        queryKey: [QUERY_KEYS.RETURN_BATCH_DETAIL, normalizedId, 'inspectable'],
+        queryFn: () => getInspectableReturnSerials(normalizedId!),
+        enabled: !!normalizedId && enabled,
+        select: (res) => res.data ?? [],
+        staleTime: 0,
     });
 };
 
@@ -63,6 +68,40 @@ export const useUpdateReturnBatch = () => {
         onSuccess: (_data, variables) => {
             queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.RETURN_BATCHES] });
             queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.RETURN_BATCH_DETAIL, String(variables.id)] });
+        },
+    });
+};
+
+export const useConfirmReturnInspection = () => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: ({
+            id,
+            payload,
+        }: {
+            id: number | string;
+            payload: ConfirmReturnInspectionPayload;
+        }) => confirmReturnInspection(id, payload),
+        onSuccess: (_data, variables) => {
+            queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.RETURN_BATCH_DETAIL, String(variables.id)] });
+            queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.RETURN_BATCHES] });
+        },
+    });
+};
+
+export const useConfirmReturnHandover = () => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: ({
+            id,
+            payload,
+        }: {
+            id: number | string;
+            payload?: ConfirmReturnHandoverPayload;
+        }) => confirmReturnHandover(id, payload),
+        onSuccess: (_data, variables) => {
+            queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.RETURN_BATCH_DETAIL, String(variables.id)] });
+            queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.RETURN_BATCHES] });
         },
     });
 };
@@ -119,34 +158,6 @@ export const useUpdateReturnBatchLineStatus = () => {
         }) => updateReturnBatchLineStatus(batchId, lineId, status),
         onSuccess: (_data, variables) => {
             queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.RETURN_BATCH_DETAIL, String(variables.batchId)] });
-            queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.RETURN_BATCHES] });
-        },
-    });
-};
-
-export const useMarkReturnBatchReturned = () => {
-    const queryClient = useQueryClient();
-    return useMutation({
-        mutationFn: (id: number | string) => markReturnBatchReturned(id),
-        onSuccess: (_data, id) => {
-            queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.RETURN_BATCH_DETAIL, String(id)] });
-            queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.RETURN_BATCHES] });
-        },
-    });
-};
-
-export const useConfirmReturnBatch = () => {
-    const queryClient = useQueryClient();
-    return useMutation({
-        mutationFn: ({
-            id,
-            payload,
-        }: {
-            id: number | string;
-            payload?: ConfirmReturnBatchPayload;
-        }) => confirmReturnBatch(id, payload),
-        onSuccess: (_data, variables) => {
-            queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.RETURN_BATCH_DETAIL, String(variables.id)] });
             queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.RETURN_BATCHES] });
         },
     });

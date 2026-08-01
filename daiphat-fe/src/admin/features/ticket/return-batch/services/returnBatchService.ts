@@ -1,11 +1,11 @@
-import Cookies from 'js-cookie';
 import { apiApp } from '../../../../../api';
+import { withAuthHeaders } from '../../../../../api/authHeaders';
 import { ApiResponse, PageResponse } from '../../../../../types/api.type';
-import { STORAGE_KEYS } from '../../../../../constants/storage.constants';
 import type {
     AttachReturnSerialsPayload,
-    ConfirmReturnBatchPayload,
-    CreateReturnBatchPayload,
+    ConfirmReturnHandoverPayload,
+    ConfirmReturnInspectionPayload,
+    InspectableReturnSerial,
     ReturnBatch,
     ReturnBatchLineStatus,
     ReturnBatchListParams,
@@ -14,20 +14,11 @@ import type {
 
 const BASE_URL = '/return-batches';
 
-const withAuth = () => {
-    const token = Cookies.get(STORAGE_KEYS.TOKEN);
-    return {
-        headers: {
-            Authorization: `Bearer ${token}`,
-        },
-    };
-};
-
 export const getReturnBatches = async (
     params?: ReturnBatchListParams
 ): Promise<ApiResponse<PageResponse<ReturnBatch>>> => {
     const response = await apiApp.get(BASE_URL, {
-        ...withAuth(),
+        ...withAuthHeaders(),
         params,
     });
     return response.data;
@@ -36,14 +27,14 @@ export const getReturnBatches = async (
 export const getReturnBatchById = async (
     id: number | string
 ): Promise<ApiResponse<ReturnBatch>> => {
-    const response = await apiApp.get(`${BASE_URL}/${id}`, withAuth());
+    const response = await apiApp.get(`${BASE_URL}/${id}`, withAuthHeaders());
     return response.data;
 };
 
-export const createReturnBatch = async (
-    payload: CreateReturnBatchPayload
-): Promise<ApiResponse<ReturnBatch>> => {
-    const response = await apiApp.post(BASE_URL, payload, withAuth());
+export const getInspectableReturnSerials = async (
+    id: number | string
+): Promise<ApiResponse<InspectableReturnSerial[]>> => {
+    const response = await apiApp.get(`${BASE_URL}/${id}/inspectable-serials`, withAuthHeaders());
     return response.data;
 };
 
@@ -51,7 +42,23 @@ export const updateReturnBatch = async (
     id: number | string,
     payload: UpdateReturnBatchPayload
 ): Promise<ApiResponse<ReturnBatch>> => {
-    const response = await apiApp.put(`${BASE_URL}/${id}`, payload, withAuth());
+    const response = await apiApp.put(`${BASE_URL}/${id}`, payload, withAuthHeaders());
+    return response.data;
+};
+
+export const confirmReturnInspection = async (
+    id: number | string,
+    payload: ConfirmReturnInspectionPayload
+): Promise<ApiResponse<ReturnBatch>> => {
+    const response = await apiApp.post(`${BASE_URL}/${id}/confirm-inspection`, payload, withAuthHeaders());
+    return response.data;
+};
+
+export const confirmReturnHandover = async (
+    id: number | string,
+    payload?: ConfirmReturnHandoverPayload
+): Promise<ApiResponse<ReturnBatch>> => {
+    const response = await apiApp.post(`${BASE_URL}/${id}/confirm-handover`, payload ?? {}, withAuthHeaders());
     return response.data;
 };
 
@@ -63,7 +70,7 @@ export const attachReturnSerials = async (
     const response = await apiApp.post(
         `${BASE_URL}/${batchId}/lines/${lineId}/serials`,
         payload,
-        withAuth()
+        withAuthHeaders()
     );
     return response.data;
 };
@@ -75,7 +82,7 @@ export const detachReturnSerial = async (
 ): Promise<ApiResponse<ReturnBatch>> => {
     const response = await apiApp.delete(
         `${BASE_URL}/${batchId}/lines/${lineId}/serials/${serialId}`,
-        withAuth()
+        withAuthHeaders()
     );
     return response.data;
 };
@@ -88,22 +95,7 @@ export const updateReturnBatchLineStatus = async (
     const response = await apiApp.post(
         `${BASE_URL}/${batchId}/lines/${lineId}/status`,
         { status },
-        withAuth()
+        withAuthHeaders()
     );
-    return response.data;
-};
-
-export const markReturnBatchReturned = async (
-    id: number | string
-): Promise<ApiResponse<ReturnBatch>> => {
-    const response = await apiApp.post(`${BASE_URL}/${id}/mark-returned`, {}, withAuth());
-    return response.data;
-};
-
-export const confirmReturnBatch = async (
-    id: number | string,
-    payload?: ConfirmReturnBatchPayload
-): Promise<ApiResponse<ReturnBatch>> => {
-    const response = await apiApp.post(`${BASE_URL}/${id}/confirm`, payload ?? {}, withAuth());
     return response.data;
 };

@@ -13,6 +13,7 @@ import {
     Typography,
 } from '@mui/material';
 import dayjs from 'dayjs';
+import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { Breadcrumb } from '../../../../../components/ui/Breadcrumb';
@@ -24,8 +25,7 @@ import { PERMISSIONS } from '../../../../../constants/permission.constants';
 import { ROUTES } from '../../../../../constants/routes';
 import { formatImportCost } from '../../../import-batch/utils/importCostCalculator';
 import {
-    useConfirmReturnBatch,
-    useMarkReturnBatchReturned,
+    useConfirmReturnHandover,
     useReturnBatchDetail,
 } from '../../hooks/useReturnBatch';
 import {
@@ -35,13 +35,14 @@ import {
     getReturnBatchStatusLabel,
     isReturnBatchEditable,
 } from '../../utils/returnBatchLabels';
+import { InspectTicketsDialog } from '../sections/InspectTicketsDialog';
 
 export const ReturnBatchDetailPage = () => {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
-    const { data: batch, isLoading, isError } = useReturnBatchDetail(id);
-    const markReturned = useMarkReturnBatchReturned();
-    const confirmBatch = useConfirmReturnBatch();
+    const { data: batch, isLoading, isError, refetch } = useReturnBatchDetail(id);
+    const confirmHandover = useConfirmReturnHandover();
+    const [inspectOpen, setInspectOpen] = useState(false);
 
     if (isLoading) {
         return (
@@ -59,24 +60,15 @@ export const ReturnBatchDetailPage = () => {
         );
     }
 
-    const handleMarkReturned = async () => {
+    const handleConfirmHandover = async () => {
         try {
-            await markReturned.mutateAsync(batch.id);
-            toast.success('Đã đánh dấu giao trả nhà cung cấp.');
-        } catch {
-            toast.error('Không thể đánh dấu giao trả.');
-        }
-    };
-
-    const handleConfirm = async () => {
-        try {
-            await confirmBatch.mutateAsync({
+            await confirmHandover.mutateAsync({
                 id: batch.id,
                 payload: { returnReceiptUrl: batch.returnReceiptUrl },
             });
-            toast.success('Đã xác nhận phiếu trả vé.');
+            toast.success('Đã xác nhận bàn giao — sê-ri chuyển sang Đã trả.');
         } catch {
-            toast.error('Không thể xác nhận phiếu trả vé.');
+            toast.error('Không thể xác nhận bàn giao.');
         }
     };
 
@@ -106,7 +98,6 @@ export const ReturnBatchDetailPage = () => {
                         <CanAccess permission={PERMISSIONS.IMPORT_BATCH.CREATE}>
                             <LoadingButton
                                 label="Chỉnh sửa"
-                                className="btn-primary-admin"
                                 onClick={() => navigate(ROUTES.ADMIN.RETURN_BATCH.EDIT(batch.id))}
                             />
                         </CanAccess>
@@ -114,19 +105,19 @@ export const ReturnBatchDetailPage = () => {
                     {batch.status === 'PENDING' && (
                         <CanAccess permission={PERMISSIONS.IMPORT_BATCH.CREATE}>
                             <LoadingButton
-                                label="Đánh dấu đã giao"
-                                loading={markReturned.isPending}
-                                onClick={handleMarkReturned}
+                                label="Kiểm tra vé"
+                                className="btn-primary-admin"
+                                onClick={() => setInspectOpen(true)}
                             />
                         </CanAccess>
                     )}
-                    {(batch.status === 'PENDING' || batch.status === 'RETURNED') && (
+                    {batch.status === 'RETURNED' && (
                         <CanAccess permission={PERMISSIONS.IMPORT_BATCH.CREATE}>
                             <LoadingButton
-                                label="Xác nhận NCC"
+                                label="Xác nhận bàn giao"
                                 className="btn-primary-admin"
-                                loading={confirmBatch.isPending}
-                                onClick={handleConfirm}
+                                loading={confirmHandover.isPending}
+                                onClick={handleConfirmHandover}
                             />
                         </CanAccess>
                     )}
@@ -137,6 +128,13 @@ export const ReturnBatchDetailPage = () => {
                 <Alert severity="info" sx={{ mb: 2 }}>
                     Liên kết đối soát #{batch.supplierSettlementId}. Chỉ dòng trả{' '}
                     <strong>SUCCESS</strong> mới cộng vào tổng giá trị trả của kỳ đối soát.
+                </Alert>
+            )}
+
+            {batch.status === 'RETURNED' && (
+                <Alert severity="warning" sx={{ mb: 2 }}>
+                    Vé đang ở trạng thái chờ bàn giao (PENDING_RETURN). Sau khi giao xong cho NCC, bấm{' '}
+                    <strong>Xác nhận bàn giao</strong>.
                 </Alert>
             )}
 
@@ -248,6 +246,13 @@ export const ReturnBatchDetailPage = () => {
                     </TableContainer>
                 </CollapsibleCard>
             </Stack>
+
+            <InspectTicketsDialog
+                open={inspectOpen}
+                batchId={batch.id}
+                onClose={() => setInspectOpen(false)}
+                onCompleted={() => refetch()}
+            />
         </Box>
     );
 };

@@ -6,6 +6,8 @@ export type ReturnBatchLineStatus =
     | 'REJECTED_BY_SUPPLIER'
     | 'PULLED_FOR_SALE';
 
+export type ReturnDeliveryMode = 'RETAILER_DELIVERS' | 'SUPPLIER_COLLECTS';
+
 export interface ReturnBatchLine {
     id: number;
     returnBatchId: number;
@@ -39,6 +41,21 @@ export interface ReturnBatch {
     updatedAt?: string | null;
 }
 
+export interface InspectableReturnSerial {
+    serialId: number;
+    serialNumber: string;
+    status: string;
+    statusLabel?: string | null;
+    ticketId: number;
+    ticketNumbers?: string | null;
+    drawDate?: string | null;
+    lotteryStationId?: number | null;
+    lotteryStationName?: string | null;
+    returnBatchLineId?: number | null;
+    importBatchLineId?: number | null;
+    importCost?: number | null;
+}
+
 export interface ReturnBatchListParams {
     page?: number;
     size?: number;
@@ -50,13 +67,6 @@ export interface ReturnBatchListParams {
     search?: string;
     sortBy?: string;
     direction?: string;
-}
-
-export interface CreateReturnBatchPayload {
-    supplierId: number;
-    drawDate: string;
-    note?: string | null;
-    lines: { lotteryStationId: number }[];
 }
 
 export interface UpdateReturnBatchPayload {
@@ -76,6 +86,12 @@ export interface AttachReturnSerialsPayload {
     serials: AttachReturnSerialItem[];
 }
 
-export interface ConfirmReturnBatchPayload {
+export interface ConfirmReturnInspectionPayload {
+    deliveryMode: ReturnDeliveryMode;
+    serialIds: number[];
+    returnReceiptUrl?: string | null;
+}
+
+export interface ConfirmReturnHandoverPayload {
     returnReceiptUrl?: string | null;
 }

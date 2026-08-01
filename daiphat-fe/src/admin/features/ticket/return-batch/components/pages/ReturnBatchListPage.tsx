@@ -1,18 +1,13 @@
-import AddIcon from '@mui/icons-material/Add';
-import { useNavigate } from 'react-router-dom';
+import { Alert } from '@mui/material';
 import { useTranslation } from 'react-i18next';
 import { Breadcrumb } from '../../../../../components/ui/Breadcrumb';
 import { Title } from '../../../../../components/ui/Title';
-import { LoadingButton } from '../../../../../components/ui/LoadingButton';
-import { CanAccess } from '../../../../../components/auth/CanAccess';
-import { PERMISSIONS } from '../../../../../constants/permission.constants';
 import { prefixAdmin, ROUTES } from '../../../../../constants/routes';
 import { useReturnBatchList } from '../../hooks/useReturnBatch';
 import { ReturnBatchList } from '../sections/ReturnBatchList';
 
 export const ReturnBatchListPage = () => {
     const { t } = useTranslation();
-    const navigate = useNavigate();
     const listHook = useReturnBatchList();
 
     return (
@@ -29,19 +24,12 @@ export const ReturnBatchListPage = () => {
                         ]}
                     />
                 </div>
-                <CanAccess permission={PERMISSIONS.IMPORT_BATCH.CREATE}>
-                    <LoadingButton
-                        onClick={() => navigate(ROUTES.ADMIN.RETURN_BATCH.CREATE)}
-                        label="Tạo phiếu trả vé"
-                        startIcon={<AddIcon />}
-                        className="btn-primary-admin"
-                        sx={{
-                            minHeight: '2.25rem',
-                            padding: 'var(--shape-borderRadius-sm) calc(2 * var(--spacing))',
-                        }}
-                    />
-                </CanAccess>
             </div>
+
+            <Alert severity="info" sx={{ mb: 2 }}>
+                Phiếu trả vé được hệ thống tự động tạo theo lịch trả của từng NCC
+                (giờ cắt trả − thời gian đệm RETURN_BUFFER_TIME), gom theo nhà cung cấp trong ngày quay.
+            </Alert>
 
             <ReturnBatchList listHook={listHook} />
         </>
