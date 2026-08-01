@@ -1,27 +1,19 @@
 "use client";
 
-import { use, useEffect } from 'react';
-import { useRouter, usePathname } from 'next/navigation';
+import { use, useEffect, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import { AuthGuard } from '@/admin/components/auth/AuthGuard';
 import { LayoutAdmin } from '@/admin/layouts/LayoutAdmin';
 import { AdminRoutes } from '@/admin/routes';
-import { OutletProvider } from '@/components/router-compat';
-
-function matchPathPattern(pattern?: string, pathSegments: string[] = []): boolean {
-  if (!pattern) return false;
-  const currentPath = pathSegments.join('/');
-  if (pattern === currentPath) return true;
-
-  const patternParts = pattern.split('/');
-  if (patternParts.length !== pathSegments.length) return false;
-
-  return patternParts.every((part, idx) => part.startsWith(':') || part === pathSegments[idx]);
-}
+import {
+  OutletProvider,
+  extractRouteParams,
+  matchPathPattern,
+} from '@/components/router-compat';
 
 export default function AdminCatchAllPage({ params }: { params: Promise<{ slug?: string[] }> }) {
   const resolvedParams = use(params);
   const router = useRouter();
-  const pathname = usePathname();
   const slug = resolvedParams.slug || [];
 
   useEffect(() => {
@@ -30,19 +22,42 @@ export default function AdminCatchAllPage({ params }: { params: Promise<{ slug?:
     }
   }, [slug, router]);
 
+  const { pageElement, routeParams } = useMemo(() => {
+    if (slug.length === 0) {
+      return { pageElement: null, routeParams: {} as Record<string, string> };
+    }
+
+    // Prefer the most specific match (longest pattern) so
+    // import-batch/detail/:id/line/:lineId wins over import-batch/detail/:id.
+    const candidates = AdminRoutes.filter(
+      (r) => typeof r.path === 'string' && matchPathPattern(r.path, slug)
+    ).sort(
+      (a, b) =>
+        String(b.path).split('/').filter(Boolean).length -
+        String(a.path).split('/').filter(Boolean).length
+    );
+
+    const matchedRoute = candidates[0];
+    if (!matchedRoute) {
+      return {
+        pageElement: AdminRoutes.find((r) => r.path === 'dashboard')?.element ?? null,
+        routeParams: {} as Record<string, string>,
+      };
+    }
+
+    return {
+      pageElement: matchedRoute.element,
+      routeParams: extractRouteParams(matchedRoute.path, slug),
+    };
+  }, [slug]);
+
   if (slug.length === 0) {
     return null;
   }
 
-  // Match current slug to AdminRoutes
-  const currentSubPath = slug.join('/');
-  const matchedRoute = AdminRoutes.find((r) => matchPathPattern(r.path, slug));
-
-  const pageElement = matchedRoute ? matchedRoute.element : AdminRoutes.find(r => r.path === 'dashboard')?.element;
-
   return (
     <AuthGuard>
-      <OutletProvider outlet={pageElement}>
+      <OutletProvider outlet={pageElement} params={routeParams}>
         <LayoutAdmin />
       </OutletProvider>
     </AuthGuard>

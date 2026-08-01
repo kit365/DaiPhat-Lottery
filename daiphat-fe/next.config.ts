@@ -1,6 +1,13 @@
 import type { NextConfig } from 'next';
 import path from 'path';
 
+// Dev API calls use a relative base URL (same-origin) so HttpOnly cookies work.
+// Proxy /api/* to the Spring backend (defaults to local core-api).
+const backendProxyTarget =
+  process.env.VITE_DEV_PROXY_TARGET ||
+  process.env.BACKEND_UPSTREAM ||
+  'http://localhost:8080';
+
 const nextConfig: NextConfig = {
   compress: true,
   experimental: {
@@ -28,6 +35,14 @@ const nextConfig: NextConfig = {
         hostname: '**',
       },
     ],
+  },
+  async rewrites() {
+    return [
+      {
+        source: '/api/:path*',
+        destination: `${backendProxyTarget.replace(/\/$/, '')}/api/:path*`,
+      },
+    ];
   },
   webpack: (config) => {
     config.externals = [...(config.externals || []), { canvas: 'canvas' }];

@@ -4,10 +4,11 @@ import { API_PREFIX, API_VERSION } from "./api.constants"
 import { AppToast } from "../utils/toast.util"
 import Cookies from "js-cookie"
 import { STORAGE_KEYS } from "../constants/storage.constants"
+import { resolveAccessToken } from "./authHeaders"
 
-// In dev (npm run dev), use empty BASE_URL so requests go through Vite proxy.
+// In dev (npm run dev), use empty BASE_URL so requests go through Vite/Next proxy.
 // This makes them same-origin → browser sends HttpOnly cookies (incl. refresh_token).
-// In production, VITE_API_BASE_URL is set to the actual backend URL.
+// In production, VITE_API_BASE_URL / NEXT_PUBLIC_API_BASE_URL is set to the actual backend URL.
 const getBaseUrl = () => {
     if (typeof process !== "undefined" && process.env) {
         return process.env.NEXT_PUBLIC_API_BASE_URL || process.env.VITE_API_BASE_URL || "";
@@ -43,7 +44,7 @@ apiApp.interceptors.request.use((config) => {
         url.includes("/auth/verify-email");
 
     if (!isPublicAuth) {
-        const token = useAuthStore.getState().token;
+        const token = resolveAccessToken();
         if (token) {
             config.headers.Authorization = `Bearer ${token}`;
         }
@@ -155,10 +156,7 @@ apiApp.interceptors.response.use(
     async (error: AxiosError) => {
         const { response } = error;
         const originalRequest = error.config as ApiRequestConfig | undefined;
-
-        if (originalRequest?.skipGlobalErrorToast) {
-            return Promise.reject(error);
-        }
+        const skipToast = Boolean(originalRequest?.skipGlobalErrorToast);
 
         // Request bị hủy (Strict Mode / đổi route / poll restart) — không báo "mất mạng"
         if (axios.isCancel(error) || (error as AxiosError).code === "ERR_CANCELED") {
@@ -212,7 +210,7 @@ apiApp.interceptors.response.use(
                                 originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
                                 resolve(apiApp(originalRequest));
                             } else {
-                                handleExpiredSession();
+                                handleExpiredSession(!skipToast);
                                 reject(new Error("No access token returned"));
                             }
                         })
@@ -226,6 +224,10 @@ apiApp.interceptors.response.use(
                             isRefreshing = false;
                         });
                 });
+            }
+
+            if (skipToast) {
+                return Promise.reject(error);
             }
 
             if (status === 403 && isAuthRequiredRequest(originalRequest?.url)) {
@@ -259,7 +261,7 @@ apiApp.interceptors.response.use(
                     AppToast.error(message);
                     console.warn(`[API Error] ${status}: ${message}`);
             }
-        } else {
+        } else if (!skipToast) {
             AppToast.error("Không thể kết nối tới máy chủ. Vui lòng kiểm tra mạng!", {
                 toastId: "api-network-unreachable",
             });
