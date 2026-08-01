@@ -42,6 +42,10 @@ const nextConfig: NextConfig = {
         source: '/api/:path*',
         destination: `${backendProxyTarget.replace(/\/$/, '')}/api/:path*`,
       },
+      {
+        source: '/uploads/:path*',
+        destination: `${backendProxyTarget.replace(/\/$/, '')}/uploads/:path*`,
+      },
     ];
   },
   webpack: (config) => {
