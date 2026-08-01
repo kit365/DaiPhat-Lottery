@@ -118,7 +118,7 @@ public class RefundRequestModel {
      * Increments {@code retryCount}; moves to WAITING_FOR_INFO or MANUAL_RESOLUTION.
      */
     public void requestBankInfoCorrection(String note, int maxRetry) {
-        if (this.status != RefundRequestStatus.READY_TO_PAY && this.status != RefundRequestStatus.APPROVED) {
+        if (!this.status.isAwaitingTransfer()) {
             throw new DomainException(ErrorCode.REFUND_REQUEST_INVALID_STATUS);
         }
         if (note == null || note.isBlank()) {
@@ -139,7 +139,7 @@ public class RefundRequestModel {
 
     /** Marks refund as paid. Payout evidence is stored on the related Transaction. */
     public void markPaid() {
-        if (this.status != RefundRequestStatus.APPROVED && this.status != RefundRequestStatus.READY_TO_PAY) {
+        if (!this.status.isAwaitingTransfer()) {
             throw new DomainException(ErrorCode.REFUND_REQUEST_INVALID_STATUS);
         }
         this.status = RefundRequestStatus.PAID;

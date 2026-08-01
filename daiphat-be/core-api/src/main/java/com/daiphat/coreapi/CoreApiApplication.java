@@ -4,7 +4,10 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.TimeZone;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -34,17 +37,48 @@ public class CoreApiApplication {
     }
 
     /**
-     * Local development has one canonical {@code .env} at the repository root. IntelliJ
-     * may run from the module or its parent, so walk upward to that root before Spring
-     * resolves placeholders.
+     * Local IntelliJ runs often use {@code daiphat-be} as the working directory, while
+     * core-api secrets/profile live in {@code daiphat-be/core-api/.env}. Load module
+     * {@code .env} first (first-wins), then the repository-root {@code .env} next to
+     * {@code docker-compose.yml}.
      */
     private static void loadLocalDotEnv() {
         Path cwd = Paths.get("").toAbsolutePath().normalize();
-        Path envFile = findRepositoryEnv(cwd);
-        if (envFile == null) {
-            return;
+        Path repoRoot = findRepositoryRoot(cwd);
+        for (Path envFile : resolveLocalEnvFiles(cwd, repoRoot)) {
+            loadEnvFile(envFile);
+        }
+    }
+
+    private static List<Path> resolveLocalEnvFiles(Path cwd, Path repoRoot) {
+        Set<Path> candidates = new LinkedHashSet<>();
+        // Most specific first — setLocalPropertyIfAbsent keeps the first value.
+        candidates.add(cwd.resolve(".env"));
+        candidates.add(cwd.resolve("core-api").resolve(".env"));
+        if (repoRoot != null) {
+            candidates.add(repoRoot.resolve("daiphat-be").resolve("core-api").resolve(".env"));
+            candidates.add(repoRoot.resolve(".env"));
         }
 
+        List<Path> existing = new ArrayList<>();
+        for (Path candidate : candidates) {
+            if (Files.isRegularFile(candidate)) {
+                existing.add(candidate);
+            }
+        }
+        return existing;
+    }
+
+    private static Path findRepositoryRoot(Path startingDirectory) {
+        for (Path directory = startingDirectory; directory != null; directory = directory.getParent()) {
+            if (Files.isRegularFile(directory.resolve("docker-compose.yml"))) {
+                return directory;
+            }
+        }
+        return null;
+    }
+
+    private static void loadEnvFile(Path envFile) {
         try {
             List<String> lines = Files.readAllLines(envFile);
             for (String rawLine : lines) {
@@ -63,16 +97,6 @@ public class CoreApiApplication {
         } catch (IOException ignored) {
             // Local environment loading is optional outside the development checkout.
         }
-    }
-
-    private static Path findRepositoryEnv(Path startingDirectory) {
-        for (Path directory = startingDirectory; directory != null; directory = directory.getParent()) {
-            Path envFile = directory.resolve(".env");
-            if (Files.isRegularFile(envFile) && Files.isRegularFile(directory.resolve("docker-compose.yml"))) {
-                return envFile;
-            }
-        }
-        return null;
     }
 
     private static void setLocalPropertyIfAbsent(String key, String value) {
