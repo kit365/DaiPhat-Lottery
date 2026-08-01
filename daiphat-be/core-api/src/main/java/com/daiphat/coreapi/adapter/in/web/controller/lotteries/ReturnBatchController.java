@@ -4,11 +4,12 @@ import com.daiphat.coreapi.adapter.in.web.constants.ApiConstants;
 import com.daiphat.coreapi.adapter.in.web.response.ApiResponse;
 import com.daiphat.coreapi.adapter.in.web.security.AuthenticatedUserPrincipal;
 import com.daiphat.coreapi.application.dto.request.lotteries.AttachReturnSerialsRequest;
-import com.daiphat.coreapi.application.dto.request.lotteries.ConfirmReturnBatchRequest;
-import com.daiphat.coreapi.application.dto.request.lotteries.CreateReturnBatchRequest;
+import com.daiphat.coreapi.application.dto.request.lotteries.ConfirmReturnHandoverRequest;
+import com.daiphat.coreapi.application.dto.request.lotteries.ConfirmReturnInspectionRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.UpdateReturnBatchLineStatusRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.UpdateReturnBatchRequest;
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
+import com.daiphat.coreapi.application.dto.response.lotteries.InspectableReturnSerialResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.ReturnBatchResponse;
 import com.daiphat.coreapi.application.port.in.lotteries.ReturnBatchServicePort;
 import com.daiphat.coreapi.domain.model.enums.lottery.ReturnBatchStatus;
@@ -29,6 +30,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.time.LocalDate;
+import java.util.List;
 
 @RestController
 @RequestMapping(ApiConstants.API_V1 + "/return-batches")
@@ -40,18 +42,6 @@ public class ReturnBatchController {
     private static final String DEFAULT_LIMIT = "10";
 
     private final ReturnBatchServicePort returnBatchServicePort;
-
-    @PostMapping
-    @PreAuthorize("hasAnyAuthority('importBatch:create')")
-    public ApiResponse<ReturnBatchResponse> create(
-            @Valid @RequestBody CreateReturnBatchRequest request,
-            @AuthenticationPrincipal AuthenticatedUserPrincipal principal
-    ) {
-        return ApiResponse.success(
-                "Tạo phiếu trả vé thành công.",
-                returnBatchServicePort.create(request, principal.getId())
-        );
-    }
 
     @PutMapping("/{id}")
     @PreAuthorize("hasAnyAuthority('importBatch:create')")
@@ -102,6 +92,42 @@ public class ReturnBatchController {
         );
     }
 
+    @GetMapping("/{id}/inspectable-serials")
+    @PreAuthorize("hasAnyAuthority('importBatch:view', 'importBatch:create')")
+    public ApiResponse<List<InspectableReturnSerialResponse>> listInspectableSerials(@PathVariable Long id) {
+        return ApiResponse.success(null, returnBatchServicePort.listInspectableSerials(id));
+    }
+
+    @PostMapping("/{id}/confirm-inspection")
+    @PreAuthorize("hasAnyAuthority('importBatch:create')")
+    public ApiResponse<ReturnBatchResponse> confirmInspection(
+            @PathVariable Long id,
+            @Valid @RequestBody ConfirmReturnInspectionRequest request,
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal
+    ) {
+        return ApiResponse.success(
+                "Đã xác nhận kiểm tra vé trả.",
+                returnBatchServicePort.confirmInspection(id, request, principal.getId())
+        );
+    }
+
+    @PostMapping("/{id}/confirm-handover")
+    @PreAuthorize("hasAnyAuthority('importBatch:create')")
+    public ApiResponse<ReturnBatchResponse> confirmHandover(
+            @PathVariable Long id,
+            @RequestBody(required = false) ConfirmReturnHandoverRequest request,
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal
+    ) {
+        return ApiResponse.success(
+                "Đã xác nhận bàn giao vé trả nhà cung cấp.",
+                returnBatchServicePort.confirmHandover(
+                        id,
+                        request != null ? request : new ConfirmReturnHandoverRequest(null),
+                        principal.getId()
+                )
+        );
+    }
+
     @PostMapping("/{batchId}/lines/{lineId}/serials")
     @PreAuthorize("hasAnyAuthority('importBatch:create')")
     public ApiResponse<ReturnBatchResponse> attachSerials(
@@ -138,30 +164,6 @@ public class ReturnBatchController {
         return ApiResponse.success(
                 "Cập nhật trạng thái dòng trả vé thành công.",
                 returnBatchServicePort.updateLineStatus(batchId, lineId, request)
-        );
-    }
-
-    @PostMapping("/{id}/mark-returned")
-    @PreAuthorize("hasAnyAuthority('importBatch:create')")
-    public ApiResponse<ReturnBatchResponse> markReturned(
-            @PathVariable Long id,
-            @AuthenticationPrincipal AuthenticatedUserPrincipal principal
-    ) {
-        return ApiResponse.success(
-                "Đã đánh dấu phiếu trả vé đã giao.",
-                returnBatchServicePort.markReturned(id, principal.getId())
-        );
-    }
-
-    @PostMapping("/{id}/confirm")
-    @PreAuthorize("hasAnyAuthority('importBatch:create')")
-    public ApiResponse<ReturnBatchResponse> confirm(
-            @PathVariable Long id,
-            @RequestBody(required = false) ConfirmReturnBatchRequest request
-    ) {
-        return ApiResponse.success(
-                "Xác nhận phiếu trả vé thành công.",
-                returnBatchServicePort.confirm(id, request != null ? request : new ConfirmReturnBatchRequest(null))
         );
     }
 }

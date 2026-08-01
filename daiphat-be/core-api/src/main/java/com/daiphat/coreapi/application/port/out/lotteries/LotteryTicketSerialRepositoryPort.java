@@ -34,6 +34,8 @@ public interface LotteryTicketSerialRepositoryPort {
 
     long countByImportBatchLineId(Long importBatchLineId);
 
+    long countByImportBatchLineIdAndStatus(Long importBatchLineId, LotteryTicketSerialStatus status);
+
     List<Long> findDistinctTicketIdsByImportBatchLineId(Long importBatchLineId);
 
     List<LotteryTicketSerialModel> findAllByImportBatchLineId(Long importBatchLineId);
@@ -46,5 +48,17 @@ public interface LotteryTicketSerialRepositoryPort {
 
     java.util.List<LotteryTicketSerialModel> findAllReplacementCandidates(
             Long stationId, String numbers, java.time.LocalDate drawDate, com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus status
+    );
+
+    List<LotteryTicketSerialModel> findAllByIds(Collection<Long> ids);
+
+    List<LotteryTicketSerialModel> findAllByReturnBatchLineId(Long returnBatchLineId);
+
+    long countByReturnBatchLineId(Long returnBatchLineId);
+
+    List<ReturnInspectableSerialData> findInStockForSupplierAndDrawDate(
+            Long supplierId,
+            java.time.LocalDate drawDate,
+            Collection<Long> stationIds
     );
 }

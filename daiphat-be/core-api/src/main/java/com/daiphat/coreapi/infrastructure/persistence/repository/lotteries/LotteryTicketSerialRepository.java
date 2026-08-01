@@ -81,6 +81,17 @@ public interface LotteryTicketSerialRepository extends JpaRepository<LotteryTick
     long countByImportBatchLineId(@Param("importBatchLineId") Long importBatchLineId);
 
     @Query("""
+            SELECT COUNT(s) FROM LotteryTicketSerialEntity s
+            WHERE s.deletedAt IS NULL
+              AND s.importBatchLine.id = :importBatchLineId
+              AND s.status = :status
+            """)
+    long countByImportBatchLineIdAndStatus(
+            @Param("importBatchLineId") Long importBatchLineId,
+            @Param("status") LotteryTicketSerialStatus status
+    );
+
+    @Query("""
             SELECT DISTINCT s.ticket.id FROM LotteryTicketSerialEntity s
             WHERE s.deletedAt IS NULL AND s.importBatchLine.id = :importBatchLineId
             """)
@@ -127,6 +138,8 @@ public interface LotteryTicketSerialRepository extends JpaRepository<LotteryTick
 
     List<LotteryTicketSerialEntity> findByReturnBatchLineIdAndDeletedAtIsNull(Long returnBatchLineId);
 
+    List<LotteryTicketSerialEntity> findByReturnBatchLineIdInAndDeletedAtIsNull(Collection<Long> returnBatchLineIds);
+
     long countByReturnBatchLineIdAndDeletedAtIsNull(Long returnBatchLineId);
 
     @Query("""
@@ -137,4 +150,26 @@ public interface LotteryTicketSerialRepository extends JpaRepository<LotteryTick
               AND s.returnBatchLineId = :returnBatchLineId
             """)
     java.math.BigDecimal sumImportCostByReturnBatchLineId(@Param("returnBatchLineId") Long returnBatchLineId);
+
+    @Query("""
+            SELECT s FROM LotteryTicketSerialEntity s
+            JOIN FETCH s.ticket t
+            JOIN FETCH t.station st
+            JOIN FETCH s.importBatchLine ibl
+            JOIN ibl.importBatch b
+            WHERE s.deletedAt IS NULL
+              AND t.deletedAt IS NULL
+              AND b.deletedAt IS NULL
+              AND b.supplier.id = :supplierId
+              AND t.drawDate = :drawDate
+              AND s.status = com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus.IN_STOCK
+              AND (:stationIdsEmpty = true OR st.id IN :stationIds)
+            ORDER BY st.name ASC, t.numbers ASC, s.serialNumber ASC
+            """)
+    List<LotteryTicketSerialEntity> findInStockForSupplierAndDrawDate(
+            @Param("supplierId") Long supplierId,
+            @Param("drawDate") java.time.LocalDate drawDate,
+            @Param("stationIds") Collection<Long> stationIds,
+            @Param("stationIdsEmpty") boolean stationIdsEmpty
+    );
 }

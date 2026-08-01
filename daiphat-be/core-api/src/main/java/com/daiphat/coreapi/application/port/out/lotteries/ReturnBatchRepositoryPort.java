@@ -22,6 +22,8 @@ public interface ReturnBatchRepositoryPort {
 
     Optional<ReturnBatchModel> findPendingBySupplierAndDrawDate(Long supplierId, LocalDate drawDate);
 
+    Optional<ReturnBatchModel> findBySupplierAndDrawDate(Long supplierId, LocalDate drawDate);
+
     Page<ReturnBatchModel> findAll(
             Pageable pageable,
             Long lotterySupplierId,

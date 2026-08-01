@@ -97,6 +97,13 @@ public class ReturnBatchRepositoryAdapter implements ReturnBatchRepositoryPort {
     }
 
     @Override
+    public Optional<ReturnBatchModel> findBySupplierAndDrawDate(Long supplierId, LocalDate drawDate) {
+        return returnBatchRepository
+                .findByLotterySupplier_IdAndDrawDateAndDeletedAtIsNull(supplierId, drawDate)
+                .map(returnBatchPersistenceMapper::toDomain);
+    }
+
+    @Override
     public Page<ReturnBatchModel> findAll(
             Pageable pageable,
             Long lotterySupplierId,
