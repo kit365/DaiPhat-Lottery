@@ -27,6 +27,11 @@ type FieldErrors = {
 
 export const QuickCheckTicketBanner: React.FC<QuickCheckTicketBannerProps> = ({ availableDates = [] }) => {
     const [isExpanded, setIsExpanded] = useState(false);
+    const [mounted, setMounted] = useState(false);
+
+    useEffect(() => {
+        setMounted(true);
+    }, []);
     
     // Convert DD/MM/YYYY to YYYY-MM-DD for native date input
     const toDateInputValue = (dateStr?: string) => {
@@ -731,7 +736,7 @@ export const QuickCheckTicketBanner: React.FC<QuickCheckTicketBannerProps> = ({ 
             </motion.div>
 
             {/* Portal to document.body */}
-            {createPortal(modalContent, document.body)}
+            {mounted && typeof document !== 'undefined' && createPortal(modalContent, document.body)}
         </div>
     );
 };

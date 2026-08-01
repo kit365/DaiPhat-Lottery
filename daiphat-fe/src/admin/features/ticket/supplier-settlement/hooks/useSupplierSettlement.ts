@@ -11,7 +11,7 @@ export const useSupplierSettlements = (params?: SupplierSettlementListParams, op
     return useQuery({
         queryKey: [QUERY_KEYS.SUPPLIER_SETTLEMENTS, params],
         queryFn: () => getSupplierSettlements(params),
-        select: (res) => res.data,
+        select: (res: any) => res.data,
         ...options,
     });
 };
@@ -21,7 +21,7 @@ export const useSupplierSettlementDetail = (id?: string | number) => {
         queryKey: [QUERY_KEYS.SUPPLIER_SETTLEMENT_DETAIL, id],
         queryFn: () => getSupplierSettlementById(id!),
         enabled: !!id,
-        select: (res) => res.data ?? null,
+        select: (res: any) => res.data ?? null,
     });
 };
 
@@ -57,9 +57,9 @@ export const useSupplierSettlementList = () => {
         placeholderData: keepPreviousData,
     });
 
-    const settlements = useMemo(() => data?.recordList ?? [], [data]);
+    const settlements = useMemo(() => (data as any)?.recordList ?? [], [data]);
 
-    const pagination = data?.pagination || {
+    const pagination = (data as any)?.pagination || {
         totalRecords: 0,
         totalPages: 0,
         currentPage: 1,
