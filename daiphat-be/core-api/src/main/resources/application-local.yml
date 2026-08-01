@@ -47,7 +47,10 @@ daiphat:
   auth:
     frontend-url: http://localhost:5173
     jwt:
-      access-token-ttl-seconds: ${AUTH_JWT_ACCESS_TOKEN_TTL_SECONDS}
+      secret: ${AUTH_JWT_SECRET}
+      issuer: ${AUTH_JWT_ISSUER:daiphat-core-api}
+      access-token-ttl-seconds: ${AUTH_JWT_ACCESS_TOKEN_TTL_SECONDS:900}
+      refresh-token-ttl-seconds: ${AUTH_JWT_REFRESH_TOKEN_TTL_SECONDS:604800}
     cookie:
       name: refresh_token
       secure: false
