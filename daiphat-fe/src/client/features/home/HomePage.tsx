@@ -1,13 +1,14 @@
+"use client";
+
 import { useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Header } from "../../components/layout/header";
 
 import { useAuthStore } from "../../../stores/useAuthStore";
-import { DatePicker } from '../../components/common/DatePicker';
 import { buildLotteryCountdownMessage, getCountdownState } from "../../components/home/LotteryCountdown";
 import { LeftSidebar } from "../../components/home/LeftSidebar";
 import { HomeSidebar } from "../../components/home/HomeSidebar";
 import { ResultsMatrix } from "../../components/home/ResultsMatrix";
+import { MobileLotterySelector } from "../../components/home/MobileLotterySelector";
 import { useLottery } from "../../hooks/useLottery";
 import { buildCountdownTarget, formatApiDateToDisplay, isTodayDisplayDate } from "../../types/lottery";
 
@@ -226,8 +227,6 @@ export const HomePage = () => {
       className="relative min-h-screen overflow-x-hidden font-client-main bg-fixed bg-cover bg-center"
       style={{ backgroundImage: 'url("https://i.ibb.co/BVFGYpL1/86f05f70-fcf8-445f-978e-a0539eb2f0de.png")' }}
     >
-      <Header />
-
       <main className="relative z-1">
         <div className="max-w-[1440px] mx-auto px-4 lg:px-6 py-8 lg:pt-24 flex flex-col lg:flex-row gap-4 lg:gap-6 items-start">
           <div className="hidden lg:block shrink-0">
@@ -242,75 +241,17 @@ export const HomePage = () => {
           </div>
 
           <div className="relative flex-1 min-w-0 w-full">
-            {/* Mobile Selectors */}
-            <div className="block lg:hidden mb-6 bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
-                <div className="flex flex-col gap-3">
-                    <select 
-                        className="w-full p-3 rounded-xl border border-gray-200 text-[#111111] font-bold outline-none cursor-pointer"
-                        value={isAllProvinceSelected || selectedProvinces.length > 1 ? '__ALL__' : singleProvince}
-                        onChange={(e) => {
-                          if (e.target.value === '__ALL__') {
-                            setSelectedProvinces(availableProvinces);
-                            return;
-                          }
-                          setSelectedProvinces([e.target.value]);
-                        }}
-                    >
-                        <option value="__ALL__">Tất cả đài miền Nam</option>
-                        {availableProvinces.map((province) => (
-                          <option key={province} value={province}>{province}</option>
-                        ))}
-                    </select>
-
-                    <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-                      <button
-                        onClick={() => {
-                          const el = document.getElementById('mobile-date-picker');
-                          const arrow = document.getElementById('mobile-date-arrow');
-                          if (el && arrow) {
-                            if (el.style.maxHeight === '600px') {
-                              el.style.maxHeight = '0px';
-                              el.style.opacity = '0';
-                              arrow.style.transform = 'rotate(0deg)';
-                            } else {
-                              el.style.maxHeight = '600px';
-                              el.style.opacity = '1';
-                              arrow.style.transform = 'rotate(180deg)';
-                            }
-                          }
-                        }}
-                        className="w-full flex items-center justify-between p-3 text-[#637381] font-medium outline-none cursor-pointer bg-white border-none"
-                      >
-                        <div className="flex items-center gap-2">
-                          <span className="material-symbols-outlined text-[18px]">calendar_month</span>
-                          <span>{selectedDate || 'Chọn ngày'}</span>
-                        </div>
-                        <span id="mobile-date-arrow" className="material-symbols-outlined text-[18px] transition-transform duration-300">
-                          expand_more
-                        </span>
-                      </button>
-                      
-                      <div id="mobile-date-picker" className="transition-all duration-300 overflow-hidden" style={{ maxHeight: '0px', opacity: 0 }}>
-                        <div className="p-3 border-t border-gray-100">
-                          <DatePicker
-                            selectedDate={selectedDate || ''}
-                            onDateSelect={(date) => {
-                              setSelectedDate(date);
-                              const el = document.getElementById('mobile-date-picker');
-                              const arrow = document.getElementById('mobile-date-arrow');
-                              if (el && arrow) {
-                                el.style.maxHeight = '0px';
-                                el.style.opacity = '0';
-                                arrow.style.transform = 'rotate(0deg)';
-                              }
-                            }}
-                            availableDates={availableDates}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                </div>
-            </div>
+            {/* Mobile Selectors Component */}
+            <MobileLotterySelector
+              isAllProvinceSelected={isAllProvinceSelected}
+              selectedProvinces={selectedProvinces}
+              singleProvince={singleProvince}
+              availableProvinces={availableProvinces}
+              selectedDate={selectedDate}
+              availableDates={availableDates}
+              onSelectProvince={setSelectedProvinces}
+              onSelectDate={setSelectedDate}
+            />
             
             <div className="relative">
               {shouldShowLoadingOverlay && (
@@ -377,8 +318,6 @@ export const HomePage = () => {
             onDigitHover={setHoveredDigit}
           />
         </div>
-
-
       </main>
     </div>
   );

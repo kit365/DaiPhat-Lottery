@@ -3,10 +3,16 @@ server:
 
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:5434/daiphat_core_db?charSet=UTF-8
+    url: jdbc:postgresql://localhost:5433/daiphat_core_db?charSet=UTF-8
     username: sa
     password: 12345
     driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 15
+      minimum-idle: 5
+      idle-timeout: 300000
+      max-lifetime: 600000
+      connection-timeout: 20000
   jpa:
     hibernate:
       ddl-auto: none

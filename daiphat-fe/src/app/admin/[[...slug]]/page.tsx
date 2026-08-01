@@ -2,9 +2,7 @@
 
 import { use, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { AuthGuard } from '@/admin/components/auth/AuthGuard';
-import { LayoutAdmin } from '@/admin/layouts/LayoutAdmin';
-import { AdminRoutes } from '@/admin/routes';
+import { AdminRoutes, renderAdminRouteElement } from '@/admin/routes';
 import {
   OutletProvider,
   extractRouteParams,
@@ -37,17 +35,17 @@ export default function AdminCatchAllPage({ params }: { params: Promise<{ slug?:
         String(a.path).split('/').filter(Boolean).length
     );
 
-    const matchedRoute = candidates[0];
+    const matchedRoute = candidates[0] || AdminRoutes.find((r) => r.path === 'dashboard');
     if (!matchedRoute) {
       return {
-        pageElement: AdminRoutes.find((r) => r.path === 'dashboard')?.element ?? null,
+        pageElement: null,
         routeParams: {} as Record<string, string>,
       };
     }
 
     return {
-      pageElement: matchedRoute.element,
-      routeParams: extractRouteParams(matchedRoute.path, slug),
+      pageElement: renderAdminRouteElement(matchedRoute),
+      routeParams: matchedRoute.path ? extractRouteParams(matchedRoute.path, slug) : {},
     };
   }, [slug]);
 
@@ -56,10 +54,8 @@ export default function AdminCatchAllPage({ params }: { params: Promise<{ slug?:
   }
 
   return (
-    <AuthGuard>
-      <OutletProvider outlet={pageElement} params={routeParams}>
-        <LayoutAdmin />
-      </OutletProvider>
-    </AuthGuard>
+    <OutletProvider outlet={pageElement} params={routeParams}>
+      {pageElement}
+    </OutletProvider>
   );
 }

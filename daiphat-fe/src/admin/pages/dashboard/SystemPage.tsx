@@ -1,6 +1,7 @@
 import { Grid, Box, Typography, Button, Divider, Stack, Avatar, CircularProgress, Table, TableBody, TableCell, TableHead, TableRow, TableContainer, Tooltip } from "@mui/material";
 import { useAuthStore } from "../../../stores/useAuthStore";
-import Chart from 'react-apexcharts';
+import dynamic from 'next/dynamic';
+const Chart = dynamic(() => import('react-apexcharts'), { ssr: false });
 import { Icon } from '@iconify/react';
 import { useState, useEffect } from "react";
 import DashboardCard from "../../components/dashboard/DashboardCard";
