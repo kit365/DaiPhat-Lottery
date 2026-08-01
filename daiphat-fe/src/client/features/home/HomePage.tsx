@@ -2,7 +2,6 @@
 
 import { useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Header } from "../../components/layout/header";
 
 import { useAuthStore } from "../../../stores/useAuthStore";
 import { buildLotteryCountdownMessage, getCountdownState } from "../../components/home/LotteryCountdown";
@@ -228,8 +227,6 @@ export const HomePage = () => {
       className="relative min-h-screen overflow-x-hidden font-client-main bg-fixed bg-cover bg-center"
       style={{ backgroundImage: 'url("https://i.ibb.co/BVFGYpL1/86f05f70-fcf8-445f-978e-a0539eb2f0de.png")' }}
     >
-      <Header />
-
       <main className="relative z-1">
         <div className="max-w-[1440px] mx-auto px-4 lg:px-6 py-8 lg:pt-24 flex flex-col lg:flex-row gap-4 lg:gap-6 items-start">
           <div className="hidden lg:block shrink-0">

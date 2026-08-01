@@ -2,7 +2,6 @@
 
 import React, { useState } from "react";
 import { motion } from "framer-motion";
-import { Header } from "../../../components/layout/header";
 import { useAuth } from "../../../hooks/useAuth";
 import { ProfileInfoCard } from "./components/ProfileInfoCard";
 import { RecentActivities } from "./components/RecentActivities";
@@ -26,8 +25,6 @@ export const ProfileDashboardPage = () => {
 
     return (
         <div className="min-h-screen bg-[#F8FAFC] font-client-main pb-20 text-[#102937]">
-            <Header />
-            
             <main className="max-w-[1400px] mx-auto px-5 lg:px-8 pt-28 lg:pt-32">
                 {/* Dashboard Header */}
                 <ProfileHeader user={user} />

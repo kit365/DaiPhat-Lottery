@@ -3,7 +3,6 @@
 import React, { useEffect, useRef } from "react";
 import { useLocation, useNavigate, Link, Outlet } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Header } from "../../../components/layout/header";
 import { useAuth } from "../../../hooks/useAuth";
 import { useAuthStore } from "../../../../stores/useAuthStore";
 import { useNotifications } from "../../../hooks/useNotifications";
@@ -97,8 +96,6 @@ export const ProfilePage = () => {
 
     return (
         <div className="min-h-screen flex flex-col bg-[#F8F9FA] font-['Inter',sans-serif] text-[#212B36]">
-            <Header />
-
             <style>{`
                 @media (min-width: 1024px) {
                     .profile-bg {

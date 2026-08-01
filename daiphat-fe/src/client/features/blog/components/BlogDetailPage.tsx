@@ -2,7 +2,6 @@
 
 import React, { useEffect } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { Header } from '../../../components/layout/header';
 import { RightSidebarBlog } from './BlogSidebar';
 import { usePublicPostBySlug, useRelatedPublicPosts, useIncrementPostView } from '../hooks/useBlog';
 import { useBlogDetail } from '../../../../admin/features/blogs/hooks/useBlog';
@@ -58,7 +57,6 @@ export const BlogDetailPage = () => {
   if (isLoading) {
     return (
       <div className="client-page min-h-screen pb-20">
-        <Header />
         <main className="pt-[80px]">
           <div className="py-20 text-center text-[#919EAB]">Đang tải chi tiết bài viết...</div>
         </main>
@@ -69,7 +67,6 @@ export const BlogDetailPage = () => {
   if (isError || !post) {
     return (
       <div className="client-page min-h-screen pb-20">
-        <Header />
         <main className="pt-[80px]">
           <div className="py-20 text-center text-[#919EAB]">Không tìm thấy bài viết hoặc đã xảy ra lỗi.</div>
         </main>
@@ -79,8 +76,6 @@ export const BlogDetailPage = () => {
 
   return (
     <div className="client-page min-h-screen pb-20">
-      <Header />
-
       <main className="pt-[80px]">
         {/* Hero Section */}
         <div

@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo } from 'react';
-import { Header } from "../../../components/layout/header";
 import { BottomNav } from "../../../components/layout/BottomNav";
 import { useLotterySchedule } from "../hooks/useLotterySchedule";
 
@@ -27,8 +26,6 @@ export const SchedulePage = () => {
       className="client-page relative min-h-screen overflow-x-hidden bg-fixed bg-cover bg-center"
       style={{ backgroundImage: 'url("https://i.ibb.co/BVFGYpL1/86f05f70-fcf8-445f-978e-a0539eb2f0de.png")' }}
     >
-      <Header />
-
       <main className="relative z-1 pt-16 lg:pt-24 pb-12 lg:pb-20">
         <div className="max-w-[1280px] mx-auto px-4 xl:px-0">
           <section className="mb-6 text-center">

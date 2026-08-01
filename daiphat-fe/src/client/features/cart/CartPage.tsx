@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Header } from '../../components/layout/header';
 import { Trash2, ChevronRight } from 'lucide-react';
 import { useCartStore, CartItem } from '../../../stores/useCartStore';
 import { useAuthStore } from '../../../stores/useAuthStore';
@@ -71,8 +70,6 @@ export const CartPage = () => {
             className="client-page min-h-screen flex flex-col pb-20 bg-fixed bg-cover bg-center"
             style={{ backgroundImage: 'url("https://i.ibb.co/BVFGYpL1/86f05f70-fcf8-445f-978e-a0539eb2f0de.png")' }}
         >
-            <Header />
-
             {/* Top Section for Breadcrumb & Title (Transparent to show background) */}
             <div className="w-full mt-[70px] lg:mt-[80px] py-4 lg:py-6">
                 <div className="w-full max-w-[1440px] mx-auto px-4 lg:px-8">

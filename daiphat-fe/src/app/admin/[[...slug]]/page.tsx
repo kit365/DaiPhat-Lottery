@@ -2,8 +2,6 @@
 
 import { use, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { AuthGuard } from '@/admin/components/auth/AuthGuard';
-import { LayoutAdmin } from '@/admin/layouts/LayoutAdmin';
 import { AdminRoutes, renderAdminRouteElement } from '@/admin/routes';
 import {
   OutletProvider,
@@ -56,10 +54,8 @@ export default function AdminCatchAllPage({ params }: { params: Promise<{ slug?:
   }
 
   return (
-    <AuthGuard>
-      <OutletProvider outlet={pageElement} params={routeParams}>
-        <LayoutAdmin />
-      </OutletProvider>
-    </AuthGuard>
+    <OutletProvider outlet={pageElement} params={routeParams}>
+      {pageElement}
+    </OutletProvider>
   );
 }

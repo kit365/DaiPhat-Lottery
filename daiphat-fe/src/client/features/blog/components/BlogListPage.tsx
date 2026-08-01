@@ -2,7 +2,6 @@
 
 import React from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Header } from '../../../components/layout/header';
 import { RightSidebarBlog } from './BlogSidebar';
 import { usePublicCategories, usePublicPosts } from '../hooks/useBlog';
 import { Pagination } from '../../../components/common/Pagination';
@@ -78,8 +77,6 @@ export const BlogListPage = () => {
 
   return (
     <div className="client-page min-h-screen">
-      <Header />
-
       <main className="pt-[80px]">
         {/* Hero Section */}
         <BlogHeroSection selectedCategory={selectedCategory} />
