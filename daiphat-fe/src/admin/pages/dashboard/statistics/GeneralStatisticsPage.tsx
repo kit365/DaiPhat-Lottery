@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Box, Typography, Stack, IconButton, Skeleton } from '@mui/material';
-import Chart from 'react-apexcharts';
+import dynamic from 'next/dynamic';
+const Chart = dynamic(() => import('react-apexcharts'), { ssr: false });
 import RefreshIcon from '@mui/icons-material/Refresh';
 import { getEcommerceStats } from '../../../api/dashboard.api';
 import DashboardCard from '../../../components/dashboard/DashboardCard';

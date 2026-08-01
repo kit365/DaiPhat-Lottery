@@ -105,6 +105,7 @@ export const Header = () => {
                 <img 
                   src="https://i.ibb.co/4R7c75YN/z7824247008533-94446d3b6c16598cda67404d805c15c4.jpg" 
                   alt="Đại Phát Logo" 
+                  decoding="async"
                   className="w-[38px] h-[38px] rounded-[10px] object-cover bg-white" 
                 />
               </div>
