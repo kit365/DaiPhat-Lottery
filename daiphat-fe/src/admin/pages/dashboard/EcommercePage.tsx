@@ -303,9 +303,9 @@ export const EcommercePage = () => {
                 }}
             >
                 <WelcomeWidget
-                    title={`Ch�o m?ng quay tr? l?i ??\n` + (user?.fullName || 'Admin')}
-                    description="H�m nay c� g� m?i? H�y ki?m tra c�c ch? s? kinh doanh v� l?ch d?t g?n d�y."
-                    img="/assets/illustrations/characters/character_7.png"
+                    title={`Chào mừng quay trở lại 👋\n` + (user?.fullName || 'Admin')}
+                    description="Hôm nay có gì mới? Hãy kiểm tra các chỉ số kinh doanh và lịch đặt gần đây."
+                    img="https://pub-c5e31b5cdafb419fb247a8ac2e78df7a.r2.dev/public/assets/illustrations/characters/character-present.webp"
                 />
             </Grid>
 
