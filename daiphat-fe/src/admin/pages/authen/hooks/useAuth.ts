@@ -67,14 +67,15 @@ export const useAuth = () => {
             const expiresIn = authData?.expires_in ?? authData?.expiresIn;
 
             if (isSuccess && accessToken) {
+                const ttlSeconds = expiresIn && expiresIn > 0 ? expiresIn : 900;
                 const cookieOptions = {
-                    expires: expiresIn ? expiresIn / 86400 : 7,
+                    expires: Math.max(ttlSeconds, 60) / 86400,
                     path: '/'
                 };
                 Cookies.set(STORAGE_KEYS.TOKEN, accessToken, cookieOptions);
                 set({
                     token: accessToken,
-                    expiresAt: expiresIn ? Date.now() + expiresIn * 1000 : null
+                    expiresAt: Date.now() + ttlSeconds * 1000
                 });
 
                 const meResponse = authData?.user

@@ -27,8 +27,12 @@ import LinkIcon from '@mui/icons-material/Link';
 import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
 import LayersIcon from '@mui/icons-material/Layers';
 import { UploadSingleFile } from '../../../../../components/upload/UploadSingleFile';
-import { reportTicketSerialFault } from '../../../inventory/services/ticketService';
+import {
+    buildReportSerialFaultPayload,
+    reportTicketSerialFault,
+} from '../../../inventory/services/ticketService';
 import { AppToast } from '../../../../../../utils/toast.util';
+import { isAlreadyFaultReportedSerial } from '../../utils/serialIncidentWorkflow';
 
 const QUICK_REASON_SUGGESTIONS = [
     'Rách nát trong phân loại',
@@ -42,6 +46,8 @@ interface SerialItem {
     id: number | string;
     serialNumber: string;
     status: string;
+    ticketCondition?: string | null;
+    returnBatchLineId?: number | string | null;
 }
 
 interface Props {
@@ -82,7 +88,7 @@ export const ReportSerialFaultModal: React.FC<Props> = ({
         if (open && serials) {
             const initialForms: Record<string | number, FormState> = {};
             serials.forEach((s) => {
-                const isAlreadyFaulted = s.status === 'DAMAGED' || s.status === 'LOST';
+                const isAlreadyFaulted = isAlreadyFaultReportedSerial(s);
                 const isSold = s.status === 'SOLD';
                 initialForms[s.id] = {
                     selected: !isAlreadyFaulted && !isSold,
@@ -188,12 +194,15 @@ export const ReportSerialFaultModal: React.FC<Props> = ({
         try {
             await Promise.all(
                 selectedItems.map((item) =>
-                    reportTicketSerialFault(item.id, {
-                        status: item.status,
-                        faultedBy: item.faultedBy,
-                        damagedReason: item.damagedReason,
-                        damagedEvidenceUrl: item.damagedEvidenceUrl || undefined
-                    })
+                    reportTicketSerialFault(
+                        item.id,
+                        buildReportSerialFaultPayload({
+                            faultKind: item.status,
+                            faultedBy: item.faultedBy,
+                            damagedReason: item.damagedReason,
+                            damagedEvidenceUrl: item.damagedEvidenceUrl || undefined,
+                        })
+                    )
                 )
             );
             AppToast.success('Báo cáo hủy vé thành công!');
@@ -274,7 +283,7 @@ export const ReportSerialFaultModal: React.FC<Props> = ({
                         const form = forms[s.id];
                         if (!form) return null;
 
-                        const isAlreadyFaulted = s.status === 'DAMAGED' || s.status === 'LOST';
+                        const isAlreadyFaulted = isAlreadyFaultReportedSerial(s);
                         const isSold = s.status === 'SOLD';
                         const isSelected = form.selected;
 
@@ -342,16 +351,18 @@ export const ReportSerialFaultModal: React.FC<Props> = ({
                                                 px: 2, 
                                                 py: 0.75, 
                                                 borderRadius: '30px', 
-                                                bgcolor: s.status === 'DAMAGED' ? '#fef2f2' : '#fff7ed', 
-                                                color: s.status === 'DAMAGED' ? '#ef4444' : '#f97316',
-                                                border: s.status === 'DAMAGED' ? '1px solid #fee2e2' : '1px solid #ffedd5',
+                                                bgcolor: (s.ticketCondition || '') === 'VOIDED' ? '#f1f5f9' : ((s.ticketCondition || s.status) === 'DAMAGED' ? '#fef2f2' : '#fff7ed'), 
+                                                color: (s.ticketCondition || '') === 'VOIDED' ? '#64748b' : ((s.ticketCondition || s.status) === 'DAMAGED' ? '#ef4444' : '#f97316'),
+                                                border: (s.ticketCondition || '') === 'VOIDED' ? '1px solid #e2e8f0' : ((s.ticketCondition || s.status) === 'DAMAGED' ? '1px solid #fee2e2' : '1px solid #ffedd5'),
                                                 fontWeight: 700,
                                                 fontSize: '0.75rem',
                                                 letterSpacing: '0.5px',
                                                 textTransform: 'uppercase'
                                             }}
                                         >
-                                            Đã báo {s.status === 'DAMAGED' ? 'Hỏng vật lý' : 'Thất lạc/Mất'}
+                                            {(s.ticketCondition || '') === 'VOIDED'
+                                                ? 'Đã hủy (VOIDED)'
+                                                : `Đã báo ${(s.ticketCondition || s.status) === 'DAMAGED' ? 'Hỏng vật lý' : 'Thất lạc/Mất'}`}
                                         </Box>
                                     )}
                                     {isSold && (

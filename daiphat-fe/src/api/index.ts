@@ -47,6 +47,16 @@ apiApp.interceptors.request.use((config) => {
         const token = resolveAccessToken();
         if (token) {
             config.headers.Authorization = `Bearer ${token}`;
+        } else {
+            // Drop stale `Bearer undefined` from cookie-only withAuth helpers.
+            const existing = String(config.headers.Authorization || "");
+            if (!existing || existing.includes("undefined") || existing.includes("null")) {
+                if (typeof config.headers.delete === "function") {
+                    config.headers.delete("Authorization");
+                } else {
+                    delete (config.headers as Record<string, unknown>).Authorization;
+                }
+            }
         }
     }
 
@@ -123,13 +133,15 @@ const handleExpiredSession = (showToast: boolean = true) => {
 
 const persistAccessToken = (accessToken: string, expiresIn?: number) => {
     const authStore = useAuthStore.getState();
+    const ttlSeconds = expiresIn && expiresIn > 0 ? expiresIn : 900;
     authStore.set({
         token: accessToken,
-        expiresAt: expiresIn ? Date.now() + expiresIn * 1000 : null
+        expiresAt: Date.now() + ttlSeconds * 1000
     });
 
     Cookies.set(STORAGE_KEYS.TOKEN, accessToken, {
-        expires: expiresIn ? expiresIn / 86400 : 7,
+        // Keep cookie at least as long as the JWT; never use sub-minute TTL for the FE cookie.
+        expires: Math.max(ttlSeconds, 60) / 86400,
         path: "/"
     });
 };
@@ -185,7 +197,7 @@ apiApp.interceptors.response.use(
                     .then(token => {
                         if (token) {
                             originalRequest._retry = true;
-                            delete originalRequest.headers.Authorization;
+                            originalRequest.headers.Authorization = `Bearer ${token}`;
                             return apiApp(originalRequest);
                         }
                         return Promise.reject(error);

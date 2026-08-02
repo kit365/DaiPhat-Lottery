@@ -6,6 +6,8 @@ export type CancelSelectedSerial = {
     id: number | string;
     serialNumber: string;
     status: string;
+    ticketCondition?: string | null;
+    returnBatchLineId?: number | string | null;
     ticketId?: number | string;
     ticketNumbers?: string;
     ticketStatus?: string;
@@ -23,6 +25,8 @@ export type CancelTicketLike = {
         id: number | string;
         serialNumber?: string;
         status?: string | null;
+        ticketCondition?: string | null;
+        returnBatchLineId?: number | string | null;
         reservedByOrderId?: string;
         importBatchLineId?: number | string;
     }>;
@@ -35,6 +39,8 @@ const mapCancelableSerial = (
     id: serial.id,
     serialNumber: serial.serialNumber || '',
     status: serial.status || '',
+    ticketCondition: serial.ticketCondition,
+    returnBatchLineId: serial.returnBatchLineId,
     ticketId: ticket.id,
     ticketNumbers: ticket.numbers,
     ticketStatus: ticket.status || undefined,
@@ -53,7 +59,7 @@ export const useCancelTicketSelection = (tickets: CancelTicketLike[]) => {
                 return;
             }
             (ticket.serials || []).forEach((serial) => {
-                if (!isSerialIncidentEligible(serial.status)) {
+                if (!isSerialIncidentEligible(serial)) {
                     return;
                 }
                 list.push(mapCancelableSerial(ticket, serial));
@@ -76,7 +82,7 @@ export const useCancelTicketSelection = (tickets: CancelTicketLike[]) => {
         if (!isTicketSelectableForCancel(ticket.status)) {
             return [];
         }
-        return (ticket.serials || []).filter((serial) => isSerialIncidentEligible(serial.status));
+        return (ticket.serials || []).filter((serial) => isSerialIncidentEligible(serial));
     }, []);
 
     const getTicketSelectionState = useCallback(
@@ -114,12 +120,12 @@ export const useCancelTicketSelection = (tickets: CancelTicketLike[]) => {
         }
 
         const ticketSerialIds = (ticket.serials || [])
-            .filter((serial) => isSerialIncidentEligible(serial.status))
+            .filter((serial) => isSerialIncidentEligible(serial))
             .map((serial) => String(serial.id));
 
         if (checked) {
             const cancelableOfTicket = (ticket.serials || [])
-                .filter((serial) => isSerialIncidentEligible(serial.status))
+                .filter((serial) => isSerialIncidentEligible(serial))
                 .map((serial) => mapCancelableSerial(ticket, serial));
 
             setSelectedSerials((prev) => {
@@ -133,7 +139,7 @@ export const useCancelTicketSelection = (tickets: CancelTicketLike[]) => {
 
     const handleSelectSerial = useCallback(
         (ticket: CancelTicketLike, serial: NonNullable<CancelTicketLike['serials']>[number], checked: boolean) => {
-            if (!isTicketSelectableForCancel(ticket.status) || !isSerialIncidentEligible(serial.status)) {
+            if (!isTicketSelectableForCancel(ticket.status) || !isSerialIncidentEligible(serial)) {
                 return;
             }
 

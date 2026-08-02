@@ -33,7 +33,11 @@ import ReportProblemIcon from '@mui/icons-material/ReportProblem';
 import LinkIcon from '@mui/icons-material/Link';
 import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
 import LayersIcon from '@mui/icons-material/Layers';
-import { reportTicketSerialFault, replaceTicketDigits } from '../../../inventory/services/ticketService';
+import {
+    buildReportSerialFaultPayload,
+    reportTicketSerialFault,
+    replaceTicketDigits,
+} from '../../../inventory/services/ticketService';
 import {
     applyReplacementSerialDuplicateErrors,
     DUPLICATE_REPLACEMENT_SERIAL_MESSAGE,
@@ -68,6 +72,8 @@ interface SerialItem {
     id: number | string;
     serialNumber: string;
     status: string;
+    ticketCondition?: string | null;
+    returnBatchLineId?: number | string | null;
     ticketId?: number | string;
     ticketNumbers?: string;
     ticketStatus?: string;
@@ -133,13 +139,8 @@ const getTicketStatusConfig = (status?: string) => {
             return { label: 'Đã bán (SOLD)', color: '#0369a1', bgcolor: '#e0f2fe', borderColor: '#bae6fd' };
         case 'EXPIRED':
             return { label: 'Hết hạn (EXPIRED)', color: '#64748b', bgcolor: '#f1f5f9', borderColor: '#e2e8f0' };
-        case 'DAMAGED':
-            return { label: 'Hỏng (DAMAGED)', color: '#b91c1c', bgcolor: '#fee2e2', borderColor: '#fecaca' };
-        case 'LOST':
-            return { label: 'Mất (LOST)', color: '#b91c1c', bgcolor: '#fee2e2', borderColor: '#fecaca' };
-        case 'VOIDED':
         case 'CANCELLED':
-            return { label: 'Đã hủy (VOIDED)', color: '#b91c1c', bgcolor: '#fee2e2', borderColor: '#fecaca' };
+            return { label: 'Đã hủy', color: '#b91c1c', bgcolor: '#fee2e2', borderColor: '#fecaca' };
         default:
             return { label: `Vé (${s})`, color: '#334155', bgcolor: '#f1f5f9', borderColor: '#cbd5e1' };
     }
@@ -552,7 +553,17 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
         ? currentGroupSelectedSerials.length > 0
         : Object.keys(forms).some(id => forms[id].selected && forms[id].status === 'VOIDED');
 
-    const getSerialStatusConfig = (status: string) => {
+    const getSerialStatusConfig = (status: string, ticketCondition?: string | null) => {
+        const condition = (ticketCondition || '').toUpperCase();
+        if (condition === 'DAMAGED') {
+            return { label: 'Hỏng (DAMAGED)', bgcolor: '#fee2e2', textColor: '#b91c1c', borderColor: '#fca5a5' };
+        }
+        if (condition === 'LOST') {
+            return { label: 'Mất (LOST)', bgcolor: '#fee2e2', textColor: '#b91c1c', borderColor: '#fca5a5' };
+        }
+        if (condition === 'VOIDED') {
+            return { label: 'Hủy (VOIDED)', bgcolor: '#fee2e2', textColor: '#b91c1c', borderColor: '#fca5a5' };
+        }
         switch (status) {
             case 'IN_STOCK':
                 return { label: 'Trong kho (IN_STOCK)', bgcolor: '#dcfce7', textColor: '#15803d', borderColor: '#86efac' };
@@ -564,19 +575,13 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
                 return { label: 'Đã bán (SOLD)', bgcolor: '#e0f2fe', textColor: '#0369a1', borderColor: '#7dd3fc' };
             case 'EXPIRED':
                 return { label: 'Hết hạn (EXPIRED)', bgcolor: '#f1f5f9', textColor: '#64748b', borderColor: '#cbd5e1' };
-            case 'DAMAGED':
-                return { label: 'Hỏng (DAMAGED)', bgcolor: '#fee2e2', textColor: '#b91c1c', borderColor: '#fca5a5' };
-            case 'LOST':
-                return { label: 'Mất (LOST)', bgcolor: '#fee2e2', textColor: '#b91c1c', borderColor: '#fca5a5' };
-            case 'VOIDED':
-                return { label: 'Hủy (VOIDED)', bgcolor: '#fee2e2', textColor: '#b91c1c', borderColor: '#fca5a5' };
             default:
                 return { label: status || 'Chưa xác định', bgcolor: '#f1f5f9', textColor: '#64748b', borderColor: '#cbd5e1' };
         }
     };
 
-    const renderSerialStatusChip = (status: string) => {
-        const config = getSerialStatusConfig(status);
+    const renderSerialStatusChip = (status: string, ticketCondition?: string | null) => {
+        const config = getSerialStatusConfig(status, ticketCondition);
         return (
             <Chip 
                 label={config.label} 
@@ -597,7 +602,7 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
         if (serials) {
             const initialForms: Record<string | number, FormState> = {};
             serials.forEach((s) => {
-                const incidentEligible = isSerialIncidentEligible(s.status);
+                const incidentEligible = isSerialIncidentEligible(s);
                 initialForms[s.id] = {
                     selected: incidentEligible,
                     status: 'DAMAGED',
@@ -968,20 +973,23 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
     };
 
     const reportSerialFaultItem = async (item: MappedSubmitItem) => {
-        await reportTicketSerialFault(item.id, {
-            status: item.status,
-            faultedBy: item.faultedBy,
-            damagedReason: item.damagedReason,
-            damagedEvidenceUrl: item.damagedEvidenceUrl || undefined,
-            replacementSerialNumber:
-                item.status === 'VOIDED' && replacementType === 'SERIALS'
-                    ? item.replacementSerial?.trim() || undefined
-                    : undefined,
-            replacementTicketImg:
-                item.status === 'VOIDED' && replacementType === 'SERIALS'
-                    ? item.replacementTicketImg || undefined
-                    : undefined,
-        });
+        await reportTicketSerialFault(
+            item.id,
+            buildReportSerialFaultPayload({
+                faultKind: item.status,
+                faultedBy: item.faultedBy,
+                damagedReason: item.damagedReason,
+                damagedEvidenceUrl: item.damagedEvidenceUrl || undefined,
+                replacementSerialNumber:
+                    item.status === 'VOIDED' && replacementType === 'SERIALS'
+                        ? item.replacementSerial?.trim() || undefined
+                        : undefined,
+                replacementTicketImg:
+                    item.status === 'VOIDED' && replacementType === 'SERIALS'
+                        ? item.replacementTicketImg || undefined
+                        : undefined,
+            })
+        );
     };
 
     const handleConfirmSubmit = async () => {
@@ -2005,7 +2013,7 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
                         const form = forms[s.id];
                         if (!form) return null;
 
-                        const incidentEligible = isSerialIncidentEligible(s.status);
+                        const incidentEligible = isSerialIncidentEligible(s);
                         const isSelected = form.selected;
 
                         // Card Styling
@@ -2061,7 +2069,7 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
                                         }
                                     />
                                     
-                                    {renderSerialStatusChip(s.status)}
+                                    {renderSerialStatusChip(s.status, s.ticketCondition)}
                                     {!incidentEligible && (
                                         <Typography variant="caption" color="text.secondary" sx={{ ml: 1, fontStyle: 'italic' }}>
                                             Chỉ tra cứu — không thể báo sự cố
@@ -2543,7 +2551,7 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
 
                                 <Box sx={{ pt: 0.5 }}>
                                     <Typography variant="caption" color="#64748b" sx={{ fontSize: '0.72rem', display: 'block', lineHeight: 1.3 }}>
-                                        Trạng thái dãy số cũ: Các sê-ri sẽ chuyển <strong style={{ color: '#ef4444' }}>VOIDED</strong> và dãy số bị soft-delete (ẩn khỏi kho), giữ lại để đối soát.
+                                        Trạng thái dãy số cũ: Các sê-ri sẽ chuyển <strong style={{ color: '#ef4444' }}>ticketCondition = VOIDED</strong> (status giữ IN_STOCK) và dãy số bị soft-delete (ẩn khỏi kho), giữ lại để đối soát.
                                     </Typography>
                                 </Box>
                             </Stack>

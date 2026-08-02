@@ -982,7 +982,9 @@ export function OrderInspectionSection({
                                         const activityBadge = resolveOrderDetailStatusBadge(ticket.status);
                                         const serialBadge = resolveLotteryTicketSerialStatusBadge(
                                             ticket.serialStatus,
-                                            ticket.serialStatusDisplayName
+                                            ticket.serialStatusDisplayName,
+                                            ticket.ticketCondition,
+                                            ticket.ticketConditionDisplayName
                                         );
                                         const candidates = ticket.id != null ? availableReplacements[ticket.id] : undefined;
                                         const isLoading = ticket.id != null && candidates === undefined;

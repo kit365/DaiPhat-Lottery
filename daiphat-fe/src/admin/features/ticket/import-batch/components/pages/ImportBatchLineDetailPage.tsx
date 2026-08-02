@@ -56,6 +56,7 @@ import {
     buildCancelFlowStatusFilterOptions,
     getCancelFlowTicketStatusLabel,
     isTicketSelectableForCancel,
+    matchesCancelFlowSerialFilter,
     matchesCancelFlowStatusFilter,
 } from '../../utils/cancelTicketSelection';
 import { isSerialIncidentEligible } from '../../utils/serialIncidentWorkflow';
@@ -76,16 +77,36 @@ const getTicketStatusBadgeClass = (status?: string | null): string => {
             return 'admin-status-badge--success';
         case 'RESERVED':
         case 'PROXY_HOLDING':
-        case 'PENDING_RETURN':
-        case 'RETURNED':
             return 'admin-status-badge--pending';
         case 'DAMAGED':
         case 'LOST':
+        case 'VOIDED':
             return 'admin-status-badge--inactive';
         default:
             // Unknown / legacy cached values
             return 'admin-status-badge--draft';
     }
+};
+
+const getSerialDisplayBadge = (serial: {
+    status?: string | null;
+    statusDisplayName?: string | null;
+    ticketCondition?: string | null;
+    ticketConditionDisplayName?: string | null;
+}) => {
+    const condition = (serial.ticketCondition || '').toUpperCase();
+    if (condition === 'DAMAGED' || condition === 'LOST' || condition === 'VOIDED') {
+        return {
+            className: getTicketStatusBadgeClass(condition),
+            label:
+                serial.ticketConditionDisplayName ||
+                (condition === 'DAMAGED' ? 'Hỏng' : condition === 'LOST' ? 'Thất lạc' : 'Đã hủy'),
+        };
+    }
+    return {
+        className: getTicketStatusBadgeClass(serial.status),
+        label: serial.statusDisplayName || getTicketStatusLabel(serial.status) || serial.status || '—',
+    };
 };
 
 const CollapsibleRow = ({ 
@@ -111,7 +132,7 @@ const CollapsibleRow = ({
         if (!ticketSelectable) {
             return [];
         }
-        return (ticket.serials || []).filter((s: any) => isSerialIncidentEligible(s.status));
+        return (ticket.serials || []).filter((s: any) => isSerialIncidentEligible(s));
     }, [ticket.serials, ticketSelectable]);
 
     const cancelableCount = cancelableSerials.length;
@@ -189,7 +210,7 @@ const CollapsibleRow = ({
             </TableRow>
             {open && ticket.serials && ticket.serials.length > 0 ? (
                 ticket.serials.map((s: any, sIndex: number) => {
-                    const sStatusLabel = s.statusDisplayName || getTicketStatusLabel(s.status) || s.status || '—';
+                    const serialBadge = getSerialDisplayBadge(s);
                     const isSerialChecked = selectedSerials.some(x => String(x.id) === String(s.id));
 
                     return (
@@ -207,7 +228,7 @@ const CollapsibleRow = ({
                                 <Checkbox
                                     size="small"
                                     checked={isSerialChecked}
-                                    disabled={!ticketSelectable || !isSerialIncidentEligible(s.status)}
+                                    disabled={!ticketSelectable || !isSerialIncidentEligible(s)}
                                     onChange={(e) => onSelectSerial(ticket, s, e.target.checked)}
                                 />
                             </TableCell>
@@ -239,8 +260,8 @@ const CollapsibleRow = ({
                                 </Typography>
                             </TableCell>
                             <TableCell align="center" sx={{ py: 1 }} onClick={() => cancelMode === 'SERIAL' && onSelectSerial(ticket, s, !isSerialChecked)}>
-                                <span className={`admin-status-badge ${getTicketStatusBadgeClass(s.status)}`.trim()} style={{ fontSize: '0.7rem', height: '1.25rem' }}>
-                                    {sStatusLabel}
+                                <span className={`admin-status-badge ${serialBadge.className}`.trim()} style={{ fontSize: '0.7rem', height: '1.25rem' }}>
+                                    {serialBadge.label}
                                 </span>
                             </TableCell>
                         </TableRow>
@@ -312,8 +333,8 @@ export const ImportBatchLineDetailPage = () => {
 
             if (statusFilter !== 'ALL') {
                 const ticketStatusMatch = matchesCancelFlowStatusFilter(ticket.status, statusFilter);
-                const serialStatusMatch = (ticket.serials || []).some(
-                    (s: any) => normalizeTicketStatus(s.status) === statusFilter
+                const serialStatusMatch = (ticket.serials || []).some((s: any) =>
+                    matchesCancelFlowSerialFilter(s, statusFilter)
                 );
                 if (!ticketStatusMatch && !serialStatusMatch) return false;
             }
@@ -334,13 +355,15 @@ export const ImportBatchLineDetailPage = () => {
                 return;
             }
             (ticket.serials || []).forEach((s: any) => {
-                if (!isSerialIncidentEligible(s.status)) {
+                if (!isSerialIncidentEligible(s)) {
                     return;
                 }
                 list.push({
                     id: s.id,
                     serialNumber: s.serialNumber,
                     status: s.status,
+                    ticketCondition: s.ticketCondition,
+                    returnBatchLineId: s.returnBatchLineId,
                     ticketId: ticket.id,
                     ticketNumbers: ticket.numbers,
                     ticketStatus: ticket.status,
@@ -368,15 +391,17 @@ export const ImportBatchLineDetailPage = () => {
             return;
         }
         const ticketSerialIds = (ticket.serials || [])
-            .filter((s: any) => isSerialIncidentEligible(s.status))
+            .filter((s: any) => isSerialIncidentEligible(s))
             .map((s: any) => String(s.id));
         if (checked) {
             const cancelableOfTicket = (ticket.serials || [])
-                .filter((s: any) => isSerialIncidentEligible(s.status))
+                .filter((s: any) => isSerialIncidentEligible(s))
                 .map((s: any) => ({
                 id: s.id,
                 serialNumber: s.serialNumber,
                 status: s.status,
+                ticketCondition: s.ticketCondition,
+                returnBatchLineId: s.returnBatchLineId,
                 ticketId: ticket.id,
                 ticketNumbers: ticket.numbers,
                 reservedByOrderId: s.reservedByOrderId,
@@ -392,7 +417,7 @@ export const ImportBatchLineDetailPage = () => {
     };
 
     const handleSelectSerial = (ticket: any, serial: any, checked: boolean) => {
-        if (!isTicketSelectableForCancel(ticket.status) || !isSerialIncidentEligible(serial.status)) {
+        if (!isTicketSelectableForCancel(ticket.status) || !isSerialIncidentEligible(serial)) {
             return;
         }
         if (checked) {
@@ -402,6 +427,8 @@ export const ImportBatchLineDetailPage = () => {
                     id: serial.id,
                     serialNumber: serial.serialNumber,
                     status: serial.status,
+                    ticketCondition: serial.ticketCondition,
+                    returnBatchLineId: serial.returnBatchLineId,
                     ticketId: ticket.id,
                     ticketNumbers: ticket.numbers,
                     reservedByOrderId: serial.reservedByOrderId,

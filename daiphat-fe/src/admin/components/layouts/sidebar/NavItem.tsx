@@ -130,10 +130,10 @@ export const NavItem = memo(({ item }: { item: any }) => {
     const { t } = useTranslation();
     const { pathname } = useLocation();
     const { isOpen } = useSidebar();
-    const { user } = useAuthStore();
-    const showRefundBadge = item.id === 'refunds';
-    const showPrizePayoutBadge = item.id === 'prize-payouts';
-    const showPreparingBadge = item.id === 'orders';
+    const { user, token } = useAuthStore();
+    const showRefundBadge = item.id === 'refunds' && Boolean(token) && Boolean(user);
+    const showPrizePayoutBadge = item.id === 'prize-payouts' && Boolean(token) && Boolean(user);
+    const showPreparingBadge = item.id === 'orders' && Boolean(token) && Boolean(user);
 
     const normalizedRole = resolveRoleCode(user);
     const isStaff = normalizedRole.includes('STAFF');
