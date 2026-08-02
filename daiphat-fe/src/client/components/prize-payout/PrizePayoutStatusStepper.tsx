@@ -3,9 +3,34 @@ import { PrizePayoutRequestStatus } from '../../../types/prize-payout.type';
 
 interface PrizePayoutStatusStepperProps {
     status: PrizePayoutRequestStatus;
+    rejectCount?: number;
+    maxOnlineRejectRetry?: number;
 }
 
-export const PrizePayoutStatusStepper: React.FC<PrizePayoutStatusStepperProps> = ({ status }) => {
+export const PrizePayoutStatusStepper: React.FC<PrizePayoutStatusStepperProps> = ({
+    status,
+    rejectCount,
+    maxOnlineRejectRetry,
+}) => {
+    if (status === PrizePayoutRequestStatus.MANUAL_RESOLUTION) {
+        const maxRetry = maxOnlineRejectRetry ?? 3;
+        const attempts = rejectCount ?? maxRetry;
+        return (
+            <div className="bg-[#FFF5F5] rounded-[20px] p-6 border border-[#FECACA] flex items-start gap-4">
+                <div className="w-12 h-12 rounded-full bg-[#C62828] text-white flex items-center justify-center text-xl shrink-0">
+                    <i className="fa-solid fa-headset"></i>
+                </div>
+                <div>
+                    <h3 className="text-[#C62828] font-bold text-[16px]">Cần xử lý tại đại lý</h3>
+                    <p className="text-[#637381] text-[14px] mt-1 leading-relaxed">
+                        Yêu cầu trả thưởng online đã bị từ chối {attempts}/{maxRetry} lần. Vui lòng mang CCCD và vé đến
+                        đại lý đổi thưởng hoặc liên hệ CSKH.
+                    </p>
+                </div>
+            </div>
+        );
+    }
+
     if (status === PrizePayoutRequestStatus.REJECTED) {
         return (
             <div className="bg-[#FFF4F4] rounded-[20px] p-6 border border-[#ee1314]/20 flex items-center gap-4">
@@ -36,10 +61,16 @@ export const PrizePayoutStatusStepper: React.FC<PrizePayoutStatusStepperProps> =
 
     const steps = [
         { key: PrizePayoutRequestStatus.PENDING, label: 'Cần xử lý', icon: 'fa-solid fa-clock' },
+        { key: PrizePayoutRequestStatus.APPROVED, label: 'Đã duyệt', icon: 'fa-solid fa-user-check' },
         { key: PrizePayoutRequestStatus.COMPLETED, label: 'Đã chuyển khoản', icon: 'fa-solid fa-money-bill-transfer' },
     ];
 
-    const currentIndex = status === PrizePayoutRequestStatus.COMPLETED ? 1 : 0;
+    const currentIndex =
+        status === PrizePayoutRequestStatus.COMPLETED
+            ? 2
+            : status === PrizePayoutRequestStatus.APPROVED
+                ? 1
+                : 0;
 
     return (
         <div className="bg-white rounded-[20px] p-6 border border-[#E5E8EB] shadow-[0_2px_12px_rgb(0,0,0,0.03)]">
@@ -47,7 +78,7 @@ export const PrizePayoutStatusStepper: React.FC<PrizePayoutStatusStepperProps> =
                 <div className="absolute top-6 left-0 w-full h-[3px] bg-[#F4F6F8] -translate-y-1/2 z-0 rounded-full"></div>
                 <div
                     className="absolute top-6 left-0 h-[3px] bg-[#00A76F] -translate-y-1/2 z-0 transition-all duration-700 rounded-full"
-                    style={{ width: `${currentIndex * 100}%` }}
+                    style={{ width: `${(currentIndex / Math.max(steps.length - 1, 1)) * 100}%` }}
                 ></div>
                 {steps.map((step, index) => {
                     const isCompleted = index <= currentIndex;
