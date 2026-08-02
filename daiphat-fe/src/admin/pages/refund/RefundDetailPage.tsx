@@ -112,6 +112,19 @@ export const RefundDetailPage = () => {
     const navigate = useNavigate();
     const location = useLocation();
     const refundId = Number(id);
+    const returnNav = location.state as {
+        returnTo?: string;
+        returnLabel?: string;
+        openTransfer?: boolean;
+    } | null;
+    const backPath =
+        returnNav?.returnTo && returnNav.returnTo.startsWith(`/${prefixAdmin}/`)
+            ? returnNav.returnTo
+            : `/${prefixAdmin}/refunds/list`;
+    const backLabel =
+        returnNav?.returnTo && returnNav.returnTo.startsWith(`/${prefixAdmin}/`)
+            ? (returnNav.returnLabel || 'Quay lại khiếu nại')
+            : 'Quay lại';
 
     const [transferOpen, setTransferOpen] = useState(false);
 
@@ -162,8 +175,15 @@ export const RefundDetailPage = () => {
             setTransferOpen(true);
         }
 
-        navigate(location.pathname, { replace: true, state: {} });
-    }, [location.pathname, location.state, navigate, refund]);
+        navigate(location.pathname, {
+            replace: true,
+            state: {
+                ...(returnNav?.returnTo
+                    ? { returnTo: returnNav.returnTo, returnLabel: returnNav.returnLabel }
+                    : {}),
+            },
+        });
+    }, [location.pathname, location.state, navigate, refund, returnNav?.returnTo, returnNav?.returnLabel]);
 
     if (isLoading) {
         return (
@@ -177,8 +197,8 @@ export const RefundDetailPage = () => {
         return (
             <Box textAlign="center" py={8}>
                 <Typography color="text.secondary">Không tìm thấy yêu cầu hoàn tiền</Typography>
-                <Button sx={{ mt: 2 }} onClick={() => navigate(`/${prefixAdmin}/refunds/list`)}>
-                    Quay lại danh sách
+                <Button sx={{ mt: 2 }} onClick={() => navigate(backPath)}>
+                    {backLabel === 'Quay lại' ? 'Quay lại danh sách' : backLabel}
                 </Button>
             </Box>
         );
@@ -251,7 +271,7 @@ export const RefundDetailPage = () => {
                         </CanAccess>
                         <Button
                             variant="outlined"
-                            onClick={() => navigate(`/${prefixAdmin}/refunds/list`)}
+                            onClick={() => navigate(backPath)}
                             startIcon={<Icon icon="eva:arrow-back-fill" />}
                             sx={{
                                 ...headerButtonSx,
@@ -263,7 +283,7 @@ export const RefundDetailPage = () => {
                                 },
                             }}
                         >
-                            Quay lại
+                            {backLabel}
                         </Button>
                     </Stack>
                 </Box>

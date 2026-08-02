@@ -4,6 +4,8 @@ import { prizePayoutAdminApi } from '../../../api/prizePayout.api';
 import { QUERY_KEYS } from '../../../../constants/queryKeys';
 import {
     CompletePrizePayoutRequest,
+    CreateStaffPrizePayoutBatchRequest,
+    CreateStaffPrizePayoutRequest,
     GetStaffPrizePayoutsParams,
     RejectPrizePayoutRequest,
 } from '../../../../types/prize-payout.type';
@@ -28,6 +30,57 @@ export const useGetStaffPrizePayoutDetail = (id: number) => {
     });
 };
 
+export const useCreateStaffPrizePayout = () => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: (data: CreateStaffPrizePayoutRequest) => prizePayoutAdminApi.createInPerson(data),
+        onSuccess: (response) => {
+            if (response.success) {
+                toast.success(response.message || 'Đã tạo yêu cầu trả thưởng tại quầy');
+                queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.ADMIN_PRIZE_PAYOUTS] });
+            } else {
+                toast.error(response.message || 'Không thể tạo yêu cầu');
+            }
+        },
+        onError: (error: any) => toast.error(getErrorMessage(error, 'Lỗi kết nối')),
+    });
+};
+
+export const useCreateStaffPrizePayoutBatch = () => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: (data: CreateStaffPrizePayoutBatchRequest) => prizePayoutAdminApi.createInPersonBatch(data),
+        onSuccess: (response) => {
+            if (response.success) {
+                toast.success(response.message || 'Đã gửi yêu cầu trả thưởng — chờ duyệt');
+                queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.ADMIN_PRIZE_PAYOUTS] });
+            } else {
+                toast.error(response.message || 'Không thể tạo yêu cầu');
+            }
+        },
+        onError: (error: any) => toast.error(getErrorMessage(error, 'Lỗi kết nối')),
+    });
+};
+
+export const useApprovePrizePayout = () => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: (id: number) => prizePayoutAdminApi.approve(id),
+        onSuccess: (response, id) => {
+            if (response.success) {
+                toast.success(response.message || 'Đã duyệt yêu cầu trả thưởng');
+                queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.ADMIN_PRIZE_PAYOUTS] });
+                queryClient.invalidateQueries({
+                    queryKey: [QUERY_KEYS.ADMIN_PRIZE_PAYOUT_DETAIL, id],
+                });
+            } else {
+                toast.error(response.message || 'Không thể duyệt yêu cầu');
+            }
+        },
+        onError: (error: any) => toast.error(getErrorMessage(error, 'Lỗi kết nối')),
+    });
+};
+
 export const useCompletePrizePayout = () => {
     const queryClient = useQueryClient();
     return useMutation({
@@ -35,13 +88,13 @@ export const useCompletePrizePayout = () => {
             prizePayoutAdminApi.complete(id, data),
         onSuccess: (response, variables) => {
             if (response.success) {
-                toast.success(response.message || 'Xác nhận chuyển khoản thành công');
+                toast.success(response.message || 'Xác nhận trả thưởng thành công');
                 queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.ADMIN_PRIZE_PAYOUTS] });
                 queryClient.invalidateQueries({
                     queryKey: [QUERY_KEYS.ADMIN_PRIZE_PAYOUT_DETAIL, variables.id],
                 });
             } else {
-                toast.error(response.message || 'Không thể xác nhận chuyển khoản');
+                toast.error(response.message || 'Không thể xác nhận trả thưởng');
             }
         },
         onError: (error: any) => toast.error(getErrorMessage(error, 'Lỗi kết nối')),
