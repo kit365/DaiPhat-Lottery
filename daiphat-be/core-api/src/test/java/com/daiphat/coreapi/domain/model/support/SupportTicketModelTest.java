@@ -109,7 +109,7 @@ class SupportTicketModelTest {
 
         ticket.resolveByStaff(55L, "Refund processed");
 
-        assertThat(ticket.getStatus()).isEqualTo(TicketStatus.RESOLVED);
+        assertThat(ticket.getStatus()).isEqualTo(TicketStatus.CLOSED);
         assertThat(ticket.getResponse()).isEqualTo("Refund processed");
         assertThat(ticket.getResolvedReasonId()).isEqualTo(55L);
         assertThat(ticket.getRejectedReasonId()).isNull();
@@ -122,7 +122,7 @@ class SupportTicketModelTest {
 
         ticket.resolveByStaff(56L, "Issue fixed");
 
-        assertThat(ticket.getStatus()).isEqualTo(TicketStatus.RESOLVED);
+        assertThat(ticket.getStatus()).isEqualTo(TicketStatus.CLOSED);
         assertThat(ticket.getResolvedReasonId()).isEqualTo(56L);
     }
 
@@ -207,6 +207,29 @@ class SupportTicketModelTest {
                 .isInstanceOf(DomainException.class)
                 .extracting(ex -> ((DomainException) ex).getErrorCode())
                 .isEqualTo(ErrorCode.TICKET_OPERATOR_MUST_ASSIGN_FIRST);
+    }
+
+    @Test
+    void closeByCustomer_allowsOpenInProgressAndWaiting() {
+        for (TicketStatus status : List.of(
+                TicketStatus.OPEN, TicketStatus.IN_PROGRESS, TicketStatus.WAITING_FOR_CUSTOMER)) {
+            SupportTicketModel ticket = SupportTicketModel.builder().status(status).build();
+            ticket.closeByCustomer();
+            assertThat(ticket.getStatus()).isEqualTo(TicketStatus.CLOSED);
+            assertThat(ticket.getResolvedAt()).isNotNull();
+        }
+    }
+
+    @Test
+    void closeByCustomer_rejectsTerminalStatuses() {
+        for (TicketStatus status : List.of(
+                TicketStatus.RESOLVED, TicketStatus.REJECTED, TicketStatus.CLOSED)) {
+            SupportTicketModel ticket = SupportTicketModel.builder().status(status).build();
+            assertThatThrownBy(ticket::closeByCustomer)
+                    .isInstanceOf(DomainException.class)
+                    .extracting(ex -> ((DomainException) ex).getErrorCode())
+                    .isEqualTo(ErrorCode.TICKET_CANNOT_CLOSE);
+        }
     }
 
     private static SupportTicketCommentModel comment(TicketCommentSenderRole role, String content) {

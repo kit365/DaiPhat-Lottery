@@ -144,7 +144,9 @@ public class SupportTicketModel {
     }
 
     public void closeByCustomer() {
-        if (this.status != TicketStatus.OPEN) {
+        if (this.status == TicketStatus.RESOLVED
+                || this.status == TicketStatus.REJECTED
+                || this.status == TicketStatus.CLOSED) {
             throw new DomainException(ErrorCode.TICKET_CANNOT_CLOSE);
         }
         this.status = TicketStatus.CLOSED;
@@ -173,7 +175,8 @@ public class SupportTicketModel {
         this.resolvedReasonId = reasonCommentId;
         this.rejectedReasonId = null;
         this.resolvedAt = LocalDateTime.now();
-        this.status = TicketStatus.RESOLVED;
+        // Staff marks resolved only after customer already agreed — close immediately.
+        this.status = TicketStatus.CLOSED;
     }
 
     public void rejectByStaff(Long reasonCommentId, String rejectionReason) {
