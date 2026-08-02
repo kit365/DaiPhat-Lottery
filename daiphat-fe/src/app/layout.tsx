@@ -1,7 +1,6 @@
 import type { Metadata } from 'next';
 import { Inter, Barlow, Public_Sans } from 'next/font/google';
 import '../index.css';
-import '../App.css';
 import 'react-toastify/dist/ReactToastify.css';
 import '../styles/client.css';
 import { Providers } from './providers';

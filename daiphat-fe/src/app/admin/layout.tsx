@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import { LoadingSpinner } from '@/client/components/ui/LoadingSpinner';
 import { AuthGuard } from '@/admin/components/auth/AuthGuard';
 import { LayoutAdmin } from '@/admin/layouts/LayoutAdmin';
+import '@/admin/styles/index.css';
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
