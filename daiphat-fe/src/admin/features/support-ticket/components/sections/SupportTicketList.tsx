@@ -24,7 +24,7 @@ import {
 } from '@mui/material';
 import { Icon } from '@iconify/react';
 import dayjs from 'dayjs';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Search } from '../../../../components/ui/Search';
 import { CanAccess } from '../../../../components/auth/CanAccess';
 import { PERMISSIONS } from '../../../../constants/permission.constants';
@@ -62,9 +62,12 @@ const STATUS_COLORS: Partial<Record<TicketStatus, 'default' | 'primary' | 'warni
 };
 
 const REFUND_CATEGORY_CODES = 'REFUND_SLOW_PROCESSING,REFUND_PAID_ISSUE';
+const PRIZE_PAYOUT_CATEGORY_CODES = 'PRIZE_PAYOUT_SLOW_PROCESSING,PRIZE_PAYOUT_PAID_ISSUE';
 
 export const SupportTicketList = () => {
     const navigate = useNavigate();
+    const [searchParams, setSearchParams] = useSearchParams();
+    const filterParam = searchParams.get('filter');
     const [page, setPage] = useState(0);
     const [rowsPerPage, setRowsPerPage] = useState(10);
     const [search, setSearch] = useState('');
@@ -73,10 +76,30 @@ export const SupportTicketList = () => {
     const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
     const [refTypeFilter, setRefTypeFilter] = useState<TicketRefType | ''>('');
     const [categoryFilter, setCategoryFilter] = useState<number | ''>('');
-    const [refundOnly, setRefundOnly] = useState(false);
+    const [refundOnly, setRefundOnly] = useState(filterParam === 'refund');
+    const [prizePayoutOnly, setPrizePayoutOnly] = useState(filterParam === 'prize-payout');
 
     const assignMutation = useAssignSupportTicket();
     const { data: categoriesData } = useGetAdminTicketCategories();
+
+    useEffect(() => {
+        setRefundOnly(filterParam === 'refund');
+        setPrizePayoutOnly(filterParam === 'prize-payout');
+    }, [filterParam]);
+
+    const updateFilterParam = (next: { refund?: boolean; prizePayout?: boolean }) => {
+        const params = new URLSearchParams(searchParams);
+        if (next.prizePayout) {
+            params.set('filter', 'prize-payout');
+        } else if (next.refund) {
+            params.set('filter', 'refund');
+        } else {
+            params.delete('filter');
+        }
+        setSearchParams(params, { replace: true });
+    };
+
+    const specialFilterActive = refundOnly || prizePayoutOnly;
 
     const queryParams = useMemo(
         () => ({
@@ -86,11 +109,30 @@ export const SupportTicketList = () => {
             search: search || undefined,
             sortBy,
             direction: sortDirection,
-            refType: refundOnly ? TicketRefType.REFUND_REQUEST : refTypeFilter || undefined,
+            refType: refundOnly
+                ? TicketRefType.REFUND_REQUEST
+                : prizePayoutOnly
+                  ? TicketRefType.PRIZE_CLAIM
+                  : refTypeFilter || undefined,
             ticketCategoryId: categoryFilter || undefined,
-            categoryCodes: refundOnly ? REFUND_CATEGORY_CODES : undefined,
+            categoryCodes: refundOnly
+                ? REFUND_CATEGORY_CODES
+                : prizePayoutOnly
+                  ? PRIZE_PAYOUT_CATEGORY_CODES
+                  : undefined,
         }),
-        [page, rowsPerPage, statusTab, search, sortBy, sortDirection, refTypeFilter, categoryFilter, refundOnly]
+        [
+            page,
+            rowsPerPage,
+            statusTab,
+            search,
+            sortBy,
+            sortDirection,
+            refTypeFilter,
+            categoryFilter,
+            refundOnly,
+            prizePayoutOnly,
+        ]
     );
 
     const { data, isLoading } = useGetStaffTickets(queryParams);
@@ -111,7 +153,7 @@ export const SupportTicketList = () => {
 
     useEffect(() => {
         setPage(0);
-    }, [statusTab, search, sortBy, sortDirection, refTypeFilter, categoryFilter, refundOnly]);
+    }, [statusTab, search, sortBy, sortDirection, refTypeFilter, categoryFilter, refundOnly, prizePayoutOnly]);
 
     const handleSort = (field: 'dueAt' | 'createdAt') => {
         if (sortBy === field) {
@@ -158,11 +200,11 @@ export const SupportTicketList = () => {
                 />
                 <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, alignItems: 'center' }}>
                     <FormControl size="small" sx={{ minWidth: 180 }}>
-                        <InputLabel>Loại tham chiếu</InputLabel>
+                        <InputLabel>Liên quan đến</InputLabel>
                         <Select
-                            label="Loại tham chiếu"
-                            value={refundOnly ? '' : refTypeFilter}
-                            disabled={refundOnly}
+                            label="Liên quan đến"
+                            value={specialFilterActive ? '' : refTypeFilter}
+                            disabled={specialFilterActive}
                             onChange={(e) => setRefTypeFilter(e.target.value as TicketRefType | '')}
                         >
                             <MenuItem value="">Tất cả</MenuItem>
@@ -178,7 +220,7 @@ export const SupportTicketList = () => {
                         <Select
                             label="Danh mục"
                             value={categoryFilter}
-                            disabled={refundOnly}
+                            disabled={specialFilterActive}
                             onChange={(e) => setCategoryFilter(e.target.value as number | '')}
                         >
                             <MenuItem value="">Tất cả</MenuItem>
@@ -192,10 +234,28 @@ export const SupportTicketList = () => {
                     <Button
                         variant={refundOnly ? 'contained' : 'outlined'}
                         size="small"
-                        onClick={() => setRefundOnly((prev) => !prev)}
+                        onClick={() => {
+                            const next = !refundOnly;
+                            setRefundOnly(next);
+                            setPrizePayoutOnly(false);
+                            updateFilterParam({ refund: next, prizePayout: false });
+                        }}
                         startIcon={<Icon icon="mdi:cash-refund" />}
                     >
                         Khiếu nại hoàn tiền
+                    </Button>
+                    <Button
+                        variant={prizePayoutOnly ? 'contained' : 'outlined'}
+                        size="small"
+                        onClick={() => {
+                            const next = !prizePayoutOnly;
+                            setPrizePayoutOnly(next);
+                            setRefundOnly(false);
+                            updateFilterParam({ prizePayout: next, refund: false });
+                        }}
+                        startIcon={<Icon icon="mdi:trophy-outline" />}
+                    >
+                        Khiếu nại trả thưởng
                     </Button>
                 </Box>
             </Box>
@@ -220,7 +280,7 @@ export const SupportTicketList = () => {
                             <TableCell>Danh mục</TableCell>
                             <TableCell>Tiêu đề</TableCell>
                             <TableCell>Khách hàng</TableCell>
-                            <TableCell>Tham chiếu</TableCell>
+                            <TableCell>Liên quan đến</TableCell>
                             <TableCell>Trạng thái</TableCell>
                             <TableCell>Người xử lý</TableCell>
                             <TableCell sortDirection={sortBy === 'dueAt' ? sortDirection : false}>
@@ -281,7 +341,15 @@ export const SupportTicketList = () => {
                                                 <Box sx={{ fontSize: 12, color: 'text.secondary' }}>
                                                     {TICKET_REF_TYPE_LABELS[ticket.refType]}
                                                 </Box>
-                                                <Box sx={{ fontSize: 13, fontWeight: 600 }}>{ticket.refId || '—'}</Box>
+                                                <Box sx={{ fontSize: 13, fontWeight: 600 }}>
+                                                    {ticket.refType === TicketRefType.PRIZE_CLAIM
+                                                        ? `Yêu cầu #${ticket.refId}`
+                                                        : ticket.refType === TicketRefType.REFUND_REQUEST
+                                                          ? `Hoàn tiền #${ticket.refId}`
+                                                          : ticket.refType === TicketRefType.ORDER
+                                                            ? `Đơn #${ticket.refId}`
+                                                            : ticket.refId || '—'}
+                                                </Box>
                                             </Box>
                                         ) : (
                                             '—'

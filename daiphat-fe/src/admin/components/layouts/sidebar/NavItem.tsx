@@ -9,19 +9,60 @@ import { hasPermission, resolveRoleCode } from "../../../utils/permission.util";
 import { useRefundPendingCount } from "../../../pages/refund/hooks/useRefundPendingCount";
 import { usePrizePayoutPendingCount } from "../../../pages/prize-payout/hooks/usePrizePayoutPendingCount";
 import { usePreparingOrderCount } from "../../../features/orders/hooks/useOrder";
+import { useSupportTicketOpenCount } from "../../../features/support-ticket/hooks/useSupportTicketOpenCount";
 
+function parseNavPath(rawPath: string): { pathname: string; search: string } {
+    const [pathname, query = ''] = String(rawPath || '').split('?');
+    return { pathname, search: query };
+}
 
-const SubNavItem = ({ child, isSubActive, t }: any) => {
+function isNavChildActive(pathname: string, search: string, childPath: string): boolean {
+    const target = parseNavPath(childPath);
+    if (pathname !== target.pathname) {
+        // Highlight list child when viewing detail under same section prefix
+        if (
+            !target.search &&
+            target.pathname.endsWith('/list') &&
+            pathname.startsWith(target.pathname.replace(/\/list$/, '/'))
+        ) {
+            return true;
+        }
+        return false;
+    }
+    if (!target.search) {
+        return true;
+    }
+    const required = new URLSearchParams(target.search);
+    const current = new URLSearchParams(search.startsWith('?') ? search.slice(1) : search);
+    return [...required.entries()].every(([key, value]) => current.get(key) === value);
+}
+
+const SubNavItem = ({
+    child,
+    isSubActive,
+    t,
+}: {
+    child: any;
+    isSubActive: boolean;
+    t: (key: string) => string;
+}) => {
+    const showSupportOpenBadge = child.badge === 'support-open';
+
     return (
         <li key={child.id} className="relative list-none">
             <Link
                 to={child.path}
                 className={`sidebar-item-before rounded-[8px] inline-flex items-center py-[4px] pr-[8px] pl-[12px] w-full min-h-[36px] text-[0.875rem] transition-all duration-200
-                    ${isSubActive 
-                        ? 'text-[#00A76F] font-[600] bg-[#00a76f14]' 
+                    ${isSubActive
+                        ? 'text-[#00A76F] font-[600] bg-[#00a76f14]'
                         : 'text-[#637381] hover:bg-[#919eab14] hover:text-[#1C252E]'}`}
             >
-                {t(child.tKey || child.label)}
+                <span className="truncate min-w-0 flex-1">{t(child.tKey || child.label)}</span>
+                {showSupportOpenBadge && (
+                    <span className="ml-2 shrink-0 inline-flex items-center">
+                        <SupportTicketOpenBadgeLabel />
+                    </span>
+                )}
             </Link>
         </li>
     );
@@ -101,6 +142,31 @@ const PrizePayoutPendingBadgeIcon = ({ children }: { children: ReactNode }) => {
     );
 };
 
+/** Isolated badge for all open support tickets (complaints). */
+const SupportTicketOpenBadgeLabel = () => {
+    const { openCount } = useSupportTicketOpenCount();
+    if (openCount <= 0) return null;
+    return (
+        <Badge
+            badgeContent={openCount > 99 ? '99+' : openCount}
+            sx={{ '& .MuiBadge-badge': sidebarBadgeSx }}
+        />
+    );
+};
+
+const SupportTicketOpenBadgeIcon = ({ children }: { children: ReactNode }) => {
+    const { openCount } = useSupportTicketOpenCount();
+    return (
+        <Badge
+            badgeContent={openCount > 99 ? '99+' : openCount}
+            invisible={openCount <= 0}
+            sx={{ '& .MuiBadge-badge': sidebarIconBadgeSx }}
+        >
+            {children}
+        </Badge>
+    );
+};
+
 /** Isolated so only the Orders menu item polls PREPARING counts. */
 const PreparingOrderBadgeLabel = () => {
     const { preparingCount } = usePreparingOrderCount();
@@ -128,12 +194,13 @@ const PreparingOrderBadgeIcon = ({ children }: { children: ReactNode }) => {
 
 export const NavItem = memo(({ item }: { item: any }) => {
     const { t } = useTranslation();
-    const { pathname } = useLocation();
+    const { pathname, search } = useLocation();
     const { isOpen } = useSidebar();
     const { user } = useAuthStore();
     const showRefundBadge = item.id === 'refunds';
     const showPrizePayoutBadge = item.id === 'prize-payouts';
     const showPreparingBadge = item.id === 'orders';
+    const showSupportBadge = item.id === 'support-tickets';
 
     const normalizedRole = resolveRoleCode(user);
     const isStaff = normalizedRole.includes('STAFF');
@@ -148,12 +215,15 @@ export const NavItem = memo(({ item }: { item: any }) => {
         return null;
     }
 
-
-
     const hasChildren = filteredChildren.length > 0;
 
-    const isChildActive = hasChildren ? filteredChildren.some((c: any) => pathname === c.path) : false;
-    const isActive = pathname === item.path;
+    const isChildActive = hasChildren
+        ? filteredChildren.some((c: any) => isNavChildActive(pathname, search, c.path))
+        : false;
+    const isActive = !hasChildren && (
+        pathname === item.path
+        || (item.path?.endsWith('/list') && pathname.startsWith(item.path.replace(/\/list$/, '/')))
+    );
 
     const isParentHighlighted = isActive || isChildActive;
 
@@ -224,6 +294,10 @@ export const NavItem = memo(({ item }: { item: any }) => {
                             <PrizePayoutPendingBadgeIcon>
                                 <Icon />
                             </PrizePayoutPendingBadgeIcon>
+                        ) : !isOpen && showSupportBadge ? (
+                            <SupportTicketOpenBadgeIcon>
+                                <Icon />
+                            </SupportTicketOpenBadgeIcon>
                         ) : !isOpen && showPreparingBadge ? (
                             <PreparingOrderBadgeIcon>
                                 <Icon />
@@ -245,6 +319,11 @@ export const NavItem = memo(({ item }: { item: any }) => {
                         {showPrizePayoutBadge && (
                             <span className="ml-auto pl-2 shrink-0 inline-flex items-center">
                                 <PrizePayoutPendingBadgeLabel />
+                            </span>
+                        )}
+                        {showSupportBadge && (
+                            <span className="ml-auto pl-2 shrink-0 inline-flex items-center">
+                                <SupportTicketOpenBadgeLabel />
                             </span>
                         )}
                         {showPreparingBadge && (
@@ -299,13 +378,9 @@ export const NavItem = memo(({ item }: { item: any }) => {
                         <Paper
                             sx={{
                                 p: "4px",
-                                backgroundImage: "url(data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTIwIiBoZWlnaHQ9IjEyMCIgdmlld0JveD0iMCAwIDEyMCAxMjAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIxMjAiIGhlaWdodD0iMTIwIiBmaWxsPSJ1cmwoI3BhaW50MF9yYWRpYWxfNDQ2NF81NTMzOCkiIGZpbGwtb3BhY2l0eT0iMC4xIi8+CjxkZWZzPgo8cmFkaWFsR3JhZGllbnQgaWQ9InBhaW50MF9yYWRpYWxfNDQ2NF81NTMzOCIgY3g9IjAiIGN5PSIwIiByPSIxIiBncmFkaWVudFVuaXRzPSJ1c2VyU3BhY2VPblVzZSIgZ3JhZGllbnRUcmFuc2Zvcm09InRyYW5zbGF0ZSgxMjAgMS44MTgxMmUtMDUpIHJvdGF0ZSgtNDUpIHNjYWxlKDEyMy4yNSkiPgo8c3RvcCBzdG9wLWNvbG9yPSIjMDBCOEQ5Ii8+CjxzdG9wIG9mZnNldD0iMSIgc3RvcC1jb2xvcj0iIzAwQjhEOSIgc3RvcC1vcGFjaXR5PSIwIi8+CjwvcmFkaWFsR3JhZGllbnQ+CjwvZGVmcz4KPC9zdmc+Cg==), url(data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTIwIiBoZWlnaHQ9IjEyMCIgdmlld0JveD0iMCAwIDEyMCAxMjAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIxMjAiIGhlaWdodD0iMTIwIiBmaWxsPSJ1cmwoI3BhaW50MF9yYWRpYWxfNDQ2NF81NTMzNykiIGZpbGwtb3BhY2l0eT0iMC4xIi8+CjxkZWZzPgo8cmFkaWFsR3JhZGllbnQgaWQ9InBhaW50MF9yYWRpYWxfNDQ2NF81NTMzNyIgY3g9IjAiIGN5PSIwIiByPSIxIiBncmFkaWVudFVuaXRzPSJ1c2VyU3BhY2VPblVzZSIgZ3JhZGllbnRUcmFuc2Zvcm09InRyYW5zbGF0ZSgwIDEyMCkgcm90YXRlKDEzNSkgc2NhbGUoMTIzLjI1KSI+CjxzdG9wIHN0b3AtY29sb3I9IiNGRjU2MzAiLz4KPHN0b3Agb2Zmc2V0PSIxIiBzdG9wLWNvbG9yPSIjRkY1NjMwIiBzdG9wLW9wYWNpdHk9IjAiLz4KPC9yYWRpYWxHcmFkaWVudD4KPC9kZWZzPgo8L3N2Zz4K)",
                                 backdropFilter: "blur(20px)",
-                                width: "192px",
+                                width: "220px",
                                 backgroundColor: "#ffffff",
-                                backgroundRepeat: "no-repeat",
-                                backgroundSize: "50%, 50%",
-                                backgroundPosition: "right top, left bottom",
                                 boxShadow: "0 0 2px 0 rgba(145 158 171 / 24%), -20px 20px 40px -4px rgba(145 158 171 / 24%)",
                                 borderRadius: "10px",
                             }}>
@@ -313,11 +388,11 @@ export const NavItem = memo(({ item }: { item: any }) => {
                                 {filteredChildren
                                     .filter((child: any) => !child.hidden)
                                     .map((child: any) => (
-                                        <SubNavItem 
-                                            key={child.id} 
-                                            child={child} 
-                                            isSubActive={pathname.startsWith(child.path)} 
-                                            t={t} 
+                                        <SubNavItem
+                                            key={child.id}
+                                            child={child}
+                                            isSubActive={isNavChildActive(pathname, search, child.path)}
+                                            t={t}
                                         />
                                     ))}
                             </ul>
@@ -333,11 +408,11 @@ export const NavItem = memo(({ item }: { item: any }) => {
                         {filteredChildren
                             .filter((child: any) => !child.hidden)
                             .map((child: any) => (
-                                <SubNavItem 
-                                    key={child.id} 
-                                    child={child} 
-                                    isSubActive={pathname.startsWith(child.path)} 
-                                    t={t} 
+                                <SubNavItem
+                                    key={child.id}
+                                    child={child}
+                                    isSubActive={isNavChildActive(pathname, search, child.path)}
+                                    t={t}
                                 />
                             ))}
                     </ul>
