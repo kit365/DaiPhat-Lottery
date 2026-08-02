@@ -173,7 +173,7 @@ class ReturnBatchServiceTest {
                 .ticketId(90L)
                 .importBatchLineId(20L)
                 .returnBatchLineId(100L)
-                .status(LotteryTicketSerialStatus.PENDING_RETURN)
+                .status(LotteryTicketSerialStatus.IN_STOCK)
                 .build();
 
         when(returnBatchRepositoryPort.findById(10L)).thenReturn(Optional.of(batch));
@@ -192,13 +192,13 @@ class ReturnBatchServiceTest {
 
         ArgumentCaptor<LotteryTicketSerialModel> serialCaptor = ArgumentCaptor.forClass(LotteryTicketSerialModel.class);
         verify(lotteryTicketSerialRepositoryPort).save(serialCaptor.capture());
-        assertThat(serialCaptor.getValue().getStatus()).isEqualTo(LotteryTicketSerialStatus.RETURNED);
+        assertThat(serialCaptor.getValue().getStatus()).isEqualTo(LotteryTicketSerialStatus.IN_STOCK);
         assertThat(serialCaptor.getValue().getReturnedAt()).isNotNull();
         verify(supplierSettlementServicePort).recalculateTotalReturnValue(50L);
     }
 
     @Test
-    @DisplayName("attachSerials marks serial PENDING_RETURN and stores override fields")
+    @DisplayName("attachSerials links serial to return line and stores override fields")
     void attachSerials_manualOverride() {
         ReturnBatchModel batch = ReturnBatchModel.builder()
                 .id(10L)
@@ -248,7 +248,7 @@ class ReturnBatchServiceTest {
         verify(lotteryTicketSerialRepositoryPort).save(captor.capture());
         LotteryTicketSerialModel saved = captor.getValue();
         assertThat(saved.getReturnBatchLineId()).isEqualTo(100L);
-        assertThat(saved.getStatus()).isEqualTo(LotteryTicketSerialStatus.PENDING_RETURN);
+        assertThat(saved.getStatus()).isEqualTo(LotteryTicketSerialStatus.IN_STOCK);
         assertThat(saved.isManualOverride()).isTrue();
         assertThat(saved.getOverrideReason()).isEqualTo("Máy đọc lệch");
         assertThat(saved.getOverrideEvidenceUrl()).isEqualTo("https://cdn/evidence.jpg");

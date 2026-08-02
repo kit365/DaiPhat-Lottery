@@ -1522,7 +1522,9 @@ class LotteryTicketServiceTest {
 
         assertThat(existingModel.isDeleted()).isTrue();
         verify(lotteryTicketSerialRepositoryPort).save(argThat(s ->
-                s.getStatus() == LotteryTicketSerialStatus.VOIDED && s.getFaultedBy() == com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialFaultedBy.DATA_ENTRY_FAULT));
+                s.getTicketCondition() == com.daiphat.coreapi.domain.model.enums.lottery.TicketCondition.VOIDED
+                        && s.getStatus() == LotteryTicketSerialStatus.IN_STOCK
+                        && s.getFaultedBy() == com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialFaultedBy.DATA_ENTRY_FAULT));
         verify(lotteryTicketSerialRepositoryPort).save(argThat(s ->
                 s.getTicketId().equals(REPLACEMENT_TICKET_ID) && Long.valueOf(1L).equals(s.getReplacedForTicketId())));
         // Old ticket is loaded once up front, then soft-deleted — never recomputed afterwards.
@@ -1549,19 +1551,21 @@ class LotteryTicketServiceTest {
     }
 
     @Test
-    @DisplayName("FINALIZE_INCIDENT_CANCEL: Thành công khi tất cả sê-ri đã DAMAGED hoặc LOST")
+    @DisplayName("FINALIZE_INCIDENT_CANCEL: Thành công khi tất cả sê-ri đã DAMAGED hoặc LOST condition")
     void finalizeIncidentCancel_succeedsWhenAllSerialsFaulty() {
         LotteryTicketSerialModel damagedSerial = LotteryTicketSerialModel.builder()
                 .id(1L)
                 .ticketId(TICKET_ID)
                 .serialNumber("SN001")
-                .status(LotteryTicketSerialStatus.DAMAGED)
+                .status(LotteryTicketSerialStatus.IN_STOCK)
+                .ticketCondition(com.daiphat.coreapi.domain.model.enums.lottery.TicketCondition.DAMAGED)
                 .build();
         LotteryTicketSerialModel lostSerial = LotteryTicketSerialModel.builder()
                 .id(2L)
                 .ticketId(TICKET_ID)
                 .serialNumber("SN002")
-                .status(LotteryTicketSerialStatus.LOST)
+                .status(LotteryTicketSerialStatus.IN_STOCK)
+                .ticketCondition(com.daiphat.coreapi.domain.model.enums.lottery.TicketCondition.LOST)
                 .build();
 
         when(lotteryTicketRepositoryPort.findById(TICKET_ID)).thenReturn(Optional.of(existingModel));
@@ -1581,13 +1585,15 @@ class LotteryTicketServiceTest {
                 .id(1L)
                 .ticketId(TICKET_ID)
                 .serialNumber("SN001")
-                .status(LotteryTicketSerialStatus.DAMAGED)
+                .status(LotteryTicketSerialStatus.IN_STOCK)
+                .ticketCondition(com.daiphat.coreapi.domain.model.enums.lottery.TicketCondition.DAMAGED)
                 .build();
         LotteryTicketSerialModel pendingSerial = LotteryTicketSerialModel.builder()
                 .id(2L)
                 .ticketId(TICKET_ID)
                 .serialNumber("SN002")
                 .status(LotteryTicketSerialStatus.IN_STOCK)
+                .ticketCondition(com.daiphat.coreapi.domain.model.enums.lottery.TicketCondition.GOOD)
                 .build();
 
         when(lotteryTicketRepositoryPort.findById(TICKET_ID)).thenReturn(Optional.of(existingModel));

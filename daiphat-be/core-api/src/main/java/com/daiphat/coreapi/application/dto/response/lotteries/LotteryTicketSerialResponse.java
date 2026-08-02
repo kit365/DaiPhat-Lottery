@@ -18,6 +18,8 @@ public record LotteryTicketSerialResponse(
         @JsonView(Views.Public.class) String serialNumber,
         @JsonView(Views.Public.class) String status,
         @JsonView(Views.Public.class) String statusDisplayName,
+        @JsonView(Views.Public.class) String ticketCondition,
+        @JsonView(Views.Public.class) String ticketConditionDisplayName,
         @JsonView(Views.Admin.class) String inputSource,
         @JsonView(Views.Admin.class) LocalDateTime reservedAt,
         @JsonView(Views.Admin.class) LocalDateTime reservationExpiresAt,

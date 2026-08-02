@@ -78,6 +78,11 @@ public class LotteryTicketSerialRepositoryAdapter implements LotteryTicketSerial
     }
 
     @Override
+    public long countSellableByTicketId(Long ticketId) {
+        return lotteryTicketSerialRepository.countSellableByTicketId(ticketId);
+    }
+
+    @Override
     public Map<Long, Long> countByTicketIdsAndStatuses(
             Collection<Long> ticketIds,
             Collection<LotteryTicketSerialStatus> statuses
@@ -87,6 +92,21 @@ public class LotteryTicketSerialRepositoryAdapter implements LotteryTicketSerial
         }
         Map<Long, Long> counts = new HashMap<>();
         for (Object[] row : lotteryTicketSerialRepository.countGroupedByTicketIdAndStatuses(ticketIds, statuses)) {
+            if (row == null || row.length < 2 || row[0] == null || row[1] == null) {
+                continue;
+            }
+            counts.put((Long) row[0], (Long) row[1]);
+        }
+        return counts;
+    }
+
+    @Override
+    public Map<Long, Long> countSellableByTicketIds(Collection<Long> ticketIds) {
+        if (ticketIds == null || ticketIds.isEmpty()) {
+            return Map.of();
+        }
+        Map<Long, Long> counts = new HashMap<>();
+        for (Object[] row : lotteryTicketSerialRepository.countSellableGroupedByTicketId(ticketIds)) {
             if (row == null || row.length < 2 || row[0] == null || row[1] == null) {
                 continue;
             }
@@ -132,6 +152,11 @@ public class LotteryTicketSerialRepositoryAdapter implements LotteryTicketSerial
     @Override
     public long countByImportBatchLineIdAndStatus(Long importBatchLineId, LotteryTicketSerialStatus status) {
         return lotteryTicketSerialRepository.countByImportBatchLineIdAndStatus(importBatchLineId, status);
+    }
+
+    @Override
+    public long countReturnEligibleByImportBatchLineId(Long importBatchLineId) {
+        return lotteryTicketSerialRepository.countReturnEligibleByImportBatchLineId(importBatchLineId);
     }
 
     @Override
@@ -210,6 +235,7 @@ public class LotteryTicketSerialRepositoryAdapter implements LotteryTicketSerial
                             entity.getId(),
                             entity.getSerialNumber(),
                             entity.getStatus(),
+                            entity.getTicketCondition(),
                             ticket != null ? ticket.getId() : null,
                             ticket != null ? ticket.getNumbers() : null,
                             ticket != null ? ticket.getDrawDate() : null,

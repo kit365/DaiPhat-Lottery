@@ -49,6 +49,16 @@ public interface LotteryTicketSerialRepository extends JpaRepository<LotteryTick
     long countByTicket_IdAndStatusInAndDeletedAtIsNull(Long ticketId, Collection<LotteryTicketSerialStatus> statuses);
 
     @Query("""
+            SELECT COUNT(s) FROM LotteryTicketSerialEntity s
+            WHERE s.deletedAt IS NULL
+              AND s.ticket.id = :ticketId
+              AND s.status = com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus.IN_STOCK
+              AND s.ticketCondition = com.daiphat.coreapi.domain.model.enums.lottery.TicketCondition.GOOD
+              AND s.returnBatchLineId IS NULL
+            """)
+    long countSellableByTicketId(@Param("ticketId") Long ticketId);
+
+    @Query("""
             SELECT s.ticket.id, COUNT(s)
             FROM LotteryTicketSerialEntity s
             WHERE s.deletedAt IS NULL
@@ -66,6 +76,18 @@ public interface LotteryTicketSerialRepository extends JpaRepository<LotteryTick
             FROM LotteryTicketSerialEntity s
             WHERE s.deletedAt IS NULL
               AND s.ticket.id IN :ticketIds
+              AND s.status = com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus.IN_STOCK
+              AND s.ticketCondition = com.daiphat.coreapi.domain.model.enums.lottery.TicketCondition.GOOD
+              AND s.returnBatchLineId IS NULL
+            GROUP BY s.ticket.id
+            """)
+    List<Object[]> countSellableGroupedByTicketId(@Param("ticketIds") Collection<Long> ticketIds);
+
+    @Query("""
+            SELECT s.ticket.id, COUNT(s)
+            FROM LotteryTicketSerialEntity s
+            WHERE s.deletedAt IS NULL
+              AND s.ticket.id IN :ticketIds
             GROUP BY s.ticket.id
             """)
     List<Object[]> countGroupedByTicketId(@Param("ticketIds") Collection<Long> ticketIds);
@@ -76,7 +98,7 @@ public interface LotteryTicketSerialRepository extends JpaRepository<LotteryTick
             SELECT COUNT(s) FROM LotteryTicketSerialEntity s
             WHERE s.deletedAt IS NULL 
               AND s.importBatchLine.id = :importBatchLineId
-              AND s.status <> com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus.VOIDED
+              AND (s.ticketCondition IS NULL OR s.ticketCondition <> com.daiphat.coreapi.domain.model.enums.lottery.TicketCondition.VOIDED)
             """)
     long countByImportBatchLineId(@Param("importBatchLineId") Long importBatchLineId);
 
@@ -90,6 +112,19 @@ public interface LotteryTicketSerialRepository extends JpaRepository<LotteryTick
             @Param("importBatchLineId") Long importBatchLineId,
             @Param("status") LotteryTicketSerialStatus status
     );
+
+    @Query("""
+            SELECT COUNT(s) FROM LotteryTicketSerialEntity s
+            WHERE s.deletedAt IS NULL
+              AND s.importBatchLine.id = :importBatchLineId
+              AND s.status IN (
+                  com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus.IN_STOCK,
+                  com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus.EXPIRED
+              )
+              AND s.ticketCondition = com.daiphat.coreapi.domain.model.enums.lottery.TicketCondition.GOOD
+              AND s.returnBatchLineId IS NULL
+            """)
+    long countReturnEligibleByImportBatchLineId(@Param("importBatchLineId") Long importBatchLineId);
 
     @Query("""
             SELECT DISTINCT s.ticket.id FROM LotteryTicketSerialEntity s
@@ -108,7 +143,7 @@ public interface LotteryTicketSerialRepository extends JpaRepository<LotteryTick
             WHERE s.deletedAt IS NULL
               AND s.ticket.id = :ticketId
               AND s.importBatchLine.id = :importBatchLineId
-              AND s.status <> com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus.VOIDED
+              AND (s.ticketCondition IS NULL OR s.ticketCondition <> com.daiphat.coreapi.domain.model.enums.lottery.TicketCondition.VOIDED)
             """)
     long countByTicketIdAndImportBatchLineId(
             @Param("ticketId") Long ticketId,
@@ -123,6 +158,8 @@ public interface LotteryTicketSerialRepository extends JpaRepository<LotteryTick
             SELECT s FROM LotteryTicketSerialEntity s
             WHERE s.deletedAt IS NULL
               AND s.status = :status
+              AND s.ticketCondition = com.daiphat.coreapi.domain.model.enums.lottery.TicketCondition.GOOD
+              AND s.returnBatchLineId IS NULL
               AND s.ticket.station.id = :stationId
               AND s.ticket.numbers = :numbers
               AND s.ticket.drawDate = :drawDate
@@ -163,6 +200,8 @@ public interface LotteryTicketSerialRepository extends JpaRepository<LotteryTick
               AND b.supplier.id = :supplierId
               AND t.drawDate = :drawDate
               AND s.status = com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus.IN_STOCK
+              AND s.ticketCondition = com.daiphat.coreapi.domain.model.enums.lottery.TicketCondition.GOOD
+              AND s.returnBatchLineId IS NULL
               AND (:stationIdsEmpty = true OR st.id IN :stationIds)
             ORDER BY st.name ASC, t.numbers ASC, s.serialNumber ASC
             """)

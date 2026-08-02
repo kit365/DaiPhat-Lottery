@@ -24,7 +24,11 @@ public interface LotteryTicketSerialRepositoryPort {
 
     long countByTicketIdAndStatuses(Long ticketId, Collection<LotteryTicketSerialStatus> statuses);
 
+    long countSellableByTicketId(Long ticketId);
+
     Map<Long, Long> countByTicketIdsAndStatuses(Collection<Long> ticketIds, Collection<LotteryTicketSerialStatus> statuses);
+
+    Map<Long, Long> countSellableByTicketIds(Collection<Long> ticketIds);
 
     Map<Long, Long> countByTicketIds(Collection<Long> ticketIds);
 
@@ -35,6 +39,9 @@ public interface LotteryTicketSerialRepositoryPort {
     long countByImportBatchLineId(Long importBatchLineId);
 
     long countByImportBatchLineIdAndStatus(Long importBatchLineId, LotteryTicketSerialStatus status);
+
+    /** IN_STOCK|EXPIRED + GOOD + not linked to a return line. */
+    long countReturnEligibleByImportBatchLineId(Long importBatchLineId);
 
     List<Long> findDistinctTicketIdsByImportBatchLineId(Long importBatchLineId);
 

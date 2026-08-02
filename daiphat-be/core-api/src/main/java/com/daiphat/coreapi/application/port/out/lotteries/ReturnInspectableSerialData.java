@@ -1,16 +1,16 @@
 package com.daiphat.coreapi.application.port.out.lotteries;
 
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus;
+import com.daiphat.coreapi.domain.model.enums.lottery.TicketCondition;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.util.Collection;
-import java.util.List;
 
 public record ReturnInspectableSerialData(
         Long serialId,
         String serialNumber,
         LotteryTicketSerialStatus status,
+        TicketCondition ticketCondition,
         Long ticketId,
         String ticketNumbers,
         LocalDate drawDate,

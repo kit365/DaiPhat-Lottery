@@ -143,8 +143,10 @@ public class OrderIncidentTicketService implements OrderIncidentTicketServicePor
                 .orElseThrow(() -> new DomainException(ErrorCode.LOTTERY_TICKET_NOT_FOUND));
 
         Optional<LotteryTicketSerialModel> replacementOpt = lotteryTicketSerialRepositoryPort
-                .findFirstByTicketIdAndStatusOrderByIdAsc(ticket.getId(), LotteryTicketSerialStatus.IN_STOCK)
-                .filter(candidate -> !Objects.equals(candidate.getId(), oldSerialId));
+                .findAllByTicketId(ticket.getId()).stream()
+                .filter(LotteryTicketSerialModel::isAvailableForSale)
+                .filter(candidate -> !Objects.equals(candidate.getId(), oldSerialId))
+                .findFirst();
 
         String numbers = ticket.getNumbers();
         String stationName = null;
@@ -263,7 +265,7 @@ public class OrderIncidentTicketService implements OrderIncidentTicketServicePor
         // Find available candidate for the provided replacementTicketId (which is actually the specific serial ID)
         LotteryTicketSerialModel replacementOpt = lotteryTicketSerialRepositoryPort
                 .findById(incident.replacementTicketId())
-                .filter(r -> r.getStatus() == LotteryTicketSerialStatus.IN_STOCK)
+                .filter(LotteryTicketSerialModel::isAvailableForSale)
                 .orElseThrow(() -> new DomainException(ErrorCode.LOTTERY_TICKET_NOT_FOUND, "Vé thay thế không còn khả dụng."));
 
         LotteryTicketModel replacementTicket = lotteryTicketRepositoryPort.findById(replacementOpt.getTicketId())

@@ -23,7 +23,7 @@ public interface SupplierSettlementServicePort {
 
     /**
      * Recalculate totalReturnValue from tickets prepared for return
-     * ({@code PENDING_RETURN} / {@code RETURNED}), not only after full SUCCESS handover.
+     * (linked via returnBatchLineId), not only after full SUCCESS handover.
      * Also refreshes remainingAmount (= import − return − paid).
      */
     void recalculateTotalReturnValue(Long settlementId);

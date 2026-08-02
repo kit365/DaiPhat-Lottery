@@ -31,8 +31,7 @@ public interface SupplierSettlementRepository
     BigDecimal sumImportedCostValueBySettlementId(@Param("settlementId") Long settlementId);
 
     /**
-     * Import cost of unsold tickets prepared for return (inspected / attached):
-     * serial status {@code PENDING_RETURN} or {@code RETURNED}.
+     * Import cost of tickets prepared for return (linked via returnBatchLineId to a settlement's return batches).
      * Does not wait for return-line {@code SUCCESS} / full supplier handover.
      */
     @Query("""
@@ -42,10 +41,7 @@ public interface SupplierSettlementRepository
             JOIN l.returnBatch b
             JOIN s.importBatchLine ibl
             WHERE b.supplierSettlementId = :settlementId
-              AND s.status IN (
-                  com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus.PENDING_RETURN,
-                  com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus.RETURNED
-              )
+              AND s.returnBatchLineId IS NOT NULL
               AND s.deletedAt IS NULL
               AND l.deletedAt IS NULL
               AND b.deletedAt IS NULL
