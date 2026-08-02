@@ -135,6 +135,11 @@ public enum ErrorCode {
     PRIZE_PAYOUT_ALREADY_REQUESTED("ORD_042", "Vé đã có yêu cầu trả thưởng hoặc đã được trả.", HttpStatus.BAD_REQUEST),
     PRIZE_PAYOUT_BANK_ACCOUNT_MISMATCH("ORD_043", "Tài khoản ngân hàng không thuộc khách hàng.", HttpStatus.BAD_REQUEST),
     PRIZE_PAYOUT_CODE_GENERATION_FAILED("ORD_044", "Không thể tạo mã yêu cầu trả thưởng.", HttpStatus.INTERNAL_SERVER_ERROR),
+    PRIZE_PAYOUT_BANK_NAME_MISMATCH("ORD_045", "Tên chủ tài khoản ngân hàng không khớp tên khách hàng.", HttpStatus.BAD_REQUEST),
+    PRIZE_PAYOUT_BLOCKS_PICKUP("ORD_046", "Vé đang có yêu cầu trả thưởng — không thể nhận vé vật lý.", HttpStatus.BAD_REQUEST),
+    PRIZE_PAYOUT_REQUIRES_IN_PERSON("ORD_047", "Vé này bắt buộc đổi thưởng trực tiếp tại đại lý.", HttpStatus.BAD_REQUEST),
+    PRIZE_PAYOUT_FOUR_EYES_REQUIRED("ORD_048", "Giao dịch từ ngưỡng thuế trở lên cần nhân viên khác xác nhận trả thưởng.", HttpStatus.BAD_REQUEST),
+    PRIZE_PAYOUT_RECIPIENT_IDENTITY_REQUIRED("ORD_049", "Cần thu thập CCCD / tên người nhận trước khi tạo yêu cầu.", HttpStatus.BAD_REQUEST),
 
     // Lottery Errors
     // Lottery Product Errors
@@ -407,7 +412,7 @@ public enum ErrorCode {
     TICKET_CATEGORY_NOT_FOUND("TKT_003", "Danh mục yêu cầu hỗ trợ không tồn tại.", HttpStatus.NOT_FOUND),
     TICKET_INVALID_STATUS("TKT_004", "Trạng thái yêu cầu hỗ trợ không hợp lệ cho thao tác này.", HttpStatus.BAD_REQUEST),
     TICKET_CANNOT_UPDATE("TKT_005", "Không thể cập nhật yêu cầu hỗ trợ ở trạng thái hiện tại.", HttpStatus.BAD_REQUEST),
-    TICKET_CANNOT_CLOSE("TKT_006", "Chỉ có thể đóng yêu cầu hỗ trợ đang ở trạng thái mới tạo.", HttpStatus.BAD_REQUEST),
+    TICKET_CANNOT_CLOSE("TKT_006", "Không thể huỷ khiếu nại đã giải quyết, đã từ chối hoặc đã đóng.", HttpStatus.BAD_REQUEST),
     TICKET_REF_REQUIRED("TKT_007", "Danh mục này yêu cầu chọn đối tượng tham chiếu.", HttpStatus.BAD_REQUEST),
     TICKET_REF_INVALID("TKT_008", "Đối tượng tham chiếu không hợp lệ.", HttpStatus.BAD_REQUEST),
     TICKET_REF_ORDER_MISMATCH("TKT_009", "Đơn hàng không thuộc tài khoản của bạn.", HttpStatus.BAD_REQUEST),
@@ -464,6 +469,22 @@ public enum ErrorCode {
     TICKET_ORDER_COMPLAINT_EVIDENCE_REQUIRED(
             "TKT_030",
             "Khiếu nại lỗi đồng bộ thanh toán yêu cầu đính kèm biên lai chuyển khoản.",
+            HttpStatus.BAD_REQUEST),
+    TICKET_REF_PRIZE_PAYOUT_MISMATCH(
+            "TKT_031",
+            "Yêu cầu trả thưởng không tồn tại hoặc không thuộc tài khoản của bạn.",
+            HttpStatus.BAD_REQUEST),
+    TICKET_PRIZE_PAYOUT_COMPLAINT_TOO_EARLY(
+            "TKT_032",
+            "Yêu cầu trả thưởng vẫn trong thời gian cam kết xử lý (%d giờ). Vui lòng chờ trong khi chúng tôi xử lý yêu cầu của bạn.",
+            HttpStatus.BAD_REQUEST),
+    TICKET_PRIZE_PAYOUT_COMPLAINT_STATUS_INVALID(
+            "TKT_033",
+            "Trạng thái yêu cầu trả thưởng không hợp lệ cho loại khiếu nại này.",
+            HttpStatus.BAD_REQUEST),
+    TICKET_PRIZE_PAYOUT_COMPLAINT_WINDOW_EXPIRED(
+            "TKT_034",
+            "Yêu cầu trả thưởng này đã hết thời hạn khiếu nại (hết hạn sau %d ngày).",
             HttpStatus.BAD_REQUEST),
 
     // Chat Errors
