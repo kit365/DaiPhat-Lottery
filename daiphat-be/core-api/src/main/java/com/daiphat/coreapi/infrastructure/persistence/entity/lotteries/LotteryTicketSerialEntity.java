@@ -4,6 +4,7 @@ import com.daiphat.coreapi.domain.model.enums.lottery.InputSource;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialFaultedBy;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus;
 import com.daiphat.coreapi.domain.model.enums.lottery.SerialPayoutState;
+import com.daiphat.coreapi.domain.model.enums.lottery.TicketCondition;
 import com.daiphat.coreapi.infrastructure.persistence.entity.BaseEntity;
 import com.daiphat.coreapi.infrastructure.persistence.entity.user.UserEntity;
 import jakarta.persistence.*;
@@ -56,6 +57,11 @@ public class LotteryTicketSerialEntity extends BaseEntity {
     @Column(nullable = false, length = 50)
     @Builder.Default
     private LotteryTicketSerialStatus status = LotteryTicketSerialStatus.IN_STOCK;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "ticket_condition", nullable = false, length = 20)
+    @Builder.Default
+    private TicketCondition ticketCondition = TicketCondition.GOOD;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "faulted_by", length = 30)
