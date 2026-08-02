@@ -73,6 +73,12 @@ export interface PurchasedTicket {
     prizeAmount?: number;
     activePayoutRequestId?: number;
     activePayoutStatus?: PrizePayoutRequestStatus;
+    orderType?: 'ONLINE' | 'OFFLINE';
+    receiveType?: 'COUNTER_PICKUP';
+    /** Khi có giá trị = khách đã lấy vé tại quầy. */
+    actualPickedUpAt?: string | null;
+    claimChannel?: 'ONLINE' | 'IN_PERSON';
+    canClaimOnline?: boolean;
 }
 
 export type PublicLotteryTicketPage = PageResponse<PublicLotteryTicket>;
