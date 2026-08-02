@@ -53,7 +53,7 @@ import {
 } from '../../hooks/useChat';
 import { useChatSocket } from '../../hooks/useChatSocket';
 import { chatService } from '../../services/chatService';
-import { Link } from 'react-router-dom';
+import { Link } from '@/components/router-compat';
 import { prefixAdmin } from '../../../../constants/routes';
 import { Conversation, Message } from '../../../../../types/chat.type';
 import { ChatSocketMessageEvent } from '../../../../../types/websocket.type';

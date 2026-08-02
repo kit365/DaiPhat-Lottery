@@ -2,7 +2,7 @@ import type { ReactElement } from 'react';
 import { Link } from '@mui/material';
 import { GridActionsCell, GridActionsCellItem, GridRenderCellParams } from '@mui/x-data-grid';
 import dayjs from 'dayjs';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from '@/components/router-compat';
 import { EyeIcon } from '../../../../../assets/icons/index';
 import { ROUTES } from '../../../../../constants/routes';
 import { formatImportCost } from '../../../import-batch/utils/importCostCalculator';

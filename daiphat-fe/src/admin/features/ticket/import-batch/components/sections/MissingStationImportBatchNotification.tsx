@@ -1,7 +1,7 @@
 import WarningAmberOutlinedIcon from '@mui/icons-material/WarningAmberOutlined';
 import { Alert, Button, Stack, Typography } from '@mui/material';
 import { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from '@/components/router-compat';
 import type { ImportBatch } from '../../types/importBatch.type';
 import { ROUTES } from '../../../../../constants/routes';
 import { importBatchMissingStations } from '../../utils/importBatchProgress';

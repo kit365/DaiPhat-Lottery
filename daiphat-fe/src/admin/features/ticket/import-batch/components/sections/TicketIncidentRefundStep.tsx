@@ -15,7 +15,7 @@ import {
     TextField,
     Typography,
 } from '@mui/material';
-import { Link as RouterLink } from 'react-router-dom';
+import { Link as RouterLink } from '@/components/router-compat';
 import dayjs from 'dayjs';
 import { useQueries } from '@tanstack/react-query';
 import { getOrderDetail } from '../../../../orders/services/orderService';

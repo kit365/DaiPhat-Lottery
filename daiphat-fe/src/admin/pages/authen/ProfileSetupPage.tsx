@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -5,7 +7,7 @@ import * as z from "zod";
 import { useAuthStore } from "../../../stores/useAuthStore";
 import { userService } from "./services/user.service";
 import { toast } from "react-toastify";
-import { useNavigate, Link, useLocation } from "react-router-dom";
+import { useNavigate, Link, useLocation } from "@/components/router-compat";
 import { ROUTES } from "../../constants/routes";
 import { PERMISSIONS } from "../../constants/permission.constants";
 import { useAuth } from "./hooks/useAuth";

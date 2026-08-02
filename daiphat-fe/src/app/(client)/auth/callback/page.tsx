@@ -1,7 +1,12 @@
-"use client";
+import { Suspense } from 'react';
+import { OAuthCallbackClient } from './OAuthCallbackClient';
 
-import { OAuthCallbackPage } from '@/admin/routes';
+export const dynamic = 'force-dynamic';
 
 export default function AuthCallback() {
-  return <OAuthCallbackPage />;
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Đang xử lý đăng nhập...</div>}>
+      <OAuthCallbackClient />
+    </Suspense>
+  );
 }

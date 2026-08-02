@@ -15,7 +15,7 @@ export const AppPasswordTab = () => {
         reset,
         formState: { errors },
     } = useForm<SettingAppPasswordFormValues>({
-        resolver: zodResolver(settingAppPasswordSchema) as any,
+        resolver: zodResolver(settingAppPasswordSchema),
         defaultValues: {
             gmailUser: "",
             gmailPassword: "",

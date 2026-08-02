@@ -51,7 +51,7 @@ export const useAuth = () => {
             Cookies.remove(STORAGE_KEYS.REFRESH_TOKEN, { path: "/" });
             logoutStore();
         },
-        onSuccess: async (response: any) => {
+        onSuccess: async (response) => {
             setPendingVerificationIdentifier(null);
             const isSuccess = response.isSuccess ?? response.success;
             const authData = response.data;
@@ -97,7 +97,7 @@ export const useAuth = () => {
                 AppToast.error(response.message || "Đăng nhập thất bại.");
             }
         },
-        onError: (error: any) => {
+        onError: (error: { response?: { status?: number; data?: { message?: string } } }) => {
             const status = error.response?.status;
             const message = error.response?.data?.message;
             const isUnverifiedEmail =
@@ -123,7 +123,7 @@ export const useAuth = () => {
 
     const registerMutation = useMutation({
         mutationFn: (data: RegisterRequest) => authService.register(data),
-        onSuccess: (response: any) => {
+        onSuccess: (response) => {
             const isSuccess = response.isSuccess ?? response.success;
             if (isSuccess) {
                 AppToast.success(response.message || "Đăng ký thành công! Vui lòng kiểm tra email.");
@@ -138,7 +138,7 @@ export const useAuth = () => {
 
     const resendVerificationMutation = useMutation({
         mutationFn: (identifier: string) => authService.resendVerification(identifier),
-        onSuccess: (response: any) => {
+        onSuccess: (response) => {
             const isSuccess = response.isSuccess ?? response.success;
             if (isSuccess) {
                 AppToast.success(response.message || "Đã gửi lại email xác thực.");
@@ -149,8 +149,8 @@ export const useAuth = () => {
     });
 
     const updateProfileMutation = useMutation({
-        mutationFn: ({ id, data }: { id: string; data: any }) => updateUser(id, data),
-        onSuccess: (response: any) => {
+        mutationFn: ({ id, data }: { id: string; data: Parameters<typeof updateUser>[1] }) => updateUser(id, data),
+        onSuccess: (response) => {
             const isSuccess = response.isSuccess ?? response.success;
             if (isSuccess) {
                 queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.CLIENT_ME] });
@@ -187,7 +187,7 @@ export const useAuth = () => {
                 AppToast.error(response.message || "Cập nhật ảnh đại diện thất bại.");
             }
         },
-        onError: (error: any) => {
+        onError: (error: Error & { response?: { data?: { message?: string } } }) => {
             AppToast.error(error?.message || error?.response?.data?.message || "Cập nhật ảnh đại diện thất bại.");
         }
     });
@@ -210,7 +210,7 @@ export const useAuth = () => {
                 AppToast.error(response.message || "Xóa ảnh đại diện thất bại.");
             }
         },
-        onError: (error: any) => {
+        onError: (error: Error & { response?: { data?: { message?: string } } }) => {
             AppToast.error(error?.response?.data?.message || "Xóa ảnh đại diện thất bại.");
         }
     });

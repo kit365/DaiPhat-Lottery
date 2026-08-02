@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { persist, devtools } from "zustand/middleware";
 import { immer } from "zustand/middleware/immer";
 import { toast } from "react-toastify";
-export type CartVariant = any;
+export type CartVariant = Record<string, unknown>;
 import { STORAGE_KEYS } from "../constants/storage.constants";
 
 export interface WishlistItem {
@@ -16,8 +16,8 @@ export interface WishlistItem {
         priceNew: number;
         priceOld: number;
         stock: number;
-        attributeList?: any[];
-        variants?: any[];
+        attributeList?: Record<string, unknown>[];
+        variants?: CartVariant[];
     };
     addedAt: string;
 }

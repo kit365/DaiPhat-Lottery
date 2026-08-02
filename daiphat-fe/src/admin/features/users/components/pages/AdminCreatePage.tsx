@@ -4,7 +4,7 @@ import { useCreateUser, useUploadUserAvatar } from "../../hooks/useUsers";
 import { useRoles } from "../../../role/hooks/useRole";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm, Controller } from "react-hook-form";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { accountAdminSchema } from "../../../../schemas/account-admin.schema";
 import { prefixAdmin } from '../../../../constants/routes';
 import { toast } from "react-toastify";
@@ -28,7 +28,6 @@ export const AdminCreatePage = () => {
     const { mutateAsync: create, isPending } = useCreateUser();
     const { mutateAsync: uploadAvatar } = useUploadUserAvatar();
     const { data: roles = [] } = useRoles();
-    const fileInputRef = useRef<HTMLInputElement>(null);
     const [isUploading, setIsUploading] = useState(false);
     const [avatarFile, setAvatarFile] = useState<File | null>(null);
     const [avatarPreview, setAvatarPreview] = useState("");
@@ -51,35 +50,6 @@ export const AdminCreatePage = () => {
             if (avatarPreview) URL.revokeObjectURL(avatarPreview);
         };
     }, [avatarPreview]);
-
-    const handleOpenFile = () => {
-        fileInputRef.current?.click();
-    };
-
-    const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
-        const file = event.target.files?.[0];
-        if (!file) return;
-
-        // Validate file type
-        const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/gif"];
-        if (!allowedTypes.includes(file.type)) {
-            toast.error("Định dạng file không hợp lệ. Vui lòng chọn *.jpeg, *.jpg, *.png, hoặc *.gif");
-            event.target.value = "";
-            return;
-        }
-
-        // Validate file size (3MB)
-        const maxSize = 3 * 1024 * 1024;
-        if (file.size > maxSize) {
-            toast.error("Dung lượng file quá lớn. Tối đa là 3 Mb");
-            event.target.value = "";
-            return;
-        }
-
-        setAvatarFile(file);
-        setAvatarPreview(URL.createObjectURL(file));
-        event.target.value = "";
-    };
 
     const onSubmit = async (data: any) => {
         try {

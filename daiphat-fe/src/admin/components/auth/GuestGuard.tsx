@@ -1,5 +1,7 @@
+"use client";
+
 import { ReactNode } from "react";
-import { Navigate } from "react-router-dom";
+import { Navigate } from "@/components/router-compat";
 import { useAuthStore } from "../../../stores/useAuthStore";
 
 interface Props {

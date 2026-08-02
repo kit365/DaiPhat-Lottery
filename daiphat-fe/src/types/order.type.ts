@@ -153,6 +153,7 @@ export interface CreateDirectOrderRequest {
 export interface OrderFilterParams {
     page?: number;
     size?: number;
+    limit?: number;
     status?: string | string[];
     fromDate?: string;
     toDate?: string;
@@ -178,15 +179,45 @@ export interface OrderComplaintEligibilityResponse {
     orderStatus: string;
 }
 
+export interface OrderDetailAllocatedSerial {
+    serialId: number;
+    serialNumber: string;
+    status: string;
+}
+
+export interface OrderDetailResponse {
+    id: number;
+    orderId?: string;
+    ticketId: number;
+    numbers: string;
+    drawDate: string;
+    stationName?: string;
+    price: number;
+    quantity: number;
+    subtotal: number;
+    status?: OrderDetailStatus | string;
+    statusDisplayName?: string;
+    allocatedSerials?: OrderDetailAllocatedSerial[];
+}
+
 export interface OrderResponse {
     id: string;
+    orderCode: string;
     userId: string;
+    userFullName: string;
+    userPhone: string;
+    userEmail: string;
     name?: string;
     phone?: string;
-    orderCode: string;
     totalAmount: number;
-    status: OrderStatus;
+    discountAmount: number;
+    finalAmount: number;
+    paidAmount: number;
+    remainingAmount: number;
+    totalQuantity: number;
     orderType: OrderType;
+    status: OrderStatus;
+    paymentStatus?: string;
     receiveType: OrderReceiveType;
     expectedPickupAt?: string;
     actualPickedUpAt?: string;
@@ -199,7 +230,7 @@ export interface OrderResponse {
         | 'OUT_OF_STOCK_INCIDENT'
         | null;
     createdAt: string;
-    orderDetails?: any[];
+    orderDetails?: OrderDetailResponse[];
     transactions: TransactionResponse[];
     refundEligible?: boolean;
     refundRemainingSeconds?: number;

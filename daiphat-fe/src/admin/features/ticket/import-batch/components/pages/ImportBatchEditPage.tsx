@@ -110,7 +110,7 @@ import type { ImportBatch, ImportBatchEligibleStation, UpdateImportBatchPayload 
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Controller, useFieldArray, useForm, useWatch, type Resolver } from 'react-hook-form';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from '@/components/router-compat';
 import { toast } from 'react-toastify';
 import dayjs from 'dayjs';
 import { confirmAction, confirmDelete } from '../../../../../utils/swal';

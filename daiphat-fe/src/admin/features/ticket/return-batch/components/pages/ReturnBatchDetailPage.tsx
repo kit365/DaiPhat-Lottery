@@ -14,7 +14,7 @@ import {
 } from '@mui/material';
 import dayjs from 'dayjs';
 import { useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams } from '@/components/router-compat';
 import { toast } from 'react-toastify';
 import { Breadcrumb } from '../../../../../components/ui/Breadcrumb';
 import { Title } from '../../../../../components/ui/Title';

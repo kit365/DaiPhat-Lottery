@@ -1,5 +1,5 @@
 import { Box, CircularProgress, Typography } from '@mui/material';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from '@/components/router-compat';
 import { Breadcrumb } from '../../../../components/ui/Breadcrumb';
 import { Title } from '../../../../components/ui/Title';
 import { LoadingButton } from '../../../../components/ui/LoadingButton';

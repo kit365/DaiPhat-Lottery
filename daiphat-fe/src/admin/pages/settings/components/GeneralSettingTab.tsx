@@ -17,7 +17,7 @@ export const GeneralSettingTab = () => {
         reset,
         formState: { errors }
     } = useForm<SettingGeneralFormValues>({
-        resolver: zodResolver(settingGeneralSchema) as any,
+        resolver: zodResolver(settingGeneralSchema),
         defaultValues: {
             websiteName: "",
             websiteDomain: "",

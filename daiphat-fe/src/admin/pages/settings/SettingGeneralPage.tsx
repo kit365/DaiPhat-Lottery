@@ -93,7 +93,7 @@ export const SettingGeneralPage = () => {
         }
     };
 
-    const onSubmit = async (data: any) => {
+    const onSubmit = async (data: Record<string, unknown> & { ticketServiceColors?: Array<{ ticketServiceId?: string; color?: string }> }) => {
         const formData = data;
         // Only save ticketServiceId and color
         const formattedData = {

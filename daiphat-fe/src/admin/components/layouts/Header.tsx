@@ -17,7 +17,7 @@ import { useState } from "react";
 import { toast } from 'react-toastify';
 import { motion } from "framer-motion";
 import { useAuthStore } from "../../../stores/useAuthStore";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "@/components/router-compat";
 import { authService } from "../../pages/authen/services/auth.service";
 import { ROUTES, prefixAdmin } from "../../constants/routes";
 import { NotificationPopover } from "./NotificationPopover";

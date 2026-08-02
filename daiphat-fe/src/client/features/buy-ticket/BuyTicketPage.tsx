@@ -37,6 +37,9 @@ import {
     toApiTailRange,
     toUiTailRangeLabel,
 } from '../../utils/buyTicketFilter.util';
+import { PublicLotteryTicket } from '../../../types/lottery-ticket.type';
+
+dayjs.locale('vi');
 
 const PUBLIC_TICKET_PAGE_SIZE = 500;
 const PUBLIC_TICKET_MAX_PAGES = 50;
@@ -245,18 +248,36 @@ export const BuyTicketPage = () => {
 
     const isLoadingProviders = isLoadingToday || isLoadingTomorrow || isLoadingCustomStations;
 
-    const mapStationToProvince = (p: any) => ({
-        id: String(p.id || p._id),
-        name: p.name,
-        time: p.drawTime,
-        day: p.drawSchedule,
-        icon: p.image || p.thumbnailUrl,
-        schedule: p.drawSchedule,
-        region: p.region,
+    const mapStationToProvince = (p: {
+        id?: string | number;
+        _id?: string | number;
+        name?: string;
+        drawTime?: string;
+        drawSchedule?: string;
+        image?: string;
+        thumbnailUrl?: string;
+        region?: string;
+    }) => ({
+        id: String(p.id || p._id || ''),
+        name: p.name || '',
+        time: p.drawTime || '',
+        day: p.drawSchedule || '',
+        icon: p.image || p.thumbnailUrl || '',
+        schedule: p.drawSchedule || '',
+        region: p.region || '',
     });
 
     const dynamicProvinces = useMemo(() => {
-        let combined: any[] = [];
+        let combined: Array<{
+            id?: string | number;
+            _id?: string | number;
+            name?: string;
+            drawTime?: string;
+            drawSchedule?: string;
+            image?: string;
+            thumbnailUrl?: string;
+            region?: string;
+        }> = [];
         if (selectedDates.includes('today') && stationsTodayData) {
             combined = [...combined, ...stationsTodayData];
         }
@@ -578,8 +599,8 @@ export const BuyTicketPage = () => {
             return;
         }
 
-        const matched: any = (availableTickets as any[]).find(
-            (ticket: any) => String(ticket.id ?? ticket._id) === String(urlTicketId)
+        const matched = (availableTickets as unknown as PublicLotteryTicket[]).find(
+            (ticket) => String(ticket.id ?? ticket._id) === String(urlTicketId)
         );
         if (!matched?.numbers) {
             return;
@@ -617,19 +638,19 @@ export const BuyTicketPage = () => {
     const maxAvailable = useMemo(() => {
         if (selectedNumbers.length === 0) return 1;
         const num = selectedNumbers[0];
-        const ticketData = (availableTickets as any[]).find((t: any) => t.numbers === num);
+        const ticketData = (availableTickets as unknown as PublicLotteryTicket[]).find((t) => t.numbers === num);
         return ticketData?.quantity || 1;
     }, [selectedNumbers, availableTickets]);
 
     const selectedTicketProvinces = useMemo(() => {
         if (selectedNumbers.length === 0) return activeProvinces;
         
-        const provs = new Map();
+        const provs = new Map<string, typeof dynamicProvinces[number]>();
         selectedNumbers.forEach(num => {
-            const ticketData = (availableTickets as any[]).find((t: any) => t.numbers === num);
+            const ticketData = (availableTickets as unknown as PublicLotteryTicket[]).find((t) => t.numbers === num);
             if (ticketData) {
                 const prov = dynamicProvinces.find(
-                    (p: any) =>
+                    (p) =>
                         sameProvinceId(p.id, ticketData.providerId ?? '') ||
                         sameProvinceId(p.id, ticketData.stationId ?? '')
                 );
@@ -903,9 +924,9 @@ export const BuyTicketPage = () => {
                             <div className="relative p-4 lg:p-5 cursor-pointer hover:bg-gray-50 transition-colors rounded-r-[20px]" onClick={() => { setIsProvinceOpen(!isProvinceOpen); setIsDateOpen(false); }}>
                                 <div className="flex gap-4 items-center">
                                     <div className="shrink-0">
-                                        {activeProvinces.length > 0 ? (
+                                        {activeProvinces.length > 0 && activeProvinces[0]?.icon ? (
                                             <div className="w-[40px] h-[40px] rounded-full border border-[#E5E8EB] overflow-hidden flex items-center justify-center p-[2px] bg-white">
-                                                <img src={activeProvinces[0]?.icon} alt="" className="w-full h-full object-contain" />
+                                                <img src={activeProvinces[0].icon} alt="" className="w-full h-full object-contain" />
                                             </div>
                                         ) : (
                                             <div className="w-[40px] h-[40px] rounded-full bg-gray-100 flex items-center justify-center text-gray-400">
@@ -1004,7 +1025,11 @@ export const BuyTicketPage = () => {
                                                     >
                                                         <div className="flex items-center gap-3">
                                                             <div className="w-[36px] h-[36px] rounded-full border border-[#E5E8EB] overflow-hidden flex items-center justify-center p-[2px] bg-white">
-                                                                <img src={prov.icon} alt="" className="w-full h-full object-contain" />
+                                                                {prov.icon ? (
+                                                                    <img src={prov.icon} alt="" className="w-full h-full object-contain" />
+                                                                ) : (
+                                                                    <i className="fa-solid fa-building text-[14px] text-gray-400"></i>
+                                                                )}
                                                             </div>
                                                             <div>
                                                                 <div className={`font-bold ${isProvSelected ? 'text-[#ee1314]' : 'text-[#212B36]'}`}>{prov.name}</div>
@@ -1530,7 +1555,7 @@ export const BuyTicketPage = () => {
                                 {selectedTicketProvinces.length > 0 && (
                                     <div className="flex items-center gap-4 mb-5">
                                         <div className="w-[50px] h-[50px] rounded-full bg-white flex items-center justify-center shadow-sm p-1.5 shrink-0 border border-[#E5E8EB]">
-                                            {selectedTicketProvinces.length === 1 ? (
+                                            {selectedTicketProvinces.length === 1 && selectedTicketProvinces[0]?.icon ? (
                                                 <img src={selectedTicketProvinces[0].icon} alt={selectedTicketProvinces[0].name} className="w-full h-full object-contain" />
                                             ) : (
                                                 <i className="fa-solid fa-building text-[#637381] text-2xl"></i>

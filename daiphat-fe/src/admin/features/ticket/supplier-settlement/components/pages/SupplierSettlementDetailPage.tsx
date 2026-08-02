@@ -1,6 +1,6 @@
 import { Box, CircularProgress, Stack, Typography } from '@mui/material';
 import dayjs from 'dayjs';
-import { useParams } from 'react-router-dom';
+import { useParams } from '@/components/router-compat';
 import { Breadcrumb } from '../../../../../components/ui/Breadcrumb';
 import { Title } from '../../../../../components/ui/Title';
 import { CollapsibleCard } from '../../../../../components/ui/CollapsibleCard';

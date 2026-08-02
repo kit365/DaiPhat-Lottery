@@ -22,7 +22,7 @@ export const useSettingPage = (key: string) => {
 export const useUpdateSettingPage = (key: string) => {
     const queryClient = useQueryClient();
     return useMutation({
-        mutationFn: (data: any) => updateSettingPage(key, data),
+        mutationFn: (data: Record<string, unknown>) => updateSettingPage(key, data),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["settingPage", key] });
             toast.success("Cập nhật trang thành công");

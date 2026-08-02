@@ -49,7 +49,7 @@ export const TicketSearchPage: React.FC = () => {
 
     const { data: stationsByDate } = useStationsByDrawDate(availableFilters.drawDate);
     const stations = useMemo(
-        () => (stationsByDate || []).map((s: any) => ({ id: s.id || s._id, name: s.name })),
+        () => (stationsByDate || []).map((s: { id?: string | number; _id?: string | number; name?: string }) => ({ id: s.id || s._id || '', name: s.name || '' })),
         [stationsByDate]
     );
 
