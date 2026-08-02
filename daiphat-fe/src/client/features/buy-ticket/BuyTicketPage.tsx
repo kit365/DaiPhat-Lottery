@@ -924,9 +924,9 @@ export const BuyTicketPage = () => {
                             <div className="relative p-4 lg:p-5 cursor-pointer hover:bg-gray-50 transition-colors rounded-r-[20px]" onClick={() => { setIsProvinceOpen(!isProvinceOpen); setIsDateOpen(false); }}>
                                 <div className="flex gap-4 items-center">
                                     <div className="shrink-0">
-                                        {activeProvinces.length > 0 ? (
+                                        {activeProvinces.length > 0 && activeProvinces[0]?.icon ? (
                                             <div className="w-[40px] h-[40px] rounded-full border border-[#E5E8EB] overflow-hidden flex items-center justify-center p-[2px] bg-white">
-                                                <img src={activeProvinces[0]?.icon} alt="" className="w-full h-full object-contain" />
+                                                <img src={activeProvinces[0].icon} alt="" className="w-full h-full object-contain" />
                                             </div>
                                         ) : (
                                             <div className="w-[40px] h-[40px] rounded-full bg-gray-100 flex items-center justify-center text-gray-400">
@@ -1025,7 +1025,11 @@ export const BuyTicketPage = () => {
                                                     >
                                                         <div className="flex items-center gap-3">
                                                             <div className="w-[36px] h-[36px] rounded-full border border-[#E5E8EB] overflow-hidden flex items-center justify-center p-[2px] bg-white">
-                                                                <img src={prov.icon} alt="" className="w-full h-full object-contain" />
+                                                                {prov.icon ? (
+                                                                    <img src={prov.icon} alt="" className="w-full h-full object-contain" />
+                                                                ) : (
+                                                                    <i className="fa-solid fa-building text-[14px] text-gray-400"></i>
+                                                                )}
                                                             </div>
                                                             <div>
                                                                 <div className={`font-bold ${isProvSelected ? 'text-[#ee1314]' : 'text-[#212B36]'}`}>{prov.name}</div>
@@ -1551,7 +1555,7 @@ export const BuyTicketPage = () => {
                                 {selectedTicketProvinces.length > 0 && (
                                     <div className="flex items-center gap-4 mb-5">
                                         <div className="w-[50px] h-[50px] rounded-full bg-white flex items-center justify-center shadow-sm p-1.5 shrink-0 border border-[#E5E8EB]">
-                                            {selectedTicketProvinces.length === 1 ? (
+                                            {selectedTicketProvinces.length === 1 && selectedTicketProvinces[0]?.icon ? (
                                                 <img src={selectedTicketProvinces[0].icon} alt={selectedTicketProvinces[0].name} className="w-full h-full object-contain" />
                                             ) : (
                                                 <i className="fa-solid fa-building text-[#637381] text-2xl"></i>
