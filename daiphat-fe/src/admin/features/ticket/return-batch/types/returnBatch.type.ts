@@ -50,6 +50,8 @@ export interface InspectableReturnSerial {
     serialNumber: string;
     status: string;
     statusLabel?: string | null;
+    ticketCondition?: string | null;
+    ticketConditionDisplayName?: string | null;
     ticketId: number;
     ticketNumbers?: string | null;
     drawDate?: string | null;

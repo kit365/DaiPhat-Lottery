@@ -35,6 +35,7 @@ import {
     useInspectableReturnSerials,
 } from '../../hooks/useReturnBatch';
 import type { InspectableReturnSerial, ReturnDeliveryMode } from '../../types/returnBatch.type';
+import { isFaultyTicketCondition } from '../../../import-batch/utils/serialIncidentWorkflow';
 
 interface Props {
     open: boolean;
@@ -42,6 +43,13 @@ interface Props {
     onClose: () => void;
     onCompleted: () => void;
 }
+
+const isReturnSelectableSerial = (serial: InspectableReturnSerial): boolean => {
+    if (serial.status !== 'IN_STOCK') return false;
+    // Physical faults are tracked on ticketCondition (status stays IN_STOCK).
+    if (isFaultyTicketCondition(serial.ticketCondition)) return false;
+    return true;
+};
 
 export const InspectTicketsDialog = ({ open, batchId, onClose, onCompleted }: Props) => {
     const { data: serials = [], isLoading, refetch } = useInspectableReturnSerials(batchId, open);
@@ -55,9 +63,9 @@ export const InspectTicketsDialog = ({ open, batchId, onClose, onCompleted }: Pr
         setDeliveryMode('RETAILER_DELIVERS');
     }, [open]);
 
-    // Only count serials that are currently IN_STOCK (exclude reported fault/voided serials)
+    // Only count serials that are currently IN_STOCK + GOOD (exclude reported fault/voided serials)
     const inStockSerials = useMemo(
-        () => serials.filter((s) => s.status === 'IN_STOCK'),
+        () => serials.filter(isReturnSelectableSerial),
         [serials]
     );
 
@@ -300,9 +308,9 @@ export const InspectTicketsDialog = ({ open, batchId, onClose, onCompleted }: Pr
                                 </TableHead>
                                 <TableBody>
                                     {serials.map((row) => {
-                                        const isInStock = row.status === 'IN_STOCK';
+                                        const isSelectable = isReturnSelectableSerial(row);
                                         return (
-                                            <TableRow key={row.serialId} hover sx={{ opacity: isInStock ? 1 : 0.6 }}>
+                                            <TableRow key={row.serialId} hover sx={{ opacity: isSelectable ? 1 : 0.6 }}>
                                                 <TableCell>
                                                     <Typography variant="body2" fontWeight={600}>
                                                         {row.lotteryStationName || '—'}
@@ -320,10 +328,16 @@ export const InspectTicketsDialog = ({ open, batchId, onClose, onCompleted }: Pr
                                                 </TableCell>
                                                 <TableCell>
                                                     <Chip
-                                                        label={isInStock ? 'KHO (IN_STOCK)' : row.status}
+                                                        label={
+                                                            isFaultyTicketCondition(row.ticketCondition)
+                                                                ? (row.ticketConditionDisplayName || row.ticketCondition || 'Hỏng')
+                                                                : isSelectable
+                                                                  ? 'KHO (IN_STOCK)'
+                                                                  : row.status
+                                                        }
                                                         size="small"
-                                                        color={isInStock ? 'success' : 'warning'}
-                                                        variant={isInStock ? 'outlined' : 'filled'}
+                                                        color={isSelectable ? 'success' : 'warning'}
+                                                        variant={isSelectable ? 'outlined' : 'filled'}
                                                         sx={{ height: 22, fontSize: '0.7rem', fontWeight: 600 }}
                                                     />
                                                 </TableCell>
@@ -333,7 +347,7 @@ export const InspectTicketsDialog = ({ open, batchId, onClose, onCompleted }: Pr
                                                     </Typography>
                                                 </TableCell>
                                                 <TableCell align="right">
-                                                    {isInStock ? (
+                                                    {isSelectable ? (
                                                         <Button
                                                             size="small"
                                                             variant="outlined"
@@ -394,7 +408,7 @@ export const InspectTicketsDialog = ({ open, batchId, onClose, onCompleted }: Pr
                         className="btn-primary-admin"
                         loading={confirmInspection.isPending}
                         onClick={handleConfirm}
-                        disabled={serials.length === 0}
+                        disabled={inStockCount === 0}
                     />
                 </DialogActions>
             </Dialog>
@@ -413,6 +427,8 @@ export const InspectTicketsDialog = ({ open, batchId, onClose, onCompleted }: Pr
                             id: faultSerial.serialId,
                             serialNumber: faultSerial.serialNumber,
                             status: faultSerial.status,
+                            ticketCondition: faultSerial.ticketCondition,
+                            returnBatchLineId: faultSerial.returnBatchLineId,
                         },
                     ]}
                     ticketNumbers={faultSerial.ticketNumbers || undefined}
