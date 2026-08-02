@@ -19,7 +19,9 @@ export type PrizePayoutRequestStatus = 'PENDING' | 'COMPLETED' | 'REJECTED' | 'C
 
 export interface PublicLotteryTicket {
     id: number;
+    _id?: number | string;
     stationId: number;
+    providerId?: number;
     stationName?: string;
     ticketImg?: string;
     serialNumber?: string;

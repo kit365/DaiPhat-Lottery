@@ -68,7 +68,7 @@ apiApp.interceptors.request.use((config) => {
 
 interface PendingRequest {
     resolve: (token: string | null) => void;
-    reject: (error: any) => void;
+    reject: (error: unknown) => void;
 }
 
 let isRefreshing = false;
@@ -134,7 +134,7 @@ const persistAccessToken = (accessToken: string, expiresIn?: number) => {
     });
 };
 
-const processQueue = (error: any, token: string | null = null) => {
+const processQueue = (error: unknown, token: string | null = null) => {
     failedQueue.forEach(prom => {
         if (error) {
             prom.reject(error);
@@ -165,7 +165,7 @@ apiApp.interceptors.response.use(
 
         if (response) {
             const status = response.status;
-            const message = (response.data as any)?.message || "Đã có lỗi xảy ra từ máy chủ!";
+            const message = (response.data as { message?: string } | undefined)?.message || "Đã có lỗi xảy ra từ máy chủ!";
 
             if (status === 401 && originalRequest && !originalRequest._retry) {
                 // Skip refresh logic for auth endpoints (login, refresh-token itself)

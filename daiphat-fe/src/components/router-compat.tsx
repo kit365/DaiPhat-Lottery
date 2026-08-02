@@ -77,15 +77,36 @@ export const useParams = <T extends Record<string, string | string[]> = Record<s
   );
 };
 
-export const useSearchParams = (): [URLSearchParams, (params: any, options?: any) => void] => {
+export type SearchParamsInit = URLSearchParams | Record<string, string | string[] | number | boolean | undefined | null> | string;
+
+export const useSearchParams = (): [
+  URLSearchParams,
+  (newParams: SearchParamsInit, options?: { replace?: boolean }) => void
+] => {
   const nextSearchParams = useNextSearchParams();
   const router = useRouter();
   const pathname = usePathname();
 
   const searchParams = new URLSearchParams(nextSearchParams ? nextSearchParams.toString() : '');
 
-  const setSearchParams = (newParams: any, options?: any) => {
-    const params = new URLSearchParams(newParams);
+  const setSearchParams = (
+    newParams: SearchParamsInit,
+    options?: { replace?: boolean }
+  ) => {
+    let params: URLSearchParams;
+    if (newParams instanceof URLSearchParams) {
+      params = newParams;
+    } else if (typeof newParams === 'string') {
+      params = new URLSearchParams(newParams);
+    } else {
+      params = new URLSearchParams();
+      Object.entries(newParams).forEach(([key, val]) => {
+        if (val !== undefined && val !== null) {
+          params.set(key, String(val));
+        }
+      });
+    }
+
     const url = `${pathname}?${params.toString()}`;
     if (options?.replace) {
       router.replace(url);
@@ -97,7 +118,12 @@ export const useSearchParams = (): [URLSearchParams, (params: any, options?: any
   return [searchParams, setSearchParams];
 };
 
-export const Link = ({ to, href, children, className, ...props }: any) => {
+export type LinkProps = Omit<React.ComponentPropsWithoutRef<typeof NextLink>, 'href'> & {
+  to?: string;
+  href?: string;
+};
+
+export const Link: React.FC<LinkProps> = ({ to, href, children, className, ...props }) => {
   const target = to || href || '#';
   return (
     <NextLink href={target} className={className} {...props}>
@@ -106,7 +132,7 @@ export const Link = ({ to, href, children, className, ...props }: any) => {
   );
 };
 
-export const Navigate = ({ to, replace = true }: { to: string; replace?: boolean; state?: any }) => {
+export const Navigate = ({ to, replace = true }: { to: string; replace?: boolean; state?: unknown }) => {
   const router = useRouter();
   useEffect(() => {
     if (replace) {
@@ -118,9 +144,16 @@ export const Navigate = ({ to, replace = true }: { to: string; replace?: boolean
   return null;
 };
 
-export const BrowserRouter = ({ children }: any) => <>{children}</>;
-export const Routes = ({ children }: any) => <>{children}</>;
-export const Route = ({ children }: any) => <>{children}</>;
+export interface RouteProps {
+  path?: string;
+  element?: React.ReactNode;
+  index?: boolean;
+  children?: React.ReactNode;
+}
+
+export const BrowserRouter: React.FC<{ children: React.ReactNode }> = ({ children }) => <>{children}</>;
+export const Routes: React.FC<{ children: React.ReactNode }> = ({ children }) => <>{children}</>;
+export const Route: React.FC<RouteProps> = ({ children }) => <>{children}</>;
 
 /** Match a React-Router-style path pattern against URL segments. */
 export function matchPathPattern(pattern?: string, pathSegments: string[] = []): boolean {

@@ -60,7 +60,7 @@ export const ProfileDashboardPage = () => {
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ duration: 0.4 }}
                         >
-                            <StatsOverview totalPoint={(user as any).totalPoint || 0} usedPoint={(user as any).usedPoint || 0} />
+                            <StatsOverview totalPoint={user?.totalPoint || 0} usedPoint={user?.usedPoint || 0} />
                         </motion.div>
 
                         {/* Row 2: Chart */}

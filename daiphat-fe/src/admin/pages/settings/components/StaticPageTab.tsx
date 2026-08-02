@@ -21,7 +21,7 @@ export const StaticPageTab = ({ pageKey, label }: StaticPageTabProps) => {
         reset,
         formState: { errors }
     } = useForm<SettingPageFormValues>({
-        resolver: zodResolver(settingPageSchema) as any,
+        resolver: zodResolver(settingPageSchema),
         defaultValues: {
             title: "",
             content: ""

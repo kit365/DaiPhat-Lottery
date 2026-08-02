@@ -37,6 +37,9 @@ import {
     toApiTailRange,
     toUiTailRangeLabel,
 } from '../../utils/buyTicketFilter.util';
+import { PublicLotteryTicket } from '../../../types/lottery-ticket.type';
+
+dayjs.locale('vi');
 
 const PUBLIC_TICKET_PAGE_SIZE = 500;
 const PUBLIC_TICKET_MAX_PAGES = 50;
@@ -245,18 +248,36 @@ export const BuyTicketPage = () => {
 
     const isLoadingProviders = isLoadingToday || isLoadingTomorrow || isLoadingCustomStations;
 
-    const mapStationToProvince = (p: any) => ({
-        id: String(p.id || p._id),
-        name: p.name,
-        time: p.drawTime,
-        day: p.drawSchedule,
-        icon: p.image || p.thumbnailUrl,
-        schedule: p.drawSchedule,
-        region: p.region,
+    const mapStationToProvince = (p: {
+        id?: string | number;
+        _id?: string | number;
+        name?: string;
+        drawTime?: string;
+        drawSchedule?: string;
+        image?: string;
+        thumbnailUrl?: string;
+        region?: string;
+    }) => ({
+        id: String(p.id || p._id || ''),
+        name: p.name || '',
+        time: p.drawTime || '',
+        day: p.drawSchedule || '',
+        icon: p.image || p.thumbnailUrl || '',
+        schedule: p.drawSchedule || '',
+        region: p.region || '',
     });
 
     const dynamicProvinces = useMemo(() => {
-        let combined: any[] = [];
+        let combined: Array<{
+            id?: string | number;
+            _id?: string | number;
+            name?: string;
+            drawTime?: string;
+            drawSchedule?: string;
+            image?: string;
+            thumbnailUrl?: string;
+            region?: string;
+        }> = [];
         if (selectedDates.includes('today') && stationsTodayData) {
             combined = [...combined, ...stationsTodayData];
         }
@@ -578,8 +599,8 @@ export const BuyTicketPage = () => {
             return;
         }
 
-        const matched: any = (availableTickets as any[]).find(
-            (ticket: any) => String(ticket.id ?? ticket._id) === String(urlTicketId)
+        const matched = (availableTickets as unknown as PublicLotteryTicket[]).find(
+            (ticket) => String(ticket.id ?? ticket._id) === String(urlTicketId)
         );
         if (!matched?.numbers) {
             return;
@@ -617,19 +638,19 @@ export const BuyTicketPage = () => {
     const maxAvailable = useMemo(() => {
         if (selectedNumbers.length === 0) return 1;
         const num = selectedNumbers[0];
-        const ticketData = (availableTickets as any[]).find((t: any) => t.numbers === num);
+        const ticketData = (availableTickets as unknown as PublicLotteryTicket[]).find((t) => t.numbers === num);
         return ticketData?.quantity || 1;
     }, [selectedNumbers, availableTickets]);
 
     const selectedTicketProvinces = useMemo(() => {
         if (selectedNumbers.length === 0) return activeProvinces;
         
-        const provs = new Map();
+        const provs = new Map<string, typeof dynamicProvinces[number]>();
         selectedNumbers.forEach(num => {
-            const ticketData = (availableTickets as any[]).find((t: any) => t.numbers === num);
+            const ticketData = (availableTickets as unknown as PublicLotteryTicket[]).find((t) => t.numbers === num);
             if (ticketData) {
                 const prov = dynamicProvinces.find(
-                    (p: any) =>
+                    (p) =>
                         sameProvinceId(p.id, ticketData.providerId ?? '') ||
                         sameProvinceId(p.id, ticketData.stationId ?? '')
                 );

@@ -15,7 +15,7 @@ export const PaymentTab = () => {
         reset,
         formState: { errors },
     } = useForm<SettingPaymentFormValues>({
-        resolver: zodResolver(settingPaymentSchema) as any,
+        resolver: zodResolver(settingPaymentSchema),
         defaultValues: {
             zaloAppId: "",
             zaloKey1: "",
