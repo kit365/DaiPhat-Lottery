@@ -5,8 +5,7 @@ import TextField from '@mui/material/TextField';
 import InputAdornment from '@mui/material/InputAdornment';
 import { Icon } from '@iconify/react';
 import { useTranslation } from 'react-i18next';
-import { useState, useEffect, useCallback } from 'react';
-import { debounce } from 'lodash-es';
+import { useState, useEffect, useCallback, useRef } from 'react';
 
 interface SearchProps {
     maxWidth?: string | number;
@@ -26,10 +25,14 @@ export const Search = ({ maxWidth = 260, placeholder, value, onChange }: SearchP
     }, [value]);
 
     // Create a debounced version of the onChange callback
+    const debounceTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
     const debouncedOnChange = useCallback(
-        debounce((val: string) => {
-            onChange?.(val);
-        }, 500),
+        (val: string) => {
+            clearTimeout(debounceTimer.current);
+            debounceTimer.current = setTimeout(() => {
+                onChange?.(val);
+            }, 500);
+        },
         [onChange]
     );
 

@@ -1,24 +1,63 @@
 "use client";
 
+import dynamic from 'next/dynamic';
+import { Suspense } from 'react';
 import { PrivateRoute } from '@/client/features/auth/PrivateRoute';
 import { ProfilePage as ClientProfilePage } from '@/client/features/profile/pages/ProfilePage';
+// Lightweight tabs — loaded immediately (small bundle impact)
 import { OverviewTab } from '@/client/features/profile/pages/tabs/OverviewTab';
 import { ProfileInfoTab } from '@/client/features/profile/pages/tabs/ProfileInfoTab';
-import { TicketsTab } from '@/client/features/profile/pages/tabs/TicketsTab';
-import { OrdersTab } from '@/client/features/profile/pages/tabs/OrdersTab';
-import { OrderDetailTab } from '@/client/features/profile/pages/tabs/OrderDetailTab';
-import { FavoritesTab } from '@/client/features/profile/pages/tabs/FavoritesTab';
+import { SecurityTab } from '@/client/features/profile/pages/tabs/SecurityTab';
 import { NotificationsTab } from '@/client/features/profile/pages/tabs/NotificationsTab';
 import { ResultNotificationSettingsTab } from '@/client/features/profile/pages/tabs/ResultNotificationSettingsTab';
-import { SecurityTab } from '@/client/features/profile/pages/tabs/SecurityTab';
-import { RefundsTab } from '@/client/features/profile/pages/tabs/RefundsTab';
-import { PrizePayoutsTab } from '@/client/features/profile/pages/tabs/PrizePayoutsTab';
-import { PrizePayoutDetailTab } from '@/client/features/profile/pages/tabs/PrizePayoutDetailTab';
-import { RefundDetailTab } from '@/client/features/profile/pages/tabs/RefundDetailTab';
-import { BankAccountsTab } from '@/client/features/profile/pages/tabs/BankAccountsTab';
-import { ComplaintsTab } from '@/client/features/profile/pages/tabs/ComplaintsTab';
-import { ComplaintDetailTab } from '@/client/features/profile/pages/tabs/ComplaintDetailTab';
 import { OutletProvider } from '@/components/router-compat';
+import { LoadingSpinner } from '@/client/components/ui/LoadingSpinner';
+
+// Heavy tabs — lazy-loaded (53–57 KB each, split into separate chunks)
+const TicketsTab = dynamic(
+  () => import('@/client/features/profile/pages/tabs/TicketsTab').then((m) => m.TicketsTab),
+  { loading: () => <LoadingSpinner /> }
+);
+const OrdersTab = dynamic(
+  () => import('@/client/features/profile/pages/tabs/OrdersTab').then((m) => m.OrdersTab),
+  { loading: () => <LoadingSpinner /> }
+);
+const OrderDetailTab = dynamic(
+  () => import('@/client/features/profile/pages/tabs/OrderDetailTab').then((m) => m.OrderDetailTab),
+  { loading: () => <LoadingSpinner /> }
+);
+const RefundsTab = dynamic(
+  () => import('@/client/features/profile/pages/tabs/RefundsTab').then((m) => m.RefundsTab),
+  { loading: () => <LoadingSpinner /> }
+);
+const RefundDetailTab = dynamic(
+  () => import('@/client/features/profile/pages/tabs/RefundDetailTab').then((m) => m.RefundDetailTab),
+  { loading: () => <LoadingSpinner /> }
+);
+const PrizePayoutsTab = dynamic(
+  () => import('@/client/features/profile/pages/tabs/PrizePayoutsTab').then((m) => m.PrizePayoutsTab),
+  { loading: () => <LoadingSpinner /> }
+);
+const PrizePayoutDetailTab = dynamic(
+  () => import('@/client/features/profile/pages/tabs/PrizePayoutDetailTab').then((m) => m.PrizePayoutDetailTab),
+  { loading: () => <LoadingSpinner /> }
+);
+const ComplaintsTab = dynamic(
+  () => import('@/client/features/profile/pages/tabs/ComplaintsTab').then((m) => m.ComplaintsTab),
+  { loading: () => <LoadingSpinner /> }
+);
+const ComplaintDetailTab = dynamic(
+  () => import('@/client/features/profile/pages/tabs/ComplaintDetailTab').then((m) => m.ComplaintDetailTab),
+  { loading: () => <LoadingSpinner /> }
+);
+const FavoritesTab = dynamic(
+  () => import('@/client/features/profile/pages/tabs/FavoritesTab').then((m) => m.FavoritesTab),
+  { loading: () => <LoadingSpinner /> }
+);
+const BankAccountsTab = dynamic(
+  () => import('@/client/features/profile/pages/tabs/BankAccountsTab').then((m) => m.BankAccountsTab),
+  { loading: () => <LoadingSpinner /> }
+);
 
 export function ProfileTabClient({ tabSegments }: { tabSegments: string[] }) {
   const first = tabSegments[0];
@@ -45,8 +84,11 @@ export function ProfileTabClient({ tabSegments }: { tabSegments: string[] }) {
   return (
     <PrivateRoute>
       <OutletProvider outlet={tabContent}>
-        <ClientProfilePage />
+        <Suspense fallback={<LoadingSpinner />}>
+          <ClientProfilePage />
+        </Suspense>
       </OutletProvider>
     </PrivateRoute>
   );
 }
+

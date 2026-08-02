@@ -5,6 +5,7 @@ import '../App.css';
 import 'react-toastify/dist/ReactToastify.css';
 import '../styles/client.css';
 import { Providers } from './providers';
+import { FontLoader } from '../components/FontLoader';
 
 const inter = Inter({
   subsets: ['latin', 'vietnamese'],
@@ -42,16 +43,10 @@ export default function RootLayout({
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link
-          href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
-          rel="stylesheet"
-        />
-        <link
-          rel="stylesheet"
-          href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
-        />
       </head>
       <body className="antialiased">
+        {/* Icon fonts loaded non-blocking after page is interactive */}
+        <FontLoader />
         <Providers>{children}</Providers>
       </body>
     </html>
