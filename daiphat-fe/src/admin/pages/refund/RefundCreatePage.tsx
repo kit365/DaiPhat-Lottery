@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from '@/components/router-compat';
 import {
     Avatar,
     Box,
@@ -123,7 +123,7 @@ const SectionCard = ({
 export function RefundCreatePage() {
     const location = useLocation();
     const navigate = useNavigate();
-    const state = location.state as {
+    const state = (location.state || {}) as {
         orderId?: string;
         orderCode?: string;
         replacements?: Record<

@@ -80,6 +80,8 @@ export const menuManagementData = [
         children: [
             { id: "list", label: "Kho vé số", tKey: "admin.sidebar.list", path: ROUTES.ADMIN.TICKETS.LIST, permission: PERMISSIONS.TICKET.VIEW },
             { id: "import-batch", label: "Nhập lô vé", path: ROUTES.ADMIN.IMPORT_BATCH.LIST, permission: PERMISSIONS.IMPORT_BATCH.VIEW },
+            { id: "return-batch", label: "Trả vé NCC", path: ROUTES.ADMIN.RETURN_BATCH.LIST, permission: PERMISSIONS.IMPORT_BATCH.VIEW },
+            { id: "supplier-settlement", label: "Đối soát NCC", path: ROUTES.ADMIN.SUPPLIER_SETTLEMENT.LIST, permission: PERMISSIONS.IMPORT_BATCH.VIEW },
             { id: "supplier", label: "Nhà cung cấp", path: ROUTES.ADMIN.SUPPLIER.LIST, permission: PERMISSIONS.SUPPLIER.VIEW },
             { id: "provider", label: "Nhà đài", tKey: "admin.sidebar.provider", path: ROUTES.ADMIN.TICKETS.PROVIDER, permission: PERMISSIONS.PROVIDER.VIEW },
             { id: "region", label: "Vùng miền", path: ROUTES.ADMIN.TICKETS.REGION, permission: PERMISSIONS.REGION.VIEW },

@@ -13,6 +13,7 @@ import { prefixAdmin } from "../../../../constants/routes";
 import { FormUploadSingleFile } from "../../../../components/upload/FormUploadSingleFile";
 import { toast } from "react-toastify";
 import { CategoryParentSelect } from "../../../../components/ui/CategoryTreeSelect";
+import { uploadBlogImage } from "../../services/blogService";
 
 export const BlogCategoryCreatePage = () => {
     const [expandedDetail, setExpandedDetail] = useState(true);
@@ -29,7 +30,7 @@ export const BlogCategoryCreatePage = () => {
         defaultValues: {
             name: "",
             description: "",
-            parentId: "",
+            parent: "",
             status: "ACTIVE",
             avatar: "",
         },
@@ -77,7 +78,7 @@ export const BlogCategoryCreatePage = () => {
                         reset({
                             name: "",
                             description: "",
-                            parentId: "",
+                            parent: "",
                             status: "ACTIVE",
                             avatar: "",
                         });

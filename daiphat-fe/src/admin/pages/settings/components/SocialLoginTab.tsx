@@ -15,7 +15,7 @@ export const SocialLoginTab = () => {
         reset,
         formState: { errors },
     } = useForm<SettingLoginSocialFormValues>({
-        resolver: zodResolver(settingLoginSocialSchema) as any,
+        resolver: zodResolver(settingLoginSocialSchema),
         defaultValues: {
             googleClientId: "",
             googleClientSecret: "",

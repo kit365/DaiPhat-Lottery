@@ -106,8 +106,8 @@ export const TicketSearchWidget: React.FC = () => {
                             className="px-3 py-2 border border-[#E5E8EB] rounded-xl text-[13px] outline-none"
                         >
                             <option value="">Tất cả đài</option>
-                            {(stations || []).map((s: any) => (
-                                <option key={s.id || s._id} value={String(s.id || s._id)}>{s.name}</option>
+                            {(stations || []).map((s: { id?: string | number; _id?: string | number; name?: string }) => (
+                                <option key={String(s.id || s._id || '')} value={String(s.id || s._id || '')}>{s.name || ''}</option>
                             ))}
                         </select>
                     </label>

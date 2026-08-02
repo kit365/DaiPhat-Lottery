@@ -640,7 +640,7 @@ export const ChatbotPopup = () => {
   const [isEscalating, setIsEscalating] = useState(false);
   const [isCancellingStaff, setIsCancellingStaff] = useState(false);
   const [isDisconnectingStaff, setIsDisconnectingStaff] = useState(false);
-  const [overlayMessages, setOverlayMessages] = useState<Message[]>([]);
+  const [overlayMessages, setOverlayMessages] = useState<any[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [isSendingUi, setIsSendingUi] = useState(false);
   const [expandedDatePickerMessageId, setExpandedDatePickerMessageId] = useState<string | null>(null);
@@ -697,11 +697,11 @@ export const ChatbotPopup = () => {
   }, [timelineMessages, overlayMessages, typingHoldActive, awaitingBotReply]);
 
   const displayMessages = useMemo(
-    () => prepareDisplayMessages(messages, isAiEnabled),
+    () => prepareDisplayMessages(messages as any, isAiEnabled),
     [isAiEnabled, messages]
   );
   const suggestedTicketExcludeIds = useMemo(
-    () => collectSuggestedTicketIds(displayMessages),
+    () => collectSuggestedTicketIds(displayMessages as any),
     [displayMessages]
   );
   const isAuthReady = Boolean(token && userId);

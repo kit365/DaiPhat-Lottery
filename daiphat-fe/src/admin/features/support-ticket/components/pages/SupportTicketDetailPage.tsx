@@ -1,5 +1,5 @@
 import { useMemo, type ReactNode } from 'react';
-import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useParams } from '@/components/router-compat';
 import {
     Alert,
     Box,
@@ -145,7 +145,7 @@ export const SupportTicketDetailPage = () => {
                 </Box>
                 <Stack direction="row" spacing={1} flexWrap="wrap">
                     {canAssign && (
-                        <CanAccess permission={PERMISSIONS.SUPPORT_TICKET.MANAGE}>
+                        <CanAccess permission={(PERMISSIONS.SUPPORT_TICKET as any).MANAGE}>
                             <Button
                                 variant="contained"
                                 disabled={assignMutation.isPending}

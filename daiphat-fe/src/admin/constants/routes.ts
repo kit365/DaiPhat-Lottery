@@ -32,6 +32,8 @@ export const ROUTES = {
         TICKETS: {
             LIST: `/${prefixAdmin}/ticket/list`,
             CREATE: `/${prefixAdmin}/ticket/create`,
+            DETAIL: (id: number | string) => `/${prefixAdmin}/ticket/detail/${id}`,
+            EDIT: (id: number | string) => `/${prefixAdmin}/ticket/edit/${id}`,
             CREATE_FOR_BATCH: (importBatchId: number | string, importBatchLineId?: number | string) => {
                 const params = new URLSearchParams({ importBatchId: String(importBatchId) });
                 if (importBatchLineId != null) {
@@ -46,6 +48,8 @@ export const ROUTES = {
                 return `/${prefixAdmin}/ticket/create?importBatchLineId=${importBatchLineId}`;
             },
             PROVIDER: `/${prefixAdmin}/provider/list`,
+            PROVIDER_DETAIL: (id: number | string) => `/${prefixAdmin}/provider/detail/${id}`,
+            PROVIDER_EDIT: (id: number | string) => `/${prefixAdmin}/provider/edit/${id}`,
             PRIZE_STRUCTURE: `/${prefixAdmin}/prize-structures/list`,
             DRAW_RESULT: `/${prefixAdmin}/draw-results`,
             REGION: `/${prefixAdmin}/region/list`,
@@ -57,6 +61,15 @@ export const ROUTES = {
             EDIT: (id: number | string) => `/${prefixAdmin}/import-batch/edit/${id}`,
             DETAIL: (id: number | string) => `/${prefixAdmin}/import-batch/detail/${id}`,
             LINE_DETAIL: (batchId: number | string, lineId: number | string) => `/${prefixAdmin}/import-batch/detail/${batchId}/line/${lineId}`,
+        },
+        RETURN_BATCH: {
+            LIST: `/${prefixAdmin}/return-batch/list`,
+            EDIT: (id: number | string) => `/${prefixAdmin}/return-batch/edit/${id}`,
+            DETAIL: (id: number | string) => `/${prefixAdmin}/return-batch/detail/${id}`,
+        },
+        SUPPLIER_SETTLEMENT: {
+            LIST: `/${prefixAdmin}/supplier-settlement/list`,
+            DETAIL: (id: number | string) => `/${prefixAdmin}/supplier-settlement/detail/${id}`,
         },
         SUPPLIER: {
             LIST: `/${prefixAdmin}/supplier/list`,

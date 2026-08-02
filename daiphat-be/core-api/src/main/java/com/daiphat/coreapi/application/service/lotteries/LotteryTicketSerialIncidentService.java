@@ -15,6 +15,7 @@ import com.daiphat.coreapi.domain.exception.ErrorCode;
 import com.daiphat.coreapi.domain.model.enums.lottery.InputSource;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialFaultedBy;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus;
+import com.daiphat.coreapi.domain.model.enums.lottery.TicketCondition;
 import com.daiphat.coreapi.domain.model.enums.order.OrderCancelType;
 import com.daiphat.coreapi.domain.model.enums.order.OrderStatus;
 import com.daiphat.coreapi.domain.model.enums.order.OrderType;
@@ -91,7 +92,7 @@ public class LotteryTicketSerialIncidentService {
             ReportSerialFaultRequest request,
             UUID actorId
     ) {
-        if (request.status() != LotteryTicketSerialStatus.VOIDED
+        if (request.ticketCondition() != TicketCondition.VOIDED
                 || request.faultedBy() != LotteryTicketSerialFaultedBy.DATA_ENTRY_FAULT) {
             return;
         }
@@ -114,7 +115,7 @@ public class LotteryTicketSerialIncidentService {
             UUID actorId
     ) {
         if (request.faultedBy() == LotteryTicketSerialFaultedBy.DATA_ENTRY_FAULT
-                && request.status() == LotteryTicketSerialStatus.VOIDED) {
+                && request.ticketCondition() == TicketCondition.VOIDED) {
             OrderDetailModel detail = resolveActiveOrderDetail(faultedSerial);
             createReplacementSerialIfRequested(
                     faultedSerial,
@@ -127,8 +128,8 @@ public class LotteryTicketSerialIncidentService {
             return;
         }
 
-        if (request.status() == LotteryTicketSerialStatus.DAMAGED
-                || request.status() == LotteryTicketSerialStatus.LOST) {
+        if (request.ticketCondition() == TicketCondition.DAMAGED
+                || request.ticketCondition() == TicketCondition.LOST) {
             // Only cancel the order when this was the last active allocated serial.
             // Otherwise keep the order (and its cancel reason) untouched.
             if (isLastActiveAllocatedSerialOnOrder(faultedSerial, priorOrderId)) {

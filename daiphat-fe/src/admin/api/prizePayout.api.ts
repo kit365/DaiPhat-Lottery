@@ -1,6 +1,5 @@
-import Cookies from 'js-cookie';
 import { apiApp } from '../../api';
-import { STORAGE_KEYS } from '../../constants/storage.constants';
+import { withAuthHeaders } from '../../api/authHeaders';
 import { ApiResponse } from '../../types/api.type';
 import {
     CompletePrizePayoutRequest,
@@ -18,14 +17,7 @@ import { UserBankAccountResponse } from '../../types/refund.type';
 
 const STAFF_BASE = '/staff/prize-payout-requests';
 
-const withAuth = () => {
-    const token = Cookies.get(STORAGE_KEYS.TOKEN);
-    return {
-        headers: {
-            Authorization: `Bearer ${token}`,
-        },
-    };
-};
+const withAuth = () => withAuthHeaders();
 
 export const prizePayoutAdminApi = {
     getStaffRequests: async (

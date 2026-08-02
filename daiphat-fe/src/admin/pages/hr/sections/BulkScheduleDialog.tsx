@@ -45,7 +45,7 @@ export const BulkScheduleDialog = ({
     departmentId,
     loading = false,
 }: BulkScheduleDialogProps) => {
-    const accountsRes = useAccounts({ departmentId, status: 'active' });
+    const accountsRes = useAccounts({ departmentId, status: 'active' } as any);
     const shiftsRes = useShifts({ departmentId, status: 'active' });
     const { data: rolesRes } = useRoles();
 
@@ -288,7 +288,7 @@ export const BulkScheduleDialog = ({
                                                 </Typography>
                                             </Stack>
                                             <Stack spacing={0.75}>
-                                                {staffingStatus.map((s: any, idx: number) => (
+                                                {(staffingStatus as any[]).map((s: any, idx: number) => (
                                                     <Box key={idx} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                                         <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600 }}>
                                                             {s.roleName}:

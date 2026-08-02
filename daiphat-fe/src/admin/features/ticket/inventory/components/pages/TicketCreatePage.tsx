@@ -80,7 +80,7 @@ import {
     resolveRegionLengthRules,
 } from '../../utils/ticketNumberValidation';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from '@/components/router-compat';
 
 type LineFormDraft = TicketLineFormDraft;
 
@@ -929,7 +929,7 @@ export const TicketCreatePage = () => {
                         {resolvedBatch && batchLines.length > 0 && (
                         <ImportBatchLineImportTabs
                             lines={batchLines}
-                            activeLineId={watchedLineId}
+                            activeLineId={watchedLineId != null ? String(watchedLineId) : ''}
                             batchStatus={resolvedBatch.status}
                             drawDate={resolvedBatch.drawDate}
                             resolveStationName={resolveStationName}

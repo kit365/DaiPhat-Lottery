@@ -32,6 +32,8 @@ export const Hero = () => {
             src={HERO_CONTENT.images.mobile} 
             alt="" 
             aria-hidden="true"
+            loading="eager"
+            decoding="async"
             className="w-full h-full object-cover object-[center_15%] lg:object-[right_22%] block" 
           />
         </picture>

@@ -162,7 +162,7 @@ export const JiraFilter: React.FC<JiraFilterProps> = ({ fields, selectedFilters,
                 onClose={(event, reason) => {
                     // Escape luôn đóng; click ngoài chỉ bỏ qua nếu đang tương tác với lịch
                     if (reason === 'backdropClick' || reason === 'escapeKeyDown') {
-                        if (reason === 'backdropClick' && (isDatePickerOpen || isInsideDatePickerPortal(event?.target ?? null))) {
+                        if (reason === 'backdropClick' && (isDatePickerOpen || isInsideDatePickerPortal(((event as { target?: Element })?.target as Element | null) ?? null))) {
                             return;
                         }
                         handleClose();

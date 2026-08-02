@@ -65,7 +65,7 @@ export const StationCreatePage = () => {
         watch,
         setValue
     } = useForm<CreateStationFormValues>({
-        resolver: zodResolver(createStationSchema),
+        resolver: zodResolver(createStationSchema) as any,
         defaultValues: {
             name: "",
             description: "",

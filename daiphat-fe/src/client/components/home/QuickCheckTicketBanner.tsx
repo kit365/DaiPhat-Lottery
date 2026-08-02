@@ -27,6 +27,11 @@ type FieldErrors = {
 
 export const QuickCheckTicketBanner: React.FC<QuickCheckTicketBannerProps> = ({ availableDates = [] }) => {
     const [isExpanded, setIsExpanded] = useState(false);
+    const [mounted, setMounted] = useState(false);
+
+    useEffect(() => {
+        setMounted(true);
+    }, []);
     
     // Convert DD/MM/YYYY to YYYY-MM-DD for native date input
     const toDateInputValue = (dateStr?: string) => {
@@ -236,7 +241,7 @@ export const QuickCheckTicketBanner: React.FC<QuickCheckTicketBannerProps> = ({ 
         const daysInMonth = getDaysInMonth(selectedMonth, selectedYear);
         const firstDayIndex = getFirstDayOfMonth(selectedMonth, selectedYear);
 
-        const days = [];
+        const days: any[] = [];
 
         // Previous month's trailing days
         const prevMonth = selectedMonth === 0 ? 11 : selectedMonth - 1;
@@ -731,7 +736,7 @@ export const QuickCheckTicketBanner: React.FC<QuickCheckTicketBannerProps> = ({ 
             </motion.div>
 
             {/* Portal to document.body */}
-            {createPortal(modalContent, document.body)}
+            {mounted && typeof document !== 'undefined' && createPortal(modalContent, document.body)}
         </div>
     );
 };

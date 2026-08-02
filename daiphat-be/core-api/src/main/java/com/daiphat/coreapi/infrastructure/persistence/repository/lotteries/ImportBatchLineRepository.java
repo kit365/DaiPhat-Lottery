@@ -139,6 +139,41 @@ public interface ImportBatchLineRepository extends JpaRepository<ImportBatchLine
 
     long countByImportBatch_IdAndDeletedAtIsNull(Long importBatchId);
 
+    @Query("""
+            SELECT DISTINCT l.lotteryStation.id
+            FROM ImportBatchLineEntity l
+            JOIN l.importBatch b
+            WHERE b.supplier.id = :supplierId
+              AND b.drawDate = :drawDate
+              AND b.deletedAt IS NULL
+              AND l.deletedAt IS NULL
+              AND b.status <> com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchStatus.CANCELLED
+              AND l.status <> com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchLineStatus.CANCELLED
+            ORDER BY l.lotteryStation.id ASC
+            """)
+    List<Long> findEligibleStationIdsBySupplierAndDrawDate(
+            @Param("supplierId") Long supplierId,
+            @Param("drawDate") LocalDate drawDate
+    );
+
+    @Query("""
+            SELECT l FROM ImportBatchLineEntity l
+            JOIN FETCH l.importBatch b
+            JOIN FETCH l.lotteryStation
+            WHERE b.supplier.id = :supplierId
+              AND l.lotteryStation.id = :stationId
+              AND b.drawDate = :drawDate
+              AND b.deletedAt IS NULL
+              AND l.deletedAt IS NULL
+              AND b.status <> com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchStatus.CANCELLED
+              AND l.status <> com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchLineStatus.CANCELLED
+            """)
+    List<ImportBatchLineEntity> findEligibleBySupplierStationAndDrawDate(
+            @Param("supplierId") Long supplierId,
+            @Param("stationId") Long stationId,
+            @Param("drawDate") LocalDate drawDate
+    );
+
     @Query(value = "SELECT nextval('import_batch_code_seq')", nativeQuery = true)
     long nextBatchCodeSequence();
 }

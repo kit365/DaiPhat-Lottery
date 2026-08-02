@@ -6,6 +6,7 @@ import com.daiphat.coreapi.domain.model.enums.lottery.InputSource;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialFaultedBy;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus;
 import com.daiphat.coreapi.domain.model.enums.lottery.SerialPayoutState;
+import com.daiphat.coreapi.domain.model.enums.lottery.TicketCondition;
 import lombok.*;
 
 import java.time.LocalDate;
@@ -32,6 +33,9 @@ public class LotteryTicketSerialModel {
     private LotteryTicketSerialStatus status = LotteryTicketSerialStatus.IN_STOCK;
 
     @Builder.Default
+    private TicketCondition ticketCondition = TicketCondition.GOOD;
+
+    @Builder.Default
     private SerialPayoutState payoutState = SerialPayoutState.NONE;
 
     @Builder.Default
@@ -49,6 +53,11 @@ public class LotteryTicketSerialModel {
     private UUID verifiedById;
     private LocalDateTime verifiedAt;
     private LocalDateTime returnedAt;
+    @Builder.Default
+    private boolean manualOverride = false;
+    private String overrideReason;
+    private String overrideEvidenceUrl;
+    private Long returnBatchLineId;
     private LotteryTicketSerialFaultedBy faultedBy;
     private String damagedEvidenceUrl;
     private String damagedReason;
@@ -63,10 +72,12 @@ public class LotteryTicketSerialModel {
         this.importedById = importedById;
         this.importedAt = LocalDateTime.now();
         this.status = LotteryTicketSerialStatus.IN_STOCK;
+        this.ticketCondition = TicketCondition.GOOD;
         this.verified = false;
         this.verifiedById = null;
         this.verifiedAt = null;
         this.returnedAt = null;
+        this.returnBatchLineId = null;
         this.reservedAt = null;
         this.reservationExpiresAt = null;
         this.reservedByOrderId = null;
@@ -75,8 +86,16 @@ public class LotteryTicketSerialModel {
         this.damagedReason = null;
     }
 
+    /** Sellable inventory: in stock, good condition, not linked to a return batch line. */
+    public boolean isAvailableForSale() {
+        return this.status == LotteryTicketSerialStatus.IN_STOCK
+                && (this.ticketCondition == null || this.ticketCondition == TicketCondition.GOOD)
+                && this.returnBatchLineId == null
+                && this.deletedAt == null;
+    }
+
     public void reserve(UUID orderId, LocalDateTime expiresAt) {
-        ensureStatus(LotteryTicketSerialStatus.IN_STOCK);
+        ensureAvailableForSale();
         this.status = LotteryTicketSerialStatus.RESERVED;
         this.reservedAt = LocalDateTime.now();
         this.reservationExpiresAt = expiresAt;
@@ -101,6 +120,9 @@ public class LotteryTicketSerialModel {
                 && this.status != LotteryTicketSerialStatus.RESERVED) {
             throw new DomainException(ErrorCode.LOTTERY_TICKET_INVALID_STATUS);
         }
+        if (this.status == LotteryTicketSerialStatus.IN_STOCK && !isAvailableForSale()) {
+            throw new DomainException(ErrorCode.LOTTERY_TICKET_INVALID_STATUS);
+        }
         if (orderId == null) {
             throw new DomainException(ErrorCode.INVALID_INPUT, "Thiếu mã đơn khi xác nhận giữ hộ vé đã thanh toán.");
         }
@@ -123,6 +145,9 @@ public class LotteryTicketSerialModel {
                 && this.status != LotteryTicketSerialStatus.PROXY_HOLDING) {
             throw new DomainException(ErrorCode.LOTTERY_TICKET_INVALID_STATUS);
         }
+        if (this.status == LotteryTicketSerialStatus.IN_STOCK && !isAvailableForSale()) {
+            throw new DomainException(ErrorCode.LOTTERY_TICKET_INVALID_STATUS);
+        }
         this.status = LotteryTicketSerialStatus.SOLD;
         this.reservedAt = null;
         this.reservationExpiresAt = null;
@@ -131,7 +156,7 @@ public class LotteryTicketSerialModel {
 
     public void sellOffline() {
         ensureNotLockedForPayout();
-        ensureStatus(LotteryTicketSerialStatus.IN_STOCK);
+        ensureAvailableForSale();
         this.status = LotteryTicketSerialStatus.SOLD;
     }
 
@@ -162,18 +187,18 @@ public class LotteryTicketSerialModel {
     }
 
     public void markDamaged(LotteryTicketSerialFaultedBy faultedBy, String reason, String evidenceUrl) {
-        markFaulted(LotteryTicketSerialStatus.DAMAGED, faultedBy, reason);
+        applyConditionFault(TicketCondition.DAMAGED, faultedBy, reason);
         this.damagedEvidenceUrl = evidenceUrl != null && !evidenceUrl.isBlank() ? evidenceUrl.trim() : null;
     }
 
     public void markLost(LotteryTicketSerialFaultedBy faultedBy, String reason) {
-        markFaulted(LotteryTicketSerialStatus.LOST, faultedBy, reason);
+        applyConditionFault(TicketCondition.LOST, faultedBy, reason);
         // LOST incidents do not keep damage evidence.
         this.damagedEvidenceUrl = null;
     }
 
     public void markVoided(LotteryTicketSerialFaultedBy faultedBy, String reason) {
-        markFaulted(LotteryTicketSerialStatus.VOIDED, faultedBy, reason);
+        applyConditionFault(TicketCondition.VOIDED, faultedBy, reason);
         this.damagedEvidenceUrl = null;
     }
 
@@ -191,19 +216,20 @@ public class LotteryTicketSerialModel {
     }
 
     public boolean isTerminalIncidentStatus() {
+        if (this.ticketCondition != null && this.ticketCondition.isIncidentReported()) {
+            return true;
+        }
         return !isIncidentMutableStatus();
     }
 
-    private void markFaulted(
-            LotteryTicketSerialStatus faultStatus,
+    private void applyConditionFault(
+            TicketCondition condition,
             LotteryTicketSerialFaultedBy faultedBy,
             String reason
     ) {
         if (faultedBy == null) {
             throw new DomainException(ErrorCode.INVALID_INPUT, "Cần chỉ định nguồn gây lỗi (faultedBy).");
         }
-        // SOLD: allow from order-inspection path when serial was marked sold too early
-        // (legacy online payment). Warehouse reportFault still blocks SOLD via isTerminalIncidentStatus().
         if (!isIncidentMutableStatus() && this.status != LotteryTicketSerialStatus.SOLD) {
             throw new DomainException(
                     ErrorCode.LOTTERY_TICKET_INVALID_STATUS,
@@ -211,7 +237,11 @@ public class LotteryTicketSerialModel {
                             + " (chỉ đọc để tra cứu)."
             );
         }
-        this.status = faultStatus;
+        // Condition fault: keep SOLD when reported from order inspection; otherwise return to stock.
+        if (this.status != LotteryTicketSerialStatus.SOLD) {
+            this.status = LotteryTicketSerialStatus.IN_STOCK;
+        }
+        this.ticketCondition = condition;
         this.faultedBy = faultedBy;
         this.damagedReason = reason != null && !reason.isBlank() ? reason.trim() : null;
         this.reservedAt = null;
@@ -234,14 +264,13 @@ public class LotteryTicketSerialModel {
     }
 
     public boolean isEditableStatus() {
-        return this.status == LotteryTicketSerialStatus.IN_STOCK;
+        return isAvailableForSale();
     }
 
     public boolean isSoftDeletableStatus() {
         return this.status == LotteryTicketSerialStatus.IN_STOCK
                 || this.status == LotteryTicketSerialStatus.EXPIRED
-                || this.status == LotteryTicketSerialStatus.DAMAGED
-                || this.status == LotteryTicketSerialStatus.LOST;
+                || (this.ticketCondition != null && this.ticketCondition.isIncidentReported());
     }
 
     public void softDelete() {
@@ -250,6 +279,12 @@ public class LotteryTicketSerialModel {
 
     private void ensureStatus(LotteryTicketSerialStatus expectedStatus) {
         if (this.status != expectedStatus) {
+            throw new DomainException(ErrorCode.LOTTERY_TICKET_INVALID_STATUS);
+        }
+    }
+
+    private void ensureAvailableForSale() {
+        if (!isAvailableForSale()) {
             throw new DomainException(ErrorCode.LOTTERY_TICKET_INVALID_STATUS);
         }
     }

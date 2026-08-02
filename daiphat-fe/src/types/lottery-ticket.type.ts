@@ -11,15 +11,17 @@ export type LotteryTicketSerialStatus =
     | 'RESERVED'
     | 'PROXY_HOLDING'
     | 'SOLD'
-    | 'DAMAGED'
-    | 'LOST'
     | 'EXPIRED';
+
+export type TicketCondition = 'GOOD' | 'DAMAGED' | 'LOST' | 'VOIDED';
 
 export type PrizePayoutRequestStatus = 'PENDING' | 'COMPLETED' | 'REJECTED' | 'CANCELLED';
 
 export interface PublicLotteryTicket {
     id: number;
+    _id?: number | string;
     stationId: number;
+    providerId?: number;
     stationName?: string;
     ticketImg?: string;
     serialNumber?: string;
@@ -61,6 +63,7 @@ export interface PurchasedTicket {
     serialId?: number;
     serialNumber?: string;
     serialStatus?: LotteryTicketSerialStatus;
+    ticketCondition?: TicketCondition;
     payoutState?: SerialPayoutState;
     numbers: string;
     stationName?: string;

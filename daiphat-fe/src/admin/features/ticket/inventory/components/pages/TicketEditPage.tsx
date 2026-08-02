@@ -584,7 +584,7 @@ export const TicketEditPage = () => {
                                                                     label={serialData.statusDisplayName} 
                                                                     size="small" 
                                                                     color="primary"
-                                                                    variant="soft" 
+                                                                    variant={"soft" as any}
                                                                     sx={{ height: 22, borderRadius: "var(--shape-borderRadius-sm)", fontWeight: 700, fontSize: "0.6875rem" }}
                                                                 />
                                                             ) : (

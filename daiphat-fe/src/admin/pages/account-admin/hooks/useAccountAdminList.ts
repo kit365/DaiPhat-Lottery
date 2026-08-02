@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { getAccounts } from "../../../api/account-admin.api";
+import { getUsers as getAccounts } from "../../../features/users/services/userService";
 import { QUERY_KEYS } from "../../../../constants/queryKeys";
 import { IAccountAdminListFilters } from "../configs/types";
-import { RoleEnum } from "../configs/constants";
+import { RoleEnum } from "../../../../types/role.type";
 
 const DEFAULT_STAFF_ROLE_CODES = [RoleEnum.ADMIN, RoleEnum.STAFF_OPERATOR];
 
@@ -31,8 +31,8 @@ export const useAccountAdminList = () => {
     const params = buildListParams(filters);
 
     const { data: res, isLoading, error } = useQuery({
-        queryKey: [QUERY_KEYS.ACCOUNTS_ADMIN, params],
-        queryFn: () => getAccounts(params),
+        queryKey: [(QUERY_KEYS as any).ACCOUNTS_ADMIN || 'accounts-admin', params],
+        queryFn: () => getAccounts(params as any),
         placeholderData: keepPreviousData,
     });
 

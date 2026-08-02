@@ -34,6 +34,7 @@ import { CanAccess } from "../../../../components/auth/CanAccess";
 import { PERMISSIONS } from "../../../../constants/permission.constants";
 import { OrderInspectionSection } from "../sections/OrderInspectionSection";
 import { OrderHandoverConfirmDialog } from "../sections/OrderHandoverConfirmDialog";
+import { OrderSteppersCard } from "../sections/OrderSteppersCard";
 import { getOrderStatusBadge } from "../../constants/orderStatus.constants";
 import { resolveOrderPaymentMethodLabel } from "../../../../../utils/orderPayment.util";
 
@@ -47,7 +48,7 @@ const PAYMENT_STATUS_OPTIONS: { [key: string]: { label: string; color: string; b
 export const OrderDetailPage = () => {
     const { id } = useParams();
     const navigate = useNavigate();
-    const { data: orderRes, isLoading } = useOrderDetail(id || "");
+    const { data: orderRes, isLoading, refetch } = useOrderDetail(id || "");
     const order = orderRes?.data;
     const { mutate: updateStatus } = useUpdateOrderStatus();
     const [isInspectionStarted, setIsInspectionStarted] = useState(false);
@@ -241,170 +242,7 @@ export const OrderDetailPage = () => {
             </Box>
 
             {/* Stepper Card (Full Width) */}
-            {order.orderType !== 'DIRECT' && (() => {
-                const isCancelled = order.status === OrderStatus.CANCELLED;
-                const paymentTxn = (order.transactions || []).find(
-                    (tx: any) => tx?.status === 'COMPLETED' || tx?.status === 'REFUNDED'
-                );
-                const hasCompletedPayment = Boolean(paymentTxn);
-                const paidStatuses = ['PAID', 'PREPARING', 'PENDING_PICKUP', 'COMPLETED'];
-                const wasPaid = isCancelled
-                    ? hasCompletedPayment
-                    : paidStatuses.includes(order.status);
-                const paymentDateSource = paymentTxn?.paidAt || order.updatedAt;
-                const paymentDate = wasPaid
-                    ? dayjs(paymentDateSource).format('DD/MM/YYYY - HH:mm')
-                    : '';
-
-                type MilestoneStep = {
-                    label: string;
-                    date: string;
-                    completed: boolean;
-                    variant: 'success' | 'error';
-                };
-
-                const cancelDate = order.cancelledAt
-                    ? dayjs(order.cancelledAt).format('DD/MM/YYYY - HH:mm')
-                    : dayjs(order.updatedAt).format('DD/MM/YYYY - HH:mm');
-
-                let steps: MilestoneStep[];
-                if (isCancelled && !wasPaid) {
-                    steps = [
-                        {
-                            label: 'Đã đặt đơn',
-                            date: dayjs(order.createdAt).format('DD/MM/YYYY - HH:mm'),
-                            completed: true,
-                            variant: 'success',
-                        },
-                        {
-                            label: 'Đã huỷ',
-                            date: cancelDate,
-                            completed: true,
-                            variant: 'error',
-                        },
-                    ];
-                } else if (isCancelled && wasPaid) {
-                    steps = [
-                        {
-                            label: 'Đã đặt đơn',
-                            date: dayjs(order.createdAt).format('DD/MM/YYYY - HH:mm'),
-                            completed: true,
-                            variant: 'success',
-                        },
-                        {
-                            label: 'Đã thanh toán',
-                            date: paymentDate,
-                            completed: true,
-                            variant: 'success',
-                        },
-                        {
-                            label: 'Đã huỷ',
-                            date: cancelDate,
-                            completed: true,
-                            variant: 'error',
-                        },
-                    ];
-                } else {
-                    steps = [
-                        {
-                            label: 'Đã đặt đơn',
-                            date: dayjs(order.createdAt).format('DD/MM/YYYY - HH:mm'),
-                            completed: true,
-                            variant: 'success',
-                        },
-                        {
-                            label: 'Đã thanh toán',
-                            date: paymentDate,
-                            completed: wasPaid,
-                            variant: 'success',
-                        },
-                        {
-                            label: 'Đang chuẩn bị',
-                            date: ['PREPARING', 'PENDING_PICKUP', 'COMPLETED'].includes(order.status)
-                                ? dayjs(order.updatedAt).format('DD/MM/YYYY - HH:mm')
-                                : '',
-                            completed: ['PREPARING', 'PENDING_PICKUP', 'COMPLETED'].includes(order.status),
-                            variant: 'success',
-                        },
-                        {
-                            label: 'Chờ nhận vé',
-                            date: ['PENDING_PICKUP', 'COMPLETED'].includes(order.status)
-                                ? dayjs(order.updatedAt).format('DD/MM/YYYY - HH:mm')
-                                : '',
-                            completed: ['PENDING_PICKUP', 'COMPLETED'].includes(order.status),
-                            variant: 'success',
-                        },
-                    ];
-                }
-
-                const completedCount = steps.filter((s) => s.completed).length;
-                const trackProgress =
-                    steps.length <= 1
-                        ? 0
-                        : ((Math.max(completedCount - 1, 0)) / (steps.length - 1)) * 76;
-                const stepWidth = `${100 / steps.length}%`;
-
-                return (
-                <Card sx={{ p: 4, mb: 3, borderRadius: 'var(--shape-borderRadius-lg)', boxShadow: 'var(--customShadows-card)' }}>
-                    <Box sx={{ position: 'relative', display: 'flex', justifyContent: 'space-between', mt: 1 }}>
-                        {/* Track Background */}
-                        <Box sx={{ 
-                            position: 'absolute', 
-                            top: 15, 
-                            left: '12%', 
-                            right: '12%', 
-                            height: 2, 
-                            bgcolor: '#E5E8EB',
-                            zIndex: 0
-                        }} />
-                        
-                        {/* Active Track */}
-                        <Box sx={{ 
-                            position: 'absolute', 
-                            top: 15, 
-                            left: '12%', 
-                            width: `${trackProgress}%`,
-                            height: 2, 
-                            bgcolor: isCancelled ? 'var(--palette-error-main)' : 'var(--palette-success-main)',
-                            zIndex: 0,
-                            transition: 'width 0.3s ease'
-                        }} />
-
-                        {steps.map((step, index) => {
-                            const accent = step.variant === 'error'
-                                ? 'var(--palette-error-main)'
-                                : 'var(--palette-success-main)';
-                            return (
-                            <Box key={index} sx={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', width: stepWidth }}>
-                                <Box sx={{ 
-                                    width: 32, 
-                                    height: 32, 
-                                    borderRadius: '50%', 
-                                    bgcolor: 'white',
-                                    border: step.completed ? `2px solid ${accent}` : '2px solid #DFE3E8',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    mb: 1.5
-                                }}>
-                                    {step.completed ? 
-                                        <Icon
-                                            icon={step.variant === 'error' ? 'solar:close-circle-bold' : 'solar:check-read-linear'}
-                                            color={accent}
-                                            width={20}
-                                        /> :
-                                        <Icon icon="solar:lock-password-linear" color="#919EAB" width={16} />
-                                    }
-                                </Box>
-                                <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'var(--palette-text-primary)', mb: 0.5, fontSize: '0.8125rem' }}>{step.label}</Typography>
-                                {step.date && <Typography variant="caption" sx={{ color: 'var(--palette-text-secondary)', fontWeight: 500 }}>{step.date}</Typography>}
-                            </Box>
-                            );
-                        })}
-                    </Box>
-                </Card>
-                );
-            })()}
+            <OrderSteppersCard order={order} />
 
             <Grid container spacing={3}>
                 {/* Left Column */}
@@ -490,7 +328,7 @@ export const OrderDetailPage = () => {
                             <Box>
                                 <Typography variant="caption" sx={{ color: 'var(--palette-text-disabled)', display: 'block', mb: 1 }}>Ghi chú</Typography>
                                 <Typography variant="body2" sx={{ fontWeight: 600, color: 'var(--palette-text-primary)' }}>
-                                    {order.note || "Không có"}
+                                    {(order as any).note || "Không có"}
                                 </Typography>
                             </Box>
                         </Card>
@@ -504,13 +342,13 @@ export const OrderDetailPage = () => {
                                 orderInfo={{
                                     customerName:
                                         order.name ||
-                                        order.user?.fullName ||
+                                        (order as any).user?.fullName ||
                                         'Khách vãng lai',
                                     phone:
                                         order.phone ||
-                                        order.user?.phone ||
-                                        order.user?.phoneNumber,
-                                    email: order.user?.email,
+                                        (order as any).user?.phone ||
+                                        (order as any).user?.phoneNumber,
+                                    email: (order as any).user?.email,
                                     status: order.status,
                                     statusLabel: currentStatus.label,
                                     paymentStatusLabel:
@@ -568,9 +406,19 @@ export const OrderDetailPage = () => {
                                                     detail.serialStatusDisplayName
                                                     || allocatedSerial?.statusDisplayName
                                                     || null;
+                                                const ticketCondition =
+                                                    detail.ticketCondition
+                                                    || allocatedSerial?.ticketCondition
+                                                    || null;
+                                                const ticketConditionLabel =
+                                                    detail.ticketConditionDisplayName
+                                                    || allocatedSerial?.ticketConditionDisplayName
+                                                    || null;
                                                 const serialBadge = resolveLotteryTicketSerialStatusBadge(
                                                     serialStatus,
-                                                    serialStatusLabel
+                                                    serialStatusLabel,
+                                                    ticketCondition,
+                                                    ticketConditionLabel
                                                 );
                                                 const activityBadge = resolveOrderDetailStatusBadge(detail.status);
 
@@ -692,7 +540,7 @@ export const OrderDetailPage = () => {
                             </Stack>
                             <Stack direction="row" spacing={2} alignItems="flex-start" sx={{ mb: 3 }}>
                                 <Avatar
-                                    src={order.user?.avatar}
+                                    src={(order as any).user?.avatar}
                                     sx={{ width: 64, height: 64, bgcolor: 'var(--palette-background-neutral)', color: 'var(--palette-text-secondary)' }}
                                 >
                                     <Icon icon="solar:user-rounded-bold" width={32} />
@@ -700,22 +548,22 @@ export const OrderDetailPage = () => {
                                 <Stack spacing={1}>
                                     <Stack direction="row" alignItems="center" spacing={1}>
                                         <Typography variant="subtitle1" sx={{ fontWeight: 700, color: 'var(--palette-text-primary)' }}>
-                                            {order.name || order.user?.fullName || "Khách vãng lai"}
+                                            {order.name || (order as any).user?.fullName || "Khách vãng lai"}
                                         </Typography>
                                     </Stack>
-                                    {(order.phone || order.user?.phone || order.user?.phoneNumber) && (
+                                    {(order.phone || (order as any).user?.phone || (order as any).user?.phoneNumber) && (
                                         <Typography variant="body2" sx={{ color: 'var(--palette-text-primary)', fontWeight: 500 }}>
-                                            {order.phone || order.user?.phone || order.user?.phoneNumber}
+                                            {order.phone || (order as any).user?.phone || (order as any).user?.phoneNumber}
                                         </Typography>
                                     )}
-                                    {(order.email || order.user?.email) && (
+                                    {((order as any).email || (order as any).user?.email) && (
                                         <Typography variant="body2" sx={{ color: 'var(--palette-text-primary)', fontWeight: 500 }}>
-                                            {order.email || order.user?.email}
+                                            {(order as any).email || (order as any).user?.email}
                                         </Typography>
                                     )}
-                                    {(order.address || order.user?.address) && (
+                                    {((order as any).address || (order as any).user?.address) && (
                                         <Typography variant="body2" sx={{ color: 'var(--palette-text-secondary)', mt: 0.5, lineHeight: 1.5 }}>
-                                            {order.address || order.user?.address}
+                                            {(order as any).address || (order as any).user?.address}
                                         </Typography>
                                     )}
                                 </Stack>
@@ -725,8 +573,8 @@ export const OrderDetailPage = () => {
                                 fullWidth 
                                 variant="outlined" 
                                 startIcon={<Icon icon="solar:user-id-linear" />}
-                                disabled={!(order.user?.id || order.userId)}
-                                onClick={() => navigate(`/${prefixAdmin}/account-user/detail/${order.user?.id || order.userId}`)}
+                                disabled={!((order as any).user?.id || (order as any).userId)}
+                                onClick={() => navigate(`/${prefixAdmin}/account-user/detail/${(order as any).user?.id || (order as any).userId}`)}
                                 sx={{ 
                                     py: 1, 
                                     fontWeight: 700, 
@@ -769,7 +617,7 @@ export const OrderDetailPage = () => {
                                 <Box>
                                     <Typography variant="caption" sx={{ color: 'var(--palette-text-disabled)', display: 'block', mb: 0.5 }}>Thời gian thanh toán</Typography>
                                     <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'var(--palette-text-primary)' }}>
-                                        {['PAID', 'PREPARING', 'PENDING_PICKUP', 'COMPLETED'].includes(order.status) ? dayjs(order.updatedAt).format("DD/MM/YYYY - HH:mm") : "Chưa thanh toán"}
+                                        {['PAID', 'PREPARING', 'PENDING_PICKUP', 'COMPLETED'].includes(order.status) ? dayjs((order as any).updatedAt).format("DD/MM/YYYY - HH:mm") : "Chưa thanh toán"}
                                     </Typography>
                                 </Box>
                                 <Divider sx={{ borderStyle: 'dashed', my: 1 }} />

@@ -16,8 +16,8 @@ public record CreateImportBatchLineRequest(
         @Min(value = 1, message = "Số lượng khai báo phải lớn hơn 0")
         Integer declareQuantity,
 
-        @NotNull(message = "Giá vốn không được để trống")
-        @DecimalMin(value = "0.01", message = "Giá vốn phải lớn hơn 0")
+        /** Optional; backend overwrites from station price and commission. */
+        @DecimalMin(value = "0.001", inclusive = true, message = "Giá vốn phải lớn hơn 0")
         BigDecimal importCost
 ) {
 }

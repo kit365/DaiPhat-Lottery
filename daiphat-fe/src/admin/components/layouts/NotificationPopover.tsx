@@ -54,7 +54,7 @@ export const NotificationPopover = ({ onMouseEnter, onMouseLeave, isHovered, lay
     const unreadNotifications = allNotifications.filter((n: any) => n.status === 'unread');
     const archivedNotifications = allNotifications.filter((n: any) => n.status === 'archived');
 
-    let displayNotifications = [];
+    let displayNotifications: any[] = [];
     if (tab === "all") displayNotifications = activeNotifications;
     else if (tab === "unread") displayNotifications = unreadNotifications;
     else displayNotifications = archivedNotifications;
@@ -84,7 +84,7 @@ export const NotificationPopover = ({ onMouseEnter, onMouseLeave, isHovered, lay
             y: -8,
             filter: 'brightness(1.15) drop-shadow(0 12px 24px rgba(0,0,0,0.15))',
         },
-        transition: { type: "spring", stiffness: 400, damping: 17 }
+        transition: { type: "spring" as const, stiffness: 400, damping: 17 }
     };
 
     return (

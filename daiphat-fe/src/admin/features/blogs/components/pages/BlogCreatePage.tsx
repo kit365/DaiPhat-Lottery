@@ -19,12 +19,7 @@ import { BLOG_STATUS } from '../../types/blog.type';
 
 import { useNestedBlogCategories } from "../../hooks/useBlogCategory";
 import { CategoryTreeSelectGeneric } from "../../../../components/ui/CategoryTreeSelectGeneric";
-
-const getMinScheduleValue = () => {
-    const now = new Date();
-    now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
-    return now.toISOString().slice(0, 16);
-};
+import { getMinScheduleValue } from "../utils/blogForm.utils";
 
 export const BlogCreatePage = () => {
     const { t } = useTranslation();
@@ -98,7 +93,7 @@ export const BlogCreatePage = () => {
                         toast.success(response.message || "Tạo bài viết thành công");
                         reset();
                     } else {
-                        toast.error(response.message);
+                        toast.error(response.message || "Tạo bài viết thất bại");
                     }
                 },
                 onError: () => {

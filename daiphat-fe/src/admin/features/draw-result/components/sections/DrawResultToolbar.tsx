@@ -408,7 +408,7 @@ export const DrawResultToolbar = ({
                 <ExportButton />
                 <SettingsList
                     settings={settings}
-                    onSettingsChange={onSettingsChange}
+                    onSettingsChange={onSettingsChange as any}
                 />
             </Box>
         </Toolbar>

@@ -3,6 +3,8 @@ import {
     getActiveTransactionSerials,
     groupSerialsByOrderId,
     isActiveTransactionSerialStatus,
+    isAlreadyFaultReportedSerial,
+    isFaultyTicketCondition,
     isSerialIncidentEligible,
     needsRefundPrepStep,
 } from './serialIncidentWorkflow';
@@ -19,7 +21,18 @@ describe('serialIncidentWorkflow refund prep', () => {
         expect(isSerialIncidentEligible('IN_STOCK')).toBe(true);
         expect(isSerialIncidentEligible('PROXY_HOLDING')).toBe(true);
         expect(isSerialIncidentEligible('SOLD')).toBe(false);
-        expect(isSerialIncidentEligible('DAMAGED')).toBe(false);
+    });
+
+    it('excludes faulty ticketCondition and return-batch-linked serials', () => {
+        expect(isSerialIncidentEligible('IN_STOCK', { ticketCondition: 'DAMAGED' })).toBe(false);
+        expect(isSerialIncidentEligible('IN_STOCK', { ticketCondition: 'LOST' })).toBe(false);
+        expect(isSerialIncidentEligible({ status: 'IN_STOCK', ticketCondition: 'GOOD' })).toBe(true);
+        expect(isSerialIncidentEligible({ status: 'IN_STOCK', returnBatchLineId: 12 })).toBe(false);
+        expect(isFaultyTicketCondition('DAMAGED')).toBe(true);
+        expect(isAlreadyFaultReportedSerial({ status: 'IN_STOCK', ticketCondition: 'LOST' })).toBe(true);
+        expect(isAlreadyFaultReportedSerial({ status: 'IN_STOCK', ticketCondition: 'VOIDED' })).toBe(true);
+        expect(isAlreadyFaultReportedSerial({ status: 'IN_STOCK', ticketCondition: 'GOOD' })).toBe(false);
+        expect(isFaultyTicketCondition('VOIDED')).toBe(true);
     });
 
     it('TICKET + INTERNAL_FAULT + all IN_STOCK does not need refund step', () => {

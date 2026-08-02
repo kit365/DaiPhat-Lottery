@@ -2,12 +2,12 @@ import { generateCodeChallenge, generateCodeVerifier } from "../../admin/utils/p
 import { STORAGE_KEYS } from "../../constants/storage.constants";
 
 export const redirectToGoogleOAuth = async () => {
-    const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+    const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || (import.meta as any).env?.VITE_GOOGLE_CLIENT_ID;
     if (!clientId) {
-        throw new Error("Missing VITE_GOOGLE_CLIENT_ID");
+        throw new Error("Missing GOOGLE_CLIENT_ID configuration");
     }
 
-    const redirectUri = import.meta.env.VITE_GOOGLE_REDIRECT_URI || `${window.location.origin}/auth/callback`;
+    const redirectUri = process.env.NEXT_PUBLIC_GOOGLE_REDIRECT_URI || (import.meta as any).env?.VITE_GOOGLE_REDIRECT_URI || `${window.location.origin}/auth/callback`;
     const codeVerifier = generateCodeVerifier();
     const codeChallenge = await generateCodeChallenge(codeVerifier);
     sessionStorage.setItem(STORAGE_KEYS.PKCE_VERIFIER, codeVerifier);

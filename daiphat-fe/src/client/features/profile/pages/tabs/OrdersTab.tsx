@@ -453,7 +453,7 @@ export const OrdersTab = () => {
                 />
             </div>
 
-            {refundOrderId && isLoadingRefundOrder && !refundOrderData?.data && (
+            {refundOrderId && isLoadingRefundOrder && !(refundOrderData as any)?.data && (
                 <div className="fixed inset-0 z-[9998] flex items-center justify-center bg-black/30">
                     <div className="bg-white rounded-xl px-6 py-4 text-[14px] text-[#637381] font-medium shadow-lg">
                         <i className="fa-solid fa-spinner fa-spin mr-2 text-[#ee1314]"></i>

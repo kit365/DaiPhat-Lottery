@@ -6,14 +6,15 @@ import { useAuthStore } from '../../../../stores/useAuthStore';
 import { hasPermission } from '../../../utils/permission.util';
 import { PERMISSIONS } from '../../../constants/permission.constants';
 import { PrizePayoutRequestStatus } from '../../../../types/prize-payout.type';
+import { ADMIN_BADGE_POLL_MS } from '../../../hooks/adminBadgePoll';
 
 /**
  * Polls staff prize-payout pendingCount for the sidebar badge.
  * Shares invalidation with ADMIN_PRIZE_PAYOUTS so process actions update promptly.
  */
 export const usePrizePayoutPendingCount = () => {
-    const { user } = useAuthStore();
-    const canView = hasPermission(user, PERMISSIONS.PRIZE_PAYOUT.VIEW);
+    const { user, token } = useAuthStore();
+    const canView = Boolean(token) && Boolean(user) && hasPermission(user, PERMISSIONS.PRIZE_PAYOUT.VIEW);
 
     const query = useQuery({
         queryKey: [QUERY_KEYS.ADMIN_PRIZE_PAYOUTS, 'pending-count'],
@@ -24,9 +25,14 @@ export const usePrizePayoutPendingCount = () => {
                 status: PrizePayoutRequestStatus.PENDING,
             }),
         enabled: canView,
-        refetchOnWindowFocus: true,
-        refetchInterval: 5_000,
-        staleTime: 0,
+        refetchOnWindowFocus: canView,
+        refetchInterval: (q) => {
+            if (!canView) return false;
+            if (q.state.error) return false;
+            return ADMIN_BADGE_POLL_MS;
+        },
+        staleTime: ADMIN_BADGE_POLL_MS / 2,
+        retry: false,
     });
 
     const pendingCount = useMemo(() => {

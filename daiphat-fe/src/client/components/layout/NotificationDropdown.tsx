@@ -216,7 +216,7 @@ export const NotificationDropdown = () => {
                     if (result.kind === "unavailable") {
                       navigate("/profile/notifications", {
                         state: { unavailableMessage: result.message },
-                      });
+                      } as any);
                     }
                   }}
                   className={`relative flex gap-3 p-3 rounded-xl transition-colors hover:bg-slate-50 ${!notification.isRead ? "bg-[#FFF9F9]" : "bg-white opacity-[0.65]"

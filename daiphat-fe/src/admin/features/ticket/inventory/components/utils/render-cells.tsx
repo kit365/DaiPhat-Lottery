@@ -2,7 +2,7 @@ import type { ReactElement } from 'react';
 import { Avatar, Box, Link, ListItemText } from '@mui/material';
 import { GridActionsCell, GridActionsCellItem, GridRenderCellParams } from '@mui/x-data-grid';
 import { DeleteIcon, EditIcon, EyeIcon } from '../../../../../assets/icons/index';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from '@/components/router-compat';
 import { prefixAdmin } from '../../../../../constants/routes';
 import { useTicketInventory } from '../../hooks/useTicketInventory';
 import { toast } from 'react-toastify';
@@ -104,10 +104,9 @@ export const RenderCreatedAtCell = ({ value }: RenderCreatedAtCellProps) => {
 };
 
 const DrawDateCell = (params: GridRenderCellParams) => {
+    const { data: stationsData } = useStations({ limit: 1000 });
     const date = params.value;
     if (!date) return null;
-
-    const { data: stationsData } = useStations({ limit: 1000 });
     const stations = stationsData?.data?.recordList || [];
     const stationId = params.row.stationId || params.row.providerId;
     const station = stations.find((p: any) => (p.id || p._id)?.toString() === stationId?.toString());

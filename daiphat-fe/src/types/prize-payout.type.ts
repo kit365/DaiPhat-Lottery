@@ -25,9 +25,9 @@ export type LotteryTicketSerialStatus =
     | 'RESERVED'
     | 'PROXY_HOLDING'
     | 'SOLD'
-    | 'DAMAGED'
-    | 'LOST'
     | 'EXPIRED';
+
+export type TicketCondition = 'GOOD' | 'DAMAGED' | 'LOST' | 'VOIDED';
 
 export interface PrizePayoutRequestResponse {
     id: number;
@@ -83,6 +83,7 @@ export interface PrizePayoutRequestResponse {
     createdAt?: string;
     updatedAt?: string;
     serialStatus?: LotteryTicketSerialStatus;
+    ticketCondition?: TicketCondition;
     payoutState?: SerialPayoutState;
 }
 
@@ -286,8 +287,13 @@ export const SERIAL_STATUS_LABELS: Record<LotteryTicketSerialStatus, string> = {
     PROXY_HOLDING: 'Đại lý giữ hộ',
     SOLD: 'Đã bán',
     EXPIRED: 'Đã hết hạn kỳ quay',
+};
+
+export const TICKET_CONDITION_LABELS: Record<TicketCondition, string> = {
+    GOOD: 'Tốt',
     DAMAGED: 'Hỏng',
     LOST: 'Thất lạc',
+    VOIDED: 'Đã hủy',
 };
 
 /** Tình trạng nhận vé vật lý — đã lấy hay còn giữ tại đại lý. */

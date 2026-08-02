@@ -24,7 +24,7 @@ import { confirmAction } from '../../../../utils/swal';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import 'dayjs/locale/vi';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from '@/components/router-compat';
 import {
     getAdminNotificationAccentBackground,
     getAdminNotificationAccentColor,

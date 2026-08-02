@@ -23,7 +23,7 @@ import {
 } from '@mui/material';
 import { Icon } from '@iconify/react';
 import dayjs from 'dayjs';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from '@/components/router-compat';
 import { CanAccess } from '../../../components/auth/CanAccess';
 import { PERMISSIONS } from '../../../constants/permission.constants';
 import { prefixAdmin } from '../../../constants/routes';
@@ -230,7 +230,7 @@ export const RefundList = () => {
     };
 
     const handleConfirmTransfer = (id: number) => {
-        navigate(detailPath(id), { state: { openTransfer: true } });
+        navigate(detailPath(id), { state: { openTransfer: true } } as any);
     };
 
     const emptyMessage =

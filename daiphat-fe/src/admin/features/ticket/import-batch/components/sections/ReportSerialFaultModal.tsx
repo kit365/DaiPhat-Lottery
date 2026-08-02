@@ -5,6 +5,7 @@ import {
     DialogContent,
     DialogActions,
     Button,
+    Chip,
     Typography,
     Box,
     TextField,
@@ -25,13 +26,28 @@ import ReportProblemIcon from '@mui/icons-material/ReportProblem';
 import LinkIcon from '@mui/icons-material/Link';
 import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
 import LayersIcon from '@mui/icons-material/Layers';
-import { reportTicketSerialFault } from '../../../inventory/services/ticketService';
+import { UploadSingleFile } from '../../../../../components/upload/UploadSingleFile';
+import {
+    buildReportSerialFaultPayload,
+    reportTicketSerialFault,
+} from '../../../inventory/services/ticketService';
 import { AppToast } from '../../../../../../utils/toast.util';
+import { isAlreadyFaultReportedSerial } from '../../utils/serialIncidentWorkflow';
+
+const QUICK_REASON_SUGGESTIONS = [
+    'Rách nát trong phân loại',
+    'Bị dính nước / ướt',
+    'Mờ số, lỗi mực in',
+    'Nhăn nheo hư hỏng',
+    'Thất lạc khi đếm kho',
+];
 
 interface SerialItem {
     id: number | string;
     serialNumber: string;
     status: string;
+    ticketCondition?: string | null;
+    returnBatchLineId?: number | string | null;
 }
 
 interface Props {
@@ -40,6 +56,8 @@ interface Props {
     onSuccess: () => void;
     serials: SerialItem[];
     ticketNumbers?: string;
+    defaultFaultedBy?: 'INTERNAL_FAULT' | 'ISSUER_FAULT' | 'DATA_ENTRY_FAULT';
+    hideFaultedBySelect?: boolean;
 }
 
 interface FormState {
@@ -59,7 +77,9 @@ export const ReportSerialFaultModal: React.FC<Props> = ({
     onClose,
     onSuccess,
     serials,
-    ticketNumbers
+    ticketNumbers,
+    defaultFaultedBy,
+    hideFaultedBySelect = false,
 }) => {
     const [forms, setForms] = useState<Record<string | number, FormState>>({});
     const [submitting, setSubmitting] = useState(false);
@@ -68,12 +88,12 @@ export const ReportSerialFaultModal: React.FC<Props> = ({
         if (open && serials) {
             const initialForms: Record<string | number, FormState> = {};
             serials.forEach((s) => {
-                const isAlreadyFaulted = s.status === 'DAMAGED' || s.status === 'LOST';
+                const isAlreadyFaulted = isAlreadyFaultReportedSerial(s);
                 const isSold = s.status === 'SOLD';
                 initialForms[s.id] = {
                     selected: !isAlreadyFaulted && !isSold,
                     status: 'DAMAGED',
-                    faultedBy: 'INTERNAL_FAULT',
+                    faultedBy: defaultFaultedBy || 'INTERNAL_FAULT',
                     damagedReason: '',
                     damagedEvidenceUrl: '',
                     errors: {}
@@ -81,7 +101,7 @@ export const ReportSerialFaultModal: React.FC<Props> = ({
             });
             setForms(initialForms);
         }
-    }, [open, serials]);
+    }, [open, serials, defaultFaultedBy]);
 
     const handleFieldChange = (
         id: string | number,
@@ -174,12 +194,15 @@ export const ReportSerialFaultModal: React.FC<Props> = ({
         try {
             await Promise.all(
                 selectedItems.map((item) =>
-                    reportTicketSerialFault(item.id, {
-                        status: item.status,
-                        faultedBy: item.faultedBy,
-                        damagedReason: item.damagedReason,
-                        damagedEvidenceUrl: item.damagedEvidenceUrl || undefined
-                    })
+                    reportTicketSerialFault(
+                        item.id,
+                        buildReportSerialFaultPayload({
+                            faultKind: item.status,
+                            faultedBy: item.faultedBy,
+                            damagedReason: item.damagedReason,
+                            damagedEvidenceUrl: item.damagedEvidenceUrl || undefined,
+                        })
+                    )
                 )
             );
             AppToast.success('Báo cáo hủy vé thành công!');
@@ -260,7 +283,7 @@ export const ReportSerialFaultModal: React.FC<Props> = ({
                         const form = forms[s.id];
                         if (!form) return null;
 
-                        const isAlreadyFaulted = s.status === 'DAMAGED' || s.status === 'LOST';
+                        const isAlreadyFaulted = isAlreadyFaultReportedSerial(s);
                         const isSold = s.status === 'SOLD';
                         const isSelected = form.selected;
 
@@ -328,16 +351,18 @@ export const ReportSerialFaultModal: React.FC<Props> = ({
                                                 px: 2, 
                                                 py: 0.75, 
                                                 borderRadius: '30px', 
-                                                bgcolor: s.status === 'DAMAGED' ? '#fef2f2' : '#fff7ed', 
-                                                color: s.status === 'DAMAGED' ? '#ef4444' : '#f97316',
-                                                border: s.status === 'DAMAGED' ? '1px solid #fee2e2' : '1px solid #ffedd5',
+                                                bgcolor: (s.ticketCondition || '') === 'VOIDED' ? '#f1f5f9' : ((s.ticketCondition || s.status) === 'DAMAGED' ? '#fef2f2' : '#fff7ed'), 
+                                                color: (s.ticketCondition || '') === 'VOIDED' ? '#64748b' : ((s.ticketCondition || s.status) === 'DAMAGED' ? '#ef4444' : '#f97316'),
+                                                border: (s.ticketCondition || '') === 'VOIDED' ? '1px solid #e2e8f0' : ((s.ticketCondition || s.status) === 'DAMAGED' ? '1px solid #fee2e2' : '1px solid #ffedd5'),
                                                 fontWeight: 700,
                                                 fontSize: '0.75rem',
                                                 letterSpacing: '0.5px',
                                                 textTransform: 'uppercase'
                                             }}
                                         >
-                                            Đã báo {s.status === 'DAMAGED' ? 'Hỏng vật lý' : 'Thất lạc/Mất'}
+                                            {(s.ticketCondition || '') === 'VOIDED'
+                                                ? 'Đã hủy (VOIDED)'
+                                                : `Đã báo ${(s.ticketCondition || s.status) === 'DAMAGED' ? 'Hỏng vật lý' : 'Thất lạc/Mất'}`}
                                         </Box>
                                     )}
                                     {isSold && (
@@ -363,24 +388,26 @@ export const ReportSerialFaultModal: React.FC<Props> = ({
                                 {form.selected && (
                                     <Box sx={{ mt: 3, pt: 2.5, borderTop: '1px solid #f1f5f9' }}>
                                         <Grid container spacing={2.5}>
-                                            <Grid item xs={12} sm={6}>
-                                                <FormControl fullWidth size="medium">
-                                                    <InputLabel id={`faulted-by-label-${s.id}`} sx={{ fontWeight: 500 }}>Nguyên nhân sự cố</InputLabel>
-                                                    <Select
-                                                        labelId={`faulted-by-label-${s.id}`}
-                                                        value={form.faultedBy}
-                                                        label="Nguyên nhân sự cố"
-                                                        onChange={(e) => handleFieldChange(s.id, 'faultedBy', e.target.value)}
-                                                        sx={{ borderRadius: '10px' }}
-                                                    >
-                                                        <MenuItem value="INTERNAL_FAULT" sx={{ fontWeight: 500 }}>Nhân viên làm hỏng vật lý</MenuItem>
-                                                        <MenuItem value="ISSUER_FAULT" sx={{ fontWeight: 500 }}>Lỗi in ấn từ nhà cung cấp</MenuItem>
-                                                        <MenuItem value="DATA_ENTRY_FAULT" sx={{ fontWeight: 500 }}>Lỗi thao tác nhập liệu</MenuItem>
-                                                    </Select>
-                                                </FormControl>
-                                            </Grid>
+                                            {!hideFaultedBySelect && (
+                                                <Grid size={{ xs: 12, sm: 6 }}>
+                                                    <FormControl fullWidth size="medium">
+                                                        <InputLabel id={`faulted-by-label-${s.id}`} sx={{ fontWeight: 500 }}>Nguyên nhân sự cố</InputLabel>
+                                                        <Select
+                                                            labelId={`faulted-by-label-${s.id}`}
+                                                            value={form.faultedBy}
+                                                            label="Nguyên nhân sự cố"
+                                                            onChange={(e) => handleFieldChange(s.id, 'faultedBy', e.target.value)}
+                                                            sx={{ borderRadius: '10px' }}
+                                                        >
+                                                            <MenuItem value="INTERNAL_FAULT" sx={{ fontWeight: 500 }}>Nhân viên làm hỏng vật lý</MenuItem>
+                                                            <MenuItem value="ISSUER_FAULT" sx={{ fontWeight: 500 }}>Lỗi in ấn từ nhà cung cấp</MenuItem>
+                                                            <MenuItem value="DATA_ENTRY_FAULT" sx={{ fontWeight: 500 }}>Lỗi thao tác nhập liệu</MenuItem>
+                                                        </Select>
+                                                    </FormControl>
+                                                </Grid>
+                                            )}
 
-                                            <Grid item xs={12} sm={6}>
+                                            <Grid size={hideFaultedBySelect ? 12 : { xs: 12, sm: 6 }}>
                                                 <FormControl fullWidth size="medium">
                                                     <InputLabel id={`status-label-${s.id}`} sx={{ fontWeight: 500 }}>Trạng thái báo hủy</InputLabel>
                                                     <Select
@@ -403,7 +430,7 @@ export const ReportSerialFaultModal: React.FC<Props> = ({
                                                 </FormControl>
                                             </Grid>
 
-                                            <Grid item xs={12}>
+                                            <Grid size={12}>
                                                 <TextField
                                                     label="Lý do hủy chi tiết"
                                                     variant="outlined"
@@ -420,37 +447,41 @@ export const ReportSerialFaultModal: React.FC<Props> = ({
                                                         sx: { borderRadius: '12px' }
                                                     }}
                                                 />
+                                                <Box sx={{ mt: 1, display: 'flex', flexWrap: 'wrap', gap: 0.75, alignItems: 'center' }}>
+                                                    {QUICK_REASON_SUGGESTIONS.map((text) => (
+                                                        <Chip
+                                                            key={text}
+                                                            label={text}
+                                                            size="small"
+                                                            onClick={() => handleFieldChange(s.id, 'damagedReason', text)}
+                                                            sx={{
+                                                                borderRadius: '6px',
+                                                                bgcolor: '#f1f5f9',
+                                                                color: '#334155',
+                                                                fontSize: '0.75rem',
+                                                                fontWeight: 500,
+                                                                cursor: 'pointer',
+                                                                border: '1px solid #e2e8f0',
+                                                                '&:hover': {
+                                                                    bgcolor: '#fee2e2',
+                                                                    color: '#ef4444',
+                                                                    borderColor: '#fca5a5',
+                                                                },
+                                                            }}
+                                                        />
+                                                    ))}
+                                                </Box>
                                             </Grid>
 
                                             {form.status === 'DAMAGED' && (
-                                                <Grid item xs={12}>
-                                                    <TextField
-                                                        label="Đường dẫn ảnh minh chứng"
-                                                        variant="outlined"
-                                                        fullWidth
+                                                <Grid size={12}>
+                                                    <UploadSingleFile
+                                                        label="Ảnh minh chứng vé hỏng"
                                                         required={form.faultedBy === 'INTERNAL_FAULT'}
                                                         value={form.damagedEvidenceUrl}
-                                                        onChange={(e) => handleFieldChange(s.id, 'damagedEvidenceUrl', e.target.value)}
-                                                        error={!!form.errors.damagedEvidenceUrl}
-                                                        helperText={form.errors.damagedEvidenceUrl || "Bắt buộc nếu lỗi do Nhân viên làm hỏng vật lý"}
-                                                        placeholder="Nhập liên kết hình ảnh minh chứng (ví dụ: http://cloudinary.com/...)"
-                                                        InputProps={{
-                                                            sx: { borderRadius: '12px' },
-                                                            startAdornment: (
-                                                                <InputAdornment position="start">
-                                                                    <LinkIcon sx={{ color: '#94a3b8' }} />
-                                                                </InputAdornment>
-                                                            ),
-                                                            endAdornment: (
-                                                                <InputAdornment position="end">
-                                                                    <Tooltip title="Vui lòng cung cấp link hình ảnh chụp lại vé số bị hỏng để đối chiếu.">
-                                                                        <IconButton size="small">
-                                                                            <HelpOutlineIcon sx={{ fontSize: '16px', color: '#94a3b8' }} />
-                                                                        </IconButton>
-                                                                    </Tooltip>
-                                                                </InputAdornment>
-                                                            )
-                                                        }}
+                                                        onChange={(url) => handleFieldChange(s.id, 'damagedEvidenceUrl', url)}
+                                                        error={form.errors.damagedEvidenceUrl}
+                                                        autoUpload
                                                     />
                                                 </Grid>
                                             )}

@@ -19,7 +19,7 @@ export const useSuppliers = (params?: SupplierListParams, options?: any) => {
     return useQuery({
         queryKey: [QUERY_KEYS.SUPPLIERS, params],
         queryFn: () => getSuppliers(params),
-        select: (res) => res.data,
+        select: (res: any) => res.data,
         ...options,
     });
 };
@@ -38,7 +38,7 @@ export const useSupplierDetail = (id?: string | number) => {
         queryKey: [QUERY_KEYS.SUPPLIER_DETAIL, id],
         queryFn: () => getSupplierById(id!),
         enabled: !!id,
-        select: (res) => res.data ?? null,
+        select: (res: any) => res.data ?? null,
     });
 };
 
@@ -104,9 +104,9 @@ export const useSupplierList = () => {
         placeholderData: keepPreviousData,
     });
 
-    const suppliers = useMemo(() => data?.recordList ?? [], [data]);
+    const suppliers = useMemo(() => (data as any)?.recordList ?? [], [data]);
 
-    const pagination = data?.pagination || {
+    const pagination = (data as any)?.pagination || {
         totalRecords: 0,
         totalPages: 0,
         currentPage: 1,

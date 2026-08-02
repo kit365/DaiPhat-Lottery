@@ -19,6 +19,7 @@ import com.daiphat.coreapi.application.mapper.lotteries.LotteryTicketApplication
 import com.daiphat.coreapi.application.port.in.lotteries.LotteryStationServicePort;
 import com.daiphat.coreapi.application.port.in.lotteries.LotteryTicketSerialServicePort;
 import com.daiphat.coreapi.application.port.in.lotteries.LotteryTicketServicePort;
+import com.daiphat.coreapi.application.port.in.lotteries.SupplierSettlementServicePort;
 import com.daiphat.coreapi.application.port.out.lotteries.ImportBatchLineRepositoryPort;
 import com.daiphat.coreapi.application.port.out.lotteries.ImportBatchRepositoryPort;
 import com.daiphat.coreapi.application.port.out.lotteries.LotteryTicketRepositoryPort;
@@ -76,10 +77,6 @@ public class LotteryTicketService implements LotteryTicketServicePort {
             );
     private static final List<LotteryTicketSerialStatus> SOLD_SERIAL_STATUSES =
             List.of(LotteryTicketSerialStatus.SOLD);
-    private static final List<LotteryTicketSerialStatus> FAULTY_SERIAL_STATUSES = List.of(
-            LotteryTicketSerialStatus.DAMAGED,
-            LotteryTicketSerialStatus.LOST
-    );
     private static final List<LotteryTicketSerialStatus> PROXY_HELD_SERIAL_STATUSES =
             List.of(LotteryTicketSerialStatus.PROXY_HOLDING);
 
@@ -88,6 +85,7 @@ public class LotteryTicketService implements LotteryTicketServicePort {
     private final ImportBatchRepositoryPort importBatchRepositoryPort;
     private final ImportBatchLineRepositoryPort importBatchLineRepositoryPort;
     private final ImportBatchDraftExpiryService importBatchDraftExpiryService;
+    private final SupplierSettlementServicePort supplierSettlementServicePort;
     private final LotteryStationServicePort lotteryStationServicePort;
     private final LotteryTicketApplicationMapper lotteryTicketApplicationMapper;
     private final LotteryTicketSerialServicePort lotteryTicketSerialService;
@@ -600,6 +598,10 @@ public class LotteryTicketService implements LotteryTicketServicePort {
         refreshedBatch.refreshImportStatus(now);
         importBatchRepositoryPort.save(refreshedBatch);
 
+        if (refreshedBatch.getSupplierSettlementId() != null) {
+            supplierSettlementServicePort.recalculateTotalImportValue(refreshedBatch.getSupplierSettlementId());
+        }
+
         affectedStationIds.forEach(this::syncStationInventory);
     }
 
@@ -1029,6 +1031,10 @@ public class LotteryTicketService implements LotteryTicketServicePort {
         boolean batchJustCompleted = refreshedBatch.getStatus() == ImportBatchStatus.IMPORTED;
         importBatchRepositoryPort.save(refreshedBatch);
 
+        if (refreshedBatch.getSupplierSettlementId() != null) {
+            supplierSettlementServicePort.recalculateTotalImportValue(refreshedBatch.getSupplierSettlementId());
+        }
+
         if (batchJustCompleted && !isAutoSaveTriggered) {
             refreshedBatch.getActiveLines().forEach(line ->
                     activateImportBatchLineTickets(line.getId())
@@ -1224,9 +1230,12 @@ public class LotteryTicketService implements LotteryTicketServicePort {
             lotteryTicketSerialService.expireActiveSerials(ticketId);
         }
         long availableSerialCount = lotteryTicketSerialService.countAvailableSerials(ticketId);
-        int totalSerialCount = lotteryTicketSerialService.findAllByTicketId(ticketId).size();
+        List<LotteryTicketSerialModel> allSerials = lotteryTicketSerialService.findAllByTicketId(ticketId);
+        int totalSerialCount = allSerials.size();
         int soldSerialCount = (int) lotteryTicketSerialService.countByStatuses(ticketId, SOLD_SERIAL_STATUSES);
-        int faultySerialCount = (int) lotteryTicketSerialService.countByStatuses(ticketId, FAULTY_SERIAL_STATUSES);
+        int faultySerialCount = (int) allSerials.stream()
+                .filter(serial -> serial.getTicketCondition() != null && serial.getTicketCondition().isIncidentReported())
+                .count();
         ticket.syncAggregateState(
                 (int) availableSerialCount,
                 totalSerialCount,
@@ -1354,7 +1363,8 @@ public class LotteryTicketService implements LotteryTicketServicePort {
         }
 
         List<LotteryTicketSerialModel> unreported = serials.stream()
-                .filter(serial -> !FAULTY_SERIAL_STATUSES.contains(serial.getStatus()))
+                .filter(serial -> serial.getTicketCondition() == null
+                        || !serial.getTicketCondition().isIncidentReported())
                 .toList();
         if (unreported.isEmpty()) {
             return;
@@ -1365,7 +1375,7 @@ public class LotteryTicketService implements LotteryTicketServicePort {
                 .collect(Collectors.joining(", "));
         throw new DomainException(
                 ErrorCode.LOTTERY_TICKET_SERIALS_INCIDENT_INCOMPLETE,
-                "Cần báo sự cố (Hỏng hoặc Mất) cho tất cả sê-ri trước khi hủy dãy vé. "
+                "Cần báo sự cố (Hỏng, Mất hoặc Hủy) cho tất cả sê-ri trước khi hủy dãy vé. "
                         + "Còn " + unreported.size() + " sê-ri chưa xử lý: " + serialNumbers);
     }
 
@@ -1411,9 +1421,8 @@ public class LotteryTicketService implements LotteryTicketServicePort {
 
         List<LotteryTicketSerialModel> oldSerials = lotteryTicketSerialService.findAllByTicketId(oldTicket.getId());
         for (LotteryTicketSerialModel oldSerial : oldSerials) {
-            if (oldSerial.getStatus() != LotteryTicketSerialStatus.VOIDED &&
-                oldSerial.getStatus() != LotteryTicketSerialStatus.DAMAGED &&
-                oldSerial.getStatus() != LotteryTicketSerialStatus.LOST) {
+            if (oldSerial.getTicketCondition() == null
+                    || !oldSerial.getTicketCondition().isIncidentReported()) {
                 oldSerial.markVoided(com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialFaultedBy.DATA_ENTRY_FAULT, "Hủy do nhập sai dãy số (thay bằng dãy số " + newNumbers + ")");
                 lotteryTicketSerialRepositoryPort.save(oldSerial);
             }
@@ -1439,8 +1448,7 @@ public class LotteryTicketService implements LotteryTicketServicePort {
             }
         }
 
-        // Ticket-level VOIDED is not allowed (DB check + simplified enum). Cancel the mistyped
-        // lottery number via soft delete; serial VOIDED rows keep the audit trail, and the
+        // Cancel the mistyped lottery number via soft delete; serial VOIDED conditions keep the audit trail, and the
         // replacement serials point back through replaced_for_ticket_id.
         oldTicket.softDelete();
         lotteryTicketRepositoryPort.save(oldTicket);

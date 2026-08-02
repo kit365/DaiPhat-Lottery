@@ -3,10 +3,16 @@ server:
 
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:5434/daiphat_core_db?charSet=UTF-8
+    url: jdbc:postgresql://localhost:5433/daiphat_core_db?charSet=UTF-8
     username: sa
     password: 12345
     driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 15
+      minimum-idle: 5
+      idle-timeout: 300000
+      max-lifetime: 600000
+      connection-timeout: 20000
   jpa:
     hibernate:
       ddl-auto: none
@@ -41,7 +47,10 @@ daiphat:
   auth:
     frontend-url: http://localhost:5173
     jwt:
-      access-token-ttl-seconds: ${AUTH_JWT_ACCESS_TOKEN_TTL_SECONDS}
+      secret: ${AUTH_JWT_SECRET:daiphat_super_secret_jwt_key_for_local_development_environment_32bytes}
+      issuer: ${AUTH_JWT_ISSUER:daiphat-core-api}
+      access-token-ttl-seconds: ${AUTH_JWT_ACCESS_TOKEN_TTL_SECONDS:900}
+      refresh-token-ttl-seconds: ${AUTH_JWT_REFRESH_TOKEN_TTL_SECONDS:604800}
     cookie:
       name: refresh_token
       secure: false

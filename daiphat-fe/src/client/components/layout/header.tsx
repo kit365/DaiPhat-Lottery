@@ -5,11 +5,6 @@ import { Search, User as UserIcon, Home, Crosshair, Ticket, CalendarDays, Gift, 
 import { ROUTES } from "../../../admin/constants/routes";
 import { useAuthStore } from "../../../stores/useAuthStore";
 import { useCartStore } from "../../../stores/useCartStore";
-import { LoginModal } from "../../components/auth/LoginModal";
-import { RegisterModal } from "../../components/auth/RegisterModal";
-import { ProfileSetupModal } from "../../components/auth/ProfileSetupModal";
-import { VerifyModal } from "../../components/auth/VerifyModal";
-import { ForgotPasswordModal } from "../../components/auth/ForgotPasswordModal";
 import { BottomNav } from "./BottomNav";
 import { NotificationDropdown } from "./NotificationDropdown";
 import {
@@ -96,7 +91,7 @@ export const Header = () => {
             ? "bg-white/85 backdrop-blur-xl border-b border-slate-100 shadow-[0_8px_30px_rgba(0,0,0,0.03)]" 
             : "bg-white/95 lg:bg-white/70 lg:backdrop-blur-md border-b border-transparent"
         }`}
-        initial={{ opacity: 0, y: -20 }}
+        initial={{ opacity: 1, y: 0 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, ease: "easeOut" }}
         aria-label="Client navigation"
@@ -110,6 +105,7 @@ export const Header = () => {
                 <img 
                   src="https://i.ibb.co/4R7c75YN/z7824247008533-94446d3b6c16598cda67404d805c15c4.jpg" 
                   alt="Đại Phát Logo" 
+                  decoding="async"
                   className="w-[38px] h-[38px] rounded-[10px] object-cover bg-white" 
                 />
               </div>
@@ -434,11 +430,6 @@ export const Header = () => {
       </AnimatePresence>
 
       <BottomNav />
-      {/* <LoginModal />
-      <RegisterModal /> */}
-      <ProfileSetupModal />
-      <VerifyModal />
-      <ForgotPasswordModal />
     </>
   );
 };

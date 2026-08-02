@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo, type ReactNode } from 'react';
-import { useLocation, useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from '@/components/router-compat';
 import {
     Alert,
     Avatar,
@@ -341,7 +341,7 @@ export const RefundDetailPage = () => {
                                                 variant="subtitle2"
                                                 onClick={() =>
                                                     navigate(
-                                                        `/${prefixAdmin}/order/detail/${detail.orderSummary.id}`
+                                                        `/${prefixAdmin}/order/detail/${(detail.orderSummary as any).id}`
                                                     )
                                                 }
                                                 sx={{
@@ -352,7 +352,7 @@ export const RefundDetailPage = () => {
                                                     textAlign: 'left',
                                                 }}
                                             >
-                                                {detail.orderSummary.orderCode}
+                                                {(detail.orderSummary as any).orderCode}
                                             </Link>
                                         ) : (
                                             <FieldValue>—</FieldValue>
@@ -420,7 +420,7 @@ export const RefundDetailPage = () => {
                                                     variant="subtitle2"
                                                     onClick={() =>
                                                         navigate(
-                                                            `/${prefixAdmin}/order/detail/${detail.orderSummary.id}`
+                                                            `/${prefixAdmin}/order/detail/${(detail.orderSummary as any).id}`
                                                         )
                                                     }
                                                     sx={{
@@ -431,13 +431,13 @@ export const RefundDetailPage = () => {
                                                         textAlign: 'left',
                                                     }}
                                                 >
-                                                    {detail.orderSummary.orderCode}
+                                                    {(detail.orderSummary as any).orderCode}
                                                 </Link>
                                             </Grid>
                                             <Grid size={{ xs: 12, sm: 6, md: 4 }}>
                                                 <FieldLabel>Trạng thái đơn hàng</FieldLabel>
                                                 <Chip
-                                                    label={detail.orderSummary.status}
+                                                    label={(detail.orderSummary as any).status}
                                                     size="small"
                                                     sx={{
                                                         fontWeight: 700,
@@ -452,7 +452,7 @@ export const RefundDetailPage = () => {
                                             <Grid size={{ xs: 12, sm: 6, md: 4 }}>
                                                 <FieldLabel>Tổng giá trị đơn</FieldLabel>
                                                 <FieldValue>
-                                                    {detail.orderSummary.totalAmount?.toLocaleString(
+                                                    {(detail.orderSummary as any).totalAmount?.toLocaleString(
                                                         'vi-VN'
                                                     )}
                                                     đ
@@ -465,15 +465,15 @@ export const RefundDetailPage = () => {
                                             <Grid size={{ xs: 12, sm: 6, md: 4 }}>
                                                 <FieldLabel>Thời gian thanh toán</FieldLabel>
                                                 <FieldValue>
-                                                    {detail.orderSummary.createdAt
-                                                        ? dayjs(detail.orderSummary.createdAt).format(
+                                                    {(detail.orderSummary as any).createdAt
+                                                        ? dayjs((detail.orderSummary as any).createdAt).format(
                                                               'DD/MM/YYYY HH:mm'
                                                           )
                                                         : '—'}
                                                 </FieldValue>
                                             </Grid>
                                         </Grid>
-                                        {detail.orderSummary.cancelReason && (
+                                        {(detail.orderSummary as any).cancelReason && (
                                             <>
                                                 <Divider sx={{ my: 3, borderStyle: 'dashed' }} />
                                                 <FieldLabel>Lý do hủy đơn</FieldLabel>
@@ -485,7 +485,7 @@ export const RefundDetailPage = () => {
                                                         lineHeight: 1.6,
                                                     }}
                                                 >
-                                                    {detail.orderSummary.cancelReason}
+                                                    {(detail.orderSummary as any).cancelReason}
                                                 </Typography>
                                             </>
                                         )}

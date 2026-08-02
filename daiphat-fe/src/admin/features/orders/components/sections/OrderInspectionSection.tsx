@@ -51,7 +51,7 @@ import {
     resolveOrderDetailTicketDisplay,
     IncidentTicketDisplay,
 } from '../../constants/incidentTicket.constants';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from '@/components/router-compat';
 import { prefixAdmin, ROUTES } from '../../../../constants/routes';
 import { refundAdminApi } from '../../../../api/refund.api';
 import { QUERY_KEYS } from '../../../../../constants/queryKeys';
@@ -405,7 +405,7 @@ export function OrderInspectionSection({
                 cancelType: 'OUT_OF_STOCK_INCIDENT' as const,
                 replacements: replacementPayload,
             },
-        });
+        } as any);
     };
 
     const quickReasons: Record<string, string[]> = {
@@ -982,11 +982,13 @@ export function OrderInspectionSection({
                                         const activityBadge = resolveOrderDetailStatusBadge(ticket.status);
                                         const serialBadge = resolveLotteryTicketSerialStatusBadge(
                                             ticket.serialStatus,
-                                            ticket.serialStatusDisplayName
+                                            ticket.serialStatusDisplayName,
+                                            ticket.ticketCondition,
+                                            ticket.ticketConditionDisplayName
                                         );
                                         const candidates = ticket.id != null ? availableReplacements[ticket.id] : undefined;
                                         const isLoading = ticket.id != null && candidates === undefined;
-                                        const hasRep = ticket.id != null && !isLoading && candidates.length > 0;
+                                        const hasRep = ticket.id != null && !isLoading && !!candidates && candidates.length > 0;
                                         const isReplacing = ticket.id != null && expandedRow === ticket.id;
                                         const hasStartedFilling = ticket.id != null && !!replacements[ticket.id]?.faultedBy;
                                         const hasReplaced = ticket.id != null && !!replacements[ticket.id]?.newTicketId;

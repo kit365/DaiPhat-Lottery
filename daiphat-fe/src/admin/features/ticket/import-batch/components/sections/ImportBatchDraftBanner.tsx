@@ -1,6 +1,6 @@
 import { Alert, Button } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from '@/components/router-compat';
 import { ROUTES } from '../../../../../constants/routes';
 import { getImportBatches } from '../../services/importBatchService';
 import { QUERY_KEYS } from '../../constants/queryKeys';

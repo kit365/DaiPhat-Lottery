@@ -230,8 +230,7 @@ class LotteryTicketSerialServiceTest {
     @Test
     @DisplayName("[DP-37] reserveFirstAvailable_throws")
     void reserveFirstAvailable_throws() {
-        when(lotteryTicketSerialRepositoryPort.findFirstByTicketIdAndStatusOrderByIdAsc(TICKET_ID, LotteryTicketSerialStatus.IN_STOCK))
-                .thenReturn(Optional.empty());
+        when(lotteryTicketSerialRepositoryPort.findAllByTicketId(TICKET_ID)).thenReturn(List.of());
 
         assertThatThrownBy(() -> lotteryTicketSerialService.reserveFirstAvailable(TICKET_ID, UUID.randomUUID(), LocalDateTime.now()))
                 .isInstanceOf(DomainException.class)
@@ -242,8 +241,7 @@ class LotteryTicketSerialServiceTest {
     @DisplayName("[DP-37] reserveFirstAvailable_success")
     void reserveFirstAvailable_success() {
         UUID orderId = UUID.randomUUID();
-        when(lotteryTicketSerialRepositoryPort.findFirstByTicketIdAndStatusOrderByIdAsc(TICKET_ID, LotteryTicketSerialStatus.IN_STOCK))
-                .thenReturn(Optional.of(serialModel));
+        when(lotteryTicketSerialRepositoryPort.findAllByTicketId(TICKET_ID)).thenReturn(List.of(serialModel));
         when(lotteryTicketSerialRepositoryPort.save(any())).thenAnswer(i -> i.getArgument(0));
 
         LotteryTicketSerialModel result = lotteryTicketSerialService.reserveFirstAvailable(TICKET_ID, orderId, LocalDateTime.now());
@@ -254,8 +252,7 @@ class LotteryTicketSerialServiceTest {
     @Test
     @DisplayName("[DP-37] sellFirstAvailable_success")
     void sellFirstAvailable_success() {
-        when(lotteryTicketSerialRepositoryPort.findFirstByTicketIdAndStatusOrderByIdAsc(TICKET_ID, LotteryTicketSerialStatus.IN_STOCK))
-                .thenReturn(Optional.of(serialModel));
+        when(lotteryTicketSerialRepositoryPort.findAllByTicketId(TICKET_ID)).thenReturn(List.of(serialModel));
         when(lotteryTicketSerialRepositoryPort.save(any())).thenAnswer(i -> i.getArgument(0));
 
         LotteryTicketSerialModel result = lotteryTicketSerialService.sellFirstAvailable(TICKET_ID);
@@ -321,7 +318,7 @@ class LotteryTicketSerialServiceTest {
     @DisplayName("[DP-37] countAvailableSerials")
     void countAvailableSerials() {
         lotteryTicketSerialService.countAvailableSerials(TICKET_ID);
-        verify(lotteryTicketSerialRepositoryPort).countByTicketIdAndStatuses(eq(TICKET_ID), anyList());
+        verify(lotteryTicketSerialRepositoryPort).countSellableByTicketId(TICKET_ID);
     }
 
     @Test

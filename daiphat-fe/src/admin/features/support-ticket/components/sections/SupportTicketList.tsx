@@ -24,7 +24,7 @@ import {
 } from '@mui/material';
 import { Icon } from '@iconify/react';
 import dayjs from 'dayjs';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from '@/components/router-compat';
 import { Search } from '../../../../components/ui/Search';
 import { CanAccess } from '../../../../components/auth/CanAccess';
 import { PERMISSIONS } from '../../../../constants/permission.constants';
@@ -369,7 +369,7 @@ export const SupportTicketList = () => {
                                     <TableCell align="right" onClick={(e) => e.stopPropagation()}>
                                         <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 0.5 }}>
                                             {ticket.status === TicketStatus.OPEN && (
-                                                <CanAccess permission={PERMISSIONS.SUPPORT_TICKET.MANAGE}>
+                                                <CanAccess permission={(PERMISSIONS.SUPPORT_TICKET as any).MANAGE}>
                                                     <Tooltip title="Tiếp nhận">
                                                         <IconButton
                                                             size="small"
