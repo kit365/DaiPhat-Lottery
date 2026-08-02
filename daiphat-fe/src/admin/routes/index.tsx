@@ -77,6 +77,7 @@ const RefundListPage = lazy(() => import("../pages/refund/RefundListPage").then(
 const RefundDetailPage = lazy(() => import("../pages/refund/RefundDetailPage").then(m => ({ default: m.RefundDetailPage })));
 const PrizePayoutListPage = lazy(() => import("../pages/prize-payout/PrizePayoutListPage").then(m => ({ default: m.PrizePayoutListPage })));
 const PrizePayoutDetailPage = lazy(() => import("../pages/prize-payout/PrizePayoutDetailPage").then(m => ({ default: m.PrizePayoutDetailPage })));
+const PrizePayoutCreatePage = lazy(() => import("../pages/prize-payout/PrizePayoutCreatePage").then(m => ({ default: m.PrizePayoutCreatePage })));
 const RefundCreatePage = lazy(() => import("../pages/refund/RefundCreatePage").then(m => ({ default: m.RefundCreatePage })));
 const OrderCancelWithRefundPage = lazy(() => import("../pages/refund/OrderCancelWithRefundPage").then(m => ({ default: m.OrderCancelWithRefundPage })));
 const SupportTicketListPage = lazy(() => import("../features/support-ticket").then(m => ({ default: m.SupportTicketListPage })));
@@ -146,6 +147,7 @@ export const AdminRoutes = [
     { path: "refunds/detail/:id", element: <PermissionGuard permission={PERMISSIONS.REFUND.VIEW}><RefundDetailPage /></PermissionGuard> },
     { path: "refunds/create", element: <PermissionGuard permission={PERMISSIONS.REFUND.PROCESS}><RefundCreatePage /></PermissionGuard> },
     { path: "prize-payouts/list", element: <PermissionGuard permission={PERMISSIONS.PRIZE_PAYOUT.VIEW}><PrizePayoutListPage /></PermissionGuard> },
+    { path: "prize-payouts/create", element: <PermissionGuard permission={PERMISSIONS.PRIZE_PAYOUT.PROCESS}><PrizePayoutCreatePage /></PermissionGuard> },
     { path: "prize-payouts/detail/:id", element: <PermissionGuard permission={PERMISSIONS.PRIZE_PAYOUT.VIEW}><PrizePayoutDetailPage /></PermissionGuard> },
     { path: "support-tickets/list", element: <PermissionGuard permission={PERMISSIONS.SUPPORT_TICKET.VIEW}><SupportTicketListPage /></PermissionGuard> },
     { path: "support-tickets/detail/:id", element: <PermissionGuard permission={PERMISSIONS.SUPPORT_TICKET.VIEW}><SupportTicketDetailPage /></PermissionGuard> },
