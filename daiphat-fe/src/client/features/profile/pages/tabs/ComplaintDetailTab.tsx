@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from '@/components/router-compat';
 import { format } from 'date-fns';
 import { ComplaintFormModal } from '../../../../components/support/ComplaintFormModal';
 import { ComplaintStatusBadge } from '../../../../components/support/ComplaintStatusBadge';

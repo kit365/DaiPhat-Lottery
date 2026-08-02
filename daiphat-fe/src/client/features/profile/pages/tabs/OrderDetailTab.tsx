@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useParams, useNavigate, Link, useLocation } from 'react-router-dom';
+import { useParams, useNavigate, Link, useLocation } from '@/components/router-compat';
 import QRCode from 'react-qr-code';
 import { useGetMyOrderDetail } from '../../../../hooks/useOrder';
 import { useGetPendingPaymentCountdown, useProcessPayment, useSyncPaymentFromGateway } from '../../../../hooks/useTransaction';

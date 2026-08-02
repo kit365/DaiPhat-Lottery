@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from '@/components/router-compat';
 import dayjs from 'dayjs';
 import { useGetMyPrizePayouts, useGetPrizePayoutStatuses } from '../../../../hooks/usePrizePayout';
 import { PrizePayoutRequestStatus } from '../../../../../types/prize-payout.type';

@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from '@/components/router-compat';
 import { format } from 'date-fns';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAttachRefundBankAccount, useGetRefundDetail } from '../../../../hooks/useRefund';
