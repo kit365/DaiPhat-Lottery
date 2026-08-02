@@ -185,6 +185,56 @@ public enum SystemConfigEnum {
             "giờ",
             "{}",
             false
+    ),
+    PRIZE_PAYOUT_ONLINE_MAX_AMOUNT(
+            ConfigType.PAYOUT_SETTING,
+            DataType.INT,
+            "10000000",
+            "Giá trị giải tối đa khách được gửi yêu cầu trả thưởng online (VND)",
+            "Hạn mức trả thưởng online",
+            "VND",
+            "{\"min\":0}",
+            true
+    ),
+    MAX_PRIZE_PAYOUT_ONLINE_REJECT(
+            ConfigType.PAYOUT_SETTING,
+            DataType.INT,
+            "3",
+            "Số lần tối đa yêu cầu trả thưởng online bị từ chối trước khi bắt buộc đổi thưởng tại đại lý",
+            "Số lần từ chối trả thưởng online tối đa",
+            "lần",
+            "{\"min\":1,\"max\":20}",
+            true
+    ),
+    PRIZE_PAYOUT_TAX_THRESHOLD(
+            ConfigType.PAYOUT_SETTING,
+            DataType.INT,
+            "10000000",
+            "Ngưỡng miễn thuế TNCN trên giá trị giải (VND)",
+            "Ngưỡng thuế TNCN",
+            "VND",
+            "{\"min\":0}",
+            true
+    ),
+    PRIZE_PAYOUT_TAX_RATE(
+            ConfigType.PAYOUT_SETTING,
+            DataType.DECIMAL,
+            "0.10",
+            "Thuế suất TNCN áp dụng phần vượt ngưỡng",
+            "Thuế suất TNCN",
+            "%",
+            "{\"min\":0,\"max\":1}",
+            true
+    ),
+    PRIZE_PAYOUT_COMMISSION_TIERS(
+            ConfigType.PAYOUT_SETTING,
+            DataType.JSON,
+            "[{\"upTo\":10000000,\"rate\":0.01},{\"upTo\":100000000,\"rate\":0.007},{\"upTo\":1000000000,\"rate\":0.004},{\"upTo\":null,\"rate\":0.002}]",
+            "Bậc thang hoa hồng đại lý trên giá trị giải gốc (trước thuế)",
+            "Hoa hồng trả thưởng",
+            "%",
+            "{}",
+            true
     );
 
     private final ConfigType configType;

@@ -17,7 +17,7 @@ import {
     Typography,
     styled,
 } from '@mui/material';
-import { Banknote, CreditCard, Edit2, LayoutList, MessageSquare, ShoppingCart, Ticket } from 'lucide-react';
+import { Banknote, CreditCard, Edit2, Gift, LayoutList, MessageSquare, ShoppingCart, Ticket } from 'lucide-react';
 import dayjs from 'dayjs';
 import { toast } from 'react-toastify';
 import { Breadcrumb } from '../../../../components/ui/Breadcrumb';
@@ -35,6 +35,7 @@ import {
     ConfigType,
     SystemConfigResponse,
 } from '../../types/system-config';
+import { formatSystemConfigDisplayValue } from '../../utils/systemConfigDisplay.util';
 
 const TabBadge = styled('span')(() => ({
     height: '24px',
@@ -83,12 +84,13 @@ const TYPE_TABS: { value: TypeFilter; label: string; icon: React.ReactNode; colo
         icon: <MessageSquare size={18} />,
         color: 'error.main',
     },
+    {
+        value: ConfigType.PAYOUT_SETTING,
+        label: CONFIG_TYPE_LABELS[ConfigType.PAYOUT_SETTING],
+        icon: <Gift size={18} />,
+        color: 'success.dark',
+    },
 ];
-
-const truncateValue = (value: string, maxLen = 48) => {
-    if (value.length <= maxLen) return value;
-    return `${value.slice(0, maxLen)}…`;
-};
 
 const getTypeChipColor = (type: ConfigType): 'default' | 'primary' | 'secondary' | 'warning' | 'error' | 'info' => {
     switch (type) {
@@ -102,9 +104,68 @@ const getTypeChipColor = (type: ConfigType): 'default' | 'primary' | 'secondary'
             return 'secondary';
         case ConfigType.COMPLAINT_SETTING:
             return 'error';
+        case ConfigType.PAYOUT_SETTING:
+            return 'success';
         default:
             return 'default';
     }
+};
+
+const ConfigValueCell = ({ config }: { config: SystemConfigResponse }) => {
+    const display = formatSystemConfigDisplayValue(config.configKey, config.configValue, config.dataType);
+
+    if (display.isStructured && display.detailLines?.length) {
+        const preview = display.detailLines[0];
+        const extraCount = display.detailLines.length - 1;
+        return (
+            <Tooltip
+                title={
+                    <Box component="ul" sx={{ m: 0, pl: 2 }}>
+                        {display.detailLines.map((line) => (
+                            <li key={line}>{line}</li>
+                        ))}
+                    </Box>
+                }
+                placement="top-start"
+            >
+                <Stack spacing={0.25} sx={{ maxWidth: 260, cursor: 'help' }}>
+                    <Typography variant="body2" sx={{ fontWeight: 600, lineHeight: 1.35 }}>
+                        {display.summary}
+                    </Typography>
+                    <Typography
+                        variant="caption"
+                        color="text.secondary"
+                        sx={{
+                            lineHeight: 1.35,
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                        }}
+                    >
+                        {preview}
+                        {extraCount > 0 ? '…' : ''}
+                    </Typography>
+                </Stack>
+            </Tooltip>
+        );
+    }
+
+    return (
+        <Tooltip title={display.summary} placement="top-start">
+            <Typography
+                variant="body2"
+                sx={{
+                    fontFamily: config.dataType === ConfigDataType.TIME ? 'monospace' : 'inherit',
+                    maxWidth: 260,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                }}
+            >
+                {display.summary}
+            </Typography>
+        </Tooltip>
+    );
 };
 
 export const SystemConfigListPage = () => {
@@ -130,6 +191,7 @@ export const SystemConfigListPage = () => {
             [ConfigType.TICKET_IMPORT]: 0,
             [ConfigType.REFUND_SETTING]: 0,
             [ConfigType.COMPLAINT_SETTING]: 0,
+            [ConfigType.PAYOUT_SETTING]: 0,
         };
         allConfigs.forEach((c) => {
             if (counts[c.configType] !== undefined) {
@@ -238,9 +300,20 @@ export const SystemConfigListPage = () => {
                     <Tabs
                         value={typeFilter}
                         onChange={(_, value: TypeFilter) => setTypeFilter(value)}
+                        variant="scrollable"
+                        scrollButtons="auto"
+                        allowScrollButtonsMobile
                         sx={{
                             minHeight: 44,
-                            '& .MuiTab-root': { minHeight: 44, textTransform: 'none', fontWeight: 600 },
+                            '& .MuiTab-root': {
+                                minHeight: 44,
+                                textTransform: 'none',
+                                fontWeight: 600,
+                                flexShrink: 0,
+                            },
+                            '& .MuiTabs-scrollButtons.Mui-disabled': {
+                                opacity: 0.3,
+                            },
                             '& .MuiTabs-indicator': {
                                 backgroundColor: TYPE_TABS.find((t) => t.value === typeFilter)?.color || 'primary.main',
                             },
@@ -339,20 +412,8 @@ export const SystemConfigListPage = () => {
                                                 {config.description}
                                             </Typography>
                                         </TableCell>
-                                        <TableCell sx={{ maxWidth: 200 }}>
-                                            <Tooltip title={config.configValue} placement="top-start">
-                                                <Typography
-                                                    variant="body2"
-                                                    sx={{
-                                                        fontFamily:
-                                                            config.dataType === ConfigDataType.TIME
-                                                                ? 'monospace'
-                                                                : 'inherit',
-                                                    }}
-                                                >
-                                                    {truncateValue(config.configValue)}
-                                                </Typography>
-                                            </Tooltip>
+                                        <TableCell sx={{ maxWidth: 280, verticalAlign: 'middle' }}>
+                                            <ConfigValueCell config={config} />
                                         </TableCell>
                                         <TableCell>
                                             <Typography variant="body2" color="text.secondary">

@@ -32,6 +32,7 @@ import {
     ConfigDataType,
     SystemConfigResponse,
 } from '../../types/system-config';
+import { CommissionTiersEditor } from './CommissionTiersEditor';
 
 interface SystemConfigEditDialogProps {
     config: SystemConfigResponse | null;
@@ -40,6 +41,28 @@ interface SystemConfigEditDialogProps {
     onSubmit: (data: UpdateSystemConfigFormValues) => void;
     isPending: boolean;
 }
+
+const isCommissionTiersConfig = (config: SystemConfigResponse) =>
+    config.configKey === 'PRIZE_PAYOUT_COMMISSION_TIERS';
+
+const getValueFieldHelper = (config: SystemConfigResponse): string => {
+    switch (config.dataType) {
+        case ConfigDataType.INT:
+            return config.unit ? `Nhập số nguyên (${config.unit})` : 'Nhập số nguyên';
+        case ConfigDataType.DECIMAL:
+            return config.unit === '%'
+                ? 'Nhập dạng thập phân (ví dụ 0.10 = 10%)'
+                : 'Nhập số thập phân';
+        case ConfigDataType.TIME:
+            return 'Định dạng HH:mm (ví dụ: 14:30)';
+        case ConfigDataType.BOOLEAN:
+            return 'Chỉ nhận true hoặc false';
+        case ConfigDataType.JSON:
+            return 'Nhập JSON hợp lệ';
+        default:
+            return 'Nhập giá trị cấu hình';
+    }
+};
 
 export const SystemConfigEditDialog = ({
     config,
@@ -50,6 +73,7 @@ export const SystemConfigEditDialog = ({
 }: SystemConfigEditDialogProps) => {
     const outerTheme = useTheme();
     const isMobile = useMediaQuery(outerTheme.breakpoints.down('sm'));
+    const useWideDialog = Boolean(config && isCommissionTiersConfig(config));
     const localTheme = createTheme(outerTheme, {
         components: {
             MuiDialog: {
@@ -58,7 +82,7 @@ export const SystemConfigEditDialog = ({
                         borderRadius: '16px',
                         padding: '16px',
                         width: '100%',
-                        maxWidth: '560px',
+                        maxWidth: useWideDialog ? '680px' : '560px',
                         margin: isMobile ? '16px' : '32px',
                         backgroundImage: 'none',
                         backgroundColor: outerTheme.palette.background.paper,
@@ -97,7 +121,19 @@ export const SystemConfigEditDialog = ({
     return (
         <ThemeProvider theme={localTheme}>
             <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-                <form onSubmit={handleSubmit(onSubmit)}>
+                <form
+                    onSubmit={handleSubmit((data) => {
+                        const payload = { ...data };
+                        if (config.dataType === ConfigDataType.JSON) {
+                            try {
+                                payload.configValue = JSON.stringify(JSON.parse(data.configValue));
+                            } catch {
+                                // keep as-is; schema already validates JSON
+                            }
+                        }
+                        onSubmit(payload);
+                    })}
+                >
                     <DialogTitle sx={{ pb: 1, fontWeight: 700, fontSize: '1.25rem' }}>
                         {config.configName || 'Cập nhật cấu hình'}
                     </DialogTitle>
@@ -153,7 +189,16 @@ export const SystemConfigEditDialog = ({
                                     label={CONFIG_TYPE_LABELS[config.configType] || config.configType}
                                     color="primary"
                                 />
-                                {config.unit && (
+                                <Chip
+                                    size="small"
+                                    label={
+                                        isCommissionTiersConfig(config)
+                                            ? 'Bậc thang %'
+                                            : CONFIG_DATA_TYPE_LABELS[config.dataType] || config.dataType
+                                    }
+                                    variant="outlined"
+                                />
+                                {config.unit && !isCommissionTiersConfig(config) && (
                                     <Chip size="small" label={`Đơn vị: ${config.unit}`} variant="outlined" />
                                 )}
                             </Stack>
@@ -197,7 +242,19 @@ export const SystemConfigEditDialog = ({
                             </Box>
 
                             <Box>
-                                {config.dataType === ConfigDataType.INT ? (
+                                {isCommissionTiersConfig(config) ? (
+                                    <Controller
+                                        name="configValue"
+                                        control={control}
+                                        render={({ field, fieldState }) => (
+                                            <CommissionTiersEditor
+                                                value={field.value}
+                                                onChange={field.onChange}
+                                                error={fieldState.error?.message}
+                                            />
+                                        )}
+                                    />
+                                ) : config.dataType === ConfigDataType.INT ? (
                                     <Controller
                                         name="configValue"
                                         control={control}
@@ -208,13 +265,60 @@ export const SystemConfigEditDialog = ({
                                                 label="Giá trị"
                                                 fullWidth
                                                 error={!!fieldState.error}
-                                                helperText={
-                                                    fieldState.error?.message ||
-                                                    (config.unit
-                                                        ? `Nhập số nguyên (${config.unit})`
-                                                        : 'Nhập số nguyên')
-                                                }
+                                                helperText={fieldState.error?.message || getValueFieldHelper(config)}
                                                 inputProps={{ step: 1 }}
+                                            />
+                                        )}
+                                    />
+                                ) : config.dataType === ConfigDataType.DECIMAL ? (
+                                    <Controller
+                                        name="configValue"
+                                        control={control}
+                                        render={({ field, fieldState }) => (
+                                            <TextField
+                                                {...field}
+                                                type="number"
+                                                label="Giá trị"
+                                                fullWidth
+                                                error={!!fieldState.error}
+                                                helperText={fieldState.error?.message || getValueFieldHelper(config)}
+                                                inputProps={{ step: 'any' }}
+                                            />
+                                        )}
+                                    />
+                                ) : config.dataType === ConfigDataType.BOOLEAN ? (
+                                    <Controller
+                                        name="configValue"
+                                        control={control}
+                                        render={({ field, fieldState }) => (
+                                            <TextField
+                                                {...field}
+                                                select
+                                                label="Giá trị"
+                                                fullWidth
+                                                error={!!fieldState.error}
+                                                helperText={fieldState.error?.message || getValueFieldHelper(config)}
+                                                SelectProps={{ native: true }}
+                                            >
+                                                <option value="true">true</option>
+                                                <option value="false">false</option>
+                                            </TextField>
+                                        )}
+                                    />
+                                ) : config.dataType === ConfigDataType.JSON ? (
+                                    <Controller
+                                        name="configValue"
+                                        control={control}
+                                        render={({ field, fieldState }) => (
+                                            <TextField
+                                                {...field}
+                                                label="Giá trị (JSON)"
+                                                fullWidth
+                                                multiline
+                                                minRows={6}
+                                                error={!!fieldState.error}
+                                                helperText={fieldState.error?.message || getValueFieldHelper(config)}
+                                                inputProps={{ style: { fontFamily: 'monospace', fontSize: 13 } }}
                                             />
                                         )}
                                     />
@@ -229,13 +333,10 @@ export const SystemConfigEditDialog = ({
                                                 fullWidth
                                                 placeholder="14:30"
                                                 error={!!fieldState.error}
-                                                helperText={
-                                                    fieldState.error?.message ||
-                                                    (config.unit
-                                                        ? `Định dạng ${config.unit} (ví dụ: 14:30)`
-                                                        : 'Định dạng HH:mm (ví dụ: 14:30)')
-                                                }
-                                                inputProps={{ maxLength: 5 }}
+                                                helperText={fieldState.error?.message || getValueFieldHelper(config)}
+                                                inputProps={{
+                                                    maxLength: config.dataType === ConfigDataType.TIME ? 5 : undefined,
+                                                }}
                                             />
                                         )}
                                     />
