@@ -52,8 +52,10 @@ public class PrizePayoutEventListener {
     private String resolveTitle(PrizePayoutStatusChangedEvent event) {
         return switch (event.status()) {
             case PENDING -> "Yêu cầu trả thưởng đã gửi";
+            case APPROVED -> "Yêu cầu trả thưởng đã duyệt";
             case COMPLETED -> "Trả thưởng thành công";
             case REJECTED -> "Yêu cầu trả thưởng bị từ chối";
+            case MANUAL_RESOLUTION -> "Trả thưởng online bị khóa";
             case CANCELLED -> "Yêu cầu trả thưởng đã hủy";
         };
     }
@@ -66,6 +68,10 @@ public class PrizePayoutEventListener {
                     "Yêu cầu %s (%s) đã được gửi. Vui lòng chờ xử lý 1–3 ngày làm việc.",
                     code,
                     amount);
+            case APPROVED -> String.format(
+                    "Yêu cầu %s (%s) đã được duyệt. Đang chờ hoàn tất trả thưởng tại quầy.",
+                    code,
+                    amount);
             case COMPLETED -> String.format(
                     "Yêu cầu %s đã được chuyển khoản %s. Xem chi tiết để tải biên lai.",
                     code,
@@ -74,6 +80,9 @@ public class PrizePayoutEventListener {
                     "Yêu cầu %s bị từ chối. Lý do: %s. Bạn có thể gửi yêu cầu mới.",
                     code,
                     event.rejectReason() != null ? event.rejectReason() : "Không rõ");
+            case MANUAL_RESOLUTION -> String.format(
+                    "Yêu cầu %s đã bị từ chối quá số lần cho phép. Vui lòng mang CCCD và vé đến đại lý đổi thưởng hoặc liên hệ CSKH.",
+                    code);
             case CANCELLED -> String.format(
                     "Yêu cầu %s đã được hủy. Vé quay về trạng thái đang giữ hộ.",
                     code);
