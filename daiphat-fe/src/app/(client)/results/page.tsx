@@ -1,16 +1,12 @@
-"use client";
+import { Suspense } from 'react';
+import { ResultsRedirectContent } from './ResultsRedirectContent';
 
-import { useEffect } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+export const dynamic = 'force-dynamic';
 
 export default function ResultsRedirectPage() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-
-  useEffect(() => {
-    const query = searchParams ? searchParams.toString() : '';
-    router.replace(query ? `/?${query}` : '/');
-  }, [router, searchParams]);
-
-  return null;
+  return (
+    <Suspense fallback={null}>
+      <ResultsRedirectContent />
+    </Suspense>
+  );
 }

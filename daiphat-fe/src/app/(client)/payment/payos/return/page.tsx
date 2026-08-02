@@ -1,7 +1,12 @@
-"use client";
+import { Suspense } from 'react';
+import { PayosReturnClient } from './PayosReturnClient';
 
-import { CheckoutResultPage } from '@/client/features/cart';
+export const dynamic = 'force-dynamic';
 
 export default function PayosReturn() {
-  return <CheckoutResultPage />;
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Đang tải...</div>}>
+      <PayosReturnClient />
+    </Suspense>
+  );
 }
