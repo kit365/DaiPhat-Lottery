@@ -8,6 +8,7 @@ import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus;
 import com.daiphat.coreapi.domain.model.enums.lottery.SerialPayoutState;
 import lombok.*;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -24,6 +25,8 @@ public class LotteryTicketSerialModel {
     private Long importBatchLineId;
     private String ticketImg;
     private String serialNumber;
+    private Long stationId;
+    private LocalDate drawDate;
 
     @Builder.Default
     private LotteryTicketSerialStatus status = LotteryTicketSerialStatus.IN_STOCK;
@@ -105,6 +108,7 @@ public class LotteryTicketSerialModel {
     }
 
     public void sellOnline() {
+        ensureNotLockedForPayout();
         // Idempotent: legacy payment already set SOLD before PENDING_PICKUP.
         // Must not throw — a DomainException from @Transactional markSold marks the
         // outer order-status transaction rollback-only even if the caller catches it.
@@ -126,6 +130,7 @@ public class LotteryTicketSerialModel {
     }
 
     public void sellOffline() {
+        ensureNotLockedForPayout();
         ensureStatus(LotteryTicketSerialStatus.IN_STOCK);
         this.status = LotteryTicketSerialStatus.SOLD;
     }
@@ -267,5 +272,11 @@ public class LotteryTicketSerialModel {
 
     public void markPaidOut() {
         this.payoutState = SerialPayoutState.PAID_OUT;
+    }
+
+    private void ensureNotLockedForPayout() {
+        if (payoutState == SerialPayoutState.PAYOUT_PENDING) {
+            throw new DomainException(ErrorCode.PRIZE_PAYOUT_BLOCKS_PICKUP);
+        }
     }
 }

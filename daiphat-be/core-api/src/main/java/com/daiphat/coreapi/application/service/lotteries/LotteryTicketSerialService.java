@@ -64,6 +64,8 @@ public class LotteryTicketSerialService implements LotteryTicketSerialServicePor
                 .importBatchLineId(importBatchLineId)
                 .ticketImg(request.ticketImg())
                 .serialNumber(normalizedSerial)
+                .stationId(ticket.getStationId())
+                .drawDate(ticket.getDrawDate())
                 .inputSource(InputSource.MANUAL)
                 .replacedForTicketId(request.replacedForTicketId())
                 .build();
@@ -103,6 +105,8 @@ public class LotteryTicketSerialService implements LotteryTicketSerialServicePor
                     }
                     existing.setSerialNumber(normalizedSerial);
                 }
+                existing.setStationId(ticket.getStationId());
+                existing.setDrawDate(ticket.getDrawDate());
                 if (hasText(serialReq.ticketImg())) {
                     existing.setTicketImg(serialReq.ticketImg().trim());
                 }

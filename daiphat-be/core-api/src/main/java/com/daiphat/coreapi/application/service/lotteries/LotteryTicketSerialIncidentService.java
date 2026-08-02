@@ -207,6 +207,8 @@ public class LotteryTicketSerialIncidentService {
                 .importBatchLineId(faultedSerial.getImportBatchLineId())
                 .ticketImg(request.replacementTicketImg())
                 .serialNumber(request.replacementSerialNumber().trim())
+                .stationId(faultedSerial.getStationId())
+                .drawDate(faultedSerial.getDrawDate())
                 .inputSource(InputSource.MANUAL)
                 .replacedForTicketId(faultedSerial.getId())
                 .build();

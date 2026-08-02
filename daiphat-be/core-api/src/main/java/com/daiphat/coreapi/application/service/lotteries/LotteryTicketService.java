@@ -1428,6 +1428,8 @@ public class LotteryTicketService implements LotteryTicketServicePort {
                         .importBatchLineId(oldSerial.getImportBatchLineId())
                         .ticketImg(request.newTicketImg() != null && !request.newTicketImg().isBlank() ? request.newTicketImg() : oldSerial.getTicketImg())
                         .serialNumber(oldSerial.getSerialNumber())
+                        .stationId(savedNewTicket.getStationId())
+                        .drawDate(savedNewTicket.getDrawDate())
                         .inputSource(oldSerial.getInputSource())
                         .status(LotteryTicketSerialStatus.IN_STOCK)
                         .replacedForTicketId(oldSerial.getId())
