@@ -1,9 +1,11 @@
 import {
+    Box,
     Card,
     CardHeader,
     Collapse,
     Divider,
     IconButton,
+    Stack,
 } from "@mui/material";
 import { ArrowIcon } from "../../assets/icons";
 
@@ -14,6 +16,7 @@ type Props = {
     onToggle: () => void;
     /** When false, the card is always expanded and the toggle is hidden. */
     collapsible?: boolean;
+    extraAction?: React.ReactNode;
     children: React.ReactNode;
 };
 
@@ -23,6 +26,7 @@ export const CollapsibleCard = ({
     expanded,
     onToggle,
     collapsible = true,
+    extraAction,
     children,
 }: Props) => {
     const isExpanded = collapsible ? expanded : true;
@@ -34,26 +38,33 @@ export const CollapsibleCard = ({
                 subheader={subheader}
                 onClick={collapsible ? onToggle : undefined}
                 slotProps={{
-                    title: { sx: { fontWeight: 600, fontSize: "1.125rem" } },
+                    title: { sx: { fontWeight: 700, fontSize: "1.125rem", color: "#0f172a" } },
                     subheader: {
                         sx: { color: "#637381", fontSize: "0.875rem", mt: 0.5 },
                     },
                 }}
                 action={
-                    collapsible ? (
-                        <IconButton
-                            sx={{
-                                transform: isExpanded ? "rotate(0deg)" : "rotate(-90deg)",
-                                transition: "transform 0.3s",
-                            }}
-                        >
-                            <ArrowIcon />
-                        </IconButton>
-                    ) : undefined
+                    <Stack direction="row" spacing={1} alignItems="center">
+                        {extraAction && (
+                            <Box onClick={(e) => e.stopPropagation()}>
+                                {extraAction}
+                            </Box>
+                        )}
+                        {collapsible && (
+                            <IconButton
+                                sx={{
+                                    transform: isExpanded ? "rotate(0deg)" : "rotate(-90deg)",
+                                    transition: "transform 0.3s",
+                                }}
+                            >
+                                <ArrowIcon />
+                            </IconButton>
+                        )}
+                    </Stack>
                 }
                 sx={{
-                    padding: "24px 24px 0",
-                    mb: isExpanded ? "24px" : 0,
+                    padding: "20px 24px",
+                    mb: isExpanded ? 0 : 0,
                     cursor: collapsible ? "pointer" : "default",
                 }}
             />

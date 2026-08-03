@@ -1,3 +1,5 @@
+"use client";
+
 import { useEffect, useState, type SyntheticEvent } from 'react';
 import React from 'react';
 import {
@@ -23,7 +25,7 @@ import {
 } from '@mui/material';
 import { Icon } from '@iconify/react';
 import dayjs from 'dayjs';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from '@/components/router-compat';
 import { CanAccess } from '../../../components/auth/CanAccess';
 import { PERMISSIONS } from '../../../constants/permission.constants';
 import { prefixAdmin } from '../../../constants/routes';
@@ -64,6 +66,14 @@ const STATUS_TABS: {
     activeBg: string;
 }[] = [
     {
+        value: 'WAITING_FOR_INFO,APPROVED,READY_TO_PAY,PAID,MANUAL_RESOLUTION',
+        label: 'Tất cả',
+        color: 'var(--palette-common-white)',
+        bg: 'var(--palette-grey-800)',
+        activeColor: 'var(--palette-common-white)',
+        activeBg: 'var(--palette-grey-800)',
+    },
+    {
         value: 'WAITING_FOR_INFO,APPROVED,READY_TO_PAY',
         label: 'Cần xử lý',
         color: 'var(--palette-warning-dark)',
@@ -103,15 +113,9 @@ const STATUS_TABS: {
         activeColor: 'var(--palette-error-contrastText)',
         activeBg: 'var(--palette-error-main)',
     },
-    {
-        value: 'WAITING_FOR_INFO,APPROVED,READY_TO_PAY,PAID,MANUAL_RESOLUTION',
-        label: 'Tất cả',
-        color: 'var(--palette-common-white)',
-        bg: 'var(--palette-grey-800)',
-        activeColor: 'var(--palette-common-white)',
-        activeBg: 'var(--palette-grey-800)',
-    },
 ];
+
+const DEFAULT_STATUS_TAB = 'WAITING_FOR_INFO,APPROVED,READY_TO_PAY';
 
 const cellBorderSx = {
     borderBottom: '1px dashed var(--palette-background-neutral)',
@@ -171,7 +175,7 @@ export const RefundList = () => {
     const [page, setPage] = useState(0);
     const [rowsPerPage, setRowsPerPage] = useState(10);
     const [search, setSearch] = useState('');
-    const [statusTab, setStatusTab] = useState(STATUS_TABS[0].value);
+    const [statusTab, setStatusTab] = useState(DEFAULT_STATUS_TAB);
     const [anchorEl, setAnchorEl] = useState<{ [key: number]: HTMLElement | null }>({});
 
     const { settings, setSettings } = useSettings();
@@ -228,7 +232,7 @@ export const RefundList = () => {
     };
 
     const handleConfirmTransfer = (id: number) => {
-        navigate(detailPath(id), { state: { openTransfer: true } });
+        navigate(detailPath(id), { state: { openTransfer: true } } as any);
     };
 
     const emptyMessage =

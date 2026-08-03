@@ -1,4 +1,6 @@
-import { Outlet, useLocation } from "react-router-dom";
+"use client";
+
+import { Outlet, useLocation } from "@/components/router-compat";
 import { ThemeProvider } from "@mui/material/styles";
 
 import { SideBar } from "../components/layouts/sidebar/SideBar";
@@ -17,7 +19,7 @@ import LoadingScreen from "../components/ui/LoadingScreen";
 
 import { ROUTES } from "../constants/routes";
 
-const LayoutAdminContent = () => {
+const LayoutAdminContent = ({ children }: { children?: React.ReactNode }) => {
     const { user, isLoading } = useAuth();
     const location = useLocation();
     const { isOpen } = useSidebar();
@@ -52,7 +54,7 @@ const LayoutAdminContent = () => {
                 <ThemeProvider theme={adminTheme}>
                     <main className="max-w-[1536px] w-full mx-auto px-[40px] pt-[8px] pb-[64px]">
                         <Suspense fallback={<LoadingScreen />}>
-                            <Outlet />
+                            {children ? children : <Outlet />}
                         </Suspense>
                     </main>
                 </ThemeProvider>
@@ -62,11 +64,11 @@ const LayoutAdminContent = () => {
     );
 };
 
-export const LayoutAdmin = () => {
+export const LayoutAdmin = ({ children }: { children?: React.ReactNode }) => {
     return (
         <SocketProvider>
             <SidebarProvider>
-                <LayoutAdminContent />
+                <LayoutAdminContent>{children}</LayoutAdminContent>
             </SidebarProvider>
         </SocketProvider>
     );

@@ -1,5 +1,7 @@
+"use client";
+
 import { useEffect, useRef } from "react"
-import { useNavigate } from "react-router-dom"
+import { useNavigate } from "@/components/router-compat"
 import { ROUTES } from "../../constants/routes"
 import { useAuth } from "./hooks/useAuth"
 import { LoadingSpinner } from "../../../client/components/ui/LoadingSpinner"

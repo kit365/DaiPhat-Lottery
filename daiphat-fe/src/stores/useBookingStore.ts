@@ -24,9 +24,18 @@ export interface BookingPreview {
     timeline: BookingTimelineItem[];
 }
 
+export interface BookingService {
+    id?: string | number;
+    name?: string;
+    description?: string;
+    price?: number;
+    duration?: number;
+    [key: string]: unknown;
+}
+
 interface BookingState {
     // Core data
-    service: any | null;
+    service: BookingService | null;
     selectedPets: BookingPet[];
     selectedDate: string;
     selectedTimeSlot: { time: string; status: string; freeStaff?: number } | null;

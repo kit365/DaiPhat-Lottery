@@ -1,6 +1,7 @@
 import { apiApp } from '../../api';
 import Cookies from 'js-cookie';
 import { ApiResponse } from '../config/type';
+import { STORAGE_KEYS } from '../../constants/storage.constants';
 import { prefixAdmin } from '../constants/routes';
 
 const BASE_URL = `/${prefixAdmin}/setting`;

@@ -30,6 +30,8 @@ export const HomeSidebar: React.FC<HomeSidebarProps> = ({ showLoto, setShowLoto,
           <img
             src="https://i.ibb.co/FbsnQfjR/28d77182-45b0-40bf-9aaf-58136bc87741.png"
             alt="Săn Lộc Vàng Background"
+            loading="lazy"
+            decoding="async"
             className="w-full h-full object-cover object-right sm:object-center"
           />
         </div>

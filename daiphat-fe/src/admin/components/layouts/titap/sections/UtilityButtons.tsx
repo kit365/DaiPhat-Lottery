@@ -1,3 +1,5 @@
+"use client";
+
 import { memo, useCallback } from "react";
 import type { Editor } from "@tiptap/react";
 import { useTranslation } from "react-i18next";

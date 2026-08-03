@@ -10,7 +10,7 @@ export const supplierFormSchema = z.object({
         .min(1, 'Vui lòng nhập mã nhà cung cấp')
         .regex(/^[A-Za-z0-9_]+$/, 'Mã chỉ gồm chữ, số và dấu gạch dưới'),
     type: z.enum(['LOTTERY_COMPANY', 'DISTRIBUTOR'], {
-        required_error: 'Vui lòng chọn loại nhà cung cấp',
+        message: 'Vui lòng chọn loại nhà cung cấp',
     }),
     contactName: z.string().optional(),
     contactPhone: z.string().trim().min(1, 'Vui lòng nhập số điện thoại'),

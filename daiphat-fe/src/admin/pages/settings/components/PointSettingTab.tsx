@@ -1,7 +1,14 @@
+"use client";
+
 import { Box, Card, Grid, TextField, Button, Typography, Stack, InputAdornment } from "@mui/material";
 import { useForm, Controller } from "react-hook-form";
 import { useSettingPoint, useUpdateSettingPoint } from "../hooks/useSettings";
 import { useEffect } from "react";
+
+export interface PointSettingFormValues {
+    MONEY_PER_POINT: number;
+    POINT_TO_MONEY: number;
+}
 
 export const PointSettingTab = () => {
     const { data: pointData, isLoading } = useSettingPoint();
@@ -11,7 +18,7 @@ export const PointSettingTab = () => {
         control,
         handleSubmit,
         reset,
-    } = useForm({
+    } = useForm<PointSettingFormValues>({
         defaultValues: {
             MONEY_PER_POINT: 10000,
             POINT_TO_MONEY: 100
@@ -24,7 +31,7 @@ export const PointSettingTab = () => {
         }
     }, [pointData, reset]);
 
-    const onSubmit = (data: any) => {
+    const onSubmit = (data: PointSettingFormValues) => {
         updatePoint(data);
     };
 

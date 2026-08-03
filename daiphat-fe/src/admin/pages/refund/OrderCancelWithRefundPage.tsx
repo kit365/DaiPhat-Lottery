@@ -1,5 +1,7 @@
+"use client";
+
 import React, { useEffect, useMemo, useState } from 'react';
-import { useLocation, useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from '@/components/router-compat';
 import {
     Avatar,
     Box,
@@ -231,13 +233,16 @@ export function OrderCancelWithRefundPage() {
     }, [locationState?.replacements, tickets]);
 
     const updateIncident = (ticketId: number, patch: Partial<TicketIncidentState>) => {
+        const defaultIncident = {
+            faultedBy: '',
+            damagedReason: '',
+            damagedEvidenceUrl: '',
+            damagedEvidenceFiles: [],
+        };
         setIncidents((prev) => ({
             ...prev,
             [ticketId]: {
-                faultedBy: '',
-                damagedReason: '',
-                damagedEvidenceUrl: '',
-                damagedEvidenceFiles: [],
+                ...defaultIncident,
                 ...prev[ticketId],
                 ...patch,
             },
@@ -470,11 +475,12 @@ export function OrderCancelWithRefundPage() {
                                                             onFilesChange={(files) => {
                                                                 updateIncident(ticketId, {
                                                                     damagedEvidenceFiles: files,
-                                                                    damagedEvidenceUrl:
-                                                                        (files.find(
+                                                                    damagedEvidenceUrl: String(
+                                                                        files.find(
                                                                             (f) =>
                                                                                 typeof f === 'string'
-                                                                        ) as string) || '',
+                                                                        ) || ''
+                                                                    ),
                                                                 });
                                                             }}
                                                         />

@@ -1,3 +1,5 @@
+"use client";
+
 import { ConversationTitle } from '../components/ConversationTitle';
 import { ConversationAvatarLetter } from '../components/ConversationAvatarLetter';
 import {
@@ -53,7 +55,7 @@ import {
 } from '../../hooks/useChat';
 import { useChatSocket } from '../../hooks/useChatSocket';
 import { chatService } from '../../services/chatService';
-import { Link } from 'react-router-dom';
+import { Link } from '@/components/router-compat';
 import { prefixAdmin } from '../../../../constants/routes';
 import { Conversation, Message } from '../../../../../types/chat.type';
 import { ChatSocketMessageEvent } from '../../../../../types/websocket.type';
@@ -240,7 +242,7 @@ export const ChatWindow = ({ conversationId, onToggleDetails }: ChatWindowProps)
             queryClient.setQueryData(
                 adminChatCustomerTimelineKey(resolvedCustomerId),
                 (prev) =>
-                    mergeCustomerTimelineMessage(prev, {
+                    mergeCustomerTimelineMessage(prev as any, {
                         id: incoming.id,
                         conversationId: incoming.conversationId,
                         senderId: incoming.senderId,
@@ -249,7 +251,7 @@ export const ChatWindow = ({ conversationId, onToggleDetails }: ChatWindowProps)
                         type: incoming.type,
                         createdAt: incoming.createdAt,
                         isRead: incoming.isRead ?? false,
-                    })
+                    } as any)
             );
 
             queryClient.setQueryData<Conversation[]>(

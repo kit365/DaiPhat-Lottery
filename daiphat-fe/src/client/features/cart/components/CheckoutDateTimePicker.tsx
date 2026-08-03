@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import dayjs, { Dayjs } from 'dayjs';
 

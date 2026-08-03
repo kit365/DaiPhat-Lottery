@@ -1,3 +1,7 @@
+"use client";
+
+'use client';
+
 import React, { useState, useEffect } from 'react';
 import {
     Typography,
@@ -33,7 +37,11 @@ import ReportProblemIcon from '@mui/icons-material/ReportProblem';
 import LinkIcon from '@mui/icons-material/Link';
 import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
 import LayersIcon from '@mui/icons-material/Layers';
-import { reportTicketSerialFault, replaceTicketDigits } from '../../../inventory/services/ticketService';
+import {
+    buildReportSerialFaultPayload,
+    reportTicketSerialFault,
+    replaceTicketDigits,
+} from '../../../inventory/services/ticketService';
 import {
     applyReplacementSerialDuplicateErrors,
     DUPLICATE_REPLACEMENT_SERIAL_MESSAGE,
@@ -68,6 +76,8 @@ interface SerialItem {
     id: number | string;
     serialNumber: string;
     status: string;
+    ticketCondition?: string | null;
+    returnBatchLineId?: number | string | null;
     ticketId?: number | string;
     ticketNumbers?: string;
     ticketStatus?: string;
@@ -98,6 +108,10 @@ interface Props {
     stationId?: number | string;
     drawDate?: string;
     defaultCancelMode?: 'TICKET' | 'SERIAL';
+    cancelButtonText?: string;
+    hideFaultedBySelector?: boolean;
+    /** Return false to abort opening the confirm dialog / submitting (e.g. inspection expired). */
+    beforeConfirm?: () => boolean;
     onCancel: () => void;
     onSuccess: () => void;
 }
@@ -133,19 +147,14 @@ const getTicketStatusConfig = (status?: string) => {
             return { label: 'Đã bán (SOLD)', color: '#0369a1', bgcolor: '#e0f2fe', borderColor: '#bae6fd' };
         case 'EXPIRED':
             return { label: 'Hết hạn (EXPIRED)', color: '#64748b', bgcolor: '#f1f5f9', borderColor: '#e2e8f0' };
-        case 'DAMAGED':
-            return { label: 'Hỏng (DAMAGED)', color: '#b91c1c', bgcolor: '#fee2e2', borderColor: '#fecaca' };
-        case 'LOST':
-            return { label: 'Mất (LOST)', color: '#b91c1c', bgcolor: '#fee2e2', borderColor: '#fecaca' };
-        case 'VOIDED':
         case 'CANCELLED':
-            return { label: 'Đã hủy (VOIDED)', color: '#b91c1c', bgcolor: '#fee2e2', borderColor: '#fecaca' };
+            return { label: 'Đã hủy', color: '#b91c1c', bgcolor: '#fee2e2', borderColor: '#fecaca' };
         default:
             return { label: `Vé (${s})`, color: '#334155', bgcolor: '#f1f5f9', borderColor: '#cbd5e1' };
     }
 };
 
-const renderTicketStatusChip = (status?: string) => {
+const TicketStatusChip: React.FC<{ status?: string }> = ({ status }) => {
     const cfg = getTicketStatusConfig(status);
     return (
         <Chip
@@ -165,6 +174,52 @@ const renderTicketStatusChip = (status?: string) => {
     );
 };
 
+const getSerialStatusConfig = (status?: string, ticketCondition?: string | null) => {
+    const condition = (ticketCondition || '').toUpperCase();
+    if (condition === 'DAMAGED') {
+        return { label: 'Hỏng (DAMAGED)', bgcolor: '#fee2e2', textColor: '#b91c1c', borderColor: '#fca5a5' };
+    }
+    if (condition === 'LOST') {
+        return { label: 'Mất (LOST)', bgcolor: '#fee2e2', textColor: '#b91c1c', borderColor: '#fca5a5' };
+    }
+    if (condition === 'VOIDED') {
+        return { label: 'Hủy (VOIDED)', bgcolor: '#fee2e2', textColor: '#b91c1c', borderColor: '#fca5a5' };
+    }
+    const s = (status || '').toUpperCase().replace(/-/g, '_');
+    switch (s) {
+        case 'IN_STOCK':
+            return { label: 'Trong kho (IN_STOCK)', bgcolor: '#dcfce7', textColor: '#15803d', borderColor: '#86efac' };
+        case 'RESERVED':
+            return { label: 'Tạm giữ (RESERVED)', bgcolor: '#fef9c3', textColor: '#a16207', borderColor: '#fde047' };
+        case 'PROXY_HOLDING':
+            return { label: 'Đại lý giữ hộ (PROXY_HOLDING)', bgcolor: '#fef9c3', textColor: '#a16207', borderColor: '#fde047' };
+        case 'SOLD':
+            return { label: 'Đã bán (SOLD)', bgcolor: '#e0f2fe', textColor: '#0369a1', borderColor: '#7dd3fc' };
+        case 'EXPIRED':
+            return { label: 'Hết hạn (EXPIRED)', bgcolor: '#f1f5f9', textColor: '#64748b', borderColor: '#cbd5e1' };
+        default:
+            return { label: status || 'Chưa xác định', bgcolor: '#f1f5f9', textColor: '#64748b', borderColor: '#cbd5e1' };
+    }
+};
+
+const SerialStatusChip: React.FC<{ status?: string; ticketCondition?: string | null }> = ({ status, ticketCondition }) => {
+    const config = getSerialStatusConfig(status, ticketCondition);
+    return (
+        <Chip 
+            label={config.label} 
+            size="small" 
+            sx={{ 
+                height: 20, 
+                fontSize: '0.68rem', 
+                fontWeight: 700, 
+                bgcolor: config.bgcolor, 
+                color: config.textColor, 
+                border: `1px solid ${config.borderColor}` 
+            }} 
+        />
+    );
+};
+
 export const ReportSerialFaultPane: React.FC<Props> = ({
     serials,
     ticketNumbers,
@@ -173,6 +228,9 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
     stationId,
     drawDate,
     defaultCancelMode = 'SERIAL',
+    cancelButtonText,
+    hideFaultedBySelector = false,
+    beforeConfirm,
     onCancel,
     onSuccess
 }) => {
@@ -552,52 +610,13 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
         ? currentGroupSelectedSerials.length > 0
         : Object.keys(forms).some(id => forms[id].selected && forms[id].status === 'VOIDED');
 
-    const getSerialStatusConfig = (status: string) => {
-        switch (status) {
-            case 'IN_STOCK':
-                return { label: 'Trong kho (IN_STOCK)', bgcolor: '#dcfce7', textColor: '#15803d', borderColor: '#86efac' };
-            case 'RESERVED':
-                return { label: 'Tạm giữ (RESERVED)', bgcolor: '#fef9c3', textColor: '#a16207', borderColor: '#fde047' };
-            case 'PROXY_HOLDING':
-                return { label: 'Đại lý giữ hộ (PROXY_HOLDING)', bgcolor: '#fef9c3', textColor: '#a16207', borderColor: '#fde047' };
-            case 'SOLD':
-                return { label: 'Đã bán (SOLD)', bgcolor: '#e0f2fe', textColor: '#0369a1', borderColor: '#7dd3fc' };
-            case 'EXPIRED':
-                return { label: 'Hết hạn (EXPIRED)', bgcolor: '#f1f5f9', textColor: '#64748b', borderColor: '#cbd5e1' };
-            case 'DAMAGED':
-                return { label: 'Hỏng (DAMAGED)', bgcolor: '#fee2e2', textColor: '#b91c1c', borderColor: '#fca5a5' };
-            case 'LOST':
-                return { label: 'Mất (LOST)', bgcolor: '#fee2e2', textColor: '#b91c1c', borderColor: '#fca5a5' };
-            case 'VOIDED':
-                return { label: 'Hủy (VOIDED)', bgcolor: '#fee2e2', textColor: '#b91c1c', borderColor: '#fca5a5' };
-            default:
-                return { label: status || 'Chưa xác định', bgcolor: '#f1f5f9', textColor: '#64748b', borderColor: '#cbd5e1' };
-        }
-    };
 
-    const renderSerialStatusChip = (status: string) => {
-        const config = getSerialStatusConfig(status);
-        return (
-            <Chip 
-                label={config.label} 
-                size="small" 
-                sx={{ 
-                    height: 20, 
-                    fontSize: '0.68rem', 
-                    fontWeight: 700, 
-                    bgcolor: config.bgcolor, 
-                    color: config.textColor, 
-                    border: `1px solid ${config.borderColor}` 
-                }} 
-            />
-        );
-    };
 
     useEffect(() => {
         if (serials) {
             const initialForms: Record<string | number, FormState> = {};
             serials.forEach((s) => {
-                const incidentEligible = isSerialIncidentEligible(s.status);
+                const incidentEligible = isSerialIncidentEligible(s);
                 initialForms[s.id] = {
                     selected: incidentEligible,
                     status: 'DAMAGED',
@@ -920,6 +939,9 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
         }
 
         setRefundDraftByOrderId({});
+        if (beforeConfirm && !beforeConfirm()) {
+            return;
+        }
         setConfirmOpen(true);
     };
 
@@ -964,27 +986,37 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
             );
             return;
         }
+        if (beforeConfirm && !beforeConfirm()) {
+            return;
+        }
         setConfirmOpen(true);
     };
 
     const reportSerialFaultItem = async (item: MappedSubmitItem) => {
-        await reportTicketSerialFault(item.id, {
-            status: item.status,
-            faultedBy: item.faultedBy,
-            damagedReason: item.damagedReason,
-            damagedEvidenceUrl: item.damagedEvidenceUrl || undefined,
-            replacementSerialNumber:
-                item.status === 'VOIDED' && replacementType === 'SERIALS'
-                    ? item.replacementSerial?.trim() || undefined
-                    : undefined,
-            replacementTicketImg:
-                item.status === 'VOIDED' && replacementType === 'SERIALS'
-                    ? item.replacementTicketImg || undefined
-                    : undefined,
-        });
+        await reportTicketSerialFault(
+            item.id,
+            buildReportSerialFaultPayload({
+                faultKind: item.status,
+                faultedBy: item.faultedBy,
+                damagedReason: item.damagedReason,
+                damagedEvidenceUrl: item.damagedEvidenceUrl || undefined,
+                replacementSerialNumber:
+                    item.status === 'VOIDED' && replacementType === 'SERIALS'
+                        ? item.replacementSerial?.trim() || undefined
+                        : undefined,
+                replacementTicketImg:
+                    item.status === 'VOIDED' && replacementType === 'SERIALS'
+                        ? item.replacementTicketImg || undefined
+                        : undefined,
+            })
+        );
     };
 
     const handleConfirmSubmit = async () => {
+        if (beforeConfirm && !beforeConfirm()) {
+            setConfirmOpen(false);
+            return;
+        }
         setConfirmOpen(false);
         const selectedItems = pendingSelectedItems.length > 0
             ? pendingSelectedItems
@@ -1104,7 +1136,6 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
                     justifyContent: 'center',
                     textAlign: 'center',
                     boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)',
-                    borderTop: '6px solid #ef4444'
                 }}
             >
                 <CircularProgress size={40} sx={{ color: '#ef4444', mb: 2 }} />
@@ -1138,7 +1169,6 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
                 display: 'flex',
                 flexDirection: 'column',
                 boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)',
-                borderTop: '6px solid #ef4444'
             }}
         >
             {/* Header */}
@@ -1180,7 +1210,7 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
                                 }}>
                                     {currentTicketNumbers}
                                 </span>
-                                {renderTicketStatusChip(currentTicketStatus)}
+                                <TicketStatusChip status={currentTicketStatus} />
                                 {groups.length > 1 && (
                                     <Chip 
                                         label={`${activeGroupIndex + 1}/${groups.length} dãy số`} 
@@ -1334,7 +1364,7 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
                         <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
                             <Typography variant="subtitle2" fontWeight={850} color="#ef4444" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                                 <LayersIcon sx={{ fontSize: '18px' }} />
-                                Báo cáo hủy cho toàn bộ vé số {currentTicketNumbers} {renderTicketStatusChip(currentTicketStatus)}
+                                Báo cáo hủy cho toàn bộ vé số {currentTicketNumbers} <TicketStatusChip status={currentTicketStatus} />
                             </Typography>
                             <Chip 
                                 label="Hủy vé số" 
@@ -1345,35 +1375,37 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
 
                         <Stack spacing={2}>
                             {/* Nguyên nhân sự cố */}
-                            <Box>
-                                <Typography variant="caption" fontWeight={700} color="#64748b" sx={{ mb: 0.75, display: 'block', textTransform: 'uppercase', letterSpacing: '0.5px', fontSize: '0.7rem' }}>
-                                    Nguyên nhân sự cố
-                                </Typography>
-                                <ToggleButtonGroup
-                                    value={ticketForm.faultedBy}
-                                    exclusive
-                                    onChange={(e, val) => { if (val) handleTicketFormFieldChange('faultedBy', val); }}
-                                    size="small"
-                                    fullWidth
-                                    sx={{
-                                        bgcolor: '#f1f5f9',
-                                        p: 0.5,
-                                        borderRadius: '10px',
-                                        border: 'none',
-                                        '& .MuiToggleButtonGroup-grouped': {
+                            {!hideFaultedBySelector && (
+                                <Box>
+                                    <Typography variant="caption" fontWeight={700} color="#64748b" sx={{ mb: 0.75, display: 'block', textTransform: 'uppercase', letterSpacing: '0.5px', fontSize: '0.7rem' }}>
+                                        Nguyên nhân sự cố
+                                    </Typography>
+                                    <ToggleButtonGroup
+                                        value={ticketForm.faultedBy}
+                                        exclusive
+                                        onChange={(e, val) => { if (val) handleTicketFormFieldChange('faultedBy', val); }}
+                                        size="small"
+                                        fullWidth
+                                        sx={{
+                                            bgcolor: '#f1f5f9',
+                                            p: 0.5,
+                                            borderRadius: '10px',
                                             border: 'none',
-                                            borderRadius: '8px !important',
-                                        }
-                                    }}
-                                >
-                                    <ToggleButton value="INTERNAL_FAULT" sx={{ fontWeight: 700, textTransform: 'none', fontSize: '0.8rem', py: 0.75, color: '#64748b', '&.Mui-selected': { bgcolor: '#fff', color: '#ef4444', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' } }}>
-                                        Nhân viên làm hỏng
-                                    </ToggleButton>
-                                    <ToggleButton value="DATA_ENTRY_FAULT" sx={{ fontWeight: 700, textTransform: 'none', fontSize: '0.8rem', py: 0.75, color: '#64748b', '&.Mui-selected': { bgcolor: '#fff', color: '#ef4444', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' } }}>
-                                        Lỗi thao tác nhập liệu
-                                    </ToggleButton>
-                                </ToggleButtonGroup>
-                            </Box>
+                                            '& .MuiToggleButtonGroup-grouped': {
+                                                border: 'none',
+                                                borderRadius: '8px !important',
+                                            }
+                                        }}
+                                    >
+                                        <ToggleButton value="INTERNAL_FAULT" sx={{ fontWeight: 700, textTransform: 'none', fontSize: '0.8rem', py: 0.75, color: '#64748b', '&.Mui-selected': { bgcolor: '#fff', color: '#ef4444', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' } }}>
+                                            Nhân viên làm hỏng
+                                        </ToggleButton>
+                                        <ToggleButton value="DATA_ENTRY_FAULT" sx={{ fontWeight: 700, textTransform: 'none', fontSize: '0.8rem', py: 0.75, color: '#64748b', '&.Mui-selected': { bgcolor: '#fff', color: '#ef4444', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' } }}>
+                                            Lỗi thao tác nhập liệu
+                                        </ToggleButton>
+                                    </ToggleButtonGroup>
+                                </Box>
+                            )}
 
                             {/* Trạng thái báo hủy */}
                             <Box>
@@ -1655,35 +1687,37 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
 
                         <Stack spacing={2}>
                             {/* Nguyên nhân sự cố */}
-                            <Box>
-                                <Typography variant="caption" fontWeight={700} color="#64748b" sx={{ mb: 0.75, display: 'block', textTransform: 'uppercase', letterSpacing: '0.5px', fontSize: '0.7rem' }}>
-                                    Nguyên nhân sự cố
-                                </Typography>
-                                <ToggleButtonGroup
-                                    value={bulkForm.faultedBy}
-                                    exclusive
-                                    onChange={(e, val) => { if (val) handleBulkFieldChange('faultedBy', val); }}
-                                    size="small"
-                                    fullWidth
-                                    sx={{
-                                        bgcolor: '#f1f5f9',
-                                        p: 0.5,
-                                        borderRadius: '10px',
-                                        border: 'none',
-                                        '& .MuiToggleButtonGroup-grouped': {
+                            {!hideFaultedBySelector && (
+                                <Box>
+                                    <Typography variant="caption" fontWeight={700} color="#64748b" sx={{ mb: 0.75, display: 'block', textTransform: 'uppercase', letterSpacing: '0.5px', fontSize: '0.7rem' }}>
+                                        Nguyên nhân sự cố
+                                    </Typography>
+                                    <ToggleButtonGroup
+                                        value={bulkForm.faultedBy}
+                                        exclusive
+                                        onChange={(e, val) => { if (val) handleBulkFieldChange('faultedBy', val); }}
+                                        size="small"
+                                        fullWidth
+                                        sx={{
+                                            bgcolor: '#f1f5f9',
+                                            p: 0.5,
+                                            borderRadius: '10px',
                                             border: 'none',
-                                            borderRadius: '8px !important',
-                                        }
-                                    }}
-                                >
-                                    <ToggleButton value="INTERNAL_FAULT" sx={{ fontWeight: 700, textTransform: 'none', fontSize: '0.8rem', py: 0.75, color: '#64748b', '&.Mui-selected': { bgcolor: '#fff', color: '#ef4444', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' } }}>
-                                        Nhân viên làm hỏng
-                                    </ToggleButton>
-                                    <ToggleButton value="DATA_ENTRY_FAULT" sx={{ fontWeight: 700, textTransform: 'none', fontSize: '0.8rem', py: 0.75, color: '#64748b', '&.Mui-selected': { bgcolor: '#fff', color: '#ef4444', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' } }}>
-                                        Lỗi thao tác nhập liệu
-                                    </ToggleButton>
-                                </ToggleButtonGroup>
-                            </Box>
+                                            '& .MuiToggleButtonGroup-grouped': {
+                                                border: 'none',
+                                                borderRadius: '8px !important',
+                                            }
+                                        }}
+                                    >
+                                        <ToggleButton value="INTERNAL_FAULT" sx={{ fontWeight: 700, textTransform: 'none', fontSize: '0.8rem', py: 0.75, color: '#64748b', '&.Mui-selected': { bgcolor: '#fff', color: '#ef4444', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' } }}>
+                                            Nhân viên làm hỏng
+                                        </ToggleButton>
+                                        <ToggleButton value="DATA_ENTRY_FAULT" sx={{ fontWeight: 700, textTransform: 'none', fontSize: '0.8rem', py: 0.75, color: '#64748b', '&.Mui-selected': { bgcolor: '#fff', color: '#ef4444', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' } }}>
+                                            Lỗi thao tác nhập liệu
+                                        </ToggleButton>
+                                    </ToggleButtonGroup>
+                                </Box>
+                            )}
 
                             {/* Trạng thái báo hủy */}
                             <Box>
@@ -1787,13 +1821,13 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
                 )}
 
                 {/* Replacement form for voided items (Shown in TICKET mode or SERIAL ALL mode) */}
-                {hasVoided && (cancelMode === 'TICKET' || serialProcessingMode === 'ALL') && (
+                {hasVoided && ((cancelMode as string) === 'TICKET' || serialProcessingMode === 'ALL') && (
                     <Box sx={{ mb: 2, p: 2, border: '1px solid #fee2e2', borderRadius: '12px', bgcolor: 'rgba(239, 68, 68, 0.01)' }}>
                         <Typography variant="caption" fontWeight={800} color="#ef4444" sx={{ mb: 1.5, display: 'block', textTransform: 'uppercase', letterSpacing: '0.5px', fontSize: '0.75rem' }}>
                             Vé số thay thế
                         </Typography>
                         
-                        {cancelMode === 'TICKET' && (
+                        {(cancelMode as string) === 'TICKET' && (
                             <>
                                 <Box sx={{ mb: 2 }}>
                                     <ToggleButtonGroup
@@ -2005,7 +2039,7 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
                         const form = forms[s.id];
                         if (!form) return null;
 
-                        const incidentEligible = isSerialIncidentEligible(s.status);
+                        const incidentEligible = isSerialIncidentEligible(s);
                         const isSelected = form.selected;
 
                         // Card Styling
@@ -2061,7 +2095,7 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
                                         }
                                     />
                                     
-                                    {renderSerialStatusChip(s.status)}
+                                    <SerialStatusChip status={s.status} ticketCondition={s.ticketCondition} />
                                     {!incidentEligible && (
                                         <Typography variant="caption" color="text.secondary" sx={{ ml: 1, fontStyle: 'italic' }}>
                                             Chỉ tra cứu — không thể báo sự cố
@@ -2073,63 +2107,65 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
                                     <Box sx={{ mt: 2, pt: 2, borderTop: '1px solid #f1f5f9' }}>
                                         <Stack spacing={2}>
                                             {/* Nguyên nhân sự cố - Toggle pills */}
-                                            <Box>
-                                                <Typography variant="caption" fontWeight={700} color="#64748b" sx={{ mb: 0.75, display: 'block', textTransform: 'uppercase', letterSpacing: '0.5px', fontSize: '0.7rem' }}>
-                                                    Nguyên nhân sự cố
-                                                </Typography>
-                                                <ToggleButtonGroup
-                                                    value={form.faultedBy}
-                                                    exclusive
-                                                    onChange={(e, val) => { if (val) handleFieldChange(s.id, 'faultedBy', val); }}
-                                                    size="small"
-                                                    fullWidth
-                                                    sx={{
-                                                        bgcolor: '#f1f5f9',
-                                                        p: 0.5,
-                                                        borderRadius: '10px',
-                                                        border: 'none',
-                                                        '& .MuiToggleButtonGroup-grouped': {
+                                            {!hideFaultedBySelector && (
+                                                <Box>
+                                                    <Typography variant="caption" fontWeight={700} color="#64748b" sx={{ mb: 0.75, display: 'block', textTransform: 'uppercase', letterSpacing: '0.5px', fontSize: '0.7rem' }}>
+                                                        Nguyên nhân sự cố
+                                                    </Typography>
+                                                    <ToggleButtonGroup
+                                                        value={form.faultedBy}
+                                                        exclusive
+                                                        onChange={(e, val) => { if (val) handleFieldChange(s.id, 'faultedBy', val); }}
+                                                        size="small"
+                                                        fullWidth
+                                                        sx={{
+                                                            bgcolor: '#f1f5f9',
+                                                            p: 0.5,
+                                                            borderRadius: '10px',
                                                             border: 'none',
-                                                            borderRadius: '8px !important',
-                                                        }
-                                                    }}
-                                                >
-                                                    <ToggleButton 
-                                                        value="INTERNAL_FAULT" 
-                                                        sx={{ 
-                                                            fontWeight: 700, 
-                                                            textTransform: 'none',
-                                                            fontSize: '0.8rem',
-                                                            py: 0.75,
-                                                            color: '#64748b',
-                                                            '&.Mui-selected': {
-                                                                bgcolor: '#fff',
-                                                                color: '#ef4444',
-                                                                boxShadow: '0 2px 4px rgba(0,0,0,0.05)'
+                                                            '& .MuiToggleButtonGroup-grouped': {
+                                                                border: 'none',
+                                                                borderRadius: '8px !important',
                                                             }
                                                         }}
                                                     >
-                                                        Nhân viên làm hỏng
-                                                    </ToggleButton>
-                                                    <ToggleButton 
-                                                        value="DATA_ENTRY_FAULT" 
-                                                        sx={{ 
-                                                            fontWeight: 700, 
-                                                            textTransform: 'none',
-                                                            fontSize: '0.8rem',
-                                                            py: 0.75,
-                                                            color: '#64748b',
-                                                            '&.Mui-selected': {
-                                                                bgcolor: '#fff',
-                                                                color: '#ef4444',
-                                                                boxShadow: '0 2px 4px rgba(0,0,0,0.05)'
-                                                            }
-                                                        }}
-                                                    >
-                                                        Lỗi thao tác nhập liệu
-                                                    </ToggleButton>
-                                                </ToggleButtonGroup>
-                                            </Box>
+                                                        <ToggleButton 
+                                                            value="INTERNAL_FAULT" 
+                                                            sx={{ 
+                                                                fontWeight: 700, 
+                                                                textTransform: 'none',
+                                                                fontSize: '0.8rem',
+                                                                py: 0.75,
+                                                                color: '#64748b',
+                                                                '&.Mui-selected': {
+                                                                    bgcolor: '#fff',
+                                                                    color: '#ef4444',
+                                                                    boxShadow: '0 2px 4px rgba(0,0,0,0.05)'
+                                                                }
+                                                            }}
+                                                        >
+                                                            Nhân viên làm hỏng
+                                                        </ToggleButton>
+                                                        <ToggleButton 
+                                                            value="DATA_ENTRY_FAULT" 
+                                                            sx={{ 
+                                                                fontWeight: 700, 
+                                                                textTransform: 'none',
+                                                                fontSize: '0.8rem',
+                                                                py: 0.75,
+                                                                color: '#64748b',
+                                                                '&.Mui-selected': {
+                                                                    bgcolor: '#fff',
+                                                                    color: '#ef4444',
+                                                                    boxShadow: '0 2px 4px rgba(0,0,0,0.05)'
+                                                                }
+                                                            }}
+                                                        >
+                                                            Lỗi thao tác nhập liệu
+                                                        </ToggleButton>
+                                                    </ToggleButtonGroup>
+                                                </Box>
+                                            )}
 
                                             {/* Trạng thái báo hủy - Toggle pills */}
                                             <Box>
@@ -2326,7 +2362,7 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
                         borderColor: '#cbd5e1'
                     }}
                 >
-                    {workflowStep === 'REFUND' ? 'Quay lại' : 'Hủy bỏ'}
+                    {workflowStep === 'REFUND' ? 'Quay lại' : (cancelButtonText || 'Hủy bỏ')}
                 </Button>
                 {workflowStep === 'REFUND' ? (
                     <Button
@@ -2543,7 +2579,7 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
 
                                 <Box sx={{ pt: 0.5 }}>
                                     <Typography variant="caption" color="#64748b" sx={{ fontSize: '0.72rem', display: 'block', lineHeight: 1.3 }}>
-                                        Trạng thái dãy số cũ: Các sê-ri sẽ chuyển <strong style={{ color: '#ef4444' }}>VOIDED</strong> và dãy số bị soft-delete (ẩn khỏi kho), giữ lại để đối soát.
+                                        Trạng thái dãy số cũ: Các sê-ri sẽ chuyển <strong style={{ color: '#ef4444' }}>ticketCondition = VOIDED</strong> (status giữ IN_STOCK) và dãy số bị soft-delete (ẩn khỏi kho), giữ lại để đối soát.
                                     </Typography>
                                 </Box>
                             </Stack>

@@ -1,8 +1,10 @@
+"use client";
+
 import type { ReactElement } from 'react';
-import { Avatar, Box, Link, ListItemText } from '@mui/material';
+import { Avatar, Box, Chip, Link, ListItemText } from '@mui/material';
 import { GridActionsCell, GridActionsCellItem, GridRenderCellParams } from '@mui/x-data-grid';
 import { DeleteIcon, EditIcon, EyeIcon } from '../../../../../assets/icons/index';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from '@/components/router-compat';
 import { prefixAdmin } from '../../../../../constants/routes';
 import { useTicketInventory } from '../../hooks/useTicketInventory';
 import { toast } from 'react-toastify';
@@ -104,10 +106,9 @@ export const RenderCreatedAtCell = ({ value }: RenderCreatedAtCellProps) => {
 };
 
 const DrawDateCell = (params: GridRenderCellParams) => {
+    const { data: stationsData } = useStations({ limit: 1000 });
     const date = params.value;
     if (!date) return null;
-
-    const { data: stationsData } = useStations({ limit: 1000 });
     const stations = stationsData?.data?.recordList || [];
     const stationId = params.row.stationId || params.row.providerId;
     const station = stations.find((p: any) => (p.id || p._id)?.toString() === stationId?.toString());
@@ -147,6 +148,33 @@ export const RenderStatusCell = (params: GridRenderCellParams) => {
     const { status, statusDisplayName } = params.row;
     const label = statusDisplayName || getTicketStatusLabel(status) || status || '—';
     const modifier = ticketStatusModifier(status);
+
+    return <span className={`admin-status-badge ${modifier}`.trim()}>{label}</span>;
+};
+
+const ticketConditionModifier = (condition?: string | null): string => {
+    const normalized = (condition || '').toUpperCase();
+    if (normalized === 'DAMAGED' || normalized === 'LOST' || normalized === 'VOIDED') {
+        return 'admin-status-badge--inactive';
+    }
+    return 'admin-status-badge--active';
+};
+
+export const RenderTicketConditionCell = (params: GridRenderCellParams) => {
+    const { ticketCondition, ticketConditionDisplayName } = params.row;
+    const condition = (ticketCondition || '').toUpperCase();
+
+    const label =
+        ticketConditionDisplayName ||
+        (condition === 'DAMAGED'
+            ? 'Hỏng vật lý'
+            : condition === 'LOST'
+              ? 'Thất lạc'
+              : condition === 'VOIDED'
+                ? 'Đã hủy'
+                : 'Tốt');
+
+    const modifier = ticketConditionModifier(ticketCondition);
 
     return <span className={`admin-status-badge ${modifier}`.trim()}>{label}</span>;
 };

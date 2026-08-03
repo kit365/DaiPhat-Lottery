@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { keepPreviousData } from '@tanstack/react-query';
 import { 
@@ -373,10 +375,10 @@ export const CounterOrderCreatePage = () => {
 
         setCustomerInfo(prev => ({
             ...prev,
-            customerId: matchedExistingCustomer.id || matchedExistingCustomer._id || '',
-            name: matchedExistingCustomer.fullName || prev.name,
-            phone: matchedExistingCustomer.phone || matchedExistingCustomer.phoneNumber || prev.phone,
-            email: matchedExistingCustomer.email || prev.email
+            customerId: (matchedExistingCustomer as any).id || (matchedExistingCustomer as any)._id || '',
+            name: (matchedExistingCustomer as any).fullName || prev.name,
+            phone: (matchedExistingCustomer as any).phone || (matchedExistingCustomer as any).phoneNumber || prev.phone,
+            email: (matchedExistingCustomer as any).email || prev.email
         }));
         setGuestAccountBypassEmail('');
         setOpenAccountLinkPrompt(false);
@@ -1018,14 +1020,14 @@ export const CounterOrderCreatePage = () => {
                     </DialogContentText>
                     <Box sx={{ mt: 2, p: 2, bgcolor: 'var(--palette-background-neutral)', borderRadius: 1 }}>
                         <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
-                            {matchedExistingCustomer?.fullName || 'Khách hàng'}
+                            {(matchedExistingCustomer as any)?.fullName || 'Khách hàng'}
                         </Typography>
                         <Typography variant="body2" color="text.secondary">
-                            {matchedExistingCustomer?.email || normalizedCustomerEmail}
+                            {(matchedExistingCustomer as any)?.email || normalizedCustomerEmail}
                         </Typography>
-                        {(matchedExistingCustomer?.phone || matchedExistingCustomer?.phoneNumber) && (
+                        {((matchedExistingCustomer as any)?.phone || (matchedExistingCustomer as any)?.phoneNumber) && (
                             <Typography variant="body2" color="text.secondary">
-                                {matchedExistingCustomer?.phone || matchedExistingCustomer?.phoneNumber}
+                                {(matchedExistingCustomer as any)?.phone || (matchedExistingCustomer as any)?.phoneNumber}
                             </Typography>
                         )}
                     </Box>

@@ -1,6 +1,8 @@
+"use client";
+
 import { ReactNode, useEffect } from "react";
 import { useAuthStore } from "../../../stores/useAuthStore";
-import { Navigate, Outlet } from "react-router-dom";
+import { Navigate, Outlet } from "@/components/router-compat";
 import { toast } from "react-toastify";
 import { ROUTES } from "../../constants/routes";
 import { useAuth } from "../../pages/authen/hooks/useAuth";

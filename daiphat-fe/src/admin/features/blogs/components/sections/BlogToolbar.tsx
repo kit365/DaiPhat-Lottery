@@ -1,3 +1,5 @@
+"use client";
+
 import { Toolbar, Box, Button, Badge, SvgIcon, Tooltip, Menu, MenuItem, ToggleButtonGroup, ToggleButton } from "@mui/material";
 import GridViewIcon from "@mui/icons-material/GridView";
 import ViewListIcon from "@mui/icons-material/ViewList";

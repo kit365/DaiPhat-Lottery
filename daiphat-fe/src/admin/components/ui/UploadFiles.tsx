@@ -1,3 +1,5 @@
+"use client";
+
 import { Box, Button, ButtonBase, FormHelperText, Stack, Typography } from "@mui/material"
 import { UploadFileIcon, UploadIcon } from "../../assets/icons"
 import { useDropzone } from 'react-dropzone';

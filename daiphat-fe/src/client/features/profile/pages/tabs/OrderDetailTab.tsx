@@ -1,5 +1,7 @@
+"use client";
+
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useParams, useNavigate, Link, useLocation } from 'react-router-dom';
+import { useParams, useNavigate, Link, useLocation } from '@/components/router-compat';
 import QRCode from 'react-qr-code';
 import { useGetMyOrderDetail } from '../../../../hooks/useOrder';
 import { useGetPendingPaymentCountdown, useProcessPayment, useSyncPaymentFromGateway } from '../../../../hooks/useTransaction';
@@ -271,7 +273,7 @@ export const OrderDetailTab = () => {
             AppToast.error(refundIneligibleReason);
         }
 
-        navigate(location.pathname, { replace: true, state: null });
+        navigate(location.pathname, { replace: true, state: null } as any);
     }, [location.state, location.pathname, order, navigate, isLoadingEligibility, refundEligible, refundIneligibleReason]);
 
     if (isLoading) {
@@ -395,7 +397,7 @@ export const OrderDetailTab = () => {
                         <ul className="text-[14px] text-[#454F5B] space-y-3 mt-4 font-medium leading-relaxed">
                             <li className="flex items-start gap-2.5">
                                 <span className="text-[#FFB020] mt-1.5 text-[6px]"><i className="fa-solid fa-circle"></i></span>
-                                <span>Bấm nút <strong>"Tiếp tục thanh toán"</strong> ở góc phải hoặc ở phần thanh toán bên dưới để thực hiện chuyển khoản.</span>
+                                <span>Bấm nút <strong>&quot;Tiếp tục thanh toán&quot;</strong> ở góc phải hoặc ở phần thanh toán bên dưới để thực hiện chuyển khoản.</span>
                             </li>
                             <li className="flex items-start gap-2.5">
                                 <span className="text-[#FFB020] mt-1.5 text-[6px]"><i className="fa-solid fa-circle"></i></span>
@@ -638,7 +640,7 @@ export const OrderDetailTab = () => {
                             <span className="text-[13px] text-[#637381]">Ngày thanh toán</span>
                             <span className="text-[14px] font-medium text-[#212B36]">
                                 {(displayStatus !== OrderStatus.PENDING_PAYMENT && displayStatus !== OrderStatus.CANCELLED) 
-                                    ? (order.transactions?.[0]?.createdAt ? format(new Date(order.transactions[0].createdAt), 'dd/MM/yyyy - HH:mm') : (order.createdAt ? format(new Date(order.createdAt), 'dd/MM/yyyy - HH:mm') : '-'))
+                                    ? ((order.transactions?.[0] as any)?.createdAt ? format(new Date((order.transactions[0] as any).createdAt), 'dd/MM/yyyy - HH:mm') : (order.createdAt ? format(new Date(order.createdAt), 'dd/MM/yyyy - HH:mm') : '-'))
                                     : '-'}
                             </span>
                         </div>
@@ -651,7 +653,7 @@ export const OrderDetailTab = () => {
                 </div>
 
                 {/* Right Column: 1 Box */}
-                {order.orderType !== 'DIRECT' && order.status === OrderStatus.PENDING_PICKUP && (
+                {(order.orderType as string) !== 'DIRECT' && order.status === OrderStatus.PENDING_PICKUP && (
                     <div className="flex flex-col gap-6">
                         {/* Thông tin nhận vé */}
                         <div className="bg-white rounded-[20px] p-6 lg:p-8 border border-[#E5E8EB] shadow-[0_2px_12px_rgb(0,0,0,0.03)] flex flex-col h-full">
@@ -663,12 +665,12 @@ export const OrderDetailTab = () => {
                                 <span className="text-[15px] font-bold text-[#212B36]">Nhận vé tại quầy</span>
                             </div>
                             <p className="text-[13px] text-[#637381] mb-6">
-                                {order.orderType === 'DIRECT'
+                                {(order.orderType as string) === 'DIRECT'
                                     ? 'Quý khách vui lòng mang theo mã đơn hàng và CMND/CCCD để nhận vé.'
                                     : 'Quý khách vui lòng mang theo mã QR này hoặc mã đơn hàng và CMND/CCCD để nhận vé.'}
                             </p>
                             
-                            {order.orderType !== 'DIRECT' && (
+                            {(order.orderType as string) !== 'DIRECT' && (
                                 <div className="flex flex-col items-center justify-center mb-6 flex-1">
                                     <div className="p-4 bg-white border border-[#E5E8EB] rounded-2xl shadow-sm inline-block">
                                         <QRCode value={order.orderCode} size={140} fgColor="#212B36" />

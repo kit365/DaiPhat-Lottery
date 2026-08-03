@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useState } from 'react';
 import {
     Dialog,
@@ -158,7 +160,7 @@ export const SyncPrizeStructureModal: React.FC<SyncPrizeStructureModalProps> = (
                                 <TableBody>
                                     {draftItems.map((item, index) => {
                                         let chipColor: 'default' | 'success' | 'info' | 'warning' | 'error' = 'default';
-                                        let chipLabel = item.action;
+                                        let chipLabel: string = item.action;
                                         if (item.action === 'CREATED') { chipColor = 'success'; chipLabel = 'Thêm mới'; }
                                         else if (item.action === 'UPDATED') { chipColor = 'info'; chipLabel = 'Cập nhật'; }
                                         else if (item.action === 'SKIPPED') { chipColor = 'default'; chipLabel = 'Giữ nguyên'; }

@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useState, useMemo, useEffect } from 'react';
 import { Search } from "../../../../components/ui/Search";
 import { JiraFilter } from "../../../../shared/data-grid";

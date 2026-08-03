@@ -1,3 +1,5 @@
+"use client";
+
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supportTicketService } from '../services/supportTicketService';
 import {
@@ -29,17 +31,32 @@ export const useGetOrderComplaintEligibility = (orderId?: string, enabled = true
 };
 
 export const useGetMyTickets = (params: GetMyTicketsParams, enabled = true) => {
+    const queryClient = useQueryClient();
     return useQuery({
         queryKey: [QUERY_KEYS.CLIENT_MY_COMPLAINTS, params],
-        queryFn: () => supportTicketService.getMyTickets(params),
+        queryFn: async () => {
+            const response = await supportTicketService.getMyTickets(params);
+            // List view acknowledges REJECTED badges on BE — refresh sidebar count.
+            await queryClient.invalidateQueries({
+                queryKey: [QUERY_KEYS.CLIENT_MY_COMPLAINTS, 'active-count'],
+            });
+            return response;
+        },
         enabled,
     });
 };
 
 export const useGetComplaintDetail = (id: number) => {
+    const queryClient = useQueryClient();
     return useQuery({
         queryKey: [QUERY_KEYS.CLIENT_COMPLAINT_DETAIL, id],
-        queryFn: () => supportTicketService.getById(id),
+        queryFn: async () => {
+            const response = await supportTicketService.getById(id);
+            await queryClient.invalidateQueries({
+                queryKey: [QUERY_KEYS.CLIENT_MY_COMPLAINTS, 'active-count'],
+            });
+            return response;
+        },
         enabled: Number.isFinite(id) && id > 0,
         retry: false,
     });
@@ -142,12 +159,12 @@ export const useCloseComplaint = () => {
         mutationFn: (id: number) => supportTicketService.close(id),
         onSuccess: (response, id) => {
             if (response.success) {
-                toast.success(response.message || 'Đóng yêu cầu hỗ trợ thành công');
+                toast.success(response.message || 'Huỷ khiếu nại thành công');
                 queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.CLIENT_MY_COMPLAINTS] });
                 queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.CLIENT_COMPLAINT_DETAIL, id] });
                 queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.CLIENT_TICKET_COMMENTS, id] });
             } else {
-                toast.error(response.message || 'Có lỗi xảy ra khi đóng yêu cầu');
+                toast.error(response.message || 'Có lỗi xảy ra khi huỷ khiếu nại');
             }
         },
         onError: (error: any) => {

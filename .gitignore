@@ -113,6 +113,9 @@ implementation_plan.md
 walkthrough.md
 task.md
 
+# Local filesystem image uploads (daiphat.storage.provider=local)
+data/uploads/
+
 # Python
 venv/
 env/

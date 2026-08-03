@@ -1,3 +1,5 @@
+"use client";
+
 import { Box, Tabs, Tab } from "@mui/material";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Title } from "../../components/ui/Title";

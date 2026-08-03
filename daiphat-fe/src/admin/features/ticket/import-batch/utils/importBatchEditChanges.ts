@@ -109,8 +109,8 @@ export const computeImportBatchEditChanges = (
     }
 
     if (showSharedReceipt) {
-        const oldInvoice = normalizeInvoice(baseline.invoiceEvidenceUrl);
-        const newInvoice = normalizeInvoice(current.invoiceEvidenceUrl);
+        const oldInvoice = normalizeInvoice(baseline.invoiceEvidenceUrl || undefined);
+        const newInvoice = normalizeInvoice(current.invoiceEvidenceUrl || undefined);
         if (oldInvoice !== newInvoice) {
             invoiceChange = {
                 oldUrl:

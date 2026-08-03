@@ -4,12 +4,18 @@ import { API_PREFIX, API_VERSION } from "./api.constants"
 import { AppToast } from "../utils/toast.util"
 import Cookies from "js-cookie"
 import { STORAGE_KEYS } from "../constants/storage.constants"
+import { resolveAccessToken } from "./authHeaders"
 
-// In dev (npm run dev), use empty BASE_URL so requests go through Vite proxy.
+// In dev (npm run dev), use empty BASE_URL so requests go through Vite/Next proxy.
 // This makes them same-origin → browser sends HttpOnly cookies (incl. refresh_token).
-// In production, VITE_API_BASE_URL is set to the actual backend URL.
-const isDev = import.meta.env.DEV;
-const BASE_URL = isDev ? "" : (import.meta.env.VITE_API_BASE_URL || "");
+// In production, VITE_API_BASE_URL / NEXT_PUBLIC_API_BASE_URL is set to the actual backend URL.
+const getBaseUrl = () => {
+    if (typeof process !== "undefined" && process.env) {
+        return process.env.NEXT_PUBLIC_API_BASE_URL || process.env.VITE_API_BASE_URL || "";
+    }
+    return "";
+};
+const BASE_URL = getBaseUrl();
 const API_ROOT = `${BASE_URL}${API_PREFIX}${API_VERSION}`
 
 const apiApp = axios.create({
@@ -38,9 +44,19 @@ apiApp.interceptors.request.use((config) => {
         url.includes("/auth/verify-email");
 
     if (!isPublicAuth) {
-        const token = useAuthStore.getState().token;
+        const token = resolveAccessToken();
         if (token) {
             config.headers.Authorization = `Bearer ${token}`;
+        } else {
+            // Drop stale `Bearer undefined` from cookie-only withAuth helpers.
+            const existing = String(config.headers.Authorization || "");
+            if (!existing || existing.includes("undefined") || existing.includes("null")) {
+                if (typeof config.headers.delete === "function") {
+                    config.headers.delete("Authorization");
+                } else {
+                    delete (config.headers as Record<string, unknown>).Authorization;
+                }
+            }
         }
     }
 
@@ -62,7 +78,7 @@ apiApp.interceptors.request.use((config) => {
 
 interface PendingRequest {
     resolve: (token: string | null) => void;
-    reject: (error: any) => void;
+    reject: (error: unknown) => void;
 }
 
 let isRefreshing = false;
@@ -117,18 +133,20 @@ const handleExpiredSession = (showToast: boolean = true) => {
 
 const persistAccessToken = (accessToken: string, expiresIn?: number) => {
     const authStore = useAuthStore.getState();
+    const ttlSeconds = expiresIn && expiresIn > 0 ? expiresIn : 900;
     authStore.set({
         token: accessToken,
-        expiresAt: expiresIn ? Date.now() + expiresIn * 1000 : null
+        expiresAt: Date.now() + ttlSeconds * 1000
     });
 
     Cookies.set(STORAGE_KEYS.TOKEN, accessToken, {
-        expires: expiresIn ? expiresIn / 86400 : 7,
+        // Keep cookie at least as long as the JWT; never use sub-minute TTL for the FE cookie.
+        expires: Math.max(ttlSeconds, 60) / 86400,
         path: "/"
     });
 };
 
-const processQueue = (error: any, token: string | null = null) => {
+const processQueue = (error: unknown, token: string | null = null) => {
     failedQueue.forEach(prom => {
         if (error) {
             prom.reject(error);
@@ -150,10 +168,7 @@ apiApp.interceptors.response.use(
     async (error: AxiosError) => {
         const { response } = error;
         const originalRequest = error.config as ApiRequestConfig | undefined;
-
-        if (originalRequest?.skipGlobalErrorToast) {
-            return Promise.reject(error);
-        }
+        const skipToast = Boolean(originalRequest?.skipGlobalErrorToast);
 
         // Request bị hủy (Strict Mode / đổi route / poll restart) — không báo "mất mạng"
         if (axios.isCancel(error) || (error as AxiosError).code === "ERR_CANCELED") {
@@ -162,7 +177,7 @@ apiApp.interceptors.response.use(
 
         if (response) {
             const status = response.status;
-            const message = (response.data as any)?.message || "Đã có lỗi xảy ra từ máy chủ!";
+            const message = (response.data as { message?: string } | undefined)?.message || "Đã có lỗi xảy ra từ máy chủ!";
 
             if (status === 401 && originalRequest && !originalRequest._retry) {
                 // Skip refresh logic for auth endpoints (login, refresh-token itself)
@@ -182,7 +197,7 @@ apiApp.interceptors.response.use(
                     .then(token => {
                         if (token) {
                             originalRequest._retry = true;
-                            delete originalRequest.headers.Authorization;
+                            originalRequest.headers.Authorization = `Bearer ${token}`;
                             return apiApp(originalRequest);
                         }
                         return Promise.reject(error);
@@ -207,7 +222,7 @@ apiApp.interceptors.response.use(
                                 originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
                                 resolve(apiApp(originalRequest));
                             } else {
-                                handleExpiredSession();
+                                handleExpiredSession(!skipToast);
                                 reject(new Error("No access token returned"));
                             }
                         })
@@ -221,6 +236,10 @@ apiApp.interceptors.response.use(
                             isRefreshing = false;
                         });
                 });
+            }
+
+            if (skipToast) {
+                return Promise.reject(error);
             }
 
             if (status === 403 && isAuthRequiredRequest(originalRequest?.url)) {
@@ -254,7 +273,7 @@ apiApp.interceptors.response.use(
                     AppToast.error(message);
                     console.warn(`[API Error] ${status}: ${message}`);
             }
-        } else {
+        } else if (!skipToast) {
             AppToast.error("Không thể kết nối tới máy chủ. Vui lòng kiểm tra mạng!", {
                 toastId: "api-network-unreachable",
             });

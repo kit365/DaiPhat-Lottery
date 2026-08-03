@@ -1,3 +1,5 @@
+"use client";
+
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getUserTickets, getUserTicketById, createUserTicket, updateUserTicket, deleteUserTicket } from "../../../api/userTicket.api";
 

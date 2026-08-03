@@ -1,3 +1,5 @@
+"use client";
+
 import { ApiResponse, PageResponse } from '../../../../types/api.type';
 import { BlogTagQueryParams, BlogTagResponse } from '../types/blog-tag.type';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';

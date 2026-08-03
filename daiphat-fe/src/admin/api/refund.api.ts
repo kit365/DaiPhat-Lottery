@@ -1,6 +1,5 @@
-import Cookies from 'js-cookie';
 import { apiApp } from '../../api';
-import { STORAGE_KEYS } from '../../constants/storage.constants';
+import { withAuthHeaders } from '../../api/authHeaders';
 import { ApiResponse, PageResponse } from '../../types/api.type';
 import {
     GetStaffRefundsParams,
@@ -12,14 +11,7 @@ import {
 
 const STAFF_BASE = '/staff/refund-requests';
 
-const withAuth = () => {
-    const token = Cookies.get(STORAGE_KEYS.TOKEN);
-    return {
-        headers: {
-            Authorization: `Bearer ${token}`,
-        },
-    };
-};
+const withAuth = () => withAuthHeaders();
 
 export const refundAdminApi = {
     getStaffRefunds: async (

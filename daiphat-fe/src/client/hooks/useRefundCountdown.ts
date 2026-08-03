@@ -1,3 +1,5 @@
+"use client";
+
 import { useEffect, useState } from 'react';
 import { computeRefundSecondsLeft, RefundWindowInput } from '../../types/refund.type';
 

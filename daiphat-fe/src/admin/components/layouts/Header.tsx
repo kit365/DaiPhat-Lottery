@@ -1,3 +1,5 @@
+"use client";
+
 import AppBar from "@mui/material/AppBar";
 import useScrollTrigger from '@mui/material/useScrollTrigger';
 import React from "react";
@@ -17,7 +19,7 @@ import { useState } from "react";
 import { toast } from 'react-toastify';
 import { motion } from "framer-motion";
 import { useAuthStore } from "../../../stores/useAuthStore";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "@/components/router-compat";
 import { authService } from "../../pages/authen/services/auth.service";
 import { ROUTES, prefixAdmin } from "../../constants/routes";
 import { NotificationPopover } from "./NotificationPopover";
@@ -118,7 +120,7 @@ export const Header = () => {
             y: -8,
             filter: 'brightness(1.15) drop-shadow(0 12px 24px rgba(0,0,0,0.15))',
         },
-        transition: { type: "spring", stiffness: 400, damping: 17 }
+        transition: { type: "spring" as const, stiffness: 400, damping: 17 }
     };
 
     return (

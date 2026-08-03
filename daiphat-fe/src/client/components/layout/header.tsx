@@ -1,15 +1,12 @@
+"use client";
+
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Link, useNavigate, useLocation } from "react-router-dom";
-import { Search, User as UserIcon, Home, Crosshair, Ticket, CalendarDays, Gift, Bell, Wallet, ChevronDown, ShoppingCart, BookOpen, Trash2 } from "lucide-react";
+import { Search, User as UserIcon, Home, Crosshair, Ticket, CalendarDays, Gift, Bell, Wallet, ChevronDown, ShoppingCart, BookOpen, Trash2, Sparkles } from "lucide-react";
 import { ROUTES } from "../../../admin/constants/routes";
 import { useAuthStore } from "../../../stores/useAuthStore";
 import { useCartStore } from "../../../stores/useCartStore";
-import { LoginModal } from "../../components/auth/LoginModal";
-import { RegisterModal } from "../../components/auth/RegisterModal";
-import { ProfileSetupModal } from "../../components/auth/ProfileSetupModal";
-import { VerifyModal } from "../../components/auth/VerifyModal";
-import { ForgotPasswordModal } from "../../components/auth/ForgotPasswordModal";
 import { BottomNav } from "./BottomNav";
 import { NotificationDropdown } from "./NotificationDropdown";
 import {
@@ -27,6 +24,7 @@ const navItems = [
   { label: "Mua vé số", to: "/buy-ticket", icon: Ticket },
   { label: "Tra cứu vé", to: "/ticket-search", icon: Search },
   { label: "Vé của tôi", to: "/profile/tickets", icon: Ticket },
+  { label: "Gieo quẻ", to: ROUTES.PUBLIC.FORTUNE, icon: Sparkles },
   { label: "Lịch mở thưởng", to: "/lich-mo-thuong", icon: CalendarDays },
   { label: "Bài viết", to: "/blogs", icon: BookOpen },
 ];
@@ -96,7 +94,7 @@ export const Header = () => {
             ? "bg-white/85 backdrop-blur-xl border-b border-slate-100 shadow-[0_8px_30px_rgba(0,0,0,0.03)]" 
             : "bg-white/95 lg:bg-white/70 lg:backdrop-blur-md border-b border-transparent"
         }`}
-        initial={{ opacity: 0, y: -20 }}
+        initial={{ opacity: 1, y: 0 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, ease: "easeOut" }}
         aria-label="Client navigation"
@@ -110,6 +108,7 @@ export const Header = () => {
                 <img 
                   src="https://i.ibb.co/4R7c75YN/z7824247008533-94446d3b6c16598cda67404d805c15c4.jpg" 
                   alt="Đại Phát Logo" 
+                  decoding="async"
                   className="w-[38px] h-[38px] rounded-[10px] object-cover bg-white" 
                 />
               </div>
@@ -126,7 +125,7 @@ export const Header = () => {
           </div>
 
           {/* Desktop Navigation (Hidden on Tablet/Mobile < 1024px) */}
-          <div className="hidden lg:flex justify-center items-center gap-1 xl:gap-2 flex-1">
+          <div className="hidden lg:flex justify-center items-center gap-0.5 xl:gap-1.5 flex-1 min-w-0 overflow-x-auto scrollbar-none">
             {navItems.filter(item => item.to !== "/profile/tickets" || token).map((item) => {
               const Icon = item.icon;
               const isActive = item.to === ROUTES.PUBLIC.HOME ? location.pathname === ROUTES.PUBLIC.HOME : location.pathname.startsWith(item.to) && item.to !== "#";
@@ -135,7 +134,7 @@ export const Header = () => {
                 <Link
                   key={item.label}
                   to={item.to}
-                  className={`relative flex items-center gap-2 font-bold no-underline transition-all duration-300 px-4 py-2.5 rounded-2xl text-[14.5px] tracking-tight font-client-display select-none ${
+                  className={`relative flex shrink-0 items-center gap-1.5 xl:gap-2 font-bold no-underline transition-all duration-300 px-2.5 xl:px-3.5 py-2 xl:py-2.5 rounded-2xl text-[12.5px] xl:text-[14px] tracking-tight font-client-display select-none whitespace-nowrap ${
                     isActive
                       ? "text-[#ee1314]" 
                       : "text-slate-600 hover:text-[#ee1314]"
@@ -148,8 +147,8 @@ export const Header = () => {
                       transition={{ type: "spring", stiffness: 380, damping: 30 }}
                     />
                   )}
-                  <Icon size={17} strokeWidth={isActive ? 2.5 : 2} className="relative z-10" />
-                  <span className="relative z-10">{item.label}</span>
+                  <Icon size={16} strokeWidth={isActive ? 2.5 : 2} className="relative z-10 shrink-0" />
+                  <span className="relative z-10 whitespace-nowrap">{item.label}</span>
                 </Link>
               );
             })}
@@ -434,11 +433,6 @@ export const Header = () => {
       </AnimatePresence>
 
       <BottomNav />
-      {/* <LoginModal />
-      <RegisterModal /> */}
-      <ProfileSetupModal />
-      <VerifyModal />
-      <ForgotPasswordModal />
     </>
   );
 };

@@ -1,3 +1,5 @@
+"use client";
+
 import { memo, useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Collapse, ListSubheader, Stack } from '@mui/material';

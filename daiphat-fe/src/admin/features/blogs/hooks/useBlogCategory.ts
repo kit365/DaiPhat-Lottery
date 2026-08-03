@@ -1,3 +1,5 @@
+"use client";
+
 import { ApiResponse, PageResponse } from '../../../../types/api.type';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { BlogCategoryQueryParams, UpdateBlogCategoryRequest, BlogCategoryResponse, BlogCategoryMutationPayload } from '../types/blog-category.type';

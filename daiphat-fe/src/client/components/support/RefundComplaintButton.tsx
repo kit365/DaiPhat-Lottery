@@ -1,3 +1,5 @@
+"use client";
+
 import { useMemo, useState, type MouseEvent } from 'react';
 import { RefundRequestResponse } from '../../../types/refund.type';
 import {
