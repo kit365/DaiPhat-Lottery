@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useGetMyPrizePayouts } from '../../hooks/usePrizePayout';
 import {
@@ -6,7 +6,12 @@ import {
     PRIZE_PAYOUT_STATUS_MAP,
     PrizePayoutRequestResponse,
 } from '../../../types/prize-payout.type';
-import { resolvePrizePayoutComplaintEligibility } from '../../utils/prizePayoutComplaintEligibility.logic';
+import {
+    DEFAULT_PRIZE_PAYOUT_COMPLAINT_GRACE_DAYS,
+    DEFAULT_PRIZE_PAYOUT_COMPLAINT_WAIT_HOURS,
+    resolvePrizePayoutComplaintEligibility,
+} from '../../utils/prizePayoutComplaintEligibility.logic';
+import { usePublicSystemConfig } from '../../hooks/useSystemConfig';
 
 interface SelectPrizePayoutModalProps {
     isOpen: boolean;
@@ -25,6 +30,11 @@ const getShortReason = (reasonCode: string) => {
     }
 };
 
+function parsePositiveInt(raw: string | undefined, fallback: number): number {
+    const parsed = Number.parseInt(raw ?? '', 10);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
 export const SelectPrizePayoutModal: React.FC<SelectPrizePayoutModalProps> = ({
     isOpen,
     onClose,
@@ -33,7 +43,16 @@ export const SelectPrizePayoutModal: React.FC<SelectPrizePayoutModalProps> = ({
 }) => {
     const navigate = useNavigate();
     const { data: payoutsData, isLoading } = useGetMyPrizePayouts({ page: 1, limit: 100 }, isOpen);
+    const { data: waitHoursConfig } = usePublicSystemConfig('PRIZE_PAYOUT_COMPLAINT_PROCESSING_WAIT_HOURS');
+    const { data: graceDaysConfig } = usePublicSystemConfig('PRIZE_PAYOUT_COMPLAINT_GRACE_DAYS');
+    const waitHours = parsePositiveInt(waitHoursConfig?.configValue, DEFAULT_PRIZE_PAYOUT_COMPLAINT_WAIT_HOURS);
+    const graceDays = parsePositiveInt(graceDaysConfig?.configValue, DEFAULT_PRIZE_PAYOUT_COMPLAINT_GRACE_DAYS);
     const payouts = (payoutsData?.data?.recordList || []) as PrizePayoutRequestResponse[];
+
+    const eligibilityConfig = useMemo(
+        () => ({ waitHours, graceDays }),
+        [waitHours, graceDays]
+    );
 
     if (!isOpen) return null;
 
@@ -83,7 +102,7 @@ export const SelectPrizePayoutModal: React.FC<SelectPrizePayoutModalProps> = ({
                         <div className="flex flex-col gap-3">
                             {payouts.map((payout) => {
                                 const isSelected = String(payout.id) === String(selectedPrizePayoutId);
-                                const eligibility = resolvePrizePayoutComplaintEligibility(payout);
+                                const eligibility = resolvePrizePayoutComplaintEligibility(payout, eligibilityConfig);
                                 const isEligible = eligibility.eligible;
                                 const statusLabel = PRIZE_PAYOUT_STATUS_MAP[payout.status]?.label || payout.status;
 

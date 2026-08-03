@@ -1,6 +1,11 @@
 import { useMemo, useState, type MouseEvent } from 'react';
 import { PrizePayoutRequestResponse } from '../../../types/prize-payout.type';
-import { resolvePrizePayoutComplaintEligibility } from '../../utils/prizePayoutComplaintEligibility.logic';
+import {
+    DEFAULT_PRIZE_PAYOUT_COMPLAINT_GRACE_DAYS,
+    DEFAULT_PRIZE_PAYOUT_COMPLAINT_WAIT_HOURS,
+    resolvePrizePayoutComplaintEligibility,
+} from '../../utils/prizePayoutComplaintEligibility.logic';
+import { usePublicSystemConfig } from '../../hooks/useSystemConfig';
 import { AppToast } from '../../../utils/toast.util';
 import { ComplaintFormModal } from './ComplaintFormModal';
 
@@ -10,17 +15,32 @@ interface PrizePayoutComplaintButtonProps {
     className?: string;
 }
 
+function parsePositiveInt(raw: string | undefined, fallback: number): number {
+    const parsed = Number.parseInt(raw ?? '', 10);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
 export const PrizePayoutComplaintButton = ({
     payout,
     variant = 'icon',
     className = '',
 }: PrizePayoutComplaintButtonProps) => {
     const [showModal, setShowModal] = useState(false);
+    const { data: waitHoursConfig } = usePublicSystemConfig('PRIZE_PAYOUT_COMPLAINT_PROCESSING_WAIT_HOURS');
+    const { data: graceDaysConfig } = usePublicSystemConfig('PRIZE_PAYOUT_COMPLAINT_GRACE_DAYS');
+
+    const waitHours = parsePositiveInt(waitHoursConfig?.configValue, DEFAULT_PRIZE_PAYOUT_COMPLAINT_WAIT_HOURS);
+    const graceDays = parsePositiveInt(graceDaysConfig?.configValue, DEFAULT_PRIZE_PAYOUT_COMPLAINT_GRACE_DAYS);
 
     const eligibility = useMemo(
-        () => resolvePrizePayoutComplaintEligibility(payout),
-        [payout.status, payout.updatedAt, payout.completedAt]
+        () => resolvePrizePayoutComplaintEligibility(payout, { waitHours, graceDays }),
+        [payout.status, payout.updatedAt, payout.completedAt, waitHours, graceDays]
     );
+
+    // After grace window: hide 1-click CTA; customer can still use general support.
+    if (eligibility.reasonCode === 'window_expired') {
+        return null;
+    }
 
     const handleClick = (event: MouseEvent) => {
         event.stopPropagation();
@@ -35,6 +55,7 @@ export const PrizePayoutComplaintButton = ({
     };
 
     const helperText = eligibility.eligible ? null : eligibility.message;
+    const ctaLabel = 'Khiếu nại giao dịch này';
 
     if (variant === 'button') {
         return (
@@ -43,7 +64,7 @@ export const PrizePayoutComplaintButton = ({
                     <button
                         type="button"
                         onClick={handleClick}
-                        aria-label="Gửi khiếu nại"
+                        aria-label={ctaLabel}
                         aria-disabled={!eligibility.eligible}
                         className={`inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border text-[13px] font-bold transition-all cursor-pointer ${
                             eligibility.eligible
@@ -52,7 +73,7 @@ export const PrizePayoutComplaintButton = ({
                         }`}
                     >
                         <i className="fa-solid fa-headset text-[12px]"></i>
-                        Gửi khiếu nại
+                        {ctaLabel}
                     </button>
                     {helperText && (
                         <div className="bg-[#FFF9F3] border border-[#FFB020]/30 text-[#B76E00] px-3 py-2.5 rounded-xl text-[12px] font-medium leading-relaxed max-w-[280px] mt-1 flex items-start gap-2 shadow-sm text-left">
@@ -77,8 +98,8 @@ export const PrizePayoutComplaintButton = ({
             <button
                 type="button"
                 onClick={handleClick}
-                title="Gửi khiếu nại"
-                aria-label="Gửi khiếu nại"
+                title={ctaLabel}
+                aria-label={ctaLabel}
                 aria-disabled={!eligibility.eligible}
                 className={`w-8 h-8 shrink-0 rounded-lg border inline-flex items-center justify-center transition-all cursor-pointer ${
                     eligibility.eligible

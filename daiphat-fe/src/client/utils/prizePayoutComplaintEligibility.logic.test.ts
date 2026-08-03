@@ -53,13 +53,26 @@ describe('resolvePrizePayoutComplaintEligibility', () => {
         const result = resolvePrizePayoutComplaintEligibility(
             {
                 status: PrizePayoutRequestStatus.COMPLETED,
-                completedAt: '2026-07-20T12:00:00+07:00',
+                completedAt: '2026-07-10T12:00:00+07:00',
             },
             {},
             now
         );
         expect(result.eligible).toBe(false);
         expect(result.reasonCode).toBe('window_expired');
+    });
+
+    it('allows COMPLETED within configured 15-day grace', () => {
+        const result = resolvePrizePayoutComplaintEligibility(
+            {
+                status: PrizePayoutRequestStatus.COMPLETED,
+                completedAt: '2026-07-20T12:00:00+07:00',
+            },
+            { graceDays: 15 },
+            now
+        );
+        expect(result.eligible).toBe(true);
+        expect(result.categoryCode).toBe(PRIZE_PAYOUT_COMPLAINT_CATEGORY_PAID_ISSUE);
     });
 
     it('blocks MANUAL_RESOLUTION', () => {

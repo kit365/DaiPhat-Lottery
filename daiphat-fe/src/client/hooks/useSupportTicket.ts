@@ -31,17 +31,32 @@ export const useGetOrderComplaintEligibility = (orderId?: string, enabled = true
 };
 
 export const useGetMyTickets = (params: GetMyTicketsParams, enabled = true) => {
+    const queryClient = useQueryClient();
     return useQuery({
         queryKey: [QUERY_KEYS.CLIENT_MY_COMPLAINTS, params],
-        queryFn: () => supportTicketService.getMyTickets(params),
+        queryFn: async () => {
+            const response = await supportTicketService.getMyTickets(params);
+            // List view acknowledges REJECTED badges on BE — refresh sidebar count.
+            await queryClient.invalidateQueries({
+                queryKey: [QUERY_KEYS.CLIENT_MY_COMPLAINTS, 'active-count'],
+            });
+            return response;
+        },
         enabled,
     });
 };
 
 export const useGetComplaintDetail = (id: number) => {
+    const queryClient = useQueryClient();
     return useQuery({
         queryKey: [QUERY_KEYS.CLIENT_COMPLAINT_DETAIL, id],
-        queryFn: () => supportTicketService.getById(id),
+        queryFn: async () => {
+            const response = await supportTicketService.getById(id);
+            await queryClient.invalidateQueries({
+                queryKey: [QUERY_KEYS.CLIENT_MY_COMPLAINTS, 'active-count'],
+            });
+            return response;
+        },
         enabled: Number.isFinite(id) && id > 0,
         retry: false,
     });

@@ -230,7 +230,28 @@ export const CartPage = () => {
                 {/* Promo Banners Row */}
                 <div className="flex flex-col lg:flex-row gap-6 w-full mt-6 pb-10">
                     {/* Promo Banner 1 */}
-                    <div className="flex-1 w-full relative rounded-[16px] overflow-hidden shadow-sm h-[180px] group cursor-pointer border border-[#E5E8EB]">
+                    <div
+                        className="flex-1 w-full relative rounded-[16px] overflow-hidden shadow-sm h-[180px] group cursor-pointer border border-[#E5E8EB]"
+                        onClick={() => {
+                            if (!token) {
+                                openLoginModal();
+                                return;
+                            }
+                            navigate('/gieo-que');
+                        }}
+                        role="link"
+                        tabIndex={0}
+                        onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                                e.preventDefault();
+                                if (!token) {
+                                    openLoginModal();
+                                    return;
+                                }
+                                navigate('/gieo-que');
+                            }
+                        }}
+                    >
                         <img src="https://i.ibb.co/XxyrJVWS/7a8a0e84-06df-4227-83ee-c04c1551e3be.png" alt="Lắc quẻ tài lộc bg" className="w-full h-full absolute inset-0 z-0 transition-transform duration-500 group-hover:scale-105" />
                         <div className="absolute inset-0 bg-black/10 z-0 pointer-events-none"></div>
                         
@@ -238,7 +259,18 @@ export const CartPage = () => {
                             <h3 className="text-[#FFE885] font-black text-[22px] md:text-[26px] uppercase tracking-wide mb-1" style={{ textShadow: '0 2px 4px rgba(0,0,0,0.5)' }}>Lắc quẻ tài lộc</h3>
                             <p className="text-white text-[13px] md:text-[14px] mb-0.5 drop-shadow-md">Lắc quẻ - Rinh lộc - Đón vận may!</p>
                             <p className="text-white text-[13px] md:text-[14px] mb-4 drop-shadow-md">Quẻ hay - Vận đến - Trúng lớn mỗi ngày!</p>
-                            <button className="bg-gradient-to-r from-[#FFE885] to-[#FFC527] text-[#cc0000] font-bold text-[13px] px-6 py-2 rounded-full w-max shadow-md hover:shadow-lg hover:scale-105 transition-all flex items-center gap-1">
+                            <button
+                                type="button"
+                                className="bg-gradient-to-r from-[#FFE885] to-[#FFC527] text-[#cc0000] font-bold text-[13px] px-6 py-2 rounded-full w-max shadow-md hover:shadow-lg hover:scale-105 transition-all flex items-center gap-1"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (!token) {
+                                        openLoginModal();
+                                        return;
+                                    }
+                                    navigate('/gieo-que');
+                                }}
+                            >
                                 LẮC QUẺ NGAY <ChevronRight size={14} strokeWidth={3} />
                             </button>
                         </div>
