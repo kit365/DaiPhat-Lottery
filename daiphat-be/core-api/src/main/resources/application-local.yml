@@ -20,7 +20,6 @@ spring:
   flyway:
     enabled: true
     out-of-order: true
-    repair-on-migrate: true
   servlet:
     multipart:
       max-file-size: 5MB
@@ -84,6 +83,8 @@ daiphat:
     seed:
       southern-stations:
         enabled: true
+  fortune:
+    daily-limit-enabled: false
 
 logging:
   level:

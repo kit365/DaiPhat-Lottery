@@ -544,7 +544,21 @@ public enum ErrorCode {
     SYSTEM_CONFIG_NOT_FOUND("CFG_001", "Cấu hình hệ thống không tồn tại.", HttpStatus.NOT_FOUND),
     SYSTEM_CONFIG_VALUE_INVALID("CFG_002", "Giá trị cấu hình không hợp lệ với kiểu dữ liệu.", HttpStatus.BAD_REQUEST),
     SYSTEM_CONFIG_TYPE_INVALID("CFG_003", "Loại cấu hình không hợp lệ.", HttpStatus.BAD_REQUEST),
-    SYSTEM_CONFIG_NOT_EDITABLE("CFG_004", "Cấu hình này không cho phép chỉnh sửa bởi Admin.", HttpStatus.FORBIDDEN);
+    SYSTEM_CONFIG_NOT_EDITABLE("CFG_004", "Cấu hình này không cho phép chỉnh sửa bởi Admin.", HttpStatus.FORBIDDEN),
+
+    // Fortune cast (oracle jar)
+    FORTUNE_BIRTH_YEAR_REQUIRED(
+            "FRT_001",
+            "Birth year is required to cast your fortune.",
+            HttpStatus.BAD_REQUEST),
+    FORTUNE_BIRTH_YEAR_INVALID(
+            "FRT_002",
+            "Birth year is invalid.",
+            HttpStatus.BAD_REQUEST),
+    FORTUNE_NO_INVENTORY(
+            "FRT_003",
+            "No sellable ticket endings are available for today's draw.",
+            HttpStatus.CONFLICT);
 
     private final String code;
     private final String message;
