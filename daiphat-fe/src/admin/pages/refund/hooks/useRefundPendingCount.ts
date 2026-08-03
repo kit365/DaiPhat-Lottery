@@ -1,3 +1,5 @@
+"use client";
+
 import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { refundAdminApi } from '../../../api/refund.api';

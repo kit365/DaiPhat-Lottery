@@ -11,6 +11,7 @@ import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -52,6 +53,14 @@ public class LotteryTicketSerialEntity extends BaseEntity {
 
     @Column(name = "serial_number", nullable = false, length = 100)
     private String serialNumber;
+
+    /** Denormalized from ticket for UNIQUE(station, draw_date, serial_number). */
+    @Column(name = "station_id", nullable = false)
+    private Long stationId;
+
+    /** Denormalized from ticket for UNIQUE(station, draw_date, serial_number). */
+    @Column(name = "draw_date", nullable = false)
+    private LocalDate drawDate;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 50)

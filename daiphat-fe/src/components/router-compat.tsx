@@ -36,7 +36,7 @@ export const Outlet = () => {
 
 export const useNavigate = () => {
   const router = useRouter();
-  return (to: string | number, options?: { replace?: boolean }) => {
+  return (to: string | number, options?: { replace?: boolean; state?: any }) => {
     if (typeof to === 'number') {
       if (to === -1) router.back();
       return;
@@ -48,6 +48,7 @@ export const useNavigate = () => {
     }
   };
 };
+
 
 export const useLocation = () => {
   const pathname = usePathname() || '';
@@ -121,9 +122,10 @@ export const useSearchParams = (): [
 export type LinkProps = Omit<React.ComponentPropsWithoutRef<typeof NextLink>, 'href'> & {
   to?: string;
   href?: string;
+  state?: any;
 };
 
-export const Link: React.FC<LinkProps> = ({ to, href, children, className, ...props }) => {
+export const Link: React.FC<LinkProps> = ({ to, href, state, children, className, ...props }) => {
   const target = to || href || '#';
   return (
     <NextLink href={target} className={className} {...props}>
@@ -131,6 +133,7 @@ export const Link: React.FC<LinkProps> = ({ to, href, children, className, ...pr
     </NextLink>
   );
 };
+
 
 export const Navigate = ({ to, replace = true }: { to: string; replace?: boolean; state?: unknown }) => {
   const router = useRouter();

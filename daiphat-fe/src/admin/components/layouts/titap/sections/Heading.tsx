@@ -1,3 +1,5 @@
+"use client";
+
 import { memo, useState } from "react";
 import { useEditorState, type Editor } from "@tiptap/react";
 import { useTranslation } from "react-i18next";

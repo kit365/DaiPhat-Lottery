@@ -368,7 +368,7 @@ class LotteryTicketControllerTest {
         PageResponse<LotteryTicketResponse> serviceResponse = buildPageResponse(1, 10);
         setAuthentication(principal, RoleConstants.ROLE_STREET_AGENT, "ticket:view");
 
-        when(lotteryTicketServicePort.getAll(1, 10, null, null, "SOLD_OUT", null, null, null, null, "0001", "updatedAt", "desc"))
+        when(lotteryTicketServicePort.getAll(1, 10, null, null, "SOLD_OUT", null, null, null, null, "0001", "updatedAt", "desc", false))
                 .thenReturn(serviceResponse);
 
         MappingJacksonValue response = lotteryTicketController.getAll(

@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useEffect, useMemo, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -17,7 +19,10 @@ import { AppToast } from '../../../utils/toast.util';
 import { TICKET_REF_TYPE_LABELS } from '../../../types/support.type';
 import { SelectOrderModal } from './SelectOrderModal';
 import { SelectRefundModal } from './SelectRefundModal';
+import { SelectPrizePayoutModal } from './SelectPrizePayoutModal';
 import { RefundRequestResponse } from '../../../types/refund.type';
+import { useGetMyPrizePayouts } from '../../hooks/usePrizePayout';
+import { formatPrizePayoutCurrency, PrizePayoutRequestResponse } from '../../../types/prize-payout.type';
 
 interface ComplaintFormModalProps {
     isOpen: boolean;
@@ -25,12 +30,14 @@ interface ComplaintFormModalProps {
     editingTicket?: SupportTicketResponse | null;
     defaultOrderId?: string;
     defaultRefundId?: number | string;
+    defaultPrizePayoutId?: number | string;
     defaultCategoryCode?: string;
     requireEvidence?: boolean;
 }
 
 const getCategoryIcon = (code: string) => {
     if (code.includes('ORDER')) return 'fa-box';
+    if (code.includes('PRIZE_PAYOUT') || code.includes('PRIZE')) return 'fa-trophy';
     if (code.includes('PAYMENT') || code.includes('REFUND')) return 'fa-money-bill-wave';
     return 'fa-headset';
 };
@@ -41,6 +48,7 @@ export const ComplaintFormModal: React.FC<ComplaintFormModalProps> = ({
     editingTicket,
     defaultOrderId,
     defaultRefundId,
+    defaultPrizePayoutId,
     defaultCategoryCode,
     requireEvidence = false,
 }) => {
@@ -50,6 +58,7 @@ export const ComplaintFormModal: React.FC<ComplaintFormModalProps> = ({
     const { data: categoriesData } = useGetTicketCategories();
     const { data: ordersData } = useGetMyOrders({ page: 1, limit: 100 });
     const { data: refundsData } = useGetMyRefunds({ page: 1, limit: 100 });
+    const { data: payoutsData } = useGetMyPrizePayouts({ page: 1, limit: 100 }, isOpen);
     const createMutation = useCreateComplaint();
     const updateMutation = useUpdateComplaint();
 
@@ -64,6 +73,9 @@ export const ComplaintFormModal: React.FC<ComplaintFormModalProps> = ({
         if (defaultCategoryCode) {
             return selectableCategories.filter((category) => category.code === defaultCategoryCode);
         }
+        if (defaultPrizePayoutId != null) {
+            return selectableCategories.filter((category) => category.requiredRefType === TicketRefType.PRIZE_CLAIM);
+        }
         if (defaultRefundId != null) {
             return selectableCategories.filter((category) => category.requiredRefType === TicketRefType.REFUND_REQUEST);
         }
@@ -71,7 +83,7 @@ export const ComplaintFormModal: React.FC<ComplaintFormModalProps> = ({
             return selectableCategories.filter((category) => category.requiredRefType === TicketRefType.ORDER);
         }
         return selectableCategories;
-    }, [selectableCategories, defaultCategoryCode, defaultRefundId, defaultOrderId]);
+    }, [selectableCategories, defaultCategoryCode, defaultRefundId, defaultPrizePayoutId, defaultOrderId]);
 
     const groupedCategories = useMemo(() => {
         const groups: Record<number, { parent: TicketCategoryResponse | undefined; items: TicketCategoryResponse[] }> = {};
@@ -96,6 +108,7 @@ export const ComplaintFormModal: React.FC<ComplaintFormModalProps> = ({
 
     const orders = ordersData?.data?.recordList || [];
     const refunds = (refundsData?.data?.recordList || []) as RefundRequestResponse[];
+    const payouts = (payoutsData?.data?.recordList || []) as PrizePayoutRequestResponse[];
 
     const [ticketCategoryId, setTicketCategoryId] = useState<number | ''>('');
     const [title, setTitle] = useState('');
@@ -108,6 +121,7 @@ export const ComplaintFormModal: React.FC<ComplaintFormModalProps> = ({
 
     const [isOrderModalOpen, setIsOrderModalOpen] = useState(false);
     const [isRefundModalOpen, setIsRefundModalOpen] = useState(false);
+    const [isPrizePayoutModalOpen, setIsPrizePayoutModalOpen] = useState(false);
 
     const selectedCategory = useMemo(
         () => categories.find((c) => c.id === ticketCategoryId),
@@ -120,6 +134,7 @@ export const ComplaintFormModal: React.FC<ComplaintFormModalProps> = ({
 
     const selectedOrder = useMemo(() => orders.find(o => o.id === refId), [orders, refId]);
     const selectedRefund = useMemo(() => refunds.find(r => String(r.id) === refId), [refunds, refId]);
+    const selectedPrizePayout = useMemo(() => payouts.find(p => String(p.id) === refId), [payouts, refId]);
 
     useEffect(() => {
         if (!isOpen) return;
@@ -140,14 +155,16 @@ export const ComplaintFormModal: React.FC<ComplaintFormModalProps> = ({
             setTicketCategoryId(preferredCategory?.id || '');
             setTitle('');
             setDescription('');
-            if (defaultRefundId != null) {
+            if (defaultPrizePayoutId != null) {
+                setRefId(String(defaultPrizePayoutId));
+            } else if (defaultRefundId != null) {
                 setRefId(String(defaultRefundId));
             } else {
                 setRefId(defaultOrderId || '');
             }
             setAttachmentFile(null);
         }
-    }, [isOpen, editingTicket, categories, visibleCategories, defaultOrderId, defaultRefundId, defaultCategoryCode]);
+    }, [isOpen, editingTicket, categories, visibleCategories, defaultOrderId, defaultRefundId, defaultPrizePayoutId, defaultCategoryCode]);
 
     useEffect(() => {
         if (!isOpen || isEditing || !defaultOrderId || !selectedCategory) return;
@@ -176,6 +193,8 @@ export const ComplaintFormModal: React.FC<ComplaintFormModalProps> = ({
             setRefId(defaultOrderId);
         } else if (category.requiredRefType === TicketRefType.REFUND_REQUEST && defaultRefundId != null) {
             setRefId(String(defaultRefundId));
+        } else if (category.requiredRefType === TicketRefType.PRIZE_CLAIM && defaultPrizePayoutId != null) {
+            setRefId(String(defaultPrizePayoutId));
         } else {
             setRefId('');
         }
@@ -455,7 +474,53 @@ export const ComplaintFormModal: React.FC<ComplaintFormModalProps> = ({
                                 </div>
                             )}
 
-                            {requiredRefType && requiredRefType !== TicketRefType.ORDER && requiredRefType !== TicketRefType.REFUND_REQUEST && (
+                            {requiredRefType === TicketRefType.PRIZE_CLAIM && (
+                                <div className="flex flex-col gap-2">
+                                    <label className="text-[13px] font-bold text-[#454F5B]">
+                                        {TICKET_REF_TYPE_LABELS[requiredRefType]} *
+                                    </label>
+                                    {defaultPrizePayoutId != null ? (
+                                        <div className="w-full px-4 py-3 bg-[#F4F6F8] border border-[#E5E8EB] rounded-xl text-[14px] text-[#212B36] font-semibold">
+                                            #{defaultPrizePayoutId}
+                                            {selectedPrizePayout?.requestCode ? ` · ${selectedPrizePayout.requestCode}` : ''}
+                                        </div>
+                                    ) : (
+                                        <div
+                                            onClick={() => setIsPrizePayoutModalOpen(true)}
+                                            className="w-full px-4 py-3 bg-white border border-[#E5E8EB] hover:border-[#ee1314] rounded-xl text-[14px] flex items-center justify-between cursor-pointer transition-colors"
+                                        >
+                                            {selectedPrizePayout ? (
+                                                <div className="flex items-center gap-3">
+                                                    <i className="fa-solid fa-trophy text-[#637381]"></i>
+                                                    <div className="flex flex-col">
+                                                        <span className="font-bold text-[#212B36]">
+                                                            {selectedPrizePayout.requestCode}
+                                                        </span>
+                                                        <span className="text-[12px] text-[#919EAB]">
+                                                            {formatPrizePayoutCurrency(
+                                                                selectedPrizePayout.netAmount ?? selectedPrizePayout.grossAmount
+                                                            )}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                <span className="text-[#919EAB]">Chọn yêu cầu trả thưởng...</span>
+                                            )}
+                                            <button
+                                                type="button"
+                                                className="px-3 py-1.5 bg-[#F4F6F8] text-[#454F5B] text-[12px] font-bold rounded-lg hover:bg-[#DFE3E8]"
+                                            >
+                                                {selectedPrizePayout ? 'Thay đổi' : 'Chọn'}
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
+                            {requiredRefType
+                                && requiredRefType !== TicketRefType.ORDER
+                                && requiredRefType !== TicketRefType.REFUND_REQUEST
+                                && requiredRefType !== TicketRefType.PRIZE_CLAIM && (
                                 <div className="flex flex-col gap-2">
                                     <label className="text-[13px] font-bold text-[#454F5B]">
                                         {TICKET_REF_TYPE_LABELS[requiredRefType]} *
@@ -553,6 +618,13 @@ export const ComplaintFormModal: React.FC<ComplaintFormModalProps> = ({
                 onClose={() => setIsRefundModalOpen(false)} 
                 onSelect={(id) => setRefId(id)} 
                 selectedRefundId={refId}
+            />
+
+            <SelectPrizePayoutModal
+                isOpen={isPrizePayoutModalOpen}
+                onClose={() => setIsPrizePayoutModalOpen(false)}
+                onSelect={(id) => setRefId(id)}
+                selectedPrizePayoutId={refId}
             />
         </div>
     );

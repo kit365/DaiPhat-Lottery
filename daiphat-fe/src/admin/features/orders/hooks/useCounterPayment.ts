@@ -1,3 +1,5 @@
+"use client";
+
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { transactionService } from '../../../../client/services/transactionService';
 import { PaymentGateway, ProcessPaymentRequest } from '../../../../types/transaction.type';

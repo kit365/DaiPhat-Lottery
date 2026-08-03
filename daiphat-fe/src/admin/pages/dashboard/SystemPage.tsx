@@ -1,3 +1,5 @@
+"use client";
+
 import { Grid, Box, Typography, Button, Divider, Stack, Avatar, CircularProgress, Table, TableBody, TableCell, TableHead, TableRow, TableContainer, Tooltip } from "@mui/material";
 import { useAuthStore } from "../../../stores/useAuthStore";
 import dynamic from 'next/dynamic';

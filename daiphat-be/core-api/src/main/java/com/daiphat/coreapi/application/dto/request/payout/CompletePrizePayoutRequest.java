@@ -1,9 +1,12 @@
 package com.daiphat.coreapi.application.dto.request.payout;
 
-import jakarta.validation.constraints.NotBlank;
+import com.daiphat.coreapi.domain.model.enums.payout.PrizePayoutPaymentMethod;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
 public record CompletePrizePayoutRequest(
-        @NotBlank @Size(max = 500) String transferEvidenceUrl
+        @NotNull PrizePayoutPaymentMethod paymentMethod,
+        java.math.BigDecimal cashAmount,
+        @Size(max = 500) String transferEvidenceUrl
 ) {
 }

@@ -20,6 +20,12 @@ const nextConfig: NextConfig = {
       '@iconify/react',
     ],
   },
+  turbopack: {
+    resolveAlias: {
+      'react-router-dom': './src/components/router-compat.tsx',
+      'react-apexcharts': './src/components/ApexChartCompat.tsx',
+    },
+  },
   images: {
     remotePatterns: [
       {

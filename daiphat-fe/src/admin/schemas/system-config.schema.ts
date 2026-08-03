@@ -67,8 +67,31 @@ const getValueSchema = (dataType: ConfigDataType, validationRules?: string | nul
             return applyIntRules(intValueSchema, rules);
         case ConfigDataType.TIME:
             return applyTimeRules(timeValueSchema, rules);
+        case ConfigDataType.BOOLEAN:
+            return z.enum(['true', 'false'], { message: 'Giá trị phải là true hoặc false' });
+        case ConfigDataType.DECIMAL:
+            return z
+                .string()
+                .trim()
+                .min(1, 'Giá trị không được để trống')
+                .refine((val) => /^-?\d+(\.\d+)?$/.test(val), 'Giá trị phải là số thập phân');
+        case ConfigDataType.JSON:
+            return z
+                .string()
+                .trim()
+                .min(1, 'Giá trị không được để trống')
+                .superRefine((val, ctx) => {
+                    try {
+                        JSON.parse(val);
+                    } catch {
+                        ctx.addIssue({
+                            code: z.ZodIssueCode.custom,
+                            message: 'Giá trị phải là JSON hợp lệ',
+                        });
+                    }
+                });
         default:
-            return intValueSchema;
+            return z.string().trim().min(1, 'Giá trị không được để trống');
     }
 };
 

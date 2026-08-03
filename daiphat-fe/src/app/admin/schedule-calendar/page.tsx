@@ -1,9 +1,5 @@
-"use client";
-
-import React, { lazy } from 'react';
-
-const ScheduleCalendarPage = lazy(() => import('@/admin/pages/hr/ScheduleCalendarPage').then(m => ({ default: m.ScheduleCalendarPage })));
+import { ClientPage } from './ClientPage';
 
 export default function AdminScheduleCalendarRoute() {
-  return <ScheduleCalendarPage />;
+  return <ClientPage />;
 }

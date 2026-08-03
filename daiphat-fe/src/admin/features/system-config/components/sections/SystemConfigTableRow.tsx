@@ -1,11 +1,13 @@
 import React from 'react';
 import {
+  Box,
   TableCell,
   TableRow,
   Typography,
   Tooltip,
   Chip,
   IconButton,
+  Stack,
 } from '@mui/material';
 import { Edit2 } from 'lucide-react';
 import {
@@ -15,6 +17,7 @@ import {
   ConfigType,
   SystemConfigResponse,
 } from '../../types/system-config';
+import { formatSystemConfigDisplayValue } from '../../utils/systemConfigDisplay.util';
 
 interface SystemConfigTableRowProps {
   config: SystemConfigResponse;
@@ -22,14 +25,9 @@ interface SystemConfigTableRowProps {
   onEdit: (config: SystemConfigResponse) => void;
 }
 
-const truncateValue = (value: string, maxLen = 48) => {
-  if (value.length <= maxLen) return value;
-  return `${value.slice(0, maxLen)}…`;
-};
-
 const getTypeChipColor = (
   type: ConfigType
-): 'default' | 'primary' | 'secondary' | 'warning' | 'error' | 'info' => {
+): 'default' | 'primary' | 'secondary' | 'warning' | 'error' | 'info' | 'success' => {
   switch (type) {
     case ConfigType.ORDER_SETTING:
       return 'primary';
@@ -41,9 +39,72 @@ const getTypeChipColor = (
       return 'secondary';
     case ConfigType.COMPLAINT_SETTING:
       return 'error';
+    case ConfigType.PAYOUT_SETTING:
+      return 'success';
     default:
       return 'default';
   }
+};
+
+const ConfigValueCell = ({ config }: { config: SystemConfigResponse }) => {
+  const display = formatSystemConfigDisplayValue(
+    config.configKey,
+    config.configValue,
+    config.dataType
+  );
+
+  if (display.isStructured && display.detailLines?.length) {
+    const preview = display.detailLines[0];
+    const extraCount = display.detailLines.length - 1;
+    return (
+      <Tooltip
+        title={
+          <Box component="ul" sx={{ m: 0, pl: 2 }}>
+            {display.detailLines.map((line) => (
+              <li key={line}>{line}</li>
+            ))}
+          </Box>
+        }
+        placement="top-start"
+      >
+        <Stack spacing={0.25} sx={{ maxWidth: 260, cursor: 'help' }}>
+          <Typography variant="body2" sx={{ fontWeight: 600, lineHeight: 1.35 }}>
+            {display.summary}
+          </Typography>
+          <Typography
+            variant="caption"
+            color="text.secondary"
+            sx={{
+              lineHeight: 1.35,
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {preview}
+            {extraCount > 0 ? '…' : ''}
+          </Typography>
+        </Stack>
+      </Tooltip>
+    );
+  }
+
+  return (
+    <Tooltip title={display.summary} placement="top-start">
+      <Typography
+        variant="body2"
+        sx={{
+          fontFamily: config.dataType === ConfigDataType.TIME ? 'monospace' : 'inherit',
+          maxWidth: 260,
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap',
+        }}
+      >
+        {display.summary}
+      </Typography>
+    </Tooltip>
+  );
 };
 
 export const SystemConfigTableRow: React.FC<SystemConfigTableRowProps> = ({
@@ -73,18 +134,8 @@ export const SystemConfigTableRow: React.FC<SystemConfigTableRowProps> = ({
           {config.description}
         </Typography>
       </TableCell>
-      <TableCell sx={{ maxWidth: 200 }}>
-        <Tooltip title={config.configValue} placement="top-start">
-          <Typography
-            variant="body2"
-            sx={{
-              fontFamily:
-                config.dataType === ConfigDataType.TIME ? 'monospace' : 'inherit',
-            }}
-          >
-            {truncateValue(config.configValue)}
-          </Typography>
-        </Tooltip>
+      <TableCell sx={{ maxWidth: 280, verticalAlign: 'middle' }}>
+        <ConfigValueCell config={config} />
       </TableCell>
       <TableCell>
         <Typography variant="body2" color="text.secondary">

@@ -3,10 +3,20 @@ import { PurchasedTicket } from './lottery-ticket.type';
 
 export enum PrizePayoutRequestStatus {
     PENDING = 'PENDING',
+    APPROVED = 'APPROVED',
     COMPLETED = 'COMPLETED',
     REJECTED = 'REJECTED',
+    MANUAL_RESOLUTION = 'MANUAL_RESOLUTION',
     CANCELLED = 'CANCELLED',
 }
+
+export type PrizePayoutChannel = 'ONLINE' | 'IN_PERSON';
+export type PrizePayoutPaymentMethod = 'CASH' | 'TRANSFER' | 'COMBINED';
+export type PrizePayoutTicketOrigin = 'INTERNAL_ONLINE' | 'INTERNAL_OFFLINE';
+export type PrizePayoutOwnershipVerificationLevel =
+    | 'AUTO_MATCHED'
+    | 'CUSTOMER_LINKED'
+    | 'MANUAL_ONLY';
 
 export type SerialPayoutState = 'NONE' | 'PAYOUT_PENDING' | 'PAID_OUT';
 
@@ -35,20 +45,124 @@ export interface PrizePayoutRequestResponse {
     prizeCode?: string;
     prizeDisplayName?: string;
     grossAmount: number;
+    taxAmount?: number;
+    commissionAmount?: number;
+    netAmount?: number;
+    cashAmount?: number;
+    transferAmount?: number;
+    channel?: PrizePayoutChannel;
+    ticketOrigin?: PrizePayoutTicketOrigin;
+    ownershipVerificationLevel?: PrizePayoutOwnershipVerificationLevel;
+    manualOwnershipConfirmed?: boolean;
+    orderType?: 'ONLINE' | 'DIRECT';
+    orderGuestName?: string;
+    orderPhone?: string;
+    paymentMethod?: PrizePayoutPaymentMethod;
     bankAccountId?: number;
     bankName?: string;
     bankAccountNumber?: string;
     accountHolderName?: string;
+    recipientFullName?: string;
+    recipientIdNumber?: string;
+    recipientIdImageUrl?: string;
+    recipientIdImageBackUrl?: string;
+    recipientIdentityCapturedAt?: string;
     status: PrizePayoutRequestStatus;
+    rejectCount?: number;
+    maxOnlineRejectRetry?: number;
+    onlineClaimLocked?: boolean;
+    requiresFourEyes?: boolean;
+    canCurrentStaffApprove?: boolean;
+    canCurrentStaffComplete?: boolean;
     rejectReason?: string;
     transferEvidenceUrl?: string;
+    confirmationContractUrl?: string;
     completedAt?: string;
     completedBy?: string;
+    createdBy?: string;
     createdAt?: string;
     updatedAt?: string;
     serialStatus?: LotteryTicketSerialStatus;
     ticketCondition?: TicketCondition;
     payoutState?: SerialPayoutState;
+}
+
+export interface PrizePayoutPreviewResponse {
+    orderDetailId: number;
+    serialId: number;
+    prizeCode?: string;
+    prizeDisplayName?: string;
+    grossAmount: number;
+    taxAmount: number;
+    commissionAmount: number;
+    netAmount: number;
+    channel: PrizePayoutChannel;
+    canClaimOnline: boolean;
+    ticketOrigin: PrizePayoutTicketOrigin;
+    ownershipVerificationLevel: PrizePayoutOwnershipVerificationLevel;
+    requiresManualOwnershipConfirm: boolean;
+    requiresRecipientIdentity?: boolean;
+    requiresRecipientIdImage?: boolean;
+    requiresFourEyes?: boolean;
+    taxThreshold?: number;
+    orderType?: 'ONLINE' | 'DIRECT';
+    orderCode?: string;
+    customerId?: string;
+    customerName?: string;
+    orderGuestName?: string;
+    phone?: string;
+    serialNumber?: string;
+    stationName?: string;
+    drawDate?: string;
+    ticketNumbers?: string;
+    winningNumber?: string;
+    matchFrom?: string;
+    matchDigits?: number;
+}
+
+export type TicketDrawResultStatus = 'WON' | 'LOST' | 'PENDING_DRAW';
+
+export interface PrizePayoutLookupItem {
+    orderDetailId: number;
+    serialId: number;
+    stationId?: number;
+    stationName?: string;
+    drawDate?: string;
+    serialNumber?: string;
+    ticketNumbers?: string;
+    prizeStatus: TicketDrawResultStatus;
+    prizeCode?: string;
+    prizeDisplayName?: string;
+    grossAmount?: number;
+    taxAmount?: number;
+    commissionAmount?: number;
+    netAmount?: number;
+    ticketOrigin: PrizePayoutTicketOrigin;
+    ownershipVerificationLevel: PrizePayoutOwnershipVerificationLevel;
+    requiresManualOwnershipConfirm: boolean;
+    requiresRecipientIdentity: boolean;
+    requiresRecipientIdImage: boolean;
+    requiresFourEyes: boolean;
+    taxThreshold?: number;
+    orderType?: 'ONLINE' | 'DIRECT';
+    orderCode?: string;
+    customerId?: string;
+    customerName?: string;
+    orderGuestName?: string;
+    phone?: string;
+    winningNumber?: string;
+    matchFrom?: string;
+    matchDigits?: number;
+    alreadyRequested?: boolean;
+}
+
+export interface PrizePayoutLookupResponse {
+    items: PrizePayoutLookupItem[];
+}
+
+export interface PrizePayoutBatchCreateResponse {
+    claims: PrizePayoutRequestResponse[];
+    totalNetAmount: number;
 }
 
 export interface CreatePrizePayoutRequest {
@@ -57,8 +171,48 @@ export interface CreatePrizePayoutRequest {
     bankAccountId: number;
 }
 
+export interface CreateStaffPrizePayoutRequest {
+    orderDetailId?: number;
+    serialId?: number;
+    serialNumber?: string;
+    orderCode?: string;
+    bankAccountId?: number;
+    bankName?: string;
+    bankAccountNumber?: string;
+    accountHolderName?: string;
+    recipientFullName?: string;
+    recipientIdNumber?: string;
+    recipientIdImageUrl?: string;
+    recipientIdImageBackUrl?: string;
+    paymentMethod: PrizePayoutPaymentMethod;
+    cashAmount?: number;
+    manualOwnershipConfirmed?: boolean;
+    transferEvidenceUrl?: string;
+    confirmationContractUrl?: string;
+}
+
+export interface CreateStaffPrizePayoutBatchRequest {
+    items: { orderDetailId: number }[];
+    bankAccountId?: number;
+    bankName?: string;
+    bankAccountNumber?: string;
+    accountHolderName?: string;
+    recipientFullName?: string;
+    recipientIdNumber?: string;
+    recipientIdImageUrl?: string;
+    recipientIdImageBackUrl?: string;
+    paymentMethod: PrizePayoutPaymentMethod;
+    cashAmount?: number;
+    manualOwnershipConfirmed?: boolean;
+    transferEvidenceUrl?: string;
+    confirmationContractUrl?: string;
+}
+
+
 export interface CompletePrizePayoutRequest {
-    transferEvidenceUrl: string;
+    paymentMethod: PrizePayoutPaymentMethod;
+    cashAmount?: number;
+    transferEvidenceUrl?: string;
 }
 
 export interface RejectPrizePayoutRequest {
@@ -90,9 +244,37 @@ export const PRIZE_PAYOUT_STATUS_MAP: Record<
     { label: string; bg: string; text: string }
 > = {
     [PrizePayoutRequestStatus.PENDING]: { label: 'Cần xử lý', bg: 'bg-[#FFF9F3]', text: 'text-[#B76E00]' },
+    [PrizePayoutRequestStatus.APPROVED]: { label: 'Đã duyệt', bg: 'bg-[#EFF8FF]', text: 'text-[#175CD3]' },
     [PrizePayoutRequestStatus.COMPLETED]: { label: 'Đã chuyển', bg: 'bg-[#E4F8ED]', text: 'text-[#1CD162]' },
     [PrizePayoutRequestStatus.REJECTED]: { label: 'Từ chối', bg: 'bg-[#FFF4F4]', text: 'text-[#ee1314]' },
+    [PrizePayoutRequestStatus.MANUAL_RESOLUTION]: {
+        label: 'Cần xử lý tại đại lý',
+        bg: 'bg-[#FFF5F5]',
+        text: 'text-[#C62828]',
+    },
     [PrizePayoutRequestStatus.CANCELLED]: { label: 'Đã hủy', bg: 'bg-[#F4F6F8]', text: 'text-[#637381]' },
+};
+
+export const PRIZE_PAYOUT_CHANNEL_LABELS: Record<PrizePayoutChannel, string> = {
+    ONLINE: 'Online',
+    IN_PERSON: 'Tại quầy',
+};
+
+export const PRIZE_PAYOUT_TICKET_ORIGIN_LABELS: Record<PrizePayoutTicketOrigin, string> = {
+    INTERNAL_ONLINE: 'Vé online (đã lấy về)',
+    INTERNAL_OFFLINE: 'Vé mua tại quầy',
+};
+
+export const PRIZE_PAYOUT_VERIFICATION_LABELS: Record<PrizePayoutOwnershipVerificationLevel, string> = {
+    AUTO_MATCHED: 'Vé online — đối chiếu hệ thống',
+    CUSTOMER_LINKED: 'Vé quầy — có KH trên đơn',
+    MANUAL_ONLY: 'Vé quầy — không KH / xác minh thủ công',
+};
+
+export const PRIZE_PAYOUT_PAYMENT_METHOD_LABELS: Record<PrizePayoutPaymentMethod, string> = {
+    CASH: 'Tiền mặt',
+    TRANSFER: 'Chuyển khoản',
+    COMBINED: 'Thanh toán kết hợp',
 };
 
 export const SERIAL_PAYOUT_STATE_LABELS: Record<SerialPayoutState, string> = {
@@ -116,6 +298,68 @@ export const TICKET_CONDITION_LABELS: Record<TicketCondition, string> = {
     VOIDED: 'Đã hủy',
 };
 
+/** Tình trạng nhận vé vật lý — đã lấy hay còn giữ tại đại lý. */
+export type TicketPossessionStatus = 'PICKED_UP' | 'HELD_AT_AGENT' | 'RESERVED' | 'OTHER';
+
+export interface TicketPossessionDisplay {
+    status: TicketPossessionStatus;
+    label: string;
+    hint?: string;
+    className: string;
+    icon: string;
+}
+
+export const resolveTicketPossessionDisplay = (
+    ticket: Pick<PurchasedTicket, 'serialStatus' | 'actualPickedUpAt'>
+): TicketPossessionDisplay | null => {
+    // Serial possession wins over order-level pickup (orders can mix held + picked tickets).
+    if (ticket.serialStatus === 'PROXY_HOLDING') {
+        return {
+            status: 'HELD_AT_AGENT',
+            label: 'Đại lý đang giữ hộ',
+            hint: 'Vé chưa được bạn lấy tại quầy',
+            className: 'bg-amber-50 text-amber-700 border-amber-200',
+            icon: 'fa-solid fa-store',
+        };
+    }
+    if (ticket.serialStatus === 'SOLD' || ticket.actualPickedUpAt) {
+        return {
+            status: 'PICKED_UP',
+            label: 'Đã lấy vé',
+            hint: 'Bạn đã nhận vé vật lý tại đại lý',
+            className: 'bg-sky-50 text-sky-700 border-sky-200',
+            icon: 'fa-solid fa-hand-holding',
+        };
+    }
+    if (ticket.serialStatus === 'RESERVED') {
+        return {
+            status: 'RESERVED',
+            label: 'Đang giữ chỗ',
+            hint: 'Chờ hoàn tất đơn hàng',
+            className: 'bg-slate-50 text-slate-600 border-slate-200',
+            icon: 'fa-solid fa-clock',
+        };
+    }
+    if (ticket.serialStatus === 'EXPIRED') {
+        return {
+            status: 'HELD_AT_AGENT',
+            label: 'Còn tại đại lý',
+            hint: 'Kỳ quay đã hết hạn — vé vẫn được đại lý giữ',
+            className: 'bg-amber-50 text-amber-700 border-amber-200',
+            icon: 'fa-solid fa-store',
+        };
+    }
+    if (!ticket.serialStatus) {
+        return null;
+    }
+    return {
+        status: 'OTHER',
+        label: SERIAL_STATUS_LABELS[ticket.serialStatus] ?? ticket.serialStatus,
+        className: 'bg-slate-50 text-slate-600 border-slate-200',
+        icon: 'fa-solid fa-ticket',
+    };
+};
+
 const PAYOUT_ELIGIBLE_SERIAL_STATUSES: LotteryTicketSerialStatus[] = ['PROXY_HOLDING', 'EXPIRED'];
 
 export type TicketPayoutDisplayStatus =
@@ -123,7 +367,9 @@ export type TicketPayoutDisplayStatus =
     | 'PENDING'
     | 'COMPLETED'
     | 'REJECTED'
-    | 'CANCELLED';
+    | 'MANUAL_RESOLUTION'
+    | 'CANCELLED'
+    | 'IN_PERSON_ONLY';
 
 export const resolveTicketPayoutDisplay = (
     ticket: PurchasedTicket
@@ -132,25 +378,40 @@ export const resolveTicketPayoutDisplay = (
         return null;
     }
 
-    if (ticket.payoutState === 'PAID_OUT' || ticket.activePayoutStatus === PrizePayoutRequestStatus.COMPLETED) {
+    const status = ticket.activePayoutStatus as PrizePayoutRequestStatus | undefined;
+
+    if (ticket.payoutState === 'PAID_OUT' || status === PrizePayoutRequestStatus.COMPLETED) {
         return {
             status: 'COMPLETED',
-            label: 'Đã chuyển khoản',
+            label: 'Đã trả thưởng',
             className: 'bg-emerald-50 text-emerald-700 border-emerald-200',
             icon: 'fa-solid fa-circle-check',
         };
     }
 
-    if (ticket.payoutState === 'PAYOUT_PENDING' || ticket.activePayoutStatus === PrizePayoutRequestStatus.PENDING) {
+    if (ticket.payoutState === 'PAYOUT_PENDING'
+        || status === PrizePayoutRequestStatus.PENDING
+        || status === PrizePayoutRequestStatus.APPROVED) {
         return {
             status: 'PENDING',
-            label: 'Đang xử lý trả thưởng',
+            label: status === PrizePayoutRequestStatus.APPROVED
+                ? 'Đã duyệt — chờ hoàn tất'
+                : 'Đang xử lý trả thưởng',
             className: 'bg-amber-50 text-amber-700 border-amber-200',
             icon: 'fa-solid fa-hourglass-half',
         };
     }
 
-    if (ticket.activePayoutStatus === PrizePayoutRequestStatus.REJECTED) {
+    if (status === PrizePayoutRequestStatus.MANUAL_RESOLUTION) {
+        return {
+            status: 'MANUAL_RESOLUTION',
+            label: 'Cần đổi thưởng tại đại lý',
+            className: 'bg-rose-50 text-rose-700 border-rose-200',
+            icon: 'fa-solid fa-store',
+        };
+    }
+
+    if (status === PrizePayoutRequestStatus.REJECTED) {
         return {
             status: 'REJECTED',
             label: 'Bị từ chối trả thưởng',
@@ -159,12 +420,21 @@ export const resolveTicketPayoutDisplay = (
         };
     }
 
-    if (ticket.activePayoutStatus === PrizePayoutRequestStatus.CANCELLED) {
+    if (status === PrizePayoutRequestStatus.CANCELLED) {
         return {
             status: 'CANCELLED',
             label: 'Đã hủy yêu cầu',
             className: 'bg-slate-100 text-slate-600 border-slate-200',
             icon: 'fa-solid fa-ban',
+        };
+    }
+
+    if (ticket.canClaimOnline === false || ticket.claimChannel === 'IN_PERSON') {
+        return {
+            status: 'IN_PERSON_ONLY',
+            label: 'Đổi thưởng tại đại lý',
+            className: 'bg-violet-50 text-violet-700 border-violet-200',
+            icon: 'fa-solid fa-store',
         };
     }
 
@@ -176,23 +446,37 @@ export const resolveTicketPayoutDisplay = (
     };
 };
 
-export const canRequestPrizePayout = (ticket: PurchasedTicket) =>
-    ticket.drawResultStatus === 'WON'
-    && ticket.serialStatus != null
-    && PAYOUT_ELIGIBLE_SERIAL_STATUSES.includes(ticket.serialStatus)
-    && (ticket.payoutState == null || ticket.payoutState === 'NONE')
-    && ticket.activePayoutStatus !== PrizePayoutRequestStatus.PENDING
-    && ticket.activePayoutStatus !== PrizePayoutRequestStatus.COMPLETED;
+export const canRequestPrizePayout = (ticket: PurchasedTicket) => {
+    const status = ticket.activePayoutStatus as PrizePayoutRequestStatus | undefined;
+    return ticket.drawResultStatus === 'WON'
+        && ticket.canClaimOnline === true
+        && ticket.serialStatus != null
+        && PAYOUT_ELIGIBLE_SERIAL_STATUSES.includes(ticket.serialStatus)
+        && (ticket.payoutState == null || ticket.payoutState === 'NONE')
+        && status !== PrizePayoutRequestStatus.PENDING
+        && status !== PrizePayoutRequestStatus.APPROVED
+        && status !== PrizePayoutRequestStatus.COMPLETED
+        && status !== PrizePayoutRequestStatus.MANUAL_RESOLUTION;
+};
 
 export const getPrizePayoutIneligibilityMessage = (ticket: PurchasedTicket): string | null => {
     if (ticket.drawResultStatus !== 'WON') {
         return null;
     }
-    if (ticket.activePayoutStatus === PrizePayoutRequestStatus.PENDING || ticket.payoutState === 'PAYOUT_PENDING') {
+    const status = ticket.activePayoutStatus as PrizePayoutRequestStatus | undefined;
+    if (status === PrizePayoutRequestStatus.PENDING
+        || status === PrizePayoutRequestStatus.APPROVED
+        || ticket.payoutState === 'PAYOUT_PENDING') {
         return 'Vé đang có yêu cầu trả thưởng đang xử lý.';
     }
-    if (ticket.payoutState === 'PAID_OUT' || ticket.activePayoutStatus === PrizePayoutRequestStatus.COMPLETED) {
+    if (ticket.payoutState === 'PAID_OUT' || status === PrizePayoutRequestStatus.COMPLETED) {
         return null;
+    }
+    if (status === PrizePayoutRequestStatus.MANUAL_RESOLUTION) {
+        return 'Yêu cầu trả thưởng online đã bị từ chối quá số lần cho phép — vui lòng đến đại lý đổi thưởng.';
+    }
+    if (ticket.canClaimOnline === false || ticket.claimChannel === 'IN_PERSON') {
+        return 'Vé này bắt buộc đổi thưởng trực tiếp tại đại lý.';
     }
     if (!ticket.serialStatus || !PAYOUT_ELIGIBLE_SERIAL_STATUSES.includes(ticket.serialStatus)) {
         const statusLabel = ticket.serialStatus
@@ -202,6 +486,7 @@ export const getPrizePayoutIneligibilityMessage = (ticket: PurchasedTicket): str
     }
     return null;
 };
+
 
 export const formatPrizePayoutCurrency = (value?: number | null) =>
     value == null ? '—' : `${Number(value).toLocaleString('vi-VN')}đ`;

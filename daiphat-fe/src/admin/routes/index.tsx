@@ -84,6 +84,7 @@ const RefundListPage = lazy(() => import("../pages/refund/RefundListPage").then(
 const RefundDetailPage = lazy(() => import("../pages/refund/RefundDetailPage").then(m => ({ default: m.RefundDetailPage })));
 const PrizePayoutListPage = lazy(() => import("../pages/prize-payout/PrizePayoutListPage").then(m => ({ default: m.PrizePayoutListPage })));
 const PrizePayoutDetailPage = lazy(() => import("../pages/prize-payout/PrizePayoutDetailPage").then(m => ({ default: m.PrizePayoutDetailPage })));
+const PrizePayoutCreatePage = lazy(() => import("../pages/prize-payout/PrizePayoutCreatePage").then(m => ({ default: m.PrizePayoutCreatePage })));
 const RefundCreatePage = lazy(() => import("../pages/refund/RefundCreatePage").then(m => ({ default: m.RefundCreatePage })));
 const OrderCancelWithRefundPage = lazy(() => import("../pages/refund/OrderCancelWithRefundPage").then(m => ({ default: m.OrderCancelWithRefundPage })));
 const SupportTicketListPage = lazy(() => import("../features/support-ticket/components/pages/SupportTicketListPage").then(m => ({ default: m.SupportTicketListPage })));
@@ -166,6 +167,7 @@ export const AdminRoutes: AdminRouteItem[] = [
     { path: "refunds/detail/:id", permission: PERMISSIONS.REFUND.VIEW, Component: RefundDetailPage },
     { path: "refunds/create", permission: PERMISSIONS.REFUND.PROCESS, Component: RefundCreatePage },
     { path: "prize-payouts/list", permission: PERMISSIONS.PRIZE_PAYOUT.VIEW, Component: PrizePayoutListPage },
+    { path: "prize-payouts/create", permission: PERMISSIONS.PRIZE_PAYOUT.PROCESS, Component: PrizePayoutCreatePage },
     { path: "prize-payouts/detail/:id", permission: PERMISSIONS.PRIZE_PAYOUT.VIEW, Component: PrizePayoutDetailPage },
     { path: "support-tickets/list", permission: PERMISSIONS.SUPPORT_TICKET.VIEW, Component: SupportTicketListPage },
     { path: "support-tickets/detail/:id", permission: PERMISSIONS.SUPPORT_TICKET.VIEW, Component: SupportTicketDetailPage },

@@ -174,7 +174,8 @@ public class SupportTicketEventListener {
         notifyUser(
                 event.customerId(),
                 "Yêu cầu hỗ trợ đã đóng",
-                String.format("Yêu cầu hỗ trợ về %s: \"%s\" đã được đóng theo xác nhận của bạn.",
+                String.format(
+                        "Yêu cầu hỗ trợ về %s: \"%s\" đã được đóng.",
                         event.categoryName(), event.title()),
                 event.ticketId());
     }

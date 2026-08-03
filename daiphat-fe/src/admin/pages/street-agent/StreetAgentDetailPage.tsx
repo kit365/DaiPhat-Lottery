@@ -1,3 +1,5 @@
+"use client";
+
 import { useParams } from "react-router-dom";
 import {
     Avatar,

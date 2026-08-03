@@ -171,7 +171,13 @@ public class GlobalExceptionAdvice {
             return exception.getMessage();
         }
 
-        if (errorCode == ErrorCode.LOTTERY_TICKET_INVALID_STATUS
+        if (errorCode == ErrorCode.INVALID_INPUT
+                || errorCode == ErrorCode.ORDER_DETAIL_NOT_FOUND
+                || errorCode == ErrorCode.PRIZE_PAYOUT_NOT_ELIGIBLE
+                || errorCode == ErrorCode.PRIZE_PAYOUT_ALREADY_REQUESTED
+                || errorCode == ErrorCode.PRIZE_PAYOUT_REQUIRES_IN_PERSON
+                || errorCode == ErrorCode.PRIZE_PAYOUT_INVALID_STATUS
+                || errorCode == ErrorCode.LOTTERY_TICKET_INVALID_STATUS
                 || errorCode == ErrorCode.LOTTERY_TICKET_EXPIRED
                 || errorCode == ErrorCode.LOTTERY_TICKET_BOOKING_CLOSED
                 || errorCode == ErrorCode.LOTTERY_STATION_INVALID_DRAW_SCHEDULE

@@ -49,6 +49,22 @@ public class PrizePayoutRequestRepositoryAdapter implements PrizePayoutRequestRe
     }
 
     @Override
+    public long countBySerialIdAndChannelAndStatuses(
+            Long serialId,
+            com.daiphat.coreapi.domain.model.enums.payout.PrizePayoutChannel channel,
+            Collection<PrizePayoutRequestStatus> statuses) {
+        return prizePayoutRequestRepository.countBySerial_IdAndChannelAndStatusIn(serialId, channel, statuses);
+    }
+
+    @Override
+    public boolean existsBySerialIdAndChannelAndStatus(
+            Long serialId,
+            com.daiphat.coreapi.domain.model.enums.payout.PrizePayoutChannel channel,
+            PrizePayoutRequestStatus status) {
+        return prizePayoutRequestRepository.existsBySerial_IdAndChannelAndStatus(serialId, channel, status);
+    }
+
+    @Override
     public Optional<PrizePayoutRequestModel> findPendingBySerialId(Long serialId) {
         return prizePayoutRequestRepository.findBySerial_IdAndStatus(serialId, PrizePayoutRequestStatus.PENDING)
                 .map(prizePayoutRequestPersistenceMapper::toDomain);

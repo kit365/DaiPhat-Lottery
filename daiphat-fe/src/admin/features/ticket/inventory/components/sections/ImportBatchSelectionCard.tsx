@@ -1,3 +1,5 @@
+"use client";
+
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import {
     Box,

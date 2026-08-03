@@ -1,3 +1,5 @@
+"use client";
+
 import { RoleEnum } from "../../../../../types/role.type";
 import React, { useState, useMemo } from 'react';
 import { useNavigate } from '@/components/router-compat';

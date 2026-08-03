@@ -1,3 +1,5 @@
+"use client";
+
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supportTicketService } from '../services/supportTicketService';
 import {
@@ -142,12 +144,12 @@ export const useCloseComplaint = () => {
         mutationFn: (id: number) => supportTicketService.close(id),
         onSuccess: (response, id) => {
             if (response.success) {
-                toast.success(response.message || 'Đóng yêu cầu hỗ trợ thành công');
+                toast.success(response.message || 'Huỷ khiếu nại thành công');
                 queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.CLIENT_MY_COMPLAINTS] });
                 queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.CLIENT_COMPLAINT_DETAIL, id] });
                 queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.CLIENT_TICKET_COMMENTS, id] });
             } else {
-                toast.error(response.message || 'Có lỗi xảy ra khi đóng yêu cầu');
+                toast.error(response.message || 'Có lỗi xảy ra khi huỷ khiếu nại');
             }
         },
         onError: (error: any) => {

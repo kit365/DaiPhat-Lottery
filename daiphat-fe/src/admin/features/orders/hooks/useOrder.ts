@@ -1,3 +1,5 @@
+"use client";
+
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from 'react';
 import dayjs, { Dayjs } from 'dayjs';

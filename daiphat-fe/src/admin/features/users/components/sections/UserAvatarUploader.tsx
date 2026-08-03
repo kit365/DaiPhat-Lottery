@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useRef } from 'react';
 import { Box, Card, Typography, Stack } from '@mui/material';
 import { toast } from 'react-toastify';

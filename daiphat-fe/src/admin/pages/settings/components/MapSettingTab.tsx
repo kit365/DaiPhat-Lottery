@@ -1,3 +1,5 @@
+"use client";
+
 import { Box, Card, Grid, TextField, Button, Typography, Stack, Alert, Link } from "@mui/material";
 import { Icon } from "@iconify/react";
 import { useForm, Controller } from "react-hook-form";

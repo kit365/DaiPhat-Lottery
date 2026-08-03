@@ -1,3 +1,5 @@
+"use client";
+
 import WarningAmberOutlinedIcon from '@mui/icons-material/WarningAmberOutlined';
 import {
     Alert,

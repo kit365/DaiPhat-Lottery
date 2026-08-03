@@ -1,3 +1,5 @@
+"use client";
+
 import { Box, CircularProgress, Typography } from '@mui/material';
 import { useNavigate, useParams } from '@/components/router-compat';
 import { Breadcrumb } from '../../../../components/ui/Breadcrumb';

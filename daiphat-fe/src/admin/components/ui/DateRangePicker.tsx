@@ -1,3 +1,5 @@
+"use client";
+
 import { useState, useMemo } from 'react';
 import { Popover, Box, FormControl, FormHelperText, Typography, Button } from '@mui/material';
 import { useTheme } from '@mui/material/styles';

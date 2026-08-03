@@ -1,3 +1,5 @@
+"use client";
+
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { orderService } from '../services/orderService';
 import { CreateOnlineOrderRequest, GetMyOrdersParams } from '../../types/order.type';

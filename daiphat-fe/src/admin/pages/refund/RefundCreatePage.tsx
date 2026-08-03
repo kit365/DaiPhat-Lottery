@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useMemo, useState } from 'react';
 import { useLocation, useNavigate } from '@/components/router-compat';
 import {

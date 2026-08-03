@@ -1,3 +1,5 @@
+"use client";
+
 import { Grid, Box, Typography, Button, Divider, Menu, MenuItem, Stack, Table, TableBody, TableCell, TableHead, TableRow, TableContainer, Avatar } from "@mui/material"
 import WelcomeWidget from "../../components/dashboard/WelcomeWidget";
 import SummaryWidget from "../../components/dashboard/SummaryWidget";

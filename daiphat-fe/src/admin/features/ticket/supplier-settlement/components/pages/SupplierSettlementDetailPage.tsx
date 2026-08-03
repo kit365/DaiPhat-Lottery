@@ -1,3 +1,5 @@
+"use client";
+
 import { Box, CircularProgress, Stack, Typography } from '@mui/material';
 import dayjs from 'dayjs';
 import { useParams } from '@/components/router-compat';

@@ -1,3 +1,5 @@
+"use client";
+
 import { Alert, Button } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from '@/components/router-compat';

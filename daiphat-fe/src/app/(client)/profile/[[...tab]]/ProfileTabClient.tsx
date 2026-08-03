@@ -83,7 +83,7 @@ export function ProfileTabClient({ tabSegments }: { tabSegments: string[] }) {
 
   return (
     <PrivateRoute>
-      <OutletProvider outlet={tabContent}>
+      <OutletProvider outlet={tabContent} params={second ? { id: second } : {}}>
         <Suspense fallback={<LoadingSpinner />}>
           <ClientProfilePage />
         </Suspense>

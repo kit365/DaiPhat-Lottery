@@ -4,12 +4,15 @@ export enum ConfigType {
     TICKET_IMPORT = 'TICKET_IMPORT',
     REFUND_SETTING = 'REFUND_SETTING',
     COMPLAINT_SETTING = 'COMPLAINT_SETTING',
+    PAYOUT_SETTING = 'PAYOUT_SETTING',
 }
 
 export enum ConfigDataType {
     INT = 'INT',
     TIME = 'TIME',
     BOOLEAN = 'BOOLEAN',
+    DECIMAL = 'DECIMAL',
+    JSON = 'JSON',
 }
 
 export const CONFIG_TYPE_LABELS: Record<ConfigType, string> = {
@@ -18,12 +21,15 @@ export const CONFIG_TYPE_LABELS: Record<ConfigType, string> = {
     [ConfigType.TICKET_IMPORT]: 'Cấu hình nhập vé',
     [ConfigType.REFUND_SETTING]: 'Cấu hình hoàn tiền',
     [ConfigType.COMPLAINT_SETTING]: 'Cấu hình khiếu nại',
+    [ConfigType.PAYOUT_SETTING]: 'Cấu hình trả thưởng',
 };
 
 export const CONFIG_DATA_TYPE_LABELS: Record<ConfigDataType, string> = {
     [ConfigDataType.INT]: 'Số nguyên',
     [ConfigDataType.TIME]: 'Thời gian (HH:mm)',
     [ConfigDataType.BOOLEAN]: 'Boolean (true/false)',
+    [ConfigDataType.DECIMAL]: 'Số thập phân',
+    [ConfigDataType.JSON]: 'Danh sách mức',
 };
 
 export interface SystemConfigValidationRules {

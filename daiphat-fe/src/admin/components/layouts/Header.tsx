@@ -1,3 +1,5 @@
+"use client";
+
 import AppBar from "@mui/material/AppBar";
 import useScrollTrigger from '@mui/material/useScrollTrigger';
 import React from "react";

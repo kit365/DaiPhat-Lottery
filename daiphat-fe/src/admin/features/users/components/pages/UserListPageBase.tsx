@@ -1,3 +1,5 @@
+"use client";
+
 import { RoleEnum } from "../../../../../types/role.type";
 import React, { useState } from 'react';
 import { Card, Button, Tabs, Tab } from '@mui/material';

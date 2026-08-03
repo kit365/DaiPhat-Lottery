@@ -1,3 +1,5 @@
+"use client";
+
 import { Box } from '@mui/material';
 import { Control, FieldPath } from 'react-hook-form';
 import { useCallback } from 'react';

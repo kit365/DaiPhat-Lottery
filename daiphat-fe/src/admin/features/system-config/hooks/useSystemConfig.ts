@@ -1,3 +1,5 @@
+"use client";
+
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { getSystemConfigs, updateSystemConfig } from '../services/systemConfigService';
 import { ConfigType, UpdateSystemConfigRequest } from '../types/system-config';

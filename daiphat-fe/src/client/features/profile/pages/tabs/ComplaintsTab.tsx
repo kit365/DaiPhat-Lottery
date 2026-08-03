@@ -1,10 +1,13 @@
+"use client";
+
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import { ComplaintStatusBadge } from '../../../../components/support/ComplaintStatusBadge';
 import { ComplaintFormModal } from '../../../../components/support/ComplaintFormModal';
-import { useGetMyTickets, useGetTicketCategories } from '../../../../hooks/useSupportTicket';
-import { TicketStatus, TICKET_STATUS_LABELS } from '../../../../../types/support.type';
+import { useCloseComplaint, useGetMyTickets, useGetTicketCategories } from '../../../../hooks/useSupportTicket';
+import { TicketStatus, TICKET_STATUS_LABELS, canCustomerCancelTicket } from '../../../../../types/support.type';
+import { AppToast } from '../../../../../utils/toast.util';
 import { ProfileTablePagination } from '../components/ProfileTablePagination';
 
 const STATUS_TABS: { value: TicketStatus | 'ALL'; label: string }[] = [
@@ -23,8 +26,10 @@ export const ComplaintsTab = () => {
     const [page, setPage] = useState(1);
     const [searchTerm, setSearchTerm] = useState('');
     const [showCreateModal, setShowCreateModal] = useState(false);
+    const [cancellingId, setCancellingId] = useState<number | null>(null);
 
     const { data: categoriesData } = useGetTicketCategories();
+    const closeMutation = useCloseComplaint();
     const { data: ticketsData, isLoading } = useGetMyTickets({
         page,
         limit: 10,
@@ -44,6 +49,18 @@ export const ComplaintsTab = () => {
 
     const tickets = ticketsData?.data?.recordList || [];
     const pagination = ticketsData?.data?.pagination;
+
+    const handleCancel = async (ticketId: number) => {
+        const confirmed = await AppToast.confirm(
+            'Bạn có chắc muốn huỷ khiếu nại này? Hành động này không thể hoàn tác.',
+            'Huỷ khiếu nại'
+        );
+        if (!confirmed) return;
+        setCancellingId(ticketId);
+        closeMutation.mutate(ticketId, {
+            onSettled: () => setCancellingId(null),
+        });
+    };
 
     return (
         <div className="flex flex-col gap-5">
@@ -93,7 +110,7 @@ export const ComplaintsTab = () => {
                                 <th className="py-4 px-5 text-[13px] font-semibold text-[#637381] align-middle">Trạng thái</th>
                                 <th className="py-4 px-5 text-[13px] font-semibold text-[#637381] align-middle whitespace-nowrap">Hạn xử lý</th>
                                 <th className="py-4 px-5 text-[13px] font-semibold text-[#637381] align-middle whitespace-nowrap">Ngày tạo</th>
-                                <th className="py-4 px-5 text-[13px] font-semibold text-[#637381] align-middle w-[100px] min-w-[100px] text-center">
+                                <th className="py-4 px-5 text-[13px] font-semibold text-[#637381] align-middle w-[140px] min-w-[140px] text-center">
                                     Thao tác
                                 </th>
                             </tr>
@@ -157,8 +174,8 @@ export const ComplaintsTab = () => {
                                                 {format(new Date(ticket.createdAt), 'dd/MM/yyyy HH:mm')}
                                             </span>
                                         </td>
-                                        <td className="py-4 px-5 align-middle w-[100px] min-w-[100px]">
-                                            <div className="flex items-center justify-center">
+                                        <td className="py-4 px-5 align-middle w-[140px] min-w-[140px]">
+                                            <div className="flex items-center justify-center gap-2">
                                                 <button
                                                     onClick={(e) => {
                                                         e.stopPropagation();
@@ -170,6 +187,24 @@ export const ComplaintsTab = () => {
                                                 >
                                                     <i className="fa-regular fa-eye text-[13px]"></i>
                                                 </button>
+                                                {canCustomerCancelTicket(ticket.status) && (
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            void handleCancel(ticket.id);
+                                                        }}
+                                                        disabled={cancellingId === ticket.id}
+                                                        className="w-8 h-8 shrink-0 rounded-lg border border-[#E5E8EB] inline-flex items-center justify-center text-[#919EAB] hover:text-[#ee1314] hover:border-[#ee1314] hover:bg-[#FFF4F4] transition-all cursor-pointer disabled:opacity-50"
+                                                        title="Huỷ khiếu nại"
+                                                        aria-label="Huỷ khiếu nại"
+                                                    >
+                                                        {cancellingId === ticket.id ? (
+                                                            <i className="fa-solid fa-spinner fa-spin text-[12px]"></i>
+                                                        ) : (
+                                                            <i className="fa-solid fa-ban text-[13px]"></i>
+                                                        )}
+                                                    </button>
+                                                )}
                                             </div>
                                         </td>
                                     </tr>

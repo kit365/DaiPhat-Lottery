@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useState } from 'react';
 import { Button } from '@mui/material';
 import SyncIcon from '@mui/icons-material/Sync';
