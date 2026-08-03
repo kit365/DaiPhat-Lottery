@@ -22,6 +22,16 @@ public interface PrizePayoutRequestRepositoryPort {
 
     boolean existsBySerialIdAndStatuses(Long serialId, Collection<PrizePayoutRequestStatus> statuses);
 
+    long countBySerialIdAndChannelAndStatuses(
+            Long serialId,
+            com.daiphat.coreapi.domain.model.enums.payout.PrizePayoutChannel channel,
+            Collection<PrizePayoutRequestStatus> statuses);
+
+    boolean existsBySerialIdAndChannelAndStatus(
+            Long serialId,
+            com.daiphat.coreapi.domain.model.enums.payout.PrizePayoutChannel channel,
+            PrizePayoutRequestStatus status);
+
     Optional<PrizePayoutRequestModel> findPendingBySerialId(Long serialId);
 
     Map<Long, PrizePayoutRequestModel> findPendingBySerialIds(Collection<Long> serialIds);

@@ -41,7 +41,7 @@ public class ImportBatchLineEntity extends BaseEntity {
     @Column(name = "declare_quantity", nullable = false)
     private Integer declareQuantity;
 
-    @Column(name = "declared_cost_value", nullable = false, precision = 15, scale = 0)
+    @Column(name = "declared_cost_value", nullable = false, precision = 18, scale = 3)
     @Builder.Default
     private BigDecimal declaredCostValue = BigDecimal.ZERO;
 
@@ -49,10 +49,10 @@ public class ImportBatchLineEntity extends BaseEntity {
     @Builder.Default
     private Integer totalQuantity = 0;
 
-    @Column(name = "import_cost", nullable = false, precision = 15, scale = 0)
+    @Column(name = "import_cost", nullable = false, precision = 18, scale = 3)
     private BigDecimal importCost;
 
-    @Column(name = "total_cost_value", nullable = false, precision = 15, scale = 0)
+    @Column(name = "total_cost_value", nullable = false, precision = 18, scale = 3)
     @Builder.Default
     private BigDecimal totalCostValue = BigDecimal.ZERO;
 

@@ -117,11 +117,12 @@ class OrderIncidentTicketServiceTest {
                 .serialNumber("NEW-002")
                 .status(LotteryTicketSerialStatus.IN_STOCK)
                 .build();
-        LotteryTicketSerialModel soldReplacement = LotteryTicketSerialModel.builder()
+        LotteryTicketSerialModel heldReplacement = LotteryTicketSerialModel.builder()
                 .id(2L)
                 .ticketId(100L)
                 .serialNumber("NEW-002")
-                .status(LotteryTicketSerialStatus.SOLD)
+                .status(LotteryTicketSerialStatus.PROXY_HOLDING)
+                .ticketCondition(com.daiphat.coreapi.domain.model.enums.lottery.TicketCondition.GOOD)
                 .build();
 
         when(orderRepositoryPort.findByIdWithLock(orderId)).thenReturn(Optional.of(order));
@@ -130,11 +131,10 @@ class OrderIncidentTicketServiceTest {
                 LotteryTicketModel.builder().id(100L).numbers("12345").build()));
         when(lotteryTicketServicePort.getById(100L)).thenReturn(
                 LotteryTicketResponse.builder().id(100L).numbers("12345").stationName("Đài TP").build());
-        when(lotteryTicketSerialRepositoryPort.findFirstByTicketIdAndStatusOrderByIdAsc(
-                100L, LotteryTicketSerialStatus.IN_STOCK))
-                .thenReturn(Optional.of(replacement));
+        when(lotteryTicketSerialRepositoryPort.findAllByTicketId(100L))
+                .thenReturn(List.of(oldSerial, replacement));
         when(lotteryTicketSerialRepositoryPort.save(any())).thenAnswer(inv -> inv.getArgument(0));
-        when(lotteryTicketSerialServicePort.markSold(2L)).thenReturn(soldReplacement);
+        when(lotteryTicketSerialServicePort.markProxyHoldingForPaidOrder(2L, orderId)).thenReturn(heldReplacement);
         when(orderRepositoryPort.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
         HandleOrderTicketIncidentResponse response = service.handleIncidents(
@@ -147,7 +147,8 @@ class OrderIncidentTicketServiceTest {
         assertThat(response.results().getFirst().newSerialNumber()).isEqualTo("NEW-002");
         assertThat(detail.getLotteryTicketSerialId()).isEqualTo(1L);
         assertThat(detail.getReplacedByTicketSerialId()).isEqualTo(2L);
-        assertThat(oldSerial.getStatus()).isEqualTo(LotteryTicketSerialStatus.DAMAGED);
+        assertThat(oldSerial.getStatus()).isEqualTo(LotteryTicketSerialStatus.SOLD);
+        assertThat(oldSerial.getTicketCondition()).isEqualTo(com.daiphat.coreapi.domain.model.enums.lottery.TicketCondition.DAMAGED);
 
         verify(orderDetailSerialRepositoryPort).replaceSerialAllocation(10L, 1L, 2L);
     }
@@ -179,9 +180,7 @@ class OrderIncidentTicketServiceTest {
                 LotteryTicketModel.builder().id(100L).numbers("12345").build()));
         when(lotteryTicketServicePort.getById(100L)).thenReturn(
                 LotteryTicketResponse.builder().id(100L).numbers("12345").build());
-        when(lotteryTicketSerialRepositoryPort.findFirstByTicketIdAndStatusOrderByIdAsc(
-                eq(100L), eq(LotteryTicketSerialStatus.IN_STOCK)))
-                .thenReturn(Optional.empty());
+        when(lotteryTicketSerialRepositoryPort.findAllByTicketId(100L)).thenReturn(List.of());
         when(orderRepositoryPort.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
         HandleOrderTicketIncidentResponse response = service.handleIncidents(

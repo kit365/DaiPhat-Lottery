@@ -10,6 +10,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
 
+import java.util.List;
 import java.util.Optional;
 
 @Component
@@ -53,6 +54,13 @@ public class LotterySupplierRepositoryAdapter implements LotterySupplierReposito
         return lotterySupplierRepository
                 .findAll(LotterySupplierSpecification.filter(search, isActive), pageable)
                 .map(lotterySupplierPersistenceMapper::toDomain);
+    }
+
+    @Override
+    public List<LotterySupplierModel> findAllActive() {
+        return lotterySupplierRepository.findByIsActiveTrueAndDeletedAtIsNull().stream()
+                .map(lotterySupplierPersistenceMapper::toDomain)
+                .toList();
     }
 
     @Override

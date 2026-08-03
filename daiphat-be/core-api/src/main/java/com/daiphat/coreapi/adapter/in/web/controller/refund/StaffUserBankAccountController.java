@@ -24,7 +24,9 @@ public class StaffUserBankAccountController {
     private final UserBankAccountServicePort userBankAccountServicePort;
 
     @GetMapping("/{userId}/bank-accounts")
-    @PreAuthorize("hasAuthority('refund:view') or hasAuthority('refund:process')")
+    @PreAuthorize(
+            "hasAuthority('refund:view') or hasAuthority('refund:process') "
+                    + "or hasAuthority('prizePayout:view') or hasAuthority('prizePayout:process')")
     public ApiResponse<List<UserBankAccountResponse>> getUserBankAccounts(@PathVariable UUID userId) {
         return ApiResponse.success(
                 "Lấy danh sách tài khoản ngân hàng của khách hàng thành công.",

@@ -71,6 +71,7 @@ public enum ErrorCode {
     INVALID_INPUT("SYS_006", "Dữ liệu nhập vào không hợp lệ.", HttpStatus.BAD_REQUEST),
     IMAGE_FILE_REQUIRED("SYS_007", "Vui lòng chọn một tệp hình ảnh.", HttpStatus.BAD_REQUEST),
     IMAGE_INVALID_TYPE("SYS_008", "Chỉ hỗ trợ tải lên các tệp định dạng hình ảnh.", HttpStatus.BAD_REQUEST),
+    IMAGE_UPLOAD_FAILED("SYS_009", "Không thể tải ảnh lên. Vui lòng kiểm tra cấu hình lưu trữ hoặc thử lại.", HttpStatus.BAD_GATEWAY),
     PASSWORD_CONFIRM_MISMATCH("AUTH_030", "Xác nhận mật khẩu không khớp", HttpStatus.BAD_REQUEST),
     ACCESS_DENIED("AUTH_031", "Bạn không có quyền truy cập tài nguyên này.", HttpStatus.FORBIDDEN),
 
@@ -135,6 +136,11 @@ public enum ErrorCode {
     PRIZE_PAYOUT_ALREADY_REQUESTED("ORD_042", "Vé đã có yêu cầu trả thưởng hoặc đã được trả.", HttpStatus.BAD_REQUEST),
     PRIZE_PAYOUT_BANK_ACCOUNT_MISMATCH("ORD_043", "Tài khoản ngân hàng không thuộc khách hàng.", HttpStatus.BAD_REQUEST),
     PRIZE_PAYOUT_CODE_GENERATION_FAILED("ORD_044", "Không thể tạo mã yêu cầu trả thưởng.", HttpStatus.INTERNAL_SERVER_ERROR),
+    PRIZE_PAYOUT_BANK_NAME_MISMATCH("ORD_045", "Tên chủ tài khoản ngân hàng không khớp tên khách hàng.", HttpStatus.BAD_REQUEST),
+    PRIZE_PAYOUT_BLOCKS_PICKUP("ORD_046", "Vé đang có yêu cầu trả thưởng — không thể nhận vé vật lý.", HttpStatus.BAD_REQUEST),
+    PRIZE_PAYOUT_REQUIRES_IN_PERSON("ORD_047", "Vé này bắt buộc đổi thưởng trực tiếp tại đại lý.", HttpStatus.BAD_REQUEST),
+    PRIZE_PAYOUT_FOUR_EYES_REQUIRED("ORD_048", "Giao dịch từ ngưỡng thuế trở lên cần nhân viên khác xác nhận trả thưởng.", HttpStatus.BAD_REQUEST),
+    PRIZE_PAYOUT_RECIPIENT_IDENTITY_REQUIRED("ORD_049", "Cần thu thập CCCD / tên người nhận trước khi tạo yêu cầu.", HttpStatus.BAD_REQUEST),
 
     // Lottery Errors
     // Lottery Product Errors
@@ -229,6 +235,33 @@ public enum ErrorCode {
     LOTTERY_SUPPLIER_NOT_FOUND("LT_077", "Nhà cung cấp không tồn tại.", HttpStatus.NOT_FOUND),
     LOTTERY_SUPPLIER_CODE_DUPLICATE("LT_078", "Mã nhà cung cấp đã tồn tại.", HttpStatus.BAD_REQUEST),
     LOTTERY_SUPPLIER_INACTIVE("LT_079", "Nhà cung cấp đang ngừng hoạt động.", HttpStatus.BAD_REQUEST),
+    SUPPLIER_SETTLEMENT_NOT_FOUND("LT_110", "Kỳ đối soát nhà cung cấp không tồn tại.", HttpStatus.NOT_FOUND),
+    RETURN_BATCH_NOT_FOUND("LT_111", "Phiếu trả vé không tồn tại.", HttpStatus.NOT_FOUND),
+    RETURN_BATCH_LINE_NOT_FOUND("LT_112", "Dòng phiếu trả vé không tồn tại.", HttpStatus.NOT_FOUND),
+    RETURN_BATCH_INVALID_STATUS("LT_113", "Trạng thái phiếu trả vé không hợp lệ cho thao tác này.", HttpStatus.BAD_REQUEST),
+    RETURN_BATCH_LINE_INVALID_STATUS("LT_114", "Trạng thái dòng trả vé không hợp lệ cho thao tác này.", HttpStatus.BAD_REQUEST),
+    RETURN_BATCH_PENDING_EXISTS(
+            "LT_115",
+            "Đã có phiếu trả vé cho cùng nhà cung cấp và ngày quay.",
+            HttpStatus.CONFLICT
+    ),
+    RETURN_BATCH_SERIAL_NOT_ELIGIBLE(
+            "LT_116",
+            "Sê-ri không đủ điều kiện để gắn vào phiếu trả vé.",
+            HttpStatus.BAD_REQUEST
+    ),
+    RETURN_BATCH_DUPLICATE_STATION("LT_117", "Mỗi nhà đài chỉ được khai báo một lần trong cùng phiếu trả vé.", HttpStatus.BAD_REQUEST),
+    RETURN_BATCH_SUPPLIER_REQUIRED("LT_118", "Nhà cung cấp không được để trống.", HttpStatus.BAD_REQUEST),
+    RETURN_BATCH_READ_ONLY(
+            "LT_119",
+            "Phiếu trả vé được hệ thống tạo tự động và không thể chỉnh sửa.",
+            HttpStatus.METHOD_NOT_ALLOWED
+    ),
+    RETURN_BATCH_INSPECTION_EXPIRED(
+            "LT_120",
+            "The inspection period for this Return Batch has expired. Please return to the Return Batch List page.",
+            HttpStatus.CONFLICT
+    ),
     IMPORT_BATCH_SUPPLIER_REQUIRED("LT_080", "Nhà cung cấp không được để trống.", HttpStatus.BAD_REQUEST),
     IMPORT_BATCH_NO_SUPPLIER_CONFIGURED(
             "LT_084",
@@ -407,7 +440,7 @@ public enum ErrorCode {
     TICKET_CATEGORY_NOT_FOUND("TKT_003", "Danh mục yêu cầu hỗ trợ không tồn tại.", HttpStatus.NOT_FOUND),
     TICKET_INVALID_STATUS("TKT_004", "Trạng thái yêu cầu hỗ trợ không hợp lệ cho thao tác này.", HttpStatus.BAD_REQUEST),
     TICKET_CANNOT_UPDATE("TKT_005", "Không thể cập nhật yêu cầu hỗ trợ ở trạng thái hiện tại.", HttpStatus.BAD_REQUEST),
-    TICKET_CANNOT_CLOSE("TKT_006", "Chỉ có thể đóng yêu cầu hỗ trợ đang ở trạng thái mới tạo.", HttpStatus.BAD_REQUEST),
+    TICKET_CANNOT_CLOSE("TKT_006", "Không thể huỷ khiếu nại đã giải quyết, đã từ chối hoặc đã đóng.", HttpStatus.BAD_REQUEST),
     TICKET_REF_REQUIRED("TKT_007", "Danh mục này yêu cầu chọn đối tượng tham chiếu.", HttpStatus.BAD_REQUEST),
     TICKET_REF_INVALID("TKT_008", "Đối tượng tham chiếu không hợp lệ.", HttpStatus.BAD_REQUEST),
     TICKET_REF_ORDER_MISMATCH("TKT_009", "Đơn hàng không thuộc tài khoản của bạn.", HttpStatus.BAD_REQUEST),
@@ -465,6 +498,22 @@ public enum ErrorCode {
             "TKT_030",
             "Khiếu nại lỗi đồng bộ thanh toán yêu cầu đính kèm biên lai chuyển khoản.",
             HttpStatus.BAD_REQUEST),
+    TICKET_REF_PRIZE_PAYOUT_MISMATCH(
+            "TKT_031",
+            "Yêu cầu trả thưởng không tồn tại hoặc không thuộc tài khoản của bạn.",
+            HttpStatus.BAD_REQUEST),
+    TICKET_PRIZE_PAYOUT_COMPLAINT_TOO_EARLY(
+            "TKT_032",
+            "Yêu cầu trả thưởng vẫn trong thời gian cam kết xử lý (%d giờ). Vui lòng chờ trong khi chúng tôi xử lý yêu cầu của bạn.",
+            HttpStatus.BAD_REQUEST),
+    TICKET_PRIZE_PAYOUT_COMPLAINT_STATUS_INVALID(
+            "TKT_033",
+            "Trạng thái yêu cầu trả thưởng không hợp lệ cho loại khiếu nại này.",
+            HttpStatus.BAD_REQUEST),
+    TICKET_PRIZE_PAYOUT_COMPLAINT_WINDOW_EXPIRED(
+            "TKT_034",
+            "Yêu cầu trả thưởng này đã hết thời hạn khiếu nại (hết hạn sau %d ngày).",
+            HttpStatus.BAD_REQUEST),
 
     // Chat Errors
     CONVERSATION_NOT_FOUND("CHT_001", "Không tìm thấy cuộc trò chuyện.", HttpStatus.NOT_FOUND),
@@ -495,7 +544,21 @@ public enum ErrorCode {
     SYSTEM_CONFIG_NOT_FOUND("CFG_001", "Cấu hình hệ thống không tồn tại.", HttpStatus.NOT_FOUND),
     SYSTEM_CONFIG_VALUE_INVALID("CFG_002", "Giá trị cấu hình không hợp lệ với kiểu dữ liệu.", HttpStatus.BAD_REQUEST),
     SYSTEM_CONFIG_TYPE_INVALID("CFG_003", "Loại cấu hình không hợp lệ.", HttpStatus.BAD_REQUEST),
-    SYSTEM_CONFIG_NOT_EDITABLE("CFG_004", "Cấu hình này không cho phép chỉnh sửa bởi Admin.", HttpStatus.FORBIDDEN);
+    SYSTEM_CONFIG_NOT_EDITABLE("CFG_004", "Cấu hình này không cho phép chỉnh sửa bởi Admin.", HttpStatus.FORBIDDEN),
+
+    // Fortune cast (oracle jar)
+    FORTUNE_BIRTH_YEAR_REQUIRED(
+            "FRT_001",
+            "Birth year is required to cast your fortune.",
+            HttpStatus.BAD_REQUEST),
+    FORTUNE_BIRTH_YEAR_INVALID(
+            "FRT_002",
+            "Birth year is invalid.",
+            HttpStatus.BAD_REQUEST),
+    FORTUNE_NO_INVENTORY(
+            "FRT_003",
+            "No sellable ticket endings are available for today's draw.",
+            HttpStatus.CONFLICT);
 
     private final String code;
     private final String message;
