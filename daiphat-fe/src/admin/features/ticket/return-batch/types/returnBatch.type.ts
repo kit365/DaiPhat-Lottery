@@ -2,7 +2,8 @@ export type ReturnBatchStatus =
     | 'PENDING_INSPECTION'
     | 'INSPECTING'
     | 'PENDING_HANDOVER'
-    | 'HANDED_OVER';
+    | 'HANDED_OVER'
+    | 'CANCELLED';
 
 export type ReturnBatchLineStatus =
     | 'PENDING'
@@ -40,6 +41,18 @@ export interface ReturnBatch {
     status: ReturnBatchStatus;
     statusLabel?: string | null;
     note?: string | null;
+    cancelReason?: string | null;
+    cancelledAt?: string | null;
+    returnCutOffTime?: string | null;
+    returnBufferMinutes?: number | null;
+    returnReminderMinutes?: number | null;
+    inspectionWindowStartAt?: string | null;
+    reminderTriggerAt?: string | null;
+    returnCutOffAt?: string | null;
+    minutesUntilCutoff?: number | null;
+    inspectionExpired?: boolean;
+    inInspectionWindow?: boolean;
+    urgentReminder?: boolean;
     lines?: ReturnBatchLine[];
     createdAt?: string | null;
     updatedAt?: string | null;
@@ -95,4 +108,8 @@ export interface ConfirmReturnInspectionPayload {
 
 export interface ConfirmReturnHandoverPayload {
     returnReceiptUrl?: string | null;
+    note?: string | null;
 }
+
+export const RETURN_BATCH_INSPECTION_EXPIRED_MESSAGE =
+    'The inspection period for this Return Batch has expired. Please return to the Return Batch List page.';

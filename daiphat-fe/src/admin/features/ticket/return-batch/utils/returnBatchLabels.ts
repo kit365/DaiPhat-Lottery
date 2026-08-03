@@ -5,6 +5,7 @@ export const RETURN_BATCH_STATUS_LABELS: Record<ReturnBatchStatus, string> = {
     INSPECTING: 'Đang kiểm tra vé',
     PENDING_HANDOVER: 'Chờ bàn giao nhà cung cấp',
     HANDED_OVER: 'Đã bàn giao nhà cung cấp',
+    CANCELLED: 'Đã hủy',
 };
 
 export const RETURN_BATCH_LINE_STATUS_LABELS: Record<ReturnBatchLineStatus, string> = {
@@ -34,6 +35,8 @@ export const getReturnBatchStatusBadgeClass = (status?: ReturnBatchStatus | null
             return 'admin-status-badge--active';
         case 'HANDED_OVER':
             return 'admin-status-badge--success';
+        case 'CANCELLED':
+            return 'admin-status-badge--inactive';
         default:
             return 'admin-status-badge--draft';
     }
@@ -56,11 +59,12 @@ export const getReturnBatchLineStatusBadgeClass = (status?: ReturnBatchLineStatu
 
 export const getReturnBatchStatusChipColor = (
     status?: ReturnBatchStatus | null
-): 'default' | 'warning' | 'info' | 'success' => {
+): 'default' | 'warning' | 'info' | 'success' | 'error' => {
     if (status === 'PENDING_INSPECTION') return 'warning';
     if (status === 'INSPECTING') return 'info';
     if (status === 'PENDING_HANDOVER') return 'warning';
     if (status === 'HANDED_OVER') return 'success';
+    if (status === 'CANCELLED') return 'error';
     return 'default';
 };
 
@@ -75,7 +79,21 @@ export const canContinueInspection = (status?: ReturnBatchStatus | string | null
 export const isOpenForInspection = (status?: ReturnBatchStatus | null) =>
     canStartInspection(status) || canContinueInspection(status);
 
+/** View-only access to the inspection screen after cancel / expiry. */
+export const canViewInspection = (status?: ReturnBatchStatus | string | null) =>
+    isOpenForInspection(status as ReturnBatchStatus) || status === 'CANCELLED';
+
 export const canAttachSerials = (
     batchStatus?: ReturnBatchStatus | null,
     lineStatus?: ReturnBatchLineStatus | null
 ) => isOpenForInspection(batchStatus) && lineStatus === 'PENDING';
+
+export const formatMinutesUntilCutoff = (minutes?: number | null): string => {
+    if (minutes == null || Number.isNaN(minutes)) return '—';
+    if (minutes <= 0) return '0 phút';
+    const h = Math.floor(minutes / 60);
+    const m = minutes % 60;
+    if (h <= 0) return `${m} phút`;
+    if (m === 0) return `${h} giờ`;
+    return `${h} giờ ${m} phút`;
+};

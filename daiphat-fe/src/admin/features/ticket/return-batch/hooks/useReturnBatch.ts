@@ -43,6 +43,7 @@ export const useReturnBatchDetail = (id?: string | number) => {
         select: (res: any) => res.data ?? null,
         staleTime: 0,
         refetchOnMount: 'always',
+        refetchInterval: 30_000,
     });
 };
 
@@ -192,6 +193,7 @@ export const useReturnBatchList = () => {
 
     const { data, isLoading, error } = useReturnBatches(queryParams, {
         placeholderData: keepPreviousData,
+        refetchInterval: 30_000,
     });
 
     const batches = useMemo(() => (data as any)?.recordList ?? [], [data]);

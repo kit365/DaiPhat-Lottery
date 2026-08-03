@@ -24,6 +24,7 @@ const RETURN_BATCH_STATUS_OPTIONS = [
     { value: 'INSPECTING', label: 'Đang kiểm tra vé' },
     { value: 'PENDING_HANDOVER', label: 'Chờ bàn giao' },
     { value: 'HANDED_OVER', label: 'Đã bàn giao' },
+    { value: 'CANCELLED', label: 'Đã hủy' },
 ];
 
 export const ReturnBatchToolbar = ({
