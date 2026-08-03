@@ -2,6 +2,7 @@ package com.daiphat.coreapi.application.port.out.lotteries;
 
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus;
 import com.daiphat.coreapi.domain.model.lotteries.LotteryTicketSerialModel;
+import com.daiphat.coreapi.domain.model.lotteries.SettlementStationInventoryRow;
 
 import java.util.Collection;
 import java.util.List;
@@ -68,4 +69,6 @@ public interface LotteryTicketSerialRepositoryPort {
             java.time.LocalDate drawDate,
             Collection<Long> stationIds
     );
+
+    List<SettlementStationInventoryRow> aggregateInventoryByStationForSettlement(Long settlementId);
 }

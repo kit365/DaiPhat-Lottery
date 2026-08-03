@@ -3,6 +3,7 @@ package com.daiphat.coreapi.adapter.in.web.controller.lotteries;
 import com.daiphat.coreapi.adapter.in.web.constants.ApiConstants;
 import com.daiphat.coreapi.adapter.in.web.response.ApiResponse;
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
+import com.daiphat.coreapi.application.dto.response.lotteries.SupplierSettlementOverviewResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.SupplierSettlementResponse;
 import com.daiphat.coreapi.application.port.in.lotteries.SupplierSettlementServicePort;
 import com.daiphat.coreapi.domain.model.enums.lottery.SupplierSettlementStatus;
@@ -56,6 +57,12 @@ public class SupplierSettlementController {
                         direction
                 )
         );
+    }
+
+    @GetMapping("/{id}/overview")
+    @PreAuthorize("hasAnyAuthority('supplier:view', 'importBatch:view')")
+    public ApiResponse<SupplierSettlementOverviewResponse> getOverview(@PathVariable Long id) {
+        return ApiResponse.success(null, supplierSettlementServicePort.getOverview(id));
     }
 
     @GetMapping("/{id}")

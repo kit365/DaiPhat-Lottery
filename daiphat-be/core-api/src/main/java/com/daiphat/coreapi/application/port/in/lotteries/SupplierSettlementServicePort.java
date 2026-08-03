@@ -1,6 +1,7 @@
 package com.daiphat.coreapi.application.port.in.lotteries;
 
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
+import com.daiphat.coreapi.application.dto.response.lotteries.SupplierSettlementOverviewResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.SupplierSettlementResponse;
 import com.daiphat.coreapi.domain.model.enums.lottery.SupplierSettlementStatus;
 import com.daiphat.coreapi.domain.model.lotteries.LotterySupplierModel;
@@ -17,14 +18,14 @@ public interface SupplierSettlementServicePort {
 
     /**
      * Recalculate totalImportValue from imported line quantities linked to this settlement.
-     * Also refreshes remainingAmount (= import − return − paid).
+     * Also refreshes remainingAmount (inspection-gated IN_STOCK/GOOD payable).
      */
     void recalculateTotalImportValue(Long settlementId);
 
     /**
      * Recalculate totalReturnValue from tickets prepared for return
      * (linked via returnBatchLineId), not only after full SUCCESS handover.
-     * Also refreshes remainingAmount (= import − return − paid).
+     * Also refreshes remainingAmount (inspection-gated IN_STOCK/GOOD payable).
      */
     void recalculateTotalReturnValue(Long settlementId);
 
@@ -46,4 +47,9 @@ public interface SupplierSettlementServicePort {
     );
 
     SupplierSettlementResponse getById(Long id);
+
+    /**
+     * Full read-only overview: settlement header, KPIs, linked batches, inventory by station.
+     */
+    SupplierSettlementOverviewResponse getOverview(Long id);
 }

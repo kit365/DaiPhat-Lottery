@@ -53,4 +53,6 @@ public interface ImportBatchRepositoryPort {
     long nextHeaderBatchCodeSequence();
 
     boolean existsNonCancelledBySupplierAndDrawDate(Long supplierId, LocalDate drawDate);
+
+    List<ImportBatchModel> findBySupplierSettlementId(Long supplierSettlementId);
 }

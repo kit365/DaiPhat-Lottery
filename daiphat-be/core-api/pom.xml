@@ -122,6 +122,13 @@
             <groupId>com.google.firebase</groupId>
             <artifactId>firebase-admin</artifactId>
             <version>9.3.0</version>
+            <!-- Prefer Spring's spring-jcl over Apache commons-logging (same LogFactory FQCN). -->
+            <exclusions>
+                <exclusion>
+                    <groupId>commons-logging</groupId>
+                    <artifactId>commons-logging</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
 
         <dependency>
