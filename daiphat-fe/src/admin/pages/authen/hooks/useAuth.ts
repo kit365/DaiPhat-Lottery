@@ -117,7 +117,7 @@ export const useAuth = () => {
                     navigate(ROUTES.ADMIN.DASHBOARD.SYSTEM);
                 } else {
                     toast.success("Đăng nhập thành công!");
-                    navigate(ROUTES.ADMIN.MANAGEMENT.ROOT);
+                    navigate(ROUTES.ADMIN.DASHBOARD.SYSTEM);
                 }
             } else {
                 toast.error(response.message || "Đăng nhập thất bại.");
@@ -200,7 +200,7 @@ export const useAuth = () => {
                     } else if (roleCode === USER_ROLES.ADMIN) {
                         navigate(ROUTES.ADMIN.DASHBOARD.SYSTEM);
                     } else {
-                        navigate(ROUTES.ADMIN.MANAGEMENT.ROOT);
+                        navigate(ROUTES.ADMIN.DASHBOARD.SYSTEM);
                     }
                 } catch (error) {
                     toast.error("Xác thực Google thành công nhưng không lấy được thông tin người dùng.");

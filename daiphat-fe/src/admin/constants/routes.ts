@@ -11,7 +11,7 @@ export const ROUTES = {
             SETUP_PROFILE: `/${prefixAdmin}/setup-profile`,
         },
         DASHBOARD: {
-            ROOT: `/${prefixAdmin}/management/dashboard`,
+            ROOT: `/${prefixAdmin}/dashboard`,
             SYSTEM: `/${prefixAdmin}/dashboard/system`,
             ANALYTICS: `/${prefixAdmin}/dashboard/analytics`,
             ECOMMERCE: `/${prefixAdmin}/dashboard/ecommerce`,
@@ -133,7 +133,7 @@ export const ROUTES = {
         PROFILE: `/${prefixAdmin}/profile`,
         ACCOUNT: `/${prefixAdmin}/account`,
         MANAGEMENT: {
-            ROOT: `/${prefixAdmin}/management/dashboard`,
+            ROOT: `/${prefixAdmin}/dashboard`,
         },
         SHIPPING: {
             ROOT: `/${prefixAdmin}/shipping/tasks`,
