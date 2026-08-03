@@ -1,3 +1,5 @@
+"use client";
+
 import {
     Box,
     Button,
@@ -28,6 +30,7 @@ import {
     preventNumberInputWheel,
 } from '../../../../supplier';
 import { computeImportBatchLineTotal } from '../../utils/importBatchTotals';
+import { computeImportCostFromStation, formatImportCost } from '../../utils/importCostCalculator';
 import type { ImportBatchEligibleStation, ImportBatchLineStatus, ImportBatchType } from '../../types/importBatch.type';
 
 type ImportBatchLineFormValues = CreateImportBatchFormValues | UpdateImportBatchFormValues;
@@ -116,6 +119,34 @@ export const ImportBatchLineRow = memo(function ImportBatchLineRow({
         stationName || selectedStation?.name || (lotteryStationId ? `Đài #${lotteryStationId}` : '—');
 
     const showStationSelect = !readOnly && !stationLocked;
+
+    useEffect(() => {
+        if (readOnly || stationLocked) {
+            return;
+        }
+        const nextCost = computeImportCostFromStation(
+            selectedStation?.price,
+            selectedStation?.commissionRate
+        );
+        if (nextCost == null) {
+            return;
+        }
+        if (Number(importCost) === nextCost) {
+            return;
+        }
+        setValue(`lines.${index}.importCost`, nextCost, {
+            shouldDirty: true,
+            shouldValidate: true,
+        });
+    }, [
+        importCost,
+        index,
+        readOnly,
+        selectedStation?.commissionRate,
+        selectedStation?.price,
+        setValue,
+        stationLocked,
+    ]);
 
     const lineTotal = computeImportBatchLineTotal({
         lotteryStationId,
@@ -356,55 +387,18 @@ export const ImportBatchLineRow = memo(function ImportBatchLineRow({
                 )}
             </TableCell>
             <TableCell sx={{ width: 148 }}>
-                {readOnly ? (
-                    <Typography variant="body2" sx={{ lineHeight: 1.5 }}>
-                        {Number(importCost).toLocaleString('vi-VN')} VNĐ
-                    </Typography>
-                ) : (
-                    <Controller
-                        name={`lines.${index}.importCost`}
-                        control={control}
-                        render={({ field, fieldState }) => (
-                            <TextField
-                                name={field.name}
-                                onBlur={field.onBlur}
-                                inputRef={field.ref}
-                                value={formatViInteger(field.value)}
-                                size="small"
-                                error={showErrors && !!fieldState.error}
-                                helperText={showErrors ? fieldState.error?.message : undefined}
-                                sx={{
-                                    width: 136,
-                                    '& .MuiFormHelperText-root': { mx: 0 },
-                                }}
-                                onChange={(e) => {
-                                    const parsed = parseNonNegativeIntegerInput(e.target.value);
-                                    field.onChange(parsed ?? 0);
-                                }}
-                                onKeyDown={(e) => {
-                                    if (e.key === '-' || e.key === 'e' || e.key === 'E' || e.key === '+') {
-                                        e.preventDefault();
-                                    }
-                                }}
-                                onWheel={preventNumberInputWheel}
-                                inputProps={{ inputMode: 'numeric' }}
-                                InputProps={{
-                                    endAdornment: (
-                                        <InputAdornment position="end">
-                                            <Typography variant="caption" color="text.secondary">
-                                                VNĐ
-                                            </Typography>
-                                        </InputAdornment>
-                                    ),
-                                }}
-                            />
-                        )}
-                    />
-                )}
+                <Typography variant="body2" sx={{ lineHeight: 1.5 }} title="Tính từ giá bán × (1 − hoa hồng đài)">
+                    {formatImportCost(importCost)} VNĐ
+                </Typography>
+                <Controller
+                    name={`lines.${index}.importCost`}
+                    control={control}
+                    render={({ field }) => <input type="hidden" {...field} value={field.value ?? ''} />}
+                />
             </TableCell>
             <TableCell align="right" sx={{ width: 108, whiteSpace: 'nowrap' }}>
                 <Typography variant="body2" sx={{ fontWeight: 600, lineHeight: 1.5 }}>
-                    {lineTotal.toLocaleString('vi-VN')} VNĐ
+                    {formatImportCost(lineTotal)} VNĐ
                 </Typography>
             </TableCell>
             <TableCell

@@ -1,5 +1,5 @@
 import { OrderDetailStatus } from '../../../../types/order.type';
-import { isAlreadyFaultReportedSerialStatus } from '../../ticket/import-batch/utils/serialIncidentWorkflow';
+import { isAlreadyFaultReportedSerial } from '../../ticket/import-batch/utils/serialIncidentWorkflow';
 
 export interface IncidentTicketDisplay {
     id: number | null;
@@ -9,11 +9,13 @@ export interface IncidentTicketDisplay {
     drawDate?: string;
     /** Order-detail lifecycle status (ACTIVE, REFUND_PENDING, ...). */
     status?: string;
-    /** Physical serial status (PROXY_HOLDING, DAMAGED, ...). */
+    /** Physical serial status (PROXY_HOLDING, SOLD, ...). */
     serialStatus?: string;
     serialStatusDisplayName?: string;
+    ticketCondition?: string;
+    ticketConditionDisplayName?: string;
     isIncidentEligible: boolean;
-    /** Serial already reported DAMAGED / LOST / VOIDED. */
+    /** Serial already reported DAMAGED / LOST / VOIDED (ticketCondition). */
     isAlreadyFaultReported: boolean;
     hasReplacement?: boolean;
     stationId?: number | string;
@@ -80,7 +82,20 @@ export function resolveOrderDetailTicketDisplay(detail: any): IncidentTicketDisp
         allocatedSerial?.statusDisplayName ||
         effectiveSerial?.statusDisplayName ||
         undefined;
-    const isAlreadyFaultReported = isAlreadyFaultReportedSerialStatus(serialStatus);
+    const ticketCondition =
+        detail?.ticketCondition ||
+        allocatedSerial?.ticketCondition ||
+        effectiveSerial?.ticketCondition ||
+        undefined;
+    const ticketConditionDisplayName =
+        detail?.ticketConditionDisplayName ||
+        allocatedSerial?.ticketConditionDisplayName ||
+        effectiveSerial?.ticketConditionDisplayName ||
+        undefined;
+    const isAlreadyFaultReported = isAlreadyFaultReportedSerial({
+        status: serialStatus,
+        ticketCondition,
+    });
     const detailActive = status === OrderDetailStatus.ACTIVE || status === 'ACTIVE';
 
     return {
@@ -92,6 +107,8 @@ export function resolveOrderDetailTicketDisplay(detail: any): IncidentTicketDisp
         status,
         serialStatus,
         serialStatusDisplayName,
+        ticketCondition,
+        ticketConditionDisplayName,
         isAlreadyFaultReported,
         isIncidentEligible: detailActive && !isAlreadyFaultReported,
         stationId,

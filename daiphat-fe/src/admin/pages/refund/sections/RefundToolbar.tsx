@@ -1,3 +1,5 @@
+"use client";
+
 import { Toolbar, Box, Button, SvgIcon, Tooltip, Menu, MenuItem } from "@mui/material";
 import { type Dispatch, type SetStateAction, useRef, useState } from "react";
 import { toast } from "react-toastify";

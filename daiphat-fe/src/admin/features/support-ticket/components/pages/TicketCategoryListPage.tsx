@@ -1,3 +1,5 @@
+"use client";
+
 import { useState, useMemo } from 'react';
 import { Title } from '../../../../components/ui/Title';
 import { Breadcrumb } from '../../../../components/ui/Breadcrumb';
@@ -64,7 +66,7 @@ export const TicketCategoryListPage = () => {
                     <Breadcrumb
                         items={[
                             { label: 'Bảng điều khiển', to: `/${prefixAdmin}` },
-                            { label: 'Khiếu nại / Hỗ trợ', to: `/${prefixAdmin}/support-tickets/list` },
+                            { label: 'Khiếu nại', to: `/${prefixAdmin}/support-tickets/list` },
                             { label: 'Danh mục' },
                         ]}
                     />

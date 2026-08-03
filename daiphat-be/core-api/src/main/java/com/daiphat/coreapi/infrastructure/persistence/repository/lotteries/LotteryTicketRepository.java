@@ -48,6 +48,8 @@ public interface LotteryTicketRepository
             where t.station.id = :productId
               and t.status in :statuses
               and s.status = 'IN_STOCK'
+              and s.ticketCondition = com.daiphat.coreapi.domain.model.enums.lottery.TicketCondition.GOOD
+              and s.returnBatchLineId is null
               and t.deletedAt is null
             """)
     long sumQuantityByStationIdAndStatusInAndDeletedAtIsNull(
@@ -58,6 +60,8 @@ public interface LotteryTicketRepository
             select new com.daiphat.coreapi.application.dto.lotteries.TicketAvailabilityKey(s.ticket.station.id, s.ticket.numbers, s.ticket.drawDate)
             from LotteryTicketSerialEntity s
             where s.status = 'IN_STOCK'
+              and s.ticketCondition = com.daiphat.coreapi.domain.model.enums.lottery.TicketCondition.GOOD
+              and s.returnBatchLineId is null
               and s.deletedAt is null
               and s.ticket.drawDate in :drawDates
               and s.ticket.station.id in :stationIds

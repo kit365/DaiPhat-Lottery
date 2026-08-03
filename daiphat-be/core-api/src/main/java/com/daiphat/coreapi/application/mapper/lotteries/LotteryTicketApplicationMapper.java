@@ -43,6 +43,8 @@ public interface LotteryTicketApplicationMapper {
 
     @Mapping(target = "status", expression = "java(model.getStatus() != null ? model.getStatus().name() : null)")
     @Mapping(target = "statusDisplayName", expression = "java(model.getStatus() != null ? model.getStatus().getDisplayName() : null)")
+    @Mapping(target = "ticketCondition", expression = "java(model.getTicketCondition() != null ? model.getTicketCondition().name() : null)")
+    @Mapping(target = "ticketConditionDisplayName", expression = "java(model.getTicketCondition() != null ? model.getTicketCondition().getDisplayName() : null)")
     @Mapping(target = "faultedBy", expression = "java(model.getFaultedBy() != null ? model.getFaultedBy().name() : null)")
     @Mapping(target = "faultedByDisplayName", expression = "java(model.getFaultedBy() != null ? model.getFaultedBy().getDisplayName() : null)")
     @Mapping(target = "inputSource", expression = "java(model.getInputSource() != null ? model.getInputSource().name() : null)")
@@ -63,6 +65,8 @@ public interface LotteryTicketApplicationMapper {
                 base.serialNumber(),
                 base.status(),
                 base.statusDisplayName(),
+                base.ticketCondition(),
+                base.ticketConditionDisplayName(),
                 base.inputSource(),
                 base.reservedAt(),
                 base.reservationExpiresAt(),
@@ -73,6 +77,10 @@ public interface LotteryTicketApplicationMapper {
                 base.verifiedById(),
                 base.verifiedAt(),
                 base.returnedAt(),
+                base.manualOverride(),
+                base.overrideReason(),
+                base.overrideEvidenceUrl(),
+                base.returnBatchLineId(),
                 base.faultedBy(),
                 base.faultedByDisplayName(),
                 base.damagedEvidenceUrl(),

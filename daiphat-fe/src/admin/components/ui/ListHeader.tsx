@@ -1,3 +1,5 @@
+"use client";
+
 import { ReactNode } from "react";
 import Button from "@mui/material/Button";
 import AddIcon from '@mui/icons-material/Add';

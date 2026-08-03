@@ -1,3 +1,5 @@
+"use client";
+
 import { Box, Typography, CircularProgress, Chip, TablePagination } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
 import { getOrders } from '../../../orders/services/orderService';
@@ -22,7 +24,7 @@ export const UserOrderHistory = ({ userId }: UserOrderHistoryProps) => {
             userId,
             page: page + 1,
             limit: rowsPerPage
-        }),
+        } as any),
         enabled: !!userId,
     });
 

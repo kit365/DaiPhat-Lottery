@@ -1,3 +1,5 @@
+"use client";
+
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getRegions, getRegionByCode, updateRegion } from "../services/regionService";
 import { UpdateLotteryRegionRequest } from "../types/region.type";

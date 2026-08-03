@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Eye, EyeOff, Check, X, ShieldCheck } from 'lucide-react';
@@ -27,7 +29,7 @@ export const PremiumPasswordInput: React.FC<PremiumPasswordInputProps> = ({
     id
 }) => {
     const [showPassword, setShowPassword] = useState(false);
-    const { passwordPolicy } = useAuth();
+    const { passwordPolicy } = useAuth() as any;
     
     const strengthData = useMemo(() => 
         calculatePasswordStrength(value, passwordPolicy), 

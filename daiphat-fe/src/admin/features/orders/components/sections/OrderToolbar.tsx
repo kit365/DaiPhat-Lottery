@@ -1,3 +1,5 @@
+"use client";
+
 import { Toolbar, Box, Button, Badge, SvgIcon } from "@mui/material";
 import { useMemo, type Dispatch, type SetStateAction } from "react";
 import { useTranslation } from "react-i18next";

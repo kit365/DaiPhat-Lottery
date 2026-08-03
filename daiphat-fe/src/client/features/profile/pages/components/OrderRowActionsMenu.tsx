@@ -1,3 +1,5 @@
+"use client";
+
 import { useEffect, useRef, useState } from 'react';
 import { OrderResponse, OrderStatus } from '../../../../../types/order.type';
 import { canShowRefundRequest } from '../../../../../types/refund.type';

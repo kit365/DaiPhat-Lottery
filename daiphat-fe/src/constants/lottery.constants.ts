@@ -10,9 +10,12 @@ export enum LotteryTicketSerialStatus {
     RESERVED = 'RESERVED',
     SOLD = 'SOLD',
     PROXY_HOLDING = 'PROXY_HOLDING',
-    PENDING_RETURN = 'PENDING_RETURN',
-    RETURNED = 'RETURNED',
     EXPIRED = 'EXPIRED',
+}
+
+/** Physical / data-entry condition of a lottery ticket serial (orthogonal to lifecycle status). */
+export enum TicketCondition {
+    GOOD = 'GOOD',
     DAMAGED = 'DAMAGED',
     LOST = 'LOST',
     VOIDED = 'VOIDED',

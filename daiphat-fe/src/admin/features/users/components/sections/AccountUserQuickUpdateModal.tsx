@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useEffect, useState } from 'react';
 import {
     Dialog,
@@ -160,7 +162,7 @@ export const AccountUserQuickUpdateModal = ({ open, onClose, id }: AccountUserQu
                         </Alert>
 
                         <Grid container spacing={2.5}>
-                            <Grid item xs={12}>
+                            <Grid size={12}>
                                 <TextField
                                     select
                                     label="Status"
@@ -179,7 +181,7 @@ export const AccountUserQuickUpdateModal = ({ open, onClose, id }: AccountUserQu
                                 </TextField>
                             </Grid>
 
-                            <Grid item xs={6}>
+                            <Grid size={6}>
                                 <TextField
                                     label="Họ"
                                     fullWidth
@@ -188,7 +190,7 @@ export const AccountUserQuickUpdateModal = ({ open, onClose, id }: AccountUserQu
                                 />
                             </Grid>
 
-                            <Grid item xs={6}>
+                            <Grid size={6}>
                                 <TextField
                                     label="Tên"
                                     fullWidth
@@ -197,7 +199,7 @@ export const AccountUserQuickUpdateModal = ({ open, onClose, id }: AccountUserQu
                                 />
                             </Grid>
 
-                            <Grid item xs={6}>
+                            <Grid size={6}>
                                 <TextField
                                     label="Địa chỉ email"
                                     fullWidth
@@ -206,7 +208,7 @@ export const AccountUserQuickUpdateModal = ({ open, onClose, id }: AccountUserQu
                                 />
                             </Grid>
 
-                            <Grid item xs={6}>
+                            <Grid size={6}>
                                 <TextField
                                     label="Số điện thoại"
                                     fullWidth

@@ -3,6 +3,7 @@ import { ApiResponse, EnumOptionResponse, PageResponse } from '../../types/api.t
 import {
     CreatePrizePayoutRequest,
     GetMyPrizePayoutsParams,
+    PrizePayoutPreviewResponse,
     PrizePayoutRequestResponse,
 } from '../../types/prize-payout.type';
 
@@ -11,6 +12,14 @@ const BASE_URL = '/prize-payout-requests';
 export const prizePayoutService = {
     create: async (data: CreatePrizePayoutRequest): Promise<ApiResponse<PrizePayoutRequestResponse>> => {
         const response = await apiApp.post(BASE_URL, data);
+        return response.data;
+    },
+
+    preview: async (params: {
+        orderDetailId?: number;
+        serialId?: number;
+    }): Promise<ApiResponse<PrizePayoutPreviewResponse>> => {
+        const response = await apiApp.get(`${BASE_URL}/preview`, { params });
         return response.data;
     },
 

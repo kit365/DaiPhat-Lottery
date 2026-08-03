@@ -68,7 +68,7 @@ public class ImportBatchEntity extends BaseEntity {
     @Builder.Default
     private Integer totalDeclareQuantity = 0;
 
-    @Column(name = "total_declared_cost_value", nullable = false, precision = 15, scale = 0)
+    @Column(name = "total_declared_cost_value", nullable = false, precision = 18, scale = 3)
     @Builder.Default
     private BigDecimal totalDeclaredCostValue = BigDecimal.ZERO;
 
@@ -76,7 +76,7 @@ public class ImportBatchEntity extends BaseEntity {
     @Builder.Default
     private Integer totalImportedQuantity = 0;
 
-    @Column(name = "total_imported_cost_value", nullable = false, precision = 15, scale = 0)
+    @Column(name = "total_imported_cost_value", nullable = false, precision = 18, scale = 3)
     @Builder.Default
     private BigDecimal totalImportedCostValue = BigDecimal.ZERO;
 

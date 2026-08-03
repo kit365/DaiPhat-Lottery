@@ -1,3 +1,5 @@
+"use client";
+
 import { ConversationTitle } from '../components/ConversationTitle';
 import { ConversationAvatarLetter } from '../components/ConversationAvatarLetter';
 import { getConversationDisplayTitle, getConversationAvatarLetter, getAssigneeDisplayLabel, getConversationPreviewText, getManagementUnreadCount } from '../utils';
@@ -257,7 +259,7 @@ export const ChatList = ({ conversations, onSelectConversation, onToggleMode, vi
     const handleSelectAllClick = (event: React.ChangeEvent<HTMLInputElement>) => {
         if (event.target.checked) {
             const newSelecteds = conversations.map((n: Conversation) => n.id);
-            setSelected(newSelecteds);
+            setSelected(newSelecteds.map(String));
             return;
         }
         setSelected([]);
@@ -295,9 +297,9 @@ export const ChatList = ({ conversations, onSelectConversation, onToggleMode, vi
         }
         return true;
     }).sort((a, b) => {
-        const aTime = new Date(a.updatedAt).getTime();
-        const bTime = new Date(b.updatedAt).getTime();
-        if (sortByUI === SortOrderEnum.OLDEST) return aTime - bTime;
+        const aTime = new Date(a.updatedAt || 0).getTime();
+        const bTime = new Date(b.updatedAt || 0).getTime();
+        if ((sortByUI as any) === SortOrderEnum.OLDEST) return aTime - bTime;
         return bTime - aTime;
     });
 
@@ -550,7 +552,7 @@ export const ChatList = ({ conversations, onSelectConversation, onToggleMode, vi
                                         <TableCell padding="checkbox" sx={{ textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
                                             <Checkbox
                                                 checked={isItemSelected}
-                                                onChange={(event) => handleClick(event, String(row.id))}
+                                                onChange={(event) => handleClick(event as any, String(row.id))}
                                                 sx={{ color: 'var(--palette-text-disabled)', p: 0 }}
                                             />
                                         </TableCell>

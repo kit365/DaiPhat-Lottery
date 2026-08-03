@@ -20,7 +20,7 @@ export interface CreateUserRequest {
     avatar?: string;
     avatarUrl?: string;
     password?: string;
-    [key: string]: any; // Allow temporary flexibility for unknown backend fields, but eliminate strict 'any' in params
+    [key: string]: string | number | boolean | string[] | undefined | null | object;
 }
 
 export type UpdateUserRequest = Partial<CreateUserRequest>;

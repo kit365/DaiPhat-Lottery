@@ -1,3 +1,5 @@
+"use client";
+
 import { Box, Card, Grid, TextField, Button, Typography, Stack } from "@mui/material";
 import { Icon } from "@iconify/react";
 import { useForm, Controller } from "react-hook-form";
@@ -17,7 +19,7 @@ export const GeneralSettingTab = () => {
         reset,
         formState: { errors }
     } = useForm<SettingGeneralFormValues>({
-        resolver: zodResolver(settingGeneralSchema) as any,
+        resolver: zodResolver(settingGeneralSchema),
         defaultValues: {
             websiteName: "",
             websiteDomain: "",

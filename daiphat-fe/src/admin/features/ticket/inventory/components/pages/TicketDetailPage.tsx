@@ -1,3 +1,5 @@
+"use client";
+
 import { Box, Stack, ThemeProvider, useTheme, createTheme, Button, Typography, CircularProgress, Chip, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TextField, Select, MenuItem } from "@mui/material"
 import { Breadcrumb } from "../../../../../components/ui/Breadcrumb"
 import { Title } from "../../../../../components/ui/Title"
@@ -10,20 +12,24 @@ import { formatImportBatchCode } from "../../../import-batch/utils/importBatchCo
 import { resolveAvailableTicketQuantity } from "../../utils/ticketQuantity";
 import dayjs from "dayjs";
 import { useStations } from '../../../../station/hooks/useStation';
-import { buildSerialStatusFilterOptions } from '../../constants/serial-status-filter.config';
+import { buildSerialStatusFilterOptions, buildSerialConditionFilterOptions } from '../../constants/serial-status-filter.config';
 
-const getSerialStatusChipSx = (status?: string) => {
+const getSerialStatusChipSx = (status?: string, ticketCondition?: string) => {
+    const condition = (ticketCondition || "").toUpperCase();
+    if (condition === "DAMAGED" || condition === "LOST" || condition === "VOIDED") {
+        return { color: "var(--palette-error-dark)", bgcolor: "var(--palette-error-lighter)" };
+    }
     const normalized = (status || "").toUpperCase();
     if (normalized === "IN_STOCK" || normalized === "AVAILABLE") {
         return { color: "var(--palette-success-dark)", bgcolor: "var(--palette-success-lighter)" };
     }
-    if (normalized === "RESERVED") {
+    if (normalized === "RESERVED" || normalized === "PROXY_HOLDING") {
         return { color: "var(--palette-warning-dark)", bgcolor: "var(--palette-warning-lighter)" };
     }
     if (normalized === "SOLD") {
         return { color: "var(--palette-info-dark)", bgcolor: "var(--palette-info-lighter)" };
     }
-    if (normalized === "EXPIRED" || normalized === "DAMAGED" || normalized === "LOST" || normalized.includes("FAULT")) {
+    if (normalized === "EXPIRED" || normalized.includes("FAULT")) {
         return { color: "var(--palette-error-dark)", bgcolor: "var(--palette-error-lighter)" };
     }
     return { color: "var(--palette-text-secondary)", bgcolor: "var(--palette-background-neutral)" };
@@ -63,15 +69,20 @@ export const TicketDetailPage = () => {
     const filteredSerials = useMemo(() => {
         return (ticketDetail?.serials || []).filter((serial: any) => {
             const matchesSearch = !searchSerial || (serial.serialNumber || "").toLowerCase().includes(searchSerial.toLowerCase());
-            const matchesStatus = filterStatus === "ALL" || (serial.status || "").toUpperCase() === filterStatus;
+            const matchesStatus =
+                filterStatus === "ALL" ||
+                (serial.status || "").toUpperCase() === filterStatus ||
+                (serial.faultedBy || "").toUpperCase() === filterStatus ||
+                (serial.ticketCondition || "").toUpperCase() === filterStatus;
             return matchesSearch && matchesStatus;
         });
     }, [ticketDetail?.serials, searchSerial, filterStatus]);
 
-    const availableSerialStatusOptions = useMemo(
-        () => buildSerialStatusFilterOptions(ticketDetail?.serials || []),
-        [ticketDetail?.serials]
-    );
+    const availableSerialStatusOptions = useMemo(() => {
+        const statusOptions = buildSerialStatusFilterOptions(ticketDetail?.serials || []);
+        const conditionOptions = buildSerialConditionFilterOptions(ticketDetail?.serials || []);
+        return [...statusOptions, ...conditionOptions];
+    }, [ticketDetail?.serials]);
 
     if (isLoadingTicket) {
         return <Box display="flex" justifyContent="center" alignItems="center" height="400px"><CircularProgress /></Box>
@@ -320,7 +331,7 @@ export const TicketDetailPage = () => {
                                         </TableHead>
                                         <TableBody>
                                             {filteredSerials.map((serial: any, index: number) => {
-                                                const statusSx = getSerialStatusChipSx(serial.status);
+                                                const statusSx = getSerialStatusChipSx(serial.status, serial.ticketCondition);
                                                 return (
                                                     <TableRow
                                                         key={serial.id || index}
@@ -407,7 +418,11 @@ export const TicketDetailPage = () => {
                                                         </TableCell>
                                                         <TableCell>
                                                             <Chip
-                                                                label={serial.statusDisplayName || serial.status || "N/A"}
+                                                                label={
+                                                                    serial.ticketCondition === 'DAMAGED' || serial.ticketCondition === 'LOST' || serial.ticketCondition === 'VOIDED'
+                                                                        ? (serial.ticketConditionDisplayName || serial.ticketCondition)
+                                                                        : (serial.statusDisplayName || serial.status || "N/A")
+                                                                }
                                                                 size="small"
                                                                 sx={{
                                                                     height: 22,

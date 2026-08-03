@@ -16,7 +16,10 @@ public final class TicketPrizeMatcher {
             String prizeCode,
             String prizeDisplayName,
             Long prizeStructureId,
-            BigDecimal prizeAmount
+            BigDecimal prizeAmount,
+            String winningNumber,
+            String matchFrom,
+            Integer matchDigits
     ) {
     }
 
@@ -34,7 +37,10 @@ public final class TicketPrizeMatcher {
                         detail.getPrizeCode(),
                         detail.getPrizeDisplayName() != null ? detail.getPrizeDisplayName() : detail.getPrizeCode(),
                         detail.getPrizeStructureId(),
-                        null
+                        null,
+                        detail.getWinningNumber().trim(),
+                        detail.getMatchFrom() != null ? detail.getMatchFrom().name() : null,
+                        detail.getMatchDigits()
                 ));
             }
         }

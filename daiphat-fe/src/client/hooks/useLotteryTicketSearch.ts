@@ -1,3 +1,5 @@
+"use client";
+
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { QUERY_KEYS } from '../../constants/queryKeys';

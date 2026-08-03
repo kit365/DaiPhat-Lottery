@@ -42,6 +42,8 @@ public final class SystemConfigValueValidator {
             case INT -> parseInt(configValue);
             case TIME -> parseTime(configValue);
             case BOOLEAN -> parseBoolean(configValue);
+            case DECIMAL -> parseDecimal(configValue);
+            case JSON -> parseJson(configValue);
         };
     }
 
@@ -64,8 +66,9 @@ public final class SystemConfigValueValidator {
         switch (dataType) {
             case INT -> applyIntRules((Integer) parsed, rules);
             case TIME -> applyTimeRules((String) parsed, rules);
-            case BOOLEAN -> {
-                // No range rules for BOOLEAN.
+            case DECIMAL -> applyDecimalRules((java.math.BigDecimal) parsed, rules);
+            case BOOLEAN, JSON -> {
+                // No range rules.
             }
         }
     }
@@ -129,5 +132,31 @@ public final class SystemConfigValueValidator {
             return Boolean.FALSE;
         }
         throw new DomainException(ErrorCode.SYSTEM_CONFIG_VALUE_INVALID);
+    }
+
+    private static java.math.BigDecimal parseDecimal(String configValue) {
+        try {
+            return new java.math.BigDecimal(configValue.trim());
+        } catch (NumberFormatException ex) {
+            throw new DomainException(ErrorCode.SYSTEM_CONFIG_VALUE_INVALID);
+        }
+    }
+
+    private static String parseJson(String configValue) {
+        try {
+            OBJECT_MAPPER.readTree(configValue.trim());
+            return configValue.trim();
+        } catch (Exception ex) {
+            throw new DomainException(ErrorCode.SYSTEM_CONFIG_VALUE_INVALID);
+        }
+    }
+
+    private static void applyDecimalRules(java.math.BigDecimal value, JsonNode rules) {
+        if (rules.hasNonNull("min") && value.compareTo(rules.get("min").decimalValue()) < 0) {
+            throw new DomainException(ErrorCode.SYSTEM_CONFIG_VALUE_INVALID);
+        }
+        if (rules.hasNonNull("max") && value.compareTo(rules.get("max").decimalValue()) > 0) {
+            throw new DomainException(ErrorCode.SYSTEM_CONFIG_VALUE_INVALID);
+        }
     }
 }

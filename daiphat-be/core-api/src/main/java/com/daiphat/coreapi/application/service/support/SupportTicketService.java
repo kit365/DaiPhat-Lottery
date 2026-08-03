@@ -20,7 +20,6 @@ import com.daiphat.coreapi.application.event.SupportTicketCommentAddedEvent;
 import com.daiphat.coreapi.application.event.SupportTicketCreatedEvent;
 import com.daiphat.coreapi.application.event.SupportTicketRejectedEvent;
 import com.daiphat.coreapi.application.event.SupportTicketReopenedEvent;
-import com.daiphat.coreapi.application.event.SupportTicketResolvedEvent;
 import com.daiphat.coreapi.application.mapper.support.SupportApplicationMapper;
 import com.daiphat.coreapi.application.port.in.support.SupportTicketServicePort;
 import com.daiphat.coreapi.application.port.out.file.StoragePort;
@@ -75,6 +74,7 @@ public class SupportTicketService implements SupportTicketServicePort {
     private final ApplicationEventPublisher eventPublisher;
     private final RefundComplaintEligibilityService refundComplaintEligibilityService;
     private final OrderComplaintEligibilityService orderComplaintEligibilityService;
+    private final PrizePayoutComplaintEligibilityService prizePayoutComplaintEligibilityService;
     private final SystemConfigRepositoryPort systemConfigRepositoryPort;
 
     @Override
@@ -134,9 +134,12 @@ public class SupportTicketService implements SupportTicketServicePort {
     }
 
     @Override
-    @Transactional(readOnly = true)
+    @Transactional
     public PageResponse<SupportTicketSummaryResponse> getMyTickets(
             UUID customerId, int page, int limit, String status, String search) {
+        // Opening the complaints list acknowledges REJECTED notifications (clears sidebar badge).
+        supportTicketRepositoryPort.markRejectedTicketsViewed(customerId, LocalDateTime.now());
+
         Pageable pageable = PageableUtils.of(page, limit, Sort.by(Sort.Direction.DESC, "createdAt"));
         Page<SupportTicketModel> result = supportTicketRepositoryPort.findAll(
                 pageable, customerId, parseStatus(status), normalizeSearch(search));
@@ -147,10 +150,12 @@ public class SupportTicketService implements SupportTicketServicePort {
     }
 
     @Override
-    @Transactional(readOnly = true)
+    @Transactional
     public SupportTicketResponse getByIdForCustomer(Long id, UUID customerId) {
         SupportTicketModel ticket = getOwnedTicketOrThrow(id, customerId);
-        return toDetailResponse(ticket);
+        ticket.markCustomerViewed();
+        SupportTicketModel saved = supportTicketRepositoryPort.save(ticket);
+        return toDetailResponse(saved);
     }
 
     @Override
@@ -229,25 +234,32 @@ public class SupportTicketService implements SupportTicketServicePort {
         ticket.ensureCommentAllowed();
         ticket.ensureOperatorCanComment();
 
+        StaffTicketResponseAction action = request.action();
+        if (action == null) {
+            throw new DomainException(ErrorCode.TICKET_STAFF_ACTION_INVALID);
+        }
+
         List<SupportTicketCommentModel> existingComments =
                 supportTicketCommentRepositoryPort.findByTicketIdOrderByCreatedAtAsc(id);
-        SupportTicketModel.ensureSenderTurn(existingComments, TicketCommentSenderRole.OPERATOR);
+        // Resolve/reject may happen while waiting for customer (after operator's last reply).
+        if (action == StaffTicketResponseAction.NORMAL) {
+            SupportTicketModel.ensureSenderTurn(existingComments, TicketCommentSenderRole.OPERATOR);
+        }
 
         String content = request.content() != null ? request.content().trim() : "";
         if (content.isBlank()) {
             throw new DomainException(ErrorCode.TICKET_COMMENT_CONTENT_INVALID);
         }
 
-        StaffTicketResponseAction action = request.action();
-        if (action == null) {
-            throw new DomainException(ErrorCode.TICKET_STAFF_ACTION_INVALID);
-        }
-
         String attachmentUrl = uploadAttachmentIfPresent(file);
+        // Resolve reason is an internal staff note (system audit), not a chat message to customer.
+        TicketCommentSenderRole commentRole = action == StaffTicketResponseAction.RESOLVE
+                ? TicketCommentSenderRole.SYSTEM
+                : TicketCommentSenderRole.OPERATOR;
         SupportTicketCommentModel comment = SupportTicketCommentModel.builder()
                 .supportTicketId(id)
-                .senderId(staffId)
-                .senderRole(TicketCommentSenderRole.OPERATOR)
+                .senderId(action == StaffTicketResponseAction.RESOLVE ? null : staffId)
+                .senderRole(commentRole)
                 .content(content)
                 .attachmentUrl(attachmentUrl)
                 .build();
@@ -270,13 +282,16 @@ public class SupportTicketService implements SupportTicketServicePort {
             case RESOLVE -> {
                 ticket.resolveByStaff(savedComment.getId(), content);
                 SupportTicketModel saved = supportTicketRepositoryPort.save(ticket);
-                saveSystemComment(saved.getId(), "Ticket đã được giải quyết. Vui lòng xác nhận bạn có hài lòng với phương án này.");
+                saveSystemComment(
+                        saved.getId(),
+                        "Khiếu nại đã được đánh dấu giải quyết và đóng (khách đã đồng ý).");
                 TicketCategoryModel category = getCategoryOrThrow(ticket.getTicketCategoryId());
-                eventPublisher.publishEvent(SupportTicketResolvedEvent.builder()
+                eventPublisher.publishEvent(SupportTicketClosedEvent.builder()
                         .ticketId(saved.getId())
                         .title(saved.getTitle())
                         .categoryName(category.getName())
                         .customerId(saved.getCustomerId())
+                        .autoClosed(false)
                         .build());
             }
             case REJECT -> {
@@ -428,7 +443,7 @@ public class SupportTicketService implements SupportTicketServicePort {
         SupportTicketModel ticket = getOwnedTicketOrThrow(id, customerId);
         ticket.closeByCustomer();
         SupportTicketModel saved = supportTicketRepositoryPort.save(ticket);
-        saveSystemComment(saved.getId(), "Khách hàng đã đóng ticket");
+        saveSystemComment(saved.getId(), "Khách hàng đã huỷ khiếu nại");
         return toDetailResponse(saved);
     }
 
@@ -598,6 +613,8 @@ public class SupportTicketService implements SupportTicketServicePort {
             orderComplaintEligibilityService.validate(category, refId, customerId);
         } else if (required == TicketRefType.REFUND_REQUEST) {
             refundComplaintEligibilityService.validate(category, refId, customerId);
+        } else if (required == TicketRefType.PRIZE_CLAIM) {
+            prizePayoutComplaintEligibilityService.validate(category, refId, customerId);
         }
     }
 

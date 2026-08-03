@@ -1,3 +1,5 @@
+"use client";
+
 import type { ReactElement } from "react";
 import { Avatar, Box, Link, ListItemText, IconButton, CircularProgress } from "@mui/material";
 import { GridActionsCell, GridActionsCellItem, GridRenderCellParams } from "@mui/x-data-grid";

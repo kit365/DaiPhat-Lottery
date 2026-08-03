@@ -65,6 +65,8 @@ class SupportTicketServiceCommentTest {
     @Mock
     private OrderComplaintEligibilityService orderComplaintEligibilityService;
     @Mock
+    private PrizePayoutComplaintEligibilityService prizePayoutComplaintEligibilityService;
+    @Mock
     private SystemConfigRepositoryPort systemConfigRepositoryPort;
 
     private SupportTicketService supportTicketService;
@@ -82,6 +84,7 @@ class SupportTicketServiceCommentTest {
                 eventPublisher,
                 refundComplaintEligibilityService,
                 orderComplaintEligibilityService,
+                prizePayoutComplaintEligibilityService,
                 systemConfigRepositoryPort);
     }
 

@@ -1,3 +1,5 @@
+"use client";
+
 import { Box, Stack, TextField, ThemeProvider, useTheme, CircularProgress, createTheme, MenuItem, Typography } from "@mui/material";
 import { REGION_DATA } from "../../../../constants/region.constants";
 import { DAYS_OF_WEEK } from "../../../../constants/schedule.constants";
@@ -79,7 +81,7 @@ export const StationEditPage = () => {
         watch,
         setValue,
     } = useForm<CreateStationFormValues>({
-        resolver: zodResolver(createStationSchema),
+        resolver: zodResolver(createStationSchema) as any,
         defaultValues: {
             name: "",
             description: "",
@@ -119,7 +121,7 @@ export const StationEditPage = () => {
                 status: (detailRes.status === "inactive" ? "inactive" : "active") as "active" | "inactive",
                 type: detailRes.type || "TRADITIONAL",
                 price: detailRes.price || 10000,
-                commissionRate: detailRes.commissionRate !== undefined && detailRes.commissionRate !== null ? detailRes.commissionRate : "",
+                commissionRate: (detailRes as any).commissionRate !== undefined && (detailRes as any).commissionRate !== null ? (detailRes as any).commissionRate : "",
                 province: detailRes.province || "",
                 region: detailRes.region || "",
                 numberLength: detailRes.numberLength || 6,

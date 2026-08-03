@@ -2,28 +2,36 @@ export enum ConfigType {
     ORDER_SETTING = 'ORDER_SETTING',
     PAYMENT_SETTING = 'PAYMENT_SETTING',
     TICKET_IMPORT = 'TICKET_IMPORT',
+    TICKET_RETURN = 'TICKET_RETURN',
     REFUND_SETTING = 'REFUND_SETTING',
     COMPLAINT_SETTING = 'COMPLAINT_SETTING',
+    PAYOUT_SETTING = 'PAYOUT_SETTING',
 }
 
 export enum ConfigDataType {
     INT = 'INT',
     TIME = 'TIME',
     BOOLEAN = 'BOOLEAN',
+    DECIMAL = 'DECIMAL',
+    JSON = 'JSON',
 }
 
 export const CONFIG_TYPE_LABELS: Record<ConfigType, string> = {
     [ConfigType.ORDER_SETTING]: 'Cấu hình đơn hàng',
     [ConfigType.PAYMENT_SETTING]: 'Cấu hình thanh toán',
     [ConfigType.TICKET_IMPORT]: 'Cấu hình nhập vé',
+    [ConfigType.TICKET_RETURN]: 'Cấu hình trả vé',
     [ConfigType.REFUND_SETTING]: 'Cấu hình hoàn tiền',
     [ConfigType.COMPLAINT_SETTING]: 'Cấu hình khiếu nại',
+    [ConfigType.PAYOUT_SETTING]: 'Cấu hình trả thưởng',
 };
 
 export const CONFIG_DATA_TYPE_LABELS: Record<ConfigDataType, string> = {
     [ConfigDataType.INT]: 'Số nguyên',
     [ConfigDataType.TIME]: 'Thời gian (HH:mm)',
     [ConfigDataType.BOOLEAN]: 'Boolean (true/false)',
+    [ConfigDataType.DECIMAL]: 'Số thập phân',
+    [ConfigDataType.JSON]: 'Danh sách mức',
 };
 
 export interface SystemConfigValidationRules {

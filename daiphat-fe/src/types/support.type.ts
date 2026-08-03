@@ -112,6 +112,11 @@ export function isTerminalTicketStatus(status: TicketStatus): boolean {
     );
 }
 
+/** Customer may cancel/withdraw unless the ticket is already finished. */
+export function canCustomerCancelTicket(status: TicketStatus): boolean {
+    return !isTerminalTicketStatus(status);
+}
+
 export function canCustomerSendComment(
     status: TicketStatus,
     comments: SupportTicketCommentResponse[]

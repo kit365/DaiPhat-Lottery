@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useState, useMemo } from 'react';
 import { DatePicker } from '../common/DatePicker';
 import LocationOnIcon from '@mui/icons-material/LocationOn';

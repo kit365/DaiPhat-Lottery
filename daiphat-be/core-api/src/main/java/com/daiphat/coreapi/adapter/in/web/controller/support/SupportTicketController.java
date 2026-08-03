@@ -138,7 +138,7 @@ public class SupportTicketController {
             @PathVariable Long id,
             @AuthenticationPrincipal AuthenticatedUserPrincipal principal) {
         return ApiResponse.success(
-                "Đóng yêu cầu hỗ trợ thành công.",
+                "Huỷ khiếu nại thành công.",
                 supportTicketServicePort.closeByCustomer(id, principal.getId()));
     }
 

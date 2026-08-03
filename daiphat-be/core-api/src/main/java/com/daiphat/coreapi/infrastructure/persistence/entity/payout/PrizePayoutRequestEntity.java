@@ -1,6 +1,10 @@
 package com.daiphat.coreapi.infrastructure.persistence.entity.payout;
 
+import com.daiphat.coreapi.domain.model.enums.payout.PrizePayoutChannel;
+import com.daiphat.coreapi.domain.model.enums.payout.PrizePayoutOwnershipVerificationLevel;
+import com.daiphat.coreapi.domain.model.enums.payout.PrizePayoutPaymentMethod;
 import com.daiphat.coreapi.domain.model.enums.payout.PrizePayoutRequestStatus;
+import com.daiphat.coreapi.domain.model.enums.payout.PrizePayoutTicketOrigin;
 import com.daiphat.coreapi.infrastructure.persistence.entity.order.OrderDetailEntity;
 import com.daiphat.coreapi.infrastructure.persistence.entity.order.OrderEntity;
 import com.daiphat.coreapi.infrastructure.persistence.entity.lotteries.LotteryTicketSerialEntity;
@@ -36,7 +40,7 @@ public class PrizePayoutRequestEntity {
     private String requestCode;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "customer_id", nullable = false)
+    @JoinColumn(name = "customer_id")
     private UserEntity customer;
 
     @ManyToOne(fetch = FetchType.LAZY)
@@ -60,8 +64,43 @@ public class PrizePayoutRequestEntity {
     @Column(name = "gross_amount", nullable = false, precision = 15, scale = 2)
     private BigDecimal grossAmount;
 
+    @Column(name = "tax_amount", nullable = false, precision = 15, scale = 2)
+    private BigDecimal taxAmount;
+
+    @Column(name = "commission_amount", nullable = false, precision = 15, scale = 2)
+    private BigDecimal commissionAmount;
+
+    @Column(name = "net_amount", nullable = false, precision = 15, scale = 2)
+    private BigDecimal netAmount;
+
+    @Column(name = "cash_amount", precision = 15, scale = 2)
+    private BigDecimal cashAmount;
+
+    @Column(name = "transfer_amount", precision = 15, scale = 2)
+    private BigDecimal transferAmount;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "channel", nullable = false, length = 30)
+    private PrizePayoutChannel channel;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "ticket_origin", nullable = false, length = 30)
+    private PrizePayoutTicketOrigin ticketOrigin;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "ownership_verification_level", nullable = false, length = 30)
+    private PrizePayoutOwnershipVerificationLevel ownershipVerificationLevel;
+
+    @Builder.Default
+    @Column(name = "manual_ownership_confirmed", nullable = false)
+    private boolean manualOwnershipConfirmed = false;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "payment_method", length = 30)
+    private PrizePayoutPaymentMethod paymentMethod;
+
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "bank_account_id", nullable = false)
+    @JoinColumn(name = "bank_account_id")
     private UserBankAccountEntity bankAccount;
 
     @Column(name = "bank_name", length = 200)
@@ -73,15 +112,37 @@ public class PrizePayoutRequestEntity {
     @Column(name = "account_holder_name", length = 200)
     private String accountHolderName;
 
+    @Column(name = "recipient_full_name", length = 200)
+    private String recipientFullName;
+
+    @Column(name = "recipient_id_number", length = 20)
+    private String recipientIdNumber;
+
+    @Column(name = "recipient_id_image_url", length = 500)
+    private String recipientIdImageUrl;
+
+    @Column(name = "recipient_id_image_back_url", length = 500)
+    private String recipientIdImageBackUrl;
+
+    @Column(name = "recipient_identity_captured_at")
+    private LocalDateTime recipientIdentityCapturedAt;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 30)
     private PrizePayoutRequestStatus status;
+
+    @Builder.Default
+    @Column(name = "reject_count", nullable = false)
+    private int rejectCount = 0;
 
     @Column(name = "reject_reason", columnDefinition = "TEXT")
     private String rejectReason;
 
     @Column(name = "transfer_evidence_url", length = 500)
     private String transferEvidenceUrl;
+
+    @Column(name = "confirmation_contract_url", length = 500)
+    private String confirmationContractUrl;
 
     @Column(name = "completed_at")
     private LocalDateTime completedAt;

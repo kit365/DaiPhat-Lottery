@@ -1,7 +1,9 @@
+"use client";
+
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { authService } from "../services/auth.service";
 import { userService } from "../services/user.service";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "@/components/router-compat";
 import { useAuthStore } from "../../../../stores/useAuthStore";
 import { toast } from "react-toastify";
 import { ROUTES } from "../../../constants/routes";
@@ -67,14 +69,15 @@ export const useAuth = () => {
             const expiresIn = authData?.expires_in ?? authData?.expiresIn;
 
             if (isSuccess && accessToken) {
+                const ttlSeconds = expiresIn && expiresIn > 0 ? expiresIn : 900;
                 const cookieOptions = {
-                    expires: expiresIn ? expiresIn / 86400 : 7,
+                    expires: Math.max(ttlSeconds, 60) / 86400,
                     path: '/'
                 };
                 Cookies.set(STORAGE_KEYS.TOKEN, accessToken, cookieOptions);
                 set({
                     token: accessToken,
-                    expiresAt: expiresIn ? Date.now() + expiresIn * 1000 : null
+                    expiresAt: Date.now() + ttlSeconds * 1000
                 });
 
                 const meResponse = authData?.user
@@ -114,7 +117,7 @@ export const useAuth = () => {
                     navigate(ROUTES.ADMIN.DASHBOARD.SYSTEM);
                 } else {
                     toast.success("Đăng nhập thành công!");
-                    navigate(ROUTES.ADMIN.MANAGEMENT.ROOT);
+                    navigate(ROUTES.ADMIN.DASHBOARD.SYSTEM);
                 }
             } else {
                 toast.error(response.message || "Đăng nhập thất bại.");
@@ -197,7 +200,7 @@ export const useAuth = () => {
                     } else if (roleCode === USER_ROLES.ADMIN) {
                         navigate(ROUTES.ADMIN.DASHBOARD.SYSTEM);
                     } else {
-                        navigate(ROUTES.ADMIN.MANAGEMENT.ROOT);
+                        navigate(ROUTES.ADMIN.DASHBOARD.SYSTEM);
                     }
                 } catch (error) {
                     toast.error("Xác thực Google thành công nhưng không lấy được thông tin người dùng.");

@@ -1,3 +1,5 @@
+"use client";
+
 import { useCallback, useEffect, useState } from 'react';
 import { websocketService } from '../services/websocket/websocket.service';
 import { WebSocketSubscription } from '../types/websocket.type';
