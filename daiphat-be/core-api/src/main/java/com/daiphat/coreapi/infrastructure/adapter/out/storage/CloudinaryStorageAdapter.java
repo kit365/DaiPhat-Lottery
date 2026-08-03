@@ -9,6 +9,7 @@ import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
@@ -16,6 +17,7 @@ import java.util.Map;
 
 @Component
 @RequiredArgsConstructor
+@ConditionalOnProperty(name = "daiphat.storage.provider", havingValue = "cloudinary", matchIfMissing = true)
 public class CloudinaryStorageAdapter implements StoragePort {
 
     private final Cloudinary cloudinary;

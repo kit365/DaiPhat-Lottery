@@ -1,6 +1,7 @@
 package com.daiphat.coreapi.application.dto.response.lotteries;
 
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus;
+import com.daiphat.coreapi.domain.model.enums.lottery.TicketCondition;
 import lombok.Builder;
 
 import java.math.BigDecimal;
@@ -12,6 +13,8 @@ public record InspectableReturnSerialResponse(
         String serialNumber,
         LotteryTicketSerialStatus status,
         String statusLabel,
+        TicketCondition ticketCondition,
+        String ticketConditionLabel,
         Long ticketId,
         String ticketNumbers,
         LocalDate drawDate,

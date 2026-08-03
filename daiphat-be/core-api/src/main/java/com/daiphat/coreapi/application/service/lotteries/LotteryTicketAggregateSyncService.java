@@ -8,6 +8,7 @@ import com.daiphat.coreapi.domain.exception.ErrorCode;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus;
 import com.daiphat.coreapi.domain.model.lotteries.LotteryStationModel;
 import com.daiphat.coreapi.domain.model.lotteries.LotteryTicketModel;
+import com.daiphat.coreapi.domain.model.lotteries.LotteryTicketSerialModel;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,14 +25,8 @@ import java.util.List;
 @RequiredArgsConstructor
 public class LotteryTicketAggregateSyncService {
 
-    private static final Collection<LotteryTicketSerialStatus> AVAILABLE_STATUSES =
-            List.of(LotteryTicketSerialStatus.IN_STOCK);
     private static final Collection<LotteryTicketSerialStatus> SOLD_SERIAL_STATUSES =
             List.of(LotteryTicketSerialStatus.SOLD);
-    private static final Collection<LotteryTicketSerialStatus> FAULTY_SERIAL_STATUSES = List.of(
-            LotteryTicketSerialStatus.DAMAGED,
-            LotteryTicketSerialStatus.LOST
-    );
     private static final Collection<LotteryTicketSerialStatus> EXPIRABLE_STATUSES = List.of(
             LotteryTicketSerialStatus.IN_STOCK,
             LotteryTicketSerialStatus.PROXY_HOLDING
@@ -57,13 +52,14 @@ public class LotteryTicketAggregateSyncService {
                     });
         }
 
-        long availableSerialCount = lotteryTicketSerialRepositoryPort.countByTicketIdAndStatuses(
-                ticketId, AVAILABLE_STATUSES);
-        int totalSerialCount = lotteryTicketSerialRepositoryPort.findAllByTicketId(ticketId).size();
+        long availableSerialCount = lotteryTicketSerialRepositoryPort.countSellableByTicketId(ticketId);
+        List<LotteryTicketSerialModel> allSerials = lotteryTicketSerialRepositoryPort.findAllByTicketId(ticketId);
+        int totalSerialCount = allSerials.size();
         int soldSerialCount = (int) lotteryTicketSerialRepositoryPort.countByTicketIdAndStatuses(
                 ticketId, SOLD_SERIAL_STATUSES);
-        int faultySerialCount = (int) lotteryTicketSerialRepositoryPort.countByTicketIdAndStatuses(
-                ticketId, FAULTY_SERIAL_STATUSES);
+        int faultySerialCount = (int) allSerials.stream()
+                .filter(serial -> serial.getTicketCondition() != null && serial.getTicketCondition().isIncidentReported())
+                .count();
         ticket.syncAggregateState(
                 (int) availableSerialCount,
                 totalSerialCount,

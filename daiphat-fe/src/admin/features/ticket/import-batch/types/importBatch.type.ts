@@ -169,6 +169,9 @@ export interface ImportBatchLineEntrySerial {
     serialNumber: string;
     ticketImg?: string;
     status?: string;
+    ticketCondition?: string;
+    ticketConditionDisplayName?: string;
+    returnBatchLineId?: number | null;
 }
 
 export interface ImportBatchLineEntryTicket {

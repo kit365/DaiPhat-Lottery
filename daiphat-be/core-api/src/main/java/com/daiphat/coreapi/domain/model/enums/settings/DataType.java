@@ -9,7 +9,9 @@ import lombok.RequiredArgsConstructor;
 public enum DataType implements LabeledEnum {
     INT("Số nguyên"),
     TIME("Thời gian (HH:mm)"),
-    BOOLEAN("Boolean (true/false)");
+    BOOLEAN("Boolean (true/false)"),
+    DECIMAL("Số thập phân"),
+    JSON("JSON");
 
     private final String label;
 }

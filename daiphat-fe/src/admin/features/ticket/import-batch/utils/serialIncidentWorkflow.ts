@@ -2,16 +2,25 @@ export type SerialIncidentGroup = 'INTERNAL_INVENTORY' | 'ACTIVE_TRANSACTION' | 
 
 const TERMINAL_SERIAL_STATUSES = new Set([
     'SOLD',
-    'PENDING_RETURN',
-    'RETURNED',
     'EXPIRED',
-    'DAMAGED',
-    'LOST',
-    'VOIDED',
 ]);
+
+export const FAULTY_TICKET_CONDITIONS = new Set(['DAMAGED', 'LOST', 'VOIDED']);
+
+export type SerialIncidentFields = {
+    status?: string | null;
+    ticketCondition?: string | null;
+    returnBatchLineId?: number | string | null;
+};
 
 export const normalizeSerialStatus = (status?: string | null): string =>
     (status || '').toUpperCase().replace(/-/g, '_');
+
+export const normalizeTicketCondition = (condition?: string | null): string =>
+    (condition || '').toUpperCase().replace(/-/g, '_');
+
+export const isFaultyTicketCondition = (condition?: string | null): boolean =>
+    FAULTY_TICKET_CONDITIONS.has(normalizeTicketCondition(condition));
 
 export const getSerialIncidentGroup = (status?: string | null): SerialIncidentGroup => {
     const normalized = normalizeSerialStatus(status);
@@ -28,11 +37,34 @@ export const getSerialIncidentGroup = (status?: string | null): SerialIncidentGr
  * Serials that can be selected for warehouse cancel / fault report.
  * RESERVED (đang giữ chỗ) is excluded — must wait for payment timeout / order cancel first.
  * PROXY_HOLDING remains eligible (paid order, agent holding).
+ * Faulty ticketCondition or linked returnBatchLineId are not eligible.
  */
-export const isSerialIncidentEligible = (status?: string | null): boolean => {
-    const normalized = normalizeSerialStatus(status);
-    return normalized === 'IN_STOCK' || normalized === 'PROXY_HOLDING';
+export const isSerialIncidentEligible = (
+    statusOrSerial?: string | null | SerialIncidentFields,
+    options?: { ticketCondition?: string | null; returnBatchLineId?: number | string | null }
+): boolean => {
+    const fields: SerialIncidentFields =
+        statusOrSerial != null && typeof statusOrSerial === 'object'
+            ? statusOrSerial
+            : {
+                  status: statusOrSerial as string | null | undefined,
+                  ticketCondition: options?.ticketCondition,
+                  returnBatchLineId: options?.returnBatchLineId,
+              };
+
+    const normalized = normalizeSerialStatus(fields.status);
+    if (normalized !== 'IN_STOCK' && normalized !== 'PROXY_HOLDING') {
+        return false;
+    }
+    if (fields.returnBatchLineId != null && fields.returnBatchLineId !== '') {
+        return false;
+    }
+    if (isFaultyTicketCondition(fields.ticketCondition)) {
+        return false;
+    }
+    return true;
 };
+
 export const isActiveTransactionSerialStatus = (status?: string | null): boolean =>
     normalizeSerialStatus(status) === 'RESERVED' || normalizeSerialStatus(status) === 'PROXY_HOLDING';
 
@@ -40,6 +72,8 @@ export type SerialRefundScopeItem = {
     id: string | number;
     serialNumber?: string;
     status?: string | null;
+    ticketCondition?: string | null;
+    returnBatchLineId?: number | string | null;
     ticketNumbers?: string;
     reservedByOrderId?: string | null;
 };
@@ -77,30 +111,60 @@ export const needsRefundPrepStep = (
 export const isTerminalSerialStatus = (status?: string | null): boolean =>
     TERMINAL_SERIAL_STATUSES.has(normalizeSerialStatus(status));
 
-export const FAULTY_SERIAL_STATUSES = new Set(['DAMAGED', 'LOST']);
+/** @deprecated Prefer {@link isFaultyTicketCondition}. */
+export const FAULTY_SERIAL_STATUSES = FAULTY_TICKET_CONDITIONS;
 
+/** @deprecated Prefer {@link isFaultyTicketCondition}. */
 export const isFaultySerialStatus = (status?: string | null): boolean =>
-    FAULTY_SERIAL_STATUSES.has(normalizeSerialStatus(status));
+    isFaultyTicketCondition(status);
 
-/** Serial đã báo hỏng/mất/hủy — không cần báo lỗi lại trong kiểm tra đơn. */
-export const isAlreadyFaultReportedSerialStatus = (status?: string | null): boolean => {
-    const normalized = normalizeSerialStatus(status);
-    return normalized === 'DAMAGED' || normalized === 'LOST' || normalized === 'VOIDED';
+/** Serial đã báo hỏng/mất/hủy (ticketCondition) — không cần báo lỗi lại. */
+export const isAlreadyFaultReportedSerial = (
+    statusOrSerial?: string | null | SerialIncidentFields,
+    ticketCondition?: string | null
+): boolean => {
+    const fields: SerialIncidentFields =
+        statusOrSerial != null && typeof statusOrSerial === 'object'
+            ? statusOrSerial
+            : {
+                  status: statusOrSerial as string | null | undefined,
+                  ticketCondition,
+              };
+
+    return isFaultyTicketCondition(fields.ticketCondition);
 };
 
+/** @deprecated Prefer {@link isAlreadyFaultReportedSerial}. */
+export const isAlreadyFaultReportedSerialStatus = (
+    status?: string | null,
+    ticketCondition?: string | null
+): boolean => isAlreadyFaultReportedSerial(status, ticketCondition);
+
 export const getSerialsPendingFaultReport = (
-    serials: Array<{ id: string | number; serialNumber?: string; status?: string | null }>
+    serials: Array<{
+        id: string | number;
+        serialNumber?: string;
+        status?: string | null;
+        ticketCondition?: string | null;
+        returnBatchLineId?: number | string | null;
+    }>
 ) =>
     serials.filter(
-        (serial) =>
-            isSerialIncidentEligible(serial.status) && !isFaultySerialStatus(serial.status)
+        (serial) => isSerialIncidentEligible(serial) && !isAlreadyFaultReportedSerial(serial)
     );
 
 export const areAllIncidentSerialsFaultyReported = (
-    serials: Array<{ status?: string | null }>
+    serials: Array<{
+        status?: string | null;
+        ticketCondition?: string | null;
+        returnBatchLineId?: number | string | null;
+    }>
 ): boolean => {
-    const requiringReport = serials.filter((serial) => isSerialIncidentEligible(serial.status));
-    return requiringReport.length > 0 && requiringReport.every((serial) => isFaultySerialStatus(serial.status));
+    const requiringReport = serials.filter((serial) => isSerialIncidentEligible(serial));
+    return (
+        requiringReport.length > 0 &&
+        requiringReport.every((serial) => isAlreadyFaultReportedSerial(serial))
+    );
 };
 
 export const DUPLICATE_REPLACEMENT_SERIAL_MESSAGE =

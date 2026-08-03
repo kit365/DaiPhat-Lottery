@@ -113,13 +113,24 @@ export const menuManagementData = [
     },
     {
         id: "support-tickets",
-        label: "Khiếu nại / Hỗ trợ",
+        label: "Khiếu nại",
         Icon: SupportAgentIcon,
         permission: PERMISSIONS.SUPPORT_TICKET.VIEW,
         children: [
-            { id: "list", label: "Danh sách khiếu nại", path: ROUTES.ADMIN.SUPPORT_TICKETS.LIST, permission: PERMISSIONS.SUPPORT_TICKET.VIEW },
-            { id: "categories", label: "Danh mục khiếu nại", path: ROUTES.ADMIN.SUPPORT_TICKETS.CATEGORIES, permission: PERMISSIONS.SUPPORT_TICKET.VIEW },
-        ]
+            {
+                id: "list",
+                label: "Danh sách khiếu nại",
+                path: ROUTES.ADMIN.SUPPORT_TICKETS.LIST,
+                permission: PERMISSIONS.SUPPORT_TICKET.VIEW,
+                badge: "support-open",
+            },
+            {
+                id: "categories",
+                label: "Danh mục khiếu nại",
+                path: ROUTES.ADMIN.SUPPORT_TICKETS.CATEGORIES,
+                permission: PERMISSIONS.SUPPORT_TICKET.VIEW,
+            },
+        ],
     },
     {
         id: "chat",

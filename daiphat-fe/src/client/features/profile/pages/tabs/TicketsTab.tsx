@@ -18,8 +18,8 @@ import {
     canRequestPrizePayout,
     getPrizePayoutIneligibilityMessage,
     resolveTicketPayoutDisplay,
+    resolveTicketPossessionDisplay,
     SERIAL_PAYOUT_STATE_LABELS,
-    SERIAL_STATUS_LABELS,
 } from '../../../../../types/prize-payout.type';
 import { PrizePayoutRequestModal } from '../../../../components/prize-payout/PrizePayoutRequestModal';
 import { AppToast as toast } from '../../../../../utils/toast.util';
@@ -141,14 +141,25 @@ export const TicketsTab = () => {
         const ui = STATUS_UI[ticket.drawResultStatus] ?? STATUS_UI.PENDING_DRAW;
 
         if (ticket.drawResultStatus === 'PENDING_DRAW') {
+            const possession = resolveTicketPossessionDisplay(ticket);
             return (
-                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[12px] font-extrabold bg-amber-50 text-amber-600 border border-amber-200/80 shadow-xs">
-                    <span className="relative flex h-2 w-2">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
-                        <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
-                    </span>
-                    {ui.label}
-                    <i className="fa-solid fa-clock text-[10px] ml-0.5"></i>
+                <div className="flex flex-col items-start md:items-end gap-1.5">
+                    <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[12px] font-extrabold bg-amber-50 text-amber-600 border border-amber-200/80 shadow-xs">
+                        <span className="relative flex h-2 w-2">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                            <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+                        </span>
+                        {ui.label}
+                        <i className="fa-solid fa-clock text-[10px] ml-0.5"></i>
+                    </div>
+                    {possession && (
+                        <div
+                            className={`px-2.5 py-1 rounded-lg text-[11.5px] font-bold border flex items-center gap-1.5 ${possession.className}`}
+                        >
+                            <i className={`${possession.icon} text-[10px]`}></i>
+                            {possession.label}
+                        </div>
+                    )}
                 </div>
             );
         }
@@ -175,13 +186,36 @@ export const TicketsTab = () => {
                             {payoutDisplay.label}
                         </div>
                     )}
+                    {(() => {
+                        const possession = resolveTicketPossessionDisplay(ticket);
+                        if (!possession) return null;
+                        return (
+                            <div
+                                className={`px-2.5 py-1 rounded-lg text-[11.5px] font-bold border flex items-center gap-1.5 ${possession.className}`}
+                            >
+                                <i className={`${possession.icon} text-[10px]`}></i>
+                                {possession.label}
+                            </div>
+                        );
+                    })()}
                 </div>
             );
         }
 
+        const possession = resolveTicketPossessionDisplay(ticket);
         return (
-            <div className="px-3 py-1 rounded-full text-[12px] font-bold bg-slate-100 text-slate-500 border border-slate-200 shadow-xs">
-                {ui.label}
+            <div className="flex flex-col items-start md:items-end gap-1.5">
+                <div className="px-3 py-1 rounded-full text-[12px] font-bold bg-slate-100 text-slate-500 border border-slate-200 shadow-xs">
+                    {ui.label}
+                </div>
+                {possession && (
+                    <div
+                        className={`px-2.5 py-1 rounded-lg text-[11.5px] font-bold border flex items-center gap-1.5 ${possession.className}`}
+                    >
+                        <i className={`${possession.icon} text-[10px]`}></i>
+                        {possession.label}
+                    </div>
+                )}
             </div>
         );
     };
@@ -349,17 +383,35 @@ export const TicketsTab = () => {
                                         </>
                                     )}
 
-                                    {isWon && selectedTicket.serialStatus && (
-                                        <>
-                                            <div className="h-[1px] bg-slate-200/60"></div>
-                                            <div className="flex items-center justify-between text-[14px]">
-                                                <span className="text-slate-500 font-medium">Trạng thái vé vật lý</span>
-                                                <span className="text-slate-900 font-bold">
-                                                    {SERIAL_STATUS_LABELS[selectedTicket.serialStatus] ?? selectedTicket.serialStatus}
-                                                </span>
-                                            </div>
-                                        </>
-                                    )}
+                                    {(() => {
+                                        const possession = resolveTicketPossessionDisplay(selectedTicket);
+                                        if (!possession) return null;
+                                        return (
+                                            <>
+                                                <div className="h-[1px] bg-slate-200/60"></div>
+                                                <div className="flex items-start justify-between gap-3 text-[14px]">
+                                                    <span className="text-slate-500 font-medium shrink-0">Tình trạng nhận vé</span>
+                                                    <div className="flex flex-col items-end gap-1 text-right">
+                                                        <span
+                                                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[12.5px] font-bold border ${possession.className}`}
+                                                        >
+                                                            <i className={`${possession.icon} text-[11px]`}></i>
+                                                            {possession.label}
+                                                        </span>
+                                                        {selectedTicket.actualPickedUpAt ? (
+                                                            <span className="text-[12px] text-slate-500 font-medium">
+                                                                Lấy lúc {formatDateTime(selectedTicket.actualPickedUpAt)}
+                                                            </span>
+                                                        ) : possession.hint ? (
+                                                            <span className="text-[12px] text-slate-500 font-medium max-w-[220px]">
+                                                                {possession.hint}
+                                                            </span>
+                                                        ) : null}
+                                                    </div>
+                                                </div>
+                                            </>
+                                        );
+                                    })()}
 
                                     <div className="h-[1px] bg-slate-200/60"></div>
                                     <div className="flex items-center justify-between text-[14px]">
@@ -406,7 +458,11 @@ export const TicketsTab = () => {
                                     <div>
                                         <h4 className="text-amber-950 font-black text-[16px] mb-0.5">Chúc mừng bạn đã trúng thưởng!</h4>
                                         <p className="text-slate-600 text-[13px] m-0">
-                                            Tiền thưởng sẽ được chuyển tới tài khoản ngân hàng của bạn sau khi yêu cầu được duyệt.
+                                            {isEligibleForPayout
+                                                ? 'Bạn có thể gửi yêu cầu trả thưởng online. Tiền sẽ được chuyển sau khi nhân viên duyệt.'
+                                                : selectedTicket.claimChannel === 'IN_PERSON' || selectedTicket.canClaimOnline === false
+                                                    ? 'Vé này cần mang đến đại lý để đổi thưởng trực tiếp.'
+                                                    : 'Tiền thưởng sẽ được chuyển tới tài khoản ngân hàng của bạn sau khi yêu cầu được duyệt.'}
                                         </p>
                                     </div>
                                 </div>

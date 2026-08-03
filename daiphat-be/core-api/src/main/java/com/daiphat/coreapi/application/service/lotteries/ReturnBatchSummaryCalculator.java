@@ -3,7 +3,6 @@ package com.daiphat.coreapi.application.service.lotteries;
 import com.daiphat.coreapi.application.port.out.lotteries.ImportBatchLineRepositoryPort;
 import com.daiphat.coreapi.application.port.out.lotteries.LotteryTicketSerialRepositoryPort;
 import com.daiphat.coreapi.application.port.out.lotteries.ReturnBatchRepositoryPort;
-import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus;
 import com.daiphat.coreapi.domain.model.enums.lottery.ReturnBatchStatus;
 import com.daiphat.coreapi.domain.model.lotteries.ImportBatchLineModel;
 import com.daiphat.coreapi.domain.model.lotteries.LotteryTicketSerialModel;
@@ -86,9 +85,8 @@ public class ReturnBatchSummaryCalculator {
             int quantity = 0;
             BigDecimal value = BigDecimal.ZERO;
             for (ImportBatchLineModel importLine : importLines) {
-                long eligibleCount = lotteryTicketSerialRepositoryPort.countByImportBatchLineIdAndStatus(
-                        importLine.getId(),
-                        LotteryTicketSerialStatus.IN_STOCK
+                long eligibleCount = lotteryTicketSerialRepositoryPort.countReturnEligibleByImportBatchLineId(
+                        importLine.getId()
                 );
                 if (eligibleCount <= 0) {
                     continue;

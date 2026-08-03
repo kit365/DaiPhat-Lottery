@@ -191,6 +191,8 @@ public class ReturnBatchService implements ReturnBatchServicePort {
                         .serialNumber(row.serialNumber())
                         .status(row.status())
                         .statusLabel(row.status() != null ? row.status().getLabel() : null)
+                        .ticketCondition(row.ticketCondition())
+                        .ticketConditionLabel(row.ticketCondition() != null ? row.ticketCondition().getLabel() : null)
                         .ticketId(row.ticketId())
                         .ticketNumbers(row.ticketNumbers())
                         .drawDate(row.drawDate())
@@ -263,7 +265,14 @@ public class ReturnBatchService implements ReturnBatchServicePort {
         Set<Long> touchedLineIds = new HashSet<>();
 
         for (LotteryTicketSerialModel serial : serials) {
-            if (serial.getStatus() != LotteryTicketSerialStatus.IN_STOCK) {
+            if (serial.getStatus() != LotteryTicketSerialStatus.IN_STOCK
+                    && serial.getStatus() != LotteryTicketSerialStatus.EXPIRED) {
+                throw new DomainException(ErrorCode.RETURN_BATCH_SERIAL_NOT_ELIGIBLE);
+            }
+            if (serial.getTicketCondition() != null && serial.getTicketCondition().isIncidentReported()) {
+                throw new DomainException(ErrorCode.RETURN_BATCH_SERIAL_NOT_ELIGIBLE);
+            }
+            if (serial.getReturnBatchLineId() != null) {
                 throw new DomainException(ErrorCode.RETURN_BATCH_SERIAL_NOT_ELIGIBLE);
             }
             LotteryTicketModel ticket = lotteryTicketRepositoryPort.findById(serial.getTicketId())
@@ -280,7 +289,7 @@ public class ReturnBatchService implements ReturnBatchServicePort {
             }
 
             serial.setReturnBatchLineId(line.getId());
-            serial.setStatus(LotteryTicketSerialStatus.PENDING_RETURN);
+            // Return state is derived from returnBatchLineId + ReturnBatch status.
             serial.setReturnedAt(null);
             lotteryTicketSerialRepositoryPort.save(serial);
             touchedLineIds.add(line.getId());
@@ -337,9 +346,7 @@ public class ReturnBatchService implements ReturnBatchServicePort {
                     lotteryTicketSerialRepositoryPort.findAllByReturnBatchLineId(line.getId());
             boolean anyReturned = false;
             for (LotteryTicketSerialModel serial : serials) {
-                if (serial.getStatus() == LotteryTicketSerialStatus.PENDING_RETURN
-                        || serial.getStatus() == LotteryTicketSerialStatus.RETURNED) {
-                    serial.setStatus(LotteryTicketSerialStatus.RETURNED);
+                if (serial.getReturnBatchLineId() != null) {
                     if (serial.getReturnedAt() == null) {
                         serial.setReturnedAt(now);
                     }
@@ -399,7 +406,6 @@ public class ReturnBatchService implements ReturnBatchServicePort {
             validateSerialEligible(serial, batch, line);
             AttachReturnSerialItem item = byId.get(serial.getId());
             serial.setReturnBatchLineId(lineId);
-            serial.setStatus(LotteryTicketSerialStatus.PENDING_RETURN);
             boolean override = Boolean.TRUE.equals(item.manualOverride());
             serial.setManualOverride(override);
             serial.setOverrideReason(override ? trimToNull(item.overrideReason()) : null);
@@ -440,7 +446,9 @@ public class ReturnBatchService implements ReturnBatchServicePort {
             throw new DomainException(ErrorCode.RETURN_BATCH_SERIAL_NOT_ELIGIBLE);
         }
         serial.setReturnBatchLineId(null);
-        serial.setStatus(LotteryTicketSerialStatus.IN_STOCK);
+        if (serial.getStatus() != LotteryTicketSerialStatus.EXPIRED) {
+            serial.setStatus(LotteryTicketSerialStatus.IN_STOCK);
+        }
         serial.setManualOverride(false);
         serial.setOverrideReason(null);
         serial.setOverrideEvidenceUrl(null);
@@ -478,18 +486,22 @@ public class ReturnBatchService implements ReturnBatchServicePort {
         List<LotteryTicketSerialModel> serials = lotteryTicketSerialRepositoryPort.findAllByReturnBatchLineId(lineId);
         for (LotteryTicketSerialModel serial : serials) {
             if (newStatus == ReturnBatchLineStatus.SUCCESS) {
-                serial.setStatus(LotteryTicketSerialStatus.RETURNED);
-                serial.setReturnedAt(now);
-            } else if (newStatus == ReturnBatchLineStatus.PENDING) {
-                serial.setStatus(LotteryTicketSerialStatus.PENDING_RETURN);
+                if (serial.getReturnedAt() == null) {
+                    serial.setReturnedAt(now);
+                }
+            } else if (newStatus == ReturnBatchLineStatus.PENDING
+                    || newStatus == ReturnBatchLineStatus.REJECTED_BY_SUPPLIER) {
                 serial.setReturnedAt(null);
             } else if (newStatus == ReturnBatchLineStatus.PULLED_FOR_SALE) {
-                // Serial pulled for sale stays sellable inventory.
-                serial.setStatus(LotteryTicketSerialStatus.IN_STOCK);
+                // Serial pulled for sale returns to sellable inventory.
+                serial.setReturnBatchLineId(null);
+                if (serial.getStatus() != LotteryTicketSerialStatus.EXPIRED) {
+                    serial.setStatus(LotteryTicketSerialStatus.IN_STOCK);
+                }
                 serial.setReturnedAt(null);
-            } else if (newStatus == ReturnBatchLineStatus.REJECTED_BY_SUPPLIER) {
-                serial.setStatus(LotteryTicketSerialStatus.PENDING_RETURN);
-                serial.setReturnedAt(null);
+                serial.setManualOverride(false);
+                serial.setOverrideReason(null);
+                serial.setOverrideEvidenceUrl(null);
             }
             lotteryTicketSerialRepositoryPort.save(serial);
         }
@@ -553,8 +565,10 @@ public class ReturnBatchService implements ReturnBatchServicePort {
         if (serial.getDeletedAt() != null) {
             throw new DomainException(ErrorCode.RETURN_BATCH_SERIAL_NOT_ELIGIBLE);
         }
+        if (serial.getTicketCondition() != null && serial.getTicketCondition().isIncidentReported()) {
+            throw new DomainException(ErrorCode.RETURN_BATCH_SERIAL_NOT_ELIGIBLE);
+        }
         if (serial.getStatus() != LotteryTicketSerialStatus.IN_STOCK
-                && serial.getStatus() != LotteryTicketSerialStatus.PENDING_RETURN
                 && serial.getStatus() != LotteryTicketSerialStatus.EXPIRED) {
             throw new DomainException(ErrorCode.RETURN_BATCH_SERIAL_NOT_ELIGIBLE);
         }

@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from '@/components/router-compat';
 import dayjs from 'dayjs';
 import { useGetMyPrizePayouts, useGetPrizePayoutStatuses } from '../../../../hooks/usePrizePayout';
 import { PrizePayoutRequestStatus } from '../../../../../types/prize-payout.type';
 import { PrizePayoutStatusBadge } from '../../../../components/prize-payout/PrizePayoutStatusBadge';
 import { ProfileTablePagination } from '../components/ProfileTablePagination';
 import { formatPrizePayoutCurrency } from '../../../../../types/prize-payout.type';
+import { PrizePayoutComplaintButton } from '../../../../components/support/PrizePayoutComplaintButton';
 
 export const PrizePayoutsTab = () => {
     const navigate = useNavigate();
@@ -73,26 +74,28 @@ export const PrizePayoutsTab = () => {
                 </div>
 
                 <div className="overflow-x-auto">
-                    <table className="w-full min-w-[760px]">
+                    <table className="w-full min-w-[920px]">
                         <thead>
                             <tr className="bg-[#F9FAFB] border-b border-[#E5E8EB] text-[13px] text-[#637381]">
                                 <th className="py-4 px-5 text-left font-semibold">Mã yêu cầu</th>
                                 <th className="py-4 px-5 text-left font-semibold">Đài / Ngày</th>
                                 <th className="py-4 px-5 text-left font-semibold">Số tiền</th>
                                 <th className="py-4 px-5 text-left font-semibold">Trạng thái</th>
+                                <th className="py-4 px-5 text-left font-semibold">Ghi chú</th>
                                 <th className="py-4 px-5 text-left font-semibold">Ngày tạo</th>
+                                <th className="py-4 px-5 text-right font-semibold">Thao tác</th>
                             </tr>
                         </thead>
                         <tbody>
                             {isLoading ? (
                                 <tr>
-                                    <td colSpan={5} className="py-8 text-center text-[#637381]">
+                                    <td colSpan={7} className="py-8 text-center text-[#637381]">
                                         <i className="fa-solid fa-spinner fa-spin mr-2"></i>Đang tải...
                                     </td>
                                 </tr>
                             ) : !data?.data?.recordList?.length ? (
                                 <tr>
-                                    <td colSpan={5} className="py-16 text-center text-[#637381] text-[14px]">
+                                    <td colSpan={7} className="py-16 text-center text-[#637381] text-[14px]">
                                         <div className="flex flex-col items-center gap-3">
                                             <p className="m-0 font-medium text-[#637381]">Chưa có yêu cầu trả thưởng</p>
                                             <p className="m-0 text-[13px] text-[#919EAB]">
@@ -123,18 +126,30 @@ export const PrizePayoutsTab = () => {
                                             </div>
                                         </td>
                                         <td className="py-4 px-5 font-bold text-[14px]">
-                                            {formatPrizePayoutCurrency(item.grossAmount)}
+                                            {formatPrizePayoutCurrency(item.netAmount ?? item.grossAmount)}
                                         </td>
                                         <td className="py-4 px-5">
                                             <PrizePayoutStatusBadge status={item.status} />
-                                            {item.status === PrizePayoutRequestStatus.REJECTED && item.rejectReason && (
-                                                <p className="text-[12px] text-[#ee1314] mt-1 truncate max-w-[220px]" title={item.rejectReason}>
+                                        </td>
+                                        <td className="py-4 px-5 text-[13px] text-[#637381] max-w-[240px]">
+                                            {(item.status === PrizePayoutRequestStatus.REJECTED ||
+                                                item.status === PrizePayoutRequestStatus.MANUAL_RESOLUTION) &&
+                                            item.rejectReason ? (
+                                                <p className="m-0 truncate text-[#ee1314]" title={item.rejectReason}>
                                                     {item.rejectReason}
                                                 </p>
+                                            ) : (
+                                                <span>—</span>
                                             )}
                                         </td>
                                         <td className="py-4 px-5 text-[14px] text-[#637381]">
                                             {item.createdAt ? dayjs(item.createdAt).format('DD/MM/YYYY HH:mm') : '—'}
+                                        </td>
+                                        <td
+                                            className="py-4 px-5 text-right"
+                                            onClick={(e) => e.stopPropagation()}
+                                        >
+                                            <PrizePayoutComplaintButton payout={item} />
                                         </td>
                                     </tr>
                                 ))

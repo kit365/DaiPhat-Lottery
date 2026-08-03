@@ -81,6 +81,7 @@ export const QUERY_KEYS = {
     ADMIN_REFUND_DETAIL: 'admin-refund-detail',
     ADMIN_PRIZE_PAYOUTS: 'admin-prize-payouts',
     ADMIN_PRIZE_PAYOUT_DETAIL: 'admin-prize-payout-detail',
+    ADMIN_CUSTOMER_BANK_ACCOUNTS: 'admin-customer-bank-accounts',
 
     // Blogs (Shared / Client-facing)
     PUBLIC_BLOG_CATEGORIES: 'public-blog-categories',

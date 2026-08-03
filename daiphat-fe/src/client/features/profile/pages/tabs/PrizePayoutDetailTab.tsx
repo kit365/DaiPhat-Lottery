@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from '@/components/router-compat';
 import dayjs from 'dayjs';
 import {
     useCancelPrizePayout,
@@ -12,6 +12,7 @@ import { PrizePayoutStatusBadge } from '../../../../components/prize-payout/Priz
 import { PrizePayoutStatusStepper } from '../../../../components/prize-payout/PrizePayoutStatusStepper';
 import { TransferEvidencePreview } from '../../../../../admin/pages/refund/components/TransferEvidencePreview';
 import { PrizePayoutRequestModal } from '../../../../components/prize-payout/PrizePayoutRequestModal';
+import { PrizePayoutComplaintButton } from '../../../../components/support/PrizePayoutComplaintButton';
 import { PurchasedTicket } from '../../../../../types/lottery-ticket.type';
 
 export const PrizePayoutDetailTab = () => {
@@ -41,8 +42,13 @@ export const PrizePayoutDetailTab = () => {
         );
     }
 
+    const maxRetry = payout.maxOnlineRejectRetry ?? 3;
+    const rejectCount = payout.rejectCount ?? 0;
+    const onlineLocked =
+        payout.onlineClaimLocked === true || payout.status === PrizePayoutRequestStatus.MANUAL_RESOLUTION;
+
     const resubmitTicket: PurchasedTicket | null =
-        payout.status === PrizePayoutRequestStatus.REJECTED && payout.orderDetailId
+        payout.status === PrizePayoutRequestStatus.REJECTED && !onlineLocked && payout.orderDetailId
             ? {
                   orderId: payout.orderId || '',
                   orderCode: payout.orderCode || '',
@@ -73,7 +79,7 @@ export const PrizePayoutDetailTab = () => {
 
     return (
         <div className="flex flex-col gap-5">
-            <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center justify-between gap-3 flex-wrap">
                 <button
                     type="button"
                     onClick={() => navigate('/profile/prize-payouts')}
@@ -81,10 +87,17 @@ export const PrizePayoutDetailTab = () => {
                 >
                     <i className="fa-solid fa-arrow-left mr-2"></i>Danh sách trả thưởng
                 </button>
-                <PrizePayoutStatusBadge status={payout.status} />
+                <div className="flex items-center gap-2">
+                    <PrizePayoutComplaintButton payout={payout} variant="button" />
+                    <PrizePayoutStatusBadge status={payout.status} />
+                </div>
             </div>
 
-            <PrizePayoutStatusStepper status={payout.status} />
+            <PrizePayoutStatusStepper
+                status={payout.status}
+                rejectCount={rejectCount}
+                maxOnlineRejectRetry={maxRetry}
+            />
 
             <div className="bg-white rounded-2xl border border-[#E5E8EB] p-5 md:p-6 shadow-sm">
                 <h4 className="text-[#ee1314] font-bold text-[14px] uppercase mb-4">Thông tin yêu cầu</h4>
@@ -93,9 +106,31 @@ export const PrizePayoutDetailTab = () => {
                         <span className="text-[#637381]">Mã yêu cầu</span>
                         <span className="font-medium">{payout.requestCode}</span>
                     </div>
+                    {payout.status === PrizePayoutRequestStatus.REJECTED && rejectCount > 0 && (
+                        <div className="flex justify-between border-b border-dashed border-[#E5E8EB] pb-2">
+                            <span className="text-[#637381]">Số lần từ chối online</span>
+                            <span className="font-medium">
+                                {rejectCount} / {maxRetry}
+                            </span>
+                        </div>
+                    )}
                     <div className="flex justify-between border-b border-dashed border-[#E5E8EB] pb-2">
-                        <span className="text-[#637381]">Tiền trúng (gross)</span>
-                        <span className="font-bold text-[#ee1314]">{formatPrizePayoutCurrency(payout.grossAmount)}</span>
+                        <span className="text-[#637381]">Giá trị giải</span>
+                        <span className="font-medium">{formatPrizePayoutCurrency(payout.grossAmount)}</span>
+                    </div>
+                    <div className="flex justify-between border-b border-dashed border-[#E5E8EB] pb-2">
+                        <span className="text-[#637381]">Thuế TNCN</span>
+                        <span className="font-medium">{formatPrizePayoutCurrency(payout.taxAmount)}</span>
+                    </div>
+                    <div className="flex justify-between border-b border-dashed border-[#E5E8EB] pb-2">
+                        <span className="text-[#637381]">Hoa hồng đại lý</span>
+                        <span className="font-medium">{formatPrizePayoutCurrency(payout.commissionAmount)}</span>
+                    </div>
+                    <div className="flex justify-between border-b border-dashed border-[#E5E8EB] pb-2">
+                        <span className="text-[#637381]">Thực nhận</span>
+                        <span className="font-bold text-[#ee1314]">
+                            {formatPrizePayoutCurrency(payout.netAmount ?? payout.grossAmount)}
+                        </span>
                     </div>
                     <div className="flex justify-between border-b border-dashed border-[#E5E8EB] pb-2">
                         <span className="text-[#637381]">Đài / Ngày quay</span>

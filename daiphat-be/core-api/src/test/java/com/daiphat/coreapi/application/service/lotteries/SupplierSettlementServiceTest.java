@@ -125,7 +125,7 @@ class SupplierSettlementServiceTest {
     }
 
     @Test
-    @DisplayName("recalculateTotalReturnValue subtracts SUCCESS returns from remaining")
+    @DisplayName("recalculateTotalReturnValue subtracts prepared returns from remaining")
     void recalculateTotalReturnValue_updatesRemaining() {
         SupplierSettlementModel settlement = SupplierSettlementModel.builder()
                 .id(5L)
@@ -134,7 +134,9 @@ class SupplierSettlementServiceTest {
                 .status(SupplierSettlementStatus.OPEN)
                 .build();
         when(supplierSettlementRepositoryPort.findById(5L)).thenReturn(Optional.of(settlement));
-        when(supplierSettlementRepositoryPort.sumSuccessfulReturnValueBySettlementId(5L))
+        when(supplierSettlementRepositoryPort.sumImportedCostValueBySettlementId(5L))
+                .thenReturn(new BigDecimal("10000.000"));
+        when(supplierSettlementRepositoryPort.sumPreparedReturnValueBySettlementId(5L))
                 .thenReturn(new BigDecimal("1500.250"));
         when(supplierSettlementRepositoryPort.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 

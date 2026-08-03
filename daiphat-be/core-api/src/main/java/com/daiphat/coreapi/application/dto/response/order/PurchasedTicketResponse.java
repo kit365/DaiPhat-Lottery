@@ -2,7 +2,10 @@ package com.daiphat.coreapi.application.dto.response.order;
 
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus;
 import com.daiphat.coreapi.domain.model.enums.lottery.SerialPayoutState;
+import com.daiphat.coreapi.domain.model.enums.order.OrderReceiveType;
+import com.daiphat.coreapi.domain.model.enums.order.OrderType;
 import com.daiphat.coreapi.domain.model.enums.order.TicketDrawResultStatus;
+import com.daiphat.coreapi.domain.model.enums.payout.PrizePayoutChannel;
 import com.daiphat.coreapi.domain.model.enums.payout.PrizePayoutRequestStatus;
 import lombok.Builder;
 
@@ -31,6 +34,11 @@ public record PurchasedTicketResponse(
         String matchedPrizeDisplayName,
         BigDecimal prizeAmount,
         Long activePayoutRequestId,
-        PrizePayoutRequestStatus activePayoutStatus
+        PrizePayoutRequestStatus activePayoutStatus,
+        OrderType orderType,
+        OrderReceiveType receiveType,
+        LocalDateTime actualPickedUpAt,
+        PrizePayoutChannel claimChannel,
+        boolean canClaimOnline
 ) {
 }

@@ -11,7 +11,8 @@ public enum ConfigType implements LabeledEnum {
     PAYMENT_SETTING("Cấu hình thanh toán"),
     TICKET_IMPORT("Cấu hình nhập vé"),
     REFUND_SETTING("Cấu hình hoàn tiền"),
-    COMPLAINT_SETTING("Cấu hình khiếu nại");
+    COMPLAINT_SETTING("Cấu hình khiếu nại"),
+    PAYOUT_SETTING("Cấu hình trả thưởng");
 
     private final String label;
 }

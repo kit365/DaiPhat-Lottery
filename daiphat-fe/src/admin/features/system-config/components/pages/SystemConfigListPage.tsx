@@ -16,7 +16,7 @@ import {
     Typography,
     styled,
 } from '@mui/material';
-import { Banknote, CreditCard, LayoutList, MessageSquare, ShoppingCart, Ticket } from 'lucide-react';
+import { Banknote, CreditCard, Gift, LayoutList, MessageSquare, ShoppingCart, Ticket } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { Breadcrumb } from '../../../../components/ui/Breadcrumb';
 import { Search } from '../../../../components/ui/Search';
@@ -80,6 +80,12 @@ const TYPE_TABS: { value: TypeFilter; label: string; icon: React.ReactNode; colo
         icon: <MessageSquare size={18} />,
         color: 'error.main',
     },
+    {
+        value: ConfigType.PAYOUT_SETTING,
+        label: CONFIG_TYPE_LABELS[ConfigType.PAYOUT_SETTING],
+        icon: <Gift size={18} />,
+        color: 'success.dark',
+    },
 ];
 
 export const SystemConfigListPage = () => {
@@ -105,6 +111,7 @@ export const SystemConfigListPage = () => {
             [ConfigType.TICKET_IMPORT]: 0,
             [ConfigType.REFUND_SETTING]: 0,
             [ConfigType.COMPLAINT_SETTING]: 0,
+            [ConfigType.PAYOUT_SETTING]: 0,
         };
         allConfigs.forEach((c) => {
             if (counts[c.configType] !== undefined) {
@@ -213,9 +220,20 @@ export const SystemConfigListPage = () => {
                     <Tabs
                         value={typeFilter}
                         onChange={(_, value: TypeFilter) => setTypeFilter(value)}
+                        variant="scrollable"
+                        scrollButtons="auto"
+                        allowScrollButtonsMobile
                         sx={{
                             minHeight: 44,
-                            '& .MuiTab-root': { minHeight: 44, textTransform: 'none', fontWeight: 600 },
+                            '& .MuiTab-root': {
+                                minHeight: 44,
+                                textTransform: 'none',
+                                fontWeight: 600,
+                                flexShrink: 0,
+                            },
+                            '& .MuiTabs-scrollButtons.Mui-disabled': {
+                                opacity: 0.3,
+                            },
                             '& .MuiTabs-indicator': {
                                 backgroundColor: TYPE_TABS.find((t) => t.value === typeFilter)?.color || 'primary.main',
                             },

@@ -20,6 +20,16 @@ public interface PrizePayoutRequestRepository extends JpaRepository<PrizePayoutR
 
     boolean existsBySerial_IdAndStatusIn(Long serialId, Collection<PrizePayoutRequestStatus> statuses);
 
+    long countBySerial_IdAndChannelAndStatusIn(
+            Long serialId,
+            com.daiphat.coreapi.domain.model.enums.payout.PrizePayoutChannel channel,
+            Collection<PrizePayoutRequestStatus> statuses);
+
+    boolean existsBySerial_IdAndChannelAndStatus(
+            Long serialId,
+            com.daiphat.coreapi.domain.model.enums.payout.PrizePayoutChannel channel,
+            PrizePayoutRequestStatus status);
+
     Optional<PrizePayoutRequestEntity> findBySerial_IdAndStatus(Long serialId, PrizePayoutRequestStatus status);
 
     List<PrizePayoutRequestEntity> findBySerial_IdInAndStatus(

@@ -408,9 +408,19 @@ export const OrderDetailPage = () => {
                                                     detail.serialStatusDisplayName
                                                     || allocatedSerial?.statusDisplayName
                                                     || null;
+                                                const ticketCondition =
+                                                    detail.ticketCondition
+                                                    || allocatedSerial?.ticketCondition
+                                                    || null;
+                                                const ticketConditionLabel =
+                                                    detail.ticketConditionDisplayName
+                                                    || allocatedSerial?.ticketConditionDisplayName
+                                                    || null;
                                                 const serialBadge = resolveLotteryTicketSerialStatusBadge(
                                                     serialStatus,
-                                                    serialStatusLabel
+                                                    serialStatusLabel,
+                                                    ticketCondition,
+                                                    ticketConditionLabel
                                                 );
                                                 const activityBadge = resolveOrderDetailStatusBadge(detail.status);
 

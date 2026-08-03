@@ -2,7 +2,12 @@ package com.daiphat.coreapi.application.dto.response.payout;
 
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus;
 import com.daiphat.coreapi.domain.model.enums.lottery.SerialPayoutState;
+import com.daiphat.coreapi.domain.model.enums.order.OrderType;
+import com.daiphat.coreapi.domain.model.enums.payout.PrizePayoutChannel;
+import com.daiphat.coreapi.domain.model.enums.payout.PrizePayoutOwnershipVerificationLevel;
+import com.daiphat.coreapi.domain.model.enums.payout.PrizePayoutPaymentMethod;
 import com.daiphat.coreapi.domain.model.enums.payout.PrizePayoutRequestStatus;
+import com.daiphat.coreapi.domain.model.enums.payout.PrizePayoutTicketOrigin;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -25,15 +30,41 @@ public record PrizePayoutRequestResponse(
         String prizeCode,
         String prizeDisplayName,
         BigDecimal grossAmount,
+        BigDecimal taxAmount,
+        BigDecimal commissionAmount,
+        BigDecimal netAmount,
+        BigDecimal cashAmount,
+        BigDecimal transferAmount,
+        PrizePayoutChannel channel,
+        PrizePayoutTicketOrigin ticketOrigin,
+        PrizePayoutOwnershipVerificationLevel ownershipVerificationLevel,
+        boolean manualOwnershipConfirmed,
+        OrderType orderType,
+        String orderGuestName,
+        String orderPhone,
+        PrizePayoutPaymentMethod paymentMethod,
         Long bankAccountId,
         String bankName,
         String bankAccountNumber,
         String accountHolderName,
+        String recipientFullName,
+        String recipientIdNumber,
+        String recipientIdImageUrl,
+        String recipientIdImageBackUrl,
+        LocalDateTime recipientIdentityCapturedAt,
         PrizePayoutRequestStatus status,
+        int rejectCount,
+        Integer maxOnlineRejectRetry,
+        boolean onlineClaimLocked,
+        boolean requiresFourEyes,
+        boolean canCurrentStaffApprove,
+        boolean canCurrentStaffComplete,
         String rejectReason,
         String transferEvidenceUrl,
+        String confirmationContractUrl,
         LocalDateTime completedAt,
-        UUID completedBy,
+        String completedBy,
+        String createdBy,
         LocalDateTime createdAt,
         LocalDateTime updatedAt,
         LotteryTicketSerialStatus serialStatus,

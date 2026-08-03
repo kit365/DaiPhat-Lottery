@@ -26,6 +26,8 @@ import { PrizePayoutStatusBadge } from '../../../../client/components/prize-payo
 import {
     formatPrizePayoutCurrency,
     PrizePayoutRequestStatus,
+    PRIZE_PAYOUT_CHANNEL_LABELS,
+    PRIZE_PAYOUT_TICKET_ORIGIN_LABELS,
 } from '../../../../types/prize-payout.type';
 import { useGetStaffPrizePayouts } from '../hooks/usePrizePayoutManagement';
 import { PRIZE_PAYOUT_STATUS_TABS } from '../constants/prizePayoutStatus.constants';
@@ -219,7 +221,9 @@ export const PrizePayoutList = () => {
                                 <TableCell sx={headerCellSx}>Mã yêu cầu</TableCell>
                                 <TableCell sx={headerCellSx}>Khách hàng</TableCell>
                                 <TableCell sx={headerCellSx}>Đài / Ngày quay</TableCell>
-                                <TableCell sx={headerCellSx}>Số tiền trúng</TableCell>
+                                <TableCell sx={headerCellSx}>Kênh</TableCell>
+                                <TableCell sx={headerCellSx}>Nguồn vé</TableCell>
+                                <TableCell sx={headerCellSx}>Thực nhận</TableCell>
                                 <TableCell sx={headerCellSx}>Trạng thái</TableCell>
                                 <TableCell sx={headerCellSx}>Ngày tạo</TableCell>
                             </TableRow>
@@ -227,13 +231,13 @@ export const PrizePayoutList = () => {
                         <TableBody>
                             {isLoading ? (
                                 <TableRow>
-                                    <TableCell colSpan={6} align="center" sx={{ py: 10 }}>
+                                    <TableCell colSpan={8} align="center" sx={{ py: 10 }}>
                                         <CircularProgress size={32} />
                                     </TableCell>
                                 </TableRow>
                             ) : rows.length === 0 ? (
                                 <TableRow>
-                                    <TableCell colSpan={6} align="center" sx={{ py: 10 }}>
+                                    <TableCell colSpan={8} align="center" sx={{ py: 10 }}>
                                         <Typography sx={{ color: 'var(--palette-text-secondary)' }}>
                                             Không có yêu cầu trả thưởng
                                         </Typography>
@@ -297,7 +301,31 @@ export const PrizePayoutList = () => {
                                                     color: 'var(--palette-text-primary)',
                                                 }}
                                             >
-                                                {formatPrizePayoutCurrency(row.grossAmount)}
+                                                {row.channel ? PRIZE_PAYOUT_CHANNEL_LABELS[row.channel] : '—'}
+                                            </Typography>
+                                        </TableCell>
+                                        <TableCell sx={cellBorderSx}>
+                                            <Typography
+                                                sx={{
+                                                    fontWeight: 600,
+                                                    fontSize: '0.875rem',
+                                                    color: 'var(--palette-text-primary)',
+                                                }}
+                                            >
+                                                {row.ticketOrigin
+                                                    ? PRIZE_PAYOUT_TICKET_ORIGIN_LABELS[row.ticketOrigin]
+                                                    : '—'}
+                                            </Typography>
+                                        </TableCell>
+                                        <TableCell sx={cellBorderSx}>
+                                            <Typography
+                                                sx={{
+                                                    fontWeight: 700,
+                                                    fontSize: '0.875rem',
+                                                    color: 'var(--palette-error-main)',
+                                                }}
+                                            >
+                                                {formatPrizePayoutCurrency(row.netAmount ?? row.grossAmount)}
                                             </Typography>
                                         </TableCell>
                                         <TableCell sx={cellBorderSx}>

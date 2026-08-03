@@ -106,6 +106,8 @@ export interface RefundEligibleTicketItem {
     subtotalAmount: number;
     serialStatus?: string | null;
     serialStatusLabel?: string | null;
+    ticketCondition?: string | null;
+    ticketConditionDisplayName?: string | null;
     hasIncident?: boolean;
     faultedBy?: string | null;
     faultedByDisplayName?: string | null;

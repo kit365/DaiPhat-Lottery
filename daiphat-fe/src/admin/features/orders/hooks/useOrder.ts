@@ -176,15 +176,19 @@ export const useCreateOrder = () => {
 /** Polls statusCounts for the sidebar PREPARING badge. */
 export const usePreparingOrderCount = () => {
     const { user, token } = useAuthStore();
-    const canView = Boolean(token) && hasPermission(user, PERMISSIONS.ORDER.VIEW);
+    const canView = Boolean(token) && Boolean(user) && hasPermission(user, PERMISSIONS.ORDER.VIEW);
 
     const query = useQuery({
         queryKey: [GLOBAL_QUERY_KEYS.ADMIN_ORDERS, 'preparing-count'],
         queryFn: () => getOrders({ page: 1, size: 1 }, { skipGlobalErrorToast: true }),
         enabled: canView,
-        refetchOnWindowFocus: true,
-        refetchInterval: 5_000,
-        staleTime: 0,
+        refetchOnWindowFocus: canView,
+        refetchInterval: (q) => {
+            if (!canView) return false;
+            if (q.state.error) return false;
+            return 30_000;
+        },
+        staleTime: 15_000,
         retry: false,
     });
 

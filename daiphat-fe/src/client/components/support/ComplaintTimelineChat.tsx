@@ -23,11 +23,17 @@ import { AppToast } from '../../../utils/toast.util';
 interface ComplaintTimelineChatProps {
     ticketId: number;
     status: TicketStatus;
+    /** Internal resolve-reason notes — hidden from customer chat. */
+    hideCommentIds?: number[];
 }
 
 const MAX_CONTENT_LENGTH = 2000;
 
-export const ComplaintTimelineChat: React.FC<ComplaintTimelineChatProps> = ({ ticketId, status }) => {
+export const ComplaintTimelineChat: React.FC<ComplaintTimelineChatProps> = ({
+    ticketId,
+    status,
+    hideCommentIds = [],
+}) => {
     const [content, setContent] = useState('');
     const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
     const scrollRef = useRef<HTMLDivElement>(null);
@@ -39,7 +45,10 @@ export const ComplaintTimelineChat: React.FC<ComplaintTimelineChatProps> = ({ ti
     const { data: autoCloseHoursConfig } = usePublicSystemConfig('SUPPORT_TICKET_AUTO_CLOSE_HOURS');
     const autoCloseHours = autoCloseHoursConfig?.configValue || '48';
 
-    const comments: SupportTicketCommentResponse[] = sortCommentsByCreatedAt(data?.data ?? []);
+    const hiddenIds = new Set(hideCommentIds.filter((id): id is number => typeof id === 'number'));
+    const comments: SupportTicketCommentResponse[] = sortCommentsByCreatedAt(data?.data ?? []).filter(
+        (comment) => !hiddenIds.has(comment.id)
+    );
     const isResolved = status === TicketStatus.RESOLVED;
     const isRejected = status === TicketStatus.REJECTED;
     const isClosed = status === TicketStatus.CLOSED;

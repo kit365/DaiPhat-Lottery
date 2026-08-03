@@ -8,22 +8,28 @@ import { useAuthStore } from '../../../../stores/useAuthStore';
 import { hasPermission } from '../../../utils/permission.util';
 import { PERMISSIONS } from '../../../constants/permission.constants';
 import { countPendingRefunds } from '../../../../types/refund.type';
+import { ADMIN_BADGE_POLL_MS } from '../../../hooks/adminBadgePoll';
 
 /**
  * Polls staff refund statusCounts for the sidebar badge (non-PAID count).
  * Shares invalidation with ADMIN_REFUNDS so transfers update the badge promptly.
  */
 export const useRefundPendingCount = () => {
-    const { user } = useAuthStore();
-    const canView = hasPermission(user, PERMISSIONS.REFUND.VIEW);
+    const { user, token } = useAuthStore();
+    const canView = Boolean(token) && Boolean(user) && hasPermission(user, PERMISSIONS.REFUND.VIEW);
 
     const query = useQuery({
         queryKey: [QUERY_KEYS.ADMIN_REFUNDS, 'pending-count'],
         queryFn: () => refundAdminApi.getStaffRefunds({ page: 1, limit: 1 }),
         enabled: canView,
-        refetchOnWindowFocus: true,
-        refetchInterval: 5_000,
-        staleTime: 0,
+        refetchOnWindowFocus: canView,
+        refetchInterval: (q) => {
+            if (!canView) return false;
+            if (q.state.error) return false;
+            return ADMIN_BADGE_POLL_MS;
+        },
+        staleTime: ADMIN_BADGE_POLL_MS / 2,
+        retry: false,
     });
 
     const pendingCount = useMemo(

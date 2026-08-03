@@ -4,12 +4,14 @@ import com.daiphat.coreapi.domain.model.enums.lottery.InputSource;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialFaultedBy;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus;
 import com.daiphat.coreapi.domain.model.enums.lottery.SerialPayoutState;
+import com.daiphat.coreapi.domain.model.enums.lottery.TicketCondition;
 import com.daiphat.coreapi.infrastructure.persistence.entity.BaseEntity;
 import com.daiphat.coreapi.infrastructure.persistence.entity.user.UserEntity;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -52,10 +54,23 @@ public class LotteryTicketSerialEntity extends BaseEntity {
     @Column(name = "serial_number", nullable = false, length = 100)
     private String serialNumber;
 
+    /** Denormalized from ticket for UNIQUE(station, draw_date, serial_number). */
+    @Column(name = "station_id", nullable = false)
+    private Long stationId;
+
+    /** Denormalized from ticket for UNIQUE(station, draw_date, serial_number). */
+    @Column(name = "draw_date", nullable = false)
+    private LocalDate drawDate;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 50)
     @Builder.Default
     private LotteryTicketSerialStatus status = LotteryTicketSerialStatus.IN_STOCK;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "ticket_condition", nullable = false, length = 20)
+    @Builder.Default
+    private TicketCondition ticketCondition = TicketCondition.GOOD;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "faulted_by", length = 30)
