@@ -6,6 +6,7 @@ from dream_book import build_fortune_reply
 from dto.request.chat_classify_request import ChatClassifyRequest
 from dto.request.chat_generate_request import ChatGenerateRequest
 from dto.response.chat_generate_response import ChatGenerateResponse
+from fortune.prose import fortune_router
 from infra.config import settings
 
 app = FastAPI(
@@ -41,6 +42,7 @@ def generate_message(request: ChatGenerateRequest):
 
 
 app.include_router(chat_router, prefix=settings.API_V1_STR)
+app.include_router(fortune_router, prefix=settings.API_V1_STR)
 
 
 @app.get("/health", tags=["System"])
