@@ -28,6 +28,8 @@ describe('serialIncidentWorkflow refund prep', () => {
         expect(isSerialIncidentEligible('IN_STOCK', { ticketCondition: 'LOST' })).toBe(false);
         expect(isSerialIncidentEligible({ status: 'IN_STOCK', ticketCondition: 'GOOD' })).toBe(true);
         expect(isSerialIncidentEligible({ status: 'IN_STOCK', returnBatchLineId: 12 })).toBe(false);
+        expect(isSerialIncidentEligible({ status: 'IN_STOCK', returnBatchLineId: 0 })).toBe(true);
+        expect(isSerialIncidentEligible({ status: 'IN_STOCK', returnBatchLineId: '0' })).toBe(true);
         expect(isFaultyTicketCondition('DAMAGED')).toBe(true);
         expect(isAlreadyFaultReportedSerial({ status: 'IN_STOCK', ticketCondition: 'LOST' })).toBe(true);
         expect(isAlreadyFaultReportedSerial({ status: 'IN_STOCK', ticketCondition: 'VOIDED' })).toBe(true);

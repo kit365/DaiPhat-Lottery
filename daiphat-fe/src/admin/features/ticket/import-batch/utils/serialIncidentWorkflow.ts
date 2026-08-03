@@ -56,7 +56,11 @@ export const isSerialIncidentEligible = (
     if (normalized !== 'IN_STOCK' && normalized !== 'PROXY_HOLDING') {
         return false;
     }
-    if (fields.returnBatchLineId != null && fields.returnBatchLineId !== '') {
+    if (
+        fields.returnBatchLineId != null &&
+        fields.returnBatchLineId !== '' &&
+        Number(fields.returnBatchLineId) > 0
+    ) {
         return false;
     }
     if (isFaultyTicketCondition(fields.ticketCondition)) {

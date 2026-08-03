@@ -5,6 +5,7 @@ import {
     RenderActionsCell,
     RenderTicketCell,
     RenderStatusCell,
+    RenderTicketConditionCell,
     RenderCreatedAtCell,
     RenderDrawDateCell,
 } from '../utils/render-cells';
@@ -72,6 +73,15 @@ export const columnsConfig: GridColDef<ITicket>[] = [
         width: 140,
         filterable: false,
         renderCell: RenderStatusCell,
+    },
+    {
+        field: 'ticketCondition',
+        headerName: 'Tình trạng vé',
+        width: 140,
+        align: 'center',
+        headerAlign: 'center',
+        filterable: false,
+        renderCell: RenderTicketConditionCell,
     },
     {
         field: 'actions',
