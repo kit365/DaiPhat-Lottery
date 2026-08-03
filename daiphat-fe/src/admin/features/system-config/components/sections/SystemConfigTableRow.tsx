@@ -35,6 +35,8 @@ const getTypeChipColor = (
       return 'info';
     case ConfigType.TICKET_IMPORT:
       return 'warning';
+    case ConfigType.TICKET_RETURN:
+      return 'warning';
     case ConfigType.REFUND_SETTING:
       return 'secondary';
     case ConfigType.COMPLAINT_SETTING:

@@ -1,5 +1,3 @@
-"use client";
-
 import { useMemo, useState } from 'react';
 import {
     Box,
@@ -16,7 +14,7 @@ import {
     Typography,
     styled,
 } from '@mui/material';
-import { Banknote, CreditCard, Gift, LayoutList, MessageSquare, ShoppingCart, Ticket } from 'lucide-react';
+import { Banknote, CreditCard, Gift, LayoutList, MessageSquare, PackageMinus, ShoppingCart, Ticket } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { Breadcrumb } from '../../../../components/ui/Breadcrumb';
 import { Search } from '../../../../components/ui/Search';
@@ -69,6 +67,12 @@ const TYPE_TABS: { value: TypeFilter; label: string; icon: React.ReactNode; colo
         color: 'warning.main',
     },
     {
+        value: ConfigType.TICKET_RETURN,
+        label: CONFIG_TYPE_LABELS[ConfigType.TICKET_RETURN],
+        icon: <PackageMinus size={18} />,
+        color: 'warning.dark',
+    },
+    {
         value: ConfigType.REFUND_SETTING,
         label: CONFIG_TYPE_LABELS[ConfigType.REFUND_SETTING],
         icon: <Banknote size={18} />,
@@ -109,6 +113,7 @@ export const SystemConfigListPage = () => {
             [ConfigType.ORDER_SETTING]: 0,
             [ConfigType.PAYMENT_SETTING]: 0,
             [ConfigType.TICKET_IMPORT]: 0,
+            [ConfigType.TICKET_RETURN]: 0,
             [ConfigType.REFUND_SETTING]: 0,
             [ConfigType.COMPLAINT_SETTING]: 0,
             [ConfigType.PAYOUT_SETTING]: 0,

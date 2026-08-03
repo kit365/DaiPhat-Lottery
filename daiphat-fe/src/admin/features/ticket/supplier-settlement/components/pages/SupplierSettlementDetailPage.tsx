@@ -1,31 +1,24 @@
 "use client";
 
-import { Box, CircularProgress, Stack, Typography } from '@mui/material';
+import CalendarTodayOutlinedIcon from '@mui/icons-material/CalendarTodayOutlined';
+import { Avatar, Box, Card, CircularProgress, Stack, Typography } from '@mui/material';
 import dayjs from 'dayjs';
 import { useParams } from '@/components/router-compat';
 import { Breadcrumb } from '../../../../../components/ui/Breadcrumb';
 import { Title } from '../../../../../components/ui/Title';
-import { CollapsibleCard } from '../../../../../components/ui/CollapsibleCard';
 import { ROUTES } from '../../../../../constants/routes';
 import { formatImportCost } from '../../../import-batch/utils/importCostCalculator';
-import { useSupplierSettlementDetail } from '../../hooks/useSupplierSettlement';
+import { useSupplierSettlementOverview } from '../../hooks/useSupplierSettlement';
 import {
     getSupplierSettlementStatusLabel,
     getSupplierSettlementStatusModifier,
 } from '../../utils/settlementLabels';
-
-const MoneyField = ({ label, value }: { label: string; value?: number | null }) => (
-    <Box>
-        <Typography variant="caption" color="text.secondary">{label}</Typography>
-        <Typography variant="body1" fontWeight={600}>
-            {formatImportCost(value)} VNĐ
-        </Typography>
-    </Box>
-);
+import { SettlementConsolidatedDetails } from '../sections/SettlementConsolidatedDetails';
+import { SettlementKpiCards } from '../sections/SettlementKpiCards';
 
 export const SupplierSettlementDetailPage = () => {
     const { id } = useParams<{ id: string }>();
-    const { data: settlement, isLoading, isError } = useSupplierSettlementDetail(id);
+    const { data: overview, isLoading, isError } = useSupplierSettlementOverview(id);
 
     if (isLoading) {
         return (
@@ -35,7 +28,7 @@ export const SupplierSettlementDetailPage = () => {
         );
     }
 
-    if (isError || !settlement) {
+    if (isError || !overview?.settlement) {
         return (
             <Box display="flex" justifyContent="center" alignItems="center" minHeight={320}>
                 <Typography color="text.secondary">Không tìm thấy kỳ đối soát.</Typography>
@@ -43,17 +36,21 @@ export const SupplierSettlementDetailPage = () => {
         );
     }
 
+    const settlement = overview.settlement;
     const statusLabel = getSupplierSettlementStatusLabel(settlement.status, settlement.statusLabel);
     const periodFrom = settlement.periodFrom
         ? dayjs(settlement.periodFrom).format('DD/MM/YYYY')
         : '—';
-    const periodTo = settlement.periodTo
-        ? dayjs(settlement.periodTo).format('DD/MM/YYYY')
-        : '—';
+    const periodTo = settlement.periodTo ? dayjs(settlement.periodTo).format('DD/MM/YYYY') : '—';
+    const supplierInitial = (settlement.supplierName || 'S').charAt(0).toUpperCase();
+    const hasCompletedReturnInspection = (overview.returnBatches || []).some(
+        (batch) => batch.status === 'PENDING_HANDOVER' || batch.status === 'HANDED_OVER'
+    );
 
     return (
-        <Box sx={{ maxWidth: 900, mx: 'auto' }}>
-            <div className="mb-[calc(3*var(--spacing))] flex items-start justify-end gap-[calc(2*var(--spacing))]">
+        <Box sx={{ width: '100%', pb: 5 }}>
+            {/* Page Header */}
+            <div className="mb-[calc(4*var(--spacing))] flex items-start justify-end gap-[calc(2*var(--spacing))]">
                 <div className="mr-auto">
                     <Title title="Chi tiết đối soát nhà cung cấp" />
                     <Breadcrumb
@@ -66,67 +63,162 @@ export const SupplierSettlementDetailPage = () => {
                 </div>
             </div>
 
-            <CollapsibleCard title="Thông tin kỳ đối soát" expanded onToggle={() => undefined}>
-                <Stack spacing={3} sx={{ p: 3 }}>
-                    <Box
-                        sx={{
-                            display: 'grid',
-                            gridTemplateColumns: { xs: '1fr', md: 'repeat(2, 1fr)' },
-                            gap: 3,
-                        }}
-                    >
+            {/* Top Executive Header Card: Consolidated Info & 100% Balanced Financial Grid */}
+            <Card
+                elevation={0}
+                sx={{
+                    p: 3,
+                    borderRadius: '16px',
+                    border: '1px solid #e2e8f0',
+                    bgcolor: '#fff',
+                    boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.04)',
+                    mb: 3,
+                    width: '100%',
+                }}
+            >
+                {/* Supplier & Period Header */}
+                <Stack
+                    direction={{ xs: 'column', md: 'row' }}
+                    justifyContent="space-between"
+                    alignItems={{ md: 'center' }}
+                    spacing={2}
+                    sx={{ pb: 2.5, borderBottom: '1px solid #f1f5f9' }}
+                >
+                    <Stack direction="row" spacing={2} alignItems="center">
+                        <Avatar
+                            sx={{
+                                width: 50,
+                                height: 50,
+                                bgcolor: '#f1f5f9',
+                                color: '#0284c7',
+                                fontWeight: 800,
+                                fontSize: '1.3rem',
+                                border: '1px solid #cbd5e1',
+                            }}
+                        >
+                            {supplierInitial}
+                        </Avatar>
                         <Box>
-                            <Typography variant="caption" color="text.secondary">Nhà cung cấp</Typography>
-                            <Typography variant="body1" fontWeight={700}>
-                                {settlement.supplierName || '—'}
-                            </Typography>
+                            <Stack direction="row" spacing={1.25} alignItems="center">
+                                <Typography variant="h6" fontWeight={800} color="#0f172a">
+                                    {settlement.supplierName || '—'}
+                                </Typography>
+                                {settlement.supplierCode && (
+                                    <Typography
+                                        variant="caption"
+                                        sx={{
+                                            fontFamily: 'monospace',
+                                            color: '#64748b',
+                                            bgcolor: '#f8fafc',
+                                            px: 1,
+                                            py: 0.25,
+                                            borderRadius: '6px',
+                                            border: '1px solid #e2e8f0',
+                                            fontWeight: 700,
+                                            fontSize: '0.725rem',
+                                        }}
+                                    >
+                                        {settlement.supplierCode}
+                                    </Typography>
+                                )}
+                            </Stack>
+                            <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mt: 0.5 }}>
+                                <Stack direction="row" spacing={0.5} alignItems="center">
+                                    <CalendarTodayOutlinedIcon sx={{ fontSize: '0.9rem', color: '#64748b' }} />
+                                    <Typography variant="body2" color="text.secondary" fontWeight={500}>
+                                        Kỳ đối soát: <strong style={{ color: '#0f172a' }}>{periodFrom} — {periodTo}</strong>
+                                    </Typography>
+                                </Stack>
+                                {settlement.transactionId && (
+                                    <Typography variant="caption" color="text.secondary">
+                                        • Mã sổ cái: <strong>#{settlement.transactionId}</strong>
+                                    </Typography>
+                                )}
+                            </Stack>
                         </Box>
-                        <Box>
-                            <Typography variant="caption" color="text.secondary">Mã nhà cung cấp</Typography>
-                            <Typography variant="body1" fontWeight={600}>
-                                {settlement.supplierCode || '—'}
-                            </Typography>
-                        </Box>
-                        <Box>
-                            <Typography variant="caption" color="text.secondary">Kỳ đối soát</Typography>
-                            <Typography variant="body1">
-                                {periodFrom} → {periodTo}
-                            </Typography>
-                        </Box>
-                        <Box>
-                            <Typography variant="caption" color="text.secondary">Trạng thái</Typography>
-                            <Box mt={0.5}>
-                                <span
-                                    className={`admin-status-badge ${getSupplierSettlementStatusModifier(settlement.status)}`}
-                                >
-                                    {statusLabel}
-                                </span>
-                            </Box>
-                        </Box>
-                        <MoneyField label="Tổng giá trị nhập" value={settlement.totalImportValue} />
-                        <MoneyField label="Tổng giá trị trả" value={settlement.totalReturnValue} />
-                        <MoneyField label="Đã thanh toán" value={settlement.totalPaidAmount} />
-                        <MoneyField label="Còn lại" value={settlement.remainingAmount} />
-                        <Box>
-                            <Typography variant="caption" color="text.secondary">Mã giao dịch sổ cái</Typography>
-                            <Typography variant="body1">
-                                {settlement.transactionId ?? '—'}
-                            </Typography>
-                        </Box>
-                        <Box>
-                            <Typography variant="caption" color="text.secondary">Cập nhật lần cuối</Typography>
-                            <Typography variant="body1">
-                                {settlement.updatedAt
-                                    ? dayjs(settlement.updatedAt).format('DD/MM/YYYY HH:mm')
-                                    : '—'}
-                            </Typography>
-                        </Box>
-                    </Box>
-                    <Typography variant="body2" color="text.secondary">
-                        Thanh toán / trả vé sẽ được bổ sung ở giai đoạn sau. Hiện tại hệ thống chỉ theo dõi tổng giá trị nhập từ các phiếu nhập lô đã liên kết.
-                    </Typography>
+                    </Stack>
+
+                    <Stack direction="row" spacing={2} alignItems="center">
+                        <span className={`admin-status-badge ${getSupplierSettlementStatusModifier(settlement.status)}`}>
+                            {statusLabel}
+                        </span>
+                    </Stack>
                 </Stack>
-            </CollapsibleCard>
+
+                {/* 100% Balanced Financial Metric Grid */}
+                <Box
+                    sx={{
+                        display: 'grid',
+                        gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)' },
+                        gap: 2,
+                        pt: 2.5,
+                        width: '100%',
+                    }}
+                >
+                    {/* 1. Tổng giá trị nhập */}
+                    <Box sx={{ p: 2, borderRadius: '12px', bgcolor: '#f8fafc', border: '1px solid #e2e8f0' }}>
+                        <Typography variant="caption" fontWeight={600} color="text.secondary" display="block">
+                            Tổng giá trị nhập
+                        </Typography>
+                        <Typography variant="h6" fontWeight={800} color="#0f172a" sx={{ mt: 0.5 }}>
+                            {formatImportCost(settlement.totalImportValue)} VNĐ
+                        </Typography>
+                    </Box>
+
+                    {/* 2. Tổng giá trị trả */}
+                    <Box sx={{ p: 2, borderRadius: '12px', bgcolor: '#f8fafc', border: '1px solid #e2e8f0' }}>
+                        <Typography variant="caption" fontWeight={600} color="text.secondary" display="block">
+                            Tổng giá trị trả
+                        </Typography>
+                        <Typography variant="h6" fontWeight={800} color="#0f172a" sx={{ mt: 0.5 }}>
+                            {formatImportCost(settlement.totalReturnValue)} VNĐ
+                        </Typography>
+                    </Box>
+
+                    {/* 3. Đã thanh toán */}
+                    <Box sx={{ p: 2, borderRadius: '12px', bgcolor: '#f8fafc', border: '1px solid #e2e8f0' }}>
+                        <Typography variant="caption" fontWeight={600} color="text.secondary" display="block">
+                            Đã thanh toán
+                        </Typography>
+                        <Typography variant="h6" fontWeight={800} color="#0f172a" sx={{ mt: 0.5 }}>
+                            {formatImportCost(settlement.totalPaidAmount)} VNĐ
+                        </Typography>
+                    </Box>
+
+                    {/* 4. Còn phải trả NCC */}
+                    <Box sx={{ p: 2, borderRadius: '12px', bgcolor: '#f0fdf4', border: '1px solid #bbf7d0' }}>
+                        <Typography variant="caption" fontWeight={700} color="#166534" display="block">
+                            Còn phải trả NCC
+                        </Typography>
+                        <Typography variant="h6" fontWeight={800} color="#15803d" sx={{ mt: 0.5 }}>
+                            {formatImportCost(settlement.remainingAmount)} VNĐ
+                        </Typography>
+                        {!hasCompletedReturnInspection && (
+                            <Typography
+                                variant="caption"
+                                sx={{ mt: 0.75, display: 'block', color: '#166534', opacity: 0.85 }}
+                            >
+                                Sẽ tính sau khi hoàn tất kiểm tra phiếu trả
+                            </Typography>
+                        )}
+                    </Box>
+                </Box>
+            </Card>
+
+            {/* Inventory Quantity KPI Grid (100% Balanced 4-Card Row) */}
+            <Box sx={{ mb: 3, width: '100%' }}>
+                <Typography variant="subtitle1" fontWeight={700} color="#0f172a" sx={{ mb: 1.5 }}>
+                    Thống kê vé & Trạng thái tồn kho
+                </Typography>
+                <SettlementKpiCards kpis={overview.kpis} />
+            </Box>
+
+            {/* Consolidated Details Tabbed Table */}
+            <SettlementConsolidatedDetails
+                inventoryRows={overview.inventoryByStation || []}
+                importBatches={overview.importBatches || []}
+                returnBatches={overview.returnBatches || []}
+            />
         </Box>
     );
 };

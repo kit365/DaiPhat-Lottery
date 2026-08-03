@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import {
     getSupplierSettlementById,
+    getSupplierSettlementOverview,
     getSupplierSettlements,
 } from '../services/supplierSettlementService';
 import type { SupplierSettlementListParams } from '../types/supplierSettlement.type';
@@ -24,6 +25,20 @@ export const useSupplierSettlementDetail = (id?: string | number) => {
         queryFn: () => getSupplierSettlementById(id!),
         enabled: !!id,
         select: (res: any) => res.data ?? null,
+    });
+};
+
+export const useSupplierSettlementOverview = (id?: string | number) => {
+    const normalizedId =
+        id !== undefined && id !== null && String(id).trim() !== '' ? String(id) : undefined;
+
+    return useQuery({
+        queryKey: [QUERY_KEYS.SUPPLIER_SETTLEMENT_OVERVIEW, normalizedId],
+        queryFn: () => getSupplierSettlementOverview(normalizedId!),
+        enabled: !!normalizedId,
+        select: (res: any) => res.data ?? null,
+        staleTime: 0,
+        refetchOnMount: 'always',
     });
 };
 
