@@ -26,8 +26,8 @@ public class PrizePayoutComplaintEligibilityService {
     public static final String CATEGORY_PAID_ISSUE = "PRIZE_PAYOUT_PAID_ISSUE";
 
     private static final int DEFAULT_WAIT_HOURS = 48;
-    private static final int DEFAULT_GRACE_DAYS = 7;
-    private static final int MAX_GRACE_DAYS = 15;
+    private static final int DEFAULT_GRACE_DAYS = 15;
+    private static final int MAX_GRACE_DAYS = 30;
 
     private static final Set<PrizePayoutRequestStatus> SLOW_PROCESSING_STATUSES = EnumSet.of(
             PrizePayoutRequestStatus.PENDING,
@@ -112,7 +112,7 @@ public class PrizePayoutComplaintEligibilityService {
 
     int getProcessingWaitHours() {
         return systemConfigRepositoryPort
-                .findActiveByConfigKey(SystemConfigEnum.REFUND_COMPLAINT_PROCESSING_WAIT_HOURS.name())
+                .findActiveByConfigKey(SystemConfigEnum.PRIZE_PAYOUT_COMPLAINT_PROCESSING_WAIT_HOURS.name())
                 .map(SystemConfigModel::getConfigValue)
                 .map(this::parseWaitHours)
                 .orElse(DEFAULT_WAIT_HOURS);
@@ -120,7 +120,7 @@ public class PrizePayoutComplaintEligibilityService {
 
     int getComplaintGraceDays() {
         return systemConfigRepositoryPort
-                .findActiveByConfigKey(SystemConfigEnum.REFUND_COMPLAINT_GRACE_DAYS.name())
+                .findActiveByConfigKey(SystemConfigEnum.PRIZE_PAYOUT_COMPLAINT_GRACE_DAYS.name())
                 .map(SystemConfigModel::getConfigValue)
                 .map(this::parseGraceDays)
                 .orElse(DEFAULT_GRACE_DAYS);

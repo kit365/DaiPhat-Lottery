@@ -41,10 +41,10 @@ class PrizePayoutComplaintEligibilityServiceTest {
     void setUp() {
         service = new PrizePayoutComplaintEligibilityService(
                 prizePayoutRequestRepositoryPort, systemConfigRepositoryPort);
-        lenient().when(systemConfigRepositoryPort.findActiveByConfigKey("REFUND_COMPLAINT_PROCESSING_WAIT_HOURS"))
+        lenient().when(systemConfigRepositoryPort.findActiveByConfigKey("PRIZE_PAYOUT_COMPLAINT_PROCESSING_WAIT_HOURS"))
                 .thenReturn(Optional.of(SystemConfigModel.builder().configValue("48").build()));
-        lenient().when(systemConfigRepositoryPort.findActiveByConfigKey("REFUND_COMPLAINT_GRACE_DAYS"))
-                .thenReturn(Optional.of(SystemConfigModel.builder().configValue("7").build()));
+        lenient().when(systemConfigRepositoryPort.findActiveByConfigKey("PRIZE_PAYOUT_COMPLAINT_GRACE_DAYS"))
+                .thenReturn(Optional.of(SystemConfigModel.builder().configValue("15").build()));
     }
 
     @Test
@@ -112,7 +112,7 @@ class PrizePayoutComplaintEligibilityServiceTest {
     @Test
     @DisplayName("Paid issue past grace days from completedAt is rejected")
     void paidIssue_graceExpired() {
-        LocalDateTime completedAt = LocalDateTime.now().minusDays(8);
+        LocalDateTime completedAt = LocalDateTime.now().minusDays(16);
         stubPayout(PrizePayoutRequestStatus.COMPLETED, completedAt, completedAt);
 
         assertThatThrownBy(() -> service.validate(paidCategory(), "10", CUSTOMER_ID))
