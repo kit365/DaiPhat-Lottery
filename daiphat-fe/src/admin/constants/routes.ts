@@ -11,7 +11,7 @@ export const ROUTES = {
             SETUP_PROFILE: `/${prefixAdmin}/setup-profile`,
         },
         DASHBOARD: {
-            ROOT: `/${prefixAdmin}/dashboard`,
+            ROOT: `/${prefixAdmin}/management/dashboard`,
             SYSTEM: `/${prefixAdmin}/dashboard/system`,
             ANALYTICS: `/${prefixAdmin}/dashboard/analytics`,
             ECOMMERCE: `/${prefixAdmin}/dashboard/ecommerce`,
@@ -143,5 +143,6 @@ export const ROUTES = {
         HOME: "/",
         SETUP_PROFILE: "/setup-profile",
         SCHEDULE: "/lich-mo-thuong",
+        FORTUNE: "/gieo-que",
     }
 } as const;

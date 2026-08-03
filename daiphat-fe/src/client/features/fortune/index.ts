@@ -1,0 +1,1 @@
+export { FortuneCastPage } from './FortuneCastPage';
