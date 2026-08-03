@@ -232,6 +232,44 @@ class SupportTicketModelTest {
         }
     }
 
+    @Test
+    void needsRejectedAttention_trueUntilCustomerViewsAfterRejection() {
+        LocalDateTime rejectedAt = LocalDateTime.now().minusHours(1);
+        SupportTicketModel unseen = SupportTicketModel.builder()
+                .status(TicketStatus.REJECTED)
+                .resolvedAt(rejectedAt)
+                .build();
+        assertThat(unseen.needsRejectedAttention()).isTrue();
+
+        SupportTicketModel viewedBeforeReject = SupportTicketModel.builder()
+                .status(TicketStatus.REJECTED)
+                .resolvedAt(rejectedAt)
+                .customerLastViewedAt(rejectedAt.minusMinutes(5))
+                .build();
+        assertThat(viewedBeforeReject.needsRejectedAttention()).isTrue();
+
+        SupportTicketModel viewedAfter = SupportTicketModel.builder()
+                .status(TicketStatus.REJECTED)
+                .resolvedAt(rejectedAt)
+                .customerLastViewedAt(rejectedAt.plusMinutes(1))
+                .build();
+        assertThat(viewedAfter.needsRejectedAttention()).isFalse();
+    }
+
+    @Test
+    void markCustomerViewed_clearsRejectedAttention() {
+        SupportTicketModel ticket = SupportTicketModel.builder()
+                .status(TicketStatus.REJECTED)
+                .resolvedAt(LocalDateTime.now().minusMinutes(10))
+                .build();
+        assertThat(ticket.needsRejectedAttention()).isTrue();
+
+        ticket.markCustomerViewed();
+
+        assertThat(ticket.getCustomerLastViewedAt()).isNotNull();
+        assertThat(ticket.needsRejectedAttention()).isFalse();
+    }
+
     private static SupportTicketCommentModel comment(TicketCommentSenderRole role, String content) {
         return SupportTicketCommentModel.builder()
                 .senderRole(role)

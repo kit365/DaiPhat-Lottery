@@ -75,6 +75,9 @@ public class SupportTicketEntity {
     @Column(name = "due_at")
     private LocalDateTime dueAt;
 
+    @Column(name = "customer_last_viewed_at")
+    private LocalDateTime customerLastViewedAt;
+
     @CreatedDate
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;

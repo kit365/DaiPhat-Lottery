@@ -134,9 +134,12 @@ public class SupportTicketService implements SupportTicketServicePort {
     }
 
     @Override
-    @Transactional(readOnly = true)
+    @Transactional
     public PageResponse<SupportTicketSummaryResponse> getMyTickets(
             UUID customerId, int page, int limit, String status, String search) {
+        // Opening the complaints list acknowledges REJECTED notifications (clears sidebar badge).
+        supportTicketRepositoryPort.markRejectedTicketsViewed(customerId, LocalDateTime.now());
+
         Pageable pageable = PageableUtils.of(page, limit, Sort.by(Sort.Direction.DESC, "createdAt"));
         Page<SupportTicketModel> result = supportTicketRepositoryPort.findAll(
                 pageable, customerId, parseStatus(status), normalizeSearch(search));
@@ -147,10 +150,12 @@ public class SupportTicketService implements SupportTicketServicePort {
     }
 
     @Override
-    @Transactional(readOnly = true)
+    @Transactional
     public SupportTicketResponse getByIdForCustomer(Long id, UUID customerId) {
         SupportTicketModel ticket = getOwnedTicketOrThrow(id, customerId);
-        return toDetailResponse(ticket);
+        ticket.markCustomerViewed();
+        SupportTicketModel saved = supportTicketRepositoryPort.save(ticket);
+        return toDetailResponse(saved);
     }
 
     @Override

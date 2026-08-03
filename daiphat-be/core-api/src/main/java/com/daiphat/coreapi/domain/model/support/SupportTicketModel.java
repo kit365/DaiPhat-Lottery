@@ -37,6 +37,7 @@ public class SupportTicketModel {
     private Long rejectedReasonId;
     private LocalDateTime resolvedAt;
     private LocalDateTime dueAt;
+    private LocalDateTime customerLastViewedAt;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private String createdBy;
@@ -151,6 +152,22 @@ public class SupportTicketModel {
         }
         this.status = TicketStatus.CLOSED;
         this.resolvedAt = LocalDateTime.now();
+    }
+
+    /** Customer opened the ticket UI — clears REJECTED attention badge when viewed after rejection. */
+    public void markCustomerViewed() {
+        this.customerLastViewedAt = LocalDateTime.now();
+    }
+
+    public boolean needsRejectedAttention() {
+        if (this.status != TicketStatus.REJECTED) {
+            return false;
+        }
+        LocalDateTime decisionAt = this.resolvedAt != null ? this.resolvedAt : this.updatedAt;
+        if (decisionAt == null) {
+            return this.customerLastViewedAt == null;
+        }
+        return this.customerLastViewedAt == null || this.customerLastViewedAt.isBefore(decisionAt);
     }
 
     public void assignByStaff(UUID staffId) {
