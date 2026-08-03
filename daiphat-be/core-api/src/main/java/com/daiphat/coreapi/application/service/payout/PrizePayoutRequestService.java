@@ -45,6 +45,15 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class PrizePayoutRequestService implements PrizePayoutRequestServicePort {
 
+    private static final Map<PrizePayoutRequestStatus, String> STATUS_LABELS = Map.of(
+            PrizePayoutRequestStatus.PENDING, "Cần xử lý",
+            PrizePayoutRequestStatus.APPROVED, "Đã duyệt",
+            PrizePayoutRequestStatus.COMPLETED, "Đã chuyển",
+            PrizePayoutRequestStatus.REJECTED, "Từ chối",
+            PrizePayoutRequestStatus.MANUAL_RESOLUTION, "Cần xử lý tại đại lý",
+            PrizePayoutRequestStatus.CANCELLED, "Đã hủy"
+    );
+
     private final PrizePayoutRequestRepositoryPort prizePayoutRequestRepositoryPort;
     private final UserBankAccountRepositoryPort userBankAccountRepositoryPort;
     private final PrizePayoutEligibilityService prizePayoutEligibilityService;
@@ -301,14 +310,7 @@ public class PrizePayoutRequestService implements PrizePayoutRequestServicePort 
     }
 
     private String resolveStatusLabel(PrizePayoutRequestStatus status) {
-        return switch (status) {
-            case PENDING -> "Cần xử lý";
-            case APPROVED -> "Đã duyệt";
-            case COMPLETED -> "Đã chuyển";
-            case REJECTED -> "Từ chối";
-            case MANUAL_RESOLUTION -> "Cần xử lý tại đại lý";
-            case CANCELLED -> "Đã hủy";
-        };
+        return STATUS_LABELS.getOrDefault(status, status.name());
     }
 
     private String generateRequestCode() {
