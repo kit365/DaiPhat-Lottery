@@ -211,4 +211,40 @@ public interface LotteryTicketSerialRepository extends JpaRepository<LotteryTick
             @Param("stationIds") Collection<Long> stationIds,
             @Param("stationIdsEmpty") boolean stationIdsEmpty
     );
+
+    @Query("""
+            SELECT
+                st.id,
+                st.name,
+                SUM(CASE WHEN s.ticketCondition IS NULL
+                           OR s.ticketCondition <> com.daiphat.coreapi.domain.model.enums.lottery.TicketCondition.VOIDED
+                         THEN 1 ELSE 0 END),
+                SUM(CASE WHEN s.status = com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus.SOLD
+                         THEN 1 ELSE 0 END),
+                SUM(CASE WHEN s.status = com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus.IN_STOCK
+                           AND s.ticketCondition = com.daiphat.coreapi.domain.model.enums.lottery.TicketCondition.GOOD
+                           AND s.returnBatchLineId IS NULL
+                         THEN 1 ELSE 0 END),
+                SUM(CASE WHEN s.ticketCondition = com.daiphat.coreapi.domain.model.enums.lottery.TicketCondition.DAMAGED
+                         THEN 1 ELSE 0 END),
+                SUM(CASE WHEN s.ticketCondition = com.daiphat.coreapi.domain.model.enums.lottery.TicketCondition.LOST
+                         THEN 1 ELSE 0 END),
+                SUM(CASE WHEN s.ticketCondition = com.daiphat.coreapi.domain.model.enums.lottery.TicketCondition.VOIDED
+                         THEN 1 ELSE 0 END),
+                SUM(CASE WHEN s.returnBatchLineId IS NOT NULL THEN 1 ELSE 0 END),
+                COALESCE(SUM(CASE WHEN s.returnBatchLineId IS NOT NULL THEN ibl.importCost ELSE 0 END), 0)
+            FROM LotteryTicketSerialEntity s
+            JOIN s.importBatchLine ibl
+            JOIN ibl.importBatch b
+            JOIN s.ticket t
+            JOIN t.station st
+            WHERE s.deletedAt IS NULL
+              AND b.deletedAt IS NULL
+              AND ibl.deletedAt IS NULL
+              AND t.deletedAt IS NULL
+              AND b.supplierSettlementId = :settlementId
+            GROUP BY st.id, st.name
+            ORDER BY st.name ASC
+            """)
+    List<Object[]> aggregateInventoryByStationForSettlement(@Param("settlementId") Long settlementId);
 }

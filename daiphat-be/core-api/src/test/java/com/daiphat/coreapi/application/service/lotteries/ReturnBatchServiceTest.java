@@ -79,6 +79,8 @@ class ReturnBatchServiceTest {
     @Mock
     private ImportBatchConfigResolver importBatchConfigResolver;
     @Mock
+    private ReturnBatchAutoCancelService returnBatchAutoCancelService;
+    @Mock
     private Clock clock;
 
     @InjectMocks

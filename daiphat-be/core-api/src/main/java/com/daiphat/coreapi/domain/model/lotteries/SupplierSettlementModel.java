@@ -45,23 +45,17 @@ public class SupplierSettlementModel {
 
     public void applyTotalImportValue(BigDecimal totalImportValue) {
         this.totalImportValue = ImportCostCalculator.scaleMoney(totalImportValue);
-        refreshRemainingAmount();
+    }
+
+    public void applyTotalReturnValue(BigDecimal totalReturnValue) {
+        this.totalReturnValue = ImportCostCalculator.scaleMoney(totalReturnValue);
     }
 
     /**
-     * Extension point for future ticket-return accounting.
+     * Remaining payable is set explicitly by settlement recalculation
+     * (gated on return-batch inspection + IN_STOCK/GOOD cost), not derived from import − return − paid.
      */
-    public void applyTotalReturnValue(BigDecimal totalReturnValue) {
-        this.totalReturnValue = ImportCostCalculator.scaleMoney(totalReturnValue);
-        refreshRemainingAmount();
-    }
-
-    public void refreshRemainingAmount() {
-        BigDecimal importValue = totalImportValue != null ? totalImportValue : BigDecimal.ZERO;
-        BigDecimal returnValue = totalReturnValue != null ? totalReturnValue : BigDecimal.ZERO;
-        BigDecimal paid = totalPaidAmount != null ? totalPaidAmount : BigDecimal.ZERO;
-        this.remainingAmount = ImportCostCalculator.scaleMoney(
-                importValue.subtract(returnValue).subtract(paid)
-        );
+    public void applyRemainingAmount(BigDecimal remainingAmount) {
+        this.remainingAmount = ImportCostCalculator.scaleMoney(remainingAmount);
     }
 }

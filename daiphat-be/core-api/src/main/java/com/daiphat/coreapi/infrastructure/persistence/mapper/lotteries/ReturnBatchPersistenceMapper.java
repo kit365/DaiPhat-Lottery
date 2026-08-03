@@ -43,6 +43,9 @@ public class ReturnBatchPersistenceMapper {
                 .confirmedAt(entity.getConfirmedAt())
                 .status(entity.getStatus())
                 .note(entity.getNote())
+                .cancelReason(entity.getCancelReason())
+                .cancelledAt(entity.getCancelledAt())
+                .returnCutOffTime(supplier != null ? supplier.getReturnCutOffTime() : null)
                 .lines(lines)
                 .createdAt(entity.getCreatedAt())
                 .updatedAt(entity.getUpdatedAt())
@@ -96,6 +99,8 @@ public class ReturnBatchPersistenceMapper {
                 .confirmedAt(model.getConfirmedAt())
                 .status(model.getStatus())
                 .note(model.getNote())
+                .cancelReason(model.getCancelReason())
+                .cancelledAt(model.getCancelledAt())
                 .createdAt(model.getCreatedAt())
                 .updatedAt(model.getUpdatedAt())
                 .createdBy(model.getCreatedBy())
@@ -145,6 +150,8 @@ public class ReturnBatchPersistenceMapper {
         entity.setConfirmedAt(model.getConfirmedAt());
         entity.setStatus(model.getStatus());
         entity.setNote(model.getNote());
+        entity.setCancelReason(model.getCancelReason());
+        entity.setCancelledAt(model.getCancelledAt());
         entity.setDeletedAt(model.getDeletedAt());
         if (model.getLotterySupplierId() != null
                 && (entity.getLotterySupplier() == null

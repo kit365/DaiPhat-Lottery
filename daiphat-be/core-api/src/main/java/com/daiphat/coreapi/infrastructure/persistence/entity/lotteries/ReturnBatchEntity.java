@@ -83,6 +83,12 @@ public class ReturnBatchEntity extends BaseEntity {
     @Column(columnDefinition = "TEXT")
     private String note;
 
+    @Column(name = "cancel_reason", columnDefinition = "TEXT")
+    private String cancelReason;
+
+    @Column(name = "cancelled_at")
+    private LocalDateTime cancelledAt;
+
     @OneToMany(mappedBy = "returnBatch", fetch = FetchType.LAZY)
     @Builder.Default
     private List<ReturnBatchLineEntity> lines = new ArrayList<>();

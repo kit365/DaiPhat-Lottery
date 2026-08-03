@@ -48,4 +48,30 @@ public interface SupplierSettlementRepository
               AND ibl.deletedAt IS NULL
             """)
     BigDecimal sumPreparedReturnValueBySettlementId(@Param("settlementId") Long settlementId);
+
+    @Query("""
+            SELECT CASE WHEN COUNT(b) > 0 THEN true ELSE false END
+            FROM ReturnBatchEntity b
+            WHERE b.supplierSettlementId = :settlementId
+              AND b.deletedAt IS NULL
+              AND b.status IN (
+                  com.daiphat.coreapi.domain.model.enums.lottery.ReturnBatchStatus.PENDING_HANDOVER,
+                  com.daiphat.coreapi.domain.model.enums.lottery.ReturnBatchStatus.HANDED_OVER
+              )
+            """)
+    boolean existsCompletedInspectionReturnBatch(@Param("settlementId") Long settlementId);
+
+    @Query("""
+            SELECT COALESCE(SUM(ibl.importCost), 0)
+            FROM LotteryTicketSerialEntity s
+            JOIN s.importBatchLine ibl
+            JOIN ibl.importBatch b
+            WHERE b.supplierSettlementId = :settlementId
+              AND s.deletedAt IS NULL
+              AND ibl.deletedAt IS NULL
+              AND b.deletedAt IS NULL
+              AND s.status = com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus.IN_STOCK
+              AND s.ticketCondition = com.daiphat.coreapi.domain.model.enums.lottery.TicketCondition.GOOD
+            """)
+    BigDecimal sumInStockGoodImportCostBySettlementId(@Param("settlementId") Long settlementId);
 }

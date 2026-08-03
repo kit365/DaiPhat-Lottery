@@ -33,4 +33,15 @@ public interface SupplierSettlementRepositoryPort {
      * for return batches linked to this settlement.
      */
     BigDecimal sumPreparedReturnValueBySettlementId(Long settlementId);
+
+    /**
+     * {@code true} when at least one return batch for this settlement has finished inspection
+     * ({@code PENDING_HANDOVER} or {@code HANDED_OVER}).
+     */
+    boolean existsCompletedInspectionReturnBatch(Long settlementId);
+
+    /**
+     * Sum import cost of settlement-scoped serials that are {@code IN_STOCK} + {@code GOOD}.
+     */
+    BigDecimal sumInStockGoodImportCostBySettlementId(Long settlementId);
 }

@@ -88,4 +88,18 @@ public class SupplierSettlementRepositoryAdapter implements SupplierSettlementRe
         BigDecimal sum = supplierSettlementRepository.sumPreparedReturnValueBySettlementId(settlementId);
         return sum != null ? sum : BigDecimal.ZERO;
     }
+
+    @Override
+    public boolean existsCompletedInspectionReturnBatch(Long settlementId) {
+        if (settlementId == null) {
+            return false;
+        }
+        return supplierSettlementRepository.existsCompletedInspectionReturnBatch(settlementId);
+    }
+
+    @Override
+    public BigDecimal sumInStockGoodImportCostBySettlementId(Long settlementId) {
+        BigDecimal sum = supplierSettlementRepository.sumInStockGoodImportCostBySettlementId(settlementId);
+        return sum != null ? sum : BigDecimal.ZERO;
+    }
 }

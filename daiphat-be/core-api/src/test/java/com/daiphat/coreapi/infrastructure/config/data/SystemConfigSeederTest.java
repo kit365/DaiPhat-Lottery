@@ -51,6 +51,7 @@ class SystemConfigSeederTest {
                         "PAYMENT_TIMEOUT_MINUTES",
                         "VENDOR_RETURN_CUTOFF",
                         "RETURN_BUFFER_TIME",
+                        "RETURN_REMINDER_TIME",
                         "TICKET_AUTO_IMPORT_THRESHOLD",
                         "STAFF_INCIDENT_CUTOFF",
                         "INVALID_INFO_EXPIRED_DAYS",

@@ -4,11 +4,13 @@ import com.daiphat.coreapi.application.port.out.lotteries.LotteryTicketSerialRep
 import com.daiphat.coreapi.application.port.out.lotteries.ReturnInspectableSerialData;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus;
 import com.daiphat.coreapi.domain.model.lotteries.LotteryTicketSerialModel;
+import com.daiphat.coreapi.domain.model.lotteries.SettlementStationInventoryRow;
 import com.daiphat.coreapi.infrastructure.persistence.mapper.lotteries.LotteryTicketSerialPersistenceMapper;
 import com.daiphat.coreapi.infrastructure.persistence.repository.lotteries.LotteryTicketSerialRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
+import java.math.BigDecimal;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -247,5 +249,49 @@ public class LotteryTicketSerialRepositoryAdapter implements LotteryTicketSerial
                     );
                 })
                 .toList();
+    }
+
+    @Override
+    public List<SettlementStationInventoryRow> aggregateInventoryByStationForSettlement(Long settlementId) {
+        if (settlementId == null) {
+            return List.of();
+        }
+        return lotteryTicketSerialRepository.aggregateInventoryByStationForSettlement(settlementId).stream()
+                .map(row -> new SettlementStationInventoryRow(
+                        row[0] != null ? ((Number) row[0]).longValue() : null,
+                        row[1] != null ? String.valueOf(row[1]) : null,
+                        toLong(row[2]),
+                        toLong(row[3]),
+                        toLong(row[4]),
+                        toLong(row[5]),
+                        toLong(row[6]),
+                        toLong(row[7]),
+                        toLong(row[8]),
+                        toBigDecimal(row[9])
+                ))
+                .toList();
+    }
+
+    private static long toLong(Object value) {
+        if (value == null) {
+            return 0L;
+        }
+        if (value instanceof Number number) {
+            return number.longValue();
+        }
+        return Long.parseLong(String.valueOf(value));
+    }
+
+    private static BigDecimal toBigDecimal(Object value) {
+        if (value == null) {
+            return BigDecimal.ZERO;
+        }
+        if (value instanceof BigDecimal bigDecimal) {
+            return bigDecimal;
+        }
+        if (value instanceof Number number) {
+            return BigDecimal.valueOf(number.doubleValue());
+        }
+        return new BigDecimal(String.valueOf(value));
     }
 }

@@ -134,4 +134,32 @@ public class ReturnBatchRepositoryAdapter implements ReturnBatchRepositoryPort {
                 .map(returnBatchPersistenceMapper::toLineDomain)
                 .toList();
     }
+
+    @Override
+    public List<ReturnBatchModel> findByStatuses(List<ReturnBatchStatus> statuses) {
+        if (statuses == null || statuses.isEmpty()) {
+            return List.of();
+        }
+        return returnBatchRepository.findByStatusInAndDeletedAtIsNull(statuses).stream()
+                .map(entity -> {
+                    entity.getLines().size();
+                    return returnBatchPersistenceMapper.toDomain(entity);
+                })
+                .toList();
+    }
+
+    @Override
+    public List<ReturnBatchModel> findBySupplierSettlementId(Long supplierSettlementId) {
+        if (supplierSettlementId == null) {
+            return List.of();
+        }
+        return returnBatchRepository
+                .findBySupplierSettlementIdAndDeletedAtIsNullOrderByDrawDateDescIdDesc(supplierSettlementId)
+                .stream()
+                .map(entity -> {
+                    entity.getLines().size();
+                    return returnBatchPersistenceMapper.toDomain(entity);
+                })
+                .toList();
+    }
 }

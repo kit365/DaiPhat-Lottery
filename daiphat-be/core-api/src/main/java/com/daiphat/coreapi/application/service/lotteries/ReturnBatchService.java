@@ -74,6 +74,7 @@ public class ReturnBatchService implements ReturnBatchServicePort {
     private final ReturnBatchApplicationMapper returnBatchApplicationMapper;
     private final ReturnBatchSummaryCalculator returnBatchSummaryCalculator;
     private final ImportBatchConfigResolver importBatchConfigResolver;
+    private final ReturnBatchAutoCancelService returnBatchAutoCancelService;
     private final Clock clock;
 
     @Override
@@ -131,6 +132,10 @@ public class ReturnBatchService implements ReturnBatchServicePort {
     @Override
     @Transactional
     public ReturnBatchResponse getById(Long id) {
+        ReturnBatchModel batch = getBatchOrThrow(id);
+        if (batch.getStatus() != null && batch.getStatus().isOpenForInspection()) {
+            returnBatchAutoCancelService.cancelIfPastCutoff(batch);
+        }
         syncSummaryIfReturnWindowOpen(id);
         return toDetailResponse(id);
     }
@@ -158,7 +163,8 @@ public class ReturnBatchService implements ReturnBatchServicePort {
         Page<ReturnBatchResponse> responsePage = returnBatchRepositoryPort
                 .findAll(pageRequest, lotterySupplierId, supplierSettlementId, status, drawDateFrom, drawDateTo, search)
                 .map(model -> {
-                    if (model.getStatus() != null && model.getStatus().allowsAutoEnrichment()) {
+                    if (model.getStatus() != null && model.getStatus().isOpenForInspection()) {
+                        returnBatchAutoCancelService.cancelIfPastCutoff(model);
                         syncSummaryIfReturnWindowOpen(model.getId());
                         return toDetailResponse(model.getId());
                     }
@@ -214,6 +220,7 @@ public class ReturnBatchService implements ReturnBatchServicePort {
     @Transactional
     public ReturnBatchResponse startInspection(Long batchId) {
         ReturnBatchModel batch = getBatchOrThrow(batchId);
+        ensureInspectionMutable(batch);
         if (batch.getStatus() == ReturnBatchStatus.INSPECTING) {
             return toDetailResponse(batchId);
         }
@@ -234,6 +241,7 @@ public class ReturnBatchService implements ReturnBatchServicePort {
             UUID operatorId
     ) {
         ReturnBatchModel batch = getBatchOrThrow(batchId);
+        ensureInspectionMutable(batch);
         if (batch.getStatus() == null || !batch.getStatus().isOpenForInspection()) {
             throw new DomainException(ErrorCode.RETURN_BATCH_INVALID_STATUS);
         }
@@ -387,6 +395,7 @@ public class ReturnBatchService implements ReturnBatchServicePort {
     @Transactional
     public ReturnBatchResponse attachSerials(Long batchId, Long lineId, AttachReturnSerialsRequest request) {
         ReturnBatchModel batch = getBatchOrThrow(batchId);
+        ensureInspectionMutable(batch);
         if (batch.getStatus() == null || !batch.getStatus().isOpenForInspection()) {
             throw new DomainException(ErrorCode.RETURN_BATCH_INVALID_STATUS);
         }
@@ -433,6 +442,7 @@ public class ReturnBatchService implements ReturnBatchServicePort {
     @Transactional
     public ReturnBatchResponse detachSerial(Long batchId, Long lineId, Long serialId) {
         ReturnBatchModel batch = getBatchOrThrow(batchId);
+        ensureInspectionMutable(batch);
         if (batch.getStatus() == null || !batch.getStatus().isOpenForInspection()) {
             throw new DomainException(ErrorCode.RETURN_BATCH_INVALID_STATUS);
         }
@@ -475,6 +485,9 @@ public class ReturnBatchService implements ReturnBatchServicePort {
     @Transactional
     public ReturnBatchResponse updateLineStatus(Long batchId, Long lineId, UpdateReturnBatchLineStatusRequest request) {
         ReturnBatchModel batch = getBatchOrThrow(batchId);
+        if (batch.getStatus() != null && batch.getStatus().isOpenForInspection()) {
+            ensureInspectionMutable(batch);
+        }
         if (batch.getStatus() != null && batch.getStatus().isTerminal()) {
             throw new DomainException(ErrorCode.RETURN_BATCH_INVALID_STATUS);
         }
@@ -520,6 +533,7 @@ public class ReturnBatchService implements ReturnBatchServicePort {
     @Transactional
     public ReturnBatchResponse markReturned(Long batchId, UUID operatorId) {
         ReturnBatchModel batch = getBatchOrThrow(batchId);
+        ensureInspectionMutable(batch);
         if (batch.getStatus() == null || !batch.getStatus().isOpenForInspection()) {
             throw new DomainException(ErrorCode.RETURN_BATCH_INVALID_STATUS);
         }
@@ -537,6 +551,9 @@ public class ReturnBatchService implements ReturnBatchServicePort {
     @Transactional
     public ReturnBatchResponse confirm(Long batchId, ConfirmReturnBatchRequest request) {
         ReturnBatchModel batch = getBatchOrThrow(batchId);
+        if (batch.getStatus() != null && batch.getStatus().isOpenForInspection()) {
+            ensureInspectionMutable(batch);
+        }
         if (batch.getStatus() != ReturnBatchStatus.PENDING_HANDOVER
                 && (batch.getStatus() == null || !batch.getStatus().isOpenForInspection())) {
             throw new DomainException(ErrorCode.RETURN_BATCH_INVALID_STATUS);
@@ -555,6 +572,18 @@ public class ReturnBatchService implements ReturnBatchServicePort {
             supplierSettlementServicePort.recalculateTotalReturnValue(batch.getSupplierSettlementId());
         }
         return toDetailResponse(batchId);
+    }
+
+    private void ensureInspectionMutable(ReturnBatchModel batch) {
+        if (batch.getStatus() != null && batch.getStatus().isCancelled()) {
+            throw new DomainException(ErrorCode.RETURN_BATCH_INSPECTION_EXPIRED);
+        }
+        if (batch.getStatus() == null || !batch.getStatus().isOpenForInspection()) {
+            return;
+        }
+        if (returnBatchAutoCancelService.cancelIfPastCutoff(batch)) {
+            throw new DomainException(ErrorCode.RETURN_BATCH_INSPECTION_EXPIRED);
+        }
     }
 
     private void validateSerialEligible(

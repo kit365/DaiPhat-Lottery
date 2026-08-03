@@ -128,4 +128,8 @@ public interface ImportBatchRepository extends JpaRepository<ImportBatchEntity, 
             @Param("supplierId") Long supplierId,
             @Param("drawDate") LocalDate drawDate
     );
+
+    List<ImportBatchEntity> findBySupplierSettlementIdAndDeletedAtIsNullOrderByDrawDateDescIdDesc(
+            Long supplierSettlementId
+    );
 }
