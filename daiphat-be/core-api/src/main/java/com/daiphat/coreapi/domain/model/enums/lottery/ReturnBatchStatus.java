@@ -9,7 +9,8 @@ public enum ReturnBatchStatus {
     PENDING_INSPECTION("Chờ kiểm tra vé"),
     INSPECTING("Đang kiểm tra vé"),
     PENDING_HANDOVER("Chờ bàn giao nhà cung cấp"),
-    HANDED_OVER("Đã bàn giao nhà cung cấp");
+    HANDED_OVER("Đã bàn giao nhà cung cấp"),
+    CANCELLED("Đã hủy");
 
     private final String label;
 
@@ -24,6 +25,10 @@ public enum ReturnBatchStatus {
     }
 
     public boolean isTerminal() {
-        return this == HANDED_OVER;
+        return this == HANDED_OVER || this == CANCELLED;
+    }
+
+    public boolean isCancelled() {
+        return this == CANCELLED;
     }
 }

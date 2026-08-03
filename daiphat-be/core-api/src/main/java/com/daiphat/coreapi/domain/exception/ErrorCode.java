@@ -257,6 +257,11 @@ public enum ErrorCode {
             "Phiếu trả vé được hệ thống tạo tự động và không thể chỉnh sửa.",
             HttpStatus.METHOD_NOT_ALLOWED
     ),
+    RETURN_BATCH_INSPECTION_EXPIRED(
+            "LT_120",
+            "The inspection period for this Return Batch has expired. Please return to the Return Batch List page.",
+            HttpStatus.CONFLICT
+    ),
     IMPORT_BATCH_SUPPLIER_REQUIRED("LT_080", "Nhà cung cấp không được để trống.", HttpStatus.BAD_REQUEST),
     IMPORT_BATCH_NO_SUPPLIER_CONFIGURED(
             "LT_084",

@@ -40,6 +40,10 @@ public class ReturnBatchModel {
     @Builder.Default
     private ReturnBatchStatus status = ReturnBatchStatus.PENDING_INSPECTION;
     private String note;
+    private String cancelReason;
+    private LocalDateTime cancelledAt;
+    /** Supplier cutoff (HH:mm) — populated from joined supplier for reminders / expiry. */
+    private java.time.LocalTime returnCutOffTime;
     @Builder.Default
     private List<ReturnBatchLineModel> lines = new ArrayList<>();
 

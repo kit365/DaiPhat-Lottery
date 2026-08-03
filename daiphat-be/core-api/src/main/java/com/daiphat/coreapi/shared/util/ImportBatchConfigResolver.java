@@ -12,8 +12,17 @@ public class ImportBatchConfigResolver {
     private final SystemConfigRepositoryPort systemConfigRepositoryPort;
 
     public int resolveReturnBufferMinutes() {
-        String defaultValue = SystemConfigEnum.RETURN_BUFFER_TIME.getDefaultValue();
-        String value = systemConfigRepositoryPort.findByConfigKey(SystemConfigEnum.RETURN_BUFFER_TIME.name())
+        return resolveNonNegativeInt(SystemConfigEnum.RETURN_BUFFER_TIME);
+    }
+
+    public int resolveReturnReminderMinutes() {
+        int resolved = resolveNonNegativeInt(SystemConfigEnum.RETURN_REMINDER_TIME);
+        return Math.max(1, resolved);
+    }
+
+    private int resolveNonNegativeInt(SystemConfigEnum configEnum) {
+        String defaultValue = configEnum.getDefaultValue();
+        String value = systemConfigRepositoryPort.findByConfigKey(configEnum.name())
                 .map(config -> config.getConfigValue())
                 .orElse(defaultValue);
         try {

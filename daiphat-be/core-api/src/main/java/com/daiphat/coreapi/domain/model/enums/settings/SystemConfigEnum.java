@@ -66,6 +66,16 @@ public enum SystemConfigEnum {
             "{\"min\":0,\"max\":1440}",
             true
     ),
+    RETURN_REMINDER_TIME(
+            ConfigType.TICKET_RETURN,
+            DataType.INT,
+            "15",
+            "Thời gian (phút) trước hạn trả vé NCC để nhắc khẩn kiểm tra phiếu trả",
+            "Nhắc kiểm tra trả vé",
+            "phút",
+            "{\"min\":1,\"max\":1440}",
+            true
+    ),
     TICKET_AUTO_IMPORT_THRESHOLD(
             ConfigType.TICKET_IMPORT,
             DataType.INT,
