@@ -1,3 +1,5 @@
+"use client";
+
 import { useEffect, useState, type SyntheticEvent } from 'react';
 import React from 'react';
 import {

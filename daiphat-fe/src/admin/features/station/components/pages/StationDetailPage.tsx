@@ -1,3 +1,5 @@
+"use client";
+
 import { Box, Stack, ThemeProvider, useTheme, createTheme, Button, Typography, CircularProgress, Chip } from "@mui/material"
 import { Breadcrumb } from "../../../../components/ui/Breadcrumb"
 import { Title } from "../../../../components/ui/Title"

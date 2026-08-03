@@ -1,3 +1,5 @@
+"use client";
+
 import { QUERY_KEYS } from '../constants/queryKeys';
 import { useMemo, useState } from 'react';
 import { useQuery, keepPreviousData } from '@tanstack/react-query';

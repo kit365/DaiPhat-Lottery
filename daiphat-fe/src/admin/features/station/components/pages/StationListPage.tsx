@@ -1,3 +1,5 @@
+"use client";
+
 import AddIcon from '@mui/icons-material/Add';
 import SyncIcon from '@mui/icons-material/Sync';
 import Button from '@mui/material/Button';

@@ -1,3 +1,5 @@
+"use client";
+
 import { useState } from "react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { getUsers as getAccounts } from "../../../features/users/services/userService";

@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useState } from 'react';
 import { Card, Typography, TextField, Button, Stack, Box } from '@mui/material';
 

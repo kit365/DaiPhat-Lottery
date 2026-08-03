@@ -3,14 +3,21 @@
 import { useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 
+import dynamic from 'next/dynamic';
+
 import { useAuthStore } from "../../../stores/useAuthStore";
 import { buildLotteryCountdownMessage, getCountdownState } from "../../components/home/LotteryCountdown";
 import { LeftSidebar } from "../../components/home/LeftSidebar";
 import { HomeSidebar } from "../../components/home/HomeSidebar";
 import { ResultsMatrix } from "../../components/home/ResultsMatrix";
-import { MobileLotterySelector } from "../../components/home/MobileLotterySelector";
 import { useLottery } from "../../hooks/useLottery";
 import { buildCountdownTarget, formatApiDateToDisplay, isTodayDisplayDate } from "../../types/lottery";
+
+const MobileLotterySelector = dynamic(
+  () => import('../../components/home/MobileLotterySelector').then((mod) => mod.MobileLotterySelector),
+  { ssr: false }
+);
+
 
 const scrollWindowToTop = () => {
   window.scrollTo({ top: 0, left: 0, behavior: 'auto' });

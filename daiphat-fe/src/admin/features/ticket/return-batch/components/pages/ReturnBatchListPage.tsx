@@ -1,3 +1,5 @@
+"use client";
+
 import { Alert } from '@mui/material';
 import { useTranslation } from 'react-i18next';
 import { Breadcrumb } from '../../../../../components/ui/Breadcrumb';

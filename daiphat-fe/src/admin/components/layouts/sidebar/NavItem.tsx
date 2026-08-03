@@ -1,3 +1,5 @@
+"use client";
+
 import { useTranslation } from "react-i18next";
 import { useState, useEffect, memo, type ReactNode } from "react";
 import { ListItemIcon, Collapse, ButtonBase, Popover, Paper, Badge } from '@mui/material';

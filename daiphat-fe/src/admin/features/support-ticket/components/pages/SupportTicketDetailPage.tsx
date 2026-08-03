@@ -1,3 +1,5 @@
+"use client";
+
 import { useMemo, type ReactNode } from 'react';
 import { Link, useNavigate, useParams } from '@/components/router-compat';
 import {

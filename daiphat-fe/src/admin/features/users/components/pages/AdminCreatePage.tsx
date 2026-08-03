@@ -1,3 +1,5 @@
+"use client";
+
 import { Breadcrumb } from '../../../../components/ui/Breadcrumb';
 import { Title } from '../../../../components/ui/Title';
 import { useCreateUser, useUploadUserAvatar } from "../../hooks/useUsers";

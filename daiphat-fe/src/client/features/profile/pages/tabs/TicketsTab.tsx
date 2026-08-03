@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useEffect, useState } from 'react';
 import { scrollToTop } from '../../../../../utils/scroll.util';
 import { Link } from 'react-router-dom';

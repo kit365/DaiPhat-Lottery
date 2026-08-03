@@ -1,3 +1,5 @@
+"use client";
+
 import { ConversationTitle } from '../components/ConversationTitle';
 import { ConversationAvatarLetter } from '../components/ConversationAvatarLetter';
 import {

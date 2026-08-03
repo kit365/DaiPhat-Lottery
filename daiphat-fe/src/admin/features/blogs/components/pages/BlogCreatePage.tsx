@@ -1,3 +1,5 @@
+"use client";
+
 import { Box, Stack, TextField, ThemeProvider, useTheme, MenuItem, Select, FormControl, InputLabel, FormHelperText, createTheme, Autocomplete, CircularProgress } from "@mui/material"
 import { LoadingButton } from "../../../../components/ui/LoadingButton";
 import { useTranslation } from "react-i18next";

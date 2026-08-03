@@ -1,3 +1,5 @@
+"use client";
+
 import WarningAmberOutlinedIcon from '@mui/icons-material/WarningAmberOutlined';
 import { Alert, Button, Stack, Typography } from '@mui/material';
 import { useMemo, useState } from 'react';

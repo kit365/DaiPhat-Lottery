@@ -1,3 +1,5 @@
+"use client";
+
 import { useQuery, useMutation, useQueryClient, UseQueryOptions } from "@tanstack/react-query";
 import {
     getUsers,

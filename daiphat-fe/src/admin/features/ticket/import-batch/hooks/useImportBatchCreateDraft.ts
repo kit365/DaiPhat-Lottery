@@ -1,3 +1,5 @@
+"use client";
+
 import { useCallback, useEffect, useRef } from 'react';
 import type { UseFormGetValues } from 'react-hook-form';
 import type { CreateImportBatchFormValues } from '../schemas/importBatch.schema';

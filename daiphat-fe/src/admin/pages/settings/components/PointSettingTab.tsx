@@ -1,3 +1,5 @@
+"use client";
+
 import { Box, Card, Grid, TextField, Button, Typography, Stack, InputAdornment } from "@mui/material";
 import { useForm, Controller } from "react-hook-form";
 import { useSettingPoint, useUpdateSettingPoint } from "../hooks/useSettings";

@@ -1,3 +1,5 @@
+"use client";
+
 import { useMemo } from 'react';
 import { useMutation, useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { getAllLotteryResults, getLotteryResultDetails, getLotteryResultsManagementBoard, syncLotteryResults } from '../services/drawResultService';

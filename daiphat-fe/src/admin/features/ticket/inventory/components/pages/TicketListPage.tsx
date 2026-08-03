@@ -1,3 +1,5 @@
+"use client";
+
 import AddIcon from '@mui/icons-material/Add';
 import ReportProblemIcon from '@mui/icons-material/ReportProblem';
 import { Stack, Button } from '@mui/material';

@@ -1,3 +1,5 @@
+"use client";
+
 import CloseIcon from '@mui/icons-material/Close';
 import ReportProblemIcon from '@mui/icons-material/ReportProblem';
 import {

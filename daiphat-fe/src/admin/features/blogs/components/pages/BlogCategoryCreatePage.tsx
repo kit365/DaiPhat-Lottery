@@ -1,3 +1,5 @@
+"use client";
+
 import { Box, MenuItem, Stack, TextField, ThemeProvider, useTheme } from "@mui/material"
 import { LoadingButton } from "../../../../components/ui/LoadingButton";
 import { Breadcrumb } from "../../../../components/ui/Breadcrumb"

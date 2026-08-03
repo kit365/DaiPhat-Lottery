@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useState, useMemo } from 'react';
 import { Popover, Button, Box, Typography, Divider, List, ListItem, ListItemButton, ListItemText, Checkbox, TextField, InputAdornment, IconButton } from '@mui/material';
 import FilterListIcon from '@mui/icons-material/FilterList';

@@ -1,3 +1,5 @@
+"use client";
+
 import { Box, Stack, TextField, ThemeProvider, useTheme, CircularProgress, FormControl, InputLabel, Select, MenuItem, FormHelperText, Autocomplete, createTheme } from "@mui/material";
 import { LoadingButton } from "../../../../components/ui/LoadingButton";
 import { Breadcrumb } from "../../../../components/ui/Breadcrumb";

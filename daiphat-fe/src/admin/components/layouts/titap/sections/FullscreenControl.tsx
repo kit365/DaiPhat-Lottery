@@ -1,3 +1,5 @@
+"use client";
+
 import { memo } from "react";
 import { FullscreenIcon, UnFullscreenIcon } from "../../../../assets/icons";
 import { ButtonTiptap } from "./ButtonTiptap";

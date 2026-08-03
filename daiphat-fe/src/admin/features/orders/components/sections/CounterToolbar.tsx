@@ -1,3 +1,5 @@
+"use client";
+
 import { Toolbar, Box, Button, Badge, SvgIcon } from "@mui/material";
 import { useMemo, useState, useRef, useEffect } from "react";
 import { useStationsByDrawDate } from "../../../station/hooks/useStation";

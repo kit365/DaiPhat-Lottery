@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { InfiniteData, useQueryClient } from '@tanstack/react-query';

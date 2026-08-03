@@ -1,3 +1,5 @@
+"use client";
+
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Bell, ChevronRight, Newspaper, ShieldCheck, MoreHorizontal, Check, Settings, Trash2 } from "lucide-react";

@@ -1,3 +1,5 @@
+"use client";
+
 import { useState } from 'react';
 import { DataGrid } from '@mui/x-data-grid';
 import Card from '@mui/material/Card';

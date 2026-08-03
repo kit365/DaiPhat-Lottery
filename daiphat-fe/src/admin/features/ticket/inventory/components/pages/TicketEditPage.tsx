@@ -1,3 +1,5 @@
+"use client";
+
 import { Box, Stack, TextField, ThemeProvider, useTheme, createTheme, FormControl, InputLabel, MenuItem, OutlinedInput, Select, Button, Typography, IconButton, CircularProgress, Pagination, Chip, Table, TableBody, TableCell, TableContainer, TableHead, TableRow } from "@mui/material"
 import { Breadcrumb } from "../../../../../components/ui/Breadcrumb"
 import { Title } from "../../../../../components/ui/Title"

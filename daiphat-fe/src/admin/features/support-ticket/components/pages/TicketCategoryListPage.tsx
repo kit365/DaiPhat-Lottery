@@ -1,3 +1,5 @@
+"use client";
+
 import { useState, useMemo } from 'react';
 import { Title } from '../../../../components/ui/Title';
 import { Breadcrumb } from '../../../../components/ui/Breadcrumb';

@@ -1,3 +1,5 @@
+"use client";
+
 import AddIcon from '@mui/icons-material/Add';
 import { Stack } from '@mui/material';
 import { useNavigate } from '@/components/router-compat';
