@@ -22,6 +22,7 @@ import {
     todayIsoVn,
     tomorrowIsoVn,
 } from '../../utils/sellableDrawDate.util';
+import { formatVietnameseDrawDateWithParen } from '../../utils/vietnameseDate.util';
 import { normalizeTicketSearchDigits } from '../../utils/ticketSearchQuery.util';
 import { getPublicSchedule } from '../schedule/services/scheduleService';
 import { resolveNextStationDrawDateIso } from '../../utils/stationDrawDate.util';
@@ -132,13 +133,7 @@ const toSellableDateTokens = (
     return [resolved];
 };
 
-const formatViWeekdayLabel = (isoDate: string) =>
-    dayjs(isoDate)
-        .locale('vi')
-        .format('DD/MM/YYYY (dddd)')
-        .replace(/t/g, 'T')
-        .replace('Thứ', 'Thứ')
-        .replace('chủ', 'Chủ');
+const formatViWeekdayLabel = (isoDate: string) => formatVietnameseDrawDateWithParen(isoDate);
 
 const sameProvinceId = (left: string | number, right: string | number) =>
     String(left) === String(right);
@@ -170,6 +165,7 @@ export const BuyTicketPage = () => {
     const urlRegion = searchParams.get('region');
     const urlDrawDate = searchParams.get('drawDate');
     const urlTicketId = searchParams.get('ticketId');
+    const urlTicketNumber = normalizeTicketSearchDigits(searchParams.get('ticketNumber') || '', 6);
     const { token, openLoginModal } = useAuthStore();
 
     // State
@@ -199,6 +195,7 @@ export const BuyTicketPage = () => {
     const ticketListRef = useRef<HTMLDivElement>(null);
     const appliedDeepLinkRef = useRef(false);
     const appliedTicketIdRef = useRef<string | null>(null);
+    const appliedTicketNumberRef = useRef<string | null>(null);
     const autoSwitchedToTomorrowRef = useRef(false);
 
     useEffect(() => {
@@ -358,11 +355,12 @@ export const BuyTicketPage = () => {
     useEffect(() => {
         appliedDeepLinkRef.current = false;
         appliedTicketIdRef.current = null;
-        if (urlTicketId || urlStationId || urlStationIds || urlDrawDate || urlRegion) {
+        appliedTicketNumberRef.current = null;
+        if (urlTicketId || urlTicketNumber || urlStationId || urlStationIds || urlDrawDate || urlRegion) {
             setSelectedNumbers([]);
             setTicketQuantity(1);
         }
-    }, [urlStationId, urlStationIds, urlRegion, urlDrawDate, urlTicketId]);
+    }, [urlStationId, urlStationIds, urlRegion, urlDrawDate, urlTicketId, urlTicketNumber]);
 
     useEffect(() => {
         if (!urlDrawDate) {
@@ -487,7 +485,7 @@ export const BuyTicketPage = () => {
     );
     const drawDateFilter = selectedDates.map(resolveDrawDateToken).join(',');
     const activeFilterCount = countActiveTicketFilters(appliedFilters);
-    const { data: ticketsRes, isLoading: isLoadingTickets } = useQuery({
+    const { data: ticketsRes, isLoading: isLoadingTickets, isFetching: isFetchingTickets } = useQuery({
         queryKey: [
             'public-buy-ticket-list',
             selectedStationIdsForQuery,
@@ -592,6 +590,14 @@ export const BuyTicketPage = () => {
 
     // Preselect / highlight ticket from chatbot deep-link (?ticketId=)
     useEffect(() => {
+        if (!urlTicketNumber) {
+            return;
+        }
+        setTicketSearchInput(urlTicketNumber);
+        setAppliedSearch(urlTicketNumber.length >= 2 ? urlTicketNumber : '');
+    }, [urlTicketNumber]);
+
+    useEffect(() => {
         if (!urlTicketId || availableTickets.length === 0) {
             return;
         }
@@ -625,6 +631,36 @@ export const BuyTicketPage = () => {
             node?.scrollIntoView({ behavior: 'smooth', block: 'center' });
         });
     }, [urlTicketId, availableTickets]);
+
+    useEffect(() => {
+        if (!urlTicketNumber) {
+            return;
+        }
+        if (appliedTicketNumberRef.current === urlTicketNumber) {
+            return;
+        }
+        // Wait until ticket query settles to avoid false "not found" toasts during initial loading.
+        if (isLoadingTickets || isFetchingTickets) {
+            return;
+        }
+        if (availableTickets.length === 0) {
+            return;
+        }
+
+        const normalizedTickets = availableTickets as unknown as PublicLotteryTicket[];
+        const matched =
+            normalizedTickets.find(
+                (ticket) => normalizeTicketSearchDigits(String(ticket.numbers || ''), 6) === urlTicketNumber
+            )
+            || normalizedTickets.find((ticket) =>
+                normalizeTicketSearchDigits(String(ticket.numbers || ''), 6).includes(urlTicketNumber)
+            )
+            || normalizedTickets[0];
+
+        appliedTicketNumberRef.current = urlTicketNumber;
+        setSelectedNumbers([matched.numbers]);
+        setTicketQuantity(1);
+    }, [urlTicketNumber, availableTickets, isLoadingTickets, isFetchingTickets]);
 
     const toggleNumber = (num: string) => {
         setTicketQuantity(1); // Reset quantity when changing number
@@ -866,7 +902,7 @@ export const BuyTicketPage = () => {
                                         >
                                             <div>
                                                 <div className={`font-bold ${selectedDates.includes('today') ? 'text-[#ee1314]' : 'text-[#212B36]'}`}>Hôm nay</div>
-                                                <div className="text-[14px] text-[#637381]">{dayjs().locale('vi').format('DD/MM/YYYY (dddd)').replace(/t/g, 'T').replace('Thứ', 'Thứ').replace('chủ', 'Chủ')}</div>
+                                                <div className="text-[14px] text-[#637381]">{formatVietnameseDrawDateWithParen(todayIsoVn())}</div>
                                                 {todaySellClosed && (
                                                     <div className="text-[12px] text-[#ee1314] mt-0.5">Đã hết giờ bán (sau {effectiveDrawTime})</div>
                                                 )}
@@ -904,7 +940,7 @@ export const BuyTicketPage = () => {
                                         >
                                             <div>
                                                 <div className={`font-bold ${selectedDates.includes('tomorrow') ? 'text-[#ee1314]' : 'text-[#212B36]'}`}>Ngày mai</div>
-                                                <div className="text-[14px] text-[#637381]">{dayjs().add(1, 'day').locale('vi').format('DD/MM/YYYY (dddd)').replace(/t/g, 'T').replace('Thứ', 'Thứ').replace('chủ', 'Chủ')}</div>
+                                                <div className="text-[14px] text-[#637381]">{formatVietnameseDrawDateWithParen(tomorrowIsoVn())}</div>
                                             </div>
                                             <div className="mt-0.5">
                                                 {selectedDates.includes('tomorrow') ? (
