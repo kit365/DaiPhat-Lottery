@@ -1,4 +1,6 @@
 .admin-theme {
+    max-width: 100vw;
+    overflow-x: hidden;
     /* Primary */
     --palette-primary-lighter: #C8FAD6;
     --palette-primary-light: #5BE49B;
@@ -545,9 +547,15 @@ input:-webkit-autofill:active {
     border-right: 1px solid var(--palette-background-neutral);
 }
 
-.admin-datagrid .MuiDataGrid-menuIcon .MuiButtonBase-root {
-    color: var(--palette-text-secondary);
-    rotate: 90deg;
+.admin-datagrid .MuiDataGrid-menuIcon,
+.admin-datagrid .MuiDataGrid-iconButtonContainer,
+.admin-datagrid .MuiDataGrid-sortIcon {
+    display: none !important;
+    visibility: hidden !important;
+    width: 0 !important;
+    height: 0 !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
 }
 
 .admin-datagrid .MuiDataGrid-columnHeaders .MuiButtonBase-root {

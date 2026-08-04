@@ -68,13 +68,12 @@ export const DrawResultList = ({
                         density={settings.density}
                         showCellVerticalBorder={settings.showCellBorders}
                         showColumnVerticalBorder={settings.showColumnBorders}
+                        disableColumnMenu
+                        disableColumnSorting
                         className="admin-datagrid"
-                    sx={dataGridStyles}
+                        sx={dataGridStyles}
                         slots={{
                             toolbar: DrawResultToolbar as any,
-                            columnSortedAscendingIcon: SortAscendingIcon,
-                            columnSortedDescendingIcon: SortDescendingIcon,
-                            columnUnsortedIcon: UnsortedIcon,
                             noRowsOverlay: () => (
                                 <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
                                     {isLoading

@@ -11,7 +11,6 @@ import Dialog from '@mui/material/Dialog';
 import DialogContent from '@mui/material/DialogContent';
 import { useMemo } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { SortAscendingIcon, SortDescendingIcon, UnsortedIcon } from '../../../../../assets/icons';
 import {
     IGridSettings,
     useSettings,
@@ -110,11 +109,10 @@ export const TicketList = ({
                         showCellVerticalBorder={settings.showCellBorders}
                         showColumnVerticalBorder={settings.showColumnBorders}
                         showToolbar
+                        disableColumnMenu
+                        disableColumnSorting
                         slots={{
                             toolbar: TicketToolbar as any,
-                            columnSortedAscendingIcon: SortAscendingIcon,
-                            columnSortedDescendingIcon: SortDescendingIcon,
-                            columnUnsortedIcon: UnsortedIcon,
                             noRowsOverlay: () => (
                                 <Box
                                     sx={{

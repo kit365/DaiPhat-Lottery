@@ -11,7 +11,6 @@ import {
     Tabs,
     styled,
 } from "@mui/material";
-import { SortAscendingIcon, SortDescendingIcon, UnsortedIcon } from "../../../../assets/icons";
 import { getColumnsConfig, columnsInitialState } from "../configs/column.config";
 import { DATA_GRID_LOCALE_VN } from "../../../../../shared/components/DataTable/localeText.config";
 import { useStreetAgentProfiles } from "../../hooks/useStreetAgent";
@@ -163,10 +162,9 @@ export const StreetAgentList = () => {
                     loading={isLoading}
                     columns={columns}
                     density="comfortable"
+                    disableColumnMenu
+                    disableColumnSorting
                     slots={{
-                        columnSortedAscendingIcon: SortAscendingIcon,
-                        columnSortedDescendingIcon: SortDescendingIcon,
-                        columnUnsortedIcon: UnsortedIcon,
                         noRowsOverlay: () => (
                             <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%" }}>
                                 {isLoading ? (

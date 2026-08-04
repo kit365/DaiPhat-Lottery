@@ -2,7 +2,7 @@
 
 import { ReactNode, useEffect } from "react";
 import { useAuthStore } from "../../../stores/useAuthStore";
-import { Navigate, Outlet } from "@/components/router-compat";
+import { Navigate, Outlet, useLocation } from "@/components/router-compat";
 import { toast } from "react-toastify";
 import { ROUTES } from "../../constants/routes";
 import { useAuth } from "../../pages/authen/hooks/useAuth";
@@ -17,14 +17,12 @@ interface Props {
 
 export const PermissionGuard = ({ children, permission, permissions, fallback }: Props) => {
     const { user, logout, token, isHydrated } = useAuthStore();
-    const { isUserLoading: isLoading, isFetching } = useAuth();
+    const { isUserLoading: isLoading } = useAuth();
+    const location = useLocation();
 
-    // 1. Nếu CHƯA HYDRATE xong thì tuyệt đối không được làm gì, cứ đứng đợi
+    // 1. Chỉ chờ khi CHƯA HYDRATE xong hoặc (có token nhưng CHƯA lấy được user lần đầu)
     const isReady = isHydrated;
-    
-    // 2. Nếu đã Hydrate (có token) nhưng đang đợi fetch thông tin user mới
-    // Phải chờ cả isLoading (lần đầu) và isFetching (mọi lần reload) để đảm bảo có data mới nhất
-    const isFetchingUser = isReady && !!token && (isLoading || isFetching || !user);
+    const isWaitingInitialUser = isReady && !!token && !user;
 
     const roleCode = typeof user?.role === 'string' ? user.role : (user?.role?.code || "");
     const normalizedRole = roleCode.startsWith("ROLE_") ? roleCode : `ROLE_${roleCode}`;
@@ -37,8 +35,8 @@ export const PermissionGuard = ({ children, permission, permissions, fallback }:
         : hasPermission(user, permission);
 
     useEffect(() => {
-        // CHỈ xử lý khi hệ thống đã Hydrate xong, KHÔNG đang fetch dở, và QUAN TRỌNG: Đã có thông tin User
-        if (isReady && !isFetchingUser && user) {
+        // CHỈ xử lý khi hệ thống đã Hydrate xong và đã có thông tin User
+        if (isReady && !isWaitingInitialUser && user) {
             
             if (!hasAccess) {
                 toast.warning("Bạn không có quyền thực hiện hành động này!", {
@@ -51,10 +49,10 @@ export const PermissionGuard = ({ children, permission, permissions, fallback }:
                 }
             }
         }
-    }, [hasAccess, isFetchingUser, isReady, token, user, logout, isOnlyMember, permission, permissions]);
+    }, [hasAccess, isWaitingInitialUser, isReady, token, user, logout, isOnlyMember, permission, permissions]);
 
-    // Trạng thái chờ: Đang hydrate hoặc đang fetch thông tin user
-    if (!isReady || isFetchingUser) {
+    // Trạng thái chờ ban đầu: Đang hydrate hoặc chờ lấy thông tin user lần đầu
+    if (!isReady || isWaitingInitialUser) {
         return fallback || (
             <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
                 Đang kiểm tra quyền truy cập...
@@ -63,11 +61,22 @@ export const PermissionGuard = ({ children, permission, permissions, fallback }:
     }
 
     if (!hasAccess) {
-        // Nếu là Staff/Admin mà chỉ thiếu quyền con -> Đẩy về Dashboard chứ ko sút Logout
-        if (!isOnlyMember && user) {
-            return <Navigate to={ROUTES.ADMIN.DASHBOARD.ROOT} replace />;
+        if (fallback) {
+            return <>{fallback}</>;
         }
-        return <Navigate to={ROUTES.ADMIN.AUTH.LOGIN} replace />;
+        // Nếu là Staff/Admin mà chỉ thiếu quyền con -> Đẩy về Dashboard (nếu chưa ở Dashboard)
+        if (!isOnlyMember && user) {
+            const isDashboard = location.pathname === ROUTES.ADMIN.DASHBOARD.ROOT || location.pathname === ROUTES.ADMIN.DASHBOARD.SYSTEM;
+            if (!isDashboard) {
+                return <Navigate to={ROUTES.ADMIN.DASHBOARD.ROOT} replace />;
+            }
+        }
+        return (
+            <div className="flex flex-col items-center justify-center min-h-[400px] p-6 text-center">
+                <h2 className="text-xl font-bold text-red-600 mb-2">403 - Không có quyền truy cập</h2>
+                <p className="text-gray-600 mb-4">Tài khoản của bạn không có quyền xem nội dung này.</p>
+            </div>
+        );
     }
 
     return <>{children || <Outlet />}</>;

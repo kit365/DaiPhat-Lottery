@@ -4,7 +4,6 @@ import { Card, Box, Typography, Tabs, Tab } from '@mui/material';
 import { useReviews } from '../hooks/useReviews';
 import { useReviewColumns } from '../hooks/useReviewColumns';
 import { dataGridContainerStyles, dataGridStyles } from '../configs/styles.config';
-import { SortAscendingIcon, SortDescendingIcon, UnsortedIcon } from '../../../assets/icons';
 import { Search } from '../../../components/ui/Search';
 import { ExportImport } from '../../../components/ui/ExportImport';
 import { DATA_GRID_LOCALE_VN } from '../../../../shared/components/DataTable/localeText.config';
@@ -105,10 +104,9 @@ export const ReviewList = () => {
                     loading={isLoading}
                     columns={columns}
                     density="comfortable"
+                    disableColumnMenu
+                    disableColumnSorting
                     slots={{
-                        columnSortedAscendingIcon: SortAscendingIcon,
-                        columnSortedDescendingIcon: SortDescendingIcon,
-                        columnUnsortedIcon: UnsortedIcon,
                         noRowsOverlay: () => (
                             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
                                 <span className="admin-datagrid-empty">Không có dữ liệu để hiển thị</span>

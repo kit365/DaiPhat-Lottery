@@ -2,7 +2,6 @@ import { DataGrid, GridColDef } from '@mui/x-data-grid';
 import Card from '@mui/material/Card';
 import Box from '@mui/material/Box';
 import CircularProgress from '@mui/material/CircularProgress';
-import { SortAscendingIcon, SortDescendingIcon, UnsortedIcon } from '../../../../assets/icons';
 import { useDataGridLocale } from '../../../../hooks/useDataGridLocale';
 import { PrizeStructureToolbar } from './PrizeStructureToolbar';
 import { columnsConfig, columnsInitialState } from '../configs/column.config';
@@ -41,13 +40,12 @@ export const PrizeStructureList = ({
                         showCellVerticalBorder={settings.showCellBorders}
                         showColumnVerticalBorder={settings.showColumnBorders}
                         showToolbar
+                        disableColumnMenu
+                        disableColumnSorting
                         className="admin-datagrid"
-                    sx={dataGridStyles}
+                        sx={dataGridStyles}
                         slots={{
                             toolbar: PrizeStructureToolbar as any,
-                            columnSortedAscendingIcon: SortAscendingIcon,
-                            columnSortedDescendingIcon: SortDescendingIcon,
-                            columnUnsortedIcon: UnsortedIcon,
                             noRowsOverlay: () => (
                                 <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
                                     {isLoading
