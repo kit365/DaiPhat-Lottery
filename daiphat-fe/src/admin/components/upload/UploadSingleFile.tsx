@@ -24,6 +24,7 @@ interface UploadSingleFileProps {
     compact?: boolean;
     label?: string;
     required?: boolean;
+    maxFileSizeMb?: number;
 }
 
 export const UploadSingleFile = memo(
@@ -39,6 +40,7 @@ export const UploadSingleFile = memo(
         compact,
         label = "Hình ảnh",
         required,
+        maxFileSizeMb = 10,
     }: UploadSingleFileProps) => {
         const [localFile, setLocalFile] = useState<CustomFile | null>(null);
         const [isUploading, setIsUploading] = useState(false);
@@ -88,6 +90,11 @@ export const UploadSingleFile = memo(
             if (!acceptedFiles.length) return;
 
             const file = acceptedFiles[0];
+            const maxBytes = maxFileSizeMb * 1024 * 1024;
+            if (file.size > maxBytes) {
+                AppToast.error(`Ảnh vượt quá ${maxFileSizeMb}MB. Vui lòng chọn ảnh nhỏ hơn.`);
+                return;
+            }
             if (useRawFile) {
                 onChange(file);
             } else {
@@ -98,7 +105,7 @@ export const UploadSingleFile = memo(
                     void uploadFile(customFile);
                 }
             }
-        }, [useRawFile, onChange, autoUpload, uploadFile]);
+        }, [useRawFile, onChange, autoUpload, uploadFile, maxFileSizeMb]);
 
         const { getRootProps, getInputProps, isDragActive } = useDropzone({
             accept: { "image/*": [] },
