@@ -95,7 +95,10 @@ export const useAuthStore = create<AuthState>()(
                     token: state.token, 
                     expiresAt: state.expiresAt 
                 }),
-                onRehydrateStorage: () => () => {
+                onRehydrateStorage: () => (_state, error) => {
+                    if (error) {
+                        console.warn("Auth store rehydration failed", error);
+                    }
                     useAuthStore.setState({ isHydrated: true });
                 },
             }
@@ -103,3 +106,21 @@ export const useAuthStore = create<AuthState>()(
         { name: "AuthStore" }
     )
 );
+
+// Next.js client navigations can miss persist callbacks; ensure hydration unlocks.
+if (typeof window !== "undefined") {
+    const persistApi = (useAuthStore as typeof useAuthStore & {
+        persist?: {
+            hasHydrated?: () => boolean;
+            onFinishHydration?: (cb: () => void) => () => void;
+        };
+    }).persist;
+
+    if (persistApi?.hasHydrated?.()) {
+        useAuthStore.setState({ isHydrated: true });
+    } else {
+        persistApi?.onFinishHydration?.(() => {
+            useAuthStore.setState({ isHydrated: true });
+        });
+    }
+}
