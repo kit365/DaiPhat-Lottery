@@ -34,6 +34,8 @@ const nextConfig: NextConfig = {
     ],
   },
   images: {
+    loader: 'custom',
+    loaderFile: './src/utils/imageLoader.ts',
     qualities: [25, 50, 75, 85],
     formats: ['image/avif', 'image/webp'],
     remotePatterns: [
