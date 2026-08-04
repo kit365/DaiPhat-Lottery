@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -45,7 +47,7 @@ class BuyTicketView extends ConsumerStatefulWidget {
 }
 
 class _BuyTicketViewState extends ConsumerState<BuyTicketView> {
-  bool _showHardcodedTicket = false;
+  bool _showHardcodedTicket = true;
 
   void _toggleHardcodedTicket() {
     setState(() {
@@ -209,17 +211,40 @@ class _LoadedView extends StatelessWidget {
                     onBuyNow: () => onBuyNow(demoTicket),
                   ),
                 ),
-              ...tickets.map(
-                (ticket) => Padding(
-                  padding: const EdgeInsets.only(bottom: 14),
-                  child: _TicketCard(
-                    ticket: ticket,
-                    onTap: () => onOpenDetail(ticket),
-                    onBuyNow: () => onBuyNow(ticket),
+              AnimatedSwitcher(
+                duration: const Duration(milliseconds: 320),
+                switchInCurve: Curves.easeOutCubic,
+                switchOutCurve: Curves.easeInCubic,
+                transitionBuilder: (child, animation) {
+                  final offset = Tween<Offset>(
+                    begin: const Offset(0.04, 0),
+                    end: Offset.zero,
+                  ).animate(animation);
+                  return FadeTransition(
+                    opacity: animation,
+                    child: SlideTransition(position: offset, child: child),
+                  );
+                },
+                child: Column(
+                  key: ValueKey(
+                    '${state.selectedDay.name}|${state.selectedProvince}|${tickets.length}',
                   ),
+                  children: [
+                    ...tickets.map(
+                      (ticket) => Padding(
+                        padding: const EdgeInsets.only(bottom: 14),
+                        child: _TicketCard(
+                          ticket: ticket,
+                          onTap: () => onOpenDetail(ticket),
+                          onBuyNow: () => onBuyNow(ticket),
+                        ),
+                      ),
+                    ),
+                    if (tickets.isEmpty && !showHardcodedTicket)
+                      const _EmptyState(),
+                  ],
                 ),
               ),
-              if (tickets.isEmpty) const _EmptyState(),
             ],
           ),
         ),
@@ -485,18 +510,94 @@ class _SearchFieldState extends State<_SearchField> {
   }
 }
 
-class _TicketHeroBanner extends StatelessWidget {
+class _HeroBannerSlide {
+  const _HeroBannerSlide({
+    required this.imageAsset,
+    required this.eyebrow,
+    required this.title,
+    required this.ctaLabel,
+  });
+
+  final String imageAsset;
+  final String eyebrow;
+  final String title;
+  final String ctaLabel;
+}
+
+class _TicketHeroBanner extends StatefulWidget {
   const _TicketHeroBanner();
 
   static const double height = 194;
-  static const String _bannerImageAsset = 'assets/images/hero_banner.jpg';
-  static const String _bannerTitle = 'Nhận may mắn\nliền tay';
-  static const String _bannerCtaLabel = 'Khám phá ngay';
+
+  static const List<_HeroBannerSlide> slides = [
+    _HeroBannerSlide(
+      imageAsset: 'assets/images/hero_banner.jpg',
+      eyebrow: 'Mua vé ngay hôm nay',
+      title: 'Nhận may mắn\nliền tay',
+      ctaLabel: 'Khám phá ngay',
+    ),
+    _HeroBannerSlide(
+      imageAsset: 'assets/images/lucky_girl_banner.png',
+      eyebrow: 'Vé số Đại Phát',
+      title: 'Chọn số\nyêu thích',
+      ctaLabel: 'Mua vé ngay',
+    ),
+    _HeroBannerSlide(
+      imageAsset: 'assets/images/hero_mobile.jpg',
+      eyebrow: 'Ưu đãi mỗi ngày',
+      title: 'Trúng lớn\nmỗi kỳ quay',
+      ctaLabel: 'Xem ngay',
+    ),
+  ];
+
+  @override
+  State<_TicketHeroBanner> createState() => _TicketHeroBannerState();
+}
+
+class _TicketHeroBannerState extends State<_TicketHeroBanner> {
+  late final PageController _pageController;
+  Timer? _autoPlayTimer;
+  int _currentIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _pageController = PageController();
+    _startAutoPlay();
+  }
+
+  @override
+  void dispose() {
+    _autoPlayTimer?.cancel();
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  void _startAutoPlay() {
+    _autoPlayTimer?.cancel();
+    _autoPlayTimer = Timer.periodic(const Duration(seconds: 4), (_) {
+      if (!mounted || !_pageController.hasClients) return;
+      final next =
+          (_currentIndex + 1) % _TicketHeroBanner.slides.length;
+      _pageController.animateToPage(
+        next,
+        duration: const Duration(milliseconds: 480),
+        curve: Curves.easeOutCubic,
+      );
+    });
+  }
+
+  void _onPageChanged(int index) {
+    setState(() => _currentIndex = index);
+    _startAutoPlay();
+  }
 
   @override
   Widget build(BuildContext context) {
+    final slides = _TicketHeroBanner.slides;
+
     return Container(
-      height: height,
+      height: _TicketHeroBanner.height,
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(22),
@@ -517,88 +618,101 @@ class _TicketHeroBanner extends StatelessWidget {
       child: Stack(
         fit: StackFit.expand,
         children: [
-          Image.asset(_bannerImageAsset, fit: BoxFit.cover),
-          DecoratedBox(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.centerLeft,
-                end: Alignment.centerRight,
-                colors: [
-                  const Color(0xFFB40716).withValues(alpha: 0.96),
-                  const Color(0xFFD51C29).withValues(alpha: 0.76),
-                  const Color(0xFFE43732).withValues(alpha: 0.18),
-                  Colors.transparent,
-                ],
-              ),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Text(
-                  'Mua vé ngay hôm nay',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 5),
-                const SizedBox(
-                  width: 188,
-                  child: Text(
-                    _bannerTitle,
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 25,
-                      fontWeight: FontWeight.w900,
-                      height: 1.12,
-                      letterSpacing: -.5,
+          PageView.builder(
+            controller: _pageController,
+            onPageChanged: _onPageChanged,
+            itemCount: slides.length,
+            itemBuilder: (context, index) {
+              final slide = slides[index];
+              return Stack(
+                fit: StackFit.expand,
+                children: [
+                  Image.asset(slide.imageAsset, fit: BoxFit.cover),
+                  DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.centerLeft,
+                        end: Alignment.centerRight,
+                        colors: [
+                          const Color(0xFFB40716).withValues(alpha: 0.96),
+                          const Color(0xFFD51C29).withValues(alpha: 0.76),
+                          const Color(0xFFE43732).withValues(alpha: 0.18),
+                          Colors.transparent,
+                        ],
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(height: 12),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 10,
-                  ),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFFD86B),
-                    borderRadius: BorderRadius.circular(12),
-                    boxShadow: const [
-                      BoxShadow(
-                        color: Color(0x12000000),
-                        blurRadius: 10,
-                        offset: Offset(0, 3),
-                      ),
-                    ],
-                  ),
-                  child: const Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        _bannerCtaLabel,
-                        style: TextStyle(
-                          color: Color(0xFF8B1118),
-                          fontSize: 12,
-                          fontWeight: FontWeight.w800,
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          slide.eyebrow,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
-                      ),
-                      SizedBox(width: 5),
-                      Icon(
-                        Icons.arrow_forward_ios_rounded,
-                        color: Color(0xFF8B1118),
-                        size: 12,
-                      ),
-                    ],
+                        const SizedBox(height: 5),
+                        SizedBox(
+                          width: 188,
+                          child: Text(
+                            slide.title,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 25,
+                              fontWeight: FontWeight.w900,
+                              height: 1.12,
+                              letterSpacing: -.5,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: 10,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFFD86B),
+                            borderRadius: BorderRadius.circular(12),
+                            boxShadow: const [
+                              BoxShadow(
+                                color: Color(0x12000000),
+                                blurRadius: 10,
+                                offset: Offset(0, 3),
+                              ),
+                            ],
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                slide.ctaLabel,
+                                style: const TextStyle(
+                                  color: Color(0xFF8B1118),
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                              const SizedBox(width: 5),
+                              const Icon(
+                                Icons.arrow_forward_ios_rounded,
+                                color: Color(0xFF8B1118),
+                                size: 12,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-              ],
-            ),
+                ],
+              );
+            },
           ),
           Positioned(
             bottom: 10,
@@ -607,14 +721,14 @@ class _TicketHeroBanner extends StatelessWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                for (var index = 0; index < 5; index++)
+                for (var index = 0; index < slides.length; index++)
                   AnimatedContainer(
                     duration: const Duration(milliseconds: 220),
-                    width: index == 0 ? 15 : 5,
+                    width: index == _currentIndex ? 15 : 5,
                     height: 5,
                     margin: const EdgeInsets.symmetric(horizontal: 2.5),
                     decoration: BoxDecoration(
-                      color: index == 0
+                      color: index == _currentIndex
                           ? Colors.white
                           : Colors.white.withValues(alpha: .58),
                       borderRadius: BorderRadius.circular(999),
@@ -730,23 +844,28 @@ class _DaySegmentedControl extends StatelessWidget {
                           splashColor: Colors.transparent,
                           borderRadius: BorderRadius.circular(999),
                           child: Center(
-                            child: Row(
+                              child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Icon(
-                                  Icons.calendar_today_outlined,
-                                  size: 15,
-                                  color: isTodaySellClosed
-                                      ? disabledTextColor
-                                      : selectedDay == TicketDayFilter.today
-                                      ? selectedTextColor
-                                      : unselectedTextColor,
+                                AnimatedSwitcher(
+                                  duration: const Duration(milliseconds: 220),
+                                  child: Icon(
+                                    Icons.calendar_today_outlined,
+                                    key: ValueKey(
+                                      '${isTodaySellClosed}_${selectedDay == TicketDayFilter.today}',
+                                    ),
+                                    size: 15,
+                                    color: isTodaySellClosed
+                                        ? disabledTextColor
+                                        : selectedDay == TicketDayFilter.today
+                                        ? selectedTextColor
+                                        : unselectedTextColor,
+                                  ),
                                 ),
                                 const SizedBox(width: 8),
-                                Text(
-                                  isTodaySellClosed
-                                      ? 'Hôm nay (đóng)'
-                                      : 'Hôm nay',
+                                AnimatedDefaultTextStyle(
+                                  duration: const Duration(milliseconds: 220),
+                                  curve: Curves.easeOutCubic,
                                   style: TextStyle(
                                     fontSize: isTodaySellClosed ? 12 : 14,
                                     fontWeight: FontWeight.w700,
@@ -755,6 +874,11 @@ class _DaySegmentedControl extends StatelessWidget {
                                         : selectedDay == TicketDayFilter.today
                                         ? selectedTextColor
                                         : unselectedTextColor,
+                                  ),
+                                  child: Text(
+                                    isTodaySellClosed
+                                        ? 'Hôm nay (đóng)'
+                                        : 'Hôm nay',
                                   ),
                                 ),
                               ],
@@ -777,16 +901,24 @@ class _DaySegmentedControl extends StatelessWidget {
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Icon(
-                                  Icons.calendar_today_outlined,
-                                  size: 15,
-                                  color: selectedDay == TicketDayFilter.tomorrow
-                                      ? selectedTextColor
-                                      : unselectedTextColor,
+                                AnimatedSwitcher(
+                                  duration: const Duration(milliseconds: 220),
+                                  child: Icon(
+                                    Icons.calendar_today_outlined,
+                                    key: ValueKey(
+                                      selectedDay == TicketDayFilter.tomorrow,
+                                    ),
+                                    size: 15,
+                                    color:
+                                        selectedDay == TicketDayFilter.tomorrow
+                                        ? selectedTextColor
+                                        : unselectedTextColor,
+                                  ),
                                 ),
                                 const SizedBox(width: 8),
-                                Text(
-                                  'Ngày mai',
+                                AnimatedDefaultTextStyle(
+                                  duration: const Duration(milliseconds: 220),
+                                  curve: Curves.easeOutCubic,
                                   style: TextStyle(
                                     fontSize: 14,
                                     fontWeight: FontWeight.w700,
@@ -795,6 +927,7 @@ class _DaySegmentedControl extends StatelessWidget {
                                         ? selectedTextColor
                                         : unselectedTextColor,
                                   ),
+                                  child: const Text('Ngày mai'),
                                 ),
                               ],
                             ),
