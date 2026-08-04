@@ -60,7 +60,7 @@ export const authService = {
                 ? { headers: { Authorization: `Bearer ${accessToken}` }, skipGlobalErrorToast: true }
                 : {}),
         } as any);
-        const user = response.data?.data || response.data;
+        const user: any = response.data?.data || response.data;
         if (response.data && user) {
             response.data.data = {
                 ...user,
@@ -68,7 +68,7 @@ export const authService = {
                 fullName: user.fullName || `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.username || user.email,
                 avatar: user.avatarUrl || user.avatar,
                 status: user.status ? user.status.toUpperCase() : 'PENDING'
-            };
+            } as any;
         }
         return normalizeAuthResponse(response.data);
     },

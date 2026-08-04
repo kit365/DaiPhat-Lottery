@@ -1,3 +1,5 @@
+"use client";
+
 import CloseIcon from '@mui/icons-material/Close';
 import {
     Box,
@@ -17,6 +19,7 @@ import type {
     ImportBatchEditFieldChange,
     ImportBatchEditInvoiceChange,
 } from '../../utils/importBatchEditChanges';
+import { formatImportCost } from '../../utils/importCostCalculator';
 
 interface ImportBatchEditConfirmDialogProps {
     open: boolean;
@@ -91,7 +94,7 @@ const SectionCard = ({
     </Box>
 );
 
-const formatVnd = (value: number) => `${value.toLocaleString('vi-VN')} VNĐ`;
+const formatVnd = (value: number) => `${formatImportCost(value)} VNĐ`;
 
 const InvoiceThumbnail = ({
     label,

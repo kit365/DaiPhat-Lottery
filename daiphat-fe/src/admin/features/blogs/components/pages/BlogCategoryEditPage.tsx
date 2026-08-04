@@ -1,3 +1,5 @@
+"use client";
+
 import { Box, MenuItem, Stack, TextField, CircularProgress, Typography } from "@mui/material";
 import { LoadingButton } from "../../../../components/ui/LoadingButton";
 import { Breadcrumb } from "../../../../components/ui/Breadcrumb";
@@ -50,13 +52,13 @@ export const BlogCategoryEditPage = () => {
 
     // 3. Đổ dữ liệu vào Form khi có dữ liệu từ Detail API
     useEffect(() => {
-        if (detailRes && detailRes._id) {
-            const detail = detailRes;
+        if (detailRes && (detailRes as any)._id) {
+            const detail = detailRes as any;
             reset({
                 name: detail.name || "",
                 description: detail.description || "",
-                parentId: detail.parent
-                    ? (typeof detail.parent === 'object' ? (detail.parent as any)._id : String(detail.parent))
+                parent: detail.parent
+                    ? (typeof detail.parent === 'object' ? detail.parent._id : String(detail.parent))
                     : "",
                 status: detail.status,
                 avatar: detail.avatar || "",
@@ -83,10 +85,10 @@ export const BlogCategoryEditPage = () => {
             const payload = {
                 ...data,
                 avatar: imageUrl,
-                parentId: data.parentId === "" ? null : data.parentId
+                parent: data.parent === "" ? null : data.parent
             };
 
-            update({ id: id!, data: payload }, {
+            update({ id: id!, data: payload as any }, {
                 onSuccess: (response) => {
                     if (response.success) {
                         toast.success(response.message || "Cập nhật danh mục thành công");

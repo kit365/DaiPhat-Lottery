@@ -1,7 +1,10 @@
+"use client";
+
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Box, Typography, Skeleton } from '@mui/material';
-import Chart from 'react-apexcharts';
+import dynamic from 'next/dynamic';
+const Chart = dynamic(() => import('react-apexcharts'), { ssr: false });
 import { getDetailedOrderStats } from '../../../api/dashboard.api';
 import DashboardCard from '../../../components/dashboard/DashboardCard';
 import SummaryWidget from '../../../components/dashboard/SummaryWidget';

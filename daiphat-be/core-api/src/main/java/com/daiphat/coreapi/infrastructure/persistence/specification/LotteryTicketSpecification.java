@@ -130,6 +130,8 @@ public final class LotteryTicketSpecification {
             predicates.add(cb.isTrue(root.get(LotteryTicketEntity_.active)));
             var serialJoin = root.join("serials", jakarta.persistence.criteria.JoinType.INNER);
             predicates.add(cb.equal(serialJoin.get("status"), com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus.IN_STOCK));
+            predicates.add(cb.equal(serialJoin.get("ticketCondition"), com.daiphat.coreapi.domain.model.enums.lottery.TicketCondition.GOOD));
+            predicates.add(cb.isNull(serialJoin.get("returnBatchLineId")));
             predicates.add(cb.isNull(serialJoin.get("deletedAt")));
             query.distinct(true);
             predicates.add(cb.isTrue(root.get(LotteryTicketEntity_.station).get(LotteryStationEntity_.isActive)));

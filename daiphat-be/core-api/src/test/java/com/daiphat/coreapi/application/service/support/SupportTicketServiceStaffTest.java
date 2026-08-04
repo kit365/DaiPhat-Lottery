@@ -3,7 +3,7 @@ package com.daiphat.coreapi.application.service.support;
 import com.daiphat.coreapi.application.dto.request.support.ResolveSupportTicketRequest;
 import com.daiphat.coreapi.application.dto.response.support.SupportTicketResponse;
 import com.daiphat.coreapi.application.event.SupportTicketAssignedEvent;
-import com.daiphat.coreapi.application.event.SupportTicketResolvedEvent;
+import com.daiphat.coreapi.application.event.SupportTicketClosedEvent;
 import com.daiphat.coreapi.application.mapper.support.SupportApplicationMapper;
 import com.daiphat.coreapi.application.port.out.file.StoragePort;
 import com.daiphat.coreapi.application.port.out.order.OrderRepositoryPort;
@@ -72,6 +72,8 @@ class SupportTicketServiceStaffTest {
     @Mock
     private OrderComplaintEligibilityService orderComplaintEligibilityService;
     @Mock
+    private PrizePayoutComplaintEligibilityService prizePayoutComplaintEligibilityService;
+    @Mock
     private SystemConfigRepositoryPort systemConfigRepositoryPort;
 
     private SupportTicketService supportTicketService;
@@ -89,6 +91,7 @@ class SupportTicketServiceStaffTest {
                 eventPublisher,
                 refundComplaintEligibilityService,
                 orderComplaintEligibilityService,
+                prizePayoutComplaintEligibilityService,
                 systemConfigRepositoryPort);
     }
 
@@ -142,19 +145,19 @@ class SupportTicketServiceStaffTest {
             }
             return comment;
         });
-        when(supportApplicationMapper.toTicketResponse(any(), any())).thenReturn(mockResponse(TicketStatus.RESOLVED));
+        when(supportApplicationMapper.toTicketResponse(any(), any())).thenReturn(mockResponse(TicketStatus.CLOSED));
 
         supportTicketService.resolveByStaff(TICKET_ID, STAFF_ID, new ResolveSupportTicketRequest("Đã hoàn tiền"));
 
         ArgumentCaptor<SupportTicketModel> ticketCaptor = ArgumentCaptor.forClass(SupportTicketModel.class);
         verify(supportTicketRepositoryPort).save(ticketCaptor.capture());
-        assertThat(ticketCaptor.getValue().getStatus()).isEqualTo(TicketStatus.RESOLVED);
+        assertThat(ticketCaptor.getValue().getStatus()).isEqualTo(TicketStatus.CLOSED);
         assertThat(ticketCaptor.getValue().getResponse()).isEqualTo("Đã hoàn tiền");
         assertThat(ticketCaptor.getValue().getResolvedReasonId()).isEqualTo(100L);
         assertThat(ticketCaptor.getValue().getResolvedAt()).isNotNull();
 
         verify(supportTicketCommentRepositoryPort, org.mockito.Mockito.atLeast(2)).save(any());
-        verify(eventPublisher).publishEvent(any(SupportTicketResolvedEvent.class));
+        verify(eventPublisher).publishEvent(any(SupportTicketClosedEvent.class));
     }
 
     @Test

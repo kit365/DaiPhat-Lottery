@@ -39,6 +39,17 @@ public interface ImportBatchLineRepositoryPort {
             Long excludeBatchId
     );
 
+    List<Long> findEligibleStationIdsBySupplierAndDrawDate(Long supplierId, LocalDate drawDate);
+
+    /**
+     * Non-cancelled import lines for supplier + station + draw date (source for return summary).
+     */
+    List<ImportBatchLineModel> findEligibleBySupplierStationAndDrawDate(
+            Long supplierId,
+            Long stationId,
+            LocalDate drawDate
+    );
+
     long nextLineBatchCodeSequence();
 
     /** @deprecated use {@link #nextLineBatchCodeSequence()} */

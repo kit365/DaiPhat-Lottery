@@ -1,3 +1,4 @@
+import { AxiosRequestConfig } from 'axios';
 import { apiApp } from '../../api';
 import {
     ChatAiStatusResponse,
@@ -9,6 +10,10 @@ import {
 } from '../../types/chat.type';
 import { ApiResponse } from '../../types/api.type';
 
+interface CustomAxiosConfig extends AxiosRequestConfig {
+    skipGlobalErrorToast?: boolean;
+}
+
 const BASE_URL = '/chat/conversations';
 
 export const chatConversationService = {
@@ -16,7 +21,7 @@ export const chatConversationService = {
         try {
             const response = await apiApp.get<ApiResponse<ChatAiStatusResponse>>(
                 '/chat/ai-status',
-                { skipGlobalErrorToast: true } as any
+                { skipGlobalErrorToast: true } as CustomAxiosConfig
             );
             return response.data.data ?? { enabled: true };
         } catch {
@@ -33,7 +38,7 @@ export const chatConversationService = {
     getOpen: async (): Promise<ApiResponse<ConversationDetailResponse | null>> => {
         const response = await apiApp.get<ApiResponse<ConversationDetailResponse | null>>(
             `${BASE_URL}/my/open`,
-            { skipGlobalErrorToast: true } as any
+            { skipGlobalErrorToast: true } as CustomAxiosConfig
         );
         return response.data;
     },
@@ -41,7 +46,7 @@ export const chatConversationService = {
     getDetail: async (conversationId: number): Promise<ApiResponse<ConversationDetailResponse | null>> => {
         const response = await apiApp.get<ApiResponse<ConversationDetailResponse | null>>(
             `${BASE_URL}/my/${conversationId}`,
-            { skipGlobalErrorToast: true } as any
+            { skipGlobalErrorToast: true } as CustomAxiosConfig
         );
         return response.data;
     },

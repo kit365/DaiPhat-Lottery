@@ -1,3 +1,5 @@
+"use client";
+
 import WarningAmberOutlinedIcon from '@mui/icons-material/WarningAmberOutlined';
 import {
     Alert,
@@ -12,7 +14,7 @@ import {
 } from '@mui/material';
 import dayjs from 'dayjs';
 import { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from '@/components/router-compat';
 import type { ImportBatch } from '../../types/importBatch.type';
 import { ROUTES } from '../../../../../constants/routes';
 import { useStations } from '../../../../station/hooks/useStation';

@@ -1,3 +1,5 @@
+"use client";
+
 import { Card, TextField, Button, Typography, Box, Stack, Grid, Divider } from "@mui/material";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -15,7 +17,7 @@ export const PaymentTab = () => {
         reset,
         formState: { errors },
     } = useForm<SettingPaymentFormValues>({
-        resolver: zodResolver(settingPaymentSchema) as any,
+        resolver: zodResolver(settingPaymentSchema),
         defaultValues: {
             zaloAppId: "",
             zaloKey1: "",

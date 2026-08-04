@@ -1,5 +1,7 @@
+"use client";
+
 import { useMemo, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from '@/components/router-compat';
 import { format } from 'date-fns';
 import { ComplaintFormModal } from '../../../../components/support/ComplaintFormModal';
 import { ComplaintStatusBadge } from '../../../../components/support/ComplaintStatusBadge';
@@ -10,7 +12,7 @@ import {
     useGetComplaintDetail,
     useGetTicketCategories,
 } from '../../../../hooks/useSupportTicket';
-import { TicketRefType, TicketStatus, TICKET_REF_TYPE_LABELS, findReasonComment } from '../../../../../types/support.type';
+import { TicketRefType, TicketStatus, TICKET_REF_TYPE_LABELS, canCustomerCancelTicket, findReasonComment } from '../../../../../types/support.type';
 import { AppToast } from '../../../../../utils/toast.util';
 import { UnavailableReferenceState, UNAVAILABLE_REFERENCE_MESSAGE } from '../../../../components/notification/UnavailableReferenceState';
 
@@ -42,10 +44,10 @@ export const ComplaintDetailTab = () => {
         return reason?.content || ticket.response || '';
     }, [ticket]);
 
-    const handleClose = async () => {
+    const handleCancel = async () => {
         const confirmed = await AppToast.confirm(
-            'Bạn có chắc muốn đóng yêu cầu hỗ trợ này? Hành động này không thể hoàn tác.',
-            'Đóng yêu cầu hỗ trợ'
+            'Bạn có chắc muốn huỷ khiếu nại này? Hành động này không thể hoàn tác.',
+            'Huỷ khiếu nại'
         );
         if (confirmed) {
             closeMutation.mutate(ticketId);
@@ -74,7 +76,7 @@ export const ComplaintDetailTab = () => {
     }
 
     const canEdit = ticket.status === TicketStatus.OPEN;
-    const canClose = ticket.status === TicketStatus.OPEN;
+    const canCancel = canCustomerCancelTicket(ticket.status);
     const isReadOnly = !canEdit;
 
     return (
@@ -108,9 +110,9 @@ export const ComplaintDetailTab = () => {
                             <i className="fa-solid fa-pen mr-2"></i> Chỉnh sửa
                         </button>
                     )}
-                    {canClose && (
+                    {canCancel && (
                         <button
-                            onClick={handleClose}
+                            onClick={handleCancel}
                             disabled={closeMutation.isPending}
                             className="px-5 py-3 rounded-xl border border-[#ee1314] text-[#ee1314] font-bold text-[14px] hover:bg-[#FFF4F4] transition-colors cursor-pointer disabled:opacity-50"
                         >
@@ -118,7 +120,7 @@ export const ComplaintDetailTab = () => {
                                 <i className="fa-solid fa-spinner fa-spin"></i>
                             ) : (
                                 <>
-                                    <i className="fa-solid fa-ban mr-2"></i> Đóng yêu cầu
+                                    <i className="fa-solid fa-ban mr-2"></i> Huỷ khiếu nại
                                 </>
                             )}
                         </button>
@@ -180,6 +182,14 @@ export const ComplaintDetailTab = () => {
                                         >
                                             <i className="fa-solid fa-up-right-from-square text-[12px]"></i>
                                             Mã yêu cầu #{ticket.refId}
+                                        </Link>
+                                    ) : ticket.refType === TicketRefType.PRIZE_CLAIM ? (
+                                        <Link
+                                            to={`/profile/prize-payouts/${ticket.refId}`}
+                                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#FFF9F3] text-[#B76E00] rounded-lg text-[14px] font-bold hover:bg-[#FFEFD6] transition-colors"
+                                        >
+                                            <i className="fa-solid fa-up-right-from-square text-[12px]"></i>
+                                            Trả thưởng #{ticket.refId}
                                         </Link>
                                     ) : (
                                         <span className="text-[15px] font-semibold text-[#212B36] font-mono bg-[#F4F6F8] px-2 py-1 rounded-md">
@@ -249,13 +259,27 @@ export const ComplaintDetailTab = () => {
                                 {format(new Date(ticket.resolvedAt), 'dd/MM/yyyy HH:mm')}
                             </p>
                         )}
-                        {reasonText && (
-                            <p className="text-[14px] text-[#454F5B] mt-3 whitespace-pre-wrap leading-relaxed">
-                                {reasonText}
+                        <p className="text-[13px] text-[#637381] mt-3">
+                            Vui lòng xác nhận bạn có hài lòng với phương án giải quyết trong phần trao đổi bên dưới.
+                        </p>
+                    </div>
+                </div>
+            )}
+
+            {ticket.status === TicketStatus.CLOSED && (
+                <div className="bg-[#F4F6F8] rounded-[20px] p-6 lg:p-8 border border-[#DFE3E8] flex items-start gap-4">
+                    <div className="w-10 h-10 rounded-full bg-[#637381] text-white flex items-center justify-center text-lg shrink-0">
+                        <i className="fa-solid fa-lock"></i>
+                    </div>
+                    <div>
+                        <h3 className="text-[18px] font-bold text-[#212B36]">Đã đóng</h3>
+                        {ticket.resolvedAt && (
+                            <p className="text-[14px] text-[#637381] mt-1">
+                                {format(new Date(ticket.resolvedAt), 'dd/MM/yyyy HH:mm')}
                             </p>
                         )}
                         <p className="text-[13px] text-[#637381] mt-3">
-                            Vui lòng xác nhận bạn có hài lòng với phương án giải quyết trong phần trao đổi bên dưới.
+                            Khiếu nại đã được giải quyết và đóng.
                         </p>
                     </div>
                 </div>
@@ -282,7 +306,13 @@ export const ComplaintDetailTab = () => {
                 </div>
             )}
 
-            <ComplaintTimelineChat ticketId={ticket.id} status={ticket.status} />
+            <ComplaintTimelineChat
+                ticketId={ticket.id}
+                status={ticket.status}
+                hideCommentIds={
+                    ticket.resolvedReasonId != null ? [ticket.resolvedReasonId] : undefined
+                }
+            />
 
             <div className="text-center text-[13px] text-[#919EAB]">
                 Cập nhật lần cuối: {format(new Date(ticket.updatedAt), 'dd/MM/yyyy HH:mm')}

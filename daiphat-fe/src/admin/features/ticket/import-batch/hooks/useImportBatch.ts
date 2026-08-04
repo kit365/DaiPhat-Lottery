@@ -1,3 +1,5 @@
+"use client";
+
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
 import { QUERY_KEYS as TICKET_QUERY_KEYS } from '../../inventory/constants/queryKeys';

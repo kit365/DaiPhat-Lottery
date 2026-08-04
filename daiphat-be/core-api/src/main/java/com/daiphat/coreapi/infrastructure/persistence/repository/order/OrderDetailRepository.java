@@ -62,6 +62,63 @@ public interface OrderDetailRepository extends JpaRepository<OrderDetailEntity, 
             """)
     java.util.Optional<OrderDetailEntity> findActiveBySerialId(@Param("serialId") Long serialId);
 
+    @Query("""
+            select od
+            from OrderDetailEntity od
+            join fetch od.order o
+            left join fetch od.lotteryTicketSerial s
+            left join fetch od.replacedByTicketSerial rs
+            left join fetch s.ticket st
+            left join fetch rs.ticket rst
+            left join fetch st.station
+            left join fetch rst.station
+            left join fetch o.user
+            where od.status = com.daiphat.coreapi.domain.model.enums.order.detail.OrderDetailStatus.ACTIVE
+              and (
+                    lower(s.serialNumber) = lower(:serialNumber)
+                    or lower(rs.serialNumber) = lower(:serialNumber)
+              )
+            """)
+    List<OrderDetailEntity> findActiveBySerialNumber(@Param("serialNumber") String serialNumber);
+
+    @Query("""
+            select od
+            from OrderDetailEntity od
+            join fetch od.order o
+            left join fetch od.lotteryTicketSerial s
+            left join fetch od.replacedByTicketSerial rs
+            left join fetch s.ticket st
+            left join fetch rs.ticket rst
+            left join fetch st.station
+            left join fetch rst.station
+            left join fetch o.user
+            where od.status = com.daiphat.coreapi.domain.model.enums.order.detail.OrderDetailStatus.ACTIVE
+              and lower(o.orderCode) = lower(:orderCode)
+            """)
+    List<OrderDetailEntity> findActiveByOrderCode(@Param("orderCode") String orderCode);
+
+    @Query("""
+            select od
+            from OrderDetailEntity od
+            join fetch od.order o
+            left join fetch od.lotteryTicketSerial s
+            left join fetch od.replacedByTicketSerial rs
+            left join fetch s.ticket st
+            left join fetch rs.ticket rst
+            left join fetch st.station
+            left join fetch rst.station
+            left join fetch o.user
+            where od.status = com.daiphat.coreapi.domain.model.enums.order.detail.OrderDetailStatus.ACTIVE
+              and (
+                    (s.stationId = :stationId and s.drawDate = :drawDate and lower(s.serialNumber) = lower(:serialNumber))
+                    or (rs.stationId = :stationId and rs.drawDate = :drawDate and lower(rs.serialNumber) = lower(:serialNumber))
+              )
+            """)
+    java.util.Optional<OrderDetailEntity> findActiveByStationDrawSerial(
+            @Param("stationId") Long stationId,
+            @Param("drawDate") java.time.LocalDate drawDate,
+            @Param("serialNumber") String serialNumber);
+
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query(value = """
             UPDATE order_details

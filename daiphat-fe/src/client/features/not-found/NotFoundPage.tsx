@@ -1,6 +1,5 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Header } from '../../components/layout/header';
 import { PartnerLogos } from '../../components/layout/PartnerLogos';
 
 export const NotFoundPage = () => {
@@ -9,8 +8,6 @@ export const NotFoundPage = () => {
             className="min-h-screen font-client-main flex flex-col bg-fixed bg-cover bg-center"
             style={{ backgroundImage: 'url("https://i.ibb.co/BVFGYpL1/86f05f70-fcf8-445f-978e-a0539eb2f0de.png")' }}
         >
-            <Header />
-
             <main className="flex-1 w-full max-w-[1440px] mx-auto px-4 lg:px-8 pt-[120px] lg:pt-[160px] pb-8 lg:pb-16 flex flex-col items-center justify-center relative z-10">
                 <div className="bg-white rounded-[32px] shadow-[0_8px_30px_rgb(0,0,0,0.08)] border border-[#E5E8EB] w-full max-w-[1100px] overflow-hidden">
                     <div className="flex flex-col lg:flex-row items-center p-8 lg:p-16 gap-8 lg:gap-16">

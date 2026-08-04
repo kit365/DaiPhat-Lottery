@@ -1,3 +1,5 @@
+"use client";
+
 import { useEffect, useState } from 'react';
 import { Alert, Box, Typography } from '@mui/material';
 import dayjs from 'dayjs';

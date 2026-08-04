@@ -6,6 +6,7 @@ import com.daiphat.coreapi.adapter.in.web.security.AuthenticatedUserPrincipal;
 import com.daiphat.coreapi.application.dto.request.payout.CreatePrizePayoutRequestRequest;
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.response.order.EnumOptionResponse;
+import com.daiphat.coreapi.application.dto.response.payout.PrizePayoutPreviewResponse;
 import com.daiphat.coreapi.application.dto.response.payout.PrizePayoutRequestResponse;
 import com.daiphat.coreapi.application.port.in.payout.PrizePayoutRequestServicePort;
 import com.daiphat.coreapi.domain.exception.DomainException;
@@ -39,6 +40,17 @@ public class PrizePayoutRequestController {
         return ApiResponse.success(
                 "Yêu cầu trả thưởng đã gửi. Vui lòng chờ xử lý 1–3 ngày làm việc.",
                 prizePayoutRequestServicePort.create(principal.getId(), request));
+    }
+
+    @GetMapping("/preview")
+    @PreAuthorize("isAuthenticated()")
+    public ApiResponse<PrizePayoutPreviewResponse> preview(
+            @RequestParam(required = false) Long orderDetailId,
+            @RequestParam(required = false) Long serialId,
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal) {
+        return ApiResponse.success(
+                "Xem trước số tiền trả thưởng thành công.",
+                prizePayoutRequestServicePort.preview(principal.getId(), orderDetailId, serialId));
     }
 
     @GetMapping("/my")

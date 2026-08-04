@@ -1,3 +1,5 @@
+"use client";
+
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { bankAccountService } from '../services/bankAccountService';
 import { bankCatalogService } from '../services/bankCatalogService';

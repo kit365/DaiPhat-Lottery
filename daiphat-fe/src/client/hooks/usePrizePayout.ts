@@ -1,3 +1,5 @@
+"use client";
+
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { prizePayoutService } from '../services/prizePayoutService';
 import { QUERY_KEYS } from '../../constants/queryKeys';

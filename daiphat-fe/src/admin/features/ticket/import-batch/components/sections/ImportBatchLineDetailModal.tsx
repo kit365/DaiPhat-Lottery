@@ -1,3 +1,7 @@
+"use client";
+
+'use client';
+
 import React from 'react';
 import {
     Dialog,
@@ -66,16 +70,36 @@ const getTicketStatusBadgeClass = (status?: string | null): string => {
             return 'admin-status-badge--success';
         case 'RESERVED':
         case 'PROXY_HOLDING':
-        case 'PENDING_RETURN':
-        case 'RETURNED':
             return 'admin-status-badge--pending';
         case 'DAMAGED':
         case 'LOST':
+        case 'VOIDED':
             return 'admin-status-badge--inactive';
         default:
             // Unknown / legacy cached values
             return 'admin-status-badge--draft';
     }
+};
+
+const getSerialDisplayBadge = (serial: {
+    status?: string | null;
+    statusDisplayName?: string | null;
+    ticketCondition?: string | null;
+    ticketConditionDisplayName?: string | null;
+}) => {
+    const condition = (serial.ticketCondition || '').toUpperCase();
+    if (condition === 'DAMAGED' || condition === 'LOST' || condition === 'VOIDED') {
+        return {
+            className: getTicketStatusBadgeClass(condition),
+            label:
+                serial.ticketConditionDisplayName ||
+                (condition === 'DAMAGED' ? 'Hỏng' : condition === 'LOST' ? 'Thất lạc' : 'Đã hủy'),
+        };
+    }
+    return {
+        className: getTicketStatusBadgeClass(serial.status),
+        label: serial.statusDisplayName || getTicketStatusLabel(serial.status) || serial.status || '—',
+    };
 };
 
 const CollapsibleRow = ({ ticket, index, onReportFault }: { ticket: any; index: number; onReportFault: (ticket: any, serial?: any) => void }) => {
@@ -156,7 +180,7 @@ const CollapsibleRow = ({ ticket, index, onReportFault }: { ticket: any; index: 
             </TableRow>
             {open && ticket.serials && ticket.serials.length > 0 ? (
                 ticket.serials.map((s: any, sIndex: number) => {
-                    const sStatusLabel = s.statusDisplayName || getTicketStatusLabel(s.status) || s.status || '—';
+                    const serialBadge = getSerialDisplayBadge(s);
                     return (
                         <TableRow 
                             key={s.id} 
@@ -195,8 +219,8 @@ const CollapsibleRow = ({ ticket, index, onReportFault }: { ticket: any; index: 
                                 </Typography>
                             </TableCell>
                             <TableCell align="center" sx={{ py: 1 }}>
-                                <span className={`admin-status-badge ${getTicketStatusBadgeClass(s.status)}`.trim()} style={{ fontSize: '0.7rem', height: '1.25rem' }}>
-                                    {sStatusLabel}
+                                <span className={`admin-status-badge ${serialBadge.className}`.trim()} style={{ fontSize: '0.7rem', height: '1.25rem' }}>
+                                    {serialBadge.label}
                                 </span>
                             </TableCell>
                             <TableCell align="center" sx={{ py: 1 }}>
@@ -207,7 +231,7 @@ const CollapsibleRow = ({ ticket, index, onReportFault }: { ticket: any; index: 
                                         e.stopPropagation();
                                         onReportFault(ticket, s);
                                     }}
-                                    disabled={!isSerialIncidentEligible(s.status)}
+                                    disabled={!isSerialIncidentEligible(s)}
                                     sx={{ textTransform: 'none', minWidth: 'unset', fontWeight: 600, py: 0.25, borderRadius: '4px' }}
                                 >
                                     Hủy
@@ -240,9 +264,29 @@ export const ImportBatchLineDetailModal = ({ line, batch, stationName, onClose }
 
     const handleOpenReportModal = (ticket: any, serial?: any) => {
         if (serial) {
-            setReportSerials([{ id: serial.id, serialNumber: serial.serialNumber, status: serial.status, ticketId: ticket.id, ticketNumbers: ticket.numbers, ticketStatus: ticket.status, reservedByOrderId: serial.reservedByOrderId }]);
+            setReportSerials([{
+                id: serial.id,
+                serialNumber: serial.serialNumber,
+                status: serial.status,
+                ticketCondition: serial.ticketCondition,
+                returnBatchLineId: serial.returnBatchLineId,
+                ticketId: ticket.id,
+                ticketNumbers: ticket.numbers,
+                ticketStatus: ticket.status,
+                reservedByOrderId: serial.reservedByOrderId,
+            }]);
         } else {
-            setReportSerials((ticket.serials || []).map((s: any) => ({ id: s.id, serialNumber: s.serialNumber, status: s.status, ticketId: ticket.id, ticketNumbers: ticket.numbers, ticketStatus: ticket.status, reservedByOrderId: s.reservedByOrderId })));
+            setReportSerials((ticket.serials || []).map((s: any) => ({
+                id: s.id,
+                serialNumber: s.serialNumber,
+                status: s.status,
+                ticketCondition: s.ticketCondition,
+                returnBatchLineId: s.returnBatchLineId,
+                ticketId: ticket.id,
+                ticketNumbers: ticket.numbers,
+                ticketStatus: ticket.status,
+                reservedByOrderId: s.reservedByOrderId,
+            })));
         }
         setReportTicketNumbers(ticket.numbers);
         setReportTicketId(ticket.id);
@@ -338,7 +382,7 @@ export const ImportBatchLineDetailModal = ({ line, batch, stationName, onClose }
                             }}
                         >
                             <Grid container spacing={3}>
-                                <Grid item xs={12} sm={6} md={4}>
+                                <Grid size={{ xs: 12, sm: 6, md: 4 }}>
                                     <Stack spacing={0.75}>
                                         <Stack direction="row" alignItems="center" spacing={1} color="text.secondary">
                                             <StorefrontIcon fontSize="small" sx={{ fontSize: '1rem', opacity: 0.8 }} />
@@ -352,7 +396,7 @@ export const ImportBatchLineDetailModal = ({ line, batch, stationName, onClose }
                                     </Stack>
                                 </Grid>
                                 
-                                <Grid item xs={12} sm={6} md={4}>
+                                <Grid size={{ xs: 12, sm: 6, md: 4 }}>
                                     <Stack spacing={0.75}>
                                         <Stack direction="row" alignItems="center" spacing={1} color="text.secondary">
                                             <LabelIcon fontSize="small" sx={{ fontSize: '1rem', opacity: 0.8 }} />
@@ -371,7 +415,7 @@ export const ImportBatchLineDetailModal = ({ line, batch, stationName, onClose }
                                     </Stack>
                                 </Grid>
 
-                                <Grid item xs={12} sm={6} md={4}>
+                                <Grid size={{ xs: 12, sm: 6, md: 4 }}>
                                     <Stack spacing={0.75}>
                                         <Stack direction="row" alignItems="center" spacing={1} color="text.secondary">
                                             <CheckCircleIcon fontSize="small" sx={{ fontSize: '1rem', opacity: 0.8 }} />
@@ -390,7 +434,7 @@ export const ImportBatchLineDetailModal = ({ line, batch, stationName, onClose }
                                     </Stack>
                                 </Grid>
 
-                                <Grid item xs={12} sm={6} md={4}>
+                                <Grid size={{ xs: 12, sm: 6, md: 4 }}>
                                     <Stack spacing={0.75}>
                                         <Stack direction="row" alignItems="center" spacing={1} color="text.secondary">
                                             <CalendarMonthIcon fontSize="small" sx={{ fontSize: '1rem', opacity: 0.8 }} />
@@ -404,7 +448,7 @@ export const ImportBatchLineDetailModal = ({ line, batch, stationName, onClose }
                                     </Stack>
                                 </Grid>
 
-                                <Grid item xs={12} sm={6} md={4}>
+                                <Grid size={{ xs: 12, sm: 6, md: 4 }}>
                                     <Stack spacing={0.75}>
                                         <Stack direction="row" alignItems="center" spacing={1} color="text.secondary">
                                             <CloudUploadIcon fontSize="small" sx={{ fontSize: '1rem', opacity: 0.8 }} />
@@ -418,7 +462,7 @@ export const ImportBatchLineDetailModal = ({ line, batch, stationName, onClose }
                                     </Stack>
                                 </Grid>
 
-                                <Grid item xs={12} sm={6} md={4}>
+                                <Grid size={{ xs: 12, sm: 6, md: 4 }}>
                                     <Stack spacing={0.75}>
                                         <Stack direction="row" alignItems="center" spacing={1} color="text.secondary">
                                             <ShowChartIcon fontSize="small" sx={{ fontSize: '1rem', opacity: 0.8 }} />

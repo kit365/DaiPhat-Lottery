@@ -119,13 +119,13 @@ export const ChatDetails = ({ conversation }: ChatDetailsProps) => {
                     Thao tác nhanh
                 </Typography>
                 <Grid container spacing={1.5}>
-                    <Grid item xs={6}>
+                    <Grid size={6}>
                         <Button fullWidth variant="outlined" sx={{ color: 'text.primary', borderColor: 'var(--palette-divider)', justifyContent: 'flex-start', px: 1.5 }}>
                             <Icon icon="solar:chat-line-bold" width={18} style={{ marginRight: 8, color: 'var(--palette-info-dark)' }} />
                             <Typography variant="caption" sx={{ fontWeight: 600 }}>Trả lời mẫu</Typography>
                         </Button>
                     </Grid>
-                    <Grid item xs={6}>
+                    <Grid size={6}>
                         <Button fullWidth variant="outlined" sx={{ color: 'text.primary', borderColor: 'var(--palette-divider)', justifyContent: 'flex-start', px: 1.5 }}>
                             <Icon icon="solar:magnifer-bold" width={18} style={{ marginRight: 8, color: 'var(--palette-warning-main)' }} />
                             <Typography variant="caption" sx={{ fontWeight: 600 }}>Tra cứu vé</Typography>

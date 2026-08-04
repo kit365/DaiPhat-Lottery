@@ -1,3 +1,5 @@
+"use client";
+
 import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
     deleteAllNotifications,
@@ -9,12 +11,19 @@ import {
 import type { GetNotificationsParams } from '../types/notification.type';
 import { QUERY_KEYS } from '../constants/queryKeys';
 import { AppToast as toast } from '../../../../utils/toast.util';
+import { useAuthStore } from '../../../../stores/useAuthStore';
+import { hasPermission } from '../../../utils/permission.util';
+import { PERMISSIONS } from '../../../constants/permission.constants';
+import { ADMIN_BADGE_POLL_MS } from '../../../hooks/adminBadgePoll';
 
 const DEFAULT_PAGE = 1;
 const DEFAULT_LIMIT = 5;
-const ADMIN_NOTIFICATION_REFETCH_INTERVAL_MS = 5_000;
 
 export const useNotifications = (params?: GetNotificationsParams) => {
+    const token = useAuthStore((s) => s.token);
+    const user = useAuthStore((s) => s.user);
+    const canView =
+        Boolean(token) && Boolean(user) && hasPermission(user, PERMISSIONS.NOTIFICATION.VIEW);
     const limit = params?.limit ?? DEFAULT_LIMIT;
 
     const query = useInfiniteQuery({
@@ -22,9 +31,15 @@ export const useNotifications = (params?: GetNotificationsParams) => {
         queryFn: ({ pageParam = DEFAULT_PAGE }) =>
             getNotifications({ ...params, page: pageParam, limit }),
         initialPageParam: DEFAULT_PAGE,
-        refetchInterval: ADMIN_NOTIFICATION_REFETCH_INTERVAL_MS,
+        enabled: canView,
+        refetchInterval: (q) => {
+            if (!canView) return false;
+            if (q.state.error) return false;
+            return ADMIN_BADGE_POLL_MS;
+        },
         refetchIntervalInBackground: false,
-        refetchOnWindowFocus: true,
+        refetchOnWindowFocus: canView,
+        retry: false,
         getNextPageParam: (lastPage) => {
             if (lastPage.pagination?.isLast) {
                 return undefined;

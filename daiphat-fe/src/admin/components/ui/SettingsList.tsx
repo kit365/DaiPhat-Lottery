@@ -1,3 +1,5 @@
+"use client";
+
 import { type Dispatch, type SetStateAction, type ReactNode, useState, useRef } from 'react';
 import { GridDensity } from '@mui/x-data-grid';
 import Tooltip from '@mui/material/Tooltip';

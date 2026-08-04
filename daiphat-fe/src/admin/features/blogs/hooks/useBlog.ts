@@ -1,3 +1,5 @@
+"use client";
+
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getBlogs, createBlog, getBlogById, updateBlog, deleteBlog, getBlogTypes, getBlogStatuses } from '../services/blogService';
 import { ApiResponse, PageResponse } from '../../../../types/api.type';

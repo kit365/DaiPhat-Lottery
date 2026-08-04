@@ -3,10 +3,12 @@ package com.daiphat.coreapi.infrastructure.config;
 import com.cloudinary.Cloudinary;
 import com.cloudinary.utils.ObjectUtils;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 @Configuration
+@ConditionalOnProperty(name = "daiphat.storage.provider", havingValue = "cloudinary", matchIfMissing = true)
 public class CloudinaryConfig {
 
     @Bean

@@ -35,6 +35,8 @@ export interface User {
     age?: number;
     failedLoginAttempts?: number;
     lockedUntil?: string;
+    totalPoint?: number;
+    usedPoint?: number;
     createdAt?: string;
     updatedAt?: string;
 }

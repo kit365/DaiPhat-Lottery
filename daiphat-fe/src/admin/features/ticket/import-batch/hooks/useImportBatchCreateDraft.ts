@@ -1,3 +1,5 @@
+"use client";
+
 import { useCallback, useEffect, useRef } from 'react';
 import type { UseFormGetValues } from 'react-hook-form';
 import type { CreateImportBatchFormValues } from '../schemas/importBatch.schema';
@@ -19,7 +21,7 @@ export const useImportBatchCreateDraft = ({
     getValues,
     formSnapshot,
 }: UseImportBatchCreateDraftOptions) => {
-    const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+    const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
     const lastPayloadRef = useRef('');
     const getValuesRef = useRef(getValues);
     getValuesRef.current = getValues;

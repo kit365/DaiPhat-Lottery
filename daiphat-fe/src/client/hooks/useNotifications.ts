@@ -1,3 +1,5 @@
+"use client";
+
 import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { QUERY_KEYS } from "../../constants/queryKeys";
 import { useAuthStore } from "../../stores/useAuthStore";

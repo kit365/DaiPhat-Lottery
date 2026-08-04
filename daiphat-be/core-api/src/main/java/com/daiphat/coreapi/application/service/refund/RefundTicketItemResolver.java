@@ -107,8 +107,7 @@ public class RefundTicketItemResolver {
         if (serial == null || serial.getStatus() == null) {
             return false;
         }
-        return serial.getStatus() == LotteryTicketSerialStatus.LOST
-                || serial.getStatus() == LotteryTicketSerialStatus.DAMAGED;
+        return serial.getTicketCondition() != null && serial.getTicketCondition().isFaulty();
     }
 
     private LotteryTicketResponse resolveTicket(

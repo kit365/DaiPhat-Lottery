@@ -1,0 +1,58 @@
+package com.daiphat.coreapi.infrastructure.persistence.entity.lotteries;
+
+import com.daiphat.coreapi.domain.model.enums.lottery.ReturnBatchLineStatus;
+import com.daiphat.coreapi.infrastructure.persistence.entity.BaseEntity;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.Table;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+import lombok.experimental.SuperBuilder;
+
+import java.math.BigDecimal;
+
+@Entity
+@Table(name = "return_batch_lines")
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@SuperBuilder
+public class ReturnBatchLineEntity extends BaseEntity {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "return_batch_id", nullable = false)
+    private ReturnBatchEntity returnBatch;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "lottery_station_id", nullable = false)
+    private LotteryStationEntity lotteryStation;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 30)
+    @Builder.Default
+    private ReturnBatchLineStatus status = ReturnBatchLineStatus.PENDING;
+
+    @Column(name = "total_quantity", nullable = false)
+    @Builder.Default
+    private Integer totalQuantity = 0;
+
+    @Column(name = "total_return_value", nullable = false, precision = 18, scale = 3)
+    @Builder.Default
+    private BigDecimal totalReturnValue = BigDecimal.ZERO;
+}

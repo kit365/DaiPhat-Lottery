@@ -1,6 +1,7 @@
+"use client";
+
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Header } from '../../components/layout/header';
 import { useStationsByDrawDate } from '../../../admin/features/station/hooks/useStation';
 import { useLotteryTicketSearch } from '../../hooks/useLotteryTicketSearch';
 import { usePurchasedTicketLookup } from '../../hooks/usePurchasedTicketLookup';
@@ -48,7 +49,7 @@ export const TicketSearchPage: React.FC = () => {
 
     const { data: stationsByDate } = useStationsByDrawDate(availableFilters.drawDate);
     const stations = useMemo(
-        () => (stationsByDate || []).map((s: any) => ({ id: s.id || s._id, name: s.name })),
+        () => (stationsByDate || []).map((s: { id?: string | number; _id?: string | number; name?: string }) => ({ id: s.id || s._id || '', name: s.name || '' })),
         [stationsByDate]
     );
 
@@ -129,7 +130,6 @@ export const TicketSearchPage: React.FC = () => {
 
     return (
         <div className="min-h-screen font-client-main bg-[#F4F6F8]">
-            <Header />
             <main className="max-w-[1200px] mx-auto px-4 lg:px-6 py-24 lg:py-28">
                 <div className="mb-6">
                     <Link to="/" className="text-[13px] text-[#637381] hover:text-[#ee1314]">← Trang chủ</Link>

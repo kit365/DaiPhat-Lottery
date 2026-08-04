@@ -1,3 +1,5 @@
+"use client";
+
 import React, { createContext, useContext, useEffect } from 'react';
 import { useAuthStore } from '../../stores/useAuthStore';
 import { websocketService } from '../../services/websocket/websocket.service';

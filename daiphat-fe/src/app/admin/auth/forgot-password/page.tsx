@@ -1,0 +1,11 @@
+import { GuestGuard } from '@/admin/components/auth/GuestGuard';
+import { ForgotPasswordPage } from '@/admin/pages/authen/ForgotPasswordPage';
+
+export default function AdminForgotPassword() {
+  return (
+    <GuestGuard>
+      <ForgotPasswordPage />
+    </GuestGuard>
+  );
+}
+

@@ -1,3 +1,5 @@
+"use client";
+
 import { Box, Stack, TextField, ThemeProvider, useTheme, createTheme, MenuItem, Typography } from "@mui/material"
 import { REGION_DATA } from "../../../../constants/region.constants";
 import { DAYS_OF_WEEK } from "../../../../constants/schedule.constants";
@@ -65,7 +67,7 @@ export const StationCreatePage = () => {
         watch,
         setValue
     } = useForm<CreateStationFormValues>({
-        resolver: zodResolver(createStationSchema),
+        resolver: zodResolver(createStationSchema) as any,
         defaultValues: {
             name: "",
             description: "",

@@ -1,3 +1,5 @@
+"use client";
+
 import { useState } from 'react';
 import SmartToyOutlinedIcon from '@mui/icons-material/SmartToyOutlined';
 import {

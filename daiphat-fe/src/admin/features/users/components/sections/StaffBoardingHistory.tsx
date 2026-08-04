@@ -1,3 +1,5 @@
+"use client";
+
 import { Box, Typography, CircularProgress, Chip, TablePagination, Collapse, Stack, Avatar, Divider, IconButton } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
 import { getBoardingTicketServiceOrders } from '../../../../api/boarding-booking.api';

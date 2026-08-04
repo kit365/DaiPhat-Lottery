@@ -1,3 +1,5 @@
+"use client";
+
 import { useTranslation } from "react-i18next";
 import { GridLocaleText } from "@mui/x-data-grid";
 import { useMemo } from "react";

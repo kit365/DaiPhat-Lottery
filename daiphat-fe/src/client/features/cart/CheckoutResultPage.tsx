@@ -1,8 +1,9 @@
+"use client";
+
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { CheckCircle2, XCircle, Calendar, Hash } from 'lucide-react';
 import dayjs from 'dayjs';
-import { Header } from '../../components/layout/header';
 import { useGetMyOrderDetail } from '../../hooks/useOrder';
 import { useCancelPayment, useProcessPayment, useSyncPaymentFromGateway } from '../../hooks/useTransaction';
 import { PaymentGateway, PaymentResult } from '../../../types/transaction.type';
@@ -184,8 +185,6 @@ export const CheckoutResultPage = () => {
             className="client-page min-h-screen flex flex-col bg-fixed bg-cover bg-center"
             style={{ backgroundImage: 'url("https://i.ibb.co/BVFGYpL1/86f05f70-fcf8-445f-978e-a0539eb2f0de.png")' }}
         >
-            <Header />
-
             <div className="flex-1 w-full mt-[70px] lg:mt-[80px] py-10 px-4 flex items-center justify-center">
                 <div className="bg-white rounded-[24px] shadow-xl max-w-[500px] w-full overflow-hidden border border-[#E5E8EB]">
                     <div className={`h-2 w-full ${isSuccess ? 'bg-[#00A76F]' : 'bg-red-500'}`}></div>

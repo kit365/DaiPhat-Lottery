@@ -1,3 +1,5 @@
+"use client";
+
 import { Grid, Box, Typography, useTheme, CircularProgress } from "@mui/material";
 import Chart from 'react-apexcharts';
 import DashboardCard from "../../components/dashboard/DashboardCard";

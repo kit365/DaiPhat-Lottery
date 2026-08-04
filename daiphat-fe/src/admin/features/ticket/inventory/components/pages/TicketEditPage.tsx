@@ -1,3 +1,5 @@
+"use client";
+
 import { Box, Stack, TextField, ThemeProvider, useTheme, createTheme, FormControl, InputLabel, MenuItem, OutlinedInput, Select, Button, Typography, IconButton, CircularProgress, Pagination, Chip, Table, TableBody, TableCell, TableContainer, TableHead, TableRow } from "@mui/material"
 import { Breadcrumb } from "../../../../../components/ui/Breadcrumb"
 import { Title } from "../../../../../components/ui/Title"
@@ -584,7 +586,7 @@ export const TicketEditPage = () => {
                                                                     label={serialData.statusDisplayName} 
                                                                     size="small" 
                                                                     color="primary"
-                                                                    variant="soft" 
+                                                                    variant={"soft" as any}
                                                                     sx={{ height: 22, borderRadius: "var(--shape-borderRadius-sm)", fontWeight: 700, fontSize: "0.6875rem" }}
                                                                 />
                                                             ) : (

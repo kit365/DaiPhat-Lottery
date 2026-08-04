@@ -2,6 +2,7 @@ package com.daiphat.coreapi.application.port.out.lotteries;
 
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus;
 import com.daiphat.coreapi.domain.model.lotteries.LotteryTicketSerialModel;
+import com.daiphat.coreapi.domain.model.lotteries.SettlementStationInventoryRow;
 
 import java.util.Collection;
 import java.util.List;
@@ -24,7 +25,11 @@ public interface LotteryTicketSerialRepositoryPort {
 
     long countByTicketIdAndStatuses(Long ticketId, Collection<LotteryTicketSerialStatus> statuses);
 
+    long countSellableByTicketId(Long ticketId);
+
     Map<Long, Long> countByTicketIdsAndStatuses(Collection<Long> ticketIds, Collection<LotteryTicketSerialStatus> statuses);
+
+    Map<Long, Long> countSellableByTicketIds(Collection<Long> ticketIds);
 
     Map<Long, Long> countByTicketIds(Collection<Long> ticketIds);
 
@@ -33,6 +38,11 @@ public interface LotteryTicketSerialRepositoryPort {
     List<LotteryTicketSerialModel> findAllByTicketId(Long ticketId);
 
     long countByImportBatchLineId(Long importBatchLineId);
+
+    long countByImportBatchLineIdAndStatus(Long importBatchLineId, LotteryTicketSerialStatus status);
+
+    /** IN_STOCK|EXPIRED + GOOD + not linked to a return line. */
+    long countReturnEligibleByImportBatchLineId(Long importBatchLineId);
 
     List<Long> findDistinctTicketIdsByImportBatchLineId(Long importBatchLineId);
 
@@ -47,4 +57,18 @@ public interface LotteryTicketSerialRepositoryPort {
     java.util.List<LotteryTicketSerialModel> findAllReplacementCandidates(
             Long stationId, String numbers, java.time.LocalDate drawDate, com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus status
     );
+
+    List<LotteryTicketSerialModel> findAllByIds(Collection<Long> ids);
+
+    List<LotteryTicketSerialModel> findAllByReturnBatchLineId(Long returnBatchLineId);
+
+    long countByReturnBatchLineId(Long returnBatchLineId);
+
+    List<ReturnInspectableSerialData> findInStockForSupplierAndDrawDate(
+            Long supplierId,
+            java.time.LocalDate drawDate,
+            Collection<Long> stationIds
+    );
+
+    List<SettlementStationInventoryRow> aggregateInventoryByStationForSettlement(Long settlementId);
 }

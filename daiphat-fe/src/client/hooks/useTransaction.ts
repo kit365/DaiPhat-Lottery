@@ -1,3 +1,5 @@
+"use client";
+
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { transactionService } from '../services/transactionService';
 import { AppToast as toast } from '../../utils/toast.util';

@@ -1,3 +1,5 @@
+"use client";
+
 import Button from "@mui/material/Button";
 import AddIcon from '@mui/icons-material/Add';
 import { Breadcrumb } from "../../../../components/ui/Breadcrumb";
