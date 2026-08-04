@@ -887,3 +887,92 @@ input:-webkit-autofill:active {
     color: var(--palette-primary-main) !important;
     background-color: var(--palette-action-hover) !important;
 }
+
+/* -------------------------------------------------------------------------
+   MUI DatePicker / DateTimePicker / TimePicker Global Styling
+   ------------------------------------------------------------------------- */
+.MuiPickersPopper-root .MuiPaper-root {
+    border-radius: var(--shape-borderRadius-lg) !important;
+    box-shadow: var(--customShadows-z20) !important;
+    border: 1px solid var(--palette-divider) !important;
+}
+
+/* Selected Date Day Circle in Calendar */
+.MuiPickersDay-root.Mui-selected {
+    background-color: var(--palette-text-primary) !important;
+    color: var(--palette-common-white) !important;
+    font-weight: 700 !important;
+}
+
+.MuiPickersDay-root.Mui-selected:hover {
+    background-color: var(--palette-grey-700) !important;
+}
+
+/* Today Indicator */
+.MuiPickersDay-root.MuiPickersDay-today {
+    border-color: var(--palette-text-primary) !important;
+}
+
+/* Selected Time Item in Digital Clock / TimePicker */
+.MuiMultiSectionDigitalClockSection-item.Mui-selected {
+    background-color: var(--palette-text-primary) !important;
+    color: var(--palette-common-white) !important;
+    font-weight: 700 !important;
+    border-radius: 8px !important;
+}
+
+.MuiMultiSectionDigitalClockSection-item.Mui-selected:hover {
+    background-color: var(--palette-grey-700) !important;
+}
+
+/* AM / PM Selector Button */
+.MuiTimePickerToolbar-ampmSelection .MuiButton-root.Mui-selected,
+.MuiPickersToolbarText-root.Mui-selected {
+    color: var(--palette-text-primary) !important;
+    font-weight: 700 !important;
+}
+
+.MuiTimePickerToolbar-ampmSelection .MuiButton-root.Mui-selected {
+    background-color: var(--palette-text-primary) !important;
+    color: var(--palette-common-white) !important;
+}
+
+/* Analog Clock Pointer & Pin */
+.MuiClock-pin {
+    background-color: var(--palette-text-primary) !important;
+}
+
+.MuiClockPointer-root {
+    background-color: var(--palette-text-primary) !important;
+}
+
+.MuiClockPointer-thumb {
+    background-color: var(--palette-text-primary) !important;
+    border-color: var(--palette-text-primary) !important;
+}
+
+.MuiClockNumber-root.Mui-selected {
+    background-color: var(--palette-text-primary) !important;
+    color: var(--palette-common-white) !important;
+}
+
+/* Calendar Year / Month Selection */
+.MuiPickersYear-yearButton.Mui-selected,
+.MuiPickersMonth-monthButton.Mui-selected {
+    background-color: var(--palette-text-primary) !important;
+    color: var(--palette-common-white) !important;
+}
+
+/* Action Buttons (OK / Cancel) in Layout ActionBar */
+.MuiPickersLayout-actionBar .MuiButton-root {
+    font-weight: 700 !important;
+    text-transform: none !important;
+    border-radius: 8px !important;
+}
+
+.MuiPickersLayout-actionBar .MuiButton-root:last-of-type {
+    background-color: var(--palette-text-primary) !important;
+    color: var(--palette-common-white) !important;
+    padding: 6px 16px !important;
+}
+
