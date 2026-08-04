@@ -390,16 +390,16 @@ LotteryTicketListItem _buildHardcodedTicketDetail(
 ) {
   return LotteryTicketListItem(
     id: baseTicket.id,
-    displayName: 'Ve so kien thiet Dai Phat',
+    displayName: 'Vé số kiến thiết Đại Phát',
     code: baseTicket.code,
     shortName: baseTicket.shortName,
     dateLabel: baseTicket.dateLabel,
     dayFilter: baseTicket.dayFilter,
     drawDate: baseTicket.drawDate,
     status: 'IN_STOCK',
-    statusDisplayName: 'San sang mo phong UI',
-    stationName: 'Dai Phat Demo Station',
-    serialNumber: 'DP-UI-2026-0001',
+    statusDisplayName: 'Sẵn sàng mở thưởng',
+    stationName: 'Đài Bạc Liêu',
+    serialNumber: 'DP-BL-2026-000123',
     batchCode: 'UI-DEMO-44',
     imageUrl: baseTicket.imageUrl,
     price: 10000,
@@ -1326,8 +1326,6 @@ class TicketDetailView extends ConsumerStatefulWidget {
 }
 
 class _TicketDetailViewState extends ConsumerState<TicketDetailView> {
-  bool _isFavorite = false;
-
   void _showSnack(String message, {SnackBarAction? action}) {
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
@@ -1348,28 +1346,10 @@ class _TicketDetailViewState extends ConsumerState<TicketDetailView> {
     context.go(AppRoute.buyTicket.path);
   }
 
-  void _toggleFavorite() {
-    setState(() => _isFavorite = !_isFavorite);
-    _showSnack(
-      _isFavorite ? 'Đã thêm vé vào yêu thích.' : 'Đã bỏ vé khỏi yêu thích.',
-    );
-  }
-
   Future<void> _copyToClipboard(String value, String message) async {
     await Clipboard.setData(ClipboardData(text: value));
     if (!mounted) return;
     _showSnack(message);
-  }
-
-  Future<void> _shareTicket(LotteryTicketListItem ticket) async {
-    final summary = [
-      'Vé số kiến thiết Đại Phát',
-      'Đài: ${ticket.stationDisplayText}',
-      'Dãy số: ${ticket.code}',
-      'Ngày quay thưởng: ${_detailDate(ticket)}',
-      'Giá: ${_formatTicketAmount(ticket.price)}',
-    ].join('\n');
-    await _copyToClipboard(summary, 'Đã sao chép thông tin vé để chia sẻ.');
   }
 
   void _openStationTickets(LotteryTicketListItem ticket) {
@@ -1451,22 +1431,6 @@ class _TicketDetailViewState extends ConsumerState<TicketDetailView> {
           ),
           onPressed: _goBack,
         ),
-        actions: [
-          _HeaderIcon(
-            icon: _isFavorite
-                ? Icons.favorite_rounded
-                : Icons.favorite_border_rounded,
-            tooltip: 'Yêu thích',
-            onTap: _toggleFavorite,
-          ),
-          const SizedBox(width: 8),
-          _HeaderIcon(
-            icon: Icons.share_outlined,
-            tooltip: 'Chia sẻ',
-            onTap: () => _shareTicket(resolvedTicket),
-          ),
-          const SizedBox(width: 12),
-        ],
       ),
       body: Container(
         decoration: const BoxDecoration(
@@ -1571,34 +1535,6 @@ class _TicketDetailViewState extends ConsumerState<TicketDetailView> {
         ),
       ),
     );
-  }
-}
-
-class _HeaderIcon extends StatelessWidget {
-  const _HeaderIcon({required this.icon, this.onTap, this.tooltip});
-
-  final IconData icon;
-  final VoidCallback? onTap;
-  final String? tooltip;
-
-  @override
-  Widget build(BuildContext context) {
-    final button = Material(
-      color: _kDetailSoftPink,
-      borderRadius: BorderRadius.circular(12),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: SizedBox(
-          width: 38,
-          height: 38,
-          child: Icon(icon, color: AppColors.primary, size: 19),
-        ),
-      ),
-    );
-
-    if (tooltip == null) return button;
-    return Tooltip(message: tooltip!, child: button);
   }
 }
 
