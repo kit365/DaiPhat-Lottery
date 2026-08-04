@@ -1,3 +1,5 @@
+import Image from 'next/image';
+
 export const PartnerLogos = () => {
     const partners = [
         { name: "Visa", icon: "https://upload.wikimedia.org/wikipedia/commons/5/5e/Visa_Inc._logo.svg" },
@@ -14,7 +16,17 @@ export const PartnerLogos = () => {
             </p>
             <div className="flex flex-wrap justify-center items-center gap-x-20 gap-y-10 px-8 grayscale opacity-50 contrast-125">
                 {partners.map(p => (
-                    <img key={p.name} src={p.icon} alt={p.name} className="h-8 object-contain" />
+                    /* unoptimized: SVG/PNG partner logos are already lightweight vectors/small PNGs.
+                       Bypasses Next.js image resize pipeline (Sharp) to avoid wasting Server RAM/CPU. */
+                    <Image
+                        key={p.name}
+                        src={p.icon}
+                        alt={p.name}
+                        width={80}
+                        height={32}
+                        unoptimized
+                        className="h-8 w-auto object-contain"
+                    />
                 ))}
             </div>
         </div>

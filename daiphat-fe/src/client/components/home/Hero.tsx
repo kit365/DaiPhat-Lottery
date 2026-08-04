@@ -1,3 +1,4 @@
+import Image, { getImageProps } from "next/image";
 import { motion } from "framer-motion";
 import { useAuthStore } from "../../../stores/useAuthStore";
 
@@ -19,6 +20,10 @@ const HERO_CONTENT = {
 export const Hero = () => {
   const { openLoginModal } = useAuthStore();
 
+  const commonProps = { alt: "", fill: true, priority: true, sizes: "100vw" };
+  const { props: { srcSet: desktopSrcSet } } = getImageProps({ ...commonProps, src: HERO_CONTENT.images.desktop });
+  const { props: { srcSet: mobileSrcSet, ...restMobileProps } } = getImageProps({ ...commonProps, src: HERO_CONTENT.images.mobile });
+
   return (
     <section 
       className="relative w-full lg:h-[650px] flex flex-col lg:block bg-[#F4F6F8] lg:bg-transparent overflow-hidden" 
@@ -27,13 +32,11 @@ export const Hero = () => {
       {/* Responsive Image - Background visuals are decorative, text conveys the message */}
       <div className="relative w-full h-[380px] sm:h-[500px] lg:h-full lg:absolute lg:inset-0 lg:z-0">
         <picture className="w-full h-full block">
-          <source media="(min-width: 1024px)" srcSet={HERO_CONTENT.images.desktop} />
+          <source media="(min-width: 1024px)" srcSet={desktopSrcSet} />
+          <source media="(max-width: 1023px)" srcSet={mobileSrcSet} />
           <img 
-            src={HERO_CONTENT.images.mobile} 
-            alt="" 
+            {...restMobileProps}
             aria-hidden="true"
-            loading="eager"
-            decoding="async"
             className="w-full h-full object-cover object-[center_15%] lg:object-[right_22%] block" 
           />
         </picture>

@@ -34,6 +34,8 @@ const nextConfig: NextConfig = {
     ],
   },
   images: {
+    qualities: [25, 50, 75, 85],
+    formats: ['image/avif', 'image/webp'],
     remotePatterns: [
       {
         protocol: 'https',
@@ -45,7 +47,15 @@ const nextConfig: NextConfig = {
       },
       {
         protocol: 'https',
-        hostname: '**',
+        hostname: 'i.ibb.co',
+      },
+      {
+        protocol: 'https',
+        hostname: 'cdn.phototourl.com',
+      },
+      {
+        protocol: 'https',
+        hostname: 'upload.wikimedia.org',
       },
     ],
   },
