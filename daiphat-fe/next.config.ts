@@ -15,6 +15,12 @@ const normalizedBackendProxyTarget = backendProxyTarget.startsWith('http')
 const nextConfig: NextConfig = {
   output: 'standalone',
   compress: true,
+  turbopack: {
+    resolveAlias: {
+      'react-router-dom': './src/components/router-compat.tsx',
+      'react-apexcharts': './src/components/ApexChartCompat.tsx',
+    },
+  },
   experimental: {
     optimizePackageImports: [
       '@mui/material',
@@ -23,12 +29,18 @@ const nextConfig: NextConfig = {
       'framer-motion',
       'dayjs',
       '@iconify/react',
+      'react-day-picker',
+      'date-fns',
     ],
-  },
-  turbopack: {
-    resolveAlias: {
-      'react-router-dom': './src/components/router-compat.tsx',
-      'react-apexcharts': './src/components/ApexChartCompat.tsx',
+    // Pre-compile các trang admin quan trọng khi server khởi động
+    // Giúp tránh chrome "Trang không phản hồi" lần đầu vào
+    turbopackWarmup: {
+      clientComponents: [
+        '/admin/auth/login',
+        '/admin/dashboard',
+        '/admin/ticket/list',
+        '/admin/order/list',
+      ],
     },
   },
   images: {
