@@ -2,7 +2,6 @@ import { create } from "zustand";
 import { persist, devtools } from "zustand/middleware";
 
 import { STORAGE_KEYS } from "../constants/storage.constants";
-
 import { User } from "../types/user.type";
 
 interface AuthState {
@@ -96,13 +95,10 @@ export const useAuthStore = create<AuthState>()(
                     token: state.token, 
                     expiresAt: state.expiresAt 
                 }),
-                onRehydrateStorage: () => (state) => {
-                    if (state) {
-                        state.set({ isHydrated: true });
-                    }
+                onRehydrateStorage: () => () => {
+                    useAuthStore.setState({ isHydrated: true });
                 },
             }
-
         ),
         { name: "AuthStore" }
     )

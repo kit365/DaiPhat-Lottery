@@ -15,6 +15,12 @@ const normalizedBackendProxyTarget = backendProxyTarget.startsWith('http')
 const nextConfig: NextConfig = {
   output: 'standalone',
   compress: true,
+  turbopack: {
+    resolveAlias: {
+      'react-router-dom': './src/components/router-compat.tsx',
+      'react-apexcharts': './src/components/ApexChartCompat.tsx',
+    },
+  },
   experimental: {
     optimizePackageImports: [
       '@mui/material',
@@ -23,13 +29,9 @@ const nextConfig: NextConfig = {
       'framer-motion',
       'dayjs',
       '@iconify/react',
+      'react-day-picker',
+      'date-fns',
     ],
-  },
-  turbopack: {
-    resolveAlias: {
-      'react-router-dom': './src/components/router-compat.tsx',
-      'react-apexcharts': './src/components/ApexChartCompat.tsx',
-    },
   },
   images: {
     remotePatterns: [

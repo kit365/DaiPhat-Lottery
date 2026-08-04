@@ -29,9 +29,6 @@ const LayoutAdminContent = ({ children }: { children?: React.ReactNode }) => {
         return <LoadingScreen />;
     }
 
-    if (user && (!user.hasPassword || !user.agreedToTerms)) {
-        return <LoadingScreen />;
-    }
 
     const isBlogDetail = location.pathname.startsWith(ROUTES.ADMIN.BLOGS.DETAIL);
     const fullWidthRoutes = [
@@ -45,10 +42,10 @@ const LayoutAdminContent = ({ children }: { children?: React.ReactNode }) => {
     // Route state Toast listener removed. Using direct toast in use-login now.
 
     return (
-        <div className="flex min-h-screen bg-white">
+        <div className="flex min-h-screen bg-white overflow-x-hidden w-full max-w-full">
             <SideBar />
 
-            <div className={`flex-1 min-h-screen bg-white transition-[padding-left] duration-[120ms] ease-linear ${isOpen ? 'pl-[300px]' : 'pl-[88px]'}`}>
+            <div className={`flex-1 min-w-0 min-h-screen bg-white transition-[padding-left] duration-[120ms] ease-linear ${isOpen ? 'pl-[300px]' : 'pl-[88px]'}`}>
                 <ThemeProvider theme={adminTheme}><Header /></ThemeProvider>
 
                 <ThemeProvider theme={adminTheme}>

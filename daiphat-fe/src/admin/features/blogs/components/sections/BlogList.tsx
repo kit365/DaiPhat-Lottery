@@ -309,19 +309,18 @@ export const BlogList = ({ blogs = [], isLoading = false, page, onPageChange, pa
     return (
         <>
             {viewMode === 'list' ? (
-                <Box sx={{ height: 640, width: '100%', display: 'flex', flexDirection: 'column' }}>
+                <Card elevation={0} className="admin-datagrid-card">
                     <DataGrid
                         rows={currentData.map(b => ({ ...b, id: b._id || b.id }))}
                         getRowId={(row) => row.id}
                         loading={isLoading}
                         columns={columns}
                         density="comfortable"
+                        disableColumnMenu
+                        disableColumnSorting
                         className="admin-datagrid"
-                    sx={dataGridStyles}
+                        sx={dataGridStyles}
                         slots={{
-                            columnSortedAscendingIcon: SortAscendingIcon,
-                            columnSortedDescendingIcon: SortDescendingIcon,
-                            columnUnsortedIcon: UnsortedIcon,
                             noRowsOverlay: () => (
                                 <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
                                     {isLoading ? <CircularProgress size={32} /> : <span className='text-[1.125rem]'>{t("admin.common.no_data")}</span>}
@@ -333,7 +332,7 @@ export const BlogList = ({ blogs = [], isLoading = false, page, onPageChange, pa
                         getRowHeight={() => 'auto'}
                         disableRowSelectionOnClick
                     />
-                </Box>
+                </Card>
             ) : (
                 <Box
                     sx={{

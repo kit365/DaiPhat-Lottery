@@ -282,7 +282,7 @@ export const useOrderDrawCutoff = (preparingCount = 0) => {
     );
 
     const shouldHighlightPreparing =
-        phase === 'approaching' || (phase === 'past' && preparingCount > 0);
+        preparingCount > 0 && (phase === 'approaching' || phase === 'past');
 
     const showReminderBanner =
         phase === 'approaching' || (phase === 'past' && preparingCount > 0);
