@@ -88,6 +88,28 @@ const getRoleCode = (role: unknown): string => {
     }
     return '';
 };
+
+const STATUS_LABELS: Record<string, string> = {
+    [ConversationStatusEnum.OPEN]: 'Mở',
+    [ConversationStatusEnum.ACTIVE]: 'Đang xử lý',
+    [ConversationStatusEnum.WAITING_FOR_OPERATOR]: 'Chờ nhân viên nhận',
+    [ConversationStatusEnum.WAITING_FOR_CUSTOMER]: 'Chờ khách hàng',
+    [ConversationStatusEnum.CLOSED]: 'Đã đóng'
+};
+
+const TabBadge = styled('span')(() => ({
+    height: "24px",
+    minWidth: "24px",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    marginLeft: '8px',
+    padding: '0px 6px',
+    borderRadius: "var(--shape-borderRadius-sm)",
+    fontSize: "0.75rem",
+    fontWeight: 700,
+}));
+
 interface ChatListProps {
     conversations: Conversation[];
     onSelectConversation: (id: number) => void;
