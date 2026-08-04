@@ -1,5 +1,6 @@
 package com.daiphat.coreapi.application.dto.response.payout;
 
+import com.daiphat.coreapi.domain.model.enums.lottery.SerialPayoutState;
 import com.daiphat.coreapi.domain.model.enums.order.OrderType;
 import com.daiphat.coreapi.domain.model.enums.order.TicketDrawResultStatus;
 import com.daiphat.coreapi.domain.model.enums.payout.PrizePayoutOwnershipVerificationLevel;
@@ -40,6 +41,7 @@ public record PrizePayoutLookupItem(
         String winningNumber,
         String matchFrom,
         Integer matchDigits,
-        boolean alreadyRequested
+        boolean alreadyRequested,
+        SerialPayoutState payoutState
 ) {
 }
