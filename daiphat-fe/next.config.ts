@@ -32,16 +32,6 @@ const nextConfig: NextConfig = {
       'react-day-picker',
       'date-fns',
     ],
-    // Pre-compile các trang admin quan trọng khi server khởi động
-    // Giúp tránh chrome "Trang không phản hồi" lần đầu vào
-    turbopackWarmup: {
-      clientComponents: [
-        '/admin/auth/login',
-        '/admin/dashboard',
-        '/admin/ticket/list',
-        '/admin/order/list',
-      ],
-    },
   },
   images: {
     remotePatterns: [
