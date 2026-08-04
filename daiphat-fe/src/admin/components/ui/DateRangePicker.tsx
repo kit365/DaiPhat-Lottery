@@ -178,20 +178,34 @@ export const DateRangePicker = ({
                             --rdp-day-width: 36px !important;
                             margin: 0 !important;
                         }
-                        .custom-date-range .rdp-day_button:focus, 
-                        .custom-date-range .rdp-day:focus {
-                            outline: none !important;
+                        /* Disable pseudo-elements that cause number offset */
+                        .custom-date-range .rdp-day_button::before,
+                        .custom-date-range .rdp-day_button::after,
+                        .custom-date-range .rdp-day::before,
+                        .custom-date-range .rdp-day::after {
+                            content: none !important;
+                            display: none !important;
                         }
+                        /* Base Day Button */
                         .custom-date-range .rdp-day_button {
                             width: 36px !important;
                             height: 36px !important;
+                            min-width: 36px !important;
+                            min-height: 36px !important;
+                            line-height: 36px !important;
                             border-radius: 50% !important;
                             font-size: 0.875rem !important;
                             font-weight: 500 !important;
-                            display: inline-flex !important;
-                            align-items: center !important;
-                            justify-content: center !important;
+                            text-align: center !important;
+                            padding: 0 !important;
+                            margin: 0 auto !important;
+                            position: relative !important;
+                            box-sizing: border-box !important;
                             color: var(--palette-text-primary) !important;
+                        }
+                        .custom-date-range .rdp-day_button:focus, 
+                        .custom-date-range .rdp-day:focus {
+                            outline: none !important;
                         }
                         .custom-date-range .rdp-day_button:hover {
                             background-color: rgba(0, 167, 111, 0.12) !important;
@@ -200,7 +214,10 @@ export const DateRangePicker = ({
                         /* Start & End selected day circle */
                         .custom-date-range .rdp-range_start .rdp-day_button,
                         .custom-date-range .rdp-range_end .rdp-day_button,
-                        .custom-date-range .rdp-selected .rdp-day_button {
+                        .custom-date-range .rdp-selected .rdp-day_button,
+                        .custom-date-range .rdp-day_selected .rdp-day_button,
+                        .custom-date-range .rdp-day_button[aria-selected="true"],
+                        .custom-date-range button[aria-selected="true"].rdp-day_button {
                             background-color: #00A76F !important;
                             color: #ffffff !important;
                             font-weight: 700 !important;
@@ -228,8 +245,8 @@ export const DateRangePicker = ({
                             background-color: rgba(0, 167, 111, 0.1) !important;
                             border-radius: 50% !important;
                         }
-                        /* Today Indicator */
-                        .custom-date-range .rdp-today .rdp-day_button {
+                        /* Today Indicator - không áp dụng khi đã được chọn */
+                        .custom-date-range .rdp-today:not(.rdp-range_start):not(.rdp-range_end):not(.rdp-selected):not(.rdp-day_selected) .rdp-day_button {
                             font-weight: 700 !important;
                             color: #00A76F !important;
                         }

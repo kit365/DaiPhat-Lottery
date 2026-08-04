@@ -54,6 +54,7 @@ export const TicketList = ({
         error,
         filters,
         setFilter,
+        setDateRangeFilter,
         clearFilters,
         setSearchFilter,
         setPage,
@@ -151,6 +152,8 @@ export const TicketList = ({
                                 onFilterChange: setFilter,
                                 onClearFilters: clearFilters,
                                 onSearchChange: setSearchFilter,
+                                onDateRangeChange: ({ startDate, endDate }: { startDate: string; endDate: string }) =>
+                                    setDateRangeFilter(startDate || undefined, endDate || undefined),
                                 cancelSelectedCount: cancelSelection.selectedSerials.length,
                                 onCancelTicketsClick: cancelSelection.openReportDialog,
                             } as any,
