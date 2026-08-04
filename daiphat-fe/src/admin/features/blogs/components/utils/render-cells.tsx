@@ -15,14 +15,19 @@ import { confirmDelete } from "../../../../utils/swal";
 import { usePermissions } from "../../../../hooks/usePermission";
 
 dayjs.locale('vi');
+
 interface RenderCreatedAtCellProps {
     value: Date | null | any;
 }
 
-// Sản phẩm
+// Tên danh mục + Icon/Avatar
 export const RenderTitleCell = (params: GridRenderCellParams) => {
     const { name, avatar, altImage, _id } = params.row;
     const navigate = useNavigate();
+
+    // avatar có thể là font-awesome class (vd: "fa-solid fa-star") hoặc URL ảnh
+    const isFaIcon = avatar && typeof avatar === 'string' && avatar.startsWith('fa-');
+    const isValidUrl = avatar && typeof avatar === 'string' && (avatar.startsWith('http') || avatar.startsWith('/'));
 
     return (
         <Box
@@ -34,17 +39,36 @@ export const RenderTitleCell = (params: GridRenderCellParams) => {
                 width: "100%",
             }}>
 
-            <Avatar
-                alt={altImage || name}
-                src={avatar}
-                variant="rounded"
-                sx={{
-                    width: "64px",
-                    height: "64px",
-                    borderRadius: "var(--shape-borderRadius-md)",
-                    backgroundColor: 'var(--palette-background-neutral)'
-                }}
-            />
+            {isFaIcon ? (
+                <Box
+                    sx={{
+                        width: '64px',
+                        height: '64px',
+                        borderRadius: 'var(--shape-borderRadius-md)',
+                        backgroundColor: 'var(--palette-background-neutral)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        flexShrink: 0,
+                        fontSize: '1.5rem',
+                        color: 'var(--palette-text-secondary)',
+                    }}
+                >
+                    <i className={avatar} />
+                </Box>
+            ) : (
+                <Avatar
+                    alt={altImage || name}
+                    src={isValidUrl ? avatar : undefined}
+                    variant="rounded"
+                    sx={{
+                        width: "64px",
+                        height: "64px",
+                        borderRadius: "var(--shape-borderRadius-md)",
+                        backgroundColor: 'var(--palette-background-neutral)'
+                    }}
+                />
+            )}
 
             <ListItemText
                 primary={
@@ -85,10 +109,7 @@ export const RenderCreatedAtCell = ({ value }: RenderCreatedAtCellProps) => {
     const dateObj = dayjs(value);
     if (!dateObj.isValid()) return null;
 
-    // Định dạng: 16 thg 01, 2026
     const formattedDate = dateObj.format('DD MMM, YYYY');
-
-    // Định dạng: 10:17 SA/CH (hoặc am/pm tùy bạn)
     const formattedTime = dateObj.format('hh:mm A');
 
     return (
@@ -120,7 +141,7 @@ export const RenderCreatedAtCell = ({ value }: RenderCreatedAtCellProps) => {
             >
                 {formattedTime}
             </Box>
-        </Box >
+        </Box>
     );
 }
 
@@ -260,8 +281,3 @@ export const BlogCategoryActionsCell = (_isTrash: boolean) => (params: GridRende
 }
 
 export const getRenderActionsCell = BlogCategoryActionsCell;
-
-
-
-
-
