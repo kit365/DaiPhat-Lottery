@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
     Alert,
     Autocomplete,
@@ -39,10 +39,11 @@ import {
     PrizePayoutPaymentMethod,
     PRIZE_PAYOUT_TICKET_ORIGIN_LABELS,
     PRIZE_PAYOUT_VERIFICATION_LABELS,
+    SERIAL_PAYOUT_STATE_LABELS,
+    SerialPayoutState,
 } from '../../../types/prize-payout.type';
 import { VietQrBankResponse } from '../../../types/refund.type';
 import { useGetBanks } from '../../../client/hooks/useBankAccount';
-import { useStations } from '../../features/station/hooks/useStation';
 import { Station } from '../../features/station/types/station.type';
 import { useCreateStaffPrizePayoutBatch } from './hooks/usePrizePayoutManagement';
 import { TransferEvidencePreview } from '../refund/components/TransferEvidencePreview';
@@ -51,7 +52,6 @@ import { AppToast as toast } from '../../../utils/toast.util';
 import { QUERY_KEYS } from '../../../constants/queryKeys';
 import {
     clearPrizePayoutCreateDraft,
-    readPrizePayoutCreateDraft,
     writePrizePayoutCreateDraft,
 } from './utils/prizePayoutCreateDraftStorage';
 import {
@@ -77,45 +77,89 @@ const prizeStatusLabel = (status: string) => {
     return 'Chờ KQ';
 };
 
+const resolveLookupPayoutState = (item: PrizePayoutLookupItem): SerialPayoutState => {
+    if (item.payoutState) return item.payoutState;
+    if (item.alreadyRequested) return 'PAYOUT_PENDING';
+    return 'NONE';
+};
+
+const lookupPayoutStatusChip = (item: PrizePayoutLookupItem) => {
+    if (item.prizeStatus !== 'WON') {
+        return null;
+    }
+    const payoutState = resolveLookupPayoutState(item);
+    if (payoutState === 'PAID_OUT') {
+        return {
+            label: SERIAL_PAYOUT_STATE_LABELS.PAID_OUT,
+            color: 'success' as const,
+        };
+    }
+    if (payoutState === 'PAYOUT_PENDING') {
+        return {
+            label: 'Đã yêu cầu',
+            color: 'warning' as const,
+        };
+    }
+    return null;
+};
+
 export const PrizePayoutCreatePage = () => {
     const navigate = useNavigate();
     const createMutation = useCreateStaffPrizePayoutBatch();
     const user = useAuthStore((s) => s.user);
-    const draftHydratedRef = useRef(false);
+    const draftPersistReadyRef = useRef(false);
     const { data: banksData, isLoading: isLoadingBanks } = useGetBanks();
     const banks = banksData?.data || [];
-    const { data: stationsRes } = useStations({ page: 1, limit: 200 });
-    const stations: Station[] = stationsRes?.data?.recordList || [];
 
-    const initialDraft = useMemo(() => readPrizePayoutCreateDraft(), []);
-
-    const [lookupMode, setLookupMode] = useState<LookupMode>(initialDraft?.lookupMode || 'ORDER');
-    const [orderCode, setOrderCode] = useState(initialDraft?.orderCode || '');
+    // Always open a blank create form when entering this page.
+    const [lookupMode, setLookupMode] = useState<LookupMode>('ORDER');
+    const [orderCode, setOrderCode] = useState('');
     const [selectedStation, setSelectedStation] = useState<Station | null>(null);
-    const [drawDate, setDrawDate] = useState(initialDraft?.drawDate || dayjs().format('YYYY-MM-DD'));
-    const [serialNumber, setSerialNumber] = useState(initialDraft?.serialNumber || '');
+    const [drawDate, setDrawDate] = useState(dayjs().format('YYYY-MM-DD'));
+    const [serialNumber, setSerialNumber] = useState('');
 
-    const [lookupItems, setLookupItems] = useState<PrizePayoutLookupItem[]>(initialDraft?.lookupItems || []);
-    const [selectedIds, setSelectedIds] = useState<number[]>(initialDraft?.selectedIds || []);
+    const {
+        data: stationsForDrawDate = [],
+        isLoading: isLoadingStationsForDate,
+        isFetching: isFetchingStationsForDate,
+    } = useQuery({
+        queryKey: [QUERY_KEYS.ADMIN_PRIZE_PAYOUT_LOOKUP_STATIONS, drawDate],
+        queryFn: async () => {
+            const res = await prizePayoutAdminApi.lookupStationsByDrawDate(drawDate);
+            const rows = res.data || [];
+            return rows.map(
+                (row): Station => ({
+                    id: row.id,
+                    name: row.name,
+                })
+            );
+        },
+        enabled: lookupMode === 'TRIPLE' && !!drawDate,
+        placeholderData: (prev) => prev,
+    });
+    const stations = stationsForDrawDate;
+
+    const [lookupItems, setLookupItems] = useState<PrizePayoutLookupItem[]>([]);
+    const [selectedIds, setSelectedIds] = useState<number[]>([]);
     const [loadingLookup, setLoadingLookup] = useState(false);
 
     const [selectedBank, setSelectedBank] = useState<VietQrBankResponse | null>(null);
-    const [bankAccountNumber, setBankAccountNumber] = useState(initialDraft?.bankAccountNumber || '');
-    const [accountHolderName, setAccountHolderName] = useState(initialDraft?.accountHolderName || '');
-    const [transferEvidenceUrl, setTransferEvidenceUrl] = useState(initialDraft?.transferEvidenceUrl || '');
-    const [confirmationContractUrl, setConfirmationContractUrl] = useState(initialDraft?.confirmationContractUrl || '');
-    const [recipientFullName, setRecipientFullName] = useState(initialDraft?.recipientFullName || '');
-    const [recipientIdNumber, setRecipientIdNumber] = useState(initialDraft?.recipientIdNumber || '');
-    const [recipientIdImageUrl, setRecipientIdImageUrl] = useState(initialDraft?.recipientIdImageUrl || '');
-    const [recipientIdImageBackUrl, setRecipientIdImageBackUrl] = useState(initialDraft?.recipientIdImageBackUrl || '');
+    const [bankAccountNumber, setBankAccountNumber] = useState('');
+    const [accountHolderName, setAccountHolderName] = useState('');
+    const [transferEvidenceUrl, setTransferEvidenceUrl] = useState('');
+    const [confirmationContractUrl, setConfirmationContractUrl] = useState('');
+    const [recipientFullName, setRecipientFullName] = useState('');
+    const [recipientIdNumber, setRecipientIdNumber] = useState('');
+    const [recipientIdImageUrl, setRecipientIdImageUrl] = useState('');
+    const [recipientIdImageBackUrl, setRecipientIdImageBackUrl] = useState('');
     const [uploadingIdFront, setUploadingIdFront] = useState(false);
     const [uploadingIdBack, setUploadingIdBack] = useState(false);
     const [uploadingTransferEvidence, setUploadingTransferEvidence] = useState(false);
     const [uploadingContract, setUploadingContract] = useState(false);
-    const [manualConfirmed, setManualConfirmed] = useState(initialDraft?.manualConfirmed || false);
-    const [paymentMethod, setPaymentMethod] = useState<PrizePayoutPaymentMethod>(initialDraft?.paymentMethod || 'CASH');
-    const [cashAmount, setCashAmount] = useState(initialDraft?.cashAmount || '');
-    const [cashHandedConfirmed, setCashHandedConfirmed] = useState(initialDraft?.cashHandedConfirmed || false);
+    const [manualConfirmed, setManualConfirmed] = useState(false);
+    const [paymentMethod, setPaymentMethod] = useState<PrizePayoutPaymentMethod>('CASH');
+    const [cashAmount, setCashAmount] = useState('');
+    const [cashHandedConfirmed, setCashHandedConfirmed] = useState(false);
 
     const selectedItems = useMemo(
         () => lookupItems.filter((item) => selectedIds.includes(item.orderDetailId)),
@@ -143,7 +187,8 @@ export const PrizePayoutCreatePage = () => {
     const totalCommission = selectedItems.reduce((sum, item) => sum + (Number(item.commissionAmount) || 0), 0);
     const totalNet = selectedItems.reduce((sum, item) => sum + (Number(item.netAmount) || 0), 0);
 
-    const needsIdImage = selectedItems.some((item) => item.requiresRecipientIdImage);
+    // Counter payout now always captures both CCCD sides for audit.
+    const needsIdImage = selectedItems.length > 0;
     const needsManualConfirm = selectedItems.some((item) => item.requiresManualOwnershipConfirm);
     const hasMatchProof = selectedItems.every(
         (item) => item.prizeStatus === 'WON' && item.ticketNumbers?.trim() && item.winningNumber?.trim()
@@ -206,15 +251,36 @@ export const PrizePayoutCreatePage = () => {
         toast.success('Đã điền gợi ý tài khoản ngân hàng');
     };
 
-    useMemo(() => {
-        if (!draftHydratedRef.current) return;
+    useEffect(() => {
+        // Entering create: wipe any leftover draft so the form is blank.
+        clearPrizePayoutCreateDraft();
+        draftPersistReadyRef.current = true;
+        return () => {
+            // Leaving create (Quay lại / navigate away): discard in-progress draft.
+            clearPrizePayoutCreateDraft();
+        };
+    }, []);
+
+    useEffect(() => {
+        if (lookupMode !== 'TRIPLE' || !selectedStation) return;
+        const stillEligible = stationsForDrawDate.some((s) => s.id === selectedStation.id);
+        if (!stillEligible) {
+            setSelectedStation(null);
+        }
+    }, [lookupMode, selectedStation, stationsForDrawDate]);
+
+    useEffect(() => {
+        if (!draftPersistReadyRef.current) return;
+        // Keep a short-lived autosave only while staying on this page (refresh mid-flow).
         writePrizePayoutCreateDraft({
             lookupMode,
             orderCode,
+            stationId: selectedStation?.id,
             drawDate,
             serialNumber,
             lookupItems,
             selectedIds,
+            bankBin: selectedBank?.bin,
             bankAccountNumber,
             accountHolderName,
             transferEvidenceUrl,
@@ -231,10 +297,12 @@ export const PrizePayoutCreatePage = () => {
     }, [
         lookupMode,
         orderCode,
+        selectedStation,
         drawDate,
         serialNumber,
         lookupItems,
         selectedIds,
+        selectedBank,
         bankAccountNumber,
         accountHolderName,
         transferEvidenceUrl,
@@ -248,10 +316,6 @@ export const PrizePayoutCreatePage = () => {
         cashAmount,
         cashHandedConfirmed,
     ]);
-
-    useMemo(() => {
-        draftHydratedRef.current = true;
-    }, []);
 
     const resetFormSideEffects = () => {
         setManualConfirmed(false);
@@ -269,6 +333,23 @@ export const PrizePayoutCreatePage = () => {
         setPaymentMethod('CASH');
     };
 
+    const resetEntireForm = () => {
+        setLookupMode('ORDER');
+        setOrderCode('');
+        setSelectedStation(null);
+        setDrawDate(dayjs().format('YYYY-MM-DD'));
+        setSerialNumber('');
+        setLookupItems([]);
+        setSelectedIds([]);
+        resetFormSideEffects();
+        clearPrizePayoutCreateDraft();
+    };
+
+    const leaveCreatePage = () => {
+        clearPrizePayoutCreateDraft();
+        navigate(`/${prefixAdmin}/prize-payouts/list`);
+    };
+
     const handleLookup = async () => {
         setLoadingLookup(true);
         resetFormSideEffects();
@@ -284,7 +365,10 @@ export const PrizePayoutCreatePage = () => {
             if (res.success && res.data?.items) {
                 setLookupItems(res.data.items);
                 const autoSelect = res.data.items
-                    .filter((i) => i.prizeStatus === 'WON' && !i.alreadyRequested)
+                    .filter((i) => {
+                        const state = resolveLookupPayoutState(i);
+                        return i.prizeStatus === 'WON' && state === 'NONE';
+                    })
                     .map((i) => i.orderDetailId);
                 if (lookupMode === 'TRIPLE') {
                     setSelectedIds(autoSelect);
@@ -308,7 +392,10 @@ export const PrizePayoutCreatePage = () => {
     };
 
     const toggleSelect = (item: PrizePayoutLookupItem) => {
-        if (item.prizeStatus !== 'WON' || item.alreadyRequested) return;
+        const lockedByPayout = item.payoutState === 'PAID_OUT'
+            || item.payoutState === 'PAYOUT_PENDING'
+            || Boolean(item.alreadyRequested);
+        if (item.prizeStatus !== 'WON' || lockedByPayout) return;
         setSelectedIds((prev) =>
             prev.includes(item.orderDetailId)
                 ? prev.filter((id) => id !== item.orderDetailId)
@@ -452,18 +539,35 @@ export const PrizePayoutCreatePage = () => {
                         ]}
                     />
                 </Box>
-                <Button
-                    variant="outlined"
-                    onClick={() => navigate(`/${prefixAdmin}/prize-payouts/list`)}
-                    startIcon={<Icon icon="eva:arrow-back-fill" />}
-                    sx={{
-                        ...headerButtonSx,
-                        color: 'var(--palette-text-primary)',
-                        borderColor: 'var(--palette-divider)',
-                    }}
-                >
-                    Quay lại
-                </Button>
+                <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexShrink: 0 }}>
+                    <Button
+                        variant="outlined"
+                        onClick={() => {
+                            resetEntireForm();
+                            toast.success('Đã làm mới form');
+                        }}
+                        startIcon={<Icon icon="solar:restart-bold" />}
+                        sx={{
+                            ...headerButtonSx,
+                            color: 'var(--palette-text-primary)',
+                            borderColor: 'var(--palette-divider)',
+                        }}
+                    >
+                        Làm mới
+                    </Button>
+                    <Button
+                        variant="outlined"
+                        onClick={leaveCreatePage}
+                        startIcon={<Icon icon="eva:arrow-back-fill" />}
+                        sx={{
+                            ...headerButtonSx,
+                            color: 'var(--palette-text-primary)',
+                            borderColor: 'var(--palette-divider)',
+                        }}
+                    >
+                        Quay lại
+                    </Button>
+                </Box>
             </Box>
 
             {/* Balanced 2-Column Responsive Layout Grid (Equal height) */}
@@ -475,7 +579,7 @@ export const PrizePayoutCreatePage = () => {
                         {/* Section 1: Search Card */}
                         <SectionCard title="1. Tra cứu vé số" icon="solar:magnifer-bold-duotone">
                             <Alert severity="info" sx={{ mb: 2, borderRadius: '10px' }}>
-                                Chỉ hỗ trợ vé đã bán qua hệ thống. Tra theo mã đơn (nhiều vé) hoặc theo đài + ngày + serial.
+                                Chỉ hỗ trợ vé đã bán qua hệ thống. Tra theo mã đơn (nhiều vé) hoặc theo ngày → đài → serial.
                             </Alert>
 
                             <RadioGroup
@@ -489,7 +593,7 @@ export const PrizePayoutCreatePage = () => {
                                 sx={{ mb: 2 }}
                             >
                                 <FormControlLabel value="ORDER" control={<Radio size="small" />} label="Theo mã đơn hàng" />
-                                <FormControlLabel value="TRIPLE" control={<Radio size="small" />} label="Theo đài / ngày / serial" />
+                                <FormControlLabel value="TRIPLE" control={<Radio size="small" />} label="Theo ngày / đài / serial" />
                             </RadioGroup>
 
                             {lookupMode === 'ORDER' ? (
@@ -510,24 +614,47 @@ export const PrizePayoutCreatePage = () => {
                                 />
                             ) : (
                                 <Stack spacing={2} sx={{ mb: 2 }}>
+                                    <TextField
+                                        label="Ngày mở thưởng *"
+                                        type="date"
+                                        value={drawDate}
+                                        onChange={(e) => {
+                                            setDrawDate(e.target.value);
+                                            setSelectedStation(null);
+                                            setLookupItems([]);
+                                            setSelectedIds([]);
+                                        }}
+                                        InputLabelProps={{ shrink: true }}
+                                        fullWidth
+                                        size="small"
+                                    />
                                     <Autocomplete
                                         options={stations}
                                         value={selectedStation}
                                         onChange={(_, value) => setSelectedStation(value)}
                                         getOptionLabel={(o) => o.name}
                                         isOptionEqualToValue={(a, b) => a.id === b.id}
+                                        loading={isLoadingStationsForDate || isFetchingStationsForDate}
+                                        disabled={!drawDate || isLoadingStationsForDate}
+                                        noOptionsText={
+                                            !drawDate
+                                                ? 'Chọn ngày mở thưởng trước'
+                                                : isLoadingStationsForDate || isFetchingStationsForDate
+                                                    ? 'Đang tải đài…'
+                                                    : 'Không có đài mở thưởng ngày này'
+                                        }
                                         renderInput={(params) => (
-                                            <TextField {...params} label="Đài phát hành *" size="small" />
+                                            <TextField
+                                                {...params}
+                                                label="Đài phát hành *"
+                                                size="small"
+                                                helperText={
+                                                    drawDate && !isLoadingStationsForDate && stations.length === 0
+                                                        ? 'Không có đài nào mở thưởng trong ngày này'
+                                                        : 'Chỉ hiện đài có lịch mở thưởng đúng ngày đã chọn'
+                                                }
+                                            />
                                         )}
-                                    />
-                                    <TextField
-                                        label="Ngày mở thưởng *"
-                                        type="date"
-                                        value={drawDate}
-                                        onChange={(e) => setDrawDate(e.target.value)}
-                                        InputLabelProps={{ shrink: true }}
-                                        fullWidth
-                                        size="small"
                                     />
                                     <TextField
                                         label="Số serial trên vé *"
@@ -566,6 +693,8 @@ export const PrizePayoutCreatePage = () => {
                                                 <TableCell>Serial</TableCell>
                                                 <TableCell>Số vé</TableCell>
                                                 <TableCell>KQ</TableCell>
+                                                <TableCell>Giải</TableCell>
+                                                <TableCell>Trạng thái</TableCell>
                                                 <TableCell align="right">Trúng</TableCell>
                                                 <TableCell align="right">HH</TableCell>
                                                 <TableCell align="right">Thuế</TableCell>
@@ -574,8 +703,12 @@ export const PrizePayoutCreatePage = () => {
                                         </TableHead>
                                         <TableBody>
                                             {lookupItems.map((item) => {
-                                                const selectable = item.prizeStatus === 'WON' && !item.alreadyRequested;
+                                                const payoutState = resolveLookupPayoutState(item);
+                                                const lockedByPayout = payoutState === 'PAYOUT_PENDING' || payoutState === 'PAID_OUT';
+                                                const selectable = item.prizeStatus === 'WON' && !lockedByPayout;
                                                 const checked = selectedIds.includes(item.orderDetailId);
+                                                const payoutChip = lookupPayoutStatusChip(item);
+                                                const isWon = item.prizeStatus === 'WON';
                                                 return (
                                                     <TableRow
                                                         key={item.orderDetailId}
@@ -584,7 +717,13 @@ export const PrizePayoutCreatePage = () => {
                                                         onClick={() => toggleSelect(item)}
                                                         sx={{
                                                             cursor: selectable ? 'pointer' : 'default',
-                                                            opacity: selectable ? 1 : 0.55,
+                                                            // Keep WON+paid rows readable so staff don't mistake them for "no win".
+                                                            opacity: isWon || selectable ? 1 : 0.55,
+                                                            bgcolor: isWon && payoutState === 'PAID_OUT'
+                                                                ? 'rgba(34, 197, 94, 0.06)'
+                                                                : isWon && payoutState === 'PAYOUT_PENDING'
+                                                                    ? 'rgba(245, 158, 11, 0.06)'
+                                                                    : undefined,
                                                             '& td': { borderBottomStyle: 'dashed' },
                                                         }}
                                                     >
@@ -611,13 +750,32 @@ export const PrizePayoutCreatePage = () => {
                                                         <TableCell>
                                                             <Typography variant="caption" sx={{ fontWeight: 700 }}>
                                                                 {prizeStatusLabel(item.prizeStatus)}
-                                                                {item.alreadyRequested ? ' · Đã yêu cầu' : ''}
                                                             </Typography>
+                                                        </TableCell>
+                                                        <TableCell>
                                                             {item.prizeDisplayName ? (
-                                                                <Typography variant="caption" display="block" color="text.secondary">
-                                                                    {item.prizeDisplayName}
-                                                                </Typography>
-                                                            ) : null}
+                                                                <Chip
+                                                                    size="small"
+                                                                    label={item.prizeDisplayName}
+                                                                    color={isWon ? 'warning' : 'default'}
+                                                                    variant={isWon ? 'filled' : 'outlined'}
+                                                                    sx={{ height: 22, fontWeight: 800, '& .MuiChip-label': { px: 1 } }}
+                                                                />
+                                                            ) : (
+                                                                <Typography variant="caption" color="text.disabled">—</Typography>
+                                                            )}
+                                                        </TableCell>
+                                                        <TableCell>
+                                                            {payoutChip ? (
+                                                                <Chip
+                                                                    size="small"
+                                                                    color={payoutChip.color}
+                                                                    label={payoutChip.label}
+                                                                    sx={{ height: 20, fontWeight: 700, '& .MuiChip-label': { px: 0.75 } }}
+                                                                />
+                                                            ) : (
+                                                                <Typography variant="caption" color="text.disabled">—</Typography>
+                                                            )}
                                                         </TableCell>
                                                         <TableCell align="right" sx={{ fontWeight: 700, whiteSpace: 'nowrap' }}>
                                                             {formatPrizePayoutCurrency(item.grossAmount)}
@@ -705,9 +863,7 @@ export const PrizePayoutCreatePage = () => {
                         {selectedItems.length > 0 && (
                             <SectionCard title="3. Định danh người nhận thưởng" icon="solar:user-id-bold-duotone">
                                 <Alert severity="info" sx={{ mb: 2, borderRadius: '10px' }}>
-                                    {needsIdImage
-                                        ? 'Cần họ tên, CCCD và ảnh mặt trước + mặt sau (không có KH hoặc giải ≥ ngưỡng thuế).'
-                                        : 'Cần họ tên + CCCD. Có KH và dưới ngưỡng thuế — không bắt buộc ảnh CCCD.'}
+                                    Cần họ tên, CCCD và ảnh mặt trước + mặt sau.
                                 </Alert>
                                 <Stack spacing={2}>
                                     <TextField
@@ -728,51 +884,49 @@ export const PrizePayoutCreatePage = () => {
                                         helperText={recipientIdError || 'Chỉ nhập số (9–12 chữ số)'}
                                     />
 
-                                    {needsIdImage && (
-                                        <Stack spacing={1.5}>
-                                            <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.secondary' }}>
-                                                Ảnh CCCD * (mặt trước và mặt sau)
-                                            </Typography>
-                                            <Grid container spacing={1.5}>
-                                                <Grid size={{ xs: 12, sm: 6 }}>
-                                                    <UploadSingleFile
-                                                        value={recipientIdImageUrl}
-                                                        onChange={setRecipientIdImageUrl}
-                                                        customUpload={prizePayoutAdminApi.uploadRecipientIdImage}
-                                                        autoUpload
-                                                        onUploadingChange={setUploadingIdFront}
-                                                        disabled={uploadingIdFront || createMutation.isPending}
-                                                        label="CCCD mặt trước"
-                                                        required
-                                                        compact
-                                                    />
-                                                    {recipientIdImageUrl && (
-                                                        <Box sx={{ mt: 1, maxHeight: 150, overflow: 'hidden', borderRadius: 1 }}>
-                                                            <TransferEvidencePreview imageUrl={recipientIdImageUrl} title="Mặt trước" showCaption />
-                                                        </Box>
-                                                    )}
-                                                </Grid>
-                                                <Grid size={{ xs: 12, sm: 6 }}>
-                                                    <UploadSingleFile
-                                                        value={recipientIdImageBackUrl}
-                                                        onChange={setRecipientIdImageBackUrl}
-                                                        customUpload={prizePayoutAdminApi.uploadRecipientIdImage}
-                                                        autoUpload
-                                                        onUploadingChange={setUploadingIdBack}
-                                                        disabled={uploadingIdBack || createMutation.isPending}
-                                                        label="CCCD mặt sau"
-                                                        required
-                                                        compact
-                                                    />
-                                                    {recipientIdImageBackUrl && (
-                                                        <Box sx={{ mt: 1, maxHeight: 150, overflow: 'hidden', borderRadius: 1 }}>
-                                                            <TransferEvidencePreview imageUrl={recipientIdImageBackUrl} title="Mặt sau" showCaption />
-                                                        </Box>
-                                                    )}
-                                                </Grid>
+                                    <Stack spacing={1.5}>
+                                        <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.secondary' }}>
+                                            Ảnh CCCD * (mặt trước và mặt sau)
+                                        </Typography>
+                                        <Grid container spacing={1.5}>
+                                            <Grid size={{ xs: 12, sm: 6 }}>
+                                                <UploadSingleFile
+                                                    value={recipientIdImageUrl}
+                                                    onChange={setRecipientIdImageUrl}
+                                                    customUpload={prizePayoutAdminApi.uploadRecipientIdImage}
+                                                    autoUpload
+                                                    onUploadingChange={setUploadingIdFront}
+                                                    disabled={uploadingIdFront || createMutation.isPending}
+                                                    label="CCCD mặt trước"
+                                                    required
+                                                    compact
+                                                />
+                                                {recipientIdImageUrl && (
+                                                    <Box sx={{ mt: 1, maxHeight: 150, overflow: 'hidden', borderRadius: 1 }}>
+                                                        <TransferEvidencePreview imageUrl={recipientIdImageUrl} title="Mặt trước" showCaption />
+                                                    </Box>
+                                                )}
                                             </Grid>
-                                        </Stack>
-                                    )}
+                                            <Grid size={{ xs: 12, sm: 6 }}>
+                                                <UploadSingleFile
+                                                    value={recipientIdImageBackUrl}
+                                                    onChange={setRecipientIdImageBackUrl}
+                                                    customUpload={prizePayoutAdminApi.uploadRecipientIdImage}
+                                                    autoUpload
+                                                    onUploadingChange={setUploadingIdBack}
+                                                    disabled={uploadingIdBack || createMutation.isPending}
+                                                    label="CCCD mặt sau"
+                                                    required
+                                                    compact
+                                                />
+                                                {recipientIdImageBackUrl && (
+                                                    <Box sx={{ mt: 1, maxHeight: 150, overflow: 'hidden', borderRadius: 1 }}>
+                                                        <TransferEvidencePreview imageUrl={recipientIdImageBackUrl} title="Mặt sau" showCaption />
+                                                    </Box>
+                                                )}
+                                            </Grid>
+                                        </Grid>
+                                    </Stack>
 
                                     {needsManualConfirm && (
                                         <FormControlLabel
