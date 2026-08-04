@@ -1305,17 +1305,6 @@ const Map<int, String> _kVnWeekdayLabels = {
   DateTime.sunday: 'Chủ nhật',
 };
 
-String _formatTicketAmount(int? amount) {
-  if (amount == null) {
-    return 'Đang cập nhật';
-  }
-  return NumberFormat.currency(
-    locale: 'vi_VN',
-    symbol: 'đ',
-    decimalDigits: 0,
-  ).format(amount);
-}
-
 class TicketDetailView extends ConsumerStatefulWidget {
   const TicketDetailView({super.key, required this.ticket});
 
@@ -1491,27 +1480,6 @@ class _TicketDetailViewState extends ConsumerState<TicketDetailView> {
                           value: _formatTicketPrice(resolvedTicket.price),
                           highlight: true,
                           isLast: true,
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 14),
-                    _DetailSectionCard(
-                      icon: Icons.account_balance_wallet_outlined,
-                      title: 'Thanh toán',
-                      children: [
-                        const _DetailInfoRow(
-                          label: 'Phương thức thanh toán',
-                          value: 'Ví Đại Phát',
-                        ),
-                        const _DetailInfoRow(
-                          label: 'Số lượng',
-                          value: '1 vé',
-                          isLast: true,
-                        ),
-                        const _DashedLine(),
-                        _DetailTotalRow(
-                          label: 'Tổng tiền',
-                          value: _formatTicketAmount(resolvedTicket.price),
                         ),
                       ],
                     ),
@@ -1899,73 +1867,6 @@ class _DetailInfoRow extends StatelessWidget {
     return Material(
       color: Colors.transparent,
       child: InkWell(onTap: onTap, child: content),
-    );
-  }
-}
-
-class _DetailTotalRow extends StatelessWidget {
-  const _DetailTotalRow({required this.label, required this.value});
-
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(
-              label,
-              style: const TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w700,
-                color: AppColors.ink,
-              ),
-            ),
-          ),
-          Text(
-            value,
-            style: const TextStyle(
-              fontSize: 17,
-              fontWeight: FontWeight.w900,
-              color: AppColors.primary,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _DashedLine extends StatelessWidget {
-  const _DashedLine();
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          const dashWidth = 5.0;
-          const dashSpace = 4.0;
-          final dashCount = (constraints.maxWidth / (dashWidth + dashSpace))
-              .floor()
-              .clamp(1, 200);
-          return Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: List.generate(
-              dashCount,
-              (_) => Container(
-                width: dashWidth,
-                height: 1,
-                color: const Color(0xFFE8DCD8),
-              ),
-            ),
-          );
-        },
-      ),
     );
   }
 }
