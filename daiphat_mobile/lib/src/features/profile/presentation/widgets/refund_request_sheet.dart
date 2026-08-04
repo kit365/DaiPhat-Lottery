@@ -763,8 +763,10 @@ class BankAccountFormDialog extends StatefulWidget {
 }
 
 class _BankAccountFormDialogState extends State<BankAccountFormDialog> {
-  static const _termsText =
-      'Tôi cam kết thông tin tài khoản ngân hàng đã nhập là chính xác. Tôi hiểu rằng đại lý được miễn trừ trách nhiệm đối với các trường hợp hoàn tiền chậm trễ hoặc thất bại do thông tin tài khoản tôi cung cấp không chính xác.';
+  static const _termsPreviewText =
+      'Tôi cam kết thông tin tài khoản ngân hàng đã nhập là chính xác';
+  static const _termsDetailText =
+      'Tôi hiểu rằng đại lý được miễn trừ trách nhiệm đối với các trường hợp hoàn tiền chậm trễ hoặc thất bại do thông tin tài khoản tôi cung cấp không chính xác.';
 
   final _accountNoController = TextEditingController();
   final _accountNameController = TextEditingController();
@@ -773,6 +775,7 @@ class _BankAccountFormDialogState extends State<BankAccountFormDialog> {
   bool _isSubmitting = false;
   bool _isDefault = false;
   bool _agreed = false;
+  bool _termsExpanded = false;
   String? _error;
   List<VietQrBankResponse> _banks = const [];
   VietQrBankResponse? _selectedBank;
@@ -920,20 +923,8 @@ class _BankAccountFormDialogState extends State<BankAccountFormDialog> {
                       DropdownButtonFormField<VietQrBankResponse>(
                         initialValue: _selectedBank,
                         isExpanded: true,
-                        decoration: InputDecoration(
+                        decoration: _inputDecoration(
                           hintText: 'Chọn ngân hàng...',
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 14,
-                            vertical: 12,
-                          ),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: const BorderSide(color: Color(0xFFE5E8EB)),
-                          ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: const BorderSide(color: Color(0xFFE5E8EB)),
-                          ),
                         ),
                         items: _banks
                             .map(
@@ -958,20 +949,8 @@ class _BankAccountFormDialogState extends State<BankAccountFormDialog> {
                         controller: _accountNoController,
                         keyboardType: TextInputType.number,
                         enabled: !_isSubmitting,
-                        decoration: InputDecoration(
+                        decoration: _inputDecoration(
                           hintText: 'Nhập số tài khoản',
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 14,
-                            vertical: 12,
-                          ),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: const BorderSide(color: Color(0xFFE5E8EB)),
-                          ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: const BorderSide(color: Color(0xFFE5E8EB)),
-                          ),
                         ),
                       ),
                       const SizedBox(height: 14),
@@ -981,57 +960,75 @@ class _BankAccountFormDialogState extends State<BankAccountFormDialog> {
                         controller: _accountNameController,
                         enabled: !_isSubmitting,
                         textCapitalization: TextCapitalization.characters,
-                        decoration: InputDecoration(
+                        decoration: _inputDecoration(
                           hintText: 'NGUYEN VAN A',
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 14,
-                            vertical: 12,
-                          ),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: const BorderSide(color: Color(0xFFE5E8EB)),
-                          ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: const BorderSide(color: Color(0xFFE5E8EB)),
-                          ),
                         ),
                       ),
                       const SizedBox(height: 10),
-                      CheckboxListTile(
-                        contentPadding: EdgeInsets.zero,
-                        dense: true,
+                      _buildCheckboxRow(
                         value: _isDefault,
                         onChanged: _isSubmitting
                             ? null
                             : (value) =>
                                 setState(() => _isDefault = value ?? false),
-                        title: Text(
+                        child: Text(
                           'Đặt làm tài khoản mặc định',
                           style: GoogleFonts.publicSans(fontSize: 14),
                         ),
-                        controlAffinity: ListTileControlAffinity.leading,
-                        activeColor: AppColors.primary,
                       ),
-                      CheckboxListTile(
-                        contentPadding: EdgeInsets.zero,
-                        dense: true,
+                      const SizedBox(height: 8),
+                      _buildCheckboxRow(
                         value: _agreed,
                         onChanged: _isSubmitting
                             ? null
-                            : (value) => setState(() => _agreed = value ?? false),
-                        title: Text(
-                          _termsText,
-                          style: GoogleFonts.publicSans(
-                            fontSize: 12,
-                            height: 1.45,
-                            color: const Color(0xFF637381),
-                          ),
+                            : (value) =>
+                                setState(() => _agreed = value ?? false),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            InkWell(
+                              onTap: _isSubmitting
+                                  ? null
+                                  : () => setState(
+                                        () =>
+                                            _termsExpanded = !_termsExpanded,
+                                      ),
+                              child: Text.rich(
+                                TextSpan(
+                                  style: GoogleFonts.publicSans(
+                                    fontSize: 14,
+                                    color: AppColors.textMain,
+                                  ),
+                                  children: [
+                                    TextSpan(text: '$_termsPreviewText... '),
+                                    TextSpan(
+                                      text: _termsExpanded
+                                          ? 'thu gọn'
+                                          : 'xem thêm',
+                                      style: GoogleFonts.publicSans(
+                                        fontSize: 14,
+                                        color: AppColors.primary,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            if (_termsExpanded) ...[
+                              const SizedBox(height: 6),
+                              Text(
+                                _termsDetailText,
+                                style: GoogleFonts.publicSans(
+                                  fontSize: 14,
+                                  height: 1.45,
+                                  color: const Color(0xFF637381),
+                                ),
+                              ),
+                            ],
+                          ],
                         ),
-                        controlAffinity: ListTileControlAffinity.leading,
-                        activeColor: AppColors.primary,
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 16),
                       Row(
                         children: [
                           Expanded(
@@ -1059,12 +1056,15 @@ class _BankAccountFormDialogState extends State<BankAccountFormDialog> {
                           const SizedBox(width: 10),
                           Expanded(
                             child: ElevatedButton(
-                              onPressed: _isSubmitting ? null : _submit,
+                              onPressed:
+                                  (_isSubmitting || !_agreed) ? null : _submit,
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: AppColors.primary,
                                 foregroundColor: Colors.white,
                                 disabledBackgroundColor:
-                                    AppColors.primary.withValues(alpha: 0.45),
+                                    AppColors.primary.withValues(alpha: 0.35),
+                                disabledForegroundColor:
+                                    Colors.white.withValues(alpha: 0.85),
                                 padding: const EdgeInsets.symmetric(vertical: 14),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(12),
@@ -1095,6 +1095,58 @@ class _BankAccountFormDialogState extends State<BankAccountFormDialog> {
                 ),
         ),
       ),
+    );
+  }
+
+  InputDecoration _inputDecoration({required String hintText}) {
+    return InputDecoration(
+      hintText: hintText,
+      hintStyle: GoogleFonts.publicSans(
+        fontSize: 14,
+        fontWeight: FontWeight.w400,
+        color: const Color(0xFFC4CDD5),
+      ),
+      contentPadding: const EdgeInsets.symmetric(
+        horizontal: 14,
+        vertical: 12,
+      ),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: Color(0xFFE5E8EB)),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: Color(0xFFE5E8EB)),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: AppColors.primary),
+      ),
+    );
+  }
+
+  Widget _buildCheckboxRow({
+    required bool value,
+    required ValueChanged<bool?>? onChanged,
+    required Widget child,
+  }) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 24,
+          height: 24,
+          child: Checkbox(
+            value: value,
+            onChanged: onChanged,
+            activeColor: AppColors.primary,
+            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            visualDensity: VisualDensity.compact,
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(child: child),
+      ],
     );
   }
 
