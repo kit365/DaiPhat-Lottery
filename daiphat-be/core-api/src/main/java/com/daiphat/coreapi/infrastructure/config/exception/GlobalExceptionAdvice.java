@@ -123,7 +123,13 @@ public class GlobalExceptionAdvice {
             return "Nhà đài này đã có trong phiếu nhập lô.";
         }
 
-        if (rawMessage.contains("uk_order_detail_serials_serial")) {
+        if (rawMessage.contains("default_draw_time")
+                || rawMessage.contains("lottery_regions")) {
+            return "Không thể cập nhật miền vì thiếu giờ quay mặc định. Vui lòng kiểm tra cấu hình miền.";
+        }
+
+        if (rawMessage.contains("uk_order_details_order_ticket_serial")
+                || rawMessage.contains("uk_order_detail_serials_serial")) {
             return "Một hoặc nhiều vé đã được phân bổ cho đơn hàng khác.";
         }
 
@@ -165,7 +171,13 @@ public class GlobalExceptionAdvice {
             return exception.getMessage();
         }
 
-        if (errorCode == ErrorCode.LOTTERY_TICKET_INVALID_STATUS
+        if (errorCode == ErrorCode.INVALID_INPUT
+                || errorCode == ErrorCode.ORDER_DETAIL_NOT_FOUND
+                || errorCode == ErrorCode.PRIZE_PAYOUT_NOT_ELIGIBLE
+                || errorCode == ErrorCode.PRIZE_PAYOUT_ALREADY_REQUESTED
+                || errorCode == ErrorCode.PRIZE_PAYOUT_REQUIRES_IN_PERSON
+                || errorCode == ErrorCode.PRIZE_PAYOUT_INVALID_STATUS
+                || errorCode == ErrorCode.LOTTERY_TICKET_INVALID_STATUS
                 || errorCode == ErrorCode.LOTTERY_TICKET_EXPIRED
                 || errorCode == ErrorCode.LOTTERY_TICKET_BOOKING_CLOSED
                 || errorCode == ErrorCode.LOTTERY_STATION_INVALID_DRAW_SCHEDULE
@@ -183,7 +195,8 @@ public class GlobalExceptionAdvice {
                 || errorCode == ErrorCode.REFUND_ORDER_ALREADY_REQUESTED
                 || errorCode == ErrorCode.REFUND_DAILY_LIMIT_EXCEEDED
                 || errorCode == ErrorCode.ORDER_INVALID_STATUS
-                || errorCode == ErrorCode.ORDER_NOT_FOUND) {
+                || errorCode == ErrorCode.ORDER_NOT_FOUND
+                || errorCode == ErrorCode.LOTTERY_TICKET_SERIALS_INCIDENT_INCOMPLETE) {
             return exception.getInternalMessage();
         }
 

@@ -1,10 +1,13 @@
+"use client";
+
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PurchasedTicket } from '../../../types/lottery-ticket.type';
-import { formatPrizePayoutCurrency } from '../../../types/prize-payout.type';
+import { formatPrizePayoutCurrency, PrizePayoutPreviewResponse } from '../../../types/prize-payout.type';
 import { useGetBankAccounts } from '../../hooks/useBankAccount';
 import { useCreatePrizePayout } from '../../hooks/usePrizePayout';
 import { BankAccountFormModal } from '../refund/BankAccountFormModal';
+import { prizePayoutService } from '../../services/prizePayoutService';
 import dayjs from 'dayjs';
 
 interface PrizePayoutRequestModalProps {
@@ -22,6 +25,8 @@ export const PrizePayoutRequestModal: React.FC<PrizePayoutRequestModalProps> = (
     const [step, setStep] = useState<1 | 2>(1);
     const [bankAccountId, setBankAccountId] = useState<number | ''>('');
     const [showBankForm, setShowBankForm] = useState(false);
+    const [preview, setPreview] = useState<PrizePayoutPreviewResponse | null>(null);
+    const [previewLoading, setPreviewLoading] = useState(false);
     const { data: bankAccountsData, isLoading: isLoadingBanks } = useGetBankAccounts(isOpen);
     const createMutation = useCreatePrizePayout();
 
@@ -31,7 +36,17 @@ export const PrizePayoutRequestModal: React.FC<PrizePayoutRequestModalProps> = (
         if (!isOpen) return;
         setStep(1);
         setBankAccountId('');
-    }, [isOpen, ticket.orderDetailId]);
+        setPreview(null);
+        setPreviewLoading(true);
+        prizePayoutService
+            .preview({ orderDetailId: ticket.orderDetailId, serialId: ticket.serialId })
+            .then((res) => {
+                if (res.success && res.data) {
+                    setPreview(res.data);
+                }
+            })
+            .finally(() => setPreviewLoading(false));
+    }, [isOpen, ticket.orderDetailId, ticket.serialId]);
 
     useEffect(() => {
         if (bankAccountId === '' && bankAccounts.length === 1) {
@@ -60,6 +75,11 @@ export const PrizePayoutRequestModal: React.FC<PrizePayoutRequestModalProps> = (
             }
         );
     };
+
+    const gross = preview?.grossAmount ?? ticket.prizeAmount;
+    const tax = preview?.taxAmount;
+    const commission = preview?.commissionAmount;
+    const net = preview?.netAmount;
 
     return (
         <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-black/50 p-0 sm:p-4">
@@ -102,37 +122,57 @@ export const PrizePayoutRequestModal: React.FC<PrizePayoutRequestModalProps> = (
                                 <span className="text-[#637381]">Giải</span>
                                 <span className="font-medium">{ticket.matchedPrizeDisplayName || ticket.matchedPrizeCode}</span>
                             </div>
-                            <div className="flex justify-between border-t border-dashed border-[#E5E8EB] pt-3">
-                                <span className="text-[#637381]">Tiền trúng (gross)</span>
-                                <span className="font-bold text-[#ee1314] text-[16px]">
-                                    {formatPrizePayoutCurrency(ticket.prizeAmount)}
-                                </span>
-                            </div>
+                            {previewLoading ? (
+                                <div className="text-[#637381] text-[13px]">Đang tính số tiền thực nhận…</div>
+                            ) : (
+                                <>
+                                    <div className="flex justify-between border-t border-dashed border-[#E5E8EB] pt-3">
+                                        <span className="text-[#637381]">Giá trị giải</span>
+                                        <span className="font-medium">{formatPrizePayoutCurrency(gross)}</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span className="text-[#637381]">Thuế TNCN</span>
+                                        <span className="font-medium">{formatPrizePayoutCurrency(tax)}</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span className="text-[#637381]">Hoa hồng đại lý</span>
+                                        <span className="font-medium">{formatPrizePayoutCurrency(commission)}</span>
+                                    </div>
+                                    <div className="flex justify-between border-t border-dashed border-[#E5E8EB] pt-3">
+                                        <span className="text-[#637381]">Thực nhận</span>
+                                        <span className="font-bold text-[#ee1314] text-[16px]">
+                                            {formatPrizePayoutCurrency(net ?? gross)}
+                                        </span>
+                                    </div>
+                                </>
+                            )}
                         </div>
+                        <p className="text-[12px] text-[#919EAB] m-0">
+                            Tên chủ tài khoản ngân hàng phải khớp tên khách hàng. Yêu cầu vẫn cần nhân viên duyệt trước khi chuyển tiền.
+                        </p>
                         <button
                             type="button"
                             onClick={() => setStep(2)}
-                            className="w-full py-3 bg-[#ee1314] text-white font-bold rounded-xl cursor-pointer"
+                            disabled={previewLoading || (preview != null && !preview.canClaimOnline)}
+                            className="w-full py-3 bg-[#ee1314] text-white font-bold rounded-xl cursor-pointer disabled:opacity-50"
                         >
                             Tiếp tục
                         </button>
                     </div>
                 ) : (
                     <div className="p-5 flex flex-col gap-4">
-                        <p className="text-[14px] text-[#637381]">Chọn tài khoản ngân hàng nhận thưởng</p>
+                        <p className="text-[14px] text-[#637381]">Chọn tài khoản nhận thưởng</p>
                         {isLoadingBanks ? (
-                            <p className="text-center text-[14px] text-[#637381] py-4">
-                                <i className="fa-solid fa-spinner fa-spin mr-2"></i>Đang tải...
-                            </p>
+                            <div className="text-[#637381] text-[14px]">Đang tải tài khoản…</div>
                         ) : bankAccounts.length === 0 ? (
-                            <div className="text-center py-4">
-                                <p className="text-[14px] text-[#637381] mb-3">Chưa có tài khoản ngân hàng</p>
+                            <div className="rounded-xl border border-dashed border-[#E5E8EB] p-4 text-center">
+                                <p className="text-[14px] text-[#637381] mb-3">Bạn chưa có tài khoản ngân hàng.</p>
                                 <button
                                     type="button"
                                     onClick={() => setShowBankForm(true)}
-                                    className="text-[#ee1314] font-bold text-[14px] cursor-pointer"
+                                    className="px-4 py-2 bg-[#212B36] text-white rounded-lg text-[13px] font-bold cursor-pointer"
                                 >
-                                    + Thêm tài khoản
+                                    Thêm tài khoản
                                 </button>
                             </div>
                         ) : (
@@ -140,9 +180,9 @@ export const PrizePayoutRequestModal: React.FC<PrizePayoutRequestModalProps> = (
                                 {bankAccounts.map((account) => (
                                     <label
                                         key={account.id}
-                                        className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer ${
+                                        className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer ${
                                             bankAccountId === account.id
-                                                ? 'border-[#ee1314] bg-[#FFF4F4]'
+                                                ? 'border-[#ee1314] bg-[#FFF5F5]'
                                                 : 'border-[#E5E8EB]'
                                         }`}
                                     >
@@ -151,38 +191,39 @@ export const PrizePayoutRequestModal: React.FC<PrizePayoutRequestModalProps> = (
                                             name="bankAccount"
                                             checked={bankAccountId === account.id}
                                             onChange={() => setBankAccountId(account.id)}
+                                            className="mt-1"
                                         />
-                                        <div className="flex-1 text-[14px]">
-                                            <p className="font-bold">{account.bankName}</p>
-                                            <p className="text-[#637381]">{account.bankAccountNo}</p>
-                                            <p className="text-[#637381] text-[13px]">{account.bankAccountName}</p>
+                                        <div className="flex flex-col gap-0.5 text-[13px]">
+                                            <span className="font-bold">{account.bankName}</span>
+                                            <span className="font-mono">{account.bankAccountNo}</span>
+                                            <span className="text-[#637381]">{account.bankAccountName}</span>
                                         </div>
                                     </label>
                                 ))}
                                 <button
                                     type="button"
                                     onClick={() => setShowBankForm(true)}
-                                    className="text-[#ee1314] font-bold text-[13px] text-left cursor-pointer mt-1"
+                                    className="text-[13px] text-[#ee1314] font-bold self-start cursor-pointer bg-transparent border-none"
                                 >
                                     + Thêm tài khoản khác
                                 </button>
                             </div>
                         )}
-                        <div className="flex gap-3">
+                        <div className="flex gap-2">
                             <button
                                 type="button"
                                 onClick={() => setStep(1)}
-                                className="flex-1 py-3 bg-[#F4F6F8] text-[#212B36] font-bold rounded-xl cursor-pointer"
+                                className="flex-1 py-3 border border-[#E5E8EB] rounded-xl font-bold cursor-pointer"
                             >
                                 Quay lại
                             </button>
                             <button
                                 type="button"
-                                disabled={bankAccountId === '' || createMutation.isPending}
                                 onClick={handleSubmit}
-                                className="flex-[2] py-3 bg-[#ee1314] text-white font-bold rounded-xl disabled:opacity-50 cursor-pointer"
+                                disabled={bankAccountId === '' || createMutation.isPending}
+                                className="flex-1 py-3 bg-[#ee1314] text-white font-bold rounded-xl cursor-pointer disabled:opacity-50"
                             >
-                                {createMutation.isPending ? 'Đang gửi...' : 'Gửi yêu cầu'}
+                                {createMutation.isPending ? 'Đang gửi…' : 'Gửi yêu cầu'}
                             </button>
                         </div>
                     </div>
@@ -192,10 +233,6 @@ export const PrizePayoutRequestModal: React.FC<PrizePayoutRequestModalProps> = (
             <BankAccountFormModal
                 isOpen={showBankForm}
                 onClose={() => setShowBankForm(false)}
-                onSuccess={(account) => {
-                    setBankAccountId(account.id);
-                    setShowBankForm(false);
-                }}
             />
         </div>
     );

@@ -57,6 +57,7 @@ public interface LotteryStationPersistenceMapper {
                 .minNumber(entity.getMinNumber())
                 .maxNumber(entity.getMaxNumber())
                 .stationCount(entity.getStationCount())
+                .defaultDrawTime(entity.getDefaultDrawTime())
                 .createdAt(entity.getCreatedAt())
                 .updatedAt(entity.getUpdatedAt())
                 .build();
@@ -75,6 +76,9 @@ public interface LotteryStationPersistenceMapper {
         entity.setMinNumber(model.getMinNumber());
         entity.setMaxNumber(model.getMaxNumber());
         entity.setStationCount(model.getStationCount());
+        entity.setDefaultDrawTime(model.getDefaultDrawTime() != null
+                ? model.getDefaultDrawTime()
+                : model.defaultDrawTimeOrFallback());
         return entity;
     }
 }

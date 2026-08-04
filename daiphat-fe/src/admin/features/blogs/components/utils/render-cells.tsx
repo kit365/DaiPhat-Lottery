@@ -1,3 +1,5 @@
+"use client";
+
 import { Avatar, Box, Link, ListItemText } from "@mui/material";
 import { PERMISSIONS } from "../../../../constants/permission.constants";
 

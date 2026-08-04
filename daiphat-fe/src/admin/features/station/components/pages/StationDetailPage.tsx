@@ -1,3 +1,5 @@
+"use client";
+
 import { Box, Stack, ThemeProvider, useTheme, createTheme, Button, Typography, CircularProgress, Chip } from "@mui/material"
 import { Breadcrumb } from "../../../../components/ui/Breadcrumb"
 import { Title } from "../../../../components/ui/Title"
@@ -52,7 +54,7 @@ export const StationDetailPage = () => {
         return <Box display="flex" justifyContent="center" alignItems="center" height="400px"><Typography>Không tìm thấy nhà đài.</Typography></Box>
     }
 
-    const regionLabel = REGION_LABELS[stationDetail.region] || stationDetail.region || 'N/A';
+    const regionLabel = stationDetail.region ? ((REGION_LABELS as any)[stationDetail.region] || stationDetail.region) : 'N/A';
 
     let drawDaysArray: string[] = [];
     if (Array.isArray(stationDetail.drawDays)) {
@@ -62,7 +64,7 @@ export const StationDetailPage = () => {
     }
 
     const drawDaysLabels = drawDaysArray
-        .map((day) => DAY_LABEL[day.trim()] || day.trim())
+        .map((day) => (DAY_LABEL as any)[day.trim()] || day.trim())
         .join(', ');
 
     return (
@@ -124,6 +126,11 @@ export const StationDetailPage = () => {
                                 </Box>
 
                                 <Box sx={{ gridColumn: { xs: "span 12", md: "span 4" } }}>
+                                    <Typography variant="caption" color="text.secondary">Tỉnh/Thành phố</Typography>
+                                    <Typography variant="body1" fontWeight={600}>{stationDetail.province || 'N/A'}</Typography>
+                                </Box>
+
+                                <Box sx={{ gridColumn: { xs: "span 12", md: "span 4" } }}>
                                     <Typography variant="caption" color="text.secondary">Thứ quay thưởng</Typography>
                                     <Typography variant="body1" fontWeight={600}>{drawDaysLabels || 'N/A'}</Typography>
                                 </Box>
@@ -133,6 +140,20 @@ export const StationDetailPage = () => {
                                     <Typography variant="body1" fontWeight={600}>{stationDetail.drawTime || 'N/A'}</Typography>
                                 </Box>
                                 
+                                <Box sx={{ gridColumn: { xs: "span 12", md: "span 4" } }}>
+                                    <Typography variant="caption" color="text.secondary">Giá vé</Typography>
+                                    <Typography variant="body1" fontWeight={600}>
+                                        {stationDetail.price != null ? `${new Intl.NumberFormat('vi-VN').format(Number(stationDetail.price))} VNĐ` : 'N/A'}
+                                    </Typography>
+                                </Box>
+
+                                <Box sx={{ gridColumn: { xs: "span 12", md: "span 4" } }}>
+                                    <Typography variant="caption" color="text.secondary">Tỉ lệ hoa hồng</Typography>
+                                    <Typography variant="body1" fontWeight={600}>
+                                        {(stationDetail as any).commissionRate != null ? `${Number((stationDetail as any).commissionRate) * 100}% (${(stationDetail as any).commissionRate})` : 'N/A'}
+                                    </Typography>
+                                </Box>
+
                                 <Box sx={{ gridColumn: { xs: "span 12", md: "span 4" } }}>
                                     <Typography variant="caption" color="text.secondary">Độ ưu tiên</Typography>
                                     <Typography variant="body1" fontWeight={600}>{stationDetail.priority !== undefined ? stationDetail.priority : 'N/A'}</Typography>

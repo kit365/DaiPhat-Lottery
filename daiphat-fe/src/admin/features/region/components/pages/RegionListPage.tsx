@@ -1,3 +1,5 @@
+"use client";
+
 import { useState } from "react";
 import { Breadcrumb } from "../../../../components/ui/Breadcrumb";
 import { Title } from "../../../../components/ui/Title";

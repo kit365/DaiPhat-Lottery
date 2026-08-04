@@ -1,3 +1,5 @@
+"use client";
+
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { lotteryService } from '../services/lotteryService';
 import { lotteryStationService } from '../services/lotteryStationService';

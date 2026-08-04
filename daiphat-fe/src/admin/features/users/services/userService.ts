@@ -5,12 +5,17 @@ import { UserQueryParams, CreateUserRequest, UpdateUserRequest } from "../types/
 
 const BASE_URL = "/users";
 
-const normalizeUser = (user: any): User => ({
-    ...user,
-    phone: user?.phoneNumber || user?.phone,
-    fullName: user?.fullName || `${user?.firstName || ''} ${user?.lastName || ''}`.trim() || user?.username || user?.email,
-    avatar: user?.avatarUrl || user?.avatar,
-    status: user?.status ? user.status.toUpperCase() : 'PENDING'
+const normalizeUser = (user?: Partial<User> | null): User => ({
+    ...(user || {}),
+    id: (user?.id as string) || '',
+    username: (user?.username as string) || '',
+    email: (user?.email as string) || '',
+    firstName: (user?.firstName as string) || '',
+    lastName: (user?.lastName as string) || '',
+    phone: (user?.phoneNumber as string) || (user?.phone as string) || '',
+    fullName: (user?.fullName as string) || `${user?.firstName || ''} ${user?.lastName || ''}`.trim() || (user?.username as string) || (user?.email as string) || '',
+    avatar: (user?.avatarUrl as string) || (user?.avatar as string) || '',
+    status: user?.status ? String(user.status).toUpperCase() : 'PENDING'
 });
 
 const normalizeAccountPayload = (data: CreateUserRequest | UpdateUserRequest) => {

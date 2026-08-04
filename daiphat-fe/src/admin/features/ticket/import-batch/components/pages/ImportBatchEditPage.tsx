@@ -1,3 +1,5 @@
+"use client";
+
 import {
     Alert,
     Box,
@@ -32,7 +34,6 @@ import { prefixAdmin, ROUTES } from '../../../../../constants/routes';
 import {
     useEligibleImportBatchStations,
     useImportBatchDetail,
-    useImportBatchTimePolicy,
     usePauseImportBatchLine,
     useResumeImportBatchLine,
     useUpdateImportBatch,
@@ -87,6 +88,7 @@ import {
 } from '../../utils/importBatchDeclareQuantityAdjustment';
 import { formatViInteger, parseNonNegativeIntegerInput } from '../../../../supplier';
 import { computeImportBatchTotals } from '../../utils/importBatchTotals';
+import { formatImportCost } from '../../utils/importCostCalculator';
 import { computeImportBatchRowLimit, IMPORT_BATCH_ROW_LIMIT_MESSAGE } from '../../utils/importBatchRowLimit';
 import {
     buildFormValuesFromBatch,
@@ -110,7 +112,7 @@ import type { ImportBatch, ImportBatchEligibleStation, UpdateImportBatchPayload 
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Controller, useFieldArray, useForm, useWatch, type Resolver } from 'react-hook-form';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from '@/components/router-compat';
 import { toast } from 'react-toastify';
 import dayjs from 'dayjs';
 import { confirmAction, confirmDelete } from '../../../../../utils/swal';
@@ -118,7 +120,7 @@ import { confirmAction, confirmDelete } from '../../../../../utils/swal';
 const emptyLine = (): UpdateImportBatchLineFormValues => ({
     lotteryStationId: 0,
     declareQuantity: 1,
-    importCost: 10000,
+    importCost: 0,
     resolvedBatchType: undefined,
     removed: false,
 });
@@ -163,7 +165,6 @@ export const ImportBatchEditPage = () => {
         () => (providersRes as { data?: { recordList?: Array<{ id?: number; _id?: number; name?: string }> } })?.data?.recordList ?? [],
         [providersRes]
     );
-    const { data: timePolicy } = useImportBatchTimePolicy();
     const formInitializedForBatchIdRef = useRef<string | null>(null);
     const [initializedBatchId, setInitializedBatchId] = useState<string | null>(null);
     const [highlightedRowIndices, setHighlightedRowIndices] = useState<Set<number>>(new Set());
@@ -200,17 +201,12 @@ export const ImportBatchEditPage = () => {
     const lines = useWatch({ control, name: 'lines' }) ?? [];
 
     const importModeForStations = useMemo(() => {
-        const lock = resolveImportModeLock(
-            drawDate,
-            [],
-            timePolicy?.importBatchCutoffTime,
-            !!drawDate
-        );
+        const lock = resolveImportModeLock(drawDate);
         if (lock.locked) {
             return lock.mode;
         }
         return importMode ?? batch?.importMode ?? 'IN_DAY';
-    }, [drawDate, importMode, batch?.importMode, timePolicy?.importBatchCutoffTime]);
+    }, [drawDate, importMode, batch?.importMode]);
 
     const { data: stationsResult, isLoading: isLoadingStations } = useEligibleImportBatchStations(
         drawDate,
@@ -220,16 +216,7 @@ export const ImportBatchEditPage = () => {
     const eligibleStations = stationsResult?.eligible ?? [];
     const blockedStations = stationsResult?.blocked ?? [];
 
-    const importModeLock = useMemo(
-        () =>
-            resolveImportModeLock(
-                drawDate,
-                eligibleStations,
-                timePolicy?.importBatchCutoffTime,
-                !isLoadingStations
-            ),
-        [drawDate, eligibleStations, timePolicy?.importBatchCutoffTime, isLoadingStations]
-    );
+    const importModeLock = useMemo(() => resolveImportModeLock(drawDate), [drawDate]);
 
     const resolvedImportMode = importModeLock.locked ? importModeLock.mode : importMode;
     const showSharedReceipt = batchUsesSharedInvoice(resolvedImportMode);
@@ -1266,7 +1253,7 @@ export const ImportBatchEditPage = () => {
                                                     drawDate={drawDate}
                                                     eligibleStations={displayEligibleStations}
                                                     declareQuantity={line?.declareQuantity ?? 0}
-                                                    importCost={line?.importCost ?? 10000}
+                                                    importCost={line?.importCost ?? 0}
                                                     lotteryStationId={line?.lotteryStationId ?? 0}
                                                     resolvedBatchType={line?.resolvedBatchType}
                                                     selectedStationIdsInOtherRows={
@@ -1332,7 +1319,7 @@ export const ImportBatchEditPage = () => {
                             >
                                 <Typography variant="body2">
                                     <strong>Tổng giá trị lô vé nhập:</strong>{' '}
-                                    {totals.totalCost.toLocaleString('vi-VN')} VNĐ
+                                    {formatImportCost(totals.totalCost)} VNĐ
                                 </Typography>
                             </Box>
 

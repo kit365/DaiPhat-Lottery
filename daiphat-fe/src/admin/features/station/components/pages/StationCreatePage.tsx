@@ -1,3 +1,5 @@
+"use client";
+
 import { Box, Stack, TextField, ThemeProvider, useTheme, createTheme, MenuItem, Typography } from "@mui/material"
 import { REGION_DATA } from "../../../../constants/region.constants";
 import { DAYS_OF_WEEK } from "../../../../constants/schedule.constants";
@@ -10,6 +12,7 @@ import { useState, useMemo, type Dispatch, type SetStateAction } from "react";
 import { CollapsibleCard } from "../../../../components/ui/CollapsibleCard";
 import { useCreateStation, useUploadStationImage } from "../../hooks/useStation";
 import { useRegions } from "../../../region/hooks/useRegion";
+import { formatRegionDefaultDrawTime } from "../../../region/types/region.type";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm, Controller } from "react-hook-form";
 import { CreateStationFormValues, createStationSchema } from "../../schemas/station.schema";
@@ -64,7 +67,7 @@ export const StationCreatePage = () => {
         watch,
         setValue
     } = useForm<CreateStationFormValues>({
-        resolver: zodResolver(createStationSchema),
+        resolver: zodResolver(createStationSchema) as any,
         defaultValues: {
             name: "",
             description: "",
@@ -82,7 +85,22 @@ export const StationCreatePage = () => {
     const regions = regionsRes?.data || [];
 
     const regionValue = watch("region");
-    const provinceOptions = regionValue ? REGION_DATA[regionValue] || [] : [];
+    const provinceValue = watch("province");
+
+    const provinceOptions = useMemo(() => {
+        const baseOptions = regionValue ? REGION_DATA[regionValue] || [] : [];
+        if (provinceValue && !baseOptions.includes(provinceValue)) {
+            return [provinceValue, ...baseOptions];
+        }
+        return baseOptions;
+    }, [regionValue, provinceValue]);
+
+    const applyRegionDefaultDrawTime = (regionCode: string) => {
+        const selectedRegion = regions.find((option) => option.code === regionCode);
+        if (selectedRegion?.defaultDrawTime) {
+            setValue("drawTime", formatRegionDefaultDrawTime(selectedRegion.defaultDrawTime));
+        }
+    };
 
     const { mutate: create, isPending } = useCreateStation();
     const { mutate: uploadImage, isPending: isUploadingImage } = useUploadStationImage();
@@ -257,8 +275,10 @@ export const StationCreatePage = () => {
                                                     error={!!fieldState.error}
                                                     helperText={fieldState.error?.message}
                                                     onChange={(e) => {
-                                                        field.onChange(e);
-                                                        setValue("province", ""); // reset province when region changes
+                                                        const nextRegion = e.target.value;
+                                                        field.onChange(nextRegion);
+                                                        setValue("province", "");
+                                                        applyRegionDefaultDrawTime(nextRegion);
                                                     }}
                                                     fullWidth
                                                 >

@@ -1,3 +1,5 @@
+"use client";
+
 import { Button, Popover, Stack, TextField, Typography } from "@mui/material";
 import { InsertImageIcon } from "../../../../assets/icons";
 import { ButtonTiptap } from "./ButtonTiptap";

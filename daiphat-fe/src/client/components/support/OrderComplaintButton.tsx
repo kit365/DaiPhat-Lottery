@@ -1,3 +1,5 @@
+"use client";
+
 import { useState, type MouseEvent } from 'react';
 import { useGetOrderComplaintEligibility } from '../../hooks/useSupportTicket';
 import { AppToast } from '../../../utils/toast.util';

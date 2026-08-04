@@ -1,3 +1,5 @@
+"use client";
+
 import WarningAmberOutlinedIcon from '@mui/icons-material/WarningAmberOutlined';
 import {
     Alert,
@@ -12,7 +14,7 @@ import {
 } from '@mui/material';
 import dayjs from 'dayjs';
 import { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from '@/components/router-compat';
 import type { ImportBatch } from '../../types/importBatch.type';
 import { ROUTES } from '../../../../../constants/routes';
 import { useStations } from '../../../../station/hooks/useStation';
@@ -20,6 +22,7 @@ import { useIncompleteImportBatches } from '../../hooks/useImportBatch';
 import { formatImportBatchHeaderCode } from '../../utils/importBatchCode';
 import {
     getImportModeBadgeClass,
+    getImportModeChipColor,
     getImportModeNotificationLabel,
 } from '../../utils/batchTypeLabels';
 import {
@@ -40,6 +43,9 @@ type IncompleteBatchItemProps = {
     onContinue: () => void;
 };
 
+// 6 cột đồng bộ với ImportBatchNotificationDetailDialog
+const GRID_COLS = 'minmax(0,1.3fr) 100px 140px minmax(0,1.2fr) minmax(120px,1fr) auto';
+
 const IncompleteBatchItem = ({
     batch,
     resolveStationName,
@@ -58,57 +64,95 @@ const IncompleteBatchItem = ({
         ? dayjs(batch.drawDate).format('DD/MM/YYYY')
         : '—';
 
+    // Màu chip hình thức nhập
+    const modeBgMap: Record<string, string> = {
+        warning: 'rgba(237,108,2,0.12)',
+        secondary: 'rgba(156,39,176,0.12)',
+        info: 'rgba(2,136,209,0.12)',
+        success: 'rgba(46,125,50,0.12)',
+        primary: 'rgba(25,118,210,0.12)',
+        error: 'rgba(211,47,47,0.12)',
+    };
+    const modeChipColor = getImportModeChipColor(batch.importMode);
+    const modeBg = modeBgMap[modeChipColor] ?? 'rgba(0,0,0,0.06)';
+
     return (
         <Box
             sx={{
                 display: 'grid',
                 gridTemplateColumns: {
                     xs: '1fr',
-                    md: 'minmax(0, 1.4fr) minmax(88px, 0.7fr) minmax(0, 1.6fr) minmax(120px, 1fr) auto',
+                    md: GRID_COLS,
                 },
-                gap: { xs: 1, md: 2 },
+                gap: { xs: 1, md: 1.5 },
                 alignItems: 'center',
                 py: 1.25,
             }}
         >
-            <Stack
-                direction="row"
-                spacing={0.75}
-                alignItems="center"
-                useFlexGap
-                flexWrap="wrap"
-                sx={{ minWidth: 0 }}
-            >
+            {/* Cột 1: Mã phiếu + Nhà cung cấp */}
+            <Stack spacing={0.25} sx={{ minWidth: 0 }}>
                 <Typography variant="body2" fontWeight={700} noWrap>
                     {formatImportBatchHeaderCode(batch.batchCode, batch.id)}
                 </Typography>
-                <span className={`admin-status-badge ${getImportModeBadgeClass(batch.importMode)}`}>
-                    {getImportModeNotificationLabel(batch.importMode)}
-                </span>
+                <Typography variant="caption" color="text.secondary" noWrap>
+                    {batch.supplierName || '—'}
+                </Typography>
             </Stack>
 
+            {/* Cột 2: Ngày quay */}
             <Typography variant="body2" color="text.secondary" sx={{ whiteSpace: 'nowrap' }}>
                 {drawDateLabel}
             </Typography>
 
+            {/* Cột 3: Hình thức nhập */}
+            <Box>
+                <Box
+                    component="span"
+                    sx={{
+                        display: 'inline-block',
+                        px: 1,
+                        py: 0.25,
+                        borderRadius: 1,
+                        bgcolor: modeBg,
+                        fontSize: '0.75rem',
+                        fontWeight: 600,
+                        color: `${modeChipColor}.main`,
+                        whiteSpace: 'nowrap',
+                    }}
+                >
+                    {getImportModeNotificationLabel(batch.importMode)}
+                </Box>
+            </Box>
+
+            {/* Cột 4: Đài còn thiếu */}
             <Tooltip title={stationLabel} disableHoverListener={stationNames.length <= 2}>
                 <Typography variant="body2" color="text.secondary" noWrap sx={{ minWidth: 0 }}>
                     {stationLabel}
                 </Typography>
             </Tooltip>
 
+            {/* Cột 5: Tiến độ */}
             <Stack spacing={0.5} sx={{ minWidth: 0 }}>
                 <Typography variant="caption" color="text.secondary" sx={{ whiteSpace: 'nowrap' }}>
                     {progress.imported} / {progress.declared} vé
+                    {progress.declared > 0 && (
+                        <Box
+                            component="span"
+                            sx={{ ml: 0.5, color: 'warning.main', fontWeight: 600 }}
+                        >
+                            ({progress.percentLabel})
+                        </Box>
+                    )}
                 </Typography>
                 <LinearProgress
                     variant="determinate"
                     value={progress.percent}
                     color="warning"
-                    sx={{ height: 4, borderRadius: 1 }}
+                    sx={{ height: 5, borderRadius: 1 }}
                 />
             </Stack>
 
+            {/* Cột 6: Hành động */}
             <Button
                 size="small"
                 variant="contained"
@@ -267,9 +311,8 @@ export const IncompleteImportBatchNotification = ({
                 <Box
                     sx={{
                         display: { xs: 'none', md: 'grid' },
-                        gridTemplateColumns:
-                            'minmax(0, 1.4fr) minmax(88px, 0.7fr) minmax(0, 1.6fr) minmax(120px, 1fr) auto',
-                        gap: 2,
+                        gridTemplateColumns: GRID_COLS,
+                        gap: 1.5,
                         py: 0.75,
                         borderBottom: '1px dashed var(--palette-background-neutral)',
                     }}
@@ -278,13 +321,19 @@ export const IncompleteImportBatchNotification = ({
                         variant="caption"
                         sx={{ color: 'var(--palette-text-secondary)', fontWeight: 600 }}
                     >
-                        Mã phiếu
+                        Mã phiếu / Nhà cung cấp
                     </Typography>
                     <Typography
                         variant="caption"
                         sx={{ color: 'var(--palette-text-secondary)', fontWeight: 600 }}
                     >
                         Ngày quay
+                    </Typography>
+                    <Typography
+                        variant="caption"
+                        sx={{ color: 'var(--palette-text-secondary)', fontWeight: 600 }}
+                    >
+                        Hình thức
                     </Typography>
                     <Typography
                         variant="caption"

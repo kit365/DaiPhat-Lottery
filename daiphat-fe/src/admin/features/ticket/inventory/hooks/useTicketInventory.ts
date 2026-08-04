@@ -1,9 +1,12 @@
+"use client";
+
 import { QUERY_KEYS } from '../constants/queryKeys';
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { deleteTicket } from '../services/ticketService';
 import { useTickets } from './useTicket';
 import { resolveAvailableTicketQuantity } from '../utils/ticketQuantity';
+import { buildTicketStatusFilterOptions } from '../constants/ticket-status.config';
 
 interface ITicketFilters {
     status?: string[];
@@ -50,14 +53,40 @@ export const useTicketInventory = (initialFilters?: Partial<ITicketFilters>) => 
         [filters]
     );
 
+    const statusDiscoveryParams = useMemo(
+        () => ({
+            search: filters.search || undefined,
+            stationId: filters.provider && filters.provider.length > 0 ? filters.provider.join(',') : undefined,
+            drawDate: filters.drawDate && filters.drawDate.length > 0 ? filters.drawDate.join(',') : undefined,
+            drawDateFrom: filters.drawDateFrom || undefined,
+            drawDateTo: filters.drawDateTo || undefined,
+            importBatchLineId: filters.importBatchLineId || undefined,
+            page: 1,
+            limit: 1000,
+        }),
+        [
+            filters.search,
+            filters.provider,
+            filters.drawDate,
+            filters.drawDateFrom,
+            filters.drawDateTo,
+            filters.importBatchLineId,
+        ]
+    );
+
+    const { data: statusDiscoveryData } = useTickets(statusDiscoveryParams, {
+        placeholderData: keepPreviousData,
+    });
+
     const { data, isLoading, error } = useTickets(queryParams, {
         placeholderData: keepPreviousData,
     });
 
     const tickets = useMemo(() => {
-        if (!data?.data?.recordList) return [];
+        const d = (data as any)?.data || (data as any);
+        if (!d?.recordList) return [];
 
-        return data.data.recordList.map((item: any) => ({
+        return d.recordList.map((item: any) => ({
             ...item,
             id: item.id || item._id,
             providerName: item.productName || item.providerName || item.stationName || 'Không xác định',
@@ -75,7 +104,26 @@ export const useTicketInventory = (initialFilters?: Partial<ITicketFilters>) => 
         }));
     }, [data]);
 
-    const pagination = data?.data?.pagination || {
+    const availableTicketStatusOptions = useMemo(
+        () => buildTicketStatusFilterOptions(((statusDiscoveryData as any)?.data?.recordList || (statusDiscoveryData as any)?.recordList) ?? []),
+        [statusDiscoveryData]
+    );
+
+    useEffect(() => {
+        if (!filters.status || filters.status.length === 0) {
+            return;
+        }
+
+        const validStatuses = filters.status.filter((status) =>
+            availableTicketStatusOptions.some((option) => option.value === status)
+        );
+
+        if (validStatuses.length !== filters.status.length) {
+            setFilters((prev) => ({ ...prev, status: validStatuses, page: 1 }));
+        }
+    }, [availableTicketStatusOptions, filters.status]);
+
+    const pagination = (data as any)?.data?.pagination || (data as any)?.pagination || {
         totalRecords: 0,
         totalPages: 0,
         currentPage: 1,
@@ -131,6 +179,7 @@ export const useTicketInventory = (initialFilters?: Partial<ITicketFilters>) => 
     return {
         tickets,
         pagination,
+        availableTicketStatusOptions,
         isLoading,
         error,
         filters,

@@ -10,7 +10,9 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.Locale;
+import com.daiphat.coreapi.shared.util.LotteryRegionDrawScheduleDefaults;
 
 @Getter
 @Setter
@@ -26,6 +28,7 @@ public class LotteryRegionModel {
     private Integer minNumber;
     private Integer maxNumber;
     private Integer stationCount;
+    private LocalTime defaultDrawTime;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
@@ -78,5 +81,19 @@ public class LotteryRegionModel {
     public void decreaseStationCount() {
         int current = this.stationCount != null ? this.stationCount : 0;
         this.stationCount = Math.max(0, current - 1);
+    }
+
+    public LocalTime defaultDrawTimeOrFallback() {
+        if (defaultDrawTime != null) {
+            return defaultDrawTime;
+        }
+        if (code != null && !code.isBlank()) {
+            return LotteryRegionDrawScheduleDefaults.fallbackForCode(code);
+        }
+        return LotteryRegionDrawScheduleDefaults.fallbackForCode("MIEN_NAM");
+    }
+
+    public String formattedDefaultDrawTime() {
+        return LotteryRegionDrawScheduleDefaults.formatTime(defaultDrawTimeOrFallback());
     }
 }

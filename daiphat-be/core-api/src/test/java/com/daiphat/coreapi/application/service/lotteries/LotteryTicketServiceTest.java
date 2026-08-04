@@ -117,10 +117,16 @@ class LotteryTicketServiceTest {
     private com.daiphat.coreapi.shared.util.ImportBatchDraftExpiryService importBatchDraftExpiryService;
 
     @Mock
+    private com.daiphat.coreapi.application.port.in.lotteries.SupplierSettlementServicePort supplierSettlementServicePort;
+
+    @Mock
     private com.daiphat.coreapi.application.port.out.order.OrderRepositoryPort orderRepositoryPort;
 
     @Mock
     private org.springframework.context.ApplicationEventPublisher applicationEventPublisher;
+
+    @Mock
+    private LotteryTicketAggregateSyncService lotteryTicketAggregateSyncService;
 
     private LotteryStationModel productModel;
     private CreateLotteryTicketRequest createRequest;
@@ -137,12 +143,14 @@ class LotteryTicketServiceTest {
                 importBatchRepositoryPort,
                 importBatchLineRepositoryPort,
                 importBatchDraftExpiryService,
+                supplierSettlementServicePort,
                 lotteryStationServicePort,
                 lotteryTicketApplicationMapper,
                 lotteryTicketSerialService,
                 storagePort,
                 orderRepositoryPort,
-                applicationEventPublisher
+                applicationEventPublisher,
+                lotteryTicketAggregateSyncService
         );
 
         productModel = LotteryStationModel.builder()
@@ -1514,7 +1522,9 @@ class LotteryTicketServiceTest {
 
         assertThat(existingModel.isDeleted()).isTrue();
         verify(lotteryTicketSerialRepositoryPort).save(argThat(s ->
-                s.getStatus() == LotteryTicketSerialStatus.VOIDED && s.getFaultedBy() == com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialFaultedBy.DATA_ENTRY_FAULT));
+                s.getTicketCondition() == com.daiphat.coreapi.domain.model.enums.lottery.TicketCondition.VOIDED
+                        && s.getStatus() == LotteryTicketSerialStatus.IN_STOCK
+                        && s.getFaultedBy() == com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialFaultedBy.DATA_ENTRY_FAULT));
         verify(lotteryTicketSerialRepositoryPort).save(argThat(s ->
                 s.getTicketId().equals(REPLACEMENT_TICKET_ID) && Long.valueOf(1L).equals(s.getReplacedForTicketId())));
         // Old ticket is loaded once up front, then soft-deleted — never recomputed afterwards.
@@ -1540,5 +1550,64 @@ class LotteryTicketServiceTest {
         verify(applicationEventPublisher, never()).publishEvent(any(LotteryTicketProxyExpiredEvent.class));
     }
 
+    @Test
+    @DisplayName("FINALIZE_INCIDENT_CANCEL: Thành công khi tất cả sê-ri đã DAMAGED hoặc LOST condition")
+    void finalizeIncidentCancel_succeedsWhenAllSerialsFaulty() {
+        LotteryTicketSerialModel damagedSerial = LotteryTicketSerialModel.builder()
+                .id(1L)
+                .ticketId(TICKET_ID)
+                .serialNumber("SN001")
+                .status(LotteryTicketSerialStatus.IN_STOCK)
+                .ticketCondition(com.daiphat.coreapi.domain.model.enums.lottery.TicketCondition.DAMAGED)
+                .build();
+        LotteryTicketSerialModel lostSerial = LotteryTicketSerialModel.builder()
+                .id(2L)
+                .ticketId(TICKET_ID)
+                .serialNumber("SN002")
+                .status(LotteryTicketSerialStatus.IN_STOCK)
+                .ticketCondition(com.daiphat.coreapi.domain.model.enums.lottery.TicketCondition.LOST)
+                .build();
+
+        when(lotteryTicketRepositoryPort.findById(TICKET_ID)).thenReturn(Optional.of(existingModel));
+        when(lotteryTicketSerialService.findAllByTicketId(TICKET_ID)).thenReturn(List.of(damagedSerial, lostSerial));
+        when(lotteryTicketApplicationMapper.toResponse(existingModel)).thenReturn(mappedResponse);
+
+        LotteryTicketResponse response = lotteryTicketService.finalizeIncidentCancel(TICKET_ID);
+
+        assertThat(response).isEqualTo(mappedResponse);
+        verify(lotteryTicketAggregateSyncService).syncTicketAggregate(TICKET_ID);
+    }
+
+    @Test
+    @DisplayName("FINALIZE_INCIDENT_CANCEL: Từ chối khi còn sê-ri chưa báo sự cố")
+    void finalizeIncidentCancel_rejectsWhenSerialsIncomplete() {
+        LotteryTicketSerialModel damagedSerial = LotteryTicketSerialModel.builder()
+                .id(1L)
+                .ticketId(TICKET_ID)
+                .serialNumber("SN001")
+                .status(LotteryTicketSerialStatus.IN_STOCK)
+                .ticketCondition(com.daiphat.coreapi.domain.model.enums.lottery.TicketCondition.DAMAGED)
+                .build();
+        LotteryTicketSerialModel pendingSerial = LotteryTicketSerialModel.builder()
+                .id(2L)
+                .ticketId(TICKET_ID)
+                .serialNumber("SN002")
+                .status(LotteryTicketSerialStatus.IN_STOCK)
+                .ticketCondition(com.daiphat.coreapi.domain.model.enums.lottery.TicketCondition.GOOD)
+                .build();
+
+        when(lotteryTicketRepositoryPort.findById(TICKET_ID)).thenReturn(Optional.of(existingModel));
+        when(lotteryTicketSerialService.findAllByTicketId(TICKET_ID)).thenReturn(List.of(damagedSerial, pendingSerial));
+
+        assertThatThrownBy(() -> lotteryTicketService.finalizeIncidentCancel(TICKET_ID))
+                .isInstanceOf(DomainException.class)
+                .satisfies(ex -> {
+                    DomainException domainException = (DomainException) ex;
+                    assertThat(domainException.getErrorCode()).isEqualTo(ErrorCode.LOTTERY_TICKET_SERIALS_INCIDENT_INCOMPLETE);
+                    assertThat(domainException.getInternalMessage()).contains("SN002");
+                });
+
+        verify(lotteryTicketAggregateSyncService, never()).syncTicketAggregate(any());
+    }
 
 }

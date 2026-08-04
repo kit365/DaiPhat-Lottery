@@ -60,6 +60,14 @@ daiphat:
       closing-time: "14:00"
       window-minutes: 30
       timezone: Asia/Ho_Chi_Minh
+  fortune:
+    # When true, one cast per Vietnam calendar day (production). Set false for local testing.
+    daily-limit-enabled: ${FORTUNE_DAILY_LIMIT_ENABLED:true}
+    ai:
+      service:
+        base-url: ${DAIPHAT_AI_BASE_URL}
+        connect-timeout-ms: 3000
+        read-timeout-ms: 5000
   chat:
     ai:
       confidence-threshold: 0.7
@@ -79,6 +87,11 @@ daiphat:
         auto-close-warning-lead-minutes: 5
         staff-response-sla-minutes: 15
         scheduler-rate-ms: 10000
+    spam:
+      soft-cooldown-minutes: 60
+      repeat-threshold: 3
+      repeat-window-hours: 24
+      repeat-cooldown-hours: 24
   lottery:
     seed:
       southern-stations:

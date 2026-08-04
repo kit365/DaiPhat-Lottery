@@ -1,3 +1,5 @@
+"use client";
+
 import { useQuery } from '@tanstack/react-query';
 import { supportTicketService } from '../services/supportTicketService';
 import { QUERY_KEYS } from '../../constants/queryKeys';

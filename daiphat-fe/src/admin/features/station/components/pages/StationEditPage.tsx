@@ -1,3 +1,5 @@
+"use client";
+
 import { Box, Stack, TextField, ThemeProvider, useTheme, CircularProgress, createTheme, MenuItem, Typography } from "@mui/material";
 import { REGION_DATA } from "../../../../constants/region.constants";
 import { DAYS_OF_WEEK } from "../../../../constants/schedule.constants";
@@ -79,13 +81,14 @@ export const StationEditPage = () => {
         watch,
         setValue,
     } = useForm<CreateStationFormValues>({
-        resolver: zodResolver(createStationSchema),
+        resolver: zodResolver(createStationSchema) as any,
         defaultValues: {
             name: "",
             description: "",
             status: "active",
             type: "TRADITIONAL",
             price: 10000,
+            commissionRate: 0.1,
             province: "",
             region: "",
             numberLength: 6,
@@ -99,9 +102,16 @@ export const StationEditPage = () => {
 
     const { data: regionsRes } = useRegions();
     const regions = regionsRes?.data || [];
-
     const regionValue = watch("region");
-    const provinceOptions = regionValue ? REGION_DATA[regionValue] || [] : [];
+    const provinceValue = watch("province");
+
+    const provinceOptions = useMemo(() => {
+        const baseOptions = regionValue ? REGION_DATA[regionValue] || [] : [];
+        if (provinceValue && !baseOptions.includes(provinceValue)) {
+            return [provinceValue, ...baseOptions];
+        }
+        return baseOptions;
+    }, [regionValue, provinceValue]);
 
     useEffect(() => {
         if (detailRes) {
@@ -111,6 +121,7 @@ export const StationEditPage = () => {
                 status: (detailRes.status === "inactive" ? "inactive" : "active") as "active" | "inactive",
                 type: detailRes.type || "TRADITIONAL",
                 price: detailRes.price || 10000,
+                commissionRate: (detailRes as any).commissionRate !== undefined && (detailRes as any).commissionRate !== null ? (detailRes as any).commissionRate : "",
                 province: detailRes.province || "",
                 region: detailRes.region || "",
                 numberLength: detailRes.numberLength || 6,
@@ -193,7 +204,6 @@ export const StationEditPage = () => {
                                                     label="Tên nhà đài"
                                                     error={!!fieldState.error}
                                                     helperText={fieldState.error?.message}
-                                                    disabled
                                                     fullWidth
                                                 />
                                             )}
@@ -289,7 +299,7 @@ export const StationEditPage = () => {
                                                     label="Tỉnh/Thành phố"
                                                     error={!!fieldState.error}
                                                     helperText={fieldState.error?.message}
-                                                    disabled
+                                                    disabled={!regionValue}
                                                     fullWidth
                                                 >
                                                     {provinceOptions.map((prov) => (

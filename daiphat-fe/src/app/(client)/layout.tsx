@@ -1,0 +1,25 @@
+import { Suspense } from 'react';
+import { Header } from '@/client/components/layout/header';
+import { Footer } from '@/client/components/layout/Footer';
+import { LoadingSpinner } from '@/client/components/ui/LoadingSpinner';
+import { ClientHeaderGuard } from '@/client/components/layout/ClientHeaderGuard';
+import { ClientGlobalWidgets } from '@/client/components/layout/ClientGlobalWidgets';
+
+export default function ClientLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="client-theme min-h-screen text-inherit font-inherit flex flex-col relative">
+      <ClientHeaderGuard>
+        <Header />
+      </ClientHeaderGuard>
+      <div className="flex-1 flex flex-col">
+        <Suspense fallback={<LoadingSpinner />}>
+          {children}
+        </Suspense>
+      </div>
+      <Footer />
+      <ClientGlobalWidgets />
+    </div>
+  );
+}
+
+

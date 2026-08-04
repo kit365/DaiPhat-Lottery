@@ -53,7 +53,7 @@ public class LotteryTicketEntity extends BaseEntity {
     private String batchCode;
 
 
-    @org.hibernate.annotations.Formula("(select count(s.id) from lottery_ticket_serials s where s.ticket_id = id and s.status = 'IN_STOCK' and s.deleted_at is null)")
+    @org.hibernate.annotations.Formula("(select count(s.id) from lottery_ticket_serials s where s.ticket_id = id and s.status = 'IN_STOCK' and s.ticket_condition = 'GOOD' and s.return_batch_line_id is null and s.deleted_at is null)")
     private Integer quantity;
 
     @Column(name = "price_snapshot", nullable = false, precision = 15)
@@ -67,6 +67,9 @@ public class LotteryTicketEntity extends BaseEntity {
     @Column(name = "is_active", nullable = false)
     @Builder.Default
     private Boolean active = true;
+
+    @Column(name = "status_reason", length = 500)
+    private String statusReason;
 
     @OneToMany(mappedBy = "ticket", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default

@@ -15,7 +15,7 @@ export const IMPORT_BATCH_CODE_PATTERN = IMPORT_BATCH_LINE_CODE_PATTERN;
 const TYPE_SEGMENT_LABELS: Record<string, ImportBatchType> = {
     NEW: 'NEW',
     SUPP: 'SUPPLEMENTARY',
-    LATE: 'LATE_IMPORT',
+    LATE: 'NEW',
     ADJ: 'ADJUSTMENT',
 };
 

@@ -1,3 +1,5 @@
+"use client";
+
 import { Box, Stack, TextField, ThemeProvider, useTheme, CircularProgress, FormControl, InputLabel, Select, MenuItem, FormHelperText, Autocomplete, createTheme } from "@mui/material";
 import { LoadingButton } from "../../../../components/ui/LoadingButton";
 import { Breadcrumb } from "../../../../components/ui/Breadcrumb";
@@ -19,12 +21,7 @@ import { useParams } from "react-router-dom";
 import { useNestedBlogCategories } from "../../hooks/useBlogCategory";
 import { CategoryTreeSelectGeneric } from "../../../../components/ui/CategoryTreeSelectGeneric";
 import { confirmAction } from "../../../../utils/swal";
-
-const getMinScheduleValue = () => {
-    const now = new Date();
-    now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
-    return now.toISOString().slice(0, 16);
-};
+import { getMinScheduleValue } from "../utils/blogForm.utils";
 
 export const BlogEditPage = () => {
     const { id } = useParams();
@@ -74,9 +71,9 @@ export const BlogEditPage = () => {
                 content: detailRes.content || "",
                 avatar: detailRes.avatar || "",
                 category: detailRes.category || [],
-                status: detailRes.status || BLOG_STATUS.DRAFT,
+                status: (detailRes.status as any) || BLOG_STATUS.DRAFT,
                 type: detailRes.type || "blog",
-                tags: detailRes.tags || [],
+                tags: (detailRes.tags || []) as any,
                 scheduledAt: detailRes.scheduledAt || null,
             });
         }
@@ -142,12 +139,12 @@ export const BlogEditPage = () => {
                 scheduledAt: nextStatus === BLOG_STATUS.SCHEDULED ? normalizedScheduledAt : null,
             };
 
-            update({ id: id!, data: payload }, {
+            update({ id: id!, data: payload as any }, {
                 onSuccess: (response) => {
                     if (response.success) {
                         toast.success(response.message || "Cập nhật bài viết thành công");
                     } else {
-                        toast.error(response.message);
+                        toast.error(response.message || "Cập nhật bài viết thất bại");
                     }
                 },
                 onError: () => {

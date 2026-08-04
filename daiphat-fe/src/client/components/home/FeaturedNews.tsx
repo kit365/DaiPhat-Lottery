@@ -35,6 +35,8 @@ export const FeaturedNews: React.FC = () => {
               <img 
                 src={item.image} 
                 alt={item.title} 
+                loading="lazy"
+                decoding="async"
                 className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
               />
               <div className="absolute inset-0 bg-black/5 group-hover:bg-transparent transition-colors"></div>

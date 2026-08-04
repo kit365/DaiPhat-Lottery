@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -5,7 +7,7 @@ import * as z from "zod";
 import { useAuthStore } from "../../../stores/useAuthStore";
 import { userService } from "./services/user.service";
 import { toast } from "react-toastify";
-import { useNavigate, Link, useLocation } from "react-router-dom";
+import { useNavigate, Link, useLocation } from "@/components/router-compat";
 import { ROUTES } from "../../constants/routes";
 import { PERMISSIONS } from "../../constants/permission.constants";
 import { useAuth } from "./hooks/useAuth";
@@ -73,7 +75,7 @@ export const ProfileSetupPage: React.FC = () => {
         }
     });
 
-    const passwordValue = watch("password", "");
+    const passwordValue = watch("password", "") || "";
 
     const checkAllMet = () => {
         if (!passwordPolicy) return true; // Minimal fallback
@@ -97,7 +99,7 @@ export const ProfileSetupPage: React.FC = () => {
     const queryClient = useQueryClient();
     
     const onSubmit = async (data: SetupFormData) => {
-        if (!user.hasPassword && !data.password) {
+        if (!user?.hasPassword && !data.password) {
             toast.warning("Vui lòng thiết lập mật khẩu mới");
             return;
         }

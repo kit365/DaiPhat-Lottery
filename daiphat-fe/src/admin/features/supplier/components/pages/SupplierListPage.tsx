@@ -1,5 +1,7 @@
+"use client";
+
 import AddIcon from '@mui/icons-material/Add';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from '@/components/router-compat';
 import { useTranslation } from 'react-i18next';
 import { Breadcrumb } from '../../../../components/ui/Breadcrumb';
 import { Title } from '../../../../components/ui/Title';

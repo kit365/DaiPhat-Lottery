@@ -1,10 +1,12 @@
+"use client";
+
 import { useState, useEffect, useRef } from "react";
 import { 
     Box, Button, Container, TextField, Typography, IconButton, Paper, 
     InputAdornment, CircularProgress,
     Dialog, DialogTitle, DialogContent, DialogActions, DialogContentText
 } from "@mui/material";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "@/components/router-compat";
 import { motion, AnimatePresence } from "framer-motion";
 import { LogoAdmin } from "../../../assets/admin/logo";
 import { EyeIcon, NoEyeIcon } from "../../assets/icons";

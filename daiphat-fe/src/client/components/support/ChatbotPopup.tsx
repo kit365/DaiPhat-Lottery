@@ -1,4 +1,7 @@
+"use client";
+
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { flushSync } from 'react-dom';
 import { InfiniteData, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { MessageCircle, X, Minus, Maximize2, Send, Headphones, PhoneOff, Sparkles } from 'lucide-react';
@@ -121,6 +124,8 @@ const isSessionDividerText = (text: string): boolean => {
 
 const STAFF_REQUEST_MESSAGE = 'Tôi muốn gặp nhân viên hỗ trợ.';
 const CHAT_SCROLL_BOTTOM_THRESHOLD_PX = 80;
+/** Minimum time to show bot typing dots before revealing the reply. */
+const MIN_BOT_TYPING_MS = 1500;
 
 const getDistanceFromBottom = (container: HTMLElement): number =>
   container.scrollHeight - container.scrollTop - container.clientHeight;
@@ -254,6 +259,9 @@ const prepareDisplayMessages = (messages: Message[], isAiEnabled: boolean): Mess
       if (message.fromStaff || message.sender === 'user') {
         return true;
       }
+      if (!message.text?.trim() && message.variant === 'bubble') {
+        return false;
+      }
       if (!isAiEnabled && isStaffConnectingNoticeText(message.text)) {
         return false;
       }
@@ -295,28 +303,16 @@ const resolveMessageVariant = (
 
   if (message.intent === 'WEB_SCHEDULE') {
     if (text.includes('Mình chưa nhận ra khu vực này') || text.includes('Mình chưa tìm thấy đài này')) {
-      return {
-        variant: 'schedule-region-choice',
-        text: 'Bạn muốn xem đài quay hôm nay, lịch cả tuần hay chọn một đài cụ thể?',
-        scheduleRegion: 'MIEN_NAM',
-      };
+      return { variant: 'bubble', text };
     }
     if (text.includes('Mình chưa nhận ra ngày/thứ này')) {
       return { variant: 'schedule-ask-date-mode', text };
     }
-    if (text === SCHEDULE_OPTIONS_CONTENT) {
-      return {
-        variant: 'schedule-region-choice',
-        text: 'Bạn muốn xem đài quay hôm nay, lịch cả tuần hay chọn một đài cụ thể?',
-        scheduleRegion: 'MIEN_NAM',
-      };
-    }
-    if (text === SCHEDULE_TOKEN_ASK_LOCATION) {
-      return {
-        variant: 'schedule-region-choice',
-        text: 'Bạn muốn xem đài quay hôm nay, lịch cả tuần hay chọn một đài cụ thể?',
-        scheduleRegion: 'MIEN_NAM',
-      };
+    if (text === SCHEDULE_OPTIONS_CONTENT
+        || text === SCHEDULE_TOKEN_ASK_LOCATION
+        || text.startsWith(SCHEDULE_TOKEN_REGION_CHOICE_PREFIX)) {
+      // Legacy location-choice menu removed — ignore token bubbles from old turns.
+      return { variant: 'bubble', text: '' };
     }
     if (text === SCHEDULE_TOKEN_ASK_DATE_MODE || text.startsWith(`${SCHEDULE_TOKEN_ASK_DATE_MODE}:`)) {
       const isResultGoal = text.includes('goal=RESULT');
@@ -337,14 +333,6 @@ const resolveMessageVariant = (
         variant: 'schedule-confirm-station',
         text: 'Mình tìm thấy vài đài gần giống. Bạn chọn đài nào ạ?',
         confirmStationOptions: options,
-      };
-    }
-    if (text.startsWith(SCHEDULE_TOKEN_REGION_CHOICE_PREFIX)) {
-      const region = text.slice(SCHEDULE_TOKEN_REGION_CHOICE_PREFIX.length);
-      return {
-        variant: 'schedule-region-choice',
-        text: 'Bạn muốn xem đài quay hôm nay, lịch cả tuần hay chọn một đài cụ thể?',
-        scheduleRegion: region || 'MIEN_NAM',
       };
     }
     if (text === SCHEDULE_TOKEN_ASK_GOAL) {
@@ -654,7 +642,7 @@ export const ChatbotPopup = () => {
   const [isEscalating, setIsEscalating] = useState(false);
   const [isCancellingStaff, setIsCancellingStaff] = useState(false);
   const [isDisconnectingStaff, setIsDisconnectingStaff] = useState(false);
-  const [overlayMessages, setOverlayMessages] = useState<Message[]>([]);
+  const [overlayMessages, setOverlayMessages] = useState<any[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [isSendingUi, setIsSendingUi] = useState(false);
   const [expandedDatePickerMessageId, setExpandedDatePickerMessageId] = useState<string | null>(null);
@@ -675,6 +663,13 @@ export const ChatbotPopup = () => {
   const scrollRafRef = useRef<number | null>(null);
   const awaitingBotReplyRef = useRef(false);
   const botReplyCountAtSendRef = useRef(0);
+  const botReplyReadyRef = useRef(false);
+  const typingHoldActiveRef = useRef(false);
+  const typingMinElapsedRef = useRef(false);
+  const typingRevealTimeoutRef = useRef<number | null>(null);
+  const [typingHoldActive, setTypingHoldActive] = useState(false);
+  /** State mirror of awaitingBotReplyRef so merge re-runs before overlay commits. */
+  const [awaitingBotReply, setAwaitingBotReply] = useState(false);
   /** Blocks duplicate send while Vietnamese/CJK IME finishes composition after Enter. */
   const isSendingRef = useRef(false);
   const sendStartedAtRef = useRef(0);
@@ -691,21 +686,24 @@ export const ChatbotPopup = () => {
     () => buildMessagesFromTimeline(timelineQuery.data?.pages ?? []),
     [timelineQuery.data?.pages]
   );
+  const timelineMessagesRef = useRef(timelineMessages);
+  timelineMessagesRef.current = timelineMessages;
 
   const messages = useMemo(() => {
     return mergeTimelineWithOverlay(timelineMessages, overlayMessages, {
-      awaitingBotReply: awaitingBotReplyRef.current,
+      awaitingBotReply,
       botReplyCountAtSend: botReplyCountAtSendRef.current,
+      holdTypingReveal: typingHoldActive,
       welcomeMessage: WELCOME_MESSAGE,
     });
-  }, [timelineMessages, overlayMessages]);
+  }, [timelineMessages, overlayMessages, typingHoldActive, awaitingBotReply]);
 
   const displayMessages = useMemo(
-    () => prepareDisplayMessages(messages, isAiEnabled),
+    () => prepareDisplayMessages(messages as any, isAiEnabled),
     [isAiEnabled, messages]
   );
   const suggestedTicketExcludeIds = useMemo(
-    () => collectSuggestedTicketIds(displayMessages),
+    () => collectSuggestedTicketIds(displayMessages as any),
     [displayMessages]
   );
   const isAuthReady = Boolean(token && userId);
@@ -717,6 +715,9 @@ export const ChatbotPopup = () => {
       }
       if (botReplyTimeoutRef.current != null) {
         window.clearTimeout(botReplyTimeoutRef.current);
+      }
+      if (typingRevealTimeoutRef.current != null) {
+        window.clearTimeout(typingRevealTimeoutRef.current);
       }
     };
   }, []);
@@ -1052,7 +1053,7 @@ export const ChatbotPopup = () => {
       window.cancelAnimationFrame(scrollRafRef.current);
     }
 
-    // Instant pin — smooth scroll after a height shrink looks like "jump to top then glide down".
+    // Single frame pin — double-rAF stacked with ResizeObserver felt like scroll stutter.
     scrollRafRef.current = window.requestAnimationFrame(() => {
       scrollRafRef.current = null;
       const top = container.scrollHeight;
@@ -1066,6 +1067,49 @@ export const ChatbotPopup = () => {
     });
   }, [isMinimized, isOpen]);
 
+  const clearTypingHoldTimer = useCallback(() => {
+    if (typingRevealTimeoutRef.current != null) {
+      window.clearTimeout(typingRevealTimeoutRef.current);
+      typingRevealTimeoutRef.current = null;
+    }
+  }, []);
+
+  const endTypingHold = useCallback(() => {
+    clearTypingHoldTimer();
+    typingHoldActiveRef.current = false;
+    typingMinElapsedRef.current = false;
+    setTypingHoldActive(false);
+  }, [clearTypingHoldTimer]);
+
+  /**
+   * Single-commit reveal: drop "..." and end hold together so bots appear
+   * without an empty gap frame.
+   */
+  const revealBotReplyAfterTypingHold = useCallback(() => {
+    clearTypingHoldTimer();
+    shouldStickToBottom.current = true;
+    wasAtBottomRef.current = true;
+    // releaseSendLock clears typing overlay + hold + send lock in one batch.
+    releaseSendLockRef.current();
+    pinScrollToBottom(true, 'auto');
+  }, [clearTypingHoldTimer, pinScrollToBottom]);
+
+  const tryRevealBotReply = useCallback(() => {
+    const botArrived =
+      botReplyReadyRef.current ||
+      countBotReplies(timelineMessagesRef.current) > botReplyCountAtSendRef.current;
+    if (!typingHoldActiveRef.current) {
+      return;
+    }
+    if (!typingMinElapsedRef.current) {
+      return;
+    }
+    if (!botArrived && awaitingBotReplyRef.current) {
+      return;
+    }
+    revealBotReplyAfterTypingHold();
+  }, [revealBotReplyAfterTypingHold]);
+
   useEffect(() => {
     pendingCustomerSendsRef.current = claimPendingCustomerSends(
       pendingCustomerSendsRef.current,
@@ -1073,19 +1117,28 @@ export const ChatbotPopup = () => {
     );
     setOverlayMessages((prev) => {
       const pruned = pruneOverlayMessages(prev, timelineMessages);
-      if (!awaitingBotReplyRef.current) {
+      if (!awaitingBotReplyRef.current && !typingHoldActiveRef.current) {
         return pruned.filter((message) => !message.id.startsWith('typing-'));
       }
 
       const botCount = countBotReplies(timelineMessages);
       if (botCount > botReplyCountAtSendRef.current) {
+        botReplyReadyRef.current = true;
+        // Bot landed — keep "..." until min delay elapses, then single-commit reveal.
+        if (typingHoldActiveRef.current) {
+          if (typingMinElapsedRef.current) {
+            // Schedule reveal outside setState updater.
+            window.setTimeout(() => tryRevealBotReply(), 0);
+          }
+          return pruned;
+        }
         awaitingBotReplyRef.current = false;
         releaseSendLockRef.current();
         return pruned.filter((message) => !message.id.startsWith('typing-'));
       }
       return pruned;
     });
-  }, [timelineMessages]);
+  }, [timelineMessages, tryRevealBotReply]);
 
   useEffect(() => {
     const container = messagesContainerRef.current;
@@ -1169,9 +1222,10 @@ export const ChatbotPopup = () => {
 
     if (
       hasNewTailMessage &&
-      (shouldStickToBottom.current || isNearBottom(container))
+      !timelineQuery.isFetchingPreviousPage &&
+      pendingScrollRestore.current <= 0
     ) {
-      // Instant pin keeps the viewport glued to the latest message without a visible glide.
+      // Always follow the latest bubble after send / bot reply / typing.
       pinScrollToBottom(true, 'auto');
     }
   }, [
@@ -1197,7 +1251,15 @@ export const ChatbotPopup = () => {
       ) {
         return;
       }
-      if (!(shouldStickToBottom.current || wasAtBottomRef.current)) {
+      // Follow content growth while stickied, waiting for bot, or showing typing.
+      if (
+        !(
+          shouldStickToBottom.current ||
+          wasAtBottomRef.current ||
+          awaitingBotReplyRef.current ||
+          typingHoldActiveRef.current
+        )
+      ) {
         return;
       }
       const container = messagesContainerRef.current;
@@ -1450,8 +1512,17 @@ export const ChatbotPopup = () => {
       payload.senderType === 'OPERATOR' || payload.senderType === 'AI_SYSTEM';
 
     if (payload.senderType === 'AI_SYSTEM' && awaitingBotReplyRef.current) {
-      awaitingBotReplyRef.current = false;
-      releaseSendLockRef.current();
+      botReplyReadyRef.current = true;
+      shouldStickToBottom.current = true;
+      wasAtBottomRef.current = true;
+      if (typingHoldActiveRef.current) {
+        // Don't pin-scroll while holding — reveal will pin once at the end.
+        tryRevealBotReply();
+      } else {
+        awaitingBotReplyRef.current = false;
+        releaseSendLockRef.current();
+        pinScrollToBottom(true, 'auto');
+      }
     }
 
     // Staff replies must always land in the customer timeline even if a socket
@@ -1477,8 +1548,10 @@ export const ChatbotPopup = () => {
     isOpen,
     markConversationAsRead,
     mergeSocketMessageToTimeline,
+    pinScrollToBottom,
     queryClient,
     refreshTimelineMessages,
+    tryRevealBotReply,
   ]);
 
   const syncConversationFromEvent = useCallback(
@@ -1632,11 +1705,21 @@ export const ChatbotPopup = () => {
       window.clearTimeout(botReplyTimeoutRef.current);
       botReplyTimeoutRef.current = null;
     }
+    if (typingRevealTimeoutRef.current != null) {
+      window.clearTimeout(typingRevealTimeoutRef.current);
+      typingRevealTimeoutRef.current = null;
+    }
+    typingHoldActiveRef.current = false;
+    typingMinElapsedRef.current = false;
+    awaitingBotReplyRef.current = false;
+    botReplyReadyRef.current = false;
+    setTypingHoldActive(false);
+    setAwaitingBotReply(false);
+    setOverlayMessages((prev) => prev.filter((message) => !message.id.startsWith('typing-')));
 
     // Ref phải clear ngay — nếu đợi timeout, lần bấm hub tiếp theo bị nuốt im lặng.
     isSendingRef.current = false;
     setIsSendingUi(false);
-    awaitingBotReplyRef.current = false;
 
     const clearSuppress = () => {
       suppressInputAfterSendRef.current = false;
@@ -1667,16 +1750,18 @@ export const ChatbotPopup = () => {
       return;
     }
 
-    // Cho phép bấm hub khi đang chờ bot: hủy lock cũ, gửi tin mới ngay.
-    if (isSendingRef.current) {
-      releaseSendLock({ immediate: true });
+    // Anti-spam: ignore extra hub/send while typing hold or awaiting bot reply.
+    if (
+      isSendingRef.current ||
+      awaitingBotReplyRef.current ||
+      typingHoldActiveRef.current
+    ) {
+      return;
     }
 
     isSendingRef.current = true;
     sendStartedAtRef.current = Date.now();
-    setIsSendingUi(true);
     suppressInputAfterSendRef.current = true;
-    setInputValue('');
     shouldStickToBottom.current = true;
     wasAtBottomRef.current = true;
 
@@ -1690,41 +1775,71 @@ export const ChatbotPopup = () => {
       conversationStatus === 'WAITING_FOR_CUSTOMER' ||
       conversationStatus === 'WAITING_FOR_OPERATOR';
     botReplyCountAtSendRef.current = countBotReplies(timelineMessages);
+    botReplyReadyRef.current = false;
     awaitingBotReplyRef.current = !isStaffThread;
     pendingCustomerSendsRef.current.push({
       sendToken,
       label: optimisticLabel,
       raw: normalizedText,
     });
-    setOverlayMessages((prev) => [
-      ...prev.filter((message) => !message.id.startsWith('typing-')),
-      {
-        id: `optimistic-user-${sendToken}`,
-        sender: 'user',
-        text: optimisticLabel,
-        timestamp: formatNowTime(),
-        variant: 'bubble',
-        sentContent: normalizedText !== optimisticLabel ? normalizedText : undefined,
-      },
-      ...(isStaffThread
-        ? []
-        : [
-            {
-              id: `typing-${sendToken}`,
-              sender: 'bot' as const,
-              text: '',
-              timestamp: formatNowTime(),
-              variant: 'typing' as const,
-            },
-          ]),
-    ]);
+
+    const optimisticUserMessage = {
+      id: `optimistic-user-${sendToken}`,
+      sender: 'user' as const,
+      text: optimisticLabel,
+      timestamp: formatNowTime(),
+      variant: 'bubble' as const,
+      sentContent: normalizedText !== optimisticLabel ? normalizedText : undefined,
+    };
+    const typingMessage = {
+      id: `typing-${sendToken}`,
+      sender: 'bot' as const,
+      text: '',
+      timestamp: formatNowTime(),
+      variant: 'typing' as const,
+    };
+
+    // Paint "..." BEFORE any WS/timeline update can show the AI result for a frame.
+    flushSync(() => {
+      setIsSendingUi(true);
+      setInputValue('');
+      setAwaitingBotReply(!isStaffThread);
+      setOverlayMessages((prev) => [
+        ...prev.filter((message) => !message.id.startsWith('typing-')),
+        optimisticUserMessage,
+        ...(isStaffThread ? [] : [typingMessage]),
+      ]);
+      if (!isStaffThread) {
+        typingHoldActiveRef.current = true;
+        typingMinElapsedRef.current = false;
+        setTypingHoldActive(true);
+      } else {
+        typingHoldActiveRef.current = false;
+        typingMinElapsedRef.current = false;
+        setTypingHoldActive(false);
+      }
+    });
+
+    if (!isStaffThread) {
+      // Timer only — hold UI already committed via flushSync above.
+      if (typingRevealTimeoutRef.current != null) {
+        window.clearTimeout(typingRevealTimeoutRef.current);
+      }
+      typingRevealTimeoutRef.current = window.setTimeout(() => {
+        typingRevealTimeoutRef.current = null;
+        typingMinElapsedRef.current = true;
+        tryRevealBotReply();
+      }, MIN_BOT_TYPING_MS);
+    } else {
+      endTypingHold();
+    }
     pinScrollToBottom(true, 'auto');
 
     if (!isStaffThread) {
       if (botReplyTimeoutRef.current != null) {
         window.clearTimeout(botReplyTimeoutRef.current);
       }
-      // Watchdog cứng: tối đa 6s phải mở lại nút — tránh kẹt vĩnh viễn khi bot/socket treo.
+      // Watchdog: unlock if bot/socket hangs (does not define the happy-path reveal).
       botReplyTimeoutRef.current = window.setTimeout(() => {
         setOverlayMessages((prev) =>
           prev.filter((message) => !message.id.startsWith(`typing-${sendToken}`))
@@ -1856,13 +1971,18 @@ export const ChatbotPopup = () => {
     isInteractive: isOpenBotThread(conversationStatus) && !isEscalating && conversationStatus !== 'WAITING_FOR_OPERATOR',
     replies: contextualReplies,
   });
+  const isBotReplyPending = isSendingUi || typingHoldActive;
+  const quickReplyDisabled =
+    isEscalating || isInitializing || isLoadingOpen || isBotReplyPending;
 
   const handleQuickReply = async (chip: QuickReplyChip) => {
+    if (isBotReplyPending) {
+      return;
+    }
     if (chip.action === 'staff') {
       await handleRequestStaff();
       return;
     }
-    // Hub luôn bấm được — kể cả khi đang chờ bot trả lời.
     if (chip.message) {
       await handleSend(chip.message, chip.label);
     }
@@ -2045,15 +2165,16 @@ export const ChatbotPopup = () => {
 
 
               
-              {displayMessages.map((msg) =>
-                msg.variant === 'date' ? (
-                  <div key={msg.id} className="flex justify-center py-2">
+              {displayMessages.map((msg) => (
+                <div key={msg.id}>
+                {msg.variant === 'date' ? (
+                  <div className="flex justify-center py-2">
                     <span className="text-xs font-medium text-gray-500 bg-gray-100/90 px-3 py-1 rounded-full">
                       {msg.text}
                     </span>
                   </div>
                 ) : msg.variant === 'schedule-ask-station' ? (
-                  <div key={msg.id} className="flex w-full justify-start">
+                  <div className="flex w-full justify-start">
                     <div className="w-8 h-8 rounded-full overflow-hidden mr-2 shrink-0 border border-gray-200 mt-auto mb-1 bg-white">
                       <img src="https://i.ibb.co/4R7c75YN/z7824247008533-94446d3b6c16598cda67404d805c15c4.jpg" alt="Avatar" className="w-full h-full object-contain p-1" />
                     </div>
@@ -2065,7 +2186,7 @@ export const ChatbotPopup = () => {
                     </div>
                   </div>
                 ) : msg.variant === 'schedule-pick-station-list' ? (
-                  <div key={msg.id} className="flex w-full justify-start">
+                  <div className="flex w-full justify-start">
                     <div className="w-8 h-8 rounded-full overflow-hidden mr-2 shrink-0 border border-gray-200 mt-auto mb-1 bg-white">
                       <img src="https://i.ibb.co/4R7c75YN/z7824247008533-94446d3b6c16598cda67404d805c15c4.jpg" alt="Avatar" className="w-full h-full object-contain p-1" />
                     </div>
@@ -2107,7 +2228,7 @@ export const ChatbotPopup = () => {
                     </div>
                   </div>
                 ) : msg.variant === 'schedule-ask-date-mode' ? (
-                  <div key={msg.id} className="flex w-full justify-start">
+                  <div className="flex w-full justify-start">
                     <div className="w-8 h-8 rounded-full overflow-hidden mr-2 shrink-0 border border-gray-200 mt-auto mb-1 bg-white">
                       <img src="https://i.ibb.co/4R7c75YN/z7824247008533-94446d3b6c16598cda67404d805c15c4.jpg" alt="Avatar" className="w-full h-full object-contain p-1" />
                     </div>
@@ -2148,7 +2269,7 @@ export const ChatbotPopup = () => {
                     </div>
                   </div>
                 ) : msg.variant === 'schedule-confirm-station' ? (
-                  <div key={msg.id} className="flex w-full justify-start">
+                  <div className="flex w-full justify-start">
                     <div className="w-8 h-8 rounded-full overflow-hidden mr-2 shrink-0 border border-gray-200 mt-auto mb-1 bg-white">
                       <img src="https://i.ibb.co/4R7c75YN/z7824247008533-94446d3b6c16598cda67404d805c15c4.jpg" alt="Avatar" className="w-full h-full object-contain p-1" />
                     </div>
@@ -2172,7 +2293,7 @@ export const ChatbotPopup = () => {
                     </div>
                   </div>
                 ) : msg.variant === 'schedule-station-ready' ? (
-                  <div key={msg.id} className="flex w-full justify-start">
+                  <div className="flex w-full justify-start">
                     <div className="w-8 h-8 rounded-full overflow-hidden mr-2 shrink-0 border border-gray-200 mt-auto mb-1 bg-white">
                       <img src="https://i.ibb.co/4R7c75YN/z7824247008533-94446d3b6c16598cda67404d805c15c4.jpg" alt="Avatar" className="w-full h-full object-contain p-1" />
                     </div>
@@ -2184,7 +2305,7 @@ export const ChatbotPopup = () => {
                     </div>
                   </div>
                 ) : msg.variant === 'schedule-ask-goal' ? (
-                  <div key={msg.id} className="flex w-full justify-start">
+                  <div className="flex w-full justify-start">
                     <div className="w-8 h-8 rounded-full overflow-hidden mr-2 shrink-0 border border-gray-200 mt-auto mb-1 bg-white">
                       <img src="https://i.ibb.co/4R7c75YN/z7824247008533-94446d3b6c16598cda67404d805c15c4.jpg" alt="Avatar" className="w-full h-full object-contain p-1" />
                     </div>
@@ -2201,7 +2322,7 @@ export const ChatbotPopup = () => {
                     </div>
                   </div>
                 ) : msg.variant === 'schedule-ask-date' ? (
-                  <div key={msg.id} className="flex w-full justify-start">
+                  <div className="flex w-full justify-start">
                     <div className="w-8 h-8 rounded-full overflow-hidden mr-2 shrink-0 border border-gray-200 mt-auto mb-1 bg-white">
                       <img src="https://i.ibb.co/4R7c75YN/z7824247008533-94446d3b6c16598cda67404d805c15c4.jpg" alt="Avatar" className="w-full h-full object-contain p-1" />
                     </div>
@@ -2223,30 +2344,19 @@ export const ChatbotPopup = () => {
                     </div>
                   </div>
                 ) : msg.variant === 'schedule-region-choice' ? (
-                  <div key={msg.id} className="flex w-full justify-start">
+                  <div className="flex w-full justify-start">
                     <div className="w-8 h-8 rounded-full overflow-hidden mr-2 shrink-0 border border-gray-200 mt-auto mb-1 bg-white">
                       <img src="https://i.ibb.co/4R7c75YN/z7824247008533-94446d3b6c16598cda67404d805c15c4.jpg" alt="Avatar" className="w-full h-full object-contain p-1" />
                     </div>
                     <div className="max-w-[85%] min-w-0 items-start flex flex-col">
                       <div className="bg-white text-gray-800 rounded-2xl rounded-bl-sm shadow-sm border border-gray-100 px-4 py-2.5 text-[15px]">
-                        {msg.text}
-                        <div className="flex flex-col gap-2 mt-3">
-                          <button type="button" onClick={() => void handleSend('Đài quay hôm nay')} className="px-3 py-1.5 text-[13px] font-medium text-[#ee1314] bg-red-50 border border-red-200 rounded-xl hover:bg-[#ee1314] hover:text-white transition-colors w-full text-center">
-                            Đài quay hôm nay
-                          </button>
-                          <button type="button" onClick={() => void handleSend('Lịch cả tuần')} className="px-3 py-1.5 text-[13px] font-medium text-slate-700 bg-slate-50 border border-slate-200 rounded-xl hover:bg-slate-100 transition-colors w-full text-center">
-                            Lịch cả tuần
-                          </button>
-                          <button type="button" onClick={() => void handleSend('Chọn đài')} className="px-3 py-1.5 text-[13px] font-medium text-slate-700 bg-slate-50 border border-slate-200 rounded-xl hover:bg-slate-100 transition-colors w-full text-center">
-                            Chọn đài
-                          </button>
-                        </div>
+                        {msg.text || 'Bạn có thể dùng nút Xem lịch xổ / Kết quả bên dưới.'}
                       </div>
                       <span className="text-[11px] text-gray-400 mt-1 px-1">{msg.timestamp}</span>
                     </div>
                   </div>
                 ) : msg.variant === 'schedule-result-summary' ? (
-                  <div key={msg.id} className="flex w-full justify-start">
+                  <div className="flex w-full justify-start">
                     <div className="w-8 h-8 rounded-full overflow-hidden mr-2 shrink-0 border border-gray-200 mt-auto mb-1 bg-white">
                       <img src="https://i.ibb.co/4R7c75YN/z7824247008533-94446d3b6c16598cda67404d805c15c4.jpg" alt="Avatar" className="w-full h-full object-contain p-1" />
                     </div>
@@ -2286,7 +2396,7 @@ export const ChatbotPopup = () => {
                     </div>
                   </div>
                 ) : msg.variant === 'schedule-station-bundle' ? (
-                  <div key={msg.id} className="flex w-full justify-start">
+                  <div className="flex w-full justify-start">
                     <div className="w-8 h-8 rounded-full overflow-hidden mr-2 shrink-0 border border-gray-200 mt-auto mb-1 bg-white">
                       <img src="https://i.ibb.co/4R7c75YN/z7824247008533-94446d3b6c16598cda67404d805c15c4.jpg" alt="Avatar" className="w-full h-full object-contain p-1" />
                     </div>
@@ -2331,7 +2441,7 @@ export const ChatbotPopup = () => {
                     </div>
                   </div>
                 ) : msg.variant === 'schedule' || msg.variant === 'schedule-result' ? (
-                  <div key={msg.id} className="flex w-full justify-start">
+                  <div className="flex w-full justify-start">
                     <div className="w-8 h-8 rounded-full overflow-hidden mr-2 shrink-0 border border-gray-200 mt-auto mb-1 bg-white">
                       <img src="https://i.ibb.co/4R7c75YN/z7824247008533-94446d3b6c16598cda67404d805c15c4.jpg" alt="Avatar" className="w-full h-full object-contain p-1" />
                     </div>
@@ -2351,7 +2461,7 @@ export const ChatbotPopup = () => {
                     </div>
                   </div>
                 ) : msg.variant === 'typing' ? (
-                  <div key={msg.id} className="flex w-full justify-start">
+                  <div className="flex w-full justify-start">
                     <div className="w-8 h-8 rounded-full overflow-hidden mr-2 shrink-0 border border-gray-200 mt-auto mb-1 bg-white">
                       <img src="https://i.ibb.co/4R7c75YN/z7824247008533-94446d3b6c16598cda67404d805c15c4.jpg" alt="Avatar" className="w-full h-full object-contain p-1" />
                     </div>
@@ -2368,7 +2478,6 @@ export const ChatbotPopup = () => {
                     const { reply, caption } = splitTicketSuggestText(msg.text);
                     return (
                       <motion.div
-                        key={msg.id}
                         className="flex w-full flex-col gap-2"
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
@@ -2397,7 +2506,7 @@ export const ChatbotPopup = () => {
                             <ChatTicketSuggestCards
                               tickets={msg.suggestedTickets ?? []}
                               onBuy={handleBuySuggestedTicket}
-                              disabled={isEscalating || isInitializing || isLoadingOpen || isSendingUi}
+                              disabled={quickReplyDisabled}
                             />
                             {isAiEnabled ? (
                               <div className="flex gap-2 mt-2 w-full max-w-[95%] overflow-x-auto flex-nowrap pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
@@ -2406,7 +2515,7 @@ export const ChatbotPopup = () => {
                                     key={chip.id}
                                     type="button"
                                     onClick={() => void handleQuickReply(chip)}
-                                    disabled={isEscalating || isInitializing || isLoadingOpen}
+                                    disabled={quickReplyDisabled}
                                     className={`${quickReplyChipClass(chip.primary)} shrink-0 disabled:opacity-60 disabled:cursor-not-allowed`}
                                   >
                                     {chip.label}
@@ -2418,7 +2527,7 @@ export const ChatbotPopup = () => {
                                 <button
                                   type="button"
                                   onClick={() => void handleRequestStaff()}
-                                  disabled={isEscalating || isInitializing || isLoadingOpen || isSendingUi}
+                                  disabled={quickReplyDisabled}
                                   className={`${quickReplyChipClass(true)} shrink-0 disabled:opacity-60 disabled:cursor-not-allowed`}
                                 >
                                   Gặp nhân viên
@@ -2432,14 +2541,14 @@ export const ChatbotPopup = () => {
                     );
                   })()
                 ) : msg.variant === 'divider' ? (
-                  <div key={msg.id} className="flex justify-center py-2 px-3">
+                  <div className="flex justify-center py-2 px-3">
                     <span className="text-[12px] font-medium text-slate-600 bg-white/95 border border-slate-200/80 shadow-2xs px-3.5 py-1.5 rounded-full text-center leading-snug flex items-center justify-center gap-1.5 max-w-[90%]">
                       <Sparkles className="w-3.5 h-3.5 text-amber-500 shrink-0 inline" />
                       <span>{msg.text}</span>
                     </span>
                   </div>
                 ) : (
-                  <div key={msg.id} className={`flex w-full ${msg.sender === 'bot' ? 'justify-start' : 'justify-end'}`}>
+                  <div className={`flex w-full ${msg.sender === 'bot' ? 'justify-start' : 'justify-end'}`}>
                     {msg.sender === 'bot' && (
                       <div className="w-8 h-8 rounded-full overflow-hidden mr-2 shrink-0 border border-gray-200 mt-auto mb-1 bg-white">
                         <img src="https://i.ibb.co/4R7c75YN/z7824247008533-94446d3b6c16598cda67404d805c15c4.jpg" alt="Avatar" className="w-full h-full object-contain p-1" />
@@ -2465,8 +2574,9 @@ export const ChatbotPopup = () => {
                       <span className="text-[11px] text-gray-400 mt-1 px-1">{msg.timestamp}</span>
                     </div>
                   </div>
-                )
-              )}
+                )}
+                </div>
+              ))}
 
               {showAiDisabledNotice && (
                 <div className="flex justify-center py-2 px-3">
@@ -2493,7 +2603,7 @@ export const ChatbotPopup = () => {
                       key={chip.id}
                       type="button"
                       onClick={() => void handleQuickReply(chip)}
-                      disabled={isEscalating || isInitializing || isLoadingOpen}
+                      disabled={quickReplyDisabled}
                       className={`${quickReplyChipClass(chip.primary)} shrink-0 disabled:opacity-60 disabled:cursor-not-allowed`}
                     >
                       {chip.label}
@@ -2521,9 +2631,9 @@ export const ChatbotPopup = () => {
                 <button
                   type="button"
                   onClick={() => void handleSend(inputValue)}
-                  disabled={!inputValue.trim() || isInitializing || isLoadingOpen || isSendingUi}
+                  disabled={!inputValue.trim() || isInitializing || isLoadingOpen || isBotReplyPending}
                   className={`w-9 h-9 rounded-full flex items-center justify-center transition-all ${
-                    inputValue.trim() && !isInitializing && !isLoadingOpen && !isSendingUi
+                    inputValue.trim() && !isInitializing && !isLoadingOpen && !isBotReplyPending
                       ? 'bg-[#df1b1c] text-white shadow-md hover:bg-red-700'
                       : 'bg-gray-200 text-gray-400 cursor-not-allowed'
                   }`}

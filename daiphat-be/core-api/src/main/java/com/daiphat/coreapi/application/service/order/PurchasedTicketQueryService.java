@@ -8,11 +8,11 @@ import com.daiphat.coreapi.application.port.out.lotteries.PrizeStructureReposito
 import com.daiphat.coreapi.application.port.out.payout.PrizePayoutRequestRepositoryPort;
 import com.daiphat.coreapi.application.port.out.lotteries.LotteryResultRepositoryPort;
 import com.daiphat.coreapi.application.port.out.order.PurchasedTicketQueryRepositoryPort;
+import com.daiphat.coreapi.application.service.payout.PrizePayoutEligibilityService;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryResultStatus;
-import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus;
 import com.daiphat.coreapi.domain.model.enums.lottery.SerialPayoutState;
 import com.daiphat.coreapi.domain.model.enums.order.TicketDrawResultStatus;
-import com.daiphat.coreapi.domain.model.enums.payout.PrizePayoutRequestStatus;
+import com.daiphat.coreapi.domain.model.enums.payout.PrizePayoutChannel;
 import com.daiphat.coreapi.domain.model.lotteries.LotteryResultDetailModel;
 import com.daiphat.coreapi.domain.model.lotteries.PrizeStructureModel;
 import com.daiphat.coreapi.domain.model.payout.PrizePayoutRequestModel;
@@ -47,6 +47,7 @@ public class PurchasedTicketQueryService implements PurchasedTicketQueryPort {
     private final LotteryResultDetailRepositoryPort lotteryResultDetailRepositoryPort;
     private final PrizeStructureRepositoryPort prizeStructureRepositoryPort;
     private final PrizePayoutRequestRepositoryPort prizePayoutRequestRepositoryPort;
+    private final PrizePayoutEligibilityService prizePayoutEligibilityService;
 
     @Override
     @Transactional(readOnly = true)
@@ -161,6 +162,22 @@ public class PurchasedTicketQueryService implements PurchasedTicketQueryPort {
                 : SerialPayoutState.NONE;
         PrizePayoutRequestModel latestRequest = latestPayouts.get(serial.getId());
 
+        PrizePayoutChannel claimChannel = null;
+        boolean canClaimOnline = false;
+        if (drawResultStatus == TicketDrawResultStatus.WON && prizeAmount != null) {
+            claimChannel = prizePayoutEligibilityService.resolveClaimChannel(detail, serial, prizeAmount);
+            boolean onlineLocked = prizePayoutEligibilityService.isOnlineClaimLocked(serial.getId());
+            if (onlineLocked) {
+                claimChannel = PrizePayoutChannel.IN_PERSON;
+            }
+            canClaimOnline = claimChannel == PrizePayoutChannel.ONLINE
+                    && !onlineLocked
+                    && (payoutState == SerialPayoutState.NONE)
+                    && (latestRequest == null
+                    || (latestRequest.getStatus() != com.daiphat.coreapi.domain.model.enums.payout.PrizePayoutRequestStatus.PENDING
+                    && latestRequest.getStatus() != com.daiphat.coreapi.domain.model.enums.payout.PrizePayoutRequestStatus.COMPLETED));
+        }
+
         return PurchasedTicketResponse.builder()
                 .orderId(order.getId())
                 .orderCode(order.getOrderCode())
@@ -181,6 +198,11 @@ public class PurchasedTicketQueryService implements PurchasedTicketQueryPort {
                 .prizeAmount(prizeAmount)
                 .activePayoutRequestId(latestRequest != null ? latestRequest.getId() : null)
                 .activePayoutStatus(latestRequest != null ? latestRequest.getStatus() : null)
+                .orderType(order.getOrderType())
+                .receiveType(order.getReceiveType())
+                .actualPickedUpAt(order.getActualPickedUpAt())
+                .claimChannel(claimChannel)
+                .canClaimOnline(canClaimOnline)
                 .build();
     }
 

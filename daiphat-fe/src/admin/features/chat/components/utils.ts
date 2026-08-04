@@ -230,7 +230,7 @@ export const groupConversationsByCustomer = (conversations: Conversation[]): Con
 
     return Array.from(byCustomer.values()).map((group) => {
         const sorted = [...group].sort(
-            (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+            (a, b) => new Date(b.updatedAt || 0).getTime() - new Date(a.updatedAt || 0).getTime()
         );
         const primary = sorted.find((conversation) => isActiveStatus(conversation.status)) ?? sorted[0];
 

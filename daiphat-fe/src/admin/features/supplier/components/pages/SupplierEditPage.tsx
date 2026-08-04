@@ -1,8 +1,10 @@
+"use client";
+
 import { Box, Stack, Typography } from '@mui/material';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from '@/components/router-compat';
 import { toast } from 'react-toastify';
 import { Breadcrumb } from '../../../../components/ui/Breadcrumb';
 import { Title } from '../../../../components/ui/Title';
@@ -51,6 +53,10 @@ export const SupplierEditPage = () => {
             taxCode: supplier.taxCode ?? '',
             paymentTermDays: supplier.paymentTermDays ?? supplierFormDefaultValues.paymentTermDays,
             defaultImportCost: supplier.defaultImportCost ?? supplierFormDefaultValues.defaultImportCost,
+            importAllowFrom:
+                supplier.importAllowFrom?.slice(0, 5) ?? supplierFormDefaultValues.importAllowFrom,
+            returnCutOffTime:
+                supplier.returnCutOffTime?.slice(0, 5) ?? supplierFormDefaultValues.returnCutOffTime,
             isActive: supplier.isActive,
         });
         const missing = supplier.missingActivationFields ?? getMissingSupplierFields(supplier);

@@ -1,5 +1,7 @@
+"use client";
+
 import { useMemo, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from '@/components/router-compat';
 import { format } from 'date-fns';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAttachRefundBankAccount, useGetRefundDetail } from '../../../../hooks/useRefund';
@@ -30,9 +32,13 @@ const REFUND_TYPE_LABELS: Record<RefundType, string> = {
 const FALLBACK_TICKET_IMG =
     'https://i.ibb.co/TBf95cjX/6b561e49-2b8d-4dc5-b4c7-cff26a273abc.png';
 
-function resolveIncidentReason(serialStatus?: string | null): string | null {
-    if (serialStatus === 'DAMAGED') return 'Vé bị rách/hư hỏng';
-    if (serialStatus === 'LOST') return 'Vé bị thất lạc';
+function resolveIncidentReason(
+    serialStatus?: string | null,
+    ticketCondition?: string | null
+): string | null {
+    const condition = (ticketCondition || serialStatus || '').toUpperCase();
+    if (condition === 'DAMAGED') return 'Vé bị rách/hư hỏng';
+    if (condition === 'LOST') return 'Vé bị thất lạc';
     return null;
 }
 
@@ -230,7 +236,7 @@ export const RefundDetailTab = () => {
                                             ? format(new Date(ticket.drawDate), 'dd/MM/yyyy')
                                             : '—';
                                         const incidentReason = ticket.hasIncident
-                                            ? resolveIncidentReason(ticket.serialStatus)
+                                            ? resolveIncidentReason(ticket.serialStatus, ticket.ticketCondition)
                                             : null;
                                         return (
                                             <div

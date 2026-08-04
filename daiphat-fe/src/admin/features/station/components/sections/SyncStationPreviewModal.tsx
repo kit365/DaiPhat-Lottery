@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useEffect, useMemo, useState } from 'react';
 import {
     Dialog,
@@ -68,13 +70,33 @@ interface SyncStationPreviewModalProps {
     syncParams: SyncPreviewParams | null;
 }
 
-const normalizeDrawDays = (drawDays?: string[]) =>
-    Array.isArray(drawDays) ? drawDays.map((day) => day.toUpperCase()) : [];
-
-const formatDrawTime = (drawTime?: string) => {
-    if (!drawTime) return '';
-    return drawTime.length >= 5 ? drawTime.slice(0, 5) : drawTime;
+const normalizeDrawDays = (drawDays?: string[] | string) => {
+    if (!drawDays) {
+        return [];
+    }
+    const values = Array.isArray(drawDays) ? drawDays : [drawDays];
+    return values
+        .map((day) => String(day).trim().toUpperCase())
+        .filter((day) => day.length > 0);
 };
+
+const formatDrawTime = (drawTime?: unknown) => {
+    if (drawTime == null || drawTime === '') {
+        return '';
+    }
+    const normalized = String(drawTime).trim();
+    if (!normalized) {
+        return '';
+    }
+    const match = normalized.match(/^(\d{1,2}):(\d{2})/);
+    if (match) {
+        return `${match[1].padStart(2, '0')}:${match[2]}`;
+    }
+    return normalized.length >= 5 ? normalized.slice(0, 5) : normalized;
+};
+
+const isExistingStationRow = (row: { existingStationId?: number | null }) =>
+    row.existingStationId != null && row.existingStationId > 0;
 
 const formatDrawSchedule = (item: PreviewItem) => {
     if (item.nextDrawDate) {
@@ -114,6 +136,7 @@ export const SyncStationPreviewModal: React.FC<SyncStationPreviewModalProps> = (
     const previewItems: PreviewItem[] = previewData?.data?.items || previewData?.items || [];
 
     const [commissionRates, setCommissionRates] = useState<Record<string, number | null | string>>({});
+    const [bulkCommissionRate, setBulkCommissionRate] = useState<string>('');
 
     useEffect(() => {
         if (!open || previewItems.length === 0) {
@@ -124,7 +147,37 @@ export const SyncStationPreviewModal: React.FC<SyncStationPreviewModalProps> = (
             initial[item.canonicalName] = item.commissionRate ?? null;
         });
         setCommissionRates(initial);
+        setBulkCommissionRate('');
     }, [open, previewData]);
+
+    const handleApplyBulkCommission = () => {
+        const rawValue = bulkCommissionRate.trim();
+        if (rawValue === '') {
+            toast.error('Vui lòng nhập tỷ lệ hoa hồng để áp dụng.');
+            return;
+        }
+        const numValue = Number(rawValue);
+        if (isNaN(numValue) || numValue < 0 || numValue > 1) {
+            toast.error('Tỷ lệ hoa hồng không hợp lệ (phải từ 0 đến 1, ví dụ: 0.1).');
+            return;
+        }
+
+        const updatedRates: Record<string, number | null | string> = { ...commissionRates };
+        let count = 0;
+        previewItems.forEach((item) => {
+            if (!isExistingStationRow(item)) {
+                updatedRates[item.canonicalName] = rawValue;
+                count++;
+            }
+        });
+
+        setCommissionRates(updatedRates);
+        if (count > 0) {
+            toast.success(`Đã áp dụng hoa hồng ${rawValue} cho ${count} nhà đài.`);
+        } else {
+            toast.info('Không có nhà đài mới nào để áp dụng hoa hồng.');
+        }
+    };
 
     const rows = useMemo(
         () => previewItems.map((item) => ({
@@ -137,8 +190,31 @@ export const SyncStationPreviewModal: React.FC<SyncStationPreviewModalProps> = (
     );
 
     const missingCommissionStations = rows.filter(
-        (row) => row.existingStationId == null && !isValidCommissionRate(row.editedCommissionRate)
+        (row) => !isExistingStationRow(row) && !isValidCommissionRate(row.editedCommissionRate)
     );
+
+    const buildConfirmItems = () => {
+        const newStationRows = rows.filter((row) => !isExistingStationRow(row));
+
+        for (const row of newStationRows) {
+            if (!row.drawDays.length || !row.drawTime) {
+                toast.error(`Nhà đài "${row.name}" thiếu lịch quay hợp lệ.`);
+                return null;
+            }
+        }
+
+        return newStationRows.map((row) => ({
+            name: row.name,
+            canonicalName: row.canonicalName,
+            drawDays: row.drawDays,
+            drawTime: row.drawTime,
+            commissionRate: isValidCommissionRate(row.editedCommissionRate)
+                ? Number(row.editedCommissionRate)
+                : null,
+            action: 'CREATED' as const,
+            existingStationId: null,
+        }));
+    };
 
     const submitConfirm = () => {
         if (!syncParams) {
@@ -147,7 +223,7 @@ export const SyncStationPreviewModal: React.FC<SyncStationPreviewModalProps> = (
 
         const invalidRate = rows.find((row) => {
             const rate = row.editedCommissionRate;
-            return row.existingStationId == null && rate != null && !isValidCommissionRate(rate);
+            return !isExistingStationRow(row) && rate != null && !isValidCommissionRate(rate);
         });
 
         if (invalidRate) {
@@ -155,23 +231,17 @@ export const SyncStationPreviewModal: React.FC<SyncStationPreviewModalProps> = (
             return;
         }
 
+        const confirmItems = buildConfirmItems();
+        if (!confirmItems || confirmItems.length === 0) {
+            toast.error('Không có nhà đài mới để đồng bộ.');
+            return;
+        }
+
         const payload = {
             source: syncParams.source,
             region: syncParams.region,
             defaultPrice: syncParams.defaultPrice,
-            items: rows
-                .filter((row) => row.existingStationId == null)
-                .map((row) => ({
-                    name: row.name,
-                    canonicalName: row.canonicalName,
-                    drawDays: row.drawDays,
-                    drawTime: row.drawTime,
-                    commissionRate: isValidCommissionRate(row.editedCommissionRate)
-                        ? Number(row.editedCommissionRate)
-                        : null,
-                    action: row.action,
-                    existingStationId: row.existingStationId,
-                })),
+            items: confirmItems,
         };
 
         confirmSync(payload, {
@@ -208,9 +278,50 @@ export const SyncStationPreviewModal: React.FC<SyncStationPreviewModalProps> = (
                 Xem trước đồng bộ nhà đài
             </DialogTitle>
             <DialogContent>
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                    Kiểm tra thông tin và nhập tỷ lệ hoa hồng (0–1) trước khi lưu. Nhà đài chưa có hoa hồng sẽ ở trạng thái chờ cấu hình.
-                </Typography>
+                <Box
+                    sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        mb: 2,
+                        flexWrap: 'wrap',
+                        gap: 2,
+                    }}
+                >
+                    <Typography variant="body2" color="text.secondary" sx={{ maxWidth: 600 }}>
+                        Kiểm tra thông tin và nhập tỷ lệ hoa hồng (0–1) cho nhà đài mới trước khi lưu.
+                        Nhà đài đã tồn tại (làm mờ) sẽ được bỏ qua; chỉ các nhà đài mới được tạo.
+                    </Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <TextField
+                            size="small"
+                            placeholder="Hoa hồng chung (VD: 0.1)"
+                            value={bulkCommissionRate}
+                            onChange={(e) => {
+                                const val = e.target.value;
+                                if (val === '') {
+                                    setBulkCommissionRate('');
+                                    return;
+                                }
+                                const num = Number(val);
+                                if (!isNaN(num) && num >= 0 && num <= 1) {
+                                    setBulkCommissionRate(val);
+                                }
+                            }}
+                            disabled={isPending || rows.every(isExistingStationRow)}
+                            sx={{ width: 190 }}
+                        />
+                        <Button
+                            variant="outlined"
+                            size="small"
+                            onClick={handleApplyBulkCommission}
+                            disabled={isPending || !bulkCommissionRate.trim() || rows.every(isExistingStationRow)}
+                            sx={{ whiteSpace: 'nowrap', height: 40 }}
+                        >
+                            Áp dụng cho tất cả
+                        </Button>
+                    </Box>
+                </Box>
                 <TableContainer component={Paper} variant="outlined">
                     <Table size="small">
                         <TableHead>
@@ -224,7 +335,7 @@ export const SyncStationPreviewModal: React.FC<SyncStationPreviewModalProps> = (
                         </TableHead>
                         <TableBody>
                             {rows.map((row) => {
-                                const isExisting = row.existingStationId != null;
+                                const isExisting = isExistingStationRow(row);
                                 return (
                                     <TableRow key={row.canonicalName} sx={{ opacity: isExisting ? 0.5 : 1 }}>
                                         <TableCell>{row.name}</TableCell>
@@ -265,7 +376,7 @@ export const SyncStationPreviewModal: React.FC<SyncStationPreviewModalProps> = (
                 </TableContainer>
             </DialogContent>
             <DialogActions sx={{ p: 2, pt: 0, flexDirection: 'column', alignItems: 'flex-end' }}>
-                <Box sx={{ display: 'flex', gap: 1, mb: rows.length > 0 && rows.every(r => r.existingStationId != null) ? 1 : 0 }}>
+                <Box sx={{ display: 'flex', gap: 1, mb: rows.length > 0 && rows.every(isExistingStationRow) ? 1 : 0 }}>
                     <Button onClick={onClose} disabled={isPending} color="inherit">
                         Hủy
                     </Button>
@@ -274,10 +385,10 @@ export const SyncStationPreviewModal: React.FC<SyncStationPreviewModalProps> = (
                         onClick={handleConfirmSave}
                         label="Xác nhận & Lưu"
                         variant="contained"
-                        disabled={rows.length === 0 || rows.every((r) => r.existingStationId != null)}
+                        disabled={rows.length === 0 || rows.every(isExistingStationRow)}
                     />
                 </Box>
-                {rows.length > 0 && rows.every((r) => r.existingStationId != null) && (
+                {rows.length > 0 && rows.every(isExistingStationRow) && (
                     <Typography variant="caption" color="text.secondary">
                         Tất cả nhà đài đều đã tồn tại trên hệ thống.
                     </Typography>

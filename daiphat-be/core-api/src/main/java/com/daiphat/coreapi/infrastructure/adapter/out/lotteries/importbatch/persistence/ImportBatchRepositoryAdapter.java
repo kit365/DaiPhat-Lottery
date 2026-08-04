@@ -232,4 +232,21 @@ public class ImportBatchRepositoryAdapter implements ImportBatchRepositoryPort {
     public long nextHeaderBatchCodeSequence() {
         return importBatchRepository.nextHeaderBatchCodeSequence();
     }
+
+    @Override
+    public boolean existsNonCancelledBySupplierAndDrawDate(Long supplierId, LocalDate drawDate) {
+        return importBatchRepository.existsNonCancelledBySupplierAndDrawDate(supplierId, drawDate);
+    }
+
+    @Override
+    public List<ImportBatchModel> findBySupplierSettlementId(Long supplierSettlementId) {
+        if (supplierSettlementId == null) {
+            return List.of();
+        }
+        return importBatchRepository
+                .findBySupplierSettlementIdAndDeletedAtIsNullOrderByDrawDateDescIdDesc(supplierSettlementId)
+                .stream()
+                .map(importBatchPersistenceMapper::toDomain)
+                .toList();
+    }
 }

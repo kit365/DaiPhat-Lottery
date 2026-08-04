@@ -1,6 +1,6 @@
 import type { ImportBatchImportMode } from '../utils/batchTypeLabels';
 
-export type ImportBatchType = 'NEW' | 'SUPPLEMENTARY' | 'LATE_IMPORT' | 'ADJUSTMENT';
+export type ImportBatchType = 'NEW' | 'SUPPLEMENTARY' | 'ADJUSTMENT';
 export type ImportBatchStatus =
     | 'DRAFT'
     | 'RECEIVING'
@@ -101,6 +101,8 @@ export interface ImportBatchEligibleStation {
     lotteryStationId: number;
     name: string;
     resolvedBatchType: ImportBatchType;
+    price?: number;
+    commissionRate?: number;
 }
 
 export interface ImportBatchBlockedStation {
@@ -135,8 +137,7 @@ export interface ImportBatchListParams {
 }
 
 export interface ImportBatchTimePolicy {
-    lateImportTime: string;
-    importBatchCutoffTime: string;
+    returnBufferMinutes: number;
 }
 
 export interface ImportBatchReductionTicket {
@@ -168,6 +169,9 @@ export interface ImportBatchLineEntrySerial {
     serialNumber: string;
     ticketImg?: string;
     status?: string;
+    ticketCondition?: string;
+    ticketConditionDisplayName?: string;
+    returnBatchLineId?: number | null;
 }
 
 export interface ImportBatchLineEntryTicket {

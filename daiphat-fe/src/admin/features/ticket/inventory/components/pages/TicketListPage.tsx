@@ -1,6 +1,9 @@
+"use client";
+
 import AddIcon from '@mui/icons-material/Add';
-import { Stack } from '@mui/material';
-import { useNavigate } from 'react-router-dom';
+import ReportProblemIcon from '@mui/icons-material/ReportProblem';
+import { Stack, Button } from '@mui/material';
+import { useNavigate } from '@/components/router-compat';
 import { useTranslation } from 'react-i18next';
 import { Breadcrumb } from '../../../../../components/ui/Breadcrumb';
 import { Title } from '../../../../../components/ui/Title';
@@ -11,12 +14,13 @@ import { prefixAdmin, ROUTES } from '../../../../../constants/routes';
 import { useTicketInventory } from '../../hooks/useTicketInventory';
 import { TicketList } from '../sections/TicketList';
 import { Tabs, Tab, Box } from '@mui/material';
-import dayjs, { Dayjs } from 'dayjs';
+import dayjs from 'dayjs';
 import { useMemo, useState, SyntheticEvent } from 'react';
 import { DateRangePicker } from '../../../../../components/ui/DateRangePicker';
 import { IncompleteImportBatchNotification } from '../../../import-batch/components/sections/IncompleteImportBatchNotification';
 import { useStationsByDrawDate } from '../../../../station/hooks/useStation';
 import { getStationColor } from '../../../../station/utils/stationColor';
+import { useCancelTicketSelection } from '../../../import-batch/hooks/useCancelTicketSelection';
 
 export const TicketListPage = () => {
     const { t } = useTranslation();
@@ -34,6 +38,8 @@ export const TicketListPage = () => {
         drawDateFrom: parseToISO(initialStartDate),
         drawDateTo: parseToISO(initialEndDate),
     });
+
+    const cancelSelection = useCancelTicketSelection(ticketHook.tickets);
 
     const [dateRange, setDateRange] = useState<{startDate: string, endDate: string}>({
         startDate: initialStartDate,
@@ -103,18 +109,44 @@ export const TicketListPage = () => {
                         ]}
                     />
                 </div>
-                <CanAccess permission={PERMISSIONS.TICKET.CREATE}>
-                    <LoadingButton
-                        onClick={() => navigate(ROUTES.ADMIN.TICKETS.CREATE)}
-                        label="Thêm vé số"
-                        startIcon={<AddIcon />}
-                        className="btn-primary-admin"
+                <Stack direction="row" spacing={1.5} alignItems="center">
+                    <CanAccess permission={PERMISSIONS.TICKET.CREATE}>
+                        <LoadingButton
+                            onClick={() => navigate(ROUTES.ADMIN.TICKETS.CREATE)}
+                            label="Thêm vé số"
+                            startIcon={<AddIcon />}
+                            className="btn-primary-admin"
+                            sx={{
+                                minHeight: '2.25rem',
+                                padding: 'var(--shape-borderRadius-sm) calc(2 * var(--spacing))',
+                            }}
+                        />
+                    </CanAccess>
+                    <Button
+                        variant="contained"
+                        color="error"
+                        size="small"
+                        startIcon={<ReportProblemIcon />}
+                        disabled={cancelSelection.selectedSerials.length === 0}
+                        onClick={cancelSelection.openReportDialog}
                         sx={{
                             minHeight: '2.25rem',
-                            padding: 'var(--shape-borderRadius-sm) calc(2 * var(--spacing))',
+                            textTransform: 'none',
+                            fontWeight: 700,
+                            borderRadius: '8px',
+                            boxShadow: 'none',
+                            py: 0.8,
+                            px: 2,
+                            '&.Mui-disabled': {
+                                bgcolor: '#f1f5f9',
+                                color: '#94a3b8',
+                                borderColor: '#cbd5e1',
+                            },
                         }}
-                    />
-                </CanAccess>
+                    >
+                        Tiến hành hủy vé{cancelSelection.selectedSerials.length > 0 && ` (${cancelSelection.selectedSerials.length})`}
+                    </Button>
+                </Stack>
             </div>
 
             <Stack spacing={2} sx={{ mb: 2 }}>
@@ -166,7 +198,7 @@ export const TicketListPage = () => {
                 </Box>
             </Stack>
 
-            <TicketList ticketHook={ticketHook} />
+            <TicketList ticketHook={ticketHook} cancelSelection={cancelSelection} />
         </>
     );
 };

@@ -4,6 +4,7 @@ import com.daiphat.coreapi.infrastructure.persistence.entity.lotteries.LotterySu
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 
+import java.util.List;
 import java.util.Optional;
 
 public interface LotterySupplierRepository
@@ -18,4 +19,6 @@ public interface LotterySupplierRepository
     Optional<LotterySupplierEntity> findByCodeIgnoreCaseAndDeletedAtIsNull(String code);
 
     boolean existsByIsActiveTrueAndDeletedAtIsNull();
+
+    List<LotterySupplierEntity> findByIsActiveTrueAndDeletedAtIsNull();
 }

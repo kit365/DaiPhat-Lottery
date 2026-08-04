@@ -78,9 +78,17 @@ public class SupportTicketRepositoryAdapter implements SupportTicketRepositoryPo
 
     @Override
     public long countActiveTickets(UUID customerId) {
-        return supportTicketRepository.countByCustomer_IdAndStatusNotIn(
+        // In-progress always count; REJECTED counts until customer views after rejection.
+        return supportTicketRepository.countAttentionTickets(
                 customerId,
-                List.of(TicketStatus.RESOLVED, TicketStatus.CLOSED)
-        );
+                List.of(
+                        TicketStatus.OPEN,
+                        TicketStatus.IN_PROGRESS,
+                        TicketStatus.WAITING_FOR_CUSTOMER));
+    }
+
+    @Override
+    public int markRejectedTicketsViewed(UUID customerId, LocalDateTime viewedAt) {
+        return supportTicketRepository.markRejectedTicketsViewed(customerId, viewedAt);
     }
 }

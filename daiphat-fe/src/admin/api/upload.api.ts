@@ -1,24 +1,14 @@
 import { apiApp } from '../../api';
-import Cookies from 'js-cookie';
-import { STORAGE_KEYS } from '../../constants/storage.constants';
+import { withAuthHeaders } from '../../api/authHeaders';
 
-const withAuth = () => {
-    const token = Cookies.get(STORAGE_KEYS.TOKEN);
-    return {
-        headers: {
-            Authorization: `Bearer ${token}`,
-        },
-    };
-};
-
-/** Upload ảnh lên Cloudinary qua backend (không cần cấu hình VITE_CLOUDINARY_* trên FE). */
+/** Upload ảnh lên storage qua backend (Cloudinary hoặc local filesystem). */
 export const uploadAdminImage = async (file: File): Promise<string> => {
     const formData = new FormData();
     formData.append('file', file);
 
     // Do not set Content-Type manually — axios/browser must include the multipart boundary.
     const response = await apiApp.post('/lottery-tickets/images/upload', formData, {
-        ...withAuth(),
+        ...withAuthHeaders(),
     });
 
     const url = response.data?.data?.url;

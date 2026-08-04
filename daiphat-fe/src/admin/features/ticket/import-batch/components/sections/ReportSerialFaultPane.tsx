@@ -1,3 +1,7 @@
+"use client";
+
+'use client';
+
 import React, { useState, useEffect } from 'react';
 import {
     Typography,
@@ -20,25 +24,74 @@ import {
     DialogTitle,
     DialogContent,
     DialogActions,
-    Divider
+    Divider,
+    Table,
+    TableBody,
+    TableCell,
+    TableContainer,
+    TableHead,
+    TableRow
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import ReportProblemIcon from '@mui/icons-material/ReportProblem';
 import LinkIcon from '@mui/icons-material/Link';
 import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
 import LayersIcon from '@mui/icons-material/Layers';
-import { reportTicketSerialFault, createTicket, replaceTicketDigits } from '../../../inventory/services/ticketService';
+import {
+    buildReportSerialFaultPayload,
+    reportTicketSerialFault,
+    replaceTicketDigits,
+} from '../../../inventory/services/ticketService';
+import {
+    applyReplacementSerialDuplicateErrors,
+    DUPLICATE_REPLACEMENT_SERIAL_MESSAGE,
+    getActiveTransactionSerials,
+    groupSerialsByOrderId,
+    hasDuplicateReplacementSerialErrors,
+    isActiveTransactionSerialStatus,
+    isSerialIncidentEligible,
+    needsRefundPrepStep,
+} from '../../utils/serialIncidentWorkflow';
 import { AppToast } from '../../../../../../utils/toast.util';
 import { UploadSingleFile } from '../../../../../components/upload/UploadSingleFile';
+import {
+    TicketIncidentRefundStep,
+    type RefundOrderDraft,
+} from './TicketIncidentRefundStep';
+import { createPartialRefund } from '../../../../orders/services/orderService';
+import { refundAdminApi } from '../../../../../api/refund.api';
+import { getOrderStatusBadge } from '../../../../orders/constants/orderStatus.constants';
+import { OrderStatus } from '../../../../../../types/order.type';
+import {
+    formatRefundCurrency,
+    ORDER_CANCEL_REASON_DEFAULTS,
+} from '../../../../../../types/refund.type';
+import {
+    dedupeIncidentsByOrderDetailId,
+    ORDER_TYPE_LABELS,
+} from '../../utils/orderIncidentRefund.utils';
+import dayjs from 'dayjs';
 
 interface SerialItem {
     id: number | string;
     serialNumber: string;
     status: string;
+    ticketCondition?: string | null;
+    returnBatchLineId?: number | string | null;
     ticketId?: number | string;
     ticketNumbers?: string;
     ticketStatus?: string;
+    reservedByOrderId?: string;
 }
+
+type MappedSubmitItem = FormState & {
+    id: number;
+    ticketId?: number | string;
+    ticketNumbers?: string;
+    originalStatus: string;
+    reservedByOrderId?: string;
+    serialNumber?: string;
+};
 
 interface TicketGroup {
     ticketNumbers: string;
@@ -54,6 +107,11 @@ interface Props {
     importBatchLineId: number | string;
     stationId?: number | string;
     drawDate?: string;
+    defaultCancelMode?: 'TICKET' | 'SERIAL';
+    cancelButtonText?: string;
+    hideFaultedBySelector?: boolean;
+    /** Return false to abort opening the confirm dialog / submitting (e.g. inspection expired). */
+    beforeConfirm?: () => boolean;
     onCancel: () => void;
     onSuccess: () => void;
 }
@@ -84,23 +142,19 @@ const getTicketStatusConfig = (status?: string) => {
         case 'RESERVED':
             return { label: 'Tạm giữ (RESERVED)', color: '#a16207', bgcolor: '#fef9c3', borderColor: '#fef08a' };
         case 'SOLD_OUT':
+            return { label: 'Hết hàng (SOLD_OUT)', color: '#b91c1c', bgcolor: '#fee2e2', borderColor: '#fecaca' };
         case 'SOLD':
             return { label: 'Đã bán (SOLD)', color: '#0369a1', bgcolor: '#e0f2fe', borderColor: '#bae6fd' };
         case 'EXPIRED':
             return { label: 'Hết hạn (EXPIRED)', color: '#64748b', bgcolor: '#f1f5f9', borderColor: '#e2e8f0' };
-        case 'DAMAGED':
-            return { label: 'Hỏng (DAMAGED)', color: '#b91c1c', bgcolor: '#fee2e2', borderColor: '#fecaca' };
-        case 'LOST':
-            return { label: 'Mất (LOST)', color: '#b91c1c', bgcolor: '#fee2e2', borderColor: '#fecaca' };
-        case 'VOIDED':
         case 'CANCELLED':
-            return { label: 'Đã hủy (VOIDED)', color: '#b91c1c', bgcolor: '#fee2e2', borderColor: '#fecaca' };
+            return { label: 'Đã hủy', color: '#b91c1c', bgcolor: '#fee2e2', borderColor: '#fecaca' };
         default:
             return { label: `Vé (${s})`, color: '#334155', bgcolor: '#f1f5f9', borderColor: '#cbd5e1' };
     }
 };
 
-const renderTicketStatusChip = (status?: string) => {
+const TicketStatusChip: React.FC<{ status?: string }> = ({ status }) => {
     const cfg = getTicketStatusConfig(status);
     return (
         <Chip
@@ -120,34 +174,51 @@ const renderTicketStatusChip = (status?: string) => {
     );
 };
 
-interface Props {
-    serials: SerialItem[];
-    ticketNumbers: string;
-    ticketId?: number | string;
-    importBatchLineId: number | string;
-    stationId?: number | string;
-    drawDate?: string;
-    onCancel: () => void;
-    onSuccess: () => void;
-}
+const getSerialStatusConfig = (status?: string, ticketCondition?: string | null) => {
+    const condition = (ticketCondition || '').toUpperCase();
+    if (condition === 'DAMAGED') {
+        return { label: 'Hỏng (DAMAGED)', bgcolor: '#fee2e2', textColor: '#b91c1c', borderColor: '#fca5a5' };
+    }
+    if (condition === 'LOST') {
+        return { label: 'Mất (LOST)', bgcolor: '#fee2e2', textColor: '#b91c1c', borderColor: '#fca5a5' };
+    }
+    if (condition === 'VOIDED') {
+        return { label: 'Hủy (VOIDED)', bgcolor: '#fee2e2', textColor: '#b91c1c', borderColor: '#fca5a5' };
+    }
+    const s = (status || '').toUpperCase().replace(/-/g, '_');
+    switch (s) {
+        case 'IN_STOCK':
+            return { label: 'Trong kho (IN_STOCK)', bgcolor: '#dcfce7', textColor: '#15803d', borderColor: '#86efac' };
+        case 'RESERVED':
+            return { label: 'Tạm giữ (RESERVED)', bgcolor: '#fef9c3', textColor: '#a16207', borderColor: '#fde047' };
+        case 'PROXY_HOLDING':
+            return { label: 'Đại lý giữ hộ (PROXY_HOLDING)', bgcolor: '#fef9c3', textColor: '#a16207', borderColor: '#fde047' };
+        case 'SOLD':
+            return { label: 'Đã bán (SOLD)', bgcolor: '#e0f2fe', textColor: '#0369a1', borderColor: '#7dd3fc' };
+        case 'EXPIRED':
+            return { label: 'Hết hạn (EXPIRED)', bgcolor: '#f1f5f9', textColor: '#64748b', borderColor: '#cbd5e1' };
+        default:
+            return { label: status || 'Chưa xác định', bgcolor: '#f1f5f9', textColor: '#64748b', borderColor: '#cbd5e1' };
+    }
+};
 
-interface FormState {
-    selected: boolean;
-    status: 'DAMAGED' | 'LOST' | 'VOIDED';
-    faultedBy: 'INTERNAL_FAULT' | 'ISSUER_FAULT' | 'DATA_ENTRY_FAULT';
-    damagedReason: string;
-    damagedEvidenceUrl: string;
-    replacementNumbers?: string;
-    replacementSerial?: string;
-    replacementTicketImg?: string;
-    errors: {
-        damagedReason?: string;
-        damagedEvidenceUrl?: string;
-        replacementNumbers?: string;
-        replacementSerial?: string;
-        replacementTicketImg?: string;
-    };
-}
+const SerialStatusChip: React.FC<{ status?: string; ticketCondition?: string | null }> = ({ status, ticketCondition }) => {
+    const config = getSerialStatusConfig(status, ticketCondition);
+    return (
+        <Chip 
+            label={config.label} 
+            size="small" 
+            sx={{ 
+                height: 20, 
+                fontSize: '0.68rem', 
+                fontWeight: 700, 
+                bgcolor: config.bgcolor, 
+                color: config.textColor, 
+                border: `1px solid ${config.borderColor}` 
+            }} 
+        />
+    );
+};
 
 export const ReportSerialFaultPane: React.FC<Props> = ({
     serials,
@@ -156,12 +227,25 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
     importBatchLineId,
     stationId,
     drawDate,
+    defaultCancelMode = 'SERIAL',
+    cancelButtonText,
+    hideFaultedBySelector = false,
+    beforeConfirm,
     onCancel,
     onSuccess
 }) => {
     const [forms, setForms] = useState<Record<string | number, FormState>>({});
     const [submitting, setSubmitting] = useState(false);
     const [confirmOpen, setConfirmOpen] = useState(false);
+    const [incompleteGroupsOpen, setIncompleteGroupsOpen] = useState(false);
+    const [incompleteGroupNumbers, setIncompleteGroupNumbers] = useState<string[]>([]);
+    const [ticketBatchEvidenceMode, setTicketBatchEvidenceMode] = useState<'ALL' | 'EACH' | null>(null);
+    const [pendingEvidenceUrl, setPendingEvidenceUrl] = useState('');
+    const [evidenceApplyDialogOpen, setEvidenceApplyDialogOpen] = useState(false);
+    const [serialEvidenceUrls, setSerialEvidenceUrls] = useState<Record<string, string>>({});
+    const [workflowStep, setWorkflowStep] = useState<'FORM' | 'REFUND'>('FORM');
+    const [refundDraftByOrderId, setRefundDraftByOrderId] = useState<Record<string, RefundOrderDraft>>({});
+    const [pendingSelectedItems, setPendingSelectedItems] = useState<MappedSubmitItem[]>([]);
 
     const [replacementType, setReplacementType] = useState<'DIGITS' | 'SERIALS'>('DIGITS');
     const [replacementDigits, setReplacementDigits] = useState('');
@@ -196,11 +280,12 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
         setPage(1);
         setRepPage(1);
         setActiveGroupIndex(0);
+        setCancelMode(defaultCancelMode);
         const timer = setTimeout(() => {
             setIsPreparing(false);
         }, 300);
         return () => clearTimeout(timer);
-    }, [serials]);
+    }, [serials, defaultCancelMode]);
 
     useEffect(() => {
         if (activeGroupIndex >= groups.length && groups.length > 0) {
@@ -208,7 +293,7 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
         }
     }, [groups.length, activeGroupIndex]);
 
-    const [cancelMode, setCancelMode] = useState<'TICKET' | 'SERIAL'>('SERIAL');
+    const [cancelMode, setCancelMode] = useState<'TICKET' | 'SERIAL'>(defaultCancelMode);
     const [serialProcessingMode, setSerialProcessingMode] = useState<'EACH' | 'ALL'>('EACH');
     const [bulkForm, setBulkForm] = useState<FormState>({
         selected: true,
@@ -250,6 +335,222 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
     const currentTicketId = currentGroup?.ticketId || ticketId;
     const currentTicketStatus = currentGroup?.ticketStatus || (currentSerials[0] as any)?.ticketStatus;
     const currentGroupSelectedSerials = currentSerials.filter(s => forms[s.id]?.selected);
+
+    const isTicketBatchFaultFlow =
+        cancelMode === 'TICKET' &&
+        ticketForm.faultedBy === 'INTERNAL_FAULT' &&
+        (ticketForm.status === 'DAMAGED' || ticketForm.status === 'LOST');
+
+    const ticketBatchFaultProgressCount = React.useMemo(() => {
+        if (!isTicketBatchFaultFlow || !ticketForm.damagedReason?.trim()) return 0;
+        if (ticketForm.status === 'LOST') return currentSerials.length;
+        if (ticketForm.status === 'DAMAGED') {
+            if (ticketBatchEvidenceMode === 'ALL') {
+                return ticketForm.damagedEvidenceUrl?.trim() ? currentSerials.length : 0;
+            }
+            if (ticketBatchEvidenceMode === 'EACH') {
+                return currentSerials.filter((serial) => serialEvidenceUrls[String(serial.id)]?.trim()).length;
+            }
+            return 0;
+        }
+        return 0;
+    }, [
+        isTicketBatchFaultFlow,
+        ticketForm.damagedReason,
+        ticketForm.status,
+        ticketForm.damagedEvidenceUrl,
+        ticketBatchEvidenceMode,
+        serialEvidenceUrls,
+        currentSerials,
+    ]);
+
+    const isTicketBatchFaultFormComplete = React.useMemo(() => {
+        return currentSerials.length > 0 && ticketBatchFaultProgressCount === currentSerials.length;
+    }, [currentSerials.length, ticketBatchFaultProgressCount]);
+
+    const ticketBatchFaultedByLabel =
+        ticketForm.faultedBy === 'INTERNAL_FAULT'
+            ? 'Nhân viên làm hỏng'
+            : ticketForm.faultedBy === 'DATA_ENTRY_FAULT'
+            ? 'Lỗi thao tác nhập liệu'
+            : '—';
+
+    const ticketBatchStatusLabel =
+        ticketForm.status === 'DAMAGED'
+            ? 'Hỏng vật lý (DAMAGED)'
+            : ticketForm.status === 'LOST'
+            ? 'Thất lạc / Mất (LOST)'
+            : '—';
+
+    const getTicketBatchSerialEvidenceUrl = (serialId: string | number): string => {
+        if (ticketBatchEvidenceMode === 'ALL') return ticketForm.damagedEvidenceUrl || '';
+        return serialEvidenceUrls[String(serialId)] || '';
+    };
+
+    const ticketEvidenceUploadValue =
+        isTicketBatchFaultFlow && ticketForm.status === 'DAMAGED'
+            ? ticketBatchEvidenceMode === 'ALL'
+                ? ticketForm.damagedEvidenceUrl
+                : evidenceApplyDialogOpen
+                ? pendingEvidenceUrl
+                : ''
+            : ticketForm.damagedEvidenceUrl;
+
+    useEffect(() => {
+        setTicketBatchEvidenceMode(null);
+        setSerialEvidenceUrls({});
+        setPendingEvidenceUrl('');
+        setEvidenceApplyDialogOpen(false);
+        setWorkflowStep('FORM');
+        setRefundDraftByOrderId({});
+        setPendingSelectedItems([]);
+    }, [currentTicketId, activeGroupIndex, serials]);
+
+    useEffect(() => {
+        if (!isTicketBatchFaultFlow || ticketForm.status !== 'DAMAGED') {
+            setTicketBatchEvidenceMode(null);
+            setSerialEvidenceUrls({});
+            setPendingEvidenceUrl('');
+            setEvidenceApplyDialogOpen(false);
+        }
+    }, [isTicketBatchFaultFlow, ticketForm.status]);
+
+    const handleTicketEvidenceUpload = (url: string) => {
+        if (isTicketBatchFaultFlow && ticketForm.status === 'DAMAGED') {
+            if (!url) {
+                if (ticketBatchEvidenceMode === 'ALL') {
+                    handleTicketFormFieldChange('damagedEvidenceUrl', '');
+                    setSerialEvidenceUrls({});
+                }
+                setTicketBatchEvidenceMode(null);
+                setPendingEvidenceUrl('');
+                return;
+            }
+            setPendingEvidenceUrl(url);
+            setEvidenceApplyDialogOpen(true);
+            return;
+        }
+        handleTicketFormFieldChange('damagedEvidenceUrl', url);
+    };
+
+    const handleEvidenceApplyYes = () => {
+        const url = pendingEvidenceUrl;
+        setTicketBatchEvidenceMode('ALL');
+        handleTicketFormFieldChange('damagedEvidenceUrl', url);
+        const nextUrls: Record<string, string> = {};
+        currentSerials.forEach((serial) => {
+            nextUrls[String(serial.id)] = url;
+        });
+        setSerialEvidenceUrls(nextUrls);
+        setPendingEvidenceUrl('');
+        setEvidenceApplyDialogOpen(false);
+    };
+
+    const handleEvidenceApplyNo = () => {
+        setTicketBatchEvidenceMode('EACH');
+        handleTicketFormFieldChange('damagedEvidenceUrl', '');
+        setSerialEvidenceUrls({});
+        setPendingEvidenceUrl('');
+        setEvidenceApplyDialogOpen(false);
+    };
+
+    const handleSerialEvidenceChange = (serialId: string | number, url: string) => {
+        setSerialEvidenceUrls((prev) => ({
+            ...prev,
+            [String(serialId)]: url,
+        }));
+    };
+
+    const mapSerialsToSelectedItems = (targetSerials: SerialItem[]): MappedSubmitItem[] =>
+        targetSerials.map((sItem) => {
+            const formState = cancelMode === 'TICKET' ? ticketForm : forms[sItem.id];
+            let damagedEvidenceUrl = formState.damagedEvidenceUrl;
+            if (
+                cancelMode === 'TICKET' &&
+                isTicketBatchFaultFlow &&
+                ticketForm.status === 'DAMAGED'
+            ) {
+                damagedEvidenceUrl =
+                    ticketBatchEvidenceMode === 'EACH'
+                        ? serialEvidenceUrls[String(sItem.id)] || ''
+                        : ticketForm.damagedEvidenceUrl;
+            }
+            return {
+                id: Number(sItem.id),
+                ticketId: sItem.ticketId || ticketId,
+                ticketNumbers: sItem.ticketNumbers || ticketNumbers,
+                originalStatus: sItem.status || '',
+                reservedByOrderId: sItem.reservedByOrderId,
+                serialNumber: sItem.serialNumber,
+                ...formState,
+                damagedEvidenceUrl,
+            };
+        });
+
+    const getTargetSerialsForSubmit = (): SerialItem[] =>
+        cancelMode === 'TICKET'
+            ? currentSerials
+            : serialProcessingMode === 'ALL'
+            ? currentGroupSelectedSerials
+            : serials.filter((s) => forms[s.id]?.selected);
+
+    const initializeRefundDrafts = (activeSerials: SerialItem[], selectedItems: MappedSubmitItem[]) => {
+        const grouped = groupSerialsByOrderId(activeSerials);
+        const drafts: Record<string, RefundOrderDraft> = {};
+        Object.entries(grouped).forEach(([orderId, orderSerials]) => {
+            const incidents = orderSerials.map((serial) => {
+                const item = selectedItems.find((entry) => entry.id === Number(serial.id));
+                const reason = item?.status === 'LOST' ? 'LOST' : 'DAMAGED';
+                return {
+                    orderDetailId: 0,
+                    serialId: Number(serial.id),
+                    serialNumber: serial.serialNumber,
+                    ticketNumbers: serial.ticketNumbers,
+                    reason: reason as 'DAMAGED' | 'LOST',
+                    damagedReason: item?.damagedReason,
+                    damagedEvidenceUrl: item?.damagedEvidenceUrl || undefined,
+                };
+            });
+            drafts[orderId] = {
+                cancelReason: ORDER_CANCEL_REASON_DEFAULTS.OUT_OF_STOCK_INCIDENT,
+                incidents,
+            };
+        });
+        setRefundDraftByOrderId(drafts);
+    };
+
+    const resolveReplacementSerialScopeIds = (
+        formsState: Record<string | number, FormState>,
+        scopeSerials: SerialItem[] = currentSerials
+    ): Array<string | number> => {
+        const isTicketSerialReplacement =
+            cancelMode === 'TICKET' &&
+            replacementType === 'SERIALS' &&
+            (ticketForm.status === 'VOIDED' || ticketForm.faultedBy === 'DATA_ENTRY_FAULT');
+
+        if (isTicketSerialReplacement) {
+            return scopeSerials.filter((s) => formsState[s.id]?.selected).map((s) => s.id);
+        }
+
+        if (
+            serialProcessingMode === 'ALL' &&
+            bulkForm.faultedBy === 'DATA_ENTRY_FAULT' &&
+            bulkForm.status === 'VOIDED' &&
+            replacementType === 'SERIALS'
+        ) {
+            return scopeSerials.filter((s) => formsState[s.id]?.selected).map((s) => s.id);
+        }
+
+        return scopeSerials
+            .filter((s) => formsState[s.id]?.selected && formsState[s.id]?.status === 'VOIDED')
+            .map((s) => s.id);
+    };
+
+    const isBulkVoidedReplacementScope =
+        serialProcessingMode === 'ALL' &&
+        bulkForm.faultedBy === 'DATA_ENTRY_FAULT' &&
+        bulkForm.status === 'VOIDED' &&
+        replacementType === 'SERIALS';
 
     useEffect(() => {
         if (cancelMode === 'SERIAL' || !currentTicketId) {
@@ -297,75 +598,27 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
                     next[s.id] = itemUpdated;
                 }
             });
-            return next;
+            const scopeIds = resolveReplacementSerialScopeIds(next);
+            return applyReplacementSerialDuplicateErrors(next, scopeIds);
         });
     };
 
     const selectedCount = Object.keys(forms).filter(id => forms[id].selected).length;
     const hasVoided = cancelMode === 'TICKET'
         ? (ticketForm.status === 'VOIDED' || ticketForm.faultedBy === 'DATA_ENTRY_FAULT')
+        : isBulkVoidedReplacementScope
+        ? currentGroupSelectedSerials.length > 0
         : Object.keys(forms).some(id => forms[id].selected && forms[id].status === 'VOIDED');
 
-    const canSubmit = cancelMode === 'TICKET'
-        ? (ticketForm.status === 'VOIDED' && replacementType === 'DIGITS' ? !!replacementDigits && replacementDigits.length === 6 : true)
-        : selectedCount > 0 && Object.keys(forms).every(id => {
-            const form = forms[id];
-            if (!form.selected) return true;
-            if (form.status === 'VOIDED') {
-                if (replacementType === 'DIGITS') {
-                    return !!replacementDigits && replacementDigits.length === 6;
-                }
-            }
-            return true;
-        });
 
-    const getSerialStatusConfig = (status: string) => {
-        switch (status) {
-            case 'IN_STOCK':
-                return { label: 'Trong kho (IN_STOCK)', bgcolor: '#dcfce7', textColor: '#15803d', borderColor: '#86efac' };
-            case 'RESERVED':
-                return { label: 'Tạm giữ (RESERVED)', bgcolor: '#fef9c3', textColor: '#a16207', borderColor: '#fde047' };
-            case 'SOLD':
-                return { label: 'Đã bán (SOLD)', bgcolor: '#e0f2fe', textColor: '#0369a1', borderColor: '#7dd3fc' };
-            case 'EXPIRED':
-                return { label: 'Hết hạn (EXPIRED)', bgcolor: '#f1f5f9', textColor: '#64748b', borderColor: '#cbd5e1' };
-            case 'DAMAGED':
-                return { label: 'Hỏng (DAMAGED)', bgcolor: '#fee2e2', textColor: '#b91c1c', borderColor: '#fca5a5' };
-            case 'LOST':
-                return { label: 'Mất (LOST)', bgcolor: '#fee2e2', textColor: '#b91c1c', borderColor: '#fca5a5' };
-            case 'VOIDED':
-                return { label: 'Hủy (VOIDED)', bgcolor: '#fee2e2', textColor: '#b91c1c', borderColor: '#fca5a5' };
-            default:
-                return { label: status || 'Chưa xác định', bgcolor: '#f1f5f9', textColor: '#64748b', borderColor: '#cbd5e1' };
-        }
-    };
-
-    const renderSerialStatusChip = (status: string) => {
-        const config = getSerialStatusConfig(status);
-        return (
-            <Chip 
-                label={config.label} 
-                size="small" 
-                sx={{ 
-                    height: 20, 
-                    fontSize: '0.68rem', 
-                    fontWeight: 700, 
-                    bgcolor: config.bgcolor, 
-                    color: config.textColor, 
-                    border: `1px solid ${config.borderColor}` 
-                }} 
-            />
-        );
-    };
 
     useEffect(() => {
         if (serials) {
             const initialForms: Record<string | number, FormState> = {};
             serials.forEach((s) => {
-                const isAlreadyFaulted = s.status === 'DAMAGED' || s.status === 'LOST' || s.status === 'VOIDED';
-                const isSold = s.status === 'SOLD';
+                const incidentEligible = isSerialIncidentEligible(s);
                 initialForms[s.id] = {
-                    selected: !isAlreadyFaulted && !isSold,
+                    selected: incidentEligible,
                     status: 'DAMAGED',
                     faultedBy: 'INTERNAL_FAULT',
                     damagedReason: '',
@@ -388,7 +641,11 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
         setForms((prev) => {
             const updatedForm = {
                 ...prev[id],
-                [field]: field === 'replacementNumbers' ? value.replace(/\D/g, '') : value
+                [field]: field === 'replacementNumbers'
+                    ? value.replace(/\D/g, '')
+                    : field === 'replacementSerial'
+                    ? String(value).trim()
+                    : value
             };
 
             if (field === 'faultedBy' && value === 'DATA_ENTRY_FAULT') {
@@ -403,14 +660,110 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
                 }
             }
 
-            return {
+            if (field === 'replacementSerial' && updatedForm.errors?.replacementSerial) {
+                delete updatedForm.errors.replacementSerial;
+            }
+
+            let next = {
                 ...prev,
                 [id]: updatedForm
             };
+
+            if (field === 'replacementSerial' || field === 'status' || field === 'faultedBy' || field === 'selected') {
+                const scopeIds = resolveReplacementSerialScopeIds(next);
+                next = applyReplacementSerialDuplicateErrors(next, scopeIds);
+            }
+
+            return next;
         });
     };
 
-    const validateForms = (): boolean => {
+    const canSubmit = cancelMode === 'TICKET'
+        ? (isTicketBatchFaultFlow
+            ? isTicketBatchFaultFormComplete
+            : ticketForm.status === 'VOIDED' && replacementType === 'DIGITS'
+            ? !!replacementDigits && replacementDigits.length === 6
+            : ticketForm.status === 'VOIDED' && replacementType === 'SERIALS'
+            ? resolveReplacementSerialScopeIds(forms, currentSerials).every((scopeId) => {
+                const form = forms[scopeId];
+                return !!form?.replacementSerial?.trim() && !form?.errors.replacementSerial;
+            })
+            : true)
+        : isBulkVoidedReplacementScope
+        ? resolveReplacementSerialScopeIds(forms).every((scopeId) => {
+            const form = forms[scopeId];
+            return !!form?.replacementSerial?.trim() && !form?.errors?.replacementSerial;
+        })
+        : selectedCount > 0 && Object.keys(forms).every(id => {
+            const form = forms[id];
+            if (!form.selected) return true;
+            if (form.status === 'VOIDED') {
+                if (replacementType === 'DIGITS') {
+                    return !!replacementDigits && replacementDigits.length === 6;
+                }
+                return !!form.replacementSerial?.trim() && !form.errors.replacementSerial;
+            }
+            return true;
+        });
+
+    const confirmButtonVisible =
+        cancelMode !== 'TICKET' || isTicketBatchFaultFlow || canSubmit;
+    const confirmButtonDisabled = submitting || !canSubmit;
+
+    const isSerialFormFilled = (form: FormState | undefined): boolean => {
+        if (!form?.selected) return false;
+        if (form.status === 'DAMAGED' || form.status === 'LOST' || form.status === 'VOIDED') {
+            if (!form.damagedReason?.trim()) return false;
+            if (
+                form.status === 'DAMAGED' &&
+                form.faultedBy === 'INTERNAL_FAULT' &&
+                !form.damagedEvidenceUrl?.trim()
+            ) {
+                return false;
+            }
+        }
+        if ((form.status === 'VOIDED' || isBulkVoidedReplacementScope) && replacementType === 'SERIALS') {
+            if (!form.replacementSerial?.trim()) return false;
+        }
+        return true;
+    };
+
+    const isTicketGroupFormFilled = (group: TicketGroup, groupIndex: number): boolean => {
+        if (cancelMode === 'TICKET') {
+            if (groupIndex !== activeGroupIndex) return false;
+            if (ticketForm.status === 'DAMAGED' || ticketForm.status === 'LOST' || ticketForm.status === 'VOIDED') {
+                if (!ticketForm.damagedReason?.trim()) return false;
+                if (ticketForm.status === 'DAMAGED' && ticketForm.faultedBy === 'INTERNAL_FAULT') {
+                    if (isTicketBatchFaultFlow && ticketBatchEvidenceMode === 'EACH') {
+                        return group.serials.every((serial) => serialEvidenceUrls[String(serial.id)]?.trim());
+                    }
+                    if (!ticketForm.damagedEvidenceUrl?.trim()) return false;
+                }
+            }
+            return true;
+        }
+
+        const selected = group.serials.filter((s) => forms[s.id]?.selected);
+        if (selected.length === 0) return true;
+        return selected.every((s) => isSerialFormFilled(forms[s.id]));
+    };
+
+    const getIncompleteTicketGroups = (): TicketGroup[] => {
+        if (groups.length <= 1) return [];
+        return groups.filter((group, index) => !isTicketGroupFormFilled(group, index));
+    };
+
+    const getCompleteSelectedSerials = (): SerialItem[] => {
+        if (cancelMode === 'TICKET') {
+            if (!currentGroup || !isTicketGroupFormFilled(currentGroup, activeGroupIndex)) {
+                return [];
+            }
+            return currentSerials;
+        }
+        return serials.filter((s) => isSerialFormFilled(forms[s.id]));
+    };
+
+    const validateForms = (overrideTargets?: SerialItem[]): boolean => {
         let isValid = true;
 
         if (cancelMode === 'TICKET') {
@@ -420,16 +773,61 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
                     ticketErrors.damagedReason = 'Vui lòng chọn hoặc nhập lý do chi tiết.';
                     isValid = false;
                 }
-                if (ticketForm.status === 'DAMAGED' && ticketForm.faultedBy === 'INTERNAL_FAULT' && !ticketForm.damagedEvidenceUrl?.trim()) {
-                    ticketErrors.damagedEvidenceUrl = 'Ảnh minh chứng sự cố không được để trống.';
-                    isValid = false;
+                if (ticketForm.status === 'DAMAGED' && ticketForm.faultedBy === 'INTERNAL_FAULT') {
+                    if (isTicketBatchFaultFlow && ticketBatchEvidenceMode === 'EACH') {
+                        const missingEvidence = currentSerials.some(
+                            (serial) => !serialEvidenceUrls[String(serial.id)]?.trim()
+                        );
+                        if (missingEvidence) {
+                            ticketErrors.damagedEvidenceUrl = 'Vui lòng tải ảnh minh chứng cho tất cả sê-ri.';
+                            isValid = false;
+                        }
+                    } else if (!ticketForm.damagedEvidenceUrl?.trim()) {
+                        ticketErrors.damagedEvidenceUrl = 'Ảnh minh chứng sự cố không được để trống.';
+                        isValid = false;
+                    }
                 }
             }
             setTicketForm(prev => ({ ...prev, errors: ticketErrors }));
+
+            if (!isValid) return false;
+
+            if (ticketForm.status === 'VOIDED' && replacementType === 'SERIALS') {
+                const newForms = { ...forms };
+                const scopeIds = resolveReplacementSerialScopeIds(newForms, currentSerials);
+
+                scopeIds.forEach((scopeId) => {
+                    const form = newForms[scopeId];
+                    if (!form) return;
+
+                    const errors = { ...form.errors };
+                    if (!form.replacementSerial?.trim()) {
+                        errors.replacementSerial = 'Số sê-ri thay thế không được để trống.';
+                        isValid = false;
+                    }
+
+                    newForms[scopeId] = { ...form, errors };
+                });
+
+                const formsWithDuplicateCheck = applyReplacementSerialDuplicateErrors(newForms, scopeIds);
+                scopeIds.forEach((scopeId) => {
+                    if (formsWithDuplicateCheck[scopeId]?.errors?.replacementSerial) {
+                        isValid = false;
+                    }
+                });
+                setForms(formsWithDuplicateCheck);
+            }
+
             return isValid;
         }
 
-        if (serialProcessingMode === 'ALL') {
+        const targetSerials =
+            overrideTargets ??
+            (serialProcessingMode === 'ALL'
+                ? currentGroupSelectedSerials
+                : serials.filter((s) => forms[s.id]?.selected));
+
+        if (serialProcessingMode === 'ALL' && !overrideTargets) {
             const bulkErrors: FormState['errors'] = {};
             if (bulkForm.status === 'DAMAGED' || bulkForm.status === 'LOST' || bulkForm.status === 'VOIDED') {
                 if (!bulkForm.damagedReason?.trim()) {
@@ -447,7 +845,6 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
         }
 
         const newForms = { ...forms };
-        const targetSerials = serialProcessingMode === 'ALL' ? currentGroupSelectedSerials : serials.filter(s => forms[s.id]?.selected);
 
         targetSerials.forEach((s) => {
             const id = s.id;
@@ -467,7 +864,7 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
                 }
             }
 
-            if (form.status === 'VOIDED' && replacementType === 'SERIALS') {
+            if ((form.status === 'VOIDED' || isBulkVoidedReplacementScope) && replacementType === 'SERIALS') {
                 if (!form.replacementSerial?.trim()) {
                     errors.replacementSerial = 'Số sê-ri thay thế không được để trống.';
                     isValid = false;
@@ -480,26 +877,21 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
             };
         });
 
-        setForms(newForms);
+        const voidedScopeIds = resolveReplacementSerialScopeIds(newForms, targetSerials);
+        const formsWithDuplicateCheck = applyReplacementSerialDuplicateErrors(newForms, voidedScopeIds);
+
+        voidedScopeIds.forEach((scopeId) => {
+            if (formsWithDuplicateCheck[scopeId]?.errors?.replacementSerial === DUPLICATE_REPLACEMENT_SERIAL_MESSAGE) {
+                isValid = false;
+            }
+        });
+
+        setForms(formsWithDuplicateCheck);
         return isValid;
     };
 
-    const handlePreSubmit = () => {
-        const targetSerials = cancelMode === 'TICKET'
-            ? currentSerials
-            : serialProcessingMode === 'ALL'
-            ? currentGroupSelectedSerials
-            : serials.filter(s => forms[s.id]?.selected);
-
-        const selectedItems = targetSerials.map((sItem) => {
-            const formState = cancelMode === 'TICKET' ? ticketForm : forms[sItem.id];
-            return {
-                id: Number(sItem.id),
-                ticketId: sItem.ticketId || ticketId,
-                ticketNumbers: sItem.ticketNumbers || ticketNumbers,
-                ...formState
-            };
-        });
+    const proceedPreSubmit = (targetSerials: SerialItem[]) => {
+        const selectedItems = mapSerialsToSelectedItems(targetSerials);
 
         if (selectedItems.length === 0) {
             AppToast.error('Vui lòng chọn ít nhất một sê-ri để báo cáo.');
@@ -520,31 +912,115 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
             }
         }
 
-        if (!validateForms()) {
-            AppToast.error('Vui lòng kiểm tra lại thông tin nhập liệu.');
+        if (!validateForms(targetSerials)) {
+            AppToast.error(
+                hasDuplicateReplacementSerialErrors(forms)
+                    ? DUPLICATE_REPLACEMENT_SERIAL_MESSAGE
+                    : 'Vui lòng kiểm tra lại thông tin nhập liệu.'
+            );
             return;
         }
 
+        setPendingSelectedItems(selectedItems);
+
+        if (
+            needsRefundPrepStep(cancelMode, targetSerials, ticketForm.faultedBy) &&
+            !selectedItems.some((item) => item.status === 'VOIDED')
+        ) {
+            const activeSerials = getActiveTransactionSerials(targetSerials);
+            const missingOrderLink = activeSerials.filter((serial) => !serial.reservedByOrderId);
+            if (missingOrderLink.length > 0) {
+                AppToast.error('Không tìm thấy đơn hàng liên kết với một số sê-ri đang giao dịch.');
+                return;
+            }
+            initializeRefundDrafts(activeSerials, selectedItems);
+            setWorkflowStep('REFUND');
+            return;
+        }
+
+        setRefundDraftByOrderId({});
+        if (beforeConfirm && !beforeConfirm()) {
+            return;
+        }
         setConfirmOpen(true);
     };
 
-    const handleConfirmSubmit = async () => {
-        setConfirmOpen(false);
-        const targetSerials = cancelMode === 'TICKET'
-            ? currentSerials
-            : serialProcessingMode === 'ALL'
-            ? currentGroupSelectedSerials
-            : serials.filter(s => forms[s.id]?.selected);
+    const handlePreSubmit = () => {
+        const incompleteGroups = getIncompleteTicketGroups();
+        if (incompleteGroups.length > 0) {
+            setIncompleteGroupNumbers(incompleteGroups.map((group) => group.ticketNumbers));
+            setIncompleteGroupsOpen(true);
+            return;
+        }
 
-        const selectedItems = targetSerials.map((sItem) => {
-            const formState = cancelMode === 'TICKET' ? ticketForm : forms[sItem.id];
-            return {
-                id: Number(sItem.id),
-                ticketId: sItem.ticketId || ticketId,
-                ticketNumbers: sItem.ticketNumbers || ticketNumbers,
-                ...formState
-            };
+        proceedPreSubmit(getTargetSerialsForSubmit());
+    };
+
+    const handleIncompleteGroupsConfirm = () => {
+        setIncompleteGroupsOpen(false);
+        const completeSerials = getCompleteSelectedSerials();
+        if (completeSerials.length === 0) {
+            AppToast.error('Chưa có dãy nào được nhập đủ thông tin để xác nhận.');
+            return;
+        }
+        proceedPreSubmit(completeSerials);
+    };
+
+    const handleRefundStepContinue = () => {
+        const invalidOrder = Object.entries(refundDraftByOrderId).find(([, draft]) => {
+            if (draft.incidents.length === 0) return true;
+            if (draft.incidents.some((inc) => !inc.orderDetailId)) return true;
+            const needsRefundReason =
+                !!draft.canFullOrderCancel || Number(draft.refundAmount || 0) > 0;
+            if (needsRefundReason && !draft.cancelReason?.trim()) return true;
+            return false;
         });
+        if (invalidOrder) {
+            const draft = invalidOrder[1];
+            AppToast.error(
+                draft?.canFullOrderCancel
+                    ? 'Vui lòng nhập lý do hủy/hoàn tiền và đảm bảo tất cả sê-ri đã map với đơn hàng.'
+                    : Number(draft?.refundAmount || 0) > 0
+                      ? 'Vui lòng nhập lý do hoàn tiền cho các vé sự cố và đảm bảo tất cả sê-ri đã map với đơn hàng.'
+                      : 'Vui lòng đảm bảo tất cả sê-ri sự cố đã map với đơn hàng.'
+            );
+            return;
+        }
+        if (beforeConfirm && !beforeConfirm()) {
+            return;
+        }
+        setConfirmOpen(true);
+    };
+
+    const reportSerialFaultItem = async (item: MappedSubmitItem) => {
+        await reportTicketSerialFault(
+            item.id,
+            buildReportSerialFaultPayload({
+                faultKind: item.status,
+                faultedBy: item.faultedBy,
+                damagedReason: item.damagedReason,
+                damagedEvidenceUrl: item.damagedEvidenceUrl || undefined,
+                replacementSerialNumber:
+                    item.status === 'VOIDED' && replacementType === 'SERIALS'
+                        ? item.replacementSerial?.trim() || undefined
+                        : undefined,
+                replacementTicketImg:
+                    item.status === 'VOIDED' && replacementType === 'SERIALS'
+                        ? item.replacementTicketImg || undefined
+                        : undefined,
+            })
+        );
+    };
+
+    const handleConfirmSubmit = async () => {
+        if (beforeConfirm && !beforeConfirm()) {
+            setConfirmOpen(false);
+            return;
+        }
+        setConfirmOpen(false);
+        const selectedItems = pendingSelectedItems.length > 0
+            ? pendingSelectedItems
+            : mapSerialsToSelectedItems(getTargetSerialsForSubmit());
 
         setSubmitting(true);
         try {
@@ -559,52 +1035,77 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
                 }
 
                 const nonDigitVoidedItems = selectedItems.filter(item => item.status !== 'VOIDED');
-                if (nonDigitVoidedItems.length > 0) {
-                    await Promise.all(
-                        nonDigitVoidedItems.map((item) =>
-                            reportTicketSerialFault(item.id, {
-                                status: item.status,
-                                faultedBy: item.faultedBy,
-                                damagedReason: item.damagedReason,
-                                damagedEvidenceUrl: item.damagedEvidenceUrl || undefined
-                            })
-                        )
-                    );
+                for (const item of nonDigitVoidedItems) {
+                    await reportSerialFaultItem(item);
                 }
             } else {
-                await Promise.all(
-                    selectedItems.map((item) =>
-                        reportTicketSerialFault(item.id, {
-                            status: item.status,
-                            faultedBy: item.faultedBy,
-                            damagedReason: item.damagedReason,
-                            damagedEvidenceUrl: item.damagedEvidenceUrl || undefined
-                        })
-                    )
+                const activeItems = selectedItems.filter((item) =>
+                    isActiveTransactionSerialStatus(item.originalStatus)
+                );
+                const inventoryItems = selectedItems.filter(
+                    (item) => !isActiveTransactionSerialStatus(item.originalStatus)
                 );
 
-                const voidedItems = selectedItems.filter(item => item.status === 'VOIDED');
-                if (voidedItems.length > 0 && replacementType === 'SERIALS') {
-                    await Promise.all(
-                        voidedItems.map((item) => {
-                            if (item.replacementSerial?.trim()) {
-                                return createTicket({
-                                    stationId: Number(stationId),
-                                    importBatchLineId: Number(importBatchLineId),
-                                    numbers: item.ticketNumbers || ticketNumbers,
-                                    drawDate: drawDate,
-                                    serials: [
-                                        {
-                                            serialNumber: item.replacementSerial.trim(),
-                                            ticketImg: item.replacementTicketImg || undefined,
-                                            replacedForTicketId: item.id
-                                        }
-                                    ]
-                                });
-                            }
-                            return Promise.resolve();
-                        })
+                const handledOrderIds = new Set<string>();
+
+                for (const [orderId, draft] of Object.entries(refundDraftByOrderId)) {
+                    const itemsForOrder = activeItems.filter(
+                        (item) => String(item.reservedByOrderId) === orderId
                     );
+                    if (itemsForOrder.length === 0) continue;
+
+                    const orderStatus = draft.orderStatus;
+                    const isRefundableStatus =
+                        orderStatus === OrderStatus.PREPARING ||
+                        orderStatus === 'PREPARING' ||
+                        orderStatus === OrderStatus.PENDING_PICKUP ||
+                        orderStatus === 'PENDING_PICKUP';
+
+                    const mappedIncidents = dedupeIncidentsByOrderDetailId(draft.incidents).map((inc) => ({
+                        orderDetailId: inc.orderDetailId,
+                        reason: inc.reason,
+                        damagedReason: inc.damagedReason,
+                        damagedEvidenceUrl: inc.damagedEvidenceUrl,
+                    }));
+
+                    if (draft.canFullOrderCancel && isRefundableStatus) {
+                        await refundAdminApi.cancelOrderWithRefund(orderId, {
+                            cancelType: 'OUT_OF_STOCK_INCIDENT',
+                            cancelReason: draft.cancelReason.trim(),
+                            incidents: mappedIncidents,
+                        });
+                        handledOrderIds.add(orderId);
+                        continue;
+                    }
+
+                    // Partial path: create ORDER_DETAIL refund for faulted tickets only — do not cancel order.
+                    if (
+                        isRefundableStatus &&
+                        Number(draft.refundAmount || 0) > 0 &&
+                        mappedIncidents.length > 0
+                    ) {
+                        await createPartialRefund(orderId, {
+                            incidents: mappedIncidents,
+                            refundReason:
+                                draft.cancelReason?.trim() ||
+                                ORDER_CANCEL_REASON_DEFAULTS.OUT_OF_STOCK_INCIDENT,
+                        });
+                        handledOrderIds.add(orderId);
+                    }
+                }
+
+                const remainingActive = activeItems.filter(
+                    (item) => !handledOrderIds.has(String(item.reservedByOrderId || ''))
+                );
+
+                // Unpaid / inventory-only / already-handled leftovers: report serial fault only.
+                // Backend cancels the order only when the serial is the last active one.
+                for (const item of remainingActive) {
+                    await reportSerialFaultItem(item);
+                }
+
+                for (const item of inventoryItems) {
+                    await reportSerialFaultItem(item);
                 }
             }
 
@@ -635,7 +1136,6 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
                     justifyContent: 'center',
                     textAlign: 'center',
                     boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)',
-                    borderTop: '6px solid #ef4444'
                 }}
             >
                 <CircularProgress size={40} sx={{ color: '#ef4444', mb: 2 }} />
@@ -650,7 +1150,8 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
     const startIndex = (page - 1) * pageSize;
     const paginatedSerials = currentSerials.slice(startIndex, startIndex + pageSize);
 
-    const voidedSerials = currentSerials.filter(s => forms[s.id]?.selected && forms[s.id]?.status === 'VOIDED');
+    const voidedSerialScopeIds = resolveReplacementSerialScopeIds(forms, currentSerials);
+    const voidedSerials = currentSerials.filter((s) => voidedSerialScopeIds.includes(s.id));
     const repTotalPages = Math.ceil(voidedSerials.length / pageSize);
     const repStartIndex = (repPage - 1) * pageSize;
     const paginatedVoidedSerials = voidedSerials.slice(repStartIndex, repStartIndex + pageSize);
@@ -668,7 +1169,6 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
                 display: 'flex',
                 flexDirection: 'column',
                 boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)',
-                borderTop: '6px solid #ef4444'
             }}
         >
             {/* Header */}
@@ -710,7 +1210,7 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
                                 }}>
                                     {currentTicketNumbers}
                                 </span>
-                                {renderTicketStatusChip(currentTicketStatus)}
+                                <TicketStatusChip status={currentTicketStatus} />
                                 {groups.length > 1 && (
                                     <Chip 
                                         label={`${activeGroupIndex + 1}/${groups.length} dãy số`} 
@@ -739,6 +1239,31 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
 
             {/* Form scrollable container */}
             <Box sx={{ flexGrow: 1, overflowY: 'auto', pr: 0.5, mb: 2.5, minHeight: 0 }}>
+                {workflowStep === 'REFUND' ? (
+                    <TicketIncidentRefundStep
+                        incidentItems={getActiveTransactionSerials(getTargetSerialsForSubmit()).map((serial) => {
+                            const item = pendingSelectedItems.find((entry) => entry.id === Number(serial.id));
+                            return {
+                                id: Number(serial.id),
+                                serialNumber: serial.serialNumber,
+                                ticketNumbers: serial.ticketNumbers,
+                                status: (item?.status === 'LOST' ? 'LOST' : 'DAMAGED') as 'DAMAGED' | 'LOST',
+                                damagedReason: item?.damagedReason,
+                                damagedEvidenceUrl: item?.damagedEvidenceUrl,
+                                reservedByOrderId: serial.reservedByOrderId,
+                            };
+                        })}
+                        refundDraftByOrderId={refundDraftByOrderId}
+                        onRefundDraftChange={(orderId, patch) =>
+                            setRefundDraftByOrderId((prev) => ({
+                                ...prev,
+                                [orderId]: { ...prev[orderId], ...patch },
+                            }))
+                        }
+                        onSyncOrderDrafts={(drafts) => setRefundDraftByOrderId(drafts)}
+                    />
+                ) : (
+                <>
                 {/* Top Cancel Mode Toggle: Hủy dãy số vé vs Hủy số serial vé */}
                 <ToggleButtonGroup
                     value={cancelMode}
@@ -839,7 +1364,7 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
                         <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
                             <Typography variant="subtitle2" fontWeight={850} color="#ef4444" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                                 <LayersIcon sx={{ fontSize: '18px' }} />
-                                Báo cáo hủy cho toàn bộ vé số {currentTicketNumbers} {renderTicketStatusChip(currentTicketStatus)}
+                                Báo cáo hủy cho toàn bộ vé số {currentTicketNumbers} <TicketStatusChip status={currentTicketStatus} />
                             </Typography>
                             <Chip 
                                 label="Hủy vé số" 
@@ -850,35 +1375,37 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
 
                         <Stack spacing={2}>
                             {/* Nguyên nhân sự cố */}
-                            <Box>
-                                <Typography variant="caption" fontWeight={700} color="#64748b" sx={{ mb: 0.75, display: 'block', textTransform: 'uppercase', letterSpacing: '0.5px', fontSize: '0.7rem' }}>
-                                    Nguyên nhân sự cố
-                                </Typography>
-                                <ToggleButtonGroup
-                                    value={ticketForm.faultedBy}
-                                    exclusive
-                                    onChange={(e, val) => { if (val) handleTicketFormFieldChange('faultedBy', val); }}
-                                    size="small"
-                                    fullWidth
-                                    sx={{
-                                        bgcolor: '#f1f5f9',
-                                        p: 0.5,
-                                        borderRadius: '10px',
-                                        border: 'none',
-                                        '& .MuiToggleButtonGroup-grouped': {
+                            {!hideFaultedBySelector && (
+                                <Box>
+                                    <Typography variant="caption" fontWeight={700} color="#64748b" sx={{ mb: 0.75, display: 'block', textTransform: 'uppercase', letterSpacing: '0.5px', fontSize: '0.7rem' }}>
+                                        Nguyên nhân sự cố
+                                    </Typography>
+                                    <ToggleButtonGroup
+                                        value={ticketForm.faultedBy}
+                                        exclusive
+                                        onChange={(e, val) => { if (val) handleTicketFormFieldChange('faultedBy', val); }}
+                                        size="small"
+                                        fullWidth
+                                        sx={{
+                                            bgcolor: '#f1f5f9',
+                                            p: 0.5,
+                                            borderRadius: '10px',
                                             border: 'none',
-                                            borderRadius: '8px !important',
-                                        }
-                                    }}
-                                >
-                                    <ToggleButton value="INTERNAL_FAULT" sx={{ fontWeight: 700, textTransform: 'none', fontSize: '0.8rem', py: 0.75, color: '#64748b', '&.Mui-selected': { bgcolor: '#fff', color: '#ef4444', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' } }}>
-                                        Nhân viên làm hỏng
-                                    </ToggleButton>
-                                    <ToggleButton value="DATA_ENTRY_FAULT" sx={{ fontWeight: 700, textTransform: 'none', fontSize: '0.8rem', py: 0.75, color: '#64748b', '&.Mui-selected': { bgcolor: '#fff', color: '#ef4444', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' } }}>
-                                        Lỗi thao tác nhập liệu
-                                    </ToggleButton>
-                                </ToggleButtonGroup>
-                            </Box>
+                                            '& .MuiToggleButtonGroup-grouped': {
+                                                border: 'none',
+                                                borderRadius: '8px !important',
+                                            }
+                                        }}
+                                    >
+                                        <ToggleButton value="INTERNAL_FAULT" sx={{ fontWeight: 700, textTransform: 'none', fontSize: '0.8rem', py: 0.75, color: '#64748b', '&.Mui-selected': { bgcolor: '#fff', color: '#ef4444', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' } }}>
+                                            Nhân viên làm hỏng
+                                        </ToggleButton>
+                                        <ToggleButton value="DATA_ENTRY_FAULT" sx={{ fontWeight: 700, textTransform: 'none', fontSize: '0.8rem', py: 0.75, color: '#64748b', '&.Mui-selected': { bgcolor: '#fff', color: '#ef4444', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' } }}>
+                                            Lỗi thao tác nhập liệu
+                                        </ToggleButton>
+                                    </ToggleButtonGroup>
+                                </Box>
+                            )}
 
                             {/* Trạng thái báo hủy */}
                             <Box>
@@ -967,13 +1494,83 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
                                     <Typography variant="caption" fontWeight={700} color="#64748b" sx={{ mb: 0.75, display: 'block', textTransform: 'uppercase', letterSpacing: '0.5px', fontSize: '0.7rem' }}>
                                         Ảnh minh chứng {ticketForm.faultedBy === 'INTERNAL_FAULT' && <strong style={{ color: '#ef4444' }}>*</strong>}
                                     </Typography>
-                                    <UploadSingleFile
-                                        value={ticketForm.damagedEvidenceUrl}
-                                        onChange={(url) => handleTicketFormFieldChange('damagedEvidenceUrl', url)}
-                                        autoUpload={true}
-                                        compact={true}
-                                        error={ticketForm.errors.damagedEvidenceUrl}
-                                    />
+                                    {isTicketBatchFaultFlow && ticketBatchEvidenceMode === 'EACH' ? (
+                                        <Typography variant="body2" color="#64748b" sx={{ fontSize: '0.8rem' }}>
+                                            Vui lòng tải ảnh minh chứng cho từng sê-ri trong bảng bên dưới.
+                                        </Typography>
+                                    ) : (
+                                        <UploadSingleFile
+                                            value={ticketEvidenceUploadValue}
+                                            onChange={handleTicketEvidenceUpload}
+                                            autoUpload={true}
+                                            compact={true}
+                                            error={ticketForm.errors.damagedEvidenceUrl}
+                                        />
+                                    )}
+                                </Box>
+                            )}
+                            {isTicketBatchFaultFlow && (
+                                <Box sx={{ mt: 1, p: 1.5, border: '1px solid #fee2e2', borderRadius: '10px', bgcolor: 'rgba(239, 68, 68, 0.03)' }}>
+                                    <Typography variant="caption" fontWeight={700} color="#64748b" sx={{ mb: 1, display: 'block', textTransform: 'uppercase', fontSize: '0.7rem' }}>
+                                        Tiến độ báo sự cố sê-ri ({ticketBatchFaultProgressCount}/{currentSerials.length})
+                                    </Typography>
+                                    <Typography variant="caption" color="#64748b" sx={{ mb: 1, display: 'block', fontWeight: 600 }}>
+                                        Sê-ri sẽ được báo sự cố khi xác nhận:
+                                    </Typography>
+                                    <TableContainer sx={{ bgcolor: '#fff', borderRadius: '8px', border: '1px solid #fecaca', maxHeight: 280 }}>
+                                        <Table size="small" stickyHeader>
+                                            <TableHead>
+                                                <TableRow>
+                                                    <TableCell sx={{ fontWeight: 800, fontSize: '0.7rem', py: 1, bgcolor: '#fef2f2' }}>Sê-ri</TableCell>
+                                                    <TableCell sx={{ fontWeight: 800, fontSize: '0.7rem', py: 1, bgcolor: '#fef2f2' }}>Nguyên nhân sự cố</TableCell>
+                                                    <TableCell sx={{ fontWeight: 800, fontSize: '0.7rem', py: 1, bgcolor: '#fef2f2' }}>Trạng thái báo hủy</TableCell>
+                                                    <TableCell sx={{ fontWeight: 800, fontSize: '0.7rem', py: 1, bgcolor: '#fef2f2' }}>Lý do chi tiết</TableCell>
+                                                    {ticketForm.status === 'DAMAGED' && (
+                                                        <TableCell sx={{ fontWeight: 800, fontSize: '0.7rem', py: 1, bgcolor: '#fef2f2' }}>Ảnh minh chứng</TableCell>
+                                                    )}
+                                                </TableRow>
+                                            </TableHead>
+                                            <TableBody>
+                                                {currentSerials.map((serial) => (
+                                                    <TableRow key={serial.id} hover>
+                                                        <TableCell sx={{ fontWeight: 700, fontSize: '0.75rem', py: 0.75, whiteSpace: 'nowrap' }}>
+                                                            {serial.serialNumber}
+                                                        </TableCell>
+                                                        <TableCell sx={{ fontSize: '0.75rem', py: 0.75, color: ticketForm.faultedBy ? '#334155' : '#94a3b8' }}>
+                                                            {ticketForm.faultedBy ? ticketBatchFaultedByLabel : '—'}
+                                                        </TableCell>
+                                                        <TableCell sx={{ fontSize: '0.75rem', py: 0.75, color: ticketForm.status ? '#334155' : '#94a3b8' }}>
+                                                            {ticketForm.status ? ticketBatchStatusLabel : '—'}
+                                                        </TableCell>
+                                                        <TableCell sx={{ fontSize: '0.75rem', py: 0.75, color: ticketForm.damagedReason?.trim() ? '#334155' : '#94a3b8', maxWidth: 160 }}>
+                                                            {ticketForm.damagedReason?.trim() || '—'}
+                                                        </TableCell>
+                                                        {ticketForm.status === 'DAMAGED' && (
+                                                            <TableCell sx={{ py: 0.75, minWidth: 120 }}>
+                                                                {ticketBatchEvidenceMode === 'EACH' ? (
+                                                                    <UploadSingleFile
+                                                                        value={serialEvidenceUrls[String(serial.id)] || ''}
+                                                                        onChange={(url) => handleSerialEvidenceChange(serial.id, url)}
+                                                                        autoUpload={true}
+                                                                        compact={true}
+                                                                    />
+                                                                ) : getTicketBatchSerialEvidenceUrl(serial.id) ? (
+                                                                    <Box
+                                                                        component="img"
+                                                                        src={getTicketBatchSerialEvidenceUrl(serial.id)}
+                                                                        alt="Ảnh minh chứng"
+                                                                        sx={{ width: 40, height: 40, borderRadius: '6px', objectFit: 'cover', border: '1px solid #e2e8f0' }}
+                                                                    />
+                                                                ) : (
+                                                                    <Typography variant="caption" color="#94a3b8">—</Typography>
+                                                                )}
+                                                            </TableCell>
+                                                        )}
+                                                    </TableRow>
+                                                ))}
+                                            </TableBody>
+                                        </Table>
+                                    </TableContainer>
                                 </Box>
                             )}
                             {/* Inline replacement inputs for VOIDED status in TICKET mode */}
@@ -1090,35 +1687,37 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
 
                         <Stack spacing={2}>
                             {/* Nguyên nhân sự cố */}
-                            <Box>
-                                <Typography variant="caption" fontWeight={700} color="#64748b" sx={{ mb: 0.75, display: 'block', textTransform: 'uppercase', letterSpacing: '0.5px', fontSize: '0.7rem' }}>
-                                    Nguyên nhân sự cố
-                                </Typography>
-                                <ToggleButtonGroup
-                                    value={bulkForm.faultedBy}
-                                    exclusive
-                                    onChange={(e, val) => { if (val) handleBulkFieldChange('faultedBy', val); }}
-                                    size="small"
-                                    fullWidth
-                                    sx={{
-                                        bgcolor: '#f1f5f9',
-                                        p: 0.5,
-                                        borderRadius: '10px',
-                                        border: 'none',
-                                        '& .MuiToggleButtonGroup-grouped': {
+                            {!hideFaultedBySelector && (
+                                <Box>
+                                    <Typography variant="caption" fontWeight={700} color="#64748b" sx={{ mb: 0.75, display: 'block', textTransform: 'uppercase', letterSpacing: '0.5px', fontSize: '0.7rem' }}>
+                                        Nguyên nhân sự cố
+                                    </Typography>
+                                    <ToggleButtonGroup
+                                        value={bulkForm.faultedBy}
+                                        exclusive
+                                        onChange={(e, val) => { if (val) handleBulkFieldChange('faultedBy', val); }}
+                                        size="small"
+                                        fullWidth
+                                        sx={{
+                                            bgcolor: '#f1f5f9',
+                                            p: 0.5,
+                                            borderRadius: '10px',
                                             border: 'none',
-                                            borderRadius: '8px !important',
-                                        }
-                                    }}
-                                >
-                                    <ToggleButton value="INTERNAL_FAULT" sx={{ fontWeight: 700, textTransform: 'none', fontSize: '0.8rem', py: 0.75, color: '#64748b', '&.Mui-selected': { bgcolor: '#fff', color: '#ef4444', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' } }}>
-                                        Nhân viên làm hỏng
-                                    </ToggleButton>
-                                    <ToggleButton value="DATA_ENTRY_FAULT" sx={{ fontWeight: 700, textTransform: 'none', fontSize: '0.8rem', py: 0.75, color: '#64748b', '&.Mui-selected': { bgcolor: '#fff', color: '#ef4444', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' } }}>
-                                        Lỗi thao tác nhập liệu
-                                    </ToggleButton>
-                                </ToggleButtonGroup>
-                            </Box>
+                                            '& .MuiToggleButtonGroup-grouped': {
+                                                border: 'none',
+                                                borderRadius: '8px !important',
+                                            }
+                                        }}
+                                    >
+                                        <ToggleButton value="INTERNAL_FAULT" sx={{ fontWeight: 700, textTransform: 'none', fontSize: '0.8rem', py: 0.75, color: '#64748b', '&.Mui-selected': { bgcolor: '#fff', color: '#ef4444', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' } }}>
+                                            Nhân viên làm hỏng
+                                        </ToggleButton>
+                                        <ToggleButton value="DATA_ENTRY_FAULT" sx={{ fontWeight: 700, textTransform: 'none', fontSize: '0.8rem', py: 0.75, color: '#64748b', '&.Mui-selected': { bgcolor: '#fff', color: '#ef4444', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' } }}>
+                                            Lỗi thao tác nhập liệu
+                                        </ToggleButton>
+                                    </ToggleButtonGroup>
+                                </Box>
+                            )}
 
                             {/* Trạng thái báo hủy */}
                             <Box>
@@ -1222,13 +1821,13 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
                 )}
 
                 {/* Replacement form for voided items (Shown in TICKET mode or SERIAL ALL mode) */}
-                {hasVoided && (cancelMode === 'TICKET' || serialProcessingMode === 'ALL') && (
+                {hasVoided && ((cancelMode as string) === 'TICKET' || serialProcessingMode === 'ALL') && (
                     <Box sx={{ mb: 2, p: 2, border: '1px solid #fee2e2', borderRadius: '12px', bgcolor: 'rgba(239, 68, 68, 0.01)' }}>
                         <Typography variant="caption" fontWeight={800} color="#ef4444" sx={{ mb: 1.5, display: 'block', textTransform: 'uppercase', letterSpacing: '0.5px', fontSize: '0.75rem' }}>
                             Vé số thay thế
                         </Typography>
                         
-                        {cancelMode === 'TICKET' && (
+                        {(cancelMode as string) === 'TICKET' && (
                             <>
                                 <Box sx={{ mb: 2 }}>
                                     <ToggleButtonGroup
@@ -1440,8 +2039,7 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
                         const form = forms[s.id];
                         if (!form) return null;
 
-                        const isAlreadyFaulted = s.status === 'DAMAGED' || s.status === 'LOST' || s.status === 'VOIDED';
-                        const isSold = s.status === 'SOLD';
+                        const incidentEligible = isSerialIncidentEligible(s);
                         const isSelected = form.selected;
 
                         // Card Styling
@@ -1452,7 +2050,7 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
                         if (isSelected) {
                             cardBorder = '2px solid #ef4444';
                             cardShadow = '0 4px 6px -1px rgba(239, 68, 68, 0.05)';
-                        } else if (isAlreadyFaulted || isSold) {
+                        } else if (!incidentEligible) {
                             cardBg = '#f8fafc';
                             cardBorder = '1px dashed #cbd5e1';
                         }
@@ -1475,7 +2073,7 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
                                             <Checkbox
                                                 checked={form.selected}
                                                 onChange={(e) => handleFieldChange(s.id, 'selected', e.target.checked)}
-                                                disabled={isAlreadyFaulted || isSold}
+                                                disabled={!incidentEligible}
                                                 size="small"
                                                 sx={{
                                                     color: '#cbd5e1',
@@ -1497,70 +2095,77 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
                                         }
                                     />
                                     
-                                    {renderSerialStatusChip(s.status)}
+                                    <SerialStatusChip status={s.status} ticketCondition={s.ticketCondition} />
+                                    {!incidentEligible && (
+                                        <Typography variant="caption" color="text.secondary" sx={{ ml: 1, fontStyle: 'italic' }}>
+                                            Chỉ tra cứu — không thể báo sự cố
+                                        </Typography>
+                                    )}
                                 </Stack>
 
-                                {form.selected && serialProcessingMode === 'EACH' && (
+                                {form.selected && serialProcessingMode === 'EACH' && incidentEligible && (
                                     <Box sx={{ mt: 2, pt: 2, borderTop: '1px solid #f1f5f9' }}>
                                         <Stack spacing={2}>
                                             {/* Nguyên nhân sự cố - Toggle pills */}
-                                            <Box>
-                                                <Typography variant="caption" fontWeight={700} color="#64748b" sx={{ mb: 0.75, display: 'block', textTransform: 'uppercase', letterSpacing: '0.5px', fontSize: '0.7rem' }}>
-                                                    Nguyên nhân sự cố
-                                                </Typography>
-                                                <ToggleButtonGroup
-                                                    value={form.faultedBy}
-                                                    exclusive
-                                                    onChange={(e, val) => { if (val) handleFieldChange(s.id, 'faultedBy', val); }}
-                                                    size="small"
-                                                    fullWidth
-                                                    sx={{
-                                                        bgcolor: '#f1f5f9',
-                                                        p: 0.5,
-                                                        borderRadius: '10px',
-                                                        border: 'none',
-                                                        '& .MuiToggleButtonGroup-grouped': {
+                                            {!hideFaultedBySelector && (
+                                                <Box>
+                                                    <Typography variant="caption" fontWeight={700} color="#64748b" sx={{ mb: 0.75, display: 'block', textTransform: 'uppercase', letterSpacing: '0.5px', fontSize: '0.7rem' }}>
+                                                        Nguyên nhân sự cố
+                                                    </Typography>
+                                                    <ToggleButtonGroup
+                                                        value={form.faultedBy}
+                                                        exclusive
+                                                        onChange={(e, val) => { if (val) handleFieldChange(s.id, 'faultedBy', val); }}
+                                                        size="small"
+                                                        fullWidth
+                                                        sx={{
+                                                            bgcolor: '#f1f5f9',
+                                                            p: 0.5,
+                                                            borderRadius: '10px',
                                                             border: 'none',
-                                                            borderRadius: '8px !important',
-                                                        }
-                                                    }}
-                                                >
-                                                    <ToggleButton 
-                                                        value="INTERNAL_FAULT" 
-                                                        sx={{ 
-                                                            fontWeight: 700, 
-                                                            textTransform: 'none',
-                                                            fontSize: '0.8rem',
-                                                            py: 0.75,
-                                                            color: '#64748b',
-                                                            '&.Mui-selected': {
-                                                                bgcolor: '#fff',
-                                                                color: '#ef4444',
-                                                                boxShadow: '0 2px 4px rgba(0,0,0,0.05)'
+                                                            '& .MuiToggleButtonGroup-grouped': {
+                                                                border: 'none',
+                                                                borderRadius: '8px !important',
                                                             }
                                                         }}
                                                     >
-                                                        Nhân viên làm hỏng
-                                                    </ToggleButton>
-                                                    <ToggleButton 
-                                                        value="DATA_ENTRY_FAULT" 
-                                                        sx={{ 
-                                                            fontWeight: 700, 
-                                                            textTransform: 'none',
-                                                            fontSize: '0.8rem',
-                                                            py: 0.75,
-                                                            color: '#64748b',
-                                                            '&.Mui-selected': {
-                                                                bgcolor: '#fff',
-                                                                color: '#ef4444',
-                                                                boxShadow: '0 2px 4px rgba(0,0,0,0.05)'
-                                                            }
-                                                        }}
-                                                    >
-                                                        Lỗi thao tác nhập liệu
-                                                    </ToggleButton>
-                                                </ToggleButtonGroup>
-                                            </Box>
+                                                        <ToggleButton 
+                                                            value="INTERNAL_FAULT" 
+                                                            sx={{ 
+                                                                fontWeight: 700, 
+                                                                textTransform: 'none',
+                                                                fontSize: '0.8rem',
+                                                                py: 0.75,
+                                                                color: '#64748b',
+                                                                '&.Mui-selected': {
+                                                                    bgcolor: '#fff',
+                                                                    color: '#ef4444',
+                                                                    boxShadow: '0 2px 4px rgba(0,0,0,0.05)'
+                                                                }
+                                                            }}
+                                                        >
+                                                            Nhân viên làm hỏng
+                                                        </ToggleButton>
+                                                        <ToggleButton 
+                                                            value="DATA_ENTRY_FAULT" 
+                                                            sx={{ 
+                                                                fontWeight: 700, 
+                                                                textTransform: 'none',
+                                                                fontSize: '0.8rem',
+                                                                py: 0.75,
+                                                                color: '#64748b',
+                                                                '&.Mui-selected': {
+                                                                    bgcolor: '#fff',
+                                                                    color: '#ef4444',
+                                                                    boxShadow: '0 2px 4px rgba(0,0,0,0.05)'
+                                                                }
+                                                            }}
+                                                        >
+                                                            Lỗi thao tác nhập liệu
+                                                        </ToggleButton>
+                                                    </ToggleButtonGroup>
+                                                </Box>
+                                            )}
 
                                             {/* Trạng thái báo hủy - Toggle pills */}
                                             <Box>
@@ -1736,12 +2341,14 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
                 </Stack>
                 </>
             )}
+                </>
+                )}
             </Box>
 
             {/* Action buttons */}
             <Stack direction="row" spacing={2} sx={{ mt: 'auto', pt: 2, borderTop: '1px solid #cbd5e1' }}>
                 <Button 
-                    onClick={onCancel} 
+                    onClick={workflowStep === 'REFUND' ? () => setWorkflowStep('FORM') : onCancel} 
                     disabled={submitting} 
                     variant="outlined" 
                     color="inherit"
@@ -1755,30 +2362,139 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
                         borderColor: '#cbd5e1'
                     }}
                 >
-                    Hủy bỏ
+                    {workflowStep === 'REFUND' ? 'Quay lại' : (cancelButtonText || 'Hủy bỏ')}
                 </Button>
-                {canSubmit && (
-                    <Button 
-                        onClick={handlePreSubmit} 
-                        disabled={submitting} 
-                        variant="contained" 
+                {workflowStep === 'REFUND' ? (
+                    <Button
+                        onClick={handleRefundStepContinue}
+                        disabled={submitting}
+                        variant="contained"
                         fullWidth
-                        sx={{ 
+                        sx={{
                             borderRadius: '10px',
                             py: 1,
                             fontWeight: 700,
                             textTransform: 'none',
                             bgcolor: '#ef4444',
                             boxShadow: 'none',
-                            '&:hover': {
-                                bgcolor: '#dc2626',
-                            }
+                            '&:hover': { bgcolor: '#dc2626' },
                         }}
                     >
-                        {submitting ? 'Đang gửi...' : 'Xác nhận'}
+                        Tiếp tục
                     </Button>
+                ) : (
+                    confirmButtonVisible && (
+                        <Button 
+                            onClick={handlePreSubmit} 
+                            disabled={confirmButtonDisabled} 
+                            variant="contained" 
+                            fullWidth
+                            sx={{ 
+                                borderRadius: '10px',
+                                py: 1,
+                                fontWeight: 700,
+                                textTransform: 'none',
+                                bgcolor: '#ef4444',
+                                boxShadow: 'none',
+                                '&:hover': {
+                                    bgcolor: '#dc2626',
+                                }
+                            }}
+                        >
+                            {submitting ? 'Đang gửi...' : 'Xác nhận'}
+                        </Button>
+                    )
                 )}
             </Stack>
+
+            <Dialog
+                open={incompleteGroupsOpen}
+                onClose={() => setIncompleteGroupsOpen(false)}
+                maxWidth="xs"
+                fullWidth
+                PaperProps={{ sx: { borderRadius: '16px', p: 1 } }}
+            >
+                <DialogTitle sx={{ fontWeight: 800, fontSize: '1rem', pb: 0.5 }}>
+                    Chưa nhập đủ dãy số
+                </DialogTitle>
+                <DialogContent>
+                    <Typography variant="body2" color="text.secondary">
+                        Chưa xác nhận được do còn dãy{' '}
+                        <Box component="span" sx={{ fontWeight: 700, color: '#b91c1c' }}>
+                            {incompleteGroupNumbers.join(', ')}
+                        </Box>{' '}
+                        chưa được nhập. Bạn có muốn xác nhận?
+                    </Typography>
+                </DialogContent>
+                <DialogActions sx={{ px: 2, pb: 2 }}>
+                    <Button
+                        onClick={() => setIncompleteGroupsOpen(false)}
+                        variant="outlined"
+                        color="inherit"
+                        sx={{ fontWeight: 700, textTransform: 'none', borderRadius: '8px' }}
+                    >
+                        Quay lại
+                    </Button>
+                    <Button
+                        onClick={handleIncompleteGroupsConfirm}
+                        variant="contained"
+                        sx={{
+                            fontWeight: 700,
+                            textTransform: 'none',
+                            borderRadius: '8px',
+                            bgcolor: '#ef4444',
+                            '&:hover': { bgcolor: '#dc2626' },
+                        }}
+                    >
+                        Vẫn xác nhận
+                    </Button>
+                </DialogActions>
+            </Dialog>
+
+            <Dialog
+                open={evidenceApplyDialogOpen}
+                onClose={() => {
+                    setEvidenceApplyDialogOpen(false);
+                    setPendingEvidenceUrl('');
+                }}
+                maxWidth="xs"
+                fullWidth
+                PaperProps={{ sx: { borderRadius: '16px', p: 1 } }}
+            >
+                <DialogTitle sx={{ fontWeight: 800, fontSize: '1rem', pb: 0.5 }}>
+                    Áp dụng ảnh minh chứng
+                </DialogTitle>
+                <DialogContent>
+                    <Typography variant="body2" color="text.secondary">
+                        Bạn muốn set ảnh minh chứng cho toàn bộ số serial vé của dãy số trên chứ?
+                    </Typography>
+                    {pendingEvidenceUrl && (
+                        <Box
+                            component="img"
+                            src={pendingEvidenceUrl}
+                            alt="Ảnh minh chứng"
+                            sx={{ mt: 1.5, width: 72, height: 72, borderRadius: '8px', objectFit: 'cover', border: '1px solid #e2e8f0' }}
+                        />
+                    )}
+                </DialogContent>
+                <DialogActions sx={{ px: 2, pb: 2 }}>
+                    <Button
+                        onClick={handleEvidenceApplyNo}
+                        variant="outlined"
+                        color="inherit"
+                        sx={{ fontWeight: 700, textTransform: 'none', borderRadius: '8px' }}
+                    >
+                        Không
+                    </Button>
+                    <Button
+                        onClick={handleEvidenceApplyYes}
+                        variant="contained"
+                        sx={{ fontWeight: 700, textTransform: 'none', borderRadius: '8px', bgcolor: '#ef4444', '&:hover': { bgcolor: '#dc2626' } }}
+                    >
+                        Có, áp dụng cho tất cả
+                    </Button>
+                </DialogActions>
+            </Dialog>
 
             {/* Confirmation Modal - Horizontal Rectangle Layout */}
             <Dialog 
@@ -1863,7 +2579,7 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
 
                                 <Box sx={{ pt: 0.5 }}>
                                     <Typography variant="caption" color="#64748b" sx={{ fontSize: '0.72rem', display: 'block', lineHeight: 1.3 }}>
-                                        Trạng thái dãy số cũ: Các sê-ri sẽ chuyển <strong style={{ color: '#ef4444' }}>VOIDED</strong> và dãy số bị soft-delete (ẩn khỏi kho), giữ lại để đối soát.
+                                        Trạng thái dãy số cũ: Các sê-ri sẽ chuyển <strong style={{ color: '#ef4444' }}>ticketCondition = VOIDED</strong> (status giữ IN_STOCK) và dãy số bị soft-delete (ẩn khỏi kho), giữ lại để đối soát.
                                     </Typography>
                                 </Box>
                             </Stack>
@@ -1944,6 +2660,105 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
                             )}
                         </Paper>
                     </Box>
+
+                    {Object.keys(refundDraftByOrderId).length > 0 && (
+                        <Paper
+                            variant="outlined"
+                            sx={{
+                                mt: 2,
+                                p: 2,
+                                borderRadius: '12px',
+                                bgcolor: '#fffbeb',
+                                borderColor: '#fde68a',
+                            }}
+                        >
+                            <Typography variant="subtitle2" fontWeight={800} color="#92400e" sx={{ mb: 1.5 }}>
+                                Hoàn tiền đơn hàng liên kết
+                            </Typography>
+                            <Stack spacing={1.5}>
+                                {Object.entries(refundDraftByOrderId).map(([orderId, draft]) => {
+                                    const statusBadge = getOrderStatusBadge(draft.orderStatus);
+                                    const orderTypeLabel =
+                                        ORDER_TYPE_LABELS[draft.orderType || ''] || draft.orderType || '—';
+
+                                    return (
+                                    <Box
+                                        key={orderId}
+                                        sx={{
+                                            p: 1.5,
+                                            borderRadius: '8px',
+                                            bgcolor: '#fff',
+                                            border: '1px solid #fde68a',
+                                        }}
+                                    >
+                                        <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={1}>
+                                            <Typography variant="body2" fontWeight={800}>
+                                                {draft.orderCode || orderId}
+                                            </Typography>
+                                            <Chip
+                                                label={statusBadge.label}
+                                                size="small"
+                                                sx={{
+                                                    fontWeight: 700,
+                                                    fontSize: '0.65rem',
+                                                    color: statusBadge.color,
+                                                    bgcolor: statusBadge.bg,
+                                                    height: 22,
+                                                }}
+                                            />
+                                        </Stack>
+                                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+                                            {draft.customerName || '—'}
+                                            {draft.customerPhone ? ` · ${draft.customerPhone}` : ''}
+                                            {draft.createdAt
+                                                ? ` · ${dayjs(draft.createdAt).format('DD/MM/YYYY HH:mm')}`
+                                                : ''}
+                                            {orderTypeLabel !== '—' ? ` · ${orderTypeLabel}` : ''}
+                                        </Typography>
+                                        <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mt: 0.75 }}>
+                                            <Typography variant="caption" color="text.secondary">
+                                                {draft.canFullOrderCancel
+                                                    ? 'Hủy đơn + hoàn các vé sự cố (vé cuối)'
+                                                    : Number(draft.refundAmount || 0) > 0
+                                                      ? 'Tạo đơn hoàn tiền từng phần — không hủy đơn'
+                                                      : 'Không hủy đơn — chỉ báo sự cố sê-ri'}
+                                                · {draft.incidents.length} sê-ri
+                                                {draft.ticketLineCount != null
+                                                    ? ` · ${draft.ticketLineCount} dòng vé`
+                                                    : ''}
+                                            </Typography>
+                                            <Typography variant="body2" fontWeight={800} color="#b45309">
+                                                {formatRefundCurrency(draft.refundAmount ?? 0)}
+                                            </Typography>
+                                        </Stack>
+                                        {(draft.canFullOrderCancel || Number(draft.refundAmount || 0) > 0) && (
+                                            <Typography variant="caption" color="#475569" sx={{ display: 'block', mt: 0.5, fontStyle: 'italic' }}>
+                                                {draft.canFullOrderCancel ? 'Lý do hủy: ' : 'Lý do hoàn: '}
+                                                {draft.cancelReason || '—'}
+                                            </Typography>
+                                        )}
+                                    </Box>
+                                    );
+                                })}
+                            </Stack>
+
+                            {pendingSelectedItems.some(
+                                (item) => !isActiveTransactionSerialStatus(item.originalStatus)
+                            ) && (
+                                <Box sx={{ mt: 1.5, pt: 1.5, borderTop: '1px dashed #fde68a' }}>
+                                    <Typography variant="caption" fontWeight={700} color="#64748b" sx={{ display: 'block', mb: 0.5 }}>
+                                        Sê-ri chỉ cập nhật kho (IN_STOCK) — không hoàn tiền:
+                                    </Typography>
+                                    <Typography variant="caption" color="#475569">
+                                        {pendingSelectedItems
+                                            .filter((item) => !isActiveTransactionSerialStatus(item.originalStatus))
+                                            .map((item) => item.serialNumber || item.id)
+                                            .join(', ')}
+                                    </Typography>
+                                </Box>
+                            )}
+                        </Paper>
+                    )}
                 </DialogContent>
                 <Divider sx={{ my: 1 }} />
                 <DialogActions sx={{ px: 2, pb: 1.5, pt: 0.5 }}>

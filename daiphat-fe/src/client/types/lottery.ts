@@ -44,6 +44,7 @@ export interface LotteryResultApiResponse {
 }
 
 export interface LotteryResultDetailApiResponse {
+  id?: number;
   prizeCode: string;
   winningNumber: string;
 }
@@ -237,7 +238,7 @@ const getWinningNumbersByPrizeCode = (
 ): string[] =>
   details
     .filter((detail) => detail.prizeCode === prizeCode)
-    .sort((a, b) => a.id - b.id)
+    .sort((a, b) => (a.id || 0) - (b.id || 0))
     .map((detail) => detail.winningNumber);
 
 export const mapLiveItemToLotteryResult = (

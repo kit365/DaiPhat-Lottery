@@ -1,3 +1,5 @@
+"use client";
+
 import { useEffect } from "react";
 import { STORAGE_KEYS } from "../../constants/storage.constants";
 import { useAuthStore } from "../../stores/useAuthStore";

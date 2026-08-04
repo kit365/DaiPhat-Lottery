@@ -22,6 +22,7 @@ import com.daiphat.coreapi.application.port.in.lotteries.ImportBatchServicePort;
 import com.daiphat.coreapi.application.port.in.lotteries.LotteryStationServicePort;
 import com.daiphat.coreapi.application.port.in.lotteries.LotterySupplierServicePort;
 import com.daiphat.coreapi.application.port.in.lotteries.LotteryTicketServicePort;
+import com.daiphat.coreapi.application.port.in.lotteries.SupplierSettlementServicePort;
 import com.daiphat.coreapi.application.port.out.lotteries.ImportBatchRepositoryPort;
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
@@ -33,12 +34,14 @@ import com.daiphat.coreapi.domain.model.lotteries.ImportBatchLineModel;
 import com.daiphat.coreapi.domain.model.lotteries.ImportBatchModel;
 import com.daiphat.coreapi.domain.model.lotteries.LotteryStationModel;
 import com.daiphat.coreapi.domain.model.lotteries.LotterySupplierModel;
+import com.daiphat.coreapi.domain.model.lotteries.SupplierSettlementModel;
 import com.daiphat.coreapi.shared.util.ImportBatchConfigResolver;
 import com.daiphat.coreapi.shared.util.ImportBatchCodeGenerator;
 import com.daiphat.coreapi.shared.util.ImportBatchDraftExpiryService;
 import com.daiphat.coreapi.shared.util.ImportBatchImportModeResolver;
 import com.daiphat.coreapi.shared.util.ImportBatchStationEligibilityResolver;
 import com.daiphat.coreapi.shared.util.ImportBatchTypeResolver;
+import com.daiphat.coreapi.shared.util.ImportCostCalculator;
 import com.daiphat.coreapi.shared.util.SortUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -52,6 +55,7 @@ import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -82,6 +86,7 @@ public class ImportBatchService implements ImportBatchServicePort {
     private final ImportBatchDraftExpiryService importBatchDraftExpiryService;
     private final LotteryTicketServicePort lotteryTicketServicePort;
     private final ImportBatchImportModeResolver importBatchImportModeResolver;
+    private final SupplierSettlementServicePort supplierSettlementServicePort;
     private final Clock clock;
 
     @Override
@@ -91,12 +96,24 @@ public class ImportBatchService implements ImportBatchServicePort {
 
         ensureUniqueStations(request.lines());
         lotterySupplierServicePort.ensureActiveSupplierConfigured();
-        validateInDayCreateAllowed(request);
 
         if (request.supplierId() == null) {
             throw new DomainException(ErrorCode.IMPORT_BATCH_SUPPLIER_REQUIRED);
         }
+        LocalDateTime now = LocalDateTime.now(clock);
+        validateDrawDateRange(request.drawDate(), now);
         LotterySupplierModel supplier = lotterySupplierServicePort.getActiveModelById(request.supplierId());
+        validateSupplierImportAllowFrom(supplier);
+        validateSupplierReturnCutOff(supplier, request.drawDate(), now);
+
+        ImportBatchImportMode resolvedImportMode = importBatchImportModeResolver.resolve(request.drawDate(), now);
+        if (request.importMode() != resolvedImportMode) {
+            throw new DomainException(
+                    ErrorCode.IMPORT_BATCH_INVALID_BATCH_TYPE,
+                    "Hình thức nhập không khớp với ngày quay đã chọn."
+            );
+        }
+        validateInDayCreateAllowed(request);
 
         if (!Boolean.TRUE.equals(request.forceCreate())) {
             importBatchRepositoryPort
@@ -113,8 +130,6 @@ public class ImportBatchService implements ImportBatchServicePort {
                         );
                     });
         }
-
-        LocalDateTime now = LocalDateTime.now(clock);
 
         ImportBatchModel header = ImportBatchModel.builder()
                 .drawDate(request.drawDate())
@@ -138,7 +153,8 @@ public class ImportBatchService implements ImportBatchServicePort {
             LotteryStationModel station = getActiveStationOrThrow(lineRequest.lotteryStationId());
             validateStationEligibility(request.drawDate(), station, request.importMode());
             validateDeclareQuantity(lineRequest.declareQuantity());
-            validateImportCost(lineRequest.importCost());
+            BigDecimal importCost = ImportCostCalculator.fromStation(station);
+            validateImportCost(importCost);
 
             ImportBatchTypeResolver.ClassificationResult classification = importBatchTypeResolver.resolve(
                     lineRequest.lotteryStationId(),
@@ -152,6 +168,7 @@ public class ImportBatchService implements ImportBatchServicePort {
             }
 
             ImportBatchLineModel line = importBatchApplicationMapper.toLineModel(lineRequest);
+            line.setImportCost(importCost);
             line.applyResolvedBatchType(classification.resolvedBatchType());
             line.setBatchCode(importBatchCodeGenerator.generateLineCode(
                     station,
@@ -167,6 +184,12 @@ public class ImportBatchService implements ImportBatchServicePort {
         validateDeclaredQuantityMatchesLines(header);
         header.validateInvoiceEvidence();
         header.recalculateAggregates();
+
+        SupplierSettlementModel settlement = supplierSettlementServicePort.findOrCreateForImport(
+                supplier,
+                request.drawDate()
+        );
+        header.setSupplierSettlementId(settlement.getId());
 
         ImportBatchModel saved = importBatchRepositoryPort.save(header);
         return importBatchApplicationMapper.toResponse(saved, lateImportWarning, warnings);
@@ -402,7 +425,6 @@ public class ImportBatchService implements ImportBatchServicePort {
         return List.of(
                 new EnumOptionResponse(ImportBatchType.NEW.name(), ImportBatchType.NEW.getLabel()),
                 new EnumOptionResponse(ImportBatchType.SUPPLEMENTARY.name(), ImportBatchType.SUPPLEMENTARY.getLabel()),
-                new EnumOptionResponse(ImportBatchType.LATE_IMPORT.name(), ImportBatchType.LATE_IMPORT.getLabel()),
                 new EnumOptionResponse(ImportBatchType.ADJUSTMENT.name(), ImportBatchType.ADJUSTMENT.getLabel())
         );
     }
@@ -457,6 +479,8 @@ public class ImportBatchService implements ImportBatchServicePort {
                     .lotteryStationId(station.getId())
                     .name(station.getName())
                     .resolvedBatchType(classification.resolvedBatchType())
+                    .price(station.getPrice())
+                    .commissionRate(station.getCommissionRate())
                     .build());
         }
 
@@ -496,8 +520,7 @@ public class ImportBatchService implements ImportBatchServicePort {
     @Transactional(readOnly = true)
     public ImportBatchTimePolicyResponse getTimePolicy() {
         return ImportBatchTimePolicyResponse.builder()
-                .lateImportTime(importBatchConfigResolver.resolveLateImportTime().format(TIME_DISPLAY))
-                .importBatchCutoffTime(importBatchConfigResolver.resolveImportBatchCutoff().format(TIME_DISPLAY))
+                .returnBufferMinutes(importBatchConfigResolver.resolveReturnBufferMinutes())
                 .build();
     }
 
@@ -547,6 +570,10 @@ public class ImportBatchService implements ImportBatchServicePort {
         batch.recalculateAggregates();
         batch.refreshImportStatus(now);
         ImportBatchModel saved = importBatchRepositoryPort.save(batch);
+
+        if (saved.getSupplierSettlementId() != null) {
+            supplierSettlementServicePort.recalculateTotalImportValue(saved.getSupplierSettlementId());
+        }
 
         if (saved.getStatus() == ImportBatchStatus.IMPORTED) {
             saved.getActiveLines().forEach(activeLine ->
@@ -609,6 +636,62 @@ public class ImportBatchService implements ImportBatchServicePort {
         return importBatchApplicationMapper.toResponse(importBatchRepositoryPort.save(batch));
     }
 
+    private void validateSupplierImportAllowFrom(LotterySupplierModel supplier) {
+        if (supplier == null || supplier.getImportAllowFrom() == null) {
+            return;
+        }
+        LocalTime now = LocalDateTime.now(clock).toLocalTime();
+        if (now.isBefore(supplier.getImportAllowFrom())) {
+            throw new DomainException(
+                    ErrorCode.IMPORT_BATCH_IMPORT_NOT_YET_ALLOWED,
+                    String.format(
+                            "Chưa đến giờ cho phép nhập vé của nhà cung cấp %s (từ %s).",
+                            supplier.getName(),
+                            supplier.getImportAllowFrom().format(TIME_DISPLAY)
+                    )
+            );
+        }
+    }
+
+    private void validateDrawDateRange(LocalDate drawDate, LocalDateTime now) {
+        if (drawDate == null) {
+            throw new DomainException(ErrorCode.IMPORT_BATCH_DRAW_DATE_OUT_OF_RANGE);
+        }
+        LocalDate today = now.toLocalDate();
+        LocalDate tomorrow = today.plusDays(1);
+        if (drawDate.isBefore(today) || drawDate.isAfter(tomorrow)) {
+            throw new DomainException(
+                    ErrorCode.IMPORT_BATCH_DRAW_DATE_OUT_OF_RANGE,
+                    "Ngày quay chỉ được chọn hôm nay hoặc ngày mai."
+            );
+        }
+    }
+
+    private void validateSupplierReturnCutOff(
+            LotterySupplierModel supplier,
+            LocalDate drawDate,
+            LocalDateTime now
+    ) {
+        if (supplier == null || supplier.getReturnCutOffTime() == null || drawDate == null) {
+            return;
+        }
+        if (!drawDate.equals(now.toLocalDate())) {
+            return;
+        }
+        LocalTime currentTime = now.toLocalTime();
+        if (!currentTime.isBefore(supplier.getReturnCutOffTime())) {
+            throw new DomainException(
+                    ErrorCode.IMPORT_BATCH_RETURN_CUTOFF_PASSED,
+                    String.format(
+                            "Đã qua giờ chốt trả vé của nhà cung cấp %s (%s). "
+                                    + "Không thể tạo phiếu nhập lô mới cho kỳ quay hôm nay.",
+                            supplier.getName(),
+                            supplier.getReturnCutOffTime().format(TIME_DISPLAY)
+                    )
+            );
+        }
+    }
+
     private void validateInDayCreateAllowed(CreateImportBatchRequest request) {
         LocalDateTime now = LocalDateTime.now(clock);
         LocalDate today = now.toLocalDate();
@@ -667,14 +750,15 @@ public class ImportBatchService implements ImportBatchServicePort {
 
     private void addLineToBatch(ImportBatchModel batch, UpdateImportBatchLineRequest lineRequest, LocalDateTime now) {
         validateDeclareQuantity(lineRequest.declareQuantity());
-        validateImportCost(lineRequest.importCost());
 
         LotteryStationModel station = getActiveStationOrThrow(lineRequest.lotteryStationId());
+        BigDecimal importCost = ImportCostCalculator.fromStation(station);
+        validateImportCost(importCost);
 
         Optional<ImportBatchLineModel> deletedLine = importBatchLineRepositoryPort
                 .findDeletedByImportBatchIdAndStationId(batch.getId(), lineRequest.lotteryStationId());
         if (deletedLine.isPresent()) {
-            reviveDeletedLine(batch, deletedLine.get(), lineRequest, station, now);
+            reviveDeletedLine(batch, deletedLine.get(), lineRequest, station, importCost, now);
             return;
         }
 
@@ -692,7 +776,7 @@ public class ImportBatchService implements ImportBatchServicePort {
                 .importBatchId(batch.getId())
                 .lotteryStationId(lineRequest.lotteryStationId())
                 .declareQuantity(lineRequest.declareQuantity())
-                .importCost(lineRequest.importCost())
+                .importCost(importCost)
                 .build();
         line.applyResolvedBatchType(classification.resolvedBatchType());
         line.setBatchCode(importBatchCodeGenerator.generateLineCode(
@@ -713,6 +797,7 @@ public class ImportBatchService implements ImportBatchServicePort {
             ImportBatchLineModel line,
             UpdateImportBatchLineRequest lineRequest,
             LotteryStationModel station,
+            BigDecimal importCost,
             LocalDateTime now
     ) {
         ImportBatchTypeResolver.ClassificationResult classification = importBatchTypeResolver.resolve(
@@ -724,7 +809,7 @@ public class ImportBatchService implements ImportBatchServicePort {
 
         line.setDeletedAt(null);
         line.setDeclareQuantity(lineRequest.declareQuantity());
-        line.setImportCost(lineRequest.importCost());
+        line.setImportCost(importCost);
         line.applyResolvedBatchType(classification.resolvedBatchType());
         line.setBatchCode(importBatchCodeGenerator.generateLineCode(
                 station,
@@ -747,7 +832,6 @@ public class ImportBatchService implements ImportBatchServicePort {
             LocalDateTime now
     ) {
         validateDeclareQuantity(lineRequest.declareQuantity());
-        validateImportCost(lineRequest.importCost());
 
         Long requestedStationId = resolveRequestedStationId(line, lineRequest);
         if (!Objects.equals(line.getLotteryStationId(), requestedStationId)) {
@@ -759,8 +843,12 @@ public class ImportBatchService implements ImportBatchServicePort {
             applyOpenLineStationChange(batch, line, requestedStationId, now);
         }
 
+        LotteryStationModel station = getActiveStationOrThrow(line.getLotteryStationId());
+        BigDecimal importCost = ImportCostCalculator.fromStation(station);
+        validateImportCost(importCost);
+
         line.setDeclareQuantity(lineRequest.declareQuantity());
-        line.setImportCost(lineRequest.importCost());
+        line.setImportCost(importCost);
         line.recalculateDeclaredCostValue();
         line.recalculateTotalCostValue();
         line.setUpdatedAt(now);
@@ -800,8 +888,6 @@ public class ImportBatchService implements ImportBatchServicePort {
             UpdateImportBatchLineRequest lineRequest,
             LocalDateTime now
     ) {
-        validateImportCost(lineRequest.importCost());
-
         // Declare quantity is locked while actively importing — pause first.
         if (!Objects.equals(line.getDeclareQuantity(), lineRequest.declareQuantity())) {
             throw new DomainException(ErrorCode.IMPORT_BATCH_LINE_DECLARE_QUANTITY_LOCKED_IMPORTING);
@@ -813,7 +899,8 @@ public class ImportBatchService implements ImportBatchServicePort {
             throw new DomainException(ErrorCode.IMPORT_BATCH_LINE_NOT_EDITABLE);
         }
 
-        line.setImportCost(lineRequest.importCost());
+        // Keep snapshotted importCost once tickets are being imported.
+        validateImportCost(line.getImportCost());
         line.recalculateDeclaredCostValue();
         int importedCount = line.getTotalQuantity() != null ? line.getTotalQuantity() : 0;
         line.updateImportProgress(importedCount, now, false);
@@ -827,7 +914,7 @@ public class ImportBatchService implements ImportBatchServicePort {
             LocalDateTime now,
             UpdateImportBatchRequest request
     ) {
-        validateImportCost(lineRequest.importCost());
+        validateImportCost(line.getImportCost());
 
         boolean declareChanged = !Objects.equals(line.getDeclareQuantity(), lineRequest.declareQuantity());
         boolean adjustmentFlow = Boolean.TRUE.equals(request.adjustPausedDeclareQuantity());
@@ -861,7 +948,7 @@ public class ImportBatchService implements ImportBatchServicePort {
         if (declareChanged) {
             line.setDeclareQuantity(lineRequest.declareQuantity());
         }
-        line.setImportCost(lineRequest.importCost());
+        // Keep snapshotted importCost for paused lines.
         line.recalculateDeclaredCostValue();
         line.updateImportProgress(importedCount, now, false);
         importBatchLineRepositoryPort.save(line);
@@ -886,10 +973,12 @@ public class ImportBatchService implements ImportBatchServicePort {
     private void verifyTerminalLineUnchanged(ImportBatchLineModel line, UpdateImportBatchLineRequest lineRequest) {
         Long requestedStationId = resolveRequestedStationId(line, lineRequest);
         if (!Objects.equals(line.getLotteryStationId(), requestedStationId)
-                || !Objects.equals(line.getDeclareQuantity(), lineRequest.declareQuantity())
-                || line.getImportCost() == null
-                || lineRequest.importCost() == null
-                || line.getImportCost().compareTo(lineRequest.importCost()) != 0) {
+                || !Objects.equals(line.getDeclareQuantity(), lineRequest.declareQuantity())) {
+            throw new DomainException(ErrorCode.IMPORT_BATCH_LINE_NOT_EDITABLE);
+        }
+        if (lineRequest.importCost() != null
+                && line.getImportCost() != null
+                && line.getImportCost().compareTo(lineRequest.importCost()) != 0) {
             throw new DomainException(ErrorCode.IMPORT_BATCH_LINE_NOT_EDITABLE);
         }
     }

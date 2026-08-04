@@ -96,6 +96,8 @@ class ImportBatchServiceTest {
     @Mock
     private ImportBatchImportModeResolver importBatchImportModeResolver;
     @Mock
+    private com.daiphat.coreapi.application.port.in.lotteries.SupplierSettlementServicePort supplierSettlementServicePort;
+    @Mock
     private Clock clock;
 
     @InjectMocks
@@ -110,6 +112,8 @@ class ImportBatchServiceTest {
                 .id(1L)
                 .name("Cà Mau")
                 .isActive(true)
+                .price(new BigDecimal("10000"))
+                .commissionRate(new BigDecimal("0.05"))
                 .drawDays(List.of(DayOfWeek.MONDAY))
                 .drawTime(LocalTime.of(16, 15))
                 .build();
@@ -118,13 +122,24 @@ class ImportBatchServiceTest {
                 .name("Tổng đại lý Minh Chính")
                 .code("MINH_CHINH")
                 .isActive(true)
+                .paymentTermDays(0)
+                .importAllowFrom(LocalTime.of(0, 0))
+                .returnCutOffTime(LocalTime.of(23, 59))
                 .build();
+        when(supplierSettlementServicePort.findOrCreateForImport(any(), any()))
+                .thenReturn(com.daiphat.coreapi.domain.model.lotteries.SupplierSettlementModel.builder()
+                        .id(100L)
+                        .lotterySupplierId(SUPPLIER_ID)
+                        .periodFrom(DRAW_DATE)
+                        .periodTo(DRAW_DATE)
+                        .build());
         when(lotterySupplierServicePort.getActiveModelById(SUPPLIER_ID)).thenReturn(activeSupplier);
         when(importBatchCodeGenerator.generateHeaderCode(any())).thenReturn("PN-20260706-0001");
         when(importBatchCodeGenerator.generateLineCode(any(), any(), any())).thenReturn("LO-20260706-CAMAU-NEW-0001");
         when(lotteryStationServicePort.getScheduleModelsByDrawDate(DRAW_DATE)).thenReturn(List.of(activeStation));
+        when(importBatchImportModeResolver.resolve(any(), any())).thenReturn(ImportBatchImportMode.IN_DAY);
         when(stationEligibilityResolver.isEligibleForSelection(
-                any(), eq(DRAW_DATE), any(), eq(ImportBatchImportMode.IN_DAY)
+                any(), eq(DRAW_DATE), any(), any()
         )).thenReturn(true);
         when(importBatchRepositoryPort.findEditableBatchByImportedByAndDrawDateAndSupplierAndImportMode(
                 any(), any(), any(), any()
@@ -305,9 +320,13 @@ class ImportBatchServiceTest {
         verify(importBatchRepositoryPort).save(captor.capture());
         assertThat(captor.getValue().getLines()).hasSize(1);
         assertThat(captor.getValue().getLines().getFirst().getBatchType()).isEqualTo(ImportBatchType.NEW);
+        assertThat(captor.getValue().getLines().getFirst().getImportCost())
+                .isEqualByComparingTo(new BigDecimal("9500.000"));
+        assertThat(captor.getValue().getSupplierSettlementId()).isEqualTo(100L);
         assertThat(captor.getValue().getInvoiceEvidenceUrl()).isEqualTo("https://cdn.example/invoice.jpg");
         assertThat(captor.getValue().getLineCount()).isEqualTo(1);
         assertThat(captor.getValue().getSubmittedAt()).isNotNull();
+        verify(supplierSettlementServicePort).findOrCreateForImport(activeSupplier, DRAW_DATE);
     }
 
     @Test
@@ -371,6 +390,9 @@ class ImportBatchServiceTest {
         when(importBatchRepositoryPort.save(any())).thenReturn(saved);
         when(importBatchApplicationMapper.toResponse(eq(saved), eq(false), any()))
                 .thenReturn(ImportBatchResponse.builder().id(12L).build());
+
+        when(importBatchImportModeResolver.resolve(eq(DRAW_DATE), any()))
+                .thenReturn(ImportBatchImportMode.POST_DRAW_SUPPLEMENT);
 
         CreateImportBatchRequest request = CreateImportBatchRequest.builder()
                 .drawDate(DRAW_DATE)
@@ -585,7 +607,7 @@ class ImportBatchServiceTest {
         when(importBatchTypeResolver.resolve(anyLong(), any(LocalDate.class), any(LotteryStationModel.class), any(ImportBatchImportMode.class)))
                 .thenReturn(new ImportBatchTypeResolver.ClassificationResult(
                         ImportBatchType.SUPPLEMENTARY, false, List.of()));
-        LotteryStationModel station2 = LotteryStationModel.builder().id(2L).name("An Giang").isActive(true).build();
+        LotteryStationModel station2 = stationWithCost(2L, "An Giang");
         when(lotteryStationServicePort.getModelById(2L)).thenReturn(station2);
         when(importBatchLineRepositoryPort.existsDraftLineForStationAndDrawDateExcludingBatch(2L, DRAW_DATE, 10L))
                 .thenReturn(false);
@@ -668,8 +690,8 @@ class ImportBatchServiceTest {
     }
 
     @Test
-    @DisplayName("update allows changing import cost on IMPORTING line without changing declare quantity")
-    void update_importingLine_changeCostOnly_succeeds() {
+    @DisplayName("update keeps snapshotted import cost on IMPORTING line (client cost ignored)")
+    void update_importingLine_changeCostOnly_keepsSnapshot() {
         fixedClock(LocalDateTime.of(2026, 7, 7, 10, 0));
 
         ImportBatchLineModel importingLine = ImportBatchLineModel.builder()
@@ -678,7 +700,7 @@ class ImportBatchServiceTest {
                 .lotteryStationId(1L)
                 .declareQuantity(5000)
                 .totalQuantity(2000)
-                .importCost(BigDecimal.valueOf(10000))
+                .importCost(new BigDecimal("9500.000"))
                 .status(ImportBatchLineStatus.IMPORTING)
                 .batchType(ImportBatchType.NEW)
                 .build();
@@ -720,7 +742,7 @@ class ImportBatchServiceTest {
         importBatchService.update(10L, request);
 
         assertThat(importingLine.getDeclareQuantity()).isEqualTo(5000);
-        assertThat(importingLine.getImportCost()).isEqualByComparingTo(BigDecimal.valueOf(12000));
+        assertThat(importingLine.getImportCost()).isEqualByComparingTo(new BigDecimal("9500.000"));
         assertThat(importingLine.getStatus()).isEqualTo(ImportBatchLineStatus.IMPORTING);
     }
 
@@ -815,15 +837,7 @@ class ImportBatchServiceTest {
         when(importBatchApplicationMapper.toResponse(any(ImportBatchModel.class)))
                 .thenReturn(ImportBatchResponse.builder().id(10L).status(ImportBatchStatus.RECEIVING).build());
         when(lotteryStationServicePort.getModelById(1L)).thenReturn(activeStation);
-        when(lotteryStationServicePort.getModelById(2L)).thenReturn(
-                LotteryStationModel.builder()
-                        .id(2L)
-                        .name("Bến Tre")
-                        .isActive(true)
-                        .drawDays(List.of(DayOfWeek.MONDAY))
-                        .drawTime(LocalTime.of(16, 15))
-                        .build()
-        );
+        when(lotteryStationServicePort.getModelById(2L)).thenReturn(stationWithCost(2L, "Bến Tre"));
         when(importBatchTypeResolver.resolve(anyLong(), any(), any(), any()))
                 .thenReturn(new ImportBatchTypeResolver.ClassificationResult(
                         ImportBatchType.NEW, false, List.of()));
@@ -1296,7 +1310,7 @@ class ImportBatchServiceTest {
         when(importBatchLineRepositoryPort.save(any(ImportBatchLineModel.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
         doNothing().when(lotteryTicketServicePort).purgeImportBatchLineTickets(100L);
-        LotteryStationModel station2 = LotteryStationModel.builder().id(2L).name("An Giang").isActive(true).build();
+        LotteryStationModel station2 = stationWithCost(2L, "An Giang");
         when(lotteryStationServicePort.getModelById(2L)).thenReturn(station2);
         when(importBatchTypeResolver.resolve(eq(2L), eq(DRAW_DATE), any(LotteryStationModel.class), eq(ImportBatchImportMode.IN_DAY)))
                 .thenReturn(new ImportBatchTypeResolver.ClassificationResult(
@@ -1496,7 +1510,7 @@ class ImportBatchServiceTest {
         when(importBatchLineRepositoryPort.findByImportBatchId(10L)).thenReturn(List.of(remainingLine));
         when(importBatchLineRepositoryPort.save(any(ImportBatchLineModel.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
-        LotteryStationModel station2 = LotteryStationModel.builder().id(2L).name("An Giang").isActive(true).build();
+        LotteryStationModel station2 = stationWithCost(2L, "An Giang");
         when(lotteryStationServicePort.getModelById(2L)).thenReturn(station2);
         when(importBatchTypeResolver.resolve(eq(2L), eq(DRAW_DATE), any(LotteryStationModel.class), eq(ImportBatchImportMode.IN_DAY)))
                 .thenReturn(new ImportBatchTypeResolver.ClassificationResult(
@@ -1942,15 +1956,7 @@ class ImportBatchServiceTest {
         when(importBatchRepositoryPort.findById(10L)).thenReturn(Optional.of(batch));
         when(importBatchLineRepositoryPort.countActiveByImportBatchId(10L)).thenReturn(2L);
         when(lotteryStationServicePort.getModelById(1L)).thenReturn(activeStation);
-        when(lotteryStationServicePort.getModelById(2L)).thenReturn(
-                LotteryStationModel.builder()
-                        .id(2L)
-                        .name("Sóc Trăng")
-                        .isActive(true)
-                        .drawDays(List.of(DayOfWeek.MONDAY))
-                        .drawTime(LocalTime.of(16, 15))
-                        .build()
-        );
+        when(lotteryStationServicePort.getModelById(2L)).thenReturn(stationWithCost(2L, "Sóc Trăng"));
         when(importBatchLineRepositoryPort.findByImportBatchId(10L))
                 .thenAnswer(invocation -> activeBatchLines.stream()
                         .filter(line -> line.getDeletedAt() == null)
@@ -2014,13 +2020,25 @@ class ImportBatchServiceTest {
         assertThat(response.id()).isEqualTo(10L);
         assertThat(removedLine.getDeletedAt()).isNull();
         assertThat(removedLine.getDeclareQuantity()).isEqualTo(15);
-        assertThat(removedLine.getImportCost()).isEqualByComparingTo(BigDecimal.valueOf(12000));
+        assertThat(removedLine.getImportCost()).isEqualByComparingTo(new BigDecimal("9500.000"));
         assertThat(removedLine.getStatus()).isEqualTo(ImportBatchLineStatus.OPEN);
     }
 
     private void fixedClock(LocalDateTime dateTime) {
         when(clock.instant()).thenReturn(dateTime.atZone(ZONE).toInstant());
         when(clock.getZone()).thenReturn(ZONE);
+    }
+
+    private LotteryStationModel stationWithCost(Long id, String name) {
+        return LotteryStationModel.builder()
+                .id(id)
+                .name(name)
+                .isActive(true)
+                .price(new BigDecimal("10000"))
+                .commissionRate(new BigDecimal("0.05"))
+                .drawDays(List.of(DayOfWeek.MONDAY))
+                .drawTime(LocalTime.of(16, 15))
+                .build();
     }
 
     private CreateImportBatchRequest buildRequest(String invoiceUrl) {

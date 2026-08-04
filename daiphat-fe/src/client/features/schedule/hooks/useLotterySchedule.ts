@@ -1,3 +1,5 @@
+"use client";
+
 import { useState, useEffect, useMemo } from 'react';
 import { getPublicSchedule } from '../services/scheduleService';
 import type { LotteryStationSchedule } from '../types/schedule.types';
@@ -28,6 +30,38 @@ const DAY_LABELS: Record<string, string> = {
 
 const DAY_OF_WEEK_MAP = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'];
 
+const SCHEDULE_CACHE_TTL_MS = 60_000;
+const scheduleResponseCache = new Map<string, { data: LotteryStationSchedule[]; cachedAt: number }>();
+
+const buildScheduleCacheKey = ({
+  region,
+  normalizedStationIds,
+  highlightDate,
+  isSingleStationView,
+}: {
+  region?: string;
+  normalizedStationIds?: number[];
+  highlightDate?: string;
+  isSingleStationView: boolean;
+}): string =>
+  JSON.stringify({
+    region: region ?? null,
+    stationIds: normalizedStationIds ?? null,
+    highlightDate: isSingleStationView ? null : (highlightDate ?? null),
+  });
+
+const readScheduleCache = (key: string): LotteryStationSchedule[] | null => {
+  const entry = scheduleResponseCache.get(key);
+  if (!entry) {
+    return null;
+  }
+  if (Date.now() - entry.cachedAt > SCHEDULE_CACHE_TTL_MS) {
+    scheduleResponseCache.delete(key);
+    return null;
+  }
+  return entry.data;
+};
+
 const toDayIdFromDate = (dateIso?: string): string | null => {
   if (!dateIso) {
     return null;
@@ -45,10 +79,6 @@ export const useLotterySchedule = ({
   stationIds,
   highlightDate,
 }: UseLotteryScheduleOptions = {}) => {
-  const [data, setData] = useState<LotteryStationSchedule[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
   const normalizedStationIds = useMemo(() => {
     if (stationIds && stationIds.length > 0) {
       return stationIds;
@@ -61,10 +91,35 @@ export const useLotterySchedule = ({
 
   const isSingleStationView = normalizedStationIds != null && normalizedStationIds.length >= 1;
 
+  const cacheKey = useMemo(
+    () =>
+      buildScheduleCacheKey({
+        region,
+        normalizedStationIds,
+        highlightDate,
+        isSingleStationView,
+      }),
+    [region, normalizedStationIds, highlightDate, isSingleStationView]
+  );
+
+  const [data, setData] = useState<LotteryStationSchedule[]>(
+    () => readScheduleCache(cacheKey) ?? []
+  );
+  const [isLoading, setIsLoading] = useState(() => readScheduleCache(cacheKey) == null);
+  const [error, setError] = useState<string | null>(null);
+
   useEffect(() => {
     let isMounted = true;
 
     const fetchData = async () => {
+      const cached = readScheduleCache(cacheKey);
+      if (cached) {
+        setData(cached);
+        setError(null);
+        setIsLoading(false);
+        return;
+      }
+
       setIsLoading(true);
       setError(null);
       try {
@@ -75,6 +130,7 @@ export const useLotterySchedule = ({
           drawDate: isSingleStationView ? undefined : highlightDate,
         });
         if (isMounted) {
+          scheduleResponseCache.set(cacheKey, { data: result, cachedAt: Date.now() });
           setData(result);
         }
       } catch {
@@ -93,7 +149,7 @@ export const useLotterySchedule = ({
     return () => {
       isMounted = false;
     };
-  }, [region, normalizedStationIds, highlightDate, isSingleStationView]);
+  }, [cacheKey, region, normalizedStationIds, highlightDate, isSingleStationView]);
 
   const availableRegions = useMemo(() => {
     const regions = new Set(data.map((st) => st.region));

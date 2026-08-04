@@ -1,3 +1,7 @@
+"use client";
+
+'use client';
+
 import React from 'react';
 import {
     IconButton,
@@ -30,7 +34,7 @@ import { AppToast } from '../../../../../../utils/toast.util';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import SearchIcon from '@mui/icons-material/Search';
 import { useQueryClient } from '@tanstack/react-query';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate } from '@/components/router-compat';
 import { QUERY_KEYS } from '../../../inventory/constants/queryKeys';
 import { ReportSerialFaultPane } from '../sections/ReportSerialFaultPane';
 import ReportProblemIcon from '@mui/icons-material/ReportProblem';
@@ -52,6 +56,14 @@ import { displayImportBatchLineCodeRaw, formatImportBatchHeaderCode } from '../.
 import { getBatchTypeColor, getBatchTypeLabel, getImportBatchLineStatusChipColor, getImportBatchLineStatusLabel } from '../../utils/batchTypeLabels';
 import { ROUTES } from '../../../../../constants/routes';
 import { Breadcrumb } from '../../../../../components/ui/Breadcrumb';
+import {
+    buildCancelFlowStatusFilterOptions,
+    getCancelFlowTicketStatusLabel,
+    isTicketSelectableForCancel,
+    matchesCancelFlowSerialFilter,
+    matchesCancelFlowStatusFilter,
+} from '../../utils/cancelTicketSelection';
+import { isSerialIncidentEligible } from '../../utils/serialIncidentWorkflow';
 
 const getTicketStatusBadgeClass = (status?: string | null): string => {
     const normalized = normalizeTicketStatus(status);
@@ -69,16 +81,36 @@ const getTicketStatusBadgeClass = (status?: string | null): string => {
             return 'admin-status-badge--success';
         case 'RESERVED':
         case 'PROXY_HOLDING':
-        case 'PENDING_RETURN':
-        case 'RETURNED':
             return 'admin-status-badge--pending';
         case 'DAMAGED':
         case 'LOST':
+        case 'VOIDED':
             return 'admin-status-badge--inactive';
         default:
             // Unknown / legacy cached values
             return 'admin-status-badge--draft';
     }
+};
+
+const getSerialDisplayBadge = (serial: {
+    status?: string | null;
+    statusDisplayName?: string | null;
+    ticketCondition?: string | null;
+    ticketConditionDisplayName?: string | null;
+}) => {
+    const condition = (serial.ticketCondition || '').toUpperCase();
+    if (condition === 'DAMAGED' || condition === 'LOST' || condition === 'VOIDED') {
+        return {
+            className: getTicketStatusBadgeClass(condition),
+            label:
+                serial.ticketConditionDisplayName ||
+                (condition === 'DAMAGED' ? 'Hỏng' : condition === 'LOST' ? 'Thất lạc' : 'Đã hủy'),
+        };
+    }
+    return {
+        className: getTicketStatusBadgeClass(serial.status),
+        label: serial.statusDisplayName || getTicketStatusLabel(serial.status) || serial.status || '—',
+    };
 };
 
 const CollapsibleRow = ({ 
@@ -97,11 +129,15 @@ const CollapsibleRow = ({
     onSelectSerial: (ticket: any, serial: any, checked: boolean) => void;
 }) => {
     const [open, setOpen] = React.useState(false);
-    const statusLabel = ticket.statusDisplayName || getTicketStatusLabel(ticket.status) || ticket.status || '—';
+    const ticketSelectable = isTicketSelectableForCancel(ticket.status);
+    const statusLabel = getCancelFlowTicketStatusLabel(ticket.status, ticket.statusDisplayName || getTicketStatusLabel(ticket.status));
 
     const cancelableSerials = React.useMemo(() => {
-        return ticket.serials || [];
-    }, [ticket.serials]);
+        if (!ticketSelectable) {
+            return [];
+        }
+        return (ticket.serials || []).filter((s: any) => isSerialIncidentEligible(s));
+    }, [ticket.serials, ticketSelectable]);
 
     const cancelableCount = cancelableSerials.length;
     const selectedCount = React.useMemo(() => {
@@ -135,7 +171,7 @@ const CollapsibleRow = ({
                 <TableCell sx={{ width: 50, py: 1.5 }} align="center">
                     <Checkbox
                         size="small"
-                        disabled={cancelableCount === 0}
+                        disabled={!ticketSelectable || cancelableCount === 0}
                         checked={isTicketChecked}
                         indeterminate={isTicketIndeterminate}
                         onChange={(e) => onSelectTicket(ticket, e.target.checked)}
@@ -178,7 +214,7 @@ const CollapsibleRow = ({
             </TableRow>
             {open && ticket.serials && ticket.serials.length > 0 ? (
                 ticket.serials.map((s: any, sIndex: number) => {
-                    const sStatusLabel = s.statusDisplayName || getTicketStatusLabel(s.status) || s.status || '—';
+                    const serialBadge = getSerialDisplayBadge(s);
                     const isSerialChecked = selectedSerials.some(x => String(x.id) === String(s.id));
 
                     return (
@@ -196,6 +232,7 @@ const CollapsibleRow = ({
                                 <Checkbox
                                     size="small"
                                     checked={isSerialChecked}
+                                    disabled={!ticketSelectable || !isSerialIncidentEligible(s)}
                                     onChange={(e) => onSelectSerial(ticket, s, e.target.checked)}
                                 />
                             </TableCell>
@@ -227,8 +264,8 @@ const CollapsibleRow = ({
                                 </Typography>
                             </TableCell>
                             <TableCell align="center" sx={{ py: 1 }} onClick={() => cancelMode === 'SERIAL' && onSelectSerial(ticket, s, !isSerialChecked)}>
-                                <span className={`admin-status-badge ${getTicketStatusBadgeClass(s.status)}`.trim()} style={{ fontSize: '0.7rem', height: '1.25rem' }}>
-                                    {sStatusLabel}
+                                <span className={`admin-status-badge ${serialBadge.className}`.trim()} style={{ fontSize: '0.7rem', height: '1.25rem' }}>
+                                    {serialBadge.label}
                                 </span>
                             </TableCell>
                         </TableRow>
@@ -273,6 +310,20 @@ export const ImportBatchLineDetailPage = () => {
     const [statusFilter, setStatusFilter] = React.useState('ALL');
     const [quantityFilter, setQuantityFilter] = React.useState('ALL');
 
+    const availableStatusFilterOptions = React.useMemo(
+        () => buildCancelFlowStatusFilterOptions(tickets || []),
+        [tickets]
+    );
+
+    React.useEffect(() => {
+        if (
+            statusFilter !== 'ALL' &&
+            !availableStatusFilterOptions.some((option) => option.value === statusFilter)
+        ) {
+            setStatusFilter('ALL');
+        }
+    }, [availableStatusFilterOptions, statusFilter]);
+
     const filteredTickets = React.useMemo(() => {
         return (tickets || []).filter((ticket: any) => {
             if (searchQuery.trim()) {
@@ -285,8 +336,10 @@ export const ImportBatchLineDetailPage = () => {
             }
 
             if (statusFilter !== 'ALL') {
-                const ticketStatusMatch = ticket.status === statusFilter;
-                const serialStatusMatch = (ticket.serials || []).some((s: any) => s.status === statusFilter);
+                const ticketStatusMatch = matchesCancelFlowStatusFilter(ticket.status, statusFilter);
+                const serialStatusMatch = (ticket.serials || []).some((s: any) =>
+                    matchesCancelFlowSerialFilter(s, statusFilter)
+                );
                 if (!ticketStatusMatch && !serialStatusMatch) return false;
             }
 
@@ -302,14 +355,23 @@ export const ImportBatchLineDetailPage = () => {
     const cancelableSerials = React.useMemo(() => {
         const list: any[] = [];
         filteredTickets.forEach((ticket: any) => {
+            if (!isTicketSelectableForCancel(ticket.status)) {
+                return;
+            }
             (ticket.serials || []).forEach((s: any) => {
+                if (!isSerialIncidentEligible(s)) {
+                    return;
+                }
                 list.push({
                     id: s.id,
                     serialNumber: s.serialNumber,
                     status: s.status,
+                    ticketCondition: s.ticketCondition,
+                    returnBatchLineId: s.returnBatchLineId,
                     ticketId: ticket.id,
                     ticketNumbers: ticket.numbers,
-                    ticketStatus: ticket.status
+                    ticketStatus: ticket.status,
+                    reservedByOrderId: s.reservedByOrderId,
                 });
             });
         });
@@ -329,14 +391,24 @@ export const ImportBatchLineDetailPage = () => {
     };
 
     const handleSelectTicket = (ticket: any, checked: boolean) => {
-        const ticketSerialIds = (ticket.serials || []).map((s: any) => String(s.id));
+        if (!isTicketSelectableForCancel(ticket.status)) {
+            return;
+        }
+        const ticketSerialIds = (ticket.serials || [])
+            .filter((s: any) => isSerialIncidentEligible(s))
+            .map((s: any) => String(s.id));
         if (checked) {
-            const cancelableOfTicket = (ticket.serials || []).map((s: any) => ({
+            const cancelableOfTicket = (ticket.serials || [])
+                .filter((s: any) => isSerialIncidentEligible(s))
+                .map((s: any) => ({
                 id: s.id,
                 serialNumber: s.serialNumber,
                 status: s.status,
+                ticketCondition: s.ticketCondition,
+                returnBatchLineId: s.returnBatchLineId,
                 ticketId: ticket.id,
-                ticketNumbers: ticket.numbers
+                ticketNumbers: ticket.numbers,
+                reservedByOrderId: s.reservedByOrderId,
             }));
             
             setSelectedSerials(prev => {
@@ -349,6 +421,9 @@ export const ImportBatchLineDetailPage = () => {
     };
 
     const handleSelectSerial = (ticket: any, serial: any, checked: boolean) => {
+        if (!isTicketSelectableForCancel(ticket.status) || !isSerialIncidentEligible(serial)) {
+            return;
+        }
         if (checked) {
             setSelectedSerials(prev => {
                 if (prev.some(x => String(x.id) === String(serial.id))) return prev;
@@ -356,8 +431,11 @@ export const ImportBatchLineDetailPage = () => {
                     id: serial.id,
                     serialNumber: serial.serialNumber,
                     status: serial.status,
+                    ticketCondition: serial.ticketCondition,
+                    returnBatchLineId: serial.returnBatchLineId,
                     ticketId: ticket.id,
-                    ticketNumbers: ticket.numbers
+                    ticketNumbers: ticket.numbers,
+                    reservedByOrderId: serial.reservedByOrderId,
                 }];
             });
         } else {
@@ -406,7 +484,7 @@ export const ImportBatchLineDetailPage = () => {
                     items={[
                         { label: 'Quản lý vé số' },
                         { label: 'Nhập lô vé', to: ROUTES.ADMIN.IMPORT_BATCH.LIST },
-                        { label: formatImportBatchHeaderCode(batch.importCode), to: id ? ROUTES.ADMIN.IMPORT_BATCH.DETAIL(id) : undefined },
+                        { label: formatImportBatchHeaderCode((batch as any).importCode), to: id ? ROUTES.ADMIN.IMPORT_BATCH.DETAIL(id) : undefined },
                         { label: `Dòng lô ${displayImportBatchLineCodeRaw(line?.batchCode)}` }
                     ]} 
                 />
@@ -425,7 +503,7 @@ export const ImportBatchLineDetailPage = () => {
                 }}
             >
                 <Grid container spacing={3}>
-                    <Grid item xs={12} sm={6} md={2}>
+                    <Grid size={{ xs: 12, sm: 6, md: 2 }}>
                         <Stack spacing={0.75}>
                             <Stack direction="row" alignItems="center" spacing={1} color="text.secondary">
                                 <StorefrontIcon fontSize="small" sx={{ fontSize: '1rem', opacity: 0.8 }} />
@@ -439,7 +517,7 @@ export const ImportBatchLineDetailPage = () => {
                         </Stack>
                     </Grid>
                     
-                    <Grid item xs={12} sm={6} md={2}>
+                    <Grid size={{ xs: 12, sm: 6, md: 2 }}>
                         <Stack spacing={0.75}>
                             <Stack direction="row" alignItems="center" spacing={1} color="text.secondary">
                                 <LabelIcon fontSize="small" sx={{ fontSize: '1rem', opacity: 0.8 }} />
@@ -458,7 +536,7 @@ export const ImportBatchLineDetailPage = () => {
                         </Stack>
                     </Grid>
 
-                    <Grid item xs={12} sm={6} md={2}>
+                    <Grid size={{ xs: 12, sm: 6, md: 2 }}>
                         <Stack spacing={0.75}>
                             <Stack direction="row" alignItems="center" spacing={1} color="text.secondary">
                                 <CheckCircleIcon fontSize="small" sx={{ fontSize: '1rem', opacity: 0.8 }} />
@@ -477,7 +555,7 @@ export const ImportBatchLineDetailPage = () => {
                         </Stack>
                     </Grid>
 
-                    <Grid item xs={12} sm={6} md={2}>
+                    <Grid size={{ xs: 12, sm: 6, md: 2 }}>
                         <Stack spacing={0.75}>
                             <Stack direction="row" alignItems="center" spacing={1} color="text.secondary">
                                 <CalendarMonthIcon fontSize="small" sx={{ fontSize: '1rem', opacity: 0.8 }} />
@@ -491,7 +569,7 @@ export const ImportBatchLineDetailPage = () => {
                         </Stack>
                     </Grid>
 
-                    <Grid item xs={12} sm={6} md={2}>
+                    <Grid size={{ xs: 12, sm: 6, md: 2 }}>
                         <Stack spacing={0.75}>
                             <Stack direction="row" alignItems="center" spacing={1} color="text.secondary">
                                 <CloudUploadIcon fontSize="small" sx={{ fontSize: '1rem', opacity: 0.8 }} />
@@ -505,7 +583,7 @@ export const ImportBatchLineDetailPage = () => {
                         </Stack>
                     </Grid>
 
-                    <Grid item xs={12} sm={6} md={2}>
+                    <Grid size={{ xs: 12, sm: 6, md: 2 }}>
                         <Stack spacing={0.75}>
                             <Stack direction="row" alignItems="center" spacing={1} color="text.secondary">
                                 <ShowChartIcon fontSize="small" sx={{ fontSize: '1rem', opacity: 0.8 }} />
@@ -567,14 +645,11 @@ export const ImportBatchLineDetailPage = () => {
                                     sx={{ borderRadius: '8px', fontSize: '0.85rem' }}
                                 >
                                     <MenuItem value="ALL">Tất cả trạng thái</MenuItem>
-                                    <MenuItem value="IMPORTING">Đang nhập lô</MenuItem>
-                                    <MenuItem value="IN_STOCK">Trong kho</MenuItem>
-                                    <MenuItem value="SOLD_OUT">Hết hàng</MenuItem>
-                                    <MenuItem value="EXPIRED">Hết hạn</MenuItem>
-                                    <MenuItem value="SOLD">Đã bán (sê-ri)</MenuItem>
-                                    <MenuItem value="RESERVED">Đang giữ chỗ (sê-ri)</MenuItem>
-                                    <MenuItem value="DAMAGED">Hư hỏng (sê-ri)</MenuItem>
-                                    <MenuItem value="LOST">Thất lạc (sê-ri)</MenuItem>
+                                    {availableStatusFilterOptions.map((option) => (
+                                        <MenuItem key={option.value} value={option.value}>
+                                            {option.label}
+                                        </MenuItem>
+                                    ))}
                                 </Select>
                             </FormControl>
                             <FormControl size="small" sx={{ width: 155, bgcolor: '#fff' }}>
@@ -717,7 +792,7 @@ export const ImportBatchLineDetailPage = () => {
                         importBatchLineId={line.id}
                         stationId={line.lotteryStationId}
                         drawDate={batch.drawDate}
-                        cancelMode={dialogCancelMode}
+                        defaultCancelMode={dialogCancelMode}
                         onCancel={handleCancelReport}
                         onSuccess={handleReportSuccess}
                     />

@@ -1,5 +1,7 @@
+"use client";
+
 import { useMemo, type ReactNode } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useParams } from '@/components/router-compat';
 import {
     Alert,
     Box,
@@ -72,12 +74,16 @@ function buildReferenceLink(refType?: TicketRefType, refId?: string) {
     if (refType === TicketRefType.REFUND_REQUEST) {
         return `/${prefixAdmin}/refunds/detail/${refId}`;
     }
+    if (refType === TicketRefType.PRIZE_CLAIM) {
+        return `/${prefixAdmin}/prize-payouts/detail/${refId}`;
+    }
     return null;
 }
 
 export const SupportTicketDetailPage = () => {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
+    const location = useLocation();
     const ticketId = Number(id);
 
     const { data, isLoading, isError } = useGetStaffTicketDetail(ticketId);
@@ -134,14 +140,14 @@ export const SupportTicketDetailPage = () => {
                     <Breadcrumb
                         items={[
                             { label: 'Bảng điều khiển', to: `/${prefixAdmin}` },
-                            { label: 'Khiếu nại / Hỗ trợ', to: `/${prefixAdmin}/support-tickets/list` },
+                            { label: 'Khiếu nại', to: `/${prefixAdmin}/support-tickets/list` },
                             { label: `#${ticket.id}` },
                         ]}
                     />
                 </Box>
                 <Stack direction="row" spacing={1} flexWrap="wrap">
                     {canAssign && (
-                        <CanAccess permission={PERMISSIONS.SUPPORT_TICKET.MANAGE}>
+                        <CanAccess permission={(PERMISSIONS.SUPPORT_TICKET as any).MANAGE}>
                             <Button
                                 variant="contained"
                                 disabled={assignMutation.isPending}
@@ -231,19 +237,40 @@ export const SupportTicketDetailPage = () => {
 
                         <Card sx={cardSx}>
                             <CardContent>
-                                <CardSectionTitle icon="mdi:link-variant" title="Tham chiếu liên quan" />
+                                <CardSectionTitle icon="mdi:link-variant" title="Liên quan đến" />
                                 <Grid container spacing={2.5}>
                                     <Grid size={{ xs: 12, sm: 6 }}>
-                                        <FieldLabel>Loại tham chiếu</FieldLabel>
+                                        <FieldLabel>Loại</FieldLabel>
                                         <FieldValue>
                                             {ticket.refType ? TICKET_REF_TYPE_LABELS[ticket.refType] : '—'}
                                         </FieldValue>
                                     </Grid>
                                     <Grid size={{ xs: 12, sm: 6 }}>
-                                        <FieldLabel>Mã tham chiếu</FieldLabel>
+                                        <FieldLabel>
+                                            {ticket.refType === TicketRefType.PRIZE_CLAIM
+                                                ? 'Yêu cầu trả thưởng'
+                                                : ticket.refType === TicketRefType.REFUND_REQUEST
+                                                  ? 'Yêu cầu hoàn tiền'
+                                                  : ticket.refType === TicketRefType.ORDER
+                                                    ? 'Đơn hàng'
+                                                    : 'Mã đối tượng'}
+                                        </FieldLabel>
                                         {referenceLink ? (
-                                            <Link to={referenceLink} style={{ fontWeight: 600, color: '#2065D1' }}>
-                                                {ticket.refId}
+                                            <Link
+                                                to={referenceLink}
+                                                state={{
+                                                    returnTo: `${location.pathname}${location.search}`,
+                                                    returnLabel: `Quay lại khiếu nại #${ticket.id}`,
+                                                }}
+                                                style={{ fontWeight: 700, color: '#2065D1' }}
+                                            >
+                                                {ticket.refType === TicketRefType.PRIZE_CLAIM
+                                                    ? `Mở yêu cầu trả thưởng #${ticket.refId}`
+                                                    : ticket.refType === TicketRefType.REFUND_REQUEST
+                                                      ? `Mở yêu cầu hoàn tiền #${ticket.refId}`
+                                                      : ticket.refType === TicketRefType.ORDER
+                                                        ? `Mở đơn hàng #${ticket.refId}`
+                                                        : `#${ticket.refId}`}
                                             </Link>
                                         ) : (
                                             <FieldValue>{ticket.refId || '—'}</FieldValue>
@@ -274,7 +301,7 @@ export const SupportTicketDetailPage = () => {
                                             <FieldLabel>
                                                 {ticket.status === TicketStatus.REJECTED
                                                     ? 'Nội dung từ chối'
-                                                    : 'Phản hồi giải quyết'}
+                                                    : 'Lý do giải quyết (nội bộ)'}
                                             </FieldLabel>
                                             <FieldValue sx={{ whiteSpace: 'pre-wrap', fontWeight: 500 }}>
                                                 {reasonComment?.content || ticket.response}

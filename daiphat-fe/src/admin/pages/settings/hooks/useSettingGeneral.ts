@@ -1,3 +1,5 @@
+"use client";
+
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { getSettingGeneral, updateSettingGeneral } from "../../../api/setting.api";
 import { toast } from "react-toastify";

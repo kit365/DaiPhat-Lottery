@@ -56,24 +56,24 @@ public enum SystemConfigEnum {
             "{\"min\":\"00:00\",\"max\":\"23:59\"}",
             true
     ),
-    LATE_IMPORT_TIME(
+    RETURN_BUFFER_TIME(
             ConfigType.TICKET_IMPORT,
-            DataType.TIME,
-            "14:30",
-            "Giờ chốt sau đó lô nhập trong ngày được phân loại LATE_IMPORT",
-            "Giờ phân loại nhập muộn",
-            "HH:mm",
-            "{\"min\":\"00:00\",\"max\":\"23:59\"}",
+            DataType.INT,
+            "45",
+            "Thời gian đệm (phút) trước hạn trả vé của nhà cung cấp",
+            "Thời gian đệm trả vé",
+            "phút",
+            "{\"min\":0,\"max\":1440}",
             true
     ),
-    IMPORT_BATCH_CUTOFF_TIME(
-            ConfigType.TICKET_IMPORT,
-            DataType.TIME,
-            "15:00",
-            "Giờ chốt sau đó không cho phép tạo lô nhập trong ngày (trừ lô nhập bổ sung)",
-            "Giờ chốt tạo lô nhập",
-            "HH:mm",
-            "{\"min\":\"00:00\",\"max\":\"23:59\"}",
+    RETURN_REMINDER_TIME(
+            ConfigType.TICKET_RETURN,
+            DataType.INT,
+            "15",
+            "Thời gian (phút) trước hạn trả vé NCC để nhắc khẩn kiểm tra phiếu trả",
+            "Nhắc kiểm tra trả vé",
+            "phút",
+            "{\"min\":1,\"max\":1440}",
             true
     ),
     TICKET_AUTO_IMPORT_THRESHOLD(
@@ -195,6 +195,76 @@ public enum SystemConfigEnum {
             "giờ",
             "{}",
             false
+    ),
+    PRIZE_PAYOUT_COMPLAINT_PROCESSING_WAIT_HOURS(
+            ConfigType.COMPLAINT_SETTING,
+            DataType.INT,
+            "48",
+            "Số giờ tối thiểu yêu cầu trả thưởng phải ở PENDING/APPROVED trước khi khiếu nại xử lý chậm",
+            "Thời gian chờ khiếu nại trả thưởng chậm",
+            "giờ",
+            "{\"min\":1,\"max\":168}",
+            true
+    ),
+    PRIZE_PAYOUT_COMPLAINT_GRACE_DAYS(
+            ConfigType.COMPLAINT_SETTING,
+            DataType.INT,
+            "15",
+            "Số ngày khiếu nại 1-click còn hiệu lực sau COMPLETED (tính từ completed_at). Hết hạn thì ẩn nút gắn claim; khách vẫn phản ánh qua hỗ trợ chung.",
+            "Thời hạn khiếu nại trả thưởng",
+            "ngày",
+            "{\"min\":1,\"max\":30}",
+            true
+    ),
+    PRIZE_PAYOUT_ONLINE_MAX_AMOUNT(
+            ConfigType.PAYOUT_SETTING,
+            DataType.INT,
+            "10000000",
+            "Giá trị giải tối đa khách được gửi yêu cầu trả thưởng online (VND)",
+            "Hạn mức trả thưởng online",
+            "VND",
+            "{\"min\":0}",
+            true
+    ),
+    MAX_PRIZE_PAYOUT_ONLINE_REJECT(
+            ConfigType.PAYOUT_SETTING,
+            DataType.INT,
+            "3",
+            "Số lần tối đa yêu cầu trả thưởng online bị từ chối trước khi bắt buộc đổi thưởng tại đại lý",
+            "Số lần từ chối trả thưởng online tối đa",
+            "lần",
+            "{\"min\":1,\"max\":20}",
+            true
+    ),
+    PRIZE_PAYOUT_TAX_THRESHOLD(
+            ConfigType.PAYOUT_SETTING,
+            DataType.INT,
+            "10000000",
+            "Ngưỡng miễn thuế TNCN trên giá trị giải (VND)",
+            "Ngưỡng thuế TNCN",
+            "VND",
+            "{\"min\":0}",
+            true
+    ),
+    PRIZE_PAYOUT_TAX_RATE(
+            ConfigType.PAYOUT_SETTING,
+            DataType.DECIMAL,
+            "0.10",
+            "Thuế suất TNCN áp dụng phần vượt ngưỡng",
+            "Thuế suất TNCN",
+            "%",
+            "{\"min\":0,\"max\":1}",
+            true
+    ),
+    PRIZE_PAYOUT_COMMISSION_TIERS(
+            ConfigType.PAYOUT_SETTING,
+            DataType.JSON,
+            "[{\"upTo\":10000000,\"rate\":0.01},{\"upTo\":100000000,\"rate\":0.007},{\"upTo\":1000000000,\"rate\":0.004},{\"upTo\":null,\"rate\":0.002}]",
+            "Bậc thang hoa hồng đại lý trên giá trị giải gốc (trước thuế)",
+            "Hoa hồng trả thưởng",
+            "%",
+            "{}",
+            true
     );
 
     private final ConfigType configType;

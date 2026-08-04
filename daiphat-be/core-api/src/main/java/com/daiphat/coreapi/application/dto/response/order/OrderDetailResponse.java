@@ -19,12 +19,14 @@ public record OrderDetailResponse(
         LocalDate drawDate,
         String ticketImg,
         String serialNumber,
+        /** Current physical serial status (PROXY_HOLDING, SOLD, DAMAGED, ...). */
         LotteryTicketSerialStatus serialStatus,
         String serialStatusDisplayName,
         Long replacedByTicketId,
         Long replacedByTicketSerialId,
         BigDecimal price,
         Integer quantity,
+        /** Order-detail lifecycle status (ACTIVE, REFUND_PENDING, ...). */
         OrderDetailStatus status,
         boolean hasReplacement,
         List<Long> allocatedSerialIds,

@@ -1,8 +1,9 @@
-﻿import { Card, Typography, Stack, Box, alpha, Button, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Chip } from "@mui/material";
+"use client";
+
+import { Card, Typography, Stack, Box, alpha, Button, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Chip } from "@mui/material";
 import { Icon } from "@iconify/react";
 import { useQuery } from "@tanstack/react-query";
 import { getStaffingStatus } from "../../../api/dashboard.api";
-import { COLORS } from "../../role/configs/constants";
 import dayjs from "dayjs";
 
 export const StaffingAlertWidget = () => {
@@ -31,7 +32,7 @@ export const StaffingAlertWidget = () => {
         }}>
             <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 3 }}>
                 <Stack direction="row" spacing={1} alignItems="center">
-                    <Icon icon="solar:shield-warning-bold-duotone" width={24} color={understaffedShifts.length > 0 ? COLORS.error : COLORS.success} />
+                    <Icon icon="solar:shield-warning-bold-duotone" width={24} color={understaffedShifts.length > 0 ? '#ef4444' : '#10b981'} />
                     <Typography variant="h6" sx={{ fontWeight: 700 }}>�?nh m?c nh�n s? h�m nay</Typography>
                 </Stack>
                 {understaffedShifts.length > 0 && (
@@ -64,7 +65,7 @@ export const StaffingAlertWidget = () => {
                                             label={`Thi?u ${Math.abs(req.diff)} ngu?i`} 
                                             size="small"
                                             color="error"
-                                            variant="soft"
+                                            variant={"soft" as any}
                                             sx={{ fontWeight: 700, borderRadius: '6px' }}
                                         />
                                     </TableCell>

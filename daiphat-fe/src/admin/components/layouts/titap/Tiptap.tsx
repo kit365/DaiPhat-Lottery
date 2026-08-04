@@ -1,3 +1,5 @@
+"use client";
+
 import { Stack, Box, Divider } from "@mui/material"
 import { EditorContent, useEditor, useEditorState } from '@tiptap/react'
 

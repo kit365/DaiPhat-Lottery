@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+const drawTimePattern = /^([01]\d|2[0-3]):[0-5]\d$/;
+
 export const supplierFormSchema = z.object({
     name: z.string().trim().min(1, 'Vui lòng nhập tên nhà cung cấp'),
     code: z
@@ -8,7 +10,7 @@ export const supplierFormSchema = z.object({
         .min(1, 'Vui lòng nhập mã nhà cung cấp')
         .regex(/^[A-Za-z0-9_]+$/, 'Mã chỉ gồm chữ, số và dấu gạch dưới'),
     type: z.enum(['LOTTERY_COMPANY', 'DISTRIBUTOR'], {
-        required_error: 'Vui lòng chọn loại nhà cung cấp',
+        message: 'Vui lòng chọn loại nhà cung cấp',
     }),
     contactName: z.string().optional(),
     contactPhone: z.string().trim().min(1, 'Vui lòng nhập số điện thoại'),
@@ -32,6 +34,14 @@ export const supplierFormSchema = z.object({
         .transform((v) => Number(v))
         .refine((v) => !isNaN(v), { message: 'Vui lòng nhập số hợp lệ' })
         .refine((v) => v >= 0, { message: 'Giá vốn mặc định không được âm' }),
+    importAllowFrom: z
+        .string()
+        .trim()
+        .regex(drawTimePattern, 'Giờ cho phép nhập vé phải theo định dạng HH:mm'),
+    returnCutOffTime: z
+        .string()
+        .trim()
+        .regex(drawTimePattern, 'Hạn trả vé phải theo định dạng HH:mm'),
     isActive: z.boolean(),
 });
 
@@ -48,5 +58,7 @@ export const supplierFormDefaultValues: SupplierFormValues = {
     taxCode: '',
     paymentTermDays: 0,
     defaultImportCost: 10000,
+    importAllowFrom: '08:00',
+    returnCutOffTime: '14:30',
     isActive: true,
 };

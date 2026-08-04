@@ -1,3 +1,5 @@
+"use client";
+
 import { useMemo } from 'react';
 import { RoleEnum } from "../../../../../types/role.type";
 import { Toolbar, Box, Button, Badge, SvgIcon } from '@mui/material';

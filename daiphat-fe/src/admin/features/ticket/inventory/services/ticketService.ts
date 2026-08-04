@@ -1,20 +1,11 @@
 import { apiApp } from '../../../../../api';
-import Cookies from 'js-cookie';
+import { withAuthHeaders } from '../../../../../api/authHeaders';
 import { ApiResponse } from '../../../../../types/api.type';
-import { STORAGE_KEYS } from '../../../../../constants/storage.constants';
 
 const BASE_URL = `/lottery-tickets`;
 
-/** Header auth dùng chung */
-const withAuth = () => {
-    const token = Cookies.get(STORAGE_KEYS.TOKEN);
-
-    return {
-        headers: {
-            Authorization: `Bearer ${token}`,
-        },
-    };
-};
+/** Header auth dùng chung — prefers in-memory store token over cookie. */
+const withAuth = () => withAuthHeaders();
 
 
 export const getTickets = async (params?: any): Promise<ApiResponse<any>> => {
@@ -201,15 +192,34 @@ export const uploadTicketSerialImage = async (id: string | number, file: File): 
 export const reportTicketSerialFault = async (
     id: string | number,
     data: {
-        status: 'DAMAGED' | 'LOST' | 'VOIDED';
+        ticketCondition: 'DAMAGED' | 'LOST' | 'VOIDED';
         faultedBy: 'INTERNAL_FAULT' | 'ISSUER_FAULT' | 'DATA_ENTRY_FAULT';
         damagedReason?: string;
         damagedEvidenceUrl?: string;
+        replacementSerialNumber?: string;
+        replacementTicketImg?: string;
     }
 ): Promise<ApiResponse<any>> => {
     const response = await apiApp.post(`/lottery-ticket-serials/${id}/report-fault`, data, withAuth());
     return response.data;
 };
+
+/** Build report-fault body: DAMAGED / LOST / VOIDED all go on ticketCondition. */
+export const buildReportSerialFaultPayload = (input: {
+    faultKind: 'DAMAGED' | 'LOST' | 'VOIDED';
+    faultedBy: 'INTERNAL_FAULT' | 'ISSUER_FAULT' | 'DATA_ENTRY_FAULT';
+    damagedReason?: string;
+    damagedEvidenceUrl?: string;
+    replacementSerialNumber?: string;
+    replacementTicketImg?: string;
+}) => ({
+    ticketCondition: input.faultKind,
+    faultedBy: input.faultedBy,
+    damagedReason: input.damagedReason,
+    damagedEvidenceUrl: input.damagedEvidenceUrl,
+    replacementSerialNumber: input.replacementSerialNumber,
+    replacementTicketImg: input.replacementTicketImg,
+});
 
 /** Thay đổi dãy số cho vé số */
 export const replaceTicketDigits = async (
@@ -220,5 +230,13 @@ export const replaceTicketDigits = async (
     }
 ): Promise<ApiResponse<any>> => {
     const response = await apiApp.post(`/lottery-tickets/${id}/replace-digits`, data, withAuth());
+    return response.data;
+};
+
+/** Hoàn tất hủy dãy vé sau khi tất cả sê-ri đã được báo hỏng/mất */
+export const finalizeTicketIncidentCancel = async (
+    id: string | number
+): Promise<ApiResponse<any>> => {
+    const response = await apiApp.post(`/lottery-tickets/${id}/finalize-incident-cancel`, {}, withAuth());
     return response.data;
 };

@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useState, useMemo, useEffect } from 'react';
 import { calculateLotoTable, LotteryResult, LotteryPrizes } from '../../types/lottery';
 

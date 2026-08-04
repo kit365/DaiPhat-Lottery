@@ -1,3 +1,5 @@
+"use client";
+
 import { useEffect, useMemo, useState } from 'react';
 import { lotteryService } from '../../services/lotteryService';
 import { formatApiDateToDisplay, type LotteryPrizes, type LotteryResult } from '../../types/lottery';

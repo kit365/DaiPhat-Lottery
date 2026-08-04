@@ -60,6 +60,7 @@ export const STATUS_TO_VARIANT_MAP: Record<string, BadgeColorVariant> = {
     cancelled: 'error',
     REJECTED: 'error',
     rejected: 'error',
+    MANUAL_RESOLUTION: 'error',
     BANNED: 'error',
     banned: 'error',
     LOCKED: 'error',

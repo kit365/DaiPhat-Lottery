@@ -112,7 +112,7 @@ public class ImportBatchLineModel {
     }
 
     public boolean requiresInvoiceEvidence() {
-        return batchType == ImportBatchType.NEW || batchType == ImportBatchType.LATE_IMPORT;
+        return batchType == ImportBatchType.NEW;
     }
 
     public boolean isImportComplete() {
@@ -124,13 +124,17 @@ public class ImportBatchLineModel {
     public void recalculateDeclaredCostValue() {
         int quantity = declareQuantity != null ? declareQuantity : 0;
         BigDecimal cost = importCost != null ? importCost : BigDecimal.ZERO;
-        this.declaredCostValue = cost.multiply(BigDecimal.valueOf(quantity));
+        this.declaredCostValue = cost.multiply(BigDecimal.valueOf(quantity))
+                .setScale(com.daiphat.coreapi.shared.util.ImportCostCalculator.COST_SCALE,
+                        com.daiphat.coreapi.shared.util.ImportCostCalculator.COST_ROUNDING);
     }
 
     public void recalculateTotalCostValue() {
         int quantity = totalQuantity != null ? totalQuantity : 0;
         BigDecimal cost = importCost != null ? importCost : BigDecimal.ZERO;
-        this.totalCostValue = cost.multiply(BigDecimal.valueOf(quantity));
+        this.totalCostValue = cost.multiply(BigDecimal.valueOf(quantity))
+                .setScale(com.daiphat.coreapi.shared.util.ImportCostCalculator.COST_SCALE,
+                        com.daiphat.coreapi.shared.util.ImportCostCalculator.COST_ROUNDING);
     }
 
     public void updateImportProgress(int importedCount, LocalDateTime now, Boolean isAutoSave) {
