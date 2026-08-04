@@ -3,6 +3,7 @@ package com.daiphat.coreapi.application.service.payout;
 import com.daiphat.coreapi.application.dto.request.payout.CreatePrizePayoutRequestRequest;
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.response.order.EnumOptionResponse;
+import com.daiphat.coreapi.application.dto.response.payout.PrizePayoutPreviewResponse;
 import com.daiphat.coreapi.application.dto.response.payout.PrizePayoutRequestResponse;
 import com.daiphat.coreapi.application.event.PrizePayoutStatusChangedEvent;
 import com.daiphat.coreapi.application.mapper.payout.PrizePayoutApplicationMapper;
@@ -11,7 +12,11 @@ import com.daiphat.coreapi.application.port.out.payout.PrizePayoutRequestReposit
 import com.daiphat.coreapi.application.port.out.refund.UserBankAccountRepositoryPort;
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
+import com.daiphat.coreapi.domain.model.enums.payout.PrizePayoutChannel;
+import com.daiphat.coreapi.domain.model.enums.payout.PrizePayoutOwnershipVerificationLevel;
+import com.daiphat.coreapi.domain.model.enums.payout.PrizePayoutPaymentMethod;
 import com.daiphat.coreapi.domain.model.enums.payout.PrizePayoutRequestStatus;
+import com.daiphat.coreapi.domain.model.enums.payout.PrizePayoutTicketOrigin;
 import com.daiphat.coreapi.domain.model.payout.PrizePayoutRequestModel;
 import com.daiphat.coreapi.domain.model.refund.UserBankAccountModel;
 import com.daiphat.coreapi.infrastructure.persistence.entity.lotteries.LotteryTicketSerialEntity;
@@ -40,9 +45,19 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class PrizePayoutRequestService implements PrizePayoutRequestServicePort {
 
+    private static final Map<PrizePayoutRequestStatus, String> STATUS_LABELS = Map.of(
+            PrizePayoutRequestStatus.PENDING, "Cần xử lý",
+            PrizePayoutRequestStatus.APPROVED, "Đã duyệt",
+            PrizePayoutRequestStatus.COMPLETED, "Đã chuyển",
+            PrizePayoutRequestStatus.REJECTED, "Từ chối",
+            PrizePayoutRequestStatus.MANUAL_RESOLUTION, "Cần xử lý tại đại lý",
+            PrizePayoutRequestStatus.CANCELLED, "Đã hủy"
+    );
+
     private final PrizePayoutRequestRepositoryPort prizePayoutRequestRepositoryPort;
     private final UserBankAccountRepositoryPort userBankAccountRepositoryPort;
     private final PrizePayoutEligibilityService prizePayoutEligibilityService;
+    private final PrizePayoutCalculationService prizePayoutCalculationService;
     private final PrizePayoutSerialLockService prizePayoutSerialLockService;
     private final PrizePayoutApplicationMapper prizePayoutApplicationMapper;
     private final OrderDetailRepository orderDetailRepository;
@@ -59,7 +74,7 @@ public class PrizePayoutRequestService implements PrizePayoutRequestServicePort 
             throw new DomainException(ErrorCode.LOTTERY_TICKET_NOT_FOUND);
         }
 
-        prizePayoutEligibilityService.validateEligible(detail, serial);
+        prizePayoutEligibilityService.validateCustomerOnlineCreate(detail, serial);
         PrizePayoutEligibilityService.PrizeMatchContext match =
                 prizePayoutEligibilityService.resolvePrizeMatch(detail, serial);
 
@@ -69,6 +84,15 @@ public class PrizePayoutRequestService implements PrizePayoutRequestServicePort 
             throw new DomainException(ErrorCode.PRIZE_PAYOUT_BANK_ACCOUNT_MISMATCH);
         }
 
+        UserEntity customer = userRepository.findById(customerId)
+                .orElseThrow(() -> new DomainException(ErrorCode.USER_NOT_FOUND));
+        prizePayoutEligibilityService.validateBankAccountHolderName(
+                resolveCustomerName(customer),
+                bankAccount.getBankAccountName());
+
+        PrizePayoutCalculationService.PrizePayoutBreakdown breakdown =
+                prizePayoutCalculationService.calculate(match.prizeAmount());
+
         PrizePayoutRequestModel model = PrizePayoutRequestModel.builder()
                 .requestCode(generateRequestCode())
                 .customerId(customerId)
@@ -77,7 +101,15 @@ public class PrizePayoutRequestService implements PrizePayoutRequestServicePort 
                 .serialId(serial.getId())
                 .prizeCode(match.prizeCode())
                 .prizeDisplayName(match.prizeDisplayName())
-                .grossAmount(match.prizeAmount())
+                .grossAmount(breakdown.grossAmount())
+                .taxAmount(breakdown.taxAmount())
+                .commissionAmount(breakdown.commissionAmount())
+                .netAmount(breakdown.netAmount())
+                .channel(PrizePayoutChannel.ONLINE)
+                .ticketOrigin(PrizePayoutTicketOrigin.INTERNAL_ONLINE)
+                .ownershipVerificationLevel(PrizePayoutOwnershipVerificationLevel.AUTO_MATCHED)
+                .manualOwnershipConfirmed(false)
+                .paymentMethod(PrizePayoutPaymentMethod.TRANSFER)
                 .bankAccountId(bankAccount.getId())
                 .bankName(bankAccount.getBankName())
                 .bankAccountNumber(bankAccount.getBankAccountNo())
@@ -90,6 +122,62 @@ public class PrizePayoutRequestService implements PrizePayoutRequestServicePort 
 
         publishStatusChanged(saved);
         return toResponse(saved.getId());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PrizePayoutPreviewResponse preview(UUID customerId, Long orderDetailId, Long serialId) {
+        OrderDetailEntity detail = prizePayoutEligibilityService.resolveOwnedDetail(
+                customerId, orderDetailId, serialId);
+        LotteryTicketSerialEntity serial = detail.getLotteryTicketSerial();
+        if (serial == null) {
+            throw new DomainException(ErrorCode.LOTTERY_TICKET_NOT_FOUND);
+        }
+        PrizePayoutEligibilityService.PrizeMatchContext match =
+                prizePayoutEligibilityService.resolvePrizeMatch(detail, serial);
+        prizePayoutEligibilityService.validateWonWithProof(match);
+        PrizePayoutChannel channel = prizePayoutEligibilityService.resolveClaimChannel(
+                detail, serial, match.prizeAmount());
+        PrizePayoutCalculationService.PrizePayoutBreakdown breakdown =
+                prizePayoutCalculationService.calculate(match.prizeAmount());
+        PrizePayoutEligibilityService.OwnershipVerificationContext ownership =
+                prizePayoutEligibilityService.resolveOwnershipVerification(detail, serial);
+        var order = detail.getOrder();
+        var ticket = serial.getTicket();
+        String ticketNumbers = match.ticketNumbers() != null && !match.ticketNumbers().isBlank()
+                ? match.ticketNumbers()
+                : (ticket != null ? ticket.getNumbers() : null);
+        return new PrizePayoutPreviewResponse(
+                detail.getId(),
+                serial.getId(),
+                match.prizeCode(),
+                match.prizeDisplayName(),
+                breakdown.grossAmount(),
+                breakdown.taxAmount(),
+                breakdown.commissionAmount(),
+                breakdown.netAmount(),
+                channel,
+                channel == PrizePayoutChannel.ONLINE,
+                ownership.ticketOrigin(),
+                ownership.level(),
+                ownership.requiresManualOwnershipConfirm(),
+                prizePayoutEligibilityService.requiresRecipientIdentity(ownership.level(), breakdown.grossAmount()),
+                prizePayoutEligibilityService.requiresRecipientIdImage(customerId, breakdown.grossAmount()),
+                prizePayoutEligibilityService.requiresFourEyes(breakdown.grossAmount()),
+                prizePayoutCalculationService.resolveTaxThreshold(),
+                order != null ? order.getOrderType() : null,
+                order != null ? order.getOrderCode() : null,
+                customerId,
+                resolveCustomerName(userRepository.findById(customerId).orElse(null)),
+                order != null ? order.getName() : null,
+                order != null ? order.getPhone() : null,
+                serial.getSerialNumber(),
+                ticket != null && ticket.getStation() != null ? ticket.getStation().getName() : null,
+                ticket != null ? ticket.getDrawDate() : null,
+                ticketNumbers,
+                match.winningNumber(),
+                match.matchFrom(),
+                match.matchDigits());
     }
 
     @Override
@@ -164,7 +252,40 @@ public class PrizePayoutRequestService implements PrizePayoutRequestServicePort 
         UserEntity customer = model.getCustomerId() != null
                 ? userRepository.findById(model.getCustomerId()).orElse(null)
                 : null;
-        return prizePayoutApplicationMapper.toResponse(model, detail, customer);
+        UserEntity createdByUser = resolveUserByAuditValue(model.getCreatedBy(), customer);
+        UserEntity completedByUser = model.getCompletedBy() != null
+                ? userRepository.findById(model.getCompletedBy()).orElse(null)
+                : null;
+        int maxRetry = prizePayoutEligibilityService.resolveMaxOnlineRejectRetry();
+        boolean locked = prizePayoutEligibilityService.isOnlineClaimLocked(model.getSerialId());
+        boolean requiresFourEyes = prizePayoutEligibilityService.requiresFourEyes(model.getGrossAmount());
+        return prizePayoutApplicationMapper.toResponse(
+                model,
+                detail,
+                customer,
+                createdByUser,
+                completedByUser,
+                maxRetry,
+                locked,
+                requiresFourEyes,
+                false,
+                false);
+    }
+
+    private UserEntity resolveUserByAuditValue(String auditValue, UserEntity preferredCustomer) {
+        if (auditValue == null || auditValue.isBlank()) {
+            return null;
+        }
+        UUID userId;
+        try {
+            userId = UUID.fromString(auditValue.trim());
+        } catch (IllegalArgumentException ex) {
+            return null;
+        }
+        if (preferredCustomer != null && userId.equals(preferredCustomer.getId())) {
+            return preferredCustomer;
+        }
+        return userRepository.findById(userId).orElse(null);
     }
 
     private Map<String, Long> buildStatusCounts(UUID customerId, String search) {
@@ -189,12 +310,7 @@ public class PrizePayoutRequestService implements PrizePayoutRequestServicePort 
     }
 
     private String resolveStatusLabel(PrizePayoutRequestStatus status) {
-        return switch (status) {
-            case PENDING -> "Cần xử lý";
-            case COMPLETED -> "Đã chuyển";
-            case REJECTED -> "Từ chối";
-            case CANCELLED -> "Đã hủy";
-        };
+        return STATUS_LABELS.getOrDefault(status, status.name());
     }
 
     private String generateRequestCode() {
@@ -220,5 +336,25 @@ public class PrizePayoutRequestService implements PrizePayoutRequestServicePort 
                 .orderDetailId(model.getOrderDetailId())
                 .serialId(model.getSerialId())
                 .build());
+    }
+
+    private String resolveCustomerName(UserEntity customer) {
+        if (customer == null) {
+            return null;
+        }
+        String firstName = customer.getFirstName();
+        String lastName = customer.getLastName();
+        boolean hasFirst = firstName != null && !firstName.isBlank();
+        boolean hasLast = lastName != null && !lastName.isBlank();
+        if (hasFirst && hasLast) {
+            return firstName.trim() + " " + lastName.trim();
+        }
+        if (hasFirst) {
+            return firstName.trim();
+        }
+        if (hasLast) {
+            return lastName.trim();
+        }
+        return customer.getUsername();
     }
 }

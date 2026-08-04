@@ -1,6 +1,8 @@
+"use client";
+
 import { RoleEnum } from "../../../../../types/role.type";
 import React, { useState, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from '@/components/router-compat';
 import { DataGrid } from '@mui/x-data-grid';
 import { Box, CircularProgress, styled } from '@mui/material';
 import { useAuthStore } from '../../../../../stores/useAuthStore';

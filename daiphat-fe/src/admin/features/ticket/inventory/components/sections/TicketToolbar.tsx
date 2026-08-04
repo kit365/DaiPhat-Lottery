@@ -1,3 +1,5 @@
+"use client";
+
 import ReportProblemIcon from '@mui/icons-material/ReportProblem';
 import { Toolbar, Box, Button, Badge, SvgIcon } from '@mui/material';
 import { useMemo, type Dispatch, type SetStateAction } from 'react';

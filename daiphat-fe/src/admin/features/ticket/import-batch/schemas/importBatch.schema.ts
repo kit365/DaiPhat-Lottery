@@ -14,7 +14,7 @@ const invoiceEvidenceSchema = z.union([z.string(), z.instanceof(File)]).nullish(
 const importBatchLineSchema = z.object({
     lotteryStationId: z.coerce.number().min(1, 'Vui lòng chọn nhà đài'),
     declareQuantity: z.coerce.number().min(1, 'Số lượng khai báo phải lớn hơn 0'),
-    importCost: z.coerce.number().min(0.01, 'Giá vốn phải lớn hơn 0'),
+    importCost: z.coerce.number().min(0.001, 'Giá vốn phải lớn hơn 0'),
     resolvedBatchType: z
         .enum(['NEW', 'SUPPLEMENTARY', 'ADJUSTMENT'])
         .optional(),

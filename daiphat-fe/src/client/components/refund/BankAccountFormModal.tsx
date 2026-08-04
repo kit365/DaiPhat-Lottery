@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useEffect, useMemo, useState } from 'react';
 import { UserBankAccountResponse, VietQrBankResponse } from '../../../types/refund.type';
 import { useCreateBankAccount, useGetBanks, useUpdateBankAccount } from '../../hooks/useBankAccount';

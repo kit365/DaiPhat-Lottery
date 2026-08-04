@@ -1,3 +1,5 @@
+"use client";
+
 import { Breadcrumb } from "../../../../components/ui/Breadcrumb";
 import { Title } from "../../../../components/ui/Title";
 import { useCreateStreetAgentProfile } from "../../hooks/useStreetAgent";

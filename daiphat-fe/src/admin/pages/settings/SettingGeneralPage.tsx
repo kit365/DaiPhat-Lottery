@@ -1,3 +1,5 @@
+"use client";
+
 import { Box, Card, Grid, TextField, Typography, Stack } from "@mui/material";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -93,7 +95,7 @@ export const SettingGeneralPage = () => {
         }
     };
 
-    const onSubmit = async (data: any) => {
+    const onSubmit = async (data: Record<string, unknown> & { ticketServiceColors?: Array<{ ticketServiceId?: string; color?: string }> }) => {
         const formData = data;
         // Only save ticketServiceId and color
         const formattedData = {

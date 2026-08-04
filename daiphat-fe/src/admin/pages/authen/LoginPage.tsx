@@ -1,9 +1,11 @@
+"use client";
+
 import { useState } from "react"
 import {
     Box, Button, TextField, ThemeProvider, Typography, InputAdornment,
     IconButton, Paper, useMediaQuery, useTheme, CircularProgress
 } from "@mui/material"
-import { Link } from "react-router-dom"
+import { Link } from "@/components/router-compat"
 import { useForm, Controller } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { LogoAdmin } from "../../../assets/admin/logo"

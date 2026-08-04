@@ -1,3 +1,5 @@
+"use client";
+
 import { useParams } from "react-router-dom";
 import {
     Avatar,
@@ -12,8 +14,8 @@ import {
 import { Breadcrumb } from "../../components/ui/Breadcrumb";
 import { Title } from "../../components/ui/Title";
 import { ROUTES } from "../../constants/routes";
-import { STATUS_LABELS } from "./configs/constants";
-import { useStreetAgentProfileDetail } from "./hooks/useStreetAgent";
+import { STATUS_LABELS } from "../../features/street-agent/components/configs/constants";
+import { useStreetAgentProfileDetail } from "../../features/street-agent/hooks/useStreetAgent";
 
 const formatCurrency = (value?: number | null) => {
     if (value == null) return "—";

@@ -1,3 +1,5 @@
+"use client";
+
 import { Box, Stack, ThemeProvider, useTheme, createTheme, Button, Typography, CircularProgress, Chip } from "@mui/material"
 import { Breadcrumb } from "../../../../components/ui/Breadcrumb"
 import { Title } from "../../../../components/ui/Title"
@@ -52,7 +54,7 @@ export const StationDetailPage = () => {
         return <Box display="flex" justifyContent="center" alignItems="center" height="400px"><Typography>Không tìm thấy nhà đài.</Typography></Box>
     }
 
-    const regionLabel = REGION_LABELS[stationDetail.region] || stationDetail.region || 'N/A';
+    const regionLabel = stationDetail.region ? ((REGION_LABELS as any)[stationDetail.region] || stationDetail.region) : 'N/A';
 
     let drawDaysArray: string[] = [];
     if (Array.isArray(stationDetail.drawDays)) {
@@ -62,7 +64,7 @@ export const StationDetailPage = () => {
     }
 
     const drawDaysLabels = drawDaysArray
-        .map((day) => DAY_LABEL[day.trim()] || day.trim())
+        .map((day) => (DAY_LABEL as any)[day.trim()] || day.trim())
         .join(', ');
 
     return (
@@ -148,7 +150,7 @@ export const StationDetailPage = () => {
                                 <Box sx={{ gridColumn: { xs: "span 12", md: "span 4" } }}>
                                     <Typography variant="caption" color="text.secondary">Tỉ lệ hoa hồng</Typography>
                                     <Typography variant="body1" fontWeight={600}>
-                                        {stationDetail.commissionRate != null ? `${Number(stationDetail.commissionRate) * 100}% (${stationDetail.commissionRate})` : 'N/A'}
+                                        {(stationDetail as any).commissionRate != null ? `${Number((stationDetail as any).commissionRate) * 100}% (${(stationDetail as any).commissionRate})` : 'N/A'}
                                     </Typography>
                                 </Box>
 

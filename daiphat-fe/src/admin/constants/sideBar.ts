@@ -80,6 +80,8 @@ export const menuManagementData = [
         children: [
             { id: "list", label: "Kho vé số", tKey: "admin.sidebar.list", path: ROUTES.ADMIN.TICKETS.LIST, permission: PERMISSIONS.TICKET.VIEW },
             { id: "import-batch", label: "Nhập lô vé", path: ROUTES.ADMIN.IMPORT_BATCH.LIST, permission: PERMISSIONS.IMPORT_BATCH.VIEW },
+            { id: "return-batch", label: "Trả vé NCC", path: ROUTES.ADMIN.RETURN_BATCH.LIST, permission: PERMISSIONS.IMPORT_BATCH.VIEW },
+            { id: "supplier-settlement", label: "Đối soát NCC", path: ROUTES.ADMIN.SUPPLIER_SETTLEMENT.LIST, permission: PERMISSIONS.IMPORT_BATCH.VIEW },
             { id: "supplier", label: "Nhà cung cấp", path: ROUTES.ADMIN.SUPPLIER.LIST, permission: PERMISSIONS.SUPPLIER.VIEW },
             { id: "provider", label: "Nhà đài", tKey: "admin.sidebar.provider", path: ROUTES.ADMIN.TICKETS.PROVIDER, permission: PERMISSIONS.PROVIDER.VIEW },
             { id: "region", label: "Vùng miền", path: ROUTES.ADMIN.TICKETS.REGION, permission: PERMISSIONS.REGION.VIEW },
@@ -111,13 +113,24 @@ export const menuManagementData = [
     },
     {
         id: "support-tickets",
-        label: "Khiếu nại / Hỗ trợ",
+        label: "Khiếu nại",
         Icon: SupportAgentIcon,
         permission: PERMISSIONS.SUPPORT_TICKET.VIEW,
         children: [
-            { id: "list", label: "Danh sách khiếu nại", path: ROUTES.ADMIN.SUPPORT_TICKETS.LIST, permission: PERMISSIONS.SUPPORT_TICKET.VIEW },
-            { id: "categories", label: "Danh mục khiếu nại", path: ROUTES.ADMIN.SUPPORT_TICKETS.CATEGORIES, permission: PERMISSIONS.SUPPORT_TICKET.VIEW },
-        ]
+            {
+                id: "list",
+                label: "Danh sách khiếu nại",
+                path: ROUTES.ADMIN.SUPPORT_TICKETS.LIST,
+                permission: PERMISSIONS.SUPPORT_TICKET.VIEW,
+                badge: "support-open",
+            },
+            {
+                id: "categories",
+                label: "Danh mục khiếu nại",
+                path: ROUTES.ADMIN.SUPPORT_TICKETS.CATEGORIES,
+                permission: PERMISSIONS.SUPPORT_TICKET.VIEW,
+            },
+        ],
     },
     {
         id: "chat",

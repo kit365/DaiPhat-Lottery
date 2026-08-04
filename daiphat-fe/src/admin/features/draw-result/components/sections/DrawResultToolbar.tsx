@@ -1,3 +1,5 @@
+"use client";
+
 import { Toolbar, Box, TextField, Chip, Button, Badge, SvgIcon, Popover, Divider, List, ListItem, ListItemButton, ListItemText, Radio, InputAdornment } from "@mui/material";
 import { type Dispatch, type SetStateAction, useState } from "react";
 import dayjs from "dayjs";
@@ -408,7 +410,7 @@ export const DrawResultToolbar = ({
                 <ExportButton />
                 <SettingsList
                     settings={settings}
-                    onSettingsChange={onSettingsChange}
+                    onSettingsChange={onSettingsChange as any}
                 />
             </Box>
         </Toolbar>

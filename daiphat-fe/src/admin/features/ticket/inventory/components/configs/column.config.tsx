@@ -5,6 +5,7 @@ import {
     RenderActionsCell,
     RenderTicketCell,
     RenderStatusCell,
+    RenderTicketConditionCell,
     RenderCreatedAtCell,
     RenderDrawDateCell,
 } from '../utils/render-cells';
@@ -24,9 +25,9 @@ export const columnsConfig: GridColDef<ITicket>[] = [
         headerName: 'Nhà đài',
         width: 150,
         filterable: true,
-        valueGetter: (value, row) => row.stationName || row.providerName || 'Không xác định',
+        valueGetter: (value, row) => (row as any).stationName || (row as any).providerName || 'Không xác định',
         renderCell: (params) => {
-            const stationId = params.row.stationId || params.row.providerId;
+            const stationId = (params.row as any).stationId || (params.row as any).providerId;
             const color = getStationColor(stationId);
             return (
                 <span 
@@ -72,6 +73,15 @@ export const columnsConfig: GridColDef<ITicket>[] = [
         width: 140,
         filterable: false,
         renderCell: RenderStatusCell,
+    },
+    {
+        field: 'ticketCondition',
+        headerName: 'Tình trạng vé',
+        width: 140,
+        align: 'center',
+        headerAlign: 'center',
+        filterable: false,
+        renderCell: RenderTicketConditionCell,
     },
     {
         field: 'actions',

@@ -1,4 +1,6 @@
-﻿import { Grid, Box, Typography, Button, Divider, Menu, MenuItem, Stack, Table, TableBody, TableCell, TableHead, TableRow, TableContainer, Avatar } from "@mui/material"
+"use client";
+
+import { Grid, Box, Typography, Button, Divider, Menu, MenuItem, Stack, Table, TableBody, TableCell, TableHead, TableRow, TableContainer, Avatar } from "@mui/material"
 import WelcomeWidget from "../../components/dashboard/WelcomeWidget";
 import SummaryWidget from "../../components/dashboard/SummaryWidget";
 import DashboardCard from "../../components/dashboard/DashboardCard";
@@ -68,7 +70,7 @@ const SalesByCategory = ({ data }: { data: any[] }) => {
 
             <Box sx={{ p: 3, display: 'flex', justifyContent: 'center', gap: 2, flexWrap: 'wrap' }}>
                 {labels.map((label: string, index: number) => (
-                    <Box key={label} sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                    <Box key={`${label}-${index}`} sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                         <Box sx={{ width: 12, height: 12, borderRadius: '50%', bgcolor: chartOptions.colors[index] }} />
                         <Typography sx={{ fontSize: '0.813rem', fontWeight: 600, color: 'var(--palette-text-secondary)' }}>{label}</Typography>
                     </Box>
@@ -118,7 +120,7 @@ const YearlySales = ({ data }: { data: number[] }) => {
     };
 
     const series = [
-        { name: 'Doanh thu', data: data || Array(12).fill(0) }
+        { name: 'Doanh thu', data: Array.isArray(data) ? data : Array(12).fill(0) }
     ];
 
     return (
@@ -173,7 +175,7 @@ const YearlySales = ({ data }: { data: number[] }) => {
                         <Typography sx={{ fontSize: '0.813rem', fontWeight: 500, color: 'var(--palette-text-secondary)' }}>Doanh thu</Typography>
                     </Box>
                     <Typography variant="h5" sx={{ fontWeight: 700 }}>
-                        {(data?.reduce((a: number, b: number) => a + b, 0) ?? 0).toLocaleString()}d
+                        {(Array.isArray(data) ? data.reduce((a: number, b: number) => a + b, 0) : 0).toLocaleString()}d
                     </Typography>
                 </Box>
             </Box>
@@ -303,9 +305,9 @@ export const EcommercePage = () => {
                 }}
             >
                 <WelcomeWidget
-                    title={`Ch�o m?ng quay tr? l?i ??\n` + (user?.fullName || 'Admin')}
-                    description="H�m nay c� g� m?i? H�y ki?m tra c�c ch? s? kinh doanh v� l?ch d?t g?n d�y."
-                    img="/assets/illustrations/characters/character_7.png"
+                    title={`Chào mừng quay trở lại 👋\n` + (user?.fullName || 'Admin')}
+                    description="Hôm nay có gì mới? Hãy kiểm tra các chỉ số kinh doanh và lịch đặt gần đây."
+                    img="https://pub-c5e31b5cdafb419fb247a8ac2e78df7a.r2.dev/public/assets/illustrations/characters/character-present.webp"
                 />
             </Grid>
 

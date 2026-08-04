@@ -8,7 +8,12 @@ interface SystemConfigModel {
 export const getPublicSystemConfigByKey = async (key: string): Promise<SystemConfigModel | null> => {
     try {
         const response = await apiApp.get(`/public/system-configs/${key}`);
-        return response.data.data;
+        const body = response.data;
+        if (body?.success === false || body?.isSuccess === false) {
+            return null;
+        }
+        // React Query forbids undefined; missing/error payloads must be null.
+        return body?.data ?? null;
     } catch (error) {
         console.error('Failed to get public system config', error);
         return null;

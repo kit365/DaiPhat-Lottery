@@ -1,5 +1,7 @@
+"use client";
+
 import { ReactNode, useEffect } from "react";
-import { Navigate, useLocation, Outlet } from "react-router-dom";
+import { Navigate, useLocation, Outlet } from "@/components/router-compat";
 import { useAuthStore } from "../../../stores/useAuthStore";
 import { USER_ROLES } from "../../../constants/role.constants";
 import { toast } from "react-toastify";

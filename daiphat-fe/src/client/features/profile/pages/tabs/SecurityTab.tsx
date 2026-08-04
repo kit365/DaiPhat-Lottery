@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useState, useEffect } from 'react';
 import { Eye, EyeOff, Lock, CheckCircle2 } from "lucide-react";
 import { AppToast as toast } from "../../../../../utils/toast.util";

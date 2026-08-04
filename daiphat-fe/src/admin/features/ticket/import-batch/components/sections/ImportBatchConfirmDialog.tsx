@@ -1,3 +1,5 @@
+"use client";
+
 import {
     Alert,
     Box,
@@ -17,6 +19,7 @@ import dayjs from 'dayjs';
 import { getBatchTypeLabel, getImportModeLabel } from '../../utils/batchTypeLabels';
 import type { ImportBatchImportMode } from '../../utils/batchTypeLabels';
 import type { InvoiceEvidenceValue } from '../../utils/invoiceEvidence';
+import { formatImportCost } from '../../utils/importCostCalculator';
 
 export interface ConfirmLineSummary {
     stationName: string;
@@ -39,7 +42,7 @@ interface ImportBatchConfirmDialogProps {
     onConfirm: () => void;
 }
 
-const formatVnd = (value: number) => `${value.toLocaleString('vi-VN')} VNĐ`;
+const formatVnd = (value: number) => `${formatImportCost(value)} VNĐ`;
 
 const SummaryRow = ({ label, value }: { label: string; value: string }) => (
     <Box

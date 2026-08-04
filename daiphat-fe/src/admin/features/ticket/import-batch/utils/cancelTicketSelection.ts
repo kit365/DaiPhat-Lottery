@@ -46,6 +46,19 @@ export const matchesCancelFlowStatusFilter = (ticketStatus: string | null | unde
     return normalizeTicketStatus(ticketStatus) === filter;
 };
 
+export const matchesCancelFlowSerialFilter = (
+    serial: { status?: string | null; ticketCondition?: string | null },
+    filter: string
+): boolean => {
+    if (filter === 'ALL') {
+        return true;
+    }
+    if (filter === 'DAMAGED' || filter === 'LOST' || filter === 'VOIDED') {
+        return normalizeTicketStatus(serial.ticketCondition) === filter;
+    }
+    return normalizeTicketStatus(serial.status) === filter;
+};
+
 export type CancelFlowStatusFilterOption = {
     value: string;
     label: string;
@@ -61,16 +74,25 @@ const CANCEL_FLOW_TICKET_STATUS_FILTER_ORDER: Array<{ value: string; label: stri
 const CANCEL_FLOW_SERIAL_STATUS_FILTER_ORDER: Array<{ value: string; label: string }> = [
     { value: 'SOLD', label: 'Đã bán (sê-ri)' },
     { value: 'RESERVED', label: 'Đang giữ chỗ (sê-ri)' },
+    { value: 'PROXY_HOLDING', label: 'Giữ hộ (sê-ri)' },
+];
+
+const CANCEL_FLOW_SERIAL_CONDITION_FILTER_ORDER: Array<{ value: string; label: string }> = [
     { value: 'DAMAGED', label: 'Hư hỏng (sê-ri)' },
     { value: 'LOST', label: 'Thất lạc (sê-ri)' },
+    { value: 'VOIDED', label: 'Đã hủy (sê-ri)' },
 ];
 
 /** Lọc trạng thái trong luồng hủy vé — chỉ trạng thái vé/sê-ri thực sự có trong dữ liệu hiện tại. */
 export const buildCancelFlowStatusFilterOptions = (
-    tickets: Array<{ status?: string | null; serials?: Array<{ status?: string | null }> }>
+    tickets: Array<{
+        status?: string | null;
+        serials?: Array<{ status?: string | null; ticketCondition?: string | null }>;
+    }>
 ): CancelFlowStatusFilterOption[] => {
     const ticketFilterValues = new Set<string>();
     const serialStatuses = new Set<string>();
+    const serialConditions = new Set<string>();
 
     tickets.forEach((ticket) => {
         const filterValue = getCancelFlowTicketStatusFilterValue(ticket.status);
@@ -79,9 +101,13 @@ export const buildCancelFlowStatusFilterOptions = (
         }
 
         (ticket.serials || []).forEach((serial) => {
-            const normalized = normalizeTicketStatus(serial.status);
-            if (normalized) {
-                serialStatuses.add(normalized);
+            const normalizedStatus = normalizeTicketStatus(serial.status);
+            if (normalizedStatus) {
+                serialStatuses.add(normalizedStatus);
+            }
+            const normalizedCondition = normalizeTicketStatus(serial.ticketCondition);
+            if (normalizedCondition === 'DAMAGED' || normalizedCondition === 'LOST' || normalizedCondition === 'VOIDED') {
+                serialConditions.add(normalizedCondition);
             }
         });
     });
@@ -96,6 +122,12 @@ export const buildCancelFlowStatusFilterOptions = (
 
     CANCEL_FLOW_SERIAL_STATUS_FILTER_ORDER.forEach((option) => {
         if (serialStatuses.has(option.value)) {
+            options.push(option);
+        }
+    });
+
+    CANCEL_FLOW_SERIAL_CONDITION_FILTER_ORDER.forEach((option) => {
+        if (serialConditions.has(option.value)) {
             options.push(option);
         }
     });

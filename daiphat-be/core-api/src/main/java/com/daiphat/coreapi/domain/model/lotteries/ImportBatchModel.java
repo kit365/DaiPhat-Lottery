@@ -95,13 +95,17 @@ public class ImportBatchModel {
         lineCount = activeLines.size();
         totalDeclaredCostValue = activeLines.stream()
                 .map(line -> line.getDeclaredCostValue() != null ? line.getDeclaredCostValue() : BigDecimal.ZERO)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+                .reduce(BigDecimal.ZERO, BigDecimal::add)
+                .setScale(com.daiphat.coreapi.shared.util.ImportCostCalculator.COST_SCALE,
+                        com.daiphat.coreapi.shared.util.ImportCostCalculator.COST_ROUNDING);
         totalImportedQuantity = activeLines.stream()
                 .mapToInt(line -> line.getTotalQuantity() != null ? line.getTotalQuantity() : 0)
                 .sum();
         totalImportedCostValue = activeLines.stream()
                 .map(line -> line.getTotalCostValue() != null ? line.getTotalCostValue() : BigDecimal.ZERO)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+                .reduce(BigDecimal.ZERO, BigDecimal::add)
+                .setScale(com.daiphat.coreapi.shared.util.ImportCostCalculator.COST_SCALE,
+                        com.daiphat.coreapi.shared.util.ImportCostCalculator.COST_ROUNDING);
     }
 
     public boolean areAllLinesImportComplete() {

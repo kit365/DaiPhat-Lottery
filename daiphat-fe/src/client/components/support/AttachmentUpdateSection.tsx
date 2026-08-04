@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useState } from 'react';
 import { SupportTicketResponse } from '../../../types/support.type';
 import { useUpdateComplaint } from '../../hooks/useSupportTicket';

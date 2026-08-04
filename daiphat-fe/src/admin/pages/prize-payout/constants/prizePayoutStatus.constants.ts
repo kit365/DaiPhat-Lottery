@@ -18,6 +18,13 @@ export const PRIZE_PAYOUT_STATUS_BADGE: Record<PrizePayoutRequestStatus, PrizePa
         activeColor: 'var(--palette-warning-contrastText)',
         activeBg: 'var(--palette-warning-main)',
     },
+    [PrizePayoutRequestStatus.APPROVED]: {
+        label: 'Đã duyệt',
+        color: 'var(--palette-info-dark)',
+        bg: 'var(--palette-info-lighter)',
+        activeColor: 'var(--palette-info-contrastText)',
+        activeBg: 'var(--palette-info-main)',
+    },
     [PrizePayoutRequestStatus.COMPLETED]: {
         label: 'Đã chuyển',
         color: 'var(--palette-success-dark)',
@@ -31,6 +38,13 @@ export const PRIZE_PAYOUT_STATUS_BADGE: Record<PrizePayoutRequestStatus, PrizePa
         bg: 'var(--palette-error-lighter)',
         activeColor: 'var(--palette-error-contrastText)',
         activeBg: 'var(--palette-error-main)',
+    },
+    [PrizePayoutRequestStatus.MANUAL_RESOLUTION]: {
+        label: 'Cần xử lý tại đại lý',
+        color: 'var(--palette-error-dark)',
+        bg: 'var(--palette-error-lighter)',
+        activeColor: 'var(--palette-error-contrastText)',
+        activeBg: 'var(--palette-error-dark)',
     },
     [PrizePayoutRequestStatus.CANCELLED]: {
         label: 'Đã hủy',
@@ -51,9 +65,14 @@ export const PRIZE_PAYOUT_ALL_TAB: PrizePayoutStatusTab = {
 };
 
 export const PRIZE_PAYOUT_STATUS_TABS: PrizePayoutStatusTab[] = [
+    PRIZE_PAYOUT_ALL_TAB,
     { value: PrizePayoutRequestStatus.PENDING, ...PRIZE_PAYOUT_STATUS_BADGE[PrizePayoutRequestStatus.PENDING] },
+    { value: PrizePayoutRequestStatus.APPROVED, ...PRIZE_PAYOUT_STATUS_BADGE[PrizePayoutRequestStatus.APPROVED] },
     { value: PrizePayoutRequestStatus.COMPLETED, ...PRIZE_PAYOUT_STATUS_BADGE[PrizePayoutRequestStatus.COMPLETED] },
     { value: PrizePayoutRequestStatus.REJECTED, ...PRIZE_PAYOUT_STATUS_BADGE[PrizePayoutRequestStatus.REJECTED] },
+    {
+        value: PrizePayoutRequestStatus.MANUAL_RESOLUTION,
+        ...PRIZE_PAYOUT_STATUS_BADGE[PrizePayoutRequestStatus.MANUAL_RESOLUTION],
+    },
     { value: PrizePayoutRequestStatus.CANCELLED, ...PRIZE_PAYOUT_STATUS_BADGE[PrizePayoutRequestStatus.CANCELLED] },
-    PRIZE_PAYOUT_ALL_TAB,
 ];

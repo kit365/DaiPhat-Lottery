@@ -1,6 +1,7 @@
+"use client";
+
 import React, { useCallback, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Header } from '../../components/layout/header';
 import { Trash2, ChevronRight, ShieldCheck, ArrowLeft, Store, CreditCard, CheckCircle2 } from 'lucide-react';
 import { useCartStore, CartItem } from '../../../stores/useCartStore';
 import { useAuthStore } from '../../../stores/useAuthStore';
@@ -325,8 +326,6 @@ export const CheckoutPage = () => {
             className="client-page min-h-screen flex flex-col bg-fixed bg-cover bg-center pb-20"
             style={{ backgroundImage: 'url("https://i.ibb.co/BVFGYpL1/86f05f70-fcf8-445f-978e-a0539eb2f0de.png")' }}
         >
-            <Header />
-
             {/* Top Section for Breadcrumb & Title */}
             <div className="w-full mt-[70px] lg:mt-[80px] py-4 lg:py-6">
                 <div className="w-full max-w-[1440px] mx-auto px-4 lg:px-8">

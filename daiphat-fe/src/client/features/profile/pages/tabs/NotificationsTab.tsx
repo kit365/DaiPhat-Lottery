@@ -1,3 +1,5 @@
+"use client";
+
 import { useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Bell, Newspaper, ShieldCheck, Check, Trash2, Trophy } from "lucide-react";
@@ -106,7 +108,7 @@ export const NotificationsTab = () => {
         const state = location.state as { unavailableMessage?: string } | null;
         if (state?.unavailableMessage) {
             setUnavailableMessage(state.unavailableMessage);
-            navigate(location.pathname, { replace: true, state: null });
+            navigate(location.pathname, { replace: true, state: null } as any);
         }
     }, [location.state, location.pathname, navigate]);
 

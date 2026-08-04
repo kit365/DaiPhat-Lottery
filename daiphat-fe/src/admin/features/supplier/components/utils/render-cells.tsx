@@ -1,8 +1,10 @@
+"use client";
+
 import type { ReactElement } from 'react';
 import { Link } from '@mui/material';
 import { GridActionsCell, GridActionsCellItem, GridRenderCellParams } from '@mui/x-data-grid';
 import { EditIcon } from '../../../../assets/icons/index';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from '@/components/router-compat';
 import { ROUTES } from '../../../../constants/routes';
 import { PERMISSIONS } from '../../../../constants/permission.constants';
 import { useAuthStore } from '../../../../../stores/useAuthStore';

@@ -5,6 +5,7 @@ import com.daiphat.coreapi.infrastructure.persistence.entity.support.SupportTick
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -23,4 +24,37 @@ public interface SupportTicketRepository extends JpaRepository<SupportTicketEnti
     java.util.Optional<SupportTicketEntity> findByIdForUpdate(@Param("id") Long id);
 
     long countByCustomer_IdAndStatusNotIn(UUID customerId, List<TicketStatus> statuses);
+
+    @Query("""
+            SELECT COUNT(t) FROM SupportTicketEntity t
+            WHERE t.customer.id = :customerId
+              AND (
+                    t.status IN :inProgressStatuses
+                 OR (
+                        t.status = com.daiphat.coreapi.domain.model.enums.support.TicketStatus.REJECTED
+                    AND (
+                            t.customerLastViewedAt IS NULL
+                         OR t.customerLastViewedAt < COALESCE(t.resolvedAt, t.updatedAt)
+                        )
+                    )
+              )
+            """)
+    long countAttentionTickets(
+            @Param("customerId") UUID customerId,
+            @Param("inProgressStatuses") List<TicketStatus> inProgressStatuses);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("""
+            UPDATE SupportTicketEntity t
+               SET t.customerLastViewedAt = :viewedAt
+             WHERE t.customer.id = :customerId
+               AND t.status = com.daiphat.coreapi.domain.model.enums.support.TicketStatus.REJECTED
+               AND (
+                        t.customerLastViewedAt IS NULL
+                     OR t.customerLastViewedAt < COALESCE(t.resolvedAt, t.updatedAt)
+                   )
+            """)
+    int markRejectedTicketsViewed(
+            @Param("customerId") UUID customerId,
+            @Param("viewedAt") LocalDateTime viewedAt);
 }

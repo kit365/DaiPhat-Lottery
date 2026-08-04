@@ -11,6 +11,7 @@ import com.daiphat.coreapi.domain.exception.ErrorCode;
 import com.daiphat.coreapi.domain.model.enums.lottery.InputSource;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialFaultedBy;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus;
+import com.daiphat.coreapi.domain.model.enums.lottery.TicketCondition;
 import com.daiphat.coreapi.domain.model.lotteries.LotteryTicketModel;
 import com.daiphat.coreapi.domain.model.lotteries.LotteryTicketSerialModel;
 import com.daiphat.coreapi.application.port.out.file.StoragePort;
@@ -64,6 +65,8 @@ public class LotteryTicketSerialService implements LotteryTicketSerialServicePor
                 .importBatchLineId(importBatchLineId)
                 .ticketImg(request.ticketImg())
                 .serialNumber(normalizedSerial)
+                .stationId(ticket.getStationId())
+                .drawDate(ticket.getDrawDate())
                 .inputSource(InputSource.MANUAL)
                 .replacedForTicketId(request.replacedForTicketId())
                 .build();
@@ -103,6 +106,8 @@ public class LotteryTicketSerialService implements LotteryTicketSerialServicePor
                     }
                     existing.setSerialNumber(normalizedSerial);
                 }
+                existing.setStationId(ticket.getStationId());
+                existing.setDrawDate(ticket.getDrawDate());
                 if (hasText(serialReq.ticketImg())) {
                     existing.setTicketImg(serialReq.ticketImg().trim());
                 }
@@ -207,12 +212,12 @@ public class LotteryTicketSerialService implements LotteryTicketSerialServicePor
 
     @Override
     public long countAvailableSerials(Long ticketId) {
-        return lotteryTicketSerialRepositoryPort.countByTicketIdAndStatuses(ticketId, AVAILABLE_STATUSES);
+        return lotteryTicketSerialRepositoryPort.countSellableByTicketId(ticketId);
     }
 
     @Override
     public Map<Long, Long> countAvailableSerialsByTicketIds(Collection<Long> ticketIds) {
-        return lotteryTicketSerialRepositoryPort.countByTicketIdsAndStatuses(ticketIds, AVAILABLE_STATUSES);
+        return lotteryTicketSerialRepositoryPort.countSellableByTicketIds(ticketIds);
     }
 
     @Override
@@ -252,8 +257,9 @@ public class LotteryTicketSerialService implements LotteryTicketSerialServicePor
     }
 
     private LotteryTicketSerialModel getFirstAvailableSerialOrThrow(Long ticketId) {
-        return lotteryTicketSerialRepositoryPort
-                .findFirstByTicketIdAndStatusOrderByIdAsc(ticketId, LotteryTicketSerialStatus.IN_STOCK)
+        return lotteryTicketSerialRepositoryPort.findAllByTicketId(ticketId).stream()
+                .filter(LotteryTicketSerialModel::isAvailableForSale)
+                .findFirst()
                 .orElseThrow(() -> new DomainException(ErrorCode.LOTTERY_TICKET_INVALID_STATUS, "Vé đã hết sê-ri khả dụng."));
     }
 
@@ -348,14 +354,17 @@ public class LotteryTicketSerialService implements LotteryTicketSerialServicePor
         LocalDateTime priorReservationExpiresAt = serial.getReservationExpiresAt();
         UUID priorOrderId = serial.getReservedByOrderId();
 
-        if (request.status() == LotteryTicketSerialStatus.DAMAGED) {
+        if (request.ticketCondition() == TicketCondition.DAMAGED) {
             serial.markDamaged(request.faultedBy(), request.damagedReason(), request.damagedEvidenceUrl());
-        } else if (request.status() == LotteryTicketSerialStatus.LOST) {
+        } else if (request.ticketCondition() == TicketCondition.LOST) {
             serial.markLost(request.faultedBy(), request.damagedReason());
-        } else if (request.status() == LotteryTicketSerialStatus.VOIDED) {
+        } else if (request.ticketCondition() == TicketCondition.VOIDED) {
             serial.markVoided(request.faultedBy(), request.damagedReason());
         } else {
-            throw new DomainException(ErrorCode.INVALID_INPUT, "Trạng thái báo lỗi không hợp lệ (chỉ hỗ trợ DAMAGED, LOST hoặc VOIDED).");
+            throw new DomainException(
+                    ErrorCode.INVALID_INPUT,
+                    "Báo lỗi không hợp lệ (cần ticketCondition DAMAGED, LOST hoặc VOIDED)."
+            );
         }
 
         LotteryTicketSerialModel saved = lotteryTicketSerialRepositoryPort.save(serial);
@@ -370,7 +379,7 @@ public class LotteryTicketSerialService implements LotteryTicketSerialServicePor
     }
 
     private void validateIncidentRequest(LotteryTicketSerialModel serial, ReportSerialFaultRequest request) {
-        if (request.status() == LotteryTicketSerialStatus.VOIDED) {
+        if (request.ticketCondition() == TicketCondition.VOIDED) {
             if (request.faultedBy() != LotteryTicketSerialFaultedBy.DATA_ENTRY_FAULT) {
                 throw new DomainException(
                         ErrorCode.INVALID_INPUT,
@@ -379,8 +388,8 @@ public class LotteryTicketSerialService implements LotteryTicketSerialServicePor
             return;
         }
 
-        if (request.status() == LotteryTicketSerialStatus.DAMAGED
-                || request.status() == LotteryTicketSerialStatus.LOST) {
+        if (request.ticketCondition() == TicketCondition.DAMAGED
+                || request.ticketCondition() == TicketCondition.LOST) {
             if (serial.isInternalInventoryIncidentStatus()
                     && request.faultedBy() != LotteryTicketSerialFaultedBy.INTERNAL_FAULT) {
                 throw new DomainException(

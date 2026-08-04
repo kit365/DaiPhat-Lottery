@@ -11,15 +11,17 @@ export type LotteryTicketSerialStatus =
     | 'RESERVED'
     | 'PROXY_HOLDING'
     | 'SOLD'
-    | 'DAMAGED'
-    | 'LOST'
     | 'EXPIRED';
+
+export type TicketCondition = 'GOOD' | 'DAMAGED' | 'LOST' | 'VOIDED';
 
 export type PrizePayoutRequestStatus = 'PENDING' | 'COMPLETED' | 'REJECTED' | 'CANCELLED';
 
 export interface PublicLotteryTicket {
     id: number;
+    _id?: number | string;
     stationId: number;
+    providerId?: number;
     stationName?: string;
     ticketImg?: string;
     serialNumber?: string;
@@ -61,6 +63,7 @@ export interface PurchasedTicket {
     serialId?: number;
     serialNumber?: string;
     serialStatus?: LotteryTicketSerialStatus;
+    ticketCondition?: TicketCondition;
     payoutState?: SerialPayoutState;
     numbers: string;
     stationName?: string;
@@ -73,6 +76,12 @@ export interface PurchasedTicket {
     prizeAmount?: number;
     activePayoutRequestId?: number;
     activePayoutStatus?: PrizePayoutRequestStatus;
+    orderType?: 'ONLINE' | 'OFFLINE';
+    receiveType?: 'COUNTER_PICKUP';
+    /** Khi có giá trị = khách đã lấy vé tại quầy. */
+    actualPickedUpAt?: string | null;
+    claimChannel?: 'ONLINE' | 'IN_PERSON';
+    canClaimOnline?: boolean;
 }
 
 export type PublicLotteryTicketPage = PageResponse<PublicLotteryTicket>;

@@ -1,3 +1,5 @@
+"use client";
+
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { QUERY_KEYS } from '../../../../constants/queryKeys';
 import { getPublicCategories, getPublicPosts, getPublicPostBySlug, getRelatedPublicPosts, incrementPostView } from '../services/blogService';
