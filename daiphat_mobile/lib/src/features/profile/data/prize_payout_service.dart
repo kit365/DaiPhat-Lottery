@@ -1,4 +1,6 @@
 import 'package:daiphat_mobile/src/shared/network/api_client.dart';
+import 'package:daiphat_mobile/src/shared/network/api_exception.dart';
+import 'package:daiphat_mobile/src/shared/network/api_response.dart';
 
 class PrizePayoutPreview {
   final int orderDetailId;
@@ -71,6 +73,12 @@ class PrizePayoutService {
     int? orderDetailId,
     int? serialId,
   }) async {
+    if (orderDetailId == null && serialId == null) {
+      throw const ApiException(
+        'Thiếu thông tin vé để xem trước trả thưởng.',
+      );
+    }
+
     final response = await _apiClient.get(
       '/prize-payout-requests/preview',
       queryParameters: {
@@ -78,8 +86,21 @@ class PrizePayoutService {
         if (serialId != null) 'serialId': serialId,
       },
     );
-    final data = response['data'] as Map<String, dynamic>;
-    return PrizePayoutPreview.fromJson(data);
+
+    final apiResponse = ApiResponse<PrizePayoutPreview>.fromJson(
+      response,
+      (json) => PrizePayoutPreview.fromJson(json as Map<String, dynamic>),
+    );
+
+    if (!apiResponse.isSuccess || apiResponse.data == null) {
+      throw ApiException(
+        apiResponse.message.isNotEmpty
+            ? apiResponse.message
+            : 'Không thể xem trước số tiền trả thưởng.',
+      );
+    }
+
+    return apiResponse.data!;
   }
 
   Future<PrizePayoutRequestResult> create({
@@ -87,6 +108,10 @@ class PrizePayoutService {
     int? serialId,
     required int bankAccountId,
   }) async {
+    if (orderDetailId == null && serialId == null) {
+      throw const ApiException('Thiếu thông tin vé để gửi yêu cầu trả thưởng.');
+    }
+
     final response = await _apiClient.post(
       '/prize-payout-requests',
       data: {
@@ -95,7 +120,20 @@ class PrizePayoutService {
         'bankAccountId': bankAccountId,
       },
     );
-    final data = response['data'] as Map<String, dynamic>;
-    return PrizePayoutRequestResult.fromJson(data);
+
+    final apiResponse = ApiResponse<PrizePayoutRequestResult>.fromJson(
+      response,
+      (json) => PrizePayoutRequestResult.fromJson(json as Map<String, dynamic>),
+    );
+
+    if (!apiResponse.isSuccess || apiResponse.data == null) {
+      throw ApiException(
+        apiResponse.message.isNotEmpty
+            ? apiResponse.message
+            : 'Không thể gửi yêu cầu trả thưởng.',
+      );
+    }
+
+    return apiResponse.data!;
   }
 }

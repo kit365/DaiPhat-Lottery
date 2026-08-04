@@ -6,12 +6,10 @@ import 'package:intl/intl.dart';
 import 'package:go_router/go_router.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
-import 'package:daiphat_mobile/src/features/profile/data/bank_account_service.dart';
 import 'package:daiphat_mobile/src/features/profile/data/models/purchased_ticket.dart';
-import 'package:daiphat_mobile/src/features/profile/data/prize_payout_service.dart';
+import 'package:daiphat_mobile/src/features/profile/presentation/providers/profile_providers.dart';
 import 'package:daiphat_mobile/src/features/profile/presentation/widgets/prize_payout_request_sheet.dart';
 import 'package:daiphat_mobile/src/features/profile/utils/ticket_display_utils.dart';
-import 'package:daiphat_mobile/src/shared/providers/api_providers.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
 
 class MyTicketDetailView extends ConsumerWidget {
@@ -34,27 +32,17 @@ class MyTicketDetailView extends ConsumerWidget {
       );
     }
 
-    return _TicketDetailBody(
-      ticket: ticket,
-      prizePayoutService: PrizePayoutService(ref.read(apiClientProvider)),
-      bankAccountService: BankAccountService(ref.read(apiClientProvider)),
-    );
+    return _TicketDetailBody(ticket: ticket);
   }
 }
 
-class _TicketDetailBody extends StatelessWidget {
+class _TicketDetailBody extends ConsumerWidget {
   final PurchasedTicket ticket;
-  final PrizePayoutService prizePayoutService;
-  final BankAccountService bankAccountService;
 
-  const _TicketDetailBody({
-    required this.ticket,
-    required this.prizePayoutService,
-    required this.bankAccountService,
-  });
+  const _TicketDetailBody({required this.ticket});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final status = ticketStatusUi(ticket.drawResultStatus);
     final possession = resolveTicketPossessionDisplay(ticket);
     final payout = resolveTicketPayoutDisplay(ticket);
@@ -110,6 +98,7 @@ class _TicketDetailBody extends StatelessWidget {
               const SizedBox(height: 16),
               _buildPrizeSection(
                 context,
+                ref,
                 isEligible: isEligible,
                 ineligibility: ineligibility,
                 payout: payout,
@@ -408,7 +397,8 @@ class _TicketDetailBody extends StatelessWidget {
   }
 
   Widget _buildPrizeSection(
-    BuildContext context, {
+    BuildContext context,
+    WidgetRef ref, {
     required bool isEligible,
     required String? ineligibility,
     required TicketPayoutDisplay? payout,
@@ -483,7 +473,7 @@ class _TicketDetailBody extends StatelessWidget {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: () => _openPayoutSheet(context),
+                onPressed: () => _openPayoutSheet(context, ref),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFFF59E0B),
                   foregroundColor: Colors.white,
@@ -507,15 +497,15 @@ class _TicketDetailBody extends StatelessWidget {
     );
   }
 
-  Future<void> _openPayoutSheet(BuildContext context) async {
+  Future<void> _openPayoutSheet(BuildContext context, WidgetRef ref) async {
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) => PrizePayoutRequestSheet(
         ticket: ticket,
-        prizePayoutService: prizePayoutService,
-        bankAccountService: bankAccountService,
+        prizePayoutService: ref.read(prizePayoutServiceProvider),
+        bankAccountService: ref.read(bankAccountServiceProvider),
       ),
     );
   }
