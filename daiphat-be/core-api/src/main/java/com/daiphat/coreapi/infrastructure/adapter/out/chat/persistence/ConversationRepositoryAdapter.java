@@ -2,6 +2,7 @@ package com.daiphat.coreapi.infrastructure.adapter.out.chat.persistence;
 
 import com.daiphat.coreapi.application.port.out.chat.ConversationRepositoryPort;
 import com.daiphat.coreapi.domain.model.chat.ConversationModel;
+import com.daiphat.coreapi.domain.model.enums.chat.ConversationCloseReason;
 import com.daiphat.coreapi.domain.model.enums.chat.ConversationStatus;
 import com.daiphat.coreapi.domain.model.enums.chat.LastMessageFrom;
 import com.daiphat.coreapi.infrastructure.persistence.entity.chat.ConversationEntity;
@@ -153,6 +154,21 @@ public class ConversationRepositoryAdapter implements ConversationRepositoryPort
     public List<ConversationModel> findByCustomerId(UUID customerId) {
         return chatPersistenceMapper.toConversationDomains(
                 conversationRepository.findByDeletedAtIsNullAndCustomer_IdOrderByCreatedAtDescIdDesc(customerId)
+        );
+    }
+
+    @Override
+    public List<ConversationModel> findSpamClosesByCustomerSince(UUID customerId, LocalDateTime since) {
+        if (customerId == null || since == null) {
+            return List.of();
+        }
+        return chatPersistenceMapper.toConversationDomains(
+                conversationRepository
+                        .findByDeletedAtIsNullAndCustomer_IdAndCloseReasonAndClosedAtGreaterThanEqualOrderByClosedAtDescIdDesc(
+                                customerId,
+                                ConversationCloseReason.SPAM,
+                                since
+                        )
         );
     }
 

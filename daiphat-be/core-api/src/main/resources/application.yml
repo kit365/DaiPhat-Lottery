@@ -79,6 +79,11 @@ daiphat:
         auto-close-warning-lead-minutes: 5
         staff-response-sla-minutes: 15
         scheduler-rate-ms: 10000
+    spam:
+      soft-cooldown-minutes: 60
+      repeat-threshold: 3
+      repeat-window-hours: 24
+      repeat-cooldown-hours: 24
   lottery:
     seed:
       southern-stations:

@@ -1,5 +1,6 @@
 package com.daiphat.coreapi.infrastructure.persistence.repository.chat;
 
+import com.daiphat.coreapi.domain.model.enums.chat.ConversationCloseReason;
 import com.daiphat.coreapi.domain.model.enums.chat.ConversationStatus;
 import com.daiphat.coreapi.domain.model.enums.chat.LastMessageFrom;
 import com.daiphat.coreapi.infrastructure.persistence.entity.chat.ConversationEntity;
@@ -78,5 +79,11 @@ public interface ConversationRepository extends JpaRepository<ConversationEntity
             Collection<LastMessageFrom> lastFrom,
             LocalDateTime warningThreshold,
             LocalDateTime closeThreshold
+    );
+
+    List<ConversationEntity> findByDeletedAtIsNullAndCustomer_IdAndCloseReasonAndClosedAtGreaterThanEqualOrderByClosedAtDescIdDesc(
+            UUID customerId,
+            ConversationCloseReason closeReason,
+            LocalDateTime closedAt
     );
 }

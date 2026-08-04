@@ -97,4 +97,6 @@ public interface LotteryTicketServicePort {
     java.util.List<com.daiphat.coreapi.application.dto.response.lotteries.LotteryTicketSerialResponse> getReplacementCandidates(Long stationId, String numbers, java.time.LocalDate drawDate);
 
     LotteryTicketResponse replaceDigits(Long id, com.daiphat.coreapi.application.dto.request.lotteries.ReplaceTicketDigitsRequest request, UUID editorId);
+
+    LotteryTicketResponse finalizeIncidentCancel(Long id);
 }

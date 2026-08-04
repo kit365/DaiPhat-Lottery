@@ -201,7 +201,11 @@ public class OrderModel {
         this.cancelledAt = LocalDateTime.now();
         if (this.orderDetails != null) {
             if (forRefund) {
-                this.orderDetails.forEach(OrderDetailModel::markRefundPending);
+                // Skip details already REFUND_PENDING / REFUNDED from a prior partial refund.
+                this.orderDetails.stream()
+                        .filter(detail -> detail.getStatus()
+                                == com.daiphat.coreapi.domain.model.enums.order.detail.OrderDetailStatus.ACTIVE)
+                        .forEach(OrderDetailModel::markRefundPending);
             } else {
                 this.orderDetails.forEach(OrderDetailModel::markInactive);
             }

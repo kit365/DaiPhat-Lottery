@@ -20,8 +20,8 @@ public class RefundProcessingDeadlineService {
     private static final long NEAR_DEADLINE_SECONDS = Duration.ofDays(1).toSeconds();
     private static final EnumSet<RefundRequestStatus> PROCESSABLE_STATUSES = EnumSet.of(
             RefundRequestStatus.WAITING_FOR_INFO,
-            RefundRequestStatus.APPROVED,
-            RefundRequestStatus.READY_TO_PAY);
+            RefundRequestStatus.READY_TO_PAY,
+            RefundRequestStatus.valueOf("APPROVED"));
 
     private final SystemConfigRepositoryPort systemConfigRepositoryPort;
 

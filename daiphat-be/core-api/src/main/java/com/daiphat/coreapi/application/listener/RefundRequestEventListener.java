@@ -66,6 +66,7 @@ public class RefundRequestEventListener {
         notification.markAsSent();
         notificationService.createNotification(notification);
 
+        // EMAIL row is delivery-tracking only; customer inbox lists IN_APP notifications.
         if (shouldSendEmail(event)) {
             sendRefundEmail(event, title, content);
         }
@@ -79,8 +80,7 @@ public class RefundRequestEventListener {
      * Staff need attention when a refund is ready for transfer (customer create / bank submitted).
      */
     private boolean shouldNotifyStaff(RefundRequestStatusChangedEvent event) {
-        return event.status() == RefundRequestStatus.READY_TO_PAY
-                || event.status() == RefundRequestStatus.APPROVED;
+        return event.status() != null && event.status().isAwaitingTransfer();
     }
 
     private void notifyStaff(RefundRequestStatusChangedEvent event) {
@@ -137,8 +137,7 @@ public class RefundRequestEventListener {
 
     private boolean shouldSendEmail(RefundRequestStatusChangedEvent event) {
         return event.status() == RefundRequestStatus.WAITING_FOR_INFO
-                || event.status() == RefundRequestStatus.READY_TO_PAY
-                || event.status() == RefundRequestStatus.APPROVED
+                || (event.status() != null && event.status().isAwaitingTransfer())
                 || event.status() == RefundRequestStatus.PAID
                 || event.status() == RefundRequestStatus.MANUAL_RESOLUTION;
     }

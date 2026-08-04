@@ -4,7 +4,10 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.TimeZone;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -34,40 +37,65 @@ public class CoreApiApplication {
     }
 
     /**
-     * IntelliJ often runs with working directory {@code daiphat-be}, while {@code .env}
-     * lives in {@code core-api/.env}. spring-dotenv may not resolve that path, so we
-     * load the first matching file before Spring resolves placeholders.
+     * Local IntelliJ runs often use {@code daiphat-be} as the working directory, while
+     * core-api secrets/profile live in {@code daiphat-be/core-api/.env}. Load module
+     * {@code .env} first (first-wins), then the repository-root {@code .env} next to
+     * {@code docker-compose.yml}.
      */
     private static void loadLocalDotEnv() {
         Path cwd = Paths.get("").toAbsolutePath().normalize();
-        Path[] candidates = {
-                cwd.resolve("core-api").resolve(".env"),
-                cwd.resolve(".env")
-        };
+        Path repoRoot = findRepositoryRoot(cwd);
+        for (Path envFile : resolveLocalEnvFiles(cwd, repoRoot)) {
+            loadEnvFile(envFile);
+        }
+    }
 
-        for (Path envFile : candidates) {
-            if (!Files.isRegularFile(envFile)) {
-                continue;
+    private static List<Path> resolveLocalEnvFiles(Path cwd, Path repoRoot) {
+        Set<Path> candidates = new LinkedHashSet<>();
+        // Most specific first — setLocalPropertyIfAbsent keeps the first value.
+        candidates.add(cwd.resolve(".env"));
+        candidates.add(cwd.resolve("core-api").resolve(".env"));
+        if (repoRoot != null) {
+            candidates.add(repoRoot.resolve("daiphat-be").resolve("core-api").resolve(".env"));
+            candidates.add(repoRoot.resolve(".env"));
+        }
+
+        List<Path> existing = new ArrayList<>();
+        for (Path candidate : candidates) {
+            if (Files.isRegularFile(candidate)) {
+                existing.add(candidate);
             }
-            try {
-                List<String> lines = Files.readAllLines(envFile);
-                for (String rawLine : lines) {
-                    String line = rawLine.trim();
-                    if (line.isEmpty() || line.startsWith("#")) {
-                        continue;
-                    }
-                    int separator = line.indexOf('=');
-                    if (separator <= 0) {
-                        continue;
-                    }
-                    String key = line.substring(0, separator).trim();
-                    String value = stripQuotes(line.substring(separator + 1).trim());
-                    setLocalPropertyIfAbsent(key, value);
+        }
+        return existing;
+    }
+
+    private static Path findRepositoryRoot(Path startingDirectory) {
+        for (Path directory = startingDirectory; directory != null; directory = directory.getParent()) {
+            if (Files.isRegularFile(directory.resolve("docker-compose.yml"))) {
+                return directory;
+            }
+        }
+        return null;
+    }
+
+    private static void loadEnvFile(Path envFile) {
+        try {
+            List<String> lines = Files.readAllLines(envFile);
+            for (String rawLine : lines) {
+                String line = rawLine.trim();
+                if (line.isEmpty() || line.startsWith("#")) {
+                    continue;
                 }
-            } catch (IOException ignored) {
-                // spring-dotenv may still load env from another working directory
+                int separator = line.indexOf('=');
+                if (separator <= 0) {
+                    continue;
+                }
+                String key = line.substring(0, separator).trim();
+                String value = stripQuotes(line.substring(separator + 1).trim());
+                setLocalPropertyIfAbsent(key, value);
             }
-            return;
+        } catch (IOException ignored) {
+            // Local environment loading is optional outside the development checkout.
         }
     }
 

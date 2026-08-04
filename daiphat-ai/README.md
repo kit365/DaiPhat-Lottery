@@ -6,7 +6,7 @@ Python monorepo for DaiPhat AI services (computer vision, OCR, analytics).
 
 ## Role in the platform
 
-`daiphat-ai/` is a sibling folder to `daiphat-be/` (Java) and `daiphat_mobile/` (Flutter).
+`daiphat-ai/` is a sibling folder to `daiphat-be/` (Java), `daiphat-fe/` (React) and `daiphat_mobile/` (Flutter).
 Java `core-api` orchestrates business rules, auth, and DB; Python services handle inference only.
 
 ```
@@ -86,6 +86,16 @@ curl -X POST http://localhost:8000/v1/chat/classify \
   -H 'Content-Type: application/json' \
   -d '{"message":"lịch quay miền nam","conversation_id":1}'
 ```
+
+## Docker
+
+From the repository root, the standard local stack builds and starts this service with PostgreSQL, Redis, backend and frontend:
+
+```bash
+docker compose up -d --build
+```
+
+Production publishes `daiphat-ai` as an immutable image tagged with the same commit SHA as FE and BE. It is not exposed publicly on the VPS; Core API reaches it at `http://ai:8000`.
 
 
 ## License

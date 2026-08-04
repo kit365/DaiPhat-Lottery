@@ -205,6 +205,8 @@ export const reportTicketSerialFault = async (
         faultedBy: 'INTERNAL_FAULT' | 'ISSUER_FAULT' | 'DATA_ENTRY_FAULT';
         damagedReason?: string;
         damagedEvidenceUrl?: string;
+        replacementSerialNumber?: string;
+        replacementTicketImg?: string;
     }
 ): Promise<ApiResponse<any>> => {
     const response = await apiApp.post(`/lottery-ticket-serials/${id}/report-fault`, data, withAuth());
@@ -220,5 +222,13 @@ export const replaceTicketDigits = async (
     }
 ): Promise<ApiResponse<any>> => {
     const response = await apiApp.post(`/lottery-tickets/${id}/replace-digits`, data, withAuth());
+    return response.data;
+};
+
+/** Hoàn tất hủy dãy vé sau khi tất cả sê-ri đã được báo hỏng/mất */
+export const finalizeTicketIncidentCancel = async (
+    id: string | number
+): Promise<ApiResponse<any>> => {
+    const response = await apiApp.post(`/lottery-tickets/${id}/finalize-incident-cancel`, {}, withAuth());
     return response.data;
 };

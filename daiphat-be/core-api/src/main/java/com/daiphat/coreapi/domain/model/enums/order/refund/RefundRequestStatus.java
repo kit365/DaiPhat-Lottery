@@ -18,4 +18,14 @@ public enum RefundRequestStatus implements LabeledEnum {
     MANUAL_RESOLUTION("Cần xử lý thủ công");
 
     private final String label;
+
+    /** READY_TO_PAY hoặc legacy APPROVED (cùng nghĩa trong giai đoạn chuyển đổi). */
+    public boolean isAwaitingTransfer() {
+        return this == READY_TO_PAY || "APPROVED".equals(name());
+    }
+
+    /** Các trạng thái còn tính hạn xử lý hoàn tiền. */
+    public boolean isProcessableForDeadline() {
+        return this == WAITING_FOR_INFO || isAwaitingTransfer();
+    }
 }

@@ -8,6 +8,8 @@ import {
     TextField,
     Typography,
 } from '@mui/material';
+import { TimePicker } from '@mui/x-date-pickers';
+import dayjs from 'dayjs';
 import { Control, Controller } from 'react-hook-form';
 import { SupplierFormValues } from '../../schemas/supplier.schema';
 import { SUPPLIER_TYPE_LABELS } from '../../utils/supplierLabels';
@@ -280,6 +282,57 @@ export const SupplierFormFields = ({
                         }}
                     />
                 </Box>
+            </Stack>
+
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+                <Controller
+                    name="importAllowFrom"
+                    control={control}
+                    render={({ field, fieldState }) => (
+                        <TimePicker
+                            label="Giờ cho phép nhập vé"
+                            value={field.value ? dayjs(`2000-01-01T${field.value}`) : null}
+                            onChange={(newValue) => {
+                                field.onChange(newValue ? newValue.format('HH:mm') : '');
+                            }}
+                            localeText={{ cancelButtonLabel: 'Hủy' }}
+                            slotProps={{
+                                textField: {
+                                    fullWidth: true,
+                                    error: !!fieldState.error,
+                                    helperText:
+                                        fieldState.error?.message ||
+                                        'Từ giờ này trở đi mới được tạo phiếu nhập lô',
+                                    InputLabelProps: { shrink: true },
+                                },
+                            }}
+                        />
+                    )}
+                />
+                <Controller
+                    name="returnCutOffTime"
+                    control={control}
+                    render={({ field, fieldState }) => (
+                        <TimePicker
+                            label="Hạn trả vé"
+                            value={field.value ? dayjs(`2000-01-01T${field.value}`) : null}
+                            onChange={(newValue) => {
+                                field.onChange(newValue ? newValue.format('HH:mm') : '');
+                            }}
+                            localeText={{ cancelButtonLabel: 'Hủy' }}
+                            slotProps={{
+                                textField: {
+                                    fullWidth: true,
+                                    error: !!fieldState.error,
+                                    helperText:
+                                        fieldState.error?.message ||
+                                        'Hạn trả vé số vật lý cho nhà cung cấp',
+                                    InputLabelProps: { shrink: true },
+                                },
+                            }}
+                        />
+                    )}
+                />
             </Stack>
 
             {!hideIsActive && (

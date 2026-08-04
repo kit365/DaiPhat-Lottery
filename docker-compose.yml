@@ -1,17 +1,15 @@
 name: daiphat-local
 
-# Default local command: docker compose up --build
-# It validates the exact fullstack image that will later run on Azure.
 services:
-  postgres-db:
-    image: pgvector/pgvector:pg16
+  postgres:
+    image: postgres:16-alpine
     restart: unless-stopped
     environment:
       POSTGRES_DB: daiphat_core_db
       POSTGRES_USER: sa
       POSTGRES_PASSWORD: "12345"
     ports:
-      - "5434:5432"
+      - "${LOCAL_POSTGRES_PORT:-5434}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -21,11 +19,11 @@ services:
       retries: 12
 
   redis:
-    image: redis:alpine
+    image: redis:7-alpine
     restart: unless-stopped
     command: redis-server --appendonly yes
     ports:
-      - "6380:6379"
+      - "${LOCAL_REDIS_PORT:-6380}:6379"
     volumes:
       - redis_data:/data
     healthcheck:
@@ -34,56 +32,82 @@ services:
       timeout: 5s
       retries: 12
 
-  mongo:
-    image: mongo:7
-    restart: unless-stopped
-    environment:
-      MONGO_INITDB_ROOT_USERNAME: core_admin
-      MONGO_INITDB_ROOT_PASSWORD: core_pass_2026
-      MONGO_INITDB_DATABASE: daiphat_core_db
-    ports:
-      - "27018:27017"
-    volumes:
-      - mongo_data:/data/db
-    healthcheck:
-      test: ["CMD", "mongosh", "--quiet", "--username", "core_admin", "--password", "core_pass_2026", "--authenticationDatabase", "admin", "--eval", "db.adminCommand('ping').ok"]
-      interval: 5s
-      timeout: 5s
-      retries: 12
-
-  app:
+  ai:
     build:
-      context: .
-      dockerfile: Dockerfile.azure
+      context: ./daiphat-ai
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "${LOCAL_AI_PORT:-8000}:8000"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+
+  backend:
+    build:
+      context: ./daiphat-be/core-api
+      dockerfile: Dockerfile
     restart: unless-stopped
     env_file:
-      - ./.env.local
+      - ./.env
     environment:
       SPRING_PROFILES_ACTIVE: local
       SERVER_PORT: 8080
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-db:5432/daiphat_core_db?charSet=UTF-8
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/daiphat_core_db?charSet=UTF-8
       SPRING_DATASOURCE_USERNAME: sa
       SPRING_DATASOURCE_PASSWORD: "12345"
       SPRING_DATA_REDIS_HOST: redis
       SPRING_DATA_REDIS_PORT: 6379
-      SPRING_DATA_MONGODB_URI: mongodb://core_admin:core_pass_2026@mongo:27017/daiphat_core_db?authSource=admin
+      DAIPHAT_AI_BASE_URL: http://ai:8000
     ports:
-      - "8080:8080"
+      - "${LOCAL_BACKEND_PORT:-8080}:8080"
     depends_on:
-      postgres-db:
+      postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
-      mongo:
+      ai:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/actuator/health/readiness"]
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8080/actuator/health/readiness"]
       interval: 10s
       timeout: 5s
-      start_period: 2m
+      start_period: 90s
       retries: 12
+
+  frontend:
+    build:
+      context: ./daiphat-fe
+      dockerfile: Dockerfile
+      secrets:
+        - source: frontend_env
+          target: env_file
+    restart: unless-stopped
+    environment:
+      BACKEND_UPSTREAM: backend
+    ports:
+      - "${LOCAL_FRONTEND_PORT:-5173}:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+
+secrets:
+  frontend_env:
+    file: ./.env
 
 volumes:
   postgres_data:
   redis_data:
-  mongo_data:

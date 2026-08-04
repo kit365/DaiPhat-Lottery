@@ -147,6 +147,10 @@ public class ChatFlowOrchestrator {
         if (looksLikeStandaloneTicketSuggest(message.getContent())) {
             return Optional.empty();
         }
+        // Bare digits (ticket numbers) must not resume the removed location-choice menu.
+        if (looksLikeBareTicketNumber(message.getContent())) {
+            return Optional.empty();
+        }
         // "đài X xổ thứ mấy" / hỏi lịch mới — không resume slot Kết quả cũ (tránh trả KQ sai).
         if (looksLikeNewScheduleQuery(message.getContent())) {
             return Optional.empty();
@@ -213,6 +217,14 @@ public class ChatFlowOrchestrator {
         return normalized.contains("goi y ve")
                 || normalized.contains("goi y so")
                 || (normalized.contains("goi y") && (normalized.contains("ve") || normalized.contains("so")));
+    }
+
+    private static boolean looksLikeBareTicketNumber(String content) {
+        if (content == null) {
+            return false;
+        }
+        String trimmed = content.trim();
+        return !trimmed.isEmpty() && trimmed.length() <= 6 && trimmed.chars().allMatch(Character::isDigit);
     }
 
     private Optional<ChatFlowHandleResult> handleScheduleRestart(

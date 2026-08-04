@@ -22,6 +22,7 @@ import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 
 @Entity
 @Table(name = "lottery_regions")
@@ -55,6 +56,9 @@ public class LotteryRegionEntity {
 
     @Column(name = "station_count", nullable = false)
     private Integer stationCount;
+
+    @Column(name = "default_draw_time", nullable = false)
+    private LocalTime defaultDrawTime;
 
     @CreatedDate
     @Column(name = "created_at", updatable = false)

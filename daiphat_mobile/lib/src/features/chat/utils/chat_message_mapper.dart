@@ -358,7 +358,7 @@ bool _isSystemNotice(String text) {
 String _resolveScheduleDisplayText(String raw) {
   if (raw.contains('Mình chưa nhận ra khu vực') ||
       raw.contains('Mình chưa tìm thấy đài')) {
-    return 'Bạn muốn xem đài quay hôm nay, lịch cả tuần hay chọn một đài cụ thể?';
+    return 'Bạn muốn xem lịch xổ — dùng nút Xem lịch xổ bên dưới nhé.';
   }
   if (raw.contains('Mình chưa nhận ra ngày/thứ')) return raw;
   if (raw.startsWith('SCHEDULE_ASK_DATE_MODE')) {

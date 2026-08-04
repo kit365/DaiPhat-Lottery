@@ -12,6 +12,7 @@ import lombok.Setter;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -34,6 +35,8 @@ public class LotterySupplierModel {
     private String taxCode;
     private Integer paymentTermDays;
     private BigDecimal defaultImportCost;
+    private LocalTime importAllowFrom;
+    private LocalTime returnCutOffTime;
     @Builder.Default
     private boolean isActive = false;
 

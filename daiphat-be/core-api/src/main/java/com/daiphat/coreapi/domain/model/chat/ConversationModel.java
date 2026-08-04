@@ -61,6 +61,8 @@ public class ConversationModel {
     private LocalDateTime lastMessageAt;
     private UUID closedBy;
     private ConversationCloseReason closeReason;
+    private String closeNote;
+    private LocalDateTime closedAt;
     private LocalDateTime autoCloseWarningSentAt;
     private UUID lastAssignedOperatorId;
     private EscalationReason escalationReason;
@@ -158,6 +160,7 @@ public class ConversationModel {
         lastAssignedOperatorId = formerAssignee;
         assignedOperatorId = null;
         status = ConversationStatus.CLOSED;
+        closedAt = LocalDateTime.now();
         return Optional.ofNullable(formerAssignee);
     }
 
@@ -429,6 +432,8 @@ public class ConversationModel {
         assignedOperatorId = null;
         closedBy = null;
         closeReason = null;
+        closeNote = null;
+        closedAt = null;
         status = ConversationStatus.OPEN;
     }
 

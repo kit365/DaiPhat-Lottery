@@ -208,7 +208,11 @@ public enum ErrorCode {
     LOTTERY_RESULT_RESYNC_NOT_ALLOWED("LT_063", "Chỉ có thể đồng bộ lại kết quả đang thiếu hoặc lỗi.", HttpStatus.CONFLICT),
 
     IMPORT_BATCH_NOT_FOUND("LT_064", "Phiếu nhập lô vé không tồn tại.", HttpStatus.NOT_FOUND),
-    IMPORT_BATCH_CUTOFF_PASSED("LT_065", "Đã quá giờ chốt nhập lô vé cho kỳ quay hôm nay.", HttpStatus.BAD_REQUEST),
+    IMPORT_BATCH_IMPORT_NOT_YET_ALLOWED(
+            "LT_065",
+            "Chưa đến giờ cho phép nhập vé của nhà cung cấp đã chọn.",
+            HttpStatus.BAD_REQUEST
+    ),
     IMPORT_BATCH_INVOICE_REQUIRED("LT_066", "Biên lai nhập lô là bắt buộc cho loại lô này.", HttpStatus.BAD_REQUEST),
     IMPORT_BATCH_INVALID_BATCH_TYPE("LT_067", "Loại lô nhập không hợp lệ.", HttpStatus.BAD_REQUEST),
     IMPORT_BATCH_DECLARE_QUANTITY_INVALID("LT_068", "Số lượng khai báo phải lớn hơn 0.", HttpStatus.BAD_REQUEST),
@@ -249,6 +253,16 @@ public enum ErrorCode {
     IMPORT_BATCH_CANCELLED(
             "LT_088",
             "Phiếu nhập lô đã bị hủy vì quá giờ chốt nhập lô cho kỳ quay hôm nay.",
+            HttpStatus.BAD_REQUEST
+    ),
+    IMPORT_BATCH_DRAW_DATE_OUT_OF_RANGE(
+            "LT_108",
+            "Ngày quay chỉ được chọn hôm nay hoặc ngày mai.",
+            HttpStatus.BAD_REQUEST
+    ),
+    IMPORT_BATCH_RETURN_CUTOFF_PASSED(
+            "LT_109",
+            "Đã qua giờ chốt trả vé của nhà cung cấp. Không thể tạo phiếu nhập lô mới cho kỳ quay hôm nay.",
             HttpStatus.BAD_REQUEST
     ),
     IMPORT_BATCH_LINE_CANCELLED(
@@ -292,6 +306,11 @@ public enum ErrorCode {
     LOTTERY_TICKET_SERIAL_WITHOUT_NUMBERS(
             "LT_090",
             "Số sê-ri phải thuộc một dãy số.",
+            HttpStatus.BAD_REQUEST
+    ),
+    LOTTERY_TICKET_SERIALS_INCIDENT_INCOMPLETE(
+            "LT_094",
+            "Cần báo sự cố cho tất cả sê-ri trước khi hủy dãy vé.",
             HttpStatus.BAD_REQUEST
     ),
     IMPORT_BATCH_LINE_NOT_DELETABLE(
@@ -465,6 +484,11 @@ public enum ErrorCode {
             "CHT_014",
             "Không thể huỷ yêu cầu gặp nhân viên ở trạng thái hiện tại.",
             HttpStatus.BAD_REQUEST
+    ),
+    CHAT_ESCALATE_SPAM_COOLDOWN(
+            "CHT_015",
+            "Bạn đang tạm hạn chế gặp nhân viên do hội thoại trước bị đánh dấu spam. Vui lòng gửi Khiếu nại/Hỗ trợ hoặc thử lại sau.",
+            HttpStatus.TOO_MANY_REQUESTS
     ),
 
     // System Config Errors

@@ -1,6 +1,6 @@
 import type { ImportBatchImportMode } from '../utils/batchTypeLabels';
 
-export type ImportBatchType = 'NEW' | 'SUPPLEMENTARY' | 'LATE_IMPORT' | 'ADJUSTMENT';
+export type ImportBatchType = 'NEW' | 'SUPPLEMENTARY' | 'ADJUSTMENT';
 export type ImportBatchStatus =
     | 'DRAFT'
     | 'RECEIVING'
@@ -135,8 +135,7 @@ export interface ImportBatchListParams {
 }
 
 export interface ImportBatchTimePolicy {
-    lateImportTime: string;
-    importBatchCutoffTime: string;
+    returnBufferMinutes: number;
 }
 
 export interface ImportBatchReductionTicket {

@@ -1,8 +1,8 @@
 package com.daiphat.coreapi.application.dto.request.lotteries;
 
 import com.daiphat.coreapi.domain.model.enums.lottery.SyncAction;
-import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import lombok.Builder;
 
@@ -11,12 +11,17 @@ import java.util.List;
 
 @Builder
 public record ConfirmSyncLotteryStationItem(
-        @NotBlank String name,
-        @NotBlank String canonicalName,
-        @NotNull List<String> drawDays,
-        @NotBlank String drawTime,
+        @NotBlank(message = "Tên nhà đài không được để trống.")
+        String name,
+        @NotBlank(message = "Tên chuẩn nhà đài không được để trống.")
+        String canonicalName,
+        @NotEmpty(message = "Ngày quay không được để trống.")
+        List<String> drawDays,
+        @NotBlank(message = "Giờ quay không được để trống.")
+        String drawTime,
         BigDecimal commissionRate,
-        @NotNull SyncAction action,
+        @NotNull(message = "Hành động đồng bộ không được để trống.")
+        SyncAction action,
         Long existingStationId
 ) {
 }

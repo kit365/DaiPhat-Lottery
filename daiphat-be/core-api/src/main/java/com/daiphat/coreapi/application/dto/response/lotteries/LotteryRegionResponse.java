@@ -1,6 +1,9 @@
 package com.daiphat.coreapi.application.dto.response.lotteries;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.Builder;
+
+import java.time.LocalTime;
 
 @Builder
 public record LotteryRegionResponse(
@@ -13,6 +16,8 @@ public record LotteryRegionResponse(
         Integer minLength,
         Integer maxLength,
         Integer numberLength,
-        Integer stationCount
+        Integer stationCount,
+        @JsonFormat(pattern = "HH:mm")
+        LocalTime defaultDrawTime
 ) {
 }

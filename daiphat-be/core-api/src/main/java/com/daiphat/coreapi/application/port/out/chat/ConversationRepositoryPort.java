@@ -39,5 +39,7 @@ public interface ConversationRepositoryPort {
 
     List<ConversationModel> findByCustomerId(UUID customerId);
 
+    List<ConversationModel> findSpamClosesByCustomerSince(UUID customerId, LocalDateTime since);
+
     Optional<ConversationModel> findPreviousConversation(UUID customerId, LocalDateTime beforeCreatedAt);
 }

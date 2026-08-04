@@ -61,6 +61,12 @@ public class ConversationEntity extends BaseEntity {
     @Column(name = "close_reason", length = 30)
     private ConversationCloseReason closeReason;
 
+    @Column(name = "close_note", columnDefinition = "TEXT")
+    private String closeNote;
+
+    @Column(name = "closed_at")
+    private LocalDateTime closedAt;
+
     @Column(name = "auto_close_warning_sent_at")
     private LocalDateTime autoCloseWarningSentAt;
 
