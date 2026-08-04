@@ -64,13 +64,6 @@ export const PermissionGuard = ({ children, permission, permissions, fallback }:
         if (fallback) {
             return <>{fallback}</>;
         }
-        // Nếu là Staff/Admin mà chỉ thiếu quyền con -> Đẩy về Dashboard (nếu chưa ở Dashboard)
-        if (!isOnlyMember && user) {
-            const isDashboard = location.pathname === ROUTES.ADMIN.DASHBOARD.ROOT || location.pathname === ROUTES.ADMIN.DASHBOARD.SYSTEM;
-            if (!isDashboard) {
-                return <Navigate to={ROUTES.ADMIN.DASHBOARD.ROOT} replace />;
-            }
-        }
         return (
             <div className="flex flex-col items-center justify-center min-h-[400px] p-6 text-center">
                 <h2 className="text-xl font-bold text-red-600 mb-2">403 - Không có quyền truy cập</h2>

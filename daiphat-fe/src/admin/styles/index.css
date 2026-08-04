@@ -366,6 +366,7 @@ input:-webkit-autofill:active {
     flex-direction: column !important;
     box-shadow: var(--customShadows-card) !important;
     overflow: hidden !important;
+    border: 1px solid var(--palette-divider) !important;
 }
 
 .swal2-container {

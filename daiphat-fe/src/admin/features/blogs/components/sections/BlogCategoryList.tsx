@@ -30,7 +30,7 @@ export const BlogCategoryList = ({ isTrash = false }: { isTrash?: boolean }) => 
     const pagination = res?.data?.pagination || { totalRecords: 0 };
 
     return (
-        <Card elevation={0} sx={{ height: 640, display: 'flex', flexDirection: 'column' }}>
+        <Card elevation={0} className="admin-datagrid-card">
             <div style={{ width: '100%', flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
                 <DataGrid
                     rows={categories}

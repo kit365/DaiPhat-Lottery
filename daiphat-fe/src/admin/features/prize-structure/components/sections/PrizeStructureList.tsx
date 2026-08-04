@@ -23,7 +23,7 @@ export const PrizeStructureList = ({
     const localeText = useDataGridLocale();
 
     return (
-        <Card elevation={0} sx={{ height: 640, display: 'flex', flexDirection: 'column' }}>
+        <Card elevation={0} className="admin-datagrid-card">
             <div style={{ width: '100%', flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
                 {error ? (
                     <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>

@@ -29,9 +29,6 @@ const LayoutAdminContent = ({ children }: { children?: React.ReactNode }) => {
         return <LoadingScreen />;
     }
 
-    if (user && (!user.hasPassword || !user.agreedToTerms)) {
-        return <LoadingScreen />;
-    }
 
     const isBlogDetail = location.pathname.startsWith(ROUTES.ADMIN.BLOGS.DETAIL);
     const fullWidthRoutes = [

@@ -309,7 +309,7 @@ export const BlogList = ({ blogs = [], isLoading = false, page, onPageChange, pa
     return (
         <>
             {viewMode === 'list' ? (
-                <Box sx={{ height: 640, width: '100%', display: 'flex', flexDirection: 'column' }}>
+                <Card elevation={0} className="admin-datagrid-card">
                     <DataGrid
                         rows={currentData.map(b => ({ ...b, id: b._id || b.id }))}
                         getRowId={(row) => row.id}
@@ -332,7 +332,7 @@ export const BlogList = ({ blogs = [], isLoading = false, page, onPageChange, pa
                         getRowHeight={() => 'auto'}
                         disableRowSelectionOnClick
                     />
-                </Box>
+                </Card>
             ) : (
                 <Box
                     sx={{

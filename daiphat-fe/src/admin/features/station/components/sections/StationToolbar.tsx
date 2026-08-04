@@ -2,10 +2,9 @@
 
 import { Toolbar, Box, Button, Badge, SvgIcon } from "@mui/material";
 import { useMemo, type Dispatch, type SetStateAction } from "react";
-import { IGridSettings, JiraFilter } from "../../../../shared/data-grid";
+import { IGridSettings, JiraFilter, toolbarStyles } from "../../../../shared/data-grid";
 import { Search } from "../../../../components/ui/Search";
 import { Columns } from "../../../../components/ui/Columns";
-import { ExportButton } from "../../../../components/ui/ExportButton";
 import { SettingsList } from "../../../../components/ui/SettingsList";
 import { DAYS_OF_WEEK } from "../../../../constants/schedule.constants";
 
@@ -31,7 +30,6 @@ export const StationToolbar = ({
     onClearFilters,
     onSearchChange,
 }: ToolbarProps) => {
-    
     const filterFields = useMemo(() => {
         return [
             {
@@ -63,19 +61,11 @@ export const StationToolbar = ({
     }, []);
 
     return (
-        <Toolbar
-            sx={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                minHeight: 'auto',
-                padding: '16px 8px 16px 16px !important',
-                gap: 'calc(2 * var(--spacing))',
-            }}
-        >
+        <Toolbar style={toolbarStyles.root}>
             <Box sx={{ flex: 1 }}>
                 <Search
                     maxWidth="100%"
-                    placeholder="Tìm kiếm nhà đài..."
+                    placeholder="Tìm theo tên nhà đài..."
                     value={filters.search || ''}
                     onChange={onSearchChange}
                 />
@@ -120,7 +110,6 @@ export const StationToolbar = ({
                     )}
                 />
                 <Columns />
-                <ExportButton />
                 <SettingsList
                     settings={settings}
                     onSettingsChange={onSettingsChange}

@@ -42,11 +42,7 @@ export const ReviewList = () => {
     };
 
     return (
-        <Card elevation={0} sx={{
-            borderRadius: 'var(--shape-borderRadius-lg)',
-            bgcolor: 'var(--palette-background-paper)',
-            boxShadow: 'var(--customShadows-card)',
-        }}>
+        <Card elevation={0} className="admin-datagrid-card" sx={{ height: 'auto', minHeight: 640 }}>
             <Tabs
                 value={filters.status}
                 onChange={handleStatusChange}
