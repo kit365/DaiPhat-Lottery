@@ -4,11 +4,16 @@ import path from 'path';
 // Dev API calls use a relative base URL (same-origin) so HttpOnly cookies work.
 // Proxy /api/* to the Spring backend (defaults to local core-api).
 const backendProxyTarget =
-  process.env.VITE_DEV_PROXY_TARGET ||
   process.env.BACKEND_UPSTREAM ||
+  process.env.VITE_DEV_PROXY_TARGET ||
   'http://localhost:8080';
 
+const normalizedBackendProxyTarget = backendProxyTarget.startsWith('http')
+  ? backendProxyTarget
+  : `http://${backendProxyTarget}`;
+
 const nextConfig: NextConfig = {
+  output: 'standalone',
   compress: true,
   experimental: {
     optimizePackageImports: [
@@ -46,11 +51,11 @@ const nextConfig: NextConfig = {
     return [
       {
         source: '/api/:path*',
-        destination: `${backendProxyTarget.replace(/\/$/, '')}/api/:path*`,
+        destination: `${normalizedBackendProxyTarget.replace(/\/$/, '')}/api/:path*`,
       },
       {
         source: '/uploads/:path*',
-        destination: `${backendProxyTarget.replace(/\/$/, '')}/uploads/:path*`,
+        destination: `${normalizedBackendProxyTarget.replace(/\/$/, '')}/uploads/:path*`,
       },
     ];
   },

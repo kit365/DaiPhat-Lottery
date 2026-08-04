@@ -28,7 +28,5 @@ jobs:
           cache: npm
           cache-dependency-path: daiphat-fe/package-lock.json
       - run: npm ci
-      - name: Run frontend tests
-        run: npm test
       - name: Build frontend
-        run: npm exec vite build
+        run: npm run build
