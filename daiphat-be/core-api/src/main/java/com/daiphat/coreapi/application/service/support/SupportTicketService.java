@@ -202,8 +202,8 @@ public class SupportTicketService implements SupportTicketServicePort {
         ticket.assignByStaff(staffId);
         SupportTicketModel saved = supportTicketRepositoryPort.save(ticket);
         String staffName = resolveUserDisplayName(staffId);
-        saveSystemComment(saved.getId(), staffName + " đã tiếp nhận ticket");
         TicketCategoryModel category = getCategoryOrThrow(saved.getTicketCategoryId());
+        saveSystemComment(saved.getId(), buildAssignedSystemComment(staffName, category.getName()));
         eventPublisher.publishEvent(SupportTicketAssignedEvent.builder()
                 .ticketId(saved.getId())
                 .title(saved.getTitle())
@@ -532,6 +532,14 @@ public class SupportTicketService implements SupportTicketServicePort {
 
     private String resolveUserDisplayName(UUID userId) {
         return userRepositoryPort.findById(userId).map(UserModel::getFullName).orElse("Nhân viên");
+    }
+
+    private String buildAssignedSystemComment(String staffName, String categoryName) {
+        String normalizedCategory = categoryName == null ? "" : categoryName.trim();
+        if (normalizedCategory.isBlank()) {
+            return staffName + " đã tiếp nhận yêu cầu hỗ trợ";
+        }
+        return staffName + " đã tiếp nhận yêu cầu " + normalizedCategory.toLowerCase();
     }
 
     private SupportTicketResponse toDetailResponse(SupportTicketModel ticket) {
