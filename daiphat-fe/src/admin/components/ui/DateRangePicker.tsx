@@ -165,7 +165,7 @@ export const DateRangePicker = ({
                     className="custom-date-range"
                     sx={{
                         backgroundColor: 'var(--palette-background-paper)',
-                        p: 1.5,
+                        p: 2,
                     }}
                 >
                     <style>{`
@@ -174,48 +174,44 @@ export const DateRangePicker = ({
                             --rdp-accent-background-color: rgba(0, 167, 111, 0.14) !important;
                             --rdp-range_middle-background-color: rgba(0, 167, 111, 0.14) !important;
                             --rdp-range_middle-color: #006C45 !important;
-                            --rdp-range_start-background-color: #00A76F !important;
-                            --rdp-range_start-color: #ffffff !important;
-                            --rdp-range_end-background-color: #00A76F !important;
-                            --rdp-range_end-color: #ffffff !important;
+                            --rdp-day-height: 36px !important;
+                            --rdp-day-width: 36px !important;
                             margin: 0 !important;
                         }
                         .custom-date-range .rdp-day_button:focus, 
                         .custom-date-range .rdp-day:focus {
                             outline: none !important;
                         }
+                        .custom-date-range .rdp-day_button {
+                            width: 36px !important;
+                            height: 36px !important;
+                            border-radius: 50% !important;
+                            font-size: 0.875rem !important;
+                            font-weight: 500 !important;
+                            display: inline-flex !important;
+                            align-items: center !important;
+                            justify-content: center !important;
+                            color: var(--palette-text-primary) !important;
+                        }
                         .custom-date-range .rdp-day_button:hover {
                             background-color: rgba(0, 167, 111, 0.12) !important;
                             border-radius: 50% !important;
                         }
-                        /* Start & End Day styling */
-                        .custom-date-range .rdp-day_selected,
-                        .custom-date-range .rdp-selected,
-                        .custom-date-range .rdp-range_start,
-                        .custom-date-range .rdp-range_end,
-                        .custom-date-range .rdp-day_selected .rdp-day_button,
-                        .custom-date-range [aria-selected="true"] {
+                        /* Start & End selected day circle */
+                        .custom-date-range .rdp-range_start .rdp-day_button,
+                        .custom-date-range .rdp-range_end .rdp-day_button,
+                        .custom-date-range .rdp-selected .rdp-day_button {
                             background-color: #00A76F !important;
                             color: #ffffff !important;
                             font-weight: 700 !important;
+                            border-radius: 50% !important;
                         }
-                        .custom-date-range .rdp-range_start,
-                        .custom-date-range .rdp-range_start .rdp-day_button,
-                        .custom-date-range td:has(.rdp-range_start) {
-                            border-top-left-radius: 50% !important;
-                            border-bottom-left-radius: 50% !important;
-                        }
-                        .custom-date-range .rdp-range_end,
-                        .custom-date-range .rdp-range_end .rdp-day_button,
-                        .custom-date-range td:has(.rdp-range_end) {
-                            border-top-right-radius: 50% !important;
-                            border-bottom-right-radius: 50% !important;
-                        }
-                        /* Range Middle styling */
-                        .custom-date-range .rdp-range_middle,
-                        .custom-date-range .rdp-range_middle .rdp-day_button,
-                        .custom-date-range td:has(.rdp-range_middle) {
+                        /* Range Middle band */
+                        .custom-date-range .rdp-range_middle {
                             background-color: rgba(0, 167, 111, 0.14) !important;
+                        }
+                        .custom-date-range .rdp-range_middle .rdp-day_button {
+                            background-color: transparent !important;
                             color: #006C45 !important;
                             font-weight: 600 !important;
                             border-radius: 0 !important;
@@ -223,9 +219,7 @@ export const DateRangePicker = ({
                         /* Navigation Arrows & Icons */
                         .custom-date-range .rdp-nav button,
                         .custom-date-range .rdp-nav_button,
-                        .custom-date-range .rdp-chevron,
-                        .custom-date-range .rdp-button_next,
-                        .custom-date-range .rdp-button_previous {
+                        .custom-date-range .rdp-chevron {
                             color: #00A76F !important;
                             fill: #00A76F !important;
                         }
@@ -235,17 +229,17 @@ export const DateRangePicker = ({
                             border-radius: 50% !important;
                         }
                         /* Today Indicator */
-                        .custom-date-range .rdp-today {
+                        .custom-date-range .rdp-today .rdp-day_button {
                             font-weight: 700 !important;
                             color: #00A76F !important;
                         }
-                        /* Weekday Labels (Th 2, Th 3...) */
+                        /* Weekday Header */
                         .custom-date-range .rdp-weekday {
                             color: var(--palette-text-secondary) !important;
                             font-size: 0.75rem !important;
                             font-weight: 600 !important;
                         }
-                        /* Month Header (Tháng Tám 2026...) */
+                        /* Month Title */
                         .custom-date-range .rdp-month_caption, 
                         .custom-date-range .rdp-caption_label {
                             font-size: 0.9375rem !important;
