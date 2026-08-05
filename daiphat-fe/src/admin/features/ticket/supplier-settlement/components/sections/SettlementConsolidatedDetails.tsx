@@ -62,13 +62,10 @@ export const SettlementConsolidatedDetails = ({
                 sx={{
                     borderBottom: '1px solid #e2e8f0',
                     px: 3,
-                    pt: 2,
+                    pt: 0.5,
                     bgcolor: '#fafafa',
                 }}
             >
-                <Typography variant="subtitle1" fontWeight={700} color="#0f172a" sx={{ mb: 1.5 }}>
-                    Chi tiết dữ liệu đối soát
-                </Typography>
                 <Tabs
                     value={activeTab}
                     onChange={(_, newValue) => setActiveTab(newValue)}

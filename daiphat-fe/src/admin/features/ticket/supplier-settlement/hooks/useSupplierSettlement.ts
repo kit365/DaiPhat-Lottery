@@ -7,7 +7,7 @@ import {
     getSupplierSettlementOverview,
     getSupplierSettlements,
 } from '../services/supplierSettlementService';
-import type { SupplierSettlementListParams } from '../types/supplierSettlement.type';
+import type { SupplierSettlementListParams, SupplierSettlementStatus } from '../types/supplierSettlement.type';
 import { QUERY_KEYS } from '../constants/queryKeys';
 
 export const useSupplierSettlements = (params?: SupplierSettlementListParams, options?: any) => {
@@ -44,6 +44,9 @@ export const useSupplierSettlementOverview = (id?: string | number) => {
 
 interface ISupplierSettlementFilters {
     search?: string;
+    status?: SupplierSettlementStatus;
+    expiredOnly?: boolean;
+    lotterySupplierId?: number;
     sortBy?: string;
     direction?: string;
     page: number;
@@ -53,6 +56,9 @@ interface ISupplierSettlementFilters {
 export const useSupplierSettlementList = () => {
     const [filters, setFilters] = useState<ISupplierSettlementFilters>({
         search: '',
+        status: undefined,
+        expiredOnly: false,
+        lotterySupplierId: undefined,
         sortBy: 'periodFrom',
         direction: 'desc',
         page: 1,
@@ -62,6 +68,8 @@ export const useSupplierSettlementList = () => {
     const queryParams = useMemo(
         () => ({
             search: filters.search || undefined,
+            status: filters.status,
+            lotterySupplierId: filters.lotterySupplierId,
             sortBy: filters.sortBy,
             direction: filters.direction,
             page: filters.page,
@@ -74,7 +82,14 @@ export const useSupplierSettlementList = () => {
         placeholderData: keepPreviousData,
     });
 
-    const settlements = useMemo(() => (data as any)?.recordList ?? [], [data]);
+    const allSettlements = useMemo(() => (data as any)?.recordList ?? [], [data]);
+
+    const settlements = useMemo(() => {
+        if (filters.expiredOnly) {
+            return allSettlements.filter((s: any) => s.isReturnExpired);
+        }
+        return allSettlements;
+    }, [allSettlements, filters.expiredOnly]);
 
     const pagination = (data as any)?.pagination || {
         totalRecords: 0,
@@ -85,6 +100,18 @@ export const useSupplierSettlementList = () => {
 
     const setSearchFilter = (search: string) => {
         setFilters((prev) => ({ ...prev, search, page: 1 }));
+    };
+
+    const setStatusFilter = (status?: SupplierSettlementStatus) => {
+        setFilters((prev) => ({ ...prev, status, expiredOnly: false, page: 1 }));
+    };
+
+    const setExpiredOnlyFilter = (expiredOnly?: boolean) => {
+        setFilters((prev) => ({ ...prev, expiredOnly: expiredOnly ?? !prev.expiredOnly, page: 1 }));
+    };
+
+    const setSupplierFilter = (lotterySupplierId?: number) => {
+        setFilters((prev) => ({ ...prev, lotterySupplierId, page: 1 }));
     };
 
     const setPage = (page: number) => {
@@ -105,12 +132,16 @@ export const useSupplierSettlementList = () => {
     };
 
     return {
+        allSettlements,
         settlements,
         pagination,
         isLoading,
         error,
         filters,
         setSearchFilter,
+        setStatusFilter,
+        setExpiredOnlyFilter,
+        setSupplierFilter,
         setPage,
         setLimit,
         setSort,
