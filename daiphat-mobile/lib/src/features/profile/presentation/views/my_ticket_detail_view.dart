@@ -6,6 +6,8 @@ import 'package:intl/intl.dart';
 import 'package:go_router/go_router.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
+import 'package:daiphat_mobile/src/app/routing/app_routes.dart';
+import 'package:daiphat_mobile/src/features/home/presentation/providers/lottery_results_lookup_provider.dart';
 import 'package:daiphat_mobile/src/features/profile/data/models/purchased_ticket.dart';
 import 'package:daiphat_mobile/src/features/profile/presentation/providers/profile_providers.dart';
 import 'package:daiphat_mobile/src/features/profile/presentation/widgets/prize_payout_request_sheet.dart';
@@ -104,10 +106,77 @@ class _TicketDetailBody extends ConsumerWidget {
                 payout: payout,
               ),
             ],
+            const SizedBox(height: 16),
+            _buildViewDrawResultButton(context, ref),
           ],
         ),
       ),
     );
+  }
+
+  Widget _buildViewDrawResultButton(BuildContext context, WidgetRef ref) {
+    return SizedBox(
+      width: double.infinity,
+      child: OutlinedButton.icon(
+        onPressed: () => _openDrawResults(context, ref),
+        icon: const Icon(Icons.calendar_month_rounded, size: 18),
+        label: Text(
+          'Xem kết quả kỳ quay',
+          style: GoogleFonts.publicSans(
+            fontWeight: FontWeight.w800,
+            fontSize: 14,
+          ),
+        ),
+        style: OutlinedButton.styleFrom(
+          foregroundColor: AppColors.textMain,
+          backgroundColor: const Color(0xFFF1F5F9),
+          side: BorderSide.none,
+          padding: const EdgeInsets.symmetric(vertical: 14),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _openDrawResults(BuildContext context, WidgetRef ref) {
+    final drawDateIso = _normalizeDrawDateIso(ticket.drawDate);
+    final drawDate = drawDateIso == null
+        ? null
+        : DateTime.tryParse(drawDateIso);
+    final stationName = ticket.stationName?.trim();
+    final searchDigits = ticket.numbers.replaceAll(RegExp(r'\D'), '');
+
+    ref.read(lotteryResultsLookupProvider.notifier).setLookup(
+          LotteryResultsLookup(
+            drawDate: drawDate == null
+                ? null
+                : DateTime(drawDate.year, drawDate.month, drawDate.day),
+            stationName: (stationName != null && stationName.isNotEmpty)
+                ? stationName
+                : null,
+            search: searchDigits.isNotEmpty ? searchDigits : null,
+          ),
+        );
+
+    context.go(AppRoute.home.path);
+  }
+
+  String? _normalizeDrawDateIso(String raw) {
+    final trimmed = raw.trim();
+    if (trimmed.isEmpty) return null;
+    final isoMatch = RegExp(r'^(\d{4})-(\d{2})-(\d{2})').firstMatch(trimmed);
+    if (isoMatch != null) {
+      return '${isoMatch.group(1)}-${isoMatch.group(2)}-${isoMatch.group(3)}';
+    }
+    final parsed = DateTime.tryParse(trimmed);
+    if (parsed == null) return null;
+    final local = parsed.toLocal();
+    final y = local.year.toString().padLeft(4, '0');
+    final m = local.month.toString().padLeft(2, '0');
+    final d = local.day.toString().padLeft(2, '0');
+    return '$y-$m-$d';
   }
 
   Widget _buildTicketStub({
