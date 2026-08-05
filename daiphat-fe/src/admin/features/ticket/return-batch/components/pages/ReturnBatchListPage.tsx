@@ -5,14 +5,18 @@ import CheckCircleOutlinedIcon from '@mui/icons-material/CheckCircleOutlined';
 import FactCheckOutlinedIcon from '@mui/icons-material/FactCheckOutlined';
 import HourglassEmptyOutlinedIcon from '@mui/icons-material/HourglassEmptyOutlined';
 import PaymentsOutlinedIcon from '@mui/icons-material/PaymentsOutlined';
-import { Box, Card, Stack, Typography } from '@mui/material';
+import { Box, Card, CircularProgress, Stack, Typography } from '@mui/material';
+import { DataGrid } from '@mui/x-data-grid';
+import { useState } from 'react';
 import { Breadcrumb } from '../../../../../components/ui/Breadcrumb';
 import { Title } from '../../../../../components/ui/Title';
 import { ROUTES } from '../../../../../constants/routes';
+import { dataGridStyles } from '../../../../../shared/data-grid';
+import { DATA_GRID_LOCALE_VN } from '../../../../../../shared/components/DataTable/localeText.config';
 import { formatImportCost } from '../../../import-batch/utils/importCostCalculator';
-import { useReturnBatchList } from '../../hooks/useReturnBatch';
-import { ReturnBatchList } from '../sections/ReturnBatchList';
-import { ReturnBatchReminderBanner } from '../sections/ReturnBatchReminderBanner';
+import { useReturnBatches } from '../../hooks/useReturnBatch';
+import type { ReturnBatchListParams, ReturnBatchStatus } from '../../types/returnBatch.type';
+import { returnBatchColumnsConfig } from '../configs/column.config';
 
 export const ReturnBatchListPage = () => {
     const listHook = useReturnBatchList();
@@ -257,8 +261,45 @@ export const ReturnBatchListPage = () => {
                 </Card>
             </Box>
 
-            {/* List Table Section */}
-            <ReturnBatchList listHook={listHook} />
+            {/* Table Section */}
+            <Card elevation={0} className="admin-datagrid-card">
+                <Box sx={{ width: '100%', flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                    <DataGrid
+                        rows={rows}
+                        columns={returnBatchColumnsConfig}
+                        loading={isLoading}
+                        rowCount={totalElements}
+                        paginationMode="server"
+                        paginationModel={{
+                            page: (params.page || 1) - 1,
+                            pageSize: params.size || 10,
+                        }}
+                        onPaginationModelChange={(model) =>
+                            setParams((prev) => ({
+                                ...prev,
+                                page: model.page + 1,
+                                size: model.pageSize,
+                            }))
+                        }
+                        slots={{
+                            noRowsOverlay: () => (
+                                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+                                    {isLoading ? (
+                                        <CircularProgress size={32} />
+                                    ) : (
+                                        <span className="admin-datagrid-empty">Không có dữ liệu</span>
+                                    )}
+                                </Box>
+                            ),
+                        }}
+                        localeText={DATA_GRID_LOCALE_VN}
+                        pageSizeOptions={[5, 10, 20, 50]}
+                        disableRowSelectionOnClick
+                        className="admin-datagrid"
+                        sx={dataGridStyles}
+                    />
+                </Box>
+            </Card>
         </Box>
     );
 };

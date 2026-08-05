@@ -117,18 +117,14 @@ export const ImportBatchList = ({ listHook }: ImportBatchListProps) => {
                             <TableBody>
                                 {isLoading ? (
                                     <TableRow>
-                                        <TableCell colSpan={9} align="center" sx={{ borderBottom: 'none', py: 10 }}>
-                                            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 320 }}>
-                                                <CircularProgress size={32} />
-                                            </Box>
+                                        <TableCell colSpan={9} align="center" sx={{ py: 10, borderBottom: 'none' }}>
+                                            <CircularProgress size={32} />
                                         </TableCell>
                                     </TableRow>
                                 ) : batches.length === 0 ? (
-                                    <TableRow>
-                                        <TableCell colSpan={9} align="center" sx={{ borderBottom: 'none', py: 10 }}>
-                                            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 320 }}>
-                                                <Typography className="admin-datagrid-empty">Không có dữ liệu</Typography>
-                                            </Box>
+                                    <TableRow sx={{ height: '100%' }}>
+                                        <TableCell colSpan={9} align="center" sx={{ borderBottom: 'none', py: 8 }}>
+                                            <Typography className="admin-datagrid-empty">Không có dữ liệu</Typography>
                                         </TableCell>
                                     </TableRow>
                                 ) : (

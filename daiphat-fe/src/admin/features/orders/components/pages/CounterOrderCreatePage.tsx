@@ -613,18 +613,14 @@ export const CounterOrderCreatePage = () => {
                             <TableBody>
                                 {isTicketsFetching ? (
                                     <TableRow>
-                                        <TableCell colSpan={5} align="center" sx={{ borderBottom: 'none', py: 10 }}>
-                                            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 320 }}>
-                                                <CircularProgress size={32} />
-                                            </Box>
+                                        <TableCell colSpan={5} align="center" sx={{ py: 10, border: 'none' }}>
+                                            <CircularProgress size={32} />
                                         </TableCell>
                                     </TableRow>
                                 ) : groupedTickets.length === 0 ? (
                                     <TableRow>
-                                        <TableCell colSpan={5} align="center" sx={{ borderBottom: 'none', py: 10 }}>
-                                            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 320 }}>
-                                                <span className="admin-datagrid-empty">Không có dữ liệu</span>
-                                            </Box>
+                                        <TableCell colSpan={5} align="center" sx={{ py: 10, border: 'none' }}>
+                                            <span className="admin-datagrid-empty">Không có dữ liệu</span>
                                         </TableCell>
                                     </TableRow>
                                 ) : (
@@ -711,6 +707,7 @@ export const CounterOrderCreatePage = () => {
                                     ))
                                 )}
                             </TableBody>
+
                         </Table>
                     </TableContainer>
 
