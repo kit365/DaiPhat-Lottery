@@ -38,8 +38,8 @@ export const SideBar = () => {
                 ? "pl-[24px] pt-[20px] pb-[8px]"
                 : "py-[20px] flex justify-center"
             }>
-                <Link to={ROUTES.ADMIN.DASHBOARD.ROOT} className="inline-block w-[40px] h-[40px]">
-                    <SiteLogo className="w-10 h-10 rounded" imgClassName="w-full h-full object-contain" />
+                <Link to={ROUTES.ADMIN.DASHBOARD.ROOT} className="inline-flex items-center no-underline">
+                    <LogoAdmin showText={isOpen} />
                 </Link>
             </div>
 

@@ -74,8 +74,8 @@ export const LoginPage = () => {
                             zIndex: "1101",
                             background: "transparent"
                         }}>
-                        <Link to="/" className="inline-block w-[40px] h-[40px]">
-                            <SiteLogo className="w-10 h-10 rounded" imgClassName="w-full h-full object-contain" />
+                        <Link to="/" className="inline-flex items-center no-underline">
+                            <LogoAdmin showText />
                         </Link>
                         <Button
                             className="hover:scale-[1.04] hover:bg-admin-hoverIcon transition-all duration-150 ease-in-out"

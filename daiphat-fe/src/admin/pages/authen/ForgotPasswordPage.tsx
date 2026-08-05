@@ -203,8 +203,8 @@ export const ForgotPasswordPage = () => {
 
             {/* Header Logo */}
             <Container disableGutters sx={{ height: "72px", px: 3, display: "flex", alignItems: "center", position: "fixed", top: 0, left: 0, zIndex: 1101 }}>
-                <Link to="/admin/auth/login" className="inline-block w-[40px] h-[40px]">
-                    <SiteLogo className="w-10 h-10 rounded" imgClassName="w-full h-full object-contain" />
+                <Link to="/admin/auth/login" className="inline-flex items-center no-underline">
+                    <LogoAdmin showText />
                 </Link>
             </Container>
 
