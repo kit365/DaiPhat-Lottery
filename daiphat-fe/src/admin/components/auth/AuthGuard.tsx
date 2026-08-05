@@ -11,6 +11,7 @@ interface Props {
 }
 
 import { ROUTES } from "../../constants/routes";
+import LoadingScreen from "../ui/LoadingScreen";
 
 export const AuthGuard = ({ children }: Props) => {
     const { token, isHydrated, user, logout } = useAuthStore();
@@ -40,7 +41,7 @@ export const AuthGuard = ({ children }: Props) => {
     }, [isRestrictedRole, logout]);
 
     if (!isHydrated) {
-        return <>{children || <Outlet />}</>;
+        return <LoadingScreen />;
     }
 
     if (!isAuthenticated) {

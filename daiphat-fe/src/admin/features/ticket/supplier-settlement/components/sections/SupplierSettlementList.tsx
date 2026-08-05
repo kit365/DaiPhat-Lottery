@@ -1,40 +1,22 @@
 import {
     DataGrid,
-    GridColDef,
 } from '@mui/x-data-grid';
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import Typography from '@mui/material/Typography';
 import CircularProgress from '@mui/material/CircularProgress';
-import { SortAscendingIcon, SortDescendingIcon, UnsortedIcon } from '../../../../../assets/icons';
-import {
-    IGridSettings,
-    useSettings,
-    columnsPanelStyles,
-    dataGridStyles,
-    filterPanelStyles,
-} from '../../../../../shared/data-grid';
+import { dataGridStyles } from '../../../../../shared/data-grid';
 import { columnsConfig, columnsInitialState } from '../configs/column.config';
 import { SupplierSettlementToolbar } from './SupplierSettlementToolbar';
 import { DATA_GRID_LOCALE_VN } from '../../../../../../shared/components/DataTable/localeText.config';
 import { formatImportCost } from '../../../import-batch/utils/importCostCalculator';
 import type { useSupplierSettlementList } from '../../hooks/useSupplierSettlement';
 
-declare module '@mui/x-data-grid' {
-    interface ToolbarPropsOverrides {
-        settings: IGridSettings;
-        onSettingsChange: import('react').Dispatch<import('react').SetStateAction<IGridSettings>>;
-    }
-}
-
-import { ExpiredReturnSettlementBanner } from './ExpiredReturnSettlementBanner';
-
 export const SupplierSettlementList = ({
     listHook,
 }: {
     listHook: ReturnType<typeof useSupplierSettlementList>;
 }) => {
-    const { settings, setSettings } = useSettings();
     const {
         allSettlements,
         settlements,
@@ -71,55 +53,33 @@ export const SupplierSettlementList = ({
     }
 
     return (
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, width: '100%' }}>
-            {/* Top Executive Warning Alert Banner if any settlement is return expired */}
-            <ExpiredReturnSettlementBanner
-                expiredCount={expiredCount}
-                totalExpiredValue={totalExpiredSum}
-                expiredItems={expiredItems}
-            />
-
-            {/* Top Executive Overview Metric Cards (Dynamic 4 or 5 columns) */}
-            <Box
-                sx={{
-                    display: 'grid',
-                    gridTemplateColumns: {
-                        xs: '1fr',
-                        sm: 'repeat(2, 1fr)',
-                        md: expiredCount > 0 ? 'repeat(5, 1fr)' : 'repeat(4, 1fr)',
-                    },
-                    gap: 2,
-                    width: '100%',
-                }}
-            >
-                {/* 1. Tổng kỳ đối soát */}
-                <Card
-                    elevation={0}
-                    sx={{
-                        p: 2.5,
-                        borderRadius: '16px',
-                        bgcolor: '#ffffff',
-                        border: '1px solid #e2e8f0',
-                        boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
+        <Card elevation={0} className="admin-datagrid-card">
+            <Box sx={{ width: '100%', flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                <DataGrid
+                    rows={settlements}
+                    getRowId={(row) => row.id}
+                    columns={columnsConfig}
+                    density="comfortable"
+                    showToolbar
+                    disableColumnMenu
+                    disableColumnSorting
+                    slots={{
+                        toolbar: SupplierSettlementToolbar as any,
+                        noRowsOverlay: () => (
+                            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+                                {isLoading ? (
+                                    <CircularProgress size={32} />
+                                ) : (
+                                    <span className="admin-datagrid-empty">Không có dữ liệu</span>
+                                )}
+                            </Box>
+                        ),
                     }}
-                >
-                    <Typography variant="caption" fontWeight={600} color="#64748b" display="block">
-                        Số kỳ đối soát
-                    </Typography>
-                    <Typography variant="h5" fontWeight={800} color="#0f172a" sx={{ mt: 0.5 }}>
-                        {pagination?.totalRecords || 0}
-                    </Typography>
-                </Card>
-
-                {/* 2. Tổng giá trị nhập */}
-                <Card
-                    elevation={0}
-                    sx={{
-                        p: 2.5,
-                        borderRadius: '16px',
-                        bgcolor: '#ffffff',
-                        border: '1px solid #e2e8f0',
-                        boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
+                    slotProps={{
+                        toolbar: {
+                            filters,
+                            onSearchChange: setSearchFilter,
+                        } as any,
                     }}
                 >
                     <Typography variant="caption" fontWeight={600} color="#64748b" display="block">

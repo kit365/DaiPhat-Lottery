@@ -7,7 +7,7 @@ import dayjs from 'dayjs';
 import { formatVietnameseDrawDate } from '../../../../utils/vietnameseDate.util';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Pagination } from '../../../../components/common/Pagination';
-import { useStationsByDrawDate } from '@/client/hooks/useStationSchedule';
+import { useStationsByDrawDate } from '../../../../../admin/features/station/hooks/useStation';
 import { usePurchasedTicketLookup } from '../../../../hooks/usePurchasedTicketLookup';
 import { normalizePagination } from '../../../../utils/pagination.util';
 import {
@@ -289,7 +289,7 @@ export const TicketsTab = () => {
             if (selectedTicket.numbers) params.set('ticketNumber', selectedTicket.numbers.replace(/\D/g, ''));
             if (selectedTicket.ticketId) params.set('ticketId', String(selectedTicket.ticketId));
             const query = params.toString();
-            return query ? `${ROUTES.PUBLIC.TICKETS}?${query}` : ROUTES.PUBLIC.TICKETS;
+            return query ? `/buy-ticket?${query}` : '/buy-ticket';
         })();
 
         return (

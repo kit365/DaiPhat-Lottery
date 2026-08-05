@@ -42,21 +42,6 @@ export const TicketSearchWidget: React.FC = () => {
 
     const { data: stations, isLoading: isLoadingStations } = useStationsByDrawDate(selectedDate);
 
-    const stationOptions = useMemo(
-        () =>
-            (stations || []).map((s: { id?: string | number; _id?: string | number; name?: string }) => ({
-                id: String(s.id || s._id || ''),
-                label: s.name || '',
-            })).filter((s) => s.id),
-        [stations]
-    );
-
-    useEffect(() => {
-        if (!stationId) return;
-        const stillValid = stationOptions.some((s) => s.id === stationId);
-        if (!stillValid) setStationId('');
-    }, [stationOptions, stationId]);
-
     const hasSearchDigits = search.trim().length >= 2;
     const canSearch = hasSearchDigits;
     const { data, isLoading, isFetching } = useLotteryTicketSearch(
@@ -142,15 +127,12 @@ export const TicketSearchWidget: React.FC = () => {
                         <p className="text-[13px] text-[#637381] text-center py-4">Không tìm thấy vé phù hợp</p>
                     )}
                     {!hasSearchDigits && (
-                        <p className="text-[12px] text-[#919EAB] text-center py-2">
-                            Nhập ít nhất 2 số để bắt đầu tìm vé
-                        </p>
+                        <p className="text-[12px] text-[#919EAB] text-center py-2">Nhập ít nhất 2 số để bắt đầu tìm vé</p>
                     )}
-                    {hasSearchDigits &&
-                        tickets.map((ticket: PublicLotteryTicket) => {
-                            const stock = getTicketStock(ticket);
-                            const cartQty = getCartQtyForTicket(ticket.id);
-                            const atLimit = isTicketAtCartLimit(ticket);
+                    {hasSearchDigits && tickets.map((ticket: PublicLotteryTicket) => {
+                        const stock = getTicketStock(ticket);
+                        const cartQty = getCartQtyForTicket(ticket.id);
+                        const atLimit = isTicketAtCartLimit(ticket);
 
                             return (
                                 <div
@@ -196,7 +178,7 @@ export const TicketSearchWidget: React.FC = () => {
 
                 {hasSearchDigits && (
                     <Link
-                        to={`${ROUTES.PUBLIC.TICKETS}?ticketNumber=${encodeURIComponent(search)}&drawDate=${selectedDate}${stationId ? `&stationId=${stationId}` : ''}`}
+                        to={`/buy-ticket?ticketNumber=${encodeURIComponent(search)}&drawDate=${selectedDate}${stationId ? `&stationId=${stationId}` : ''}`}
                         className="block text-center text-[13px] font-bold text-[#ee1314] hover:underline"
                     >
                         Xem tất cả kết quả →

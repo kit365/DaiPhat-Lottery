@@ -10,7 +10,6 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
   return (
     <Suspense fallback={<div className="flex items-center justify-center min-h-screen"><LoadingSpinner /></div>}>
       <div className="client-theme min-h-screen text-inherit font-inherit flex flex-col relative">
-        <SiteBrandingHead />
         <ClientHeaderGuard>
           <Header />
         </ClientHeaderGuard>

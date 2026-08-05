@@ -63,7 +63,7 @@ export const useGetComplaintDetail = (id: number) => {
         retry: false,
         staleTime: 0,
         refetchOnWindowFocus: true,
-        refetchInterval: (q) => (q.state.error ? false : SUPPORT_TICKET_LIVE_REFETCH_MS),
+        refetchInterval: SUPPORT_TICKET_LIVE_REFETCH_MS,
     });
 };
 
@@ -74,7 +74,7 @@ export const useGetTicketComments = (ticketId: number) => {
         enabled: !!ticketId,
         staleTime: 0,
         refetchOnWindowFocus: true,
-        refetchInterval: (q) => (q.state.error ? false : SUPPORT_TICKET_LIVE_REFETCH_MS),
+        refetchInterval: SUPPORT_TICKET_LIVE_REFETCH_MS,
     });
 };
 

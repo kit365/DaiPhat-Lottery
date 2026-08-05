@@ -170,9 +170,9 @@ export const DateRangePicker = ({
                 >
                     <style>{`
                         .custom-date-range .rdp-root {
-                            --rdp-accent-color: #FF3030 !important;
-                            --rdp-accent-background-color: rgba(255, 48, 48, 0.14) !important;
-                            --rdp-range_middle-background-color: rgba(255, 48, 48, 0.14) !important;
+                            --rdp-accent-color: #00A76F !important;
+                            --rdp-accent-background-color: rgba(0, 167, 111, 0.14) !important;
+                            --rdp-range_middle-background-color: rgba(0, 167, 111, 0.14) !important;
                             --rdp-range_middle-color: #006C45 !important;
                             --rdp-day-height: 36px !important;
                             --rdp-day-width: 36px !important;
@@ -208,7 +208,7 @@ export const DateRangePicker = ({
                             outline: none !important;
                         }
                         .custom-date-range .rdp-day_button:hover {
-                            background-color: rgba(255, 48, 48, 0.12) !important;
+                            background-color: rgba(0, 167, 111, 0.12) !important;
                             border-radius: 50% !important;
                         }
                         /* Start & End selected day circle */
@@ -218,14 +218,14 @@ export const DateRangePicker = ({
                         .custom-date-range .rdp-day_selected .rdp-day_button,
                         .custom-date-range .rdp-day_button[aria-selected="true"],
                         .custom-date-range button[aria-selected="true"].rdp-day_button {
-                            background-color: #FF3030 !important;
+                            background-color: #00A76F !important;
                             color: #ffffff !important;
                             font-weight: 700 !important;
                             border-radius: 50% !important;
                         }
                         /* Range Middle band */
                         .custom-date-range .rdp-range_middle {
-                            background-color: rgba(255, 48, 48, 0.14) !important;
+                            background-color: rgba(0, 167, 111, 0.14) !important;
                         }
                         .custom-date-range .rdp-range_middle .rdp-day_button {
                             background-color: transparent !important;
@@ -237,18 +237,18 @@ export const DateRangePicker = ({
                         .custom-date-range .rdp-nav button,
                         .custom-date-range .rdp-nav_button,
                         .custom-date-range .rdp-chevron {
-                            color: #FF3030 !important;
-                            fill: #FF3030 !important;
+                            color: #00A76F !important;
+                            fill: #00A76F !important;
                         }
                         .custom-date-range .rdp-nav button:hover,
                         .custom-date-range .rdp-nav_button:hover {
-                            background-color: rgba(255, 48, 48, 0.1) !important;
+                            background-color: rgba(0, 167, 111, 0.1) !important;
                             border-radius: 50% !important;
                         }
                         /* Today Indicator - không áp dụng khi đã được chọn */
                         .custom-date-range .rdp-today:not(.rdp-range_start):not(.rdp-range_end):not(.rdp-selected):not(.rdp-day_selected) .rdp-day_button {
                             font-weight: 700 !important;
-                            color: #FF3030 !important;
+                            color: #00A76F !important;
                         }
                         /* Weekday Header */
                         .custom-date-range .rdp-weekday {
@@ -290,7 +290,7 @@ export const DateRangePicker = ({
                             variant="contained"
                             onClick={handleConfirm}
                             sx={{
-                                bgcolor: '#FF3030',
+                                bgcolor: '#00A76F',
                                 color: '#ffffff',
                                 fontWeight: 700,
                                 borderRadius: '8px',

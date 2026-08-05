@@ -27,7 +27,7 @@ import { SiteLogo } from "@/client/components/layout/SiteLogo";
 
 const navItems = [
   { label: "Trang chủ", to: ROUTES.PUBLIC.HOME, icon: Home },
-  { label: "Mua vé số", to: ROUTES.PUBLIC.TICKETS, icon: Ticket },
+  { label: "Mua vé số", to: "/buy-ticket", icon: Ticket },
   { label: "Vé của tôi", to: "/profile/tickets", icon: Ticket },
   { label: "Gieo quẻ", to: ROUTES.PUBLIC.FORTUNE, icon: Sparkles },
   { label: "Lịch mở thưởng", to: ROUTES.PUBLIC.SCHEDULE, icon: CalendarDays },
