@@ -18,12 +18,12 @@ interface Props {
 
 export const PermissionGuard = ({ children, permission, permissions, fallback }: Props) => {
     const { user, logout, token, isHydrated } = useAuthStore();
-    const { isUserLoading: isLoading } = useAuth();
+    const { isUserLoading, isUserError } = useAuth();
     const location = useLocation();
 
     // 1. Chỉ chờ khi CHƯA HYDRATE xong hoặc (có token nhưng CHƯA lấy được user lần đầu)
     const isReady = isHydrated;
-    const isWaitingInitialUser = isReady && !!token && !user;
+    const isWaitingInitialUser = isReady && !!token && !user && isUserLoading;
 
     const roleCode = typeof user?.role === 'string' ? user.role : (user?.role?.code || "");
     const normalizedRole = roleCode.startsWith("ROLE_") ? roleCode : `ROLE_${roleCode}`;
@@ -55,6 +55,12 @@ export const PermissionGuard = ({ children, permission, permissions, fallback }:
     // Trạng thái chờ ban đầu: Đang hydrate hoặc chờ lấy thông tin user lần đầu
     if (!isReady || isWaitingInitialUser) {
         return fallback || <LoadingScreen />;
+    }
+
+    // `useAuth` clears the session and navigates to login on a failed /users/me
+    // request. Do not keep the admin shell blocked while that effect commits.
+    if (token && !user && isUserError) {
+        return <LoadingScreen />;
     }
 
     if (!hasAccess) {

@@ -222,6 +222,7 @@ export const useAuth = () => {
         token,
         isLoading: getMeQuery.isLoading || loginMutation.isPending || oauthCallbackMutation.isPending,
         isUserLoading: getMeQuery.isLoading,
+        isUserError: getMeQuery.isError,
         isFetching: getMeQuery.isFetching,
         login: loginMutation.mutate,
         logout,

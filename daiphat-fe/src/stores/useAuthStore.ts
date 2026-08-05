@@ -95,11 +95,21 @@ export const useAuthStore = create<AuthState>()(
                     token: state.token, 
                     expiresAt: state.expiresAt 
                 }),
-                onRehydrateStorage: () => (_state, error) => {
-                    if (error) {
+                onRehydrateStorage: () => (state, error) => {
+                    if (error && typeof window !== "undefined") {
                         console.warn("Auth store rehydration failed", error);
                     }
-                    useAuthStore.setState({ isHydrated: true });
+                    if (state) {
+                        state.set({ isHydrated: true });
+                        return;
+                    }
+
+                    // Persist supplies no state when browser storage cannot be
+                    // read. Do not leave guards on an endless loading screen.
+                    // The server has no browser storage to recover from.
+                    if (typeof window !== "undefined") {
+                        queueMicrotask(() => useAuthStore.setState({ isHydrated: true }));
+                    }
                 },
             }
         ),

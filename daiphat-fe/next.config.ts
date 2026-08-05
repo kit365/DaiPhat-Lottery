@@ -18,7 +18,6 @@ const nextConfig: NextConfig = {
   turbopack: {
     resolveAlias: {
       'react-router-dom': './src/components/router-compat.tsx',
-      'react-apexcharts': './src/components/ApexChartCompat.tsx',
     },
   },
   experimental: {
@@ -78,7 +77,6 @@ const nextConfig: NextConfig = {
     config.resolve.alias = {
       ...config.resolve.alias,
       'react-router-dom': path.resolve(__dirname, 'src/components/router-compat.tsx'),
-      'react-apexcharts': path.resolve(__dirname, 'src/components/ApexChartCompat.tsx'),
     };
     return config;
   },
