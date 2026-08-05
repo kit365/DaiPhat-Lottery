@@ -12,10 +12,10 @@ export const flattenTimelineItems = (
     pages: CustomerChatTimelineResponse[]
 ): CustomerChatTimelineItem[] => pages.flatMap((page) => page.items);
 
-const createTimelineChatMessage = (
-    message: Partial<ChatMessageResponse> &
-        Pick<ChatMessageResponse, 'id' | 'conversationId' | 'senderType' | 'content' | 'type' | 'createdAt'>
-): ChatMessageResponse => {
+export type TimelineSourceMessage = Partial<ChatMessageResponse> &
+    Pick<ChatMessageResponse, 'id' | 'conversationId' | 'senderType' | 'content' | 'type' | 'createdAt'>;
+
+const createTimelineChatMessage = (message: TimelineSourceMessage): ChatMessageResponse => {
     const rawMessage = message as ChatMessageResponse & { read?: boolean };
     const resolvedIsRead = rawMessage.isRead ?? rawMessage.read ?? false;
 
@@ -128,7 +128,7 @@ export const markCustomerTimelineAsRead = (
 
 /** Build a single-page timeline snapshot from conversation detail messages (ascending). */
 export const buildTimelineInfiniteDataFromMessages = (
-    messages: ChatMessageResponse[]
+    messages: TimelineSourceMessage[]
 ): InfiniteData<CustomerChatTimelineResponse> => {
     const sorted = [...messages].sort((left, right) => {
         const leftTime = left.createdAt ? new Date(left.createdAt).getTime() : 0;
