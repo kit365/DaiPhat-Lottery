@@ -8,7 +8,7 @@ export const BuyTicketBanners = React.memo(() => (
     {/* Banner 1 */}
     <Link to="/buy-ticket" className="relative block transition-transform hover:-translate-y-1 rounded-2xl overflow-hidden shadow-sm group h-[320px]">
       <Image 
-        loader={imageLoader}
+        unoptimized
         src="https://i.ibb.co/TBf95cjX/6b561e49-2b8d-4dc5-b4c7-cff26a273abc.png" 
         alt="Vé số Đại Phát" 
         fill
@@ -27,7 +27,7 @@ export const BuyTicketBanners = React.memo(() => (
     {/* Banner 2 */}
     <Link to="/gieo-que" className="relative block transition-transform hover:-translate-y-1 rounded-2xl overflow-hidden shadow-sm group h-[220px]">
       <Image 
-        loader={imageLoader}
+        unoptimized
         src="https://i.ibb.co/LXLSg1qx/07bf0bdd-3932-4bbd-8df4-c08e72c52800.png" 
         alt="Tìm số may mắn" 
         fill
@@ -46,7 +46,7 @@ export const BuyTicketBanners = React.memo(() => (
     {/* Banner 3 */}
     <a href="#" className="relative block transition-transform hover:-translate-y-1 rounded-2xl overflow-hidden shadow-sm group h-[220px]">
       <Image 
-        loader={imageLoader}
+        unoptimized
         src="https://i.ibb.co/tpJtrscQ/d0ea187b-cfe0-4a28-9366-c10db2e6a96c.png" 
         alt="Dịch vụ vé số" 
         fill

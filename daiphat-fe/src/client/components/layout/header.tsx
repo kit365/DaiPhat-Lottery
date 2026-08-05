@@ -130,7 +130,7 @@ export const Header = () => {
             <Link to={ROUTES.PUBLIC.HOME} className="flex items-center gap-3 no-underline font-client-display" aria-label={`${siteName} home`}>
               <div className="relative p-[2px] bg-gradient-to-tr from-[#ee1314] to-[#F59E0B] rounded-xl shadow-md shadow-[#ee1314]/10 transition-transform duration-300 group-hover:scale-105">
                 <Image 
-                  loader={imageLoader}
+                  unoptimized
                   src="https://i.ibb.co/4R7c75YN/z7824247008533-94446d3b6c16598cda67404d805c15c4.jpg" 
                   alt="Đại Phát Logo"
                   width={38}

@@ -22,11 +22,10 @@ export default function imageLoader({ src, width, quality }: ImageLoaderProps): 
     return src.replace('/image/upload/', `/image/upload/${transform}/`);
   }
 
-  // For static local assets or other external domains, include width so Next.js
-  // validates the loader (CDN may ignore the query param).
-  if (typeof src === 'string' && width && !src.includes('w=')) {
+  // For static local assets or other external domains, append width parameter to satisfy Next.js loader requirement
+  if (typeof src === 'string' && !src.includes('w=')) {
     const separator = src.includes('?') ? '&' : '?';
-    return `${src}${separator}w=${width}${quality ? `&q=${quality}` : ''}`;
+    return `${src}${separator}w=${width}`;
   }
 
   return src;
