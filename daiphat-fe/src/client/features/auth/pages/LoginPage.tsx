@@ -47,7 +47,7 @@ export const LoginPage = () => {
                 <div className="lg:absolute lg:top-8 lg:left-12 flex items-center gap-3 cursor-pointer z-20 font-client-display transition-transform hover:scale-[1.02] pt-6 pl-6 lg:p-0 shrink-0" onClick={() => navigate("/")}>
                     <div className="relative p-[2px] bg-gradient-to-tr from-[#ee1314] to-[#F59E0B] rounded-xl shadow-md shadow-[#ee1314]/10">
                         <img 
-                            src="https://i.ibb.co/4R7c75YN/z7824247008533-94446d3b6c16598cda67404d805c15c4.jpg" 
+                            src="https://i.ibb.co/YBYnq3HR/z7824247008533-94446d3b6c16598cda67404d805c15c4-removebg-preview.png" 
                             alt="Đại Phát Logo" 
                             className="w-[38px] h-[38px] lg:w-[44px] lg:h-[44px] rounded-[10px] object-cover bg-white" 
                         />

@@ -6,16 +6,15 @@ import { fontVariables } from '@/styles/fonts';
 import { Providers } from './providers';
 import { FontLoader } from '../components/FontLoader';
 
+const DAI_PHAT_LOGO = 'https://i.ibb.co/YBYnq3HR/z7824247008533-94446d3b6c16598cda67404d805c15c4-removebg-preview.png';
+
 export const metadata: Metadata = {
-  title: {
-    default: 'ĐẠI PHÁT | TÀI LỘC - MAY MẮN - THỊNH VƯỢNG',
-    template: '%s | ĐẠI PHÁT',
-  },
-  description: 'Hệ thống xổ số kiến thiết uy tín — nhanh chóng, minh bạch, bảo mật.',
+  title: 'Đại Phát Lottery Platform',
+  description: 'Nền tảng mua vé và theo dõi kết quả xổ số trực tuyến uy tín',
   icons: {
-    icon: CLIENT_FAVICON,
-    shortcut: CLIENT_FAVICON,
-    apple: CLIENT_FAVICON,
+    icon: DAI_PHAT_LOGO,
+    shortcut: DAI_PHAT_LOGO,
+    apple: DAI_PHAT_LOGO,
   },
 };
 
@@ -31,6 +30,9 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <head>
+        <link rel="icon" type="image/jpeg" href={DAI_PHAT_LOGO} />
+        <link rel="shortcut icon" href={DAI_PHAT_LOGO} />
+        <link rel="apple-touch-icon" href={DAI_PHAT_LOGO} />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
       </head>
