@@ -315,12 +315,12 @@ input:-webkit-autofill:active {
 .btn-primary-admin {
     background-color: var(--palette-text-primary) !important;
     color: var(--palette-common-white) !important;
-    min-height: 2.25rem !important;
+    min-height: 36px !important;
     min-width: 4rem !important;
     font-weight: 700 !important;
     font-size: 0.875rem !important;
-    padding: 6px 12px !important;
-    border-radius: var(--shape-borderRadius) !important;
+    padding: 6px 16px !important;
+    border-radius: 8px !important;
     text-transform: none !important;
     box-shadow: none !important;
     display: inline-flex !important;
@@ -337,6 +337,37 @@ input:-webkit-autofill:active {
 .btn-primary-admin.Mui-disabled {
     background-color: rgba(145, 158, 171, 0.24) !important;
     color: rgba(145, 158, 171, 0.8) !important;
+    box-shadow: none !important;
+}
+
+/* Outlined / Cancel button style for admin */
+.btn-outlined-admin {
+    background-color: transparent !important;
+    color: var(--palette-text-primary) !important;
+    border: 1px solid rgba(28, 37, 46, 0.32) !important;
+    min-height: 36px !important;
+    min-width: 4rem !important;
+    font-weight: 700 !important;
+    font-size: 0.875rem !important;
+    padding: 6px 16px !important;
+    border-radius: 8px !important;
+    text-transform: none !important;
+    box-shadow: none !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    transition: background-color 250ms cubic-bezier(0.4, 0, 0.2, 1) 0ms, border-color 250ms cubic-bezier(0.4, 0, 0.2, 1) 0ms !important;
+}
+
+.btn-outlined-admin:hover {
+    background-color: rgba(28, 37, 46, 0.06) !important;
+    border-color: var(--palette-text-primary) !important;
+    box-shadow: none !important;
+}
+
+.btn-outlined-admin.Mui-disabled {
+    color: rgba(145, 158, 171, 0.8) !important;
+    border-color: rgba(145, 158, 171, 0.32) !important;
 }
 
 /* Form typography — sync create/edit pages */

@@ -152,18 +152,62 @@ export const adminTheme = createTheme({
         },
         MuiButton: {
             styleOverrides: {
+                root: {
+                    borderRadius: '8px',
+                    textTransform: 'none',
+                    fontWeight: 700,
+                    fontSize: '0.875rem',
+                    boxShadow: 'none',
+                    minHeight: '36px',
+                    padding: '6px 16px',
+                    '&:hover': {
+                        boxShadow: 'none',
+                    },
+                },
                 containedPrimary: {
                     backgroundColor: 'var(--palette-text-primary)',
                     color: 'var(--palette-common-white)',
-                    boxShadow: 'none',
-                    fontWeight: 700,
-                    fontSize: '0.875rem',
-                    textTransform: 'none',
-                    borderRadius: '8px',
                     '&:hover': {
                         backgroundColor: 'var(--palette-grey-700)',
                         boxShadow: 'var(--customShadows-z8)',
                     },
+                    '&.Mui-disabled': {
+                        backgroundColor: 'rgba(145, 158, 171, 0.24)',
+                        color: 'rgba(145, 158, 171, 0.8)',
+                    },
+                },
+                outlinedPrimary: {
+                    borderColor: 'rgba(28, 37, 46, 0.32)',
+                    color: 'var(--palette-text-primary)',
+                    backgroundColor: 'transparent',
+                    '&:hover': {
+                        backgroundColor: 'rgba(28, 37, 46, 0.06)',
+                        borderColor: 'var(--palette-text-primary)',
+                    },
+                },
+                outlinedInherit: {
+                    borderColor: 'rgba(145, 158, 171, 0.32)',
+                    color: 'var(--palette-text-secondary)',
+                    '&:hover': {
+                        backgroundColor: 'rgba(145, 158, 171, 0.08)',
+                        borderColor: 'rgba(145, 158, 171, 0.48)',
+                    },
+                },
+                outlined: {
+                    boxShadow: 'none',
+                    '&:hover': {
+                        boxShadow: 'none',
+                    },
+                },
+                sizeLarge: {
+                    minHeight: '48px',
+                    padding: '8px 22px',
+                    fontSize: '0.9375rem',
+                },
+                sizeSmall: {
+                    minHeight: '30px',
+                    padding: '4px 10px',
+                    fontSize: '0.8125rem',
                 },
             },
         },
