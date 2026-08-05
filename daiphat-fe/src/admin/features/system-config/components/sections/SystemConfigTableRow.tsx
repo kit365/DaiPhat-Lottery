@@ -49,6 +49,8 @@ const getTypeChipColor = (
       return 'error';
     case ConfigType.PAYOUT_SETTING:
       return 'success';
+    case ConfigType.FORTUNE_SETTING:
+      return 'error';
     default:
       return 'default';
   }
