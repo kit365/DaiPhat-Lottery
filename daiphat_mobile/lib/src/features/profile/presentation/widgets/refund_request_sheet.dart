@@ -8,6 +8,7 @@ import 'package:daiphat_mobile/src/features/checkout/data/order_service.dart';
 import 'package:daiphat_mobile/src/features/checkout/models/order_type.dart';
 import 'package:daiphat_mobile/src/features/checkout/models/refund_type.dart';
 import 'package:daiphat_mobile/src/features/profile/data/bank_account_service.dart';
+import 'package:daiphat_mobile/src/features/profile/presentation/widgets/bank_search_screen.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
 
 class RefundRequestSheet extends StatefulWidget {
@@ -128,11 +129,8 @@ class _RefundRequestSheetState extends State<RefundRequestSheet> {
   Future<void> _handleCreateBankAccount() async {
     final created = await showDialog<UserBankAccountResponse>(
       context: context,
-      builder: (context) => Dialog(
-        insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-        child: BankAccountFormDialog(service: widget.bankAccountService),
-      ),
+      builder: (context) =>
+          BankAccountFormDialog(service: widget.bankAccountService),
     );
 
     if (created == null || !mounted) return;
@@ -766,8 +764,10 @@ class BankAccountFormDialog extends StatefulWidget {
 }
 
 class _BankAccountFormDialogState extends State<BankAccountFormDialog> {
-  static const _termsText =
-      'Tôi cam kết thông tin tài khoản ngân hàng đã nhập là chính xác. Tôi hiểu rằng đại lý được miễn trừ trách nhiệm đối với các trường hợp hoàn tiền chậm trễ hoặc thất bại do thông tin tài khoản tôi cung cấp không chính xác.';
+  static const _termsPreviewText =
+      'Tôi cam kết thông tin tài khoản ngân hàng đã nhập là chính xác';
+  static const _termsDetailText =
+      'Tôi hiểu rằng đại lý được miễn trừ trách nhiệm đối với các trường hợp hoàn tiền chậm trễ hoặc thất bại do thông tin tài khoản tôi cung cấp không chính xác.';
 
   final _accountNoController = TextEditingController();
   final _accountNameController = TextEditingController();
@@ -776,6 +776,7 @@ class _BankAccountFormDialogState extends State<BankAccountFormDialog> {
   bool _isSubmitting = false;
   bool _isDefault = false;
   bool _agreed = false;
+  bool _termsExpanded = false;
   String? _error;
   List<VietQrBankResponse> _banks = const [];
   VietQrBankResponse? _selectedBank;
@@ -796,9 +797,7 @@ class _BankAccountFormDialogState extends State<BankAccountFormDialog> {
       if (!mounted) return;
       setState(() {
         _banks = banks;
-        if (banks.isNotEmpty) {
-          _selectedBank = banks.first;
-        }
+        _selectedBank = null;
         _isLoadingBanks = false;
       });
     } catch (e) {
@@ -808,6 +807,122 @@ class _BankAccountFormDialogState extends State<BankAccountFormDialog> {
         _isLoadingBanks = false;
       });
     }
+  }
+
+  Future<void> _openBankPicker() async {
+    if (_isSubmitting || _banks.isEmpty) return;
+
+    final selected = await Navigator.of(context, rootNavigator: true)
+        .push<VietQrBankResponse>(
+      MaterialPageRoute(
+        fullscreenDialog: true,
+        builder: (context) => BankSearchScreen(banks: _banks),
+      ),
+    );
+
+    if (selected != null && mounted) {
+      setState(() => _selectedBank = selected);
+    }
+  }
+
+  Widget _buildBankSelector() {
+    final bank = _selectedBank;
+
+    return InkWell(
+      onTap: _isSubmitting ? null : _openBankPicker,
+      borderRadius: BorderRadius.circular(12),
+      child: InputDecorator(
+        decoration: _inputDecoration(hintText: 'Chọn ngân hàng...'),
+        child: Row(
+          children: [
+            if (bank != null) ...[
+              _buildBankLogoPreview(bank),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      bank.shortName,
+                      style: GoogleFonts.publicSans(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textMain,
+                      ),
+                    ),
+                    Text(
+                      bank.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.publicSans(
+                        fontSize: 12,
+                        color: const Color(0xFF919EAB),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ] else
+              Expanded(
+                child: Text(
+                  'Chọn ngân hàng...',
+                  style: GoogleFonts.publicSans(
+                    fontSize: 14,
+                    color: const Color(0xFFC4CDD5),
+                  ),
+                ),
+              ),
+            const Icon(
+              Icons.chevron_right_rounded,
+              color: Color(0xFF919EAB),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBankLogoPreview(VietQrBankResponse bank) {
+    final logoUrl = bank.logo?.trim();
+    final initial = bank.shortName.isNotEmpty
+        ? bank.shortName[0].toUpperCase()
+        : 'B';
+
+    return Container(
+      width: 36,
+      height: 36,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        border: Border.all(color: const Color(0xFFE5E8EB)),
+        color: Colors.white,
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: logoUrl != null && logoUrl.isNotEmpty
+          ? Image.network(
+              logoUrl,
+              fit: BoxFit.contain,
+              errorBuilder: (_, __, ___) => Center(
+                child: Text(
+                  initial,
+                  style: GoogleFonts.publicSans(
+                    fontWeight: FontWeight.w800,
+                    fontSize: 12,
+                    color: AppColors.primary,
+                  ),
+                ),
+              ),
+            )
+          : Center(
+              child: Text(
+                initial,
+                style: GoogleFonts.publicSans(
+                  fontWeight: FontWeight.w800,
+                  fontSize: 12,
+                  color: AppColors.primary,
+                ),
+              ),
+            ),
+    );
   }
 
   Future<void> _submit() async {
@@ -862,151 +977,290 @@ class _BankAccountFormDialogState extends State<BankAccountFormDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return ConstrainedBox(
-      constraints: const BoxConstraints(maxWidth: 520),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: _isLoadingBanks
-            ? const SizedBox(
-                height: 280,
-                child: Center(
-                  child: CircularProgressIndicator(color: AppColors.primary),
-                ),
-              )
-            : Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
+    final media = MediaQuery.of(context);
+    final maxHeight = media.size.height * 0.85;
+
+    return Dialog(
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      clipBehavior: Clip.antiAlias,
+      child: Material(
+        color: Colors.white,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxWidth: 520, maxHeight: maxHeight),
+          child: _isLoadingBanks
+              ? const SizedBox(
+                  height: 280,
+                  child: Center(
+                    child: CircularProgressIndicator(color: AppColors.primary),
+                  ),
+                )
+              : SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Expanded(
-                        child: Text(
-                          'Thêm tài khoản ngân hàng',
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              'Thêm tài khoản ngân hàng',
+                              style: GoogleFonts.publicSans(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w800,
+                                color: AppColors.textMain,
+                              ),
+                            ),
+                          ),
+                          IconButton(
+                            onPressed: _isSubmitting
+                                ? null
+                                : () => Navigator.of(context).pop(),
+                            icon: const Icon(
+                              Icons.close_rounded,
+                              color: Color(0xFF919EAB),
+                            ),
+                          ),
+                        ],
+                      ),
+                      if (_error != null) ...[
+                        const SizedBox(height: 8),
+                        Text(
+                          _error!,
                           style: GoogleFonts.publicSans(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w800,
-                            color: AppColors.textMain,
+                            fontSize: 13,
+                            color: AppColors.primary,
                           ),
                         ),
+                      ],
+                      const SizedBox(height: 12),
+                      _buildRequiredLabel('Ngân hàng'),
+                      const SizedBox(height: 6),
+                      _buildBankSelector(),
+                      const SizedBox(height: 14),
+                      _buildRequiredLabel('Số tài khoản'),
+                      const SizedBox(height: 6),
+                      TextField(
+                        controller: _accountNoController,
+                        keyboardType: TextInputType.number,
+                        enabled: !_isSubmitting,
+                        decoration: _inputDecoration(
+                          hintText: 'Nhập số tài khoản',
+                        ),
                       ),
-                      IconButton(
-                        onPressed: _isSubmitting
+                      const SizedBox(height: 14),
+                      _buildRequiredLabel('Tên chủ tài khoản'),
+                      const SizedBox(height: 6),
+                      TextField(
+                        controller: _accountNameController,
+                        enabled: !_isSubmitting,
+                        textCapitalization: TextCapitalization.characters,
+                        decoration: _inputDecoration(
+                          hintText: 'NGUYEN VAN A',
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      _buildCheckboxRow(
+                        value: _isDefault,
+                        onChanged: _isSubmitting
                             ? null
-                            : () => Navigator.of(context).pop(),
-                        icon: const Icon(Icons.close_rounded),
+                            : (value) =>
+                                setState(() => _isDefault = value ?? false),
+                        child: Text(
+                          'Đặt làm tài khoản mặc định',
+                          style: GoogleFonts.publicSans(fontSize: 14),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      _buildCheckboxRow(
+                        value: _agreed,
+                        onChanged: _isSubmitting
+                            ? null
+                            : (value) =>
+                                setState(() => _agreed = value ?? false),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            InkWell(
+                              onTap: _isSubmitting
+                                  ? null
+                                  : () => setState(
+                                        () =>
+                                            _termsExpanded = !_termsExpanded,
+                                      ),
+                              child: Text.rich(
+                                TextSpan(
+                                  style: GoogleFonts.publicSans(
+                                    fontSize: 14,
+                                    color: AppColors.textMain,
+                                  ),
+                                  children: [
+                                    TextSpan(text: '$_termsPreviewText... '),
+                                    TextSpan(
+                                      text: _termsExpanded
+                                          ? 'thu gọn'
+                                          : 'xem thêm',
+                                      style: GoogleFonts.publicSans(
+                                        fontSize: 14,
+                                        color: AppColors.primary,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            if (_termsExpanded) ...[
+                              const SizedBox(height: 6),
+                              Text(
+                                _termsDetailText,
+                                style: GoogleFonts.publicSans(
+                                  fontSize: 14,
+                                  height: 1.45,
+                                  color: const Color(0xFF637381),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton(
+                              onPressed: _isSubmitting
+                                  ? null
+                                  : () => Navigator.of(context).pop(),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: const Color(0xFF637381),
+                                side: const BorderSide(color: Color(0xFFE5E8EB)),
+                                padding: const EdgeInsets.symmetric(vertical: 14),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                              child: Text(
+                                'Hủy',
+                                style: GoogleFonts.publicSans(
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: ElevatedButton(
+                              onPressed:
+                                  (_isSubmitting || !_agreed) ? null : _submit,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.primary,
+                                foregroundColor: Colors.white,
+                                disabledBackgroundColor:
+                                    AppColors.primary.withValues(alpha: 0.35),
+                                disabledForegroundColor:
+                                    Colors.white.withValues(alpha: 0.85),
+                                padding: const EdgeInsets.symmetric(vertical: 14),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                              child: _isSubmitting
+                                  ? const SizedBox(
+                                      width: 18,
+                                      height: 18,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: Colors.white,
+                                      ),
+                                    )
+                                  : Text(
+                                      'Thêm tài khoản',
+                                      style: GoogleFonts.publicSans(
+                                        fontWeight: FontWeight.w700,
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
-                  if (_error != null) ...[
-                    const SizedBox(height: 8),
-                    Text(
-                      _error!,
-                      style: GoogleFonts.publicSans(
-                        fontSize: 13,
-                        color: AppColors.primary,
-                      ),
-                    ),
-                  ],
-                  const SizedBox(height: 12),
-                  DropdownButtonFormField<VietQrBankResponse>(
-                    initialValue: _selectedBank,
-                    decoration: InputDecoration(
-                      labelText: 'Ngân hàng',
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                    ),
-                    items: _banks
-                        .map(
-                          (bank) => DropdownMenuItem<VietQrBankResponse>(
-                            value: bank,
-                            child: Text('${bank.shortName} - ${bank.name}'),
-                          ),
-                        )
-                        .toList(),
-                    onChanged: _isSubmitting
-                        ? null
-                        : (value) => setState(() => _selectedBank = value),
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: _accountNoController,
-                    keyboardType: TextInputType.number,
-                    enabled: !_isSubmitting,
-                    decoration: InputDecoration(
-                      labelText: 'Số tài khoản',
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: _accountNameController,
-                    enabled: !_isSubmitting,
-                    textCapitalization: TextCapitalization.characters,
-                    decoration: InputDecoration(
-                      labelText: 'Tên chủ tài khoản',
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  CheckboxListTile(
-                    contentPadding: EdgeInsets.zero,
-                    value: _isDefault,
-                    onChanged: _isSubmitting
-                        ? null
-                        : (value) => setState(() => _isDefault = value ?? false),
-                    title: Text(
-                      'Đặt làm tài khoản mặc định',
-                      style: GoogleFonts.publicSans(fontSize: 14),
-                    ),
-                    controlAffinity: ListTileControlAffinity.leading,
-                  ),
-                  CheckboxListTile(
-                    contentPadding: EdgeInsets.zero,
-                    value: _agreed,
-                    onChanged: _isSubmitting
-                        ? null
-                        : (value) => setState(() => _agreed = value ?? false),
-                    title: Text(
-                      _termsText,
-                      style: GoogleFonts.publicSans(
-                        fontSize: 12,
-                        height: 1.45,
-                      ),
-                    ),
-                    controlAffinity: ListTileControlAffinity.leading,
-                  ),
-                  const SizedBox(height: 8),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: _isSubmitting ? null : _submit,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                      ),
-                      child: _isSubmitting
-                          ? const SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Colors.white,
-                              ),
-                            )
-                          : const Text('Thêm tài khoản'),
-                    ),
-                  ),
-                ],
-              ),
+                ),
+        ),
+      ),
+    );
+  }
+
+  InputDecoration _inputDecoration({required String hintText}) {
+    return InputDecoration(
+      hintText: hintText,
+      hintStyle: GoogleFonts.publicSans(
+        fontSize: 14,
+        fontWeight: FontWeight.w400,
+        color: const Color(0xFFC4CDD5),
+      ),
+      contentPadding: const EdgeInsets.symmetric(
+        horizontal: 14,
+        vertical: 12,
+      ),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: Color(0xFFE5E8EB)),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: Color(0xFFE5E8EB)),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: AppColors.primary),
+      ),
+    );
+  }
+
+  Widget _buildCheckboxRow({
+    required bool value,
+    required ValueChanged<bool?>? onChanged,
+    required Widget child,
+  }) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 24,
+          height: 24,
+          child: Checkbox(
+            value: value,
+            onChanged: onChanged,
+            activeColor: AppColors.primary,
+            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            visualDensity: VisualDensity.compact,
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(child: child),
+      ],
+    );
+  }
+
+  Widget _buildRequiredLabel(String label) {
+    return RichText(
+      text: TextSpan(
+        style: GoogleFonts.publicSans(
+          fontSize: 13,
+          fontWeight: FontWeight.w600,
+          color: AppColors.textMain,
+        ),
+        children: [
+          TextSpan(text: label),
+          const TextSpan(
+            text: ' *',
+            style: TextStyle(color: AppColors.primary),
+          ),
+        ],
       ),
     );
   }

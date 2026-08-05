@@ -13,6 +13,9 @@ import 'package:daiphat_mobile/src/shared/services/notification_service.dart';
 import 'package:daiphat_mobile/src/features/checkout/presentation/providers/checkout_provider.dart';
 import 'package:daiphat_mobile/src/features/checkout/data/order_service.dart';
 import 'package:daiphat_mobile/src/features/checkout/data/transaction_service.dart';
+import 'package:daiphat_mobile/src/features/profile/data/bank_account_service.dart';
+import 'package:daiphat_mobile/src/features/profile/data/prize_payout_service.dart';
+import 'package:daiphat_mobile/src/features/profile/presentation/providers/profile_providers.dart';
 
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
@@ -35,6 +38,8 @@ Future<void> bootstrap() async {
 
   final orderService = OrderService(dependencies.apiClient);
   final transactionService = TransactionService(dependencies.apiClient);
+  final prizePayoutService = PrizePayoutService(dependencies.apiClient);
+  final bankAccountService = BankAccountService(dependencies.apiClient);
 
   runApp(
     ProviderScope(
@@ -42,6 +47,8 @@ Future<void> bootstrap() async {
         apiClientProvider.overrideWithValue(dependencies.apiClient),
         orderServiceProvider.overrideWithValue(orderService),
         transactionServiceProvider.overrideWithValue(transactionService),
+        prizePayoutServiceProvider.overrideWithValue(prizePayoutService),
+        bankAccountServiceProvider.overrideWithValue(bankAccountService),
       ],
       child: DaiPhatMobileApp(router: dependencies.router),
     ),

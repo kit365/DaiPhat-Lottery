@@ -21,6 +21,8 @@ import 'package:daiphat_mobile/src/features/profile/presentation/views/profile_d
 import 'package:daiphat_mobile/src/features/notifications/presentation/views/notification_view.dart';
 import 'package:daiphat_mobile/src/features/notifications/presentation/viewmodels/notification_viewmodel.dart';
 import 'package:daiphat_mobile/src/features/profile/presentation/views/my_orders_view.dart';
+import 'package:daiphat_mobile/src/features/profile/presentation/views/my_tickets_view.dart';
+import 'package:daiphat_mobile/src/features/profile/presentation/views/my_ticket_detail_view.dart';
 import 'package:daiphat_mobile/src/features/profile/presentation/views/order_detail_view.dart';
 import 'app_routes.dart';
 
@@ -205,6 +207,22 @@ GoRouter createAppRouter({
         notificationViewModel,
       ),
       _route(
+        AppRoute.myTickets,
+        loginViewModel,
+        registerViewModel,
+        forgotPasswordViewModel,
+        profileViewModel,
+        notificationViewModel,
+      ),
+      _route(
+        AppRoute.myTicketDetail,
+        loginViewModel,
+        registerViewModel,
+        forgotPasswordViewModel,
+        profileViewModel,
+        notificationViewModel,
+      ),
+      _route(
         AppRoute.myOrders,
         loginViewModel,
         registerViewModel,
@@ -327,6 +345,11 @@ Widget _buildRoute(
       );
     case AppRoute.notifications:
       return NotificationView(viewModel: notificationViewModel);
+    case AppRoute.myTickets:
+      return const MyTicketsView();
+    case AppRoute.myTicketDetail:
+      final id = state.pathParameters['id'] ?? '';
+      return MyTicketDetailView(ticketId: id);
     case AppRoute.myOrders:
       return const MyOrdersView();
     case AppRoute.orderDetail:

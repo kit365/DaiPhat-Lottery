@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import Image from 'next/image';
+import AppImage from '@/components/AppImage';
 import { Link } from 'react-router-dom';
 import { PublicPost } from '../types/blog';
 
@@ -37,7 +37,7 @@ export const BlogPostCard: React.FC<BlogPostCardProps> = ({ post, isFirst = fals
       {!isFirst && <div className="w-full h-[1px] bg-[#F4F6F8]"></div>}
       <div className="flex flex-col sm:flex-row bg-white overflow-hidden group gap-6">
         <div className="relative w-full sm:w-[325px] h-[190px] shrink-0">
-          <Image
+          <AppImage
             src={imgSrc}
             alt={post.title}
             fill
