@@ -12,6 +12,13 @@ enum AppRoute {
   profile,
   profileEdit,
   profileDetail,
+  profileOverview,
+  refunds,
+  refundDetail,
+  prizePayouts,
+  prizePayoutDetail,
+  complaints,
+  complaintDetail,
   notifications,
   myTickets,
   myTicketDetail,
@@ -48,6 +55,20 @@ extension AppRouteDefinition on AppRoute {
         return '/profile/edit';
       case AppRoute.profileDetail:
         return '/profile/detail';
+      case AppRoute.profileOverview:
+        return '/profile/overview';
+      case AppRoute.refunds:
+        return '/profile/refunds';
+      case AppRoute.refundDetail:
+        return '/profile/refunds/:id';
+      case AppRoute.prizePayouts:
+        return '/profile/prize-payouts';
+      case AppRoute.prizePayoutDetail:
+        return '/profile/prize-payouts/:id';
+      case AppRoute.complaints:
+        return '/profile/complaints';
+      case AppRoute.complaintDetail:
+        return '/profile/complaints/:id';
       case AppRoute.notifications:
         return '/notifications';
       case AppRoute.myTickets:
@@ -89,6 +110,20 @@ extension AppRouteDefinition on AppRoute {
         return 'profile_edit';
       case AppRoute.profileDetail:
         return 'profile_detail';
+      case AppRoute.profileOverview:
+        return 'profile_overview';
+      case AppRoute.refunds:
+        return 'refunds';
+      case AppRoute.refundDetail:
+        return 'refund_detail';
+      case AppRoute.prizePayouts:
+        return 'prize_payouts';
+      case AppRoute.prizePayoutDetail:
+        return 'prize_payout_detail';
+      case AppRoute.complaints:
+        return 'complaints';
+      case AppRoute.complaintDetail:
+        return 'complaint_detail';
       case AppRoute.notifications:
         return 'notifications';
       case AppRoute.myTickets:
@@ -115,6 +150,13 @@ extension AppRouteDefinition on AppRoute {
         return true;
       case AppRoute.profileEdit:
       case AppRoute.profileDetail:
+      case AppRoute.profileOverview:
+      case AppRoute.refunds:
+      case AppRoute.refundDetail:
+      case AppRoute.prizePayouts:
+      case AppRoute.prizePayoutDetail:
+      case AppRoute.complaints:
+      case AppRoute.complaintDetail:
       case AppRoute.notifications:
       case AppRoute.myTickets:
       case AppRoute.myTicketDetail:

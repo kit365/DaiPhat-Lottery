@@ -587,13 +587,17 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
           ),
           const SizedBox(height: 8),
           _buildListItem(
+            Icons.dashboard_outlined,
+            'Tổng quan tài khoản',
+            onTap: () => context.push(AppRoute.profileOverview.path),
+          ),
+          _buildListItem(
             Icons.person_outline,
             'Thông tin cá nhân',
             onTap: () {
               context.push(AppRoute.profileDetail.path);
             },
           ),
-          _buildListItem(Icons.star_outline, 'Số yêu thích'),
           _buildListItem(
             Icons.confirmation_number_outlined,
             'Vé của tôi',
@@ -605,8 +609,14 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
             onTap: () => context.push(AppRoute.myOrders.path),
           ),
           _buildListItem(
-            Icons.favorite_outline,
-            'Giới thiệu bạn bè',
+            Icons.rotate_left_rounded,
+            'Yêu cầu hoàn tiền',
+            onTap: () => context.push(AppRoute.refunds.path),
+          ),
+          _buildListItem(
+            Icons.emoji_events_outlined,
+            'Yêu cầu trả thưởng',
+            onTap: () => context.push(AppRoute.prizePayouts.path),
             showDivider: false,
           ),
         ],
@@ -714,6 +724,12 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
             Icons.security_outlined,
             'Bảo mật',
             iconColor: const Color(0xFF242424),
+          ),
+          _buildListItem(
+            Icons.headset_mic_outlined,
+            'Khiếu nại / Hỗ trợ',
+            iconColor: const Color(0xFF242424),
+            onTap: () => context.push(AppRoute.complaints.path),
           ),
           _buildListItem(
             Icons.help_outline,

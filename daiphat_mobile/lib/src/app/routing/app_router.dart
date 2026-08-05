@@ -24,6 +24,13 @@ import 'package:daiphat_mobile/src/features/profile/presentation/views/my_orders
 import 'package:daiphat_mobile/src/features/profile/presentation/views/my_tickets_view.dart';
 import 'package:daiphat_mobile/src/features/profile/presentation/views/my_ticket_detail_view.dart';
 import 'package:daiphat_mobile/src/features/profile/presentation/views/order_detail_view.dart';
+import 'package:daiphat_mobile/src/features/profile/presentation/views/profile_overview_view.dart';
+import 'package:daiphat_mobile/src/features/profile/presentation/views/refunds_view.dart';
+import 'package:daiphat_mobile/src/features/profile/presentation/views/refund_detail_view.dart';
+import 'package:daiphat_mobile/src/features/profile/presentation/views/prize_payouts_view.dart';
+import 'package:daiphat_mobile/src/features/profile/presentation/views/prize_payout_detail_view.dart';
+import 'package:daiphat_mobile/src/features/profile/presentation/views/complaints_view.dart';
+import 'package:daiphat_mobile/src/features/profile/presentation/views/complaint_detail_view.dart';
 import 'app_routes.dart';
 
 final rootNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'root');
@@ -238,6 +245,62 @@ GoRouter createAppRouter({
         profileViewModel,
         notificationViewModel,
       ),
+      _route(
+        AppRoute.profileOverview,
+        loginViewModel,
+        registerViewModel,
+        forgotPasswordViewModel,
+        profileViewModel,
+        notificationViewModel,
+      ),
+      _route(
+        AppRoute.refunds,
+        loginViewModel,
+        registerViewModel,
+        forgotPasswordViewModel,
+        profileViewModel,
+        notificationViewModel,
+      ),
+      _route(
+        AppRoute.refundDetail,
+        loginViewModel,
+        registerViewModel,
+        forgotPasswordViewModel,
+        profileViewModel,
+        notificationViewModel,
+      ),
+      _route(
+        AppRoute.prizePayouts,
+        loginViewModel,
+        registerViewModel,
+        forgotPasswordViewModel,
+        profileViewModel,
+        notificationViewModel,
+      ),
+      _route(
+        AppRoute.prizePayoutDetail,
+        loginViewModel,
+        registerViewModel,
+        forgotPasswordViewModel,
+        profileViewModel,
+        notificationViewModel,
+      ),
+      _route(
+        AppRoute.complaints,
+        loginViewModel,
+        registerViewModel,
+        forgotPasswordViewModel,
+        profileViewModel,
+        notificationViewModel,
+      ),
+      _route(
+        AppRoute.complaintDetail,
+        loginViewModel,
+        registerViewModel,
+        forgotPasswordViewModel,
+        profileViewModel,
+        notificationViewModel,
+      ),
     ],
   );
 }
@@ -355,5 +418,22 @@ Widget _buildRoute(
     case AppRoute.orderDetail:
       final id = state.pathParameters['id'] ?? '';
       return OrderDetailView(orderId: id);
+    case AppRoute.profileOverview:
+      return const ProfileOverviewView();
+    case AppRoute.refunds:
+      return const RefundsView();
+    case AppRoute.refundDetail:
+      final id = int.tryParse(state.pathParameters['id'] ?? '') ?? 0;
+      return RefundDetailView(refundId: id);
+    case AppRoute.prizePayouts:
+      return const PrizePayoutsView();
+    case AppRoute.prizePayoutDetail:
+      final id = int.tryParse(state.pathParameters['id'] ?? '') ?? 0;
+      return PrizePayoutDetailView(requestId: id);
+    case AppRoute.complaints:
+      return const ComplaintsView();
+    case AppRoute.complaintDetail:
+      final id = int.tryParse(state.pathParameters['id'] ?? '') ?? 0;
+      return ComplaintDetailView(ticketId: id);
   }
 }

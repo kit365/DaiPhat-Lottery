@@ -15,6 +15,8 @@ import 'package:daiphat_mobile/src/features/checkout/data/order_service.dart';
 import 'package:daiphat_mobile/src/features/checkout/data/transaction_service.dart';
 import 'package:daiphat_mobile/src/features/profile/data/bank_account_service.dart';
 import 'package:daiphat_mobile/src/features/profile/data/prize_payout_service.dart';
+import 'package:daiphat_mobile/src/features/profile/data/refund_service.dart';
+import 'package:daiphat_mobile/src/features/profile/data/support_ticket_service.dart';
 import 'package:daiphat_mobile/src/features/profile/presentation/providers/profile_providers.dart';
 
 @pragma('vm:entry-point')
@@ -40,6 +42,8 @@ Future<void> bootstrap() async {
   final transactionService = TransactionService(dependencies.apiClient);
   final prizePayoutService = PrizePayoutService(dependencies.apiClient);
   final bankAccountService = BankAccountService(dependencies.apiClient);
+  final refundService = RefundService(dependencies.apiClient);
+  final supportTicketService = SupportTicketService(dependencies.apiClient);
 
   runApp(
     ProviderScope(
@@ -49,6 +53,8 @@ Future<void> bootstrap() async {
         transactionServiceProvider.overrideWithValue(transactionService),
         prizePayoutServiceProvider.overrideWithValue(prizePayoutService),
         bankAccountServiceProvider.overrideWithValue(bankAccountService),
+        refundServiceProvider.overrideWithValue(refundService),
+        supportTicketServiceProvider.overrideWithValue(supportTicketService),
       ],
       child: DaiPhatMobileApp(router: dependencies.router),
     ),
