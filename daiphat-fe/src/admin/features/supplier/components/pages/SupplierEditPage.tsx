@@ -57,6 +57,8 @@ export const SupplierEditPage = () => {
                 supplier.importAllowFrom?.slice(0, 5) ?? supplierFormDefaultValues.importAllowFrom,
             returnCutOffTime:
                 supplier.returnCutOffTime?.slice(0, 5) ?? supplierFormDefaultValues.returnCutOffTime,
+            paymentCutOffTime:
+                supplier.paymentCutOffTime?.slice(0, 5) ?? supplierFormDefaultValues.paymentCutOffTime,
             isActive: supplier.isActive,
         });
         const missing = supplier.missingActivationFields ?? getMissingSupplierFields(supplier);
