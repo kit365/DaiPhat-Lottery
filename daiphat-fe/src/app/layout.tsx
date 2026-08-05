@@ -1,31 +1,10 @@
 import type { Metadata } from 'next';
-import { Inter, Barlow, Public_Sans } from 'next/font/google';
 import '../index.css';
 import 'react-toastify/dist/ReactToastify.css';
 import '../styles/client.css';
+import { fontVariables } from '@/styles/fonts';
 import { Providers } from './providers';
 import { FontLoader } from '../components/FontLoader';
-
-const inter = Inter({
-  subsets: ['latin', 'vietnamese'],
-  weight: ['400', '500', '600', '700'],
-  variable: '--font-inter',
-  display: 'swap',
-});
-
-const barlow = Barlow({
-  subsets: ['latin'],
-  weight: ['400', '500', '600', '700', '800', '900'],
-  variable: '--font-barlow',
-  display: 'swap',
-});
-
-const publicSans = Public_Sans({
-  subsets: ['latin'],
-  weight: ['400', '500', '600', '700'],
-  variable: '--font-public-sans',
-  display: 'swap',
-});
 
 export const metadata: Metadata = {
   title: {
@@ -43,7 +22,7 @@ export default function RootLayout({
   return (
     <html
       lang="vi"
-      className={`${inter.variable} ${barlow.variable} ${publicSans.variable}`}
+      className={fontVariables}
       suppressHydrationWarning
     >
       <head>

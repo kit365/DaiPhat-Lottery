@@ -13,8 +13,8 @@
   --color-client-muted: #78818A;
   --color-client-surface: #FFFFFF;
 
-  --font-client-main: "Public Sans", sans-serif;
-  --font-client-display: "Barlow", sans-serif;
+  --font-client-main: var(--font-public-sans), sans-serif;
+  --font-client-display: var(--font-barlow), sans-serif;
 
   --radius-client-sm: 8px;
   --radius-client-md: 12px;
