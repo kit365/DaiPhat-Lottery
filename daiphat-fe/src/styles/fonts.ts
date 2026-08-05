@@ -5,6 +5,7 @@ export const barlow = Barlow({
   weight: ['400', '500', '600', '700', '800', '900'],
   variable: '--font-barlow',
   display: 'swap',
+  preload: false,
 });
 
 export const publicSans = Public_Sans({
@@ -12,6 +13,7 @@ export const publicSans = Public_Sans({
   weight: ['400', '500', '600', '700'],
   variable: '--font-public-sans',
   display: 'swap',
+  preload: false,
 });
 
 export const fontVariables = `${barlow.variable} ${publicSans.variable}`;
