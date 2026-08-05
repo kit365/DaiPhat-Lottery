@@ -98,9 +98,9 @@ export const ImportBatchList = ({ listHook }: ImportBatchListProps) => {
     return (
         <>
             <Card elevation={0} className="admin-datagrid-card">
-                <div className="admin-table-wrap">
-                    <TableContainer className="admin-table-container">
-                        <Table className="admin-table" sx={{ minWidth: 960 }} size="medium">
+                <Box sx={{ width: '100%', flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                    <TableContainer className="admin-table-container" sx={{ flex: 1, overflow: 'auto' }}>
+                        <Table className="admin-table" sx={{ minWidth: 960, height: batches.length === 0 ? '100%' : 'auto' }} size="medium">
                             <TableHead>
                                 <TableRow>
                                     <TableCell>Mã phiếu</TableCell>
@@ -117,14 +117,18 @@ export const ImportBatchList = ({ listHook }: ImportBatchListProps) => {
                             <TableBody>
                                 {isLoading ? (
                                     <TableRow>
-                                        <TableCell colSpan={9} align="center" sx={{ py: 10 }}>
-                                            <CircularProgress size={32} />
+                                        <TableCell colSpan={9} align="center" sx={{ borderBottom: 'none', py: 10 }}>
+                                            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 320 }}>
+                                                <CircularProgress size={32} />
+                                            </Box>
                                         </TableCell>
                                     </TableRow>
                                 ) : batches.length === 0 ? (
                                     <TableRow>
-                                        <TableCell colSpan={9} align="center" sx={{ py: 10 }}>
-                                            <Typography className="admin-datagrid-empty">Không có dữ liệu</Typography>
+                                        <TableCell colSpan={9} align="center" sx={{ borderBottom: 'none', py: 10 }}>
+                                            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 320 }}>
+                                                <Typography className="admin-datagrid-empty">Không có dữ liệu</Typography>
+                                            </Box>
                                         </TableCell>
                                     </TableRow>
                                 ) : (
@@ -255,28 +259,28 @@ export const ImportBatchList = ({ listHook }: ImportBatchListProps) => {
                             </TableBody>
                         </Table>
                     </TableContainer>
-                </div>
 
-                <TablePagination
-                    component="div"
-                    count={pagination.totalRecords ?? 0}
-                    page={page}
-                    onPageChange={(_e, newPage) => setPage(newPage + 1)}
-                    rowsPerPage={rowsPerPage}
-                    onRowsPerPageChange={(e) => setLimit(parseInt(e.target.value, 10))}
-                    rowsPerPageOptions={[5, 10, 25, 50]}
-                    labelRowsPerPage="Số hàng mỗi trang:"
-                    labelDisplayedRows={({ from, to, count }) =>
-                        `${from}-${to} của ${count !== -1 ? count : `hơn ${to}`}`
-                    }
-                    sx={{
-                        borderTop: '1px dashed var(--palette-divider)',
-                        color: 'var(--palette-text-secondary)',
-                        '& .MuiTablePagination-selectLabel, & .MuiTablePagination-displayedRows': {
-                            fontSize: '0.875rem',
-                        },
-                    }}
-                />
+                    <TablePagination
+                        component="div"
+                        count={pagination.totalRecords ?? 0}
+                        page={page}
+                        onPageChange={(_e, newPage) => setPage(newPage + 1)}
+                        rowsPerPage={rowsPerPage}
+                        onRowsPerPageChange={(e) => setLimit(parseInt(e.target.value, 10))}
+                        rowsPerPageOptions={[5, 10, 25, 50]}
+                        labelRowsPerPage="Số hàng mỗi trang:"
+                        labelDisplayedRows={({ from, to, count }) =>
+                            `${from}-${to} của ${count !== -1 ? count : `hơn ${to}`}`
+                        }
+                        sx={{
+                            borderTop: '1px solid var(--palette-divider)',
+                            color: 'var(--palette-text-secondary)',
+                            '& .MuiTablePagination-selectLabel, & .MuiTablePagination-displayedRows': {
+                                fontSize: '0.875rem',
+                            },
+                        }}
+                    />
+                </Box>
             </Card>
 
             <Menu
