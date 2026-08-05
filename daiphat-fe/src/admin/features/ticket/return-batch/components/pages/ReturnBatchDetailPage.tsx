@@ -19,7 +19,7 @@ import VisibilityIcon from '@mui/icons-material/Visibility';
 import dayjs from 'dayjs';
 import { useState } from 'react';
 import Swal from 'sweetalert2';
-import { useParams } from '@/components/router-compat';
+import { useNavigate, useParams } from '@/components/router-compat';
 import { toast } from 'react-toastify';
 import { Breadcrumb } from '../../../../../components/ui/Breadcrumb';
 import { Title } from '../../../../../components/ui/Title';
@@ -47,6 +47,7 @@ import { InspectTicketsDialog } from '../sections/InspectTicketsDialog';
 import { ReturnBatchTicketsModal } from '../sections/ReturnBatchTicketsModal';
 
 export const ReturnBatchDetailPage = () => {
+    const navigate = useNavigate();
     const { id } = useParams<{ id: string }>();
     const { data: batch, isLoading, isError, refetch } = useReturnBatchDetail(id);
     const confirmHandover = useConfirmReturnHandover();
@@ -188,7 +189,7 @@ export const ReturnBatchDetailPage = () => {
 
     const handleInspectTickets = async () => {
         if (batch.inspectionExpired || batch.status === 'CANCELLED') {
-            setInspectOpen(true);
+            navigate(ROUTES.ADMIN.RETURN_BATCH.INSPECT(batch.id));
             return;
         }
         if (canStartInspection(batch.status)) {
@@ -213,7 +214,7 @@ export const ReturnBatchDetailPage = () => {
                 return;
             }
         }
-        setInspectOpen(true);
+        navigate(ROUTES.ADMIN.RETURN_BATCH.INSPECT(batch.id));
     };
 
     return (
@@ -222,7 +223,7 @@ export const ReturnBatchDetailPage = () => {
             <div className="mb-[calc(3*var(--spacing))] flex items-start justify-end gap-[calc(2*var(--spacing))] flex-wrap">
                 <div className="mr-auto">
                     <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 0.5 }}>
-                        <Title title={`Phiếu trả vé #${batch.id}`} />
+                        <Title title={`Phiếu trả vé ${batch.batchCode?.trim() || `#${batch.id}`}`} />
                         <Chip
                             size="small"
                             label={getReturnBatchStatusLabel(batch.status, batch.statusLabel)}
@@ -235,15 +236,15 @@ export const ReturnBatchDetailPage = () => {
                         items={[
                             { label: 'Vé số', to: ROUTES.ADMIN.TICKETS.LIST },
                             { label: 'Trả vé NCC', to: ROUTES.ADMIN.RETURN_BATCH.LIST },
-                            { label: `#${batch.id}` },
+                            { label: batch.batchCode?.trim() || `#${batch.id}` },
                         ]}
                     />
                 </div>
                 <Stack direction="row" spacing={1} flexWrap="wrap">
-                    {batch.status === 'PENDING_INSPECTION' && !batch.inspectionExpired && (
+                    {(batch.status === 'PENDING_INSPECTION' || batch.status === 'INSPECTING') && !batch.inspectionExpired && (
                         <CanAccess permission={PERMISSIONS.IMPORT_BATCH.CREATE}>
                             <LoadingButton
-                                label="Kiểm tra vé"
+                                label={batch.status === 'INSPECTING' ? 'Kiểm tra vé (Tiếp tục)' : 'Kiểm tra vé'}
                                 className="btn-primary-admin"
                                 loading={startInspection.isPending}
                                 onClick={handleInspectTickets}
@@ -501,14 +502,6 @@ export const ReturnBatchDetailPage = () => {
                     </TableContainer>
                 </CollapsibleCard>
             </Stack>
-
-            <InspectTicketsDialog
-                open={inspectOpen}
-                batchId={batch.id}
-                inspectionExpired={Boolean(batch.inspectionExpired || batch.status === 'CANCELLED')}
-                onClose={() => setInspectOpen(false)}
-                onCompleted={() => refetch()}
-            />
 
             <ReturnBatchTicketsModal
                 open={ticketsModalOpen}
