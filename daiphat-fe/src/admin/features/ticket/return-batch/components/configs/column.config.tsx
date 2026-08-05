@@ -16,6 +16,8 @@ import {
     getReturnBatchStatusLabel,
 } from '../../utils/returnBatchLabels';
 
+import { returnBatchCodeMonospaceSx } from '../../utils/returnBatchCode';
+
 const ActionCell = ({ row }: { row: ReturnBatch }) => {
     const navigate = useNavigate();
     const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
@@ -61,7 +63,7 @@ export const returnBatchColumnsConfig: GridColDef[] = [
     {
         field: 'stt',
         headerName: 'STT',
-        width: 70,
+        width: 60,
         align: 'center',
         headerAlign: 'center',
         sortable: false,
@@ -87,6 +89,37 @@ export const returnBatchColumnsConfig: GridColDef[] = [
         },
     },
     {
+        field: 'batchCode',
+        headerName: 'Mã phiếu',
+        flex: 1.1,
+        minWidth: 155,
+        sortable: true,
+        renderCell: (params: GridRenderCellParams<ReturnBatch>) => {
+            const rawCode = params.row.batchCode?.trim() || `#${params.row.id}`;
+            return (
+                <Box sx={{ display: 'flex', alignItems: 'center', height: '100%' }}>
+                    <Typography
+                        variant="body2"
+                        sx={{
+                            ...returnBatchCodeMonospaceSx,
+                            color: '#00A76F',
+                            bgcolor: '#00a76f14',
+                            px: 1,
+                            py: 0.35,
+                            borderRadius: '6px',
+                            border: '1px solid #00a76f26',
+                            display: 'inline-block',
+                            fontSize: '0.8125rem',
+                            lineHeight: 1.2,
+                        }}
+                    >
+                        {rawCode}
+                    </Typography>
+                </Box>
+            );
+        },
+    },
+    {
         field: 'supplierName',
         headerName: 'Nhà cung cấp',
         flex: 1.5,
@@ -98,22 +131,29 @@ export const returnBatchColumnsConfig: GridColDef[] = [
             const initial = supplierName.charAt(0).toUpperCase();
 
             return (
-                <Stack direction="row" spacing={1.5} alignItems="center" sx={{ py: 1, minWidth: 0 }}>
+                <Stack direction="row" spacing={1.25} alignItems="center" sx={{ py: 0.5, minWidth: 0, height: '100%' }}>
                     <Avatar
                         sx={{
-                            width: 34,
-                            height: 34,
+                            width: 32,
+                            height: 32,
                             bgcolor: '#f1f5f9',
                             color: '#0284c7',
                             fontWeight: 700,
-                            fontSize: '0.85rem',
+                            fontSize: '0.8rem',
                             border: '1px solid #e2e8f0',
+                            flexShrink: 0,
                         }}
                     >
                         {initial}
                     </Avatar>
-                    <Box sx={{ minWidth: 0 }}>
-                        <Typography variant="body2" fontWeight={700} color="#1e293b" noWrap>
+                    <Box sx={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                        <Typography
+                            variant="body2"
+                            fontWeight={700}
+                            color="#1e293b"
+                            noWrap
+                            sx={{ lineHeight: 1.2, fontSize: '0.875rem' }}
+                        >
                             {supplierName}
                         </Typography>
                         {supplierCode && (
@@ -126,10 +166,12 @@ export const returnBatchColumnsConfig: GridColDef[] = [
                                     px: 0.75,
                                     py: 0.1,
                                     borderRadius: '4px',
-                                    border: '1px solid #f1f5f9',
+                                    border: '1px solid #e2e8f0',
                                     fontSize: '0.68rem',
                                     fontWeight: 600,
                                     display: 'inline-block',
+                                    width: 'fit-content',
+                                    lineHeight: 1.2,
                                 }}
                             >
                                 {supplierCode}
@@ -143,13 +185,15 @@ export const returnBatchColumnsConfig: GridColDef[] = [
     {
         field: 'drawDate',
         headerName: 'Ngày quay',
-        flex: 1,
-        minWidth: 140,
+        flex: 1.1,
+        minWidth: 150,
+        align: 'center',
+        headerAlign: 'center',
         sortable: true,
         renderCell: (params: GridRenderCellParams<ReturnBatch>) => (
-            <Stack direction="row" spacing={0.75} alignItems="center">
-                <CalendarTodayOutlinedIcon sx={{ fontSize: '0.9rem', color: '#94a3b8' }} />
-                <Typography variant="body2" fontWeight={600} color="#334155">
+            <Stack direction="row" spacing={0.75} alignItems="center" justifyContent="center" sx={{ width: '100%', height: '100%' }}>
+                <CalendarTodayOutlinedIcon sx={{ fontSize: '0.9rem', color: '#64748b' }} />
+                <Typography variant="body2" fontWeight={600} color="#334155" sx={{ fontSize: '0.875rem' }}>
                     {params.row.drawDate ? dayjs(params.row.drawDate).format('DD/MM/YYYY') : '—'}
                 </Typography>
             </Stack>
@@ -160,29 +204,33 @@ export const returnBatchColumnsConfig: GridColDef[] = [
         headerName: 'Số lượng',
         type: 'number',
         flex: 1,
-        minWidth: 120,
-        align: 'right',
-        headerAlign: 'right',
+        minWidth: 130,
+        align: 'center',
+        headerAlign: 'center',
         sortable: true,
         renderCell: (params: GridRenderCellParams<ReturnBatch>) => (
-            <Typography variant="body2" fontWeight={700} color="#1e293b">
-                {new Intl.NumberFormat('vi-VN').format(params.row.totalQuantity ?? 0)}
-            </Typography>
+            <Box sx={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+                <Typography variant="body2" fontWeight={700} color="#0f172a" sx={{ fontSize: '0.875rem' }}>
+                    {new Intl.NumberFormat('vi-VN').format(params.row.totalQuantity ?? 0)}
+                </Typography>
+            </Box>
         ),
     },
     {
         field: 'totalReturnValue',
         headerName: 'Giá trị trả',
         type: 'number',
-        flex: 1.2,
-        minWidth: 160,
+        flex: 1.25,
+        minWidth: 165,
         align: 'right',
         headerAlign: 'right',
         sortable: true,
         renderCell: (params: GridRenderCellParams<ReturnBatch>) => (
-            <Typography variant="body2" fontWeight={700} color="#059669">
-                {formatImportCost(params.row.totalReturnValue)} VNĐ
-            </Typography>
+            <Box sx={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', height: '100%', pr: 1 }}>
+                <Typography variant="body2" fontWeight={700} color="#16a34a" sx={{ fontSize: '0.875rem' }}>
+                    {formatImportCost(params.row.totalReturnValue)} VNĐ
+                </Typography>
+            </Box>
         ),
     },
     {
