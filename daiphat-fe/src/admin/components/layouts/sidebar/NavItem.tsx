@@ -1,68 +1,91 @@
 "use client";
 
 import { useTranslation } from "react-i18next";
-import { useState, useEffect, memo, type ReactNode } from "react";
+import { useState, useEffect, memo, useCallback, type ReactNode } from "react";
+import { useRouter } from "next/navigation";
 import { ListItemIcon, Collapse, ButtonBase, Popover, Paper, Badge } from '@mui/material';
 import { Link, useLocation } from "react-router-dom";
 import { ArrowIcon } from "../../../assets/icons";
 import { useSidebar } from "../../../context/sidebar/useSidebar";
 import { useAuthStore } from "../../../../stores/useAuthStore";
 import { hasPermission, resolveRoleCode } from "../../../utils/permission.util";
+import { prefetchAdminRoute } from "../../../utils/prefetchAdminPages";
 import { useRefundPendingCount } from "../../../pages/refund/hooks/useRefundPendingCount";
 import { usePrizePayoutPendingCount } from "../../../pages/prize-payout/hooks/usePrizePayoutPendingCount";
 import { usePreparingOrderCount } from "../../../features/orders/hooks/useOrder";
 import { useSupportTicketOpenCount } from "../../../features/support-ticket/hooks/useSupportTicketOpenCount";
+import { useChatWaitingCount } from "../../../features/chat/hooks/useChatWaitingCount";
+
+import { useReturnBatchPendingCount } from "../../../features/ticket/return-batch/hooks/useReturnBatchPendingCount";
 
 function parseNavPath(rawPath: string): { pathname: string; search: string } {
     const [pathname, query = ''] = String(rawPath || '').split('?');
     return { pathname, search: query };
 }
 
-function isNavChildActive(pathname: string, search: string, childPath: string): boolean {
-    const target = parseNavPath(childPath);
-    if (pathname !== target.pathname) {
-        // Highlight list child when viewing detail under same section prefix
-        if (
-            !target.search &&
-            target.pathname.endsWith('/list') &&
-            pathname.startsWith(target.pathname.replace(/\/list$/, '/'))
-        ) {
-            return true;
-        }
+/** Chỉ coi là trang con của mục /list khi là detail/inspect — không match sibling như create-counter. */
+function isListSectionDetailRoute(sectionPrefix: string, pathname: string): boolean {
+    if (!pathname.startsWith(sectionPrefix)) {
         return false;
     }
-    if (!target.search) {
-        return true;
+
+    const suffix = pathname.slice(sectionPrefix.length);
+    return suffix.startsWith('detail/') || suffix.startsWith('inspect/');
+}
+
+function isNavChildActive(pathname: string, search: string, childPath: string): boolean {
+    const target = parseNavPath(childPath);
+
+    if (pathname === target.pathname) {
+        if (!target.search) {
+            return true;
+        }
+        const required = new URLSearchParams(target.search);
+        const current = new URLSearchParams(search.startsWith('?') ? search.slice(1) : search);
+        return [...required.entries()].every(([key, value]) => current.get(key) === value);
     }
-    const required = new URLSearchParams(target.search);
-    const current = new URLSearchParams(search.startsWith('?') ? search.slice(1) : search);
-    return [...required.entries()].every(([key, value]) => current.get(key) === value);
+
+    if (!target.search && target.pathname.endsWith('/list')) {
+        const sectionPrefix = target.pathname.replace(/\/list$/, '/');
+        return isListSectionDetailRoute(sectionPrefix, pathname);
+    }
+
+    return false;
 }
 
 const SubNavItem = ({
     child,
     isSubActive,
     t,
+    onPrefetch,
 }: {
     child: any;
     isSubActive: boolean;
     t: (key: string) => string;
+    onPrefetch: (path: string) => void;
 }) => {
     const showSupportOpenBadge = child.badge === 'support-open';
+    const showReturnBatchBadge = child.badge === 'return-batch-pending';
 
     return (
         <li key={child.id} className="relative list-none">
             <Link
                 to={child.path}
+                onMouseEnter={() => onPrefetch(child.path)}
                 className={`sidebar-item-before rounded-[8px] inline-flex items-center py-[4px] pr-[8px] pl-[12px] w-full min-h-[36px] text-[0.875rem] transition-all duration-200
                     ${isSubActive
-                        ? 'text-[#00A76F] font-[600] bg-[#00a76f14]'
+                        ? 'text-[#FF3030] font-[600] bg-[#FF303014]'
                         : 'text-[#637381] hover:bg-[#919eab14] hover:text-[#1C252E]'}`}
             >
                 <span className="truncate min-w-0 flex-1">{t(child.tKey || child.label)}</span>
                 {showSupportOpenBadge && (
                     <span className="ml-2 shrink-0 inline-flex items-center">
                         <SupportTicketOpenBadgeLabel />
+                    </span>
+                )}
+                {showReturnBatchBadge && (
+                    <span className="ml-2 shrink-0 inline-flex items-center">
+                        <ReturnBatchPendingBadgeLabel />
                     </span>
                 )}
             </Link>
@@ -169,6 +192,31 @@ const SupportTicketOpenBadgeIcon = ({ children }: { children: ReactNode }) => {
     );
 };
 
+/** Isolated badge for active return batches (excluding cancelled and handed over). */
+const ReturnBatchPendingBadgeLabel = () => {
+    const { pendingCount } = useReturnBatchPendingCount();
+    if (pendingCount <= 0) return null;
+    return (
+        <Badge
+            badgeContent={pendingCount > 99 ? '99+' : pendingCount}
+            sx={{ '& .MuiBadge-badge': sidebarBadgeSx }}
+        />
+    );
+};
+
+const ReturnBatchPendingBadgeIcon = ({ children }: { children: ReactNode }) => {
+    const { pendingCount } = useReturnBatchPendingCount();
+    return (
+        <Badge
+            badgeContent={pendingCount > 99 ? '99+' : pendingCount}
+            invisible={pendingCount <= 0}
+            sx={{ '& .MuiBadge-badge': sidebarIconBadgeSx }}
+        >
+            {children}
+        </Badge>
+    );
+};
+
 /** Isolated so only the Orders menu item polls PREPARING counts. */
 const PreparingOrderBadgeLabel = () => {
     const { preparingCount } = usePreparingOrderCount();
@@ -194,15 +242,46 @@ const PreparingOrderBadgeIcon = ({ children }: { children: ReactNode }) => {
     );
 };
 
+/** Isolated so only the Chat / online-support menu item polls waiting/unread counts. */
+const ChatAttentionBadgeLabel = () => {
+    const { badgeCount } = useChatWaitingCount();
+    if (badgeCount <= 0) return null;
+    return (
+        <Badge
+            badgeContent={badgeCount > 99 ? '99+' : badgeCount}
+            sx={{ '& .MuiBadge-badge': sidebarBadgeSx }}
+        />
+    );
+};
+
+const ChatAttentionBadgeIcon = ({ children }: { children: ReactNode }) => {
+    const { badgeCount } = useChatWaitingCount();
+    return (
+        <Badge
+            badgeContent={badgeCount > 99 ? '99+' : badgeCount}
+            invisible={badgeCount <= 0}
+            sx={{ '& .MuiBadge-badge': sidebarIconBadgeSx }}
+        >
+            {children}
+        </Badge>
+    );
+};
+
 export const NavItem = memo(({ item }: { item: any }) => {
     const { t } = useTranslation();
+    const router = useRouter();
     const { pathname, search } = useLocation();
     const { isOpen } = useSidebar();
     const { user } = useAuthStore();
+
+    const handlePrefetch = useCallback((path: string) => {
+        prefetchAdminRoute(path, (target) => router.prefetch(target));
+    }, [router]);
     const showRefundBadge = item.id === 'refunds';
     const showPrizePayoutBadge = item.id === 'prize-payouts';
     const showPreparingBadge = item.id === 'orders';
     const showSupportBadge = item.id === 'support-tickets';
+    const showChatBadge = item.id === 'chat';
 
     const normalizedRole = resolveRoleCode(user);
     const isStaff = normalizedRole.includes('STAFF');
@@ -224,7 +303,10 @@ export const NavItem = memo(({ item }: { item: any }) => {
         : false;
     const isActive = !hasChildren && (
         pathname === item.path
-        || (item.path?.endsWith('/list') && pathname.startsWith(item.path.replace(/\/list$/, '/')))
+        || (
+            item.path?.endsWith('/list')
+            && isListSectionDetailRoute(item.path.replace(/\/list$/, '/'), pathname)
+        )
     );
 
     const isParentHighlighted = isActive || isChildActive;
@@ -258,15 +340,20 @@ export const NavItem = memo(({ item }: { item: any }) => {
             <ButtonBase
                 {...(!hasChildren && { component: Link, to: item.path })}
                 onClick={hasChildren ? handleToggle : undefined}
-                onMouseEnter={handleMouseEnter}
+                onMouseEnter={(event) => {
+                    if (!hasChildren && item.path) {
+                        handlePrefetch(item.path);
+                    }
+                    handleMouseEnter(event);
+                }}
                 onMouseLeave={handleMouseLeave}
                 sx={{
                     padding: isOpen ? "4px 8px 4px 12px" : "8px 4px 6px",
                     width: "100%",
                     minHeight: isOpen ? "44px" : "58px",
                     borderRadius: "8px",
-                    color: isParentHighlighted ? "#00A76F" : "#637381",
-                    bgcolor: isParentHighlighted ? "#00a76f14" : "transparent",
+                    color: isParentHighlighted ? "#FF3030" : "#637381",
+                    bgcolor: isParentHighlighted ? "#FF303014" : "transparent",
                     flexDirection: isOpen ? "row" : "column",
                     display: "flex",
                     alignItems: "center",
@@ -274,7 +361,7 @@ export const NavItem = memo(({ item }: { item: any }) => {
                     gap: isOpen ? "0" : "6px",
 
                     '&:hover': {
-                        bgcolor: isParentHighlighted ? "#00a76f26" : "#919eab14",
+                        bgcolor: isParentHighlighted ? "#FF303026" : "#919eab14",
                     },
 
                     fontWeight: isParentHighlighted ? 600 : 500,
@@ -300,6 +387,10 @@ export const NavItem = memo(({ item }: { item: any }) => {
                             <SupportTicketOpenBadgeIcon>
                                 <Icon />
                             </SupportTicketOpenBadgeIcon>
+                        ) : !isOpen && showChatBadge ? (
+                            <ChatAttentionBadgeIcon>
+                                <Icon />
+                            </ChatAttentionBadgeIcon>
                         ) : !isOpen && showPreparingBadge ? (
                             <PreparingOrderBadgeIcon>
                                 <Icon />
@@ -326,6 +417,11 @@ export const NavItem = memo(({ item }: { item: any }) => {
                         {showSupportBadge && (
                             <span className="ml-auto pl-2 shrink-0 inline-flex items-center">
                                 <SupportTicketOpenBadgeLabel />
+                            </span>
+                        )}
+                        {showChatBadge && (
+                            <span className="ml-auto pl-2 shrink-0 inline-flex items-center">
+                                <ChatAttentionBadgeLabel />
                             </span>
                         )}
                         {showPreparingBadge && (
@@ -395,6 +491,7 @@ export const NavItem = memo(({ item }: { item: any }) => {
                                             child={child}
                                             isSubActive={isNavChildActive(pathname, search, child.path)}
                                             t={t}
+                                            onPrefetch={handlePrefetch}
                                         />
                                     ))}
                             </ul>
@@ -415,6 +512,7 @@ export const NavItem = memo(({ item }: { item: any }) => {
                                     child={child}
                                     isSubActive={isNavChildActive(pathname, search, child.path)}
                                     t={t}
+                                    onPrefetch={handlePrefetch}
                                 />
                             ))}
                     </ul>
