@@ -283,7 +283,7 @@ export const OrderList = () => {
             </Box>
 
             <TableContainer sx={{ position: 'relative', overflow: 'auto', flex: 1, display: 'flex', flexDirection: 'column' }}>
-                <Table sx={{ minWidth: 960 }} size={settings.density === 'compact' ? 'small' : 'medium'}>
+                <Table sx={{ minWidth: 960, height: orders.length === 0 ? '100%' : 'auto' }} size={settings.density === 'compact' ? 'small' : 'medium'}>
                     <TableHead sx={{ bgcolor: 'var(--palette-background-neutral)' }}>
                         <TableRow>
                             <TableCell padding="checkbox" sx={{ borderBottom: 'none', textAlign: 'center' }}>
@@ -306,19 +306,15 @@ export const OrderList = () => {
 
                     <TableBody>
                         {isLoading ? (
-                            <TableRow>
+                            <TableRow sx={{ height: '100%' }}>
                                 <TableCell colSpan={8} align="center" sx={{ borderBottom: 'none', py: 10 }}>
-                                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 320 }}>
-                                        <CircularProgress size={32} />
-                                    </Box>
+                                    <CircularProgress size={32} />
                                 </TableCell>
                             </TableRow>
                         ) : orders.length === 0 ? (
-                            <TableRow>
-                                <TableCell colSpan={8} align="center" sx={{ borderBottom: 'none', py: 10 }}>
-                                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 320 }}>
-                                        <span className="admin-datagrid-empty">Không có dữ liệu</span>
-                                    </Box>
+                            <TableRow sx={{ height: '100%' }}>
+                                <TableCell colSpan={8} align="center" sx={{ borderBottom: 'none', py: 8 }}>
+                                    <span className="admin-datagrid-empty">Không có dữ liệu</span>
                                 </TableCell>
                             </TableRow>
                         ) : (
