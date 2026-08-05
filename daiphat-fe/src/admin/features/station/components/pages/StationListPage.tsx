@@ -39,18 +39,9 @@ export const StationListPage = () => {
                     <CanAccess permission={PERMISSIONS.PROVIDER.SYNC}>
                         <Button
                             onClick={() => setIsSyncModalOpen(true)}
+                            className="btn-primary-admin"
                             variant="contained"
                             startIcon={<SyncIcon />}
-                            sx={{
-                                minHeight: "2.25rem",
-                                padding: "6px 16px",
-                                textTransform: "none",
-                                fontWeight: 600,
-                                background: "var(--palette-grey-800)",
-                                "&:hover": {
-                                    background: "var(--palette-grey-700)"
-                                }
-                            }}
                         >
                             Đồng bộ đài
                         </Button>

@@ -252,6 +252,10 @@ export const adminTheme = createTheme({
             },
         },
         MuiDataGrid: {
+            defaultProps: {
+                disableColumnMenu: true,
+                disableColumnSorting: true,
+            },
             styleOverrides: {
 
                 root: {
@@ -268,7 +272,9 @@ export const adminTheme = createTheme({
                             borderBottom: `1px solid var(--palette-background-neutral)`, backgroundColor: 'var(--palette-background-neutral)'
                         },
                         '& .MuiDataGrid-columnHeader--withRightBorder': { borderRight: `1px solid var(--palette-background-neutral)` },
-                        '& .MuiDataGrid-menuIcon': { '& .MuiButtonBase-root': { color: "var(--palette-text-secondary)", rotate: '90deg' } },
+                        '& .MuiDataGrid-menuIcon': { display: 'none !important', width: 0, opacity: 0, pointerEvents: 'none' },
+                        '& .MuiDataGrid-iconButtonContainer': { display: 'none !important', width: 0, opacity: 0, pointerEvents: 'none' },
+                        '& .MuiDataGrid-sortIcon': { display: 'none !important', width: 0, opacity: 0, pointerEvents: 'none' },
                         '& .MuiButtonBase-root': { fontSize: "1.125rem" }
                     },
                     

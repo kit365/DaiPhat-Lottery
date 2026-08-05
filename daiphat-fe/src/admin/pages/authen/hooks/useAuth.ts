@@ -35,15 +35,16 @@ export const useAuth = () => {
             const isSuccess = getMeQuery.data.isSuccess ?? getMeQuery.data.success;
             if (isSuccess && getMeQuery.data.data) {
                 const userData = getMeQuery.data.data as User;
+                const currentUser = useAuthStore.getState().user;
 
-                if (JSON.stringify(user) !== JSON.stringify(userData)) {
+                if (JSON.stringify(currentUser) !== JSON.stringify(userData)) {
                     set({ user: userData });
                 }
             } else if (!isSuccess) {
                 logout();
             }
         }
-    }, [getMeQuery.data, set, user, logout]);
+    }, [getMeQuery.data, set, logout]);
 
     // Handle Auth Errors - Redirect to login on hard failures and CLEAR SESSION
     useEffect(() => {
@@ -221,6 +222,7 @@ export const useAuth = () => {
         token,
         isLoading: getMeQuery.isLoading || loginMutation.isPending || oauthCallbackMutation.isPending,
         isUserLoading: getMeQuery.isLoading,
+        isUserError: getMeQuery.isError,
         isFetching: getMeQuery.isFetching,
         login: loginMutation.mutate,
         logout,

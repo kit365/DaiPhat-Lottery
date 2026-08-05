@@ -105,7 +105,7 @@ export const ComplaintDetailTab = () => {
                     {canEdit && (
                         <button
                             onClick={() => setShowEditModal(true)}
-                            className="px-5 py-3 rounded-xl border border-[#2065D1] text-[#2065D1] font-bold text-[14px] hover:bg-[#F0F5FF] transition-colors cursor-pointer"
+                            className="px-5 py-3 rounded-xl border border-[#2065D1] bg-white text-[#2065D1] font-bold text-[14px] hover:bg-[#F0F5FF] shadow-[0_4px_14px_rgba(16,41,55,0.08)] transition-colors cursor-pointer"
                         >
                             <i className="fa-solid fa-pen mr-2"></i> Chỉnh sửa
                         </button>
@@ -114,7 +114,7 @@ export const ComplaintDetailTab = () => {
                         <button
                             onClick={handleCancel}
                             disabled={closeMutation.isPending}
-                            className="px-5 py-3 rounded-xl border border-[#ee1314] text-[#ee1314] font-bold text-[14px] hover:bg-[#FFF4F4] transition-colors cursor-pointer disabled:opacity-50"
+                            className="px-5 py-3 rounded-xl border border-[#ee1314] bg-white text-[#ee1314] font-bold text-[14px] hover:bg-[#FFF4F4] shadow-[0_4px_14px_rgba(16,41,55,0.08)] transition-colors cursor-pointer disabled:opacity-50"
                         >
                             {closeMutation.isPending ? (
                                 <i className="fa-solid fa-spinner fa-spin"></i>
@@ -184,13 +184,22 @@ export const ComplaintDetailTab = () => {
                                             Mã yêu cầu #{ticket.refId}
                                         </Link>
                                     ) : ticket.refType === TicketRefType.PRIZE_CLAIM ? (
-                                        <Link
-                                            to={`/profile/prize-payouts/${ticket.refId}`}
-                                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#FFF9F3] text-[#B76E00] rounded-lg text-[14px] font-bold hover:bg-[#FFEFD6] transition-colors"
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                if (typeof window !== 'undefined') {
+                                                    window.sessionStorage.setItem(
+                                                        `prizePayoutBack:${ticket.refId}`,
+                                                        String(ticket.id)
+                                                    );
+                                                }
+                                                navigate(`/profile/prize-payouts/${ticket.refId}?fromComplaintId=${ticket.id}`);
+                                            }}
+                                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#FFF9F3] text-[#B76E00] rounded-lg text-[14px] font-bold hover:bg-[#FFEFD6] transition-colors cursor-pointer"
                                         >
                                             <i className="fa-solid fa-up-right-from-square text-[12px]"></i>
                                             Trả thưởng #{ticket.refId}
-                                        </Link>
+                                        </button>
                                     ) : (
                                         <span className="text-[15px] font-semibold text-[#212B36] font-mono bg-[#F4F6F8] px-2 py-1 rounded-md">
                                             {ticket.refId}

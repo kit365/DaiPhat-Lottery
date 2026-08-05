@@ -11,6 +11,7 @@ interface Props {
 }
 
 import { ROUTES } from "../../constants/routes";
+import LoadingScreen from "../ui/LoadingScreen";
 
 export const AuthGuard = ({ children }: Props) => {
     const { token, isHydrated, user, logout } = useAuthStore();
@@ -40,7 +41,7 @@ export const AuthGuard = ({ children }: Props) => {
     }, [isRestrictedRole, logout]);
 
     if (!isHydrated) {
-        return null; // Or a loading spinner
+        return <LoadingScreen />;
     }
 
     if (!isAuthenticated) {
@@ -52,16 +53,18 @@ export const AuthGuard = ({ children }: Props) => {
     }
 
     // DP-32 Setup Enforcement: Force redirect to setup-profile if not completed
-    const isSetupComplete = user?.hasPassword && user?.agreedToTerms;
+    // Only redirect when fields are explicitly false (not undefined = still loading from API)
+    const isSetupIncomplete = user && (user.hasPassword === false || user.agreedToTerms === false);
     const isSetupPath = location.pathname.includes(ROUTES.ADMIN.AUTH.SETUP_PROFILE);
 
     // FIX: Only redirect if we HAVE user info but it's incomplete. 
     // Prevents loops when user is null (e.g., during refresh or BE failure).
-    if (user && !isSetupComplete && !isSetupPath) {
+    if (isSetupIncomplete && !isSetupPath) {
         return <Navigate to={ROUTES.ADMIN.AUTH.SETUP_PROFILE} state={{ from: location }} replace />;
     }
 
     // DP-32 Setup Protection: Prevent re-entry if already complete
+    const isSetupComplete = user?.hasPassword && user?.agreedToTerms;
     if (user && isSetupComplete && isSetupPath) {
         return <Navigate to={ROUTES.ADMIN.DASHBOARD.ROOT} replace />;
     }

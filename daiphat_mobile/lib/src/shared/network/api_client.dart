@@ -52,6 +52,8 @@ class ApiClient {
     _accessToken = accessToken;
   }
 
+  String? get accessToken => _accessToken;
+
   void clearAccessToken() {
     _accessToken = null;
   }

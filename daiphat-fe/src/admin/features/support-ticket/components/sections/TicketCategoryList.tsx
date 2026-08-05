@@ -475,11 +475,10 @@ export const TicketCategoryList = ({
                     showCellVerticalBorder={settings.showCellBorders}
                     showColumnVerticalBorder={settings.showColumnBorders}
                     showToolbar
+                    disableColumnMenu
+                    disableColumnSorting
                     slots={{
                         toolbar: TicketCategoryToolbar as any,
-                        columnSortedAscendingIcon: SortAscendingIcon,
-                        columnSortedDescendingIcon: SortDescendingIcon,
-                        columnUnsortedIcon: UnsortedIcon,
                         noRowsOverlay: () => (
                             <Box
                                 sx={{

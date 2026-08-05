@@ -7,18 +7,18 @@ import { ClientGlobalWidgets } from '@/client/components/layout/ClientGlobalWidg
 
 export default function ClientLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="client-theme min-h-screen text-inherit font-inherit flex flex-col relative">
-      <ClientHeaderGuard>
-        <Header />
-      </ClientHeaderGuard>
-      <div className="flex-1 flex flex-col">
-        <Suspense fallback={<LoadingSpinner />}>
+    <Suspense fallback={<div className="flex items-center justify-center min-h-screen"><LoadingSpinner /></div>}>
+      <div className="client-theme min-h-screen text-inherit font-inherit flex flex-col relative">
+        <ClientHeaderGuard>
+          <Header />
+        </ClientHeaderGuard>
+        <div className="flex-1 flex flex-col">
           {children}
-        </Suspense>
+        </div>
+        <Footer />
+        <ClientGlobalWidgets />
       </div>
-      <Footer />
-      <ClientGlobalWidgets />
-    </div>
+    </Suspense>
   );
 }
 

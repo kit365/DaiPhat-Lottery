@@ -14,6 +14,8 @@ import { QUERY_KEYS } from '../../constants/queryKeys';
 const getErrorMessage = (error: any, fallback: string) =>
     error?.response?.data?.message || error.message || fallback;
 
+const SUPPORT_TICKET_LIVE_REFETCH_MS = 3000;
+
 export const useGetTicketCategories = () => {
     return useQuery({
         queryKey: [QUERY_KEYS.CLIENT_TICKET_CATEGORIES],
@@ -59,6 +61,9 @@ export const useGetComplaintDetail = (id: number) => {
         },
         enabled: Number.isFinite(id) && id > 0,
         retry: false,
+        staleTime: 0,
+        refetchOnWindowFocus: true,
+        refetchInterval: SUPPORT_TICKET_LIVE_REFETCH_MS,
     });
 };
 
@@ -67,6 +72,9 @@ export const useGetTicketComments = (ticketId: number) => {
         queryKey: [QUERY_KEYS.CLIENT_TICKET_COMMENTS, ticketId],
         queryFn: () => supportTicketService.getComments(ticketId),
         enabled: !!ticketId,
+        staleTime: 0,
+        refetchOnWindowFocus: true,
+        refetchInterval: SUPPORT_TICKET_LIVE_REFETCH_MS,
     });
 };
 

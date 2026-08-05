@@ -8,7 +8,6 @@ import {
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import CircularProgress from '@mui/material/CircularProgress';
-import { SortAscendingIcon, SortDescendingIcon, UnsortedIcon } from '../../../../assets/icons';
 import {
     IGridSettings,
     useSettings,
@@ -126,11 +125,10 @@ export const StationList = () => {
                     showCellVerticalBorder={settings.showCellBorders}
                     showColumnVerticalBorder={settings.showColumnBorders}
                     showToolbar
+                    disableColumnMenu
+                    disableColumnSorting
                     slots={{
                         toolbar: StationToolbar as any,
-                        columnSortedAscendingIcon: SortAscendingIcon,
-                        columnSortedDescendingIcon: SortDescendingIcon,
-                        columnUnsortedIcon: UnsortedIcon,
                         noRowsOverlay: () => (
                             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
                                 {isLoading ? (

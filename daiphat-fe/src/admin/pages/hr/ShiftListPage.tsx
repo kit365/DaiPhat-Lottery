@@ -19,7 +19,6 @@ import { confirmDelete } from '../../utils/swal';
 import { dataGridCardStyles, dataGridContainerStyles, dataGridStyles, primaryButtonStyles } from './configs/styles.config';
 import { HRToolbar } from './sections/HRToolbar';
 import { useDataGridLocale } from '../../hooks/useDataGridLocale';
-import { SortAscendingIcon, SortDescendingIcon, UnsortedIcon } from '../../assets/icons';
 
 export const ShiftListPage = () => {
     const [openDialog, setOpenDialog] = useState(false);
@@ -126,12 +125,11 @@ export const ShiftListPage = () => {
                         loading={isLoading}
                         checkboxSelection
                         disableRowSelectionOnClick
+                        disableColumnMenu
+                        disableColumnSorting
                         localeText={localeText}
                         slots={{
                             toolbar: HRToolbar as any,
-                            columnSortedAscendingIcon: SortAscendingIcon,
-                            columnSortedDescendingIcon: SortDescendingIcon,
-                            columnUnsortedIcon: UnsortedIcon,
                         }}
                         slotProps={{
                             toolbar: {
@@ -153,7 +151,7 @@ export const ShiftListPage = () => {
                         }}
                         pageSizeOptions={[5, 10, 20]}
                         className="admin-datagrid"
-                    sx={dataGridStyles}
+                        sx={dataGridStyles}
                     />
                 </Box>
             </Card>
@@ -167,9 +165,3 @@ export const ShiftListPage = () => {
         </Box>
     );
 };
-
-
-
-
-
-

@@ -14,6 +14,7 @@ public interface PurchasedTicketQueryPort {
             int page,
             int size,
             TicketDrawResultStatus status,
+            Boolean redeemed,
             LocalDate fromDate,
             LocalDate toDate,
             String ticketNumber,

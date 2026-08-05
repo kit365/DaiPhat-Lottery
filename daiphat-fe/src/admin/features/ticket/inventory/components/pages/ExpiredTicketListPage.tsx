@@ -18,7 +18,6 @@ import { useScanExpiredTickets } from '../../hooks/useTicket';
 import { toast } from 'react-toastify';
 import { LoadingButton } from '../../../../../components/ui/LoadingButton';
 import SyncIcon from '@mui/icons-material/Sync';
-import { SortAscendingIcon, SortDescendingIcon, UnsortedIcon } from '../../../../../assets/icons';
 import dayjs from 'dayjs';
 
 const expiredColumns: GridColDef[] = [
@@ -131,10 +130,9 @@ export const ExpiredTicketListPage = () => {
                         getRowId={(row) => row.id || row._id}
                         columns={expiredColumns}
                         localeText={DATA_GRID_LOCALE_VN}
+                        disableColumnMenu
+                        disableColumnSorting
                         slots={{
-                            columnSortedAscendingIcon: SortAscendingIcon,
-                            columnSortedDescendingIcon: SortDescendingIcon,
-                            columnUnsortedIcon: UnsortedIcon,
                             noRowsOverlay: () => (
                                 <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
                                     {isLoading ? (

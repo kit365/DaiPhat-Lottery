@@ -1,4 +1,6 @@
 .admin-theme {
+    max-width: 100vw;
+    overflow-x: hidden;
     /* Primary */
     --palette-primary-lighter: #C8FAD6;
     --palette-primary-light: #5BE49B;
@@ -364,6 +366,7 @@ input:-webkit-autofill:active {
     flex-direction: column !important;
     box-shadow: var(--customShadows-card) !important;
     overflow: hidden !important;
+    border: 1px solid var(--palette-divider) !important;
 }
 
 .swal2-container {
@@ -545,9 +548,15 @@ input:-webkit-autofill:active {
     border-right: 1px solid var(--palette-background-neutral);
 }
 
-.admin-datagrid .MuiDataGrid-menuIcon .MuiButtonBase-root {
-    color: var(--palette-text-secondary);
-    rotate: 90deg;
+.admin-datagrid .MuiDataGrid-menuIcon,
+.admin-datagrid .MuiDataGrid-iconButtonContainer,
+.admin-datagrid .MuiDataGrid-sortIcon {
+    display: none !important;
+    visibility: hidden !important;
+    width: 0 !important;
+    height: 0 !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
 }
 
 .admin-datagrid .MuiDataGrid-columnHeaders .MuiButtonBase-root {
@@ -878,3 +887,92 @@ input:-webkit-autofill:active {
     color: var(--palette-primary-main) !important;
     background-color: var(--palette-action-hover) !important;
 }
+
+/* -------------------------------------------------------------------------
+   MUI DatePicker / DateTimePicker / TimePicker Global Styling
+   ------------------------------------------------------------------------- */
+.MuiPickersPopper-root .MuiPaper-root {
+    border-radius: var(--shape-borderRadius-lg) !important;
+    box-shadow: var(--customShadows-z20) !important;
+    border: 1px solid var(--palette-divider) !important;
+}
+
+/* Selected Date Day Circle in Calendar */
+.MuiPickersDay-root.Mui-selected {
+    background-color: var(--palette-text-primary) !important;
+    color: var(--palette-common-white) !important;
+    font-weight: 700 !important;
+}
+
+.MuiPickersDay-root.Mui-selected:hover {
+    background-color: var(--palette-grey-700) !important;
+}
+
+/* Today Indicator */
+.MuiPickersDay-root.MuiPickersDay-today {
+    border-color: var(--palette-text-primary) !important;
+}
+
+/* Selected Time Item in Digital Clock / TimePicker */
+.MuiMultiSectionDigitalClockSection-item.Mui-selected {
+    background-color: var(--palette-text-primary) !important;
+    color: var(--palette-common-white) !important;
+    font-weight: 700 !important;
+    border-radius: 8px !important;
+}
+
+.MuiMultiSectionDigitalClockSection-item.Mui-selected:hover {
+    background-color: var(--palette-grey-700) !important;
+}
+
+/* AM / PM Selector Button */
+.MuiTimePickerToolbar-ampmSelection .MuiButton-root.Mui-selected,
+.MuiPickersToolbarText-root.Mui-selected {
+    color: var(--palette-text-primary) !important;
+    font-weight: 700 !important;
+}
+
+.MuiTimePickerToolbar-ampmSelection .MuiButton-root.Mui-selected {
+    background-color: var(--palette-text-primary) !important;
+    color: var(--palette-common-white) !important;
+}
+
+/* Analog Clock Pointer & Pin */
+.MuiClock-pin {
+    background-color: var(--palette-text-primary) !important;
+}
+
+.MuiClockPointer-root {
+    background-color: var(--palette-text-primary) !important;
+}
+
+.MuiClockPointer-thumb {
+    background-color: var(--palette-text-primary) !important;
+    border-color: var(--palette-text-primary) !important;
+}
+
+.MuiClockNumber-root.Mui-selected {
+    background-color: var(--palette-text-primary) !important;
+    color: var(--palette-common-white) !important;
+}
+
+/* Calendar Year / Month Selection */
+.MuiPickersYear-yearButton.Mui-selected,
+.MuiPickersMonth-monthButton.Mui-selected {
+    background-color: var(--palette-text-primary) !important;
+    color: var(--palette-common-white) !important;
+}
+
+/* Action Buttons (OK / Cancel) in Layout ActionBar */
+.MuiPickersLayout-actionBar .MuiButton-root {
+    font-weight: 700 !important;
+    text-transform: none !important;
+    border-radius: 8px !important;
+}
+
+.MuiPickersLayout-actionBar .MuiButton-root:last-of-type {
+    background-color: var(--palette-text-primary) !important;
+    color: var(--palette-common-white) !important;
+    padding: 6px 16px !important;
+}
+

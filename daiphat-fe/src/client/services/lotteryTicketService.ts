@@ -45,6 +45,7 @@ export const lotteryTicketService = {
                 page: params.page ?? 1,
                 size: params.size ?? 20,
                 status: params.status,
+                redeemed: params.redeemed,
                 fromDate: params.fromDate,
                 toDate: params.toDate,
                 ticketNumber: params.ticketNumber,

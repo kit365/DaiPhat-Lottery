@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { Search, User as UserIcon, Home, Crosshair, Ticket, CalendarDays, Gift, Bell, Wallet, ChevronDown, ShoppingCart, BookOpen, Trash2, Sparkles } from "lucide-react";
@@ -22,7 +23,6 @@ import { AppToast as toast } from "../../../utils/toast.util";
 const navItems = [
   { label: "Trang chủ", to: ROUTES.PUBLIC.HOME, icon: Home },
   { label: "Mua vé số", to: "/buy-ticket", icon: Ticket },
-  { label: "Tra cứu vé", to: "/ticket-search", icon: Search },
   { label: "Vé của tôi", to: "/profile/tickets", icon: Ticket },
   { label: "Gieo quẻ", to: ROUTES.PUBLIC.FORTUNE, icon: Sparkles },
   { label: "Lịch mở thưởng", to: "/lich-mo-thuong", icon: CalendarDays },
@@ -40,7 +40,9 @@ export const Header = () => {
   const user = realUser;
   const { isProfileSetupModalOpen, openLoginModal, openProfileSetupModal } = useAuthStore();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const profileMenuRef = useRef<HTMLDivElement | null>(null);
   const navigate = useNavigate();
   const location = useLocation();
   const cartItems = useCartStore(state => state.items);
@@ -67,6 +69,22 @@ export const Header = () => {
       document.body.style.overflow = "unset";
     };
   }, [isMenuOpen]);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (!profileMenuRef.current) return;
+      if (!profileMenuRef.current.contains(event.target as Node)) {
+        setIsProfileMenuOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  useEffect(() => {
+    setIsProfileMenuOpen(false);
+  }, [location.pathname]);
 
   const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
 
@@ -105,10 +123,12 @@ export const Header = () => {
           <div className="flex items-center justify-between w-full lg:w-auto shrink-0 group">
             <Link to={ROUTES.PUBLIC.HOME} className="flex items-center gap-3 no-underline font-client-display" aria-label="DaiPhat home">
               <div className="relative p-[2px] bg-gradient-to-tr from-[#ee1314] to-[#F59E0B] rounded-xl shadow-md shadow-[#ee1314]/10 transition-transform duration-300 group-hover:scale-105">
-                <img 
+                <Image 
                   src="https://i.ibb.co/4R7c75YN/z7824247008533-94446d3b6c16598cda67404d805c15c4.jpg" 
-                  alt="Đại Phát Logo" 
-                  decoding="async"
+                  alt="Đại Phát Logo"
+                  width={38}
+                  height={38}
+                  priority
                   className="w-[38px] h-[38px] rounded-[10px] object-cover bg-white" 
                 />
               </div>
@@ -268,47 +288,58 @@ export const Header = () => {
                 </div>
 
                 {/* User */}
-                <div className="flex items-center gap-3 cursor-pointer group relative py-2 select-none">
-                  <Link to="/profile" onClick={handleProfileClick} className="relative shrink-0">
-                    <div className="w-10 h-10 rounded-full border-2 border-white group-hover:border-[#ee1314] bg-slate-100 shadow-sm overflow-hidden transition-all duration-300">
-                      {user.avatar || user.avatarUrl ? (
-                        <img
-                          src={user.avatar || user.avatarUrl}
-                          alt={user.fullName || "User"}
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center bg-[#ee1314]/5 text-[#ee1314]">
-                          <UserIcon size={19} className="font-bold" />
-                        </div>
-                      )}
+                <div ref={profileMenuRef} className="relative py-2 select-none">
+                  <button
+                    type="button"
+                    onClick={() => setIsProfileMenuOpen((prev) => !prev)}
+                    className="flex items-center gap-3 cursor-pointer group"
+                    aria-expanded={isProfileMenuOpen}
+                    aria-haspopup="menu"
+                  >
+                    <div className="relative shrink-0">
+                      <div className="w-10 h-10 rounded-full border-2 border-white group-hover:border-[#ee1314] bg-slate-100 shadow-sm overflow-hidden transition-all duration-300">
+                        {user.avatar || user.avatarUrl ? (
+                          <img
+                            src={user.avatar || user.avatarUrl}
+                            alt={user.fullName || "User"}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center bg-[#ee1314]/5 text-[#ee1314]">
+                            <UserIcon size={19} className="font-bold" />
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  </Link>
-                  <div className="flex items-center gap-1 font-bold text-[#102937] group-hover:text-[#ee1314] transition-colors text-[14px] whitespace-nowrap">
-                    {user.fullName || user.username}
-                    <ChevronDown size={15} className="text-slate-400 group-hover:text-[#ee1314] transition-colors" />
-                  </div>
+                    <div className="flex items-center gap-1 font-bold text-[#102937] group-hover:text-[#ee1314] transition-colors text-[14px] whitespace-nowrap">
+                      {user.fullName || user.username}
+                      <ChevronDown
+                        size={15}
+                        className={`text-slate-400 transition-transform duration-200 ${isProfileMenuOpen ? "rotate-180 text-[#ee1314]" : "group-hover:text-[#ee1314]"}`}
+                      />
+                    </div>
+                  </button>
 
                   {/* Profile Dropdown */}
-                  <div className="absolute top-full right-0 mt-2 w-[210px] bg-white/95 backdrop-blur-xl rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.12)] border border-slate-100 opacity-0 invisible pointer-events-none translate-y-2 group-hover:opacity-100 group-hover:visible group-hover:pointer-events-auto group-hover:translate-y-0 transition-all duration-300 ease-out z-[1100] py-2 overflow-hidden">
+                  <div className={`absolute top-full right-0 mt-2 w-[210px] bg-white/95 backdrop-blur-xl rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.12)] border border-slate-100 transition-all duration-200 ease-out z-[1100] py-2 overflow-hidden ${isProfileMenuOpen ? "opacity-100 visible pointer-events-auto translate-y-0" : "opacity-0 invisible pointer-events-none translate-y-2"}`}>
                     {/* Triangle pointer */}
                     <div className="absolute -top-[6px] right-8 w-3 h-3 bg-white border-l border-t border-slate-100 rotate-45 pointer-events-none"></div>
                     
                     <div className="relative z-10">
-                        <Link to="/profile/overview" className="flex items-center gap-3 px-5 py-3 text-[14px] font-medium text-[#212B36] hover:bg-slate-50 hover:text-[#ee1314] transition-colors">
+                        <Link to="/profile/overview" onClick={() => setIsProfileMenuOpen(false)} className="flex items-center gap-3 px-5 py-3 text-[14px] font-medium text-[#212B36] hover:bg-slate-50 hover:text-[#ee1314] transition-colors">
                         <i className="fa-solid fa-layer-group text-[15px] text-[#637381] w-5 text-center"></i>
                         <span>Tổng Quan</span>
                         </Link>
-                        <Link to="/profile/info" className="flex items-center gap-3 px-5 py-3 text-[14px] font-medium text-[#212B36] hover:bg-slate-50 hover:text-[#ee1314] transition-colors">
+                        <Link to="/profile/info" onClick={() => setIsProfileMenuOpen(false)} className="flex items-center gap-3 px-5 py-3 text-[14px] font-medium text-[#212B36] hover:bg-slate-50 hover:text-[#ee1314] transition-colors">
                         <i className="fa-regular fa-user text-[15px] text-[#637381] w-5 text-center"></i>
                         <span>Tài Khoản</span>
                         </Link>
-                        <Link to="/profile/orders" className="flex items-center gap-3 px-5 py-3 text-[14px] font-medium text-[#212B36] hover:bg-slate-50 hover:text-[#ee1314] transition-colors">
+                        <Link to="/profile/orders" onClick={() => setIsProfileMenuOpen(false)} className="flex items-center gap-3 px-5 py-3 text-[14px] font-medium text-[#212B36] hover:bg-slate-50 hover:text-[#ee1314] transition-colors">
                         <i className="fa-solid fa-bag-shopping text-[15px] text-[#637381] w-5 text-center"></i>
                         <span>Đơn Hàng</span>
                         </Link>
                         <div className="h-px bg-slate-100 my-1 mx-2" />
-                        <button onClick={() => logout()} className="w-full flex items-center gap-3 px-5 py-3 text-[14px] font-bold text-[#ee1314] hover:bg-[#FFF4F4]/50 transition-colors cursor-pointer text-left">
+                        <button onClick={() => { setIsProfileMenuOpen(false); logout(); }} className="w-full flex items-center gap-3 px-5 py-3 text-[14px] font-bold text-[#ee1314] hover:bg-[#FFF4F4]/50 transition-colors cursor-pointer text-left">
                         <i className="fa-solid fa-arrow-right-from-bracket text-[15px] text-[#ee1314] w-5 text-center"></i>
                         <span>Đăng Xuất</span>
                         </button>

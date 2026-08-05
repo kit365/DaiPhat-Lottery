@@ -52,7 +52,7 @@ export const DrawResultList = ({
     const localeText = useDataGridLocale();
 
     return (
-        <Card elevation={0} sx={{ height: 640, display: 'flex', flexDirection: 'column' }}>
+        <Card elevation={0} className="admin-datagrid-card">
             <div style={{ width: '100%', flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
                 {error ? (
                     <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
@@ -68,13 +68,12 @@ export const DrawResultList = ({
                         density={settings.density}
                         showCellVerticalBorder={settings.showCellBorders}
                         showColumnVerticalBorder={settings.showColumnBorders}
+                        disableColumnMenu
+                        disableColumnSorting
                         className="admin-datagrid"
-                    sx={dataGridStyles}
+                        sx={dataGridStyles}
                         slots={{
                             toolbar: DrawResultToolbar as any,
-                            columnSortedAscendingIcon: SortAscendingIcon,
-                            columnSortedDescendingIcon: SortDescendingIcon,
-                            columnUnsortedIcon: UnsortedIcon,
                             noRowsOverlay: () => (
                                 <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
                                     {isLoading
