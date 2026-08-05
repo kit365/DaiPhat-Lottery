@@ -466,7 +466,7 @@ const StepLayout = ({ icon, title, description, children, onBack }: any) => (
                 <Button
                     startIcon={<ArrowBackIcon />}
                     onClick={onBack}
-                    sx={{ textTransform: "none", color: "text.primary", fontWeight: 600 }}
+                    sx={{ color: "text.primary" }}
                 >
                     Quay lại
                 </Button>

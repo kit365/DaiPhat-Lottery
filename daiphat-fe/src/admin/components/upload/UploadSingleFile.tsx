@@ -209,7 +209,7 @@ export const UploadSingleFile = memo(
                         {isUploaded && (
                             <Box sx={{
                                 position: 'absolute', bottom: 2, right: 2,
-                                bgcolor: '#00A76F', borderRadius: '50%',
+                                bgcolor: '#FF3030', borderRadius: '50%',
                                 width: 14, height: 14, border: '2px solid #fff',
                                 display: 'flex', alignItems: 'center', justifyContent: 'center'
                             }}>
@@ -360,7 +360,7 @@ export const UploadSingleFile = memo(
                                 {isUploading ? "Đang tải ảnh lên..." : "Kéo thả hoặc chọn tệp"}
                             </div>
                             <div className="text-[0.875rem] text-[#637381]">
-                                Kéo tệp vào đây, hoặc <span className="underline text-[#00A76F]">chọn tệp</span>
+                                Kéo tệp vào đây, hoặc <span className="underline text-[#FF3030]">chọn tệp</span>
                             </div>
                         </div>
                     </div>
