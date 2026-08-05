@@ -1,6 +1,5 @@
-import { useAuthStore } from "../../../stores/useAuthStore";
-import { Navigate } from "react-router-dom";
+import { SystemPage } from "./SystemPage";
 
 export const DashboardPage = () => {
-    return <Navigate to="/admin/dashboard/system" replace />;
+    return <SystemPage />;
 };

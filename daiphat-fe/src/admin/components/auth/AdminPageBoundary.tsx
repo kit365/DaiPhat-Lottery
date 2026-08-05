@@ -12,10 +12,15 @@ interface AdminPageBoundaryProps {
   exportName?: string;
 }
 
+const componentCache = new Map<string, React.ComponentType<any>>();
+
 export function AdminPageBoundary({ permission, permissions, loader, exportName }: AdminPageBoundaryProps) {
-  const DynamicComponent = useMemo(
-    () =>
-      dynamic(
+  const DynamicComponent = useMemo(() => {
+    const cacheKey = exportName ? `${loader.toString()}_${exportName}` : loader.toString();
+
+    let comp = componentCache.get(cacheKey);
+    if (!comp) {
+      comp = dynamic(
         () =>
           loader().then((m) => {
             if (exportName && m[exportName]) {
@@ -31,9 +36,11 @@ export function AdminPageBoundary({ permission, permissions, loader, exportName 
             </div>
           ),
         }
-      ),
-    [loader, exportName]
-  );
+      );
+      componentCache.set(cacheKey, comp);
+    }
+    return comp;
+  }, [loader, exportName]);
 
   return (
     <PermissionGuard permission={permission} permissions={permissions}>

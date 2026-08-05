@@ -1,5 +1,6 @@
 import dayjs from 'dayjs';
 import 'dayjs/locale/vi';
+import { vietnameseWeekdayLabel } from '../utils/vietnameseDate.util';
 
 dayjs.locale('vi');
 
@@ -175,15 +176,7 @@ export const formatDisplayDateToApi = (date: string): string =>
     ? `${date.slice(6, 10)}-${date.slice(3, 5)}-${date.slice(0, 2)}`
     : date;
 
-export const getDayOfWeekLabel = (date: string): string => {
-  const parsed = dayjs(date);
-  if (!parsed.isValid()) {
-    return '';
-  }
-
-  const label = parsed.format('dddd');
-  return label.charAt(0).toUpperCase() + label.slice(1);
-};
+export const getDayOfWeekLabel = (date: string): string => vietnameseWeekdayLabel(date);
 
 export const buildRecentDateOptions = (days: number = 14): string[] =>
   Array.from({ length: days }, (_, index) =>

@@ -34,7 +34,8 @@ export const TicketSearchWidget: React.FC = () => {
 
     const { data: stations } = useStationsByDrawDate(selectedDate);
 
-    const canSearch = search.trim().length >= 2 || !!stationId;
+    const hasSearchDigits = search.trim().length >= 2;
+    const canSearch = hasSearchDigits;
     const { data, isLoading, isFetching } = useLotteryTicketSearch(
         {
             page: 1,
@@ -119,13 +120,13 @@ export const TicketSearchWidget: React.FC = () => {
                     {(isLoading || isFetching) && canSearch && (
                         <p className="text-[13px] text-[#637381] text-center py-4">Đang tìm vé...</p>
                     )}
-                    {!isLoading && canSearch && search.trim().length >= 2 && tickets.length === 0 && (
+                    {!isLoading && canSearch && tickets.length === 0 && (
                         <p className="text-[13px] text-[#637381] text-center py-4">Không tìm thấy vé phù hợp</p>
                     )}
-                    {!canSearch && (
-                        <p className="text-[12px] text-[#919EAB] text-center py-2">Nhập ít nhất 2 số hoặc chọn đài</p>
+                    {!hasSearchDigits && (
+                        <p className="text-[12px] text-[#919EAB] text-center py-2">Nhập ít nhất 2 số để bắt đầu tìm vé</p>
                     )}
-                    {tickets.map((ticket: PublicLotteryTicket) => {
+                    {hasSearchDigits && tickets.map((ticket: PublicLotteryTicket) => {
                         const stock = getTicketStock(ticket);
                         const cartQty = getCartQtyForTicket(ticket.id);
                         const atLimit = isTicketAtCartLimit(ticket);
@@ -167,12 +168,14 @@ export const TicketSearchWidget: React.FC = () => {
                     })}
                 </div>
 
-                <Link
-                    to={`/ticket-search?tab=available&search=${encodeURIComponent(search)}&searchMode=SUFFIX&drawDate=${selectedDate}${stationId ? `&stationId=${stationId}` : ''}`}
-                    className="block text-center text-[13px] font-bold text-[#ee1314] hover:underline"
-                >
-                    Xem tất cả kết quả →
-                </Link>
+                {hasSearchDigits && (
+                    <Link
+                        to={`/buy-ticket?ticketNumber=${encodeURIComponent(search)}&drawDate=${selectedDate}${stationId ? `&stationId=${stationId}` : ''}`}
+                        className="block text-center text-[13px] font-bold text-[#ee1314] hover:underline"
+                    >
+                        Xem tất cả kết quả →
+                    </Link>
+                )}
             </div>
         </div>
     );

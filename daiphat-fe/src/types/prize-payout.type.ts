@@ -154,6 +154,8 @@ export interface PrizePayoutLookupItem {
     matchFrom?: string;
     matchDigits?: number;
     alreadyRequested?: boolean;
+    /** Serial payout lock state from BE (NONE | PAYOUT_PENDING | PAID_OUT). */
+    payoutState?: SerialPayoutState;
 }
 
 export interface PrizePayoutLookupResponse {
@@ -261,12 +263,12 @@ export const PRIZE_PAYOUT_CHANNEL_LABELS: Record<PrizePayoutChannel, string> = {
 };
 
 export const PRIZE_PAYOUT_TICKET_ORIGIN_LABELS: Record<PrizePayoutTicketOrigin, string> = {
-    INTERNAL_ONLINE: 'Vé online (đã lấy về)',
+    INTERNAL_ONLINE: 'Vé online',
     INTERNAL_OFFLINE: 'Vé mua tại quầy',
 };
 
 export const PRIZE_PAYOUT_VERIFICATION_LABELS: Record<PrizePayoutOwnershipVerificationLevel, string> = {
-    AUTO_MATCHED: 'Vé online — đối chiếu hệ thống',
+    AUTO_MATCHED: 'Đã xác minh hệ thống',
     CUSTOMER_LINKED: 'Vé quầy — có KH trên đơn',
     MANUAL_ONLY: 'Vé quầy — không KH / xác minh thủ công',
 };

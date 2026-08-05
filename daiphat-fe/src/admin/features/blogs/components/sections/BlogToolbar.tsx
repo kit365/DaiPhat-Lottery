@@ -204,7 +204,6 @@ export const BlogToolbar = ({
                     value={sortByUI}
                     onChange={onSortChange}
                 />
-                <DummyColumns />
                 <DummyExportButton />
                 <ToggleButtonGroup
                     value={viewMode}

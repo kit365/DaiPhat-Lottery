@@ -8,6 +8,7 @@ import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.response.payout.PrizePayoutBatchCreateResponse;
 import com.daiphat.coreapi.application.dto.response.payout.PrizePayoutLookupItem;
 import com.daiphat.coreapi.application.dto.response.payout.PrizePayoutLookupResponse;
+import com.daiphat.coreapi.application.dto.response.payout.PrizePayoutLookupStationResponse;
 import com.daiphat.coreapi.application.dto.response.payout.PrizePayoutPreviewResponse;
 import com.daiphat.coreapi.application.dto.response.payout.PrizePayoutRequestResponse;
 import com.daiphat.coreapi.application.dto.response.payout.PrizePayoutStaffListResponse;
@@ -15,6 +16,7 @@ import com.daiphat.coreapi.application.dto.storage.StorageResult;
 import com.daiphat.coreapi.application.dto.storage.UploadRequest;
 import com.daiphat.coreapi.application.event.PrizePayoutStatusChangedEvent;
 import com.daiphat.coreapi.application.mapper.payout.PrizePayoutApplicationMapper;
+import com.daiphat.coreapi.application.port.in.lotteries.LotteryStationServicePort;
 import com.daiphat.coreapi.application.port.in.payout.PrizePayoutStaffServicePort;
 import com.daiphat.coreapi.application.port.out.file.StoragePort;
 import com.daiphat.coreapi.application.port.out.lotteries.LotteryTicketSerialRepositoryPort;
@@ -72,6 +74,7 @@ public class PrizePayoutStaffService implements PrizePayoutStaffServicePort {
     private final UserRepository userRepository;
     private final StoragePort storagePort;
     private final ApplicationEventPublisher eventPublisher;
+    private final LotteryStationServicePort lotteryStationServicePort;
 
     @Override
     @Transactional(readOnly = true)
@@ -156,6 +159,19 @@ public class PrizePayoutStaffService implements PrizePayoutStaffServicePort {
                 .map(this::toLookupItem)
                 .toList();
         return new PrizePayoutLookupResponse(items);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<PrizePayoutLookupStationResponse> listLookupStationsByDrawDate(LocalDate drawDate) {
+        if (drawDate == null) {
+            throw new DomainException(ErrorCode.INVALID_INPUT, "Ngày mở thưởng không được để trống.");
+        }
+        // Only stations scheduled to draw on that calendar day (drawDays), not every
+        // station that happens to have ticket rows for the date (seed/bad data can skew that).
+        return lotteryStationServicePort.getByDrawDate(drawDate).stream()
+                .map(station -> new PrizePayoutLookupStationResponse(station.id(), station.name()))
+                .toList();
     }
 
     @Override
@@ -246,19 +262,7 @@ public class PrizePayoutStaffService implements PrizePayoutStaffServicePort {
             details.add(detail);
         }
 
-        // Shared recipient identity: name+CCCD always; image if any ticket needs it.
-        boolean anyNeedsImage = false;
-        for (OrderDetailEntity detail : details) {
-            LotteryTicketSerialEntity serial = detail.getLotteryTicketSerial();
-            PrizePayoutEligibilityService.PrizeMatchContext match =
-                    prizePayoutEligibilityService.resolvePrizeMatch(detail, serial);
-            PrizePayoutCalculationService.PrizePayoutBreakdown breakdown =
-                    prizePayoutCalculationService.calculate(match.prizeAmount());
-            UUID customerId = detail.getOrder().getUser() != null ? detail.getOrder().getUser().getId() : null;
-            if (prizePayoutEligibilityService.requiresRecipientIdImage(customerId, breakdown.grossAmount())) {
-                anyNeedsImage = true;
-            }
-        }
+        // Shared recipient identity: always capture both CCCD images for audit.
 
         if (isBlank(request.recipientFullName()) || isBlank(request.recipientIdNumber())) {
             throw new DomainException(ErrorCode.PRIZE_PAYOUT_RECIPIENT_IDENTITY_REQUIRED);
@@ -267,8 +271,7 @@ public class PrizePayoutStaffService implements PrizePayoutStaffServicePort {
         if (!recipientIdRaw.matches("\\d{9,12}")) {
             throw new DomainException(ErrorCode.INVALID_INPUT, "Số CCCD/CMND phải có từ 9 đến 12 chữ số.");
         }
-        if (anyNeedsImage
-                && (isBlank(request.recipientIdImageUrl()) || isBlank(request.recipientIdImageBackUrl()))) {
+        if (isBlank(request.recipientIdImageUrl()) || isBlank(request.recipientIdImageBackUrl())) {
             throw new DomainException(
                     ErrorCode.PRIZE_PAYOUT_RECIPIENT_IDENTITY_REQUIRED,
                     "Cần ảnh CCCD mặt trước và mặt sau.");
@@ -736,7 +739,8 @@ public class PrizePayoutStaffService implements PrizePayoutStaffServicePort {
                 match.winningNumber(),
                 match.matchFrom(),
                 match.matchDigits(),
-                alreadyRequested);
+                alreadyRequested,
+                payoutState);
     }
 
     private PrizePayoutPreviewResponse toPreviewFromLookup(PrizePayoutLookupItem item) {

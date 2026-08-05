@@ -4,13 +4,15 @@ import { RoleEnum } from "../../../../../types/role.type";
 import React, { useState, useMemo } from 'react';
 import { useNavigate } from '@/components/router-compat';
 import { DataGrid } from '@mui/x-data-grid';
-import { Box, CircularProgress, styled } from '@mui/material';
+import { Box, CircularProgress } from '@mui/material';
 import { useAuthStore } from '../../../../../stores/useAuthStore';
 import { PERMISSIONS } from '../../../../constants/permission.constants';
 import { getColumnsConfig } from '../configs/column.config';
 import { PaginationMetadata } from '../../../../../types/api.type';
 import { dataGridStyles } from '../../../../shared/data-grid';
-
+import { DATA_GRID_LOCALE_VN } from "../../../../../shared/components/DataTable/localeText.config";
+import { ThreeDotsIcon, EyeIcon, EditIcon, DeleteIcon } from "../../../../assets/icons";
+import { Popover, MenuItem, ListItemIcon, ListItemText, ButtonBase } from "@mui/material";
 
 interface UserTableProps {
     data: any[];
@@ -21,10 +23,6 @@ interface UserTableProps {
     onRefresh: () => void;
     isClient?: boolean;
 }
-
-import { DATA_GRID_LOCALE_VN } from "../../../../../shared/components/DataTable/localeText.config";
-import { SortAscendingIcon, SortDescendingIcon, UnsortedIcon, ThreeDotsIcon, EyeIcon, EditIcon, DeleteIcon } from "../../../../assets/icons";
-import { Popover, MenuItem, ListItemIcon, ListItemText, ButtonBase } from "@mui/material";
 
 export const UserTable = ({
     data,
@@ -67,7 +65,6 @@ export const UserTable = ({
     };
 
     const handleDelete = () => {
-        // Typically call delete mutation here or open confirm modal
         console.log("Delete", selectedUserId);
         handleCloseMenu();
     };
@@ -86,7 +83,7 @@ export const UserTable = ({
             pagination?.currentPage || 1,
             pagination?.limit || 10,
             isClient
-        ).filter(c => c.field !== 'actions'); // remove old actions column
+        ).filter(c => c.field !== 'actions');
 
         return [
             ...baseColumns,
@@ -139,15 +136,14 @@ export const UserTable = ({
                     }
                 }}
                 pageSizeOptions={[10, 25, 50]}
+                disableColumnMenu
+                disableColumnSorting
                 disableRowSelectionOnClick
                 density="comfortable"
                 localeText={DATA_GRID_LOCALE_VN}
                 className="admin-datagrid"
-                    sx={dataGridStyles}
+                sx={dataGridStyles}
                 slots={{
-                    columnSortedAscendingIcon: SortAscendingIcon,
-                    columnSortedDescendingIcon: SortDescendingIcon,
-                    columnUnsortedIcon: UnsortedIcon,
                     loadingOverlay: () => <CircularProgress size={30} sx={{ margin: 'auto' }} />,
                     noRowsOverlay: () => (
                         <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>

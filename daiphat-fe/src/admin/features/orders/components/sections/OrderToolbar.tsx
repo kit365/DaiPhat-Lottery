@@ -273,7 +273,6 @@ export const OrderToolbar = ({
                     value={sortByUI}
                     onChange={onSortChange}
                 />
-                <DummyColumns />
                 <DummyExportButton />
                 <SettingsList
                     settings={settings}

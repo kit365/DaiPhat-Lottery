@@ -5,7 +5,6 @@ import { DataGrid } from '@mui/x-data-grid';
 import Card from '@mui/material/Card';
 import Box from '@mui/material/Box';
 import CircularProgress from '@mui/material/CircularProgress';
-import { SortAscendingIcon, SortDescendingIcon, UnsortedIcon } from "../../../../assets/icons";
 import { getColumnsConfig, columnsInitialState } from '../configs/column.config';
 import { BlogCategoryToolbar } from './BlogCategoryToolbar';
 import { DATA_GRID_LOCALE_VN } from "../../../../../shared/components/DataTable/localeText.config";
@@ -31,7 +30,7 @@ export const BlogCategoryList = ({ isTrash = false }: { isTrash?: boolean }) => 
     const pagination = res?.data?.pagination || { totalRecords: 0 };
 
     return (
-        <Card elevation={0} sx={{ height: 640, display: 'flex', flexDirection: 'column' }}>
+        <Card elevation={0} className="admin-datagrid-card">
             <div style={{ width: '100%', flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
                 <DataGrid
                     rows={categories}
@@ -39,13 +38,12 @@ export const BlogCategoryList = ({ isTrash = false }: { isTrash?: boolean }) => 
                     loading={isLoading}
                     columns={getColumnsConfig(isTrash)}
                     density="comfortable"
+                    disableColumnMenu
+                    disableColumnSorting
                     className="admin-datagrid"
                     sx={dataGridStyles}
                     slots={{
                         toolbar: BlogCategoryToolbar as any,
-                        columnSortedAscendingIcon: SortAscendingIcon,
-                        columnSortedDescendingIcon: SortDescendingIcon,
-                        columnUnsortedIcon: UnsortedIcon,
                         noRowsOverlay: () => (
                             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
                                 {isLoading ? <CircularProgress size={32} /> : <span className='text-[1.125rem]'>Không có dữ liệu</span>}
@@ -79,8 +77,5 @@ export const BlogCategoryList = ({ isTrash = false }: { isTrash?: boolean }) => 
                 />
             </div>
         </Card>
-    )
-}
-
-
-
+    );
+};

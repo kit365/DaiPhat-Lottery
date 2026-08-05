@@ -103,6 +103,12 @@ class SupportTicketServiceStaffTest {
         when(userRepositoryPort.findById(STAFF_ID)).thenReturn(Optional.of(UserModel.builder().firstName("An").build()));
         when(supportTicketCommentRepositoryPort.findByTicketIdOrderByCreatedAtAsc(TICKET_ID)).thenReturn(List.of());
         when(supportApplicationMapper.toTicketResponse(any(), any())).thenReturn(mockResponse(TicketStatus.IN_PROGRESS));
+        when(ticketCategoryRepositoryPort.findById(1L)).thenReturn(Optional.of(
+                com.daiphat.coreapi.domain.model.support.TicketCategoryModel.builder()
+                        .id(1L)
+                        .name("Hoàn tiền")
+                        .code("REFUND_PAID_ISSUE")
+                        .build()));
 
         supportTicketService.assignByStaff(TICKET_ID, STAFF_ID);
 
@@ -114,7 +120,7 @@ class SupportTicketServiceStaffTest {
         ArgumentCaptor<SupportTicketCommentModel> commentCaptor = ArgumentCaptor.forClass(SupportTicketCommentModel.class);
         verify(supportTicketCommentRepositoryPort).save(commentCaptor.capture());
         assertThat(commentCaptor.getValue().getSenderRole()).isEqualTo(TicketCommentSenderRole.SYSTEM);
-        assertThat(commentCaptor.getValue().getContent()).isEqualTo("An đã tiếp nhận ticket");
+        assertThat(commentCaptor.getValue().getContent()).isEqualTo("An đã tiếp nhận yêu cầu hoàn tiền");
 
         verify(eventPublisher).publishEvent(any(SupportTicketAssignedEvent.class));
     }
@@ -146,6 +152,12 @@ class SupportTicketServiceStaffTest {
             return comment;
         });
         when(supportApplicationMapper.toTicketResponse(any(), any())).thenReturn(mockResponse(TicketStatus.CLOSED));
+        when(ticketCategoryRepositoryPort.findById(1L)).thenReturn(Optional.of(
+                com.daiphat.coreapi.domain.model.support.TicketCategoryModel.builder()
+                        .id(1L)
+                        .name("Hoàn tiền")
+                        .code("REFUND_PAID_ISSUE")
+                        .build()));
 
         supportTicketService.resolveByStaff(TICKET_ID, STAFF_ID, new ResolveSupportTicketRequest("Đã hoàn tiền"));
 

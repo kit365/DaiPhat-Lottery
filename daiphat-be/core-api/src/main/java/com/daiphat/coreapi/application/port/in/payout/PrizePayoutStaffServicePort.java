@@ -27,6 +27,12 @@ public interface PrizePayoutStaffServicePort {
             LocalDate drawDate,
             String serialNumber);
 
+    /**
+     * Stations that actually have sold tickets on {@code drawDate} (for counter lookup filters).
+     */
+    java.util.List<com.daiphat.coreapi.application.dto.response.payout.PrizePayoutLookupStationResponse>
+            listLookupStationsByDrawDate(LocalDate drawDate);
+
     /** Thin wrapper: resolves one detail then maps to preview shape (prefer {@link #lookup}). */
     PrizePayoutPreviewResponse preview(Long orderDetailId, Long serialId, String serialNumber, String orderCode);
 

@@ -15,6 +15,11 @@ const normalizedBackendProxyTarget = backendProxyTarget.startsWith('http')
 const nextConfig: NextConfig = {
   output: 'standalone',
   compress: true,
+  turbopack: {
+    resolveAlias: {
+      'react-router-dom': './src/components/router-compat.tsx',
+    },
+  },
   experimental: {
     optimizePackageImports: [
       '@mui/material',
@@ -23,15 +28,15 @@ const nextConfig: NextConfig = {
       'framer-motion',
       'dayjs',
       '@iconify/react',
+      'react-day-picker',
+      'date-fns',
     ],
   },
-  turbopack: {
-    resolveAlias: {
-      'react-router-dom': './src/components/router-compat.tsx',
-      'react-apexcharts': './src/components/ApexChartCompat.tsx',
-    },
-  },
   images: {
+    loader: 'custom',
+    loaderFile: './src/utils/imageLoader.ts',
+    qualities: [25, 50, 75, 85],
+    formats: ['image/avif', 'image/webp'],
     remotePatterns: [
       {
         protocol: 'https',
@@ -43,7 +48,15 @@ const nextConfig: NextConfig = {
       },
       {
         protocol: 'https',
-        hostname: '**',
+        hostname: 'i.ibb.co',
+      },
+      {
+        protocol: 'https',
+        hostname: 'cdn.phototourl.com',
+      },
+      {
+        protocol: 'https',
+        hostname: 'upload.wikimedia.org',
       },
     ],
   },
@@ -64,7 +77,6 @@ const nextConfig: NextConfig = {
     config.resolve.alias = {
       ...config.resolve.alias,
       'react-router-dom': path.resolve(__dirname, 'src/components/router-compat.tsx'),
-      'react-apexcharts': path.resolve(__dirname, 'src/components/ApexChartCompat.tsx'),
     };
     return config;
   },

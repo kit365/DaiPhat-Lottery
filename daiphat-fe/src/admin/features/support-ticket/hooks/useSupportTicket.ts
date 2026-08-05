@@ -12,6 +12,8 @@ import {
 const getErrorMessage = (error: any, fallback: string) =>
     error?.response?.data?.message || error.message || fallback;
 
+const SUPPORT_TICKET_LIVE_REFETCH_MS = 3000;
+
 const invalidateTicketQueries = (queryClient: ReturnType<typeof useQueryClient>, ticketId?: number) => {
     queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.ADMIN_SUPPORT_TICKETS] });
     if (ticketId) {
@@ -32,6 +34,9 @@ export const useGetStaffTicketDetail = (id: number) => {
         queryKey: [QUERY_KEYS.ADMIN_SUPPORT_TICKET_DETAIL, id],
         queryFn: () => supportTicketAdminApi.getTicketById(id),
         enabled: !!id,
+        staleTime: 0,
+        refetchOnWindowFocus: true,
+        refetchInterval: SUPPORT_TICKET_LIVE_REFETCH_MS,
     });
 };
 
@@ -40,6 +45,9 @@ export const useGetStaffTicketComments = (ticketId: number) => {
         queryKey: [QUERY_KEYS.ADMIN_SUPPORT_TICKET_COMMENTS, ticketId],
         queryFn: () => supportTicketAdminApi.getComments(ticketId),
         enabled: !!ticketId,
+        staleTime: 0,
+        refetchOnWindowFocus: true,
+        refetchInterval: SUPPORT_TICKET_LIVE_REFETCH_MS,
     });
 };
 

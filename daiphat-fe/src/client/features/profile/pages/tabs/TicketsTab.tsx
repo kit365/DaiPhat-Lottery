@@ -1,13 +1,13 @@
 "use client";
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { scrollToTop } from '../../../../../utils/scroll.util';
 import { Link } from 'react-router-dom';
 import dayjs from 'dayjs';
-import 'dayjs/locale/vi';
+import { formatVietnameseDrawDate } from '../../../../utils/vietnameseDate.util';
 import { motion, AnimatePresence } from 'framer-motion';
-import QRCode from 'react-qr-code';
 import { Pagination } from '../../../../components/common/Pagination';
+import { useStationsByDrawDate } from '../../../../../admin/features/station/hooks/useStation';
 import { usePurchasedTicketLookup } from '../../../../hooks/usePurchasedTicketLookup';
 import { normalizePagination } from '../../../../utils/pagination.util';
 import {
@@ -25,6 +25,7 @@ import { PrizePayoutRequestModal } from '../../../../components/prize-payout/Pri
 import { AppToast as toast } from '../../../../../utils/toast.util';
 
 type StatusTab = 'Tất cả' | 'Chờ quay số' | 'Trúng thưởng' | 'Không trúng';
+type WonRedeemSubFilter = 'ALL' | 'UNREDEEMED' | 'REDEEMED';
 
 const STATUS_TAB_TO_API: Record<StatusTab, TicketDrawResultStatus | undefined> = {
     'Tất cả': undefined,
@@ -32,6 +33,12 @@ const STATUS_TAB_TO_API: Record<StatusTab, TicketDrawResultStatus | undefined> =
     'Trúng thưởng': 'WON',
     'Không trúng': 'LOST',
 };
+
+const WON_REDEEM_SUB_FILTERS: { key: WonRedeemSubFilter; label: string }[] = [
+    { key: 'ALL', label: 'Tất cả trúng' },
+    { key: 'UNREDEEMED', label: 'Chưa đổi thưởng' },
+    { key: 'REDEEMED', label: 'Đã đổi thưởng' },
+];
 
 const STATUS_UI: Record<
     TicketDrawResultStatus,
@@ -63,11 +70,8 @@ const STATUS_UI: Record<
 const formatMoney = (value?: number) =>
     value == null ? '—' : `${Number(value).toLocaleString('vi-VN')}đ`;
 
-const formatDrawDate = (value?: string) =>
-    value ? dayjs(value).locale('vi').format('dddd, DD/MM/YYYY').replace(/^./, (c) => c.toUpperCase()) : '—';
-
-const formatShortDate = (value?: string) =>
-    value ? dayjs(value).format('DD/MM/YYYY') : '—';
+/** Always "Thứ 2, dd/mm/yyyy" — never English Monday from dayjs `dddd`. */
+const formatDrawDate = formatVietnameseDrawDate;
 
 const formatDateTime = (value?: string) =>
     value ? dayjs(value).format('DD/MM/YYYY - HH:mm:ss') : '—';
@@ -89,23 +93,51 @@ const splitTicketNumbers = (numbers?: string): string[] => {
 const ticketKey = (ticket: PurchasedTicket) =>
     `${ticket.orderId}-${ticket.ticketId}-${ticket.serialNumber || ticket.numbers}`;
 
+const normalizeStationName = (value?: string) =>
+    (value || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .replace(/\s+/g, ' ')
+        .trim();
+
+const normalizeDrawDateIso = (raw?: string) => {
+    if (!raw) return '';
+    const matched = raw.match(/\d{4}-\d{2}-\d{2}/);
+    if (matched?.[0]) return matched[0];
+    return dayjs(raw).format('YYYY-MM-DD');
+};
+
 export const TicketsTab = () => {
     const [page, setPage] = useState(1);
     const [activeTab, setActiveTab] = useState<StatusTab>('Tất cả');
+    const [wonRedeemFilter, setWonRedeemFilter] = useState<WonRedeemSubFilter>('ALL');
     const [searchCode, setSearchCode] = useState('');
+    const [fromDate, setFromDate] = useState('');
+    const [toDate, setToDate] = useState('');
     const [selectedTicket, setSelectedTicket] = useState<PurchasedTicket | null>(null);
     const [payoutModalOpen, setPayoutModalOpen] = useState(false);
 
     const pageSize = 10;
     const apiStatus = STATUS_TAB_TO_API[activeTab];
+    const redeemedParam =
+        activeTab === 'Trúng thưởng' && wonRedeemFilter !== 'ALL'
+            ? wonRedeemFilter === 'REDEEMED'
+            : undefined;
+    const hasInvalidDateRange = Boolean(fromDate && toDate && dayjs(fromDate).isAfter(dayjs(toDate)));
 
     const { data, isLoading, isFetching, isError, error, refetch } = usePurchasedTicketLookup({
         page,
         size: pageSize,
         status: apiStatus,
+        redeemed: redeemedParam,
+        fromDate: fromDate || undefined,
+        toDate: toDate || undefined,
         ticketNumber: searchCode.trim() || undefined,
         sortBy: 'createdAt',
         direction: 'desc',
+    }, {
+        enabled: !hasInvalidDateRange,
     });
 
     const tickets = (data?.data?.recordList ?? []) as PurchasedTicket[];
@@ -127,6 +159,18 @@ export const TicketsTab = () => {
         scrollToTop();
     }, [selectedTicket]);
 
+    const selectedTicketDrawDateIso = useMemo(
+        () => normalizeDrawDateIso(selectedTicket?.drawDate),
+        [selectedTicket?.drawDate]
+    );
+    const { data: drawDateStations } = useStationsByDrawDate(selectedTicketDrawDateIso || undefined);
+    const matchedStationForSelectedTicket = useMemo(() => {
+        if (!selectedTicket?.stationName) return null;
+        const stations = drawDateStations || [];
+        const wanted = normalizeStationName(selectedTicket.stationName);
+        return stations.find((station) => normalizeStationName(station.name) === wanted) || null;
+    }, [drawDateStations, selectedTicket?.stationName]);
+
     const copyOrderCode = async (code?: string) => {
         if (!code) return;
         try {
@@ -137,7 +181,7 @@ export const TicketsTab = () => {
         }
     };
 
-    const getStatusBadge = (ticket: PurchasedTicket) => {
+    const getStatusBadge = (ticket: PurchasedTicket, variant: 'list' | 'detail' = 'list') => {
         const ui = STATUS_UI[ticket.drawResultStatus] ?? STATUS_UI.PENDING_DRAW;
 
         if (ticket.drawResultStatus === 'PENDING_DRAW') {
@@ -166,21 +210,21 @@ export const TicketsTab = () => {
 
         if (ticket.drawResultStatus === 'WON') {
             const payoutDisplay = resolveTicketPayoutDisplay(ticket);
+            const containerClassName =
+                variant === 'detail'
+                    ? 'flex flex-wrap items-center gap-2 md:justify-end'
+                    : 'flex flex-col items-start md:items-end gap-1.5';
             return (
-                <div className="flex flex-col items-start md:items-end gap-1.5">
-                    <div className="px-3 py-1 rounded-full text-[12px] font-black bg-gradient-to-r from-amber-500 via-amber-600 to-orange-600 text-white shadow-xs flex items-center gap-1.5">
-                        <i className="fa-solid fa-trophy text-[11px] text-amber-200 animate-bounce"></i>
-                        {ui.label}
-                    </div>
+                <div className={containerClassName}>
                     {ticket.matchedPrizeDisplayName && (
-                        <div className="px-3 py-1 rounded-xl text-[12.5px] font-black bg-gradient-to-r from-amber-400 via-amber-500 to-yellow-500 text-amber-950 shadow-sm border border-amber-300/60 flex items-center gap-1.5 uppercase tracking-wide">
+                        <div className="px-3 py-1 rounded-xl text-[12.5px] font-black bg-gradient-to-r from-amber-400 via-amber-500 to-yellow-500 text-amber-950 shadow-sm border border-amber-300/60 inline-flex items-center gap-1.5 uppercase tracking-wide whitespace-nowrap">
                             <i className="fa-solid fa-star text-[11px]"></i>
                             {ticket.matchedPrizeDisplayName}
                         </div>
                     )}
                     {payoutDisplay && (
                         <div
-                            className={`px-2.5 py-1 rounded-lg text-[11.5px] font-bold border flex items-center gap-1.5 ${payoutDisplay.className}`}
+                            className={`px-2.5 py-1 rounded-lg text-[11.5px] font-bold border inline-flex items-center gap-1.5 whitespace-nowrap ${payoutDisplay.className}`}
                         >
                             <i className={`${payoutDisplay.icon} text-[10px]`}></i>
                             {payoutDisplay.label}
@@ -191,7 +235,7 @@ export const TicketsTab = () => {
                         if (!possession) return null;
                         return (
                             <div
-                                className={`px-2.5 py-1 rounded-lg text-[11.5px] font-bold border flex items-center gap-1.5 ${possession.className}`}
+                                className={`px-2.5 py-1 rounded-lg text-[11.5px] font-bold border inline-flex items-center gap-1.5 whitespace-nowrap ${possession.className}`}
                             >
                                 <i className={`${possession.icon} text-[10px]`}></i>
                                 {possession.label}
@@ -227,6 +271,25 @@ export const TicketsTab = () => {
         const isWon = selectedTicket.drawResultStatus === 'WON';
         const isEligibleForPayout = canRequestPrizePayout(selectedTicket);
         const ineligibilityReason = !isEligibleForPayout ? getPrizePayoutIneligibilityMessage(selectedTicket) : null;
+        const drawDateIso = selectedTicketDrawDateIso;
+        const matchedStationId = matchedStationForSelectedTicket?.id ?? matchedStationForSelectedTicket?._id;
+        const resultLookupUrl = (() => {
+            const params = new URLSearchParams();
+            if (drawDateIso) params.set('drawDate', drawDateIso);
+            if (matchedStationId != null) params.set('stationId', String(matchedStationId));
+            if (selectedTicket.numbers) params.set('search', selectedTicket.numbers.replace(/\D/g, ''));
+            const query = params.toString();
+            return query ? `/?${query}` : '/';
+        })();
+        const rebuyUrl = (() => {
+            const params = new URLSearchParams();
+            if (drawDateIso) params.set('drawDate', drawDateIso);
+            if (matchedStationId != null) params.set('stationId', String(matchedStationId));
+            if (selectedTicket.numbers) params.set('ticketNumber', selectedTicket.numbers.replace(/\D/g, ''));
+            if (selectedTicket.ticketId) params.set('ticketId', String(selectedTicket.ticketId));
+            const query = params.toString();
+            return query ? `/buy-ticket?${query}` : '/buy-ticket';
+        })();
 
         return (
             <motion.div
@@ -270,13 +333,12 @@ export const TicketsTab = () => {
                                         <h3 className="text-[20px] md:text-[24px] font-black text-slate-900 m-0 tracking-tight">
                                             {selectedTicket.stationName || 'Vé số Đại Phát'}
                                         </h3>
-                                        {getStatusBadge(selectedTicket)}
                                     </div>
-                                    <p className="text-[13px] md:text-[14px] text-slate-500 mb-0.5 font-medium">
+                                    <div className="mb-1">
+                                        {getStatusBadge(selectedTicket, 'detail')}
+                                    </div>
+                                    <p className="text-[13px] md:text-[14px] text-slate-500 m-0 font-medium">
                                         📅 Ngày mở thưởng: <span className="text-slate-800 font-bold">{formatDrawDate(selectedTicket.drawDate)}</span>
-                                    </p>
-                                    <p className="text-[13px] text-slate-400 m-0">
-                                        Kỳ mở thưởng: <span className="font-bold text-slate-600">{formatShortDate(selectedTicket.drawDate)}</span>
                                     </p>
                                 </div>
                             </div>
@@ -332,9 +394,9 @@ export const TicketsTab = () => {
                         </div>
 
                         {/* Result & verification section */}
-                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <div className="grid grid-cols-1 gap-6">
                             {/* Detailed Info Grid */}
-                            <div className="lg:col-span-2 flex flex-col gap-3.5">
+                            <div className="flex flex-col gap-3.5">
                                 <h4 className="text-slate-900 font-extrabold text-[15px] uppercase tracking-wider flex items-center gap-2 mb-1">
                                     <i className="fa-solid fa-circle-info text-red-600"></i> Thông tin chi tiết vé
                                 </h4>
@@ -347,8 +409,8 @@ export const TicketsTab = () => {
                                     <div className="h-[1px] bg-slate-200/60"></div>
 
                                     <div className="flex items-center justify-between text-[14px]">
-                                        <span className="text-slate-500 font-medium">Kỳ vé số</span>
-                                        <span className="text-slate-900 font-bold">{formatShortDate(selectedTicket.drawDate)}</span>
+                                        <span className="text-slate-500 font-medium">Ngày mở thưởng</span>
+                                        <span className="text-slate-900 font-bold">{formatDrawDate(selectedTicket.drawDate)}</span>
                                     </div>
                                     <div className="h-[1px] bg-slate-200/60"></div>
 
@@ -428,22 +490,6 @@ export const TicketsTab = () => {
                                 </div>
                             </div>
 
-                            {/* Digital Verification QR Code Card */}
-                            <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-zinc-900 rounded-2xl p-5 text-white flex flex-col items-center justify-center text-center shadow-lg border border-slate-700">
-                                <span className="text-[11px] uppercase tracking-widest text-slate-400 font-extrabold mb-3">
-                                    Xác thực vé điện tử
-                                </span>
-                                <div className="bg-white p-3 rounded-xl shadow-inner mb-3">
-                                    <QRCode
-                                        value={String(selectedTicket.orderCode || selectedTicket.ticketId || 'DAIPHAT-LOTTERY')}
-                                        size={120}
-                                        style={{ height: 'auto', maxWidth: '100%', width: '100%' }}
-                                    />
-                                </div>
-                                <span className="text-[12px] font-mono text-slate-300 font-bold tracking-wider">
-                                    {selectedTicket.orderCode || 'VERIFIED'}
-                                </span>
-                            </div>
                         </div>
 
                         {/* Prize payout action box for winning tickets */}
@@ -506,14 +552,14 @@ export const TicketsTab = () => {
                         {/* Action buttons footer */}
                         <div className="flex items-center justify-between pt-2">
                             <Link
-                                to="/lich-mo-thuong"
+                                to={resultLookupUrl}
                                 className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-[13.5px] transition-colors no-underline flex items-center gap-2"
                             >
                                 <i className="fa-solid fa-calendar-days"></i> Xem kết quả kỳ quay
                             </Link>
 
                             <Link
-                                to={`/buy-ticket?ticketId=${selectedTicket.ticketId}`}
+                                to={rebuyUrl}
                                 className="px-6 py-2.5 bg-gradient-to-r from-red-600 to-rose-600 text-white font-bold rounded-xl text-[14px] shadow-md shadow-red-600/20 hover:brightness-110 transition-all cursor-pointer flex items-center gap-2 no-underline"
                             >
                                 <i className="fa-solid fa-cart-plus"></i> Mua lại bộ số này
@@ -587,7 +633,12 @@ export const TicketsTab = () => {
 
             {/* Filter Tabs & Search Header Container */}
             <div className="bg-white border border-slate-200/90 rounded-3xl shadow-[0_4px_20px_rgba(0,0,0,0.03)] overflow-hidden">
-                <div className="flex flex-col lg:flex-row justify-between items-center gap-4 p-4 md:p-5 border-b border-slate-100 bg-slate-50/60">
+                <div className="flex flex-col gap-3 p-4 md:p-5 border-b border-slate-100 bg-slate-50/70">
+                    <div className="flex items-center justify-between gap-3 flex-wrap">
+                        <span className="text-[12px] font-black text-slate-500 uppercase tracking-wider">
+                            Trạng thái vé
+                        </span>
+                    </div>
                     {/* Status Tabs with Motion Pill */}
                     <div className="flex items-center gap-1.5 overflow-x-auto w-full lg:w-auto no-scrollbar pb-1 lg:pb-0">
                         {ticketTabs.map((tab) => {
@@ -598,6 +649,7 @@ export const TicketsTab = () => {
                                     type="button"
                                     onClick={() => {
                                         setActiveTab(tab);
+                                        setWonRedeemFilter('ALL');
                                         setPage(1);
                                     }}
                                     className={`relative px-4 py-2.5 text-[13.5px] font-extrabold whitespace-nowrap rounded-xl transition-all duration-200 cursor-pointer ${
@@ -618,9 +670,46 @@ export const TicketsTab = () => {
                             );
                         })}
                     </div>
+                </div>
+
+                <div className="flex flex-col lg:flex-row lg:items-end gap-3 px-4 md:px-5 py-3.5 border-b border-slate-100 bg-white">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full lg:max-w-[460px]">
+                        <div className="flex flex-col gap-1">
+                            <label htmlFor="ticketFromDate" className="text-[12px] font-bold text-slate-500 uppercase tracking-wide">
+                                Từ ngày
+                            </label>
+                            <input
+                                id="ticketFromDate"
+                                type="date"
+                                value={fromDate}
+                                max={toDate || undefined}
+                                onChange={(e) => {
+                                    setFromDate(e.target.value);
+                                    setPage(1);
+                                }}
+                                className="h-[42px] w-full px-3 border border-slate-200 bg-white rounded-xl text-[13.5px] outline-none focus:border-red-500 focus:ring-2 focus:ring-red-500/10 transition-all font-semibold text-slate-800 shadow-xs"
+                            />
+                        </div>
+                        <div className="flex flex-col gap-1">
+                            <label htmlFor="ticketToDate" className="text-[12px] font-bold text-slate-500 uppercase tracking-wide">
+                                Đến ngày
+                            </label>
+                            <input
+                                id="ticketToDate"
+                                type="date"
+                                value={toDate}
+                                min={fromDate || undefined}
+                                onChange={(e) => {
+                                    setToDate(e.target.value);
+                                    setPage(1);
+                                }}
+                                className="h-[42px] w-full px-3 border border-slate-200 bg-white rounded-xl text-[13.5px] outline-none focus:border-red-500 focus:ring-2 focus:ring-red-500/10 transition-all font-semibold text-slate-800 shadow-xs"
+                            />
+                        </div>
+                    </div>
 
                     {/* Search Code / Numbers */}
-                    <div className="relative min-w-[240px] w-full lg:w-auto">
+                    <div className="relative min-w-[240px] w-full lg:flex-1">
                         <input
                             type="text"
                             value={searchCode}
@@ -629,7 +718,7 @@ export const TicketsTab = () => {
                                 setPage(1);
                             }}
                             placeholder="Tìm mã vé / bộ số..."
-                            className="w-full pl-10 pr-9 py-2.5 border border-slate-200 bg-white rounded-xl text-[13.5px] outline-none focus:border-red-500 focus:ring-2 focus:ring-red-500/10 transition-all font-semibold placeholder:font-normal text-slate-800 shadow-xs"
+                            className="h-[42px] w-full pl-10 pr-9 border border-slate-200 bg-white rounded-xl text-[13.5px] outline-none focus:border-red-500 focus:ring-2 focus:ring-red-500/10 transition-all font-semibold placeholder:font-normal text-slate-800 shadow-xs"
                         />
                         <i className="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-[13px]"></i>
                         {searchCode && (
@@ -642,7 +731,58 @@ export const TicketsTab = () => {
                             </button>
                         )}
                     </div>
+                    {(fromDate || toDate) && (
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setFromDate('');
+                                setToDate('');
+                                setPage(1);
+                            }}
+                            className="h-[42px] px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 text-[13px] font-bold rounded-xl border border-slate-200 transition-colors cursor-pointer whitespace-nowrap"
+                        >
+                            Xóa khoảng ngày
+                        </button>
+                    )}
                 </div>
+
+                {hasInvalidDateRange && (
+                    <div className="px-4 md:px-5 py-2 border-b border-red-100 bg-red-50 text-red-600 text-[13px] font-semibold">
+                        Khoảng ngày không hợp lệ: "Từ ngày" phải nhỏ hơn hoặc bằng "Đến ngày".
+                    </div>
+                )}
+
+                {activeTab === 'Trúng thưởng' && (
+                    <div className="flex items-center gap-2 px-4 md:px-5 py-3 border-b border-slate-100 bg-amber-50/45 overflow-x-auto no-scrollbar">
+                        <span className="text-[12px] font-black text-amber-800/80 uppercase tracking-wide whitespace-nowrap mr-1">
+                            Lọc đổi thưởng:
+                        </span>
+                        {WON_REDEEM_SUB_FILTERS.map((item) => {
+                            const isActive = wonRedeemFilter === item.key;
+                            return (
+                                <button
+                                    key={item.key}
+                                    type="button"
+                                    onClick={() => {
+                                        setWonRedeemFilter(item.key);
+                                        setPage(1);
+                                    }}
+                                    className={`px-3 py-1.5 rounded-full text-[12.5px] font-extrabold whitespace-nowrap border transition-all cursor-pointer ${
+                                        isActive
+                                            ? item.key === 'REDEEMED'
+                                                ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm'
+                                                : item.key === 'UNREDEEMED'
+                                                    ? 'bg-violet-600 text-white border-violet-600 shadow-sm'
+                                                    : 'bg-amber-600 text-white border-amber-600 shadow-sm'
+                                            : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300 hover:text-slate-900'
+                                    }`}
+                                >
+                                    {item.label}
+                                </button>
+                            );
+                        })}
+                    </div>
+                )}
 
                 {/* Tickets List Container */}
                 <div className="flex flex-col divide-y divide-slate-100">
@@ -721,7 +861,7 @@ export const TicketsTab = () => {
                                                         {ticket.stationName || 'Vé số'}
                                                     </h4>
                                                     <p className="text-[12px] text-slate-400 font-medium">
-                                                        Kỳ vé: {formatShortDate(ticket.drawDate)}
+                                                        Ngày mở thưởng: {formatDrawDate(ticket.drawDate)}
                                                     </p>
                                                 </div>
                                             </div>
@@ -745,11 +885,8 @@ export const TicketsTab = () => {
                                                 <h4 className="text-[15.5px] font-black text-slate-900 mb-0.5 group-hover:text-red-600 transition-colors tracking-tight">
                                                     {ticket.stationName || 'Vé số'}
                                                 </h4>
-                                                <p className="text-[12px] text-slate-500 font-medium">
-                                                    Ngày mở thưởng: <span className="font-bold text-slate-700">{formatShortDate(ticket.drawDate)}</span>
-                                                </p>
-                                                <p className="text-[11.5px] text-slate-400">
-                                                    Kỳ vé: {formatShortDate(ticket.drawDate)}
+                                                <p className="text-[12px] text-slate-500 font-medium m-0">
+                                                    Ngày mở thưởng: <span className="font-bold text-slate-700">{formatDrawDate(ticket.drawDate)}</span>
                                                 </p>
                                             </div>
                                         </div>

@@ -2,7 +2,6 @@
 
 import { useState, useMemo } from 'react';
 import { Popover, Box, FormControl, FormHelperText, Typography, Button } from '@mui/material';
-import { useTheme } from '@mui/material/styles';
 import { CalendarMonth } from '@mui/icons-material';
 import { DayPicker, DateRange } from 'react-day-picker';
 import dayjs from 'dayjs';
@@ -29,10 +28,6 @@ export const DateRangePicker = ({
     const [anchorEl, setAnchorEl] = useState<HTMLDivElement | null>(null);
     const [focused, setFocused] = useState(false);
     const [tempRange, setTempRange] = useState<DateRange | undefined>(undefined);
-    const theme = useTheme();
-    const primaryMain = theme.palette.primary.main;
-    const primaryLighter = theme.palette.primary.light;
-    const primaryDark = theme.palette.primary.dark;
 
     const selectedRange: DateRange | undefined = useMemo(() => {
         if (!startDate && !endDate) return undefined;
@@ -95,7 +90,6 @@ export const DateRangePicker = ({
                         position: 'relative',
                         cursor: 'pointer',
                         borderRadius: 'var(--shape-borderRadius)',
-                        // Mimics MUI OutlinedInput exactly: transparent → hover gray → focus dark
                         outline: focused
                             ? '2px solid var(--palette-text-primary)'
                             : '1px solid transparent',
@@ -116,7 +110,6 @@ export const DateRangePicker = ({
                         minHeight: '56px',
                     }}
                 >
-                    {/* Floating label */}
                     <Typography
                         component="label"
                         sx={{
@@ -172,36 +165,103 @@ export const DateRangePicker = ({
                     className="custom-date-range"
                     sx={{
                         backgroundColor: 'var(--palette-background-paper)',
-                        p: 1,
+                        p: 2,
                     }}
                 >
                     <style>{`
                         .custom-date-range .rdp-root {
-                            --rdp-accent-color: ${primaryMain};
-                            --rdp-accent-background-color: ${primaryLighter};
+                            --rdp-accent-color: #00A76F !important;
+                            --rdp-accent-background-color: rgba(0, 167, 111, 0.14) !important;
+                            --rdp-range_middle-background-color: rgba(0, 167, 111, 0.14) !important;
+                            --rdp-range_middle-color: #006C45 !important;
+                            --rdp-day-height: 36px !important;
+                            --rdp-day-width: 36px !important;
                             margin: 0 !important;
+                        }
+                        /* Disable pseudo-elements that cause number offset */
+                        .custom-date-range .rdp-day_button::before,
+                        .custom-date-range .rdp-day_button::after,
+                        .custom-date-range .rdp-day::before,
+                        .custom-date-range .rdp-day::after {
+                            content: none !important;
+                            display: none !important;
+                        }
+                        /* Base Day Button */
+                        .custom-date-range .rdp-day_button {
+                            width: 36px !important;
+                            height: 36px !important;
+                            min-width: 36px !important;
+                            min-height: 36px !important;
+                            line-height: 36px !important;
+                            border-radius: 50% !important;
+                            font-size: 0.875rem !important;
+                            font-weight: 500 !important;
+                            text-align: center !important;
+                            padding: 0 !important;
+                            margin: 0 auto !important;
+                            position: relative !important;
+                            box-sizing: border-box !important;
+                            color: var(--palette-text-primary) !important;
                         }
                         .custom-date-range .rdp-day_button:focus, 
                         .custom-date-range .rdp-day:focus {
                             outline: none !important;
                         }
+                        .custom-date-range .rdp-day_button:hover {
+                            background-color: rgba(0, 167, 111, 0.12) !important;
+                            border-radius: 50% !important;
+                        }
+                        /* Start & End selected day circle */
+                        .custom-date-range .rdp-range_start .rdp-day_button,
+                        .custom-date-range .rdp-range_end .rdp-day_button,
+                        .custom-date-range .rdp-selected .rdp-day_button,
+                        .custom-date-range .rdp-day_selected .rdp-day_button,
+                        .custom-date-range .rdp-day_button[aria-selected="true"],
+                        .custom-date-range button[aria-selected="true"].rdp-day_button {
+                            background-color: #00A76F !important;
+                            color: #ffffff !important;
+                            font-weight: 700 !important;
+                            border-radius: 50% !important;
+                        }
+                        /* Range Middle band */
+                        .custom-date-range .rdp-range_middle {
+                            background-color: rgba(0, 167, 111, 0.14) !important;
+                        }
+                        .custom-date-range .rdp-range_middle .rdp-day_button {
+                            background-color: transparent !important;
+                            color: #006C45 !important;
+                            font-weight: 600 !important;
+                            border-radius: 0 !important;
+                        }
+                        /* Navigation Arrows & Icons */
+                        .custom-date-range .rdp-nav button,
+                        .custom-date-range .rdp-nav_button,
+                        .custom-date-range .rdp-chevron {
+                            color: #00A76F !important;
+                            fill: #00A76F !important;
+                        }
+                        .custom-date-range .rdp-nav button:hover,
+                        .custom-date-range .rdp-nav_button:hover {
+                            background-color: rgba(0, 167, 111, 0.1) !important;
+                            border-radius: 50% !important;
+                        }
+                        /* Today Indicator - không áp dụng khi đã được chọn */
+                        .custom-date-range .rdp-today:not(.rdp-range_start):not(.rdp-range_end):not(.rdp-selected):not(.rdp-day_selected) .rdp-day_button {
+                            font-weight: 700 !important;
+                            color: #00A76F !important;
+                        }
+                        /* Weekday Header */
                         .custom-date-range .rdp-weekday {
                             color: var(--palette-text-secondary) !important;
                             font-size: 0.75rem !important;
                             font-weight: 600 !important;
                         }
+                        /* Month Title */
                         .custom-date-range .rdp-month_caption, 
                         .custom-date-range .rdp-caption_label {
                             font-size: 0.9375rem !important;
                             font-weight: 700 !important;
                             color: var(--palette-text-primary) !important;
-                        }
-                        .custom-date-range .rdp-nav button {
-                            color: ${primaryMain} !important;
-                        }
-                        .custom-date-range .rdp-today {
-                            font-weight: 700 !important;
-                            color: ${primaryMain} !important;
                         }
                     `}</style>
                     <DayPicker
@@ -212,11 +272,35 @@ export const DateRangePicker = ({
                         locale={vi}
                         min={1}
                     />
-                    <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 2, pt: 1, borderTop: '1px solid var(--palette-divider)' }}>
-                        <Button variant="text" color="inherit" onClick={handleClose} sx={{ mr: 1 }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 2, pt: 1.5, borderTop: '1px solid var(--palette-divider)' }}>
+                        <Button
+                            variant="text"
+                            onClick={handleClose}
+                            sx={{
+                                mr: 1,
+                                color: 'var(--palette-text-secondary)',
+                                textTransform: 'none',
+                                fontWeight: 600,
+                                borderRadius: '8px',
+                            }}
+                        >
                             Hủy
                         </Button>
-                        <Button variant="contained" color="primary" onClick={handleConfirm}>
+                        <Button
+                            variant="contained"
+                            onClick={handleConfirm}
+                            sx={{
+                                bgcolor: '#00A76F',
+                                color: '#ffffff',
+                                fontWeight: 700,
+                                borderRadius: '8px',
+                                textTransform: 'none',
+                                px: 2.5,
+                                '&:hover': {
+                                    bgcolor: '#00875A',
+                                },
+                            }}
+                        >
                             Xác nhận
                         </Button>
                     </Box>

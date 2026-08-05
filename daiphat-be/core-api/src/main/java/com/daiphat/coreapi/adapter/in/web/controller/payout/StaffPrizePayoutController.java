@@ -9,6 +9,7 @@ import com.daiphat.coreapi.application.dto.request.payout.CreateStaffPrizePayout
 import com.daiphat.coreapi.application.dto.request.payout.RejectPrizePayoutRequest;
 import com.daiphat.coreapi.application.dto.response.payout.PrizePayoutBatchCreateResponse;
 import com.daiphat.coreapi.application.dto.response.payout.PrizePayoutLookupResponse;
+import com.daiphat.coreapi.application.dto.response.payout.PrizePayoutLookupStationResponse;
 import com.daiphat.coreapi.application.dto.response.payout.PrizePayoutPreviewResponse;
 import com.daiphat.coreapi.application.dto.response.payout.PrizePayoutRequestResponse;
 import com.daiphat.coreapi.application.dto.response.payout.PrizePayoutStaffListResponse;
@@ -26,6 +27,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDate;
+import java.util.List;
 
 @RestController
 @RequestMapping(ApiConstants.API_V1 + "/staff/prize-payout-requests")
@@ -63,6 +65,15 @@ public class StaffPrizePayoutController {
         return ApiResponse.success(
                 "Tra cứu vé trả thưởng thành công.",
                 prizePayoutStaffServicePort.lookup(orderCode, stationId, drawDate, serialNumber));
+    }
+
+    @GetMapping("/lookup-stations")
+    @PreAuthorize("hasAuthority('prizePayout:view')")
+    public ApiResponse<List<PrizePayoutLookupStationResponse>> lookupStations(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate drawDate) {
+        return ApiResponse.success(
+                "Lấy danh sách đài mở thưởng theo ngày thành công.",
+                prizePayoutStaffServicePort.listLookupStationsByDrawDate(drawDate));
     }
 
     @GetMapping("/preview")

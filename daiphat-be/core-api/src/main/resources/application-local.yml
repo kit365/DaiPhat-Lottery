@@ -3,9 +3,9 @@ server:
 
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:5433/daiphat_core_db?charSet=UTF-8
-    username: sa
-    password: 12345
+    url: jdbc:postgresql://${SPRING_DATASOURCE_HOST:localhost}:${SPRING_DATASOURCE_PORT:${LOCAL_POSTGRES_PORT:5434}}/daiphat_core_db?charSet=UTF-8
+    username: ${SPRING_DATASOURCE_USERNAME:sa}
+    password: ${SPRING_DATASOURCE_PASSWORD:12345}
     driver-class-name: org.postgresql.Driver
     hikari:
       maximum-pool-size: 15
@@ -22,8 +22,8 @@ spring:
     out-of-order: true
   servlet:
     multipart:
-      max-file-size: 5MB
-      max-request-size: 5MB
+      max-file-size: 15MB
+      max-request-size: 15MB
   data:
     redis:
       host: localhost

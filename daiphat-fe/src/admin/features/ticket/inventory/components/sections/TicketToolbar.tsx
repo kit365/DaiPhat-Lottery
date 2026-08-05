@@ -8,6 +8,7 @@ import { Search } from '../../../../../components/ui/Search';
 import { Columns } from '../../../../../components/ui/Columns';
 import { ExportButton } from '../../../../../components/ui/ExportButton';
 import { SettingsList } from '../../../../../components/ui/SettingsList';
+import { DateRangePicker } from '../../../../../components/ui/DateRangePicker';
 import { useStations } from '../../../../station/hooks/useStation';
 import type { TicketStatusOption } from '../../constants/ticket-status.config';
 
@@ -19,12 +20,15 @@ interface ToolbarProps {
         batchCode?: string[];
         provider?: string[];
         drawDate?: string[];
+        drawDateFrom?: string;
+        drawDateTo?: string;
         search?: string;
     };
     availableTicketStatusOptions?: TicketStatusOption[];
     onFilterChange: (fieldId: string, values: string[]) => void;
     onClearFilters: () => void;
     onSearchChange: (search: string) => void;
+    onDateRangeChange?: (range: { startDate: string; endDate: string }) => void;
     cancelSelectedCount?: number;
     onCancelTicketsClick?: () => void;
 }
@@ -37,6 +41,7 @@ export const TicketToolbar = ({
     onFilterChange,
     onClearFilters,
     onSearchChange,
+    onDateRangeChange,
     cancelSelectedCount = 0,
     onCancelTicketsClick,
 }: ToolbarProps) => {
@@ -68,13 +73,21 @@ export const TicketToolbar = ({
 
     return (
         <Toolbar className="admin-list-toolbar">
-            <Box className="admin-list-toolbar__search">
+            <Box className="admin-list-toolbar__search" sx={{ display: 'flex', gap: 1.5, alignItems: 'center', flex: 1 }}>
                 <Search
-                    maxWidth="100%"
+                    maxWidth="320px"
                     placeholder="Tìm kiếm vé số..."
                     value={filters.search || ''}
                     onChange={onSearchChange}
                 />
+                <Box sx={{ width: 260, flexShrink: 0 }}>
+                    <DateRangePicker
+                        label="Lịch quay"
+                        startDate={filters.drawDateFrom || ''}
+                        endDate={filters.drawDateTo || ''}
+                        onChange={onDateRangeChange || (() => {})}
+                    />
+                </Box>
             </Box>
             <Box className="admin-list-toolbar__actions">
                 <JiraFilter
@@ -110,6 +123,17 @@ export const TicketToolbar = ({
                         </Button>
                     )}
                 />
+                {cancelSelectedCount > 0 && onCancelTicketsClick && (
+                    <Button
+                        variant="contained"
+                        size="small"
+                        color="error"
+                        onClick={onCancelTicketsClick}
+                        startIcon={<ReportProblemIcon />}
+                    >
+                        Huỷ vé ({cancelSelectedCount})
+                    </Button>
+                )}
                 <Columns />
                 <ExportButton />
                 <SettingsList settings={settings} onSettingsChange={onSettingsChange} />

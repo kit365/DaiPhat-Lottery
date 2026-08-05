@@ -2,7 +2,6 @@ import { DataGrid, GridColDef } from '@mui/x-data-grid';
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import CircularProgress from '@mui/material/CircularProgress';
-import { SortAscendingIcon, SortDescendingIcon, UnsortedIcon } from '../../../../../assets/icons';
 import {
     useSettings,
     columnsPanelStyles,
@@ -64,11 +63,10 @@ export const ReturnBatchList = ({
                     showCellVerticalBorder={settings.showCellBorders}
                     showColumnVerticalBorder={settings.showColumnBorders}
                     showToolbar
+                    disableColumnMenu
+                    disableColumnSorting
                     slots={{
                         toolbar: ReturnBatchToolbar as any,
-                        columnSortedAscendingIcon: SortAscendingIcon,
-                        columnSortedDescendingIcon: SortDescendingIcon,
-                        columnUnsortedIcon: UnsortedIcon,
                         noRowsOverlay: () => (
                             <Box
                                 sx={{
