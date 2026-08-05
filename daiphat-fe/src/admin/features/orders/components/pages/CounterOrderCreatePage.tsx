@@ -610,9 +610,25 @@ export const CounterOrderCreatePage = () => {
                                     </TableCell>
                                 </TableRow>
                             </TableHead>
-                            {!isTicketsFetching && groupedTickets.length > 0 && (
-                                <TableBody>
-                                    {groupedTickets.map((group, groupIndex) => (
+                            <TableBody>
+                                {isTicketsFetching ? (
+                                    <TableRow>
+                                        <TableCell colSpan={5} align="center" sx={{ borderBottom: 'none', py: 10 }}>
+                                            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 320 }}>
+                                                <CircularProgress size={32} />
+                                            </Box>
+                                        </TableCell>
+                                    </TableRow>
+                                ) : groupedTickets.length === 0 ? (
+                                    <TableRow>
+                                        <TableCell colSpan={5} align="center" sx={{ borderBottom: 'none', py: 10 }}>
+                                            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 320 }}>
+                                                <span className="admin-datagrid-empty">Không có dữ liệu</span>
+                                            </Box>
+                                        </TableCell>
+                                    </TableRow>
+                                ) : (
+                                    groupedTickets.map((group, groupIndex) => (
                                         <React.Fragment key={group.stationCode + groupIndex}>
                                             {/* Group Header Row */}
                                             <TableRow sx={{ bgcolor: 'var(--palette-background-neutral)' }}>
@@ -693,19 +709,9 @@ export const CounterOrderCreatePage = () => {
                                             })}
                                         </React.Fragment>
                                     ))}
-                                </TableBody>
-                            )}
+                                )}
+                            </TableBody>
                         </Table>
-
-                        {isTicketsFetching ? (
-                            <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', p: 3, minHeight: 320 }}>
-                                <CircularProgress size={32} />
-                            </Box>
-                        ) : groupedTickets.length === 0 ? (
-                            <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', p: 3, minHeight: 320 }}>
-                                <span className="admin-datagrid-empty">Không có dữ liệu</span>
-                            </Box>
-                        ) : null}
                     </TableContainer>
 
                     <TablePagination

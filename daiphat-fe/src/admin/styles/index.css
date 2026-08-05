@@ -558,6 +558,25 @@ input:-webkit-autofill:active {
     overflow: auto;
 }
 
+/* Unified HTML TableHead & TableCell styling to match DataGrid headers */
+.MuiTableContainer-root thead,
+.MuiTableHead-root {
+    background-color: var(--palette-background-neutral) !important;
+}
+
+.MuiTableContainer-root thead th,
+.MuiTableHead-root th {
+    background-color: var(--palette-background-neutral) !important;
+    color: var(--palette-text-secondary) !important;
+    font-size: 0.875rem !important;
+    font-weight: 600 !important;
+    padding: 12px 16px !important;
+    height: 52px !important;
+    max-height: 52px !important;
+    box-sizing: border-box !important;
+    border-bottom: 1px solid var(--palette-background-neutral) !important;
+}
+
 .admin-datagrid .MuiDataGrid-columnHeaders {
     border-radius: 0;
     position: sticky;
