@@ -95,7 +95,6 @@ export const Footer = () => {
         { label: 'Telegram', icon: 'telegram', href: telegramUrl },
     ].filter((item) => item.href && item.href !== '#');
 
-<<<<<<< HEAD
     const supportHours =
         supportOpenTime && supportCloseTime
             ? `${supportOpenTime} - ${supportCloseTime} mỗi ngày`
@@ -249,16 +248,6 @@ export const Footer = () => {
                         </div>
                     </div>
                 </div>
-=======
-          {/* Column 1: About Company */}
-          <div className="lg:col-span-2 flex flex-col space-y-5 pr-4">
-            <div className="flex items-center gap-3">
-              <img src="https://i.ibb.co/YBYnq3HR/z7824247008533-94446d3b6c16598cda67404d805c15c4-removebg-preview.png" alt="Đại Phát Logo" className="w-11 h-11 object-contain rounded-xl shadow-sm" />
-              <div>
-                <h2 className="text-[#ee1314] font-black text-xl leading-none mb-1 tracking-tight">ĐẠI PHÁT</h2>
-                <span className="text-[#F5A623] text-[9px] font-bold tracking-wider uppercase whitespace-nowrap">TÀI LỘC - MAY MẮN - THỊNH VƯỢNG</span>
-              </div>
->>>>>>> f5115bf9 (chore: re-apply origin/feature/dp-37-tickets changes (UI standardize, logo, NextJS refactor))
             </div>
         </footer>
     );

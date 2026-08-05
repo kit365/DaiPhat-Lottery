@@ -7,6 +7,7 @@ import { isAxiosError } from 'axios';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useAuthStore } from '../../../stores/useAuthStore';
 import { useAuth } from '../../hooks/useAuth';
+import { CLIENT_PAGE_BACKGROUND } from '../../constants/clientBannerAssets';
 import {
   castFortune,
   getTodayFortuneCast,
@@ -493,7 +494,7 @@ export function FortuneCastPage() {
       <div
         aria-hidden
         className="pointer-events-none fixed inset-0 bg-cover bg-center bg-no-repeat"
-        style={{ backgroundImage: 'url("https://i.ibb.co/BVFGYpL1/86f05f70-fcf8-445f-978e-a0539eb2f0de.png")' }}
+        style={{ backgroundImage: `url("${CLIENT_PAGE_BACKGROUND}")` }}
       />
       <div className="pointer-events-none fixed inset-0 bg-gradient-to-b from-white/20 via-transparent to-black/10" />
 

@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { ROUTES } from '@/admin/constants/routes';
 import { Trash2, ChevronRight } from 'lucide-react';
 import { useCartStore, CartItem } from '../../../stores/useCartStore';
 import { useAuthStore } from '../../../stores/useAuthStore';
@@ -11,6 +12,12 @@ import OrderSummary from './components/OrderSummary';
 import { CartQuantityControl } from './components/CartQuantityControl';
 import { validateAndSyncCartStock } from '../../utils/cartStock.util';
 import { AppToast as toast } from '../../../utils/toast.util';
+import {
+  CART_PROMO_BANNERS,
+  CLIENT_PAGE_BACKGROUND,
+  PROVINCE_ICON_FALLBACK,
+  TICKET_IMAGE_FALLBACK,
+} from '../../constants/clientBannerAssets';
 
 export const CartPage = () => {
     const navigate = useNavigate();
@@ -69,7 +76,7 @@ export const CartPage = () => {
     return (
         <div 
             className="client-page min-h-screen flex flex-col pb-20 bg-fixed bg-cover bg-center"
-            style={{ backgroundImage: 'url("https://i.ibb.co/BVFGYpL1/86f05f70-fcf8-445f-978e-a0539eb2f0de.png")' }}
+            style={{ backgroundImage: `url("${CLIENT_PAGE_BACKGROUND}")` }}
         >
             {/* Top Section for Breadcrumb & Title (Transparent to show background) */}
             <div className="w-full mt-[70px] lg:mt-[80px] py-4 lg:py-6">
@@ -140,14 +147,14 @@ export const CartPage = () => {
 
                                             {/* Vé số */}
                                             <div className="flex items-center gap-3">
-                                                <img src={item.ticketImg || 'https://i.ibb.co/TBf95cjX/6b561e49-2b8d-4dc5-b4c7-cff26a273abc.png'} alt="Vé" className="w-[80px] h-[50px] object-cover mix-blend-multiply border border-gray-100 rounded shrink-0" />
+                                                <img src={item.ticketImg || TICKET_IMAGE_FALLBACK} alt="Vé" className="w-[80px] h-[50px] object-cover mix-blend-multiply border border-gray-100 rounded shrink-0" />
                                                 <div className="font-bold text-[16px] text-[#212B36] tracking-tight">{item.numbers}</div>
                                             </div>
 
                                             {/* Đài & Ngày quay */}
                                             <div className="flex flex-col items-start gap-1">
                                                 <div className="flex items-center gap-2">
-                                                    <img src={item.provinceIcon || 'https://i.ibb.co/XrKTHt8g/t-i-xu-ng.png'} alt="Logo" className="w-5 h-5 rounded-full border border-gray-200" />
+                                                    <img src={item.provinceIcon || PROVINCE_ICON_FALLBACK} alt="Logo" className="w-5 h-5 rounded-full border border-gray-200" />
                                                     <span className="font-bold text-[13px] text-[#212B36]">{item.province}</span>
                                                 </div>
                                                 <div className="flex items-center gap-1.5 text-[12px] text-[#637381] pl-7">
@@ -230,6 +237,69 @@ export const CartPage = () => {
 
                 </div>
 
+                {/* Promo Banners Row */}
+                <div className="flex flex-col lg:flex-row gap-6 w-full mt-6 pb-10">
+                    {/* Promo Banner 1 */}
+                    <div
+                        className="flex-1 w-full relative rounded-[16px] overflow-hidden shadow-sm h-[180px] group cursor-pointer border border-[#E5E8EB]"
+                        onClick={() => {
+                            if (!token) {
+                                openLoginModal();
+                                return;
+                            }
+                            navigate(ROUTES.PUBLIC.FORTUNE);
+                        }}
+                        role="link"
+                        tabIndex={0}
+                        onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                                e.preventDefault();
+                                if (!token) {
+                                    openLoginModal();
+                                    return;
+                                }
+                                navigate(ROUTES.PUBLIC.FORTUNE);
+                            }
+                        }}
+                    >
+                        <img src={CART_PROMO_BANNERS[0]} alt="Lắc quẻ tài lộc bg" className="w-full h-full absolute inset-0 z-0 transition-transform duration-500 group-hover:scale-105" />
+                        <div className="absolute inset-0 bg-black/10 z-0 pointer-events-none"></div>
+                        
+                        <div className="relative z-10 p-6 h-full flex flex-col justify-center w-[60%]">
+                            <h3 className="text-[#FFE885] font-black text-[22px] md:text-[26px] uppercase tracking-wide mb-1" style={{ textShadow: '0 2px 4px rgba(0,0,0,0.5)' }}>Lắc quẻ tài lộc</h3>
+                            <p className="text-white text-[13px] md:text-[14px] mb-0.5 drop-shadow-md">Lắc quẻ - Rinh lộc - Đón vận may!</p>
+                            <p className="text-white text-[13px] md:text-[14px] mb-4 drop-shadow-md">Quẻ hay - Vận đến - Trúng lớn mỗi ngày!</p>
+                            <button
+                                type="button"
+                                className="bg-gradient-to-r from-[#FFE885] to-[#FFC527] text-[#cc0000] font-bold text-[13px] px-6 py-2 rounded-full w-max shadow-md hover:shadow-lg hover:scale-105 transition-all flex items-center gap-1"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (!token) {
+                                        openLoginModal();
+                                        return;
+                                    }
+                                    navigate(ROUTES.PUBLIC.FORTUNE);
+                                }}
+                            >
+                                LẮC QUẺ NGAY <ChevronRight size={14} strokeWidth={3} />
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Promo Banner 2 */}
+                    <div className="w-full lg:w-[380px] shrink-0 relative rounded-[16px] overflow-hidden shadow-sm h-[180px] group cursor-pointer border border-[#E5E8EB]">
+                        <img src={CART_PROMO_BANNERS[1]} alt="Chat với AI bg" className="w-full h-full object-cover absolute inset-0 z-0 transition-transform duration-500 group-hover:scale-105" />
+                        <div className="absolute inset-0 bg-black/10 z-0 pointer-events-none"></div>
+
+                        <div className="relative z-10 p-5 h-full flex flex-col justify-center max-w-[65%]">
+                            <h3 className="text-[#FFE885] font-black text-[18px] mb-1.5 leading-tight drop-shadow-md">Chat với AI<br/>chọn số</h3>
+                            <p className="text-white text-[11px] mb-3 leading-tight drop-shadow-md">AI gợi ý số may mắn<br/>chuẩn phong thủy cho bạn</p>
+                            <button className="bg-gradient-to-r from-[#FFE885] to-[#FFC527] text-[#cc0000] font-bold text-[12px] px-5 py-1.5 rounded-full w-max shadow-md hover:shadow-lg hover:scale-105 transition-all flex items-center gap-1">
+                                Trò chuyện ngay <ChevronRight size={12} strokeWidth={3} />
+                            </button>
+                        </div>
+                    </div>
+                </div>
             </main>
 
         </div>
