@@ -43,6 +43,56 @@ const backgroundPopup = {
 };
 
 export const adminTheme = createTheme({
+    palette: {
+        primary: {
+            lighter: '#FFE3D5',
+            light: '#FFC1AC',
+            main: '#FF3030',
+            dark: '#B71833',
+            darker: '#7A0930',
+            contrastText: '#FFFFFF',
+        },
+        secondary: {
+            lighter: '#EFD6FF',
+            light: '#C684FF',
+            main: '#8E33FF',
+            dark: '#5119B7',
+            darker: '#27097A',
+            contrastText: '#FFFFFF',
+        },
+        success: {
+            lighter: '#D3FCD2',
+            light: '#77ED8B',
+            main: '#22C55E',
+            dark: '#118D57',
+            darker: '#065E49',
+            contrastText: '#ffffff',
+        },
+        info: {
+            lighter: '#CAFDF5',
+            light: '#61F3F3',
+            main: '#00B8D9',
+            dark: '#006C9C',
+            darker: '#003768',
+            contrastText: '#FFFFFF',
+        },
+        warning: {
+            lighter: '#FFF5CC',
+            light: '#FFD666',
+            main: '#FFAB00',
+            dark: '#B76E00',
+            darker: '#7A4100',
+            contrastText: '#1C252E',
+        },
+        error: {
+            lighter: '#FFE9D5',
+            light: '#FFAC82',
+            main: '#FF5630',
+            dark: '#B71D18',
+            darker: '#7A0916',
+            contrastText: '#FFFFFF',
+        },
+    },
     typography: {
         fontFamily: '"Public Sans", "Barlow", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
         h1: { fontWeight: 800, fontSize: "2.5rem", lineHeight: 1.25, fontFamily: '"Barlow", sans-serif' },
@@ -222,7 +272,7 @@ export const adminTheme = createTheme({
                 root: {
                     padding: '4px',
                     color: '#637381',
-                    '&.Mui-checked, &.Mui-checkbox-indeterminate': { color: '#00A76F' },
+                    '&.Mui-checked, &.Mui-checkbox-indeterminate': { color: 'var(--palette-primary-main)' },
                     '& .MuiSvgIcon-root': { fontSize: '1.25rem' },
                 },
             },
@@ -306,7 +356,7 @@ export const adminTheme = createTheme({
                     color: 'var(--palette-text-primary)',
                     borderWidth: "0",
                     overflow: 'auto',
-                    '--DataGrid-t-color-interactive-focus': 'var(--palette-success-main)',
+                    '--DataGrid-t-color-interactive-focus': 'var(--palette-primary-main)',
                     '--DataGrid-t-color-border-base': 'var(--palette-background-neutral)',
                     
                     '& .MuiDataGrid-columnHeaders': {
@@ -323,11 +373,11 @@ export const adminTheme = createTheme({
                     },
                     
                     '& .MuiDataGrid-footerContainer': {
-                        borderTop: "1px dashed", minHeight: "auto", fontSize: "0.875rem", color: "inherit",
-                        '& .MuiTablePagination-selectLabel': { fontSize: "0.875rem", color: "inherit", marginBottom: "-2px" },
+                        borderTop: "1px solid var(--palette-divider)", minHeight: "auto", fontSize: "0.875rem", color: "var(--palette-text-secondary)",
+                        '& .MuiTablePagination-selectLabel': { fontSize: "0.875rem", color: "var(--palette-text-secondary)", marginBottom: "-2px" },
                         '& .MuiSelect-select': { minHeight: "21.5625px", lineHeight: "1.5rem", fontSize: "0.9375rem" },
                         '& .MuiSelect-icon': { top: "6px" },
-                        '& .MuiTablePagination-displayedRows': { fontSize: "0.875rem", color: "inherit" },
+                        '& .MuiTablePagination-displayedRows': { fontSize: "0.875rem", color: "var(--palette-text-secondary)" },
                         '& .MuiTablePaginationActions-root': {
                             marginRight: "8px",
                             '& .MuiButtonBase-root': { padding: "5px", '& .MuiSvgIcon-root': { width: "1.5rem", height: "1.5rem" } }
@@ -339,8 +389,8 @@ export const adminTheme = createTheme({
                     '& .MuiDataGrid-cell': {
                         color: 'inherit', fontSize: "0.875rem", display: 'flex', alignItems: 'center',
                         '&:hover': {
-                            '& .ticket-title': { color: `var(--palette-success-main) !important` },
-                            '& .date-text': { color: `var(--palette-success-main) !important` }
+                            '& .ticket-title': { color: `var(--palette-primary-main) !important` },
+                            '& .date-text': { color: `var(--palette-primary-main) !important` }
                         }
                     },
                     
@@ -441,6 +491,23 @@ export const adminTheme = createTheme({
 
                 }
             }
-        }
+        },
+        MuiTablePagination: {
+            styleOverrides: {
+                root: {
+                    borderTop: '1px solid var(--palette-divider)',
+                    color: 'var(--palette-text-secondary)',
+                    fontSize: '0.875rem',
+                },
+                selectLabel: {
+                    fontSize: '0.875rem',
+                    color: 'var(--palette-text-secondary)',
+                },
+                displayedRows: {
+                    fontSize: '0.875rem',
+                    color: 'var(--palette-text-secondary)',
+                },
+            },
+        },
     },
 });
