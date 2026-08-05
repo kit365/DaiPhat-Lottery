@@ -6,6 +6,7 @@ import { motion } from "framer-motion";
 import { ROUTES } from "../../../admin/constants/routes";
 import { useAuthStore } from "../../../stores/useAuthStore";
 import { AppToast as toast } from "../../../utils/toast.util";
+import { createNavBannerPrefetchHandlers } from "../../utils/prefetchImagesWhenIdle";
 
 export const BottomNav: React.FC = () => {
   const location = useLocation();
@@ -16,7 +17,7 @@ export const BottomNav: React.FC = () => {
     {
       label: "Mua vé",
       icon: "fa-ticket",
-      to: "/buy-ticket",
+      to: ROUTES.PUBLIC.TICKETS,
       action: null
     },
     {
@@ -35,7 +36,7 @@ export const BottomNav: React.FC = () => {
     {
       label: "Bài viết",
       icon: "fa-book-open",
-      to: "/blogs",
+      to: ROUTES.PUBLIC.BLOGS,
       action: null
     },
     {
@@ -82,6 +83,7 @@ export const BottomNav: React.FC = () => {
             <Link
               key={item.label}
               to={item.to}
+              {...createNavBannerPrefetchHandlers(item.to)}
               className="flex-1 h-full cursor-pointer block"
               onClick={item.action ? (e) => item.action(e) : undefined}
             >
