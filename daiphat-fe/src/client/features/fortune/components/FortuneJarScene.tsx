@@ -44,6 +44,7 @@ export interface FortuneJarSceneProps {
   onEjectComplete?: () => void;
   onClick?: () => void;
   className?: string;
+  compact?: boolean;
 }
 
 function Stick({
@@ -145,6 +146,7 @@ export function FortuneJarScene({
   onEjectComplete,
   onClick,
   className = '',
+  compact = false,
 }: FortuneJarSceneProps) {
   const sticks = useMemo<StickConfig[]>(
     () =>
@@ -165,7 +167,7 @@ export function FortuneJarScene({
   const interactive = Boolean(onClick) && mode === 'idle';
 
   return (
-    <div className={`relative w-full max-w-[320px] mx-auto ${className}`}>
+    <div className={`relative w-full mx-auto ${compact ? 'max-w-[260px]' : 'max-w-[360px]'} ${className}`}>
       <motion.button
         type="button"
         onClick={interactive ? onClick : undefined}
@@ -176,7 +178,7 @@ export function FortuneJarScene({
         aria-label="Ống quẻ tài lộc"
       >
         {/* Glow */}
-        <div className="pointer-events-none absolute inset-x-8 bottom-10 h-44 rounded-full bg-amber-400/30 blur-3xl" />
+        <div className="pointer-events-none absolute inset-x-6 bottom-8 h-52 rounded-full bg-amber-400/35 blur-3xl" />
 
         {/* Sticks cluster (clipped by jar mouth visually via layering) */}
         <div className="absolute inset-x-[14%] top-[6%] bottom-[38%] overflow-visible">
@@ -199,31 +201,31 @@ export function FortuneJarScene({
               ? { duration: 0.4, repeat: Infinity, ease: 'easeInOut' }
               : { duration: 0.5 }
           }
-          className="absolute left-1/2 bottom-[8%] z-20 w-[72%] -translate-x-1/2 h-[52%] rounded-b-[2rem] rounded-t-xl overflow-hidden border border-amber-400/35"
+          className="absolute left-1/2 bottom-[7%] z-20 w-[78%] -translate-x-1/2 h-[56%] rounded-b-[2.4rem] rounded-t-2xl overflow-hidden border border-amber-300/45"
           style={{
             background:
               'linear-gradient(145deg, #9B1C1F 0%, #D4252A 42%, #6B1012 100%)',
             boxShadow:
-              '0 22px 48px rgba(80,10,10,0.5), inset 0 3px 14px rgba(255,255,255,0.28), inset 0 -14px 24px rgba(0,0,0,0.45)',
+              '0 28px 56px rgba(80,10,10,0.55), inset 0 3px 14px rgba(255,255,255,0.3), inset 0 -14px 24px rgba(0,0,0,0.45)',
           }}
         >
           {/* Top rim */}
-          <div className="absolute -top-0.5 left-[-4%] right-[-4%] h-3.5 z-30 bg-gradient-to-r from-amber-500 via-yellow-100 to-amber-500 shadow-md" />
+          <div className="absolute -top-0.5 left-[-4%] right-[-4%] h-4.5 z-30 bg-gradient-to-r from-amber-500 via-yellow-100 to-amber-500 shadow-md" />
 
           {/* Inner mouth dark */}
-          <div className="absolute top-3 left-[10%] right-[10%] h-5 rounded-b-full bg-black/35 blur-[1px]" />
+          <div className="absolute top-3.5 left-[10%] right-[10%] h-6 rounded-b-full bg-black/35 blur-[1px]" />
 
           {/* Medallion */}
-          <div className="absolute inset-x-0 top-[28%] flex justify-center">
-            <div className="w-[42%] aspect-square rounded-full bg-gradient-to-br from-amber-200 via-amber-400 to-amber-700 p-[3px] shadow-[0_8px_20px_rgba(0,0,0,0.4)]">
+          <div className="absolute inset-x-0 top-[27%] flex justify-center">
+            <div className="w-[45%] aspect-square rounded-full bg-gradient-to-br from-amber-200 via-amber-400 to-amber-700 p-[3px] shadow-[0_10px_24px_rgba(0,0,0,0.45)]">
               <div className="w-full h-full rounded-full bg-gradient-to-b from-[#7A1416] to-[#4A0C0E] flex flex-col items-center justify-center border border-amber-400/50 text-amber-200">
-                <span className="text-[8px] font-bold tracking-[0.16em] uppercase text-amber-300/90">
+                <span className="text-[9px] font-bold tracking-[0.16em] uppercase text-amber-300/90">
                   Đại Phát
                 </span>
-                <span className="text-[26px] font-serif font-black text-amber-200 leading-none my-0.5 drop-shadow">
+                <span className="text-[30px] font-serif font-black text-amber-200 leading-none my-0.5 drop-shadow">
                   福
                 </span>
-                <span className="text-[7px] font-bold tracking-wider uppercase text-amber-400/90">
+                <span className="text-[8px] font-bold tracking-wider uppercase text-amber-400/90">
                   Quẻ tài lộc
                 </span>
               </div>
@@ -231,11 +233,11 @@ export function FortuneJarScene({
           </div>
 
           {/* Bottom rim */}
-          <div className="absolute -bottom-0.5 left-[-4%] right-[-4%] h-3.5 bg-gradient-to-r from-amber-500 via-yellow-100 to-amber-500 rounded-b-2xl" />
+          <div className="absolute -bottom-0.5 left-[-4%] right-[-4%] h-4.5 bg-gradient-to-r from-amber-500 via-yellow-100 to-amber-500 rounded-b-3xl" />
         </motion.div>
 
         {/* Ground shadow */}
-        <div className="absolute left-1/2 bottom-[3%] h-3 w-[58%] -translate-x-1/2 rounded-full bg-black/35 blur-md" />
+        <div className="absolute left-1/2 bottom-[2%] h-4 w-[62%] -translate-x-1/2 rounded-full bg-black/40 blur-md" />
 
         {/* Ejected stick lands in front — fades in as flying stick fades out */}
         {(mode === 'ejecting' || mode === 'settled') && (

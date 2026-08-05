@@ -29,7 +29,6 @@ export type JarSceneMode = 'idle' | 'shaking' | 'ejecting' | 'settled';
 
 export type FortuneAnimPhase =
   | 'idle'
-  | 'needBirthYear'
   | 'shaking'
   | 'ejecting'
   | 'revealing'
