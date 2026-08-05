@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import Image from "next/image";
+import imageLoader from "@/utils/imageLoader";
 import { motion, AnimatePresence } from "framer-motion";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { Search, User as UserIcon, Home, Crosshair, Ticket, Bell, Wallet, ChevronDown, ShoppingCart, BookOpen, Trash2, Sparkles, CalendarDays } from "lucide-react";
@@ -127,10 +129,14 @@ export const Header = () => {
           <div className="flex items-center justify-between w-full lg:w-auto shrink-0 group">
             <Link to={ROUTES.PUBLIC.HOME} className="flex items-center gap-3 no-underline font-client-display" aria-label={`${siteName} home`}>
               <div className="relative p-[2px] bg-gradient-to-tr from-[#ee1314] to-[#F59E0B] rounded-xl shadow-md shadow-[#ee1314]/10 transition-transform duration-300 group-hover:scale-105">
-                <SiteLogo
-                  className="w-[38px] h-[38px] rounded-[10px]"
-                  imgClassName="w-full h-full rounded-[10px] object-cover bg-white"
-                  alt={siteName}
+                <Image 
+                  loader={imageLoader}
+                  src="https://i.ibb.co/4R7c75YN/z7824247008533-94446d3b6c16598cda67404d805c15c4.jpg" 
+                  alt="Đại Phát Logo"
+                  width={38}
+                  height={38}
+                  priority
+                  className="w-[38px] h-[38px] rounded-[10px] object-cover bg-white" 
                 />
               </div>
               <div className="flex flex-col justify-center">
