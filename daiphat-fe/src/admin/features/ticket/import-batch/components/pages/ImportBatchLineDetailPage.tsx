@@ -54,8 +54,7 @@ import { useTicketInventory } from '../../../inventory/hooks/useTicketInventory'
 import { getTicketStatusLabel, normalizeTicketStatus } from '../../../inventory/constants/ticket-status.config';
 import { displayImportBatchLineCodeRaw, formatImportBatchHeaderCode } from '../../utils/importBatchCode';
 import { formatImportCost } from '../../utils/importCostCalculator';
-import { getBatchTypeBadgeClass, getBatchTypeLabel, getImportBatchLineStatusChipColor, getImportBatchLineStatusLabel } from '../../utils/batchTypeLabels';
-import { AdminStatusBadge } from '../../../../../components/ui/AdminStatusBadge';
+import { getBatchTypeColor, getBatchTypeLabel, getImportBatchLineStatusChipColor, getImportBatchLineStatusLabel } from '../../utils/batchTypeLabels';
 import { ROUTES } from '../../../../../constants/routes';
 import { Breadcrumb } from '../../../../../components/ui/Breadcrumb';
 import {

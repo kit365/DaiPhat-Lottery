@@ -3,9 +3,10 @@ server:
 
 spring:
   datasource:
-    url: jdbc:postgresql://${SPRING_DATASOURCE_HOST:localhost}:${SPRING_DATASOURCE_PORT:${LOCAL_POSTGRES_PORT:5434}}/daiphat_core_db?charSet=UTF-8
-    username: ${SPRING_DATASOURCE_USERNAME:sa}
-    password: ${SPRING_DATASOURCE_PASSWORD:12345}
+    # Align with docker-compose.yml host mapping (LOCAL_POSTGRES_PORT, default 5434).
+    url: jdbc:postgresql://${CORE_POSTGRES_HOST:localhost}:${LOCAL_POSTGRES_PORT:${CORE_DB_PORT:5434}}/${CORE_POSTGRES_DB:daiphat_core_db}?charSet=UTF-8
+    username: ${CORE_POSTGRES_USER:sa}
+    password: ${CORE_POSTGRES_PASSWORD:12345}
     driver-class-name: org.postgresql.Driver
     hikari:
       maximum-pool-size: 15
@@ -48,9 +49,6 @@ daiphat:
   # use filesystem storage for local Import Batch receipt / ticket image flows.
   storage:
     provider: local
-  vendor:
-    test-seed:
-      enabled: ${VENDOR_TEST_SEED_ENABLED:true}
   auth:
     frontend-url: http://localhost:5173
     jwt:
@@ -107,7 +105,7 @@ daiphat:
       southern-stations:
         enabled: true
   fortune:
-    daily-limit-enabled: true
+    daily-limit-enabled: false
   order:
     seed:
       enabled: true

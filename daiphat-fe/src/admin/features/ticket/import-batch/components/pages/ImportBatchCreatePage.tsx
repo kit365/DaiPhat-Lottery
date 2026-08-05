@@ -770,40 +770,40 @@ export const ImportBatchCreatePage = () => {
                                     )}
 
                                     {canShowBatchFields && (
-                                        <>
-                                            {blockedStations.length > 0 && (
-                                                <Alert severity="info">
-                                                    <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.5 }}>
-                                                        Một số nhà đài đã có phiếu nhập nháp:
-                                                    </Typography>
-                                                    {blockedStations.map((station) => (
-                                                        <Typography key={station.lotteryStationId} variant="body2">
-                                                            {station.name}
-                                                            {station.existingDraftBatchId
-                                                                ? ` — phiếu #${station.existingDraftBatchId}`
-                                                                : ''}
-                                                            {station.existingDraftBatchId && (
-                                                                <>
-                                                                    {' '}
-                                                                    <Button
-                                                                        size="small"
-                                                                        variant="text"
-                                                                        sx={{ p: 0, minWidth: 0, verticalAlign: 'baseline' }}
-                                                                        onClick={() =>
-                                                                            navigate(
-                                                                                ROUTES.ADMIN.IMPORT_BATCH.DETAIL(
-                                                                                    station.existingDraftBatchId!
-                                                                                )
-                                                                            )
-                                                                        }
-                                                                    >
-                                                                        Xem phiếu
-                                                                    </Button>
-                                                                </>
-                                                            )}
-                                                        </Typography>
-                                                    ))}
-                                                </Alert>
+                                        <Controller
+                                            name="totalDeclareQuantity"
+                                            control={control}
+                                            render={({ field, fieldState }) => (
+                                                <TextField
+                                                    name={field.name}
+                                                    value={formatViInteger(field.value)}
+                                                    label="Tổng số lượng khai báo (Tự động tính từ danh sách đài)"
+                                                    fullWidth
+                                                    disabled
+                                                    error={isSubmitted && !!fieldState.error}
+                                                    helperText={
+                                                        isSubmitted && fieldState.error?.message
+                                                            ? fieldState.error.message
+                                                            : 'Tự động tổng hợp từ số lượng khai báo của các nhà đài trong danh sách bên dưới.'
+                                                    }
+                                                    InputProps={{
+                                                        readOnly: true,
+                                                        endAdornment: (
+                                                            <InputAdornment position="end">
+                                                                <Typography variant="body2" color="text.secondary">
+                                                                    vé
+                                                                </Typography>
+                                                            </InputAdornment>
+                                                        ),
+                                                    }}
+                                                    sx={{
+                                                        '& .MuiInputBase-input.Mui-disabled': {
+                                                            WebkitTextFillColor: '#0F172A',
+                                                            fontWeight: 700,
+                                                            bgcolor: '#F8FAFC',
+                                                        },
+                                                    }}
+                                                />
                                             )}
 
                                             <Box sx={{ mx: -2.5 }}>
