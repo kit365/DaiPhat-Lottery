@@ -23,9 +23,31 @@ function parseNavPath(rawPath: string): { pathname: string; search: string } {
     return { pathname, search: query };
 }
 
-/** Chỉ coi là trang con của mục /list khi là detail/inspect — không match sibling như create-counter. */
-function isListSectionDetailRoute(sectionPrefix: string, pathname: string): boolean {
-    if (!pathname.startsWith(sectionPrefix)) {
+function isNavChildActive(
+    pathname: string,
+    search: string,
+    childPath: string,
+    siblings?: { path: string }[]
+): boolean {
+    const target = parseNavPath(childPath);
+    if (pathname !== target.pathname) {
+        // If current pathname matches a sibling path exactly, this non-matching child is NOT active
+        const matchesSiblingExact = (siblings || []).some((s) => {
+            const sp = parseNavPath(s.path);
+            return sp.pathname === pathname;
+        });
+        if (matchesSiblingExact) {
+            return false;
+        }
+
+        // Highlight list child when viewing detail under same section prefix
+        if (
+            !target.search &&
+            target.pathname.endsWith('/list') &&
+            pathname.startsWith(target.pathname.replace(/\/list$/, '/'))
+        ) {
+            return true;
+        }
         return false;
     }
 
@@ -44,13 +66,13 @@ function isNavChildActive(pathname: string, search: string, childPath: string): 
         const current = new URLSearchParams(search.startsWith('?') ? search.slice(1) : search);
         return [...required.entries()].every(([key, value]) => current.get(key) === value);
     }
-
-    if (!target.search && target.pathname.endsWith('/list')) {
-        const sectionPrefix = target.pathname.replace(/\/list$/, '/');
-        return isListSectionDetailRoute(sectionPrefix, pathname);
-    }
-
-    return false;
+    const required = new URLSearchParams(target.search);
+    const current = new URLSearchParams(search.startsWith('?') ? search.slice(1) : search);
+    let match = true;
+    required.forEach((val, key) => {
+        if (current.get(key) !== val) match = false;
+    });
+    return match;
 }
 
 const SubNavItem = ({
@@ -299,7 +321,7 @@ export const NavItem = memo(({ item }: { item: any }) => {
     const hasChildren = filteredChildren.length > 0;
 
     const isChildActive = hasChildren
-        ? filteredChildren.some((c: any) => isNavChildActive(pathname, search, c.path))
+        ? filteredChildren.some((c: any) => isNavChildActive(pathname, search, c.path, filteredChildren))
         : false;
     const isActive = !hasChildren && (
         pathname === item.path
@@ -489,7 +511,7 @@ export const NavItem = memo(({ item }: { item: any }) => {
                                         <SubNavItem
                                             key={child.id}
                                             child={child}
-                                            isSubActive={isNavChildActive(pathname, search, child.path)}
+                                            isSubActive={isNavChildActive(pathname, search, child.path, filteredChildren)}
                                             t={t}
                                             onPrefetch={handlePrefetch}
                                         />
@@ -510,7 +532,7 @@ export const NavItem = memo(({ item }: { item: any }) => {
                                 <SubNavItem
                                     key={child.id}
                                     child={child}
-                                    isSubActive={isNavChildActive(pathname, search, child.path)}
+                                    isSubActive={isNavChildActive(pathname, search, child.path, filteredChildren)}
                                     t={t}
                                     onPrefetch={handlePrefetch}
                                 />

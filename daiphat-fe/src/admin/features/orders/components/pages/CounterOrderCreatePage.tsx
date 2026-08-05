@@ -711,20 +711,26 @@ export const CounterOrderCreatePage = () => {
                         </Table>
                     </TableContainer>
 
-                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', p: 2, borderTop: '1px solid var(--palette-divider)' }}>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                            <TablePagination
-                                component="div"
-                                count={totalRecords}
-                                page={page}
-                                onPageChange={handleChangePage}
-                                rowsPerPage={rowsPerPage}
-                                onRowsPerPageChange={handleChangeRowsPerPage}
-                                labelRowsPerPage="Hiển thị"
-                                sx={{ border: 'none', '.MuiTablePagination-toolbar': { minHeight: '36px', p: 0 } }}
-                            />
-                        </Box>
-                    </Box>
+                    <TablePagination
+                        component="div"
+                        count={totalRecords}
+                        page={page}
+                        onPageChange={handleChangePage}
+                        rowsPerPage={rowsPerPage}
+                        onRowsPerPageChange={handleChangeRowsPerPage}
+                        rowsPerPageOptions={[5, 10, 25, 50]}
+                        labelRowsPerPage="Số hàng mỗi trang:"
+                        labelDisplayedRows={({ from, to, count }) =>
+                            `${from}-${to} của ${count !== -1 ? count : `hơn ${to}`}`
+                        }
+                        sx={{
+                            borderTop: '1px solid var(--palette-divider)',
+                            color: 'var(--palette-text-secondary)',
+                            '& .MuiTablePagination-selectLabel, & .MuiTablePagination-displayedRows': {
+                                fontSize: '0.875rem',
+                            },
+                        }}
+                    />
                 </Card>
             )}
 
