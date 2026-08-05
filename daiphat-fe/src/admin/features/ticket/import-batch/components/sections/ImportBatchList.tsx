@@ -114,21 +114,9 @@ export const ImportBatchList = ({ listHook }: ImportBatchListProps) => {
                                     <TableCell sx={{ width: 72 }} align="right" />
                                 </TableRow>
                             </TableHead>
-                            <TableBody>
-                                {isLoading ? (
-                                    <TableRow>
-                                        <TableCell colSpan={9} align="center" sx={{ py: 10, borderBottom: 'none' }}>
-                                            <CircularProgress size={32} />
-                                        </TableCell>
-                                    </TableRow>
-                                ) : batches.length === 0 ? (
-                                    <TableRow sx={{ height: '100%' }}>
-                                        <TableCell colSpan={9} align="center" sx={{ borderBottom: 'none', py: 8 }}>
-                                            <Typography className="admin-datagrid-empty">Không có dữ liệu</Typography>
-                                        </TableCell>
-                                    </TableRow>
-                                ) : (
-                                    batches.map((batch) => {
+                            {!isLoading && batches.length > 0 && (
+                                <TableBody>
+                                    {batches.map((batch) => {
                                         const importedQty =
                                             batch.totalImportedQuantity ??
                                             (batch.lines ?? []).reduce(
@@ -250,10 +238,20 @@ export const ImportBatchList = ({ listHook }: ImportBatchListProps) => {
                                                 </TableCell>
                                             </TableRow>
                                         );
-                                    })
-                                )}
-                            </TableBody>
+                                    })}
+                                </TableBody>
+                            )}
                         </Table>
+
+                        {isLoading ? (
+                            <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', p: 3, minHeight: 320 }}>
+                                <CircularProgress size={32} />
+                            </Box>
+                        ) : batches.length === 0 ? (
+                            <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', p: 3, minHeight: 320 }}>
+                                <Typography className="admin-datagrid-empty">Không có dữ liệu</Typography>
+                            </Box>
+                        ) : null}
                     </TableContainer>
 
                     <TablePagination

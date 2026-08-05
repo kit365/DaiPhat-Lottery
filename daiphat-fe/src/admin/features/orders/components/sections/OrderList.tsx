@@ -283,7 +283,7 @@ export const OrderList = () => {
             </Box>
 
             <TableContainer sx={{ position: 'relative', overflow: 'auto', flex: 1, display: 'flex', flexDirection: 'column' }}>
-                <Table sx={{ minWidth: 960, height: orders.length === 0 ? '100%' : 'auto' }} size={settings.density === 'compact' ? 'small' : 'medium'}>
+                <Table sx={{ minWidth: 960 }} size={settings.density === 'compact' ? 'small' : 'medium'}>
                     <TableHead sx={{ bgcolor: 'var(--palette-background-neutral)' }}>
                         <TableRow>
                             <TableCell padding="checkbox" sx={{ borderBottom: 'none', textAlign: 'center' }}>
@@ -304,20 +304,8 @@ export const OrderList = () => {
                         </TableRow>
                     </TableHead>
 
-                    <TableBody>
-                        {isLoading ? (
-                            <TableRow sx={{ height: '100%' }}>
-                                <TableCell colSpan={8} align="center" sx={{ borderBottom: 'none', py: 10 }}>
-                                    <CircularProgress size={32} />
-                                </TableCell>
-                            </TableRow>
-                        ) : orders.length === 0 ? (
-                            <TableRow sx={{ height: '100%' }}>
-                                <TableCell colSpan={8} align="center" sx={{ borderBottom: 'none', py: 8 }}>
-                                    <span className="admin-datagrid-empty">Không có dữ liệu</span>
-                                </TableCell>
-                            </TableRow>
-                        ) : (
+                    {!isLoading && orders.length > 0 && (
+                        <TableBody>
                             orders.map((row: any) => {
                                 const isItemSelected = selected.indexOf(row.id) !== -1;
                                 const isOpen = openRows.includes(row.id);
@@ -539,10 +527,20 @@ export const OrderList = () => {
                                         </TableRow>
                                     </React.Fragment>
                                 );
-                            })
-                        )}
-                    </TableBody>
+                            })}
+                        </TableBody>
+                    )}
                 </Table>
+
+                {isLoading ? (
+                    <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', p: 3, minHeight: 320 }}>
+                        <CircularProgress size={32} />
+                    </Box>
+                ) : orders.length === 0 ? (
+                    <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', p: 3, minHeight: 320 }}>
+                        <span className="admin-datagrid-empty">Không có dữ liệu</span>
+                    </Box>
+                ) : null}
             </TableContainer>
 
             <TablePagination
