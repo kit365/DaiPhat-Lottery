@@ -9,6 +9,7 @@ export enum ConfigType {
     REFUND_SETTING = 'REFUND_SETTING',
     COMPLAINT_SETTING = 'COMPLAINT_SETTING',
     PAYOUT_SETTING = 'PAYOUT_SETTING',
+    FORTUNE_SETTING = 'FORTUNE_SETTING',
 }
 
 export enum ConfigDataType {
@@ -31,6 +32,7 @@ export const CONFIG_TYPE_LABELS: Record<ConfigType, string> = {
     [ConfigType.REFUND_SETTING]: 'Cấu hình hoàn tiền',
     [ConfigType.COMPLAINT_SETTING]: 'Cấu hình khiếu nại',
     [ConfigType.PAYOUT_SETTING]: 'Cấu hình trả thưởng',
+    [ConfigType.FORTUNE_SETTING]: 'Cấu hình gieo quẻ',
 };
 
 export const CONFIG_DATA_TYPE_LABELS: Record<ConfigDataType, string> = {
