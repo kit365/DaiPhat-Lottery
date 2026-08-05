@@ -66,7 +66,7 @@ def test_caps_detections_at_max_tickets_and_warns():
     canvas = _canvas(width=2400, height=1600)
     for i in range(20):
         row, col = divmod(i, 5)
-        _draw_ticket(canvas, x=50 + col * 460, y=50 + row * 400, w=180, h=350)
+        _draw_ticket(canvas, x=50 + col * 460, y=50 + row * 400, w=250, h=350)
 
     result = _detector(max_tickets=15).detect(canvas)
 
