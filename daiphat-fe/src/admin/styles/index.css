@@ -595,10 +595,10 @@ input:-webkit-autofill:active {
 }
 
 .admin-datagrid .MuiDataGrid-footerContainer {
-    border-top: 1px dashed var(--palette-background-neutral);
+    border-top: 1px solid var(--palette-divider) !important;
     min-height: auto;
     font-size: 0.875rem;
-    color: inherit;
+    color: var(--palette-text-secondary) !important;
     position: relative;
     z-index: 5;
     pointer-events: auto;
@@ -606,13 +606,16 @@ input:-webkit-autofill:active {
 }
 
 .admin-datagrid .MuiTablePagination-selectLabel,
-.admin-datagrid .MuiTablePagination-displayedRows {
-    font-size: 0.875rem;
-    color: inherit;
+.admin-datagrid .MuiTablePagination-displayedRows,
+.admin-datagrid-card .MuiTablePagination-selectLabel,
+.admin-datagrid-card .MuiTablePagination-displayedRows {
+    font-size: 0.875rem !important;
+    color: var(--palette-text-secondary) !important;
 }
 
-.admin-datagrid .MuiTablePagination-selectLabel {
-    margin-bottom: -2px;
+.admin-datagrid-card .MuiTablePagination-root {
+    border-top: 1px solid var(--palette-divider) !important;
+    color: var(--palette-text-secondary) !important;
 }
 
 .admin-datagrid .MuiSelect-select {
