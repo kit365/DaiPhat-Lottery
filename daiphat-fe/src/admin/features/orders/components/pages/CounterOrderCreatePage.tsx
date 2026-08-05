@@ -708,7 +708,7 @@ export const CounterOrderCreatePage = () => {
                                                 );
                                             })}
                                         </React.Fragment>
-                                    ))}
+                                    ))
                                 )}
                             </TableBody>
                         </Table>
