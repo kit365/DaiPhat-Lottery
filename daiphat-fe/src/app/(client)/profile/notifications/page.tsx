@@ -1,5 +1,6 @@
+import { ProfileTabWrapper } from '../ProfileTabWrapper';
 import { NotificationsTab } from '@/client/features/profile/pages/tabs/NotificationsTab';
 
 export default function ProfileNotificationsPage() {
-  return <NotificationsTab />;
+  return <ProfileTabWrapper content={<NotificationsTab />} />;
 }
