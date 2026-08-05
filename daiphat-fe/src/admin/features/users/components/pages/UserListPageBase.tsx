@@ -109,14 +109,7 @@ export const UserListPageBase = ({
                 </div>
             </div>
 
-            <Card elevation={0} sx={{
-                borderRadius: 'var(--shape-borderRadius-lg)',
-                bgcolor: 'var(--palette-background-paper)',
-                boxShadow: 'var(--customShadows-card)',
-                overflow: 'hidden',
-                display: 'flex',
-                flexDirection: 'column',
-            }}>
+            <Card elevation={0} className="admin-datagrid-card" sx={{ height: 'auto' }}>
                 <Tabs
                     value={tabStatus}
                     onChange={handleTabChange}
