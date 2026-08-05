@@ -177,14 +177,14 @@ export const SupplierSettlementDetailPage = () => {
                     </Stack>
                 </Stack>
 
-                {/* 100% Balanced Financial Metric Grid (Dynamic 4 or 5 Columns based on isReturnExpired) */}
+                {/* 100% Balanced Financial Metric Grid (Dynamic 3 or 4 Columns based on isReturnExpired) */}
                 <Box
                     sx={{
                         display: 'grid',
                         gridTemplateColumns: {
                             xs: '1fr',
-                            sm: 'repeat(2, 1fr)',
-                            md: settlement.isReturnExpired ? 'repeat(5, 1fr)' : 'repeat(4, 1fr)',
+                            sm: settlement.isReturnExpired ? 'repeat(3, 1fr)' : 'repeat(2, 1fr)',
+                            md: settlement.isReturnExpired ? 'repeat(3, 1fr)' : 'repeat(4, 1fr)',
                         },
                         gap: 2,
                         pt: 2.5,
@@ -238,17 +238,11 @@ export const SupplierSettlementDetailPage = () => {
                         </Typography>
                     </Box>
 
-                    {/* 5. Còn phải trả NCC */}
-                    <Box sx={{ p: 2, borderRadius: '12px', bgcolor: '#f0fdf4', border: '1px solid #bbf7d0' }}>
-                        <Typography variant="caption" fontWeight={700} color="#166534" display="block">
-                            Còn phải trả NCC
-                        </Typography>
-                        <Typography variant="h6" fontWeight={800} color="#15803d" sx={{ mt: 0.5 }}>
-                            {formatImportCost(settlement.remainingAmount)} VNĐ
-                        </Typography>
-                        {(!settlement.totalReturnValue || settlement.totalReturnValue === 0) && (
-                            <Typography variant="caption" color="#166534" sx={{ fontSize: '0.68rem', display: 'block', mt: 0.25 }}>
-                                Sẽ tính sau khi hoàn tất kiểm tra phiếu trả
+                    {/* 5. Còn phải trả NCC (Ẩn khi quá hạn trả vé - isReturnExpired = true) */}
+                    {!settlement.isReturnExpired && (
+                        <Box sx={{ p: 2, borderRadius: '12px', bgcolor: '#f0fdf4', border: '1px solid #bbf7d0' }}>
+                            <Typography variant="caption" fontWeight={700} color="#166534" display="block">
+                                Còn phải trả NCC
                             </Typography>
                             <Typography variant="h6" fontWeight={800} color="#15803d" sx={{ mt: 0.5 }}>
                                 {formatImportCost(settlement.remainingAmount)} VNĐ

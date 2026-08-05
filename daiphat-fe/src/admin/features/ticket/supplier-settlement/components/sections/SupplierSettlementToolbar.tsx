@@ -1,8 +1,14 @@
-import { Toolbar, Box } from '@mui/material';
+import { Toolbar, Box, Chip } from '@mui/material';
+import type { Dispatch, SetStateAction } from 'react';
 import { Search } from '../../../../../components/ui/Search';
-import { toolbarStyles } from '../../../../../shared/data-grid';
+import { Columns } from '../../../../../components/ui/Columns';
+import { SettingsList } from '../../../../../components/ui/SettingsList';
+import { IGridSettings, toolbarStyles } from '../../../../../shared/data-grid';
+import { SupplierSettlementStatus } from '../../types/supplierSettlement.type';
 
 interface SupplierSettlementToolbarProps {
+    settings: IGridSettings;
+    onSettingsChange: Dispatch<SetStateAction<IGridSettings>>;
     filters: {
         search?: string;
         status?: SupplierSettlementStatus;
@@ -15,6 +21,8 @@ interface SupplierSettlementToolbarProps {
 }
 
 export const SupplierSettlementToolbar = ({
+    settings,
+    onSettingsChange,
     filters,
     expiredCount = 0,
     onSearchChange,
@@ -74,6 +82,12 @@ export const SupplierSettlementToolbar = ({
                     value={filters.search || ''}
                     onChange={onSearchChange}
                 />
+            </Box>
+
+            {/* Column & Settings Controls */}
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, justifyContent: 'flex-end' }}>
+                <Columns />
+                <SettingsList settings={settings} onSettingsChange={onSettingsChange} />
             </Box>
         </Toolbar>
     );
