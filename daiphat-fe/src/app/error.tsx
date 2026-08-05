@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useEffect } from 'react';
-import Link from 'next/link';
 
 export default function Error({
   error,
@@ -38,12 +37,12 @@ export default function Error({
             <i className="fa-solid fa-rotate-right mr-2"></i> Thử lại
           </button>
           
-          <Link
+          <a
             href="/"
             className="w-full sm:w-auto px-8 py-3.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition-all cursor-pointer active:scale-95 text-sm"
           >
             <i className="fa-solid fa-house mr-2"></i> Trang chủ
-          </Link>
+          </a>
         </div>
       </div>
     </div>
