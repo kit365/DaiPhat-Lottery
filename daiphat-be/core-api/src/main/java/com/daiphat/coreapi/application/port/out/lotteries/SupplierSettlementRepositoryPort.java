@@ -44,4 +44,6 @@ public interface SupplierSettlementRepositoryPort {
      * Sum import cost of settlement-scoped serials that are {@code IN_STOCK} + {@code GOOD}.
      */
     BigDecimal sumInStockGoodImportCostBySettlementId(Long settlementId);
+
+    BigDecimal sumExpiredReturnValueBySettlementId(Long settlementId);
 }

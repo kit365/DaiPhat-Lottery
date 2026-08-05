@@ -22,9 +22,12 @@ public class SupplierSettlementApplicationMapper {
                 .totalReturnValue(model.getTotalReturnValue())
                 .totalPaidAmount(model.getTotalPaidAmount())
                 .remainingAmount(model.getRemainingAmount())
+                .isReturnExpired(model.isReturnExpired())
+                .expiredReturnValue(model.getExpiredReturnValue())
                 .status(model.getStatus())
                 .statusLabel(model.getStatus() != null ? model.getStatus().getLabel() : null)
                 .transactionId(model.getTransactionId())
+                .paidAt(model.getPaidAt())
                 .createdAt(model.getCreatedAt())
                 .updatedAt(model.getUpdatedAt())
                 .build();

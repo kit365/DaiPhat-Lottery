@@ -15,6 +15,8 @@ public record SupplierSettlementKpisResponse(
         int totalVoidedTickets,
         int totalPreparedForReturnTickets,
         BigDecimal totalReturnValue,
-        BigDecimal remainingPayableAmount
+        BigDecimal remainingPayableAmount,
+        Boolean isReturnExpired,
+        BigDecimal expiredReturnValue
 ) {
 }
