@@ -102,12 +102,12 @@ export const returnBatchColumnsConfig: GridColDef[] = [
                         variant="body2"
                         sx={{
                             ...returnBatchCodeMonospaceSx,
-                            color: '#FF3030',
-                            bgcolor: '#FF303014',
+                            color: '#00A76F',
+                            bgcolor: '#00a76f14',
                             px: 1,
                             py: 0.35,
                             borderRadius: '6px',
-                            border: '1px solid #FF303026',
+                            border: '1px solid #00a76f26',
                             display: 'inline-block',
                             fontSize: '0.8125rem',
                             lineHeight: 1.2,
