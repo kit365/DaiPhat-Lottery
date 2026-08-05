@@ -5,7 +5,6 @@ import '../styles/client.css';
 import { fontVariables } from '@/styles/fonts';
 import { Providers } from './providers';
 import { FontLoader } from '../components/FontLoader';
-import { CLIENT_FAVICON } from '@/client/constants/clientBannerAssets';
 
 export const metadata: Metadata = {
   title: {
