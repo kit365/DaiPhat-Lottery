@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Link, useNavigate, useLocation } from "react-router-dom";
-import { Search, User as UserIcon, Home, Crosshair, Ticket, Bell, Wallet, ChevronDown, ShoppingCart, BookOpen, Trash2, Sparkles } from "lucide-react";
+import { Search, User as UserIcon, Home, Crosshair, Ticket, Bell, Wallet, ChevronDown, ShoppingCart, BookOpen, Trash2, Sparkles, CalendarDays } from "lucide-react";
 import { ROUTES } from "../../../admin/constants/routes";
 import { useAuthStore } from "../../../stores/useAuthStore";
 import { useCartStore } from "../../../stores/useCartStore";
@@ -18,15 +18,18 @@ import { useAuth } from "../../hooks/useAuth";
 import { useNotifications } from "../../hooks/useNotifications";
 import { Skeleton } from "../../../components/ui/Skeleton";
 import { AppToast as toast } from "../../../utils/toast.util";
+import { createNavBannerPrefetchHandlers } from "../../utils/prefetchImagesWhenIdle";
+import { CLIENT_LOGO, PROVINCE_ICON_FALLBACK } from "../../constants/clientBannerAssets";
 import { useSiteBranding } from "@/client/hooks/useSiteBranding";
 import { SiteLogo } from "@/client/components/layout/SiteLogo";
 
 const navItems = [
   { label: "Trang chủ", to: ROUTES.PUBLIC.HOME, icon: Home },
-  { label: "Mua vé số", to: "/buy-ticket", icon: Ticket },
+  { label: "Mua vé số", to: ROUTES.PUBLIC.TICKETS, icon: Ticket },
   { label: "Vé của tôi", to: "/profile/tickets", icon: Ticket },
   { label: "Gieo quẻ", to: ROUTES.PUBLIC.FORTUNE, icon: Sparkles },
-  { label: "Bài viết", to: "/blogs", icon: BookOpen },
+  { label: "Lịch mở thưởng", to: ROUTES.PUBLIC.SCHEDULE, icon: CalendarDays },
+  { label: "Bài viết", to: ROUTES.PUBLIC.BLOGS, icon: BookOpen },
 ];
 
 export const Header = () => {
@@ -158,6 +161,7 @@ export const Header = () => {
                 <Link
                   key={item.label}
                   to={item.to}
+                  {...createNavBannerPrefetchHandlers(item.to)}
                   className={`relative flex shrink-0 items-center gap-1.5 xl:gap-2 font-bold no-underline transition-all duration-300 px-2.5 xl:px-3.5 py-2 xl:py-2.5 rounded-2xl text-[12.5px] xl:text-[14px] tracking-tight font-client-display select-none whitespace-nowrap ${
                     isActive
                       ? "text-[#ee1314]" 
@@ -195,6 +199,7 @@ export const Header = () => {
                   <div className="relative group">
                     <button 
                       onClick={() => navigate('/cart')}
+                      {...createNavBannerPrefetchHandlers('/cart')}
                       className="relative text-[#505050] hover:text-[#ee1314] hover:bg-[#FFF4F4]/50 transition-all p-2 rounded-full cursor-pointer"
                     >
                       <ShoppingCart size={21} strokeWidth={2} />
@@ -224,7 +229,7 @@ export const Header = () => {
                             <div key={item.id} className="relative flex gap-4 p-3 hover:bg-slate-50 rounded-xl transition-colors group/item border-b border-gray-100 last:border-0">
                               {/* Left: Icon */}
                               <div className="w-11 h-11 shrink-0 rounded-full border border-[#E5E8EB] shadow-sm p-1.5 flex items-center justify-center bg-white cursor-pointer" onClick={() => navigate('/cart')}>
-                                <img src="https://i.ibb.co/XrKTHt8g/t-i-xu-ng.png" alt="Province" className="w-full h-full object-contain" />
+                                <img src={PROVINCE_ICON_FALLBACK} alt="Province" className="w-full h-full object-contain" />
                               </div>
                               
                               {/* Middle & Right: Content */}
@@ -267,7 +272,7 @@ export const Header = () => {
                           <button onClick={() => navigate('/cart')} className="w-full py-2.5 bg-[#ee1314] text-white text-[14px] font-bold rounded-xl hover:bg-[#cc0000] transition-colors flex items-center justify-center gap-2 cursor-pointer">
                             <ShoppingCart size={18} /> Xem giỏ hàng
                           </button>
-                          <button onClick={() => navigate('/buy-ticket')} className="w-full py-2.5 bg-white text-[#212B36] border border-[#E5E8EB] text-[14px] font-bold rounded-xl hover:border-[#ee1314] hover:text-[#ee1314] transition-colors cursor-pointer">
+                          <button onClick={() => navigate(ROUTES.PUBLIC.TICKETS)} className="w-full py-2.5 bg-white text-[#212B36] border border-[#E5E8EB] text-[14px] font-bold rounded-xl hover:border-[#ee1314] hover:text-[#ee1314] transition-colors cursor-pointer">
                             Tiếp tục mua
                           </button>
                         </div>
@@ -407,6 +412,7 @@ export const Header = () => {
                     >
                       <Link
                         to={item.to}
+                        {...createNavBannerPrefetchHandlers(item.to)}
                         className="mobile-nav-link"
                         onClick={() => setIsMenuOpen(false)}
                       >

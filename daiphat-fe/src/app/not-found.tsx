@@ -1,8 +1,10 @@
-import React from 'react';
-import { Link } from 'react-router-dom';
-import { PartnerLogos } from '../../components/layout/PartnerLogos';
+"use client";
 
-export const NotFoundPage = () => {
+import React from 'react';
+import { Link } from '@/components/router-compat';
+import { PartnerLogos } from '@/client/components/layout/PartnerLogos';
+
+export default function NotFound() {
     return (
         <div
             className="min-h-screen font-client-main flex flex-col bg-fixed bg-cover bg-center"
@@ -64,4 +66,4 @@ export const NotFoundPage = () => {
             </div>
         </div>
     );
-};
+}
