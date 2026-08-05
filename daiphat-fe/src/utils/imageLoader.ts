@@ -24,7 +24,7 @@ export default function imageLoader({ src, width, quality }: ImageLoaderProps): 
 
   // For static local assets or other external domains, include width so Next.js
   // validates the loader (CDN may ignore the query param).
-  if (width) {
+  if (typeof src === 'string' && width && !src.includes('w=')) {
     const separator = src.includes('?') ? '&' : '?';
     return `${src}${separator}w=${width}${quality ? `&q=${quality}` : ''}`;
   }

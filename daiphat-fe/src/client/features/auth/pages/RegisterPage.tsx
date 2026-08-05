@@ -9,6 +9,7 @@ import { GoogleIcon, AuthBranding } from "../../../components/auth/SharedAuth";
 import { PasswordStrengthMeter } from "../../../components/auth/PasswordStrengthMeter";
 import { useForgotPassword } from "../../../../admin/pages/authen/hooks/use-forgot-password";
 import { redirectToGoogleOAuth } from "../../../utils/google-oauth.util";
+import { CLIENT_LOGO } from "../../../constants/clientBannerAssets";
 
 export const RegisterPage = () => {
     const navigate = useNavigate();
@@ -228,13 +229,13 @@ export const RegisterPage = () => {
 
                             {/* Terms */}
                             <div className="mt-1">
-                                <label className="flex items-start gap-2 cursor-pointer">
+                                <label className="flex items-center gap-2.5 cursor-pointer select-none">
                                     <input 
                                         type="checkbox" 
                                         {...register("agreedToTerms")}
-                                        className="mt-0.5 w-3.5 h-3.5 border-[#E0E0E0] rounded text-[#D32F2F] focus:ring-[#D32F2F] cursor-pointer" 
+                                        className="w-4 h-4 border-[#E0E0E0] rounded accent-[#D32F2F] cursor-pointer shrink-0" 
                                     />
-                                    <span className="text-[12px] text-[#666666] leading-tight">
+                                    <span className="text-[12px] text-[#666666] leading-snug">
                                         Tôi đồng ý với <span className="text-[#D32F2F] hover:underline cursor-pointer">điều khoản sử dụng</span> & chính sách bảo mật của Đại Phát.
                                     </span>
                                 </label>
@@ -244,7 +245,7 @@ export const RegisterPage = () => {
                             {/* Submit Button */}
                             <button 
                                 type="submit" 
-                                className="w-full h-[44px] xl:h-[48px] mt-1 flex items-center justify-center bg-[#D32F2F] text-white rounded-xl font-bold text-[14px] xl:text-[15px] transition-all hover:bg-[#B71C1C] active:scale-[0.98] disabled:opacity-70 disabled:pointer-events-none"
+                                className="w-full h-[44px] xl:h-[48px] mt-1 flex items-center justify-center bg-[#D32F2F] text-white rounded-xl font-bold text-[14px] xl:text-[15px] transition-all hover:bg-[#B71C1C] active:scale-[0.98] disabled:opacity-70 disabled:pointer-events-none cursor-pointer"
                                 disabled={isPending}
                             >
                                 {isPending ? (
@@ -261,7 +262,7 @@ export const RegisterPage = () => {
                                 Đã có tài khoản?{" "}
                                 <button 
                                     onClick={() => navigate("/login")}
-                                    className="text-[#D32F2F] font-bold hover:underline"
+                                    className="text-[#D32F2F] font-bold hover:underline cursor-pointer"
                                 >
                                     Đăng nhập
                                 </button>
