@@ -87,7 +87,7 @@ class PurchasedTicketQueryServiceTest {
                 .thenReturn(Optional.empty());
 
         PageResponse<PurchasedTicketResponse> response = service.getMyTickets(
-                USER_ID, 1, 10, null, null, null, null, "createdAt", "desc");
+                USER_ID, 1, 10, null, null, null, null, null, "createdAt", "desc");
 
         assertThat(response.getRecordList()).hasSize(1);
         assertThat(response.getRecordList().getFirst().drawResultStatus()).isEqualTo(TicketDrawResultStatus.PENDING_DRAW);
@@ -118,7 +118,7 @@ class PurchasedTicketQueryServiceTest {
         when(lotteryResultDetailRepositoryPort.findByLotteryResultId(99L)).thenReturn(List.of(resultDetail));
 
         PageResponse<PurchasedTicketResponse> response = service.getMyTickets(
-                USER_ID, 1, 10, null, null, null, null, "createdAt", "desc");
+                USER_ID, 1, 10, null, null, null, null, null, "createdAt", "desc");
 
         assertThat(response.getRecordList().getFirst().drawResultStatus()).isEqualTo(TicketDrawResultStatus.WON);
         assertThat(response.getRecordList().getFirst().matchedPrizeCode()).isEqualTo("G8");

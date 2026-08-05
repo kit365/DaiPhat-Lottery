@@ -20,6 +20,9 @@ const API_ROOT = `${BASE_URL}${API_PREFIX}${API_VERSION}`
 
 const apiApp = axios.create({
     baseURL: API_ROOT,
+    // Auth guards depend on /users/me. Without a deadline a stalled proxy or
+    // backend connection leaves the whole admin area on its loading screen.
+    timeout: 15_000,
     withCredentials: true,
     headers: {
         "Content-Type": "application/json",

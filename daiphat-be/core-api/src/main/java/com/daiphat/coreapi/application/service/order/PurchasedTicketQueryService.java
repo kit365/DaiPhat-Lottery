@@ -56,6 +56,7 @@ public class PurchasedTicketQueryService implements PurchasedTicketQueryPort {
             int page,
             int size,
             TicketDrawResultStatus status,
+            Boolean redeemed,
             LocalDate fromDate,
             LocalDate toDate,
             String ticketNumber,
@@ -67,15 +68,16 @@ public class PurchasedTicketQueryService implements PurchasedTicketQueryPort {
         int safePage = Math.max(1, page);
         int safeSize = Math.max(1, size);
 
-        // Draw result (WON/LOST/PENDING) is computed in-memory, so status filters must
-        // paginate after mapping — not at the DB page boundary.
-        if (status != null) {
+        // Draw result (WON/LOST/PENDING) and redemption state are computed in-memory,
+        // so these filters must paginate after mapping — not at the DB page boundary.
+        if (status != null || redeemed != null) {
             Page<OrderDetailEntity> allDetails = purchasedTicketQueryRepositoryPort.findPurchasedTickets(
                     spec,
                     PageRequest.of(0, Integer.MAX_VALUE, sort)
             );
             List<PurchasedTicketResponse> filtered = mapDetails(allDetails.getContent()).stream()
-                    .filter(response -> response.drawResultStatus() == status)
+                    .filter(response -> status == null || response.drawResultStatus() == status)
+                    .filter(response -> matchesRedeemedFilter(response, redeemed))
                     .toList();
             int fromIndex = Math.min((safePage - 1) * safeSize, filtered.size());
             int toIndex = Math.min(fromIndex + safeSize, filtered.size());
@@ -88,6 +90,20 @@ public class PurchasedTicketQueryService implements PurchasedTicketQueryPort {
         );
         List<PurchasedTicketResponse> responses = mapDetails(detailPage.getContent());
         return PageResponse.from(responses, detailPage.getTotalElements(), safePage, safeSize);
+    }
+
+    private static boolean matchesRedeemedFilter(PurchasedTicketResponse response, Boolean redeemed) {
+        if (redeemed == null) {
+            return true;
+        }
+        // Redemption filter only applies to winning tickets.
+        if (response.drawResultStatus() != TicketDrawResultStatus.WON) {
+            return false;
+        }
+        boolean isRedeemed = response.payoutState() == SerialPayoutState.PAID_OUT
+                || response.activePayoutStatus()
+                == com.daiphat.coreapi.domain.model.enums.payout.PrizePayoutRequestStatus.COMPLETED;
+        return redeemed == isRedeemed;
     }
 
     private List<PurchasedTicketResponse> mapDetails(List<OrderDetailEntity> details) {

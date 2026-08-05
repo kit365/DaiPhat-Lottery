@@ -2,7 +2,6 @@ import { create } from "zustand";
 import { persist, devtools } from "zustand/middleware";
 
 import { STORAGE_KEYS } from "../constants/storage.constants";
-
 import { User } from "../types/user.type";
 
 interface AuthState {
@@ -96,14 +95,42 @@ export const useAuthStore = create<AuthState>()(
                     token: state.token, 
                     expiresAt: state.expiresAt 
                 }),
-                onRehydrateStorage: () => (state) => {
+                onRehydrateStorage: () => (state, error) => {
+                    if (error && typeof window !== "undefined") {
+                        console.warn("Auth store rehydration failed", error);
+                    }
                     if (state) {
                         state.set({ isHydrated: true });
+                        return;
+                    }
+
+                    // Persist supplies no state when browser storage cannot be
+                    // read. Do not leave guards on an endless loading screen.
+                    // The server has no browser storage to recover from.
+                    if (typeof window !== "undefined") {
+                        queueMicrotask(() => useAuthStore.setState({ isHydrated: true }));
                     }
                 },
             }
-
         ),
         { name: "AuthStore" }
     )
 );
+
+// Next.js client navigations can miss persist callbacks; ensure hydration unlocks.
+if (typeof window !== "undefined") {
+    const persistApi = (useAuthStore as typeof useAuthStore & {
+        persist?: {
+            hasHydrated?: () => boolean;
+            onFinishHydration?: (cb: () => void) => () => void;
+        };
+    }).persist;
+
+    if (persistApi?.hasHydrated?.()) {
+        useAuthStore.setState({ isHydrated: true });
+    } else {
+        persistApi?.onFinishHydration?.(() => {
+            useAuthStore.setState({ isHydrated: true });
+        });
+    }
+}

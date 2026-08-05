@@ -7,6 +7,7 @@ import com.daiphat.coreapi.application.dto.response.payout.PrizePayoutBatchCreat
 import com.daiphat.coreapi.application.dto.response.payout.PrizePayoutLookupResponse;
 import com.daiphat.coreapi.application.dto.response.payout.PrizePayoutRequestResponse;
 import com.daiphat.coreapi.application.mapper.payout.PrizePayoutApplicationMapper;
+import com.daiphat.coreapi.application.port.in.lotteries.LotteryStationServicePort;
 import com.daiphat.coreapi.application.port.out.file.StoragePort;
 import com.daiphat.coreapi.application.port.out.lotteries.LotteryTicketSerialRepositoryPort;
 import com.daiphat.coreapi.application.port.out.payout.PrizePayoutRequestRepositoryPort;
@@ -72,6 +73,7 @@ class PrizePayoutStaffServiceCreateInPersonTest {
     @Mock private UserRepository userRepository;
     @Mock private StoragePort storagePort;
     @Mock private ApplicationEventPublisher eventPublisher;
+    @Mock private LotteryStationServicePort lotteryStationServicePort;
 
     @InjectMocks
     private PrizePayoutStaffService staffService;

@@ -207,12 +207,20 @@ export const PrizePayoutDetailPage = () => {
     const navigate = useNavigate();
     const location = useLocation();
     const returnNav = location.state as { returnTo?: string; returnLabel?: string } | null;
+    const fromSupportTicketId = new URLSearchParams(location.search || '').get('fromSupportTicketId');
+    const complaintBackPath = fromSupportTicketId
+        ? `/${prefixAdmin}/support-tickets/detail/${fromSupportTicketId}`
+        : null;
     const backPath =
         returnNav?.returnTo && returnNav.returnTo.startsWith(`/${prefixAdmin}/`)
             ? returnNav.returnTo
+            : complaintBackPath
+                ? complaintBackPath
             : `/${prefixAdmin}/prize-payouts/list`;
     const backLabel = returnNav?.returnTo && returnNav.returnTo.startsWith(`/${prefixAdmin}/`)
         ? (returnNav.returnLabel || 'Quay lại khiếu nại')
+        : complaintBackPath
+            ? `Quay lại khiếu nại #${fromSupportTicketId}`
         : 'Quay lại';
     const requestId = Number(id);
     const { data, isLoading } = useGetStaffPrizePayoutDetail(requestId);

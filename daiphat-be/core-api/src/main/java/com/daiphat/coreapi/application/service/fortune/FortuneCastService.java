@@ -166,9 +166,9 @@ public class FortuneCastService implements FortuneCastServicePort {
             boolean alreadyCastToday,
             FortuneCastResponse.PreviousCastSummary previous
     ) {
-        String buyPath = "/ticket-search?tab=available&search="
+        String buyPath = "/buy-ticket?ticketNumber="
                 + entity.getFinalTail()
-                + "&searchMode=SUFFIX&drawDate="
+                + "&drawDate="
                 + entity.getSellableDrawDate();
         return new FortuneCastResponse(
                 entity.getFinalTail(),

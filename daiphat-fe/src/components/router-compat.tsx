@@ -55,13 +55,16 @@ export const useLocation = () => {
   const searchParams = useNextSearchParams();
   const search = searchParams ? `?${searchParams.toString()}` : '';
   const hash = typeof window !== 'undefined' ? window.location.hash : '';
-  return {
-    pathname,
-    search,
-    hash,
-    state: null,
-    key: pathname,
-  };
+  return useMemo(
+    () => ({
+      pathname,
+      search,
+      hash,
+      state: null,
+      key: pathname + search,
+    }),
+    [pathname, search, hash]
+  );
 };
 
 /**
@@ -152,13 +155,20 @@ export const Link: React.FC<LinkProps> = ({ to, href, state, children, className
 
 export const Navigate = ({ to, replace = true }: { to: string; replace?: boolean; state?: unknown }) => {
   const router = useRouter();
+  const pathname = usePathname() || '';
+  const searchParams = useNextSearchParams();
+  const search = searchParams ? `?${searchParams.toString()}` : '';
+  const fullPath = pathname + search;
+
   useEffect(() => {
-    if (replace) {
-      router.replace(to);
-    } else {
-      router.push(to);
+    if (to && fullPath !== to && pathname !== to) {
+      if (replace) {
+        router.replace(to);
+      } else {
+        router.push(to);
+      }
     }
-  }, [router, to, replace]);
+  }, [router, to, replace, pathname, fullPath]);
   return null;
 };
 

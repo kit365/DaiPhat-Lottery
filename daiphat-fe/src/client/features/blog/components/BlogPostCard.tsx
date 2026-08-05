@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useState } from 'react';
+import Image from 'next/image';
 import { Link } from 'react-router-dom';
 import { PublicPost } from '../types/blog';
 
@@ -29,18 +30,21 @@ const formatViews = (views: number) => {
 };
 
 export const BlogPostCard: React.FC<BlogPostCardProps> = ({ post, isFirst = false }) => {
+  const [imgSrc, setImgSrc] = useState(post.thumbnail || '/assets/img/blog/blog-post-1.jpg');
+
   return (
     <React.Fragment>
       {!isFirst && <div className="w-full h-[1px] bg-[#F4F6F8]"></div>}
       <div className="flex flex-col sm:flex-row bg-white overflow-hidden group gap-6">
-        <div className="w-full sm:w-[325px] h-[190px] shrink-0">
-          <img
-            src={post.thumbnail || '/assets/img/blog/blog-post-1.jpg'}
+        <div className="relative w-full sm:w-[325px] h-[190px] shrink-0">
+          <Image
+            src={imgSrc}
             alt={post.title}
-            className="w-full h-full object-cover rounded-xl"
-            style={{ objectFit: 'cover' }}
-            onError={(e) => {
-              (e.target as HTMLImageElement).src = '/assets/img/blog/blog-post-1.jpg';
+            fill
+            sizes="(max-width: 640px) 100vw, 325px"
+            className="object-cover rounded-xl"
+            onError={() => {
+              setImgSrc('/assets/img/blog/blog-post-1.jpg');
             }}
           />
         </div>

@@ -65,7 +65,7 @@ export const Search = ({ maxWidth = 260, placeholder, value, onChange }: SearchP
                         fontSize: "0.9375rem",
                         paddingLeft: "14px",
                         paddingRight: "14px",
-                        bgcolor: 'white',
+                        bgcolor: 'var(--palette-background-paper)',
                         '& fieldset': {
                             borderColor: 'rgba(145, 158, 171, 0.2)',
                         },

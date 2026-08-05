@@ -37,7 +37,7 @@ const TABS: TabConfig[] = [
 
 export const ProfilePage = () => {
     const { user, isUserLoading, handleUploadAvatar, uploadAvatarMutation } = useAuth();
-    const { token, openLoginModal } = useAuthStore();
+    const { token, isHydrated, openLoginModal } = useAuthStore();
     const { unreadCount } = useNotifications(4);
     const { pendingCount: pendingRefundCount } = useMyRefundPendingCount();
     const { data: pendingPayoutRes } = useMyPrizePayoutPendingCount();
@@ -48,13 +48,29 @@ export const ProfilePage = () => {
     const avatarInputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
-        if (!token && !isUserLoading) {
+        if (!isHydrated || isUserLoading) {
+            return;
+        }
+        if (!token) {
             navigate('/');
             openLoginModal();
         }
-    }, [token, isUserLoading, navigate, openLoginModal]);
+    }, [token, isHydrated, isUserLoading, navigate, openLoginModal]);
 
-    if (isUserLoading || !user) return null;
+    if (!isHydrated || (token && isUserLoading)) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-[#F8F9FA] pt-[80px]">
+                <div className="flex flex-col items-center gap-3 text-[#637381]">
+                    <div className="w-10 h-10 rounded-full border-4 border-[#ffcdcd] border-t-[#ee1314] animate-spin" />
+                    <p className="text-[14px] font-medium">Đang tải trang cá nhân...</p>
+                </div>
+            </div>
+        );
+    }
+
+    if (!token || !user) {
+        return null;
+    }
 
     // Find the active tab based on the current pathname
     const tabs = TABS.map((tab) => {
