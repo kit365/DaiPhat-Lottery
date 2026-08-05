@@ -306,7 +306,7 @@ export const OrderList = () => {
 
                     {!isLoading && orders.length > 0 && (
                         <TableBody>
-                            orders.map((row: any) => {
+                            {orders.map((row: any) => {
                                 const isItemSelected = selected.indexOf(row.id) !== -1;
                                 const isOpen = openRows.includes(row.id);
                                 const isPreparingUrgentRow =
