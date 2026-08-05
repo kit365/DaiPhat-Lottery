@@ -18,8 +18,8 @@ spring:
       enabled: true
   servlet:
     multipart:
-      max-file-size: ${CORE_MULTIPART_MAX_FILE_SIZE}
-      max-request-size: ${CORE_MULTIPART_MAX_REQUEST_SIZE}
+      max-file-size: ${CORE_MULTIPART_MAX_FILE_SIZE:5MB}
+      max-request-size: ${CORE_MULTIPART_MAX_REQUEST_SIZE:5MB}
   google:
     client-id: ${GOOGLE_CLIENT_ID}
     client-secret: ${GOOGLE_CLIENT_SECRET}
@@ -51,6 +51,9 @@ daiphat:
     view-sync-rate-ms: 300000
   import-batch:
     draft-cancel-rate-ms: 60000
+  return-batch:
+    auto-create-rate-ms: 60000
+    auto-cancel-rate-ms: 60000
   refund:
     expire-rate-ms: 3600000
   payment:
@@ -119,6 +122,12 @@ daiphat:
     result-sync-backlog-batch-size: 20
     draw-deadline-minutes: 30
   storage:
+    # cloudinary (default) | local — local writes under daiphat.storage.local.base-dir
+    provider: ${STORAGE_PROVIDER:cloudinary}
+    local:
+      base-dir: ${STORAGE_LOCAL_BASE_DIR:./data/uploads}
+      # Empty = relative /uploads/... (works via Next /uploads rewrite in local FE)
+      public-base-url: ${STORAGE_LOCAL_PUBLIC_BASE_URL:}
     cloudinary:
       cloud-name: ${CLOUDINARY_CLOUD_NAME}
       api-key: ${CLOUDINARY_API_KEY}
@@ -154,7 +163,7 @@ daiphat:
     jwt:
       issuer: ${AUTH_JWT_ISSUER}
       secret: ${AUTH_JWT_SECRET}
-      access-token-ttl-seconds: ${AUTH_JWT_ACCESS_TOKEN_TTL_SECONDS}
+      access-token-ttl-seconds: ${AUTH_JWT_ACCESS_TOKEN_TTL_SECONDS:900}
       refresh-token-ttl-seconds: ${AUTH_JWT_REFRESH_TOKEN_TTL_SECONDS}
     cookie:
       name: ${AUTH_REFRESH_COOKIE_NAME}

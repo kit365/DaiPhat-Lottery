@@ -33,4 +33,7 @@ public interface ReturnBatchRepository
     List<ReturnBatchEntity> findBySupplierSettlementIdAndDeletedAtIsNullOrderByDrawDateDescIdDesc(
             Long supplierSettlementId
     );
+
+    @org.springframework.data.jpa.repository.Query(value = "SELECT nextval('return_batch_header_code_seq')", nativeQuery = true)
+    long nextHeaderBatchCodeSequence();
 }

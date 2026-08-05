@@ -5,7 +5,6 @@ import { Navigate } from "@/components/router-compat";
 import { PermissionGuard } from "../components/auth/PermissionGuard";
 import { PERMISSIONS } from "../constants/permission.constants";
 
-// Lazy-loaded components targeting specific page files directly
 const TicketListPage = lazy(() => import("../features/ticket/inventory/components/pages/TicketListPage").then(m => ({ default: m.TicketListPage })));
 const TicketCreatePage = lazy(() => import("../features/ticket/inventory/components/pages/TicketCreatePage").then(m => ({ default: m.TicketCreatePage })));
 const TicketEditPage = lazy(() => import("../features/ticket/inventory/components/pages/TicketEditPage").then(m => ({ default: m.TicketEditPage })));
@@ -33,11 +32,13 @@ const ForgotPasswordPage = lazy(() => import("../pages/authen/ForgotPasswordPage
 const OAuthCallbackPage = lazy(() => import("../pages/authen/OAuthCallbackPage").then(m => ({ default: m.OAuthCallbackPage })));
 const ProfileSetupPage = lazy(() => import("../pages/authen/ProfileSetupPage").then(m => ({ default: m.ProfileSetupPage })));
 
-export { LoginPage, ForgotPasswordPage, OAuthCallbackPage, ProfileSetupPage };
 const DashboardPage = lazy(() => import("../pages/dashboard/DashboardPage").then(m => ({ default: m.DashboardPage })));
 const SystemPage = lazy(() => import("../pages/dashboard/SystemPage").then(m => ({ default: m.SystemPage })));
-const EcommercePage = lazy(() => import("../pages/dashboard/EcommercePage")); 
-const AnalyticsPage = lazy(() => import("../pages/dashboard/AnalyticsPage")); 
+const EcommercePage = lazy(() => import("../pages/dashboard/EcommercePage").then(m => ({ default: m.EcommercePage }))); 
+const AnalyticsPage = lazy(() => import("../pages/dashboard/AnalyticsPage").then(m => ({ default: m.AnalyticsPage }))); 
+const GeneralStatisticsPage = lazy(() => import("../pages/dashboard/statistics/GeneralStatisticsPage").then(m => ({ default: m.GeneralStatisticsPage })));
+const OrderStatisticsPage = lazy(() => import("../pages/dashboard/statistics/OrderStatisticsPage").then(m => ({ default: m.OrderStatisticsPage })));
+const StaffStatisticsPage = lazy(() => import("../pages/dashboard/statistics/StaffStatisticsPage").then(m => ({ default: m.StaffStatisticsPage }))); 
 const RoleListPage = lazy(() => import("../features/role/components/pages/RoleListPage").then(m => ({ default: m.RoleListPage })));
 const AdminListPage = lazy(() => import("../features/users/components/pages/AdminListPage").then(m => ({ default: m.AdminListPage })));
 const AdminCreatePage = lazy(() => import("../features/users/components/pages/AdminCreatePage").then(m => ({ default: m.AdminCreatePage })));
@@ -56,14 +57,10 @@ const StreetAgentEditPage = lazy(() => import("../features/street-agent/componen
 const LuckyPatternConfigPage = lazy(() => import("../features/street-agent/components/pages/LuckyPatternConfigPage").then(m => ({ default: m.LuckyPatternConfigPage })));
 const VendorAllocationPage = lazy(() => import("../features/street-agent/components/pages/VendorAllocationPage").then(m => ({ default: m.VendorAllocationPage })));
 const VendorAllocationBatchListPage = lazy(() => import("../features/street-agent/components/pages/VendorAllocationBatchListPage").then(m => ({ default: m.VendorAllocationBatchListPage })));
-const SettingsPage = lazy(() => import("../pages/settings/SettingsPage").then(m => ({ default: m.SettingsPage })));
+
 const SystemConfigListPage = lazy(() => import("../features/system-config/components/pages/SystemConfigListPage").then(m => ({ default: m.SystemConfigListPage })));
-const GeneralStatisticsPage = lazy(() => import("../pages/dashboard/statistics/GeneralStatisticsPage").then(m => ({ default: m.GeneralStatisticsPage })));
-const OrderStatisticsPage = lazy(() => import("../pages/dashboard/statistics/OrderStatisticsPage").then(m => ({ default: m.OrderStatisticsPage })));
-const StaffStatisticsPage = lazy(() => import("../pages/dashboard/statistics/StaffStatisticsPage").then(m => ({ default: m.StaffStatisticsPage })));
-const ScheduleCalendarPage = lazy(() => import("../pages/hr/ScheduleCalendarPage").then(m => ({ default: m.ScheduleCalendarPage })));
-const ShiftListPage = lazy(() => import("../pages/hr/ShiftListPage").then(m => ({ default: m.ShiftListPage })));
-const DepartmentListPage = lazy(() => import("../pages/hr/DepartmentListPage").then(m => ({ default: m.DepartmentListPage })));
+const SettingsPage = lazy(() => import("../pages/settings/SettingsPage").then(m => ({ default: m.SettingsPage })));
+
 const OrderListPage = lazy(() => import("../features/orders/components/pages/OrderListPage").then(m => ({ default: m.OrderListPage })));
 const OrderDetailPage = lazy(() => import("../features/orders/components/pages/OrderDetailPage").then(m => ({ default: m.OrderDetailPage })));
 const CounterOrderCreatePage = lazy(() => import("../features/orders/components/pages/CounterOrderCreatePage").then(m => ({ default: m.CounterOrderCreatePage })));

@@ -37,6 +37,7 @@ public class LotterySupplierModel {
     private BigDecimal defaultImportCost;
     private LocalTime importAllowFrom;
     private LocalTime returnCutOffTime;
+    private LocalTime paymentCutOffTime;
     @Builder.Default
     private boolean isActive = false;
 

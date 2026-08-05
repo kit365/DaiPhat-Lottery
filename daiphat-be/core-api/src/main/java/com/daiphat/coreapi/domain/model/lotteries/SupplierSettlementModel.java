@@ -34,8 +34,13 @@ public class SupplierSettlementModel {
     @Builder.Default
     private BigDecimal remainingAmount = BigDecimal.ZERO;
     @Builder.Default
+    private boolean isReturnExpired = false;
+    @Builder.Default
+    private BigDecimal expiredReturnValue = BigDecimal.ZERO;
+    @Builder.Default
     private SupplierSettlementStatus status = SupplierSettlementStatus.OPEN;
     private Long transactionId;
+    private LocalDateTime paidAt;
 
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
@@ -51,10 +56,10 @@ public class SupplierSettlementModel {
         this.totalReturnValue = ImportCostCalculator.scaleMoney(totalReturnValue);
     }
 
-    /**
-     * Remaining payable is set explicitly by settlement recalculation
-     * (gated on return-batch inspection + IN_STOCK/GOOD cost), not derived from import − return − paid.
-     */
+    public void applyExpiredReturnValue(BigDecimal expiredReturnValue) {
+        this.expiredReturnValue = ImportCostCalculator.scaleMoney(expiredReturnValue);
+    }
+
     public void applyRemainingAmount(BigDecimal remainingAmount) {
         this.remainingAmount = ImportCostCalculator.scaleMoney(remainingAmount);
     }

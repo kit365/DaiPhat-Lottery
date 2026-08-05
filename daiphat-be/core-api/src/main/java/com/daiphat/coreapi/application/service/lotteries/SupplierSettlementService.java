@@ -13,6 +13,7 @@ import com.daiphat.coreapi.application.mapper.lotteries.SupplierSettlementApplic
 import com.daiphat.coreapi.application.port.in.lotteries.SupplierSettlementServicePort;
 import com.daiphat.coreapi.application.port.out.lotteries.ImportBatchRepositoryPort;
 import com.daiphat.coreapi.application.port.out.lotteries.LotteryTicketSerialRepositoryPort;
+import com.daiphat.coreapi.application.port.out.lotteries.LotterySupplierRepositoryPort;
 import com.daiphat.coreapi.application.port.out.lotteries.ReturnBatchRepositoryPort;
 import com.daiphat.coreapi.application.port.out.lotteries.SupplierSettlementRepositoryPort;
 import com.daiphat.coreapi.domain.exception.DomainException;
@@ -31,7 +32,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.Clock;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -60,12 +63,14 @@ public class SupplierSettlementService implements SupplierSettlementServicePort 
     );
 
     private final SupplierSettlementRepositoryPort supplierSettlementRepositoryPort;
+    private final LotterySupplierRepositoryPort lotterySupplierRepositoryPort;
     private final ImportBatchRepositoryPort importBatchRepositoryPort;
     private final ReturnBatchRepositoryPort returnBatchRepositoryPort;
     private final LotteryTicketSerialRepositoryPort lotteryTicketSerialRepositoryPort;
     private final SupplierSettlementApplicationMapper supplierSettlementApplicationMapper;
     private final ImportBatchApplicationMapper importBatchApplicationMapper;
     private final ReturnBatchApplicationMapper returnBatchApplicationMapper;
+    private final Clock clock;
 
     @Override
     @Transactional
@@ -118,26 +123,48 @@ public class SupplierSettlementService implements SupplierSettlementServicePort 
 
         BigDecimal remainingAmount = BigDecimal.ZERO.setScale(ImportCostCalculator.COST_SCALE);
         if (supplierSettlementRepositoryPort.existsCompletedInspectionReturnBatch(settlementId)) {
-            BigDecimal inStockGoodCost = ImportCostCalculator.scaleMoney(
-                    supplierSettlementRepositoryPort.sumInStockGoodImportCostBySettlementId(settlementId)
-            );
             BigDecimal paid = settlement.getTotalPaidAmount() != null
                     ? settlement.getTotalPaidAmount()
                     : BigDecimal.ZERO;
-            remainingAmount = ImportCostCalculator.scaleMoney(inStockGoodCost.subtract(paid));
+            remainingAmount = ImportCostCalculator.scaleMoney(totalImportValue.subtract(totalReturnValue).subtract(paid));
             if (remainingAmount.signum() < 0) {
                 remainingAmount = BigDecimal.ZERO.setScale(ImportCostCalculator.COST_SCALE);
             }
         }
         settlement.applyRemainingAmount(remainingAmount);
+        if (settlement.getStatus() == SupplierSettlementStatus.CLOSED && settlement.getPaidAt() == null) {
+            settlement.setPaidAt(LocalDateTime.now(clock));
+        }
+
+        // Determine return cutoff expiration based on supplier's returnCutOffTime and periodFrom
+        boolean isReturnExpired = false;
+        BigDecimal expiredReturnValue = BigDecimal.ZERO.setScale(ImportCostCalculator.COST_SCALE);
+
+        if (settlement.getLotterySupplierId() != null && settlement.getPeriodFrom() != null) {
+            LotterySupplierModel supplier = lotterySupplierRepositoryPort.findById(settlement.getLotterySupplierId())
+                    .orElse(null);
+            if (supplier != null && supplier.getReturnCutOffTime() != null) {
+                java.time.LocalDateTime cutOffDateTime = java.time.LocalDateTime.of(settlement.getPeriodFrom(), supplier.getReturnCutOffTime());
+                if (java.time.LocalDateTime.now().isAfter(cutOffDateTime)) {
+                    isReturnExpired = true;
+                    expiredReturnValue = ImportCostCalculator.scaleMoney(
+                            supplierSettlementRepositoryPort.sumExpiredReturnValueBySettlementId(settlementId)
+                    );
+                }
+            }
+        }
+        settlement.setReturnExpired(isReturnExpired);
+        settlement.applyExpiredReturnValue(expiredReturnValue);
 
         supplierSettlementRepositoryPort.save(settlement);
         log.debug(
-                "Recalculated supplier settlement id={} totalImportValue={} totalReturnValue={} remainingAmount={}",
+                "Recalculated supplier settlement id={} totalImportValue={} totalReturnValue={} remainingAmount={} isReturnExpired={} expiredReturnValue={}",
                 settlementId,
                 totalImportValue,
                 totalReturnValue,
-                settlement.getRemainingAmount()
+                settlement.getRemainingAmount(),
+                isReturnExpired,
+                expiredReturnValue
         );
     }
 
@@ -228,6 +255,8 @@ public class SupplierSettlementService implements SupplierSettlementServicePort 
                 .totalPreparedForReturnTickets(preparedReturn)
                 .totalReturnValue(settlementResponse.totalReturnValue())
                 .remainingPayableAmount(settlementResponse.remainingAmount())
+                .isReturnExpired(settlementResponse.isReturnExpired())
+                .expiredReturnValue(settlementResponse.expiredReturnValue())
                 .build();
 
         return SupplierSettlementOverviewResponse.builder()
