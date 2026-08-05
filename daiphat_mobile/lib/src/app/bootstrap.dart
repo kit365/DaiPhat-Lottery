@@ -41,17 +41,30 @@ Future<void> bootstrap() async {
   await dotenv.load(fileName: '.env');
 
   if (_hasFirebaseConfig()) {
-    await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-    FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
-    await NotificationService().init();
+    try {
+      await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+      FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+    } catch (e) {
+      debugPrint('Firebase init warning/error: $e');
+    }
   } else {
     debugPrint(
       'Firebase chưa cấu hình trong .env — bỏ qua init (app vẫn chạy local).',
     );
   }
 
-  await Hive.initFlutter();
-  await Hive.openBox('cartBox');
+  try {
+    await NotificationService().init();
+  } catch (e) {
+    debugPrint('NotificationService init warning/error: $e');
+  }
+
+  try {
+    await Hive.initFlutter();
+    await Hive.openBox('cartBox');
+  } catch (e) {
+    debugPrint('Hive init warning/error: $e');
+  }
 
   final dependencies = await AppDependencies.create();
 
