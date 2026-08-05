@@ -1,36 +1,20 @@
 import {
     DataGrid,
-    GridColDef,
 } from '@mui/x-data-grid';
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import CircularProgress from '@mui/material/CircularProgress';
-import { SortAscendingIcon, SortDescendingIcon, UnsortedIcon } from '../../../../../assets/icons';
-import {
-    IGridSettings,
-    useSettings,
-    columnsPanelStyles,
-    dataGridStyles,
-    filterPanelStyles,
-} from '../../../../../shared/data-grid';
+import { dataGridStyles } from '../../../../../shared/data-grid';
 import { columnsConfig, columnsInitialState } from '../configs/column.config';
 import { SupplierSettlementToolbar } from './SupplierSettlementToolbar';
 import { DATA_GRID_LOCALE_VN } from '../../../../../../shared/components/DataTable/localeText.config';
 import type { useSupplierSettlementList } from '../../hooks/useSupplierSettlement';
-
-declare module '@mui/x-data-grid' {
-    interface ToolbarPropsOverrides {
-        settings: IGridSettings;
-        onSettingsChange: import('react').Dispatch<import('react').SetStateAction<IGridSettings>>;
-    }
-}
 
 export const SupplierSettlementList = ({
     listHook,
 }: {
     listHook: ReturnType<typeof useSupplierSettlementList>;
 }) => {
-    const { settings, setSettings } = useSettings();
     const {
         settlements,
         pagination,
@@ -58,15 +42,12 @@ export const SupplierSettlementList = ({
                     rows={settlements}
                     getRowId={(row) => row.id}
                     columns={columnsConfig}
-                    density={settings.density || 'comfortable'}
-                    showCellVerticalBorder={settings.showCellBorders}
-                    showColumnVerticalBorder={settings.showColumnBorders}
+                    density="comfortable"
                     showToolbar
+                    disableColumnMenu
+                    disableColumnSorting
                     slots={{
                         toolbar: SupplierSettlementToolbar as any,
-                        columnSortedAscendingIcon: SortAscendingIcon,
-                        columnSortedDescendingIcon: SortDescendingIcon,
-                        columnUnsortedIcon: UnsortedIcon,
                         noRowsOverlay: () => (
                             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
                                 {isLoading ? (
@@ -78,21 +59,7 @@ export const SupplierSettlementList = ({
                         ),
                     }}
                     slotProps={{
-                        columnsManagement: {
-                            getTogglableColumns: (columns: GridColDef[]) =>
-                                columns
-                                    .filter((col) => col.field !== 'actions')
-                                    .map((col) => col.field),
-                        },
-                        columnsPanel: {
-                            sx: columnsPanelStyles,
-                        },
-                        filterPanel: {
-                            sx: filterPanelStyles,
-                        },
                         toolbar: {
-                            settings,
-                            onSettingsChange: setSettings,
                             filters,
                             onSearchChange: setSearchFilter,
                         } as any,

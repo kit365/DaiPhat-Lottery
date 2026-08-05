@@ -18,6 +18,8 @@ import { UserBankAccountResponse } from '../../types/refund.type';
 const STAFF_BASE = '/staff/prize-payout-requests';
 
 const withAuth = () => withAuthHeaders();
+const getUploadErrorMessage = (error: any, fallback: string) =>
+    error?.response?.data?.message || error?.message || fallback;
 
 export const prizePayoutAdminApi = {
     getStaffRequests: async (
@@ -39,6 +41,16 @@ export const prizePayoutAdminApi = {
         serialNumber?: string;
     }): Promise<ApiResponse<PrizePayoutLookupResponse>> => {
         const response = await apiApp.get(`${STAFF_BASE}/lookup`, { ...withAuth(), params });
+        return response.data;
+    },
+
+    lookupStationsByDrawDate: async (
+        drawDate: string
+    ): Promise<ApiResponse<Array<{ id: number; name: string }>>> => {
+        const response = await apiApp.get(`${STAFF_BASE}/lookup-stations`, {
+            ...withAuth(),
+            params: { drawDate },
+        });
         return response.data;
     },
 
@@ -88,14 +100,18 @@ export const prizePayoutAdminApi = {
     },
 
     uploadTransferEvidence: async (file: File): Promise<string> => {
-        const formData = new FormData();
-        formData.append('file', file);
-        const response = await apiApp.post(`${STAFF_BASE}/transfer-evidence/upload`, formData, withAuth());
-        const url = response.data?.data?.url;
-        if (!url) {
-            throw new Error(response.data?.message || 'Không nhận được URL ảnh từ server');
+        try {
+            const formData = new FormData();
+            formData.append('file', file);
+            const response = await apiApp.post(`${STAFF_BASE}/transfer-evidence/upload`, formData, withAuth());
+            const url = response.data?.data?.url;
+            if (!url) {
+                throw new Error(response.data?.message || 'Không nhận được URL ảnh từ server');
+            }
+            return url;
+        } catch (error: any) {
+            throw new Error(getUploadErrorMessage(error, 'Tải ảnh biên lai thất bại'));
         }
-        return url;
     },
 
     uploadRecipientIdImage: async (file: File): Promise<string> => {

@@ -66,7 +66,36 @@ const cardSx = {
     boxShadow: 'var(--customShadows-card)',
 } as const;
 
-function buildReferenceLink(refType?: TicketRefType, refId?: string) {
+function normalizeLegacySystemNote(
+    content: string,
+    context: { refType?: TicketRefType; ticketCategoryName?: string }
+) {
+    if (!content) return content;
+    const marker = 'đã tiếp nhận ticket';
+    if (!content.toLowerCase().includes(marker)) {
+        return content;
+    }
+
+    const markerIndex = content.toLowerCase().indexOf(marker);
+    const actor = markerIndex > 0 ? content.slice(0, markerIndex).trim() : 'Nhân viên';
+
+    if (context.refType === TicketRefType.PRIZE_CLAIM) {
+        return `${actor} đã tiếp nhận yêu cầu trả thưởng`;
+    }
+    if (context.refType === TicketRefType.REFUND_REQUEST) {
+        return `${actor} đã tiếp nhận yêu cầu hoàn tiền`;
+    }
+    if (context.refType === TicketRefType.ORDER) {
+        return `${actor} đã tiếp nhận khiếu nại đơn hàng`;
+    }
+
+    if (context.ticketCategoryName?.trim()) {
+        return `${actor} đã tiếp nhận yêu cầu ${context.ticketCategoryName.trim().toLowerCase()}`;
+    }
+    return `${actor} đã tiếp nhận yêu cầu hỗ trợ`;
+}
+
+function buildReferenceLink(refType?: TicketRefType, refId?: string, supportTicketId?: number) {
     if (!refType || !refId) return null;
     if (refType === TicketRefType.ORDER) {
         return `/${prefixAdmin}/order/detail/${refId}`;
@@ -75,7 +104,8 @@ function buildReferenceLink(refType?: TicketRefType, refId?: string) {
         return `/${prefixAdmin}/refunds/detail/${refId}`;
     }
     if (refType === TicketRefType.PRIZE_CLAIM) {
-        return `/${prefixAdmin}/prize-payouts/detail/${refId}`;
+        const base = `/${prefixAdmin}/prize-payouts/detail/${refId}`;
+        return supportTicketId ? `${base}?fromSupportTicketId=${supportTicketId}` : base;
     }
     return null;
 }
@@ -111,7 +141,7 @@ export const SupportTicketDetailPage = () => {
     }, [ticket?.dueAt, ticket?.status]);
 
     const canAssign = ticket?.status === TicketStatus.OPEN;
-    const referenceLink = buildReferenceLink(ticket?.refType, ticket?.refId);
+    const referenceLink = buildReferenceLink(ticket?.refType, ticket?.refId, ticket?.id);
 
     if (isLoading) {
         return (
@@ -388,7 +418,12 @@ export const SupportTicketDetailPage = () => {
                                                     borderColor: 'divider',
                                                 }}
                                             >
-                                                <Typography variant="body2">{note.content}</Typography>
+                                                <Typography variant="body2">
+                                                    {normalizeLegacySystemNote(note.content, {
+                                                        refType: ticket.refType,
+                                                        ticketCategoryName: ticket.ticketCategoryName,
+                                                    })}
+                                                </Typography>
                                                 <Typography variant="caption" color="text.secondary">
                                                     {dayjs(note.createdAt).format('DD/MM/YYYY HH:mm')}
                                                 </Typography>

@@ -161,14 +161,12 @@ export const BlogDetailPage = () => {
             </Box>
         );
     }
-
     if (!blog) {
         return (
             <Box sx={{ p: 6, textAlign: "center" }}>
                 <Icon icon="solar:document-broken-bold-duotone" width={64} color="var(--palette-text-disabled)" />
                 <Typography sx={{ mt: 2, color: "var(--palette-text-disabled)" }}>Không tìm thấy bài viết</Typography>
-                <Button variant="contained" onClick={() => navigate(`/${prefixAdmin}/blog/list`)}
-                    sx={{ mt: 3, textTransform: "none", borderRadius: "8px", bgcolor: "var(--palette-grey-800)" }}>
+                <Button variant="contained" className="btn-primary-admin" onClick={() => navigate(`/${prefixAdmin}/blog/list`)} sx={{ mt: 3 }}>
                     Quay lại danh sách
                 </Button>
             </Box>

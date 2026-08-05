@@ -1,14 +1,13 @@
 "use client";
 
-import { useState } from 'react';
-import { Link, useNavigate, useParams } from '@/components/router-compat';
+import { useMemo, useState } from 'react';
+import { Link, useNavigate, useParams, useSearchParams } from '@/components/router-compat';
 import dayjs from 'dayjs';
 import {
     useCancelPrizePayout,
     useGetPrizePayoutDetail,
 } from '../../../../hooks/usePrizePayout';
 import { PrizePayoutRequestStatus, formatPrizePayoutCurrency } from '../../../../../types/prize-payout.type';
-import { PrizePayoutStatusBadge } from '../../../../components/prize-payout/PrizePayoutStatusBadge';
 import { PrizePayoutStatusStepper } from '../../../../components/prize-payout/PrizePayoutStatusStepper';
 import { TransferEvidencePreview } from '../../../../../admin/pages/refund/components/TransferEvidencePreview';
 import { PrizePayoutRequestModal } from '../../../../components/prize-payout/PrizePayoutRequestModal';
@@ -18,12 +17,20 @@ import { PurchasedTicket } from '../../../../../types/lottery-ticket.type';
 export const PrizePayoutDetailTab = () => {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
     const requestId = Number(id);
     const { data, isLoading } = useGetPrizePayoutDetail(requestId);
     const cancelMutation = useCancelPrizePayout();
     const [resubmitOpen, setResubmitOpen] = useState(false);
 
     const payout = data?.data;
+    const fromComplaintId = searchParams.get('fromComplaintId');
+    const sessionComplaintId = useMemo(() => {
+        if (typeof window === 'undefined' || !id) return null;
+        return window.sessionStorage.getItem(`prizePayoutBack:${id}`);
+    }, [id]);
+    const effectiveComplaintId = fromComplaintId || sessionComplaintId;
+    const backToComplaintPath = effectiveComplaintId ? `/profile/complaints/${effectiveComplaintId}` : null;
 
     if (isLoading) {
         return (
@@ -80,16 +87,26 @@ export const PrizePayoutDetailTab = () => {
     return (
         <div className="flex flex-col gap-5">
             <div className="flex items-center justify-between gap-3 flex-wrap">
-                <button
-                    type="button"
-                    onClick={() => navigate('/profile/prize-payouts')}
-                    className="text-[#637381] hover:text-[#212B36] text-[14px] font-medium cursor-pointer"
-                >
-                    <i className="fa-solid fa-arrow-left mr-2"></i>Danh sách trả thưởng
-                </button>
+                <div className="flex items-center gap-2 flex-wrap">
+                    <button
+                        type="button"
+                        onClick={() => navigate('/profile/prize-payouts')}
+                        className="text-[#637381] hover:text-[#212B36] text-[14px] font-medium cursor-pointer"
+                    >
+                        <i className="fa-solid fa-arrow-left mr-2"></i>Danh sách trả thưởng
+                    </button>
+                    {backToComplaintPath && (
+                        <button
+                            type="button"
+                            onClick={() => navigate(backToComplaintPath)}
+                            className="text-[#2065D1] hover:text-[#174ea1] text-[14px] font-semibold cursor-pointer"
+                        >
+                            <i className="fa-solid fa-rotate-left mr-2"></i>Quay lại khiếu nại #{effectiveComplaintId}
+                        </button>
+                    )}
+                </div>
                 <div className="flex items-center gap-2">
                     <PrizePayoutComplaintButton payout={payout} variant="button" />
-                    <PrizePayoutStatusBadge status={payout.status} />
                 </div>
             </div>
 

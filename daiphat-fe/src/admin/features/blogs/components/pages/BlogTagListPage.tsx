@@ -253,7 +253,7 @@ export const BlogTagListPage = () => {
                 />
             </Card>
 
-            <Card elevation={0} sx={{ height: 640, display: 'flex', flexDirection: 'column' }}>
+            <Card elevation={0} className="admin-datagrid-card">
                 <div style={{ width: '100%', flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
                     <DataGrid
                         rows={tags}
@@ -261,12 +261,11 @@ export const BlogTagListPage = () => {
                         loading={isLoading}
                         columns={columns}
                         density="comfortable"
+                        disableColumnMenu
+                        disableColumnSorting
                         className="admin-datagrid"
-                    sx={dataGridStyles}
+                        sx={dataGridStyles}
                         slots={{
-                            columnSortedAscendingIcon: SortAscendingIcon,
-                            columnSortedDescendingIcon: SortDescendingIcon,
-                            columnUnsortedIcon: UnsortedIcon,
                             noRowsOverlay: () => (
                                 <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
                                     {isLoading ? <CircularProgress size={32} /> : <span className="admin-datagrid-empty">{t("admin.common.no_data")}</span>}

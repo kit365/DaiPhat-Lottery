@@ -18,7 +18,6 @@ import { toast } from 'react-toastify';
 import { dataGridCardStyles, dataGridContainerStyles, dataGridStyles, primaryButtonStyles } from './configs/styles.config';
 import { HRToolbar } from './sections/HRToolbar';
 import { useDataGridLocale } from '../../hooks/useDataGridLocale';
-import { SortAscendingIcon, SortDescendingIcon, UnsortedIcon } from '../../assets/icons';
 import { confirmDelete } from "../../utils/swal";
 
 export const DepartmentListPage = () => {
@@ -124,12 +123,11 @@ export const DepartmentListPage = () => {
                         loading={isLoading}
                         checkboxSelection
                         disableRowSelectionOnClick
+                        disableColumnMenu
+                        disableColumnSorting
                         localeText={localeText}
                         slots={{
                             toolbar: HRToolbar as any,
-                            columnSortedAscendingIcon: SortAscendingIcon,
-                            columnSortedDescendingIcon: SortDescendingIcon,
-                            columnUnsortedIcon: UnsortedIcon,
                         }}
                         slotProps={{
                             toolbar: {
@@ -151,7 +149,7 @@ export const DepartmentListPage = () => {
                         }}
                         pageSizeOptions={[5, 10, 20]}
                         className="admin-datagrid"
-                    sx={dataGridStyles}
+                        sx={dataGridStyles}
                     />
                 </Box>
             </Card>
@@ -165,9 +163,3 @@ export const DepartmentListPage = () => {
         </Box>
     );
 };
-
-
-
-
-
-

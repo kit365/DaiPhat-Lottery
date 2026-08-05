@@ -48,6 +48,8 @@ export interface LookupPurchasedTicketsParams {
     page?: number;
     size?: number;
     status?: TicketDrawResultStatus;
+    /** When set with WON tickets: true = đã đổi thưởng, false = chưa đổi thưởng. */
+    redeemed?: boolean;
     fromDate?: string;
     toDate?: string;
     ticketNumber?: string;
