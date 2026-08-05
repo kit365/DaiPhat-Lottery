@@ -2060,6 +2060,7 @@ export const ChatbotPopup = () => {
           <div className="relative">
             <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center overflow-hidden border-2 border-white/20">
               <ChatBrandImg alt="Đại Phát" className="w-full h-full object-contain" />
+
             </div>
             <div className={`absolute bottom-0 right-0 w-3 h-3 border-2 border-[#df1b1c] rounded-full ${showWaitingForStaff ? 'bg-amber-400' : 'bg-green-400'}`}></div>
           </div>
@@ -2194,6 +2195,7 @@ export const ChatbotPopup = () => {
                   <div className="flex w-full justify-start">
                     <div className="w-8 h-8 rounded-full overflow-hidden mr-2 shrink-0 border border-gray-200 mt-auto mb-1 bg-white">
                       <ChatBrandImg alt="Avatar" className="w-full h-full object-contain p-1" />
+
                     </div>
                     <div className="max-w-[85%] min-w-0 items-start flex flex-col">
                       <div className="bg-white text-gray-800 rounded-2xl rounded-bl-sm shadow-sm border border-gray-100 px-4 py-2.5 text-[15px]">
@@ -2206,6 +2208,7 @@ export const ChatbotPopup = () => {
                   <div className="flex w-full justify-start">
                     <div className="w-8 h-8 rounded-full overflow-hidden mr-2 shrink-0 border border-gray-200 mt-auto mb-1 bg-white">
                       <ChatBrandImg alt="Avatar" className="w-full h-full object-contain p-1" />
+
                     </div>
                     <div className="max-w-[85%] min-w-0 items-start flex flex-col">
                       <div className="bg-white text-gray-800 rounded-2xl rounded-bl-sm shadow-sm border border-gray-100 px-4 py-2.5 text-[15px]">
@@ -2248,6 +2251,7 @@ export const ChatbotPopup = () => {
                   <div className="flex w-full justify-start">
                     <div className="w-8 h-8 rounded-full overflow-hidden mr-2 shrink-0 border border-gray-200 mt-auto mb-1 bg-white">
                       <ChatBrandImg alt="Avatar" className="w-full h-full object-contain p-1" />
+
                     </div>
                     <div className="max-w-[85%] min-w-0 items-start flex flex-col">
                       <div className="bg-white text-gray-800 rounded-2xl rounded-bl-sm shadow-sm border border-gray-100 px-4 py-2.5 text-[15px]">
@@ -2289,6 +2293,7 @@ export const ChatbotPopup = () => {
                   <div className="flex w-full justify-start">
                     <div className="w-8 h-8 rounded-full overflow-hidden mr-2 shrink-0 border border-gray-200 mt-auto mb-1 bg-white">
                       <ChatBrandImg alt="Avatar" className="w-full h-full object-contain p-1" />
+
                     </div>
                     <div className="max-w-[85%] min-w-0 items-start flex flex-col">
                       <div className="bg-white text-gray-800 rounded-2xl rounded-bl-sm shadow-sm border border-gray-100 px-4 py-2.5 text-[15px]">
@@ -2313,6 +2318,7 @@ export const ChatbotPopup = () => {
                   <div className="flex w-full justify-start">
                     <div className="w-8 h-8 rounded-full overflow-hidden mr-2 shrink-0 border border-gray-200 mt-auto mb-1 bg-white">
                       <ChatBrandImg alt="Avatar" className="w-full h-full object-contain p-1" />
+
                     </div>
                     <div className="max-w-[85%] min-w-0 items-start flex flex-col">
                       <div className="bg-white text-gray-800 rounded-2xl rounded-bl-sm shadow-sm border border-gray-100 px-4 py-2.5 text-[15px]">
@@ -2325,6 +2331,7 @@ export const ChatbotPopup = () => {
                   <div className="flex w-full justify-start">
                     <div className="w-8 h-8 rounded-full overflow-hidden mr-2 shrink-0 border border-gray-200 mt-auto mb-1 bg-white">
                       <ChatBrandImg alt="Avatar" className="w-full h-full object-contain p-1" />
+
                     </div>
                     <div className="max-w-[85%] min-w-0 items-start flex flex-col">
                       <div className="bg-white text-gray-800 rounded-2xl rounded-bl-sm shadow-sm border border-gray-100 px-4 py-2.5 text-[15px]">
@@ -2342,6 +2349,7 @@ export const ChatbotPopup = () => {
                   <div className="flex w-full justify-start">
                     <div className="w-8 h-8 rounded-full overflow-hidden mr-2 shrink-0 border border-gray-200 mt-auto mb-1 bg-white">
                       <ChatBrandImg alt="Avatar" className="w-full h-full object-contain p-1" />
+
                     </div>
                     <div className="max-w-[85%] min-w-0 items-start flex flex-col">
                       <div className="bg-white text-gray-800 rounded-2xl rounded-bl-sm shadow-sm border border-gray-100 px-4 py-2.5 text-[15px]">
@@ -2364,6 +2372,7 @@ export const ChatbotPopup = () => {
                   <div className="flex w-full justify-start">
                     <div className="w-8 h-8 rounded-full overflow-hidden mr-2 shrink-0 border border-gray-200 mt-auto mb-1 bg-white">
                       <ChatBrandImg alt="Avatar" className="w-full h-full object-contain p-1" />
+
                     </div>
                     <div className="max-w-[85%] min-w-0 items-start flex flex-col">
                       <div className="bg-white text-gray-800 rounded-2xl rounded-bl-sm shadow-sm border border-gray-100 px-4 py-2.5 text-[15px]">
@@ -2376,6 +2385,7 @@ export const ChatbotPopup = () => {
                   <div className="flex w-full justify-start">
                     <div className="w-8 h-8 rounded-full overflow-hidden mr-2 shrink-0 border border-gray-200 mt-auto mb-1 bg-white">
                       <ChatBrandImg alt="Avatar" className="w-full h-full object-contain p-1" />
+
                     </div>
                     <div className="w-full max-w-[95%] min-w-0 items-start flex flex-col">
                       {isAiEnabled && (
@@ -2416,6 +2426,7 @@ export const ChatbotPopup = () => {
                   <div className="flex w-full justify-start">
                     <div className="w-8 h-8 rounded-full overflow-hidden mr-2 shrink-0 border border-gray-200 mt-auto mb-1 bg-white">
                       <ChatBrandImg alt="Avatar" className="w-full h-full object-contain p-1" />
+
                     </div>
                     <div className="w-full max-w-[95%] min-w-0 items-start flex flex-col gap-3">
                       {isAiEnabled && (
@@ -2461,6 +2472,7 @@ export const ChatbotPopup = () => {
                   <div className="flex w-full justify-start">
                     <div className="w-8 h-8 rounded-full overflow-hidden mr-2 shrink-0 border border-gray-200 mt-auto mb-1 bg-white">
                       <ChatBrandImg alt="Avatar" className="w-full h-full object-contain p-1" />
+
                     </div>
                     <div className="w-full max-w-[95%] min-w-0 items-start flex flex-col">
                       {isAiEnabled && msg.variant === 'schedule-result' && (
@@ -2481,6 +2493,7 @@ export const ChatbotPopup = () => {
                   <div className="flex w-full justify-start">
                     <div className="w-8 h-8 rounded-full overflow-hidden mr-2 shrink-0 border border-gray-200 mt-auto mb-1 bg-white">
                       <ChatBrandImg alt="Avatar" className="w-full h-full object-contain p-1" />
+
                     </div>
                     <div className="bg-white text-gray-500 rounded-2xl rounded-bl-sm shadow-sm border border-gray-100 px-4 py-3">
                       <span className="inline-flex gap-1 items-center" aria-label="Đang soạn trả lời">
@@ -2504,6 +2517,7 @@ export const ChatbotPopup = () => {
                           <div className="flex w-full justify-start">
                             <div className="w-8 h-8 rounded-full overflow-hidden mr-2 shrink-0 border border-gray-200 mt-auto mb-1 bg-white">
                               <ChatBrandImg alt="Avatar" className="w-full h-full object-contain p-1" />
+
                             </div>
                             <div className="max-w-[85%] min-w-0 items-start flex flex-col">
                               <div className="bg-white text-gray-800 rounded-2xl rounded-bl-sm shadow-sm border border-gray-100 px-4 py-2.5 text-[15px] whitespace-pre-wrap">
@@ -2515,6 +2529,7 @@ export const ChatbotPopup = () => {
                         <div className="flex w-full justify-start">
                           <div className="w-8 h-8 rounded-full overflow-hidden mr-2 shrink-0 border border-gray-200 mt-auto mb-1 bg-white">
                             <ChatBrandImg alt="Avatar" className="w-full h-full object-contain p-1" />
+
                           </div>
                           <div className="w-full max-w-[95%] min-w-0 items-start flex flex-col">
                             {caption ? (
@@ -2569,6 +2584,7 @@ export const ChatbotPopup = () => {
                     {msg.sender === 'bot' && (
                       <div className="w-8 h-8 rounded-full overflow-hidden mr-2 shrink-0 border border-gray-200 mt-auto mb-1 bg-white">
                         <ChatBrandImg alt="Avatar" className="w-full h-full object-contain p-1" />
+
                       </div>
                     )}
                     <div className={`max-w-[85%] min-w-0 ${msg.sender === 'bot' ? 'items-start' : 'items-end'} flex flex-col`}>

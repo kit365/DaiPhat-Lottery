@@ -40,7 +40,7 @@ const sectionTitleClass =
     "text-[#212B36] font-bold text-[14px] mb-5 uppercase tracking-wider relative after:content-[''] after:absolute after:bottom-0 after:left-0 after:w-8 after:h-[2px] after:bg-[#ee1314] pb-2";
 
 const navLinkClass =
-    'text-[13px] text-slate-600 hover:text-[#ee1314] hover:translate-x-1 transition-colors duration-200 flex items-center justify-between group';
+    'text-[13px] text-[#212B36] hover:text-[#ee1314] hover:translate-x-1 transition-colors duration-200 flex items-center justify-between group';
 
 const telHref = (phone: string) => `tel:${phone.replace(/[^\d+]/g, '')}`;
 

@@ -5,6 +5,7 @@ import '../styles/client.css';
 import { fontVariables } from '@/styles/fonts';
 import { Providers } from './providers';
 import { FontLoader } from '../components/FontLoader';
+import { CLIENT_FAVICON } from '@/client/constants/clientBannerAssets';
 
 export const metadata: Metadata = {
   title: {
@@ -12,6 +13,11 @@ export const metadata: Metadata = {
     template: '%s | ĐẠI PHÁT',
   },
   description: 'Hệ thống xổ số kiến thiết uy tín — nhanh chóng, minh bạch, bảo mật.',
+  icons: {
+    icon: CLIENT_FAVICON,
+    shortcut: CLIENT_FAVICON,
+    apple: CLIENT_FAVICON,
+  },
 };
 
 export default function RootLayout({
