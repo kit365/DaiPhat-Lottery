@@ -8,6 +8,7 @@ import 'package:daiphat_mobile/src/features/checkout/data/order_service.dart';
 import 'package:daiphat_mobile/src/features/checkout/models/order_type.dart';
 import 'package:daiphat_mobile/src/features/checkout/models/refund_type.dart';
 import 'package:daiphat_mobile/src/features/profile/data/bank_account_service.dart';
+import 'package:daiphat_mobile/src/features/profile/presentation/widgets/bank_search_screen.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
 
 class RefundRequestSheet extends StatefulWidget {
@@ -808,6 +809,122 @@ class _BankAccountFormDialogState extends State<BankAccountFormDialog> {
     }
   }
 
+  Future<void> _openBankPicker() async {
+    if (_isSubmitting || _banks.isEmpty) return;
+
+    final selected = await Navigator.of(context, rootNavigator: true)
+        .push<VietQrBankResponse>(
+      MaterialPageRoute(
+        fullscreenDialog: true,
+        builder: (context) => BankSearchScreen(banks: _banks),
+      ),
+    );
+
+    if (selected != null && mounted) {
+      setState(() => _selectedBank = selected);
+    }
+  }
+
+  Widget _buildBankSelector() {
+    final bank = _selectedBank;
+
+    return InkWell(
+      onTap: _isSubmitting ? null : _openBankPicker,
+      borderRadius: BorderRadius.circular(12),
+      child: InputDecorator(
+        decoration: _inputDecoration(hintText: 'Chọn ngân hàng...'),
+        child: Row(
+          children: [
+            if (bank != null) ...[
+              _buildBankLogoPreview(bank),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      bank.shortName,
+                      style: GoogleFonts.publicSans(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textMain,
+                      ),
+                    ),
+                    Text(
+                      bank.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.publicSans(
+                        fontSize: 12,
+                        color: const Color(0xFF919EAB),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ] else
+              Expanded(
+                child: Text(
+                  'Chọn ngân hàng...',
+                  style: GoogleFonts.publicSans(
+                    fontSize: 14,
+                    color: const Color(0xFFC4CDD5),
+                  ),
+                ),
+              ),
+            const Icon(
+              Icons.chevron_right_rounded,
+              color: Color(0xFF919EAB),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBankLogoPreview(VietQrBankResponse bank) {
+    final logoUrl = bank.logo?.trim();
+    final initial = bank.shortName.isNotEmpty
+        ? bank.shortName[0].toUpperCase()
+        : 'B';
+
+    return Container(
+      width: 36,
+      height: 36,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        border: Border.all(color: const Color(0xFFE5E8EB)),
+        color: Colors.white,
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: logoUrl != null && logoUrl.isNotEmpty
+          ? Image.network(
+              logoUrl,
+              fit: BoxFit.contain,
+              errorBuilder: (_, __, ___) => Center(
+                child: Text(
+                  initial,
+                  style: GoogleFonts.publicSans(
+                    fontWeight: FontWeight.w800,
+                    fontSize: 12,
+                    color: AppColors.primary,
+                  ),
+                ),
+              ),
+            )
+          : Center(
+              child: Text(
+                initial,
+                style: GoogleFonts.publicSans(
+                  fontWeight: FontWeight.w800,
+                  fontSize: 12,
+                  color: AppColors.primary,
+                ),
+              ),
+            ),
+    );
+  }
+
   Future<void> _submit() async {
     if (_selectedBank == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -920,28 +1037,7 @@ class _BankAccountFormDialogState extends State<BankAccountFormDialog> {
                       const SizedBox(height: 12),
                       _buildRequiredLabel('Ngân hàng'),
                       const SizedBox(height: 6),
-                      DropdownButtonFormField<VietQrBankResponse>(
-                        initialValue: _selectedBank,
-                        isExpanded: true,
-                        decoration: _inputDecoration(
-                          hintText: 'Chọn ngân hàng...',
-                        ),
-                        items: _banks
-                            .map(
-                              (bank) => DropdownMenuItem<VietQrBankResponse>(
-                                value: bank,
-                                child: Text(
-                                  '${bank.shortName} - ${bank.name}',
-                                  overflow: TextOverflow.ellipsis,
-                                  style: GoogleFonts.publicSans(fontSize: 14),
-                                ),
-                              ),
-                            )
-                            .toList(),
-                        onChanged: _isSubmitting
-                            ? null
-                            : (value) => setState(() => _selectedBank = value),
-                      ),
+                      _buildBankSelector(),
                       const SizedBox(height: 14),
                       _buildRequiredLabel('Số tài khoản'),
                       const SizedBox(height: 6),
