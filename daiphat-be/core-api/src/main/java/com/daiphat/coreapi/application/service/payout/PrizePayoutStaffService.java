@@ -38,6 +38,7 @@ import com.daiphat.coreapi.infrastructure.persistence.entity.user.UserEntity;
 import com.daiphat.coreapi.infrastructure.persistence.repository.order.OrderDetailRepository;
 import com.daiphat.coreapi.infrastructure.persistence.repository.UserRepository;
 import com.daiphat.coreapi.shared.util.PageableUtils;
+import com.daiphat.coreapi.shared.util.PersonNameMatchUtils;
 import com.daiphat.coreapi.shared.util.SortUtils;
 import com.daiphat.coreapi.shared.util.StorageFolderConstants;
 import com.daiphat.coreapi.shared.util.StorageUtils;
@@ -923,19 +924,9 @@ public class PrizePayoutStaffService implements PrizePayoutStaffServicePort {
         if (customer == null) {
             return null;
         }
-        String firstName = customer.getFirstName();
-        String lastName = customer.getLastName();
-        boolean hasFirst = firstName != null && !firstName.isBlank();
-        boolean hasLast = lastName != null && !lastName.isBlank();
-        if (hasFirst && hasLast) {
-            return firstName.trim() + " " + lastName.trim();
-        }
-        if (hasFirst) {
-            return firstName.trim();
-        }
-        if (hasLast) {
-            return lastName.trim();
-        }
-        return customer.getUsername();
+        return PersonNameMatchUtils.resolveFullName(
+                customer.getFirstName(),
+                customer.getLastName(),
+                customer.getUsername());
     }
 }
