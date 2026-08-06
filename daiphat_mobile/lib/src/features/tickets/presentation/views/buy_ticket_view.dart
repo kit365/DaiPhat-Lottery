@@ -14,6 +14,7 @@ import 'package:daiphat_mobile/src/shared/utils/app_toast.dart';
 import 'package:daiphat_mobile/src/features/cart/models/cart_item_model.dart';
 import 'package:daiphat_mobile/src/features/cart/providers/cart_provider.dart';
 import 'package:daiphat_mobile/src/features/chat/presentation/views/chat_screen.dart';
+import 'package:daiphat_mobile/src/shared/providers/api_providers.dart';
 import '../viewmodels/buy_ticket_viewmodel.dart';
 
 String _formatTicketPrice(int? price) {
@@ -2199,17 +2200,28 @@ class _BuyTicketHeader extends StatelessWidget {
                   );
                 },
               ),
-              const SizedBox(width: 9),
-              _HeaderSquareButton(
-                icon: Icons.chat_bubble_outline_rounded,
-                onTap: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      builder: (_) => ChatScreen(
-                        isAuthenticated: true,
-                        isActive: true,
-                        onBack: () => Navigator.of(context).pop(),
-                      ),
+              Consumer(
+                builder: (context, ref, _) {
+                  final isAuthenticated =
+                      (ref.watch(apiClientProvider).accessToken ?? '').isNotEmpty;
+                  if (!isAuthenticated) {
+                    return const SizedBox.shrink();
+                  }
+                  return Padding(
+                    padding: const EdgeInsets.only(left: 9),
+                    child: _HeaderSquareButton(
+                      icon: Icons.chat_bubble_outline_rounded,
+                      onTap: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) => ChatScreen(
+                              isAuthenticated: true,
+                              isActive: true,
+                              onBack: () => Navigator.of(context).pop(),
+                            ),
+                          ),
+                        );
+                      },
                     ),
                   );
                 },
