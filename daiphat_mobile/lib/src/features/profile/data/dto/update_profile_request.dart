@@ -5,7 +5,6 @@ class UpdateProfileRequest {
   final String? email;
   final String? dob;
   final String? gender;
-  final String? address;
 
   const UpdateProfileRequest({
     this.firstName,
@@ -14,7 +13,6 @@ class UpdateProfileRequest {
     this.email,
     this.dob,
     this.gender,
-    this.address,
   });
 
   Map<String, dynamic> toJson() {
@@ -25,7 +23,6 @@ class UpdateProfileRequest {
       if (email != null) 'email': email,
       if (dob != null) 'dob': dob,
       if (gender != null) 'gender': gender,
-      if (address != null) 'address': address,
     };
   }
 }

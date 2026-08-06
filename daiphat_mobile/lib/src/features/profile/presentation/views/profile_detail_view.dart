@@ -178,8 +178,6 @@ class ProfileDetailView extends StatelessWidget {
                       _buildInfoRow(Icons.calendar_today, 'Ngày sinh', user.dob ?? 'Chưa cập nhật'),
                       const Divider(height: 1, color: Color(0xFFF0F0F0), indent: 16, endIndent: 16),
                       _buildInfoRow(Icons.transgender, 'Giới tính', user.gender ?? 'Chưa cập nhật'),
-                      const Divider(height: 1, color: Color(0xFFF0F0F0), indent: 16, endIndent: 16),
-                      _buildInfoRow(Icons.location_on, 'Địa chỉ', user.address ?? 'Chưa cập nhật'),
                     ],
                   ),
                 ),

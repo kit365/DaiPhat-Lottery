@@ -16,6 +16,7 @@ import 'package:daiphat_mobile/src/features/cart/providers/cart_provider.dart';
 import 'package:daiphat_mobile/src/features/chat/presentation/views/chat_screen.dart';
 import 'package:daiphat_mobile/src/shared/providers/api_providers.dart';
 import '../viewmodels/buy_ticket_viewmodel.dart';
+import '../../utils/sellable_draw_date.dart';
 
 String _formatTicketPrice(int? price) {
   if (price == null) {
@@ -70,6 +71,14 @@ class _BuyTicketViewState extends ConsumerState<BuyTicketView> {
     LotteryTicketListItem ticket, {
     bool openCheckout = false,
   }) {
+    if (ticket.dayFilter == TicketDayFilter.tomorrow &&
+        SellableDrawDate.isTodayDrawPassed()) {
+      AppToast.error(
+        'Đã quá 16:15, không thể mua vé cho ngày mai. Vui lòng quay lại sau.',
+      );
+      return;
+    }
+
     final maxStock = ticket.quantity > 0 ? ticket.quantity : 1;
     final currentQty =
         ref.read(cartProvider.notifier).quantityForTicket(ticket.id);
@@ -192,9 +201,17 @@ class _LoadedView extends StatelessWidget {
               _DaySegmentedControl(
                 selectedDay: state.selectedDay,
                 isTodaySellClosed: state.isTodaySellClosed,
+                isTomorrowSellClosed: state.isTomorrowSellClosed,
                 onSelectToday: () => viewModel.selectDay(TicketDayFilter.today),
-                onSelectTomorrow: () =>
-                    viewModel.selectDay(TicketDayFilter.tomorrow),
+                onSelectTomorrow: () {
+                  if (state.isTomorrowSellClosed) {
+                    AppToast.error(
+                      'Đã quá 16:15, không thể mua vé cho ngày mai. Vui lòng quay lại sau.',
+                    );
+                    return;
+                  }
+                  viewModel.selectDay(TicketDayFilter.tomorrow);
+                },
               ),
               const SizedBox(height: 18),
               _ProvinceFilterStrip(
@@ -752,12 +769,14 @@ class _DaySegmentedControl extends StatelessWidget {
   const _DaySegmentedControl({
     required this.selectedDay,
     required this.isTodaySellClosed,
+    required this.isTomorrowSellClosed,
     required this.onSelectToday,
     required this.onSelectTomorrow,
   });
 
   final TicketDayFilter selectedDay;
   final bool isTodaySellClosed;
+  final bool isTomorrowSellClosed;
   final VoidCallback onSelectToday;
   final VoidCallback onSelectTomorrow;
 
@@ -896,7 +915,7 @@ class _DaySegmentedControl extends StatelessWidget {
                       child: Material(
                         color: Colors.transparent,
                         child: InkWell(
-                          onTap: onSelectTomorrow,
+                          onTap: isTomorrowSellClosed ? null : onSelectTomorrow,
                           hoverColor: trackColor,
                           focusColor: trackColor,
                           highlightColor: trackColor,
@@ -911,11 +930,12 @@ class _DaySegmentedControl extends StatelessWidget {
                                   child: Icon(
                                     Icons.calendar_today_outlined,
                                     key: ValueKey(
-                                      selectedDay == TicketDayFilter.tomorrow,
+                                      '${isTomorrowSellClosed}_${selectedDay == TicketDayFilter.tomorrow}',
                                     ),
                                     size: 15,
-                                    color:
-                                        selectedDay == TicketDayFilter.tomorrow
+                                    color: isTomorrowSellClosed
+                                        ? disabledTextColor
+                                        : selectedDay == TicketDayFilter.tomorrow
                                         ? selectedTextColor
                                         : unselectedTextColor,
                                   ),
@@ -925,14 +945,19 @@ class _DaySegmentedControl extends StatelessWidget {
                                   duration: const Duration(milliseconds: 220),
                                   curve: Curves.easeOutCubic,
                                   style: TextStyle(
-                                    fontSize: 14,
+                                    fontSize: isTomorrowSellClosed ? 12 : 14,
                                     fontWeight: FontWeight.w700,
-                                    color:
-                                        selectedDay == TicketDayFilter.tomorrow
+                                    color: isTomorrowSellClosed
+                                        ? disabledTextColor
+                                        : selectedDay == TicketDayFilter.tomorrow
                                         ? selectedTextColor
                                         : unselectedTextColor,
                                   ),
-                                  child: const Text('Ngày mai'),
+                                  child: Text(
+                                    isTomorrowSellClosed
+                                        ? 'Ngày mai (đóng)'
+                                        : 'Ngày mai',
+                                  ),
                                 ),
                               ],
                             ),
@@ -1355,7 +1380,20 @@ class _TicketDetailViewState extends ConsumerState<TicketDetailView> {
     );
   }
 
+  bool _blockTomorrowSaleIfClosed(LotteryTicketListItem ticket) {
+    if (ticket.dayFilter == TicketDayFilter.tomorrow &&
+        SellableDrawDate.isTodayDrawPassed()) {
+      AppToast.error(
+        'Đã quá 16:15, không thể mua vé cho ngày mai. Vui lòng quay lại sau.',
+      );
+      return true;
+    }
+    return false;
+  }
+
   void _addToCart(LotteryTicketListItem ticket) {
+    if (_blockTomorrowSaleIfClosed(ticket)) return;
+
     final maxStock = ticket.quantity > 0 ? ticket.quantity : 1;
     final currentQty =
         ref.read(cartProvider.notifier).quantityForTicket(ticket.id);
@@ -1374,6 +1412,8 @@ class _TicketDetailViewState extends ConsumerState<TicketDetailView> {
   }
 
   void _buyNow(LotteryTicketListItem ticket) {
+    if (_blockTomorrowSaleIfClosed(ticket)) return;
+
     // Thanh toán riêng tờ vé đang chọn — không thêm vào / không xoá giỏ hàng.
     ref.read(buyNowItemsProvider.notifier).start([_buildCartItem(ticket)]);
     context.pushNamed(AppRoute.checkout.name);
