@@ -552,12 +552,6 @@ class _TicketHeroBanner extends StatefulWidget {
       title: 'Chọn số\nyêu thích',
       ctaLabel: 'Mua vé ngay',
     ),
-    _HeroBannerSlide(
-      imageAsset: 'assets/images/hero_mobile.jpg',
-      eyebrow: 'Ưu đãi mỗi ngày',
-      title: 'Trúng lớn\nmỗi kỳ quay',
-      ctaLabel: 'Xem ngay',
-    ),
   ];
 
   @override

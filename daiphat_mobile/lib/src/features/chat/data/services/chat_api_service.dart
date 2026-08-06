@@ -30,8 +30,8 @@ class ChatApiService {
     final response = await _apiClient.post(
       '$_base/init',
       data: {
-        if (title != null) 'title': title,
-        if (content != null) 'content': content,
+        'title': ?title,
+        'content': ?content,
         'requestStaff': requestStaff,
       },
     );
@@ -89,8 +89,8 @@ class ChatApiService {
       '$_base/my/timeline',
       queryParameters: {
         'limit': limit,
-        if (beforeCreatedAt != null) 'beforeCreatedAt': beforeCreatedAt,
-        if (beforeId != null) 'beforeId': beforeId,
+        'beforeCreatedAt': ?beforeCreatedAt,
+        'beforeId': ?beforeId,
       },
     );
     final apiResponse = ApiResponse<Map<String, dynamic>>.fromJson(

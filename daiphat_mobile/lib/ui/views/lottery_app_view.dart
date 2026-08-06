@@ -465,10 +465,8 @@ class ActionGrid extends StatelessWidget {
         'Vé của tôi',
         () => onTabSelected(2),
       ),
-      _ActionItem(Icons.calendar_month_outlined, 'Lịch mở thưởng', () {}),
       _ActionItem(Icons.store_outlined, 'Đại lý', () {}),
       _ActionItem(Icons.help_outline, 'Hướng dẫn', () {}),
-      _ActionItem(Icons.card_giftcard, 'Ưu đãi', () {}),
       _ActionItem(Icons.support_agent, 'Hỗ trợ', () {}),
     ];
 

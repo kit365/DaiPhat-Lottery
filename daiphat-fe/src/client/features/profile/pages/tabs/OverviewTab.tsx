@@ -141,19 +141,7 @@ export const OverviewTab = () => {
                             </div>
                             <span className="text-[12px] font-medium text-[#454F5B] text-center">Kết quả xổ số</span>
                         </Link>
-                        <Link to="/" className="flex flex-col items-center justify-center gap-2 p-3 rounded-xl border border-[#E5E8EB] hover:border-[#2065D1] hover:shadow-sm transition-all group">
-                            <div className="w-10 h-10 rounded-full bg-[#F0F5FF] flex items-center justify-center text-[#2065D1] group-hover:scale-110 transition-transform">
-                                <i className="fa-regular fa-calendar-days text-lg"></i>
-                            </div>
-                            <span className="text-[12px] font-medium text-[#454F5B] text-center">Lịch mở thưởng</span>
-                        </Link>
-                        <Link to="/" className="flex flex-col items-center justify-center gap-2 p-3 rounded-xl border border-[#E5E8EB] hover:border-[#FF4842] hover:shadow-sm transition-all group">
-                            <div className="w-10 h-10 rounded-full bg-[#FFF5F5] flex items-center justify-center text-[#FF4842] group-hover:scale-110 transition-transform">
-                                <i className="fa-solid fa-gift text-lg"></i>
-                            </div>
-                            <span className="text-[12px] font-medium text-[#454F5B] text-center">Khuyến mãi</span>
-                        </Link>
-                        <Link to="/" className="flex flex-col items-center justify-center gap-2 p-3 rounded-xl border border-[#E5E8EB] hover:border-[#9E5FFF] hover:shadow-sm transition-all group">
+                        <Link to="/profile/complaints" className="flex flex-col items-center justify-center gap-2 p-3 rounded-xl border border-[#E5E8EB] hover:border-[#9E5FFF] hover:shadow-sm transition-all group">
                             <div className="w-10 h-10 rounded-full bg-[#F8F5FF] flex items-center justify-center text-[#9E5FFF] group-hover:scale-110 transition-transform">
                                 <i className="fa-solid fa-headset text-lg"></i>
                             </div>

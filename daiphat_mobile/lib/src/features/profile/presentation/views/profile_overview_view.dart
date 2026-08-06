@@ -90,9 +90,11 @@ class _ProfileOverviewViewState extends ConsumerState<ProfileOverviewView> {
                 if (widget.profileViewModel != null)
                   ListenableBuilder(
                     listenable: widget.profileViewModel!,
-                    builder: (context, _) => _buildProfileBanner(
-                      widget.profileViewModel!.user,
-                    ),
+                    builder: (context, _) {
+                      final profileVm = widget.profileViewModel;
+                      if (profileVm == null) return const SizedBox.shrink();
+                      return _buildProfileBanner(profileVm.user);
+                    },
                   ),
                 if (widget.profileViewModel != null) const SizedBox(height: 14),
                 _buildStatsSection(),
@@ -117,18 +119,21 @@ class _ProfileOverviewViewState extends ConsumerState<ProfileOverviewView> {
   Widget _buildProfileBanner(User? user) {
     final rawName = user?.fullName?.trim();
     final username = user?.username.trim();
-    final name = (rawName?.isNotEmpty == true
-            ? rawName!
-            : username?.isNotEmpty == true
-                ? username!
-                : 'Thành viên Đại Phát')
+    final name = (rawName != null && rawName.isNotEmpty
+            ? rawName
+            : (username != null && username.isNotEmpty
+                ? username
+                : 'Thành viên Đại Phát'))
         .toUpperCase();
-    final email = user?.email?.trim().isNotEmpty == true
-        ? user!.email!
+    final emailValue = user?.email?.trim();
+    final email = (emailValue != null && emailValue.isNotEmpty)
+        ? emailValue
         : 'Chưa cập nhật email';
-    final phone = user?.phone?.trim().isNotEmpty == true
-        ? user!.phone!
+    final phoneValue = user?.phone?.trim();
+    final phone = (phoneValue != null && phoneValue.isNotEmpty)
+        ? phoneValue
         : 'Chưa cập nhật SĐT';
+    final avatarUrl = user?.avatarUrl;
 
     return Container(
       height: 132,
@@ -181,9 +186,9 @@ class _ProfileOverviewViewState extends ConsumerState<ProfileOverviewView> {
                     border: Border.all(color: const Color(0xFFF5D8DA)),
                   ),
                   clipBehavior: Clip.antiAlias,
-                  child: user?.avatarUrl?.isNotEmpty == true
+                  child: avatarUrl != null && avatarUrl.isNotEmpty
                       ? Image.network(
-                          user!.avatarUrl!,
+                          avatarUrl,
                           fit: BoxFit.cover,
                           errorBuilder: (_, error, stackTrace) => const Icon(
                             Icons.person_rounded,
@@ -371,20 +376,6 @@ class _ProfileOverviewViewState extends ConsumerState<ProfileOverviewView> {
         'Kết quả xổ số',
         const Color(0xFF1CD162),
         const Color(0xFFF4FBFA),
-        () => context.go(AppRoute.home.path),
-      ),
-      _QuickAction(
-        Icons.calendar_month_outlined,
-        'Lịch mở thưởng',
-        const Color(0xFF2065D1),
-        const Color(0xFFF0F5FF),
-        () => context.go(AppRoute.home.path),
-      ),
-      _QuickAction(
-        Icons.card_giftcard_rounded,
-        'Khuyến mãi',
-        const Color(0xFFFF4842),
-        const Color(0xFFFFF5F5),
         () => context.go(AppRoute.home.path),
       ),
       _QuickAction(

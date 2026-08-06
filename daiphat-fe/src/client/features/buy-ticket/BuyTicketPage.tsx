@@ -155,8 +155,6 @@ if (typeof window !== 'undefined') {
     });
 }
 
-import { BuyTicketBanners } from './components/BuyTicketBanners';
-
 export const BuyTicketPage = () => {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
@@ -825,9 +823,6 @@ export const BuyTicketPage = () => {
         >
             <main className="flex-1 w-full mt-[70px] lg:mt-[80px] max-w-[1440px] mx-auto px-4 lg:px-8 py-6 flex flex-col">
                 <div className="flex flex-col xl:flex-row gap-5 flex-1 items-stretch">
-
-                    {/* Left Banners Sidebar - New addition based on design */}
-                    <BuyTicketBanners />
 
                     {/* Main Content - Center Column */}
                     <div className="flex-1 w-full flex flex-col min-w-0">

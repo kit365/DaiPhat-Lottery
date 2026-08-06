@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import AppImage from "@/components/AppImage";
 import { motion, AnimatePresence } from "framer-motion";
 import { Link, useNavigate, useLocation } from "react-router-dom";
-import { Search, User as UserIcon, Home, Crosshair, Ticket, CalendarDays, Gift, Bell, Wallet, ChevronDown, ShoppingCart, BookOpen, Trash2, Sparkles } from "lucide-react";
+import { Search, User as UserIcon, Home, Crosshair, Ticket, Bell, Wallet, ChevronDown, ShoppingCart, BookOpen, Trash2, Sparkles } from "lucide-react";
 import { ROUTES } from "../../../admin/constants/routes";
 import { useAuthStore } from "../../../stores/useAuthStore";
 import { useCartStore } from "../../../stores/useCartStore";
@@ -25,7 +25,6 @@ const navItems = [
   { label: "Mua vé số", to: "/buy-ticket", icon: Ticket },
   { label: "Vé của tôi", to: "/profile/tickets", icon: Ticket },
   { label: "Gieo quẻ", to: ROUTES.PUBLIC.FORTUNE, icon: Sparkles },
-  { label: "Lịch mở thưởng", to: "/lich-mo-thuong", icon: CalendarDays },
   { label: "Bài viết", to: "/blogs", icon: BookOpen },
 ];
 

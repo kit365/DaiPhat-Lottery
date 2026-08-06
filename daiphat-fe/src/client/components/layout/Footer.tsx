@@ -83,7 +83,7 @@ export const Footer = () => {
               Tiện ích
             </h3>
             <ul className="space-y-3">
-              {['Kết quả xổ số', 'Thống kê - Phân tích', 'Soi cầu', 'Lịch mở thưởng', 'Trúng thưởng hôm qua'].map((item) => (
+              {['Kết quả xổ số', 'Thống kê - Phân tích', 'Soi cầu', 'Trúng thưởng hôm qua'].map((item) => (
                 <li key={item}>
                   <Link to="#" className="text-[13px] text-slate-600 hover:text-[#ee1314] hover:translate-x-1 transition-all duration-200 flex items-center justify-between group">
                     <span>{item}</span>

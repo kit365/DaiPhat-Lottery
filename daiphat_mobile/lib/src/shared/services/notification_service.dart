@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:developer' as developer;
 import 'dart:ui';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -43,8 +44,9 @@ class NotificationService {
     await _localNotificationsPlugin.initialize(
       settings: initSettings,
       onDidReceiveNotificationResponse: (NotificationResponse response) {
-        if (response.payload != null) {
-          _handleNotificationTap(response.payload!);
+        final payload = response.payload;
+        if (payload != null) {
+          _handleNotificationTap(payload);
         }
       },
     );
@@ -52,16 +54,21 @@ class NotificationService {
     // 3. Get FCM Token
     try {
       final token = await _firebaseMessaging.getToken();
-      print('FCM Token: $token');
+      developer.log('FCM Token: $token', name: 'NotificationService');
       // TODO: Send this token to backend when user is logged in
     } catch (e) {
-      print('Failed to get FCM token (APNS not ready on iOS): $e');
+      developer.log(
+        'Failed to get FCM token (APNS not ready on iOS): $e',
+        name: 'NotificationService',
+      );
     }
 
     // 4. Handle Foreground Messages
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-      print('Got a message whilst in the foreground!');
-      print('Message data: ${message.data}');
+      developer.log(
+        'Foreground message data: ${message.data}',
+        name: 'NotificationService',
+      );
 
       if (message.notification != null) {
         _showLocalNotification(message);
@@ -85,23 +92,23 @@ class NotificationService {
   void _handleNotificationTap(String payload) {
     try {
       final data = jsonDecode(payload) as Map<String, dynamic>;
-      final type = data['type'];
       final referenceId = data['referenceId'];
       final referenceType = data['referenceType'];
 
       final context = rootNavigatorKey.currentContext;
-      if (context != null) {
-        // Here we can map navigation based on referenceType or type
+      if (context != null && context.mounted) {
         if (referenceType == 'BLOG_POST' && referenceId != null) {
           // Future: navigate to blog detail
           // context.push('/blogs/detail/$referenceId');
         } else {
-          // Default navigate to notifications tab
           context.pushNamed(AppRoute.notifications.name);
         }
       }
     } catch (e) {
-      print('Error parsing notification payload: $e');
+      developer.log(
+        'Error parsing notification payload: $e',
+        name: 'NotificationService',
+      );
     }
   }
 
@@ -139,4 +146,3 @@ class NotificationService {
     );
   }
 }
-

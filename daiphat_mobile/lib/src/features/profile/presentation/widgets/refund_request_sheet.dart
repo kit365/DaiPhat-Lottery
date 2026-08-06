@@ -1054,7 +1054,7 @@ class _BankAccountFormDialogState extends State<BankAccountFormDialog> {
           ? Image.network(
               logoUrl,
               fit: BoxFit.contain,
-              errorBuilder: (_, __, ___) => Center(
+              errorBuilder: (_, _, _) => Center(
                 child: Text(
                   initial,
                   style: GoogleFonts.publicSans(

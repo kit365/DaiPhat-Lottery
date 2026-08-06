@@ -176,11 +176,12 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
                   final user = viewModel.user;
                   final rawName = user?.fullName?.trim();
                   final username = user?.username.trim();
-                  final name = rawName?.isNotEmpty == true
-                      ? rawName!
-                      : username?.isNotEmpty == true
-                      ? username!
+                  final name = (rawName != null && rawName.isNotEmpty)
+                      ? rawName
+                      : (username != null && username.isNotEmpty)
+                      ? username
                       : 'Member Default';
+                  final avatarUrl = user?.avatarUrl;
 
                   return Stack(
                     clipBehavior: Clip.none,
@@ -203,9 +204,9 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
                                     ),
                                   ),
                                   clipBehavior: Clip.antiAlias,
-                                  child: user?.avatarUrl?.isNotEmpty == true
+                                  child: avatarUrl != null && avatarUrl.isNotEmpty
                                       ? Image.network(
-                                          user!.avatarUrl!,
+                                          avatarUrl,
                                           fit: BoxFit.cover,
                                           errorBuilder: (_, _, _) => const Icon(
                                             Icons.person_rounded,
@@ -659,11 +660,6 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
               ),
               const SizedBox(width: 10),
               _buildUtilityItemIcon(Icons.auto_fix_high, 'Gieo quẻ'),
-              const SizedBox(width: 10),
-              _buildUtilityItemIcon(
-                Icons.calendar_month_outlined,
-                'Lịch mở thưởng',
-              ),
             ],
           ),
         ],
@@ -750,6 +746,7 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
             Icons.help_outline,
             'Trung tâm hỗ trợ',
             iconColor: const Color(0xFF242424),
+            onTap: () => context.push(AppRoute.complaints.path),
           ),
           _buildListItem(
             Icons.info_outline,

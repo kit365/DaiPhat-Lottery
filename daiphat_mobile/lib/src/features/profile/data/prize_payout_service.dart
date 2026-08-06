@@ -83,8 +83,8 @@ class PrizePayoutService {
     final response = await _apiClient.get(
       '/prize-payout-requests/preview',
       queryParameters: {
-        if (orderDetailId != null) 'orderDetailId': orderDetailId,
-        if (serialId != null) 'serialId': serialId,
+        'orderDetailId': ?orderDetailId,
+        'serialId': ?serialId,
       },
     );
 
@@ -116,8 +116,8 @@ class PrizePayoutService {
     final response = await _apiClient.post(
       '/prize-payout-requests',
       data: {
-        if (orderDetailId != null) 'orderDetailId': orderDetailId,
-        if (serialId != null) 'serialId': serialId,
+        'orderDetailId': ?orderDetailId,
+        'serialId': ?serialId,
         'bankAccountId': bankAccountId,
       },
     );

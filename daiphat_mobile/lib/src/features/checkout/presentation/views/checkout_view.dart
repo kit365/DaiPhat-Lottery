@@ -817,7 +817,7 @@ class _CheckoutViewState extends ConsumerState<CheckoutView> {
       RegExp(r'(\d)(?=(\d{3})+(?!\d))'),
       (match) => '${match[1]}.',
     );
-    return '${value}đ';
+    return '$value' 'đ';
   }
 }
 
@@ -935,6 +935,6 @@ class _CartItemCard extends StatelessWidget {
       RegExp(r'(\d)(?=(\d{3})+(?!\d))'),
       (match) => '${match[1]}.',
     );
-    return '${value}đ';
+    return '$value' 'đ';
   }
 }
