@@ -8,6 +8,7 @@ import 'package:daiphat_mobile/src/features/cart/providers/cart_provider.dart';
 import 'package:daiphat_mobile/src/features/cart/models/cart_item_model.dart';
 import '../../models/transaction_type.dart';
 import '../providers/checkout_provider.dart';
+import '../widgets/checkout_datetime_picker.dart';
 
 class CheckoutView extends ConsumerStatefulWidget {
   const CheckoutView({super.key});
@@ -19,10 +20,8 @@ class CheckoutView extends ConsumerStatefulWidget {
 class _CheckoutViewState extends ConsumerState<CheckoutView> {
   final _nameController = TextEditingController();
   final _phoneController = TextEditingController();
-  final _timeController = TextEditingController();
   final _noteController = TextEditingController();
   bool _initialLoadDone = false;
-  late DateTime _pickupDate;
   bool _submitted = false;
   bool _nameTouched = false;
   bool _phoneTouched = false;
@@ -32,12 +31,10 @@ class _CheckoutViewState extends ConsumerState<CheckoutView> {
   @override
   void initState() {
     super.initState();
-    _pickupDate = DateTime.now();
     // Xóa giờ nhận vé cũ còn sót trong provider khi vào lại màn hình.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       ref.read(checkoutProvider.notifier).clearExpectedPickupAt();
-      _timeController.clear();
     });
   }
 
@@ -45,7 +42,6 @@ class _CheckoutViewState extends ConsumerState<CheckoutView> {
   void dispose() {
     _nameController.dispose();
     _phoneController.dispose();
-    _timeController.dispose();
     _noteController.dispose();
     super.dispose();
   }
@@ -223,13 +219,20 @@ class _CheckoutViewState extends ConsumerState<CheckoutView> {
                 const SizedBox(height: 12),
                 transactionTypesAsync.when(
                   data: (types) {
-                    // Bỏ REFUND (hoàn tiền) — không phải phương thức thanh toán khi đặt đơn.
-                    final paymentTypes =
-                        types.where((t) => t.value != 'REFUND').toList();
-                    // Tự chọn mặc định nếu chưa chọn (ưu tiên ONLINE).
-                    if (checkoutState.selectedTransactionType == null &&
-                        paymentTypes.isNotEmpty) {
-                      final online = paymentTypes.where((t) => t.value == 'ONLINE');
+                    // Bỏ REFUND và OFFLINE (tiền mặt) — mobile chỉ hỗ trợ thanh toán online.
+                    final paymentTypes = types
+                        .where(
+                          (t) => t.value != 'REFUND' && t.value != 'OFFLINE',
+                        )
+                        .toList();
+                    // Tự chọn mặc định nếu chưa chọn hoặc đang giữ OFFLINE đã bị ẩn.
+                    final current = checkoutState.selectedTransactionType;
+                    final needDefault = current == null ||
+                        current == 'OFFLINE' ||
+                        !paymentTypes.any((t) => t.value == current);
+                    if (needDefault && paymentTypes.isNotEmpty) {
+                      final online =
+                          paymentTypes.where((t) => t.value == 'ONLINE');
                       final def = online.isNotEmpty
                           ? online.first.value
                           : paymentTypes.first.value;
@@ -329,9 +332,7 @@ class _CheckoutViewState extends ConsumerState<CheckoutView> {
           _buildBottomBar(
             total: cartTotal,
             isSubmitting: checkoutState.isSubmitting,
-            canCheckout: checkoutState.isValid &&
-                _hasValidPickupTimeInput &&
-                !checkoutState.isSubmitting,
+            canCheckout: checkoutState.isValid && !checkoutState.isSubmitting,
             onCheckout: _handleCheckout,
           ),
         ],
@@ -379,8 +380,9 @@ class _CheckoutViewState extends ConsumerState<CheckoutView> {
   Widget _buildUserInfoForm(CheckoutState state) {
     final nameError = _getNameError();
     final phoneError = _getPhoneError();
-    final timeError = _submitted && _timeController.text.trim().isEmpty
-        ? 'Vui lòng nhập giờ nhận vé'
+    final timeError = _submitted &&
+            (state.expectedPickupAt == null || state.expectedPickupAt!.isEmpty)
+        ? 'Vui lòng chọn thời gian nhận vé'
         : null;
 
     return Container(
@@ -448,9 +450,14 @@ class _CheckoutViewState extends ConsumerState<CheckoutView> {
             textInputAction: TextInputAction.next,
           ),
           const SizedBox(height: 16),
-          _buildDateSelector(),
-          const SizedBox(height: 12),
-          _buildTimeInputField(timeError),
+          CheckoutDateTimePicker(
+            value: state.expectedPickupAt,
+            errorText: timeError,
+            onInfoTap: _showPickupTimeInfo,
+            onChanged: (iso) {
+              ref.read(checkoutProvider.notifier).setExpectedPickupAt(iso);
+            },
+          ),
           const SizedBox(height: 12),
           TextField(
             controller: _noteController,
@@ -478,139 +485,21 @@ class _CheckoutViewState extends ConsumerState<CheckoutView> {
     );
   }
 
-  Widget _buildDateSelector() {
-    final today = DateTime.now();
-    final tomorrow = today.add(const Duration(days: 1));
-    final isToday = _pickupDate.year == today.year &&
-        _pickupDate.month == today.month &&
-        _pickupDate.day == today.day;
-
-    String fmtDay(DateTime d) =>
-        '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}';
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Ngày nhận vé *',
-          style: TextStyle(
-            color: Color(0xFF374151),
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        const SizedBox(height: 8),
-        Row(
-          children: [
-            Expanded(
-              child: _DateChipButton(
-                label: 'Hôm nay',
-                subLabel: fmtDay(today),
-                isSelected: isToday,
-                onTap: () {
-                  setState(() => _pickupDate = today);
-                  _updatePickupDateTime();
-                },
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: _DateChipButton(
-                label: 'Ngày mai',
-                subLabel: fmtDay(tomorrow),
-                isSelected: !isToday,
-                onTap: () {
-                  setState(() => _pickupDate = tomorrow);
-                  _updatePickupDateTime();
-                },
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _buildTimeInputField(String? error) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            const Text(
-              'Giờ nhận vé *',
-              style: TextStyle(
-                color: Color(0xFF374151),
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            const SizedBox(width: 4),
-            InkWell(
-              onTap: _showPickupTimeInfo,
-              borderRadius: BorderRadius.circular(12),
-              child: const Padding(
-                padding: EdgeInsets.all(2),
-                child: Icon(
-                  Icons.error_outline_rounded,
-                  size: 18,
-                  color: Color(0xFFFFB020),
-                ),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        TextField(
-          controller: _timeController,
-          onChanged: (_) {
-            _updatePickupDateTime();
-            setState(() {});
-          },
-          decoration: InputDecoration(
-            hintText: 'VD: 14:30',
-            hintStyle: const TextStyle(
-              color: AppColors.loginPlaceholder,
-              fontWeight: FontWeight.w400,
-            ),
-            prefixIcon: const Icon(Icons.access_time_rounded),
-            errorText: error,
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(
-                color: error != null ? Colors.red : const Color(0xFFE5E7EB),
-              ),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(
-                color: error != null ? Colors.red : AppColors.primary,
-                width: 1.5,
-              ),
-            ),
-          ),
-          keyboardType: TextInputType.datetime,
-          textInputAction: TextInputAction.next,
-        ),
-      ],
-    );
-  }
-
   void _showPickupTimeInfo() {
     showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text(
-          'Giờ nhận vé',
+          'Thời gian nhận vé',
           style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18),
         ),
         content: const Text(
           'Vui lòng chọn giờ bạn dự kiến đến quầy nhận vé.\n\n'
-          '• Quầy làm việc từ 08:00 đến 20:00.\n'
+          '• Giờ chọn: 5, 6, 7, 8.\n'
+          '• Hôm nay: chỉ buổi sáng (AM).\n'
+          '• Ngày mai: có thể chọn AM hoặc PM.\n'
           '• Giờ nhận phải sau thời điểm hiện tại ít nhất 15 phút.\n'
-          '• Bạn có thể chọn nhận hôm nay hoặc ngày mai.\n\n'
-          'Nhập theo định dạng 24 giờ, ví dụ: 14:30.',
+          '• Thời gian chọn theo khung 15 phút (00 / 15 / 30 / 45).',
           style: TextStyle(fontSize: 14, height: 1.5),
         ),
         actions: [
@@ -627,41 +516,6 @@ class _CheckoutViewState extends ConsumerState<CheckoutView> {
         ],
       ),
     );
-  }
-
-  bool get _hasValidPickupTimeInput {
-    final timeStr = _timeController.text.trim();
-    if (timeStr.isEmpty) return false;
-    final parts = timeStr.split(':');
-    if (parts.length != 2) return false;
-    final hour = int.tryParse(parts[0]);
-    final minute = int.tryParse(parts[1]);
-    if (hour == null || minute == null) return false;
-    return hour >= 0 && hour <= 23 && minute >= 0 && minute <= 59;
-  }
-
-  void _updatePickupDateTime() {
-    final timeStr = _timeController.text.trim();
-    final notifier = ref.read(checkoutProvider.notifier);
-    if (!_hasValidPickupTimeInput) {
-      notifier.clearExpectedPickupAt();
-      return;
-    }
-    try {
-      final parts = timeStr.split(':');
-      final hour = int.parse(parts[0]);
-      final minute = int.parse(parts[1]);
-      final dt = DateTime(
-        _pickupDate.year,
-        _pickupDate.month,
-        _pickupDate.day,
-        hour,
-        minute,
-      );
-      notifier.setExpectedPickupAt(dt.toIso8601String());
-    } catch (_) {
-      notifier.clearExpectedPickupAt();
-    }
   }
 
   Widget _buildReceiveTypeSelector(
@@ -1082,73 +936,5 @@ class _CartItemCard extends StatelessWidget {
       (match) => '${match[1]}.',
     );
     return '${value}đ';
-  }
-}
-
-// ─── Date Chip Button ────────────────────────────────────────────────────────
-class _DateChipButton extends StatelessWidget {
-  const _DateChipButton({
-    required this.label,
-    required this.subLabel,
-    required this.isSelected,
-    required this.onTap,
-  });
-
-  final String label;
-  final String subLabel;
-  final bool isSelected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
-        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 14),
-        decoration: BoxDecoration(
-          color: isSelected ? AppColors.primary : Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: isSelected ? AppColors.primary : const Color(0xFFE5E7EB),
-            width: 1.5,
-          ),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.calendar_today_rounded,
-              size: 16,
-              color: isSelected ? Colors.white : const Color(0xFF6B7280),
-            ),
-            const SizedBox(width: 8),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label,
-                  style: TextStyle(
-                    color: isSelected ? Colors.white : const Color(0xFF15213B),
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                Text(
-                  subLabel,
-                  style: TextStyle(
-                    color: isSelected
-                        ? Colors.white.withValues(alpha: 0.85)
-                        : const Color(0xFF6B7280),
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
   }
 }
