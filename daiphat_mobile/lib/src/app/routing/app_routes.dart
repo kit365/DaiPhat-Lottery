@@ -4,6 +4,7 @@ enum AppRoute {
   register,
   forgotPassword,
   buyTicket,
+  checkTicket,
   cart,
   checkout,
   checkoutResult,
@@ -41,6 +42,8 @@ extension AppRouteDefinition on AppRoute {
         return '/forgot-password';
       case AppRoute.buyTicket:
         return '/buy-ticket';
+      case AppRoute.checkTicket:
+        return '/check-ticket';
       case AppRoute.cart:
         return '/cart';
       case AppRoute.checkout:
@@ -100,6 +103,8 @@ extension AppRouteDefinition on AppRoute {
         return 'forgot_password';
       case AppRoute.buyTicket:
         return 'buy_ticket';
+      case AppRoute.checkTicket:
+        return 'check_ticket';
       case AppRoute.cart:
         return 'cart';
       case AppRoute.checkout:
@@ -177,6 +182,7 @@ extension AppRouteDefinition on AppRoute {
         return true;
       case AppRoute.home:
       case AppRoute.buyTicket:
+      case AppRoute.checkTicket:
       case AppRoute.profile:
         return false;
     }

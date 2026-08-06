@@ -53,17 +53,6 @@ class _MainLayoutState extends State<MainLayout> {
     super.dispose();
   }
 
-  void _goToBlog() {
-    if (_sidePage != _ShellSidePage.blog) {
-      setState(() => _sidePage = _ShellSidePage.blog);
-    }
-    _pageController.animateToPage(
-      0,
-      duration: const Duration(milliseconds: 300),
-      curve: Curves.easeInOut,
-    );
-  }
-
   void _goToMain() {
     if (_sidePage != _ShellSidePage.main) {
       setState(() => _sidePage = _ShellSidePage.main);
@@ -89,13 +78,16 @@ class _MainLayoutState extends State<MainLayout> {
   int _getNavIndex(BuildContext context) {
     switch (_sidePage) {
       case _ShellSidePage.blog:
-        return 2;
+        return -1;
       case _ShellSidePage.notifications:
         return 3;
       case _ShellSidePage.main:
         final location = GoRouterState.of(context).uri.path;
         if (location.startsWith(AppRoute.buyTicket.path)) {
           return 1;
+        }
+        if (location.startsWith(AppRoute.checkTicket.path)) {
+          return 2;
         }
         if (location.startsWith(AppRoute.profile.path)) {
           return 4;
@@ -115,7 +107,8 @@ class _MainLayoutState extends State<MainLayout> {
         context.go(AppRoute.buyTicket.path);
         break;
       case 2:
-        _goToBlog();
+        _goToMain();
+        context.go(AppRoute.checkTicket.path);
         break;
       case 3:
         _goToNotifications();
@@ -197,9 +190,9 @@ class _AnimatedBottomNavigation extends StatelessWidget {
       activeIcon: Icons.confirmation_number_rounded,
     ),
     (
-      label: 'Tin tức',
-      icon: Icons.article_outlined,
-      activeIcon: Icons.article_rounded,
+      label: 'Dò vé',
+      icon: Icons.qr_code_scanner_rounded,
+      activeIcon: Icons.qr_code_scanner_rounded,
     ),
     (
       label: 'Thông báo',
