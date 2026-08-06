@@ -60,7 +60,7 @@ export const openStreetAgentContractPrint = async (id: number | string): Promise
     } as Parameters<typeof apiApp.get>[1] & { skipGlobalErrorToast?: boolean });
 
     const blob = response.data as Blob;
-    const contentType = (blob.type || response.headers?.['content-type'] || '').toLowerCase();
+    const contentType = String(blob.type || response.headers?.['content-type'] || '').toLowerCase();
 
     if (!contentType.includes('pdf')) {
         let message = 'Không mở được hợp đồng PDF';

@@ -1,9 +1,5 @@
-<<<<<<< HEAD
 import { getImageProps } from "next/image";
 import imageLoader from "@/utils/imageLoader";
-=======
-import Image, { getImageProps } from "next/image";
->>>>>>> f5115bf9 (chore: re-apply origin/feature/dp-37-tickets changes (UI standardize, logo, NextJS refactor))
 import { motion } from "framer-motion";
 import { useAuthStore } from "../../../stores/useAuthStore";
 
@@ -25,11 +21,7 @@ const HERO_CONTENT = {
 export const Hero = () => {
   const { openLoginModal } = useAuthStore();
 
-<<<<<<< HEAD
   const commonProps = { alt: "", fill: true, priority: true, sizes: "100vw", loader: imageLoader };
-=======
-  const commonProps = { alt: "", fill: true, priority: true, sizes: "100vw" };
->>>>>>> f5115bf9 (chore: re-apply origin/feature/dp-37-tickets changes (UI standardize, logo, NextJS refactor))
   const { props: { srcSet: desktopSrcSet } } = getImageProps({ ...commonProps, src: HERO_CONTENT.images.desktop });
   const { props: { srcSet: mobileSrcSet, ...restMobileProps } } = getImageProps({ ...commonProps, src: HERO_CONTENT.images.mobile });
 

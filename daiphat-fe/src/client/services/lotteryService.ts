@@ -1,4 +1,4 @@
-import { ApiResponse } from '../../admin/config/type';
+import type { ApiResponse } from '@/types/api.type';
 import { apiApp } from '../../api';
 import {
   LotteryBoardData,

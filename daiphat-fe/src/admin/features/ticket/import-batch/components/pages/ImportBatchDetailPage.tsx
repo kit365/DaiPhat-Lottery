@@ -18,6 +18,7 @@ import {
 } from '@mui/material';
 import { useNavigate, useParams } from '@/components/router-compat';
 import { Breadcrumb } from '../../../../../components/ui/Breadcrumb';
+import { AdminStatusBadge } from '../../../../../components/ui/AdminStatusBadge';
 import { Title } from '../../../../../components/ui/Title';
 import { CollapsibleCard } from '../../../../../components/ui/CollapsibleCard';
 import { useState } from 'react';
@@ -30,6 +31,7 @@ import { useImportBatchDetail } from '../../hooks/useImportBatch';
 import { useStations } from '../../../../station/hooks/useStation';
 import { formatImportCost } from '../../utils/importCostCalculator';
 import {
+    getBatchTypeBadgeClass,
     getBatchTypeLabel,
     getImportBatchCancelledAlertMessage,
     getImportBatchLineStatusLabel,
@@ -40,7 +42,6 @@ import {
     getImportModeLabel,
     formatImportBatchCancelReason,
     importBatchStatusChipSx,
-    getBatchTypeColor,
 } from '../../utils/batchTypeLabels';
 import {
     displayImportBatchLineCodeRaw,
@@ -287,11 +288,11 @@ export const ImportBatchDetailPage = () => {
                             <TableHead>
                                 <TableRow>
                                     <TableCell>Nhà đài</TableCell>
-                                    <TableCell>Loại lô</TableCell>
+                                    <TableCell align="center">Loại lô</TableCell>
                                     <TableCell>Mã lô nhập</TableCell>
                                     <TableCell>Trạng thái dòng</TableCell>
                                     <TableCell align="center">Đã nhập</TableCell>
-                                    <TableCell align="right">Giá vốn</TableCell>
+                                    <TableCell align="center">Giá vốn</TableCell>
                                     <TableCell align="right">GT đã nhập</TableCell>
                                     <TableCell align="center">Thao tác</TableCell>
                                 </TableRow>
@@ -303,11 +304,10 @@ export const ImportBatchDetailPage = () => {
                                     return (
                                         <TableRow key={line.id}>
                                             <TableCell>{stationName}</TableCell>
-                                            <TableCell>
-                                                <Chip
+                                            <TableCell align="center">
+                                                <AdminStatusBadge
                                                     label={getBatchTypeLabel(line.batchType)}
-                                                    size="small"
-                                                    color={getBatchTypeColor(line.batchType)}
+                                                    modifier={getBatchTypeBadgeClass(line.batchType)}
                                                 />
                                             </TableCell>
                                             <TableCell>
@@ -348,7 +348,7 @@ export const ImportBatchDetailPage = () => {
                                                     {line.totalQuantity}/{line.declareQuantity}
                                                 </Typography>
                                             </TableCell>
-                                            <TableCell align="right">
+                                            <TableCell align="center">
                                                 {formatImportCost(line.importCost)}
                                             </TableCell>
                                             <TableCell align="right">
