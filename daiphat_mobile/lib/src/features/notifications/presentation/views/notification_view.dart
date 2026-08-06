@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import 'package:daiphat_mobile/src/app/routing/app_routes.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
 import '../../utils/notification_navigation.dart';
 import '../viewmodels/notification_viewmodel.dart';
@@ -138,6 +139,15 @@ class _NotificationViewState extends State<NotificationView> {
         ),
         centerTitle: true,
         actions: [
+          IconButton(
+            tooltip: 'Cài đặt thông báo',
+            icon: const Icon(
+              Icons.tune_rounded,
+              size: 21,
+              color: AppColors.primary,
+            ),
+            onPressed: () => context.push(AppRoute.notificationSettings.path),
+          ),
           PopupMenuButton<String>(
             icon: const Icon(
               Icons.more_vert_rounded,

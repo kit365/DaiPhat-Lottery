@@ -726,6 +726,12 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
           ),
           const SizedBox(height: 8),
           _buildListItem(
+            Icons.notifications_outlined,
+            'Cài đặt thông báo',
+            iconColor: const Color(0xFF242424),
+            onTap: () => context.push(AppRoute.notificationSettings.path),
+          ),
+          _buildListItem(
             Icons.security_outlined,
             'Bảo mật',
             iconColor: const Color(0xFF242424),

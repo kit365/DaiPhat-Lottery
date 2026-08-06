@@ -18,6 +18,8 @@ import 'package:daiphat_mobile/src/features/profile/data/prize_payout_service.da
 import 'package:daiphat_mobile/src/features/profile/data/refund_service.dart';
 import 'package:daiphat_mobile/src/features/profile/data/support_ticket_service.dart';
 import 'package:daiphat_mobile/src/features/profile/presentation/providers/profile_providers.dart';
+import 'package:daiphat_mobile/src/features/notifications/data/services/notification_setting_service.dart';
+import 'package:daiphat_mobile/src/features/notifications/presentation/providers/notification_providers.dart';
 
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
@@ -25,13 +27,28 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   debugPrint('Handling a background message: ${message.messageId}');
 }
 
+bool _hasFirebaseConfig() {
+  final projectId = dotenv.env['FIREBASE_PROJECT_ID']?.trim() ?? '';
+  final androidAppId = dotenv.env['FIREBASE_ANDROID_APP_ID']?.trim() ?? '';
+  final androidApiKey = dotenv.env['FIREBASE_ANDROID_API_KEY']?.trim() ?? '';
+  return projectId.isNotEmpty &&
+      androidAppId.isNotEmpty &&
+      androidApiKey.isNotEmpty;
+}
+
 Future<void> bootstrap() async {
   WidgetsFlutterBinding.ensureInitialized();
   await dotenv.load(fileName: '.env');
 
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-  FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
-  await NotificationService().init();
+  if (_hasFirebaseConfig()) {
+    await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+    FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+    await NotificationService().init();
+  } else {
+    debugPrint(
+      'Firebase chưa cấu hình trong .env — bỏ qua init (app vẫn chạy local).',
+    );
+  }
 
   await Hive.initFlutter();
   await Hive.openBox('cartBox');
@@ -44,6 +61,9 @@ Future<void> bootstrap() async {
   final bankAccountService = BankAccountService(dependencies.apiClient);
   final refundService = RefundService(dependencies.apiClient);
   final supportTicketService = SupportTicketService(dependencies.apiClient);
+  final notificationSettingService = NotificationSettingService(
+    dependencies.apiClient,
+  );
 
   runApp(
     ProviderScope(
@@ -55,6 +75,9 @@ Future<void> bootstrap() async {
         bankAccountServiceProvider.overrideWithValue(bankAccountService),
         refundServiceProvider.overrideWithValue(refundService),
         supportTicketServiceProvider.overrideWithValue(supportTicketService),
+        notificationSettingServiceProvider.overrideWithValue(
+          notificationSettingService,
+        ),
       ],
       child: DaiPhatMobileApp(router: dependencies.router),
     ),
