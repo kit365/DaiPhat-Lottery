@@ -26,8 +26,36 @@ class CartNotifier extends Notifier<List<CartItemData>> {
   }
 
   void addItem(CartItemData item) {
-    state = [...state, item];
+    final maxStock = item.maxStock > 0 ? item.maxStock : 1;
+    final existingIndex =
+        state.indexWhere((e) => e.lotteryTicketId == item.lotteryTicketId);
+
+    if (existingIndex >= 0) {
+      final existing = state[existingIndex];
+      final resolvedMax =
+          maxStock > existing.maxStock ? maxStock : existing.maxStock;
+      final nextQty = (existing.quantity + item.quantity).clamp(1, resolvedMax);
+      final newState = List<CartItemData>.from(state);
+      newState[existingIndex] = existing.copyWith(
+        quantity: nextQty,
+        maxStock: resolvedMax,
+      );
+      state = newState;
+    } else {
+      final qty = item.quantity.clamp(1, maxStock);
+      state = [
+        ...state,
+        item.copyWith(quantity: qty, maxStock: maxStock),
+      ];
+    }
     _saveToHive(state);
+  }
+
+  /// Số lượng đang có trong giỏ cho 1 lotteryTicketId.
+  int quantityForTicket(int lotteryTicketId) {
+    return state
+        .where((e) => e.lotteryTicketId == lotteryTicketId)
+        .fold(0, (sum, e) => sum + e.quantity);
   }
 
   void removeItem(CartItemData item) {
@@ -42,6 +70,27 @@ class CartNotifier extends Notifier<List<CartItemData>> {
       state = newState;
       _saveToHive(state);
     }
+  }
+
+  void removeAtIndexes(Iterable<int> indexes) {
+    final toRemove = indexes.toSet();
+    if (toRemove.isEmpty) return;
+    state = [
+      for (var i = 0; i < state.length; i++)
+        if (!toRemove.contains(i)) state[i],
+    ];
+    _saveToHive(state);
+  }
+
+  void updateQuantityAtIndex(int index, int quantity) {
+    if (index < 0 || index >= state.length) return;
+    final item = state[index];
+    final maxStock = item.maxStock > 0 ? item.maxStock : 1;
+    final qty = quantity.clamp(1, maxStock);
+    final newState = List<CartItemData>.from(state);
+    newState[index] = item.copyWith(quantity: qty);
+    state = newState;
+    _saveToHive(state);
   }
 
   void insertItem(int index, CartItemData item) {
