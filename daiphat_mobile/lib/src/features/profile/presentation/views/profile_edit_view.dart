@@ -29,7 +29,6 @@ class _ProfileEditViewState extends State<ProfileEditView> {
   late TextEditingController _emailController;
   late TextEditingController _dobController;
   late TextEditingController _genderController;
-  late TextEditingController _addressController;
 
   @override
   void initState() {
@@ -47,7 +46,6 @@ class _ProfileEditViewState extends State<ProfileEditView> {
     _emailController = TextEditingController(text: user?.email ?? '');
     _dobController = TextEditingController(text: user?.dob ?? '');
     _genderController = TextEditingController(text: user?.gender ?? 'Nam');
-    _addressController = TextEditingController(text: user?.address ?? '');
   }
 
   @override
@@ -59,7 +57,6 @@ class _ProfileEditViewState extends State<ProfileEditView> {
     _emailController.dispose();
     _dobController.dispose();
     _genderController.dispose();
-    _addressController.dispose();
     super.dispose();
   }
 
@@ -95,7 +92,6 @@ class _ProfileEditViewState extends State<ProfileEditView> {
       email: _emailController.text,
       dob: _dobController.text,
       gender: _genderController.text,
-      address: _addressController.text,
     );
 
     final success = await widget.viewModel.updateProfile(request);
@@ -273,8 +269,6 @@ class _ProfileEditViewState extends State<ProfileEditView> {
                     _buildDatePicker('Ngày sinh', _dobController),
                     const SizedBox(height: 16),
                     _buildGenderDropdown('Giới tính', _genderController),
-                    const SizedBox(height: 16),
-                    _buildTextField('Địa chỉ', _addressController),
                   ],
                 ),
               ),
