@@ -79,12 +79,14 @@ class _BuyTicketViewState extends ConsumerState<BuyTicketView> {
       logoText: ticket.shortName,
     );
 
-    ref.read(cartProvider.notifier).addItem(cartItem);
-
+    // Mua ngay: thanh toán riêng tờ vé này, không đụng giỏ hàng chính.
     if (openCheckout) {
+      ref.read(buyNowItemsProvider.notifier).start([cartItem]);
       context.pushNamed(AppRoute.checkout.name);
       return;
     }
+
+    ref.read(cartProvider.notifier).addItem(cartItem);
 
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
@@ -1373,7 +1375,8 @@ class _TicketDetailViewState extends ConsumerState<TicketDetailView> {
   }
 
   void _buyNow(LotteryTicketListItem ticket) {
-    ref.read(cartProvider.notifier).addItem(_buildCartItem(ticket));
+    // Thanh toán riêng tờ vé đang chọn — không thêm vào / không xoá giỏ hàng.
+    ref.read(buyNowItemsProvider.notifier).start([_buildCartItem(ticket)]);
     context.pushNamed(AppRoute.checkout.name);
   }
 

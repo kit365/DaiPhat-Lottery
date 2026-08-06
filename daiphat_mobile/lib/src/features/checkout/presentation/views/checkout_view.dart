@@ -26,11 +26,19 @@ class _CheckoutViewState extends ConsumerState<CheckoutView> {
   bool _submitted = false;
   bool _nameTouched = false;
   bool _phoneTouched = false;
+  /// Khoá danh sách vé theo thời điểm vào màn (mua ngay / giỏ), tránh đổi khi thoát phiên.
+  List<CartItemData>? _lockedCheckoutItems;
 
   @override
   void initState() {
     super.initState();
     _pickupDate = DateTime.now();
+    // Xóa giờ nhận vé cũ còn sót trong provider khi vào lại màn hình.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      ref.read(checkoutProvider.notifier).clearExpectedPickupAt();
+      _timeController.clear();
+    });
   }
 
   @override
@@ -85,8 +93,8 @@ class _CheckoutViewState extends ConsumerState<CheckoutView> {
     final checkoutState = ref.read(checkoutProvider);
     if (checkoutState.checkoutUrl != null) {
       // Open PayOS in-app WebView for payment
-      // Clear cart AFTER navigation so prices don't flash to 0
-      ref.read(cartProvider.notifier).clearCart();
+      // Finalize AFTER navigation so prices don't flash to 0
+      notifier.finalizeAfterOnlinePayment();
       if (!mounted) return;
       context.pushNamed(
         AppRoute.paymentWebView.name,
@@ -110,10 +118,14 @@ class _CheckoutViewState extends ConsumerState<CheckoutView> {
     final checkoutState = ref.watch(checkoutProvider);
     final receiveTypesAsync = ref.watch(receiveTypesProvider);
     final transactionTypesAsync = ref.watch(transactionTypesProvider);
-    final cartItems = ref.watch(cartProvider);
-    final cartTotal = ref.watch(cartTotalProvider);
-    final cartSubtotal = ref.watch(cartSubtotalProvider);
-    final cartTicketCount = ref.watch(cartTicketCountProvider);
+    _lockedCheckoutItems ??=
+        List<CartItemData>.from(ref.read(checkoutItemsProvider));
+    final cartItems = _lockedCheckoutItems!;
+    final cartSubtotal =
+        cartItems.fold<int>(0, (sum, item) => sum + item.subtotal);
+    final cartTicketCount =
+        cartItems.fold<int>(0, (sum, item) => sum + item.quantity);
+    final cartTotal = cartSubtotal;
 
     // Init form fields once
     if (!_initialLoadDone) {
@@ -125,7 +137,14 @@ class _CheckoutViewState extends ConsumerState<CheckoutView> {
     // Sync controllers with state
     _initFromState(checkoutState);
 
-    return Scaffold(
+    return PopScope(
+      canPop: true,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) return;
+        // Thoát checkout mà chưa chốt đơn → huỷ phiên mua ngay, giữ nguyên giỏ chính.
+        ref.read(buyNowItemsProvider.notifier).clear();
+      },
+      child: Scaffold(
       backgroundColor: const Color(0xFFF7F7F8),
       appBar: AppBar(
         title: const Text(
@@ -168,13 +187,23 @@ class _CheckoutViewState extends ConsumerState<CheckoutView> {
 
                 // Receive types
                 receiveTypesAsync.when(
-                  data: (types) => _buildReceiveTypeSelector(
-                    types,
-                    checkoutState.selectedReceiveType,
-                    (val) => ref
-                        .read(checkoutProvider.notifier)
-                        .setSelectedReceiveType(val),
-                  ),
+                  data: (types) {
+                    if (checkoutState.selectedReceiveType == null &&
+                        types.isNotEmpty) {
+                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                        ref
+                            .read(checkoutProvider.notifier)
+                            .setSelectedReceiveType(types.first.value);
+                      });
+                    }
+                    return _buildReceiveTypeSelector(
+                      types,
+                      checkoutState.selectedReceiveType,
+                      (val) => ref
+                          .read(checkoutProvider.notifier)
+                          .setSelectedReceiveType(val),
+                    );
+                  },
                   loading: () => const Center(
                     child: SizedBox(
                       width: 20,
@@ -193,13 +222,31 @@ class _CheckoutViewState extends ConsumerState<CheckoutView> {
                 _buildSectionTitle('3. Phương thức thanh toán', number: 3),
                 const SizedBox(height: 12),
                 transactionTypesAsync.when(
-                  data: (types) => _buildPaymentMethodSelector(
-                    types,
-                    checkoutState.selectedTransactionType,
-                    (val) => ref
-                        .read(checkoutProvider.notifier)
-                        .setSelectedTransactionType(val),
-                  ),
+                  data: (types) {
+                    // Bỏ REFUND (hoàn tiền) — không phải phương thức thanh toán khi đặt đơn.
+                    final paymentTypes =
+                        types.where((t) => t.value != 'REFUND').toList();
+                    // Tự chọn mặc định nếu chưa chọn (ưu tiên ONLINE).
+                    if (checkoutState.selectedTransactionType == null &&
+                        paymentTypes.isNotEmpty) {
+                      final online = paymentTypes.where((t) => t.value == 'ONLINE');
+                      final def = online.isNotEmpty
+                          ? online.first.value
+                          : paymentTypes.first.value;
+                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                        ref
+                            .read(checkoutProvider.notifier)
+                            .setSelectedTransactionType(def);
+                      });
+                    }
+                    return _buildPaymentMethodSelector(
+                      paymentTypes,
+                      checkoutState.selectedTransactionType,
+                      (val) => ref
+                          .read(checkoutProvider.notifier)
+                          .setSelectedTransactionType(val),
+                    );
+                  },
                   loading: () => const Center(
                     child: SizedBox(
                       width: 20,
@@ -282,10 +329,14 @@ class _CheckoutViewState extends ConsumerState<CheckoutView> {
           _buildBottomBar(
             total: cartTotal,
             isSubmitting: checkoutState.isSubmitting,
+            canCheckout: checkoutState.isValid &&
+                _hasValidPickupTimeInput &&
+                !checkoutState.isSubmitting,
             onCheckout: _handleCheckout,
           ),
         ],
       ),
+    ),
     );
   }
 
@@ -481,40 +532,123 @@ class _CheckoutViewState extends ConsumerState<CheckoutView> {
   }
 
   Widget _buildTimeInputField(String? error) {
-    return TextField(
-      controller: _timeController,
-      onChanged: (_) => _updatePickupDateTime(),
-      decoration: InputDecoration(
-        labelText: 'Giờ nhận vé *',
-        hintText: '14:30',
-        prefixIcon: const Icon(Icons.access_time_rounded),
-        errorText: error,
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(
-            color: error != null ? Colors.red : const Color(0xFFE5E7EB),
-          ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Text(
+              'Giờ nhận vé *',
+              style: TextStyle(
+                color: Color(0xFF374151),
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(width: 4),
+            InkWell(
+              onTap: _showPickupTimeInfo,
+              borderRadius: BorderRadius.circular(12),
+              child: const Padding(
+                padding: EdgeInsets.all(2),
+                child: Icon(
+                  Icons.error_outline_rounded,
+                  size: 18,
+                  color: Color(0xFFFFB020),
+                ),
+              ),
+            ),
+          ],
         ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(
-            color: error != null ? Colors.red : AppColors.primary,
-            width: 1.5,
+        const SizedBox(height: 8),
+        TextField(
+          controller: _timeController,
+          onChanged: (_) {
+            _updatePickupDateTime();
+            setState(() {});
+          },
+          decoration: InputDecoration(
+            hintText: 'VD: 14:30',
+            hintStyle: const TextStyle(
+              color: AppColors.loginPlaceholder,
+              fontWeight: FontWeight.w400,
+            ),
+            prefixIcon: const Icon(Icons.access_time_rounded),
+            errorText: error,
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(
+                color: error != null ? Colors.red : const Color(0xFFE5E7EB),
+              ),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(
+                color: error != null ? Colors.red : AppColors.primary,
+                width: 1.5,
+              ),
+            ),
           ),
+          keyboardType: TextInputType.datetime,
+          textInputAction: TextInputAction.next,
         ),
-      ),
-      keyboardType: TextInputType.datetime,
-      textInputAction: TextInputAction.next,
+      ],
     );
+  }
+
+  void _showPickupTimeInfo() {
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text(
+          'Giờ nhận vé',
+          style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18),
+        ),
+        content: const Text(
+          'Vui lòng chọn giờ bạn dự kiến đến quầy nhận vé.\n\n'
+          '• Quầy làm việc từ 08:00 đến 20:00.\n'
+          '• Giờ nhận phải sau thời điểm hiện tại ít nhất 15 phút.\n'
+          '• Bạn có thể chọn nhận hôm nay hoặc ngày mai.\n\n'
+          'Nhập theo định dạng 24 giờ, ví dụ: 14:30.',
+          style: TextStyle(fontSize: 14, height: 1.5),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text(
+              'Đã hiểu',
+              style: TextStyle(
+                color: AppColors.primary,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  bool get _hasValidPickupTimeInput {
+    final timeStr = _timeController.text.trim();
+    if (timeStr.isEmpty) return false;
+    final parts = timeStr.split(':');
+    if (parts.length != 2) return false;
+    final hour = int.tryParse(parts[0]);
+    final minute = int.tryParse(parts[1]);
+    if (hour == null || minute == null) return false;
+    return hour >= 0 && hour <= 23 && minute >= 0 && minute <= 59;
   }
 
   void _updatePickupDateTime() {
     final timeStr = _timeController.text.trim();
-    if (timeStr.isEmpty) return;
+    final notifier = ref.read(checkoutProvider.notifier);
+    if (!_hasValidPickupTimeInput) {
+      notifier.clearExpectedPickupAt();
+      return;
+    }
     try {
       final parts = timeStr.split(':');
-      if (parts.length != 2) return;
       final hour = int.parse(parts[0]);
       final minute = int.parse(parts[1]);
       final dt = DateTime(
@@ -524,8 +658,10 @@ class _CheckoutViewState extends ConsumerState<CheckoutView> {
         hour,
         minute,
       );
-      ref.read(checkoutProvider.notifier).setExpectedPickupAt(dt.toIso8601String());
-    } catch (_) {}
+      notifier.setExpectedPickupAt(dt.toIso8601String());
+    } catch (_) {
+      notifier.clearExpectedPickupAt();
+    }
   }
 
   Widget _buildReceiveTypeSelector(
@@ -688,6 +824,7 @@ class _CheckoutViewState extends ConsumerState<CheckoutView> {
   Widget _buildBottomBar({
     required int total,
     required bool isSubmitting,
+    required bool canCheckout,
     required VoidCallback onCheckout,
   }) {
     return Container(
@@ -728,11 +865,12 @@ class _CheckoutViewState extends ConsumerState<CheckoutView> {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: isSubmitting ? null : onCheckout,
+                onPressed: canCheckout ? onCheckout : null,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
                   foregroundColor: Colors.white,
                   disabledBackgroundColor: const Color(0xFFF3B5B2),
+                  disabledForegroundColor: Colors.white70,
                   minimumSize: const Size.fromHeight(56),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(14),

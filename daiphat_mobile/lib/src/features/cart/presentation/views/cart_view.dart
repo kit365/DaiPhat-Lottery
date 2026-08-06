@@ -19,6 +19,16 @@ class CartView extends ConsumerStatefulWidget {
 }
 
 class _CartViewState extends ConsumerState<CartView> {
+  @override
+  void initState() {
+    super.initState();
+    // Rời phiên mua ngay (nếu còn) — giỏ chính phải hiển thị đầy đủ.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      ref.read(buyNowItemsProvider.notifier).clear();
+    });
+  }
+
   void _openDetail(BuildContext context, CartItemData item) {
     final listItem = LotteryTicketListItem(
       id: item.lotteryTicketId,
