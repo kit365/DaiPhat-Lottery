@@ -13,6 +13,7 @@ import 'package:daiphat_mobile/src/features/profile/presentation/providers/profi
 import 'package:daiphat_mobile/src/features/profile/presentation/widgets/prize_payout_request_sheet.dart';
 import 'package:daiphat_mobile/src/features/profile/utils/ticket_display_utils.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
+import 'package:daiphat_mobile/src/shared/utils/app_toast.dart';
 
 class MyTicketDetailView extends ConsumerWidget {
   final String ticketId;
@@ -634,15 +635,7 @@ class _TicketDetailBody extends ConsumerWidget {
               child: InkWell(
                 onTap: () {
                   Clipboard.setData(ClipboardData(text: orderCode));
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        'Đã sao chép mã đơn hàng',
-                        style: GoogleFonts.publicSans(fontWeight: FontWeight.w600),
-                      ),
-                      duration: const Duration(seconds: 2),
-                    ),
-                  );
+                  AppToast.success('Đã sao chép mã đơn hàng');
                 },
                 child: Row(
                   mainAxisSize: MainAxisSize.min,

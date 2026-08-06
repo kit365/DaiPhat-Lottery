@@ -9,6 +9,7 @@ import 'package:daiphat_mobile/src/features/profile/data/models/support_ticket.d
 import 'package:daiphat_mobile/src/features/profile/presentation/providers/profile_providers.dart';
 import 'package:daiphat_mobile/src/features/profile/presentation/widgets/profile_status_badge.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
+import 'package:daiphat_mobile/src/shared/utils/app_toast.dart';
 import '../viewmodels/complaints_viewmodel.dart';
 import 'complaint_form_page.dart';
 
@@ -104,12 +105,11 @@ class _ComplaintsViewState extends ConsumerState<ComplaintsView> {
     if (ok != true) return;
     final err = await _viewModel.cancel(ticket.id);
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(err ?? 'Đã huỷ khiếu nại.'),
-        backgroundColor: err == null ? AppColors.success : AppColors.error,
-      ),
-    );
+    if (err == null) {
+      AppToast.success('Đã huỷ khiếu nại.');
+    } else {
+      AppToast.error(err);
+    }
   }
 
   @override

@@ -8,6 +8,7 @@ import 'package:daiphat_mobile/src/features/checkout/models/refund_type.dart';
 import 'package:daiphat_mobile/src/features/profile/presentation/providers/profile_providers.dart';
 import 'package:daiphat_mobile/src/features/profile/presentation/widgets/bank_account_form_page.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
+import 'package:daiphat_mobile/src/shared/utils/app_toast.dart';
 import '../viewmodels/bank_accounts_viewmodel.dart';
 
 class BankAccountsView extends ConsumerStatefulWidget {
@@ -32,16 +33,6 @@ class _BankAccountsViewState extends ConsumerState<BankAccountsView> {
     super.dispose();
   }
 
-  void _toast(String message, {bool isError = false}) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message, style: GoogleFonts.publicSans()),
-        backgroundColor: isError ? AppColors.error : AppColors.success,
-      ),
-    );
-  }
-
   Future<void> _openForm({UserBankAccountResponse? account}) async {
     final result = await Navigator.of(context, rootNavigator: true)
         .push<UserBankAccountResponse>(
@@ -55,7 +46,7 @@ class _BankAccountsViewState extends ConsumerState<BankAccountsView> {
         );
     if (result == null) return;
     await _viewModel.load(silent: true);
-    _toast(
+    AppToast.success(
       account == null
           ? 'Đã thêm tài khoản ngân hàng.'
           : 'Đã cập nhật tài khoản ngân hàng.',
@@ -64,7 +55,11 @@ class _BankAccountsViewState extends ConsumerState<BankAccountsView> {
 
   Future<void> _setDefault(UserBankAccountResponse account) async {
     final err = await _viewModel.setDefault(account.id);
-    _toast(err ?? 'Đã đặt làm tài khoản mặc định.', isError: err != null);
+    if (err != null) {
+      AppToast.error(err);
+    } else {
+      AppToast.success('Đã đặt làm tài khoản mặc định.');
+    }
   }
 
   Future<void> _confirmDelete(UserBankAccountResponse account) async {
@@ -101,7 +96,11 @@ class _BankAccountsViewState extends ConsumerState<BankAccountsView> {
     );
     if (ok != true) return;
     final err = await _viewModel.delete(account.id);
-    _toast(err ?? 'Đã xoá tài khoản ngân hàng.', isError: err != null);
+    if (err != null) {
+      AppToast.error(err);
+    } else {
+      AppToast.success('Đã xoá tài khoản ngân hàng.');
+    }
   }
 
   @override

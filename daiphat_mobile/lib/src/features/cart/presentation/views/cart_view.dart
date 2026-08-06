@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:daiphat_mobile/src/app/routing/app_routes.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
+import 'package:daiphat_mobile/src/shared/utils/app_toast.dart';
 import '../../models/cart_item_model.dart';
 import '../../providers/cart_provider.dart';
 import '../../../tickets/presentation/viewmodels/buy_ticket_viewmodel.dart';
@@ -54,20 +55,13 @@ class _CartViewState extends ConsumerState<CartView> {
   void _removeItem(CartItemData item, int index) {
     ref.read(cartProvider.notifier).removeAtIndex(index);
 
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          behavior: SnackBarBehavior.floating,
-          content: Text('Đã xóa vé ${item.number} khỏi giỏ hàng'),
-          action: SnackBarAction(
-            label: 'Hoàn tác',
-            onPressed: () {
-              ref.read(cartProvider.notifier).insertItem(index, item);
-            },
-          ),
-        ),
-      );
+    AppToast.show(
+      'Đã xóa vé ${item.number} khỏi giỏ hàng',
+      actionLabel: 'Hoàn tác',
+      onAction: () {
+        ref.read(cartProvider.notifier).insertItem(index, item);
+      },
+    );
   }
 
   @override

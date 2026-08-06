@@ -12,6 +12,7 @@ import 'package:daiphat_mobile/src/features/profile/data/bank_account_service.da
 import 'package:daiphat_mobile/src/features/profile/presentation/widgets/bank_account_form_page.dart';
 import 'package:daiphat_mobile/src/features/profile/presentation/widgets/bank_search_screen.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
+import 'package:daiphat_mobile/src/shared/utils/app_toast.dart';
 
 class RefundRequestSheet extends StatefulWidget {
   final OrderResponse order;
@@ -161,13 +162,7 @@ class _RefundRequestSheetState extends State<RefundRequestSheet> {
       });
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            e.toString().replaceFirst('Exception: ', ''),
-          ),
-        ),
-      );
+      AppToast.error(e.toString().replaceFirst('Exception: ', ''));
     }
   }
 
@@ -197,15 +192,11 @@ class _RefundRequestSheetState extends State<RefundRequestSheet> {
   Future<void> _handleSubmit() async {
     final reason = _reasonController.text.trim();
     if (reason.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Vui lòng nhập lý do hoàn tiền')),
-      );
+      AppToast.info('Vui lòng nhập lý do hoàn tiền');
       return;
     }
     if (_selectedBankAccountId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Vui lòng chọn tài khoản nhận hoàn')),
-      );
+      AppToast.info('Vui lòng chọn tài khoản nhận hoàn');
       return;
     }
     if (_isRefundBlocked) return;
@@ -225,9 +216,7 @@ class _RefundRequestSheetState extends State<RefundRequestSheet> {
       return;
     }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Gửi yêu cầu hoàn tiền thất bại')),
-    );
+    AppToast.error('Gửi yêu cầu hoàn tiền thất bại');
   }
 
   @override
@@ -1091,22 +1080,16 @@ class _BankAccountFormDialogState extends State<BankAccountFormDialog> {
 
   Future<void> _submit() async {
     if (_selectedBank == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Vui lòng chọn ngân hàng')),
-      );
+      AppToast.info('Vui lòng chọn ngân hàng');
       return;
     }
     if (_accountNoController.text.trim().isEmpty ||
         _accountNameController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Vui lòng nhập đầy đủ thông tin tài khoản')),
-      );
+      AppToast.info('Vui lòng nhập đầy đủ thông tin tài khoản');
       return;
     }
     if (!_agreed) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Bạn cần xác nhận cam kết thông tin tài khoản')),
-      );
+      AppToast.info('Bạn cần xác nhận cam kết thông tin tài khoản');
       return;
     }
 
@@ -1126,9 +1109,7 @@ class _BankAccountFormDialogState extends State<BankAccountFormDialog> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _isSubmitting = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
-      );
+      AppToast.error(e.toString().replaceFirst('Exception: ', ''));
     }
   }
 

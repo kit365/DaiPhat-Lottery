@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
+import 'package:daiphat_mobile/src/shared/utils/app_toast.dart';
 import '../providers/notification_providers.dart';
 import '../viewmodels/notification_settings_viewmodel.dart';
 
@@ -36,15 +37,11 @@ class _NotificationSettingsViewState
   Future<void> _onToggle(NotificationSettingOption option) async {
     final err = await _viewModel.toggle(option);
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          err ?? 'Đã cập nhật cài đặt thông báo.',
-          style: GoogleFonts.publicSans(),
-        ),
-        backgroundColor: err == null ? AppColors.success : AppColors.error,
-      ),
-    );
+    if (err == null) {
+      AppToast.success('Đã cập nhật cài đặt thông báo.');
+    } else {
+      AppToast.error(err);
+    }
   }
 
   @override

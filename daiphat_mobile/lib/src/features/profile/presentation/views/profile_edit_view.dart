@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import '../viewmodels/profile_viewmodel.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
+import 'package:daiphat_mobile/src/shared/utils/app_toast.dart';
 import 'package:daiphat_mobile/src/features/profile/data/dto/update_profile_request.dart';
 
 class ProfileEditView extends StatefulWidget {
@@ -77,12 +78,7 @@ class _ProfileEditViewState extends State<ProfileEditView> {
       if (_selectedAvatarFile != null) {
         final avatarSuccess = await widget.viewModel.uploadAvatar(_selectedAvatarFile!.path);
         if (!avatarSuccess && mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(widget.viewModel.errorMessage ?? 'Tải ảnh thất bại'),
-              backgroundColor: Colors.red,
-            ),
-          );
+          AppToast.error(widget.viewModel.errorMessage ?? 'Tải ảnh thất bại');
           return;
         }
       }
@@ -98,20 +94,13 @@ class _ProfileEditViewState extends State<ProfileEditView> {
       );
 
       final success = await widget.viewModel.updateProfile(request);
-      
+
       if (!mounted) return;
       if (success) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Cập nhật thành công')),
-        );
+        AppToast.success('Cập nhật thành công');
         context.pop();
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(widget.viewModel.errorMessage ?? 'Cập nhật thất bại'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        AppToast.error(widget.viewModel.errorMessage ?? 'Cập nhật thất bại');
       }
     }
   }

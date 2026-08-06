@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import 'package:daiphat_mobile/src/app/routing/app_routes.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
+import 'package:daiphat_mobile/src/shared/utils/app_toast.dart';
 import '../viewmodels/register_viewmodel.dart';
 import 'package:daiphat_mobile/src/features/auth/data/dto/register_request.dart';
 
@@ -49,9 +50,7 @@ class _RegisterViewState extends State<RegisterView> {
   void _handleRegister() async {
     if (!_formKeyStep2.currentState!.validate()) return;
     if (!_agreedToTerms) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Vui lòng đồng ý với điều khoản sử dụng.')),
-      );
+      AppToast.info('Vui lòng đồng ý với điều khoản sử dụng.');
       return;
     }
 
@@ -69,14 +68,10 @@ class _RegisterViewState extends State<RegisterView> {
     if (!mounted) return;
 
     if (success) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Đăng ký thành công! Vui lòng kiểm tra email để xác thực tài khoản.'), backgroundColor: AppColors.success),
-      );
+      AppToast.success('Đăng ký thành công! Vui lòng kiểm tra email để xác thực tài khoản.');
       context.go(AppRoute.login.path);
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(widget.viewModel.error ?? 'Đăng ký thất bại!'), backgroundColor: AppColors.error),
-      );
+      AppToast.error(widget.viewModel.error ?? 'Đăng ký thất bại!');
     }
   }
 

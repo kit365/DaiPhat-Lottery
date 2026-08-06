@@ -7,6 +7,7 @@ import 'package:daiphat_mobile/src/features/checkout/models/refund_type.dart';
 import 'package:daiphat_mobile/src/features/profile/data/bank_account_service.dart';
 import 'package:daiphat_mobile/src/shared/network/api_exception.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
+import 'package:daiphat_mobile/src/shared/utils/app_toast.dart';
 import 'bank_search_screen.dart';
 
 class BankAccountFormPage extends StatefulWidget {
@@ -86,7 +87,7 @@ class _BankAccountFormPageState extends State<BankAccountFormPage> {
     if (!isFormValid || _selectedBank == null) return;
 
     if (!_agreedToTerms) {
-      _toast('Bạn cần đồng ý với điều khoản hoàn tiền.', isError: true);
+      AppToast.error('Bạn cần đồng ý với điều khoản hoàn tiền.');
       return;
     }
 
@@ -109,21 +110,12 @@ class _BankAccountFormPageState extends State<BankAccountFormPage> {
     } on ApiException catch (e) {
       if (!mounted) return;
       setState(() => _isSubmitting = false);
-      _toast(e.message, isError: true);
+      AppToast.error(e.message);
     } catch (_) {
       if (!mounted) return;
       setState(() => _isSubmitting = false);
-      _toast('Không lưu được tài khoản ngân hàng.', isError: true);
+      AppToast.error('Không lưu được tài khoản ngân hàng.');
     }
-  }
-
-  void _toast(String message, {bool isError = false}) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message, style: GoogleFonts.publicSans()),
-        backgroundColor: isError ? AppColors.error : AppColors.success,
-      ),
-    );
   }
 
   @override

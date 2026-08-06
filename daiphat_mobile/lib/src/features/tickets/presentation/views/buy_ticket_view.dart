@@ -10,6 +10,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import 'package:daiphat_mobile/src/app/routing/app_routes.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
+import 'package:daiphat_mobile/src/shared/utils/app_toast.dart';
 import 'package:daiphat_mobile/src/features/cart/models/cart_item_model.dart';
 import 'package:daiphat_mobile/src/features/cart/providers/cart_provider.dart';
 import '../viewmodels/buy_ticket_viewmodel.dart';
@@ -88,18 +89,11 @@ class _BuyTicketViewState extends ConsumerState<BuyTicketView> {
 
     ref.read(cartProvider.notifier).addItem(cartItem);
 
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          behavior: SnackBarBehavior.floating,
-          content: Text('Da them ${ticket.code} vao gio hang'),
-          action: SnackBarAction(
-            label: 'Xem gio hang',
-            onPressed: () => context.push('/cart'),
-          ),
-        ),
-      );
+    AppToast.show(
+      'Da them ${ticket.code} vao gio hang',
+      actionLabel: 'Xem gio hang',
+      onAction: () => context.push('/cart'),
+    );
   }
 
   @override
@@ -1317,18 +1311,6 @@ class TicketDetailView extends ConsumerStatefulWidget {
 }
 
 class _TicketDetailViewState extends ConsumerState<TicketDetailView> {
-  void _showSnack(String message, {SnackBarAction? action}) {
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          behavior: SnackBarBehavior.floating,
-          content: Text(message),
-          action: action,
-        ),
-      );
-  }
-
   void _goBack() {
     if (Navigator.of(context).canPop()) {
       Navigator.of(context).pop();
@@ -1340,7 +1322,7 @@ class _TicketDetailViewState extends ConsumerState<TicketDetailView> {
   Future<void> _copyToClipboard(String value, String message) async {
     await Clipboard.setData(ClipboardData(text: value));
     if (!mounted) return;
-    _showSnack(message);
+    AppToast.info(message);
   }
 
   void _openStationTickets(LotteryTicketListItem ticket) {
@@ -1365,12 +1347,10 @@ class _TicketDetailViewState extends ConsumerState<TicketDetailView> {
 
   void _addToCart(LotteryTicketListItem ticket) {
     ref.read(cartProvider.notifier).addItem(_buildCartItem(ticket));
-    _showSnack(
+    AppToast.show(
       'Đã thêm vé ${ticket.code} vào giỏ hàng.',
-      action: SnackBarAction(
-        label: 'Xem giỏ hàng',
-        onPressed: () => context.push(AppRoute.cart.path),
-      ),
+      actionLabel: 'Xem giỏ hàng',
+      onAction: () => context.push(AppRoute.cart.path),
     );
   }
 

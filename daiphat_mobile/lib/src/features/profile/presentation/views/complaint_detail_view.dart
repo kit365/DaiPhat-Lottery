@@ -12,6 +12,7 @@ import 'package:daiphat_mobile/src/features/profile/data/models/support_ticket.d
 import 'package:daiphat_mobile/src/features/profile/presentation/providers/profile_providers.dart';
 import 'package:daiphat_mobile/src/features/profile/presentation/widgets/profile_status_badge.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
+import 'package:daiphat_mobile/src/shared/utils/app_toast.dart';
 import '../viewmodels/complaint_detail_viewmodel.dart';
 import 'complaint_form_page.dart';
 
@@ -62,13 +63,7 @@ class _ComplaintDetailViewState extends ConsumerState<ComplaintDetailView> {
   Future<void> _sendComment() async {
     final text = _commentController.text.trim();
     if (text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Vui lòng nhập nội dung tin nhắn',
-              style: GoogleFonts.publicSans()),
-          backgroundColor: AppColors.error,
-        ),
-      );
+      AppToast.error('Vui lòng nhập nội dung tin nhắn');
       return;
     }
     final err = await _viewModel.sendComment(text,
@@ -78,24 +73,20 @@ class _ComplaintDetailViewState extends ConsumerState<ComplaintDetailView> {
       _commentController.clear();
       setState(() => _commentAttachment = null);
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(err), backgroundColor: AppColors.error),
-      );
+      AppToast.error(err);
     }
   }
 
   Future<void> _submitFeedback(bool satisfied) async {
     final err = await _viewModel.submitFeedback(satisfied);
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(err ??
-            (satisfied
-                ? 'Cảm ơn bạn đã xác nhận hài lòng.'
-                : 'Yêu cầu đã được mở lại để tiếp tục hỗ trợ.')),
-        backgroundColor: err == null ? AppColors.success : AppColors.error,
-      ),
-    );
+    if (err == null) {
+      AppToast.success(satisfied
+          ? 'Cảm ơn bạn đã xác nhận hài lòng.'
+          : 'Yêu cầu đã được mở lại để tiếp tục hỗ trợ.');
+    } else {
+      AppToast.error(err);
+    }
   }
 
   Future<void> _confirmCancel() async {
@@ -127,12 +118,11 @@ class _ComplaintDetailViewState extends ConsumerState<ComplaintDetailView> {
     if (ok != true) return;
     final err = await _viewModel.cancel();
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(err ?? 'Đã huỷ khiếu nại.'),
-        backgroundColor: err == null ? AppColors.success : AppColors.error,
-      ),
-    );
+    if (err == null) {
+      AppToast.success('Đã huỷ khiếu nại.');
+    } else {
+      AppToast.error(err);
+    }
   }
 
   Future<void> _openEditForm(SupportTicketResponse ticket) async {

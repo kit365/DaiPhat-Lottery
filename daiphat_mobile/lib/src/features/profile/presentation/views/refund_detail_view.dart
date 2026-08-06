@@ -9,6 +9,7 @@ import 'package:daiphat_mobile/src/features/profile/data/models/refund_request.d
 import 'package:daiphat_mobile/src/features/profile/presentation/providers/profile_providers.dart';
 import 'package:daiphat_mobile/src/features/profile/presentation/widgets/profile_status_badge.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
+import 'package:daiphat_mobile/src/shared/utils/app_toast.dart';
 import '../viewmodels/refund_detail_viewmodel.dart';
 
 class RefundDetailView extends ConsumerStatefulWidget {
@@ -62,12 +63,11 @@ class _RefundDetailViewState extends ConsumerState<RefundDetailView> {
   Future<void> _attach(int bankAccountId) async {
     final err = await _viewModel.attachBankAccount(bankAccountId);
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(err ?? 'Đã gửi cập nhật tài khoản ngân hàng.'),
-        backgroundColor: err == null ? AppColors.success : AppColors.error,
-      ),
-    );
+    if (err == null) {
+      AppToast.success('Đã gửi cập nhật tài khoản ngân hàng.');
+    } else {
+      AppToast.error(err);
+    }
   }
 
   @override

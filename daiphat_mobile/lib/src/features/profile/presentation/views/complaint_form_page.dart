@@ -11,6 +11,7 @@ import 'package:daiphat_mobile/src/features/profile/data/support_ticket_service.
 import 'package:daiphat_mobile/src/features/profile/presentation/providers/profile_providers.dart';
 import 'package:daiphat_mobile/src/features/profile/presentation/widgets/complaint_ref_picker_sheet.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
+import 'package:daiphat_mobile/src/shared/utils/app_toast.dart';
 
 /// Trang tạo mới / chỉnh sửa một khiếu nại (hỗ trợ).
 class ComplaintFormPage extends ConsumerStatefulWidget {
@@ -175,9 +176,7 @@ class _ComplaintFormPageState extends ConsumerState<ComplaintFormPage> {
   Future<void> _submit() async {
     final err = _validate();
     if (err != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(err), backgroundColor: AppColors.error),
-      );
+      AppToast.error(err);
       return;
     }
     setState(() => _submitting = true);
@@ -210,12 +209,7 @@ class _ComplaintFormPageState extends ConsumerState<ComplaintFormPage> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _submitting = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(e.toString().replaceFirst('Exception: ', '')),
-          backgroundColor: AppColors.error,
-        ),
-      );
+      AppToast.error(e.toString().replaceFirst('Exception: ', ''));
     }
   }
 
