@@ -19,6 +19,8 @@ public interface StreetAgentProfileApplicationMapper {
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "depositAdjustmentReason", ignore = true)
     @Mapping(target = "status", ignore = true)
+    @Mapping(target = "contractCode", ignore = true)
+    @Mapping(target = "contractDocumentUrl", ignore = true)
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
     @Mapping(target = "createdBy", ignore = true)
@@ -30,6 +32,8 @@ public interface StreetAgentProfileApplicationMapper {
 
     @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
     @Mapping(target = "id", ignore = true)
+    @Mapping(target = "contractCode", ignore = true)
+    @Mapping(target = "contractDocumentUrl", ignore = true)
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
     @Mapping(target = "createdBy", ignore = true)

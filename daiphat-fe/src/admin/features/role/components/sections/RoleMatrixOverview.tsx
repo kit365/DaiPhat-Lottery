@@ -23,6 +23,7 @@ import {
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import KeyboardArrowRightIcon from '@mui/icons-material/KeyboardArrowRight';
 import SaveIcon from '@mui/icons-material/Save';
+import LoadingScreen from '../../../../components/ui/LoadingScreen';
 import { useRoles, useUpdateRole, usePermissions, useReorderPermissions } from '../../hooks/useRole';
 import { AppToast as toast } from '../../../../../utils/toast.util';
 import {
@@ -328,11 +329,7 @@ export const RoleMatrixOverview = () => {
     };
 
     if (isLoading) {
-        return (
-            <Box sx={{ display: 'flex', justifyContent: 'center', py: 10 }}>
-                <CircularProgress />
-            </Box>
-        );
+        return <LoadingScreen />;
     }
 
     if (roles.length === 0) {

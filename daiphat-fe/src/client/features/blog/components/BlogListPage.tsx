@@ -5,6 +5,7 @@ import { useSearchParams } from 'react-router-dom';
 import { RightSidebarBlog } from './BlogSidebar';
 import { usePublicCategories, usePublicPosts } from '../hooks/useBlog';
 import { Pagination } from '../../../components/common/Pagination';
+import { Breadcrumb } from '../../../components/ui/Breadcrumb';
 import { BlogHeroSection } from './BlogHeroSection';
 import { BlogSearchFilter } from './BlogSearchFilter';
 import { BlogPostCard } from './BlogPostCard';
@@ -58,7 +59,6 @@ export const BlogListPage = () => {
   const handleSortChange = (label: string) => {
     const newParams = new URLSearchParams(searchParams);
     newParams.set('sort', label);
-    newParams.set('page', '1');
     setSearchParams(newParams);
   };
 
@@ -77,7 +77,8 @@ export const BlogListPage = () => {
 
   return (
     <div className="client-page min-h-screen">
-      <main className="pt-[80px]">
+      <main className="pt-[148px] pb-[100px] lg:pt-[100px] lg:pb-12">
+
         {/* Hero Section */}
         <BlogHeroSection selectedCategory={selectedCategory} />
 

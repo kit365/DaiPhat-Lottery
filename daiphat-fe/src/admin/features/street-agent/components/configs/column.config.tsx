@@ -6,12 +6,15 @@ import {
 } from "@mui/x-data-grid";
 import Avatar from "@mui/material/Avatar";
 import EditIcon from "@mui/icons-material/Edit";
+import AssignmentTurnedInIcon from "@mui/icons-material/AssignmentTurnedIn";
 import Typography from "@mui/material/Typography";
 import Stack from "@mui/material/Stack";
 import { STATUS_LABELS } from "./constants";
+import { formatCoverageAreaDisplay } from "../../constants/coverageAreas";
 
 export const getColumnsConfig = (
     onEdit: (id: number) => void,
+    onResumeOnboarding: (id: number) => void,
     _page: number,
     _pageSize: number
 ): GridColDef[] => [
@@ -74,8 +77,20 @@ export const getColumnsConfig = (
     {
         field: "coverageArea",
         headerName: "Địa bàn bán",
-        minWidth: 160,
+        minWidth: 140,
         flex: 1,
+        valueFormatter: (value) => formatCoverageAreaDisplay(value),
+    },
+    {
+        field: "dailyTicketCap",
+        headerName: "Hạn mức/ngày",
+        width: 120,
+        valueFormatter: (value) => value ?? "—",
+    },
+    {
+        field: "contractCode",
+        headerName: "Hợp đồng",
+        width: 140,
         valueFormatter: (value) => value || "—",
     },
     {
@@ -118,16 +133,31 @@ export const getColumnsConfig = (
         field: "actions",
         type: "actions",
         headerName: "",
-        width: 80,
+        width: 120,
         align: "right",
-        getActions: (params) => [
-            <GridActionsCellItem
-                key="edit"
-                icon={<EditIcon sx={{ fontSize: 20 }} />}
-                label="Chỉnh sửa"
-                onClick={() => onEdit(Number(params.id))}
-            />,
-        ],
+        getActions: (params) => {
+            const actions = [
+                <GridActionsCellItem
+                    key="edit"
+                    icon={<EditIcon sx={{ fontSize: 20 }} />}
+                    label="Chỉnh sửa"
+                    onClick={() => onEdit(Number(params.id))}
+                />,
+            ];
+            const needsOnboarding =
+                params.row.status === "PENDING" && !params.row.contractDocumentUrl;
+            if (needsOnboarding) {
+                actions.unshift(
+                    <GridActionsCellItem
+                        key="resume"
+                        icon={<AssignmentTurnedInIcon sx={{ fontSize: 20 }} />}
+                        label="Hoàn thiện HĐ"
+                        onClick={() => onResumeOnboarding(Number(params.id))}
+                    />
+                );
+            }
+            return actions;
+        },
     },
 ];
 

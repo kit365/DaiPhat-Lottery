@@ -14,7 +14,7 @@ import {
     Typography,
     styled,
 } from '@mui/material';
-import { Banknote, CreditCard, Gift, LayoutList, MessageSquare, PackageMinus, ShoppingCart, Ticket } from 'lucide-react';
+import { Banknote, CreditCard, FileText, Gift, Globe2, LayoutList, MessageSquare, PackageMinus, ShoppingCart, Store, Ticket } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { Breadcrumb } from '../../../../components/ui/Breadcrumb';
 import { Search } from '../../../../components/ui/Search';
@@ -49,6 +49,18 @@ type TypeFilter = 'all' | ConfigType;
 const TYPE_TABS: { value: TypeFilter; label: string; icon: React.ReactNode; color: string }[] = [
     { value: 'all', label: 'Tất cả', icon: <LayoutList size={18} />, color: 'primary.main' },
     {
+        value: ConfigType.GENERAL_SETTING,
+        label: CONFIG_TYPE_LABELS[ConfigType.GENERAL_SETTING],
+        icon: <Globe2 size={18} />,
+        color: 'primary.dark',
+    },
+    {
+        value: ConfigType.STATIC_PAGE,
+        label: CONFIG_TYPE_LABELS[ConfigType.STATIC_PAGE],
+        icon: <FileText size={18} />,
+        color: 'primary.main',
+    },
+    {
         value: ConfigType.ORDER_SETTING,
         label: CONFIG_TYPE_LABELS[ConfigType.ORDER_SETTING],
         icon: <ShoppingCart size={18} />,
@@ -71,6 +83,12 @@ const TYPE_TABS: { value: TypeFilter; label: string; icon: React.ReactNode; colo
         label: CONFIG_TYPE_LABELS[ConfigType.TICKET_RETURN],
         icon: <PackageMinus size={18} />,
         color: 'warning.dark',
+    },
+    {
+        value: ConfigType.VENDOR_SETTING,
+        label: CONFIG_TYPE_LABELS[ConfigType.VENDOR_SETTING],
+        icon: <Store size={18} />,
+        color: 'info.dark',
     },
     {
         value: ConfigType.REFUND_SETTING,
@@ -110,10 +128,13 @@ export const SystemConfigListPage = () => {
     const typeCounts = useMemo(() => {
         const counts: Record<TypeFilter, number> = {
             all: allConfigs.length,
+            [ConfigType.GENERAL_SETTING]: 0,
+            [ConfigType.STATIC_PAGE]: 0,
             [ConfigType.ORDER_SETTING]: 0,
             [ConfigType.PAYMENT_SETTING]: 0,
             [ConfigType.TICKET_IMPORT]: 0,
             [ConfigType.TICKET_RETURN]: 0,
+            [ConfigType.VENDOR_SETTING]: 0,
             [ConfigType.REFUND_SETTING]: 0,
             [ConfigType.COMPLAINT_SETTING]: 0,
             [ConfigType.PAYOUT_SETTING]: 0,

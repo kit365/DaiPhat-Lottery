@@ -4,6 +4,7 @@ import { useParams } from "react-router-dom";
 import {
     Avatar,
     Box,
+    Button,
     Card,
     Chip,
     CircularProgress,
@@ -11,28 +12,35 @@ import {
     Stack,
     Typography,
 } from "@mui/material";
+import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
+import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
+import CloudUploadIcon from "@mui/icons-material/CloudUpload";
+import CheckCircleIcon from "@mui/icons-material/CheckCircle";
+import { useRef, useState } from "react";
+import { toast } from "react-toastify";
 import { Breadcrumb } from "../../components/ui/Breadcrumb";
 import { Title } from "../../components/ui/Title";
+import { LoadingButton } from "../../components/ui/LoadingButton";
 import { ROUTES } from "../../constants/routes";
 import { STATUS_LABELS } from "../../features/street-agent/components/configs/constants";
-import { useStreetAgentProfileDetail } from "../../features/street-agent/hooks/useStreetAgent";
+import {
+    useStreetAgentProfileDetail,
+    useUploadStreetAgentSignedContract,
+} from "../../features/street-agent/hooks/useStreetAgent";
+import { openStreetAgentContractPrint } from "../../features/street-agent/services/streetAgentService";
+import { SignedContractUploadDialog } from "../../features/street-agent/components/SignedContractUploadDialog";
+import { ContractDocumentViewerDialog } from "../../features/street-agent/components/ContractDocumentViewerDialog";
+import { formatCoverageAreaDisplay } from "../../features/street-agent/constants/coverageAreas";
+import { STREET_AGENT_PHASE_UI } from "../../features/street-agent/constants/featureFlags";
+import {
+    formatCommission,
+    formatConfidencePoints,
+    formatDate,
+    formatVnd,
+} from "../../features/street-agent/utils/format";
 
-const formatCurrency = (value?: number | null) => {
-    if (value == null) return "—";
-    return new Intl.NumberFormat("vi-VN").format(value) + " VNĐ";
-};
-
-const formatDate = (value?: string | null) => {
-    if (!value) return "—";
-    const [year, month, day] = value.split("-");
-    if (!year || !month || !day) return value;
-    return `${day}/${month}/${year}`;
-};
-
-const formatCommission = (value?: number | null) => {
-    if (value == null) return "—";
-    return `${(value * 100).toFixed(2)}%`;
-};
+const SIGNED_DOC_TYPES = ["application/pdf", "image/jpeg", "image/jpg", "image/png"];
+const SIGNED_DOC_MAX_SIZE = 10 * 1024 * 1024;
 
 const InfoItem = ({ label, value }: { label: string; value: React.ReactNode }) => (
     <Stack spacing={0.5}>
@@ -45,9 +53,80 @@ const InfoItem = ({ label, value }: { label: string; value: React.ReactNode }) =
     </Stack>
 );
 
+const SectionHeader = ({
+    title,
+    badge,
+    tone = "phase",
+}: {
+    title: string;
+    badge?: string;
+    tone?: "phase" | "readonly";
+}) => (
+    <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 3 }}>
+        <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+            {title}
+        </Typography>
+        {badge && (tone === "readonly" || STREET_AGENT_PHASE_UI.enabled) ? (
+            <Chip
+                label={badge}
+                size="small"
+                sx={{
+                    height: 22,
+                    fontWeight: 700,
+                    fontSize: "0.7rem",
+                    bgcolor: tone === "readonly" ? "rgba(145, 158, 171, 0.16)" : "rgba(0, 167, 111, 0.12)",
+                    color: tone === "readonly" ? "var(--palette-text-secondary)" : "rgb(0, 120, 80)",
+                }}
+            />
+        ) : null}
+    </Stack>
+);
+
 export const StreetAgentDetailPage = () => {
     const { id } = useParams();
-    const { data: profile, isLoading } = useStreetAgentProfileDetail(id);
+    const { data: profile, isLoading, refetch } = useStreetAgentProfileDetail(id);
+    const { mutate: uploadSigned, isPending: isUploadingSigned } = useUploadStreetAgentSignedContract();
+    const signedFileInputRef = useRef<HTMLInputElement>(null);
+    const [pendingSignedFile, setPendingSignedFile] = useState<File | null>(null);
+    const [viewSignedOpen, setViewSignedOpen] = useState(false);
+
+    const handleSelectSignedDocument = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        event.target.value = "";
+        if (!file || !id) return;
+
+        if (!SIGNED_DOC_TYPES.includes(file.type)) {
+            toast.error("Chỉ chấp nhận PDF, JPG hoặc PNG");
+            return;
+        }
+        if (file.size > SIGNED_DOC_MAX_SIZE) {
+            toast.error("Dung lượng file quá lớn. Tối đa là 10 Mb");
+            return;
+        }
+
+        setPendingSignedFile(file);
+    };
+
+    const handleConfirmSignedUpload = (file: File) => {
+        if (!id) return;
+        uploadSigned(
+            { id, file },
+            {
+                onSuccess: (response) => {
+                    if (response.success) {
+                        toast.success(response.message || "Đính kèm bản đã ký thành công!");
+                        setPendingSignedFile(null);
+                        void refetch();
+                    } else {
+                        toast.error(response.message || "Đính kèm bản đã ký thất bại");
+                    }
+                },
+                onError: (error: any) => {
+                    toast.error(error.response?.data?.message || "Đính kèm bản đã ký thất bại");
+                },
+            }
+        );
+    };
 
     if (isLoading) {
         return (
@@ -118,8 +197,18 @@ export const StreetAgentDetailPage = () => {
                         <Chip
                             label={statusLabel}
                             sx={{
-                                bgcolor: profile.status === "ACTIVE" ? "rgba(34, 197, 94, 0.16)" : "rgba(145, 158, 171, 0.16)",
-                                color: profile.status === "ACTIVE" ? "rgb(17, 141, 87)" : "var(--palette-text-secondary)",
+                                bgcolor:
+                                    profile.status === "ACTIVE"
+                                        ? "rgba(34, 197, 94, 0.16)"
+                                        : profile.status === "PENDING"
+                                          ? "rgba(255, 171, 0, 0.16)"
+                                          : "rgba(145, 158, 171, 0.16)",
+                                color:
+                                    profile.status === "ACTIVE"
+                                        ? "rgb(17, 141, 87)"
+                                        : profile.status === "PENDING"
+                                          ? "rgb(183, 110, 0)"
+                                          : "var(--palette-text-secondary)",
                                 fontWeight: 700,
                             }}
                         />
@@ -129,9 +218,7 @@ export const StreetAgentDetailPage = () => {
                 <Grid size={{ xs: 12, md: 8 }}>
                     <Stack spacing={3}>
                         <Card sx={{ p: 4, borderRadius: "var(--shape-borderRadius-lg)", boxShadow: "var(--customShadows-card)" }}>
-                            <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 3 }}>
-                                Thông tin cá nhân
-                            </Typography>
+                            <SectionHeader title="Thông tin cá nhân" />
                             <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)" }, gap: 3 }}>
                                 <InfoItem label="Họ" value={profile.lastName} />
                                 <InfoItem label="Tên" value={profile.firstName} />
@@ -141,32 +228,222 @@ export const StreetAgentDetailPage = () => {
                         </Card>
 
                         <Card sx={{ p: 4, borderRadius: "var(--shape-borderRadius-lg)", boxShadow: "var(--customShadows-card)" }}>
-                            <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 3 }}>
-                                Thông tin liên hệ
-                            </Typography>
+                            <SectionHeader title="Thông tin liên hệ" />
                             <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)" }, gap: 3 }}>
                                 <Box sx={{ gridColumn: { sm: "1 / -1" } }}>
                                     <InfoItem label="Địa chỉ hoạt động" value={profile.contactAddress} />
                                 </Box>
                                 <InfoItem label="Tỉnh/thành" value={profile.contactProvince} />
-                                <InfoItem label="Địa bàn bán" value={profile.coverageArea} />
                             </Box>
                         </Card>
 
                         <Card sx={{ p: 4, borderRadius: "var(--shape-borderRadius-lg)", boxShadow: "var(--customShadows-card)" }}>
-                            <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 3 }}>
-                                Thông tin hợp đồng
-                            </Typography>
+                            <SectionHeader title="Điều kiện nhận vé" badge="Phase 2 · Allocation" />
                             <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)" }, gap: 3 }}>
-                                <InfoItem label="Tỷ lệ hoa hồng" value={formatCommission(profile.commissionRate)} />
-                                <InfoItem label="Số dư ký quỹ" value={formatCurrency(profile.depositBalance)} />
                                 <InfoItem label="Ngày bắt đầu hợp đồng" value={formatDate(profile.contractStartDate)} />
                                 <InfoItem label="Ngày kết thúc hợp đồng" value={formatDate(profile.contractEndDate)} />
+                                <InfoItem label="Hạn mức vé / ngày" value={profile.dailyTicketCap} />
+                                <InfoItem label="Tỷ lệ hoa hồng" value={formatCommission(profile.commissionRate)} />
+                                <Box sx={{ gridColumn: { sm: "1 / -1" } }}>
+                                    <InfoItem label="Địa bàn bán" value={formatCoverageAreaDisplay(profile.coverageArea)} />
+                                </Box>
                             </Box>
+                        </Card>
+
+                        <Card sx={{ p: 4, borderRadius: "var(--shape-borderRadius-lg)", boxShadow: "var(--customShadows-card)" }}>
+                            <SectionHeader title="Thông tin hệ thống" badge="Read-only" tone="readonly" />
+                            <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)" }, gap: 3 }}>
+                                <InfoItem label="Mã hợp đồng" value={profile.contractCode} />
+                                <InfoItem label="Cọc đang giữ" value={formatVnd(profile.depositBalance ?? 0)} />
+                                <Box>
+                                    <InfoItem
+                                        label="Điểm tin cậy"
+                                        value={formatConfidencePoints(profile.confidenceScore, profile.confidenceTier)}
+                                    />
+                                    {STREET_AGENT_PHASE_UI.enabled && !STREET_AGENT_PHASE_UI.phase4Released && (
+                                        <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 1 }}>
+                                            <LockOutlinedIcon sx={{ fontSize: 16, color: "var(--palette-text-secondary)" }} />
+                                            <Typography variant="caption" sx={{ color: "var(--palette-text-secondary)" }}>
+                                                Tính năng đang được hoàn thiện trong Phase 4.
+                                            </Typography>
+                                        </Stack>
+                                    )}
+                                </Box>
+                                <Stack spacing={0.5}>
+                                    <Typography variant="caption" sx={{ color: "var(--palette-text-secondary)", fontWeight: 600 }}>
+                                        Trạng thái
+                                    </Typography>
+                                    <Box>
+                                        <Chip label={statusLabel} sx={{ fontWeight: 700 }} />
+                                    </Box>
+                                </Stack>
+                            </Box>
+                        </Card>
+
+                        <Card sx={{ p: 4, borderRadius: "var(--shape-borderRadius-lg)", boxShadow: "var(--customShadows-card)" }}>
+                            <SectionHeader title="Hợp đồng" />
+                            <Stack spacing={4} sx={{ mt: 2 }}>
+                                <Box>
+                                    <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 2 }}>
+                                        <Box sx={{ width: 28, height: 28, borderRadius: "50%", bgcolor: "var(--palette-primary-main, #00A76F)", color: "white", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, flexShrink: 0 }}>
+                                            1
+                                        </Box>
+                                        <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+                                            In hợp đồng bản cứng
+                                        </Typography>
+                                    </Stack>
+                                    <Box sx={{ p: 2.5, border: "1px solid var(--palette-divider, #e0e0e0)", borderRadius: 2, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 2, bgcolor: "var(--palette-background-neutral, #f4f6f8)" }}>
+                                        <Typography variant="body2" color="text.secondary" sx={{ flex: 1, minWidth: 200 }}>
+                                            In file PDF hợp đồng và đưa cho đại lý ký xác nhận.
+                                        </Typography>
+                                        <LoadingButton
+                                            variant="contained"
+                                            color="inherit"
+                                            startIcon={<PictureAsPdfIcon />}
+                                            onClick={async () => {
+                                                if (!id) return;
+                                                try {
+                                                    await openStreetAgentContractPrint(id);
+                                                } catch (error: any) {
+                                                    toast.error(
+                                                        error?.message ||
+                                                            error?.response?.data?.message ||
+                                                            "Không mở được hợp đồng PDF"
+                                                    );
+                                                }
+                                            }}
+                                            disabled={!profile.contractCode}
+                                            label="Xem / In hợp đồng"
+                                            sx={{ fontWeight: 700, borderRadius: "8px", boxShadow: "none" }}
+                                        />
+                                    </Box>
+                                </Box>
+
+                                <Box>
+                                    <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 2 }}>
+                                        <Box sx={{ width: 28, height: 28, borderRadius: "50%", bgcolor: "var(--palette-primary-main, #00A76F)", color: "white", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, flexShrink: 0 }}>
+                                            2
+                                        </Box>
+                                        <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+                                            Tải lên bản đã ký
+                                        </Typography>
+                                    </Stack>
+
+                                    {profile.contractDocumentUrl ? (
+                                        <Box sx={{ p: 3, bgcolor: "var(--palette-background-neutral, #f4f6f8)", borderRadius: 2, border: "1px dashed var(--palette-divider, #e0e0e0)", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 2 }}>
+                                            <Stack direction="row" spacing={1.5} alignItems="center">
+                                                <CheckCircleIcon color="success" />
+                                                <Box>
+                                                    <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>Đã tải lên tệp đính kèm</Typography>
+                                                    <Button
+                                                        variant="text"
+                                                        onClick={() => setViewSignedOpen(true)}
+                                                        sx={{ fontWeight: 600, fontSize: "0.875rem", px: 0, justifyContent: "flex-start" }}
+                                                    >
+                                                        Xem bản hợp đồng đã ký
+                                                    </Button>
+                                                </Box>
+                                            </Stack>
+                                            <LoadingButton
+                                                variant="outlined"
+                                                startIcon={<CloudUploadIcon />}
+                                                onClick={() => signedFileInputRef.current?.click()}
+                                                loading={isUploadingSigned}
+                                                label="Tải lên bản thay thế"
+                                                loadingLabel="Đang tải..."
+                                            />
+                                        </Box>
+                                    ) : (
+                                        <Box 
+                                            onClick={() => !isUploadingSigned && signedFileInputRef.current?.click()}
+                                            sx={{
+                                                width: "100%",
+                                                border: "2px dashed var(--palette-divider, #e0e0e0)",
+                                                borderRadius: 2,
+                                                p: 5,
+                                                bgcolor: "var(--palette-background-neutral, #f4f6f8)",
+                                                cursor: isUploadingSigned ? "default" : "pointer",
+                                                transition: "all 0.2s",
+                                                textAlign: "center",
+                                                "&:hover": {
+                                                    bgcolor: isUploadingSigned ? "var(--palette-background-neutral)" : "var(--palette-action-hover, rgba(99, 115, 129, 0.08))",
+                                                    borderColor: "var(--palette-text-primary, #212B36)"
+                                                }
+                                            }}
+                                        >
+                                            {isUploadingSigned ? (
+                                                <Stack spacing={2} alignItems="center">
+                                                    <CircularProgress size={32} thickness={4} sx={{ color: "var(--palette-text-primary)" }} />
+                                                    <Typography variant="subtitle2">Đang tải lên bản đã ký...</Typography>
+                                                </Stack>
+                                            ) : (
+                                                <Stack spacing={2} alignItems="center">
+                                                    <Box sx={{ 
+                                                        width: 64, height: 64, borderRadius: "50%", 
+                                                        bgcolor: "var(--palette-primary-lighter, #FFE7D9)", 
+                                                        color: "var(--palette-primary-dark, #B72136)", 
+                                                        display: "flex", alignItems: "center", justifyContent: "center" 
+                                                    }}>
+                                                        <CloudUploadIcon fontSize="large" />
+                                                    </Box>
+                                                    <Box>
+                                                        <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 0.5 }}>
+                                                            Kéo thả hoặc nhấn để tải lên bản đã ký
+                                                        </Typography>
+                                                        <Typography variant="body2" color="text.secondary">
+                                                            Hỗ trợ định dạng: PDF, JPG, PNG. Tối đa 10MB.
+                                                        </Typography>
+                                                    </Box>
+                                                </Stack>
+                                            )}
+                                        </Box>
+                                    )}
+                                    <input
+                                        type="file"
+                                        ref={signedFileInputRef}
+                                        onChange={handleSelectSignedDocument}
+                                        className="hidden"
+                                        accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
+                                    />
+                                </Box>
+
+                                {STREET_AGENT_PHASE_UI.enabled && !STREET_AGENT_PHASE_UI.phase3Released && (
+                                    <Box sx={{ pt: 2, borderTop: "1px solid var(--palette-divider, #e0e0e0)", opacity: 0.75 }}>
+                                        <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} alignItems={{ xs: "stretch", sm: "center" }}>
+                                            <Button variant="text" color="inherit" disabled sx={{ fontWeight: 700, borderRadius: "8px", justifyContent: "flex-start", px: 0 }}>
+                                                Quyết toán cọc
+                                            </Button>
+                                            <Stack direction="row" spacing={1} alignItems="center">
+                                                <LockOutlinedIcon sx={{ fontSize: 16, color: "var(--palette-text-secondary)" }} />
+                                                <Typography variant="caption" sx={{ color: "var(--palette-text-secondary)" }}>
+                                                    Tính năng đang được hoàn thiện trong Phase 3.
+                                                </Typography>
+                                            </Stack>
+                                        </Stack>
+                                    </Box>
+                                )}
+                            </Stack>
                         </Card>
                     </Stack>
                 </Grid>
             </Grid>
+
+            <SignedContractUploadDialog
+                open={!!pendingSignedFile}
+                file={pendingSignedFile}
+                uploading={isUploadingSigned}
+                onClose={() => {
+                    if (!isUploadingSigned) setPendingSignedFile(null);
+                }}
+                onConfirm={handleConfirmSignedUpload}
+            />
+
+            <ContractDocumentViewerDialog
+                open={viewSignedOpen}
+                url={profile.contractDocumentUrl}
+                fileName={profile.contractCode ? `Hop-dong-da-ky-${profile.contractCode}` : undefined}
+                onClose={() => setViewSignedOpen(false)}
+            />
         </Box>
     );
 };

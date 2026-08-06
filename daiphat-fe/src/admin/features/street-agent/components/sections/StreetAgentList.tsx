@@ -20,6 +20,7 @@ import { Search } from "../../../../components/ui/Search";
 import { ExportImport } from "../../../../components/ui/ExportImport";
 import { getTabBadgeStyles } from "../../../../utils/badge";
 import { dataGridStyles } from "../../../../shared/data-grid";
+import { getStreetAgentOnboardingResumePath } from "../../services/streetAgentService";
 
 const TabBadge = styled("span")(() => ({
     height: "24px",
@@ -61,13 +62,17 @@ export const StreetAgentList = () => {
         navigate(`${ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.EDIT}/${id}`);
     };
 
+    const handleResumeOnboarding = (id: number) => {
+        navigate(getStreetAgentOnboardingResumePath(id));
+    };
+
     const handleStatusChange = (_event: React.SyntheticEvent, newValue: string) => {
         setStatus(newValue);
         setPage(0);
     };
 
     const columns = useMemo(
-        () => getColumnsConfig(handleEdit, page, pageSize),
+        () => getColumnsConfig(handleEdit, handleResumeOnboarding, page, pageSize),
         [page, pageSize]
     );
 

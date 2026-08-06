@@ -235,7 +235,7 @@ export const HomePage = () => {
       style={{ backgroundImage: 'url("https://i.ibb.co/BVFGYpL1/86f05f70-fcf8-445f-978e-a0539eb2f0de.png")' }}
     >
       <main className="relative z-1">
-        <div className="max-w-[1440px] mx-auto px-4 lg:px-6 py-8 lg:pt-24 flex flex-col lg:flex-row gap-4 lg:gap-6 items-start">
+        <div className="max-w-[1440px] mx-auto px-4 lg:px-6 pt-[148px] pb-[100px] lg:pt-[100px] lg:pb-12 flex flex-col lg:flex-row gap-4 lg:gap-6 items-start">
           <div className="hidden lg:block shrink-0">
             <LeftSidebar
               activeProvinces={selectedProvinces}

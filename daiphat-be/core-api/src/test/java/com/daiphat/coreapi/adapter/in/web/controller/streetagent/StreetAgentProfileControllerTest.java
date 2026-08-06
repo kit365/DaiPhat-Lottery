@@ -1,11 +1,13 @@
 package com.daiphat.coreapi.adapter.in.web.controller.streetagent;
 
 import com.daiphat.coreapi.adapter.in.web.response.ApiResponse;
+import com.daiphat.coreapi.application.dto.document.ContractPdfDocument;
 import com.daiphat.coreapi.application.dto.request.streetagent.CreateStreetAgentProfileRequest;
 import com.daiphat.coreapi.application.dto.request.streetagent.UpdateStreetAgentProfileRequest;
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.response.streetagent.StreetAgentProfileResponse;
 import com.daiphat.coreapi.application.port.in.streetagent.StreetAgentProfileServicePort;
+import com.daiphat.coreapi.application.port.in.streetagent.StreetAgentContractServicePort;
 import com.daiphat.coreapi.shared.util.StatusCountKeys;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -14,6 +16,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -38,11 +41,16 @@ class StreetAgentProfileControllerTest {
     @Mock
     private StreetAgentProfileServicePort streetAgentProfileServicePort;
 
+    @Mock
+    private StreetAgentContractServicePort streetAgentContractServicePort;
+
     private StreetAgentProfileController streetAgentProfileController;
 
     @BeforeEach
     void setUp() {
-        streetAgentProfileController = new StreetAgentProfileController(streetAgentProfileServicePort);
+        streetAgentProfileController = new StreetAgentProfileController(
+                streetAgentProfileServicePort,
+                streetAgentContractServicePort);
     }
 
     @Nested
@@ -65,10 +73,10 @@ class StreetAgentProfileControllerTest {
                     "INACTIVE", 0L
             ));
 
-            when(streetAgentProfileServicePort.getAll(1, 10, null, null)).thenReturn(serviceResponse);
+            when(streetAgentProfileServicePort.getAll(1, 10, null, null, null)).thenReturn(serviceResponse);
 
             ApiResponse<PageResponse<StreetAgentProfileResponse>> response =
-                    streetAgentProfileController.getAll(1, 10, null, null);
+                    streetAgentProfileController.getAll(1, 10, null, null, null);
 
             assertThat(response).isNotNull();
             assertThat(response.isSuccess()).isTrue();
@@ -79,21 +87,21 @@ class StreetAgentProfileControllerTest {
             assertThat(response.getData().getStatusCounts())
                     .containsEntry(StatusCountKeys.ALL, 1L)
                     .containsEntry("ACTIVE", 1L);
-            verify(streetAgentProfileServicePort).getAll(1, 10, null, null);
+            verify(streetAgentProfileServicePort).getAll(1, 10, null, null, null);
         }
 
         @Test
         @DisplayName("ủy quyền tìm kiếm và lọc trạng thái cho service")
         void getAll_withSearchAndStatus() {
             PageResponse<StreetAgentProfileResponse> emptyPage = PageResponse.from(List.of(), 0L, 1, 10);
-            when(streetAgentProfileServicePort.getAll(1, 10, "Van A", "ACTIVE")).thenReturn(emptyPage);
+            when(streetAgentProfileServicePort.getAll(1, 10, "Van A", "ACTIVE", null)).thenReturn(emptyPage);
 
             ApiResponse<PageResponse<StreetAgentProfileResponse>> response =
-                    streetAgentProfileController.getAll(1, 10, "Van A", "ACTIVE");
+                    streetAgentProfileController.getAll(1, 10, "Van A", "ACTIVE", null);
 
             assertThat(response.isSuccess()).isTrue();
             assertThat(response.getData().getRecordList()).isEmpty();
-            verify(streetAgentProfileServicePort).getAll(1, 10, "Van A", "ACTIVE");
+            verify(streetAgentProfileServicePort).getAll(1, 10, "Van A", "ACTIVE", null);
         }
     }
 
@@ -251,6 +259,41 @@ class StreetAgentProfileControllerTest {
             assertThat(response.isSuccess()).isTrue();
             assertThat(response.getMessage()).isEqualTo("Xóa hồ sơ đại lý bán dạo thành công.");
             verify(streetAgentProfileServicePort).delete(PROFILE_ID);
+        }
+    }
+
+    @Nested
+    @DisplayName("GET /street-agent-profiles/{id}/contract/pdf")
+    class ContractPdf {
+
+        @Test
+        @DisplayName("yêu cầu quyền xem hồ sơ đại lý")
+        void downloadPdf_requiresStreetAgentOrMemberViewAuthority() throws NoSuchMethodException {
+            PreAuthorize authorization = StreetAgentProfileController.class
+                    .getMethod("downloadContractPdf", Long.class)
+                    .getAnnotation(PreAuthorize.class);
+
+            assertThat(authorization).isNotNull();
+            assertThat(authorization.value()).isEqualTo("hasAnyAuthority('streetAgent:view', 'member:view')");
+        }
+
+        @Test
+        @DisplayName("trả PDF inline không cache")
+        void downloadPdf_success() {
+            byte[] pdf = "%PDF-1.7".getBytes(java.nio.charset.StandardCharsets.US_ASCII);
+            when(streetAgentContractServicePort.generatePdf(PROFILE_ID))
+                    .thenReturn(new ContractPdfDocument(pdf, "hop-dong-HD-NBD-001.pdf"));
+
+            org.springframework.http.ResponseEntity<byte[]> response =
+                    streetAgentProfileController.downloadContractPdf(PROFILE_ID);
+
+            assertThat(response.getStatusCode().is2xxSuccessful()).isTrue();
+            assertThat(response.getHeaders().getContentType()).isEqualTo(org.springframework.http.MediaType.APPLICATION_PDF);
+            assertThat(response.getHeaders().getFirst(org.springframework.http.HttpHeaders.CACHE_CONTROL)).isEqualTo("no-store");
+            assertThat(response.getHeaders().getFirst(org.springframework.http.HttpHeaders.CONTENT_DISPOSITION))
+                    .contains("inline").contains("hop-dong-HD-NBD-001.pdf");
+            assertThat(response.getBody()).isEqualTo(pdf);
+            verify(streetAgentContractServicePort).generatePdf(PROFILE_ID);
         }
     }
 

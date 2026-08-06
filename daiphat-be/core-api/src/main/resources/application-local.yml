@@ -43,6 +43,9 @@ spring:
             enable: true
 
 daiphat:
+  vendor:
+    test-seed:
+      enabled: ${VENDOR_TEST_SEED_ENABLED:true}
   auth:
     frontend-url: http://localhost:5173
     jwt:

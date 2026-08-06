@@ -16,24 +16,17 @@ const withAuth = () => {
 };
 
 export const getSettingGeneral = async (): Promise<ApiResponse<any>> => {
-    return {
-        success: true,
-        data: {
-            websiteName: "UserTicket-Life (Mockup)",
-            logo: "",
-            phone: "0123456789",
-            email: "contact@userTicketlife.com",
-            address: "123 Đường ABC, Quận 1, TP.HCM",
-            copyright: "© 2024 UserTicket-Life"
-        }
-    } as any;
+    throw new Error(
+        'getSettingGeneral đã ngừng dùng. Dùng GET /admin/system-configs?configType=GENERAL_SETTING.'
+    );
 };
 
 
-/** Cập nhật cài đặt chung */
-export const updateSettingGeneral = async (data: any): Promise<ApiResponse<any>> => {
-    const response = await apiApp.patch(`${BASE_URL}/general`, data, withAuth());
-    return response.data;
+/** @deprecated Dùng PUT /admin/system-configs/{id} qua generalSettingService */
+export const updateSettingGeneral = async (_data: any): Promise<ApiResponse<any>> => {
+    throw new Error(
+        'updateSettingGeneral đã ngừng dùng. Dùng PUT /admin/system-configs/{id}.'
+    );
 };
 
 /** Lấy thông tin API hãng vận chuyển */

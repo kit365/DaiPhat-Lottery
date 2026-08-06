@@ -3,6 +3,7 @@
 import { useMemo } from 'react';
 import { BottomNav } from "../../../components/layout/BottomNav";
 import { useLotterySchedule } from "../hooks/useLotterySchedule";
+import { Breadcrumb } from "../../../components/ui/Breadcrumb";
 
 const REGION_LABELS: Record<string, { label: string, bg: string, text: string }> = {
   'MIEN_NAM': { label: 'Miền Nam', bg: 'bg-[#ee1314]', text: 'text-[#ee1314]' },
@@ -28,9 +29,16 @@ export const SchedulePage = () => {
     >
       <main className="relative z-1 pt-16 lg:pt-24 pb-12 lg:pb-20">
         <div className="max-w-[1280px] mx-auto px-4 xl:px-0">
-          <section className="mb-6 text-center">
-            <p className="client-body mb-1">Theo dõi thời gian quay số theo từng miền</p>
-            <h1 className="client-heading">Lịch mở thưởng</h1>
+          <section className="mb-6 flex flex-col items-start">
+            <Breadcrumb
+              items={[
+                { label: 'Trang chủ', to: '/' },
+                { label: 'Lịch mở thưởng' }
+              ]}
+              className="mb-2"
+            />
+            <h1 className="client-heading m-0 mb-2">Lịch mở thưởng</h1>
+            <p className="text-[#637381] text-[13px]">Theo dõi thời gian quay số theo từng miền</p>
           </section>
           
           <div className="bg-white rounded-3xl border border-gray-100 shadow-[0_15px_40px_rgba(0,0,0,0.05)] overflow-hidden">

@@ -28,7 +28,7 @@ export const useGetOrderComplaintEligibility = (orderId?: string, enabled = true
         queryKey: [QUERY_KEYS.CLIENT_ORDER_COMPLAINT_ELIGIBILITY, orderId],
         queryFn: () => supportTicketService.getOrderComplaintEligibility(orderId!),
         enabled: !!orderId && enabled,
-        refetchInterval: 30_000,
+        refetchInterval: (q) => (q.state.error ? false : 30_000),
     });
 };
 
@@ -63,7 +63,7 @@ export const useGetComplaintDetail = (id: number) => {
         retry: false,
         staleTime: 0,
         refetchOnWindowFocus: true,
-        refetchInterval: SUPPORT_TICKET_LIVE_REFETCH_MS,
+        refetchInterval: (q) => (q.state.error ? false : SUPPORT_TICKET_LIVE_REFETCH_MS),
     });
 };
 
@@ -74,7 +74,7 @@ export const useGetTicketComments = (ticketId: number) => {
         enabled: !!ticketId,
         staleTime: 0,
         refetchOnWindowFocus: true,
-        refetchInterval: SUPPORT_TICKET_LIVE_REFETCH_MS,
+        refetchInterval: (q) => (q.state.error ? false : SUPPORT_TICKET_LIVE_REFETCH_MS),
     });
 };
 

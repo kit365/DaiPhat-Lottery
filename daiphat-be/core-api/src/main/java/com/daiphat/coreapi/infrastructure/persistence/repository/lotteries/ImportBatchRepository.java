@@ -16,6 +16,8 @@ import java.util.UUID;
 
 public interface ImportBatchRepository extends JpaRepository<ImportBatchEntity, Long>, JpaSpecificationExecutor<ImportBatchEntity> {
 
+    Optional<ImportBatchEntity> findByBatchCodeAndDeletedAtIsNull(String batchCode);
+
     List<ImportBatchEntity> findByBatchCodeStartingWithAndDeletedAtIsNull(String batchCodePrefix);
 
     boolean existsByImportedBy_IdAndStatus(UUID importedBy, ImportBatchStatus status);

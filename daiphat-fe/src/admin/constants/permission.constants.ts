@@ -30,6 +30,7 @@ export const PERMISSIONS = {
         CREATE: "streetAgent:create",
         EDIT: "streetAgent:edit",
         DELETE: "streetAgent:delete",
+        MANAGE: "streetAgent:manage",
     },
     ROLE: {
         VIEW: "role:view",

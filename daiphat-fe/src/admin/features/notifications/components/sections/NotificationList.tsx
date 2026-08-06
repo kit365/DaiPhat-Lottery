@@ -49,6 +49,8 @@ export const NotificationList = () => {
         totalCount,
         unreadCount,
         isLoading,
+        isError,
+        isFetchNextPageError,
         isFetchingNextPage,
         hasNextPage,
         fetchNextPage,
@@ -66,7 +68,7 @@ export const NotificationList = () => {
         const root = scrollContainerRef.current;
         const target = loadMoreRef.current;
 
-        if (!root || !target || !hasNextPage) {
+        if (!root || !target || !hasNextPage || isError || isFetchNextPageError) {
             return;
         }
 
@@ -74,7 +76,7 @@ export const NotificationList = () => {
             (entries) => {
                 const [entry] = entries;
 
-                if (entry?.isIntersecting && !isFetchingNextPage) {
+                if (entry?.isIntersecting && !isFetchingNextPage && !isFetchNextPageError && !isError) {
                     fetchNextPage();
                 }
             },
@@ -88,7 +90,7 @@ export const NotificationList = () => {
         observer.observe(target);
 
         return () => observer.disconnect();
-    }, [fetchNextPage, hasNextPage, isFetchingNextPage, tab, displayNotifications.length]);
+    }, [fetchNextPage, hasNextPage, isFetchingNextPage, isError, isFetchNextPageError, tab, displayNotifications.length]);
 
     const handleOpen = (item: AdminNotificationItem) => {
         if (item.status === 'unread') {

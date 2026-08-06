@@ -4,6 +4,8 @@ import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus;
 import com.daiphat.coreapi.infrastructure.persistence.entity.lotteries.LotteryTicketSerialEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.jpa.repository.Lock;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.repository.query.Param;
 
 import java.util.Collection;
@@ -172,6 +174,28 @@ public interface LotteryTicketSerialRepository extends JpaRepository<LotteryTick
     );
 
     List<LotteryTicketSerialEntity> findByIdInAndDeletedAtIsNull(Collection<Long> ids);
+
+    @Query("""
+            select s from LotteryTicketSerialEntity s
+            join fetch s.ticket t
+            join fetch t.station st
+            where s.deletedAt is null
+              and s.status = com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus.IN_STOCK
+              and s.ticketCondition = com.daiphat.coreapi.domain.model.enums.lottery.TicketCondition.GOOD
+              and s.returnBatchLineId is null
+              and t.drawDate = :drawDate
+              and t.deletedAt is null
+              and t.active = true
+              and t.status <> com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketStatus.EXPIRED
+              and st.deletedAt is null
+              and st.isActive = true
+            order by st.name asc, t.numbers asc, s.serialNumber asc
+            """)
+    List<LotteryTicketSerialEntity> findVendorAllocationCandidates(@Param("drawDate") java.time.LocalDate drawDate);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select s from LotteryTicketSerialEntity s join fetch s.ticket t join fetch t.station where s.id in :ids and s.deletedAt is null")
+    List<LotteryTicketSerialEntity> findAllByIdForAllocationUpdate(@Param("ids") Collection<Long> ids);
 
     List<LotteryTicketSerialEntity> findByReturnBatchLineIdAndDeletedAtIsNull(Long returnBatchLineId);
 

@@ -1,4 +1,6 @@
-import { Link } from "react-router-dom";
+'use client';
+
+import { useSiteBranding } from '@/client/hooks/useSiteBranding';
 
 export const BrandMark = ({ className = "w-9 h-9" }: { className?: string }) => (
     <svg aria-hidden="true" className={`${className} text-[#FF6262]`} viewBox="0 0 36 36" fill="none">
@@ -24,14 +26,16 @@ export const GoogleIcon = () => (
 
 export const VisualPanelContent = () => (
     <div className="relative w-full h-full bg-[#102937] overflow-hidden flex flex-col justify-end p-10 lg:p-12">
-        {/* Decorative backgrounds */}
         <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-radial-gradient from-[#FF6262]/20 to-transparent blur-[120px]" />
         <div className="absolute -bottom-20 -left-20 w-[400px] h-[400px] bg-radial-gradient from-[#FFB800]/10 to-transparent blur-[80px]" />
-        
-        {/* Visual Copy */}
+
         <div className="relative z-10 max-w-[400px]">
-            <h2 className="font-client-display text-4xl lg:text-5xl font-black text-white leading-[1.1] mb-6">Vận May Nằm Trong Tầm Tay Của Bạn.</h2>
-            <p className="text-white/60 text-lg font-medium leading-relaxed mb-8">Nền tảng xổ số trực tuyến an toàn, minh bạch và cơ hội trúng lớn mỗi ngày.</p>
+            <h2 className="font-client-display text-4xl lg:text-5xl font-black text-white leading-[1.1] mb-6">
+                Vận May Nằm Trong Tầm Tay Của Bạn.
+            </h2>
+            <p className="text-white/60 text-lg font-medium leading-relaxed mb-8">
+                Xổ số kiến thiết trực tuyến an toàn, minh bạch và cơ hội trúng lớn mỗi ngày.
+            </p>
             <div className="flex gap-2">
                 <span className="w-8 h-1.5 rounded-full bg-[#FF6262]" />
                 <span className="w-1.5 h-1.5 rounded-full bg-white/20" />
@@ -41,21 +45,35 @@ export const VisualPanelContent = () => (
     </div>
 );
 
-export const AuthBranding = ({ onClick }: { onClick?: () => void }) => (
-    <div 
-        className="flex items-center gap-3 select-none transition-transform active:scale-95" 
-        style={{ cursor: onClick ? 'pointer' : 'default' }}
-        onClick={(e) => {
-            if (onClick) {
-                e.preventDefault();
-                onClick();
-            }
-        }}
-    >
-        <BrandMark className="w-10 h-10" />
-        <span className="flex flex-col">
-            <strong className="text-lg font-black text-[#102937] leading-[1.1] tracking-tight">Đại Phát</strong>
-            <small className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] -mt-0.5">Lottery Platform</small>
-        </span>
-    </div>
-);
+export const AuthBranding = ({ onClick }: { onClick?: () => void }) => {
+    const { name, slogan, logoUrl } = useSiteBranding();
+
+    return (
+        <div
+            className="flex items-center gap-3 select-none transition-transform active:scale-95"
+            style={{ cursor: onClick ? 'pointer' : 'default' }}
+            onClick={(e) => {
+                if (onClick) {
+                    e.preventDefault();
+                    onClick();
+                }
+            }}
+        >
+            {logoUrl ? (
+                <img src={logoUrl} alt={name} className="w-10 h-10 rounded-lg object-cover bg-white" />
+            ) : (
+                <BrandMark className="w-10 h-10" />
+            )}
+            <span className="flex flex-col min-w-0">
+                <strong className="text-lg font-black text-[#102937] leading-[1.1] tracking-tight truncate">
+                    {name}
+                </strong>
+                {slogan ? (
+                    <small className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.12em] -mt-0.5 truncate">
+                        {slogan}
+                    </small>
+                ) : null}
+            </span>
+        </div>
+    );
+};

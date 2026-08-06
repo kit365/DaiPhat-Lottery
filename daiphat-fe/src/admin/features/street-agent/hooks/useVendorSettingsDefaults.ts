@@ -1,0 +1,63 @@
+"use client";
+
+import { useMemo } from "react";
+import { useSystemConfigs } from "../../system-config/hooks/useSystemConfig";
+import { ConfigType } from "../../system-config/types/system-config";
+
+export const VENDOR_SETTING_KEYS = {
+    STREET_AGENT_COUNTER_RESERVE_PER_STATION: "STREET_AGENT_COUNTER_RESERVE_PER_STATION",
+    VENDOR_DEFAULT_UNIT_PRICE: "VENDOR_DEFAULT_UNIT_PRICE",
+    VENDOR_DEPOSIT_RATE: "VENDOR_DEPOSIT_RATE",
+    VENDOR_DRAFT_RESERVATION_TTL_MINUTES: "VENDOR_DRAFT_RESERVATION_TTL_MINUTES",
+    VENDOR_RETURN_CUTOFF: "VENDOR_RETURN_CUTOFF",
+    VENDOR_LATE_RETURN_POLICY: "VENDOR_LATE_RETURN_POLICY",
+} as const;
+
+export type VendorLateReturnPolicyValue = "FORFEIT_DEPOSIT" | "FORCE_PURCHASE_ALL";
+
+export const VENDOR_LATE_RETURN_POLICY_LABELS: Record<VendorLateReturnPolicyValue, string> = {
+    FORFEIT_DEPOSIT: "Tịch thu tiền cọc",
+    FORCE_PURCHASE_ALL: "Ép mua toàn bộ vé",
+};
+
+export interface VendorSettingsDefaults {
+    counterReservePerStation: number | null;
+    defaultUnitPrice: number | null;
+    depositRate: number | null;
+    draftReservationTtlMinutes: number | null;
+    returnCutoff: string | null;
+    lateReturnPolicy: VendorLateReturnPolicyValue | null;
+}
+
+const parseNumber = (raw?: string | null): number | null => {
+    if (raw == null || raw.trim() === "") return null;
+    const value = Number(raw);
+    return Number.isFinite(value) ? value : null;
+};
+
+export const useVendorSettingsDefaults = () => {
+    const query = useSystemConfigs(ConfigType.VENDOR_SETTING);
+
+    const defaults = useMemo<VendorSettingsDefaults>(() => {
+        const configs = query.data?.data || [];
+        const byKey = Object.fromEntries(configs.map((item) => [item.configKey, item.configValue]));
+
+        const latePolicy = byKey[VENDOR_SETTING_KEYS.VENDOR_LATE_RETURN_POLICY];
+        return {
+            counterReservePerStation: parseNumber(byKey[VENDOR_SETTING_KEYS.STREET_AGENT_COUNTER_RESERVE_PER_STATION]),
+            defaultUnitPrice: parseNumber(byKey[VENDOR_SETTING_KEYS.VENDOR_DEFAULT_UNIT_PRICE]),
+            depositRate: parseNumber(byKey[VENDOR_SETTING_KEYS.VENDOR_DEPOSIT_RATE]),
+            draftReservationTtlMinutes: parseNumber(byKey[VENDOR_SETTING_KEYS.VENDOR_DRAFT_RESERVATION_TTL_MINUTES]),
+            returnCutoff: byKey[VENDOR_SETTING_KEYS.VENDOR_RETURN_CUTOFF] || null,
+            lateReturnPolicy:
+                latePolicy === "FORFEIT_DEPOSIT" || latePolicy === "FORCE_PURCHASE_ALL"
+                    ? latePolicy
+                    : null,
+        };
+    }, [query.data?.data]);
+
+    return {
+        ...query,
+        defaults,
+    };
+};

@@ -89,6 +89,8 @@ export const NotificationsTab = () => {
         notifications: allNotifications,
         unreadCount,
         isLoading,
+        isError,
+        isFetchNextPageError,
         isFetchingNextPage,
         hasNextPage,
         fetchNextPage,
@@ -120,7 +122,7 @@ export const NotificationsTab = () => {
         const root = scrollContainerRef.current;
         const target = loadMoreRef.current;
 
-        if (!root || !target || !hasNextPage) {
+        if (!root || !target || !hasNextPage || isError || isFetchNextPageError) {
             return;
         }
 
@@ -128,7 +130,7 @@ export const NotificationsTab = () => {
             (entries) => {
                 const [entry] = entries;
 
-                if (entry?.isIntersecting && !isFetchingNextPage) {
+                if (entry?.isIntersecting && !isFetchingNextPage && !isFetchNextPageError && !isError) {
                     fetchNextPage();
                 }
             },
@@ -142,14 +144,14 @@ export const NotificationsTab = () => {
         observer.observe(target);
 
         return () => observer.disconnect();
-    }, [activeTab, fetchNextPage, hasNextPage, isFetchingNextPage]);
+    }, [activeTab, fetchNextPage, hasNextPage, isFetchingNextPage, isError, isFetchNextPageError]);
 
     return (
         <div className="flex flex-col">
             {/* Header */}
             <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4 mb-6">
                 <div>
-                    <h2 className="text-[24px] font-bold text-[#212B36] font-client-display mb-1">Thông báo</h2>
+                    <h2 className="client-heading m-0 mb-1">Thông báo</h2>
                     <p className="text-[14px] text-[#637381]">Xem các thông báo của bạn</p>
                 </div>
                 <div className="flex items-center gap-3">

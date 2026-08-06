@@ -18,6 +18,7 @@ CREATE TABLE IF NOT EXISTS fortune_casts (
     updated_at          TIMESTAMP    NOT NULL DEFAULT NOW(),
     created_by          VARCHAR(100) DEFAULT 'SYSTEM',
     last_modified_by    VARCHAR(100) DEFAULT 'SYSTEM',
+    deleted_at          TIMESTAMP,
     CONSTRAINT uk_fortune_casts_user_cast_date UNIQUE (user_id, cast_date)
 );
 

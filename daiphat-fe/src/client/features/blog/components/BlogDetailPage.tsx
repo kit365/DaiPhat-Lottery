@@ -5,6 +5,7 @@ import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { RightSidebarBlog } from './BlogSidebar';
 import { usePublicPostBySlug, useRelatedPublicPosts, useIncrementPostView } from '../hooks/useBlog';
 import { useBlogDetail } from '../../../../admin/features/blogs/hooks/useBlog';
+import { Breadcrumb } from '../../../components/ui/Breadcrumb';
 
 export const BlogDetailPage = () => {
   const { slug } = useParams<{ slug: string }>();
@@ -56,8 +57,8 @@ export const BlogDetailPage = () => {
 
   if (isLoading) {
     return (
-      <div className="client-page min-h-screen pb-20">
-        <main className="pt-[80px]">
+      <div className="client-page min-h-screen pb-[100px] lg:pb-20">
+        <main className="pt-[148px] lg:pt-[100px]">
           <div className="py-20 text-center text-[#919EAB]">Đang tải chi tiết bài viết...</div>
         </main>
       </div>
@@ -66,8 +67,8 @@ export const BlogDetailPage = () => {
 
   if (isError || !post) {
     return (
-      <div className="client-page min-h-screen pb-20">
-        <main className="pt-[80px]">
+      <div className="client-page min-h-screen pb-[100px] lg:pb-20">
+        <main className="pt-[148px] lg:pt-[100px]">
           <div className="py-20 text-center text-[#919EAB]">Không tìm thấy bài viết hoặc đã xảy ra lỗi.</div>
         </main>
       </div>
@@ -75,8 +76,8 @@ export const BlogDetailPage = () => {
   }
 
   return (
-    <div className="client-page min-h-screen pb-20">
-      <main className="pt-[80px]">
+      <div className="client-page min-h-screen pb-[100px] lg:pb-20">
+        <main className="pt-[148px] lg:pt-[100px]">
         {/* Hero Section */}
         <div
           className="relative w-full aspect-[1440/320] bg-cover bg-center bg-no-repeat flex items-center mb-8"
@@ -86,14 +87,15 @@ export const BlogDetailPage = () => {
           <div className="absolute inset-0 bg-black/40"></div>
 
           <div className="relative z-10 w-full max-w-[1440px] mx-auto px-4 lg:px-6">
-            {/* Breadcrumb */}
-            <div className="flex items-center gap-2 text-[13px] text-white/80 mb-4">
-              <Link to="/" className="hover:text-white transition-colors">Trang chủ</Link>
-              <span className="text-[14px] mx-1">&gt;</span>
-              <Link to="/blogs" className="hover:text-white transition-colors">Bài viết</Link>
-              <span className="text-[14px] mx-1">&gt;</span>
-              <span className="text-white font-medium">{post.category?.name || 'Chi tiết'}</span>
-            </div>
+            <Breadcrumb
+              theme="dark"
+              items={[
+                { label: 'Trang chủ', to: '/' },
+                { label: 'Bài viết', to: '/blogs' },
+                { label: post.category?.name || 'Chi tiết' }
+              ]}
+              className="mb-4"
+            />
 
             <div className="max-w-[700px]">
               <h1 className="text-[24px] md:text-[28px] font-bold text-white leading-[1.3] mb-4">

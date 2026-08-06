@@ -69,6 +69,9 @@ export const menuManagementData = [
             { id: "staff-management", label: "Quản lý nhân viên", path: ROUTES.ADMIN.ACCOUNTS.ADMIN.LIST, permission: PERMISSIONS.ACCOUNT.VIEW },
             { id: "customer-management", label: "Quản lý khách hàng", path: ROUTES.ADMIN.ACCOUNTS.USER.LIST, permission: PERMISSIONS.USER.VIEW },
             { id: "street-agents", label: "Đại lý bán dạo", path: ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.LIST, permission: PERMISSIONS.STREET_AGENT.VIEW },
+            { id: "street-agent-allocation", label: "Bàn giao vé bán dạo", path: ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.ALLOCATION, permission: PERMISSIONS.STREET_AGENT.VIEW },
+            { id: "street-agent-allocation-batches", label: "Phiếu bàn giao vé", path: ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.ALLOCATION_BATCHES, permission: PERMISSIONS.STREET_AGENT.VIEW },
+            { id: "street-agent-lucky-patterns", label: "Cấu hình số đẹp", path: ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.LUCKY_PATTERNS, permission: PERMISSIONS.STREET_AGENT.VIEW },
         ]
     },
     {
@@ -173,9 +176,8 @@ export const menuDevelopmentData = [
         permission: PERMISSIONS.SETTINGS.VIEW,
         children: [
             { id: "settings-general", label: "Cài đặt chung", path: ROUTES.ADMIN.DASHBOARD.SETTINGS.GENERAL },
-            { id: "settings-shipping", label: "Vận chuyển", path: ROUTES.ADMIN.DASHBOARD.SETTINGS.SHIPPING },
-            { id: "settings-payment", label: "Thanh toán", path: ROUTES.ADMIN.DASHBOARD.SETTINGS.PAYMENT },
-            { id: "settings-social", label: "Mạng xã hội", path: ROUTES.ADMIN.DASHBOARD.SETTINGS.SOCIAL },
+            { id: "settings-policies", label: "Chính sách", path: ROUTES.ADMIN.DASHBOARD.SETTINGS.POLICIES },
+            { id: "settings-pages", label: "Trang thông tin", path: ROUTES.ADMIN.DASHBOARD.SETTINGS.PAGES },
             { id: "settings-app-password", label: "Mật khẩu ứng dụng", path: ROUTES.ADMIN.DASHBOARD.SETTINGS.APP_PASSWORD },
             { id: "settings-system-config", label: "Cấu hình hệ thống", path: ROUTES.ADMIN.DASHBOARD.SETTINGS.SYSTEM_CONFIG, permission: PERMISSIONS.SETTINGS.VIEW },
         ]

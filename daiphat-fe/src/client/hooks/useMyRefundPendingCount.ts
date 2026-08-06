@@ -19,7 +19,10 @@ export const useMyRefundPendingCount = () => {
         queryFn: () => refundService.getMyRequests({ page: 1, limit: 1 }),
         enabled: Boolean(token),
         refetchOnWindowFocus: true,
-        refetchInterval: 5_000,
+        refetchInterval: (query) => {
+            if (query.state.error) return false;
+            return 5_000;
+        },
         staleTime: 0,
     });
 

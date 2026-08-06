@@ -1,16 +1,20 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { getSettingGeneral, updateSettingGeneral } from "../../../api/setting.api";
 import { toast } from "react-toastify";
+import { ConfigType } from "../../../features/system-config/types/system-config";
+import { SYSTEM_CONFIG_KEYS } from "../../../features/system-config/hooks/useSystemConfig";
+import { SettingGeneralFormValues } from "../../../schemas/setting.schema";
+import {
+    fetchGeneralSettings,
+    saveGeneralSettings,
+} from "../services/generalSettingService";
 
 export const useSettingGeneral = () => {
     return useQuery({
-        queryKey: ["setting-general"],
-        queryFn: async () => {
-            const res = await getSettingGeneral();
-            return res.data;
-        }
+        queryKey: [...SYSTEM_CONFIG_KEYS.list(ConfigType.GENERAL_SETTING), 'general-form'],
+        queryFn: fetchGeneralSettings,
+        select: (data) => data.form,
     });
 };
 
@@ -18,17 +22,19 @@ export const useUpdateSettingGeneral = () => {
     const queryClient = useQueryClient();
 
     return useMutation({
-        mutationFn: (data: any) => updateSettingGeneral(data),
+        mutationFn: async (form: SettingGeneralFormValues) => {
+            const fresh = await fetchGeneralSettings();
+            await saveGeneralSettings(form, fresh.configs);
+        },
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ["setting-general"] });
+            queryClient.invalidateQueries({ queryKey: SYSTEM_CONFIG_KEYS.all });
+            queryClient.invalidateQueries({ queryKey: ["public-system-config"] });
             toast.success("Cập nhật cài đặt thành công!");
         },
-        onError: () => {
-            toast.error("Cập nhật cài đặt thất bại!");
-        }
+        onError: (error: unknown) => {
+            const message =
+                error instanceof Error ? error.message : "Cập nhật cài đặt thất bại!";
+            toast.error(message);
+        },
     });
 };
-
-
-
-

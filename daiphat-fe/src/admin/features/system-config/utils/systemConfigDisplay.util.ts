@@ -97,5 +97,16 @@ export const formatSystemConfigDisplayValue = (
         }
     }
 
+    if (configKey === 'VENDOR_LATE_RETURN_POLICY') {
+        const labels: Record<string, string> = {
+            FORFEIT_DEPOSIT: 'Tịch thu tiền cọc',
+            FORCE_PURCHASE_ALL: 'Ép mua toàn bộ vé',
+        };
+        return {
+            summary: labels[rawValue] ? `${labels[rawValue]} (${rawValue})` : rawValue,
+            isStructured: false,
+        };
+    }
+
     return { summary: rawValue, isStructured: false };
 };

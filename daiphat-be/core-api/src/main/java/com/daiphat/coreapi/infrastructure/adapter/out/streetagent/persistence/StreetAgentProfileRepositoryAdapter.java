@@ -11,6 +11,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
 
+import java.util.List;
 import java.util.Optional;
 
 @Component
@@ -24,6 +25,12 @@ public class StreetAgentProfileRepositoryAdapter implements StreetAgentProfileRe
     public Optional<StreetAgentProfileModel> findById(Long id) {
         return streetAgentProfileRepository.findById(id)
                 .filter(entity -> entity.getDeletedAt() == null)
+                .map(streetAgentProfilePersistenceMapper::toDomain);
+    }
+
+    @Override
+    public Optional<StreetAgentProfileModel> findByIdForUpdate(Long id) {
+        return streetAgentProfileRepository.findByIdForUpdate(id)
                 .map(streetAgentProfilePersistenceMapper::toDomain);
     }
 
@@ -55,24 +62,31 @@ public class StreetAgentProfileRepositoryAdapter implements StreetAgentProfileRe
 
     @Override
     public Page<StreetAgentProfileModel> findAll(
-            Pageable pageable, String search, StreetAgentProfileStatus status) {
+            Pageable pageable,
+            String search,
+            List<StreetAgentProfileStatus> statuses,
+            List<String> contactProvinces) {
         String normalizedSearch = normalizeSearch(search);
         return streetAgentProfileRepository.findAll(
-                        StreetAgentProfileSpecification.filter(normalizedSearch, status),
+                        StreetAgentProfileSpecification.filter(normalizedSearch, statuses, contactProvinces),
                         pageable)
                 .map(streetAgentProfilePersistenceMapper::toDomain);
     }
 
     @Override
-    public long countAll(String search) {
+    public long countAll(String search, List<String> contactProvinces) {
         return streetAgentProfileRepository.count(
-                StreetAgentProfileSpecification.filter(normalizeSearch(search), null));
+                StreetAgentProfileSpecification.filter(normalizeSearch(search), null, contactProvinces));
     }
 
     @Override
-    public long countByStatus(StreetAgentProfileStatus status, String search) {
+    public long countByStatus(
+            StreetAgentProfileStatus status, String search, List<String> contactProvinces) {
         return streetAgentProfileRepository.count(
-                StreetAgentProfileSpecification.filter(normalizeSearch(search), status));
+                StreetAgentProfileSpecification.filter(
+                        normalizeSearch(search),
+                        List.of(status),
+                        contactProvinces));
     }
 
     private static String normalizeSearch(String search) {

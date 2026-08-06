@@ -6,6 +6,8 @@ import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketStatus;
 import lombok.*;
 
 import java.math.BigDecimal;
+import com.daiphat.coreapi.shared.util.DrawScheduleUtils;
+
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -80,13 +82,13 @@ public class LotteryTicketModel {
             return false;
         }
 
-        LocalDate today = LocalDate.now();
+        LocalDate today = DrawScheduleUtils.today();
         if (this.drawDate.isBefore(today)) {
             return true;
         }
         return cutoffTime != null
                 && this.drawDate.isEqual(today)
-                && LocalTime.now().isAfter(cutoffTime);
+                && !DrawScheduleUtils.nowTime().isBefore(cutoffTime);
     }
 
 

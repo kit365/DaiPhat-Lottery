@@ -53,6 +53,9 @@ const ClientChangePasswordPage = lazy(() => import("../features/users/components
 const StreetAgentListPage = lazy(() => import("../features/street-agent/components/pages/StreetAgentListPage").then(m => ({ default: m.StreetAgentListPage })));
 const StreetAgentCreatePage = lazy(() => import("../features/street-agent/components/pages/StreetAgentCreatePage").then(m => ({ default: m.StreetAgentCreatePage })));
 const StreetAgentEditPage = lazy(() => import("../features/street-agent/components/pages/StreetAgentEditPage").then(m => ({ default: m.StreetAgentEditPage })));
+const LuckyPatternConfigPage = lazy(() => import("../features/street-agent/components/pages/LuckyPatternConfigPage").then(m => ({ default: m.LuckyPatternConfigPage })));
+const VendorAllocationPage = lazy(() => import("../features/street-agent/components/pages/VendorAllocationPage").then(m => ({ default: m.VendorAllocationPage })));
+const VendorAllocationBatchListPage = lazy(() => import("../features/street-agent/components/pages/VendorAllocationBatchListPage").then(m => ({ default: m.VendorAllocationBatchListPage })));
 const SettingsPage = lazy(() => import("../pages/settings/SettingsPage").then(m => ({ default: m.SettingsPage })));
 const SystemConfigListPage = lazy(() => import("../features/system-config/components/pages/SystemConfigListPage").then(m => ({ default: m.SystemConfigListPage })));
 const GeneralStatisticsPage = lazy(() => import("../pages/dashboard/statistics/GeneralStatisticsPage").then(m => ({ default: m.GeneralStatisticsPage })));
@@ -159,6 +162,9 @@ export const AdminRoutes: AdminRouteItem[] = [
     { path: "street-agent/list", permission: PERMISSIONS.STREET_AGENT.VIEW, Component: StreetAgentListPage },
     { path: "street-agent/create", permission: PERMISSIONS.STREET_AGENT.CREATE, Component: StreetAgentCreatePage },
     { path: "street-agent/edit/:id", permission: PERMISSIONS.STREET_AGENT.EDIT, Component: StreetAgentEditPage },
+    { path: "street-agent/lucky-patterns", permission: PERMISSIONS.STREET_AGENT.VIEW, Component: LuckyPatternConfigPage },
+    { path: "street-agent/allocation", permission: PERMISSIONS.STREET_AGENT.VIEW, Component: VendorAllocationPage },
+    { path: "street-agent/allocation/batches", permission: PERMISSIONS.STREET_AGENT.VIEW, Component: VendorAllocationBatchListPage },
     { path: "order/list", permission: PERMISSIONS.ORDER.VIEW, Component: OrderListPage },
     { path: "order/create-counter", permission: PERMISSIONS.ORDER.CREATE, Component: CounterOrderCreatePage },
     { path: "order/detail/:id", permission: PERMISSIONS.ORDER.VIEW, Component: OrderDetailPage },

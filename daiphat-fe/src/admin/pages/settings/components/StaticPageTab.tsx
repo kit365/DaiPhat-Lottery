@@ -7,34 +7,35 @@ import { settingPageSchema, SettingPageFormValues } from "../../../schemas/setti
 import { useSettingPage, useUpdateSettingPage } from "../hooks/useSettings";
 import { useEffect } from "react";
 import { Tiptap } from "../../../components/layouts/titap/Tiptap";
+import { StaticPageConfigKey } from "../services/staticPageService";
 
 interface StaticPageTabProps {
-    pageKey: string;
+    configKey: StaticPageConfigKey;
     label: string;
 }
 
-export const StaticPageTab = ({ pageKey, label }: StaticPageTabProps) => {
-    const { data: pageData, isLoading } = useSettingPage(pageKey);
-    const { mutate: updatePage, isPending } = useUpdateSettingPage(pageKey);
+export const StaticPageTab = ({ configKey, label }: StaticPageTabProps) => {
+    const { data: pageData, isLoading, isError, error } = useSettingPage(configKey);
+    const { mutate: updatePage, isPending } = useUpdateSettingPage(configKey);
 
     const {
         control,
         handleSubmit,
         reset,
-        formState: { errors }
+        formState: { errors },
     } = useForm<SettingPageFormValues>({
         resolver: zodResolver(settingPageSchema),
         defaultValues: {
             title: "",
-            content: ""
-        }
+            content: "",
+        },
     });
 
     useEffect(() => {
         if (pageData) {
             reset({
                 title: pageData.title || "",
-                content: pageData.content || ""
+                content: pageData.content || "",
             });
         }
     }, [pageData, reset]);
@@ -44,11 +45,23 @@ export const StaticPageTab = ({ pageKey, label }: StaticPageTabProps) => {
     };
 
     if (isLoading) return <Typography>Đang tải...</Typography>;
+    if (isError) {
+        return (
+            <Typography color="error">
+                {error instanceof Error ? error.message : "Không tải được nội dung trang."}
+            </Typography>
+        );
+    }
 
     return (
         <Box component="form" onSubmit={handleSubmit(onSubmit)}>
             <Card sx={{ p: 3, borderRadius: "16px", boxShadow: "var(--customShadows-card)" }}>
-                <Typography variant="h6" sx={{ mb: 3, fontWeight: 700 }}>{label}</Typography>
+                <Typography variant="h6" sx={{ mb: 1, fontWeight: 700 }}>
+                    {label}
+                </Typography>
+                <Typography variant="body2" sx={{ mb: 3, color: "text.secondary" }}>
+                    Lưu vào system_config (<code>{configKey}</code> · STATIC_PAGE).
+                </Typography>
 
                 <Stack spacing={3}>
                     <Controller
@@ -73,16 +86,14 @@ export const StaticPageTab = ({ pageKey, label }: StaticPageTabProps) => {
                             name="content"
                             control={control}
                             render={({ field }) => (
-                                <Tiptap
-                                    value={field.value}
-                                    onChange={field.onChange}
-                                />
+                                <Tiptap value={field.value} onChange={field.onChange} />
                             )}
                         />
                     </Box>
 
                     <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
-                        <Button className="btn-primary-admin"
+                        <Button
+                            className="btn-primary-admin"
                             type="submit"
                             variant="contained"
                             disabled={isPending}
@@ -95,12 +106,11 @@ export const StaticPageTab = ({ pageKey, label }: StaticPageTabProps) => {
                                 textTransform: "none",
                                 "&:hover": {
                                     background: "#454F5B",
-                                }
+                                },
                             }}
                         >
-                            {isPending ? "Đang lưu..." : `Cập nhật`}
+                            {isPending ? "Đang lưu..." : "Cập nhật"}
                         </Button>
-
                     </Box>
                 </Stack>
             </Card>

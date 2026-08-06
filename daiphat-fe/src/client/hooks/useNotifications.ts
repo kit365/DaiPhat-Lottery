@@ -25,7 +25,10 @@ export const useNotifications = (limit: number = DEFAULT_LIMIT) => {
         staleTime: 5_000,
         gcTime: 1000 * 60 * 5,
         retry: false,
-        refetchInterval: CLIENT_NOTIFICATION_REFETCH_INTERVAL_MS,
+        refetchInterval: (query) => {
+            if (query.state.error) return false;
+            return CLIENT_NOTIFICATION_REFETCH_INTERVAL_MS;
+        },
         refetchIntervalInBackground: false,
         refetchOnWindowFocus: true,
         getNextPageParam: (lastPage) => {

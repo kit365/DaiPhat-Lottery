@@ -259,21 +259,24 @@ apiApp.interceptors.response.use(
                     break;
                 }
                 case 403:
-                    AppToast.error(message);
+                    AppToast.error(message, { toastId: `api-error-403-${message}` });
                     break;
                 case 400:
                 case 422:
                 case 429:
-                    AppToast.error(message);
+                    AppToast.error(message, { toastId: `api-error-${status}-${message}` });
                     break;
                 case 404:
-                    AppToast.error("Không tìm thấy tài nguyên yêu cầu!");
+                    AppToast.error("Không tìm thấy tài nguyên yêu cầu!", { toastId: "api-error-404" });
                     break;
                 case 500:
-                    AppToast.error("Lỗi hệ thống! Vui lòng thử lại sau.");
+                case 502:
+                case 503:
+                case 504:
+                    AppToast.error("Máy chủ đang bảo trì hoặc quá tải. Vui lòng thử lại sau!", { toastId: "api-server-error" });
                     break;
                 default:
-                    AppToast.error(message);
+                    AppToast.error(message, { toastId: `api-error-default-${message}` });
                     console.warn(`[API Error] ${status}: ${message}`);
             }
         } else if (!skipToast) {

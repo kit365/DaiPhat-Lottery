@@ -29,6 +29,10 @@ const getTypeChipColor = (
   type: ConfigType
 ): 'default' | 'primary' | 'secondary' | 'warning' | 'error' | 'info' | 'success' => {
   switch (type) {
+    case ConfigType.GENERAL_SETTING:
+      return 'default';
+    case ConfigType.STATIC_PAGE:
+      return 'default';
     case ConfigType.ORDER_SETTING:
       return 'primary';
     case ConfigType.PAYMENT_SETTING:
@@ -37,6 +41,8 @@ const getTypeChipColor = (
       return 'warning';
     case ConfigType.TICKET_RETURN:
       return 'warning';
+    case ConfigType.VENDOR_SETTING:
+      return 'info';
     case ConfigType.REFUND_SETTING:
       return 'secondary';
     case ConfigType.COMPLAINT_SETTING:
