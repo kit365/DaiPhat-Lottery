@@ -393,34 +393,47 @@ class _ComplaintDetailViewState extends ConsumerState<ComplaintDetailView> {
         onTap = null;
         break;
     }
+    final displayId = refId.length > 8
+        ? '#${refId.substring(0, 8).toUpperCase()}'
+        : '#$refId';
+
     return Row(
       children: [
         Text('${refType.label}: ',
             style: GoogleFonts.publicSans(
                 fontSize: 13, color: AppColors.textMuted)),
         const SizedBox(width: 4),
-        GestureDetector(
-          onTap: onTap,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF0F5FF),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text('#$refId',
-                    style: GoogleFonts.publicSans(
+        Flexible(
+          child: GestureDetector(
+            onTap: onTap,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF0F5FF),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Flexible(
+                    child: Text(
+                      displayId,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.publicSans(
                         fontSize: 13,
                         fontWeight: FontWeight.w700,
-                        color: const Color(0xFF2065D1))),
-                if (onTap != null) ...[
-                  const SizedBox(width: 4),
-                  const Icon(Icons.open_in_new_rounded,
-                      size: 13, color: Color(0xFF2065D1)),
+                        color: const Color(0xFF2065D1),
+                      ),
+                    ),
+                  ),
+                  if (onTap != null) ...[
+                    const SizedBox(width: 4),
+                    const Icon(Icons.open_in_new_rounded,
+                        size: 13, color: Color(0xFF2065D1)),
+                  ],
                 ],
-              ],
+              ),
             ),
           ),
         ),
@@ -470,7 +483,7 @@ class _ComplaintDetailViewState extends ConsumerState<ComplaintDetailView> {
           iconBg: const Color(0xFF637381),
           icon: Icons.lock_rounded,
           title: 'Đã đóng',
-          subtitle: 'Khiếu nại đã được giải quyết và đóng.',
+          subtitle: 'Khiếu nại đã được đóng.',
         );
       case TicketStatus.rejected:
         return _banner(

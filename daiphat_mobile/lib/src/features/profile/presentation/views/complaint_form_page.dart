@@ -1,15 +1,19 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 
+import 'package:daiphat_mobile/src/features/checkout/presentation/providers/checkout_provider.dart';
 import 'package:daiphat_mobile/src/features/profile/data/models/support_ticket.dart';
 import 'package:daiphat_mobile/src/features/profile/data/support_ticket_service.dart';
+import 'package:daiphat_mobile/src/features/profile/presentation/providers/profile_providers.dart';
+import 'package:daiphat_mobile/src/features/profile/presentation/widgets/complaint_ref_picker_sheet.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
 
 /// Trang tạo mới / chỉnh sửa một khiếu nại (hỗ trợ).
-class ComplaintFormPage extends StatefulWidget {
+class ComplaintFormPage extends ConsumerStatefulWidget {
   final SupportTicketService service;
   final SupportTicketResponse? editingTicket;
 
@@ -20,10 +24,10 @@ class ComplaintFormPage extends StatefulWidget {
   });
 
   @override
-  State<ComplaintFormPage> createState() => _ComplaintFormPageState();
+  ConsumerState<ComplaintFormPage> createState() => _ComplaintFormPageState();
 }
 
-class _ComplaintFormPageState extends State<ComplaintFormPage> {
+class _ComplaintFormPageState extends ConsumerState<ComplaintFormPage> {
   final _titleController = TextEditingController();
   final _descController = TextEditingController();
   final _refController = TextEditingController();
@@ -31,6 +35,9 @@ class _ComplaintFormPageState extends State<ComplaintFormPage> {
   List<TicketCategoryResponse> _categories = const [];
   TicketCategoryResponse? _selectedCategory;
   XFile? _attachment;
+
+  String? _selectedRefId;
+  String? _selectedRefLabel;
 
   bool _loadingCategories = true;
   bool _submitting = false;
@@ -46,6 +53,13 @@ class _ComplaintFormPageState extends State<ComplaintFormPage> {
       _titleController.text = editing.title;
       _descController.text = editing.description;
       _refController.text = editing.refId ?? '';
+      _selectedRefId = editing.refId;
+      if (editing.refId != null) {
+        final id = editing.refId!;
+        _selectedRefLabel = id.length > 8
+            ? '#${id.substring(0, 8).toUpperCase()}'
+            : '#$id';
+      }
     }
     _loadCategories();
   }
@@ -105,7 +119,32 @@ class _ComplaintFormPageState extends State<ComplaintFormPage> {
 
   TicketRefType? get _requiredRefType => _selectedCategory?.requiredRefType;
 
+  bool get _usesPicker =>
+      _requiredRefType == TicketRefType.order ||
+      _requiredRefType == TicketRefType.refundRequest ||
+      _requiredRefType == TicketRefType.prizeClaim;
+
   bool get _evidenceRequired => _selectedCategory?.code == 'PAYMENT_SYNC_ERROR';
+
+  Future<void> _openRefPicker() async {
+    final refType = _requiredRefType;
+    if (refType == null) return;
+    final result = await showComplaintRefPicker(
+      context: context,
+      refType: refType,
+      orderService: ref.read(orderServiceProvider),
+      refundService: ref.read(refundServiceProvider),
+      prizePayoutService: ref.read(prizePayoutServiceProvider),
+      selectedId: _selectedRefId,
+    );
+    if (result != null && mounted) {
+      setState(() {
+        _selectedRefId = result.id;
+        _selectedRefLabel = result.displayLabel;
+        _refController.text = result.id;
+      });
+    }
+  }
 
   String? _validate() {
     if (_selectedCategory == null) return 'Vui lòng chọn danh mục khiếu nại';
@@ -115,8 +154,15 @@ class _ComplaintFormPageState extends State<ComplaintFormPage> {
     if (_descController.text.trim().isEmpty) {
       return 'Vui lòng nhập mô tả chi tiết';
     }
-    if (_requiredRefType != null && _refController.text.trim().isEmpty) {
-      return 'Vui lòng nhập mã ${_requiredRefType!.label.toLowerCase()}';
+    if (_requiredRefType != null) {
+      final refValue = _usesPicker
+          ? (_selectedRefId ?? '').trim()
+          : _refController.text.trim();
+      if (refValue.isEmpty) {
+        return _usesPicker
+            ? 'Vui lòng chọn ${_requiredRefType!.label.toLowerCase()}'
+            : 'Vui lòng nhập mã ${_requiredRefType!.label.toLowerCase()}';
+      }
     }
     if (_evidenceRequired &&
         _attachment == null &&
@@ -137,11 +183,16 @@ class _ComplaintFormPageState extends State<ComplaintFormPage> {
     setState(() => _submitting = true);
     try {
       final refType = _requiredRefType;
+      final refId = refType == null
+          ? null
+          : (_usesPicker
+              ? _selectedRefId!.trim()
+              : _refController.text.trim());
       final data = SupportTicketFormData(
         ticketCategoryId: _selectedCategory!.id,
         title: _titleController.text.trim(),
         description: _descController.text.trim(),
-        refId: refType != null ? _refController.text.trim() : null,
+        refId: refId,
         refType: refType?.value,
       );
       final SupportTicketResponse result;
@@ -241,7 +292,10 @@ class _ComplaintFormPageState extends State<ComplaintFormPage> {
               isExpanded: true,
               value: _selectedCategory,
               hint: Text('Chọn danh mục...',
-                  style: GoogleFonts.publicSans(fontSize: 14)),
+                  style: GoogleFonts.publicSans(
+                    fontSize: 14,
+                    color: AppColors.loginPlaceholder,
+                  )),
               items: _categories
                   .map(
                     (c) => DropdownMenuItem(
@@ -252,12 +306,13 @@ class _ComplaintFormPageState extends State<ComplaintFormPage> {
                     ),
                   )
                   .toList(),
-              // Danh mục cố định khi chỉnh sửa (giống web).
               onChanged: _isEditing
                   ? null
                   : (v) => setState(() {
                         _selectedCategory = v;
                         _refController.clear();
+                        _selectedRefId = null;
+                        _selectedRefLabel = null;
                       }),
             ),
           ),
@@ -275,13 +330,16 @@ class _ComplaintFormPageState extends State<ComplaintFormPage> {
           const SizedBox(height: 16),
           _label('${_requiredRefType!.label} *'),
           const SizedBox(height: 6),
-          TextField(
-            controller: _refController,
-            style: GoogleFonts.publicSans(fontSize: 14),
-            decoration: _inputDecoration(
-              'Nhập mã ${_requiredRefType!.label.toLowerCase()}',
+          if (_usesPicker)
+            _buildRefPickerField()
+          else
+            TextField(
+              controller: _refController,
+              style: GoogleFonts.publicSans(fontSize: 14),
+              decoration: _inputDecoration(
+                'Nhập mã ${_requiredRefType!.label.toLowerCase()}',
+              ),
             ),
-          ),
         ],
         const SizedBox(height: 16),
         _label('Tiêu đề *'),
@@ -315,6 +373,57 @@ class _ComplaintFormPageState extends State<ComplaintFormPage> {
         const SizedBox(height: 8),
         _buildAttachment(),
       ],
+    );
+  }
+
+  Widget _buildRefPickerField() {
+    final hasValue = _selectedRefId != null && _selectedRefId!.isNotEmpty;
+    return InkWell(
+      onTap: _isEditing ? null : _openRefPicker,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+        decoration: BoxDecoration(
+          color: _isEditing ? const Color(0xFFF4F6F8) : Colors.white,
+          border: Border.all(color: const Color(0xFFE5E8EB)),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                hasValue
+                    ? (_selectedRefLabel ?? '#$_selectedRefId')
+                    : 'Chọn ${_requiredRefType!.label.toLowerCase()}...',
+                style: GoogleFonts.publicSans(
+                  fontSize: 14,
+                  fontWeight: hasValue ? FontWeight.w700 : FontWeight.w400,
+                  color: hasValue
+                      ? AppColors.textMain
+                      : AppColors.loginPlaceholder,
+                ),
+              ),
+            ),
+            if (!_isEditing)
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF4F6F8),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  hasValue ? 'Thay đổi' : 'Chọn',
+                  style: GoogleFonts.publicSans(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: const Color(0xFF454F5B),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -443,6 +552,10 @@ class _ComplaintFormPageState extends State<ComplaintFormPage> {
 
   InputDecoration _inputDecoration(String hint) => InputDecoration(
         hintText: hint,
+        hintStyle: GoogleFonts.publicSans(
+          fontSize: 14,
+          color: AppColors.loginPlaceholder,
+        ),
         isDense: true,
         filled: true,
         fillColor: Colors.white,
