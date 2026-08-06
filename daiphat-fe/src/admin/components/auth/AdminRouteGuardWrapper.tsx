@@ -2,7 +2,6 @@
 
 import React, { Suspense } from 'react';
 import { usePathname } from 'next/navigation';
-import { LoadingSpinner } from '@/client/components/ui/LoadingSpinner';
 import { AuthGuard } from './AuthGuard';
 import { LayoutAdmin } from '@/admin/layouts/LayoutAdmin';
 
@@ -11,7 +10,7 @@ export function AdminRouteGuardWrapper({ children }: { children: React.ReactNode
   const isAuthPage = pathname?.startsWith('/admin/auth');
 
   return (
-    <Suspense fallback={<LoadingSpinner />}>
+    <Suspense fallback={null}>
       {isAuthPage ? (
         children
       ) : (

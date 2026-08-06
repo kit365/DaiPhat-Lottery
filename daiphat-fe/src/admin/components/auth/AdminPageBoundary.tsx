@@ -3,7 +3,6 @@
 import React, { useMemo } from 'react';
 import dynamic from 'next/dynamic';
 import { PermissionGuard } from './PermissionGuard';
-import { LoadingSpinner } from '@/client/components/ui/LoadingSpinner';
 
 interface AdminPageBoundaryProps {
   permission?: string;
@@ -30,11 +29,7 @@ export function AdminPageBoundary({ permission, permissions, loader, exportName 
           }),
         {
           ssr: false,
-          loading: () => (
-            <div className="flex items-center justify-center p-12 min-h-[300px]">
-              <LoadingSpinner />
-            </div>
-          ),
+          loading: () => null,
         }
       );
       componentCache.set(cacheKey, comp);
