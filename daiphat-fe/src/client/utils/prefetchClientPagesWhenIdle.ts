@@ -40,7 +40,15 @@ export const prefetchClientPagesWhenIdle = (
   let startHandle: ReturnType<typeof setTimeout> | null = null;
 
   const run = async () => {
-    for (const path of CLIENT_PREFETCH_ROUTE_PRIORITY) {
+    const [firstRoute, ...remainingRoutes] = CLIENT_PREFETCH_ROUTE_PRIORITY;
+
+    // Ưu tiên /tickets ngay — prefetch JS route không chờ idle (tránh click sớm vẫn thấy load lâu).
+    if (firstRoute) {
+      prefetchRoute(firstRoute);
+      await prefetchImagesParallel(getClientBannerUrlsForPath(firstRoute));
+    }
+
+    for (const path of remainingRoutes) {
       if (cancelled) {
         return;
       }
