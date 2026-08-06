@@ -411,7 +411,7 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
                 children: [
                   Expanded(
                     child: Text(
-                      'Ví của tôi',
+                      'Vé của tôi',
                       style: GoogleFonts.publicSans(
                         fontSize: 16,
                         fontWeight: FontWeight.w700,
@@ -651,10 +651,7 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
                 onTap: () => context.push(AppRoute.notifications.path),
               ),
               const SizedBox(width: 10),
-              _buildUtilityItemIcon(
-                Icons.auto_fix_high,
-                'Gieo quẻ',
-              ),
+              _buildUtilityItemIcon(Icons.auto_fix_high, 'Gieo quẻ'),
               const SizedBox(width: 10),
               _buildUtilityItemIcon(
                 Icons.calendar_month_outlined,
