@@ -19,6 +19,7 @@ enum AppRoute {
   prizePayoutDetail,
   complaints,
   complaintDetail,
+  bankAccounts,
   notifications,
   myTickets,
   myTicketDetail,
@@ -69,6 +70,8 @@ extension AppRouteDefinition on AppRoute {
         return '/profile/complaints';
       case AppRoute.complaintDetail:
         return '/profile/complaints/:id';
+      case AppRoute.bankAccounts:
+        return '/profile/bank-accounts';
       case AppRoute.notifications:
         return '/notifications';
       case AppRoute.myTickets:
@@ -124,6 +127,8 @@ extension AppRouteDefinition on AppRoute {
         return 'complaints';
       case AppRoute.complaintDetail:
         return 'complaint_detail';
+      case AppRoute.bankAccounts:
+        return 'bank_accounts';
       case AppRoute.notifications:
         return 'notifications';
       case AppRoute.myTickets:
@@ -157,6 +162,7 @@ extension AppRouteDefinition on AppRoute {
       case AppRoute.prizePayoutDetail:
       case AppRoute.complaints:
       case AppRoute.complaintDetail:
+      case AppRoute.bankAccounts:
       case AppRoute.notifications:
       case AppRoute.myTickets:
       case AppRoute.myTicketDetail:

@@ -617,6 +617,11 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
             Icons.emoji_events_outlined,
             'Yêu cầu trả thưởng',
             onTap: () => context.push(AppRoute.prizePayouts.path),
+          ),
+          _buildListItem(
+            Icons.account_balance_outlined,
+            'Tài khoản ngân hàng',
+            onTap: () => context.push(AppRoute.bankAccounts.path),
             showDivider: false,
           ),
         ],

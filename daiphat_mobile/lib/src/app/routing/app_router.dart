@@ -20,6 +20,7 @@ import 'package:daiphat_mobile/src/features/profile/presentation/views/profile_e
 import 'package:daiphat_mobile/src/features/profile/presentation/views/profile_detail_view.dart';
 import 'package:daiphat_mobile/src/features/notifications/presentation/views/notification_view.dart';
 import 'package:daiphat_mobile/src/features/notifications/presentation/viewmodels/notification_viewmodel.dart';
+import 'package:daiphat_mobile/src/features/profile/presentation/views/bank_accounts_view.dart';
 import 'package:daiphat_mobile/src/features/profile/presentation/views/my_orders_view.dart';
 import 'package:daiphat_mobile/src/features/profile/presentation/views/my_tickets_view.dart';
 import 'package:daiphat_mobile/src/features/profile/presentation/views/my_ticket_detail_view.dart';
@@ -301,6 +302,14 @@ GoRouter createAppRouter({
         profileViewModel,
         notificationViewModel,
       ),
+      _route(
+        AppRoute.bankAccounts,
+        loginViewModel,
+        registerViewModel,
+        forgotPasswordViewModel,
+        profileViewModel,
+        notificationViewModel,
+      ),
     ],
   );
 }
@@ -408,6 +417,8 @@ Widget _buildRoute(
       );
     case AppRoute.notifications:
       return NotificationView(viewModel: notificationViewModel);
+    case AppRoute.bankAccounts:
+      return const BankAccountsView();
     case AppRoute.myTickets:
       return const MyTicketsView();
     case AppRoute.myTicketDetail:
