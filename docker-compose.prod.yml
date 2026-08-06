@@ -113,6 +113,9 @@ services:
       dev.dozzle.name: Frontend
     environment:
       BACKEND_UPSTREAM: backend
+      # Keep V8 heap comfortably under mem_limit so Node exits gracefully
+      # instead of being hard OOM-killed by the container cgroup.
+      NODE_OPTIONS: --max-old-space-size=400
     depends_on:
       backend:
         condition: service_healthy
@@ -121,7 +124,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 6
-    mem_limit: 128m
+    mem_limit: 512m
 
   nginx:
     image: nginx:stable-alpine

@@ -11,6 +11,7 @@ public enum DataType implements LabeledEnum {
     TIME("Thời gian (HH:mm)"),
     BOOLEAN("Boolean (true/false)"),
     DECIMAL("Số thập phân"),
+    STRING("Chuỗi"),
     JSON("JSON");
 
     private final String label;

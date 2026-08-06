@@ -6,6 +6,7 @@ import { Trash2, ChevronRight } from 'lucide-react';
 import { useCartStore, CartItem } from '../../../stores/useCartStore';
 import { useAuthStore } from '../../../stores/useAuthStore';
 import { Checkbox } from '../../components/ui/Checkbox';
+import { Breadcrumb } from '../../components/ui/Breadcrumb';
 import OrderSummary from './components/OrderSummary';
 import { CartQuantityControl } from './components/CartQuantityControl';
 import { validateAndSyncCartStock } from '../../utils/cartStock.util';
@@ -74,11 +75,13 @@ export const CartPage = () => {
             <div className="w-full mt-[70px] lg:mt-[80px] py-4 lg:py-6">
                 <div className="w-full max-w-[1440px] mx-auto px-4 lg:px-8">
                     <div className="flex flex-col">
-                        <div className="flex items-center gap-2 text-[13px] text-[#637381] mb-2 font-medium">
-                            <Link to="/" className="hover:text-[#ee1314] transition-colors">Trang chủ</Link>
-                            <ChevronRight size={14} />
-                            <span className="text-[#212B36] font-medium">Giỏ hàng</span>
-                        </div>
+                        <Breadcrumb
+                            items={[
+                                { label: 'Trang chủ', to: '/' },
+                                { label: 'Giỏ hàng' }
+                            ]}
+                            className="mb-2"
+                        />
                         <h1 className="client-heading mb-1 tracking-tight">Giỏ hàng</h1>
                         <p className="client-body">Kiểm tra lại vé số trước khi thanh toán</p>
                     </div>

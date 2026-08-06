@@ -155,6 +155,7 @@ if (typeof window !== 'undefined') {
     });
 }
 
+import { Breadcrumb } from '../../components/ui/Breadcrumb';
 export const BuyTicketPage = () => {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
@@ -821,7 +822,15 @@ export const BuyTicketPage = () => {
             className="min-h-screen font-client-main flex flex-col bg-fixed bg-cover bg-center"
             style={{ backgroundImage: 'url("https://i.ibb.co/BVFGYpL1/86f05f70-fcf8-445f-978e-a0539eb2f0de.png")' }}
         >
-            <main className="flex-1 w-full mt-[70px] lg:mt-[80px] max-w-[1440px] mx-auto px-4 lg:px-8 py-6 flex flex-col">
+            <main className="flex-1 w-full pt-[148px] pb-[100px] lg:pt-[100px] lg:pb-12 max-w-[1440px] mx-auto px-4 lg:px-8 flex flex-col">
+                <div className="mb-4">
+                    <Breadcrumb 
+                        items={[
+                            { label: 'Trang chủ', to: '/' },
+                            { label: 'Mua vé số' }
+                        ]} 
+                    />
+                </div>
                 <div className="flex flex-col xl:flex-row gap-5 flex-1 items-stretch">
 
                     {/* Main Content - Center Column */}

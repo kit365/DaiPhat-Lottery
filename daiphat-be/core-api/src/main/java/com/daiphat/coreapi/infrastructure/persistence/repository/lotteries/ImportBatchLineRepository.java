@@ -12,6 +12,8 @@ import java.util.Optional;
 
 public interface ImportBatchLineRepository extends JpaRepository<ImportBatchLineEntity, Long> {
 
+    Optional<ImportBatchLineEntity> findByBatchCodeAndDeletedAtIsNull(String batchCode);
+
     List<ImportBatchLineEntity> findByImportBatch_IdAndDeletedAtIsNull(Long importBatchId);
 
     Optional<ImportBatchLineEntity> findByImportBatch_IdAndLotteryStation_IdAndDeletedAtIsNotNull(

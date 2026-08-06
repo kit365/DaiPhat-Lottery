@@ -17,6 +17,7 @@ import OrderSummary from './components/OrderSummary';
 import { CartQuantityControl } from './components/CartQuantityControl';
 import { validateAndSyncCartStock } from '../../utils/cartStock.util';
 import { PaymentQrDialog } from '../../components/payment/PaymentQrDialog';
+import { Breadcrumb } from '../../components/ui/Breadcrumb';
 
 export const CheckoutPage = () => {
     const navigate = useNavigate();
@@ -330,13 +331,14 @@ export const CheckoutPage = () => {
             <div className="w-full mt-[70px] lg:mt-[80px] py-4 lg:py-6">
                 <div className="w-full max-w-[1440px] mx-auto px-4 lg:px-8">
                     <div className="flex flex-col">
-                        <div className="flex items-center gap-2 text-[13px] text-[#637381] mb-2 font-medium">
-                            <Link to="/" className="hover:text-[#ee1314] transition-colors">Trang chủ</Link>
-                            <ChevronRight size={14} />
-                            <Link to="/cart" className="hover:text-[#ee1314] transition-colors">Giỏ hàng</Link>
-                            <ChevronRight size={14} />
-                            <span className="text-[#212B36] font-medium">Thanh toán</span>
-                        </div>
+                        <Breadcrumb
+                            items={[
+                                { label: 'Trang chủ', to: '/' },
+                                { label: 'Giỏ hàng', to: '/cart' },
+                                { label: 'Thanh toán' }
+                            ]}
+                            className="mb-2"
+                        />
                         <div className="flex items-center gap-3">
                             <div>
                                 <h1 className="client-heading mb-1 tracking-tight">Thanh toán đơn hàng</h1>

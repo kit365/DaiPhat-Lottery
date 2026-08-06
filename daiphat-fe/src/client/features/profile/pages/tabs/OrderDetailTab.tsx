@@ -375,7 +375,7 @@ export const OrderDetailTab = () => {
 
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-2">
                 <div className="flex items-center gap-3">
-                    <h1 className="text-[20px] sm:text-[24px] font-bold text-[#212B36]">Chi tiết đơn hàng</h1>
+                    <h1 className="client-heading m-0">Chi tiết đơn hàng</h1>
                 </div>
                 <button
                     onClick={() => navigate('/profile/orders')}

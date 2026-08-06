@@ -15,7 +15,8 @@ public final class StreetAgentProfileSpecification {
 
     public static Specification<StreetAgentProfileEntity> filter(
             String search,
-            StreetAgentProfileStatus status
+            List<StreetAgentProfileStatus> statuses,
+            List<String> contactProvinces
     ) {
         return (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
@@ -33,8 +34,12 @@ public final class StreetAgentProfileSpecification {
                 ));
             }
 
-            if (status != null) {
-                predicates.add(cb.equal(root.get("status"), status));
+            if (statuses != null && !statuses.isEmpty()) {
+                predicates.add(root.get("status").in(statuses));
+            }
+
+            if (contactProvinces != null && !contactProvinces.isEmpty()) {
+                predicates.add(root.get("contactProvince").in(contactProvinces));
             }
 
             return cb.and(predicates.toArray(new Predicate[0]));

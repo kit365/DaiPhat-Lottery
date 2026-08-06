@@ -6,7 +6,7 @@ export const OverviewTab = () => {
         <div className="space-y-6">
             {/* Header Section */}
             <div className="mb-14">
-                <h1 className="text-[24px] font-black text-[#212B36] mb-1">Tổng quan tài khoản</h1>
+                <h1 className="client-heading m-0 mb-1">Tổng quan tài khoản</h1>
                 <p className="text-[14px] text-[#637381]">Chào mừng bạn trở lại, chúc bạn một ngày may mắn!</p>
             </div>
             {/* Stats Row */}

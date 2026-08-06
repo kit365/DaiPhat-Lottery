@@ -9,6 +9,7 @@ import { useNotifications } from "../../../hooks/useNotifications";
 import { useMyRefundPendingCount } from "../../../hooks/useMyRefundPendingCount";
 import { useMyPrizePayoutPendingCount } from "../../../hooks/usePrizePayout";
 import { useMySupportTicketActiveCount } from "../../../hooks/useMySupportTicketActiveCount";
+import { Breadcrumb } from "../../../../client/components/ui/Breadcrumb";
 
 type TabId = 'overview' | 'info' | 'tickets' | 'orders' | 'refunds' | 'prizePayouts' | 'complaints' | 'bankAccounts' | 'notifications' | 'resultNotifications' | 'settings' | 'favorites';
 
@@ -122,8 +123,17 @@ export const ProfilePage = () => {
                     }
                 }
             `}</style>
-            <div className="flex-1 w-full mt-[70px] lg:mt-[80px] profile-bg">
-                <main className="max-w-[1440px] mx-auto px-4 lg:px-6 pt-6 pb-12">
+            <div className="flex-1 w-full pt-[148px] lg:pt-[100px] pb-[100px] lg:pb-12 profile-bg">
+                <main className="max-w-[1440px] mx-auto px-4 lg:px-6">
+                    <div className="mb-4">
+                        <Breadcrumb 
+                            items={[
+                                { label: 'Trang chủ', to: '/' },
+                                { label: 'Tài khoản', to: '/profile/overview' },
+                                { label: activeTabObj.label }
+                            ]} 
+                        />
+                    </div>
 
                     {/* Main Content Grid */}
                     <div className="flex flex-col lg:flex-row gap-6 items-start">

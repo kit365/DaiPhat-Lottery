@@ -2,6 +2,7 @@ package com.daiphat.coreapi.infrastructure.persistence.entity.user;
 
 import com.daiphat.coreapi.infrastructure.persistence.entity.BaseEntity;
 import com.daiphat.coreapi.infrastructure.persistence.entity.auth.RoleEntity;
+import com.daiphat.coreapi.infrastructure.persistence.entity.streetagent.StreetAgentProfileEntity;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
@@ -67,6 +68,9 @@ public class UserEntity extends BaseEntity {
 
     @Column(name = "fcm_token", length = 255)
     private String fcmToken;
+
+    @OneToOne(mappedBy = "user", fetch = FetchType.LAZY)
+    private StreetAgentProfileEntity streetAgentProfile;
 
     // Security & Compliance flags
     @Column(name = "is_email_verified", nullable = false)

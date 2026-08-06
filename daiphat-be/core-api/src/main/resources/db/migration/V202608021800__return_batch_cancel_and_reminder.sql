@@ -16,7 +16,7 @@ INSERT INTO system_config (
 SELECT
     'RETURN_REMINDER_TIME',
     '15',
-    'TICKET_IMPORT',
+    'TICKET_RETURN',
     'INT',
     'Thời gian (phút) trước hạn trả vé NCC để nhắc khẩn kiểm tra phiếu trả',
     TRUE,
@@ -31,6 +31,7 @@ SET config_name = COALESCE(NULLIF(TRIM(config_name), ''), 'Nhắc kiểm tra tr�
     unit = COALESCE(unit, 'phút'),
     validation_rules = COALESCE(validation_rules, '{"min":1,"max":1440}'),
     is_editable = TRUE,
+    config_type = 'TICKET_RETURN',
     description = 'Thời gian (phút) trước hạn trả vé NCC để nhắc khẩn kiểm tra phiếu trả',
     config_value = COALESCE(NULLIF(TRIM(config_value), ''), '15'),
     is_active = TRUE,

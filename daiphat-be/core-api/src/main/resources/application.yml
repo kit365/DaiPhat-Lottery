@@ -6,6 +6,11 @@ spring:
   application:
 
     name: daiphat
+  flyway:
+    create-schemas: true
+    schemas:
+      - public
+    default-schema: public
   config:
     import: optional:classpath:chat/chat-schedule.yml,optional:classpath:chat/chat-intent.yml,optional:classpath:chat/chat-messages.yml
   threads:
@@ -32,6 +37,9 @@ springdoc:
     display-request-duration: true
 
 daiphat:
+  vendor:
+    test-seed:
+      enabled: ${VENDOR_TEST_SEED_ENABLED:false}
   firebase:
     project-id: ${FIREBASE_PROJECT_ID}
     private-key-id: ${FIREBASE_PRIVATE_KEY_ID}

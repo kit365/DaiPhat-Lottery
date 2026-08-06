@@ -4,11 +4,14 @@ import com.daiphat.coreapi.application.dto.request.streetagent.CreateStreetAgent
 import com.daiphat.coreapi.application.dto.request.streetagent.UpdateStreetAgentProfileRequest;
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.response.streetagent.StreetAgentProfileResponse;
+import com.daiphat.coreapi.application.dto.storage.UploadRequest;
 
 public interface StreetAgentProfileServicePort {
-    PageResponse<StreetAgentProfileResponse> getAll(int page, int limit, String search, String status);
+    PageResponse<StreetAgentProfileResponse> getAll(
+            int page, int limit, String search, String status, String contactProvince);
     StreetAgentProfileResponse getById(Long id);
     StreetAgentProfileResponse create(CreateStreetAgentProfileRequest request);
     StreetAgentProfileResponse update(Long id, UpdateStreetAgentProfileRequest request);
     void delete(Long id);
+    StreetAgentProfileResponse uploadSignedContractDocument(Long id, UploadRequest request);
 }

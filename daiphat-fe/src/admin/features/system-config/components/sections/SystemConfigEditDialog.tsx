@@ -32,6 +32,7 @@ import {
     CONFIG_DATA_TYPE_LABELS,
     CONFIG_TYPE_LABELS,
     ConfigDataType,
+    parseValidationRules,
     SystemConfigResponse,
 } from '../../types/system-config';
 import { CommissionTiersEditor } from './CommissionTiersEditor';
@@ -44,8 +45,31 @@ interface SystemConfigEditDialogProps {
     isPending: boolean;
 }
 
+const LATE_RETURN_POLICY_LABELS: Record<string, string> = {
+    FORFEIT_DEPOSIT: 'Tịch thu tiền cọc (FORFEIT_DEPOSIT)',
+    FORCE_PURCHASE_ALL: 'Ép mua toàn bộ vé (FORCE_PURCHASE_ALL)',
+};
+
 const isCommissionTiersConfig = (config: SystemConfigResponse) =>
     config.configKey === 'PRIZE_PAYOUT_COMMISSION_TIERS';
+
+const getAllowedValues = (config: SystemConfigResponse): string[] => {
+    const rules = parseValidationRules(config.validationRules);
+    return rules?.allowedValues?.filter(Boolean) ?? [];
+};
+
+const getNumericBounds = (config: SystemConfigResponse): { min?: number; max?: number; step?: number | string } => {
+    const rules = parseValidationRules(config.validationRules);
+    const min = typeof rules?.min === 'number' ? rules.min : undefined;
+    const max = typeof rules?.max === 'number' ? rules.max : undefined;
+    if (config.dataType === ConfigDataType.INT) {
+        return { min, max, step: 1 };
+    }
+    if (config.dataType === ConfigDataType.DECIMAL) {
+        return { min, max, step: 'any' };
+    }
+    return {};
+};
 
 const getValueFieldHelper = (config: SystemConfigResponse): string => {
     switch (config.dataType) {
@@ -56,7 +80,7 @@ const getValueFieldHelper = (config: SystemConfigResponse): string => {
                 ? 'Nhập dạng thập phân (ví dụ 0.10 = 10%)'
                 : 'Nhập số thập phân';
         case ConfigDataType.TIME:
-            return 'Định dạng HH:mm (ví dụ: 14:30)';
+            return 'Định dạng HH:mm (ví dụ: 17:00)';
         case ConfigDataType.BOOLEAN:
             return 'Chỉ nhận true hoặc false';
         case ConfigDataType.JSON:
@@ -256,37 +280,67 @@ export const SystemConfigEditDialog = ({
                                             />
                                         )}
                                     />
-                                ) : config.dataType === ConfigDataType.INT ? (
+                                ) : getAllowedValues(config).length > 0 ? (
                                     <Controller
                                         name="configValue"
                                         control={control}
                                         render={({ field, fieldState }) => (
                                             <TextField
                                                 {...field}
-                                                type="number"
+                                                select
                                                 label="Giá trị"
                                                 fullWidth
                                                 error={!!fieldState.error}
-                                                helperText={fieldState.error?.message || getValueFieldHelper(config)}
-                                                inputProps={{ step: 1 }}
-                                            />
+                                                helperText={fieldState.error?.message || 'Chọn một giá trị cho phép'}
+                                                SelectProps={{ native: true }}
+                                            >
+                                                {getAllowedValues(config).map((value) => (
+                                                    <option key={value} value={value}>
+                                                        {config.configKey === 'VENDOR_LATE_RETURN_POLICY'
+                                                            ? LATE_RETURN_POLICY_LABELS[value] || value
+                                                            : value}
+                                                    </option>
+                                                ))}
+                                            </TextField>
                                         )}
+                                    />
+                                ) : config.dataType === ConfigDataType.INT ? (
+                                    <Controller
+                                        name="configValue"
+                                        control={control}
+                                        render={({ field, fieldState }) => {
+                                            const bounds = getNumericBounds(config);
+                                            return (
+                                                <TextField
+                                                    {...field}
+                                                    type="number"
+                                                    label="Giá trị"
+                                                    fullWidth
+                                                    error={!!fieldState.error}
+                                                    helperText={fieldState.error?.message || getValueFieldHelper(config)}
+                                                    inputProps={bounds}
+                                                />
+                                            );
+                                        }}
                                     />
                                 ) : config.dataType === ConfigDataType.DECIMAL ? (
                                     <Controller
                                         name="configValue"
                                         control={control}
-                                        render={({ field, fieldState }) => (
-                                            <TextField
-                                                {...field}
-                                                type="number"
-                                                label="Giá trị"
-                                                fullWidth
-                                                error={!!fieldState.error}
-                                                helperText={fieldState.error?.message || getValueFieldHelper(config)}
-                                                inputProps={{ step: 'any' }}
-                                            />
-                                        )}
+                                        render={({ field, fieldState }) => {
+                                            const bounds = getNumericBounds(config);
+                                            return (
+                                                <TextField
+                                                    {...field}
+                                                    type="number"
+                                                    label="Giá trị"
+                                                    fullWidth
+                                                    error={!!fieldState.error}
+                                                    helperText={fieldState.error?.message || getValueFieldHelper(config)}
+                                                    inputProps={bounds}
+                                                />
+                                            );
+                                        }}
                                     />
                                 ) : config.dataType === ConfigDataType.BOOLEAN ? (
                                     <Controller

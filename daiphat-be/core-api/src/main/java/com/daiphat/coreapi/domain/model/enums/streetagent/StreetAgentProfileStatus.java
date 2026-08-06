@@ -9,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 @Getter
 @RequiredArgsConstructor
 public enum StreetAgentProfileStatus implements CodedLabeledEnum {
+    PENDING("PENDING", "Chờ hoàn thiện hợp đồng"),
     ACTIVE("ACTIVE", "Hoạt động"),
     INACTIVE("INACTIVE", "Ngưng hoạt động");
 
@@ -17,7 +18,7 @@ public enum StreetAgentProfileStatus implements CodedLabeledEnum {
 
     public static StreetAgentProfileStatus fromCode(String code) {
         if (code == null || code.isBlank()) {
-            return ACTIVE;
+            return PENDING;
         }
         for (StreetAgentProfileStatus status : values()) {
             if (status.code.equalsIgnoreCase(code.trim())) {

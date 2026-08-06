@@ -794,8 +794,8 @@ export const ChatWindow = ({ conversationId, onToggleDetails }: ChatWindowProps)
                         <Box sx={{ textAlign: 'center', mt: 4, opacity: 0.6 }}>
                             <Typography variant="body2">
                                 {activeConversation?.handoffSummary
-                                    ? 'Chưa có tin nhắn sau khi tiếp nhận. Đọc tóm tắt phía trên trước khi trả lời.'
-                                    : 'Chưa có tin nhắn.'}
+                                    ? 'Vui lòng đọc tóm tắt phía trên trước khi phản hồi.'
+                                    : 'Hãy bắt đầu cuộc trò chuyện.'}
                             </Typography>
                         </Box>
                     ) : (

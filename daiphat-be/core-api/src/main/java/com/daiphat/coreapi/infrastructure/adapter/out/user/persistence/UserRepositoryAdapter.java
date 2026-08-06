@@ -85,19 +85,19 @@ public class UserRepositoryAdapter implements UserRepositoryPort {
     }
 
     @Override
-    public Page<UserModel> findAll(Pageable pageable, String search, UserStatus status, List<String> roleIds) {
-        return userRepository.findAll(UserSpecification.filterUsers(search, status, roleIds), pageable)
+    public Page<UserModel> findAll(Pageable pageable, String search, List<UserStatus> statuses, List<String> roleIds) {
+        return userRepository.findAll(UserSpecification.filterUsers(search, statuses, roleIds), pageable)
                 .map(userPersistenceMapper::toDomainWithRolePermissions);
     }
 
     @Override
     public long countAll(String search, List<String> roleIds) {
-        return userRepository.count(UserSpecification.filterUsers(search, null, roleIds));
+        return userRepository.count(UserSpecification.filterUsers(search, List.of(), roleIds));
     }
 
     @Override
     public long countByStatus(UserStatus status, String search, List<String> roleIds) {
-        return userRepository.count(UserSpecification.filterUsers(search, status, roleIds));
+        return userRepository.count(UserSpecification.filterUsers(search, List.of(status), roleIds));
     }
 
     @Override

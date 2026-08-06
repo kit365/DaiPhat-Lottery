@@ -25,6 +25,8 @@ import { ROUTES, prefixAdmin } from "../../constants/routes";
 import { NotificationPopover } from "./NotificationPopover";
 import { STORAGE_KEYS } from "../../../constants/storage.constants";
 import Cookies from "js-cookie";
+import { useSiteBranding } from "@/client/hooks/useSiteBranding";
+import { SiteLogo } from "@/client/components/layout/SiteLogo";
 
 interface Props {
     window?: () => Window;
@@ -61,6 +63,7 @@ export const Header = () => {
     const { i18n } = useTranslation();
     const navigate = useNavigate();
     const { user, logout: logoutStore } = useAuthStore();
+    const { name: siteName } = useSiteBranding();
     const [anchorElLang, setAnchorElLang] = useState<HTMLButtonElement | null>(null);
     const [anchorElUser, setAnchorElUser] = useState<HTMLButtonElement | null>(null);
     const [hoveredItem, setHoveredItem] = useState<string | null>(null);
@@ -142,14 +145,12 @@ export const Header = () => {
                     }}
                 >
                     <div className="flex items-center gap-[8px] py-[4px]">
-                        <img
-                            src="https://pub-c5e31b5cdafb419fb247a8ac2e78df7a.r2.dev/public/assets/icons/workspaces/logo-1.webp"
-                            width={24}
-                            height={24}
-                            alt="DaiPhat"
-                            className="w-[24px] h-[24px] object-cover"
+                        <SiteLogo
+                            className="w-6 h-6 rounded"
+                            imgClassName="w-full h-full object-contain"
+                            alt={siteName}
                         />
-                        <span className="text-[0.875rem] font-[600] text-[#1c252e]">DaiPhat</span>
+                        <span className="text-[0.875rem] font-[600] text-[#1c252e]">{siteName}</span>
                     </div>
                     <Box className="flex items-center gap-[6px]">
                         <motion.div 

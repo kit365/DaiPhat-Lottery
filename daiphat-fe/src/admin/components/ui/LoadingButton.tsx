@@ -1,4 +1,5 @@
-import { Button, CircularProgress, ButtonProps, SxProps, Theme } from "@mui/material";
+import { Button, ButtonProps, SxProps, Theme } from "@mui/material";
+import { motion } from "framer-motion";
 
 interface LoadingButtonProps extends ButtonProps {
     loading?: boolean;
@@ -6,6 +7,21 @@ interface LoadingButtonProps extends ButtonProps {
     loadingLabel?: string;
     [key: string]: any;
 }
+
+const MiniSpinner = () => (
+    <div className="relative flex items-center justify-center mr-2">
+        <motion.div
+           animate={{ rotate: 360 }}
+           transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
+           style={{
+               width: 18, height: 18, borderRadius: '50%',
+               border: '2.5px solid currentColor',
+               borderTopColor: 'transparent',
+               opacity: 0.8
+           }}
+        />
+    </div>
+);
 
 export const LoadingButton = ({
     loading,
@@ -50,7 +66,7 @@ export const LoadingButton = ({
             disabled={loading || props.disabled}
             className={mergedClassName}
             sx={defaultSx}
-            startIcon={loading ? <CircularProgress size={18} color="inherit" /> : startIcon}
+            startIcon={loading ? <MiniSpinner /> : startIcon}
             {...props}
         >
             {loading ? loadingLabel || "Đang xử lý..." : label}

@@ -8,7 +8,7 @@ import {
 import { Link } from "@/components/router-compat"
 import { useForm, Controller } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { LogoAdmin } from "../../../assets/admin/logo"
+import { SiteLogo } from "@/client/components/layout/SiteLogo"
 import { SettingsIcon, EyeIcon, NoEyeIcon } from "../../assets/icons"
 import { adminTheme } from "../../config/theme"
 import { loginSchema, LoginFormValues } from "../../schemas/login.schema"
@@ -75,7 +75,7 @@ export const LoginPage = () => {
                             background: "transparent"
                         }}>
                         <Link to="/" className="inline-block w-[40px] h-[40px]">
-                            <LogoAdmin />
+                            <SiteLogo className="w-10 h-10 rounded" imgClassName="w-full h-full object-contain" />
                         </Link>
                         <Button
                             className="hover:scale-[1.04] hover:bg-admin-hoverIcon transition-all duration-150 ease-in-out"

@@ -39,6 +39,7 @@ public class SystemConfigSeeder {
         int inserted = 0;
         int reactivated = 0;
         int metadataUpdated = 0;
+        int defaultsFilled = 0;
 
         for (SystemConfigEnum enumConfig : SystemConfigEnum.values()) {
             String key = enumConfig.name();
@@ -69,6 +70,16 @@ public class SystemConfigSeeder {
                     metadataUpdated++;
                     changed = true;
                 }
+                // Fill blank values from enum defaults (e.g. newly added legal/contract fields).
+                String currentValue = dbConfig.getConfigValue();
+                String defaultValue = enumConfig.getDefaultValue();
+                if ((currentValue == null || currentValue.isBlank())
+                        && defaultValue != null
+                        && !defaultValue.isBlank()) {
+                    dbConfig.setConfigValue(defaultValue);
+                    defaultsFilled++;
+                    changed = true;
+                }
                 if (changed) {
                     configRepository.save(dbConfig);
                 }
@@ -85,10 +96,11 @@ public class SystemConfigSeeder {
         }
 
         log.info(
-                "System: Synchronized system_config with enum — inserted={}, reactivated={}, metadataUpdated={}, deactivated={}.",
+                "System: Synchronized system_config with enum — inserted={}, reactivated={}, metadataUpdated={}, defaultsFilled={}, deactivated={}.",
                 inserted,
                 reactivated,
                 metadataUpdated,
+                defaultsFilled,
                 deactivated
         );
     }

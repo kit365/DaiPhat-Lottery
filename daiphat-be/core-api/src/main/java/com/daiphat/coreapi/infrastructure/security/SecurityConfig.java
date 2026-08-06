@@ -75,6 +75,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET,
                                 AUTH + "/verify-email",
                                 AUTH + "/password-policy",
+                                ApiConstants.API_V1_PUBLIC + "/system-configs",
+                                ApiConstants.API_V1_PUBLIC + "/system-configs/**",
                                 ApiConstants.API_V1 + "/blogs/public",
                                 ApiConstants.API_V1 + "/blogs/public/**",
                                 ApiConstants.API_V1 + "/blogs/categories/public",

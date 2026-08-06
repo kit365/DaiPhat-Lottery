@@ -13,6 +13,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
+import java.util.Locale;
 import java.util.Map;
 
 @Component
@@ -43,8 +44,14 @@ public class CloudinaryStorageAdapter implements StoragePort {
         if (publicId == null || publicId.isBlank()) {
             return;
         }
+        // Public ids do not encode resource type; try image then raw (signed PDFs).
         try {
             cloudinary.uploader().destroy(publicId, ObjectUtils.asMap("resource_type", "image"));
+        } catch (IOException ignored) {
+            // fall through
+        }
+        try {
+            cloudinary.uploader().destroy(publicId, ObjectUtils.asMap("resource_type", "raw"));
         } catch (IOException e) {
             throw new DomainException(ErrorCode.INTERNAL_SERVER_ERROR, e);
         }
@@ -53,10 +60,16 @@ public class CloudinaryStorageAdapter implements StoragePort {
     private StorageResult uploadInternal(UploadRequest request, String publicId, boolean overwrite) {
         validateRequest(request);
 
+        String resourceType = resolveResourceType(request);
         Map<String, Object> options = ObjectUtils.asMap(
-                "resource_type", "image",
+                "resource_type", resourceType,
                 "overwrite", overwrite
         );
+        // Keep original filename for raw PDFs so browsers get a usable Content-Type/extension.
+        if ("raw".equals(resourceType) && request.fileName() != null && !request.fileName().isBlank()) {
+            options.put("use_filename", true);
+            options.put("unique_filename", true);
+        }
         if (publicId != null && !publicId.isBlank()) {
             options.put("public_id", publicId);
         } else {
@@ -74,6 +87,35 @@ public class CloudinaryStorageAdapter implements StoragePort {
         }
     }
 
+    /**
+     * Cloudinary cannot serve PDFs as {@code resource_type=image}. Signed contracts and other
+     * non-image binaries must use {@code raw}.
+     */
+    static String resolveResourceType(UploadRequest request) {
+        String contentType = request.contentType() == null
+                ? ""
+                : request.contentType().trim().toLowerCase(Locale.ROOT);
+        String fileName = request.fileName() == null
+                ? ""
+                : request.fileName().trim().toLowerCase(Locale.ROOT);
+
+        if (contentType.equals("application/pdf") || fileName.endsWith(".pdf")) {
+            return "raw";
+        }
+        if (contentType.startsWith("image/")
+                || fileName.endsWith(".jpg")
+                || fileName.endsWith(".jpeg")
+                || fileName.endsWith(".png")
+                || fileName.endsWith(".gif")
+                || fileName.endsWith(".webp")) {
+            return "image";
+        }
+        if (!contentType.isBlank() && !contentType.startsWith("image/")) {
+            return "raw";
+        }
+        return "image";
+    }
+
     private String resolveFolder(String folder) {
         String normalizedRoot = trimSlashes(rootFolder);
         String normalizedFolder = trimSlashes(folder);
@@ -89,7 +131,7 @@ public class CloudinaryStorageAdapter implements StoragePort {
 
     private void validateRequest(UploadRequest request) {
         if (request == null || request.data() == null || request.data().length == 0) {
-            throw new DomainException(ErrorCode.INVALID_INPUT, "Image data is required");
+            throw new DomainException(ErrorCode.INVALID_INPUT, "File data is required");
         }
     }
 }

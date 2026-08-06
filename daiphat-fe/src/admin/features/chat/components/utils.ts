@@ -157,7 +157,7 @@ export const getConversationPreviewText = (
     }
     const lastMsg = conversation.lastMessage;
     if (!lastMsg?.content) {
-        return statusLabels[conversation.status] || 'Chưa có tin nhắn...';
+        return statusLabels[conversation.status] || 'Cuộc trò chuyện mới';
     }
     if (isSessionDividerText(lastMsg.content) || isAiSystemNoticeText(lastMsg.content)) {
         return getAdminSystemNoticeText(lastMsg.content, {

@@ -28,8 +28,11 @@ const publicSans = Public_Sans({
 });
 
 export const metadata: Metadata = {
-  title: 'Đại Phát Lottery Platform',
-  description: 'Nền tảng mua vé và theo dõi kết quả xổ số trực tuyến uy tín',
+  title: {
+    default: 'ĐẠI PHÁT | TÀI LỘC - MAY MẮN - THỊNH VƯỢNG',
+    template: '%s | ĐẠI PHÁT',
+  },
+  description: 'Hệ thống xổ số kiến thiết uy tín — nhanh chóng, minh bạch, bảo mật.',
 };
 
 export default function RootLayout({

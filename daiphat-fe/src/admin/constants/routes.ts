@@ -22,9 +22,8 @@ export const ROUTES = {
             SETTINGS: {
                 ROOT: `/${prefixAdmin}/dashboard/settings`,
                 GENERAL: `/${prefixAdmin}/dashboard/settings/general`,
-                SHIPPING: `/${prefixAdmin}/dashboard/settings/shipping`,
-                PAYMENT: `/${prefixAdmin}/dashboard/settings/payment`,
-                SOCIAL: `/${prefixAdmin}/dashboard/settings/social`,
+                POLICIES: `/${prefixAdmin}/dashboard/settings/policies`,
+                PAGES: `/${prefixAdmin}/dashboard/settings/pages`,
                 APP_PASSWORD: `/${prefixAdmin}/dashboard/settings/app-password`,
                 SYSTEM_CONFIG: `/${prefixAdmin}/settings/system-config/list`,
             }
@@ -126,6 +125,10 @@ export const ROUTES = {
                 LIST: `/${prefixAdmin}/street-agent/list`,
                 CREATE: `/${prefixAdmin}/street-agent/create`,
                 EDIT: `/${prefixAdmin}/street-agent/edit`,
+                LUCKY_PATTERNS: `/${prefixAdmin}/street-agent/lucky-patterns`,
+                ALLOCATION: `/${prefixAdmin}/street-agent/allocation`,
+                ALLOCATION_BATCHES: `/${prefixAdmin}/street-agent/allocation/batches`,
+                CONTRACT_PDF: (id: number | string) => `/${prefixAdmin}/street-agent/contract/${id}`,
             }
         },
         CHAT: `/${prefixAdmin}/chat`,

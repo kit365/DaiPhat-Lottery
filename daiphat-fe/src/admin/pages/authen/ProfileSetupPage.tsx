@@ -34,7 +34,7 @@ import {
     Visibility,
     VisibilityOff
 } from "@mui/icons-material";
-import { LogoAdmin } from "../../../assets/admin/logo";
+import { SiteLogo } from "@/client/components/layout/SiteLogo";
 import { SettingsIcon, EyeIcon, NoEyeIcon } from "../../assets/icons";
 import { adminTheme } from "../../config/theme";
 import { PasswordRequirementList } from "../../components/auth/PasswordRequirementList";
@@ -196,7 +196,7 @@ export const ProfileSetupPage: React.FC = () => {
                             background: "transparent"
                         }}>
                         <Link to="/" className="inline-block w-[40px] h-[40px]">
-                            <LogoAdmin />
+                            <SiteLogo className="w-10 h-10 rounded" imgClassName="w-full h-full object-contain" />
                         </Link>
                         <IconButton
                             className="hover:scale-[1.04] hover:bg-admin-hoverIcon transition-all duration-150 ease-in-out"

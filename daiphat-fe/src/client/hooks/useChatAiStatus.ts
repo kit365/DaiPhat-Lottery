@@ -11,7 +11,7 @@ export const useChatAiStatus = (enabled: boolean) =>
         queryFn: chatConversationService.getAiStatus,
         enabled,
         staleTime: 5_000,
-        refetchInterval: 10_000,
+        refetchInterval: (q) => (q.state.error ? false : 10_000),
         refetchOnWindowFocus: true,
         // Until the first successful fetch, keep AI features visible.
         placeholderData: { enabled: true },

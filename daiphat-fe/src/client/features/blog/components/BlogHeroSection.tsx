@@ -1,5 +1,5 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { Breadcrumb } from '../../../components/ui/Breadcrumb';
 
 interface BlogHeroSectionProps {
   selectedCategory?: {
@@ -19,20 +19,14 @@ export const BlogHeroSection: React.FC<BlogHeroSectionProps> = ({ selectedCatego
       }}
     >
       <div className="relative z-10 w-full max-w-[1440px] mx-auto px-4 lg:px-6">
-        {/* Breadcrumb */}
-        <div className="flex items-center gap-2 text-[13px] text-[#637381] mb-2">
-          <Link to="/" className="hover:text-[#ee1314] transition-colors">
-            Trang chủ
-          </Link>
-          <span className="text-[12px]">&gt;</span>
-          <span className="text-[#212B36] font-medium">Bài viết</span>
-          {selectedCategory && (
-            <>
-              <span className="text-[12px]">&gt;</span>
-              <span className="text-[#212B36] font-medium">{selectedCategory.name}</span>
-            </>
-          )}
-        </div>
+        <Breadcrumb
+          items={[
+            { label: 'Trang chủ', to: '/' },
+            { label: 'Bài viết', to: selectedCategory ? '/blogs' : undefined },
+            ...(selectedCategory ? [{ label: selectedCategory.name }] : [])
+          ]}
+          className="mb-2"
+        />
 
         <h1 className="client-heading m-0 mb-2">
           {selectedCategory ? selectedCategory.name : 'Bài viết'}

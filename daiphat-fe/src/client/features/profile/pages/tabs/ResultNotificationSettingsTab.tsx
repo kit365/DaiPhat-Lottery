@@ -48,7 +48,7 @@ export const ResultNotificationSettingsTab = () => {
     return (
         <div className="flex flex-col gap-5">
             <div>
-                <h2 className="text-[20px] font-bold text-[#212B36]">Thông báo kết quả xổ số</h2>
+                <h2 className="client-heading m-0 mb-1">Thông báo kết quả xổ số</h2>
                 <p className="text-[14px] text-[#637381] mt-1">
                     Tùy chỉnh các loại thông báo liên quan đến kết quả mở thưởng và vé trúng thưởng của bạn.
                 </p>

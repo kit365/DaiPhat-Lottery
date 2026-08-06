@@ -2,7 +2,8 @@
 -- IMPORTING / IN_STOCK / SOLD_OUT / EXPIRED.
 -- The per-unit lifecycle (reserved, sold, proxy held, returned, damaged, lost) already lives on
 -- lottery_ticket_serials.status, and a ticket cancelled because of a data-entry mistake is now
--- soft deleted and linked to its replacement through replace_ticket_id instead of a VOIDED status.
+-- soft deleted instead of carrying a VOIDED status; replacement tracking lives on
+-- lottery_ticket_serials.replaced_for_ticket_id.
 
 -- VOIDED is no longer a status. Cancel those rows by soft delete and park the column on IN_STOCK;
 -- every read path already filters on deleted_at IS NULL.

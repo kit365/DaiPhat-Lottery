@@ -52,5 +52,25 @@ public record CreateStreetAgentProfileRequest(
         LocalDate contractEndDate,
 
         @DecimalMin(value = "0", message = "Số dư ký quỹ phải từ 0 trở lên")
-        BigDecimal depositBalance
-) {}
+        BigDecimal depositBalance,
+
+        @Size(max = 100, message = "Mã hợp đồng không vượt quá 100 ký tự")
+        String contractCode,
+
+        @Size(max = 500, message = "URL hợp đồng không vượt quá 500 ký tự")
+        String contractDocumentUrl,
+
+        @jakarta.validation.constraints.Min(value = 1, message = "Hạn mức ngày phải lớn hơn 0")
+        Integer dailyTicketCap
+) {
+    public CreateStreetAgentProfileRequest(
+            String firstName, String lastName, String phone, String cccd, String imageUrl,
+            String contactAddress, String contactProvince, String coverageArea,
+            BigDecimal commissionRate, LocalDate contractStartDate, LocalDate contractEndDate,
+            BigDecimal depositBalance
+    ) {
+        this(firstName, lastName, phone, cccd, imageUrl, contactAddress, contactProvince,
+                coverageArea, commissionRate, contractStartDate, contractEndDate, depositBalance,
+                null, null, null);
+    }
+}

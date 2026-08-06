@@ -5,7 +5,7 @@ import { useNavigate, Navigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Phone, Lock, Eye, EyeOff, Mail, User } from "lucide-react";
 import { useAuth } from "../../../hooks/useAuth";
-import { GoogleIcon } from "../../../components/auth/SharedAuth";
+import { GoogleIcon, AuthBranding } from "../../../components/auth/SharedAuth";
 import { PasswordStrengthMeter } from "../../../components/auth/PasswordStrengthMeter";
 import { useForgotPassword } from "../../../../admin/pages/authen/hooks/use-forgot-password";
 import { redirectToGoogleOAuth } from "../../../utils/google-oauth.util";
@@ -51,17 +51,11 @@ export const RegisterPage = () => {
             <div className="relative z-10 flex-1 flex flex-col lg:flex-row w-full max-w-[1440px] mx-auto min-h-[100dvh]">
                 
                 {/* Header Logo (Mobile & Desktop) */}
-                <div className="lg:absolute lg:top-8 lg:left-12 flex items-center gap-3 cursor-pointer z-20 pt-6 pl-6 lg:p-0 shrink-0" onClick={() => navigate("/")}>
-                    <div className="w-10 h-10 lg:w-12 lg:h-12 bg-white rounded-full flex items-center justify-center shadow-md">
-                        <img src="/assets/images/logo.png" alt="Logo" className="w-6 h-6 lg:w-8 lg:h-8 object-contain" onError={(e) => {
-                            e.currentTarget.style.display = 'none';
-                            e.currentTarget.parentElement!.innerHTML = '<span class="text-[#D32F2F] font-bold text-xl">ĐP</span>';
-                        }} />
-                    </div>
-                    <div className="flex flex-col">
-                        <span className="text-lg lg:text-xl sm:text-2xl font-black text-[#D32F2F] tracking-tight uppercase">Đại Phát</span>
-                        <span className="text-[8px] lg:text-[9px] sm:text-[10px] font-bold text-[#FFB300] uppercase tracking-widest mt-[-2px]">Tài Lộc - May Mắn - Thịnh Vượng</span>
-                    </div>
+                <div
+                    className="lg:absolute lg:top-8 lg:left-12 z-20 pt-6 pl-6 lg:p-0 shrink-0"
+                    onClick={() => navigate("/")}
+                >
+                    <AuthBranding onClick={() => navigate("/")} />
                 </div>
 
                 {/* Left Side: Empty */}

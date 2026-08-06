@@ -4,49 +4,51 @@ import { Box, Card, Grid, TextField, Button, Typography, Stack, Alert, Link } fr
 import { Icon } from "@iconify/react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { settingGeneralSchema, SettingGeneralFormValues } from "../../../schemas/setting.schema";
-import { useSettingGeneral, useUpdateSettingGeneral } from "../hooks/useSettings";
-import { useEffect } from "react";
+import { z } from "zod";
 
+const mapSettingSchema = z.object({
+    goongApiKey: z.string().optional().or(z.literal("")),
+    goongMapKey: z.string().optional().or(z.literal("")),
+});
+
+type MapSettingFormValues = z.infer<typeof mapSettingSchema>;
+
+/**
+ * Goong keys are secrets — not stored in system_config GENERAL_SETTING.
+ * Wire to dedicated secret storage / MAP_SETTING later.
+ */
 export const MapSettingTab = () => {
-    const { data: generalData, isLoading: isSettingsLoading } = useSettingGeneral();
-    const { mutate: updateGeneral, isPending } = useUpdateSettingGeneral();
-
     const {
         control,
         handleSubmit,
-        reset,
-        formState: { errors }
-    } = useForm<SettingGeneralFormValues>({
-        resolver: zodResolver(settingGeneralSchema),
+        formState: { errors },
+    } = useForm<MapSettingFormValues>({
+        resolver: zodResolver(mapSettingSchema),
         defaultValues: {
             goongApiKey: "",
-            goongMapKey: ""
-        }
+            goongMapKey: "",
+        },
     });
 
-    useEffect(() => {
-        if (generalData) {
-            reset({
-                ...generalData,
-                goongApiKey: generalData.goongApiKey || "",
-                goongMapKey: generalData.goongMapKey || ""
-            });
-        }
-    }, [generalData, reset]);
-
-    const onSubmit = (data: SettingGeneralFormValues) => {
-        updateGeneral(data);
+    const onSubmit = (_data: MapSettingFormValues) => {
+        // Intentionally no-op until secret storage exists.
     };
-
-    if (isSettingsLoading) return <Typography>Đang tải...</Typography>;
 
     return (
         <Stack spacing={3}>
+            <Alert severity="warning" sx={{ borderRadius: "12px" }}>
+                API key Goong là dữ liệu nhạy cảm — <strong>chưa lưu qua system_config</strong>.
+                Tab này tạm khóa lưu; sẽ tách sang secret storage / cấu hình riêng (không dùng mock{" "}
+                <code>/admin/setting/general</code>).
+            </Alert>
+
             <Alert severity="info" sx={{ borderRadius: "12px" }}>
                 Hệ thống đang chuyển đổi sang sử dụng <strong>Goong Maps API</strong> để tăng độ chính xác tìm kiếm tại Việt Nam.
                 <br />
-                Bạn có thể lấy Key tại <Link href="https://account.goong.io" target="_blank" rel="noopener">account.goong.io</Link>
+                Bạn có thể lấy Key tại{" "}
+                <Link href="https://account.goong.io" target="_blank" rel="noopener">
+                    account.goong.io
+                </Link>
             </Alert>
 
             <Box component="form" onSubmit={handleSubmit(onSubmit)}>
@@ -55,12 +57,21 @@ export const MapSettingTab = () => {
                         <Card sx={{ p: 4, borderRadius: "16px", boxShadow: "var(--customShadows-card)" }}>
                             <Stack spacing={4}>
                                 <Box>
-                                    <Typography variant="h6" sx={{ mb: 1, fontWeight: 700, display: "flex", alignItems: "center", gap: 1 }}>
+                                    <Typography
+                                        variant="h6"
+                                        sx={{
+                                            mb: 1,
+                                            fontWeight: 700,
+                                            display: "flex",
+                                            alignItems: "center",
+                                            gap: 1,
+                                        }}
+                                    >
                                         <Icon icon="solar:map-point-bold" width={24} className="text-blue-500" />
                                         Cấu hình Goong Maps
                                     </Typography>
                                     <Typography variant="body2" color="text.secondary">
-                                        Vui lòng nhập các khóa bí mật được cung cấp bởi Goong để sử dụng dịch vụ bản đồ và tìm kiếm địa chỉ.
+                                        Form chỉ để xem trước UI — chưa kết nối backend.
                                     </Typography>
                                 </Box>
 
@@ -73,10 +84,11 @@ export const MapSettingTab = () => {
                                                 <TextField
                                                     {...field}
                                                     fullWidth
+                                                    disabled
                                                     label="Goong API Key (Search API)"
-                                                    placeholder="Nhập API Key cung cấp bởi Goong..."
+                                                    placeholder="Sẽ cấu hình qua secret storage"
                                                     error={!!errors.goongApiKey}
-                                                    helperText={errors.goongApiKey?.message || "Dùng để tìm kiếm địa chỉ (Geocoding/AutoComplete)"}
+                                                    helperText="Dùng để tìm kiếm địa chỉ (Geocoding/AutoComplete)"
                                                 />
                                             )}
                                         />
@@ -89,10 +101,11 @@ export const MapSettingTab = () => {
                                                 <TextField
                                                     {...field}
                                                     fullWidth
+                                                    disabled
                                                     label="Goong Map Key (Tiles API)"
-                                                    placeholder="Nhập Map Key cung cấp bởi Goong..."
+                                                    placeholder="Sẽ cấu hình qua secret storage"
                                                     error={!!errors.goongMapKey}
-                                                    helperText={errors.goongMapKey?.message || "Dùng để hiển thị giao diện bản đồ (Tiles)"}
+                                                    helperText="Dùng để hiển thị giao diện bản đồ (Tiles)"
                                                 />
                                             )}
                                         />
@@ -100,10 +113,11 @@ export const MapSettingTab = () => {
                                 </Grid>
 
                                 <Box sx={{ display: "flex", justifyContent: "flex-end", pt: 2 }}>
-                                    <Button className="btn-primary-admin"
+                                    <Button
+                                        className="btn-primary-admin"
                                         type="submit"
                                         variant="contained"
-                                        disabled={isPending}
+                                        disabled
                                         startIcon={<Icon icon="solar:diskette-bold" />}
                                         sx={{
                                             background: "#1C252E",
@@ -111,10 +125,10 @@ export const MapSettingTab = () => {
                                             py: 1.5,
                                             borderRadius: "12px",
                                             fontWeight: 700,
-                                            "&:hover": { background: "#454F5B" }
+                                            "&:hover": { background: "#454F5B" },
                                         }}
                                     >
-                                        {isPending ? "Đang lưu..." : "Lưu cấu hình bản đồ"}
+                                        Lưu cấu hình bản đồ (sắp có)
                                     </Button>
                                 </Box>
                             </Stack>
