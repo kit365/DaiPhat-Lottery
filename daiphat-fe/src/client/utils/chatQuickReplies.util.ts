@@ -2,6 +2,7 @@ import {
   buildSetGoalMessage,
   buildShowScheduleMessage,
 } from './scheduleToken.util';
+import { ROUTES } from '@/admin/constants/routes';
 
 export type QuickReplyAction = 'send' | 'staff';
 
@@ -217,6 +218,6 @@ export const shouldShowContextualQuickReplies = (options: {
 };
 
 /** @deprecated Navigate paths removed — hub stays in-chat. Kept for call-site compat. */
-export const resolveBuyTicketPathFromChip = (_chip: QuickReplyChip): string => '/buy-ticket';
+export const resolveBuyTicketPathFromChip = (_chip: QuickReplyChip): string => ROUTES.PUBLIC.TICKETS;
 
 export const resolveQuickReplyNavigatePath = (_chip: QuickReplyChip): string => '/';

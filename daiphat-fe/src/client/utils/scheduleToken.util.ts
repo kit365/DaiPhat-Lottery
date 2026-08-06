@@ -1,3 +1,5 @@
+import { ROUTES } from '@/admin/constants/routes';
+
 export const SCHEDULE_TOKEN_ASK_LOCATION = 'SCHEDULE_ASK_LOCATION';
 export const SCHEDULE_TOKEN_ASK_DATE = 'SCHEDULE_ASK_DATE';
 export const SCHEDULE_TOKEN_ASK_DATE_MODE = 'SCHEDULE_ASK_DATE_MODE';
@@ -32,7 +34,7 @@ export interface BuildBuyTicketPathOptions {
   stationIds?: number[];
   highlightDate?: string;
   ticketId?: number;
-  /** Pre-fill search bar so the suggested ticket is visible on buy-ticket page. */
+  /** Pre-fill search bar so the suggested ticket is visible on tickets page. */
   search?: string;
 }
 
@@ -69,7 +71,7 @@ export const buildBuyTicketPath = ({
     params.set('drawDate', highlightDate);
   }
   const query = params.toString();
-  return query ? `/buy-ticket?${query}` : '/buy-ticket';
+  return query ? `${ROUTES.PUBLIC.TICKETS}?${query}` : ROUTES.PUBLIC.TICKETS;
 };
 
 export const buildLotteryResultsPath = ({
