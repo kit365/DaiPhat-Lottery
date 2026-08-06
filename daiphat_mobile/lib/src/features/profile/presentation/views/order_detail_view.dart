@@ -8,9 +8,8 @@ import 'package:intl/intl.dart';
 import 'package:daiphat_mobile/src/app/routing/app_routes.dart';
 import 'package:daiphat_mobile/src/features/checkout/models/order_type.dart';
 import 'package:daiphat_mobile/src/features/checkout/presentation/providers/checkout_provider.dart';
-import 'package:daiphat_mobile/src/features/profile/data/bank_account_service.dart';
+import 'package:daiphat_mobile/src/features/profile/presentation/providers/profile_providers.dart';
 import 'package:daiphat_mobile/src/features/profile/presentation/widgets/refund_request_sheet.dart';
-import 'package:daiphat_mobile/src/shared/providers/api_providers.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
 import '../viewmodels/order_detail_viewmodel.dart';
 
@@ -25,7 +24,6 @@ class OrderDetailView extends ConsumerStatefulWidget {
 
 class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
   late OrderDetailViewModel _viewModel;
-  late BankAccountService _bankAccountService;
 
   static const _stepLabels = ['Đặt hàng', 'Thanh toán', 'Chuẩn bị', 'Chờ nhận', 'Hoàn thành'];
   static const _stepIcons = [
@@ -44,7 +42,6 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
       transactionService: ref.read(transactionServiceProvider),
       orderId: widget.orderId,
     );
-    _bankAccountService = BankAccountService(ref.read(apiClientProvider));
   }
 
   @override
@@ -1332,7 +1329,7 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
       builder: (_) => RefundRequestSheet(
         order: order,
         orderService: ref.read(orderServiceProvider),
-        bankAccountService: _bankAccountService,
+        bankAccountService: ref.read(bankAccountServiceProvider),
         onSubmit: _viewModel.requestRefund,
       ),
     );
