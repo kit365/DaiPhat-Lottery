@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
@@ -8,8 +9,10 @@ import 'package:daiphat_mobile/src/features/checkout/data/order_service.dart';
 import 'package:daiphat_mobile/src/features/checkout/models/order_type.dart';
 import 'package:daiphat_mobile/src/features/checkout/models/refund_type.dart';
 import 'package:daiphat_mobile/src/features/profile/data/bank_account_service.dart';
+import 'package:daiphat_mobile/src/features/profile/presentation/widgets/bank_account_form_page.dart';
 import 'package:daiphat_mobile/src/features/profile/presentation/widgets/bank_search_screen.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
+import 'package:daiphat_mobile/src/shared/utils/app_toast.dart';
 
 class RefundRequestSheet extends StatefulWidget {
   final OrderResponse order;
@@ -37,6 +40,7 @@ class _RefundRequestSheetState extends State<RefundRequestSheet> {
   String? _error;
   OrderRefundEligibilityResponse? _eligibility;
   List<UserBankAccountResponse> _bankAccounts = const [];
+  List<VietQrBankResponse> _banks = const [];
   int? _selectedBankAccountId;
   int _secondsLeft = 0;
   Timer? _timer;
@@ -57,10 +61,12 @@ class _RefundRequestSheetState extends State<RefundRequestSheet> {
       final results = await Future.wait<dynamic>([
         widget.orderService.getRefundEligibility(widget.order.id),
         widget.bankAccountService.getMyAccounts(),
+        widget.bankAccountService.getBanks(),
       ]);
 
       final eligibility = results[0] as OrderRefundEligibilityResponse;
       final bankAccounts = results[1] as List<UserBankAccountResponse>;
+      final banks = results[2] as List<VietQrBankResponse>;
       UserBankAccountResponse? defaultAccount;
       for (final account in bankAccounts) {
         if (account.isDefault) {
@@ -81,6 +87,7 @@ class _RefundRequestSheetState extends State<RefundRequestSheet> {
       setState(() {
         _eligibility = eligibility;
         _bankAccounts = bankAccounts;
+        _banks = banks;
         _selectedBankAccountId = defaultAccount?.id;
         _secondsLeft = seconds;
         _isLoading = false;
@@ -126,33 +133,70 @@ class _RefundRequestSheetState extends State<RefundRequestSheet> {
     return widget.order.totalAmount;
   }
 
+  Future<void> _reloadBankAccounts({int? selectAccountId}) async {
+    try {
+      final bankAccounts = await widget.bankAccountService.getMyAccounts();
+      UserBankAccountResponse? preferred;
+      if (selectAccountId != null) {
+        for (final account in bankAccounts) {
+          if (account.id == selectAccountId) {
+            preferred = account;
+            break;
+          }
+        }
+      }
+      if (preferred == null) {
+        for (final account in bankAccounts) {
+          if (account.isDefault) {
+            preferred = account;
+            break;
+          }
+        }
+      }
+      preferred ??= bankAccounts.isNotEmpty ? bankAccounts.first : null;
+
+      if (!mounted) return;
+      setState(() {
+        _bankAccounts = bankAccounts;
+        _selectedBankAccountId = preferred?.id;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      AppToast.error(e.toString().replaceFirst('Exception: ', ''));
+    }
+  }
+
   Future<void> _handleCreateBankAccount() async {
-    final created = await showDialog<UserBankAccountResponse>(
-      context: context,
-      builder: (context) =>
-          BankAccountFormDialog(service: widget.bankAccountService),
+    final banks = _banks.isEmpty
+        ? await widget.bankAccountService.getBanks()
+        : _banks;
+    if (!mounted) return;
+
+    final created = await Navigator.of(context, rootNavigator: true)
+        .push<UserBankAccountResponse>(
+      MaterialPageRoute(
+        builder: (_) => BankAccountFormPage(
+          service: widget.bankAccountService,
+          banks: banks,
+        ),
+      ),
     );
 
     if (created == null || !mounted) return;
-
-    setState(() {
-      _bankAccounts = [created, ..._bankAccounts.where((e) => e.id != created.id)];
-      _selectedBankAccountId = created.id;
-    });
+    if (_banks.isEmpty) {
+      setState(() => _banks = banks);
+    }
+    await _reloadBankAccounts(selectAccountId: created.id);
   }
 
   Future<void> _handleSubmit() async {
     final reason = _reasonController.text.trim();
     if (reason.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Vui lòng nhập lý do hoàn tiền')),
-      );
+      AppToast.info('Vui lòng nhập lý do hoàn tiền');
       return;
     }
     if (_selectedBankAccountId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Vui lòng chọn tài khoản nhận hoàn')),
-      );
+      AppToast.info('Vui lòng chọn tài khoản nhận hoàn');
       return;
     }
     if (_isRefundBlocked) return;
@@ -172,9 +216,7 @@ class _RefundRequestSheetState extends State<RefundRequestSheet> {
       return;
     }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Gửi yêu cầu hoàn tiền thất bại')),
-    );
+    AppToast.error('Gửi yêu cầu hoàn tiền thất bại');
   }
 
   @override
@@ -450,9 +492,11 @@ class _RefundRequestSheetState extends State<RefundRequestSheet> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Bạn chưa có tài khoản ngân hàng.',
+                  'Bạn chưa có tài khoản ngân hàng. Thêm tài khoản trong '
+                  'mục "Tài khoản ngân hàng" hoặc tạo mới ngay bên dưới.',
                   style: GoogleFonts.publicSans(
                     fontSize: 13,
+                    height: 1.45,
                     color: AppColors.textMuted,
                   ),
                 ),
@@ -468,52 +512,125 @@ class _RefundRequestSheetState extends State<RefundRequestSheet> {
                 ),
               ],
             )
-          else
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                DropdownButtonFormField<int>(
-                  initialValue: _selectedBankAccountId,
-                  decoration: InputDecoration(
-                    filled: true,
-                    fillColor: const Color(0xFFF9FAFB),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(14),
-                      borderSide: const BorderSide(color: Color(0xFFE5E8EB)),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(14),
-                      borderSide: const BorderSide(color: Color(0xFFE5E8EB)),
-                    ),
-                  ),
-                  items: _bankAccounts
-                      .map(
-                        (account) => DropdownMenuItem<int>(
-                          value: account.id,
+          else ...[
+            ..._bankAccounts.map(_buildBankAccountTile),
+            const SizedBox(height: 4),
+            TextButton.icon(
+              onPressed: _isSubmitting ? null : _handleCreateBankAccount,
+              icon: const Icon(Icons.add_card_rounded),
+              label: const Text('Thêm tài khoản mới'),
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.primary,
+                padding: EdgeInsets.zero,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBankAccountTile(UserBankAccountResponse account) {
+    final selected = _selectedBankAccountId == account.id;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: InkWell(
+        onTap: _isSubmitting
+            ? null
+            : () => setState(() => _selectedBankAccountId = account.id),
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: selected ? const Color(0xFFFFF5F5) : const Color(0xFFF9FAFB),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: selected ? AppColors.primary : const Color(0xFFE5E8EB),
+            ),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(
+                selected
+                    ? Icons.radio_button_checked
+                    : Icons.radio_button_off,
+                color: selected ? AppColors.primary : AppColors.textMuted,
+                size: 20,
+              ),
+              const SizedBox(width: 10),
+              _RefundBankLogo(
+                logoUrl: account.bankLogo,
+                label: account.bankName,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
                           child: Text(
-                            '${account.bankName} - ${_maskAccountNo(account.bankAccountNo)}${account.isDefault ? ' (Mặc định)' : ''}',
+                            account.bankName,
+                            maxLines: 2,
                             overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.publicSans(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.textMain,
+                            ),
                           ),
                         ),
-                      )
-                      .toList(),
-                  onChanged: _isSubmitting
-                      ? null
-                      : (value) => setState(() => _selectedBankAccountId = value),
+                        if (account.isDefault) ...[
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFFF2F3),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              'Mặc định',
+                              style: GoogleFonts.publicSans(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.primary,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      account.bankAccountNo,
+                      style: GoogleFonts.publicSans(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 0.4,
+                        color: AppColors.textMain,
+                      ),
+                    ),
+                    Text(
+                      account.bankAccountName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.publicSans(
+                        fontSize: 12,
+                        color: AppColors.textMuted,
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 8),
-                TextButton.icon(
-                  onPressed: _isSubmitting ? null : _handleCreateBankAccount,
-                  icon: const Icon(Icons.add_card_rounded),
-                  label: const Text('Thêm tài khoản mới'),
-                  style: TextButton.styleFrom(
-                    foregroundColor: AppColors.primary,
-                    padding: EdgeInsets.zero,
-                  ),
-                ),
-              ],
-            ),
-        ],
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -730,12 +847,6 @@ class _RefundRequestSheetState extends State<RefundRequestSheet> {
     return DateFormat('dd/MM/yyyy').format(date);
   }
 
-  String _maskAccountNo(String accountNo) {
-    final digits = accountNo.replaceAll(' ', '');
-    if (digits.length <= 4) return digits;
-    return '${'*' * (digits.length - 4)}${digits.substring(digits.length - 4)}';
-  }
-
   String _statusLabel(String status) {
     switch (status) {
       case 'PAID':
@@ -751,6 +862,48 @@ class _RefundRequestSheetState extends State<RefundRequestSheet> {
       default:
         return status;
     }
+  }
+}
+
+class _RefundBankLogo extends StatelessWidget {
+  final String? logoUrl;
+  final String label;
+
+  const _RefundBankLogo({required this.logoUrl, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    final initial = label.isNotEmpty ? label[0].toUpperCase() : 'B';
+    final fallback = Center(
+      child: Text(
+        initial,
+        style: GoogleFonts.publicSans(
+          fontWeight: FontWeight.w800,
+          fontSize: 12,
+          color: AppColors.primary,
+        ),
+      ),
+    );
+
+    return Container(
+      width: 36,
+      height: 36,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        shape: BoxShape.circle,
+        border: Border.all(color: const Color(0xFFE5E8EB)),
+      ),
+      clipBehavior: Clip.antiAlias,
+      padding: const EdgeInsets.all(4),
+      child: logoUrl == null || logoUrl!.isEmpty
+          ? fallback
+          : CachedNetworkImage(
+              imageUrl: logoUrl!,
+              fit: BoxFit.contain,
+              placeholder: (_, _) => fallback,
+              errorWidget: (_, _, _) => fallback,
+            ),
+    );
   }
 }
 
@@ -927,22 +1080,16 @@ class _BankAccountFormDialogState extends State<BankAccountFormDialog> {
 
   Future<void> _submit() async {
     if (_selectedBank == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Vui lòng chọn ngân hàng')),
-      );
+      AppToast.info('Vui lòng chọn ngân hàng');
       return;
     }
     if (_accountNoController.text.trim().isEmpty ||
         _accountNameController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Vui lòng nhập đầy đủ thông tin tài khoản')),
-      );
+      AppToast.info('Vui lòng nhập đầy đủ thông tin tài khoản');
       return;
     }
     if (!_agreed) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Bạn cần xác nhận cam kết thông tin tài khoản')),
-      );
+      AppToast.info('Bạn cần xác nhận cam kết thông tin tài khoản');
       return;
     }
 
@@ -962,9 +1109,7 @@ class _BankAccountFormDialogState extends State<BankAccountFormDialog> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _isSubmitting = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
-      );
+      AppToast.error(e.toString().replaceFirst('Exception: ', ''));
     }
   }
 

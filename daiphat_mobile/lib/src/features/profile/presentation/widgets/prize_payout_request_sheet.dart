@@ -9,6 +9,7 @@ import 'package:daiphat_mobile/src/features/profile/data/prize_payout_service.da
 import 'package:daiphat_mobile/src/features/profile/presentation/widgets/refund_request_sheet.dart';
 import 'package:daiphat_mobile/src/shared/network/api_exception.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
+import 'package:daiphat_mobile/src/shared/utils/app_toast.dart';
 
 class PrizePayoutRequestSheet extends StatefulWidget {
   final PurchasedTicket ticket;
@@ -145,26 +146,10 @@ class _PrizePayoutRequestSheetState extends State<PrizePayoutRequestSheet> {
       );
       if (!mounted) return;
       Navigator.of(context).pop(true);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Đã gửi yêu cầu trả thưởng thành công',
-            style: GoogleFonts.publicSans(fontWeight: FontWeight.w600),
-          ),
-          backgroundColor: const Color(0xFF16A34A),
-        ),
-      );
+      AppToast.success('Đã gửi yêu cầu trả thưởng thành công');
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            _formatError(e),
-            style: GoogleFonts.publicSans(),
-          ),
-          backgroundColor: AppColors.primary,
-        ),
-      );
+      AppToast.error(_formatError(e));
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
     }

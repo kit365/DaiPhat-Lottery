@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import 'package:daiphat_mobile/src/app/routing/app_routes.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
+import 'package:daiphat_mobile/src/shared/utils/app_toast.dart';
 import '../../utils/notification_navigation.dart';
 import '../viewmodels/notification_viewmodel.dart';
 
@@ -43,16 +44,6 @@ class _NotificationViewState extends State<NotificationView> {
     super.dispose();
   }
 
-  void _toast(String message, {bool isError = false}) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message, style: GoogleFonts.publicSans()),
-        backgroundColor: isError ? AppColors.error : AppColors.success,
-      ),
-    );
-  }
-
   Future<void> _onItemTap(NotificationItem item) async {
     if (!item.isRead) await _viewModel.markAsRead(item.id);
 
@@ -65,9 +56,8 @@ class _NotificationViewState extends State<NotificationView> {
     if (notificationNeedsReferenceCheck(item.referenceType)) {
       final available = await _viewModel.isReferenceAvailable(item.id);
       if (!available) {
-        _toast(
+        AppToast.error(
           'Nội dung tham chiếu không còn khả dụng hoặc đã bị xoá.',
-          isError: true,
         );
         return;
       }
@@ -110,7 +100,7 @@ class _NotificationViewState extends State<NotificationView> {
     );
     if (ok != true) return;
     await _viewModel.deleteAllRead();
-    _toast('Đã xoá thông báo đã đọc.');
+    AppToast.success('Đã xoá thông báo đã đọc.');
   }
 
   @override
@@ -157,7 +147,7 @@ class _NotificationViewState extends State<NotificationView> {
             onSelected: (value) async {
               if (value == 'mark_all_read') {
                 await _viewModel.markAllAsRead();
-                _toast('Đã đánh dấu tất cả là đã đọc.');
+                AppToast.success('Đã đánh dấu tất cả là đã đọc.');
               } else if (value == 'delete_all_read') {
                 await _confirmDeleteRead();
               }
@@ -293,7 +283,7 @@ class _NotificationViewState extends State<NotificationView> {
       ),
       onDismissed: (_) async {
         final err = await _viewModel.deleteNotification(item.id);
-        if (err != null) _toast(err, isError: true);
+        if (err != null) AppToast.error(err);
       },
       child: GestureDetector(
         onTap: () => _onItemTap(item),

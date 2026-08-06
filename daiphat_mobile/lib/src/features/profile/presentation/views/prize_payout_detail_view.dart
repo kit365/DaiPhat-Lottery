@@ -9,6 +9,7 @@ import 'package:daiphat_mobile/src/features/profile/data/models/prize_payout_req
 import 'package:daiphat_mobile/src/features/profile/presentation/providers/profile_providers.dart';
 import 'package:daiphat_mobile/src/features/profile/presentation/widgets/profile_status_badge.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
+import 'package:daiphat_mobile/src/shared/utils/app_toast.dart';
 import '../viewmodels/prize_payout_detail_viewmodel.dart';
 
 class PrizePayoutDetailView extends ConsumerStatefulWidget {
@@ -84,12 +85,11 @@ class _PrizePayoutDetailViewState extends ConsumerState<PrizePayoutDetailView> {
     if (ok != true) return;
     final err = await _viewModel.cancel();
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(err ?? 'Đã hủy yêu cầu trả thưởng.'),
-        backgroundColor: err == null ? AppColors.success : AppColors.error,
-      ),
-    );
+    if (err == null) {
+      AppToast.success('Đã hủy yêu cầu trả thưởng.');
+    } else {
+      AppToast.error(err);
+    }
   }
 
   @override

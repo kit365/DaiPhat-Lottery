@@ -57,6 +57,7 @@ class CheckoutState {
     String? name,
     String? phone,
     String? expectedPickupAt,
+    bool clearExpectedPickupAt = false,
     String? note,
     String? selectedReceiveType,
     String? selectedTransactionType,
@@ -68,7 +69,8 @@ class CheckoutState {
     return CheckoutState(
       name: name ?? this.name,
       phone: phone ?? this.phone,
-      expectedPickupAt: expectedPickupAt ?? this.expectedPickupAt,
+      expectedPickupAt:
+          clearExpectedPickupAt ? null : (expectedPickupAt ?? this.expectedPickupAt),
       note: note ?? this.note,
       selectedReceiveType: selectedReceiveType ?? this.selectedReceiveType,
       selectedTransactionType:
@@ -83,7 +85,10 @@ class CheckoutState {
   bool get isValid =>
       name.trim().isNotEmpty &&
       phone.trim().isNotEmpty &&
-      expectedPickupAt != null;
+      expectedPickupAt != null &&
+      expectedPickupAt!.isNotEmpty &&
+      selectedReceiveType != null &&
+      selectedTransactionType != null;
 }
 
 class CheckoutNotifier extends Notifier<CheckoutState> {
@@ -107,6 +112,10 @@ class CheckoutNotifier extends Notifier<CheckoutState> {
   void setPhone(String value) => state = state.copyWith(phone: value);
   void setExpectedPickupAt(String value) =>
       state = state.copyWith(expectedPickupAt: value);
+
+  void clearExpectedPickupAt() =>
+      state = state.copyWith(clearExpectedPickupAt: true);
+
   void setNote(String value) => state = state.copyWith(note: value);
 
   void setSelectedReceiveType(String value) =>
@@ -121,7 +130,7 @@ class CheckoutNotifier extends Notifier<CheckoutState> {
     if (!state.isValid) {
       state = state.copyWith(
         errorMessage:
-            'Vui lòng điền đầy đủ thông tin bắt buộc (Tên, SĐT, Giờ đến lấy)!',
+            'Vui lòng điền đầy đủ thông tin thanh toán (Tên, SĐT, Giờ nhận vé, Phương thức nhận/thanh toán)!',
       );
       return false;
     }
@@ -129,11 +138,11 @@ class CheckoutNotifier extends Notifier<CheckoutState> {
     state = state.copyWith(isSubmitting: true, errorMessage: null);
 
     try {
-      final items = ref.read(cartProvider);
+      final items = ref.read(checkoutItemsProvider);
       if (items.isEmpty) {
         state = state.copyWith(
           isSubmitting: false,
-          errorMessage: 'Giỏ hàng trống!',
+          errorMessage: 'Không có vé để thanh toán!',
         );
         return false;
       }
@@ -175,7 +184,7 @@ class CheckoutNotifier extends Notifier<CheckoutState> {
 
         if (paymentResult.checkoutUrl != null &&
             paymentResult.checkoutUrl!.isNotEmpty) {
-          // Do NOT clear cart here – caller will clear after navigation
+          // Do NOT clear cart here – caller will finalize after navigation
           state = state.copyWith(
             checkoutUrl: paymentResult.checkoutUrl,
             orderId: orderResponse.id,
@@ -190,8 +199,8 @@ class CheckoutNotifier extends Notifier<CheckoutState> {
           return false;
         }
       } else {
-        // Offline / cash payment – clear cart immediately
-        ref.read(cartProvider.notifier).clearCart();
+        // Offline / cash payment – cập nhật giỏ ngay
+        _finalizePurchasedItems();
         state = state.copyWith(isSubmitting: false);
         return true;
       }
@@ -203,6 +212,19 @@ class CheckoutNotifier extends Notifier<CheckoutState> {
       return false;
     }
   }
+
+  /// Mua ngay: chỉ trừ vé vừa mua khỏi giỏ chính. Checkout thường: xoá cả giỏ.
+  void _finalizePurchasedItems() {
+    final buyNow = ref.read(buyNowItemsProvider);
+    if (buyNow != null) {
+      ref.read(cartProvider.notifier).applyBuyNowPurchase(buyNow);
+      ref.read(buyNowItemsProvider.notifier).clear();
+    } else {
+      ref.read(cartProvider.notifier).clearCart();
+    }
+  }
+
+  void finalizeAfterOnlinePayment() => _finalizePurchasedItems();
 
   void reset() {
     state = const CheckoutState();

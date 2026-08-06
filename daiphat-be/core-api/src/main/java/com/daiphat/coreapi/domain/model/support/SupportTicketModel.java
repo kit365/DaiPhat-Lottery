@@ -192,8 +192,8 @@ public class SupportTicketModel {
         this.resolvedReasonId = reasonCommentId;
         this.rejectedReasonId = null;
         this.resolvedAt = LocalDateTime.now();
-        // Staff marks resolved only after customer already agreed — close immediately.
-        this.status = TicketStatus.CLOSED;
+        // Chờ khách xác nhận hài lòng (hoặc auto-close) trước khi đóng.
+        this.status = TicketStatus.RESOLVED;
     }
 
     public void rejectByStaff(Long reasonCommentId, String rejectionReason) {

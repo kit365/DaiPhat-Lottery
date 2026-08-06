@@ -8,10 +8,10 @@ import 'package:intl/intl.dart';
 import 'package:daiphat_mobile/src/app/routing/app_routes.dart';
 import 'package:daiphat_mobile/src/features/checkout/models/order_type.dart';
 import 'package:daiphat_mobile/src/features/checkout/presentation/providers/checkout_provider.dart';
-import 'package:daiphat_mobile/src/features/profile/data/bank_account_service.dart';
+import 'package:daiphat_mobile/src/features/profile/presentation/providers/profile_providers.dart';
 import 'package:daiphat_mobile/src/features/profile/presentation/widgets/refund_request_sheet.dart';
-import 'package:daiphat_mobile/src/shared/providers/api_providers.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
+import 'package:daiphat_mobile/src/shared/utils/app_toast.dart';
 import '../viewmodels/order_detail_viewmodel.dart';
 
 class OrderDetailView extends ConsumerStatefulWidget {
@@ -25,7 +25,6 @@ class OrderDetailView extends ConsumerStatefulWidget {
 
 class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
   late OrderDetailViewModel _viewModel;
-  late BankAccountService _bankAccountService;
 
   static const _stepLabels = ['Đặt hàng', 'Thanh toán', 'Chuẩn bị', 'Chờ nhận', 'Hoàn thành'];
   static const _stepIcons = [
@@ -44,7 +43,6 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
       transactionService: ref.read(transactionServiceProvider),
       orderId: widget.orderId,
     );
-    _bankAccountService = BankAccountService(ref.read(apiClientProvider));
   }
 
   @override
@@ -127,9 +125,7 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
     final url = await _viewModel.getCheckoutUrl();
     if (!mounted) return;
     if (url == null || url.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Không lấy được đường dẫn thanh toán')),
-      );
+      AppToast.error('Không lấy được đường dẫn thanh toán');
       return;
     }
     context.pushNamed(
@@ -656,12 +652,7 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
                 GestureDetector(
                   onTap: () {
                     Clipboard.setData(ClipboardData(text: order.orderCode));
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Đã sao chép mã đơn hàng!'),
-                        duration: Duration(seconds: 2),
-                      ),
-                    );
+                    AppToast.success('Đã sao chép mã đơn hàng!');
                   },
                   child: const Icon(Icons.copy_rounded,
                       size: 15, color: AppColors.textMuted),
@@ -1276,12 +1267,11 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
     if (confirmed != true || !mounted) return;
     final ok = await _viewModel.cancelOrder();
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(ok ? 'Đã hủy đơn hàng thành công' : 'Hủy đơn thất bại, vui lòng thử lại'),
-        backgroundColor: ok ? const Color(0xFF2E7D32) : AppColors.primary,
-      ),
-    );
+    if (ok) {
+      AppToast.success('Đã hủy đơn hàng thành công');
+    } else {
+      AppToast.error('Hủy đơn thất bại, vui lòng thử lại');
+    }
   }
 
   // ignore: unused_element
@@ -1310,12 +1300,11 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
     return;
     // ignore: dead_code
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(ok ? 'Yêu cầu hoàn tiền đã được gửi' : 'Hoàn tiền thất bại, vui lòng thử lại'),
-        backgroundColor: ok ? const Color(0xFF2E7D32) : AppColors.primary,
-      ),
-    );
+    if (ok) {
+      AppToast.success('Yêu cầu hoàn tiền đã được gửi');
+    } else {
+      AppToast.error('Hoàn tiền thất bại, vui lòng thử lại');
+    }
   }
 
   Future<void> _showRefundRequestSheet() async {
@@ -1332,19 +1321,14 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
       builder: (_) => RefundRequestSheet(
         order: order,
         orderService: ref.read(orderServiceProvider),
-        bankAccountService: _bankAccountService,
+        bankAccountService: ref.read(bankAccountServiceProvider),
         onSubmit: _viewModel.requestRefund,
       ),
     );
 
     if (result != true || !mounted) return;
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Yêu cầu hoàn tiền đã được gửi'),
-        backgroundColor: Color(0xFF2E7D32),
-      ),
-    );
+    AppToast.success('Yêu cầu hoàn tiền đã được gửi');
   }
 
   Widget _buildBottomActionBar() {

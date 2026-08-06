@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import 'package:daiphat_mobile/src/app/routing/app_routes.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
+import 'package:daiphat_mobile/src/shared/utils/app_toast.dart';
 import 'package:daiphat_mobile/src/features/auth/presentation/viewmodels/login_viewmodel.dart';
 
 class LoginView extends StatefulWidget {
@@ -42,9 +43,7 @@ class _LoginViewState extends State<LoginView> {
     final password = _passwordController.text.trim();
 
     if (username.isEmpty || password.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Vui lòng nhập tài khoản và mật khẩu')),
-      );
+      AppToast.info('Vui lòng nhập tài khoản và mật khẩu');
       return;
     }
 
@@ -53,9 +52,7 @@ class _LoginViewState extends State<LoginView> {
       return;
     }
 
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('Đăng nhập thành công')));
+    AppToast.success('Đăng nhập thành công');
     context.go(AppRoute.home.path);
   }
 
