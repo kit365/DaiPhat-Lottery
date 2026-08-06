@@ -98,8 +98,11 @@ GoRouter createAppRouter({
     routes: [
       ShellRoute(
         navigatorKey: _shellNavigatorKey,
-        builder: (context, state, child) =>
-            MainLayout(loginViewModel: loginViewModel, child: child),
+        builder: (context, state, child) => MainLayout(
+              loginViewModel: loginViewModel,
+              notificationViewModel: notificationViewModel,
+              child: child,
+            ),
         routes: [
           _route(
             AppRoute.home,
@@ -441,7 +444,7 @@ Widget _buildRoute(
       final id = state.pathParameters['id'] ?? '';
       return OrderDetailView(orderId: id);
     case AppRoute.profileOverview:
-      return const ProfileOverviewView();
+      return ProfileOverviewView(profileViewModel: profileViewModel);
     case AppRoute.refunds:
       return const RefundsView();
     case AppRoute.refundDetail:

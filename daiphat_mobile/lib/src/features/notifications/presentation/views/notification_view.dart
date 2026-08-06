@@ -10,8 +10,13 @@ import '../viewmodels/notification_viewmodel.dart';
 
 class NotificationView extends StatefulWidget {
   final NotificationViewModel viewModel;
+  final VoidCallback? onBack;
 
-  const NotificationView({super.key, required this.viewModel});
+  const NotificationView({
+    super.key,
+    required this.viewModel,
+    this.onBack,
+  });
 
   @override
   State<NotificationView> createState() => _NotificationViewState();
@@ -117,7 +122,13 @@ class _NotificationViewState extends State<NotificationView> {
             size: 20,
             color: AppColors.primary,
           ),
-          onPressed: () => context.pop(),
+          onPressed: () {
+            if (widget.onBack != null) {
+              widget.onBack!();
+            } else {
+              context.pop();
+            }
+          },
         ),
         title: Text(
           'Thông báo',
