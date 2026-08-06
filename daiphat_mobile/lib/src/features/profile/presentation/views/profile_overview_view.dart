@@ -362,7 +362,7 @@ class _ProfileOverviewViewState extends ConsumerState<ProfileOverviewView> {
         'Mua vé số',
         const Color(0xFFEE1314),
         const Color(0xFFFFF4F4),
-        () => context.push(AppRoute.buyTicket.path),
+        () => context.go(AppRoute.buyTicket.path),
       ),
       _QuickAction(
         Icons.account_balance_wallet_outlined,
@@ -390,12 +390,12 @@ class _ProfileOverviewViewState extends ConsumerState<ProfileOverviewView> {
     return _buildCard(
       title: 'Thao tác nhanh',
       child: GridView.count(
-        crossAxisCount: 3,
+        crossAxisCount: 2,
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),
         mainAxisSpacing: 10,
         crossAxisSpacing: 10,
-        childAspectRatio: 1.0,
+        childAspectRatio: 2.2,
         children: actions
             .map(
               (a) => InkWell(
@@ -422,8 +422,10 @@ class _ProfileOverviewViewState extends ConsumerState<ProfileOverviewView> {
                       Text(
                         a.label,
                         textAlign: TextAlign.center,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: GoogleFonts.publicSans(
-                          fontSize: 11,
+                          fontSize: 12,
                           fontWeight: FontWeight.w600,
                           color: const Color(0xFF454F5B),
                         ),
