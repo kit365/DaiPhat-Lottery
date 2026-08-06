@@ -34,10 +34,10 @@ export const SwitchButton = <T extends FieldValues>({
                             onChange={(e) => field.onChange(e.target.checked ? checkedValue : uncheckedValue)}
                             sx={{
                                 '& .MuiSwitch-switchBase.Mui-checked': {
-                                    color: '#00A76F',
+                                    color: '#FF3030',
                                     transform: "translateX(14px)",
                                     '& + .MuiSwitch-track': {
-                                        backgroundColor: '#00A76F',
+                                        backgroundColor: '#FF3030',
                                         opacity: 1,
                                     },
                                 },

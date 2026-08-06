@@ -122,7 +122,7 @@ export const useReviewColumns = () => {
             headerAlign: 'center',
             renderCell: (params) => {
                 const statusMap: any = {
-                    approved: { label: 'Đã duyệt', bg: 'rgba(0, 167, 111, 0.16)', color: 'rgb(0, 120, 103)' },
+                    approved: { label: 'Đã duyệt', bg: 'rgba(255, 48, 48, 0.16)', color: 'rgb(0, 120, 103)' },
                     rejected: { label: 'Đã ẩn', bg: 'rgba(255, 171, 0, 0.16)', color: 'rgb(183, 110, 0)' },
                     pending: { label: 'Chưa duyệt', bg: 'rgba(33, 43, 54, 0.08)', color: 'rgb(33, 43, 54)' },
                 };

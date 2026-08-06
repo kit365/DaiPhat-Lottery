@@ -75,7 +75,7 @@ export const ComplaintStatusStepper: React.FC<ComplaintStatusStepperProps> = ({ 
             <div className="flex items-center justify-between relative max-w-2xl mx-auto">
                 <div className="absolute top-6 left-0 w-full h-[3px] bg-[#F4F6F8] -translate-y-1/2 z-0 rounded-full"></div>
                 <div
-                    className="absolute top-6 left-0 h-[3px] bg-[#00A76F] -translate-y-1/2 z-0 transition-all duration-700 ease-in-out rounded-full"
+                    className="absolute top-6 left-0 h-[3px] bg-[#FF3030] -translate-y-1/2 z-0 transition-all duration-700 ease-in-out rounded-full"
                     style={{ width: `${(currentIndex / (steps.length - 1)) * 100}%` }}
                 ></div>
 
@@ -91,9 +91,9 @@ export const ComplaintStatusStepper: React.FC<ComplaintStatusStepperProps> = ({ 
                             <div
                                 className={`w-12 h-12 rounded-full flex items-center justify-center text-[16px] transition-all duration-300 ${
                                     isCompleted
-                                        ? 'bg-[#00A76F] text-white shadow-[0_0_0_6px_#E4F8ED]'
+                                        ? 'bg-[#FF3030] text-white shadow-[0_0_0_6px_#FFE3D5]'
                                         : 'bg-[#F4F6F8] text-[#919EAB] border-[3px] border-white shadow-sm'
-                                } ${isActive ? 'scale-110 shadow-[0_0_0_6px_#E4F8ED]' : ''}`}
+                                } ${isActive ? 'scale-110 shadow-[0_0_0_6px_#FFE3D5]' : ''}`}
                             >
                                 <i className={step.icon}></i>
                             </div>

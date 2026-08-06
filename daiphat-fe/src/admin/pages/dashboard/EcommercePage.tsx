@@ -52,7 +52,7 @@ const SalesByCategory = ({ data }: { data: any[] }) => {
                 }
             }
         },
-        colors: ['#00a76f', '#ffab00', '#00b8d9'],
+        colors: ['#FF3030', '#ffab00', '#00b8d9'],
         legend: { show: false }
     };
 
@@ -116,7 +116,7 @@ const YearlySales = ({ data }: { data: number[] }) => {
         yaxis: { labels: { show: true } },
         grid: { strokeDashArray: 3, borderColor: 'var(--palette-divider)' },
         legend: { show: false },
-        colors: ['#00A76F'],
+        colors: ['#FF3030'],
     };
 
     const series = [
@@ -380,7 +380,7 @@ export const EcommercePage = () => {
 
             {/* Stats Summary Section */}
             <Grid sx={{ flexGrow: 0, flexBasis: 'auto', width: 'calc(100% * 4 / var(--Grid-parent-columns) - (var(--Grid-parent-columns) - 4) * (var(--Grid-parent-columnSpacing) / var(--Grid-parent-columns)))' }}>
-                <SummaryWidget title="T?ng s?n ph?m" total={stats?.summary?.totalTickets?.toString() || "0"} percent={0} color="#00a76f" chartData={[25, 66, 41, 89, 63, 25, 44, 12]} />
+                <SummaryWidget title="T?ng s?n ph?m" total={stats?.summary?.totalTickets?.toString() || "0"} percent={0} color="#FF3030" chartData={[25, 66, 41, 89, 63, 25, 44, 12]} />
             </Grid>
             <Grid sx={{ flexGrow: 0, flexBasis: 'auto', width: 'calc(100% * 4 / var(--Grid-parent-columns) - (var(--Grid-parent-columns) - 4) * (var(--Grid-parent-columnSpacing) / var(--Grid-parent-columns)))' }}>
                 <SummaryWidget

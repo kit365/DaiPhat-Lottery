@@ -71,7 +71,7 @@ export const CategoryTreeSelectGeneric = ({
                         sx={{
                             p: 0,
                             color: '#919EAB',
-                            '&.Mui-checked': { color: '#00A76F' }
+                            '&.Mui-checked': { color: '#FF3030' }
                         }}
                     />
 
@@ -248,7 +248,7 @@ export const CategoryTreeSelectGeneric = ({
                                     sx: {
                                         maxHeight: 350,
                                         '& .Mui-selected': {
-                                            backgroundColor: '#00A76F14 !important',
+                                            backgroundColor: '#FF303014 !important',
                                         },
                                     }
                                 }
