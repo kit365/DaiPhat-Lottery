@@ -1,3 +1,4 @@
+import 'package:daiphat_mobile/src/features/profile/data/models/prize_payout_request.dart';
 import 'package:daiphat_mobile/src/shared/network/api_client.dart';
 import 'package:daiphat_mobile/src/shared/network/api_exception.dart';
 import 'package:daiphat_mobile/src/shared/network/api_response.dart';
@@ -135,5 +136,58 @@ class PrizePayoutService {
     }
 
     return apiResponse.data!;
+  }
+
+  Future<PrizePayoutPageResult> getMyRequests({
+    int page = 1,
+    int limit = 10,
+    String? status,
+    String? search,
+  }) async {
+    final response = await _apiClient.get(
+      '/prize-payout-requests/my',
+      queryParameters: {
+        'page': page,
+        'limit': limit,
+        if (status != null && status.isNotEmpty) 'status': status,
+        if (search != null && search.isNotEmpty) 'search': search,
+      },
+    );
+
+    final data = response['data'];
+    if (data is! Map<String, dynamic>) {
+      throw ApiException(
+        response['message']?.toString().isNotEmpty == true
+            ? response['message'].toString()
+            : 'Không thể tải danh sách yêu cầu trả thưởng.',
+      );
+    }
+    return PrizePayoutPageResult.fromJson(data);
+  }
+
+  Future<PrizePayoutRequestResponse> getById(int id) async {
+    final response = await _apiClient.get('/prize-payout-requests/$id');
+    final data = response['data'];
+    if (data is! Map<String, dynamic>) {
+      throw ApiException(
+        response['message']?.toString().isNotEmpty == true
+            ? response['message'].toString()
+            : 'Không tìm thấy yêu cầu trả thưởng.',
+      );
+    }
+    return PrizePayoutRequestResponse.fromJson(data);
+  }
+
+  Future<PrizePayoutRequestResponse> cancel(int id) async {
+    final response = await _apiClient.patch('/prize-payout-requests/$id/cancel');
+    final data = response['data'];
+    if (data is! Map<String, dynamic>) {
+      throw ApiException(
+        response['message']?.toString().isNotEmpty == true
+            ? response['message'].toString()
+            : 'Không thể hủy yêu cầu trả thưởng.',
+      );
+    }
+    return PrizePayoutRequestResponse.fromJson(data);
   }
 }
