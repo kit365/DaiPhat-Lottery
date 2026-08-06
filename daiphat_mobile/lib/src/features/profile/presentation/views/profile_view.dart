@@ -5,6 +5,7 @@ import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
 import 'package:go_router/go_router.dart';
 import 'package:daiphat_mobile/src/app/routing/app_routes.dart';
 import 'package:daiphat_mobile/src/features/checkout/presentation/providers/checkout_provider.dart';
+import 'package:daiphat_mobile/src/features/chat/presentation/views/chat_screen.dart';
 import 'package:daiphat_mobile/src/features/notifications/presentation/viewmodels/notification_viewmodel.dart';
 import '../viewmodels/profile_viewmodel.dart';
 import '../viewmodels/profile_tickets_summary_viewmodel.dart';
@@ -132,13 +133,19 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
                   onTap: () => context.push(AppRoute.profileDetail.path),
                 ),
                 const SizedBox(width: 10),
-                ListenableBuilder(
-                  listenable: notificationViewModel,
-                  builder: (context, _) => _buildHeaderAction(
-                    icon: Icons.notifications_none_rounded,
-                    badge: notificationViewModel.unreadCount,
-                    onTap: () => context.push(AppRoute.notifications.path),
-                  ),
+                _buildHeaderAction(
+                  icon: Icons.chat_bubble_outline_rounded,
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => ChatScreen(
+                          isAuthenticated: true,
+                          isActive: true,
+                          onBack: () => Navigator.of(context).pop(),
+                        ),
+                      ),
+                    );
+                  },
                 ),
               ],
             ),
@@ -169,11 +176,12 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
                   final user = viewModel.user;
                   final rawName = user?.fullName?.trim();
                   final username = user?.username.trim();
-                  final name = rawName?.isNotEmpty == true
-                      ? rawName!
-                      : username?.isNotEmpty == true
-                      ? username!
+                  final name = (rawName != null && rawName.isNotEmpty)
+                      ? rawName
+                      : (username != null && username.isNotEmpty)
+                      ? username
                       : 'Member Default';
+                  final avatarUrl = user?.avatarUrl;
 
                   return Stack(
                     clipBehavior: Clip.none,
@@ -196,9 +204,9 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
                                     ),
                                   ),
                                   clipBehavior: Clip.antiAlias,
-                                  child: user?.avatarUrl?.isNotEmpty == true
+                                  child: avatarUrl != null && avatarUrl.isNotEmpty
                                       ? Image.network(
-                                          user!.avatarUrl!,
+                                          avatarUrl,
                                           fit: BoxFit.cover,
                                           errorBuilder: (_, _, _) => const Icon(
                                             Icons.person_rounded,
@@ -652,11 +660,6 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
               ),
               const SizedBox(width: 10),
               _buildUtilityItemIcon(Icons.auto_fix_high, 'Gieo quẻ'),
-              const SizedBox(width: 10),
-              _buildUtilityItemIcon(
-                Icons.calendar_month_outlined,
-                'Lịch mở thưởng',
-              ),
             ],
           ),
         ],
@@ -743,6 +746,7 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
             Icons.help_outline,
             'Trung tâm hỗ trợ',
             iconColor: const Color(0xFF242424),
+            onTap: () => context.push(AppRoute.complaints.path),
           ),
           _buildListItem(
             Icons.info_outline,

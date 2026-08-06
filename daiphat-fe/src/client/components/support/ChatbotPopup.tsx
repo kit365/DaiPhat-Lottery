@@ -2017,9 +2017,9 @@ export const ChatbotPopup = () => {
   if (!isOpen) {
     return (
       <button
-        onClick={handleOpenChat}
+        onClick={() => navigate('/profile/complaints')}
         className="fixed bottom-6 right-6 w-14 h-14 bg-gradient-to-r from-[#df1b1c] to-[#ff4b4b] rounded-full flex items-center justify-center shadow-2xl hover:shadow-[#df1b1c]/50 hover:scale-110 transition-all duration-300 z-50 group"
-        aria-label="Open chat"
+        aria-label="Mở trang khiếu nại"
       >
         <MessageCircle className="w-7 h-7 text-white group-hover:animate-pulse" />
         {hasUnreadMessages && (

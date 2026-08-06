@@ -36,7 +36,7 @@ const TABS: TabConfig[] = [
 ];
 
 export const ProfilePage = () => {
-    const { user, isUserLoading, handleUploadAvatar, uploadAvatarMutation } = useAuth();
+    const { user, isUserLoading, handleUploadAvatar, uploadAvatarMutation, logout } = useAuth();
     const { token, isHydrated, openLoginModal } = useAuthStore();
     const { unreadCount } = useNotifications(4);
     const { pendingCount: pendingRefundCount } = useMyRefundPendingCount();
@@ -211,7 +211,11 @@ export const ProfilePage = () => {
 
                                         {/* Logout Button */}
                                         <div className="mt-6 px-6 pb-2">
-                                            <button className="flex items-center justify-center gap-2 w-full py-2.5 border border-[#ee1314] text-[#ee1314] rounded-xl text-[14px] font-bold hover:bg-[#FFF4F4] transition-colors cursor-pointer">
+                                            <button
+                                                type="button"
+                                                onClick={() => logout()}
+                                                className="flex items-center justify-center gap-2 w-full py-2.5 border border-[#ee1314] text-[#ee1314] rounded-xl text-[14px] font-bold hover:bg-[#FFF4F4] transition-colors cursor-pointer"
+                                            >
                                                 <i className="fa-solid fa-arrow-right-from-bracket"></i>
                                                 Đăng xuất
                                             </button>

@@ -130,7 +130,7 @@ class _BankSearchScreenState extends State<BankSearchScreen> {
                 : ListView.separated(
                     padding: const EdgeInsets.only(bottom: 24),
                     itemCount: filtered.length,
-                    separatorBuilder: (_, __) => const Divider(
+                    separatorBuilder: (_, _) => const Divider(
                       height: 1,
                       indent: 72,
                       color: Color(0xFFF4F6F8),
@@ -213,6 +213,8 @@ class _BankLogo extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final initial = label.isNotEmpty ? label[0].toUpperCase() : 'B';
+    final resolvedLogoUrl = logoUrl?.trim();
+    final hasLogo = resolvedLogoUrl != null && resolvedLogoUrl.isNotEmpty;
 
     return Container(
       width: 44,
@@ -223,11 +225,11 @@ class _BankLogo extends StatelessWidget {
         border: Border.all(color: const Color(0xFFE5E8EB)),
       ),
       clipBehavior: Clip.antiAlias,
-      child: logoUrl != null && logoUrl!.isNotEmpty
+      child: hasLogo
           ? CachedNetworkImage(
-              imageUrl: logoUrl!,
+              imageUrl: resolvedLogoUrl,
               fit: BoxFit.contain,
-              placeholder: (_, __) => Center(
+              placeholder: (_, _) => Center(
                 child: Text(
                   initial,
                   style: GoogleFonts.publicSans(
@@ -236,7 +238,7 @@ class _BankLogo extends StatelessWidget {
                   ),
                 ),
               ),
-              errorWidget: (_, __, ___) => Center(
+              errorWidget: (_, _, _) => Center(
                 child: Text(
                   initial,
                   style: GoogleFonts.publicSans(

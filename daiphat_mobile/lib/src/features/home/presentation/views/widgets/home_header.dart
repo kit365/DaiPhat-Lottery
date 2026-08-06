@@ -6,6 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:daiphat_mobile/src/app/routing/app_routes.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
 import 'package:daiphat_mobile/src/features/auth/presentation/viewmodels/login_viewmodel.dart';
+import 'package:daiphat_mobile/src/features/chat/presentation/views/chat_screen.dart';
 import 'package:daiphat_mobile/src/features/notifications/presentation/viewmodels/notification_viewmodel.dart';
 import 'package:daiphat_mobile/src/features/cart/providers/cart_provider.dart';
 
@@ -18,6 +19,18 @@ class HomeHeader extends StatelessWidget {
     required this.loginViewModel,
     required this.notificationViewModel,
   });
+
+  void _openChat(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => ChatScreen(
+          isAuthenticated: loginViewModel.isAuthenticated,
+          isActive: true,
+          onBack: () => Navigator.of(context).pop(),
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -65,33 +78,8 @@ class HomeHeader extends StatelessWidget {
           if (loginViewModel.isAuthenticated) ...[
             const SizedBox(width: 8),
             GestureDetector(
-              onTap: () => context.pushNamed(AppRoute.notifications.name),
-              child: Stack(
-                children: [
-                  _iconBtn(Icons.notifications_outlined),
-                  ListenableBuilder(
-                    listenable: notificationViewModel,
-                    builder: (context, _) {
-                      if (notificationViewModel.unreadCount == 0) {
-                        return const SizedBox.shrink();
-                      }
-                      return Positioned(
-                        right: 6,
-                        top: 6,
-                        child: Container(
-                          width: 8,
-                          height: 8,
-                          decoration: BoxDecoration(
-                            color: AppColors.primary,
-                            shape: BoxShape.circle,
-                            border: Border.all(color: Colors.white, width: 1.5),
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                ],
-              ),
+              onTap: () => _openChat(context),
+              child: _iconBtn(Icons.chat_bubble_outline_rounded),
             ),
           ],
           const SizedBox(width: 8),

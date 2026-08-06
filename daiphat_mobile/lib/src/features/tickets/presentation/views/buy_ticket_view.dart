@@ -13,6 +13,8 @@ import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
 import 'package:daiphat_mobile/src/shared/utils/app_toast.dart';
 import 'package:daiphat_mobile/src/features/cart/models/cart_item_model.dart';
 import 'package:daiphat_mobile/src/features/cart/providers/cart_provider.dart';
+import 'package:daiphat_mobile/src/features/chat/presentation/views/chat_screen.dart';
+import 'package:daiphat_mobile/src/shared/providers/api_providers.dart';
 import '../viewmodels/buy_ticket_viewmodel.dart';
 
 String _formatTicketPrice(int? price) {
@@ -68,6 +70,17 @@ class _BuyTicketViewState extends ConsumerState<BuyTicketView> {
     LotteryTicketListItem ticket, {
     bool openCheckout = false,
   }) {
+    final maxStock = ticket.quantity > 0 ? ticket.quantity : 1;
+    final currentQty =
+        ref.read(cartProvider.notifier).quantityForTicket(ticket.id);
+
+    if (!openCheckout && currentQty >= maxStock) {
+      AppToast.error(
+        'Vé số ${ticket.code} chỉ còn $maxStock vé (bạn đã có $currentQty vé trong giỏ)',
+      );
+      return;
+    }
+
     final cartItem = CartItemData(
       lotteryTicketId: ticket.id,
       province: ticket.stationDisplayText,
@@ -78,6 +91,7 @@ class _BuyTicketViewState extends ConsumerState<BuyTicketView> {
       quantity: 1,
       unitPrice: ticket.price ?? 0,
       logoText: ticket.shortName,
+      maxStock: maxStock,
     );
 
     // Mua ngay: thanh toán riêng tờ vé này, không đụng giỏ hàng chính.
@@ -90,8 +104,8 @@ class _BuyTicketViewState extends ConsumerState<BuyTicketView> {
     ref.read(cartProvider.notifier).addItem(cartItem);
 
     AppToast.show(
-      'Da them ${ticket.code} vao gio hang',
-      actionLabel: 'Xem gio hang',
+      'Đã thêm ${ticket.code} vào giỏ hàng',
+      actionLabel: 'Xem giỏ hàng',
       onAction: () => context.push('/cart'),
     );
   }
@@ -538,12 +552,6 @@ class _TicketHeroBanner extends StatefulWidget {
       eyebrow: 'Vé số Đại Phát',
       title: 'Chọn số\nyêu thích',
       ctaLabel: 'Mua vé ngay',
-    ),
-    _HeroBannerSlide(
-      imageAsset: 'assets/images/hero_mobile.jpg',
-      eyebrow: 'Ưu đãi mỗi ngày',
-      title: 'Trúng lớn\nmỗi kỳ quay',
-      ctaLabel: 'Xem ngay',
     ),
   ];
 
@@ -1332,6 +1340,7 @@ class _TicketDetailViewState extends ConsumerState<TicketDetailView> {
   }
 
   CartItemData _buildCartItem(LotteryTicketListItem ticket) {
+    final maxStock = ticket.quantity > 0 ? ticket.quantity : 1;
     return CartItemData(
       lotteryTicketId: ticket.id,
       province: ticket.stationDisplayText,
@@ -1342,10 +1351,20 @@ class _TicketDetailViewState extends ConsumerState<TicketDetailView> {
       quantity: 1,
       unitPrice: ticket.price ?? 0,
       logoText: ticket.shortName,
+      maxStock: maxStock,
     );
   }
 
   void _addToCart(LotteryTicketListItem ticket) {
+    final maxStock = ticket.quantity > 0 ? ticket.quantity : 1;
+    final currentQty =
+        ref.read(cartProvider.notifier).quantityForTicket(ticket.id);
+    if (currentQty >= maxStock) {
+      AppToast.error(
+        'Vé số ${ticket.code} chỉ còn $maxStock vé (bạn đã có $currentQty vé trong giỏ)',
+      );
+      return;
+    }
     ref.read(cartProvider.notifier).addItem(_buildCartItem(ticket));
     AppToast.show(
       'Đã thêm vé ${ticket.code} vào giỏ hàng.',
@@ -2181,10 +2200,31 @@ class _BuyTicketHeader extends StatelessWidget {
                   );
                 },
               ),
-              const SizedBox(width: 9),
-              _HeaderSquareButton(
-                icon: Icons.notifications_none_rounded,
-                onTap: () => context.push(AppRoute.notifications.path),
+              Consumer(
+                builder: (context, ref, _) {
+                  final isAuthenticated =
+                      (ref.watch(apiClientProvider).accessToken ?? '').isNotEmpty;
+                  if (!isAuthenticated) {
+                    return const SizedBox.shrink();
+                  }
+                  return Padding(
+                    padding: const EdgeInsets.only(left: 9),
+                    child: _HeaderSquareButton(
+                      icon: Icons.chat_bubble_outline_rounded,
+                      onTap: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) => ChatScreen(
+                              isAuthenticated: true,
+                              isActive: true,
+                              onBack: () => Navigator.of(context).pop(),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  );
+                },
               ),
             ],
           ),

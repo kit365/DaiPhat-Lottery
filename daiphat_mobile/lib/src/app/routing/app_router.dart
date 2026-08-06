@@ -11,6 +11,7 @@ import 'package:daiphat_mobile/src/features/checkout/presentation/views/checkout
 import 'package:daiphat_mobile/src/features/checkout/presentation/views/checkout_result_view.dart';
 import 'package:daiphat_mobile/src/features/checkout/presentation/views/payment_webview.dart';
 import 'package:daiphat_mobile/src/features/home/presentation/views/home_view.dart';
+import 'package:daiphat_mobile/src/features/home/presentation/views/check_ticket_view.dart';
 import 'package:daiphat_mobile/src/features/auth/presentation/views/login_view.dart';
 import 'package:daiphat_mobile/src/features/auth/presentation/views/register_view.dart';
 import 'package:daiphat_mobile/src/features/auth/presentation/views/forgot_password_view.dart';
@@ -98,8 +99,11 @@ GoRouter createAppRouter({
     routes: [
       ShellRoute(
         navigatorKey: _shellNavigatorKey,
-        builder: (context, state, child) =>
-            MainLayout(loginViewModel: loginViewModel, child: child),
+        builder: (context, state, child) => MainLayout(
+              loginViewModel: loginViewModel,
+              notificationViewModel: notificationViewModel,
+              child: child,
+            ),
         routes: [
           _route(
             AppRoute.home,
@@ -111,6 +115,14 @@ GoRouter createAppRouter({
           ),
           _route(
             AppRoute.buyTicket,
+            loginViewModel,
+            registerViewModel,
+            forgotPasswordViewModel,
+            profileViewModel,
+            notificationViewModel,
+          ),
+          _route(
+            AppRoute.checkTicket,
             loginViewModel,
             registerViewModel,
             forgotPasswordViewModel,
@@ -370,6 +382,8 @@ Widget _buildRoute(
       return ForgotPasswordView(viewModel: forgotPasswordViewModel);
     case AppRoute.buyTicket:
       return const BuyTicketView();
+    case AppRoute.checkTicket:
+      return const CheckTicketView();
     case AppRoute.cart:
       return const CartView();
     case AppRoute.checkout:
@@ -441,7 +455,7 @@ Widget _buildRoute(
       final id = state.pathParameters['id'] ?? '';
       return OrderDetailView(orderId: id);
     case AppRoute.profileOverview:
-      return const ProfileOverviewView();
+      return ProfileOverviewView(profileViewModel: profileViewModel);
     case AppRoute.refunds:
       return const RefundsView();
     case AppRoute.refundDetail:
