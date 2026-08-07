@@ -129,15 +129,22 @@ export const Header = () => {
           <div className="flex items-center justify-between w-full lg:w-auto shrink-0 group">
             <Link to={ROUTES.PUBLIC.HOME} className="flex items-center gap-3 no-underline font-client-display" aria-label={`${siteName} home`}>
               <div className="relative p-[2px] bg-gradient-to-tr from-[#ee1314] to-[#F59E0B] rounded-xl shadow-md shadow-[#ee1314]/10 transition-transform duration-300 group-hover:scale-105">
-                <Image 
-                  unoptimized
-                  src="https://i.ibb.co/YBYnq3HR/z7824247008533-94446d3b6c16598cda67404d805c15c4-removebg-preview.png" 
-                  alt="Đại Phát Logo"
-                  width={38}
-                  height={38}
-                  priority
-                  className="w-[38px] h-[38px] rounded-[10px] object-cover bg-white" 
+                <SiteLogo
+                  className="w-[38px] h-[38px] rounded-[10px]"
+                  imgClassName="w-full h-full rounded-[10px] object-cover bg-white"
+                  alt={siteName}
                 />
+                <div className="hidden">
+                  <Image 
+                    unoptimized
+                    src="https://i.ibb.co/YBYnq3HR/z7824247008533-94446d3b6c16598cda67404d805c15c4-removebg-preview.png" 
+                    alt="Đại Phát Logo"
+                    width={38}
+                    height={38}
+                    priority
+                    className="w-[38px] h-[38px] rounded-[10px] object-cover bg-white" 
+                  />
+                </div>
               </div>
               <div className="flex flex-col justify-center">
                   <span className="text-[20px] tracking-tight font-client-display font-black text-[#ee1314] leading-none mb-1">

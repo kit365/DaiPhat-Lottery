@@ -19,3 +19,14 @@ ds-bundle/
 
 # Claude Code personal overrides
 .claude/settings.local.json
+
+# design-sync (claude.ai/design)
+.ds-sync/
+.ds-entry.tsx
+ds-bundle/
+.design-sync/.cache/
+.design-sync/learnings/
+.design-sync/node_modules
+
+# Claude Code personal overrides
+.claude/settings.local.json

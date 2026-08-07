@@ -18,8 +18,6 @@ import { useChatWaitingCount } from "../../../features/chat/hooks/useChatWaiting
 
 import { useReturnBatchPendingCount } from "../../../features/ticket/return-batch/hooks/useReturnBatchPendingCount";
 
-import { useReturnBatchPendingCount } from "../../../features/ticket/return-batch/hooks/useReturnBatchPendingCount";
-
 function parseNavPath(rawPath: string): { pathname: string; search: string } {
     const [pathname, query = ''] = String(rawPath || '').split('?');
     return { pathname, search: query };
