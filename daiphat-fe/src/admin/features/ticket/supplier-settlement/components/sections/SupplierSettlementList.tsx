@@ -228,7 +228,7 @@ export const SupplierSettlementList = ({
                             '& .admin-datagrid-row-expired:hover .MuiDataGrid-cell': {
                                 bgcolor: '#ffe4e6 !important',
                             },
-                        }}
+                        } as import('@mui/material/styles').SxProps<import('@mui/material/styles').Theme>}
                     />
                 </Box>
             </Card>

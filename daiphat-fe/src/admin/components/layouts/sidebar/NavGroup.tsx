@@ -1,7 +1,6 @@
 "use client";
 
 import { memo, useCallback, useState } from "react";
-import { useTranslation } from "react-i18next";
 import { Collapse, ListSubheader, Stack } from '@mui/material';
 import { ArrowIcon } from "../../../assets/icons";
 import { NavItem } from "./NavItem";
@@ -14,7 +13,6 @@ interface Props {
 }
 
 export const NavGroup = memo(({ title, data }: Props) => {
-    const { t } = useTranslation();
     const { isOpen } = useSidebar();
     const { user } = useAuthStore();
 
@@ -83,7 +81,7 @@ export const NavGroup = memo(({ title, data }: Props) => {
                             transform: openGroup ? "rotate(0deg)" : "rotate(-90deg)"
                         }}
                     />
-                    {t(title)}
+                    {title}
                 </ListSubheader>
             )}
 

@@ -126,7 +126,7 @@ export const SupplierList = ({
                     sx={{
                         ...dataGridStyles,
                         ...adminDataGridRowHeightSx,
-                    }}
+                    } as import('@mui/material/styles').SxProps<import('@mui/material/styles').Theme>}
                 />
             </Box>
         </Card>

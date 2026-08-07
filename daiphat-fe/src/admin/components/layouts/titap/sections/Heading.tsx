@@ -2,7 +2,6 @@
 
 import { memo, useState } from "react";
 import { useEditorState, type Editor } from "@tiptap/react";
-import { useTranslation } from "react-i18next";
 import { ArrowIcon } from "../../../../assets/icons";
 import {
     ButtonBase,
@@ -28,20 +27,19 @@ const BLOCK_STYLE: Record<
     h6: { fontSize: "0.75rem", fontWeight: 700 },
 };
 
+const BLOCK_TYPES = [
+    { label: "Đoạn văn", value: "paragraph" as const },
+    { label: "Tiêu đề 1", value: "h1" as const, level: 1 as const },
+    { label: "Tiêu đề 2", value: "h2" as const, level: 2 as const },
+    { label: "Tiêu đề 3", value: "h3" as const, level: 3 as const },
+    { label: "Tiêu đề 4", value: "h4" as const, level: 4 as const },
+    { label: "Tiêu đề 5", value: "h5" as const, level: 5 as const },
+    { label: "Tiêu đề 6", value: "h6" as const, level: 6 as const },
+];
+
 export const Heading = memo(({ editor }: { editor: Editor | null }) => {
-    const { t } = useTranslation();
     const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
     const openMenu = Boolean(anchorEl);
-
-    const BLOCK_TYPES = [
-        { label: t("admin.tiptap.heading.paragraph"), value: "paragraph" as const },
-        { label: t("admin.tiptap.heading.h1"), value: "h1" as const, level: 1 as const },
-        { label: t("admin.tiptap.heading.h2"), value: "h2" as const, level: 2 as const },
-        { label: t("admin.tiptap.heading.h3"), value: "h3" as const, level: 3 as const },
-        { label: t("admin.tiptap.heading.h4"), value: "h4" as const, level: 4 as const },
-        { label: t("admin.tiptap.heading.h5"), value: "h5" as const, level: 5 as const },
-        { label: t("admin.tiptap.heading.h6"), value: "h6" as const, level: 6 as const },
-    ];
 
     const currentBlock = useEditorState({
         editor,
@@ -60,7 +58,7 @@ export const Heading = memo(({ editor }: { editor: Editor | null }) => {
 
     const currentLabel =
         BLOCK_TYPES.find((b) => b.value === currentBlock)?.label ??
-        t("admin.tiptap.heading.paragraph");
+        "Đoạn văn";
 
     const handleSelect = (type: BlockType, level?: 1 | 2 | 3 | 4 | 5 | 6) => {
         if (type === "paragraph") {

@@ -4,7 +4,6 @@ import AddIcon from '@mui/icons-material/Add';
 import ReportProblemIcon from '@mui/icons-material/ReportProblem';
 import { Stack, Button } from '@mui/material';
 import { useNavigate } from '@/components/router-compat';
-import { useTranslation } from 'react-i18next';
 import { Breadcrumb } from '../../../../../components/ui/Breadcrumb';
 import { Title } from '../../../../../components/ui/Title';
 import { LoadingButton } from '../../../../../components/ui/LoadingButton';
@@ -23,7 +22,6 @@ import { getStationColor } from '../../../../station/utils/stationColor';
 import { useCancelTicketSelection } from '../../../import-batch/hooks/useCancelTicketSelection';
 
 export const TicketListPage = () => {
-    const { t } = useTranslation();
     const navigate = useNavigate();
     const parseToISO = (dateStr: string) => {
         if (!dateStr) return undefined;
@@ -103,7 +101,7 @@ export const TicketListPage = () => {
                     <Title title="Danh sách vé số" />
                     <Breadcrumb
                         items={[
-                            { label: t('admin.dashboard.title'), to: '/' },
+                            { label: 'Bảng điều khiển', to: '/' },
                             { label: 'Vé số', to: `/${prefixAdmin}/ticket/list` },
                             { label: 'Danh sách' },
                         ]}

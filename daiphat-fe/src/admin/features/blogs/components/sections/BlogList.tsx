@@ -5,7 +5,6 @@ import { PERMISSIONS } from "../../../../constants/permission.constants";
 
 import { Box, ButtonBase, Card, Pagination, Stack, CircularProgress, Popover, MenuItem, ListItemIcon, ListItemText, Avatar, SvgIcon } from "@mui/material";
 import { DataGrid, GridColDef } from '@mui/x-data-grid';
-import { useTranslation } from "react-i18next";
 import { DeleteIcon, EditIcon, EyeIcon, ThreeDotsIcon, SortAscendingIcon, SortDescendingIcon, UnsortedIcon } from "../../../../assets/icons";
 import { prefixAdmin } from "../../../../constants/routes";
 import { DATA_GRID_LOCALE_VN } from "../../../../../shared/components/DataTable/localeText.config";
@@ -32,7 +31,6 @@ interface BlogListProps {
 }
 
 export const BlogList = ({ blogs = [], isLoading = false, page, onPageChange, pagination, viewMode = 'grid' }: BlogListProps) => {
-    const { t } = useTranslation();
     const { can, canAny } = usePermissions();
     const canEdit = can(PERMISSIONS.ARTICLE.EDIT);
     const canDelete = can(PERMISSIONS.ARTICLE.DELETE);
@@ -72,14 +70,14 @@ export const BlogList = ({ blogs = [], isLoading = false, page, onPageChange, pa
 
     const handleDelete = () => {
         if (selectedBlogId) {
-            const message = t("admin.common.confirm_delete");
+            const message = "Bạn có chắc chắn muốn xóa mục này?";
             const action = deleteBlog;
 
             confirmDelete(message, () => {
                 action(selectedBlogId, {
                     onSuccess: (res: any) => {
                         if (res.success) {
-                            toast.success(t("admin.common.success"));
+                            toast.success("Thành công");
                         } else {
                             toast.error(res.message);
                         }
@@ -153,7 +151,7 @@ export const BlogList = ({ blogs = [], isLoading = false, page, onPageChange, pa
     const getStatusColor = (status: string) => {
         switch (status) {
             case BLOG_STATUS.PUBLISHED:
-                return { color: "#006C9C", bgColor: "#00B8D929", label: t("admin.blog.status.published") };
+                return { color: "#006C9C", bgColor: "#00B8D929", label: "Xuất bản" };
             case 'archived':
             case BLOG_STATUS.UNPUBLISHED:
                 return { color: "var(--palette-error-main)", bgColor: "var(--palette-error-main)29", label: "Đã gỡ xuống" };
@@ -161,7 +159,7 @@ export const BlogList = ({ blogs = [], isLoading = false, page, onPageChange, pa
                 return { color: "var(--palette-info-dark)", bgColor: "var(--palette-info-main)29", label: "Hẹn giờ" };
             case BLOG_STATUS.DRAFT:
             default:
-                return { color: "#B76E00", bgColor: "#FFAB0029", label: t("admin.blog.status.draft") };
+                return { color: "#B76E00", bgColor: "#FFAB0029", label: "Bản nháp" };
         }
     };
 
@@ -301,7 +299,7 @@ export const BlogList = ({ blogs = [], isLoading = false, page, onPageChange, pa
             <Box sx={{ height: 640, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 {isLoading
                     ? <CircularProgress color="inherit" />
-                    : <span className="text-[1.125rem]">{t("admin.common.no_data")}</span>}
+                    : <span className="text-[1.125rem]">Chưa có dữ liệu</span>}
             </Box>
         );
     }
@@ -323,7 +321,7 @@ export const BlogList = ({ blogs = [], isLoading = false, page, onPageChange, pa
                         slots={{
                             noRowsOverlay: () => (
                                 <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
-                                    {isLoading ? <CircularProgress size={32} /> : <span className='text-[1.125rem]'>{t("admin.common.no_data")}</span>}
+                                    {isLoading ? <CircularProgress size={32} /> : <span className='text-[1.125rem]'>Chưa có dữ liệu</span>}
                                 </Box>
                             )
                         }}
@@ -535,14 +533,14 @@ export const BlogList = ({ blogs = [], isLoading = false, page, onPageChange, pa
                         <ListItemIcon sx={{ minWidth: '24px !important', mr: 1.5 }}>
                             <EyeIcon sx={{ width: 20, height: 20, mr: 0 }} />
                         </ListItemIcon>
-                        <ListItemText primaryTypographyProps={{ fontSize: '0.875rem', fontWeight: 500 }}>{t("admin.common.details")}</ListItemText>
+                        <ListItemText primaryTypographyProps={{ fontSize: '0.875rem', fontWeight: 500 }}>Chi tiết</ListItemText>
                     </MenuItem>
                     {canEdit && (
                         <MenuItem onClick={handleEdit} sx={{ borderRadius: "var(--shape-borderRadius-sm)", py: 1 }}>
                             <ListItemIcon sx={{ minWidth: '24px !important', mr: 1.5 }}>
                                 <EditIcon sx={{ width: 20, height: 20, mr: 0 }} />
                             </ListItemIcon>
-                            <ListItemText primaryTypographyProps={{ fontSize: '0.875rem', fontWeight: 500 }}>{t("admin.common.edit")}</ListItemText>
+                            <ListItemText primaryTypographyProps={{ fontSize: '0.875rem', fontWeight: 500 }}>Chỉnh sửa</ListItemText>
                         </MenuItem>
                     )}
 
@@ -577,7 +575,7 @@ export const BlogList = ({ blogs = [], isLoading = false, page, onPageChange, pa
                             <ListItemIcon sx={{ minWidth: '24px !important', mr: 1.5, color: 'error.main' }}>
                                 <DeleteIcon sx={{ width: 20, height: 20, mr: 0 }} />
                             </ListItemIcon>
-                            <ListItemText primaryTypographyProps={{ fontSize: '0.875rem', fontWeight: 500 }}>{t("admin.common.delete")}</ListItemText>
+                            <ListItemText primaryTypographyProps={{ fontSize: '0.875rem', fontWeight: 500 }}>Xóa</ListItemText>
                         </MenuItem>
                     )}
                 </>

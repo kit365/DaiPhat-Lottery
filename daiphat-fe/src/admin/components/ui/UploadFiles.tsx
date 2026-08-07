@@ -6,7 +6,6 @@ import { useDropzone } from 'react-dropzone';
 import { useEffect, memo, useState, useCallback, useRef, useMemo } from "react";
 import { uploadImagesToCloudinary } from "../../api/uploadCloudinary.api";
 import { AppToast } from '../../../utils/toast.util';
-import { useTranslation } from "react-i18next";
 
 interface CustomFile extends File {
     preview: string;
@@ -19,7 +18,6 @@ interface UploadFilesProps {
 }
 
 export const UploadFiles = memo(({ files, onFilesChange, compact }: UploadFilesProps) => {
-    const { t } = useTranslation();
     const [isUploading, setIsUploading] = useState(false);
     const [isTouched, setIsTouched] = useState(false);
 
@@ -74,9 +72,9 @@ export const UploadFiles = memo(({ files, onFilesChange, compact }: UploadFilesP
             onFilesChange([...currentLinks, ...uploadedUrls] as any);
 
             onFilesChange([...currentLinks, ...uploadedUrls] as any);
-            AppToast.success(t("admin.upload.success"));
+            AppToast.success('Tải ảnh lên thành công!');
         } catch (error) {
-            AppToast.error(t("admin.upload.error"));
+            AppToast.error('Tải ảnh lên thất bại!');
         } finally {
             setIsUploading(false);
         }
@@ -139,7 +137,7 @@ export const UploadFiles = memo(({ files, onFilesChange, compact }: UploadFilesP
 
     return (
         <Stack>
-            {!compact && <Typography variant="h6" sx={{ fontSize: "0.875rem", fontWeight: "600", mb: "12px" }}>{t("admin.upload.title")}</Typography>}
+            {!compact && <Typography variant="h6" sx={{ fontSize: "0.875rem", fontWeight: "600", mb: "12px" }}>Hình ảnh</Typography>}
             <div
                 {...getRootProps()}
                 className=
@@ -150,10 +148,10 @@ export const UploadFiles = memo(({ files, onFilesChange, compact }: UploadFilesP
                 <div className="w-full flex items-center justify-center flex-col">
                     <UploadFileIcon />
                     <div className="flex flex-col gap-[8px] text-center mt-2">
-                        <div className="text-[1.125rem] font-[600]">{t("admin.upload.drag_drop")}</div>
+                        <div className="text-[1.125rem] font-[600]">Kéo thả hoặc chọn tệp</div>
                         {!compact && (
                             <div className="text-[0.875rem] text-[#637381]">
-                                {t("admin.upload.drag_text")} <span className="underline text-[#FF3030]">{t("admin.upload.select_file")}</span> {t("admin.upload.browse_computer")}
+                                Kéo tệp vào đây, hoặc <span className="underline text-[#FF3030]">chọn tệp</span> từ thiết bị của bạn
                             </div>
                         )}
                     </div>
@@ -185,7 +183,7 @@ export const UploadFiles = memo(({ files, onFilesChange, compact }: UploadFilesP
                                     boxShadow: "currentColor 0px 0px 0px 0.75px"
                                 }
                             }}>
-                            {t("admin.upload.remove_all")}
+                            Xóa tất cả
                         </Button>
                         {files.some(file => file instanceof File) && (
                             <Button
@@ -209,7 +207,7 @@ export const UploadFiles = memo(({ files, onFilesChange, compact }: UploadFilesP
                                         boxShadow: "0 8px 16px 0 rgba(145 158 171 / 16%)"
                                     }
                                 }}>
-                                {isUploading ? t("admin.upload.uploading") : t("admin.upload.upload")}
+                                {isUploading ? 'Đang tải...' : 'Tải lên'}
                             </Button>
                         )}
                     </Box>

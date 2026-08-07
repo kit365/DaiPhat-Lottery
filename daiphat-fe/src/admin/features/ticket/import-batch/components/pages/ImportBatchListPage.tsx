@@ -3,7 +3,6 @@
 import AddIcon from '@mui/icons-material/Add';
 import { Stack } from '@mui/material';
 import { useNavigate } from '@/components/router-compat';
-import { useTranslation } from 'react-i18next';
 import { Breadcrumb } from '../../../../../components/ui/Breadcrumb';
 import { Title } from '../../../../../components/ui/Title';
 import { LoadingButton } from '../../../../../components/ui/LoadingButton';
@@ -16,7 +15,6 @@ import { IncompleteImportBatchNotification } from '../sections/IncompleteImportB
 import { MissingStationImportBatchNotification } from '../sections/MissingStationImportBatchNotification';
 
 export const ImportBatchListPage = () => {
-    const { t } = useTranslation();
     const navigate = useNavigate();
     const listHook = useImportBatchList();
 
@@ -27,7 +25,7 @@ export const ImportBatchListPage = () => {
                     <Title title="Danh sách phiếu nhập lô" />
                     <Breadcrumb
                         items={[
-                            { label: t('admin.dashboard.title'), to: '/' },
+                            { label: 'Bảng điều khiển', to: '/' },
                             { label: 'Vé số', to: `/${prefixAdmin}/ticket/list` },
                             { label: 'Nhập lô vé', to: ROUTES.ADMIN.IMPORT_BATCH.LIST },
                             { label: 'Danh sách' },

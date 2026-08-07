@@ -15,7 +15,6 @@ import {
     Typography,
     Tooltip
 } from "@mui/material";
-import { useTranslation } from "react-i18next";
 import { useState } from "react";
 import { Delete as DeleteIcon, Close as CloseIcon } from "@mui/icons-material";
 import { useBlogTags, useCreateBlogTag, useDeleteBlogTag } from "../../hooks/useBlogTag";
@@ -28,10 +27,8 @@ interface BlogTagDialogProps {
 }
 
 export const BlogTagDialog = ({ open, onClose }: BlogTagDialogProps) => {
-    const { t } = useTranslation();
     const [tagName, setTagName] = useState("");
 
-    // Hooks
     const { data: tags = [], isLoading } = useBlogTags();
     const { mutate: createTag, isPending: isCreating } = useCreateBlogTag();
     const { mutate: deleteTag } = useDeleteBlogTag();
@@ -42,26 +39,26 @@ export const BlogTagDialog = ({ open, onClose }: BlogTagDialogProps) => {
         createTag({ name: tagName }, {
             onSuccess: (res) => {
                 if (res.success) {
-                    toast.success(t("admin.ticket.tags.create_success"));
+                    toast.success("Tạo thẻ tag thành công");
                     setTagName("");
                 } else {
-                    toast.error(res.message || t("admin.ticket.tags.create_error"));
+                    toast.error(res.message || "Tạo tag thất bại");
                 }
             },
             onError: () => {
-                toast.error(t("admin.common.error"));
+                toast.error("Có lỗi xảy ra");
             }
         });
     };
 
     const handleDelete = (id: number | string) => {
-        confirmDelete(t("admin.ticket.tags.delete_confirm"), () => {
+        confirmDelete("Bạn có chắc chắn muốn xóa tag này?", () => {
             deleteTag(id, {
                 onSuccess: (res) => {
                     if (res.success) {
-                        toast.success(t("admin.ticket.tags.delete_success"));
+                        toast.success("Xóa tag thành công");
                     } else {
-                        toast.error(res.message || t("admin.ticket.tags.delete_error"));
+                        toast.error(res.message || "Xóa tag thất bại");
                     }
                 }
             });
@@ -89,8 +86,8 @@ export const BlogTagDialog = ({ open, onClose }: BlogTagDialogProps) => {
                 fontWeight: 700,
                 padding: "8px 8px 16px 8px"
             }}>
-                {t("admin.blog.tags.title")}
-                <Tooltip title={t("admin.common.close")}>
+                Quản lý tags bài viết
+                <Tooltip title="Đóng">
                     <IconButton onClick={onClose} size="small" sx={{ '&:hover': { backgroundColor: 'var(--palette-background-neutral)' } }}>
                         <CloseIcon />
                     </IconButton>
@@ -98,12 +95,10 @@ export const BlogTagDialog = ({ open, onClose }: BlogTagDialogProps) => {
             </DialogTitle>
 
             <DialogContent sx={{ overflow: 'hidden', display: 'flex', flexDirection: 'column', maxHeight: '500px', p: 0 }}>
-
-                {/* Input Area */}
                 <Box sx={{ p: 2, display: 'flex', gap: 1 }}>
                     <TextField
                         fullWidth
-                        placeholder={t("admin.ticket.tags.add_placeholder")}
+                        placeholder="Nhập tên tag..."
                         value={tagName}
                         onChange={(e) => setTagName(e.target.value)}
                         onKeyDown={(e) => {
@@ -123,11 +118,10 @@ export const BlogTagDialog = ({ open, onClose }: BlogTagDialogProps) => {
                         disabled={!tagName.trim() || isCreating}
                         className="btn-primary-admin"
                     >
-                        {isCreating ? <CircularProgress size={24} color="inherit" /> : (t("admin.common.add") || "Thêm")}
+                        {isCreating ? <CircularProgress size={24} color="inherit" /> : "Thêm"}
                     </Button>
                 </Box>
 
-                {/* List Tags */}
                 <Box sx={{ flex: 1, overflowY: 'auto', px: 1 }}>
                     {isLoading ? (
                         <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
@@ -135,7 +129,7 @@ export const BlogTagDialog = ({ open, onClose }: BlogTagDialogProps) => {
                         </Box>
                     ) : tags.length === 0 ? (
                         <Typography sx={{ textAlign: 'center', color: 'var(--palette-text-disabled)', py: 4, fontSize: '0.875rem' }}>
-                            {t("admin.blog.tags.no_tags")}
+                            Chưa có thẻ tag nào
                         </Typography>
                     ) : (
                         <List>
@@ -143,7 +137,7 @@ export const BlogTagDialog = ({ open, onClose }: BlogTagDialogProps) => {
                                 <ListItem
                                     key={tag.id || tag.tagId}
                                     secondaryAction={
-                                        <Tooltip title={t("admin.common.delete")}>
+                                        <Tooltip title="Xóa">
                                             <IconButton
                                                 edge="end"
                                                 aria-label="delete"
@@ -176,7 +170,3 @@ export const BlogTagDialog = ({ open, onClose }: BlogTagDialogProps) => {
         </Dialog>
     );
 };
-
-
-
-

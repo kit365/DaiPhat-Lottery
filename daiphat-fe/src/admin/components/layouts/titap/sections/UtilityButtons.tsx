@@ -2,7 +2,6 @@
 
 import { memo, useCallback } from "react";
 import type { Editor } from "@tiptap/react";
-import { useTranslation } from "react-i18next";
 import { HardBreakIcon, ClearFormatIcon } from "../../../../assets/icons";
 import { ButtonTiptap } from "./ButtonTiptap";
 
@@ -16,7 +15,6 @@ interface UtilityButtonsProps {
 
 export const UtilityButtons = memo(
     ({ editor, state }: UtilityButtonsProps) => {
-        const { t } = useTranslation();
         const handleHardBreak = useCallback(() => {
             editor?.chain().focus().setHardBreak().run();
         }, [editor]);
@@ -35,7 +33,7 @@ export const UtilityButtons = memo(
         return (
             <div className="flex items-center gap-1">
                 <ButtonTiptap
-                    title={t("admin.tiptap.toolbar.hard_break")}
+                    title="Xuống dòng cứng (Shift + Enter)"
                     onClick={handleHardBreak}
                     disabled={!state.canHardBreak}
                 >
@@ -43,7 +41,7 @@ export const UtilityButtons = memo(
                 </ButtonTiptap>
 
                 <ButtonTiptap
-                    title={t("admin.tiptap.toolbar.clear_format")}
+                    title="Xoá định dạng"
                     onClick={handleClearMarks}
                     disabled={!state.canClearMarks}
                 >

@@ -27,7 +27,6 @@ import {
 } from "@mui/material";
 import { Icon } from "@iconify/react";
 import dayjs from "dayjs";
-import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import { confirmAction } from "../../../../utils/swal";
@@ -56,7 +55,6 @@ const TabBadge = styled('span')(() => ({
 }));
 
 export const OrderList = () => {
-    const { t } = useTranslation();
     const navigate = useNavigate();
     const { settings, setSettings } = useSettings();
     

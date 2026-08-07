@@ -25,7 +25,6 @@ import {
 import { DataGrid, GridColDef } from '@mui/x-data-grid';
 import AddIcon from '@mui/icons-material/Add';
 import CloseIcon from '@mui/icons-material/Close';
-import { useTranslation } from "react-i18next";
 import { Breadcrumb } from "../../../../components/ui/Breadcrumb";
 import { Title } from "../../../../components/ui/Title";
 import { Search } from "../../../../components/ui/Search";
@@ -41,7 +40,6 @@ import { usePermissions } from "../../../../hooks/usePermission";
 import { CanAccess } from "../../../../components/auth/CanAccess";
 
 export const BlogTagListPage = () => {
-    const { t } = useTranslation();
     const { can, canAny } = usePermissions();
     const canEdit = can(PERMISSIONS.ARTICLE.EDIT);
     const canDelete = can(PERMISSIONS.ARTICLE.DELETE);
@@ -217,8 +215,8 @@ export const BlogTagListPage = () => {
                     <Title title="Thẻ bài viết" />
                     <Breadcrumb
                         items={[
-                            { label: t("admin.dashboard.title"), to: "/" },
-                            { label: t("admin.blog.title.list"), to: `/${prefixAdmin}/blog/list` },
+                            { label: "Bảng điều khiển", to: "/" },
+                            { label: "Danh sách bài viết", to: `/${prefixAdmin}/blog/list` },
                             { label: "Thẻ bài viết" }
                         ]}
                     />
@@ -268,7 +266,7 @@ export const BlogTagListPage = () => {
                         slots={{
                             noRowsOverlay: () => (
                                 <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
-                                    {isLoading ? <CircularProgress size={32} /> : <span className="admin-datagrid-empty">{t("admin.common.no_data")}</span>}
+                                    {isLoading ? <CircularProgress size={32} /> : <span className="admin-datagrid-empty">Chưa có dữ liệu</span>}
                                 </Box>
                             )
                         }}

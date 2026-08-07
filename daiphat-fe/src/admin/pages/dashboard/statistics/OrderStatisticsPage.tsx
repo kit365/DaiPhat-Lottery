@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from 'react';
-import { useTranslation } from 'react-i18next';
 import { Box, Typography, Skeleton } from '@mui/material';
 import dynamic from 'next/dynamic';
 const Chart = dynamic(() => import('react-apexcharts'), { ssr: false });
@@ -10,7 +9,6 @@ import DashboardCard from '../../../components/dashboard/DashboardCard';
 import SummaryWidget from '../../../components/dashboard/SummaryWidget';
 
 export const OrderStatisticsPage = () => {
-    const { t } = useTranslation();
     const [loading, setLoading] = useState(true);
     const [stats, setStats] = useState<any>(null);
 
@@ -117,22 +115,22 @@ export const OrderStatisticsPage = () => {
             <Box sx={gridLayout}>
                 <Box sx={{ gridColumn: 'span 12' }}>
                     <DashboardCard sx={{ p: 3 }}>
-                        <Typography variant="h6" sx={{ mb: 3, fontWeight: 600 }}>{t('admin.dashboard.statistics.revenue_trend_6m', 'Xu hướng doanh thu (6 tháng gần nhất)')}</Typography>
-                        <Chart options={trendOptions} series={[{ name: t('admin.common.revenue', 'Doanh thu'), data: (revenueTrend || []).map((t: any) => t.total) }]} type="area" height={300} />
+                        <Typography variant="h6" sx={{ mb: 3, fontWeight: 600 }}>Xu hướng doanh thu (6 tháng gần nhất)</Typography>
+                        <Chart options={trendOptions} series={[{ name: 'Doanh thu', data: (revenueTrend || []).map((t: any) => t.total) }]} type="area" height={300} />
                     </DashboardCard>
                 </Box>
 
                 <Box sx={{ gridColumn: { xs: 'span 12', md: 'span 5' } }}>
                     <DashboardCard sx={{ p: 3, height: '100%' }}>
-                        <Typography variant="h6" sx={{ mb: 3, fontWeight: 600 }}>{t('admin.dashboard.statistics.order_status', 'Trạng thái Đơn hàng')}</Typography>
+                        <Typography variant="h6" sx={{ mb: 3, fontWeight: 600 }}>Trạng thái Đơn hàng</Typography>
                         <Chart options={donutOptions} series={orderDistribution.map((o: any) => o.count)} type="donut" height={380} />
                     </DashboardCard>
                 </Box>
 
                 <Box sx={{ gridColumn: { xs: 'span 12', md: 'span 7' } }}>
                     <DashboardCard sx={{ p: 3, height: '100%' }}>
-                        <Typography variant="h6" sx={{ mb: 3, fontWeight: 600 }}>{t('admin.dashboard.statistics.top_5_products', 'Top 5 Sản phẩm Bán chạy nhất')}</Typography>
-                        <Chart options={barOptions} series={[{ name: t('admin.common.quantity', 'Số lượng mua'), data: topTickets.map((p: any) => p.totalQuantity) }]} type="bar" height={360} />
+                        <Typography variant="h6" sx={{ mb: 3, fontWeight: 600 }}>Top 5 Sản phẩm Bán chạy nhất</Typography>
+                        <Chart options={barOptions} series={[{ name: 'Số lượng mua', data: topTickets.map((p: any) => p.totalQuantity) }]} type="bar" height={360} />
                     </DashboardCard>
                 </Box>
 

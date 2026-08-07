@@ -14,7 +14,6 @@ import Typography from "@mui/material/Typography";
 import Divider from "@mui/material/Divider";
 import Stack from "@mui/material/Stack";
 import { Icon } from "@iconify/react";
-import { useTranslation } from "react-i18next";
 import { useState } from "react";
 import { toast } from 'react-toastify';
 import { motion } from "framer-motion";
@@ -58,20 +57,10 @@ function ElevationScroll(props: Props) {
 }
 
 export const Header = () => {
-    const { i18n } = useTranslation();
     const navigate = useNavigate();
     const { user, logout: logoutStore } = useAuthStore();
-    const [anchorElLang, setAnchorElLang] = useState<HTMLButtonElement | null>(null);
     const [anchorElUser, setAnchorElUser] = useState<HTMLButtonElement | null>(null);
     const [hoveredItem, setHoveredItem] = useState<string | null>(null);
-
-    const handleOpenLang = (event: React.MouseEvent<HTMLButtonElement>) => {
-        setAnchorElLang(event.currentTarget);
-    };
-
-    const handleCloseLang = () => {
-        setAnchorElLang(null);
-    };
 
     const handleOpenUser = (event: React.MouseEvent<HTMLButtonElement>) => {
         setAnchorElUser(event.currentTarget);
@@ -98,21 +87,7 @@ export const Header = () => {
         }
     };
 
-    const handleChangeLanguage = (lng: string) => {
-        i18n.changeLanguage(lng);
-        const message = lng === 'vi' ? 'Đã đổi sang Tiếng Việt!' : 'Language changed to English!';
-        toast.success(message);
-        handleCloseLang();
-    };
-
-    const openLang = Boolean(anchorElLang);
     const openUser = Boolean(anchorElUser);
-
-    // Flags
-    const VI_FLAG = "https://flagcdn.com/w40/vn.png";
-    const US_FLAG = "https://flagcdn.com/w40/gb.png";
-
-    const currentFlag = i18n.language === 'vi' ? VI_FLAG : US_FLAG;
 
     const navMotionProps = {
         whileHover: { 
@@ -163,127 +138,6 @@ export const Header = () => {
                             )}
                         </motion.div>
 
-                        <motion.div 
-                            {...navMotionProps}
-                            onMouseEnter={() => setHoveredItem('lang')}
-                            onMouseLeave={() => setHoveredItem(null)}
-                            className="relative"
-                        >
-                            <Button
-                                onClick={handleOpenLang}
-                                sx={{
-                                    minWidth: 0,
-                                    width: 40,
-                                    height: 40,
-                                    padding: 0,
-                                    borderRadius: '50%',
-                                    backgroundColor: openLang ? 'rgba(145, 158, 171, 0.12)' : 'transparent',
-                                    position: 'relative',
-                                    zIndex: 1
-                                }}
-                            >
-                                <img
-                                    src={currentFlag}
-                                    alt="flag"
-                                    style={{
-                                        width: 24,
-                                        height: 18,
-                                        borderRadius: 4,
-                                        objectFit: 'cover',
-                                        filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.1))'
-                                    }}
-                                />
-                            </Button>
-                            {hoveredItem === 'lang' && (
-                                <motion.div
-                                    layoutId="header-highlight"
-                                    className="absolute inset-0 bg-[#919eab14] rounded-full z-0"
-                                    transition={{ type: "spring", stiffness: 400, damping: 30 }}
-                                />
-                            )}
-                        </motion.div>
-                        <Popover
-                            open={openLang}
-                            anchorEl={anchorElLang}
-                            onClose={handleCloseLang}
-                            anchorOrigin={{
-                                vertical: 'bottom',
-                                horizontal: 'right',
-                            }}
-                            transformOrigin={{
-                                vertical: 'top',
-                                horizontal: 'right',
-                            }}
-                            slotProps={{
-                                paper: {
-                                    className: 'background-popup',
-                                    sx: {
-                                        ml: 0.75,
-                                        width: 168,
-                                        '& .MuiMenuItem-root': {
-                                            px: 1,
-                                            typography: 'body2',
-                                            borderRadius: 0.75,
-                                        },
-                                    },
-                                }
-                            }}
-                        >
-                            <motion.div
-                                initial={{ opacity: 0, scale: 0.95, y: -10 }}
-                                animate={{ opacity: 1, scale: 1, y: 0 }}
-                                transition={{ type: "spring", stiffness: 400, damping: 25 }}
-                            >
-                                <motion.div
-                                    whileHover={{ x: 4, filter: 'brightness(1.05)' }}
-                                    transition={{ type: "spring", stiffness: 400, damping: 20 }}
-                                >
-                                    <MenuItem
-                                        selected={i18n.language === 'en'}
-                                        onClick={() => handleChangeLanguage('en')}
-                                        sx={{
-                                            padding: "6px 8px",
-                                            mb: "4px",
-                                            fontSize: '0.8125rem !important',
-                                            '&.Mui-selected': {
-                                                fontWeight: 600,
-                                                backgroundColor: '#919eab29 !important',
-                                                '&:hover': {
-                                                    backgroundColor: '#919eab3d !important',
-                                                }
-                                            }
-                                        }}
-                                    >
-                                        <Box component="img" alt="en" src={US_FLAG} sx={{ width: 26, height: 20, mr: 2, borderRadius: "5px", objectFit: 'cover' }} />
-                                        English
-                                    </MenuItem>
-                                </motion.div>
-                                <motion.div
-                                    whileHover={{ x: 4, filter: 'brightness(1.05)' }}
-                                    transition={{ type: "spring", stiffness: 400, damping: 20 }}
-                                >
-                                    <MenuItem
-                                        selected={i18n.language === 'vi'}
-                                        onClick={() => handleChangeLanguage('vi')}
-                                        sx={{
-                                            padding: "6px 8px",
-                                            mb: "4px",
-                                            fontSize: '0.8125rem !important',
-                                            '&.Mui-selected': {
-                                                fontWeight: 600,
-                                                backgroundColor: '#919eab29 !important',
-                                                '&:hover': {
-                                                    backgroundColor: '#919eab3d !important',
-                                                }
-                                            }
-                                        }}
-                                    >
-                                        <Box component="img" alt="vi" src={VI_FLAG} sx={{ width: 26, height: 20, mr: 2, borderRadius: "5px", objectFit: 'cover' }} />
-                                        Tiếng Việt
-                                    </MenuItem>
-                                </motion.div>
-                            </motion.div>
-                        </Popover>
                         <NotificationPopover 
                             onMouseEnter={() => setHoveredItem('notif')}
                             onMouseLeave={() => setHoveredItem(null)}
