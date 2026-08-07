@@ -38,8 +38,8 @@ const TABS: TabConfig[] = [
     { id: 'settings', path: '/profile/settings', label: 'Bảo mật', icon: 'fa-solid fa-shield-halved' },
 ];
 
-export const ProfilePage = () => {
-    const { user, isUserLoading, handleUploadAvatar, uploadAvatarMutation } = useAuth();
+export const ProfilePage = ({ children }: { children?: React.ReactNode }) => {
+    const { user, isUserLoading, handleUploadAvatar, uploadAvatarMutation, logout } = useAuth();
     const { token, isHydrated, openLoginModal } = useAuthStore();
     const { unreadCount } = useNotifications(4);
     const { pendingCount: pendingRefundCount } = useMyRefundPendingCount();

@@ -151,7 +151,7 @@ class SupportTicketServiceStaffTest {
             }
             return comment;
         });
-        when(supportApplicationMapper.toTicketResponse(any(), any())).thenReturn(mockResponse(TicketStatus.CLOSED));
+        when(supportApplicationMapper.toTicketResponse(any(), any())).thenReturn(mockResponse(TicketStatus.RESOLVED));
         when(ticketCategoryRepositoryPort.findById(1L)).thenReturn(Optional.of(
                 com.daiphat.coreapi.domain.model.support.TicketCategoryModel.builder()
                         .id(1L)

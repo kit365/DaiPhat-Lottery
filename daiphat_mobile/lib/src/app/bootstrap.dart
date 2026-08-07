@@ -40,11 +40,17 @@ Future<void> bootstrap() async {
   WidgetsFlutterBinding.ensureInitialized();
   await dotenv.load(fileName: '.env');
 
-  try {
-    await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-    FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
-  } catch (e) {
-    debugPrint('Firebase init warning/error: $e');
+  if (_hasFirebaseConfig()) {
+    try {
+      await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+      FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+    } catch (e) {
+      debugPrint('Firebase init warning/error: $e');
+    }
+  } else {
+    debugPrint(
+      'Firebase chưa cấu hình trong .env — bỏ qua init (app vẫn chạy local).',
+    );
   }
 
   try {

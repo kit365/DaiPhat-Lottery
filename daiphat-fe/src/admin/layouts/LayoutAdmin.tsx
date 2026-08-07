@@ -25,11 +25,7 @@ const LayoutAdminContent = ({ children }: { children?: React.ReactNode }) => {
     const location = useLocation();
     const { isOpen } = useSidebar();
 
-    // [THE VAULT DOOR] - Chặn đứng mọi nỗ lực xem Dashboard khi chưa setup xong
-    if (isLoading && !user) {
-        return <LoadingScreen />;
-    }
-
+    usePrefetchAdminPagesWhenIdle(!!user && !!token);
 
     const isBlogDetail = location.pathname.startsWith(ROUTES.ADMIN.BLOGS.DETAIL);
     const fullWidthRoutes = [

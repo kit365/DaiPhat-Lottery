@@ -3,6 +3,7 @@
 import React from 'react';
 import { Link } from '@/components/router-compat';
 import { PartnerLogos } from '@/client/components/layout/PartnerLogos';
+import { CLIENT_PAGE_BACKGROUND } from '@/client/constants/clientBannerAssets';
 
 export default function NotFound() {
     return (

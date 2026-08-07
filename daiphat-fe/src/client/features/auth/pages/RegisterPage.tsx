@@ -64,6 +64,9 @@ export const RegisterPage = () => {
                         <span className="text-[20px] lg:text-[22px] tracking-tight font-client-display font-black text-[#ee1314] leading-none mb-1">ĐẠI PHÁT</span>
                         <span className="text-[8.5px] lg:text-[9.5px] font-bold text-[#F59E0B] leading-none uppercase tracking-wider whitespace-nowrap">Tài lộc - May mắn - Thịnh vượng</span>
                     </div>
+                    <div className="hidden">
+                        <AuthBranding onClick={() => navigate("/")} />
+                    </div>
                 </div>
 
                 {/* Left Side: Empty */}

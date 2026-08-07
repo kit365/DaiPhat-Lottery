@@ -317,9 +317,15 @@ export const UploadSingleFile = memo(
                                 )}
                             </>
                         ) : (
-                            <Button size="small" variant="outlined" sx={{ fontSize: '0.75rem' }}>
-                                Chọn ảnh
-                            </Button>
+                            <Stack alignItems="center" spacing={0.75} sx={{ px: 1.5, textAlign: "center" }}>
+                                <UploadIcon sx={{ fontSize: 28, color: "#637381" }} />
+                                <Typography sx={{ fontSize: "0.8125rem", fontWeight: 700, color: "#1C252E" }}>
+                                    {isUploading ? "Đang tải..." : "Kéo thả / chọn"}
+                                </Typography>
+                                <Typography sx={{ fontSize: "0.7rem", color: "#637381", lineHeight: 1.4 }}>
+                                    PNG, JPG · tối đa {maxFileSizeMb}MB
+                                </Typography>
+                            </Stack>
                         )}
                     </Box>
                     {(error || (!useRawFile && localFile && !value && !isUploading && !autoUpload)) && (

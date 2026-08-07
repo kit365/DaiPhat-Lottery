@@ -23,17 +23,9 @@ function parseNavPath(rawPath: string): { pathname: string; search: string } {
     return { pathname, search: query };
 }
 
-function isNavChildActive(pathname: string, search: string, childPath: string): boolean {
-    const target = parseNavPath(childPath);
-    if (pathname !== target.pathname) {
-        // Highlight list child when viewing detail under same section prefix
-        if (
-            !target.search &&
-            target.pathname.endsWith('/list') &&
-            pathname.startsWith(target.pathname.replace(/\/list$/, '/'))
-        ) {
-            return true;
-        }
+/** Chỉ coi là trang con của mục /list khi là detail/inspect — không match sibling như create-counter. */
+function isListSectionDetailRoute(sectionPrefix: string, pathname: string): boolean {
+    if (!pathname.startsWith(sectionPrefix)) {
         return false;
     }
 
@@ -52,9 +44,13 @@ function isNavChildActive(pathname: string, search: string, childPath: string): 
         const current = new URLSearchParams(search.startsWith('?') ? search.slice(1) : search);
         return [...required.entries()].every(([key, value]) => current.get(key) === value);
     }
-    const required = new URLSearchParams(target.search);
-    const current = new URLSearchParams(search.startsWith('?') ? search.slice(1) : search);
-    return [...required.entries()].every(([key, value]) => current.get(key) === value);
+
+    if (!target.search && target.pathname.endsWith('/list')) {
+        const sectionPrefix = target.pathname.replace(/\/list$/, '/');
+        return isListSectionDetailRoute(sectionPrefix, pathname);
+    }
+
+    return false;
 }
 
 const SubNavItem = ({

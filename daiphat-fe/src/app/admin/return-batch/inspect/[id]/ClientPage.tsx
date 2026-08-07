@@ -5,6 +5,9 @@ import { PermissionGuard } from '@/admin/components/auth/PermissionGuard';
 import { PERMISSIONS } from '@/admin/constants/permission.constants';
 import { LoadingSpinner } from '@/client/components/ui/LoadingSpinner';
 
+import { ReturnBatchInspectPage } from '@/admin/features/ticket/return-batch/components/pages/ReturnBatchInspectPage';
+import { createAdminClientPage } from '@/admin/lib/createAdminClientPage';
+
 const FeaturePage = dynamic(
   () => import('@/admin/features/ticket/return-batch/components/pages/ReturnBatchInspectPage').then((m) => m.ReturnBatchInspectPage),
   {
@@ -17,10 +20,15 @@ const FeaturePage = dynamic(
   }
 );
 
-export function ClientPage() {
+export function ClientPageLocal() {
   return (
     <PermissionGuard permissions={[PERMISSIONS.IMPORT_BATCH.VIEW, PERMISSIONS.IMPORT_BATCH.CREATE, PERMISSIONS.SUPPLIER.VIEW]}>
-      <FeaturePage />
+      <ReturnBatchInspectPage />
     </PermissionGuard>
   );
 }
+
+export const ClientPage = createAdminClientPage({
+  component: FeaturePage,
+  permissions: [PERMISSIONS.IMPORT_BATCH.VIEW, PERMISSIONS.IMPORT_BATCH.CREATE, PERMISSIONS.SUPPLIER.VIEW],
+});

@@ -1,4 +1,4 @@
-import Image from 'next/image';
+import AppImage from '@/components/AppImage';
 
 export const PartnerLogos = () => {
     const partners = [
@@ -18,7 +18,7 @@ export const PartnerLogos = () => {
                 {partners.map(p => (
                     /* unoptimized: SVG/PNG partner logos are already lightweight vectors/small PNGs.
                        Bypasses Next.js image resize pipeline (Sharp) to avoid wasting Server RAM/CPU. */
-                    <Image
+                    <AppImage
                         key={p.name}
                         src={p.icon}
                         alt={p.name}

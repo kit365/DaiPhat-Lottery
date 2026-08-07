@@ -49,6 +49,10 @@ daiphat:
   # use filesystem storage for local Import Batch receipt / ticket image flows.
   storage:
     provider: local
+  vendor:
+    test-seed:
+      enabled: ${VENDOR_TEST_SEED_ENABLED:true}
+
   auth:
     frontend-url: http://localhost:5173
     jwt:
@@ -105,7 +109,7 @@ daiphat:
       southern-stations:
         enabled: true
   fortune:
-    daily-limit-enabled: false
+    daily-limit-enabled: true
   order:
     seed:
       enabled: true

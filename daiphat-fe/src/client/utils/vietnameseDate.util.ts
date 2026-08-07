@@ -25,6 +25,10 @@ function parseDrawDate(value: string) {
     if (dmy) {
         return dayjs(`${dmy[1]}/${dmy[2]}/${dmy[3]}`, 'DD/MM/YYYY', true);
     }
+    const dmyDash = /^(\d{2})-(\d{2})-(\d{4})$/.exec(trimmed);
+    if (dmyDash) {
+        return dayjs(`${dmyDash[1]}-${dmyDash[2]}-${dmyDash[3]}`, 'DD-MM-YYYY', true);
+    }
     return dayjs(trimmed);
 }
 
@@ -46,6 +50,19 @@ export function formatVietnameseDrawDateWithParen(value?: string | null): string
     if (!parsed.isValid()) return '—';
     const weekday = VI_WEEKDAY_BY_DAYJS[parsed.day()] ?? '';
     return `${parsed.format('DD/MM/YYYY')} (${weekday})`;
+}
+
+/** Formats as "04-08-2026" for fortune cast UI copy. */
+export function formatFortuneDisplayDate(value?: string | null): string {
+    if (!value) return '—';
+    const parsed = parseDrawDate(value);
+    if (!parsed.isValid()) return value;
+    return parsed.format('DD-MM-YYYY');
+}
+
+/** Replace ISO `YYYY-MM-DD` dates inside prose with `DD-MM-YYYY`. */
+export function localizeFortuneProseDates(prose: string): string {
+    return prose.replace(/\b(\d{4})-(\d{2})-(\d{2})\b/g, (_m, y, m, d) => `${d}-${m}-${y}`);
 }
 
 export function vietnameseWeekdayLabel(value?: string | null): string {

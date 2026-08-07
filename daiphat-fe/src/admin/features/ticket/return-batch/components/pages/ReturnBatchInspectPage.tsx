@@ -1090,7 +1090,7 @@ export const ReturnBatchInspectPage = () => {
                                     <Typography variant="body2" color="text.secondary">
                                         Tổng giá trị vốn ước tính:
                                     </Typography>
-                                    <Typography variant="body2" fontWeight={700} color="#00A76F" sx={{ fontSize: '0.95rem' }}>
+                                    <Typography variant="body2" fontWeight={700} color="#FF3030" sx={{ fontSize: '0.95rem' }}>
                                         {formatImportCost(inStockValue)} VNĐ
                                     </Typography>
                                 </Box>
@@ -1132,7 +1132,7 @@ export const ReturnBatchInspectPage = () => {
                                                 <TableCell align="center" sx={{ py: 1, color: '#0284C7', fontWeight: 600 }}>
                                                     {st.count} vé
                                                 </TableCell>
-                                                <TableCell align="right" sx={{ py: 1, pr: 0, fontWeight: 700, color: '#00A76F' }}>
+                                                <TableCell align="right" sx={{ py: 1, pr: 0, fontWeight: 700, color: '#FF3030' }}>
                                                     {formatImportCost(st.totalCost)} VNĐ
                                                 </TableCell>
                                             </TableRow>
