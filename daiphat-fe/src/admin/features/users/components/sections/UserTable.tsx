@@ -129,11 +129,8 @@ export const UserTable = ({
                     pageSize: pagination?.limit || 10
                 }}
                 onPaginationModelChange={(newModel) => {
-                    if (newModel.pageSize !== pagination?.limit) {
-                        onLimitChange(newModel.pageSize);
-                    } else {
-                        onPageChange(newModel.page + 1);
-                    }
+                    onPageChange(newModel.page + 1);
+                    onLimitChange(newModel.pageSize);
                 }}
                 pageSizeOptions={[10, 25, 50]}
                 disableColumnMenu

@@ -162,10 +162,4 @@ export const getColumnsConfig = (
         },
     ];
 
-export const columnsInitialState = {
-    pagination: {
-        paginationModel: {
-            pageSize: 10,
-        },
-    },
-};
+export const columnsInitialState = {};

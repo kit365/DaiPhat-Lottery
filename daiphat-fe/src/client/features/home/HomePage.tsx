@@ -14,7 +14,7 @@ import { CLIENT_PAGE_BACKGROUND } from "../../constants/clientBannerAssets";
 import { usePrefetchClientPagesWhenIdle } from "../../hooks/usePrefetchClientPagesWhenIdle";
 import type { HomeServerInitialData } from '@/lib/server-lottery';
 import { useLottery } from "../../hooks/useLottery";
-import { buildCountdownTarget, formatApiDateToDisplay, isTodayDisplayDate } from "../../types/lottery";
+import { buildCountdownTarget, formatApiDateToDisplay } from "../../types/lottery";
 
 const MobileLotterySelector = dynamic(
   () => import('../../components/home/MobileLotterySelector').then((mod) => mod.MobileLotterySelector),
@@ -55,7 +55,6 @@ export const HomePage = ({ initialData }: { initialData?: HomeServerInitialData 
     availableProvinces,
     scheduleStations,
     isLoading,
-    isRefreshing,
     isWaitingForResults,
     error
   } = useLottery(initialData);
@@ -122,29 +121,12 @@ export const HomePage = ({ initialData }: { initialData?: HomeServerInitialData 
     ? `Kết quả ${selectedProvinceLabel || singleData.province} ngày ${singleData.date} đã được cập nhật.`
     : countdownMessage
       ? countdownMessage
-    : singleData
-      ? `${selectedProvinceLabel || `Đài ${singleData.province}`} đang chờ cập nhật kết quả.`
-      : 'Đang cập nhật kết quả mới nhất từ hệ thống.';
+      : singleData
+        ? `${selectedProvinceLabel || `Đài ${singleData.province}`} đang chờ cập nhật kết quả.`
+        : '';
 
   const emptyStateMessage = error || 'Chưa có dữ liệu kết quả cho ngày đã chọn.';
-  const hasAnyWinningNumbers = useMemo(() => {
-    return lotteryData.some((item) =>
-      Boolean(
-        item.prizes.special ||
-        item.prizes.first ||
-        item.prizes.second ||
-        item.prizes.fifth ||
-        item.prizes.seventh ||
-        item.prizes.eighth ||
-        item.prizes.third.length > 0 ||
-        item.prizes.fourth.length > 0 ||
-        item.prizes.sixth.length > 0
-      )
-    );
-  }, [lotteryData]);
-  const shouldShowLoadingOverlay = !isTodayDisplayDate(selectedDate)
-    && (isLoading || isWaitingForResults)
-    && !hasAnyWinningNumbers;
+  const shouldShowEmptyState = lotteryData.length === 0 && !isLoading && !isWaitingForResults;
 
   useEffect(() => {
     const token = searchParams.get("verify_token");
@@ -265,15 +247,6 @@ export const HomePage = ({ initialData }: { initialData?: HomeServerInitialData 
             />
             
             <div className="relative">
-              {shouldShowLoadingOverlay && (
-                <div className="absolute inset-0 z-50 flex items-center justify-center bg-white/60 backdrop-blur-[2px] rounded-3xl min-h-[400px]">
-                  <div className="flex flex-col items-center gap-4 bg-white p-6 rounded-2xl shadow-xl border border-gray-100">
-                    <div className="w-12 h-12 border-4 border-slate-100 border-t-[#ee1314] rounded-full animate-spin"></div>
-                    <span className="text-[#102937] font-bold text-sm uppercase tracking-wider">Đang lấy kết quả...</span>
-                  </div>
-                </div>
-              )}
-
               <div className="transition-all duration-300">
                 {lotteryData.length > 0 ? (
                   <ResultsMatrix
@@ -289,9 +262,8 @@ export const HomePage = ({ initialData }: { initialData?: HomeServerInitialData 
                     activeDigit={activeDigit}
                     setHoveredDigit={setHoveredDigit}
                     statusMessage={resultStatusMessage}
-                    isRefreshing={isRefreshing}
                   />
-                ) : !shouldShowLoadingOverlay ? (
+                ) : shouldShowEmptyState ? (
                   /* EMPTY STATE - When no data is available */
                   <div className="bg-white rounded-3xl border border-gray-100 shadow-[0_4px_25px_rgba(0,0,0,0.02)] p-12 lg:p-20 flex flex-col items-center justify-center text-center space-y-6 animate-in fade-in zoom-in duration-500">
                     <div className="w-24 h-24 bg-slate-50 rounded-full flex items-center justify-center">
@@ -310,9 +282,7 @@ export const HomePage = ({ initialData }: { initialData?: HomeServerInitialData 
                       Xem đài đang mở
                     </button>
                   </div>
-                ) : (
-                  <div className="bg-white rounded-3xl border border-gray-100 shadow-[0_4px_25px_rgba(0,0,0,0.02)] min-h-[400px]" />
-                )}
+                ) : null}
               </div>
             </div>
           </div>

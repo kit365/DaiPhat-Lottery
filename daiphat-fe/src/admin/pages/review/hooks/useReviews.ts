@@ -3,29 +3,33 @@
 import { useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { getReviews, changeReviewStatus, deleteReview } from '../../../api/review.api';
+import { useServerPagination } from '../../../shared/data-grid/useServerPagination';
 
 interface IReviewFilters {
     status?: string;
     search?: string;
-    page: number;
-    limit: number;
 }
 
 export const useReviews = () => {
     const queryClient = useQueryClient();
+    const {
+        apiPage,
+        pageSize,
+        paginationModel,
+        onPaginationModelChange,
+        resetPage,
+    } = useServerPagination(10);
     const [filters, setFilters] = useState<IReviewFilters>({
         status: 'all',
         search: '',
-        page: 1,
-        limit: 10,
     });
 
     const { data, isLoading, error } = useQuery({
-        queryKey: ['admin-reviews', filters],
+        queryKey: ['admin-reviews', filters, apiPage, pageSize],
         queryFn: () => getReviews({
             status: filters.status,
-            page: filters.page,
-            limit: filters.limit,
+            page: apiPage,
+            limit: pageSize,
             search: filters.search,
         }),
         placeholderData: keepPreviousData,
@@ -71,19 +75,13 @@ export const useReviews = () => {
     });
 
     const setStatusFilter = (status: string) => {
-        setFilters((prev) => ({ ...prev, status, page: 1 }));
-    };
-
-    const setPage = (page: number) => {
-        setFilters((prev) => ({ ...prev, page }));
-    };
-
-    const setLimit = (limit: number) => {
-        setFilters((prev) => ({ ...prev, limit, page: 1 }));
+        setFilters((prev) => ({ ...prev, status }));
+        resetPage();
     };
 
     const setSearchFilter = (search: string) => {
-        setFilters((prev) => ({ ...prev, search, page: 1 }));
+        setFilters((prev) => ({ ...prev, search }));
+        resetPage();
     };
 
     return {
@@ -92,10 +90,10 @@ export const useReviews = () => {
         isLoading,
         error,
         filters,
+        paginationModel,
+        onPaginationModelChange,
         setStatusFilter,
         setSearchFilter,
-        setPage,
-        setLimit,
         changeStatus: statusMutation.mutate,
         deleteReview: deleteMutation.mutate
     };

@@ -350,10 +350,10 @@ export const ImportBatchLineDetailPage = () => {
 
     const line = batch?.lines?.find((l) => String(l.id) === String(lineId));
 
-    const { tickets, isLoading: isTicketsLoading } = useTicketInventory({ 
-        limit: 1000, 
-        importBatchLineId: line?.id 
-    });
+    const { tickets, isLoading: isTicketsLoading } = useTicketInventory(
+        { importBatchLineId: line?.id },
+        1000,
+    );
 
     const [cancelMode, setCancelMode] = React.useState<'NONE' | 'TICKET' | 'SERIAL'>('NONE');
     const [selectedSerials, setSelectedSerials] = React.useState<any[]>([]);

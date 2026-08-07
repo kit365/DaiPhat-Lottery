@@ -15,6 +15,7 @@ import type {
     UpdateLotterySupplierPayload,
 } from '../types/supplier.type';
 import { QUERY_KEYS } from '../constants/queryKeys';
+import { useServerPagination } from '../../../shared/data-grid/useServerPagination';
 
 /** List theo params — cùng pattern `useStations(params)`. */
 export const useSuppliers = (params?: SupplierListParams, options?: any) => {
@@ -77,18 +78,21 @@ interface ISupplierFilters {
     search?: string;
     sortBy?: string;
     direction?: string;
-    page: number;
-    limit: number;
 }
 
 /** Controller trang danh sách NCC (filter/pagination). List theo params → dùng `useSuppliers`. */
 export const useSupplierList = () => {
+    const {
+        apiPage,
+        pageSize,
+        paginationModel,
+        onPaginationModelChange,
+        resetPage,
+    } = useServerPagination(10);
     const [filters, setFilters] = useState<ISupplierFilters>({
         search: '',
         sortBy: 'name',
         direction: 'asc',
-        page: 1,
-        limit: 10,
     });
 
     const queryParams = useMemo(
@@ -96,10 +100,10 @@ export const useSupplierList = () => {
             search: filters.search || undefined,
             sortBy: filters.sortBy,
             direction: filters.direction,
-            page: filters.page,
-            size: filters.limit,
+            page: apiPage,
+            size: pageSize,
         }),
-        [filters]
+        [apiPage, filters, pageSize]
     );
 
     const { data, isLoading, error } = useSuppliers(queryParams, {
@@ -116,15 +120,8 @@ export const useSupplierList = () => {
     };
 
     const setSearchFilter = (search: string) => {
-        setFilters((prev) => ({ ...prev, search, page: 1 }));
-    };
-
-    const setPage = (page: number) => {
-        setFilters((prev) => ({ ...prev, page }));
-    };
-
-    const setLimit = (limit: number) => {
-        setFilters((prev) => ({ ...prev, limit, page: 1 }));
+        setFilters((prev) => ({ ...prev, search }));
+        resetPage();
     };
 
     const setSort = (sortBy?: string, direction?: string) => {
@@ -132,8 +129,8 @@ export const useSupplierList = () => {
             ...prev,
             sortBy: sortBy || 'name',
             direction: direction || 'asc',
-            page: 1,
         }));
+        resetPage();
     };
 
     return {
@@ -142,9 +139,9 @@ export const useSupplierList = () => {
         isLoading,
         error,
         filters,
+        paginationModel,
+        onPaginationModelChange,
         setSearchFilter,
-        setPage,
-        setLimit,
         setSort,
     };
 };

@@ -30,8 +30,8 @@ export const columnsConfig: GridColDef[] = [
         headerName: 'Giá trị nhập',
         flex: 1,
         minWidth: 135,
-        align: 'right',
-        headerAlign: 'right',
+        align: 'center',
+        headerAlign: 'center',
         renderCell: RenderMoneyCell,
     },
     {
@@ -39,8 +39,8 @@ export const columnsConfig: GridColDef[] = [
         headerName: 'Giá trị trả',
         flex: 1,
         minWidth: 135,
-        align: 'right',
-        headerAlign: 'right',
+        align: 'center',
+        headerAlign: 'center',
         renderCell: RenderMoneyCell,
     },
     {
@@ -48,8 +48,8 @@ export const columnsConfig: GridColDef[] = [
         headerName: 'Đã thanh toán',
         flex: 1,
         minWidth: 135,
-        align: 'right',
-        headerAlign: 'right',
+        align: 'center',
+        headerAlign: 'center',
         renderCell: RenderMoneyCell,
     },
     {
@@ -57,8 +57,8 @@ export const columnsConfig: GridColDef[] = [
         headerName: 'Còn phải trả',
         flex: 1,
         minWidth: 135,
-        align: 'right',
-        headerAlign: 'right',
+        align: 'center',
+        headerAlign: 'center',
         renderCell: RenderRemainingMoneyCell,
     },
     {
@@ -82,8 +82,4 @@ export const columnsConfig: GridColDef[] = [
     },
 ];
 
-export const columnsInitialState = {
-    pagination: {
-        paginationModel: { page: 0, pageSize: 10 },
-    },
-};
+export const columnsInitialState = {};

@@ -70,8 +70,8 @@ export const ExpiredTicketListPage = () => {
         pagination,
         isLoading,
         error,
-        setPage,
-        setLimit,
+        paginationModel,
+        onPaginationModelChange,
         refetch,
     } = useExpiredTickets();
     const { mutate: scan, isPending: isScanning } = useScanExpiredTickets();
@@ -147,14 +147,8 @@ export const ExpiredTicketListPage = () => {
                         paginationMode="server"
                         loading={isLoading}
                         rowCount={pagination.totalRecords}
-                        paginationModel={{
-                            page: pagination.currentPage - 1,
-                            pageSize: pagination.limit,
-                        }}
-                        onPaginationModelChange={(model) => {
-                            setPage(model.page + 1);
-                            setLimit(model.pageSize);
-                        }}
+                        paginationModel={paginationModel}
+                        onPaginationModelChange={onPaginationModelChange}
                         pageSizeOptions={[5, 10, 20, 50]}
                         getRowHeight={() => 'auto'}
                         checkboxSelection

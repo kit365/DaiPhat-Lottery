@@ -10,6 +10,7 @@ import { toast } from "react-toastify";
 import { useNavigate, Link, useLocation } from "@/components/router-compat";
 import { ROUTES } from "../../constants/routes";
 import { PERMISSIONS } from "../../constants/permission.constants";
+import { LogoAdmin } from "../../../assets/admin/logo";
 import { useAuth } from "./hooks/useAuth";
 import { useForgotPassword } from "./hooks/use-forgot-password";
 import { motion } from "framer-motion";

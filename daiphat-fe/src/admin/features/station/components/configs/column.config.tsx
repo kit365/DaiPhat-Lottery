@@ -63,8 +63,4 @@ export const columnsConfig: GridColDef<any>[] = [
     },
 ];
 
-export const columnsInitialState = {
-    pagination: {
-        paginationModel: { page: 0, pageSize: 10 },
-    },
-};
+export const columnsInitialState = {};

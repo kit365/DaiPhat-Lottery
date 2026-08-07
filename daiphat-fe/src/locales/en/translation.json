@@ -33,6 +33,7 @@
         "sidebar": {
             "analytics": "Analytics",
             "tickets": "Tickets",
+            "supplier_management": "Suppliers",
             "provider": "Providers",
             "booking": "Booking",
             "products": "Products",

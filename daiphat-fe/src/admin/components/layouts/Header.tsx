@@ -25,8 +25,6 @@ import { ROUTES, prefixAdmin } from "../../constants/routes";
 import { NotificationPopover } from "./NotificationPopover";
 import { STORAGE_KEYS } from "../../../constants/storage.constants";
 import Cookies from "js-cookie";
-import { useSiteBranding } from "@/client/hooks/useSiteBranding";
-import { SiteLogo } from "@/client/components/layout/SiteLogo";
 
 interface Props {
     window?: () => Window;
@@ -63,7 +61,6 @@ export const Header = () => {
     const { i18n } = useTranslation();
     const navigate = useNavigate();
     const { user, logout: logoutStore } = useAuthStore();
-    const { name: siteName } = useSiteBranding();
     const [anchorElLang, setAnchorElLang] = useState<HTMLButtonElement | null>(null);
     const [anchorElUser, setAnchorElUser] = useState<HTMLButtonElement | null>(null);
     const [hoveredItem, setHoveredItem] = useState<string | null>(null);
@@ -136,7 +133,7 @@ export const Header = () => {
                 }}
             >
                 <Container
-                    className="flex items-center justify-between"
+                    className="flex items-center justify-end"
                     maxWidth={false}
                     style={{
                         paddingLeft: "40px",
@@ -144,14 +141,6 @@ export const Header = () => {
                         height: "72px"
                     }}
                 >
-                    <div className="flex items-center gap-[8px] py-[4px]">
-                        <SiteLogo
-                            className="w-6 h-6 rounded"
-                            imgClassName="w-full h-full object-contain"
-                            alt={siteName}
-                        />
-                        <span className="text-[0.875rem] font-[600] text-[#1c252e]">{siteName}</span>
-                    </div>
                     <Box className="flex items-center gap-[6px]">
                         <motion.div 
                             {...navMotionProps}

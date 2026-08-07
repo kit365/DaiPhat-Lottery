@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactElement } from 'react';
+import type { ReactElement, ReactNode } from 'react';
 import { Link } from '@mui/material';
 import { GridActionsCell, GridActionsCellItem, GridRenderCellParams } from '@mui/x-data-grid';
 import dayjs from 'dayjs';
@@ -20,7 +20,7 @@ export const RenderSupplierNameCell = (params: GridRenderCellParams) => {
     const code = params.row.supplierCode;
 
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', padding: '4px 0' }}>
+        <div className="flex flex-col gap-0.5 py-1">
             <Link
                 href={ROUTES.ADMIN.SUPPLIER_SETTLEMENT.DETAIL(id)}
                 className="admin-cell-title"
@@ -29,15 +29,10 @@ export const RenderSupplierNameCell = (params: GridRenderCellParams) => {
                     navigate(ROUTES.ADMIN.SUPPLIER_SETTLEMENT.DETAIL(id));
                 }}
                 underline="hover"
-                sx={{ fontWeight: 600, color: '#0f172a' }}
             >
                 {name}
             </Link>
-            {code && (
-                <span style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: 500 }}>
-                    {code}
-                </span>
-            )}
+            {code ? <span className="admin-cell-subtitle">{code}</span> : null}
         </div>
     );
 };
@@ -52,16 +47,24 @@ export const RenderPeriodCell = (params: GridRenderCellParams) => {
     );
 };
 
+const MoneyCellWrapper = ({ children }: { children: ReactNode }) => (
+    <div className="flex h-full w-full items-center justify-center">{children}</div>
+);
+
 export const RenderMoneyCell = (params: GridRenderCellParams) => (
-    <span className="admin-cell-text" style={{ fontWeight: 600, color: '#0f172a' }}>
-        {formatImportCost(params.value)} VNĐ
-    </span>
+    <MoneyCellWrapper>
+        <span className="admin-cell-text" style={{ fontWeight: 600, color: '#0f172a', textAlign: 'center' }}>
+            {formatImportCost(params.value)} VNĐ
+        </span>
+    </MoneyCellWrapper>
 );
 
 export const RenderRemainingMoneyCell = (params: GridRenderCellParams) => (
-    <span className="admin-cell-text" style={{ fontWeight: 700, color: '#166534' }}>
-        {formatImportCost(params.value)} VNĐ
-    </span>
+    <MoneyCellWrapper>
+        <span className="admin-cell-text" style={{ fontWeight: 700, color: '#166534', textAlign: 'center' }}>
+            {formatImportCost(params.value)} VNĐ
+        </span>
+    </MoneyCellWrapper>
 );
 
 export const RenderPaidAtCell = (params: GridRenderCellParams) => {
