@@ -16,7 +16,7 @@ CONTAINMENT_SUPPRESSION_THRESHOLD = 0.75
 def _containment_ratio(inner_bbox: tuple[int, int, int, int], outer_bbox: tuple[int, int, int, int]) -> float:
     """Fraction of inner_bbox's area that overlaps outer_bbox."""
     ix, iy, iw, ih = inner_bbox
-    ox, oy, ox2, oy2 = outer_bbox # WAIT, ox, oy, ow, oh = outer_bbox is in original HEAD
+    ox, oy, ow, oh = outer_bbox
 
     inner_area = iw * ih
     if inner_area <= 0:

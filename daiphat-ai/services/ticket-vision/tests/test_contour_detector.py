@@ -102,10 +102,14 @@ def test_suppress_contained_regions_keeps_two_separate_adjacent_tickets():
 
 
 def test_caps_detections_at_max_tickets_and_warns():
-    canvas = _canvas(width=2400, height=1600)
+    # Extra vertical padding so the bottom row does not sit on the canvas
+    # edge — OpenCV external contours often fail for shapes that touch the
+    # image border, which would under-detect and skip the cap warning.
+    canvas = _canvas(width=2400, height=1700)
     for i in range(20):
         row, col = divmod(i, 5)
-        _draw_ticket(canvas, x=50 + col * 460, y=50 + row * 400, w=250, h=350)
+        # aspect 180/350 ≈ 0.51 — inside the configured 0.28–0.62 band
+        _draw_ticket(canvas, x=50 + col * 460, y=50 + row * 400, w=180, h=350)
 
     result = _detector(max_tickets=15).detect(canvas)
 
