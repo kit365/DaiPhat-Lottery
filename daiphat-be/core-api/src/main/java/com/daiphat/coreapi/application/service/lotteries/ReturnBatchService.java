@@ -374,8 +374,13 @@ public class ReturnBatchService implements ReturnBatchServicePort {
         refreshBatchAggregates(batchId);
 
         batch = getBatchOrThrow(batchId);
-        if (request != null && request.returnReceiptUrl() != null) {
-            batch.setReturnReceiptUrl(trimToNull(request.returnReceiptUrl()));
+        if (request != null) {
+            if (request.returnReceiptUrl() != null) {
+                batch.setReturnReceiptUrl(trimToNull(request.returnReceiptUrl()));
+            }
+            if (request.returnReceiptEvidenceUrl() != null) {
+                batch.setReturnReceiptEvidenceUrl(trimToNull(request.returnReceiptEvidenceUrl()));
+            }
         }
         batch.setStatus(ReturnBatchStatus.HANDED_OVER);
         batch.setConfirmedAt(now);
@@ -561,8 +566,13 @@ public class ReturnBatchService implements ReturnBatchServicePort {
                 && (batch.getStatus() == null || !batch.getStatus().isOpenForInspection())) {
             throw new DomainException(ErrorCode.RETURN_BATCH_INVALID_STATUS);
         }
-        if (request != null && request.returnReceiptUrl() != null) {
-            batch.setReturnReceiptUrl(trimToNull(request.returnReceiptUrl()));
+        if (request != null) {
+            if (request.returnReceiptUrl() != null) {
+                batch.setReturnReceiptUrl(trimToNull(request.returnReceiptUrl()));
+            }
+            if (request.returnReceiptEvidenceUrl() != null) {
+                batch.setReturnReceiptEvidenceUrl(trimToNull(request.returnReceiptEvidenceUrl()));
+            }
         }
         batch.setStatus(ReturnBatchStatus.HANDED_OVER);
         batch.setConfirmedAt(LocalDateTime.now(clock));
@@ -681,6 +691,16 @@ public class ReturnBatchService implements ReturnBatchServicePort {
         batch.setLines(lines);
         batch.recalculateAggregates();
         returnBatchRepositoryPort.save(batch);
+    }
+
+    @Override
+    @Transactional
+    public ReturnBatchResponse updateEvidenceUrl(Long batchId, String returnReceiptEvidenceUrl) {
+        ReturnBatchModel batch = getBatchOrThrow(batchId);
+        batch.setReturnReceiptEvidenceUrl(trimToNull(returnReceiptEvidenceUrl));
+        returnBatchRepositoryPort.save(batch);
+        log.info("Updated returnReceiptEvidenceUrl for batchId={}", batchId);
+        return toDetailResponse(batchId);
     }
 
     private ReturnBatchResponse toDetailResponse(Long batchId) {
