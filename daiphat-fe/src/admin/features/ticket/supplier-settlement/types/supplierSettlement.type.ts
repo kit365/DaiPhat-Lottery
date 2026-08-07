@@ -59,6 +59,8 @@ export interface SettlementOverviewImportBatch {
     totalImportedCostValue?: number | null;
     totalDeclareQuantity?: number | null;
     totalDeclaredCostValue?: number | null;
+    receiptImageUrl?: string | null;
+    evidenceUrl?: string | null;
 }
 
 export interface SettlementOverviewReturnBatch {
@@ -69,6 +71,8 @@ export interface SettlementOverviewReturnBatch {
     totalQuantity?: number | null;
     totalReturnValue?: number | null;
     supplierName?: string | null;
+    returnReceiptUrl?: string | null;
+    returnReceiptEvidenceUrl?: string | null;
 }
 
 export interface SupplierSettlementOverview {
