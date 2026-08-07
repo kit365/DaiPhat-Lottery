@@ -201,7 +201,7 @@ export const UserUserTicketList = ({ userId }: UserUserTicketListProps) => {
                                                 width: '2.5rem',
                                                 height: '2.5rem',
                                                 borderRadius: "var(--shape-borderRadius)",
-                                                bgcolor: userTicket.type === 'dog' ? 'rgba(0, 167, 111, 0.08)' : 'rgba(142, 51, 255, 0.08)'
+                                                bgcolor: userTicket.type === 'dog' ? 'rgba(255, 48, 48, 0.08)' : 'rgba(142, 51, 255, 0.08)'
                                             }}
                                         >
                                             <Icon

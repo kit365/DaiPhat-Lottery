@@ -149,12 +149,7 @@ export const OrderHandoverConfirmDialog = ({
                     variant="outlined"
                     color="inherit"
                     onClick={onClose}
-                    sx={{
-                        textTransform: 'none',
-                        fontWeight: 700,
-                        borderRadius: '8px',
-                        minWidth: 96,
-                    }}
+                    sx={{ minWidth: 96 }}
                 >
                     Hủy
                 </Button>

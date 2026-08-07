@@ -88,8 +88,8 @@ export const JiraFilter: React.FC<JiraFilterProps> = ({ fields, selectedFilters,
             const customOptions = customSelected.map(d => ({
                 value: d,
                 label: `Đã chọn: ${dayjs(d).format('DD/MM/YYYY')}`,
-                color: '#00A76F',
-                bgColor: 'rgba(0, 167, 111, 0.08)'
+                color: '#FF3030',
+                bgColor: 'rgba(255, 48, 48, 0.08)'
             }));
             return [...customOptions, ...baseOptions];
         }
@@ -124,8 +124,8 @@ export const JiraFilter: React.FC<JiraFilterProps> = ({ fields, selectedFilters,
                         sx={{
                             textTransform: 'none',
                             color: totalFilterCount > 0 ? '#fff' : '#42526E',
-                            backgroundColor: totalFilterCount > 0 ? '#00A76F' : '#091E420F',
-                            borderColor: totalFilterCount > 0 ? '#00A76F' : 'transparent',
+                            backgroundColor: totalFilterCount > 0 ? '#FF3030' : '#091E420F',
+                            borderColor: totalFilterCount > 0 ? '#FF3030' : 'transparent',
                             fontWeight: 500,
                             height: '32px',
                             padding: '0 12px',
@@ -137,7 +137,7 @@ export const JiraFilter: React.FC<JiraFilterProps> = ({ fields, selectedFilters,
                             borderRadius: '3px'
                         }}
                     >
-                        Bộ lọc {totalFilterCount > 0 && <span style={{ marginLeft: '6px', background: '#fff', color: '#00A76F', borderRadius: '10px', padding: '0 6px', fontSize: '11px', fontWeight: 700 }}>{totalFilterCount}</span>}
+                        Bộ lọc {totalFilterCount > 0 && <span style={{ marginLeft: '6px', background: '#fff', color: '#FF3030', borderRadius: '10px', padding: '0 6px', fontSize: '11px', fontWeight: 700 }}>{totalFilterCount}</span>}
                     </Button>
                     {totalFilterCount > 0 && (
                         <Button 
@@ -213,17 +213,17 @@ export const JiraFilter: React.FC<JiraFilterProps> = ({ fields, selectedFilters,
                                                 setSearchQuery('');
                                             }}
                                             sx={{
-                                                borderLeft: isActive ? '3px solid #00A76F' : '3px solid transparent',
-                                                backgroundColor: isActive ? 'rgba(0, 167, 111, 0.08)' : 'transparent',
+                                                borderLeft: isActive ? '3px solid #FF3030' : '3px solid transparent',
+                                                backgroundColor: isActive ? 'rgba(255, 48, 48, 0.08)' : 'transparent',
                                                 py: 0.75,
                                                 px: 2,
                                                 '&:hover': {
-                                                    backgroundColor: isActive ? 'rgba(0, 167, 111, 0.12)' : 'rgba(9, 30, 66, 0.04)',
+                                                    backgroundColor: isActive ? 'rgba(255, 48, 48, 0.12)' : 'rgba(9, 30, 66, 0.04)',
                                                 },
                                                 '&.Mui-selected': {
-                                                    backgroundColor: 'rgba(0, 167, 111, 0.08)',
+                                                    backgroundColor: 'rgba(255, 48, 48, 0.08)',
                                                     '&:hover': {
-                                                        backgroundColor: 'rgba(0, 167, 111, 0.12)',
+                                                        backgroundColor: 'rgba(255, 48, 48, 0.12)',
                                                     }
                                                 }
                                             }}
@@ -233,11 +233,11 @@ export const JiraFilter: React.FC<JiraFilterProps> = ({ fields, selectedFilters,
                                                 primaryTypographyProps={{ 
                                                     fontSize: '14px', 
                                                     fontWeight: isActive ? 600 : 400,
-                                                    color: isActive ? '#00A76F' : '#42526E'
+                                                    color: isActive ? '#FF3030' : '#42526E'
                                                 }} 
                                             />
                                             {fieldCount > 0 && (
-                                                <Box sx={{ bgcolor: '#00A76F', color: 'white', borderRadius: '10px', px: 1, py: 0.2, fontSize: '11px', fontWeight: 600, flexShrink: 0 }}>
+                                                <Box sx={{ bgcolor: '#FF3030', color: 'white', borderRadius: '10px', px: 1, py: 0.2, fontSize: '11px', fontWeight: 600, flexShrink: 0 }}>
                                                     {fieldCount}
                                                 </Box>
                                             )}
@@ -274,7 +274,7 @@ export const JiraFilter: React.FC<JiraFilterProps> = ({ fields, selectedFilters,
                                         borderColor: '#B3BAC5 !important',
                                     },
                                     '&.Mui-focused fieldset': {
-                                        borderColor: '#00A76F !important',
+                                        borderColor: '#FF3030 !important',
                                         borderWidth: '2px !important',
                                     }
                                 }
@@ -309,7 +309,7 @@ export const JiraFilter: React.FC<JiraFilterProps> = ({ fields, selectedFilters,
                                                 mr: 1,
                                                 color: '#6B778C',
                                                 '&.Mui-checked': {
-                                                    color: '#00A76F',
+                                                    color: '#FF3030',
                                                 },
                                                 '&:hover': {
                                                     backgroundColor: 'transparent',
@@ -357,7 +357,7 @@ export const JiraFilter: React.FC<JiraFilterProps> = ({ fields, selectedFilters,
                                                 sx: {
                                                     '& fieldset': { borderColor: '#DFE1E6' },
                                                     '&:hover fieldset': { borderColor: '#B3BAC5 !important' },
-                                                    '&.Mui-focused fieldset': { borderColor: '#00A76F !important', borderWidth: '2px !important' }
+                                                    '&.Mui-focused fieldset': { borderColor: '#FF3030 !important', borderWidth: '2px !important' }
                                                 }
                                             },
                                             popper: {

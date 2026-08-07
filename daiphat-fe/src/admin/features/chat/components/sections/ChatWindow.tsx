@@ -346,24 +346,51 @@ export const ChatWindow = ({ conversationId, onToggleDetails }: ChatWindowProps)
                 return;
             }
 
+            if (
+                event.eventType === 'CONVERSATION_ASSIGNED' ||
+                event.eventType === 'CONVERSATION_TAKEN'
+            ) {
+                queryClient.setQueryData<Conversation[]>(
+                    ADMIN_CHAT_CONVERSATIONS_KEY,
+                    (prev = []) =>
+                        prev.map((conversation) =>
+                            conversation.id === event.conversationId
+                                ? {
+                                      ...conversation,
+                                      status: event.status,
+                                      assignedOperatorId:
+                                          event.assignedOperatorId ?? conversation.assignedOperatorId,
+                                  }
+                                : conversation
+                        )
+                );
+                queryClient.setQueryData(adminChatDetailKey(conversationId), (prev: unknown) => {
+                    if (!prev || typeof prev !== 'object' || !('conversation' in prev)) {
+                        return prev;
+                    }
+                    const detail = prev as { conversation: Conversation };
+                    return {
+                        ...detail,
+                        conversation: {
+                            ...detail.conversation,
+                            status: event.status,
+                            assignedOperatorId:
+                                event.assignedOperatorId ?? detail.conversation.assignedOperatorId,
+                        },
+                    };
+                });
+                if (customerId) {
+                    queryClient.invalidateQueries({
+                        queryKey: adminChatCustomerTimelineKey(customerId),
+                    });
+                }
+                return;
+            }
+
             queryClient.invalidateQueries({ queryKey: ADMIN_CHAT_CONVERSATIONS_KEY });
             queryClient.invalidateQueries({ queryKey: adminChatDetailKey(conversationId) });
-
-            if (
-                customerId &&
-                (event.eventType === 'CONVERSATION_ASSIGNED' ||
-                    event.eventType === 'CONVERSATION_TAKEN')
-            ) {
-                queryClient.invalidateQueries({
-                    queryKey: adminChatCustomerTimelineKey(customerId),
-                });
-            }
-
-            if (event.eventType === 'CONVERSATION_ASSIGNED' && event.assignedOperatorId === userId) {
-                toast.success('Bạn đã nhận hội thoại thành công.');
-            }
         },
-        [conversationId, customerId, queryClient, resolveCustomerId, userId]
+        [conversationId, customerId, queryClient, resolveCustomerId]
     );
 
     const { sendMessage: sendRealtimeMessage, isConnected } = useChatSocket({
@@ -767,8 +794,8 @@ export const ChatWindow = ({ conversationId, onToggleDetails }: ChatWindowProps)
                         <Box sx={{ textAlign: 'center', mt: 4, opacity: 0.6 }}>
                             <Typography variant="body2">
                                 {activeConversation?.handoffSummary
-                                    ? 'Chưa có tin nhắn sau khi tiếp nhận. Đọc tóm tắt phía trên trước khi trả lời.'
-                                    : 'Chưa có tin nhắn.'}
+                                    ? 'Vui lòng đọc tóm tắt phía trên trước khi phản hồi.'
+                                    : 'Hãy bắt đầu cuộc trò chuyện.'}
                             </Typography>
                         </Box>
                     ) : (

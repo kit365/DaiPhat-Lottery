@@ -1,26 +1,11 @@
 "use client";
 
-import dynamic from 'next/dynamic';
-import { PermissionGuard } from '@/admin/components/auth/PermissionGuard';
+import { BlogDetailPage } from '@/admin/features/blogs/components/pages/BlogDetailPage';
+
+import { createAdminClientPage } from '@/admin/lib/createAdminClientPage';
 import { PERMISSIONS } from '@/admin/constants/permission.constants';
-import { LoadingSpinner } from '@/client/components/ui/LoadingSpinner';
 
-const FeaturePage = dynamic(
-  () => import('@/admin/features/blogs/components/pages/BlogDetailPage').then((m) => m.BlogDetailPage),
-  {
-    ssr: false,
-    loading: () => (
-      <div className="flex items-center justify-center p-12 min-h-[300px]">
-        <LoadingSpinner />
-      </div>
-    ),
-  }
-);
-
-export function ClientPage() {
-  return (
-    <PermissionGuard permission={PERMISSIONS.ARTICLE.VIEW}>
-      <FeaturePage />
-    </PermissionGuard>
-  );
-}
+export const ClientPage = createAdminClientPage({
+  component: BlogDetailPage,
+  permission: PERMISSIONS.ARTICLE.VIEW,
+});

@@ -62,6 +62,14 @@ public class SupplierSettlementEntity extends BaseEntity {
     @Builder.Default
     private BigDecimal remainingAmount = BigDecimal.ZERO;
 
+    @Column(name = "is_return_expired", nullable = false)
+    @Builder.Default
+    private boolean isReturnExpired = false;
+
+    @Column(name = "expired_return_value", nullable = false, precision = 18, scale = 3)
+    @Builder.Default
+    private BigDecimal expiredReturnValue = BigDecimal.ZERO;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 30)
     @Builder.Default
@@ -69,4 +77,7 @@ public class SupplierSettlementEntity extends BaseEntity {
 
     @Column(name = "transaction_id")
     private Long transactionId;
+
+    @Column(name = "paid_at")
+    private java.time.LocalDateTime paidAt;
 }

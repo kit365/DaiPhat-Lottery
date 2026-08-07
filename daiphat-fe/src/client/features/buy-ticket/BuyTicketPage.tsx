@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { ChevronRight, Calendar as CalendarIcon, CheckCircle2, ShieldCheck, RefreshCw, ChevronDown, ChevronUp, Filter, LayoutGrid, Heart, SlidersHorizontal, Trash2, Search } from 'lucide-react';
+import { ChevronRight, CheckCircle2, ShieldCheck, RefreshCw, ChevronDown, Filter, LayoutGrid, Heart, SlidersHorizontal, Trash2, Search } from 'lucide-react';
 import { useCartStore, CartItem } from '../../../stores/useCartStore';
 import { useAuthStore } from '../../../stores/useAuthStore';
 import { AppToast as toast } from '../../../utils/toast.util';
@@ -11,7 +11,7 @@ import {
     useStationsByDrawDate,
     useStationsToday,
     useStationsTomorrow,
-} from '../../../admin/features/station/hooks/useStation';
+} from '@/client/hooks/useStationSchedule';
 import { apiApp } from '../../../api';
 import dayjs from 'dayjs';
 import 'dayjs/locale/vi';
@@ -22,7 +22,6 @@ import {
     todayIsoVn,
     tomorrowIsoVn,
 } from '../../utils/sellableDrawDate.util';
-import { formatVietnameseDrawDateWithParen } from '../../utils/vietnameseDate.util';
 import { normalizeTicketSearchDigits } from '../../utils/ticketSearchQuery.util';
 import { getPublicSchedule } from '../schedule/services/scheduleService';
 import { resolveNextStationDrawDateIso } from '../../utils/stationDrawDate.util';
@@ -133,10 +132,12 @@ const toSellableDateTokens = (
     return [resolved];
 };
 
-const formatViWeekdayLabel = (isoDate: string) => formatVietnameseDrawDateWithParen(isoDate);
-
 const sameProvinceId = (left: string | number, right: string | number) =>
     String(left) === String(right);
+
+import { CLIENT_PAGE_BACKGROUND } from '../../constants/clientBannerAssets';
+import { BuyTicketDateStationSelectors } from './components/BuyTicketDateStationSelectors';
+import { Breadcrumb } from '../../components/ui/Breadcrumb';
 
 // Preload critical images to prevent flickering on first load
 if (typeof window !== 'undefined') {
@@ -154,9 +155,6 @@ if (typeof window !== 'undefined') {
         document.head.appendChild(link);
     });
 }
-
-import { BuyTicketBanners } from './components/BuyTicketBanners';
-
 export const BuyTicketPage = () => {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
@@ -174,7 +172,6 @@ export const BuyTicketPage = () => {
     const [selectedTab, setSelectedTab] = useState<'quick' | 'manual' | 'birthday'>('quick');
     const [selectedNumbers, setSelectedNumbers] = useState<string[]>([]);
     const [ticketQuantity, setTicketQuantity] = useState(1);
-    const [isDateOpen, setIsDateOpen] = useState(false);
     const [isProvinceOpen, setIsProvinceOpen] = useState(false);
     const [isFilterOpen, setIsFilterOpen] = useState(false);
     const [filterActiveTab, setFilterActiveTab] = useState<'all' | 'favorites' | 'range'>('favorites');
@@ -190,7 +187,6 @@ export const BuyTicketPage = () => {
     const [appliedFilters, setAppliedFilters] = useState<AppliedTicketFilters>(EMPTY_APPLIED_FILTERS);
     /** Tick để re-check giờ xổ khi user giữ trang mở qua giờ quay. */
     const [clockTick, setClockTick] = useState(0);
-    const selectorsRef = useRef<HTMLDivElement>(null);
     const filterRef = useRef<HTMLDivElement>(null);
     const ticketListRef = useRef<HTMLDivElement>(null);
     const appliedDeepLinkRef = useRef(false);
@@ -200,10 +196,7 @@ export const BuyTicketPage = () => {
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
-            if (selectorsRef.current && !selectorsRef.current.contains(event.target as Node)) {
-                setIsDateOpen(false);
-                setIsProvinceOpen(false);
-            }
+            // Province dropdown closes itself; only filter panel uses page-level outside click.
             if (filterRef.current && !filterRef.current.contains(event.target as Node)) {
                 setIsFilterOpen(false);
             }
@@ -821,278 +814,36 @@ export const BuyTicketPage = () => {
     return (
         <div
             className="min-h-screen font-client-main flex flex-col bg-fixed bg-cover bg-center"
-            style={{ backgroundImage: 'url("https://i.ibb.co/BVFGYpL1/86f05f70-fcf8-445f-978e-a0539eb2f0de.png")' }}
+            style={{ backgroundImage: `url("${CLIENT_PAGE_BACKGROUND}")` }}
         >
-            <main className="flex-1 w-full mt-[70px] lg:mt-[80px] max-w-[1440px] mx-auto px-4 lg:px-8 py-6 flex flex-col">
+            <main className="flex-1 w-full pt-[148px] pb-[100px] lg:pt-[100px] lg:pb-12 max-w-[1440px] mx-auto px-4 lg:px-8 flex flex-col">
+                <div className="mb-4">
+                    <Breadcrumb 
+                        items={[
+                            { label: 'Trang chủ', to: '/' },
+                            { label: 'Mua vé số' }
+                        ]} 
+                    />
+                </div>
                 <div className="flex flex-col xl:flex-row gap-5 flex-1 items-stretch">
-
-                    {/* Left Banners Sidebar - New addition based on design */}
-                    <BuyTicketBanners />
 
                     {/* Main Content - Center Column */}
                     <div className="flex-1 w-full flex flex-col min-w-0">
 
-                        {/* Top Selectors Card (Ngày & Đài) */}
-                        <div ref={selectorsRef} className="bg-white rounded-[20px] shadow-sm border border-[#E5E8EB] grid grid-cols-1 md:grid-cols-2 mb-5 shrink-0">
-
-                            {/* Ngày Quay */}
-                            <div className="relative p-4 lg:p-5 cursor-pointer hover:bg-gray-50 transition-colors rounded-l-[20px] border-r border-[#E5E8EB]" onClick={() => { setIsDateOpen(!isDateOpen); setIsProvinceOpen(false); }}>
-                                <div className="flex gap-4 items-center">
-                                    <div className="text-[#ee1314] shrink-0">
-                                        <CalendarIcon size={28} strokeWidth={2} />
-                                    </div>
-                                    <div className="flex-1">
-                                        <div className="text-[12px] text-[#637381] font-bold uppercase tracking-wider mb-1">Ngày quay</div>
-                                        <div className="flex items-center justify-between">
-                                            <div className="font-bold text-[14px] text-[#212B36]">
-                                                {selectedDates.length === 0
-                                                    ? 'Vui lòng chọn'
-                                                    : selectedDates.length > 1
-                                                      ? selectedDates.every((d) => d === 'today' || d === 'tomorrow')
-                                                          ? 'Hôm nay, Ngày mai'
-                                                          : `${selectedDates.length} ngày`
-                                                      : selectedDates[0] === 'today'
-                                                        ? 'Hôm nay'
-                                                        : selectedDates[0] === 'tomorrow'
-                                                          ? 'Ngày mai'
-                                                          : dayjs(resolveDrawDateToken(selectedDates[0])).format('DD/MM/YYYY')}
-                                            </div>
-                                            {isDateOpen ? <ChevronUp size={20} className="text-[#212B36]" /> : <ChevronDown size={20} className="text-[#212B36]" />}
-                                        </div>
-                                        <div className="text-[13px] text-[#637381] mt-0.5">
-                                            {selectedDates.length === 0
-                                                ? '---'
-                                                : selectedDates
-                                                      .map((token) => formatViWeekdayLabel(resolveDrawDateToken(token)))
-                                                      .join(', ')}
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* Dropdown menu */}
-                                {isDateOpen && (
-                                    <div className="absolute top-[105%] left-0 right-0 bg-white border border-[#E5E8EB] shadow-lg rounded-xl z-20 overflow-hidden p-2">
-                                        <div
-                                            className={`p-3 rounded-lg flex justify-between items-center ${
-                                                todaySellClosed
-                                                    ? 'opacity-50 cursor-not-allowed'
-                                                    : selectedDates.includes('today')
-                                                      ? 'bg-[#FFF4F4] cursor-pointer'
-                                                      : 'hover:bg-gray-50 cursor-pointer'
-                                            }`}
-                                            onClick={(e) => { 
-                                                e.stopPropagation();
-                                                if (todaySellClosed) {
-                                                    toast.info(`Đã qua giờ xổ (${effectiveDrawTime}). Chỉ còn bán vé ngày mai.`);
-                                                    return;
-                                                }
-                                                if (selectedDates.includes('today') && selectedDates.length === 1) {
-                                                    return;
-                                                }
-                                                if (selectedDates.includes('today')) {
-                                                    setSelectedDates(selectedDates.filter(d => d !== 'today'));
-                                                } else {
-                                                    // Leaving a chat deep-link custom date when picking tonight's draw
-                                                    setSelectedDates([
-                                                        ...selectedDates.filter((d) => d === 'tomorrow'),
-                                                        'today',
-                                                    ]);
-                                                }
-                                            }}
-                                        >
-                                            <div>
-                                                <div className={`font-bold ${selectedDates.includes('today') ? 'text-[#ee1314]' : 'text-[#212B36]'}`}>Hôm nay</div>
-                                                <div className="text-[14px] text-[#637381]">{formatVietnameseDrawDateWithParen(todayIsoVn())}</div>
-                                                {todaySellClosed && (
-                                                    <div className="text-[12px] text-[#ee1314] mt-0.5">Đã hết giờ bán (sau {effectiveDrawTime})</div>
-                                                )}
-                                            </div>
-                                            <div className="mt-0.5">
-                                                {selectedDates.includes('today') ? (
-                                                    <div className="w-4 h-4 rounded-[4px] bg-[#ee1314] text-white flex items-center justify-center">
-                                                        <i className="fa-solid fa-check text-[12px]"></i>
-                                                    </div>
-                                                ) : (
-                                                    <div className="w-4 h-4 rounded-[4px] border border-[#C4CDD5] bg-white"></div>
-                                                )}
-                                            </div>
-                                        </div>
-                                        {/* Date separator */}
-                                        <div className="h-[1px] bg-[#E5E8EB] my-1 mx-3"></div>
-                                        <div
-                                            className={`p-3 rounded-lg cursor-pointer flex justify-between items-center ${selectedDates.includes('tomorrow') ? 'bg-[#FFF4F4]' : 'hover:bg-gray-50'}`}
-                                            onClick={(e) => { 
-                                                e.stopPropagation(); 
-                                                if (selectedDates.includes('tomorrow') && selectedDates.length === 1) {
-                                                    return;
-                                                }
-                                                if (selectedDates.includes('tomorrow')) {
-                                                    setSelectedDates(selectedDates.filter(d => d !== 'tomorrow'));
-                                                } else {
-                                                    setSelectedDates([
-                                                        ...(todaySellClosed
-                                                            ? []
-                                                            : selectedDates.filter((d) => d === 'today')),
-                                                        'tomorrow',
-                                                    ]);
-                                                }
-                                            }}
-                                        >
-                                            <div>
-                                                <div className={`font-bold ${selectedDates.includes('tomorrow') ? 'text-[#ee1314]' : 'text-[#212B36]'}`}>Ngày mai</div>
-                                                <div className="text-[14px] text-[#637381]">{formatVietnameseDrawDateWithParen(tomorrowIsoVn())}</div>
-                                            </div>
-                                            <div className="mt-0.5">
-                                                {selectedDates.includes('tomorrow') ? (
-                                                    <div className="w-4 h-4 rounded-[4px] bg-[#ee1314] text-white flex items-center justify-center">
-                                                        <i className="fa-solid fa-check text-[12px]"></i>
-                                                    </div>
-                                                ) : (
-                                                    <div className="w-4 h-4 rounded-[4px] border border-[#C4CDD5] bg-white"></div>
-                                                )}
-                                            </div>
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-
-                            {/* Chọn Đài */}
-                            <div className="relative p-4 lg:p-5 cursor-pointer hover:bg-gray-50 transition-colors rounded-r-[20px]" onClick={() => { setIsProvinceOpen(!isProvinceOpen); setIsDateOpen(false); }}>
-                                <div className="flex gap-4 items-center">
-                                    <div className="shrink-0">
-                                        {activeProvinces.length > 0 && activeProvinces[0]?.icon ? (
-                                            <div className="w-[40px] h-[40px] rounded-full border border-[#E5E8EB] overflow-hidden flex items-center justify-center p-[2px] bg-white">
-                                                <img src={activeProvinces[0].icon} alt="" className="w-full h-full object-contain" />
-                                            </div>
-                                        ) : (
-                                            <div className="w-[40px] h-[40px] rounded-full bg-gray-100 flex items-center justify-center text-gray-400">
-                                                <i className="fa-solid fa-building text-[14px]"></i>
-                                            </div>
-                                        )}
-                                    </div>
-                                    <div className="flex-1">
-                                        <div className="text-[12px] text-[#637381] font-bold uppercase tracking-wider mb-1">Chọn đài</div>
-                                        <div className="flex items-center justify-between">
-                                            <div className="font-bold text-[14px] text-[#212B36] truncate max-w-[150px] sm:max-w-[200px]">
-                                                {isAllProvincesSelected
-                                                    ? 'Tất cả đài miền Nam'
-                                                    : activeProvinces.length > 1
-                                                      ? `Đã chọn ${activeProvinces.length} đài`
-                                                      : activeProvinces.length === 1
-                                                        ? (activeProvinces[0].name || 'Đang tải đài...')
-                                                        : 'Vui lòng chọn đài'}
-                                            </div>
-                                            <div className={`${isProvinceOpen ? 'border border-[#ee1314] rounded text-[#ee1314] w-6 h-6 flex items-center justify-center' : 'text-[#212B36]'}`}>
-                                                {isProvinceOpen ? <ChevronDown size={16} /> : <ChevronDown size={20} />}
-                                            </div>
-                                        </div>
-                                        <div className="text-[13px] text-[#212B36] font-medium mt-0.5">
-                                            {activeProvinces.length === 1
-                                                ? (activeProvinces[0].time || '---')
-                                                : activeProvinces.length > 1
-                                                  ? 'Các đài miền Nam'
-                                                  : '---'}
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* Dropdown menu */}
-                                {isProvinceOpen && (
-                                    <div className="absolute top-[105%] left-0 right-0 bg-white border border-[#E5E8EB] shadow-lg rounded-xl z-20 max-h-[350px] overflow-y-auto p-2">
-                                        {isLoadingProviders ? (
-                                            <div className="p-4 text-center text-[#637381]">Đang tải...</div>
-                                        ) : (
-                                        <>
-                                        <div
-                                            className={`p-3 rounded-lg cursor-pointer flex justify-between items-center ${isAllProvincesSelected ? 'bg-[#FFF4F4]' : 'hover:bg-gray-50'}`}
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                setSelectedProvinces(allProvinceIds);
-                                            }}
-                                        >
-                                            <div className="flex items-center gap-3">
-                                                <div className="w-[36px] h-[36px] rounded-full border border-[#E5E8EB] bg-gray-50 flex items-center justify-center text-[#637381]">
-                                                    <i className="fa-solid fa-building text-[14px]"></i>
-                                                </div>
-                                                <div>
-                                                    <div className={`font-bold ${isAllProvincesSelected ? 'text-[#ee1314]' : 'text-[#212B36]'}`}>Tất cả các đài</div>
-                                                    <div className={`text-[14px] ${isAllProvincesSelected ? 'text-[#ee1314]' : 'text-[#637381]'}`}>Hiện vé của mọi đài</div>
-                                                </div>
-                                            </div>
-                                            <div>
-                                                {isAllProvincesSelected ? (
-                                                    <div className="w-4 h-4 rounded-[4px] bg-[#ee1314] text-white flex items-center justify-center">
-                                                        <i className="fa-solid fa-check text-[12px]"></i>
-                                                    </div>
-                                                ) : (
-                                                    <div className="w-4 h-4 rounded-[4px] border border-[#C4CDD5] bg-white"></div>
-                                                )}
-                                            </div>
-                                        </div>
-                                        <div className="h-[1px] bg-[#E5E8EB] my-1 mx-3"></div>
-                                        {dynamicProvinces.map((prov: any, index: number) => {
-                                            const isProvSelected = selectedProvinces.some((id) =>
-                                                sameProvinceId(id, prov.id)
-                                            );
-                                            return (
-                                                <div key={prov.id}>
-                                                    <div
-                                                        className={`p-3 rounded-lg cursor-pointer flex justify-between items-center ${isProvSelected ? 'bg-[#FFF4F4]' : 'hover:bg-gray-50'}`}
-                                                        onClick={(e) => { 
-                                                            e.stopPropagation(); 
-                                                            // Default is "all stations"; first click narrows to that station only
-                                                            if (isAllProvincesSelected) {
-                                                                setSelectedProvinces([String(prov.id)]);
-                                                                return;
-                                                            }
-                                                            if (isProvSelected) {
-                                                                const next = selectedProvinces.filter(
-                                                                    (p) => !sameProvinceId(p, prov.id)
-                                                                );
-                                                                // Empty selection is not allowed - go back to all stations
-                                                                setSelectedProvinces(next.length === 0 ? allProvinceIds : next);
-                                                            } else {
-                                                                setSelectedProvinces([
-                                                                    ...selectedProvinces,
-                                                                    String(prov.id),
-                                                                ]);
-                                                            }
-                                                        }}
-                                                    >
-                                                        <div className="flex items-center gap-3">
-                                                            <div className="w-[36px] h-[36px] rounded-full border border-[#E5E8EB] overflow-hidden flex items-center justify-center p-[2px] bg-white">
-                                                                {prov.icon ? (
-                                                                    <img src={prov.icon} alt="" className="w-full h-full object-contain" />
-                                                                ) : (
-                                                                    <i className="fa-solid fa-building text-[14px] text-gray-400"></i>
-                                                                )}
-                                                            </div>
-                                                            <div>
-                                                                <div className={`font-bold ${isProvSelected ? 'text-[#ee1314]' : 'text-[#212B36]'}`}>{prov.name}</div>
-                                                                <div className={`text-[14px] ${isProvSelected ? 'text-[#ee1314]' : 'text-[#637381]'}`}>{prov.time}</div>
-                                                            </div>
-                                                        </div>
-                                                        <div>
-                                                            {isProvSelected ? (
-                                                                <div className="w-4 h-4 rounded-[4px] bg-[#ee1314] text-white flex items-center justify-center">
-                                                                    <i className="fa-solid fa-check text-[12px]"></i>
-                                                                </div>
-                                                            ) : (
-                                                                <div className="w-4 h-4 rounded-[4px] border border-[#C4CDD5] bg-white"></div>
-                                                            )}
-                                                        </div>
-                                                    </div>
-                                                    {index < dynamicProvinces.length - 1 && <div className="h-[1px] bg-[#E5E8EB] my-1 mx-3"></div>}
-                                                </div>
-                                            );
-                                        })}
-                                        </>
-                                        )}
-                                    </div>
-                                )}
-                            </div>
-
-                        </div>
+                        <BuyTicketDateStationSelectors
+                            selectedDates={selectedDates}
+                            onChangeDates={setSelectedDates}
+                            todaySellClosed={todaySellClosed}
+                            effectiveDrawTime={effectiveDrawTime}
+                            selectedProvinces={selectedProvinces}
+                            onChangeProvinces={setSelectedProvinces}
+                            provinces={dynamicProvinces}
+                            allProvinceIds={allProvinceIds}
+                            isAllProvincesSelected={isAllProvincesSelected}
+                            isLoadingProvinces={isLoadingProviders}
+                            isProvinceOpen={isProvinceOpen}
+                            onProvinceOpenChange={setIsProvinceOpen}
+                        />
 
                         {/* Bottom Main Content Card (Tickets List) */}
                         <div className="bg-white rounded-[20px] shadow-sm border border-[#E5E8EB] flex flex-col flex-1 min-h-0 overflow-hidden">

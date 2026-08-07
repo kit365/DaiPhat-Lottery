@@ -46,6 +46,7 @@ public final class ReturnBatchSpecification {
                 var supplier = root.join("lotterySupplier", JoinType.LEFT);
                 String likePattern = "%" + search.trim().toLowerCase() + "%";
                 predicates.add(cb.or(
+                        cb.like(cb.lower(root.get("batchCode")), likePattern),
                         cb.like(cb.lower(supplier.get("name")), likePattern),
                         cb.like(cb.lower(supplier.get("code")), likePattern)
                 ));

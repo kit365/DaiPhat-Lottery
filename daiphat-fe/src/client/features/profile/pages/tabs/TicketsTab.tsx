@@ -7,7 +7,7 @@ import dayjs from 'dayjs';
 import { formatVietnameseDrawDate } from '../../../../utils/vietnameseDate.util';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Pagination } from '../../../../components/common/Pagination';
-import { useStationsByDrawDate } from '../../../../../admin/features/station/hooks/useStation';
+import { useStationsByDrawDate } from '@/client/hooks/useStationSchedule';
 import { usePurchasedTicketLookup } from '../../../../hooks/usePurchasedTicketLookup';
 import { normalizePagination } from '../../../../utils/pagination.util';
 import {
@@ -23,6 +23,7 @@ import {
 } from '../../../../../types/prize-payout.type';
 import { PrizePayoutRequestModal } from '../../../../components/prize-payout/PrizePayoutRequestModal';
 import { AppToast as toast } from '../../../../../utils/toast.util';
+import { ROUTES } from '@/admin/constants/routes';
 
 type StatusTab = 'Tất cả' | 'Chờ quay số' | 'Trúng thưởng' | 'Không trúng';
 type WonRedeemSubFilter = 'ALL' | 'UNREDEEMED' | 'REDEEMED';
@@ -288,7 +289,7 @@ export const TicketsTab = () => {
             if (selectedTicket.numbers) params.set('ticketNumber', selectedTicket.numbers.replace(/\D/g, ''));
             if (selectedTicket.ticketId) params.set('ticketId', String(selectedTicket.ticketId));
             const query = params.toString();
-            return query ? `/buy-ticket?${query}` : '/buy-ticket';
+            return query ? `${ROUTES.PUBLIC.TICKETS}?${query}` : ROUTES.PUBLIC.TICKETS;
         })();
 
         return (
@@ -815,7 +816,7 @@ export const TicketsTab = () => {
                             <p className="font-extrabold text-[16px] text-slate-800 m-0">Chưa tìm thấy vé số nào</p>
                             <p className="text-[13px] mt-1 text-slate-400">Vé bạn mua hoặc tìm kiếm sẽ xuất hiện tại đây.</p>
                             <Link
-                                to="/buy-ticket"
+                                to={ROUTES.PUBLIC.TICKETS}
                                 className="inline-flex mt-4 px-6 py-2.5 bg-gradient-to-r from-red-600 to-rose-600 text-white font-extrabold rounded-xl text-[14px] no-underline shadow-md shadow-red-600/20 hover:brightness-110 transition-all"
                             >
                                 Mua vé ngay

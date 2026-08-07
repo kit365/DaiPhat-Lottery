@@ -8,6 +8,8 @@ class CartItemData {
   final int quantity;
   final int unitPrice;
   final String logoText;
+  /// Số serial còn IN_STOCK (giống maxStock trên website).
+  final int maxStock;
 
   const CartItemData({
     required this.lotteryTicketId,
@@ -19,6 +21,7 @@ class CartItemData {
     required this.quantity,
     required this.unitPrice,
     required this.logoText,
+    this.maxStock = 1,
   });
 
   int get subtotal => quantity * unitPrice;
@@ -34,6 +37,7 @@ class CartItemData {
       'quantity': quantity,
       'unitPrice': unitPrice,
       'logoText': logoText,
+      'maxStock': maxStock,
     };
   }
 
@@ -48,10 +52,11 @@ class CartItemData {
       quantity: map['quantity'] as int? ?? 1,
       unitPrice: map['unitPrice'] as int? ?? 0,
       logoText: map['logoText'] as String? ?? '',
+      maxStock: map['maxStock'] as int? ?? 1,
     );
   }
 
-  CartItemData copyWith({int? quantity}) {
+  CartItemData copyWith({int? quantity, int? maxStock}) {
     return CartItemData(
       lotteryTicketId: lotteryTicketId,
       province: province,
@@ -62,6 +67,7 @@ class CartItemData {
       quantity: quantity ?? this.quantity,
       unitPrice: unitPrice,
       logoText: logoText,
+      maxStock: maxStock ?? this.maxStock,
     );
   }
 
@@ -76,7 +82,8 @@ class CartItemData {
           number == other.number &&
           quantity == other.quantity &&
           unitPrice == other.unitPrice &&
-          logoText == other.logoText;
+          logoText == other.logoText &&
+          maxStock == other.maxStock;
 
   @override
   int get hashCode =>
@@ -86,5 +93,6 @@ class CartItemData {
       number.hashCode ^
       quantity.hashCode ^
       unitPrice.hashCode ^
-      logoText.hashCode;
+      logoText.hashCode ^
+      maxStock.hashCode;
 }

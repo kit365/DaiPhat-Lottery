@@ -1,6 +1,7 @@
 import { NotificationResponse, NOTIFICATION_REFERENCE_TYPE } from "../../types/notifications.type";
 import { resolveNotificationReference } from "../services/notificationService";
 import { UNAVAILABLE_REFERENCE_MESSAGE } from "../components/notification/UnavailableReferenceState";
+import { ROUTES } from "@/admin/constants/routes";
 
 type RouteResolver = (referenceId?: string | null) => string | null;
 
@@ -43,7 +44,7 @@ const NOTIFICATION_ROUTES: Record<string, RouteResolver> = {
         referenceId ? `/profile/prize-payouts/${referenceId}` : null,
     [NOTIFICATION_REFERENCE_TYPE.SUPPORT_TICKET]: (referenceId) =>
         referenceId ? `/profile/complaints/${referenceId}` : null,
-    [NOTIFICATION_REFERENCE_TYPE.LOTTERY_STATION]: () => "/buy-ticket",
+    [NOTIFICATION_REFERENCE_TYPE.LOTTERY_STATION]: () => ROUTES.PUBLIC.TICKETS,
     [NOTIFICATION_REFERENCE_TYPE.AUTH]: () => null,
     [NOTIFICATION_REFERENCE_TYPE.SYSTEM]: () => null,
 };

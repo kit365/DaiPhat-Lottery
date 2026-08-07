@@ -19,6 +19,10 @@ class NotificationRepository {
     return _apiService.markAllAsRead();
   }
 
+  Future<bool> isReferenceAvailable(int id) {
+    return _apiService.isReferenceAvailable(id);
+  }
+
   Future<void> deleteReadNotification(int id) {
     return _apiService.deleteReadNotification(id);
   }

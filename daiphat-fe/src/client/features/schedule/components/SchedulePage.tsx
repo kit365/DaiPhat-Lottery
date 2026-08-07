@@ -3,6 +3,9 @@
 import { useMemo } from 'react';
 import { BottomNav } from "../../../components/layout/BottomNav";
 import { useLotterySchedule } from "../hooks/useLotterySchedule";
+import type { LotteryStationSchedule } from '../types/schedule.types';
+import { CLIENT_PAGE_BACKGROUND } from '../../../constants/clientBannerAssets';
+import { Breadcrumb } from "../../../components/ui/Breadcrumb";
 
 const REGION_LABELS: Record<string, { label: string, bg: string, text: string }> = {
   'MIEN_NAM': { label: 'Miền Nam', bg: 'bg-[#ee1314]', text: 'text-[#ee1314]' },
@@ -12,8 +15,14 @@ const REGION_LABELS: Record<string, { label: string, bg: string, text: string }>
 
 const DAY_OF_WEEK_MAP = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'];
 
-export const SchedulePage = () => {
-  const { scheduleByDay, availableRegions, regionDrawTimes, isLoading, error } = useLotterySchedule();
+type SchedulePageProps = {
+  initialSchedule?: LotteryStationSchedule[];
+};
+
+export const SchedulePage = ({ initialSchedule }: SchedulePageProps = {}) => {
+  const { scheduleByDay, availableRegions, regionDrawTimes, isLoading, error } = useLotterySchedule({
+    initialSchedule,
+  });
 
   const todayDayName = useMemo(() => {
     return DAY_OF_WEEK_MAP[new Date().getDay()];
@@ -24,13 +33,20 @@ export const SchedulePage = () => {
   return (
     <div 
       className="client-page relative min-h-screen overflow-x-hidden bg-fixed bg-cover bg-center"
-      style={{ backgroundImage: 'url("https://i.ibb.co/BVFGYpL1/86f05f70-fcf8-445f-978e-a0539eb2f0de.png")' }}
+      style={{ backgroundImage: `url("${CLIENT_PAGE_BACKGROUND}")` }}
     >
       <main className="relative z-1 pt-16 lg:pt-24 pb-12 lg:pb-20">
         <div className="max-w-[1280px] mx-auto px-4 xl:px-0">
-          <section className="mb-6 text-center">
-            <p className="client-body mb-1">Theo dõi thời gian quay số theo từng miền</p>
-            <h1 className="client-heading">Lịch mở thưởng</h1>
+          <section className="mb-6 flex flex-col items-start">
+            <Breadcrumb
+              items={[
+                { label: 'Trang chủ', to: '/' },
+                { label: 'Lịch mở thưởng' }
+              ]}
+              className="mb-2"
+            />
+            <h1 className="client-heading m-0 mb-2">Lịch mở thưởng</h1>
+            <p className="text-[#637381] text-[13px]">Theo dõi thời gian quay số theo từng miền</p>
           </section>
           
           <div className="bg-white rounded-3xl border border-gray-100 shadow-[0_15px_40px_rgba(0,0,0,0.05)] overflow-hidden">

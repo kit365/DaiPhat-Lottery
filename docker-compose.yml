@@ -51,6 +51,26 @@ services:
       timeout: 5s
       retries: 6
 
+  ticket-vision:
+    build:
+      context: ./daiphat-ai
+      dockerfile: services/ticket-vision/Dockerfile
+    restart: unless-stopped
+    ports:
+      - "${LOCAL_TICKET_VISION_PORT:-8090}:8090"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8090/health', timeout=3)",
+        ]
+      interval: 20s
+      timeout: 5s
+      start_period: 30s
+      retries: 6
+
   backend:
     build:
       context: ./daiphat-be/core-api

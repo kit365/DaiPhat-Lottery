@@ -8,7 +8,7 @@ import {
 } from "@mui/material";
 import { Link, useNavigate } from "@/components/router-compat";
 import { motion, AnimatePresence } from "framer-motion";
-import { LogoAdmin } from "../../../assets/admin/logo";
+import { SiteLogo } from "@/client/components/layout/SiteLogo";
 import { EyeIcon, NoEyeIcon } from "../../assets/icons";
 import {
     EmailOutlined as MailIcon,
@@ -204,7 +204,7 @@ export const ForgotPasswordPage = () => {
             {/* Header Logo */}
             <Container disableGutters sx={{ height: "72px", px: 3, display: "flex", alignItems: "center", position: "fixed", top: 0, left: 0, zIndex: 1101 }}>
                 <Link to="/admin/auth/login" className="inline-block w-[40px] h-[40px]">
-                    <LogoAdmin />
+                    <SiteLogo className="w-10 h-10 rounded" imgClassName="w-full h-full object-contain" />
                 </Link>
             </Container>
 
@@ -466,7 +466,7 @@ const StepLayout = ({ icon, title, description, children, onBack }: any) => (
                 <Button
                     startIcon={<ArrowBackIcon />}
                     onClick={onBack}
-                    sx={{ textTransform: "none", color: "text.primary", fontWeight: 600 }}
+                    sx={{ color: "text.primary" }}
                 >
                     Quay lại
                 </Button>

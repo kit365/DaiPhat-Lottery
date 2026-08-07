@@ -35,7 +35,7 @@ export const StaffStatisticsPage = () => {
 
     const attendanceOptions: any = {
         labels: (workAttendance || []).map((a: any) => a.name),
-        colors: ['#00A76F', '#FFAB00', '#00B8D9'],
+        colors: ['#FF3030', '#FFAB00', '#00B8D9'],
         legend: { position: 'right', fontWeight: 600 }
     };
 
@@ -81,7 +81,7 @@ export const StaffStatisticsPage = () => {
                         <Typography variant="h6" sx={{ mb: 3, fontWeight: 600 }}>{t('admin.dashboard.statistics.staff_productivity_details', 'Chi tiết Năng suất Nhân viên')}</Typography>
                         <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(2, 1fr)', sm: 'repeat(4, 1fr)' }, gap: 3 }}>
                             {ticketServicePerformance.slice(0, 8).map((p: any, index: number) => (
-                                <Box key={p._id} sx={{ p: 3, border: '1px dashed rgba(145, 158, 171, 0.4)', borderRadius: 2, textAlign: 'center', bgcolor: index === 0 ? 'rgba(0, 167, 111, 0.05)' : 'transparent' }}>
+                                <Box key={p._id} sx={{ p: 3, border: '1px dashed rgba(145, 158, 171, 0.4)', borderRadius: 2, textAlign: 'center', bgcolor: index === 0 ? 'rgba(255, 48, 48, 0.05)' : 'transparent' }}>
                                     <Box sx={{ width: 40, height: 40, borderRadius: '50%', bgcolor: index < 3 ? 'primary.main' : 'grey.300', color: '#fff', mx: 'auto', mb: 2, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800 }}>
                                         {index + 1}
                                     </Box>

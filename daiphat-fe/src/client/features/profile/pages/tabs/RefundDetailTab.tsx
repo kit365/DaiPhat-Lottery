@@ -23,14 +23,14 @@ import {
     UNAVAILABLE_REFERENCE_MESSAGE,
 } from '../../../../components/notification/UnavailableReferenceState';
 import { QUERY_KEYS } from '../../../../../constants/queryKeys';
+import { TICKET_IMAGE_FALLBACK } from '../../../../constants/clientBannerAssets';
 
 const REFUND_TYPE_LABELS: Record<RefundType, string> = {
     [RefundType.FULL_ORDER]: 'Hoàn cả đơn',
     [RefundType.ORDER_DETAIL]: 'Hoàn từng vé'
 };
 
-const FALLBACK_TICKET_IMG =
-    'https://i.ibb.co/TBf95cjX/6b561e49-2b8d-4dc5-b4c7-cff26a273abc.png';
+const FALLBACK_TICKET_IMG = TICKET_IMAGE_FALLBACK;
 
 function resolveIncidentReason(
     serialStatus?: string | null,
@@ -130,7 +130,7 @@ export const RefundDetailTab = () => {
                         <i className="fa-solid fa-arrow-left text-[11px]"></i> Quay lại danh sách
                     </button>
                     <div className="flex items-center gap-3 flex-wrap">
-                        <h2 className="text-[22px] font-bold text-[#212B36]">Yêu cầu hoàn tiền #{refund.id}</h2>
+                        <h2 className="client-heading m-0">Yêu cầu hoàn tiền #{refund.id}</h2>
                         <RefundStatusBadge status={refund.status} />
                     </div>
                     <p className="text-[14px] text-[#637381] mt-1">

@@ -4,18 +4,21 @@ import 'package:go_router/go_router.dart';
 import 'package:daiphat_mobile/src/app/routing/app_routes.dart';
 import 'package:daiphat_mobile/src/features/auth/presentation/viewmodels/login_viewmodel.dart';
 import 'package:daiphat_mobile/src/features/blog/presentation/views/blog_screen.dart';
-import 'package:daiphat_mobile/src/features/chat/presentation/views/chat_screen.dart';
+import 'package:daiphat_mobile/src/features/notifications/presentation/viewmodels/notification_viewmodel.dart';
+import 'package:daiphat_mobile/src/features/notifications/presentation/views/notification_view.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
 
-enum _ShellSidePage { main, blog, chat }
+enum _ShellSidePage { main, blog, notifications }
 
 class MainLayout extends StatefulWidget {
   final LoginViewModel loginViewModel;
+  final NotificationViewModel notificationViewModel;
   final Widget child;
 
   const MainLayout({
     super.key,
     required this.loginViewModel,
+    required this.notificationViewModel,
     required this.child,
   });
 
@@ -36,7 +39,7 @@ class _MainLayoutState extends State<MainLayout> {
   void _syncSidePage(int index) {
     final nextPage = switch (index) {
       0 => _ShellSidePage.blog,
-      2 => _ShellSidePage.chat,
+      2 => _ShellSidePage.notifications,
       _ => _ShellSidePage.main,
     };
     if (nextPage != _sidePage) {
@@ -50,17 +53,6 @@ class _MainLayoutState extends State<MainLayout> {
     super.dispose();
   }
 
-  void _goToBlog() {
-    if (_sidePage != _ShellSidePage.blog) {
-      setState(() => _sidePage = _ShellSidePage.blog);
-    }
-    _pageController.animateToPage(
-      0,
-      duration: const Duration(milliseconds: 300),
-      curve: Curves.easeInOut,
-    );
-  }
-
   void _goToMain() {
     if (_sidePage != _ShellSidePage.main) {
       setState(() => _sidePage = _ShellSidePage.main);
@@ -72,9 +64,9 @@ class _MainLayoutState extends State<MainLayout> {
     );
   }
 
-  void _goToChat() {
-    if (_sidePage != _ShellSidePage.chat) {
-      setState(() => _sidePage = _ShellSidePage.chat);
+  void _goToNotifications() {
+    if (_sidePage != _ShellSidePage.notifications) {
+      setState(() => _sidePage = _ShellSidePage.notifications);
     }
     _pageController.animateToPage(
       2,
@@ -86,13 +78,16 @@ class _MainLayoutState extends State<MainLayout> {
   int _getNavIndex(BuildContext context) {
     switch (_sidePage) {
       case _ShellSidePage.blog:
-        return 2;
-      case _ShellSidePage.chat:
+        return -1;
+      case _ShellSidePage.notifications:
         return 3;
       case _ShellSidePage.main:
         final location = GoRouterState.of(context).uri.path;
         if (location.startsWith(AppRoute.buyTicket.path)) {
           return 1;
+        }
+        if (location.startsWith(AppRoute.checkTicket.path)) {
+          return 2;
         }
         if (location.startsWith(AppRoute.profile.path)) {
           return 4;
@@ -112,10 +107,11 @@ class _MainLayoutState extends State<MainLayout> {
         context.go(AppRoute.buyTicket.path);
         break;
       case 2:
-        _goToBlog();
+        _goToMain();
+        context.go(AppRoute.checkTicket.path);
         break;
       case 3:
-        _goToChat();
+        _goToNotifications();
         break;
       case 4:
         _goToMain();
@@ -149,20 +145,23 @@ class _MainLayoutState extends State<MainLayout> {
             key: ValueKey(GoRouterState.of(context).uri.path),
             child: widget.child,
           ),
-          ChatScreen(
-            key: const ValueKey('shell-chat'),
+          NotificationView(
+            key: const ValueKey('shell-notifications'),
+            viewModel: widget.notificationViewModel,
             onBack: () {
               _goToMain();
               context.go(AppRoute.home.path);
             },
-            isAuthenticated: widget.loginViewModel.isAuthenticated,
-            isActive: _sidePage == _ShellSidePage.chat,
           ),
         ],
       ),
-      bottomNavigationBar: _AnimatedBottomNavigation(
-        selectedIndex: navIndex,
-        onTap: (index) => _onNavTap(index, context),
+      bottomNavigationBar: ListenableBuilder(
+        listenable: widget.notificationViewModel,
+        builder: (context, _) => _AnimatedBottomNavigation(
+          selectedIndex: navIndex,
+          notificationBadge: widget.notificationViewModel.unreadCount,
+          onTap: (index) => _onNavTap(index, context),
+        ),
       ),
     );
   }
@@ -172,10 +171,12 @@ class _AnimatedBottomNavigation extends StatelessWidget {
   const _AnimatedBottomNavigation({
     required this.selectedIndex,
     required this.onTap,
+    this.notificationBadge = 0,
   });
 
   final int selectedIndex;
   final ValueChanged<int> onTap;
+  final int notificationBadge;
 
   static const _items = <({String label, IconData icon, IconData activeIcon})>[
     (
@@ -189,14 +190,14 @@ class _AnimatedBottomNavigation extends StatelessWidget {
       activeIcon: Icons.confirmation_number_rounded,
     ),
     (
-      label: 'Tin tức',
-      icon: Icons.article_outlined,
-      activeIcon: Icons.article_rounded,
+      label: 'Dò vé',
+      icon: Icons.qr_code_scanner_rounded,
+      activeIcon: Icons.qr_code_scanner_rounded,
     ),
     (
-      label: 'Chat',
-      icon: Icons.chat_bubble_outline_rounded,
-      activeIcon: Icons.chat_bubble_rounded,
+      label: 'Thông báo',
+      icon: Icons.notifications_none_rounded,
+      activeIcon: Icons.notifications_rounded,
     ),
     (
       label: 'Cá nhân',
@@ -231,6 +232,7 @@ class _AnimatedBottomNavigation extends StatelessWidget {
               child: _AnimatedNavItem(
                 item: _items[index],
                 selected: selectedIndex == index,
+                badge: index == 3 ? notificationBadge : 0,
                 onTap: () => onTap(index),
               ),
             ),
@@ -245,11 +247,13 @@ class _AnimatedNavItem extends StatelessWidget {
     required this.item,
     required this.selected,
     required this.onTap,
+    this.badge = 0,
   });
 
   final ({String label, IconData icon, IconData activeIcon}) item;
   final bool selected;
   final VoidCallback onTap;
+  final int badge;
 
   @override
   Widget build(BuildContext context) {
@@ -289,10 +293,47 @@ class _AnimatedNavItem extends StatelessWidget {
                   alignment: Alignment.center,
                   child: Transform.translate(
                     offset: Offset(0, -1.5 * value),
-                    child: Icon(
-                      selected ? item.activeIcon : item.icon,
-                      color: activeColor,
-                      size: 22 + (2 * value),
+                    child: Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        Icon(
+                          selected ? item.activeIcon : item.icon,
+                          color: activeColor,
+                          size: 22 + (2 * value),
+                        ),
+                        if (badge > 0)
+                          Positioned(
+                            right: -8,
+                            top: -6,
+                            child: Container(
+                              constraints: const BoxConstraints(
+                                minWidth: 16,
+                                minHeight: 16,
+                              ),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 3,
+                              ),
+                              decoration: BoxDecoration(
+                                color: AppColors.primary,
+                                borderRadius: BorderRadius.circular(999),
+                                border: Border.all(
+                                  color: Colors.white,
+                                  width: 1.2,
+                                ),
+                              ),
+                              alignment: Alignment.center,
+                              child: Text(
+                                badge > 99 ? '99+' : '$badge',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w800,
+                                  height: 1,
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
                     ),
                   ),
                 ),

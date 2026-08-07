@@ -70,6 +70,8 @@ export const NotificationDropdown = () => {
     notifications,
     unreadCount,
     isLoading,
+    isError,
+    isFetchNextPageError,
     isFetchingNextPage,
     hasNextPage,
     fetchNextPage,
@@ -103,13 +105,13 @@ export const NotificationDropdown = () => {
     const root = scrollContainerRef.current;
     const target = loadMoreRef.current;
 
-    if (!root || !target || !hasNextPage) {
+    if (!root || !target || !hasNextPage || isError || isFetchNextPageError) {
       return;
     }
 
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries[0]?.isIntersecting && hasNextPage && !isFetchingNextPage) {
+        if (entries[0]?.isIntersecting && hasNextPage && !isFetchingNextPage && !isFetchNextPageError && !isError) {
           fetchNextPage();
         }
       },
@@ -121,7 +123,7 @@ export const NotificationDropdown = () => {
 
     observer.observe(target);
     return () => observer.disconnect();
-  }, [fetchNextPage, hasNextPage, isFetchingNextPage]);
+  }, [fetchNextPage, hasNextPage, isFetchingNextPage, isError, isFetchNextPageError]);
 
   return (
     <div className="absolute top-full right-0 mt-2 w-[400px] bg-white rounded-2xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.15)] border border-[#E5E8EB] opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-[1100]">

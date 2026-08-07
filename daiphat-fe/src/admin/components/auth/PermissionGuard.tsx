@@ -7,7 +7,6 @@ import { toast } from "react-toastify";
 import { ROUTES } from "../../constants/routes";
 import { useAuth } from "../../pages/authen/hooks/useAuth";
 import { hasAnyPermission, hasPermission, resolveIsAdmin } from "../../utils/permission.util";
-import LoadingScreen from "../ui/LoadingScreen";
 
 interface Props {
     permission?: string;
@@ -52,15 +51,15 @@ export const PermissionGuard = ({ children, permission, permissions, fallback }:
         }
     }, [hasAccess, isWaitingInitialUser, isReady, token, user, logout, isOnlyMember, permission, permissions]);
 
-    // Trạng thái chờ ban đầu: Đang hydrate hoặc chờ lấy thông tin user lần đầu
+    // Giữ shell admin (sidebar/header); không chặn bằng spinner toàn vùng content.
     if (!isReady || isWaitingInitialUser) {
-        return fallback || <LoadingScreen />;
+        return fallback ?? null;
     }
 
     // `useAuth` clears the session and navigates to login on a failed /users/me
     // request. Do not keep the admin shell blocked while that effect commits.
     if (token && !user && isUserError) {
-        return <LoadingScreen />;
+        return null;
     }
 
     if (!hasAccess) {

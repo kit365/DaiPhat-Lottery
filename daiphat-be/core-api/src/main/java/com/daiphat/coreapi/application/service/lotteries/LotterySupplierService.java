@@ -19,6 +19,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalTime;
 
 @Service
 @RequiredArgsConstructor
@@ -37,6 +38,7 @@ public class LotterySupplierService implements LotterySupplierServicePort {
         }
 
         validateNonNegativeAmounts(request.paymentTermDays(), request.defaultImportCost());
+        validateCutOffTimes(request.returnCutOffTime(), request.paymentCutOffTime());
 
         LotterySupplierModel model = lotterySupplierApplicationMapper.toModel(request);
         if (Boolean.TRUE.equals(request.isActive())) {
@@ -57,6 +59,7 @@ public class LotterySupplierService implements LotterySupplierServicePort {
         }
 
         validateNonNegativeAmounts(request.paymentTermDays(), request.defaultImportCost());
+        validateCutOffTimes(request.returnCutOffTime(), request.paymentCutOffTime());
 
         lotterySupplierApplicationMapper.updateModel(model, request);
         if (Boolean.TRUE.equals(request.isActive())) {
@@ -122,6 +125,17 @@ public class LotterySupplierService implements LotterySupplierServicePort {
         }
         if (defaultImportCost != null && defaultImportCost.compareTo(BigDecimal.ZERO) < 0) {
             throw new DomainException(ErrorCode.LOTTERY_SUPPLIER_IMPORT_COST_INVALID);
+        }
+    }
+
+    private void validateCutOffTimes(LocalTime returnCutOffTime, LocalTime paymentCutOffTime) {
+        if (returnCutOffTime != null && paymentCutOffTime != null) {
+            if (!paymentCutOffTime.isAfter(returnCutOffTime)) {
+                throw new DomainException(
+                        ErrorCode.INVALID_INPUT,
+                        "Giờ thanh toán (" + paymentCutOffTime + ") phải sau Hạn trả vé (" + returnCutOffTime + ")"
+                );
+            }
         }
     }
 

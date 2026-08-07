@@ -24,8 +24,11 @@ public class SupplierSettlementPersistenceMapper {
                 .totalReturnValue(entity.getTotalReturnValue())
                 .totalPaidAmount(entity.getTotalPaidAmount())
                 .remainingAmount(entity.getRemainingAmount())
+                .isReturnExpired(entity.isReturnExpired())
+                .expiredReturnValue(entity.getExpiredReturnValue())
                 .status(entity.getStatus())
                 .transactionId(entity.getTransactionId())
+                .paidAt(entity.getPaidAt())
                 .createdAt(entity.getCreatedAt())
                 .updatedAt(entity.getUpdatedAt())
                 .createdBy(entity.getCreatedBy())
@@ -52,8 +55,11 @@ public class SupplierSettlementPersistenceMapper {
                 .totalReturnValue(model.getTotalReturnValue())
                 .totalPaidAmount(model.getTotalPaidAmount())
                 .remainingAmount(model.getRemainingAmount())
+                .isReturnExpired(model.isReturnExpired())
+                .expiredReturnValue(model.getExpiredReturnValue())
                 .status(model.getStatus())
                 .transactionId(model.getTransactionId())
+                .paidAt(model.getPaidAt())
                 .createdAt(model.getCreatedAt())
                 .updatedAt(model.getUpdatedAt())
                 .createdBy(model.getCreatedBy())
@@ -69,8 +75,11 @@ public class SupplierSettlementPersistenceMapper {
         entity.setTotalReturnValue(model.getTotalReturnValue());
         entity.setTotalPaidAmount(model.getTotalPaidAmount());
         entity.setRemainingAmount(model.getRemainingAmount());
+        entity.setReturnExpired(model.isReturnExpired());
+        entity.setExpiredReturnValue(model.getExpiredReturnValue());
         entity.setStatus(model.getStatus());
         entity.setTransactionId(model.getTransactionId());
+        entity.setPaidAt(model.getPaidAt());
         entity.setDeletedAt(model.getDeletedAt());
         if (model.getLotterySupplierId() != null
                 && (entity.getLotterySupplier() == null

@@ -77,6 +77,31 @@ export const formatSystemConfigDisplayValue = (
         }
     }
 
+    if (configKey === 'FORTUNE_CAST_COOLDOWN_HOURS') {
+        const total = Number.parseInt(String(rawValue ?? '').trim(), 10);
+        if (Number.isFinite(total) && total > 0) {
+            const hours = Math.floor(total / 60);
+            const minutes = total % 60;
+            const parts: string[] = [];
+            if (hours > 0) parts.push(`${hours} giờ`);
+            if (minutes > 0 || hours === 0) parts.push(`${minutes} phút`);
+            const summary = parts.join(' ');
+            const detail =
+                total === 60
+                    ? 'Mỗi khung 1 giờ đồng hồ (0h, 1h, 2h, …)'
+                    : total === 360
+                      ? 'Mỗi khung 6 giờ (0h, 6h, 12h, 18h)'
+                      : total === 1440
+                        ? 'Mỗi khung 1 ngày (reset 0h)'
+                        : `Khung ${summary}, căn từ 0h VN`;
+            return {
+                summary,
+                detailLines: [detail],
+                isStructured: true,
+            };
+        }
+    }
+
     if (dataType === ConfigDataType.JSON) {
         try {
             const pretty = JSON.stringify(JSON.parse(rawValue), null, 2);
@@ -95,6 +120,17 @@ export const formatSystemConfigDisplayValue = (
                 isStructured: false,
             };
         }
+    }
+
+    if (configKey === 'VENDOR_LATE_RETURN_POLICY') {
+        const labels: Record<string, string> = {
+            FORFEIT_DEPOSIT: 'Tịch thu tiền cọc',
+            FORCE_PURCHASE_ALL: 'Ép mua toàn bộ vé',
+        };
+        return {
+            summary: labels[rawValue] ? `${labels[rawValue]} (${rawValue})` : rawValue,
+            isStructured: false,
+        };
     }
 
     return { summary: rawValue, isStructured: false };

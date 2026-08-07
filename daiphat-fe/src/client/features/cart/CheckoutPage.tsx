@@ -17,6 +17,12 @@ import OrderSummary from './components/OrderSummary';
 import { CartQuantityControl } from './components/CartQuantityControl';
 import { validateAndSyncCartStock } from '../../utils/cartStock.util';
 import { PaymentQrDialog } from '../../components/payment/PaymentQrDialog';
+import {
+  CLIENT_PAGE_BACKGROUND,
+  PROVINCE_ICON_FALLBACK,
+  TICKET_IMAGE_FALLBACK,
+} from '../../constants/clientBannerAssets';
+import { Breadcrumb } from '../../components/ui/Breadcrumb';
 
 export const CheckoutPage = () => {
     const navigate = useNavigate();
@@ -324,19 +330,20 @@ export const CheckoutPage = () => {
     return (
         <div 
             className="client-page min-h-screen flex flex-col bg-fixed bg-cover bg-center pb-20"
-            style={{ backgroundImage: 'url("https://i.ibb.co/BVFGYpL1/86f05f70-fcf8-445f-978e-a0539eb2f0de.png")' }}
+            style={{ backgroundImage: `url("${CLIENT_PAGE_BACKGROUND}")` }}
         >
             {/* Top Section for Breadcrumb & Title */}
             <div className="w-full mt-[70px] lg:mt-[80px] py-4 lg:py-6">
                 <div className="w-full max-w-[1440px] mx-auto px-4 lg:px-8">
                     <div className="flex flex-col">
-                        <div className="flex items-center gap-2 text-[13px] text-[#637381] mb-2 font-medium">
-                            <Link to="/" className="hover:text-[#ee1314] transition-colors">Trang chủ</Link>
-                            <ChevronRight size={14} />
-                            <Link to="/cart" className="hover:text-[#ee1314] transition-colors">Giỏ hàng</Link>
-                            <ChevronRight size={14} />
-                            <span className="text-[#212B36] font-medium">Thanh toán</span>
-                        </div>
+                        <Breadcrumb
+                            items={[
+                                { label: 'Trang chủ', to: '/' },
+                                { label: 'Giỏ hàng', to: '/cart' },
+                                { label: 'Thanh toán' }
+                            ]}
+                            className="mb-2"
+                        />
                         <div className="flex items-center gap-3">
                             <div>
                                 <h1 className="client-heading mb-1 tracking-tight">Thanh toán đơn hàng</h1>
@@ -376,14 +383,14 @@ export const CheckoutPage = () => {
                                         
                                         {/* Vé số */}
                                         <div className="flex items-center gap-3">
-                                            <img src={item.ticketImg || 'https://i.ibb.co/TBf95cjX/6b561e49-2b8d-4dc5-b4c7-cff26a273abc.png'} alt="Vé" className="w-[80px] h-[50px] object-cover mix-blend-multiply border border-gray-100 rounded shrink-0" />
+                                            <img src={item.ticketImg || TICKET_IMAGE_FALLBACK} alt="Vé" className="w-[80px] h-[50px] object-cover mix-blend-multiply border border-gray-100 rounded shrink-0" />
                                             <div className="font-bold text-[16px] text-[#212B36] tracking-tight">{item.numbers}</div>
                                         </div>
 
                                         {/* Đài & Ngày quay */}
                                         <div className="flex flex-col items-start gap-1">
                                             <div className="flex items-center gap-2">
-                                                <img src={item.provinceIcon || 'https://i.ibb.co/XrKTHt8g/t-i-xu-ng.png'} alt="Logo" className="w-5 h-5 rounded-full border border-gray-200" />
+                                                <img src={item.provinceIcon || PROVINCE_ICON_FALLBACK} alt="Logo" className="w-5 h-5 rounded-full border border-gray-200" />
                                                 <span className="font-bold text-[13px] text-[#212B36]">{item.province}</span>
                                             </div>
                                             <div className="flex items-center gap-1.5 text-[12px] text-[#637381] pl-7">

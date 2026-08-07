@@ -36,6 +36,7 @@ import com.daiphat.coreapi.domain.model.lotteries.SupplierSettlementModel;
 import com.daiphat.coreapi.shared.util.ImportBatchConfigResolver;
 import com.daiphat.coreapi.shared.util.ImportCostCalculator;
 import com.daiphat.coreapi.shared.util.SortUtils;
+import com.daiphat.coreapi.shared.util.ReturnBatchCodeGenerator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -75,6 +76,7 @@ public class ReturnBatchService implements ReturnBatchServicePort {
     private final ReturnBatchSummaryCalculator returnBatchSummaryCalculator;
     private final ImportBatchConfigResolver importBatchConfigResolver;
     private final ReturnBatchAutoCancelService returnBatchAutoCancelService;
+    private final ReturnBatchCodeGenerator returnBatchCodeGenerator;
     private final Clock clock;
 
     @Override
@@ -97,6 +99,7 @@ public class ReturnBatchService implements ReturnBatchServicePort {
         );
 
         ReturnBatchModel header = ReturnBatchModel.builder()
+                .batchCode(returnBatchCodeGenerator.generateHeaderCode(request.drawDate()))
                 .lotterySupplierId(supplier.getId())
                 .drawDate(request.drawDate())
                 .supplierSettlementId(settlement.getId())

@@ -202,6 +202,65 @@ class SystemConfigServiceTest {
         }
 
         @Test
+        void rejectsInvalidTime_withSpecificVietnameseMessage() {
+            SystemConfigModel existing = SystemConfigModel.builder()
+                    .id(2L)
+                    .configKey("VENDOR_RETURN_CUTOFF")
+                    .configValue("15:00")
+                    .configType(ConfigType.VENDOR_SETTING)
+                    .dataType(DataType.TIME)
+                    .description("Giờ chốt trả vé")
+                    .configName("Giờ chốt trả vé đại lý")
+                    .unit("HH:mm")
+                    .validationRules("{\"min\":\"00:00\",\"max\":\"23:59\"}")
+                    .isEditable(true)
+                    .isActive(true)
+                    .build();
+            when(systemConfigRepositoryPort.findById(2L)).thenReturn(Optional.of(existing));
+
+            UpdateSystemConfigRequest request = new UpdateSystemConfigRequest(
+                    "Giờ chốt trả vé đại lý", "17h00", "bad time");
+
+            assertThatThrownBy(() -> systemConfigService.update(2L, request))
+                    .isInstanceOf(DomainException.class)
+                    .satisfies(ex -> {
+                        DomainException domain = (DomainException) ex;
+                        assertThat(domain.getErrorCode()).isEqualTo(ErrorCode.SYSTEM_CONFIG_TIME_INVALID);
+                        assertThat(domain.getMessage())
+                                .isEqualTo("Giờ chốt trả vé đại lý phải có định dạng HH:mm (ví dụ 17:00).");
+                    });
+
+            verify(systemConfigRepositoryPort, never()).save(any());
+            verify(systemConfigCachePort, never()).evict(any());
+        }
+
+        @Test
+        void acceptsCanonicalHhMmTime_andNormalizes() {
+            SystemConfigModel existing = SystemConfigModel.builder()
+                    .id(2L)
+                    .configKey("VENDOR_RETURN_CUTOFF")
+                    .configValue("15:00")
+                    .configType(ConfigType.VENDOR_SETTING)
+                    .dataType(DataType.TIME)
+                    .description("Giờ chốt trả vé")
+                    .configName("Giờ chốt trả vé đại lý")
+                    .unit("HH:mm")
+                    .validationRules("{\"min\":\"00:00\",\"max\":\"23:59\"}")
+                    .isEditable(true)
+                    .isActive(true)
+                    .build();
+            when(systemConfigRepositoryPort.findById(2L)).thenReturn(Optional.of(existing));
+            when(systemConfigRepositoryPort.save(any(SystemConfigModel.class))).thenAnswer(inv -> inv.getArgument(0));
+
+            SystemConfigResponse response = systemConfigService.update(
+                    2L,
+                    new UpdateSystemConfigRequest("Giờ chốt trả vé đại lý", "17:00", "Updated cutoff"));
+
+            assertThat(response.configValue()).isEqualTo("17:00");
+            verify(systemConfigCachePort).evict("VENDOR_RETURN_CUTOFF");
+        }
+
+        @Test
         void rejectsWhenNotEditable() {
             SystemConfigModel existing = sampleConfig();
             existing.setIsEditable(false);

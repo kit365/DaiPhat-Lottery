@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { calculateLotoTable, LotteryResult, LotteryPrizes } from '../../types/lottery';
+import { ClientStationSelect } from '../ui/ClientStationSelect';
 
 interface LotoTableProps {
   dataList: LotteryResult[];
@@ -16,6 +17,11 @@ export const LotoTable: React.FC<LotoTableProps> = ({ dataList, selectedDigit, h
   const [selectedProvince, setSelectedProvince] = useState<string>('ALL');
 
   const provinces = useMemo(() => Array.from(new Set(dataList.map(d => d.province))), [dataList]);
+
+  const stationOptions = useMemo(
+    () => provinces.map((p) => ({ id: p, label: p })),
+    [provinces]
+  );
 
   useEffect(() => {
     if (selectedProvince !== 'ALL' && !provinces.includes(selectedProvince)) {
@@ -76,16 +82,14 @@ export const LotoTable: React.FC<LotoTableProps> = ({ dataList, selectedDigit, h
       <div className="flex items-center justify-between mb-3 px-2">
         <h3 className="text-[13px] font-bold text-[#111111] uppercase">BẢNG LOTO</h3>
         {provinces.length > 1 && (
-          <select 
-            className="text-[11px] font-medium border border-gray-200 rounded-md px-2 py-1 outline-none cursor-pointer bg-slate-50 text-slate-700 max-w-[120px]"
-            value={selectedProvince}
-            onChange={(e) => setSelectedProvince(e.target.value)}
-          >
-            <option value="ALL">Tất cả đài</option>
-            {provinces.map(p => (
-              <option key={p} value={p}>{p}</option>
-            ))}
-          </select>
+          <ClientStationSelect
+            size="sm"
+            className="shrink-0"
+            value={selectedProvince === 'ALL' ? '' : selectedProvince}
+            options={stationOptions}
+            allOptionLabel="Tất cả đài"
+            onChange={(id) => setSelectedProvince(id || 'ALL')}
+          />
         )}
       </div>
       <div className="border border-gray-100 rounded-lg overflow-hidden shadow-sm bg-white">

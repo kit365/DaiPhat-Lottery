@@ -102,4 +102,10 @@ public class SupplierSettlementRepositoryAdapter implements SupplierSettlementRe
         BigDecimal sum = supplierSettlementRepository.sumInStockGoodImportCostBySettlementId(settlementId);
         return sum != null ? sum : BigDecimal.ZERO;
     }
+
+    @Override
+    public BigDecimal sumExpiredReturnValueBySettlementId(Long settlementId) {
+        BigDecimal sum = supplierSettlementRepository.sumExpiredReturnValueBySettlementId(settlementId);
+        return sum != null ? sum : BigDecimal.ZERO;
+    }
 }

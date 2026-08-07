@@ -10,12 +10,11 @@ const streetAgentProfileBaseSchema = z.object({
     imageUrl: z.string().optional().nullable(),
     contactAddress: z.string().max(255, "Địa chỉ không vượt quá 255 ký tự").optional(),
     contactProvince: z.string().max(100, "Tỉnh/thành không vượt quá 100 ký tự").optional(),
-    coverageArea: z.string().max(255, "Địa bàn bán không vượt quá 255 ký tự").optional(),
+    coverageAreaCodes: z.array(z.string()).optional().default([]),
     commissionRate: z.coerce.number().min(0, "Tỷ lệ hoa hồng phải từ 0 trở lên").max(1, "Tỷ lệ hoa hồng không vượt quá 100%").optional().nullable(),
     contractStartDate: z.string().optional().nullable(),
     contractEndDate: z.string().optional().nullable(),
-    depositBalance: z.coerce.number().min(0, "Số dư ký quỹ phải từ 0 trở lên").optional().nullable(),
-    status: z.enum(["ACTIVE", "INACTIVE", "PENDING"]).optional(),
+    dailyTicketCap: z.coerce.number().min(1, "Hạn mức ngày phải lớn hơn 0").optional().nullable(),
 });
 
 const contractDateRefinement = (data: { contractStartDate?: string | null; contractEndDate?: string | null }) => {
@@ -23,17 +22,88 @@ const contractDateRefinement = (data: { contractStartDate?: string | null; contr
     return data.contractEndDate >= data.contractStartDate;
 };
 
-export const createStreetAgentProfileSchema = streetAgentProfileBaseSchema.refine(contractDateRefinement, {
+export const createStreetAgentProfileSchema = streetAgentProfileBaseSchema
+    .superRefine((data, ctx) => {
+        if (!data.contractStartDate) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: "Vui lòng chọn ngày bắt đầu hợp đồng",
+                path: ["contractStartDate"],
+            });
+        }
+        if (!data.contractEndDate) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: "Vui lòng chọn ngày kết thúc hợp đồng",
+                path: ["contractEndDate"],
+            });
+        }
+        if (data.dailyTicketCap == null) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: "Vui lòng nhập hạn mức vé/ngày",
+                path: ["dailyTicketCap"],
+            });
+        }
+    })
+    .refine(contractDateRefinement, {
+        message: "Ngày kết thúc hợp đồng phải sau ngày bắt đầu",
+        path: ["contractEndDate"],
+    });
+
+export const updateStreetAgentProfileSchema = streetAgentProfileBaseSchema.refine(contractDateRefinement, {
     message: "Ngày kết thúc hợp đồng phải sau ngày bắt đầu",
     path: ["contractEndDate"],
 });
 
-export const updateStreetAgentProfileSchema = streetAgentProfileBaseSchema.extend({
-    depositAdjustmentReason: z.string().max(500, "Lý do điều chỉnh không vượt quá 500 ký tự").optional().nullable(),
-}).refine(contractDateRefinement, {
-    message: "Ngày kết thúc hợp đồng phải sau ngày bắt đầu",
-    path: ["contractEndDate"],
+export const adjustDepositSchema = z.object({
+    depositBalance: z.coerce.number().min(0, "Số dư ký quỹ phải từ 0 trở lên"),
+    depositAdjustmentReason: z
+        .string()
+        .min(1, "Vui lòng nhập lý do điều chỉnh cọc")
+        .max(500, "Lý do điều chỉnh không vượt quá 500 ký tự"),
 });
+
+export const upsertLuckyPatternConfigSchema = z
+    .object({
+        patternType: z.enum(["EXACT", "DIGIT_MATCH"]),
+        exactNumbers: z.string().optional().nullable(),
+        matchDigits: z.string().optional().nullable(),
+        matchPosition: z.enum(["PREFIX", "SUFFIX", "ANYWHERE"]).optional().nullable(),
+        name: z.string().min(1, "Vui lòng nhập tên cấu hình").max(100),
+        description: z.string().max(500).optional().nullable(),
+        badgeLabel: z.string().min(1, "Vui lòng nhập nhãn badge").max(50),
+        badgeColor: z.string().max(30).optional().nullable(),
+        priority: z.coerce.number().int().min(0).optional().nullable(),
+        active: z.boolean().optional().nullable(),
+    })
+    .superRefine((data, ctx) => {
+        if (data.patternType === "EXACT" && !data.exactNumbers?.trim()) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: "Vui lòng nhập số khớp chính xác",
+                path: ["exactNumbers"],
+            });
+        }
+        if (data.patternType === "DIGIT_MATCH") {
+            if (!data.matchDigits?.trim()) {
+                ctx.addIssue({
+                    code: z.ZodIssueCode.custom,
+                    message: "Vui lòng nhập cụm số cần khớp",
+                    path: ["matchDigits"],
+                });
+            }
+            if (!data.matchPosition) {
+                ctx.addIssue({
+                    code: z.ZodIssueCode.custom,
+                    message: "Vui lòng chọn vị trí khớp",
+                    path: ["matchPosition"],
+                });
+            }
+        }
+    });
 
 export type CreateStreetAgentProfileFormValues = z.infer<typeof createStreetAgentProfileSchema>;
 export type UpdateStreetAgentProfileFormValues = z.infer<typeof updateStreetAgentProfileSchema>;
+export type AdjustDepositFormValues = z.infer<typeof adjustDepositSchema>;
+export type UpsertLuckyPatternConfigFormValues = z.infer<typeof upsertLuckyPatternConfigSchema>;

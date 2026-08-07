@@ -9,26 +9,23 @@ import { adminTheme } from "../config/theme";
 import '../styles/index.css';
 import { useSidebar } from "../context/sidebar/useSidebar";
 import { SidebarProvider } from "../context/sidebar/SidebarProvider";
-import { useAuth } from "../pages/authen/hooks/useAuth";
 import { useAuthStore } from "../../stores/useAuthStore";
+import { usePrefetchAdminPagesWhenIdle } from "../hooks/usePrefetchAdminPagesWhenIdle";
 
 import { SocketProvider } from "../context/SocketContext";
+import { AdminProviders } from "../providers/AdminProviders";
+import { AdminPageContentSkeleton } from "../components/ui/AdminPageContentSkeleton";
 
 import { Suspense } from "react";
-import LoadingScreen from "../components/ui/LoadingScreen";
 
 import { ROUTES } from "../constants/routes";
 
 const LayoutAdminContent = ({ children }: { children?: React.ReactNode }) => {
-    const { user, isLoading } = useAuth();
+    const { user, token } = useAuthStore();
     const location = useLocation();
     const { isOpen } = useSidebar();
 
-    // [THE VAULT DOOR] - Chặn đứng mọi nỗ lực xem Dashboard khi chưa setup xong
-    if (isLoading && !user) {
-        return <LoadingScreen />;
-    }
-
+    usePrefetchAdminPagesWhenIdle(!!user && !!token);
 
     const isBlogDetail = location.pathname.startsWith(ROUTES.ADMIN.BLOGS.DETAIL);
     const fullWidthRoutes = [
@@ -50,7 +47,7 @@ const LayoutAdminContent = ({ children }: { children?: React.ReactNode }) => {
 
                 <ThemeProvider theme={adminTheme}>
                     <main className="max-w-[1536px] w-full mx-auto px-[40px] pt-[8px] pb-[64px]">
-                        <Suspense fallback={<LoadingScreen />}>
+                        <Suspense fallback={<AdminPageContentSkeleton />}>
                             {children ? children : <Outlet />}
                         </Suspense>
                     </main>
@@ -63,10 +60,12 @@ const LayoutAdminContent = ({ children }: { children?: React.ReactNode }) => {
 
 export const LayoutAdmin = ({ children }: { children?: React.ReactNode }) => {
     return (
-        <SocketProvider>
-            <SidebarProvider>
-                <LayoutAdminContent>{children}</LayoutAdminContent>
-            </SidebarProvider>
-        </SocketProvider>
+        <AdminProviders>
+            <SocketProvider>
+                <SidebarProvider>
+                    <LayoutAdminContent>{children}</LayoutAdminContent>
+                </SidebarProvider>
+            </SocketProvider>
+        </AdminProviders>
     );
 };

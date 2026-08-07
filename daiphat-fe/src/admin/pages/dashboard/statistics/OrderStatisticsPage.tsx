@@ -48,7 +48,7 @@ export const OrderStatisticsPage = () => {
     const trendOptions: any = {
         chart: { type: 'area', toolbar: { show: false }, fontFamily: 'Public Sans, sans-serif' },
         xaxis: { categories: (revenueTrend || []).map((t: any) => t.month) },
-        colors: ['#00A76F'],
+        colors: ['#FF3030'],
         stroke: { curve: 'smooth', width: 3 },
         fill: { type: 'gradient', gradient: { shadeIntensity: 1, opacityFrom: 0.4, opacityTo: 0, stops: [0, 90, 100] } },
         grid: { strokeDashArray: 3 }
@@ -56,7 +56,7 @@ export const OrderStatisticsPage = () => {
 
     const donutOptions: any = {
         labels: orderDistribution.map((o: any) => STATUS_LABELS[o._id] || o._id || 'Khác'),
-        colors: ['#00A76F', '#FFAB00', '#FF5630', '#00B8D9', '#8E33FF', '#74CAFF', '#FF4842', '#212B36'],
+        colors: ['#FF3030', '#FFAB00', '#FF5630', '#00B8D9', '#8E33FF', '#74CAFF', '#FF4842', '#212B36'],
         legend: { position: 'bottom', horizontalAlign: 'center', fontWeight: 600 },
         plotOptions: { pie: { donut: { size: '75%', labels: { show: true, total: { show: true, label: 'Tổng đơn' } } } } },
         dataLabels: { enabled: false }
@@ -87,7 +87,7 @@ export const OrderStatisticsPage = () => {
                     title="Tổng đơn hàng"
                     total={totalOrders}
                     percent={5.2}
-                    color="#00A76F"
+                    color="#FF3030"
                     chartData={revenueTrend?.map((t: any) => t.total)}
                 />
                 <SummaryWidget

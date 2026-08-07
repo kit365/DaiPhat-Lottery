@@ -119,6 +119,7 @@ export const PERMISSIONS_GROUPED = [
             { id: PERMISSIONS.STREET_AGENT.CREATE, name: "Tạo người bán vé số dạo" },
             { id: PERMISSIONS.STREET_AGENT.EDIT, name: "Sửa người bán vé số dạo" },
             { id: PERMISSIONS.STREET_AGENT.DELETE, name: "Xóa người bán vé số dạo" },
+            { id: PERMISSIONS.STREET_AGENT.MANAGE, name: "Override số đẹp / quản trị nâng cao" },
         ]
     },
     {

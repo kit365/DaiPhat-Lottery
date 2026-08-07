@@ -76,7 +76,20 @@ export const UploadSingleFile = memo(
                     const urls = await uploadImagesToCloudinary([file]);
                     url = urls[0];
                 }
-                onChange(url);
+                const persistable = typeof url === "string" ? url.trim() : "";
+                if (
+                    !persistable ||
+                    persistable.startsWith("blob:") ||
+                    persistable.startsWith("data:")
+                ) {
+                    throw new Error(
+                        "URL ảnh tạm thời không thể lưu. Kiểm tra cấu hình Cloudinary hoặc dùng upload qua server."
+                    );
+                }
+                onChange(persistable);
+                if (file.preview) {
+                    URL.revokeObjectURL(file.preview);
+                }
                 setLocalFile(null);
                 AppToast.success("Tải ảnh lên thành công!");
             } catch (err: any) {
@@ -196,7 +209,7 @@ export const UploadSingleFile = memo(
                         {isUploaded && (
                             <Box sx={{
                                 position: 'absolute', bottom: 2, right: 2,
-                                bgcolor: '#00A76F', borderRadius: '50%',
+                                bgcolor: '#FF3030', borderRadius: '50%',
                                 width: 14, height: 14, border: '2px solid #fff',
                                 display: 'flex', alignItems: 'center', justifyContent: 'center'
                             }}>
@@ -220,26 +233,102 @@ export const UploadSingleFile = memo(
         const hasMedia = useRawFile ? Boolean(value) : Boolean(localFile || value);
 
         if (compact) {
+            const compactSrc = useRawFile
+                ? (value instanceof File ? previewUrl : typeof value === "string" ? value : "")
+                : localFile?.preview || (typeof value === "string" ? value : "");
+
             return (
-                <Stack spacing={0.5}>
-                    <div {...getRootProps()}>
+                <Stack spacing={1}>
+                    <Box
+                        {...getRootProps()}
+                        sx={{
+                            width: "100%",
+                            aspectRatio: "1 / 1",
+                            maxWidth: 168,
+                            borderRadius: "12px",
+                            border: "1px dashed",
+                            borderColor: isDragActive ? "#00A76F" : error ? "error.main" : "#919eab52",
+                            bgcolor: isDragActive ? "rgba(0, 167, 111, 0.08)" : "#919eab14",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            position: "relative",
+                            overflow: "hidden",
+                            cursor: disabled || isUploading ? "default" : "pointer",
+                            opacity: disabled || isUploading ? 0.6 : 1,
+                            transition: "border-color 160ms ease, background-color 160ms ease",
+                            "&:hover": disabled || isUploading ? undefined : { opacity: 0.88 },
+                        }}
+                    >
                         <input {...getInputProps()} />
-                        {hasMedia ? (
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                <ul className="flex gap-[8px] flex-wrap m-0 p-0 list-none">{renderThumb()}</ul>
+                        {compactSrc ? (
+                            <>
+                                <Box
+                                    component="img"
+                                    src={compactSrc}
+                                    alt={label}
+                                    sx={{ width: 1, height: 1, objectFit: "cover" }}
+                                />
+                                <ButtonBase
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleRemove();
+                                    }}
+                                    sx={{
+                                        position: "absolute",
+                                        top: 6,
+                                        right: 6,
+                                        color: "#fff",
+                                        bgcolor: "#141a217a",
+                                        borderRadius: "50%",
+                                        p: "4px",
+                                        "&:hover": { bgcolor: "#FF5630" },
+                                    }}
+                                >
+                                    <svg width="0.75rem" height="0.75rem" viewBox="0 0 24 24">
+                                        <path fill="currentColor" d="m12 13.414l5.657 5.657a1 1 0 0 0 1.414-1.414L13.414 12l5.657-5.657a1 1 0 0 0-1.414-1.414L12 10.586L6.343 4.929A1 1 0 0 0 4.93 6.343L10.586 12l-5.657 5.657a1 1 0 1 0 1.414 1.414z" />
+                                    </svg>
+                                </ButtonBase>
                                 {!useRawFile && localFile && !autoUpload && (
-                                    <Button size="small" onClick={handleUpload} disabled={isUploading} sx={{ minWidth: 0, px: 1 }}>
-                                        {isUploading ? '...' : '↑'}
+                                    <Button
+                                        size="small"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            void handleUpload();
+                                        }}
+                                        disabled={isUploading}
+                                        sx={{
+                                            position: "absolute",
+                                            bottom: 8,
+                                            left: "50%",
+                                            transform: "translateX(-50%)",
+                                            textTransform: "none",
+                                            fontWeight: 700,
+                                            fontSize: "0.75rem",
+                                            bgcolor: "#1C252E",
+                                            color: "#fff",
+                                            px: 1.5,
+                                            minHeight: 28,
+                                            "&:hover": { bgcolor: "#454F5B" },
+                                        }}
+                                    >
+                                        {isUploading ? "Đang tải..." : "Tải lên"}
                                     </Button>
                                 )}
-                            </Box>
+                            </>
                         ) : (
-                            <Button size="small" variant="outlined" sx={{ textTransform: 'none', fontSize: '0.75rem' }}>
-                                Chọn ảnh
-                            </Button>
+                            <Stack alignItems="center" spacing={0.75} sx={{ px: 1.5, textAlign: "center" }}>
+                                <UploadIcon sx={{ fontSize: 28, color: "#637381" }} />
+                                <Typography sx={{ fontSize: "0.8125rem", fontWeight: 700, color: "#1C252E" }}>
+                                    {isUploading ? "Đang tải..." : "Kéo thả / chọn"}
+                                </Typography>
+                                <Typography sx={{ fontSize: "0.7rem", color: "#637381", lineHeight: 1.4 }}>
+                                    PNG, JPG · tối đa {maxFileSizeMb}MB
+                                </Typography>
+                            </Stack>
                         )}
-                    </div>
-                    {(error || (!useRawFile && localFile && !value && !isUploading)) && (
+                    </Box>
+                    {(error || (!useRawFile && localFile && !value && !isUploading && !autoUpload)) && (
                         <FormHelperText error sx={{ m: 0 }}>
                             {getErrorMessage()}
                         </FormHelperText>
@@ -271,7 +360,7 @@ export const UploadSingleFile = memo(
                                 {isUploading ? "Đang tải ảnh lên..." : "Kéo thả hoặc chọn tệp"}
                             </div>
                             <div className="text-[0.875rem] text-[#637381]">
-                                Kéo tệp vào đây, hoặc <span className="underline text-[#00A76F]">chọn tệp</span>
+                                Kéo tệp vào đây, hoặc <span className="underline text-[#FF3030]">chọn tệp</span>
                             </div>
                         </div>
                     </div>

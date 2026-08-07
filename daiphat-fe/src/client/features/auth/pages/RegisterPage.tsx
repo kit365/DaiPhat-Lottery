@@ -5,10 +5,11 @@ import { useNavigate, Navigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Phone, Lock, Eye, EyeOff, Mail, User } from "lucide-react";
 import { useAuth } from "../../../hooks/useAuth";
-import { GoogleIcon } from "../../../components/auth/SharedAuth";
+import { GoogleIcon, AuthBranding } from "../../../components/auth/SharedAuth";
 import { PasswordStrengthMeter } from "../../../components/auth/PasswordStrengthMeter";
 import { useForgotPassword } from "../../../../admin/pages/authen/hooks/use-forgot-password";
 import { redirectToGoogleOAuth } from "../../../utils/google-oauth.util";
+import { CLIENT_LOGO } from "../../../constants/clientBannerAssets";
 
 export const RegisterPage = () => {
     const navigate = useNavigate();
@@ -51,17 +52,11 @@ export const RegisterPage = () => {
             <div className="relative z-10 flex-1 flex flex-col lg:flex-row w-full max-w-[1440px] mx-auto min-h-[100dvh]">
                 
                 {/* Header Logo (Mobile & Desktop) */}
-                <div className="lg:absolute lg:top-8 lg:left-12 flex items-center gap-3 cursor-pointer z-20 pt-6 pl-6 lg:p-0 shrink-0" onClick={() => navigate("/")}>
-                    <div className="w-10 h-10 lg:w-12 lg:h-12 bg-white rounded-full flex items-center justify-center shadow-md">
-                        <img src="/assets/images/logo.png" alt="Logo" className="w-6 h-6 lg:w-8 lg:h-8 object-contain" onError={(e) => {
-                            e.currentTarget.style.display = 'none';
-                            e.currentTarget.parentElement!.innerHTML = '<span class="text-[#D32F2F] font-bold text-xl">ĐP</span>';
-                        }} />
-                    </div>
-                    <div className="flex flex-col">
-                        <span className="text-lg lg:text-xl sm:text-2xl font-black text-[#D32F2F] tracking-tight uppercase">Đại Phát</span>
-                        <span className="text-[8px] lg:text-[9px] sm:text-[10px] font-bold text-[#FFB300] uppercase tracking-widest mt-[-2px]">Tài Lộc - May Mắn - Thịnh Vượng</span>
-                    </div>
+                <div
+                    className="lg:absolute lg:top-8 lg:left-12 z-20 pt-6 pl-6 lg:p-0 shrink-0"
+                    onClick={() => navigate("/")}
+                >
+                    <AuthBranding onClick={() => navigate("/")} />
                 </div>
 
                 {/* Left Side: Empty */}
@@ -234,13 +229,13 @@ export const RegisterPage = () => {
 
                             {/* Terms */}
                             <div className="mt-1">
-                                <label className="flex items-start gap-2 cursor-pointer">
+                                <label className="flex items-center gap-2.5 cursor-pointer select-none">
                                     <input 
                                         type="checkbox" 
                                         {...register("agreedToTerms")}
-                                        className="mt-0.5 w-3.5 h-3.5 border-[#E0E0E0] rounded text-[#D32F2F] focus:ring-[#D32F2F] cursor-pointer" 
+                                        className="w-4 h-4 border-[#E0E0E0] rounded accent-[#D32F2F] cursor-pointer shrink-0" 
                                     />
-                                    <span className="text-[12px] text-[#666666] leading-tight">
+                                    <span className="text-[12px] text-[#666666] leading-snug">
                                         Tôi đồng ý với <span className="text-[#D32F2F] hover:underline cursor-pointer">điều khoản sử dụng</span> & chính sách bảo mật của Đại Phát.
                                     </span>
                                 </label>
@@ -250,7 +245,7 @@ export const RegisterPage = () => {
                             {/* Submit Button */}
                             <button 
                                 type="submit" 
-                                className="w-full h-[44px] xl:h-[48px] mt-1 flex items-center justify-center bg-[#D32F2F] text-white rounded-xl font-bold text-[14px] xl:text-[15px] transition-all hover:bg-[#B71C1C] active:scale-[0.98] disabled:opacity-70 disabled:pointer-events-none"
+                                className="w-full h-[44px] xl:h-[48px] mt-1 flex items-center justify-center bg-[#D32F2F] text-white rounded-xl font-bold text-[14px] xl:text-[15px] transition-all hover:bg-[#B71C1C] active:scale-[0.98] disabled:opacity-70 disabled:pointer-events-none cursor-pointer"
                                 disabled={isPending}
                             >
                                 {isPending ? (
@@ -267,7 +262,7 @@ export const RegisterPage = () => {
                                 Đã có tài khoản?{" "}
                                 <button 
                                     onClick={() => navigate("/login")}
-                                    className="text-[#D32F2F] font-bold hover:underline"
+                                    className="text-[#D32F2F] font-bold hover:underline cursor-pointer"
                                 >
                                     Đăng nhập
                                 </button>

@@ -121,7 +121,7 @@ export const UploadFiles = memo(({ files, onFilesChange, compact }: UploadFilesP
                     {isServerImage && (
                         <Box sx={{
                             position: 'absolute', bottom: 2, right: 2,
-                            bgcolor: '#00A76F', borderRadius: '50%',
+                            bgcolor: '#FF3030', borderRadius: '50%',
                             width: 14, height: 14, border: '2px solid #fff',
                             display: 'flex', alignItems: 'center', justifyContent: 'center'
                         }}>
@@ -153,7 +153,7 @@ export const UploadFiles = memo(({ files, onFilesChange, compact }: UploadFilesP
                         <div className="text-[1.125rem] font-[600]">{t("admin.upload.drag_drop")}</div>
                         {!compact && (
                             <div className="text-[0.875rem] text-[#637381]">
-                                {t("admin.upload.drag_text")} <span className="underline text-[#00A76F]">{t("admin.upload.select_file")}</span> {t("admin.upload.browse_computer")}
+                                {t("admin.upload.drag_text")} <span className="underline text-[#FF3030]">{t("admin.upload.select_file")}</span> {t("admin.upload.browse_computer")}
                             </div>
                         )}
                     </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { getPublicSchedule } from '../services/scheduleService';
 import type { LotteryStationSchedule } from '../types/schedule.types';
 
@@ -15,6 +15,7 @@ export interface UseLotteryScheduleOptions {
   stationId?: number;
   stationIds?: number[];
   highlightDate?: string;
+  initialSchedule?: LotteryStationSchedule[];
 }
 
 const DAYS = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'];
@@ -78,6 +79,7 @@ export const useLotterySchedule = ({
   stationId,
   stationIds,
   highlightDate,
+  initialSchedule,
 }: UseLotteryScheduleOptions = {}) => {
   const normalizedStationIds = useMemo(() => {
     if (stationIds && stationIds.length > 0) {
@@ -103,15 +105,26 @@ export const useLotterySchedule = ({
   );
 
   const [data, setData] = useState<LotteryStationSchedule[]>(
-    () => readScheduleCache(cacheKey) ?? []
+    () => initialSchedule ?? readScheduleCache(cacheKey) ?? []
   );
-  const [isLoading, setIsLoading] = useState(() => readScheduleCache(cacheKey) == null);
+  const [isLoading, setIsLoading] = useState(
+    () => !initialSchedule && readScheduleCache(cacheKey) == null
+  );
   const [error, setError] = useState<string | null>(null);
+  const skipInitialFetchRef = useRef(!!initialSchedule);
 
   useEffect(() => {
     let isMounted = true;
 
     const fetchData = async () => {
+      if (skipInitialFetchRef.current) {
+        skipInitialFetchRef.current = false;
+        if (initialSchedule) {
+          scheduleResponseCache.set(cacheKey, { data: initialSchedule, cachedAt: Date.now() });
+        }
+        return;
+      }
+
       const cached = readScheduleCache(cacheKey);
       if (cached) {
         setData(cached);

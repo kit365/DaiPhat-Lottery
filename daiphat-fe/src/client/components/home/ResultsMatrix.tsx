@@ -84,7 +84,7 @@ export const ResultsMatrix: React.FC<ResultsMatrixProps> = ({
                   <span className="flex gap-1 items-center">
                     <span className="w-1.5 h-1.5 rounded-full bg-[#ee1314] animate-pulse"></span>
                   </span>
-                  <span>{statusMessage || 'Đang cập nhật kết quả mới nhất từ hệ thống.'}</span>
+                  <span suppressHydrationWarning>{statusMessage || 'Đang cập nhật kết quả mới nhất từ hệ thống.'}</span>
                 </p>
               </div>
             </div>
@@ -153,7 +153,8 @@ export const ResultsMatrix: React.FC<ResultsMatrixProps> = ({
         </div>
 
         {/* Results Table */}
-        <div className="w-full">
+        <div className="w-full overflow-x-auto overflow-y-hidden">
+          <div className="min-w-[650px] lg:min-w-0">
           {/* TABLE HEADER FOR PROVINCES (Only for multiple stations) */}
           {!isSingleMode && (
             <div className="flex border-b border-gray-100 bg-slate-50">
@@ -239,6 +240,7 @@ export const ResultsMatrix: React.FC<ResultsMatrixProps> = ({
               </div>
             </div>
           ))}
+          </div>
         </div>
 
         {/* Integrated Quick Filter Bar (Mobile) */}

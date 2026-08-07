@@ -2,12 +2,16 @@ package com.daiphat.coreapi.application.service.fortune;
 
 import com.daiphat.coreapi.application.dto.request.fortune.FortuneProseAiRequest;
 
+import java.time.format.DateTimeFormatter;
+
 /**
  * Vietnamese fallback fortune prose when the dedicated AI service fails or times out.
  * Code identifiers stay English; customer-facing copy is Vietnamese to match the client app.
  * Multiple openings / middle lines are picked deterministically so repeats feel less templated.
  */
 public final class FortuneProseTemplates {
+
+    private static final DateTimeFormatter DISPLAY_DATE = DateTimeFormatter.ofPattern("dd-MM-yyyy");
 
     private static final String[] OPENINGS = {
             "Khí %s trong bản mệnh hôm nay gặp ngày mang sắc %s.",
@@ -65,9 +69,12 @@ public final class FortuneProseTemplates {
                     "Đối chiếu ngày %s với đuôi %s trước đó — hôm nay khí đổi, số cũng đổi theo.",
             };
             int p = Math.floorMod(seed / 3, previousLines.length);
+            String previousDate = request.previousCast().castDate() == null
+                    ? ""
+                    : request.previousCast().castDate().format(DISPLAY_DATE);
             sb.append(String.format(
                     previousLines[p],
-                    request.previousCast().castDate(),
+                    previousDate,
                     request.previousCast().luckyTail()
             ));
             sb.append(' ');

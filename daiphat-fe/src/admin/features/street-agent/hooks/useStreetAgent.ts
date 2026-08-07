@@ -6,6 +6,7 @@ import {
     getStreetAgentProfileById,
     getStreetAgentProfiles,
     updateStreetAgentProfile,
+    uploadStreetAgentSignedContract,
 } from "../services/streetAgentService";
 import { StreetAgentQueryParams } from "../types/street-agent.type";
 import { QUERY_KEYS } from "../constants/queryKeys";
@@ -42,6 +43,20 @@ export const useUpdateStreetAgentProfile = () => {
     return useMutation({
         mutationFn: ({ id, data }: { id: string | number; data: Record<string, unknown> }) =>
             updateStreetAgentProfile(id, data),
+        onSuccess: (_response, variables) => {
+            queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.STREET_AGENT_PROFILES] });
+            queryClient.invalidateQueries({
+                queryKey: [QUERY_KEYS.STREET_AGENT_PROFILE_DETAIL, variables.id],
+            });
+        },
+    });
+};
+
+export const useUploadStreetAgentSignedContract = () => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: ({ id, file }: { id: string | number; file: File }) =>
+            uploadStreetAgentSignedContract(id, file),
         onSuccess: (_response, variables) => {
             queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.STREET_AGENT_PROFILES] });
             queryClient.invalidateQueries({

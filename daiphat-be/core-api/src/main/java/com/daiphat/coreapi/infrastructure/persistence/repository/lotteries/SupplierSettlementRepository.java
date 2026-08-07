@@ -46,6 +46,15 @@ public interface SupplierSettlementRepository
               AND l.deletedAt IS NULL
               AND b.deletedAt IS NULL
               AND ibl.deletedAt IS NULL
+              AND b.status IN (
+                  com.daiphat.coreapi.domain.model.enums.lottery.ReturnBatchStatus.PENDING_HANDOVER,
+                  com.daiphat.coreapi.domain.model.enums.lottery.ReturnBatchStatus.HANDED_OVER
+              )
+              AND s.status IN (
+                  com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus.IN_STOCK,
+                  com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus.EXPIRED
+              )
+              AND s.ticketCondition = com.daiphat.coreapi.domain.model.enums.lottery.TicketCondition.GOOD
             """)
     BigDecimal sumPreparedReturnValueBySettlementId(@Param("settlementId") Long settlementId);
 
@@ -74,4 +83,30 @@ public interface SupplierSettlementRepository
               AND s.ticketCondition = com.daiphat.coreapi.domain.model.enums.lottery.TicketCondition.GOOD
             """)
     BigDecimal sumInStockGoodImportCostBySettlementId(@Param("settlementId") Long settlementId);
+
+    @Query("""
+            SELECT COALESCE(SUM(ibl.importCost), 0)
+            FROM LotteryTicketSerialEntity s
+            JOIN s.importBatchLine ibl
+            JOIN ibl.importBatch ib
+            LEFT JOIN ReturnBatchLineEntity rbl ON s.returnBatchLineId = rbl.id
+            LEFT JOIN rbl.returnBatch rb
+            WHERE ib.supplierSettlementId = :settlementId
+              AND s.deletedAt IS NULL
+              AND ibl.deletedAt IS NULL
+              AND ib.deletedAt IS NULL
+              AND s.status IN (
+                  com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus.IN_STOCK,
+                  com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus.EXPIRED
+              )
+              AND (
+                  rb IS NULL
+                  OR rb.status IN (
+                      com.daiphat.coreapi.domain.model.enums.lottery.ReturnBatchStatus.PENDING_INSPECTION,
+                      com.daiphat.coreapi.domain.model.enums.lottery.ReturnBatchStatus.INSPECTING,
+                      com.daiphat.coreapi.domain.model.enums.lottery.ReturnBatchStatus.CANCELLED
+                  )
+              )
+            """)
+    BigDecimal sumExpiredReturnValueBySettlementId(@Param("settlementId") Long settlementId);
 }

@@ -1,3 +1,5 @@
+"use client";
+
 import React from 'react';
 
 export const FavoritesTab = () => {
@@ -54,7 +56,7 @@ export const FavoritesTab = () => {
             {/* Main Card */}
             <div className="bg-white border border-[#E5E8EB] rounded-2xl shadow-[0_2px_12px_rgb(0,0,0,0.03)] overflow-hidden">
                 <div className="p-6 md:p-8">
-                    <h2 className="text-[18px] font-bold text-[#212B36] mb-6">Danh sách số yêu thích</h2>
+                    <h2 className="client-heading m-0 mb-6">Danh sách số yêu thích</h2>
 
                     {/* Summary & Actions */}
                     <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-8">

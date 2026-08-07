@@ -357,7 +357,7 @@ export const StationEditPage = () => {
                                                                                     alignItems: 'center',
                                                                                     justifyContent: 'center',
                                                                                     cursor: 'pointer',
-                                                                                    backgroundColor: isSelected ? '#00A76F' : 'rgba(0, 0, 0, 0.04)',
+                                                                                    backgroundColor: isSelected ? '#FF3030' : 'rgba(0, 0, 0, 0.04)',
                                                                                     color: isSelected ? '#fff' : 'text.primary',
                                                                                     fontWeight: isSelected ? 600 : 400,
                                                                                     transition: 'all 0.2s',
@@ -399,28 +399,28 @@ export const StationEditPage = () => {
                                                             InputLabelProps: { shrink: true },
                                                             sx: {
                                                                 '& .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                                                                    borderColor: '#00A76F !important',
+                                                                    borderColor: '#FF3030 !important',
                                                                 },
                                                                 '& .MuiInputLabel-root.Mui-focused': {
-                                                                    color: '#00A76F !important',
+                                                                    color: '#FF3030 !important',
                                                                 }
                                                             }
                                                         },
                                                         popper: {
                                                             sx: {
                                                                 '& .Mui-selected, & .Mui-selected:hover': {
-                                                                    backgroundColor: '#00A76F !important',
+                                                                    backgroundColor: '#FF3030 !important',
                                                                     color: '#fff !important',
                                                                 },
                                                                 '& .MuiClockPointer-root, & .MuiClock-pin': {
-                                                                    backgroundColor: '#00A76F !important',
+                                                                    backgroundColor: '#FF3030 !important',
                                                                 },
                                                                 '& .MuiClockPointer-thumb': {
-                                                                    backgroundColor: '#00A76F !important',
-                                                                    borderColor: '#00A76F !important',
+                                                                    backgroundColor: '#FF3030 !important',
+                                                                    borderColor: '#FF3030 !important',
                                                                 },
                                                                 '& .MuiButton-textPrimary': {
-                                                                    color: '#00A76F !important',
+                                                                    color: '#FF3030 !important',
                                                                 }
                                                             }
                                                         }

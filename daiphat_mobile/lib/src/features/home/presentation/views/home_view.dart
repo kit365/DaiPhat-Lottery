@@ -4,6 +4,7 @@ import 'package:shimmer/shimmer.dart';
 
 import 'package:daiphat_mobile/src/features/auth/presentation/viewmodels/login_viewmodel.dart';
 import 'package:daiphat_mobile/src/features/home/data/models/lottery_result.dart';
+import 'package:daiphat_mobile/src/features/home/presentation/providers/lottery_results_lookup_provider.dart';
 import 'package:daiphat_mobile/src/features/notifications/presentation/viewmodels/notification_viewmodel.dart';
 import 'package:daiphat_mobile/src/shared/services/notification_service.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
@@ -65,7 +66,7 @@ class HomeView extends ConsumerWidget {
       );
 }
 
-class _HomeContent extends StatefulWidget {
+class _HomeContent extends ConsumerStatefulWidget {
   final LoginViewModel loginViewModel;
   final NotificationViewModel notificationViewModel;
 
@@ -75,22 +76,46 @@ class _HomeContent extends StatefulWidget {
   });
 
   @override
-  State<_HomeContent> createState() => _HomeContentState();
+  ConsumerState<_HomeContent> createState() => _HomeContentState();
 }
 
-class _HomeContentState extends State<_HomeContent> with WidgetsBindingObserver {
+class _HomeContentState extends ConsumerState<_HomeContent>
+    with WidgetsBindingObserver {
   final Set<String> _selectedProvinces = <String>{};
   DateTime _date = DateTime.now();
+  String? _pendingStationName;
+  int? _pendingStationId;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      _consumeLookupIntent();
       if (widget.loginViewModel.isAuthenticated) {
         widget.notificationViewModel.fetchNotifications(refresh: true);
       }
       NotificationService().requestPermission();
+    });
+  }
+
+  void _consumeLookupIntent() {
+    final lookup = ref.read(lotteryResultsLookupProvider);
+    if (lookup == null) return;
+
+    ref.read(lotteryResultsLookupProvider.notifier).clear();
+
+    setState(() {
+      if (lookup.drawDate != null) {
+        _date = DateTime(
+          lookup.drawDate!.year,
+          lookup.drawDate!.month,
+          lookup.drawDate!.day,
+        );
+      }
+      _pendingStationName = lookup.stationName?.trim();
+      _pendingStationId = lookup.stationId;
+      _selectedProvinces.clear();
     });
   }
 
@@ -109,11 +134,16 @@ class _HomeContentState extends State<_HomeContent> with WidgetsBindingObserver 
   }
 
   Future<void> _pickDate() async {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final lastDate = _date.isAfter(today) ? _date : today;
+    final initialDate = _date.isAfter(lastDate) ? lastDate : _date;
+
     final picked = await showDatePicker(
       context: context,
-      initialDate: _date,
+      initialDate: initialDate,
       firstDate: DateTime(2000),
-      lastDate: DateTime.now(),
+      lastDate: lastDate,
       builder: (context, child) => Theme(
         data: Theme.of(context).copyWith(
           colorScheme: const ColorScheme.light(
@@ -131,23 +161,116 @@ class _HomeContentState extends State<_HomeContent> with WidgetsBindingObserver 
     }
   }
 
+  String _normalizeProvinceLabel(String value) {
+    final trimmed = value.trim();
+    if (trimmed == 'Hồ Chí Minh') return 'TP. Hồ Chí Minh';
+    return trimmed;
+  }
+
+  String _normalizeForMatch(String value) {
+    const accents = {
+      'à': 'a', 'á': 'a', 'ạ': 'a', 'ả': 'a', 'ã': 'a',
+      'â': 'a', 'ầ': 'a', 'ấ': 'a', 'ậ': 'a', 'ẩ': 'a', 'ẫ': 'a',
+      'ă': 'a', 'ằ': 'a', 'ắ': 'a', 'ặ': 'a', 'ẳ': 'a', 'ẵ': 'a',
+      'è': 'e', 'é': 'e', 'ẹ': 'e', 'ẻ': 'e', 'ẽ': 'e',
+      'ê': 'e', 'ề': 'e', 'ế': 'e', 'ệ': 'e', 'ể': 'e', 'ễ': 'e',
+      'ì': 'i', 'í': 'i', 'ị': 'i', 'ỉ': 'i', 'ĩ': 'i',
+      'ò': 'o', 'ó': 'o', 'ọ': 'o', 'ỏ': 'o', 'õ': 'o',
+      'ô': 'o', 'ồ': 'o', 'ố': 'o', 'ộ': 'o', 'ổ': 'o', 'ỗ': 'o',
+      'ơ': 'o', 'ờ': 'o', 'ớ': 'o', 'ợ': 'o', 'ở': 'o', 'ỡ': 'o',
+      'ù': 'u', 'ú': 'u', 'ụ': 'u', 'ủ': 'u', 'ũ': 'u',
+      'ư': 'u', 'ừ': 'u', 'ứ': 'u', 'ự': 'u', 'ử': 'u', 'ữ': 'u',
+      'ỳ': 'y', 'ý': 'y', 'ỵ': 'y', 'ỷ': 'y', 'ỹ': 'y',
+      'đ': 'd',
+    };
+    final lower = value.toLowerCase().trim();
+    final buf = StringBuffer();
+    for (final rune in lower.runes) {
+      final ch = String.fromCharCode(rune);
+      buf.write(accents[ch] ?? ch);
+    }
+    return buf.toString().replaceAll(RegExp(r'\s+'), ' ');
+  }
+
+  void _applyPendingStationLookup(HomeLotteryData data) {
+    final hasPending = (_pendingStationName != null &&
+            _pendingStationName!.isNotEmpty) ||
+        _pendingStationId != null;
+    if (!hasPending) return;
+
+    String? matchedProvince;
+
+    if (_pendingStationId != null) {
+      for (final result in data.results) {
+        if (result.stationId == _pendingStationId) {
+          matchedProvince = result.province;
+          break;
+        }
+      }
+    }
+
+    if (matchedProvince == null &&
+        _pendingStationName != null &&
+        _pendingStationName!.isNotEmpty) {
+      final wanted =
+          _normalizeForMatch(_normalizeProvinceLabel(_pendingStationName!));
+      for (final province in data.availableProvinces) {
+        if (_normalizeForMatch(province) == wanted) {
+          matchedProvince = province;
+          break;
+        }
+      }
+      if (matchedProvince == null) {
+        for (final result in data.results) {
+          if (_normalizeForMatch(result.province) == wanted) {
+            matchedProvince = result.province;
+            break;
+          }
+        }
+      }
+    }
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      setState(() {
+        _pendingStationName = null;
+        _pendingStationId = null;
+        if (matchedProvince != null) {
+          _selectedProvinces
+            ..clear()
+            ..add(matchedProvince);
+        }
+      });
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
-    final normalizedDate = DateTime(_date.year, _date.month, _date.day);
+    // Re-apply when returning to Home with a new lookup intent while State lives.
+    ref.listen<LotteryResultsLookup?>(lotteryResultsLookupProvider, (prev, next) {
+      if (next != null) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _consumeLookupIntent();
+        });
+      }
+    });
 
-    return Consumer(
-      builder: (context, ref, _) {
-        final homeState = ref.watch(homeLotteryProvider(normalizedDate));
-        return homeState.when(
-          loading: HomeView.buildSkeleton,
-          error: (error, _) => Center(child: Text('Loi: $error')),
-          data: (data) => _buildLoadedState(data),
-        );
-      },
+    final normalizedDate = DateTime(_date.year, _date.month, _date.day);
+    final homeState = ref.watch(homeLotteryProvider(normalizedDate));
+
+    return homeState.when(
+      loading: HomeView.buildSkeleton,
+      error: (error, _) => Center(child: Text('Loi: $error')),
+      data: (data) => _buildLoadedState(data),
     );
   }
 
   Widget _buildLoadedState(HomeLotteryData data) {
+    if ((_pendingStationName != null && _pendingStationName!.isNotEmpty) ||
+        _pendingStationId != null) {
+      _applyPendingStationLookup(data);
+    }
+
     final allProvinces = data.availableProvinces;
     final invalidSelections = _selectedProvinces
         .where((province) => !allProvinces.contains(province))
@@ -155,9 +278,7 @@ class _HomeContentState extends State<_HomeContent> with WidgetsBindingObserver 
 
     if (invalidSelections.isNotEmpty) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) {
-          return;
-        }
+        if (!mounted) return;
         setState(() => _selectedProvinces.removeAll(invalidSelections));
       });
     }

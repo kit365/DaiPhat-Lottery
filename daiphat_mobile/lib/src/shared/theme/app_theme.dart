@@ -39,6 +39,11 @@ class AppTheme {
         elevation: 0,
         centerTitle: true,
       ),
+      inputDecorationTheme: InputDecorationTheme(
+        hintStyle: baseTextTheme.bodyMedium?.copyWith(
+          color: AppColors.loginPlaceholder,
+        ),
+      ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           backgroundColor: AppColors.primary,

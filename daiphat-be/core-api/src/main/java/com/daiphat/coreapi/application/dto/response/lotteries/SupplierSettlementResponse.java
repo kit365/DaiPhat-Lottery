@@ -19,9 +19,12 @@ public record SupplierSettlementResponse(
         BigDecimal totalReturnValue,
         BigDecimal totalPaidAmount,
         BigDecimal remainingAmount,
+        Boolean isReturnExpired,
+        BigDecimal expiredReturnValue,
         SupplierSettlementStatus status,
         String statusLabel,
         Long transactionId,
+        LocalDateTime paidAt,
         LocalDateTime createdAt,
         LocalDateTime updatedAt
 ) {

@@ -3,6 +3,8 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { usePublicCategories, usePublicPosts } from '../hooks/useBlog';
+import { BLOG_SIDEBAR_BANNER } from '@/client/constants/clientBannerAssets';
+import { ROUTES } from '@/admin/constants/routes';
 
 const formatViews = (views: number) => {
   if (views >= 1000) {
@@ -133,12 +135,12 @@ export const BlogFeaturedWidget = () => {
 
 export const BuyTicketBanner = () => (
   <Link
-    to="/buy-ticket"
+    to={ROUTES.PUBLIC.TICKETS}
     className="block mt-6 rounded-xl overflow-hidden shadow-[0_2px_12px_rgb(0,0,0,0.03)] group relative aspect-[1448/1086]"
   >
     <div
       className="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-105"
-      style={{ backgroundImage: 'url("https://i.ibb.co/q3rWD00G/75b31416-13ed-49ce-8708-b4861fc96198.png")' }}
+      style={{ backgroundImage: `url("${BLOG_SIDEBAR_BANNER}")` }}
     ></div>
 
     <div className="relative z-10 p-6 flex flex-col h-full w-[85%]">

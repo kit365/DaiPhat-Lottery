@@ -5,8 +5,9 @@ import { useNavigate, Navigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Lock, Eye, EyeOff, Mail } from "lucide-react";
 import { useAuth } from "../../../hooks/useAuth";
-import { GoogleIcon } from "../../../components/auth/SharedAuth";
+import { GoogleIcon, AuthBranding } from "../../../components/auth/SharedAuth";
 import { redirectToGoogleOAuth } from "../../../utils/google-oauth.util";
+import { CLIENT_LOGO } from "../../../constants/clientBannerAssets";
 
 export const LoginPage = () => {
     const navigate = useNavigate();
@@ -43,12 +44,11 @@ export const LoginPage = () => {
             <div className="relative z-10 flex-1 flex flex-col lg:flex-row w-full max-w-[1440px] mx-auto min-h-[100dvh]">
 
                 {/* Header Logo (Mobile & Desktop) */}
-                <div className="lg:absolute lg:top-8 lg:left-12 flex items-center gap-2.5 cursor-pointer z-20 font-client-display transition-transform hover:scale-[1.02] pt-6 pl-6 lg:p-0 shrink-0" onClick={() => navigate("/")}>
-                    <img src="https://i.ibb.co/4R7c75YN/z7824247008533-94446d3b6c16598cda67404d805c15c4.jpg" alt="Đại Phát Logo" className="w-[42px] h-[42px] lg:w-[48px] lg:h-[48px] object-contain" />
-                    <div className="flex flex-col justify-center">
-                        <span className="text-[20px] lg:text-[24px] tracking-tight font-client-display font-black text-[#ee1314] leading-none mb-1">ĐẠI PHÁT</span>
-                        <span className="text-[8.5px] lg:text-[10px] font-bold text-[#F59E0B] leading-none uppercase tracking-wider whitespace-nowrap">Tài lộc - May mắn - Thịnh vượng</span>
-                    </div>
+                <div
+                    className="lg:absolute lg:top-8 lg:left-12 z-20 pt-6 pl-6 lg:p-0 shrink-0"
+                    onClick={() => navigate("/")}
+                >
+                    <AuthBranding onClick={() => navigate("/")} />
                 </div>
 
                 {/* Left Side: Empty */}
@@ -144,7 +144,7 @@ export const LoginPage = () => {
                             {/* Submit Button */}
                             <button
                                 type="submit"
-                                className="w-full h-[48px] xl:h-[52px] mt-2 flex items-center justify-center gap-2 bg-[#D32F2F] text-white rounded-xl font-bold text-[15px] xl:text-[16px] transition-all hover:bg-[#B71C1C] active:scale-[0.98] disabled:opacity-70 disabled:pointer-events-none"
+                                className="w-full h-[48px] xl:h-[52px] mt-2 flex items-center justify-center gap-2 bg-[#D32F2F] text-white rounded-xl font-bold text-[15px] xl:text-[16px] transition-all hover:bg-[#B71C1C] active:scale-[0.98] disabled:opacity-70 disabled:pointer-events-none cursor-pointer"
                                 disabled={isPending}
                             >
                                 {isPending ? (
@@ -165,7 +165,7 @@ export const LoginPage = () => {
                             {/* Google Button */}
                             <button
                                 type="button"
-                                className="w-full h-[48px] xl:h-[52px] flex items-center justify-center gap-3 bg-white border border-[#E0E0E0] rounded-xl font-semibold text-[#333333] text-[14px] xl:text-[15px] transition-all hover:bg-[#F9F9F9] active:scale-[0.98] disabled:opacity-50"
+                                className="w-full h-[48px] xl:h-[52px] flex items-center justify-center gap-3 bg-white border border-[#E0E0E0] rounded-xl font-semibold text-[#333333] text-[14px] xl:text-[15px] transition-all hover:bg-[#F9F9F9] active:scale-[0.98] disabled:opacity-50 cursor-pointer"
                                 onClick={handleGoogleLogin}
                                 disabled={isPending}
                             >
@@ -180,7 +180,7 @@ export const LoginPage = () => {
                                 Chưa có tài khoản?{" "}
                                 <button
                                     onClick={() => navigate("/register")}
-                                    className="text-[#D32F2F] font-bold hover:underline"
+                                    className="text-[#D32F2F] font-bold hover:underline cursor-pointer"
                                 >
                                     Đăng ký ngay
                                 </button>

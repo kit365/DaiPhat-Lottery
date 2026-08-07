@@ -10,6 +10,9 @@ import { buildLotteryCountdownMessage, getCountdownState } from "../../component
 import { LeftSidebar } from "../../components/home/LeftSidebar";
 import { HomeSidebar } from "../../components/home/HomeSidebar";
 import { ResultsMatrix } from "../../components/home/ResultsMatrix";
+import { CLIENT_PAGE_BACKGROUND } from "../../constants/clientBannerAssets";
+import { usePrefetchClientPagesWhenIdle } from "../../hooks/usePrefetchClientPagesWhenIdle";
+import type { HomeServerInitialData } from '@/lib/server-lottery';
 import { useLottery } from "../../hooks/useLottery";
 import { buildCountdownTarget, formatApiDateToDisplay, isTodayDisplayDate } from "../../types/lottery";
 
@@ -25,7 +28,7 @@ const scrollWindowToTop = () => {
   document.body.scrollTop = 0;
 };
 
-export const HomePage = () => {
+export const HomePage = ({ initialData }: { initialData?: HomeServerInitialData }) => {
   const [searchParams] = useSearchParams();
   const urlDrawDate = searchParams.get('drawDate');
   const urlStationId = searchParams.get('stationId');
@@ -55,7 +58,7 @@ export const HomePage = () => {
     isRefreshing,
     isWaitingForResults,
     error
-  } = useLottery();
+  } = useLottery(initialData);
 
   const activeDigit = hoveredDigit || selectedDigit;
   const singleProvince = selectedProvinces.length > 0 ? selectedProvinces[0] : '';
@@ -228,14 +231,15 @@ export const HomePage = () => {
     setSelectedProvinces(availableProvinces);
   }, [urlRegion, urlStationId, urlStationIds, availableProvinces, setSelectedProvinces]);
 
+  usePrefetchClientPagesWhenIdle(!isLoading);
 
   return (
     <div 
       className="relative min-h-screen overflow-x-hidden font-client-main bg-fixed bg-cover bg-center"
-      style={{ backgroundImage: 'url("https://i.ibb.co/BVFGYpL1/86f05f70-fcf8-445f-978e-a0539eb2f0de.png")' }}
+      style={{ backgroundImage: `url("${CLIENT_PAGE_BACKGROUND}")` }}
     >
       <main className="relative z-1">
-        <div className="max-w-[1440px] mx-auto px-4 lg:px-6 py-8 lg:pt-24 flex flex-col lg:flex-row gap-4 lg:gap-6 items-start">
+        <div className="max-w-[1440px] mx-auto px-4 lg:px-6 pt-[148px] pb-[100px] lg:pt-[100px] lg:pb-12 flex flex-col lg:flex-row gap-4 lg:gap-6 items-start">
           <div className="hidden lg:block shrink-0">
             <LeftSidebar
               activeProvinces={selectedProvinces}

@@ -162,4 +162,9 @@ public class ReturnBatchRepositoryAdapter implements ReturnBatchRepositoryPort {
                 })
                 .toList();
     }
+
+    @Override
+    public long nextHeaderBatchCodeSequence() {
+        return returnBatchRepository.nextHeaderBatchCodeSequence();
+    }
 }

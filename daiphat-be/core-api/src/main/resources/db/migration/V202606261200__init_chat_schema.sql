@@ -11,6 +11,7 @@ CREATE TABLE IF NOT EXISTS conversations (
     last_message_at TIMESTAMP,
     closed_by UUID,
     close_reason VARCHAR(30),
+    close_note TEXT,
     auto_close_warning_sent_at TIMESTAMP,
     created_at TIMESTAMP,
     updated_at TIMESTAMP,

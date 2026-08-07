@@ -90,7 +90,7 @@ export const ComplaintDetailTab = () => {
                         <i className="fa-solid fa-arrow-left text-[11px]"></i> Quay lại danh sách
                     </button>
                     <div className="flex items-center gap-3 flex-wrap">
-                        <h2 className="text-[22px] font-bold text-[#212B36]">Khiếu nại #{ticket.id}</h2>
+                        <h2 className="client-heading m-0">Khiếu nại #{ticket.id}</h2>
                         <ComplaintStatusBadge status={ticket.status} />
                     </div>
                     <p className="text-[14px] text-[#637381] mt-1">

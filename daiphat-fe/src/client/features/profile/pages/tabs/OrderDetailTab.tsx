@@ -2,6 +2,7 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useNavigate, Link, useLocation } from '@/components/router-compat';
+import { PROVINCE_ICON_FALLBACK, TICKET_IMAGE_FALLBACK } from '../../../../constants/clientBannerAssets';
 import QRCode from 'react-qr-code';
 import { useGetMyOrderDetail } from '../../../../hooks/useOrder';
 import { useGetPendingPaymentCountdown, useProcessPayment, useSyncPaymentFromGateway } from '../../../../hooks/useTransaction';
@@ -375,7 +376,7 @@ export const OrderDetailTab = () => {
 
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-2">
                 <div className="flex items-center gap-3">
-                    <h1 className="text-[20px] sm:text-[24px] font-bold text-[#212B36]">Chi tiết đơn hàng</h1>
+                    <h1 className="client-heading m-0">Chi tiết đơn hàng</h1>
                 </div>
                 <button
                     onClick={() => navigate('/profile/orders')}
@@ -503,7 +504,7 @@ export const OrderDetailTab = () => {
                             const drawDate = detail.drawDate ? format(new Date(detail.drawDate), 'dd/MM/yyyy') : detail.lotteryTicket?.drawDate ? format(new Date(detail.lotteryTicket.drawDate), 'dd/MM/yyyy') : (order.createdAt ? format(new Date(order.createdAt), 'dd/MM/yyyy') : '-');
                             const numbers = detail.numbers || detail.lotteryTicket?.numbers || "---";
                             const price = detail.price || 10000;
-                            const ticketImg = detail.ticketImg || detail.lotteryTicket?.imageUrl || "https://i.ibb.co/TBf95cjX/6b561e49-2b8d-4dc5-b4c7-cff26a273abc.png";
+                            const ticketImg = detail.ticketImg || detail.lotteryTicket?.imageUrl || TICKET_IMAGE_FALLBACK;
 
                             const pendingDetailRefund = detail.id ? getPendingRefundForDetail(detail.id) : undefined;
                             const detailRefund = detail.id ? getRefundForDetail(detail.id) : undefined;
@@ -523,7 +524,7 @@ export const OrderDetailTab = () => {
 
                                         <div className="flex flex-col items-start gap-1 sm:border-l sm:border-[#E5E8EB] sm:pl-6">
                                             <div className="flex items-center gap-2">
-                                                <img src={detail.lotteryTicket?.station?.logoUrl || 'https://i.ibb.co/XrKTHt8g/t-i-xu-ng.png'} alt="Logo" className="w-5 h-5 rounded-full border border-gray-200" />
+                                                <img src={detail.lotteryTicket?.station?.logoUrl || PROVINCE_ICON_FALLBACK} alt="Logo" className="w-5 h-5 rounded-full border border-gray-200" />
                                                 <span className="font-bold text-[14px] text-[#212B36]">{stationName}</span>
                                             </div>
                                             <div className="flex items-center gap-1.5 text-[13px] text-[#637381] pl-7">
@@ -560,7 +561,7 @@ export const OrderDetailTab = () => {
                                             })()}
                                             {isPaidOrCompleted && (
                                                 <Link
-                                                    to="/results"
+                                                    to="/"
                                                     className="hidden lg:flex text-[#ee1314] hover:text-[#c80f11] text-[13px] font-bold items-center gap-1.5 hover:underline bg-[#FFF4F4] px-3 py-1.5 rounded-lg border border-[#FFEBEE]"
                                                 >
                                                     Tra kết quả <i className="fa-solid fa-arrow-up-right-from-square text-[11px]"></i>

@@ -175,14 +175,14 @@ export const DrawResultToolbar = ({
                                             selected={activeTab === tab.id}
                                             onClick={() => setActiveTab(tab.id as 'region' | 'source' | 'date')}
                                             sx={{
-                                                borderLeft: activeTab === tab.id ? '3px solid #00A76F' : '3px solid transparent',
-                                                backgroundColor: activeTab === tab.id ? 'rgba(0, 167, 111, 0.08)' : 'transparent',
+                                                borderLeft: activeTab === tab.id ? '3px solid #FF3030' : '3px solid transparent',
+                                                backgroundColor: activeTab === tab.id ? 'rgba(255, 48, 48, 0.08)' : 'transparent',
                                                 py: 0.75,
                                                 px: 2,
                                                 '&.Mui-selected': {
-                                                    backgroundColor: 'rgba(0, 167, 111, 0.08)',
+                                                    backgroundColor: 'rgba(255, 48, 48, 0.08)',
                                                     '&:hover': {
-                                                        backgroundColor: 'rgba(0, 167, 111, 0.12)',
+                                                        backgroundColor: 'rgba(255, 48, 48, 0.12)',
                                                     }
                                                 }
                                             }}
@@ -192,7 +192,7 @@ export const DrawResultToolbar = ({
                                                 primaryTypographyProps={{ 
                                                     fontSize: '14px', 
                                                     fontWeight: activeTab === tab.id ? 600 : 400,
-                                                    color: activeTab === tab.id ? '#00A76F' : '#42526E'
+                                                    color: activeTab === tab.id ? '#FF3030' : '#42526E'
                                                 }} 
                                             />
                                         </ListItemButton>
@@ -224,7 +224,7 @@ export const DrawResultToolbar = ({
                                             borderColor: '#B3BAC5 !important',
                                         },
                                         '&.Mui-focused fieldset': {
-                                            borderColor: '#00A76F !important',
+                                            borderColor: '#FF3030 !important',
                                             borderWidth: '2px !important',
                                         }
                                     }
@@ -243,7 +243,7 @@ export const DrawResultToolbar = ({
                                                 <Radio
                                                     checked={region === opt.value}
                                                     size="small"
-                                                    sx={{ p: 0.5, mr: 1, '&.Mui-checked': { color: '#00A76F' } }}
+                                                    sx={{ p: 0.5, mr: 1, '&.Mui-checked': { color: '#FF3030' } }}
                                                 />
                                                 <Box sx={{ fontSize: '14px', color: '#172B4D', py: 0.25 }}>{opt.label}</Box>
                                             </ListItemButton>
@@ -263,7 +263,7 @@ export const DrawResultToolbar = ({
                                                 <Radio
                                                     checked={source === opt.value}
                                                     size="small"
-                                                    sx={{ p: 0.5, mr: 1, '&.Mui-checked': { color: '#00A76F' } }}
+                                                    sx={{ p: 0.5, mr: 1, '&.Mui-checked': { color: '#FF3030' } }}
                                                 />
                                                 <Box sx={{ fontSize: '14px', color: '#172B4D', py: 0.25 }}>{opt.label}</Box>
                                             </ListItemButton>
@@ -287,12 +287,12 @@ export const DrawResultToolbar = ({
                                                 sx={{
                                                     textTransform: 'none',
                                                     boxShadow: 'none',
-                                                    bgcolor: dateMode === opt.value ? 'rgba(0, 167, 111, 0.08)' : 'transparent',
-                                                    color: dateMode === opt.value ? '#00A76F' : '#42526E',
-                                                    borderColor: dateMode === opt.value ? '#00A76F' : '#DFE1E6',
+                                                    bgcolor: dateMode === opt.value ? 'rgba(255, 48, 48, 0.08)' : 'transparent',
+                                                    color: dateMode === opt.value ? '#FF3030' : '#42526E',
+                                                    borderColor: dateMode === opt.value ? '#FF3030' : '#DFE1E6',
                                                     '&:hover': {
-                                                        bgcolor: dateMode === opt.value ? 'rgba(0, 167, 111, 0.12)' : 'rgba(9, 30, 66, 0.04)',
-                                                        borderColor: dateMode === opt.value ? '#00A76F' : '#B3BAC5',
+                                                        bgcolor: dateMode === opt.value ? 'rgba(255, 48, 48, 0.12)' : 'rgba(9, 30, 66, 0.04)',
+                                                        borderColor: dateMode === opt.value ? '#FF3030' : '#B3BAC5',
                                                         boxShadow: 'none'
                                                     }
                                                 }}
@@ -317,7 +317,7 @@ export const DrawResultToolbar = ({
                                                 sx={{
                                                     '& fieldset': { borderColor: '#DFE1E6' },
                                                     '&:hover fieldset': { borderColor: '#B3BAC5 !important' },
-                                                    '&.Mui-focused fieldset': { borderColor: '#00A76F !important', borderWidth: '2px !important' }
+                                                    '&.Mui-focused fieldset': { borderColor: '#FF3030 !important', borderWidth: '2px !important' }
                                                 }}
                                             />
                                             {drawDate !== todayStr && (
@@ -327,14 +327,14 @@ export const DrawResultToolbar = ({
                                                         onClick={() => onDrawDateChange(todayStr)}
                                                         sx={{ 
                                                             textTransform: 'none', 
-                                                            color: '#00A76F', 
+                                                            color: '#FF3030', 
                                                             fontSize: '12px', 
                                                             minWidth: 'auto', 
                                                             p: '2px 8px',
                                                             borderRadius: '4px',
                                                             fontWeight: 600,
-                                                            bgcolor: 'rgba(0, 167, 111, 0.08)',
-                                                            '&:hover': { bgcolor: 'rgba(0, 167, 111, 0.16)' } 
+                                                            bgcolor: 'rgba(255, 48, 48, 0.08)',
+                                                            '&:hover': { bgcolor: 'rgba(255, 48, 48, 0.16)' } 
                                                         }}
                                                     >
                                                         Chọn hôm nay
@@ -357,7 +357,7 @@ export const DrawResultToolbar = ({
                                                 sx={{
                                                     '& fieldset': { borderColor: '#DFE1E6' },
                                                     '&:hover fieldset': { borderColor: '#B3BAC5 !important' },
-                                                    '&.Mui-focused fieldset': { borderColor: '#00A76F !important', borderWidth: '2px !important' }
+                                                    '&.Mui-focused fieldset': { borderColor: '#FF3030 !important', borderWidth: '2px !important' }
                                                 }}
                                             />
                                             <TextField
@@ -376,7 +376,7 @@ export const DrawResultToolbar = ({
                                                 sx={{
                                                     '& fieldset': { borderColor: '#DFE1E6' },
                                                     '&:hover fieldset': { borderColor: '#B3BAC5 !important' },
-                                                    '&.Mui-focused fieldset': { borderColor: '#00A76F !important', borderWidth: '2px !important' }
+                                                    '&.Mui-focused fieldset': { borderColor: '#FF3030 !important', borderWidth: '2px !important' }
                                                 }}
                                             />
                                         </Box>

@@ -31,19 +31,31 @@ const getCloudinaryUploadUrl = (file: File) => {
     return baseUrl;
 };
 
+const assertPersistableMediaUrl = (url: unknown): string => {
+    if (typeof url !== "string" || !url.trim()) {
+        throw new Error("Không nhận được URL ảnh từ Cloudinary.");
+    }
+    const trimmed = url.trim();
+    if (trimmed.startsWith("blob:") || trimmed.startsWith("data:")) {
+        throw new Error(
+            "URL ảnh tạm thời không thể lưu. Cấu hình NEXT_PUBLIC_CLOUDINARY_URL và NEXT_PUBLIC_UPLOAD_PRESET (hoặc VITE_*)."
+        );
+    }
+    if (!/^https?:\/\//i.test(trimmed) && !trimmed.startsWith("/")) {
+        throw new Error("URL ảnh không hợp lệ. Vui lòng tải lại ảnh.");
+    }
+    return trimmed;
+};
+
 export const uploadMediaToCloudinary = async (files: File[]): Promise<UploadedCloudinaryMedia[]> => {
     try {
         const uploadPromises = files.map(async (file) => {
             const uploadUrl = getCloudinaryUploadUrl(file);
-            
-            // Fallback for local testing without Cloudinary setup
-            if (!uploadUrl) {
-                console.warn("VITE_CLOUDINARY_URL is missing, mocking image upload with local object URL.");
-                await new Promise(resolve => setTimeout(resolve, 1000));
-                return {
-                    url: URL.createObjectURL(file),
-                    kind: file.type.startsWith("video/") ? "video" as const : "image" as const,
-                };
+
+            if (!uploadUrl || !UPLOAD_PRESET) {
+                throw new Error(
+                    "Chưa cấu hình Cloudinary (NEXT_PUBLIC_CLOUDINARY_URL / NEXT_PUBLIC_UPLOAD_PRESET). Không thể tải ảnh lên."
+                );
             }
 
             const formData = new FormData();
@@ -51,16 +63,23 @@ export const uploadMediaToCloudinary = async (files: File[]): Promise<UploadedCl
             formData.append("upload_preset", UPLOAD_PRESET);
 
             const response = await axios.post(uploadUrl, formData);
+            const secureUrl = response.data?.secure_url || response.data?.url;
             return {
-                url: response.data.secure_url,
+                url: assertPersistableMediaUrl(secureUrl),
                 kind: file.type.startsWith("video/") ? "video" as const : "image" as const,
             };
         });
 
         return await Promise.all(uploadPromises);
-    } catch (error: any) {
-        console.error(error.response?.data || error);
-        throw new Error("Lỗi khi tải ảnh/video lên.");
+    } catch (error: unknown) {
+        const axiosLike = error as { response?: unknown; message?: string };
+        if (error instanceof Error && error.message && !axiosLike.response) {
+            throw error;
+        }
+        console.error(axiosLike.response || error);
+        throw new Error(
+            (error instanceof Error && error.message) || "Lỗi khi tải ảnh/video lên."
+        );
     }
 };
 

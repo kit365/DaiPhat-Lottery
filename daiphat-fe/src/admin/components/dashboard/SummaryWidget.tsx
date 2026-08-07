@@ -21,7 +21,7 @@ interface SummaryWidgetProps {
     recentSources?: RecentSource[];
 }
 
-const SummaryWidget = ({ title, total, percent, color = '#00a76f', chartData, recentSources }: SummaryWidgetProps) => {
+const SummaryWidget = ({ title, total, percent, color = '#FF3030', chartData, recentSources }: SummaryWidgetProps) => {
     const isLoss = percent < 0;
 
     const chartOptions: any = {

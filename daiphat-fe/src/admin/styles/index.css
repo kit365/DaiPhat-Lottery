@@ -1,18 +1,18 @@
 .admin-theme {
     max-width: 100vw;
     overflow-x: hidden;
-    /* Primary */
-    --palette-primary-lighter: #C8FAD6;
-    --palette-primary-light: #5BE49B;
-    --palette-primary-main: #00A76F;
-    --palette-primary-dark: #007867;
-    --palette-primary-darker: #004B50;
+    /* Primary — lottery red brand */
+    --palette-primary-lighter: #FFE3D5;
+    --palette-primary-light: #FFC1AC;
+    --palette-primary-main: #FF3030;
+    --palette-primary-dark: #B71833;
+    --palette-primary-darker: #7A0930;
     --palette-primary-contrastText: #FFFFFF;
-    --palette-primary-lighterChannel: 200 250 214;
-    --palette-primary-lightChannel: 91 228 155;
-    --palette-primary-mainChannel: 0 167 111;
-    --palette-primary-darkChannel: 0 120 103;
-    --palette-primary-darkerChannel: 0 75 80;
+    --palette-primary-lighterChannel: 255 227 213;
+    --palette-primary-lightChannel: 255 193 172;
+    --palette-primary-mainChannel: 255 48 48;
+    --palette-primary-darkChannel: 183 24 51;
+    --palette-primary-darkerChannel: 122 9 48;
     --palette-primary-contrastTextChannel: 255 255 255;
 
     /* Secondary */
@@ -171,7 +171,7 @@
     --customShadows-dialog: -40px 40px 80px -8px rgba(0 0 0 / 24%);
     --customShadows-card: 0 0 2px 0 rgba(145 158 171 / 20%), 0 12px 24px -4px rgba(145 158 171 / 12%);
     --customShadows-dropdown: 0 0 2px 0 rgba(145 158 171 / 24%), -20px 20px 40px -4px rgba(145 158 171 / 24%);
-    --customShadows-primary: 0 8px 16px 0 rgba(0 167 111 / 24%);
+    --customShadows-primary: 0 8px 16px 0 rgba(255 48 48 / 24%);
     --customShadows-secondary: 0 8px 16px 0 rgba(142 51 255 / 24%);
     --customShadows-info: 0 8px 16px 0 rgba(0 184 217 / 24%);
     --customShadows-success: 0 8px 16px 0 rgba(34 197 94 / 24%);
@@ -315,12 +315,12 @@ input:-webkit-autofill:active {
 .btn-primary-admin {
     background-color: var(--palette-text-primary) !important;
     color: var(--palette-common-white) !important;
-    min-height: 2.25rem !important;
+    min-height: 36px !important;
     min-width: 4rem !important;
     font-weight: 700 !important;
     font-size: 0.875rem !important;
-    padding: 6px 12px !important;
-    border-radius: var(--shape-borderRadius) !important;
+    padding: 6px 16px !important;
+    border-radius: 8px !important;
     text-transform: none !important;
     box-shadow: none !important;
     display: inline-flex !important;
@@ -337,6 +337,37 @@ input:-webkit-autofill:active {
 .btn-primary-admin.Mui-disabled {
     background-color: rgba(145, 158, 171, 0.24) !important;
     color: rgba(145, 158, 171, 0.8) !important;
+    box-shadow: none !important;
+}
+
+/* Outlined / Cancel button style for admin */
+.btn-outlined-admin {
+    background-color: transparent !important;
+    color: var(--palette-text-primary) !important;
+    border: 1px solid rgba(28, 37, 46, 0.32) !important;
+    min-height: 36px !important;
+    min-width: 4rem !important;
+    font-weight: 700 !important;
+    font-size: 0.875rem !important;
+    padding: 6px 16px !important;
+    border-radius: 8px !important;
+    text-transform: none !important;
+    box-shadow: none !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    transition: background-color 250ms cubic-bezier(0.4, 0, 0.2, 1) 0ms, border-color 250ms cubic-bezier(0.4, 0, 0.2, 1) 0ms !important;
+}
+
+.btn-outlined-admin:hover {
+    background-color: rgba(28, 37, 46, 0.06) !important;
+    border-color: var(--palette-text-primary) !important;
+    box-shadow: none !important;
+}
+
+.btn-outlined-admin.Mui-disabled {
+    color: rgba(145, 158, 171, 0.8) !important;
+    border-color: rgba(145, 158, 171, 0.32) !important;
 }
 
 /* Form typography — sync create/edit pages */
@@ -522,9 +553,28 @@ input:-webkit-autofill:active {
 .admin-datagrid.MuiDataGrid-root {
     color: var(--palette-text-primary);
     border-width: 0;
-    --DataGrid-t-color-interactive-focus: var(--palette-success-main);
+    --DataGrid-t-color-interactive-focus: var(--palette-primary-main);
     --DataGrid-t-color-border-base: var(--palette-background-neutral);
     overflow: auto;
+}
+
+/* Unified HTML TableHead & TableCell styling to match DataGrid headers */
+.MuiTableContainer-root thead,
+.MuiTableHead-root {
+    background-color: var(--palette-background-neutral) !important;
+}
+
+.MuiTableContainer-root thead th,
+.MuiTableHead-root th {
+    background-color: var(--palette-background-neutral) !important;
+    color: var(--palette-text-secondary) !important;
+    font-size: 0.875rem !important;
+    font-weight: 600 !important;
+    padding: 12px 16px !important;
+    height: 52px !important;
+    max-height: 52px !important;
+    box-sizing: border-box !important;
+    border-bottom: 1px solid var(--palette-background-neutral) !important;
 }
 
 .admin-datagrid .MuiDataGrid-columnHeaders {
@@ -564,10 +614,10 @@ input:-webkit-autofill:active {
 }
 
 .admin-datagrid .MuiDataGrid-footerContainer {
-    border-top: 1px dashed var(--palette-background-neutral);
+    border-top: 1px solid var(--palette-divider) !important;
     min-height: auto;
     font-size: 0.875rem;
-    color: inherit;
+    color: var(--palette-text-secondary) !important;
     position: relative;
     z-index: 5;
     pointer-events: auto;
@@ -575,13 +625,16 @@ input:-webkit-autofill:active {
 }
 
 .admin-datagrid .MuiTablePagination-selectLabel,
-.admin-datagrid .MuiTablePagination-displayedRows {
-    font-size: 0.875rem;
-    color: inherit;
+.admin-datagrid .MuiTablePagination-displayedRows,
+.admin-datagrid-card .MuiTablePagination-selectLabel,
+.admin-datagrid-card .MuiTablePagination-displayedRows {
+    font-size: 0.875rem !important;
+    color: var(--palette-text-secondary) !important;
 }
 
-.admin-datagrid .MuiTablePagination-selectLabel {
-    margin-bottom: -2px;
+.admin-datagrid-card .MuiTablePagination-root {
+    border-top: 1px solid var(--palette-divider) !important;
+    color: var(--palette-text-secondary) !important;
 }
 
 .admin-datagrid .MuiSelect-select {
@@ -714,10 +767,7 @@ input:-webkit-autofill:active {
 .admin-datagrid .MuiDataGrid-cell:hover .supplier-title,
 .admin-datagrid .MuiDataGrid-cell:hover .admin-cell-date,
 .admin-datagrid .MuiDataGrid-cell:hover .date-text {
-    color: var(--palette-success-main) !important;
-}
-
-.admin-datagrid .supplier-title {
+    color: var(--palette-primary-main) !important;
     color: var(--palette-text-primary);
     font-weight: 600;
     font-size: 0.8125rem;

@@ -69,6 +69,9 @@ export const menuManagementData = [
             { id: "staff-management", label: "Quản lý nhân viên", path: ROUTES.ADMIN.ACCOUNTS.ADMIN.LIST, permission: PERMISSIONS.ACCOUNT.VIEW },
             { id: "customer-management", label: "Quản lý khách hàng", path: ROUTES.ADMIN.ACCOUNTS.USER.LIST, permission: PERMISSIONS.USER.VIEW },
             { id: "street-agents", label: "Đại lý bán dạo", path: ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.LIST, permission: PERMISSIONS.STREET_AGENT.VIEW },
+            { id: "street-agent-allocation", label: "Bàn giao vé bán dạo", path: ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.ALLOCATION, permission: PERMISSIONS.STREET_AGENT.VIEW },
+            { id: "street-agent-allocation-batches", label: "Phiếu bàn giao vé", path: ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.ALLOCATION_BATCHES, permission: PERMISSIONS.STREET_AGENT.VIEW },
+            { id: "street-agent-lucky-patterns", label: "Cấu hình số đẹp", path: ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.LUCKY_PATTERNS, permission: PERMISSIONS.STREET_AGENT.VIEW },
         ]
     },
     {
@@ -80,7 +83,7 @@ export const menuManagementData = [
         children: [
             { id: "list", label: "Kho vé số", tKey: "admin.sidebar.list", path: ROUTES.ADMIN.TICKETS.LIST, permission: PERMISSIONS.TICKET.VIEW },
             { id: "import-batch", label: "Nhập lô vé", path: ROUTES.ADMIN.IMPORT_BATCH.LIST, permission: PERMISSIONS.IMPORT_BATCH.VIEW },
-            { id: "return-batch", label: "Trả vé NCC", path: ROUTES.ADMIN.RETURN_BATCH.LIST, permission: PERMISSIONS.IMPORT_BATCH.VIEW },
+            { id: "return-batch", label: "Trả vé NCC", path: ROUTES.ADMIN.RETURN_BATCH.LIST, permission: PERMISSIONS.IMPORT_BATCH.VIEW, badge: 'return-batch-pending' },
             { id: "supplier-settlement", label: "Đối soát NCC", path: ROUTES.ADMIN.SUPPLIER_SETTLEMENT.LIST, permission: PERMISSIONS.IMPORT_BATCH.VIEW },
             { id: "supplier", label: "Nhà cung cấp", path: ROUTES.ADMIN.SUPPLIER.LIST, permission: PERMISSIONS.SUPPLIER.VIEW },
             { id: "provider", label: "Nhà đài", tKey: "admin.sidebar.provider", path: ROUTES.ADMIN.TICKETS.PROVIDER, permission: PERMISSIONS.PROVIDER.VIEW },
@@ -134,7 +137,7 @@ export const menuManagementData = [
     },
     {
         id: "chat",
-        label: "Chat & Hỗ trợ",
+        label: "Hỗ trợ trực tuyến",
         tKey: "admin.sidebar.chat",
         Icon: ChatIcon,
         path: ROUTES.ADMIN.CHAT,
@@ -173,9 +176,8 @@ export const menuDevelopmentData = [
         permission: PERMISSIONS.SETTINGS.VIEW,
         children: [
             { id: "settings-general", label: "Cài đặt chung", path: ROUTES.ADMIN.DASHBOARD.SETTINGS.GENERAL },
-            { id: "settings-shipping", label: "Vận chuyển", path: ROUTES.ADMIN.DASHBOARD.SETTINGS.SHIPPING },
-            { id: "settings-payment", label: "Thanh toán", path: ROUTES.ADMIN.DASHBOARD.SETTINGS.PAYMENT },
-            { id: "settings-social", label: "Mạng xã hội", path: ROUTES.ADMIN.DASHBOARD.SETTINGS.SOCIAL },
+            { id: "settings-policies", label: "Chính sách", path: ROUTES.ADMIN.DASHBOARD.SETTINGS.POLICIES },
+            { id: "settings-pages", label: "Trang thông tin", path: ROUTES.ADMIN.DASHBOARD.SETTINGS.PAGES },
             { id: "settings-app-password", label: "Mật khẩu ứng dụng", path: ROUTES.ADMIN.DASHBOARD.SETTINGS.APP_PASSWORD },
             { id: "settings-system-config", label: "Cấu hình hệ thống", path: ROUTES.ADMIN.DASHBOARD.SETTINGS.SYSTEM_CONFIG, permission: PERMISSIONS.SETTINGS.VIEW },
         ]

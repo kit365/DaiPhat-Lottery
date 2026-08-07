@@ -56,5 +56,25 @@ public record UpdateStreetAgentProfileRequest(
 
         String depositAdjustmentReason,
 
-        String status
-) {}
+        String status,
+
+        @Size(max = 100, message = "Mã hợp đồng không vượt quá 100 ký tự")
+        String contractCode,
+
+        @Size(max = 500, message = "URL hợp đồng không vượt quá 500 ký tự")
+        String contractDocumentUrl,
+
+        @jakarta.validation.constraints.Min(value = 1, message = "Hạn mức ngày phải lớn hơn 0")
+        Integer dailyTicketCap
+) {
+    public UpdateStreetAgentProfileRequest(
+            String firstName, String lastName, String phone, String cccd, String imageUrl,
+            String contactAddress, String contactProvince, String coverageArea,
+            BigDecimal commissionRate, LocalDate contractStartDate, LocalDate contractEndDate,
+            BigDecimal depositBalance, String depositAdjustmentReason, String status
+    ) {
+        this(firstName, lastName, phone, cccd, imageUrl, contactAddress, contactProvince,
+                coverageArea, commissionRate, contractStartDate, contractEndDate, depositBalance,
+                depositAdjustmentReason, status, null, null, null);
+    }
+}

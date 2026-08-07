@@ -11,6 +11,7 @@ public enum LotteryTicketSerialStatus implements LabeledEnum {
     RESERVED("Đang giữ chỗ"),
     SOLD("Đã bán"),
     PROXY_HOLDING("Đại lý giữ hộ"),
+    WITH_STREET_AGENT("Đang giao người bán dạo"),
     EXPIRED("Hết hạn");
 
     private final String displayName;

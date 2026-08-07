@@ -284,7 +284,7 @@ export const AccountResetPasswordModal = ({ open, onClose, user }: AccountResetP
                             <Button 
                                 variant="text" 
                                 onClick={() => setOtpSent(false)}
-                                sx={{ color: 'text.disabled', fontWeight: 700, fontSize: '0.875rem', textTransform: 'none' }}
+                                sx={{ color: 'text.disabled' }}
                             >
                                 Quay lại
                             </Button>

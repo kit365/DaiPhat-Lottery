@@ -49,7 +49,7 @@ export const tiptapContentStyles: SxProps<Theme> = {
             borderRadius: "8px",
             transition: "all 0.2s",
         },
-        "& img.ProseMirror-selectednode": { outline: "2px solid #00A76F" },
+        "& img.ProseMirror-selectednode": { outline: "2px solid #FF3030" },
         "& p": { fontSize: "1rem", my: "10px", lineHeight: "1.5" },
         "& h1": { fontSize: "4rem", fontWeight: "800", mt: "20px", mb: "8px", lineHeight: "1.25" },
         "& h2": { fontSize: "3rem", fontWeight: "800", mt: "20px", mb: "8px", lineHeight: "1.33" },
@@ -57,7 +57,7 @@ export const tiptapContentStyles: SxProps<Theme> = {
         "& h4": { fontSize: "1.5rem", fontWeight: "700", mt: "14px", mb: "8px", lineHeight: "1.5" },
         "& h5": { fontSize: "1.1875rem", fontWeight: "700", mt: "14px", mb: "8px", lineHeight: "1.5" },
         "& h6": { fontSize: "1.125rem", fontWeight: "600", mt: "14px", mb: "8px", lineHeight: "1.56" },
-        "& a": { color: "#00A76F", textDecoration: "underline" },
+        "& a": { color: "#FF3030", textDecoration: "underline" },
         "& ul, & ol": { paddingLeft: "16px" },
         "& li": { lineHeight: "1.8" },
     }

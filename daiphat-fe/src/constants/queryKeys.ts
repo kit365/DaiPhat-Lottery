@@ -15,6 +15,9 @@ export const QUERY_KEYS = {
     ACCOUNT_USER_DETAIL: 'account-user',
     STREET_AGENT_PROFILES: 'street-agent-profiles',
     STREET_AGENT_PROFILE_DETAIL: 'street-agent-profile',
+    LUCKY_PATTERN_CONFIGS: 'lucky-pattern-configs',
+    VENDOR_ALLOCATION_CANDIDATES: 'vendor-allocation-candidates',
+    VENDOR_ALLOCATION_BATCH: 'vendor-allocation-batch',
 
     // Role
     ROLE_DETAIL: 'role',

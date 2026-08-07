@@ -15,23 +15,36 @@ import {
   isTodayDisplayDate,
 } from '../types/lottery';
 
-export const useLottery = () => {
-  const [selectedProvinces, setSelectedProvinces] = useState<string[]>([]);
-  const [selectedDate, setSelectedDate] = useState<string>(buildRecentDateOptions(1)[0]);
+import type { HomeServerInitialData } from '@/lib/server-lottery';
+
+export const useLottery = (initialData?: HomeServerInitialData) => {
+  const [selectedProvinces, setSelectedProvinces] = useState<string[]>(
+    initialData?.selectedProvinces ?? []
+  );
+  const [selectedDate, setSelectedDate] = useState<string>(
+    initialData?.selectedDate ?? buildRecentDateOptions(1)[0]
+  );
   const [displayType, setDisplayType] = useState<DisplayType>('full');
   const [showLoto, setShowLoto] = useState(true);
   const [selectedDigit, setSelectedDigit] = useState<string | null>(null);
   const [hoveredDigit, setHoveredDigit] = useState<string | null>(null);
-  const [lotteryData, setLotteryData] = useState<LotteryResult[]>([]);
-  const [boardData, setBoardData] = useState<LotteryResult[]>([]);
-  const [scheduleStations, setScheduleStations] = useState<LotteryStationDraw[]>([]);
-  const [availableProvinces, setAvailableProvinces] = useState<string[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [lotteryData, setLotteryData] = useState<LotteryResult[]>(
+    initialData?.boardData ?? []
+  );
+  const [boardData, setBoardData] = useState<LotteryResult[]>(initialData?.boardData ?? []);
+  const [scheduleStations, setScheduleStations] = useState<LotteryStationDraw[]>(
+    initialData?.scheduleStations ?? []
+  );
+  const [availableProvinces, setAvailableProvinces] = useState<string[]>(
+    initialData?.availableProvinces ?? []
+  );
+  const [isLoading, setIsLoading] = useState(!initialData);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isWaitingForResults, setIsWaitingForResults] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const initializedSelectionRef = useRef(false);
-  const loadedDateRef = useRef<string | null>(null);
+  const initializedSelectionRef = useRef(!!initialData);
+  const loadedDateRef = useRef<string | null>(initialData?.selectedDate ?? null);
+  const skipInitialFetchRef = useRef(!!initialData);
   const summaryRetryDelayMs = 5000;
   const maxSummaryRetries = 24;
 
@@ -101,6 +114,11 @@ export const useLottery = () => {
     };
 
     const fetchData = async () => {
+      if (skipInitialFetchRef.current) {
+        skipInitialFetchRef.current = false;
+        return;
+      }
+
       const isSameDate = boardData.length > 0 && boardData[0]?.date === selectedDate;
       
       if (isSameDate) {

@@ -1,5 +1,8 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+
+import { HOME_SIDEBAR_CTA_BANNER } from '@/client/constants/clientBannerAssets';
+import { ROUTES } from '@/admin/constants/routes';
 import { LotoTable } from "./LotoTable";
 import { LotteryResult } from '../../types/lottery';
 import { TicketSearchWidget } from '../ticket-search/TicketSearchWidget';
@@ -22,13 +25,13 @@ export const HomeSidebar: React.FC<HomeSidebarProps> = ({ showLoto, setShowLoto,
       <TicketSearchWidget />
 
       <Link
-        to="/buy-ticket"
+        to={ROUTES.PUBLIC.TICKETS}
         className="relative overflow-hidden rounded-[16px] shadow-sm cursor-pointer transition-transform hover:scale-[1.02] active:scale-[0.98] w-full min-h-[150px] flex items-center p-5 group bg-[#e41212]"
       >
         {/* Background Image */}
         <div className="absolute inset-0 z-0">
           <img
-            src="https://i.ibb.co/FbsnQfjR/28d77182-45b0-40bf-9aaf-58136bc87741.png"
+            src={HOME_SIDEBAR_CTA_BANNER}
             alt="Săn Lộc Vàng Background"
             loading="lazy"
             decoding="async"

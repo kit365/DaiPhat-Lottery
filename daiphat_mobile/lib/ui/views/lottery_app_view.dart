@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:daiphat_mobile/src/features/blog/presentation/views/blog_screen.dart';
+import 'package:daiphat_mobile/src/shared/utils/app_toast.dart';
 
 const _red = Color(0xFFE90000);
 const _softRed = Color(0xFFFFF0F0);
@@ -464,10 +465,8 @@ class ActionGrid extends StatelessWidget {
         'Vé của tôi',
         () => onTabSelected(2),
       ),
-      _ActionItem(Icons.calendar_month_outlined, 'Lịch mở thưởng', () {}),
       _ActionItem(Icons.store_outlined, 'Đại lý', () {}),
       _ActionItem(Icons.help_outline, 'Hướng dẫn', () {}),
-      _ActionItem(Icons.card_giftcard, 'Ưu đãi', () {}),
       _ActionItem(Icons.support_agent, 'Hỗ trợ', () {}),
     ];
 
@@ -865,9 +864,7 @@ class CartScreen extends StatelessWidget {
             buttonText: 'Thanh toán',
             secondaryText: 'Tiếp tục mua',
             onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Đã tạo yêu cầu thanh toán')),
-              );
+              AppToast.success('Đã tạo yêu cầu thanh toán');
             },
             onSecondaryPressed: onContinueBuying,
           ),

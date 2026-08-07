@@ -22,9 +22,8 @@ export const ROUTES = {
             SETTINGS: {
                 ROOT: `/${prefixAdmin}/dashboard/settings`,
                 GENERAL: `/${prefixAdmin}/dashboard/settings/general`,
-                SHIPPING: `/${prefixAdmin}/dashboard/settings/shipping`,
-                PAYMENT: `/${prefixAdmin}/dashboard/settings/payment`,
-                SOCIAL: `/${prefixAdmin}/dashboard/settings/social`,
+                POLICIES: `/${prefixAdmin}/dashboard/settings/policies`,
+                PAGES: `/${prefixAdmin}/dashboard/settings/pages`,
                 APP_PASSWORD: `/${prefixAdmin}/dashboard/settings/app-password`,
                 SYSTEM_CONFIG: `/${prefixAdmin}/settings/system-config/list`,
             }
@@ -66,6 +65,7 @@ export const ROUTES = {
             LIST: `/${prefixAdmin}/return-batch/list`,
             EDIT: (id: number | string) => `/${prefixAdmin}/return-batch/edit/${id}`,
             DETAIL: (id: number | string) => `/${prefixAdmin}/return-batch/detail/${id}`,
+            INSPECT: (id: number | string) => `/${prefixAdmin}/return-batch/inspect/${id}`,
         },
         SUPPLIER_SETTLEMENT: {
             LIST: `/${prefixAdmin}/supplier-settlement/list`,
@@ -126,6 +126,10 @@ export const ROUTES = {
                 LIST: `/${prefixAdmin}/street-agent/list`,
                 CREATE: `/${prefixAdmin}/street-agent/create`,
                 EDIT: `/${prefixAdmin}/street-agent/edit`,
+                LUCKY_PATTERNS: `/${prefixAdmin}/street-agent/lucky-patterns`,
+                ALLOCATION: `/${prefixAdmin}/street-agent/allocation`,
+                ALLOCATION_BATCHES: `/${prefixAdmin}/street-agent/allocation/batches`,
+                CONTRACT_PDF: (id: number | string) => `/${prefixAdmin}/street-agent/contract/${id}`,
             }
         },
         CHAT: `/${prefixAdmin}/chat`,
@@ -142,7 +146,26 @@ export const ROUTES = {
     PUBLIC: {
         HOME: "/",
         SETUP_PROFILE: "/setup-profile",
-        SCHEDULE: "/lich-mo-thuong",
-        FORTUNE: "/gieo-que",
+        TICKETS: "/tickets",
+        SCHEDULE: "/schedule",
+        FORTUNE: "/fortune",
+        BLOGS: "/blogs",
+        CART: "/cart",
+        CHECKOUT: "/checkout",
+        PROFILE: {
+            ROOT: "/profile",
+            OVERVIEW: "/profile/overview",
+            INFO: "/profile/info",
+            MY_TICKETS: "/profile/tickets",
+            ORDERS: "/profile/orders",
+            REFUNDS: "/profile/refunds",
+            PRIZE_PAYOUTS: "/profile/prize-payouts",
+            COMPLAINTS: "/profile/complaints",
+            BANK_ACCOUNTS: "/profile/bank-accounts",
+            FAVORITES: "/profile/favorites",
+            NOTIFICATIONS: "/profile/notifications",
+            RESULT_NOTIFICATIONS: "/profile/result-notifications",
+            SETTINGS: "/profile/settings",
+        },
     }
 } as const;

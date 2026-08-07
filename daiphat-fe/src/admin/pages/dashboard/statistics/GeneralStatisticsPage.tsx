@@ -48,7 +48,7 @@ export const GeneralStatisticsPage = () => {
             categories: ['Thg 1', 'Thg 2', 'Thg 3', 'Thg 4', 'Thg 5', 'Thg 6', 'Thg 7', 'Thg 8', 'Thg 9', 'Thg 10', 'Thg 11', 'Thg 12'],
             axisBorder: { show: false }, axisTicks: { show: false }
         },
-        colors: ['#00A76F', '#FFAB00'], // Ticket, Service
+        colors: ['#FF3030', '#FFAB00'], // Ticket, Service
         grid: { strokeDashArray: 3, borderColor: 'rgba(145, 158, 171, 0.2)' },
         tooltip: { theme: 'light', y: { formatter: (val: number) => val?.toLocaleString() + 'đ' } },
         legend: { show: true, position: 'top', horizontalAlign: 'right', fontWeight: 600 }
@@ -67,7 +67,7 @@ export const GeneralStatisticsPage = () => {
                     <Typography variant="h4" sx={{ fontWeight: 700, mb: 1 }}>{t('admin.dashboard.statistics.general_title', 'Thống kê Doanh thu thuần')}</Typography>
                     <Typography variant="body2" sx={{ color: 'text.secondary' }}>{t('admin.dashboard.statistics.general_desc', 'Báo cáo lợi nhuận thực tế từ tất cả nguồn thu (Vé số, Dịch vụ).')}</Typography>
                 </Box>
-                <IconButton onClick={fetchData} sx={{ bgcolor: 'rgba(0, 167, 111, 0.08)', color: 'primary.main' }}>
+                <IconButton onClick={fetchData} sx={{ bgcolor: 'rgba(255, 48, 48, 0.08)', color: 'primary.main' }}>
                     <RefreshIcon />
                 </IconButton>
             </Stack>
@@ -88,7 +88,7 @@ export const GeneralStatisticsPage = () => {
                         title={t('admin.dashboard.statistics.ticket_revenue', 'Doanh thu Vé số')}
                         total={(summary?.shopRevenue || 0).toLocaleString() + 'đ'}
                         percent={5.2}
-                        color="#00A76F"
+                        color="#FF3030"
                         chartData={yearlyRevenueChart?.shop || []}
                     />
                 </Box>
@@ -144,7 +144,7 @@ export const GeneralStatisticsPage = () => {
 
                              <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 3 }}>
                                 {[
-                                    { label: t('admin.dashboard.statistics.ticket', 'Vé số'), value: summary?.allTimeRevenue?.shop || 0, color: '#00A76F', icon: 'solar:ticket-bold-duotone' },
+                                    { label: t('admin.dashboard.statistics.ticket', 'Vé số'), value: summary?.allTimeRevenue?.shop || 0, color: '#FF3030', icon: 'solar:ticket-bold-duotone' },
                                     { label: t('admin.dashboard.statistics.service', 'Dịch vụ'), value: summary?.allTimeRevenue?.ticketService || 0, color: '#FFAB00', icon: 'solar:tea-cup-bold-duotone' },
                                 ].map((item) => (
                                     <Box key={item.label} sx={{ p: 2, borderRadius: 2, bgcolor: 'var(--palette-background-neutral)', border: '1px solid var(--palette-divider)' }}>
@@ -163,7 +163,7 @@ export const GeneralStatisticsPage = () => {
                             <Chart
                                 options={{
                                     labels: [t('admin.dashboard.statistics.ticket', 'Vé số'), t('admin.dashboard.statistics.service', 'Dịch vụ')],
-                                    colors: ['#00A76F', '#FFAB00'],
+                                    colors: ['#FF3030', '#FFAB00'],
                                     stroke: { width: 0 },
                                     legend: { position: 'bottom', fontWeight: 600 },
                                     plotOptions: { pie: { donut: { size: '80%' } } },

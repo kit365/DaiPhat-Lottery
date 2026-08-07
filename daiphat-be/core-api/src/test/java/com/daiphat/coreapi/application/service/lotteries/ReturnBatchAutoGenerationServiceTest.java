@@ -81,7 +81,7 @@ class ReturnBatchAutoGenerationServiceTest {
         org.mockito.Mockito.doNothing().when(transactionManager).commit(any());
         org.mockito.Mockito.doNothing().when(transactionManager).rollback(any());
 
-        service = new ReturnBatchAutoGenerationService(
+        service =   new ReturnBatchAutoGenerationService(
                 lotterySupplierRepositoryPort,
                 importBatchRepositoryPort,
                 importBatchLineRepositoryPort,

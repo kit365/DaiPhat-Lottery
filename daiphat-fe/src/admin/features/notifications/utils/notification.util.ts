@@ -77,7 +77,7 @@ export const getAdminNotificationAccentColor = (
         case 'blog':
             return '#7A0916';
         case 'order':
-            return '#00A76F';
+            return '#FF3030';
         case 'boarding':
             return '#FFAB00';
         case 'overrun':
@@ -95,7 +95,7 @@ export const getAdminNotificationAccentBackground = (
         case 'blog':
             return 'rgba(122, 9, 22, 0.12)';
         case 'order':
-            return 'rgba(0, 167, 111, 0.12)';
+            return 'rgba(255, 48, 48, 0.12)';
         case 'ticketserviceorder':
             return 'rgba(0, 184, 217, 0.12)';
         case 'boarding':

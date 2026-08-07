@@ -38,6 +38,8 @@ class AppDependencies {
       apiClient,
       tokenStorage,
     );
+    apiClient.resolveAccessToken = tokenStorage.getAccessToken;
+    apiClient.onAccessTokenRefreshed = tokenStorage.saveAccessToken;
     await authRepository.restoreSession();
 
     if (authRepository.isAuthenticated) {

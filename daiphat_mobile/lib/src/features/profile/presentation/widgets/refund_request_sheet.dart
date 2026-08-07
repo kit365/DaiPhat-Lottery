@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
@@ -8,7 +9,10 @@ import 'package:daiphat_mobile/src/features/checkout/data/order_service.dart';
 import 'package:daiphat_mobile/src/features/checkout/models/order_type.dart';
 import 'package:daiphat_mobile/src/features/checkout/models/refund_type.dart';
 import 'package:daiphat_mobile/src/features/profile/data/bank_account_service.dart';
+import 'package:daiphat_mobile/src/features/profile/presentation/widgets/bank_account_form_page.dart';
+import 'package:daiphat_mobile/src/features/profile/presentation/widgets/bank_search_screen.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
+import 'package:daiphat_mobile/src/shared/utils/app_toast.dart';
 
 class RefundRequestSheet extends StatefulWidget {
   final OrderResponse order;
@@ -36,6 +40,7 @@ class _RefundRequestSheetState extends State<RefundRequestSheet> {
   String? _error;
   OrderRefundEligibilityResponse? _eligibility;
   List<UserBankAccountResponse> _bankAccounts = const [];
+  List<VietQrBankResponse> _banks = const [];
   int? _selectedBankAccountId;
   int _secondsLeft = 0;
   Timer? _timer;
@@ -56,10 +61,12 @@ class _RefundRequestSheetState extends State<RefundRequestSheet> {
       final results = await Future.wait<dynamic>([
         widget.orderService.getRefundEligibility(widget.order.id),
         widget.bankAccountService.getMyAccounts(),
+        widget.bankAccountService.getBanks(),
       ]);
 
       final eligibility = results[0] as OrderRefundEligibilityResponse;
       final bankAccounts = results[1] as List<UserBankAccountResponse>;
+      final banks = results[2] as List<VietQrBankResponse>;
       UserBankAccountResponse? defaultAccount;
       for (final account in bankAccounts) {
         if (account.isDefault) {
@@ -80,6 +87,7 @@ class _RefundRequestSheetState extends State<RefundRequestSheet> {
       setState(() {
         _eligibility = eligibility;
         _bankAccounts = bankAccounts;
+        _banks = banks;
         _selectedBankAccountId = defaultAccount?.id;
         _secondsLeft = seconds;
         _isLoading = false;
@@ -125,36 +133,70 @@ class _RefundRequestSheetState extends State<RefundRequestSheet> {
     return widget.order.totalAmount;
   }
 
+  Future<void> _reloadBankAccounts({int? selectAccountId}) async {
+    try {
+      final bankAccounts = await widget.bankAccountService.getMyAccounts();
+      UserBankAccountResponse? preferred;
+      if (selectAccountId != null) {
+        for (final account in bankAccounts) {
+          if (account.id == selectAccountId) {
+            preferred = account;
+            break;
+          }
+        }
+      }
+      if (preferred == null) {
+        for (final account in bankAccounts) {
+          if (account.isDefault) {
+            preferred = account;
+            break;
+          }
+        }
+      }
+      preferred ??= bankAccounts.isNotEmpty ? bankAccounts.first : null;
+
+      if (!mounted) return;
+      setState(() {
+        _bankAccounts = bankAccounts;
+        _selectedBankAccountId = preferred?.id;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      AppToast.error(e.toString().replaceFirst('Exception: ', ''));
+    }
+  }
+
   Future<void> _handleCreateBankAccount() async {
-    final created = await showDialog<UserBankAccountResponse>(
-      context: context,
-      builder: (context) => Dialog(
-        insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-        child: BankAccountFormDialog(service: widget.bankAccountService),
+    final banks = _banks.isEmpty
+        ? await widget.bankAccountService.getBanks()
+        : _banks;
+    if (!mounted) return;
+
+    final created = await Navigator.of(context, rootNavigator: true)
+        .push<UserBankAccountResponse>(
+      MaterialPageRoute(
+        builder: (_) => BankAccountFormPage(
+          service: widget.bankAccountService,
+          banks: banks,
+        ),
       ),
     );
 
     if (created == null || !mounted) return;
-
-    setState(() {
-      _bankAccounts = [created, ..._bankAccounts.where((e) => e.id != created.id)];
-      _selectedBankAccountId = created.id;
-    });
+    if (_banks.isEmpty) {
+      setState(() => _banks = banks);
+    }
+    await _reloadBankAccounts(selectAccountId: created.id);
   }
 
   Future<void> _handleSubmit() async {
     final reason = _reasonController.text.trim();
     if (reason.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Vui lòng nhập lý do hoàn tiền')),
-      );
+      AppToast.info('Vui lòng nhập lý do hoàn tiền');
       return;
     }
     if (_selectedBankAccountId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Vui lòng chọn tài khoản nhận hoàn')),
-      );
+      AppToast.info('Vui lòng chọn tài khoản nhận hoàn');
       return;
     }
     if (_isRefundBlocked) return;
@@ -174,9 +216,7 @@ class _RefundRequestSheetState extends State<RefundRequestSheet> {
       return;
     }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Gửi yêu cầu hoàn tiền thất bại')),
-    );
+    AppToast.error('Gửi yêu cầu hoàn tiền thất bại');
   }
 
   @override
@@ -452,9 +492,11 @@ class _RefundRequestSheetState extends State<RefundRequestSheet> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Bạn chưa có tài khoản ngân hàng.',
+                  'Bạn chưa có tài khoản ngân hàng. Thêm tài khoản trong '
+                  'mục "Tài khoản ngân hàng" hoặc tạo mới ngay bên dưới.',
                   style: GoogleFonts.publicSans(
                     fontSize: 13,
+                    height: 1.45,
                     color: AppColors.textMuted,
                   ),
                 ),
@@ -470,52 +512,125 @@ class _RefundRequestSheetState extends State<RefundRequestSheet> {
                 ),
               ],
             )
-          else
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                DropdownButtonFormField<int>(
-                  initialValue: _selectedBankAccountId,
-                  decoration: InputDecoration(
-                    filled: true,
-                    fillColor: const Color(0xFFF9FAFB),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(14),
-                      borderSide: const BorderSide(color: Color(0xFFE5E8EB)),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(14),
-                      borderSide: const BorderSide(color: Color(0xFFE5E8EB)),
-                    ),
-                  ),
-                  items: _bankAccounts
-                      .map(
-                        (account) => DropdownMenuItem<int>(
-                          value: account.id,
+          else ...[
+            ..._bankAccounts.map(_buildBankAccountTile),
+            const SizedBox(height: 4),
+            TextButton.icon(
+              onPressed: _isSubmitting ? null : _handleCreateBankAccount,
+              icon: const Icon(Icons.add_card_rounded),
+              label: const Text('Thêm tài khoản mới'),
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.primary,
+                padding: EdgeInsets.zero,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBankAccountTile(UserBankAccountResponse account) {
+    final selected = _selectedBankAccountId == account.id;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: InkWell(
+        onTap: _isSubmitting
+            ? null
+            : () => setState(() => _selectedBankAccountId = account.id),
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: selected ? const Color(0xFFFFF5F5) : const Color(0xFFF9FAFB),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: selected ? AppColors.primary : const Color(0xFFE5E8EB),
+            ),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(
+                selected
+                    ? Icons.radio_button_checked
+                    : Icons.radio_button_off,
+                color: selected ? AppColors.primary : AppColors.textMuted,
+                size: 20,
+              ),
+              const SizedBox(width: 10),
+              _RefundBankLogo(
+                logoUrl: account.bankLogo,
+                label: account.bankName,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
                           child: Text(
-                            '${account.bankName} - ${_maskAccountNo(account.bankAccountNo)}${account.isDefault ? ' (Mặc định)' : ''}',
+                            account.bankName,
+                            maxLines: 2,
                             overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.publicSans(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.textMain,
+                            ),
                           ),
                         ),
-                      )
-                      .toList(),
-                  onChanged: _isSubmitting
-                      ? null
-                      : (value) => setState(() => _selectedBankAccountId = value),
+                        if (account.isDefault) ...[
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFFF2F3),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              'Mặc định',
+                              style: GoogleFonts.publicSans(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.primary,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      account.bankAccountNo,
+                      style: GoogleFonts.publicSans(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 0.4,
+                        color: AppColors.textMain,
+                      ),
+                    ),
+                    Text(
+                      account.bankAccountName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.publicSans(
+                        fontSize: 12,
+                        color: AppColors.textMuted,
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 8),
-                TextButton.icon(
-                  onPressed: _isSubmitting ? null : _handleCreateBankAccount,
-                  icon: const Icon(Icons.add_card_rounded),
-                  label: const Text('Thêm tài khoản mới'),
-                  style: TextButton.styleFrom(
-                    foregroundColor: AppColors.primary,
-                    padding: EdgeInsets.zero,
-                  ),
-                ),
-              ],
-            ),
-        ],
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -732,12 +847,6 @@ class _RefundRequestSheetState extends State<RefundRequestSheet> {
     return DateFormat('dd/MM/yyyy').format(date);
   }
 
-  String _maskAccountNo(String accountNo) {
-    final digits = accountNo.replaceAll(' ', '');
-    if (digits.length <= 4) return digits;
-    return '${'*' * (digits.length - 4)}${digits.substring(digits.length - 4)}';
-  }
-
   String _statusLabel(String status) {
     switch (status) {
       case 'PAID':
@@ -756,6 +865,48 @@ class _RefundRequestSheetState extends State<RefundRequestSheet> {
   }
 }
 
+class _RefundBankLogo extends StatelessWidget {
+  final String? logoUrl;
+  final String label;
+
+  const _RefundBankLogo({required this.logoUrl, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    final initial = label.isNotEmpty ? label[0].toUpperCase() : 'B';
+    final fallback = Center(
+      child: Text(
+        initial,
+        style: GoogleFonts.publicSans(
+          fontWeight: FontWeight.w800,
+          fontSize: 12,
+          color: AppColors.primary,
+        ),
+      ),
+    );
+
+    return Container(
+      width: 36,
+      height: 36,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        shape: BoxShape.circle,
+        border: Border.all(color: const Color(0xFFE5E8EB)),
+      ),
+      clipBehavior: Clip.antiAlias,
+      padding: const EdgeInsets.all(4),
+      child: logoUrl == null || logoUrl!.isEmpty
+          ? fallback
+          : CachedNetworkImage(
+              imageUrl: logoUrl!,
+              fit: BoxFit.contain,
+              placeholder: (_, _) => fallback,
+              errorWidget: (_, _, _) => fallback,
+            ),
+    );
+  }
+}
+
 class BankAccountFormDialog extends StatefulWidget {
   final BankAccountService service;
 
@@ -766,8 +917,10 @@ class BankAccountFormDialog extends StatefulWidget {
 }
 
 class _BankAccountFormDialogState extends State<BankAccountFormDialog> {
-  static const _termsText =
-      'Tôi cam kết thông tin tài khoản ngân hàng đã nhập là chính xác. Tôi hiểu rằng đại lý được miễn trừ trách nhiệm đối với các trường hợp hoàn tiền chậm trễ hoặc thất bại do thông tin tài khoản tôi cung cấp không chính xác.';
+  static const _termsPreviewText =
+      'Tôi cam kết thông tin tài khoản ngân hàng đã nhập là chính xác';
+  static const _termsDetailText =
+      'Tôi hiểu rằng đại lý được miễn trừ trách nhiệm đối với các trường hợp hoàn tiền chậm trễ hoặc thất bại do thông tin tài khoản tôi cung cấp không chính xác.';
 
   final _accountNoController = TextEditingController();
   final _accountNameController = TextEditingController();
@@ -776,6 +929,7 @@ class _BankAccountFormDialogState extends State<BankAccountFormDialog> {
   bool _isSubmitting = false;
   bool _isDefault = false;
   bool _agreed = false;
+  bool _termsExpanded = false;
   String? _error;
   List<VietQrBankResponse> _banks = const [];
   VietQrBankResponse? _selectedBank;
@@ -796,9 +950,7 @@ class _BankAccountFormDialogState extends State<BankAccountFormDialog> {
       if (!mounted) return;
       setState(() {
         _banks = banks;
-        if (banks.isNotEmpty) {
-          _selectedBank = banks.first;
-        }
+        _selectedBank = null;
         _isLoadingBanks = false;
       });
     } catch (e) {
@@ -810,24 +962,134 @@ class _BankAccountFormDialogState extends State<BankAccountFormDialog> {
     }
   }
 
+  Future<void> _openBankPicker() async {
+    if (_isSubmitting || _banks.isEmpty) return;
+
+    final selected = await Navigator.of(context, rootNavigator: true)
+        .push<VietQrBankResponse>(
+      MaterialPageRoute(
+        fullscreenDialog: true,
+        builder: (context) => BankSearchScreen(banks: _banks),
+      ),
+    );
+
+    if (selected != null && mounted) {
+      setState(() => _selectedBank = selected);
+    }
+  }
+
+  Widget _buildBankSelector() {
+    final bank = _selectedBank;
+
+    return InkWell(
+      onTap: _isSubmitting ? null : _openBankPicker,
+      borderRadius: BorderRadius.circular(12),
+      child: InputDecorator(
+        decoration: _inputDecoration(hintText: 'Chọn ngân hàng...'),
+        child: Row(
+          children: [
+            if (bank != null) ...[
+              _buildBankLogoPreview(bank),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      bank.shortName,
+                      style: GoogleFonts.publicSans(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textMain,
+                      ),
+                    ),
+                    Text(
+                      bank.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.publicSans(
+                        fontSize: 12,
+                        color: const Color(0xFF919EAB),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ] else
+              Expanded(
+                child: Text(
+                  'Chọn ngân hàng...',
+                  style: GoogleFonts.publicSans(
+                    fontSize: 14,
+                    color: const Color(0xFFC4CDD5),
+                  ),
+                ),
+              ),
+            const Icon(
+              Icons.chevron_right_rounded,
+              color: Color(0xFF919EAB),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBankLogoPreview(VietQrBankResponse bank) {
+    final logoUrl = bank.logo?.trim();
+    final initial = bank.shortName.isNotEmpty
+        ? bank.shortName[0].toUpperCase()
+        : 'B';
+
+    return Container(
+      width: 36,
+      height: 36,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        border: Border.all(color: const Color(0xFFE5E8EB)),
+        color: Colors.white,
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: logoUrl != null && logoUrl.isNotEmpty
+          ? Image.network(
+              logoUrl,
+              fit: BoxFit.contain,
+              errorBuilder: (_, _, _) => Center(
+                child: Text(
+                  initial,
+                  style: GoogleFonts.publicSans(
+                    fontWeight: FontWeight.w800,
+                    fontSize: 12,
+                    color: AppColors.primary,
+                  ),
+                ),
+              ),
+            )
+          : Center(
+              child: Text(
+                initial,
+                style: GoogleFonts.publicSans(
+                  fontWeight: FontWeight.w800,
+                  fontSize: 12,
+                  color: AppColors.primary,
+                ),
+              ),
+            ),
+    );
+  }
+
   Future<void> _submit() async {
     if (_selectedBank == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Vui lòng chọn ngân hàng')),
-      );
+      AppToast.info('Vui lòng chọn ngân hàng');
       return;
     }
     if (_accountNoController.text.trim().isEmpty ||
         _accountNameController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Vui lòng nhập đầy đủ thông tin tài khoản')),
-      );
+      AppToast.info('Vui lòng nhập đầy đủ thông tin tài khoản');
       return;
     }
     if (!_agreed) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Bạn cần xác nhận cam kết thông tin tài khoản')),
-      );
+      AppToast.info('Bạn cần xác nhận cam kết thông tin tài khoản');
       return;
     }
 
@@ -847,9 +1109,7 @@ class _BankAccountFormDialogState extends State<BankAccountFormDialog> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _isSubmitting = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
-      );
+      AppToast.error(e.toString().replaceFirst('Exception: ', ''));
     }
   }
 
@@ -862,151 +1122,290 @@ class _BankAccountFormDialogState extends State<BankAccountFormDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return ConstrainedBox(
-      constraints: const BoxConstraints(maxWidth: 520),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: _isLoadingBanks
-            ? const SizedBox(
-                height: 280,
-                child: Center(
-                  child: CircularProgressIndicator(color: AppColors.primary),
-                ),
-              )
-            : Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
+    final media = MediaQuery.of(context);
+    final maxHeight = media.size.height * 0.85;
+
+    return Dialog(
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      clipBehavior: Clip.antiAlias,
+      child: Material(
+        color: Colors.white,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxWidth: 520, maxHeight: maxHeight),
+          child: _isLoadingBanks
+              ? const SizedBox(
+                  height: 280,
+                  child: Center(
+                    child: CircularProgressIndicator(color: AppColors.primary),
+                  ),
+                )
+              : SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Expanded(
-                        child: Text(
-                          'Thêm tài khoản ngân hàng',
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              'Thêm tài khoản ngân hàng',
+                              style: GoogleFonts.publicSans(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w800,
+                                color: AppColors.textMain,
+                              ),
+                            ),
+                          ),
+                          IconButton(
+                            onPressed: _isSubmitting
+                                ? null
+                                : () => Navigator.of(context).pop(),
+                            icon: const Icon(
+                              Icons.close_rounded,
+                              color: Color(0xFF919EAB),
+                            ),
+                          ),
+                        ],
+                      ),
+                      if (_error != null) ...[
+                        const SizedBox(height: 8),
+                        Text(
+                          _error!,
                           style: GoogleFonts.publicSans(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w800,
-                            color: AppColors.textMain,
+                            fontSize: 13,
+                            color: AppColors.primary,
                           ),
                         ),
+                      ],
+                      const SizedBox(height: 12),
+                      _buildRequiredLabel('Ngân hàng'),
+                      const SizedBox(height: 6),
+                      _buildBankSelector(),
+                      const SizedBox(height: 14),
+                      _buildRequiredLabel('Số tài khoản'),
+                      const SizedBox(height: 6),
+                      TextField(
+                        controller: _accountNoController,
+                        keyboardType: TextInputType.number,
+                        enabled: !_isSubmitting,
+                        decoration: _inputDecoration(
+                          hintText: 'Nhập số tài khoản',
+                        ),
                       ),
-                      IconButton(
-                        onPressed: _isSubmitting
+                      const SizedBox(height: 14),
+                      _buildRequiredLabel('Tên chủ tài khoản'),
+                      const SizedBox(height: 6),
+                      TextField(
+                        controller: _accountNameController,
+                        enabled: !_isSubmitting,
+                        textCapitalization: TextCapitalization.characters,
+                        decoration: _inputDecoration(
+                          hintText: 'NGUYEN VAN A',
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      _buildCheckboxRow(
+                        value: _isDefault,
+                        onChanged: _isSubmitting
                             ? null
-                            : () => Navigator.of(context).pop(),
-                        icon: const Icon(Icons.close_rounded),
+                            : (value) =>
+                                setState(() => _isDefault = value ?? false),
+                        child: Text(
+                          'Đặt làm tài khoản mặc định',
+                          style: GoogleFonts.publicSans(fontSize: 14),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      _buildCheckboxRow(
+                        value: _agreed,
+                        onChanged: _isSubmitting
+                            ? null
+                            : (value) =>
+                                setState(() => _agreed = value ?? false),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            InkWell(
+                              onTap: _isSubmitting
+                                  ? null
+                                  : () => setState(
+                                        () =>
+                                            _termsExpanded = !_termsExpanded,
+                                      ),
+                              child: Text.rich(
+                                TextSpan(
+                                  style: GoogleFonts.publicSans(
+                                    fontSize: 14,
+                                    color: AppColors.textMain,
+                                  ),
+                                  children: [
+                                    TextSpan(text: '$_termsPreviewText... '),
+                                    TextSpan(
+                                      text: _termsExpanded
+                                          ? 'thu gọn'
+                                          : 'xem thêm',
+                                      style: GoogleFonts.publicSans(
+                                        fontSize: 14,
+                                        color: AppColors.primary,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            if (_termsExpanded) ...[
+                              const SizedBox(height: 6),
+                              Text(
+                                _termsDetailText,
+                                style: GoogleFonts.publicSans(
+                                  fontSize: 14,
+                                  height: 1.45,
+                                  color: const Color(0xFF637381),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton(
+                              onPressed: _isSubmitting
+                                  ? null
+                                  : () => Navigator.of(context).pop(),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: const Color(0xFF637381),
+                                side: const BorderSide(color: Color(0xFFE5E8EB)),
+                                padding: const EdgeInsets.symmetric(vertical: 14),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                              child: Text(
+                                'Hủy',
+                                style: GoogleFonts.publicSans(
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: ElevatedButton(
+                              onPressed:
+                                  (_isSubmitting || !_agreed) ? null : _submit,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.primary,
+                                foregroundColor: Colors.white,
+                                disabledBackgroundColor:
+                                    AppColors.primary.withValues(alpha: 0.35),
+                                disabledForegroundColor:
+                                    Colors.white.withValues(alpha: 0.85),
+                                padding: const EdgeInsets.symmetric(vertical: 14),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                              child: _isSubmitting
+                                  ? const SizedBox(
+                                      width: 18,
+                                      height: 18,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: Colors.white,
+                                      ),
+                                    )
+                                  : Text(
+                                      'Thêm tài khoản',
+                                      style: GoogleFonts.publicSans(
+                                        fontWeight: FontWeight.w700,
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
-                  if (_error != null) ...[
-                    const SizedBox(height: 8),
-                    Text(
-                      _error!,
-                      style: GoogleFonts.publicSans(
-                        fontSize: 13,
-                        color: AppColors.primary,
-                      ),
-                    ),
-                  ],
-                  const SizedBox(height: 12),
-                  DropdownButtonFormField<VietQrBankResponse>(
-                    initialValue: _selectedBank,
-                    decoration: InputDecoration(
-                      labelText: 'Ngân hàng',
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                    ),
-                    items: _banks
-                        .map(
-                          (bank) => DropdownMenuItem<VietQrBankResponse>(
-                            value: bank,
-                            child: Text('${bank.shortName} - ${bank.name}'),
-                          ),
-                        )
-                        .toList(),
-                    onChanged: _isSubmitting
-                        ? null
-                        : (value) => setState(() => _selectedBank = value),
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: _accountNoController,
-                    keyboardType: TextInputType.number,
-                    enabled: !_isSubmitting,
-                    decoration: InputDecoration(
-                      labelText: 'Số tài khoản',
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: _accountNameController,
-                    enabled: !_isSubmitting,
-                    textCapitalization: TextCapitalization.characters,
-                    decoration: InputDecoration(
-                      labelText: 'Tên chủ tài khoản',
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  CheckboxListTile(
-                    contentPadding: EdgeInsets.zero,
-                    value: _isDefault,
-                    onChanged: _isSubmitting
-                        ? null
-                        : (value) => setState(() => _isDefault = value ?? false),
-                    title: Text(
-                      'Đặt làm tài khoản mặc định',
-                      style: GoogleFonts.publicSans(fontSize: 14),
-                    ),
-                    controlAffinity: ListTileControlAffinity.leading,
-                  ),
-                  CheckboxListTile(
-                    contentPadding: EdgeInsets.zero,
-                    value: _agreed,
-                    onChanged: _isSubmitting
-                        ? null
-                        : (value) => setState(() => _agreed = value ?? false),
-                    title: Text(
-                      _termsText,
-                      style: GoogleFonts.publicSans(
-                        fontSize: 12,
-                        height: 1.45,
-                      ),
-                    ),
-                    controlAffinity: ListTileControlAffinity.leading,
-                  ),
-                  const SizedBox(height: 8),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: _isSubmitting ? null : _submit,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                      ),
-                      child: _isSubmitting
-                          ? const SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Colors.white,
-                              ),
-                            )
-                          : const Text('Thêm tài khoản'),
-                    ),
-                  ),
-                ],
-              ),
+                ),
+        ),
+      ),
+    );
+  }
+
+  InputDecoration _inputDecoration({required String hintText}) {
+    return InputDecoration(
+      hintText: hintText,
+      hintStyle: GoogleFonts.publicSans(
+        fontSize: 14,
+        fontWeight: FontWeight.w400,
+        color: const Color(0xFFC4CDD5),
+      ),
+      contentPadding: const EdgeInsets.symmetric(
+        horizontal: 14,
+        vertical: 12,
+      ),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: Color(0xFFE5E8EB)),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: Color(0xFFE5E8EB)),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: AppColors.primary),
+      ),
+    );
+  }
+
+  Widget _buildCheckboxRow({
+    required bool value,
+    required ValueChanged<bool?>? onChanged,
+    required Widget child,
+  }) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 24,
+          height: 24,
+          child: Checkbox(
+            value: value,
+            onChanged: onChanged,
+            activeColor: AppColors.primary,
+            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            visualDensity: VisualDensity.compact,
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(child: child),
+      ],
+    );
+  }
+
+  Widget _buildRequiredLabel(String label) {
+    return RichText(
+      text: TextSpan(
+        style: GoogleFonts.publicSans(
+          fontSize: 13,
+          fontWeight: FontWeight.w600,
+          color: AppColors.textMain,
+        ),
+        children: [
+          TextSpan(text: label),
+          const TextSpan(
+            text: ' *',
+            style: TextStyle(color: AppColors.primary),
+          ),
+        ],
       ),
     );
   }

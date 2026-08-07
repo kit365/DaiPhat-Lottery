@@ -10,7 +10,7 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({ user }) => {
   return (
     <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
       <div>
-        <h1 className="text-2xl font-black tracking-tight text-[#102937]">Tổng quan tài khoản</h1>
+        <h1 className="client-heading m-0 tracking-tight">Tổng quan tài khoản</h1>
         <p className="text-sm font-bold text-slate-400 mt-1">
           Chào mừng trở lại, {user.fullName || user.username}! Dưới đây là tóm tắt hoạt động của bạn.
         </p>

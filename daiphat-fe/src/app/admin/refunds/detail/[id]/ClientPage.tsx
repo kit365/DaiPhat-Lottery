@@ -1,26 +1,11 @@
 "use client";
 
-import dynamic from 'next/dynamic';
-import { PermissionGuard } from '@/admin/components/auth/PermissionGuard';
+import { RefundDetailPage } from '@/admin/pages/refund/RefundDetailPage';
+
+import { createAdminClientPage } from '@/admin/lib/createAdminClientPage';
 import { PERMISSIONS } from '@/admin/constants/permission.constants';
-import { LoadingSpinner } from '@/client/components/ui/LoadingSpinner';
 
-const FeaturePage = dynamic(
-  () => import('@/admin/pages/refund/RefundDetailPage').then((m) => m.RefundDetailPage),
-  {
-    ssr: false,
-    loading: () => (
-      <div className="flex items-center justify-center p-12 min-h-[300px]">
-        <LoadingSpinner />
-      </div>
-    ),
-  }
-);
-
-export function ClientPage() {
-  return (
-    <PermissionGuard permission={PERMISSIONS.REFUND.VIEW}>
-      <FeaturePage />
-    </PermissionGuard>
-  );
-}
+export const ClientPage = createAdminClientPage({
+  component: RefundDetailPage,
+  permission: PERMISSIONS.REFUND.VIEW,
+});

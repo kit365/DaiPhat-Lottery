@@ -9,11 +9,11 @@ import { useAuthStore } from '../../../../stores/useAuthStore';
 import { hasPermission } from '../../../utils/permission.util';
 import { PERMISSIONS } from '../../../constants/permission.constants';
 import { ConversationStatusEnum } from '../../../../types/chat.type';
+import { getManagementUnreadCount } from '../components/utils';
 
 /**
- * Polls waiting-for-staff count for the sidebar badge.
- * Uses a dedicated query key so the 5s poll does not constantly
- * re-render the open chat page / handoff summary.
+ * Polls chat conversations for the sidebar badge.
+ * Badge = conversations waiting for staff OR having unread customer messages.
  */
 export const useChatWaitingCount = () => {
     const { user } = useAuthStore();
@@ -34,16 +34,29 @@ export const useChatWaitingCount = () => {
         staleTime: 10_000,
     });
 
+    const conversations = query.data ?? [];
+
     const waitingCount = useMemo(
         () =>
-            (query.data ?? []).filter(
+            conversations.filter(
                 (conversation) => conversation.status === ConversationStatusEnum.WAITING_FOR_OPERATOR
             ).length,
-        [query.data]
+        [conversations]
+    );
+
+    const badgeCount = useMemo(
+        () =>
+            conversations.filter(
+                (conversation) =>
+                    conversation.status === ConversationStatusEnum.WAITING_FOR_OPERATOR ||
+                    getManagementUnreadCount(conversation) > 0
+            ).length,
+        [conversations]
     );
 
     return {
         waitingCount,
+        badgeCount,
         isLoading: query.isLoading,
     };
 };

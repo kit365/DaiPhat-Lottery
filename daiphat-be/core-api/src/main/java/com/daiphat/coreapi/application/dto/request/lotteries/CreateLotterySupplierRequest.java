@@ -55,6 +55,9 @@ public record CreateLotterySupplierRequest(
         @JsonFormat(pattern = "HH:mm")
         LocalTime returnCutOffTime,
 
+        @JsonFormat(pattern = "HH:mm")
+        LocalTime paymentCutOffTime,
+
         Boolean isActive
 ) {
 }

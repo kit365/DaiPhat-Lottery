@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import 'package:daiphat_mobile/src/app/routing/app_routes.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
+import 'package:daiphat_mobile/src/shared/utils/app_toast.dart';
 import '../viewmodels/forgot_password_viewmodel.dart';
 
 class ForgotPasswordView extends StatefulWidget {
@@ -41,7 +42,7 @@ class _ForgotPasswordViewState extends State<ForgotPasswordView> {
     if (!_formKeyEmail.currentState!.validate()) return;
     await widget.viewModel.requestOtp(_emailController.text.trim());
     if (widget.viewModel.error != null && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(widget.viewModel.error!), backgroundColor: AppColors.error));
+      AppToast.error(widget.viewModel.error!);
     }
   }
 
@@ -49,7 +50,7 @@ class _ForgotPasswordViewState extends State<ForgotPasswordView> {
     if (!_formKeyOtp.currentState!.validate()) return;
     await widget.viewModel.verifyOtp(_otpController.text.trim());
     if (widget.viewModel.error != null && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(widget.viewModel.error!), backgroundColor: AppColors.error));
+      AppToast.error(widget.viewModel.error!);
     }
   }
 
@@ -57,10 +58,10 @@ class _ForgotPasswordViewState extends State<ForgotPasswordView> {
     if (!_formKeyReset.currentState!.validate()) return;
     final success = await widget.viewModel.resetPassword(_newPasswordController.text, _confirmPasswordController.text);
     if (success && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Đổi mật khẩu thành công!'), backgroundColor: AppColors.success));
+      AppToast.success('Đổi mật khẩu thành công!');
       context.go(AppRoute.login.path);
     } else if (mounted && widget.viewModel.error != null) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(widget.viewModel.error!), backgroundColor: AppColors.error));
+      AppToast.error(widget.viewModel.error!);
     }
   }
 

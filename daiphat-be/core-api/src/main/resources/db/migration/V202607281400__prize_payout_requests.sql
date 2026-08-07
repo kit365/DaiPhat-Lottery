@@ -15,6 +15,14 @@ CREATE TABLE prize_payout_requests (
     bank_name           VARCHAR(200),
     bank_account_number VARCHAR(50),
     account_holder_name VARCHAR(200),
+    recipient_full_name VARCHAR(200),
+    recipient_id_number VARCHAR(20),
+    recipient_id_image_url VARCHAR(500),
+    recipient_id_image_back_url VARCHAR(500),
+    recipient_identity_captured_at TIMESTAMPTZ,
+    confirmation_contract_url VARCHAR(500),
+    cash_amount         NUMERIC(15, 2),
+    transfer_amount     NUMERIC(15, 2),
     status              VARCHAR(30)  NOT NULL,
     reject_reason       TEXT,
     transfer_evidence_url VARCHAR(500),
@@ -32,6 +40,11 @@ CREATE INDEX idx_prize_payout_requests_status ON prize_payout_requests (status);
 CREATE INDEX idx_prize_payout_requests_serial ON prize_payout_requests (serial_id);
 CREATE INDEX idx_prize_payout_requests_created_at ON prize_payout_requests (created_at DESC);
 
-CREATE UNIQUE INDEX uk_prize_payout_serial_pending
+COMMENT ON COLUMN prize_payout_requests.cash_amount IS
+    'Cash portion paid at counter (COMBINED / CASH)';
+COMMENT ON COLUMN prize_payout_requests.transfer_amount IS
+    'Bank transfer portion (COMBINED / TRANSFER)';
+
+CREATE UNIQUE INDEX uk_prize_payout_serial_open
     ON prize_payout_requests (serial_id)
-    WHERE status = 'PENDING';
+    WHERE status IN ('PENDING', 'APPROVED');

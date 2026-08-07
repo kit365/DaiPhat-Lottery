@@ -5,6 +5,7 @@ CREATE TABLE IF NOT EXISTS ticket_categories (
     description VARCHAR(500),
     priority INT NOT NULL DEFAULT 2,
     required_ref_type VARCHAR(50),
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
     created_at TIMESTAMP,
     updated_at TIMESTAMP,
     created_by VARCHAR(255),
@@ -26,6 +27,9 @@ CREATE TABLE IF NOT EXISTS support_tickets (
     response TEXT,
     resolved_at TIMESTAMP,
     due_at TIMESTAMP,
+    customer_last_viewed_at TIMESTAMP,
+    resolved_reason_id BIGINT,
+    rejected_reason_id BIGINT,
     created_at TIMESTAMP,
     updated_at TIMESTAMP,
     created_by VARCHAR(255),
@@ -39,6 +43,9 @@ CREATE INDEX IF NOT EXISTS idx_support_tickets_customer_id ON support_tickets (c
 CREATE INDEX IF NOT EXISTS idx_support_tickets_status ON support_tickets (status);
 CREATE INDEX IF NOT EXISTS idx_support_tickets_assigned_to ON support_tickets (assigned_to);
 CREATE INDEX IF NOT EXISTS idx_support_tickets_category_id ON support_tickets (ticket_category_id);
+
+COMMENT ON COLUMN support_tickets.customer_last_viewed_at IS
+    'Last time the customer opened this ticket (list/detail). Used to clear sidebar badge for REJECTED after view.';
 
 CREATE TABLE IF NOT EXISTS support_ticket_comments (
     id BIGSERIAL PRIMARY KEY,
@@ -57,3 +64,13 @@ CREATE TABLE IF NOT EXISTS support_ticket_comments (
 
 CREATE INDEX IF NOT EXISTS idx_support_ticket_comments_ticket_created
     ON support_ticket_comments (support_ticket_id, created_at);
+
+-- These FKs are declared after support_ticket_comments because both tables reference each other.
+ALTER TABLE support_tickets
+    ADD CONSTRAINT fk_support_tickets_resolved_reason
+        FOREIGN KEY (resolved_reason_id) REFERENCES support_ticket_comments (id),
+    ADD CONSTRAINT fk_support_tickets_rejected_reason
+        FOREIGN KEY (rejected_reason_id) REFERENCES support_ticket_comments (id);
+
+CREATE INDEX IF NOT EXISTS idx_support_tickets_status_resolved_at
+    ON support_tickets (status, resolved_at);

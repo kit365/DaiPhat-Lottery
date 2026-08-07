@@ -189,14 +189,7 @@ export const OrderList = () => {
                 preparingCount={preparingCount}
                 visible={showReminderBanner}
             />
-        <Card sx={{
-            borderRadius: 'var(--shape-borderRadius-lg)',
-            bgcolor: 'var(--palette-background-paper)',
-            boxShadow: "var(--customShadows-card)",
-            overflow: 'hidden',
-            display: 'flex',
-            flexDirection: 'column'
-        }}>
+            <Card elevation={0} className="admin-datagrid-card" sx={{ height: 'auto' }}>
             <Tabs
                 value={tabStatus}
                 onChange={handleTabChange}
@@ -289,7 +282,7 @@ export const OrderList = () => {
                 />
             </Box>
 
-            <TableContainer sx={{ position: 'relative', overflow: 'unset' }}>
+            <TableContainer sx={{ position: 'relative', overflow: 'auto', flex: 1, display: 'flex', flexDirection: 'column' }}>
                 <Table sx={{ minWidth: 960 }} size={settings.density === 'compact' ? 'small' : 'medium'}>
                     <TableHead sx={{ bgcolor: 'var(--palette-background-neutral)' }}>
                         <TableRow>
@@ -314,16 +307,18 @@ export const OrderList = () => {
                     <TableBody>
                         {isLoading ? (
                             <TableRow>
-                                <TableCell colSpan={8} align="center" sx={{ py: 10 }}>
-                                    <CircularProgress size={32} />
+                                <TableCell colSpan={8} align="center" sx={{ borderBottom: 'none', py: 10 }}>
+                                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 320 }}>
+                                        <CircularProgress size={32} />
+                                    </Box>
                                 </TableCell>
                             </TableRow>
                         ) : orders.length === 0 ? (
                             <TableRow>
-                                <TableCell colSpan={8} align="center" sx={{ py: 10 }}>
-                                    <Typography sx={{ color: 'var(--palette-text-secondary)' }}>
-                                        Không có dữ liệu
-                                    </Typography>
+                                <TableCell colSpan={8} align="center" sx={{ borderBottom: 'none', py: 10 }}>
+                                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 320 }}>
+                                        <span className="admin-datagrid-empty">Không có dữ liệu</span>
+                                    </Box>
                                 </TableCell>
                             </TableRow>
                         ) : (
@@ -500,8 +495,8 @@ export const OrderList = () => {
                                                     }}
                                                 >
                                                     <MenuItem onClick={() => { handleCloseMenu(row.id); handleViewDetail(row.id); }}>
-                                                        <Icon icon="eva:eye-fill" width={18} style={{ marginRight: 8 }} />
-                                                        Chi tiết
+                                                        <Icon icon="solar:eye-bold" width={18} style={{ marginRight: 8 }} />
+                                                        Xem chi tiết
                                                     </MenuItem>
 
                                                     {['PENDING_PAYMENT'].includes(row.status) && (
@@ -562,6 +557,17 @@ export const OrderList = () => {
                 page={(filters.page || 1) - 1}
                 onPageChange={handleChangePage}
                 onRowsPerPageChange={handleChangeRowsPerPage}
+                labelRowsPerPage="Số hàng mỗi trang:"
+                labelDisplayedRows={({ from, to, count }) =>
+                    `${from}-${to} của ${count !== -1 ? count : `hơn ${to}`}`
+                }
+                sx={{
+                    borderTop: '1px solid var(--palette-divider)',
+                    color: 'var(--palette-text-secondary)',
+                    '& .MuiTablePagination-selectLabel, & .MuiTablePagination-displayedRows': {
+                        fontSize: '0.875rem',
+                    },
+                }}
             />
         </Card>
 

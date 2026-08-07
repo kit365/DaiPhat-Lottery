@@ -73,7 +73,7 @@ const AccountInviteModal: React.FC<AccountInviteModalProps> = ({ open, onClose, 
                         display: 'flex', 
                         alignItems: 'center', 
                         justifyContent: 'center',
-                        bgcolor: 'rgba(0, 167, 111, 0.12)',
+                        bgcolor: 'rgba(255, 48, 48, 0.12)',
                         color: 'var(--palette-primary-main)'
                     }}>
                         <PersonAddIcon />

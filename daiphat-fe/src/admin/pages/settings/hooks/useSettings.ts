@@ -2,59 +2,78 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-    getSettingGeneral, updateSettingGeneral,
     getSettingShipping, updateSettingShipping,
     getSettingPayment, updateSettingPayment,
     getSettingLoginSocial, updateSettingLoginSocial,
     getSettingAppPassword, updateSettingAppPassword,
     getSettingPoint, updateSettingPoint,
-    getSettingPage, updateSettingPage
 } from "../../../api/setting.api";
 import { toast } from "react-toastify";
+import { ConfigType } from "../../../features/system-config/types/system-config";
+import { SYSTEM_CONFIG_KEYS } from "../../../features/system-config/hooks/useSystemConfig";
+import { SettingGeneralFormValues, SettingPageFormValues } from "../../../schemas/setting.schema";
+import {
+    fetchGeneralSettings,
+    saveGeneralSettings,
+} from "../services/generalSettingService";
+import {
+    fetchStaticPage,
+    saveStaticPage,
+    StaticPageConfigKey,
+} from "../services/staticPageService";
 
-/** Hook quản lý trang tĩnh */
-export const useSettingPage = (key: string) => {
+/** Hook quản lý trang tĩnh / chính sách — system_config STATIC_PAGE */
+export const useSettingPage = (configKey: StaticPageConfigKey) => {
     return useQuery({
-        queryKey: ["settingPage", key],
-        queryFn: () => getSettingPage(key),
-        select: (data) => data.data,
+        queryKey: [...SYSTEM_CONFIG_KEYS.list(ConfigType.STATIC_PAGE), configKey],
+        queryFn: () => fetchStaticPage(configKey),
+        select: (data) => data.form,
     });
 };
 
-export const useUpdateSettingPage = (key: string) => {
+export const useUpdateSettingPage = (configKey: StaticPageConfigKey) => {
     const queryClient = useQueryClient();
     return useMutation({
-        mutationFn: (data: Record<string, unknown>) => updateSettingPage(key, data),
+        mutationFn: (data: SettingPageFormValues) => saveStaticPage(configKey, data),
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ["settingPage", key] });
+            queryClient.invalidateQueries({ queryKey: SYSTEM_CONFIG_KEYS.all });
             toast.success("Cập nhật trang thành công");
         },
-        onError: () => {
-            toast.error("Cập nhật trang thất bại");
+        onError: (error: unknown) => {
+            const message =
+                error instanceof Error ? error.message : "Cập nhật trang thất bại";
+            toast.error(message);
         }
     });
 };
 
 
-/** Hook quản lý cài đặt chung */
+/** Hook quản lý cài đặt chung — system_config GENERAL_SETTING */
 export const useSettingGeneral = () => {
     return useQuery({
-        queryKey: ["settingGeneral"],
-        queryFn: getSettingGeneral,
-        select: (data) => data.data,
+        queryKey: [...SYSTEM_CONFIG_KEYS.list(ConfigType.GENERAL_SETTING), 'general-form'],
+        queryFn: fetchGeneralSettings,
+        select: (data) => data.form,
     });
 };
 
 export const useUpdateSettingGeneral = () => {
     const queryClient = useQueryClient();
+
     return useMutation({
-        mutationFn: updateSettingGeneral,
+        mutationFn: async (form: SettingGeneralFormValues) => {
+            const fresh = await fetchGeneralSettings();
+            await saveGeneralSettings(form, fresh.configs);
+        },
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ["settingGeneral"] });
+            queryClient.invalidateQueries({ queryKey: SYSTEM_CONFIG_KEYS.all });
+            queryClient.invalidateQueries({ queryKey: ["public-system-config"] });
             toast.success("Cập nhật cài đặt thành công");
         },
-        onError: () => {
-            toast.error("Cập nhật cài đặt thất bại");
+        onError: (error: unknown) => {
+            const message =
+                error instanceof Error ? error.message : "Cập nhật cài đặt thất bại";
+            toast.error(message);
         }
     });
 };

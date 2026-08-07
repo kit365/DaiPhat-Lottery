@@ -273,11 +273,17 @@ export const SyncStationPreviewModal: React.FC<SyncStationPreviewModalProps> = (
     };
 
     return (
-        <Dialog open={open} onClose={isPending ? undefined : onClose} maxWidth="xl" fullWidth>
-            <DialogTitle sx={{ fontWeight: 'bold' }}>
+        <Dialog 
+            open={open} 
+            onClose={isPending ? undefined : onClose} 
+            maxWidth="xl" 
+            fullWidth
+            PaperProps={{ sx: { borderRadius: '16px' } }}
+        >
+            <DialogTitle sx={{ fontWeight: 'bold', pt: 2.5, px: 3 }}>
                 Xem trước đồng bộ nhà đài
             </DialogTitle>
-            <DialogContent>
+            <DialogContent sx={{ px: 3, py: 1 }}>
                 <Box
                     sx={{
                         display: 'flex',
@@ -309,20 +315,33 @@ export const SyncStationPreviewModal: React.FC<SyncStationPreviewModalProps> = (
                                 }
                             }}
                             disabled={isPending || rows.every(isExistingStationRow)}
-                            sx={{ width: 190 }}
+                            sx={{ 
+                                width: 210,
+                                '& .MuiOutlinedInput-root': { 
+                                    height: 38,
+                                    borderRadius: '8px'
+                                }
+                            }}
                         />
                         <Button
                             variant="outlined"
                             size="small"
                             onClick={handleApplyBulkCommission}
                             disabled={isPending || !bulkCommissionRate.trim() || rows.every(isExistingStationRow)}
-                            sx={{ whiteSpace: 'nowrap', height: 40 }}
+                            sx={{ 
+                                whiteSpace: 'nowrap', 
+                                height: 38,
+                                borderRadius: '8px',
+                                textTransform: 'none',
+                                fontWeight: 600,
+                                px: 2
+                            }}
                         >
                             Áp dụng cho tất cả
                         </Button>
                     </Box>
                 </Box>
-                <TableContainer component={Paper} variant="outlined">
+                <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: '12px', overflow: 'hidden' }}>
                     <Table size="small">
                         <TableHead>
                             <TableRow>
@@ -366,6 +385,12 @@ export const SyncStationPreviewModal: React.FC<SyncStationPreviewModalProps> = (
                                                 }}
                                                 disabled={isPending || isExisting}
                                                 fullWidth
+                                                sx={{
+                                                    '& .MuiOutlinedInput-root': { 
+                                                        height: 36,
+                                                        borderRadius: '8px' 
+                                                    }
+                                                }}
                                             />
                                         </TableCell>
                                     </TableRow>
@@ -375,9 +400,20 @@ export const SyncStationPreviewModal: React.FC<SyncStationPreviewModalProps> = (
                     </Table>
                 </TableContainer>
             </DialogContent>
-            <DialogActions sx={{ p: 2, pt: 0, flexDirection: 'column', alignItems: 'flex-end' }}>
-                <Box sx={{ display: 'flex', gap: 1, mb: rows.length > 0 && rows.every(isExistingStationRow) ? 1 : 0 }}>
-                    <Button onClick={onClose} disabled={isPending} color="inherit">
+            <DialogActions sx={{ p: 3, pt: 1, flexDirection: 'column', alignItems: 'flex-end' }}>
+                <Box sx={{ display: 'flex', gap: 1.5, mb: rows.length > 0 && rows.every(isExistingStationRow) ? 1 : 0 }}>
+                    <Button 
+                        onClick={onClose} 
+                        disabled={isPending} 
+                        color="inherit"
+                        sx={{ 
+                            borderRadius: '8px',
+                            height: 38,
+                            px: 2.5,
+                            textTransform: 'none',
+                            fontWeight: 600
+                        }}
+                    >
                         Hủy
                     </Button>
                     <LoadingButton
@@ -386,6 +422,13 @@ export const SyncStationPreviewModal: React.FC<SyncStationPreviewModalProps> = (
                         label="Xác nhận & Lưu"
                         variant="contained"
                         disabled={rows.length === 0 || rows.every(isExistingStationRow)}
+                        sx={{
+                            borderRadius: '8px',
+                            height: 38,
+                            px: 2.5,
+                            textTransform: 'none',
+                            fontWeight: 600
+                        }}
                     />
                 </Box>
                 {rows.length > 0 && rows.every(isExistingStationRow) && (
