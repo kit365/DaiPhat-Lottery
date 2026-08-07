@@ -637,6 +637,20 @@ public enum SystemConfigEnum {
             "%",
             "{}",
             true
+    ),
+    /**
+     * Wall-clock slot length in minutes (aligned from 00:00 Asia/Ho_Chi_Minh).
+     * Example: 60 = once per clock hour, 360 = every 6 hours, 1440 = once per calendar day.
+     */
+    FORTUNE_CAST_COOLDOWN_HOURS(
+            ConfigType.FORTUNE_SETTING,
+            DataType.INT,
+            "1440",
+            "Độ dài mỗi khung giờ mở gieo quẻ theo giờ đồng hồ Việt Nam (căn từ 0h). Ví dụ 60 = mỗi giờ, 360 = mỗi 6 giờ, 1440 = mỗi ngày. Không tính từ lúc khách gieo.",
+            "Khung giờ mở gieo quẻ",
+            "phút",
+            "{\"min\":1,\"max\":1440}",
+            true
     );
 
     private final ConfigType configType;

@@ -27,6 +27,8 @@ export const parseNonNegativeIntegerInput = (raw: string): number | null => {
  * triggers a console warning. Blurring the field is enough: once unfocused,
  * the wheel no longer increments/decrements the value (and cannot go below 0).
  */
-export const preventNumberInputWheel = (event: WheelEvent<HTMLInputElement>) => {
-    event.currentTarget.blur();
+export const preventNumberInputWheel = (event: WheelEvent<HTMLElement>) => {
+    if (event.target && 'blur' in event.target && typeof (event.target as any).blur === 'function') {
+        (event.target as HTMLElement).blur();
+    }
 };

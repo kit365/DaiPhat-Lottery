@@ -70,9 +70,13 @@ const APPLY_BUTTON = {
 }
 
 const CHECKBOX_STYLE = {
-    marginLeft: "-4px",
-    marginRight: "4px",
-}
+    marginLeft: '-4px',
+    marginRight: '4px',
+    color: '#919EAB',
+    '&.Mui-checked': {
+        color: 'var(--palette-primary-main, #FF3030)',
+    },
+};
 
 export const SelectMulti = memo(({ label, options, sx, value, onChange, disabled }: SelectMultiProps) => {
     const { t } = useTranslation();
@@ -146,7 +150,19 @@ export const SelectMulti = memo(({ label, options, sx, value, onChange, disabled
                             </span>
                         );
                     }
-                    return displayValue(sel);
+                    return (
+                        <span
+                            style={{
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap',
+                                display: 'block',
+                                width: '100%',
+                            }}
+                        >
+                            {displayValue(sel)}
+                        </span>
+                    );
                 }}
                 sx={{
                     ...SELECT_SX,
@@ -169,6 +185,7 @@ export const SelectMulti = memo(({ label, options, sx, value, onChange, disabled
                     >
                         <Checkbox
                             size="small"
+                            color="primary"
                             checked={selectedValues.includes(option.value)}
                             sx={CHECKBOX_STYLE}
                         />

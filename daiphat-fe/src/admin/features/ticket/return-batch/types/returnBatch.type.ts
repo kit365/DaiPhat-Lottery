@@ -27,6 +27,7 @@ export interface ReturnBatchLine {
 
 export interface ReturnBatch {
     id: number;
+    batchCode?: string | null;
     lotterySupplierId: number;
     supplierName?: string | null;
     supplierCode?: string | null;
@@ -104,6 +105,8 @@ export interface ConfirmReturnInspectionPayload {
     deliveryMode: ReturnDeliveryMode;
     serialIds: number[];
     returnReceiptUrl?: string | null;
+    note?: string | null;
+    returnEvidenceUrl?: string | null;
 }
 
 export interface ConfirmReturnHandoverPayload {

@@ -1164,7 +1164,7 @@ export function OrderInspectionSection({
                 <Button
                     onClick={onCancel}
                     variant="outlined"
-                    sx={{ textTransform: 'none', fontWeight: 700, borderRadius: '8px', color: 'var(--palette-text-secondary)', borderColor: 'var(--palette-divider)' }}
+                    sx={{ color: 'var(--palette-text-secondary)', borderColor: 'var(--palette-divider)' }}
                 >
                     Đóng
                 </Button>

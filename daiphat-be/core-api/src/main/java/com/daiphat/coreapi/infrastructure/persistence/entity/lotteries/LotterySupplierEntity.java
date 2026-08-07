@@ -70,6 +70,9 @@ public class LotterySupplierEntity extends BaseEntity {
     @Column(name = "return_cut_off_time", nullable = false)
     private LocalTime returnCutOffTime;
 
+    @Column(name = "payment_cut_off_time")
+    private LocalTime paymentCutOffTime;
+
     @Column(name = "is_active", nullable = false)
     @Builder.Default
     private boolean isActive = false;

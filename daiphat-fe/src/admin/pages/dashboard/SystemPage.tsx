@@ -68,7 +68,7 @@ const UserTicketDistributionChart = ({ data }: { data: any[] }) => {
                 }
             }
         },
-        colors: ['#007867', '#5BE49B', '#004B50', '#FFAB00', '#FF5630']
+        colors: ['#B71833', '#FFC1AC', '#7A0930', '#FFAB00', '#FF5630']
     };
 
     return (
@@ -168,8 +168,8 @@ const NewTicketsTable = ({ tickets }: { tickets: any[] }) => {
                                             padding: '0px 6px',
                                             fontSize: '0.75rem',
                                             fontWeight: 700,
-                                            bgcolor: 'rgba(0, 167, 111, 0.16)',
-                                            color: '#00a76f',
+                                            bgcolor: 'rgba(255, 48, 48, 0.16)',
+                                            color: '#FF3030',
                                         }}
                                     >
                                         {row.status === 'active' ? 'Đang bán' : 'Tạm dừng'}
@@ -283,7 +283,7 @@ const TopCustomers = ({ customers }: { customers: any[] }) => {
 
 const ProgressCard = ({ title, total, percent, color, bgIcon }: any) => {
     const isConversion = title === "Conversion";
-    const chartColor = isConversion ? "#00a76f" : "#00b8d9";
+    const chartColor = isConversion ? "#FF3030" : "#00b8d9";
     const chartGradient = isConversion ? "#5be49b" : "#4cf5e1";
 
     const chartOptions: any = {
@@ -399,7 +399,7 @@ const TicketServiceUsageChart = ({ data }: { data: any[] }) => {
         yaxis: { labels: { show: true } },
         grid: { strokeDashArray: 3, borderColor: 'var(--palette-divider)' },
         legend: { show: false },
-        colors: ['#007867', '#FFAB00', '#00B8D9'],
+        colors: ['#B71833', '#FFAB00', '#00B8D9'],
         dataLabels: { enabled: false }
     };
 
@@ -415,7 +415,7 @@ const TicketServiceUsageChart = ({ data }: { data: any[] }) => {
 
 const SystemStatsGrid = ({ stats }: { stats: any }) => {
     const statsData = [
-        { title: "Tổng người dùng", total: stats?.users?.total?.toLocaleString() || "0", percent: stats?.users?.percent || 0, trend: stats?.users?.trend || [], color: "#00a76f" },
+        { title: "Tổng người dùng", total: stats?.users?.total?.toLocaleString() || "0", percent: stats?.users?.percent || 0, trend: stats?.users?.trend || [], color: "#FF3030" },
         { title: "Nhân viên quản trị", total: stats?.admins?.total?.toLocaleString() || "0", percent: stats?.admins?.percent || 0, trend: stats?.admins?.trend || [], color: "#00b8d9" },
         { title: "Tổng thú cưng", total: stats?.userTickets?.total?.toLocaleString() || "0", percent: stats?.userTickets?.percent || 0, trend: stats?.userTickets?.trend || [], color: "#ff5630" }
     ];
@@ -733,7 +733,7 @@ export const SystemPage = () => {
                         title="Conversion"
                         total="38,566"
                         percent={48}
-                        color="#007867"
+                        color="#B71833"
                         bgIcon={
                             <svg width="120" height="120" viewBox="0 0 24 24">
                                 <circle cx="12" cy="6" r="4" fill="currentColor"></circle>

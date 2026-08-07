@@ -36,6 +36,10 @@ import {
     SystemConfigResponse,
 } from '../../types/system-config';
 import { CommissionTiersEditor } from './CommissionTiersEditor';
+import {
+    FortuneCooldownDurationEditor,
+    isFortuneCooldownConfig,
+} from './FortuneCooldownDurationEditor';
 
 interface SystemConfigEditDialogProps {
     config: SystemConfigResponse | null;
@@ -72,6 +76,9 @@ const getNumericBounds = (config: SystemConfigResponse): { min?: number; max?: n
 };
 
 const getValueFieldHelper = (config: SystemConfigResponse): string => {
+    if (isFortuneCooldownConfig(config.configKey)) {
+        return 'Nhập giờ và phút cho mỗi khung giờ đồng hồ';
+    }
     switch (config.dataType) {
         case ConfigDataType.INT:
             return config.unit ? `Nhập số nguyên (${config.unit})` : 'Nhập số nguyên';
@@ -220,12 +227,22 @@ export const SystemConfigEditDialog = ({
                                     label={
                                         isCommissionTiersConfig(config)
                                             ? 'Bậc thang %'
-                                            : CONFIG_DATA_TYPE_LABELS[config.dataType] || config.dataType
+                                            : isFortuneCooldownConfig(config.configKey)
+                                              ? 'Giờ + phút'
+                                              : CONFIG_DATA_TYPE_LABELS[config.dataType] || config.dataType
                                     }
                                     variant="outlined"
                                 />
                                 {config.unit && !isCommissionTiersConfig(config) && (
-                                    <Chip size="small" label={`Đơn vị: ${config.unit}`} variant="outlined" />
+                                    <Chip
+                                        size="small"
+                                        label={
+                                            isFortuneCooldownConfig(config.configKey)
+                                                ? 'Khung giờ đồng hồ'
+                                                : `Đơn vị: ${config.unit}`
+                                        }
+                                        variant="outlined"
+                                    />
                                 )}
                             </Stack>
 
@@ -274,6 +291,18 @@ export const SystemConfigEditDialog = ({
                                         control={control}
                                         render={({ field, fieldState }) => (
                                             <CommissionTiersEditor
+                                                value={field.value}
+                                                onChange={field.onChange}
+                                                error={fieldState.error?.message}
+                                            />
+                                        )}
+                                    />
+                                ) : isFortuneCooldownConfig(config.configKey) ? (
+                                    <Controller
+                                        name="configValue"
+                                        control={control}
+                                        render={({ field, fieldState }) => (
+                                            <FortuneCooldownDurationEditor
                                                 value={field.value}
                                                 onChange={field.onChange}
                                                 error={fieldState.error?.message}

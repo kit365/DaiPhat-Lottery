@@ -29,6 +29,7 @@ public class ReturnBatchPersistenceMapper {
 
         return ReturnBatchModel.builder()
                 .id(entity.getId())
+                .batchCode(entity.getBatchCode())
                 .lotterySupplierId(supplier != null ? supplier.getId() : null)
                 .supplierName(supplier != null ? supplier.getName() : null)
                 .supplierCode(supplier != null ? supplier.getCode() : null)
@@ -87,6 +88,7 @@ public class ReturnBatchPersistenceMapper {
         }
         return ReturnBatchEntity.builder()
                 .id(model.getId())
+                .batchCode(model.getBatchCode())
                 .lotterySupplier(supplier)
                 .drawDate(model.getDrawDate())
                 .supplierSettlementId(model.getSupplierSettlementId())
@@ -139,6 +141,7 @@ public class ReturnBatchPersistenceMapper {
     }
 
     public void updateEntityFromModel(ReturnBatchModel model, ReturnBatchEntity entity) {
+        entity.setBatchCode(model.getBatchCode());
         entity.setDrawDate(model.getDrawDate());
         entity.setSupplierSettlementId(model.getSupplierSettlementId());
         entity.setReturnReceiptUrl(model.getReturnReceiptUrl());

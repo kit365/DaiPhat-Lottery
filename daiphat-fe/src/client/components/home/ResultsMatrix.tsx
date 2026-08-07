@@ -84,7 +84,7 @@ export const ResultsMatrix: React.FC<ResultsMatrixProps> = ({
                   <span className="flex gap-1 items-center">
                     <span className="w-1.5 h-1.5 rounded-full bg-[#ee1314] animate-pulse"></span>
                   </span>
-                  <span>{statusMessage || 'Đang cập nhật kết quả mới nhất từ hệ thống.'}</span>
+                  <span suppressHydrationWarning>{statusMessage || 'Đang cập nhật kết quả mới nhất từ hệ thống.'}</span>
                 </p>
               </div>
             </div>

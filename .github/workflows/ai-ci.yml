@@ -33,3 +33,24 @@ jobs:
         env:
           PYTHONPATH: .:services/chat-bot
         run: pytest -q services/chat-bot
+
+  ticket-vision:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: daiphat-ai
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: daiphat-ai/services/ticket-vision/requirements.txt
+      - name: Install ticket-vision dependencies
+        # EasyOCR/PaddleOCR pull in torch/paddlepaddle -- this step is
+        # noticeably slower than chat-bot's, hence its own job.
+        run: pip install -r services/ticket-vision/requirements.txt pytest
+      - name: Test ticket-vision service
+        env:
+          PYTHONPATH: .:services/ticket-vision
+        run: pytest -q services/ticket-vision

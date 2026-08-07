@@ -27,6 +27,8 @@ public record LotterySupplierResponse(
         LocalTime importAllowFrom,
         @JsonFormat(pattern = "HH:mm")
         LocalTime returnCutOffTime,
+        @JsonFormat(pattern = "HH:mm")
+        LocalTime paymentCutOffTime,
         boolean isActive,
         List<String> missingActivationFields,
         LocalDateTime createdAt,

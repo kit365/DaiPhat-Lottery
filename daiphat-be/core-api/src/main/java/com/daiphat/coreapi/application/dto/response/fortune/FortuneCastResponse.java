@@ -1,5 +1,6 @@
 package com.daiphat.coreapi.application.dto.response.fortune;
 
+import java.time.Instant;
 import java.time.LocalDate;
 
 public record FortuneCastResponse(
@@ -15,7 +16,8 @@ public record FortuneCastResponse(
         LocalDate sellableDrawDate,
         String buyPath,
         boolean alreadyCastToday,
-        PreviousCastSummary previousCastSummary
+        PreviousCastSummary previousCastSummary,
+        Instant nextUnlockAt
 ) {
     public record PreviousCastSummary(
             LocalDate castDate,

@@ -1,6 +1,9 @@
 import CloseIcon from '@mui/icons-material/Close';
 import SearchIcon from '@mui/icons-material/Search';
 import VisibilityIcon from '@mui/icons-material/Visibility';
+import ConfirmationNumberIcon from '@mui/icons-material/ConfirmationNumber';
+import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
+import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
 import {
     Box,
     Button,
@@ -27,7 +30,7 @@ import {
     Typography,
 } from '@mui/material';
 import dayjs from 'dayjs';
-import { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { formatImportCost } from '../../../import-batch/utils/importCostCalculator';
 import { useInspectableReturnSerials } from '../../hooks/useReturnBatch';
 import type { ReturnBatchLine } from '../../types/returnBatch.type';
@@ -41,6 +44,212 @@ interface Props {
     initialStationName?: string | null;
     onClose: () => void;
 }
+
+const CollapsibleReturnTicketRow = ({
+    ticketGroup,
+    index,
+    page,
+    rowsPerPage,
+}: {
+    ticketGroup: {
+        ticketKey: string;
+        lotteryStationName: string;
+        ticketNumbers: string;
+        ticketPrice: number;
+        importCost: number;
+        serials: any[];
+    };
+    index: number;
+    page: number;
+    rowsPerPage: number;
+}) => {
+    const [open, setOpen] = useState(false);
+    const firstSerial = ticketGroup.serials[0];
+    const statusLabel = firstSerial?.statusLabel || firstSerial?.status || 'Trong kho';
+    const conditionLabel =
+        firstSerial?.ticketConditionDisplayName ||
+        (firstSerial?.ticketCondition === 'GOOD' || !firstSerial?.ticketCondition ? 'Tốt' : firstSerial?.ticketCondition || 'Tốt');
+
+    return (
+        <React.Fragment>
+            <TableRow
+                sx={{
+                    '& > *': { borderBottom: 'unset' },
+                    cursor: 'pointer',
+                    '&:hover': { bgcolor: '#F8FAFC' },
+                    transition: 'background-color 0.15s ease',
+                }}
+                onClick={() => setOpen(!open)}
+            >
+                <TableCell sx={{ width: 40, py: 1.5 }}>
+                    <IconButton
+                        aria-label="expand row"
+                        size="small"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            setOpen(!open);
+                        }}
+                    >
+                        {open ? <KeyboardArrowUpIcon /> : <KeyboardArrowDownIcon />}
+                    </IconButton>
+                </TableCell>
+                <TableCell align="center" sx={{ py: 1.5 }}>
+                    <Typography variant="body2" fontWeight={700} color="text.secondary">
+                        {page * rowsPerPage + index + 1}
+                    </Typography>
+                </TableCell>
+                <TableCell sx={{ fontWeight: 600, color: '#0F172A', py: 1.5 }}>
+                    {ticketGroup.lotteryStationName || '—'}
+                </TableCell>
+                <TableCell component="th" scope="row" sx={{ py: 1.5 }}>
+                    <Typography
+                        variant="body2"
+                        fontWeight={800}
+                        color="primary.main"
+                        sx={{
+                            letterSpacing: '0.5px',
+                            fontFamily: 'monospace',
+                        }}
+                    >
+                        {ticketGroup.ticketNumbers || '—'}
+                    </Typography>
+                </TableCell>
+                <TableCell sx={{ py: 1.5 }}>
+                    <Typography variant="caption" color="text.secondary" fontWeight={600}>
+                        {ticketGroup.serials.length} sê-ri
+                    </Typography>
+                </TableCell>
+                <TableCell align="center" sx={{ py: 1.5 }}>
+                    <Chip
+                        label={statusLabel}
+                        size="small"
+                        color={
+                            firstSerial?.status === 'IN_STOCK' || !firstSerial?.status
+                                ? 'success'
+                                : firstSerial?.status === 'SOLD'
+                                  ? 'info'
+                                  : 'warning'
+                        }
+                        variant={firstSerial?.status === 'IN_STOCK' || !firstSerial?.status ? 'outlined' : 'filled'}
+                        sx={{ height: 22, fontSize: '0.7rem', fontWeight: 700 }}
+                    />
+                </TableCell>
+                <TableCell align="center" sx={{ py: 1.5 }}>
+                    <Chip
+                        label={conditionLabel}
+                        size="small"
+                        variant="outlined"
+                        color="success"
+                        sx={{ height: 22, fontSize: '0.7rem', fontWeight: 600 }}
+                    />
+                </TableCell>
+                <TableCell align="right" sx={{ py: 1.5 }}>
+                    <Typography variant="body2" color="text.secondary" fontWeight={500}>
+                        {formatImportCost(ticketGroup.ticketPrice)} VNĐ
+                    </Typography>
+                </TableCell>
+                <TableCell align="right" sx={{ py: 1.5 }}>
+                    <Typography variant="body2" fontWeight={600} color="#0F172A">
+                        {formatImportCost(ticketGroup.importCost)} VNĐ
+                    </Typography>
+                </TableCell>
+            </TableRow>
+
+            {open &&
+                ticketGroup.serials.map((s: any, sIndex: number) => {
+                    const isDamaged =
+                        s.ticketCondition &&
+                        s.ticketCondition !== 'NORMAL' &&
+                        s.ticketCondition !== 'GOOD';
+
+                    return (
+                        <TableRow
+                            key={s.serialId || s.id || sIndex}
+                            sx={{
+                                bgcolor: '#F8FAFC',
+                                '&:hover': { bgcolor: '#F1F5F9' },
+                                transition: 'background-color 0.15s ease',
+                            }}
+                        >
+                            <TableCell sx={{ width: 40, py: 1 }} />
+                            <TableCell align="center" sx={{ py: 1 }}>
+                                <Typography variant="caption" fontWeight={600} color="text.secondary">
+                                    {`${page * rowsPerPage + index + 1}.${sIndex + 1}`}
+                                </Typography>
+                            </TableCell>
+                            <TableCell sx={{ py: 1 }}>
+                                <Typography variant="body2" color="text.secondary">
+                                    {s.lotteryStationName || ticketGroup.lotteryStationName || '—'}
+                                </Typography>
+                            </TableCell>
+                            <TableCell sx={{ py: 1 }}>
+                                <Typography variant="body2" fontWeight={600} color="text.secondary">
+                                    {ticketGroup.ticketNumbers}
+                                </Typography>
+                            </TableCell>
+                            <TableCell sx={{ py: 1 }}>
+                                <Typography
+                                    variant="body2"
+                                    fontWeight={700}
+                                    sx={{
+                                        fontFamily: 'monospace',
+                                        bgcolor: '#FFFFFF',
+                                        px: 1,
+                                        py: 0.25,
+                                        borderRadius: 1,
+                                        display: 'inline-block',
+                                        border: '1px solid #E2E8F0',
+                                        color: '#334155',
+                                    }}
+                                >
+                                    {s.serialNumber}
+                                </Typography>
+                            </TableCell>
+                            <TableCell align="center" sx={{ py: 1 }}>
+                                <Chip
+                                    label={s.statusLabel || s.status || 'Trong kho'}
+                                    size="small"
+                                    color={
+                                        s.status === 'IN_STOCK' || !s.status
+                                            ? 'success'
+                                            : s.status === 'SOLD'
+                                              ? 'info'
+                                              : 'warning'
+                                    }
+                                    variant={s.status === 'IN_STOCK' || !s.status ? 'outlined' : 'filled'}
+                                    sx={{ height: 22, fontSize: '0.7rem', fontWeight: 700 }}
+                                />
+                            </TableCell>
+                            <TableCell align="center" sx={{ py: 1 }}>
+                                <Chip
+                                    label={
+                                        s.ticketConditionDisplayName ||
+                                        (s.ticketCondition === 'GOOD' || !s.ticketCondition
+                                            ? 'Tốt'
+                                            : s.ticketCondition || 'Tốt')
+                                    }
+                                    size="small"
+                                    variant="outlined"
+                                    color={isDamaged ? 'error' : 'success'}
+                                    sx={{ height: 22, fontSize: '0.7rem', fontWeight: 600 }}
+                                />
+                            </TableCell>
+                            <TableCell align="right" sx={{ py: 1 }}>
+                                <Typography variant="body2" color="text.secondary" fontWeight={500}>
+                                    {s.ticketPrice ? `${formatImportCost(s.ticketPrice)} VNĐ` : `${formatImportCost(ticketGroup.ticketPrice)} VNĐ`}
+                                </Typography>
+                            </TableCell>
+                            <TableCell align="right" sx={{ py: 1 }}>
+                                <Typography variant="body2" fontWeight={600} color="#0F172A">
+                                    {s.importCost ? `${formatImportCost(s.importCost)} VNĐ` : `${formatImportCost(ticketGroup.importCost)} VNĐ`}
+                                </Typography>
+                            </TableCell>
+                        </TableRow>
+                    );
+                })}
+        </React.Fragment>
+    );
+};
 
 export const ReturnBatchTicketsModal = ({
     open,
@@ -102,6 +311,38 @@ export const ReturnBatchTicketsModal = ({
         return result;
     }, [serials, selectedStationTab, searchQuery]);
 
+    // Group serials by ticket number & station name
+    const groupedTickets = useMemo(() => {
+        const groupMap = new Map<
+            string,
+            {
+                ticketKey: string;
+                lotteryStationName: string;
+                ticketNumbers: string;
+                ticketPrice: number;
+                importCost: number;
+                serials: typeof serials;
+            }
+        >();
+
+        filteredSerials.forEach((item) => {
+            const key = `${item.lotteryStationName || '—'}_${item.ticketNumbers || '—'}`;
+            if (!groupMap.has(key)) {
+                groupMap.set(key, {
+                    ticketKey: key,
+                    lotteryStationName: item.lotteryStationName || '—',
+                    ticketNumbers: item.ticketNumbers || '—',
+                    ticketPrice: Number(item.ticketPrice) || 10000,
+                    importCost: Number(item.importCost) || 10000,
+                    serials: [],
+                });
+            }
+            groupMap.get(key)!.serials.push(item);
+        });
+
+        return Array.from(groupMap.values());
+    }, [filteredSerials]);
+
     // Totals for filtered serials
     const totalCount = filteredSerials.length;
 
@@ -119,11 +360,11 @@ export const ReturnBatchTicketsModal = ({
         }, 0);
     }, [filteredSerials]);
 
-    // Paginated serials
-    const paginatedSerials = useMemo(() => {
+    // Paginated ticket groups
+    const paginatedTickets = useMemo(() => {
         const start = page * rowsPerPage;
-        return filteredSerials.slice(start, start + rowsPerPage);
-    }, [filteredSerials, page, rowsPerPage]);
+        return groupedTickets.slice(start, start + rowsPerPage);
+    }, [groupedTickets, page, rowsPerPage]);
 
     const handleChangePage = (_: unknown, newPage: number) => {
         setPage(newPage);
@@ -139,25 +380,28 @@ export const ReturnBatchTicketsModal = ({
             <DialogTitle
                 sx={{
                     m: 0,
-                    p: 2,
+                    p: 2.5,
                     display: 'flex',
-                    justify: 'space-between',
+                    justifyContent: 'space-between',
                     alignItems: 'center',
-                    borderBottom: '1px solid #E2E8F0',
-                    bgcolor: '#F8FAFC',
+                    background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)',
+                    color: '#fff',
                 }}
             >
-                <Box>
-                    <Typography variant="h6" fontWeight={700} color="#1E293B">
-                        Danh sách vé kiểm tra trả nhà cung cấp #{batchId}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
+                <Box sx={{ minWidth: 0 }}>
+                    <Stack direction="row" alignItems="center" spacing={1}>
+                        <ConfirmationNumberIcon sx={{ color: 'primary.light', opacity: 0.9 }} />
+                        <Typography variant="h6" fontWeight={700} sx={{ letterSpacing: '0.2px', fontSize: '1.15rem' }}>
+                            Danh sách vé kiểm tra trả nhà cung cấp #{batchId}
+                        </Typography>
+                    </Stack>
+                    <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)', mt: 0.5, fontSize: '0.825rem' }}>
                         {supplierName ? `NCC: ${supplierName}` : ''}
                         {supplierName && drawDate ? ' • ' : ''}
                         {drawDate ? `Ngày quay: ${dayjs(drawDate).format('DD/MM/YYYY')}` : ''}
                     </Typography>
                 </Box>
-                <IconButton onClick={onClose} size="small" sx={{ color: 'text.secondary' }}>
+                <IconButton onClick={onClose} size="small" sx={{ color: '#fff', '&:hover': { bgcolor: 'rgba(255,255,255,0.1)' } }}>
                     <CloseIcon />
                 </IconButton>
             </DialogTitle>
@@ -191,7 +435,7 @@ export const ReturnBatchTicketsModal = ({
                             <Typography variant="caption" color="text.secondary" fontWeight={500}>
                                 Tổng giá vốn
                             </Typography>
-                            <Typography variant="h6" fontWeight={700} color="#00A76F">
+                            <Typography variant="h6" fontWeight={700} color="#FF3030">
                                 {formatImportCost(totalWholesalePrice)} VNĐ
                             </Typography>
                         </Paper>
@@ -286,104 +530,31 @@ export const ReturnBatchTicketsModal = ({
                             <Table stickyHeader size="small">
                                 <TableHead>
                                     <TableRow sx={{ '& th': { bgcolor: '#F1F5F9', fontWeight: 700 } }}>
-                                        <TableCell align="center" width={60}>
+                                        <TableCell width={40} />
+                                        <TableCell align="center" width={50}>
                                             STT
                                         </TableCell>
-                                        <TableCell>Mã sê-ri</TableCell>
-                                        <TableCell>Số vé</TableCell>
                                         <TableCell>Nhà đài</TableCell>
-                                        <TableCell align="center">Ngày quay</TableCell>
-                                        <TableCell align="right">Giá vốn</TableCell>
-                                        <TableCell align="right">Giá bán</TableCell>
-                                        <TableCell align="center">Tình trạng vé</TableCell>
+                                        <TableCell>Số vé</TableCell>
+                                        <TableCell>Sê-ri</TableCell>
                                         <TableCell align="center">Trạng thái</TableCell>
+                                        <TableCell align="center">Tình trạng vé</TableCell>
+                                        <TableCell align="right">Giá bán</TableCell>
+                                        <TableCell align="right">Giá vốn</TableCell>
                                     </TableRow>
                                 </TableHead>
                                 <TableBody>
-                                    {paginatedSerials.map((serial, idx) => {
-                                        const isDamaged =
-                                            serial.ticketCondition &&
-                                            serial.ticketCondition !== 'NORMAL' &&
-                                            serial.ticketCondition !== 'GOOD';
+                                    {paginatedTickets.map((ticketGroup, idx) => (
+                                        <CollapsibleReturnTicketRow
+                                            key={ticketGroup.ticketKey}
+                                            ticketGroup={ticketGroup}
+                                            index={idx}
+                                            page={page}
+                                            rowsPerPage={rowsPerPage}
+                                        />
+                                    ))}
 
-                                        return (
-                                            <TableRow key={serial.serialId} hover>
-                                                <TableCell align="center">
-                                                    {page * rowsPerPage + idx + 1}
-                                                </TableCell>
-                                                <TableCell>
-                                                    <Typography
-                                                        variant="body2"
-                                                        fontWeight={700}
-                                                        sx={{
-                                                            fontFamily: 'monospace',
-                                                            bgcolor: '#F8FAFC',
-                                                            px: 1,
-                                                            py: 0.25,
-                                                            borderRadius: 1,
-                                                            display: 'inline-block',
-                                                            border: '1px solid #E2E8F0',
-                                                        }}
-                                                    >
-                                                        {serial.serialNumber}
-                                                    </Typography>
-                                                </TableCell>
-                                                <TableCell>
-                                                    <Typography variant="body2" fontWeight={600}>
-                                                        {serial.ticketNumbers || '—'}
-                                                    </Typography>
-                                                </TableCell>
-                                                <TableCell>
-                                                    <Typography variant="body2">
-                                                        {serial.lotteryStationName || '—'}
-                                                    </Typography>
-                                                </TableCell>
-                                                <TableCell align="center">
-                                                    <Typography variant="body2" color="text.secondary">
-                                                        {serial.drawDate
-                                                            ? dayjs(serial.drawDate).format('DD/MM/YYYY')
-                                                            : '—'}
-                                                    </Typography>
-                                                </TableCell>
-                                                <TableCell align="right">
-                                                    <Typography variant="body2" fontWeight={600}>
-                                                        {serial.importCost
-                                                            ? `${formatImportCost(serial.importCost)} VNĐ`
-                                                            : '—'}
-                                                    </Typography>
-                                                </TableCell>
-                                                <TableCell align="right">
-                                                    <Typography variant="body2" fontWeight={600} color="#7635DC">
-                                                        {serial.ticketPrice
-                                                            ? `${formatImportCost(serial.ticketPrice)} VNĐ`
-                                                            : '—'}
-                                                    </Typography>
-                                                </TableCell>
-                                                <TableCell align="center">
-                                                    <Chip
-                                                        label={
-                                                            serial.ticketConditionDisplayName ||
-                                                            serial.ticketCondition ||
-                                                            'Bình thường'
-                                                        }
-                                                        size="small"
-                                                        color={isDamaged ? 'error' : 'success'}
-                                                        variant={isDamaged ? 'filled' : 'outlined'}
-                                                    />
-                                                </TableCell>
-                                                <TableCell align="center">
-                                                    <Chip
-                                                        label={serial.statusLabel || serial.status || 'Tồn kho'}
-                                                        size="small"
-                                                        color="info"
-                                                        variant="filled"
-                                                    />
-                                                </TableCell>
-                                            </TableRow>
-                                        );
-                                    })}
-
-                                    {filteredSerials.length === 0 && (
+                                    {groupedTickets.length === 0 && (
                                         <TableRow>
                                             <TableCell colSpan={9} align="center" sx={{ py: 4 }}>
                                                 <Typography color="text.secondary">
@@ -400,7 +571,7 @@ export const ReturnBatchTicketsModal = ({
                     <TablePagination
                         rowsPerPageOptions={[10, 25, 50, 100]}
                         component="div"
-                        count={filteredSerials.length}
+                        count={groupedTickets.length}
                         rowsPerPage={rowsPerPage}
                         page={page}
                         onPageChange={handleChangePage}

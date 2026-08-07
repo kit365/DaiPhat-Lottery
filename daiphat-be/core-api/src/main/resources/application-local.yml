@@ -3,9 +3,10 @@ server:
 
 spring:
   datasource:
-    url: jdbc:postgresql://${SPRING_DATASOURCE_HOST:localhost}:${SPRING_DATASOURCE_PORT:${LOCAL_POSTGRES_PORT:5434}}/daiphat_core_db?charSet=UTF-8
-    username: ${SPRING_DATASOURCE_USERNAME:sa}
-    password: ${SPRING_DATASOURCE_PASSWORD:12345}
+    # Align with docker-compose.yml host mapping (LOCAL_POSTGRES_PORT, default 5434).
+    url: jdbc:postgresql://${CORE_POSTGRES_HOST:localhost}:${LOCAL_POSTGRES_PORT:${CORE_DB_PORT:5434}}/${CORE_POSTGRES_DB:daiphat_core_db}?charSet=UTF-8
+    username: ${CORE_POSTGRES_USER:sa}
+    password: ${CORE_POSTGRES_PASSWORD:12345}
     driver-class-name: org.postgresql.Driver
     hikari:
       maximum-pool-size: 15
@@ -20,14 +21,15 @@ spring:
   flyway:
     enabled: true
     out-of-order: true
+    repair-on-migrate: true
   servlet:
     multipart:
       max-file-size: 15MB
       max-request-size: 15MB
   data:
     redis:
-      host: localhost
-      port: 6380
+      host: ${CORE_REDIS_HOST:localhost}
+      port: ${LOCAL_REDIS_PORT:${CORE_REDIS_PORT:6380}}
   mail:
     # Local .env uses AUTH_LOCAL_MAIL_*; MAIL_* remains an optional override.
     host: ${MAIL_HOST:${AUTH_LOCAL_MAIL_HOST}}
@@ -43,17 +45,24 @@ spring:
             enable: true
 
 daiphat:
+  # Placeholder Cloudinary keys (CLOUDINARY_CLOUD_NAME=local-cloud) cannot upload;
+  # use filesystem storage for local Import Batch receipt / ticket image flows.
+  storage:
+    provider: local
   vendor:
     test-seed:
       enabled: ${VENDOR_TEST_SEED_ENABLED:true}
   auth:
     frontend-url: http://localhost:5173
     jwt:
-      secret: ${AUTH_JWT_SECRET:daiphat_super_secret_jwt_key_for_local_development_environment_32bytes}
       issuer: ${AUTH_JWT_ISSUER:daiphat-core-api}
-      access-token-ttl-seconds: ${AUTH_JWT_ACCESS_TOKEN_TTL_SECONDS:900}
+      secret: ${AUTH_JWT_SECRET:daiphat_super_secret_jwt_key_for_local_development_environment_32bytes}
+      # Hardcoded for local: ignore AUTH_JWT_ACCESS_TOKEN_TTL_SECONDS=5 (refresh-test value)
+      # which floods admin layout polls with 401s once the access token dies.
+      access-token-ttl-seconds: 900
       refresh-token-ttl-seconds: ${AUTH_JWT_REFRESH_TOKEN_TTL_SECONDS:604800}
     cookie:
+      # Literal name for HTTP localhost — __Secure-* cookies are rejected without HTTPS.
       name: refresh_token
       secure: false
       same-site: Lax
@@ -64,6 +73,10 @@ daiphat:
         - http://127.0.0.1:5173
         - http://localhost:5174
         - http://127.0.0.1:5174
+        - http://localhost:3000
+        - http://127.0.0.1:3000
+        - http://localhost:3001
+        - http://127.0.0.1:3001
       allowed-methods:
         - GET
         - POST
@@ -82,12 +95,28 @@ daiphat:
     password-policy:
       min-length: 6
       max-length: 100
+  blog:
+    seed:
+      enabled: true
   lottery:
     seed:
+      enabled: true
+      tickets-per-station-per-date: 20
+      serials-per-ticket: 10
+      status-coverage:
+        enabled: true
       southern-stations:
         enabled: true
   fortune:
-    daily-limit-enabled: false
+    daily-limit-enabled: true
+  order:
+    seed:
+      enabled: true
+      pending-pickup:
+        enabled: true
+  sample-order:
+    seed:
+      enabled: true
 
 logging:
   level:

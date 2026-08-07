@@ -178,6 +178,21 @@ export const getBatchTypeColor = (
     return 'default';
 };
 
+/** Global CSS: `.admin-status-badge` + modifier */
+export const getBatchTypeBadgeClass = (type?: string) => {
+    switch (type) {
+        case 'NEW':
+            return 'admin-status-badge--success';
+        case 'SUPPLEMENTARY':
+            return 'admin-status-badge--pending';
+        case 'ADJUSTMENT':
+        case 'ADDITIONAL':
+            return 'admin-status-badge--active';
+        default:
+            return 'admin-status-badge--draft';
+    }
+};
+
 export const IMPORT_MODE_LABELS: Record<string, string> = {
     IN_DAY: 'Nhập vé trong ngày',
     SAME_DAY: 'Nhập vé trong ngày',

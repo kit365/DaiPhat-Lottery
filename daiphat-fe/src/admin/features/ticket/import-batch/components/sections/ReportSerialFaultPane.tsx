@@ -2482,14 +2482,13 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
                         onClick={handleEvidenceApplyNo}
                         variant="outlined"
                         color="inherit"
-                        sx={{ fontWeight: 700, textTransform: 'none', borderRadius: '8px' }}
                     >
                         Không
                     </Button>
                     <Button
                         onClick={handleEvidenceApplyYes}
                         variant="contained"
-                        sx={{ fontWeight: 700, textTransform: 'none', borderRadius: '8px', bgcolor: '#ef4444', '&:hover': { bgcolor: '#dc2626' } }}
+                        sx={{ bgcolor: '#ef4444', '&:hover': { bgcolor: '#dc2626' } }}
                     >
                         Có, áp dụng cho tất cả
                     </Button>

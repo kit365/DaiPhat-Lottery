@@ -77,7 +77,7 @@ export const PrizePayoutStatusStepper: React.FC<PrizePayoutStatusStepperProps> =
             <div className="flex items-center justify-between relative max-w-xl mx-auto">
                 <div className="absolute top-6 left-0 w-full h-[3px] bg-[#F4F6F8] -translate-y-1/2 z-0 rounded-full"></div>
                 <div
-                    className="absolute top-6 left-0 h-[3px] bg-[#00A76F] -translate-y-1/2 z-0 transition-all duration-700 rounded-full"
+                    className="absolute top-6 left-0 h-[3px] bg-[#FF3030] -translate-y-1/2 z-0 transition-all duration-700 rounded-full"
                     style={{ width: `${(currentIndex / Math.max(steps.length - 1, 1)) * 100}%` }}
                 ></div>
                 {steps.map((step, index) => {
@@ -87,12 +87,12 @@ export const PrizePayoutStatusStepper: React.FC<PrizePayoutStatusStepperProps> =
                         <div key={step.key} className="relative z-10 flex flex-col items-center gap-2 bg-white px-3">
                             <div
                                 className={`w-12 h-12 rounded-full flex items-center justify-center ${
-                                    isCompleted ? 'bg-[#00A76F] text-white' : 'bg-[#F4F6F8] text-[#919EAB]'
-                                } ${isActive ? 'shadow-[0_0_0_6px_#E4F8ED]' : ''}`}
+                                    isCompleted ? 'bg-[#FF3030] text-white' : 'bg-[#F4F6F8] text-[#919EAB]'
+                                } ${isActive ? 'shadow-[0_0_0_6px_#FFE3D5]' : ''}`}
                             >
                                 <i className={step.icon}></i>
                             </div>
-                            <span className={`text-[12px] font-bold ${isCompleted ? 'text-[#00A76F]' : 'text-[#919EAB]'}`}>
+                            <span className={`text-[12px] font-bold ${isCompleted ? 'text-[#FF3030]' : 'text-[#919EAB]'}`}>
                                 {step.label}
                             </span>
                         </div>

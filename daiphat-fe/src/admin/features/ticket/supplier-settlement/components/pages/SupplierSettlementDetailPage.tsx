@@ -1,7 +1,9 @@
 "use client";
 
+import { useNavigate } from 'react-router-dom';
+import ArrowBackOutlinedIcon from '@mui/icons-material/ArrowBackOutlined';
 import CalendarTodayOutlinedIcon from '@mui/icons-material/CalendarTodayOutlined';
-import { Avatar, Box, Card, CircularProgress, Stack, Typography } from '@mui/material';
+import { Avatar, Box, Card, CircularProgress, IconButton, Stack, Typography } from '@mui/material';
 import dayjs from 'dayjs';
 import { useParams } from '@/components/router-compat';
 import { Breadcrumb } from '../../../../../components/ui/Breadcrumb';
@@ -17,6 +19,7 @@ import { SettlementConsolidatedDetails } from '../sections/SettlementConsolidate
 import { SettlementKpiCards } from '../sections/SettlementKpiCards';
 
 export const SupplierSettlementDetailPage = () => {
+    const navigate = useNavigate();
     const { id } = useParams<{ id: string }>();
     const { data: overview, isLoading, isError } = useSupplierSettlementOverview(id);
 
@@ -49,10 +52,34 @@ export const SupplierSettlementDetailPage = () => {
 
     return (
         <Box sx={{ width: '100%', pb: 5 }}>
-            {/* Page Header */}
+            {/* Page Header with Circular Back Button */}
             <div className="mb-[calc(4*var(--spacing))] flex items-start justify-end gap-[calc(2*var(--spacing))]">
                 <div className="mr-auto">
-                    <Title title="Chi tiết đối soát nhà cung cấp" />
+                    <Stack direction="row" alignItems="center" spacing={1.5}>
+                        <IconButton
+                            onClick={() => navigate(ROUTES.ADMIN.SUPPLIER_SETTLEMENT.LIST)}
+                            size="small"
+                            sx={{
+                                bgcolor: '#ffffff',
+                                border: '1px solid #cbd5e1',
+                                color: '#334155',
+                                boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.06)',
+                                width: 34,
+                                height: 34,
+                                '&:hover': {
+                                    bgcolor: '#f1f5f9',
+                                    borderColor: '#94a3b8',
+                                    color: '#0f172a',
+                                    transform: 'translateX(-2px)',
+                                },
+                                transition: 'all 0.15s ease',
+                            }}
+                            title="Quay lại danh sách đối soát NCC"
+                        >
+                            <ArrowBackOutlinedIcon fontSize="small" />
+                        </IconButton>
+                        <Title title="Chi tiết đối soát nhà cung cấp" />
+                    </Stack>
                     <Breadcrumb
                         items={[
                             { label: 'Vé số', to: ROUTES.ADMIN.TICKETS.LIST },
@@ -138,18 +165,27 @@ export const SupplierSettlementDetailPage = () => {
                         </Box>
                     </Stack>
 
-                    <Stack direction="row" spacing={2} alignItems="center">
+                    <Stack direction="row" spacing={1.5} alignItems="center">
+                        {settlement.isReturnExpired && (
+                            <span className="admin-status-badge admin-status-badge--cancelled">
+                                Quá hạn trả vé
+                            </span>
+                        )}
                         <span className={`admin-status-badge ${getSupplierSettlementStatusModifier(settlement.status)}`}>
                             {statusLabel}
                         </span>
                     </Stack>
                 </Stack>
 
-                {/* 100% Balanced Financial Metric Grid */}
+                {/* 100% Balanced Financial Metric Grid (Dynamic 3 or 4 Columns based on isReturnExpired) */}
                 <Box
                     sx={{
                         display: 'grid',
-                        gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)' },
+                        gridTemplateColumns: {
+                            xs: '1fr',
+                            sm: settlement.isReturnExpired ? 'repeat(3, 1fr)' : 'repeat(2, 1fr)',
+                            md: settlement.isReturnExpired ? 'repeat(3, 1fr)' : 'repeat(4, 1fr)',
+                        },
                         gap: 2,
                         pt: 2.5,
                         width: '100%',
@@ -165,17 +201,34 @@ export const SupplierSettlementDetailPage = () => {
                         </Typography>
                     </Box>
 
-                    {/* 2. Tổng giá trị trả */}
-                    <Box sx={{ p: 2, borderRadius: '12px', bgcolor: '#f8fafc', border: '1px solid #e2e8f0' }}>
-                        <Typography variant="caption" fontWeight={600} color="text.secondary" display="block">
-                            Tổng giá trị trả
-                        </Typography>
-                        <Typography variant="h6" fontWeight={800} color="#0f172a" sx={{ mt: 0.5 }}>
-                            {formatImportCost(settlement.totalReturnValue)} VNĐ
-                        </Typography>
-                    </Box>
+                    {/* 2. Tổng giá trị trả (Ẩn khi quá hạn trả vé - isReturnExpired = true) */}
+                    {!settlement.isReturnExpired && (
+                        <Box sx={{ p: 2, borderRadius: '12px', bgcolor: '#f8fafc', border: '1px solid #e2e8f0' }}>
+                            <Typography variant="caption" fontWeight={600} color="text.secondary" display="block">
+                                Tổng giá trị trả
+                            </Typography>
+                            <Typography variant="h6" fontWeight={800} color="#0f172a" sx={{ mt: 0.5 }}>
+                                {formatImportCost(settlement.totalReturnValue)} VNĐ
+                            </Typography>
+                        </Box>
+                    )}
 
-                    {/* 3. Đã thanh toán */}
+                    {/* 3. Giá trị quá hạn trả (Hiển thị khi isReturnExpired = TRUE) */}
+                    {settlement.isReturnExpired && (
+                        <Box sx={{ p: 2, borderRadius: '12px', bgcolor: '#fef2f2', border: '1px solid #fecaca' }}>
+                            <Typography variant="caption" fontWeight={700} color="#991b1b" display="block">
+                                Giá trị quá hạn trả
+                            </Typography>
+                            <Typography variant="h6" fontWeight={800} color="#dc2626" sx={{ mt: 0.5 }}>
+                                {formatImportCost(settlement.expiredReturnValue ?? 0)} VNĐ
+                            </Typography>
+                            <Typography variant="caption" color="#b91c1c" sx={{ fontSize: '0.68rem', display: 'block', mt: 0.25 }}>
+                                Vé chưa kịp bàn giao NCC
+                            </Typography>
+                        </Box>
+                    )}
+
+                    {/* 4. Đã thanh toán */}
                     <Box sx={{ p: 2, borderRadius: '12px', bgcolor: '#f8fafc', border: '1px solid #e2e8f0' }}>
                         <Typography variant="caption" fontWeight={600} color="text.secondary" display="block">
                             Đã thanh toán
@@ -185,23 +238,22 @@ export const SupplierSettlementDetailPage = () => {
                         </Typography>
                     </Box>
 
-                    {/* 4. Còn phải trả NCC */}
-                    <Box sx={{ p: 2, borderRadius: '12px', bgcolor: '#f0fdf4', border: '1px solid #bbf7d0' }}>
-                        <Typography variant="caption" fontWeight={700} color="#166534" display="block">
-                            Còn phải trả NCC
-                        </Typography>
-                        <Typography variant="h6" fontWeight={800} color="#15803d" sx={{ mt: 0.5 }}>
-                            {formatImportCost(settlement.remainingAmount)} VNĐ
-                        </Typography>
-                        {!hasCompletedReturnInspection && (
-                            <Typography
-                                variant="caption"
-                                sx={{ mt: 0.75, display: 'block', color: '#166534', opacity: 0.85 }}
-                            >
-                                Sẽ tính sau khi hoàn tất kiểm tra phiếu trả
+                    {/* 5. Còn phải trả NCC (Ẩn khi quá hạn trả vé - isReturnExpired = true) */}
+                    {!settlement.isReturnExpired && (
+                        <Box sx={{ p: 2, borderRadius: '12px', bgcolor: '#f0fdf4', border: '1px solid #bbf7d0' }}>
+                            <Typography variant="caption" fontWeight={700} color="#166534" display="block">
+                                Còn phải trả NCC
                             </Typography>
-                        )}
-                    </Box>
+                            <Typography variant="h6" fontWeight={800} color="#15803d" sx={{ mt: 0.5 }}>
+                                {formatImportCost(settlement.remainingAmount)} VNĐ
+                            </Typography>
+                            {(!settlement.totalReturnValue || settlement.totalReturnValue === 0) && (
+                                <Typography variant="caption" color="#166534" sx={{ fontSize: '0.68rem', display: 'block', mt: 0.25 }}>
+                                    Sẽ tính sau khi hoàn tất kiểm tra phiếu trả
+                                </Typography>
+                            )}
+                        </Box>
+                    )}
                 </Box>
             </Card>
 
@@ -214,11 +266,16 @@ export const SupplierSettlementDetailPage = () => {
             </Box>
 
             {/* Consolidated Details Tabbed Table */}
-            <SettlementConsolidatedDetails
-                inventoryRows={overview.inventoryByStation || []}
-                importBatches={overview.importBatches || []}
-                returnBatches={overview.returnBatches || []}
-            />
+            <Box sx={{ width: '100%' }}>
+                <Typography variant="subtitle1" fontWeight={700} color="#0f172a" sx={{ mb: 1.5 }}>
+                    Chi tiết dữ liệu đối soát
+                </Typography>
+                <SettlementConsolidatedDetails
+                    inventoryRows={overview.inventoryByStation || []}
+                    importBatches={overview.importBatches || []}
+                    returnBatches={overview.returnBatches || []}
+                />
+            </Box>
         </Box>
     );
 };

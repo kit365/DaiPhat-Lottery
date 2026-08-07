@@ -13,6 +13,7 @@ import java.util.UUID;
 @Builder
 public record ReturnBatchResponse(
         Long id,
+        String batchCode,
         Long lotterySupplierId,
         String supplierName,
         String supplierCode,

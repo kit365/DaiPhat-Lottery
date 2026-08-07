@@ -105,7 +105,7 @@ export const LoginContent = ({ onSwitchToRegister }: { onSwitchToRegister?: () =
                             closeAuthModals();
                             navigate("/forgot-password");
                         }}
-                        className="text-[#FF6262] hover:underline"
+                        className="text-[#FF6262] hover:underline cursor-pointer"
                     >
                         Quên mật khẩu?
                     </a>
@@ -129,7 +129,7 @@ export const LoginContent = ({ onSwitchToRegister }: { onSwitchToRegister?: () =
 
             <p className="mt-6 text-center text-slate-500 font-bold text-sm">
                 Chưa có tài khoản?{" "}
-                <a href="#" onClick={(e) => { e.preventDefault(); onSwitchToRegister?.(); }} className="text-[#FF6262] hover:underline">
+                <a href="#" onClick={(e) => { e.preventDefault(); onSwitchToRegister?.(); }} className="text-[#FF6262] hover:underline cursor-pointer">
                     Đăng ký miễn phí
                 </a>
             </p>

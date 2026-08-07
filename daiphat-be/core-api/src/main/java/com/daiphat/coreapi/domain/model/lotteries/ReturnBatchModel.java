@@ -23,6 +23,7 @@ import java.util.UUID;
 public class ReturnBatchModel {
 
     private Long id;
+    private String batchCode;
     private Long lotterySupplierId;
     private String supplierName;
     private String supplierCode;

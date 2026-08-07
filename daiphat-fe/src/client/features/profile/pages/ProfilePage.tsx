@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef } from "react";
-import { useLocation, useNavigate, Link, Outlet } from "@/components/router-compat";
+import { useLocation, useNavigate, Link } from "@/components/router-compat";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "../../../hooks/useAuth";
 import { useAuthStore } from "../../../../stores/useAuthStore";
@@ -9,6 +9,8 @@ import { useNotifications } from "../../../hooks/useNotifications";
 import { useMyRefundPendingCount } from "../../../hooks/useMyRefundPendingCount";
 import { useMyPrizePayoutPendingCount } from "../../../hooks/usePrizePayout";
 import { useMySupportTicketActiveCount } from "../../../hooks/useMySupportTicketActiveCount";
+import { PROFILE_BANNERS } from "../../../constants/clientBannerAssets";
+import { ROUTES } from '@/admin/constants/routes';
 import { Breadcrumb } from "../../../../client/components/ui/Breadcrumb";
 
 type TabId = 'overview' | 'info' | 'tickets' | 'orders' | 'refunds' | 'prizePayouts' | 'complaints' | 'bankAccounts' | 'notifications' | 'resultNotifications' | 'settings' | 'favorites';
@@ -36,7 +38,7 @@ const TABS: TabConfig[] = [
     { id: 'settings', path: '/profile/settings', label: 'Bảo mật', icon: 'fa-solid fa-shield-halved' },
 ];
 
-export const ProfilePage = () => {
+export const ProfilePage = ({ children }: { children?: React.ReactNode }) => {
     const { user, isUserLoading, handleUploadAvatar, uploadAvatarMutation, logout } = useAuth();
     const { token, isHydrated, openLoginModal } = useAuthStore();
     const { unreadCount } = useNotifications(4);
@@ -116,7 +118,7 @@ export const ProfilePage = () => {
             <style>{`
                 @media (min-width: 1024px) {
                     .profile-bg {
-                        background-image: url('https://i.ibb.co/nsNc8F41/Screenshot-2026-05-30-141824.png'), url('https://i.ibb.co/DP5YBHxY/Screenshot-2026-05-30-142428.png');
+                        background-image: url('${PROFILE_BANNERS[0]}'), url('${PROFILE_BANNERS[1]}');
                         background-position: center -20px, bottom center;
                         background-size: 100% auto, 100% auto;
                         background-repeat: no-repeat, no-repeat;
@@ -149,7 +151,7 @@ export const ProfilePage = () => {
                                     {/* Cherry Blossom Background */}
                                     <div
                                         className="absolute top-0 left-0 right-0 h-[140px] bg-cover bg-top z-0"
-                                        style={{ backgroundImage: "url('https://i.ibb.co/hxtX5R85/5193a4bb-ce0a-469c-9345-0f9c814a8dab.png')" }}
+                                        style={{ backgroundImage: `url('${PROFILE_BANNERS[2]}')` }}
                                     >
                                     </div>
 
@@ -235,10 +237,10 @@ export const ProfilePage = () => {
                             </div>
 
                             {/* Support Widget */}
-                            {location.pathname.includes('/profile/overview') && (
+                            {(location.pathname === ROUTES.PUBLIC.PROFILE.ROOT || location.pathname === ROUTES.PUBLIC.PROFILE.OVERVIEW) && (
                                 <div
                                     className="rounded-[20px] p-5 relative overflow-hidden flex flex-col justify-center min-h-[140px] bg-cover bg-center shadow-sm"
-                                    style={{ backgroundImage: "url('https://i.ibb.co/M5RCKKDn/d2ee3500-96d8-4e2f-a713-d74b7e35e64c.png')" }}
+                                    style={{ backgroundImage: `url('${PROFILE_BANNERS[3]}')` }}
                                 >
                                     <div className="relative z-10 max-w-[65%]">
                                         <h3 className="text-[14px] font-bold text-[#212B36] mb-1">Bạn cần hỗ trợ?</h3>
@@ -269,7 +271,7 @@ export const ProfilePage = () => {
                                         exit={{ opacity: 0, y: -10 }}
                                         transition={{ duration: 0.2 }}
                                     >
-                                        <Outlet />
+                                        {children}
                                     </motion.div>
                                 </AnimatePresence>
                             </div>

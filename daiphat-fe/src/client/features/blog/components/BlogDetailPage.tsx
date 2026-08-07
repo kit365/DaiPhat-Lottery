@@ -5,6 +5,7 @@ import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { RightSidebarBlog } from './BlogSidebar';
 import { usePublicPostBySlug, useRelatedPublicPosts, useIncrementPostView } from '../hooks/useBlog';
 import { useBlogDetail } from '../../../../admin/features/blogs/hooks/useBlog';
+import { BLOG_HERO_DEFAULT } from '@/client/constants/clientBannerAssets';
 import { Breadcrumb } from '../../../components/ui/Breadcrumb';
 
 export const BlogDetailPage = () => {
@@ -81,7 +82,7 @@ export const BlogDetailPage = () => {
         {/* Hero Section */}
         <div
           className="relative w-full aspect-[1440/320] bg-cover bg-center bg-no-repeat flex items-center mb-8"
-          style={{ backgroundImage: `url("${post.thumbnail || 'https://cdn.phototourl.com/free/2026-06-04-d2a5e8c8-8df8-4e9c-9e68-ec6b633e5fc1.png'}")` }}
+          style={{ backgroundImage: `url("${post.thumbnail || BLOG_HERO_DEFAULT}")` }}
         >
           {/* Overlay to ensure text readability */}
           <div className="absolute inset-0 bg-black/40"></div>

@@ -40,7 +40,7 @@ const CurrentVisits = ({ data }: { data: any[] }) => {
                 dataLabels: { offset: -10 }
             }
         },
-        colors: ['#00a76f', '#ffab00', '#007867', '#FF5630', '#FFC107', '#2196F3'],
+        colors: ['#FF3030', '#ffab00', '#B71833', '#FF5630', '#FFC107', '#2196F3'],
     };
 
     const series = data?.map(d => d.value) || [];
@@ -88,7 +88,7 @@ const WebsiteVisits = ({ data }: { data: number[] }) => {
             markers: { radius: 12, width: 12, height: 12 },
             itemMargin: { horizontal: 10 }
         },
-        colors: ['#007867', '#FFAB00'],
+        colors: ['#B71833', '#FFAB00'],
         dataLabels: { enabled: false }
     };
 
@@ -184,7 +184,7 @@ export const AnalyticsPage = () => {
                         title="Doanh số tuần"
                         total={`${(stats?.weeklySales?.total ?? 0).toLocaleString()}đ`}
                         percent={stats?.weeklySales?.percent || 0}
-                        color="#00a76f"
+                        color="#FF3030"
                         colorType="primary"
                         icon="https://pub-c5e31b5cdafb419fb247a8ac2e78df7a.r2.dev/public/assets/icons/glass/ic-glass-bag.svg"
                         chartData={stats?.weeklySales?.data || [0]}

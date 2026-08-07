@@ -41,6 +41,9 @@ public class ReturnBatchEntity extends BaseEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(name = "batch_code", length = 100)
+    private String batchCode;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "lottery_supplier_id", nullable = false)
     private LotterySupplierEntity lotterySupplier;

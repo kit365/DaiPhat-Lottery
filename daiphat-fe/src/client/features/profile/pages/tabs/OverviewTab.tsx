@@ -1,5 +1,10 @@
+"use client";
+
 import React from 'react';
 import { Link } from 'react-router-dom';
+
+import { PROVINCE_ICON_FALLBACK } from '../../../../constants/clientBannerAssets';
+import { ROUTES } from '@/admin/constants/routes';
 
 export const OverviewTab = () => {
     return (
@@ -64,7 +69,7 @@ export const OverviewTab = () => {
                 <div className="lg:col-span-2 bg-white rounded-xl shadow-[0_2px_12px_rgb(0,0,0,0.03)] border border-[#E5E8EB] p-5">
                     <div className="flex justify-between items-center mb-4">
                         <h3 className="text-[16px] font-bold text-[#212B36]">Đơn hàng gần đây</h3>
-                        <Link to="/profile/history" className="text-[13px] text-[#637381] hover:text-[#ee1314]">Xem tất cả &gt;</Link>
+                        <Link to={ROUTES.PUBLIC.PROFILE.ORDERS} className="text-[13px] text-[#637381] hover:text-[#ee1314]">Xem tất cả &gt;</Link>
                     </div>
                     <div className="overflow-x-auto pb-2">
                         <table className="w-full text-left text-[13px] whitespace-nowrap min-w-[600px]">
@@ -123,25 +128,37 @@ export const OverviewTab = () => {
                 <div className="bg-white rounded-xl shadow-[0_2px_12px_rgb(0,0,0,0.03)] border border-[#E5E8EB] p-5">
                     <h3 className="text-[16px] font-bold text-[#212B36] mb-4">Thao tác nhanh</h3>
                     <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
-                        <Link to="/buy-ticket" className="flex flex-col items-center justify-center gap-2 p-3 rounded-xl border border-[#E5E8EB] hover:border-[#ee1314] hover:shadow-sm transition-all group">
+                        <Link to={ROUTES.PUBLIC.TICKETS} className="flex flex-col items-center justify-center gap-2 p-3 rounded-xl border border-[#E5E8EB] hover:border-[#ee1314] hover:shadow-sm transition-all group">
                             <div className="w-10 h-10 rounded-full bg-[#FFF4F4] flex items-center justify-center text-[#ee1314] group-hover:scale-110 transition-transform">
                                 <i className="fa-solid fa-ticket-simple text-lg"></i>
                             </div>
                             <span className="text-[12px] font-medium text-[#454F5B] text-center">Mua vé số</span>
                         </Link>
-                        <Link to="/profile/tickets" className="flex flex-col items-center justify-center gap-2 p-3 rounded-xl border border-[#E5E8EB] hover:border-[#FFB020] hover:shadow-sm transition-all group">
+                        <Link to={ROUTES.PUBLIC.PROFILE.MY_TICKETS} className="flex flex-col items-center justify-center gap-2 p-3 rounded-xl border border-[#E5E8EB] hover:border-[#FFB020] hover:shadow-sm transition-all group">
                             <div className="w-10 h-10 rounded-full bg-[#FFF9F3] flex items-center justify-center text-[#FFB020] group-hover:scale-110 transition-transform">
                                 <i className="fa-solid fa-wallet text-lg"></i>
                             </div>
                             <span className="text-[12px] font-medium text-[#454F5B] text-center">Vé của tôi</span>
                         </Link>
-                        <Link to="/" className="flex flex-col items-center justify-center gap-2 p-3 rounded-xl border border-[#E5E8EB] hover:border-[#1CD162] hover:shadow-sm transition-all group">
+                        <Link to={ROUTES.PUBLIC.HOME} className="flex flex-col items-center justify-center gap-2 p-3 rounded-xl border border-[#E5E8EB] hover:border-[#1CD162] hover:shadow-sm transition-all group">
                             <div className="w-10 h-10 rounded-full bg-[#F4FBFA] flex items-center justify-center text-[#1CD162] group-hover:scale-110 transition-transform">
                                 <i className="fa-solid fa-chart-pie text-lg"></i>
                             </div>
                             <span className="text-[12px] font-medium text-[#454F5B] text-center">Kết quả xổ số</span>
                         </Link>
-                        <Link to="/profile/complaints" className="flex flex-col items-center justify-center gap-2 p-3 rounded-xl border border-[#E5E8EB] hover:border-[#9E5FFF] hover:shadow-sm transition-all group">
+                        <Link to={ROUTES.PUBLIC.SCHEDULE} className="flex flex-col items-center justify-center gap-2 p-3 rounded-xl border border-[#E5E8EB] hover:border-[#2065D1] hover:shadow-sm transition-all group">
+                            <div className="w-10 h-10 rounded-full bg-[#F0F5FF] flex items-center justify-center text-[#2065D1] group-hover:scale-110 transition-transform">
+                                <i className="fa-regular fa-calendar-days text-lg"></i>
+                            </div>
+                            <span className="text-[12px] font-medium text-[#454F5B] text-center">Lịch mở thưởng</span>
+                        </Link>
+                        <Link to={ROUTES.PUBLIC.TICKETS} className="flex flex-col items-center justify-center gap-2 p-3 rounded-xl border border-[#E5E8EB] hover:border-[#FF4842] hover:shadow-sm transition-all group">
+                            <div className="w-10 h-10 rounded-full bg-[#FFF5F5] flex items-center justify-center text-[#FF4842] group-hover:scale-110 transition-transform">
+                                <i className="fa-solid fa-gift text-lg"></i>
+                            </div>
+                            <span className="text-[12px] font-medium text-[#454F5B] text-center">Khuyến mãi</span>
+                        </Link>
+                        <Link to={ROUTES.PUBLIC.PROFILE.COMPLAINTS} className="flex flex-col items-center justify-center gap-2 p-3 rounded-xl border border-[#E5E8EB] hover:border-[#9E5FFF] hover:shadow-sm transition-all group">
                             <div className="w-10 h-10 rounded-full bg-[#F8F5FF] flex items-center justify-center text-[#9E5FFF] group-hover:scale-110 transition-transform">
                                 <i className="fa-solid fa-headset text-lg"></i>
                             </div>
@@ -156,7 +173,7 @@ export const OverviewTab = () => {
                 <div className="bg-white rounded-xl shadow-[0_2px_12px_rgb(0,0,0,0.03)] border border-[#E5E8EB] p-5">
                     <div className="flex justify-between items-center mb-4">
                         <h3 className="text-[16px] font-bold text-[#212B36]">Vé số gần đây</h3>
-                        <Link to="/profile/tickets" className="text-[13px] text-[#637381] hover:text-[#ee1314]">Xem tất cả &gt;</Link>
+                        <Link to={ROUTES.PUBLIC.PROFILE.MY_TICKETS} className="text-[13px] text-[#637381] hover:text-[#ee1314]">Xem tất cả &gt;</Link>
                     </div>
                     <div className="space-y-4">
                         {[
@@ -168,7 +185,7 @@ export const OverviewTab = () => {
                         ].map((item, idx) => (
                             <div key={idx} className="flex items-center gap-3">
                                 <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 bg-[#F4F6F8] border border-[#E5E8EB] overflow-hidden">
-                                    <img src="https://i.ibb.co/XrKTHt8g/t-i-xu-ng.png" alt="Station" className="w-7 h-7 object-contain" />
+                                    <img src={PROVINCE_ICON_FALLBACK} alt="Station" className="w-7 h-7 object-contain" />
                                 </div>
                                 <div className="flex-1 min-w-0">
                                     <div className="text-[13px] font-bold text-[#212B36] truncate">{item.name}</div>

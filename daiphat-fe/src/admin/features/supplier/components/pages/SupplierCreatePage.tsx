@@ -129,7 +129,7 @@ export const SupplierCreatePage = () => {
                             loading={isPending}
                             label="Lưu"
                             loadingLabel="Đang lưu..."
-                            sx={{ alignSelf: 'flex-start' }}
+                            sx={{ alignSelf: 'flex-end' }}
                         />
                     </Stack>
                 </CollapsibleCard>

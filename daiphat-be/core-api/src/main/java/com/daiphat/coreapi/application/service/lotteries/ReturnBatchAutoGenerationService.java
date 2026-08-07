@@ -29,6 +29,8 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import com.daiphat.coreapi.shared.util.ReturnBatchCodeGenerator;
+
 /**
  * Auto-creates one Return Batch per supplier per draw date when
  * {@code now >= returnCutOffTime - RETURN_BUFFER_TIME}, then calculates
@@ -46,6 +48,7 @@ public class ReturnBatchAutoGenerationService {
     private final SupplierSettlementServicePort supplierSettlementServicePort;
     private final ImportBatchConfigResolver importBatchConfigResolver;
     private final ReturnBatchSummaryCalculator returnBatchSummaryCalculator;
+    private final ReturnBatchCodeGenerator returnBatchCodeGenerator;
     private final Clock clock;
     private final TransactionTemplate transactionTemplate;
 
@@ -57,6 +60,7 @@ public class ReturnBatchAutoGenerationService {
             SupplierSettlementServicePort supplierSettlementServicePort,
             ImportBatchConfigResolver importBatchConfigResolver,
             ReturnBatchSummaryCalculator returnBatchSummaryCalculator,
+            ReturnBatchCodeGenerator returnBatchCodeGenerator,
             Clock clock,
             PlatformTransactionManager transactionManager
     ) {
@@ -67,6 +71,7 @@ public class ReturnBatchAutoGenerationService {
         this.supplierSettlementServicePort = supplierSettlementServicePort;
         this.importBatchConfigResolver = importBatchConfigResolver;
         this.returnBatchSummaryCalculator = returnBatchSummaryCalculator;
+        this.returnBatchCodeGenerator = returnBatchCodeGenerator;
         this.clock = clock;
         this.transactionTemplate = new TransactionTemplate(transactionManager);
     }
@@ -157,6 +162,7 @@ public class ReturnBatchAutoGenerationService {
         );
 
         ReturnBatchModel header = ReturnBatchModel.builder()
+                .batchCode(returnBatchCodeGenerator.generateHeaderCode(drawDate))
                 .lotterySupplierId(supplier.getId())
                 .drawDate(drawDate)
                 .supplierSettlementId(settlement.getId())

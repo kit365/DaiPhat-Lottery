@@ -456,7 +456,7 @@ export const ProfilePage = () => {
                                         transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
                                         position: 'relative',
                                         '&.Mui-selected': {
-                                            bgcolor: 'rgba(0, 167, 111, 0.12)',
+                                            bgcolor: 'rgba(255, 48, 48, 0.12)',
                                             color: 'var(--palette-primary-main)',
                                             '&::before': {
                                                 content: '""',
@@ -468,7 +468,7 @@ export const ProfilePage = () => {
                                                 width: { xs: '60%', md: '4px' },
                                                 bgcolor: 'var(--palette-primary-main)',
                                                 borderRadius: '4px',
-                                                boxShadow: '0 0 8px rgba(0, 167, 111, 0.4)'
+                                                boxShadow: '0 0 8px rgba(255, 48, 48, 0.4)'
                                             },
                                             '& .MuiListItemIcon-root': {
                                                 color: 'var(--palette-primary-main)',

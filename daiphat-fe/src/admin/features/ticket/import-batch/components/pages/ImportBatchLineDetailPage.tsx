@@ -53,7 +53,9 @@ import { useStations } from '../../../../station/hooks/useStation';
 import { useTicketInventory } from '../../../inventory/hooks/useTicketInventory';
 import { getTicketStatusLabel, normalizeTicketStatus } from '../../../inventory/constants/ticket-status.config';
 import { displayImportBatchLineCodeRaw, formatImportBatchHeaderCode } from '../../utils/importBatchCode';
-import { getBatchTypeColor, getBatchTypeLabel, getImportBatchLineStatusChipColor, getImportBatchLineStatusLabel } from '../../utils/batchTypeLabels';
+import { formatImportCost } from '../../utils/importCostCalculator';
+import { getBatchTypeBadgeClass, getBatchTypeLabel, getImportBatchLineStatusChipColor, getImportBatchLineStatusLabel } from '../../utils/batchTypeLabels';
+import { AdminStatusBadge } from '../../../../../components/ui/AdminStatusBadge';
 import { ROUTES } from '../../../../../constants/routes';
 import { Breadcrumb } from '../../../../../components/ui/Breadcrumb';
 import {
@@ -116,6 +118,7 @@ const getSerialDisplayBadge = (serial: {
 const CollapsibleRow = ({ 
     ticket, 
     index, 
+    stationName,
     cancelMode,
     selectedSerials,
     onSelectTicket,
@@ -123,6 +126,7 @@ const CollapsibleRow = ({
 }: { 
     ticket: any; 
     index: number; 
+    stationName: string;
     cancelMode: 'NONE' | 'TICKET' | 'SERIAL';
     selectedSerials: any[];
     onSelectTicket: (ticket: any, checked: boolean) => void;
@@ -159,7 +163,7 @@ const CollapsibleRow = ({
                     transition: 'background-color 0.15s ease'
                 }}
             >
-                <TableCell sx={{ width: 50, py: 1.5 }}>
+                <TableCell sx={{ width: 40, py: 1.5 }}>
                     <IconButton
                         aria-label="expand row"
                         size="small"
@@ -168,7 +172,7 @@ const CollapsibleRow = ({
                         {open ? <KeyboardArrowUpIcon /> : <KeyboardArrowDownIcon />}
                     </IconButton>
                 </TableCell>
-                <TableCell sx={{ width: 50, py: 1.5 }} align="center">
+                <TableCell sx={{ width: 40, py: 1.5 }} align="center">
                     <Checkbox
                         size="small"
                         disabled={!ticketSelectable || cancelableCount === 0}
@@ -182,6 +186,11 @@ const CollapsibleRow = ({
                         {index + 1}
                     </Typography>
                 </TableCell>
+                <TableCell sx={{ py: 1.5 }} onClick={() => setOpen(!open)}>
+                    <Typography variant="body2" fontWeight={600} color="text.primary">
+                        {stationName || '—'}
+                    </Typography>
+                </TableCell>
                 <TableCell component="th" scope="row" sx={{ py: 1.5 }} onClick={() => setOpen(!open)}>
                     <Typography 
                         variant="body1" 
@@ -189,27 +198,41 @@ const CollapsibleRow = ({
                         color="primary.main" 
                         sx={{ 
                             letterSpacing: '1px', 
-                            fontSize: '1.1rem',
+                            fontSize: '1.05rem',
                             fontFamily: 'monospace'
                         }}
                     >
                         {ticket.numbers}
                     </Typography>
                 </TableCell>
-                <TableCell sx={{ py: 1.5 }} align="center" onClick={() => setOpen(!open)}>
-                    <Typography variant="body2" fontWeight={700} color="text.primary">
-                        {ticket.quantity || (ticket.serials?.length ?? 0)}
-                    </Typography>
-                </TableCell>
                 <TableCell sx={{ py: 1.5 }} onClick={() => setOpen(!open)}>
-                    <Typography variant="body2" color="text.secondary">
-                        —
+                    <Typography variant="caption" color="text.secondary" fontWeight={600}>
+                        {ticket.serials?.length ? `${ticket.serials.length} sê-ri` : '—'}
                     </Typography>
                 </TableCell>
                 <TableCell sx={{ py: 1.5 }} align="center" onClick={() => setOpen(!open)}>
                     <span className={`admin-status-badge ${getTicketStatusBadgeClass(ticket.status)}`.trim()}>
                         {statusLabel}
                     </span>
+                </TableCell>
+                <TableCell sx={{ py: 1.5 }} align="center" onClick={() => setOpen(!open)}>
+                    <Chip
+                        label="Tốt"
+                        size="small"
+                        variant="outlined"
+                        color="success"
+                        sx={{ height: 22, fontSize: '0.7rem', fontWeight: 600 }}
+                    />
+                </TableCell>
+                <TableCell sx={{ py: 1.5 }} align="right" onClick={() => setOpen(!open)}>
+                    <Typography variant="body2" color="text.secondary" fontWeight={500}>
+                        {formatImportCost(ticket.priceSnapshot || 10000)} VNĐ
+                    </Typography>
+                </TableCell>
+                <TableCell sx={{ py: 1.5 }} align="right" onClick={() => setOpen(!open)}>
+                    <Typography variant="body2" fontWeight={600} color="#0F172A">
+                        {formatImportCost(ticket.importCostSnapshot || ticket.priceSnapshot || 10000)} VNĐ
+                    </Typography>
                 </TableCell>
             </TableRow>
             {open && ticket.serials && ticket.serials.length > 0 ? (
@@ -227,8 +250,8 @@ const CollapsibleRow = ({
                                 cursor: 'pointer'
                             }}
                         >
-                            <TableCell sx={{ width: 50, py: 1 }} />
-                            <TableCell sx={{ width: 50, py: 1 }} align="center">
+                            <TableCell sx={{ width: 40, py: 1 }} />
+                            <TableCell sx={{ width: 40, py: 1 }} align="center">
                                 <Checkbox
                                     size="small"
                                     checked={isSerialChecked}
@@ -241,26 +264,32 @@ const CollapsibleRow = ({
                                     {`${index + 1}.${sIndex + 1}`}
                                 </Typography>
                             </TableCell>
-                            <TableCell sx={{ py: 1, pl: 2 }} onClick={() => cancelMode === 'SERIAL' && onSelectSerial(ticket, s, !isSerialChecked)}>
+                            <TableCell sx={{ py: 1 }} onClick={() => onSelectSerial(ticket, s, !isSerialChecked)}>
+                                <Typography variant="body2" color="text.secondary">
+                                    {stationName || '—'}
+                                </Typography>
+                            </TableCell>
+                            <TableCell sx={{ py: 1 }} onClick={() => onSelectSerial(ticket, s, !isSerialChecked)}>
+                                <Typography variant="body2" fontWeight={600} color="text.secondary">
+                                    {ticket.numbers}
+                                </Typography>
+                            </TableCell>
+                            <TableCell sx={{ py: 1 }} onClick={() => cancelMode === 'SERIAL' && onSelectSerial(ticket, s, !isSerialChecked)}>
                                 <Typography 
                                     variant="body2" 
                                     sx={{ 
                                         fontFamily: 'monospace', 
                                         fontWeight: 600,
-                                        color: '#334155'
+                                        color: '#334155',
+                                        bgcolor: '#FFFFFF',
+                                        px: 1,
+                                        py: 0.25,
+                                        borderRadius: 1,
+                                        border: '1px solid #E2E8F0',
+                                        display: 'inline-block'
                                     }}
                                 >
                                     {s.serialNumber}
-                                </Typography>
-                            </TableCell>
-                            <TableCell align="center" sx={{ py: 1 }} onClick={() => cancelMode === 'SERIAL' && onSelectSerial(ticket, s, !isSerialChecked)}>
-                                <Typography variant="body2" color="text.secondary">
-                                    —
-                                </Typography>
-                            </TableCell>
-                            <TableCell sx={{ py: 1 }} onClick={() => cancelMode === 'SERIAL' && onSelectSerial(ticket, s, !isSerialChecked)}>
-                                <Typography variant="body2" color="text.secondary" fontWeight={500}>
-                                    {Number(ticket.priceSnapshot || 0).toLocaleString('vi-VN')} đ
                                 </Typography>
                             </TableCell>
                             <TableCell align="center" sx={{ py: 1 }} onClick={() => cancelMode === 'SERIAL' && onSelectSerial(ticket, s, !isSerialChecked)}>
@@ -268,14 +297,33 @@ const CollapsibleRow = ({
                                     {serialBadge.label}
                                 </span>
                             </TableCell>
+                            <TableCell align="center" sx={{ py: 1 }} onClick={() => cancelMode === 'SERIAL' && onSelectSerial(ticket, s, !isSerialChecked)}>
+                                <Chip
+                                    label={s.ticketCondition === 'GOOD' || !s.ticketCondition ? 'Tốt' : s.ticketCondition}
+                                    size="small"
+                                    variant="outlined"
+                                    color={s.ticketCondition === 'GOOD' || !s.ticketCondition ? 'success' : 'warning'}
+                                    sx={{ height: 22, fontSize: '0.7rem', fontWeight: 600 }}
+                                />
+                            </TableCell>
+                            <TableCell align="right" sx={{ py: 1 }} onClick={() => cancelMode === 'SERIAL' && onSelectSerial(ticket, s, !isSerialChecked)}>
+                                <Typography variant="body2" color="text.secondary" fontWeight={500}>
+                                    {formatImportCost(s.ticketPrice ?? ticket.priceSnapshot ?? 10000)} VNĐ
+                                </Typography>
+                            </TableCell>
+                            <TableCell align="right" sx={{ py: 1 }} onClick={() => cancelMode === 'SERIAL' && onSelectSerial(ticket, s, !isSerialChecked)}>
+                                <Typography variant="body2" fontWeight={600} color="#0F172A">
+                                    {formatImportCost(s.importCost ?? ticket.importCostSnapshot ?? ticket.priceSnapshot ?? 10000)} VNĐ
+                                </Typography>
+                            </TableCell>
                         </TableRow>
                     );
                 })
             ) : open ? (
                 <TableRow sx={{ bgcolor: '#f8fafc' }}>
-                    <TableCell sx={{ width: 50, py: 1 }} />
-                    {cancelMode !== 'NONE' && <TableCell sx={{ width: 50, py: 1 }} />}
-                    <TableCell colSpan={5} sx={{ py: 2, px: 4, color: 'text.secondary', fontStyle: 'italic', fontSize: '0.825rem' }}>
+                    <TableCell sx={{ width: 40, py: 1 }} />
+                    <TableCell sx={{ width: 40, py: 1 }} />
+                    <TableCell colSpan={8} sx={{ py: 2, px: 4, color: 'text.secondary', fontStyle: 'italic', fontSize: '0.825rem' }}>
                         Không có số sê-ri nào được gán
                     </TableCell>
                 </TableRow>
@@ -526,11 +574,9 @@ export const ImportBatchLineDetailPage = () => {
                                 </Typography>
                             </Stack>
                             <Box sx={{ pl: 3 }}>
-                                <Chip 
-                                    label={getBatchTypeLabel(line.batchType)} 
-                                    size="small" 
-                                    color={getBatchTypeColor(line.batchType)}
-                                    sx={{ fontWeight: 600, fontSize: '0.75rem', height: 22 }} 
+                                <AdminStatusBadge
+                                    label={getBatchTypeLabel(line.batchType)}
+                                    modifier={getBatchTypeBadgeClass(line.batchType)}
                                 />
                             </Box>
                         </Stack>
@@ -723,8 +769,8 @@ export const ImportBatchLineDetailPage = () => {
                             <Table size="medium">
                                 <TableHead sx={{ bgcolor: '#f1f5f9' }}>
                                     <TableRow>
-                                        <TableCell sx={{ width: 50, py: 2 }} />
-                                        <TableCell sx={{ width: 50, py: 2 }} align="center">
+                                        <TableCell sx={{ width: 40, py: 2 }} />
+                                        <TableCell sx={{ width: 40, py: 2 }} align="center">
                                             <Checkbox
                                                 indeterminate={
                                                     selectedSerials.length > 0 && 
@@ -738,11 +784,14 @@ export const ImportBatchLineDetailPage = () => {
                                                 size="small"
                                             />
                                         </TableCell>
-                                        <TableCell sx={{ fontWeight: 700, py: 2, color: '#475569', width: 60 }} align="center">STT</TableCell>
-                                        <TableCell sx={{ fontWeight: 700, py: 2, color: '#475569' }}>Dãy số nổi bật</TableCell>
-                                        <TableCell sx={{ fontWeight: 700, py: 2, color: '#475569' }} align="center">Số lượng</TableCell>
-                                        <TableCell sx={{ fontWeight: 700, py: 2, color: '#475569' }}>Giá bán</TableCell>
+                                        <TableCell sx={{ fontWeight: 700, py: 2, color: '#475569', width: 50 }} align="center">STT</TableCell>
+                                        <TableCell sx={{ fontWeight: 700, py: 2, color: '#475569' }}>Nhà đài</TableCell>
+                                        <TableCell sx={{ fontWeight: 700, py: 2, color: '#475569' }}>Số vé</TableCell>
+                                        <TableCell sx={{ fontWeight: 700, py: 2, color: '#475569' }}>Sê-ri</TableCell>
                                         <TableCell sx={{ fontWeight: 700, py: 2, color: '#475569' }} align="center">Trạng thái</TableCell>
+                                        <TableCell sx={{ fontWeight: 700, py: 2, color: '#475569' }} align="center">Tình trạng vé</TableCell>
+                                        <TableCell sx={{ fontWeight: 700, py: 2, color: '#475569' }} align="right">Giá bán</TableCell>
+                                        <TableCell sx={{ fontWeight: 700, py: 2, color: '#475569' }} align="right">Giá vốn</TableCell>
                                     </TableRow>
                                 </TableHead>
                                 <TableBody>
@@ -751,6 +800,7 @@ export const ImportBatchLineDetailPage = () => {
                                             key={ticket.id} 
                                             ticket={ticket} 
                                             index={index} 
+                                            stationName={stationName}
                                             cancelMode={dialogCancelMode}
                                             selectedSerials={selectedSerials}
                                             onSelectTicket={handleSelectTicket}

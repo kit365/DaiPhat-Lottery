@@ -1,5 +1,10 @@
 import type { NextConfig } from 'next';
 import path from 'path';
+import bundleAnalyzer from '@next/bundle-analyzer';
+
+const withBundleAnalyzer = bundleAnalyzer({
+  enabled: process.env.ANALYZE === 'true',
+});
 
 // Dev API calls use a relative base URL (same-origin) so HttpOnly cookies work.
 // Proxy /api/* to the Spring backend (defaults to local core-api).
@@ -21,6 +26,11 @@ const nextConfig: NextConfig = {
     },
   },
   experimental: {
+    // Keep visited pages' RSC payload in the router cache so back-navigation is instant.
+    staleTimes: {
+      dynamic: 30,
+      static: 180,
+    },
     optimizePackageImports: [
       '@mui/material',
       '@mui/icons-material',
@@ -33,8 +43,6 @@ const nextConfig: NextConfig = {
     ],
   },
   images: {
-    loader: 'custom',
-    loaderFile: './src/utils/imageLoader.ts',
     qualities: [25, 50, 75, 85],
     formats: ['image/avif', 'image/webp'],
     remotePatterns: [
@@ -72,14 +80,54 @@ const nextConfig: NextConfig = {
       },
     ];
   },
+  async redirects() {
+    return [
+      {
+        source: '/results',
+        destination: '/',
+        permanent: false,
+      },
+      {
+        source: '/ticket-search',
+        destination: '/tickets',
+        permanent: true,
+      },
+      {
+        source: '/buy-ticket',
+        destination: '/tickets',
+        permanent: true,
+      },
+      {
+        source: '/gieo-que',
+        destination: '/fortune',
+        permanent: true,
+      },
+      {
+        source: '/lich-mo-thuong',
+        destination: '/schedule',
+        permanent: true,
+      },
+      {
+        source: '/admin/management/dashboard',
+        destination: '/admin/dashboard',
+        permanent: false,
+      },
+    ];
+  },
   webpack: (config) => {
     config.externals = [...(config.externals || []), { canvas: 'canvas' }];
     config.resolve.alias = {
       ...config.resolve.alias,
       'react-router-dom': path.resolve(__dirname, 'src/components/router-compat.tsx'),
     };
+
+    // NOTE: no custom splitChunks here on purpose. Forcing single "admin" /
+    // "client-public" / "mui" chunks made every page download code for the
+    // whole section (e.g. Home pulled all of MUI for one icon). Next.js's
+    // default granular chunking splits per-route far better.
+
     return config;
   },
 };
 
-export default nextConfig;
+export default withBundleAnalyzer(nextConfig);

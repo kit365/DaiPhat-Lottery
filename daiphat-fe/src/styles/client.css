@@ -2,8 +2,8 @@
    REMAINING LEGACY STYLES (To be refactored)
 */
 .client-theme {
-    --client-font-main: "Public Sans", "Barlow", sans-serif;
-    --client-font-display: "Barlow", sans-serif;
+    --client-font-main: var(--font-public-sans), var(--font-barlow), sans-serif;
+    --client-font-display: var(--font-barlow), sans-serif;
     --client-primary: #A60F14;
     --client-gold: #FFD700;
     --client-navy: #102937;

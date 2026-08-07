@@ -11,31 +11,31 @@ import { ContentPagesTab } from "./components/ContentPagesTab";
 import { AppPasswordTab } from "./components/AppPasswordTab";
 import { prefixAdmin, ROUTES } from "../../constants/routes";
 
-type SettingsSection = {
-    title: string;
+type SettingSection = {
     path: string;
+    title: string;
     component: ReactNode;
 };
 
-const SETTINGS_SECTIONS: Record<string, SettingsSection> = {
+const SETTINGS_SECTIONS: Record<string, SettingSection> = {
     general: {
-        title: "Cài đặt chung",
         path: "general",
+        title: "Cài đặt chung & liên hệ",
         component: <GeneralSettingTab />,
     },
     policies: {
-        title: "Chính sách",
         path: "policies",
+        title: "Điều khoản & chính sách",
         component: <PolicySettingsTab />,
     },
-    pages: {
-        title: "Trang thông tin",
-        path: "pages",
+    content: {
+        path: "content",
+        title: "Quản lý trang tĩnh",
         component: <ContentPagesTab />,
     },
     "app-password": {
-        title: "Mật khẩu ứng dụng",
         path: "app-password",
+        title: "Mật khẩu ứng dụng",
         component: <AppPasswordTab />,
     },
 };
@@ -46,8 +46,8 @@ const PATH_REDIRECTS: Record<string, string> = {
     "page-terms": "policies",
     "page-shipping": "policies",
     "page-returns": "policies",
-    "page-about": "pages",
-    "page-faq": "pages",
+    "page-about": "content",
+    "page-faq": "content",
     // Removed from settings UI — send to general
     map: "general",
     point: "general",

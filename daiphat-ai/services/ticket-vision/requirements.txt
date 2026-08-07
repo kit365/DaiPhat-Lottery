@@ -1,0 +1,26 @@
+# Canonical install list for this service (mirrors services/chat-bot's
+# convention: Dockerfile and CI install from this file, not pyproject.toml's
+# duplicate dependency list -- see pyproject.toml's top comment for why both
+# exist).
+fastapi>=0.103.1
+uvicorn>=0.23.2
+pydantic>=2.3.0
+pydantic-settings>=2.0.3
+python-multipart>=0.0.9
+
+# Image processing
+opencv-python-headless>=4.9.0.80
+numpy>=1.26.4
+
+# Station name fuzzy matching (doc section 6: "OCR may recognize aliases")
+rapidfuzz>=3.6.1
+
+# OCR engines (Strategy pattern: EasyOCR primary, PaddleOCR fallback -- see
+# domain/ocr/fallback_strategy.py). Both are heavy (each pulls a full ML
+# framework -- torch for EasyOCR, paddlepaddle for PaddleOCR) and will make
+# this service's Docker image and cold-start noticeably larger/slower than
+# services/chat-bot's. That's an accepted tradeoff for OCR accuracy per doc
+# section 7 (dedicated OCR engines over LLMs).
+easyocr>=1.7.1
+paddleocr>=2.7.3
+paddlepaddle>=2.6.1

@@ -184,8 +184,8 @@ export const RegisterContent = ({ onSwitchToLogin, registerForm, handleRegister:
                 )}
 
                 <div className="mt-2.5">
-                    <label className="flex items-start gap-4 cursor-pointer group select-none">
-                        <div className="relative mt-0.5">
+                    <label className="flex items-center gap-3 cursor-pointer group select-none">
+                        <div className="relative shrink-0">
                             <input
                                 {...register("agreedToTerms")}
                                 type="checkbox"
@@ -222,7 +222,7 @@ export const RegisterContent = ({ onSwitchToLogin, registerForm, handleRegister:
                                 </svg>
                             </motion.div>
                         </div>
-                        <span className="text-[13px] font-bold text-slate-600 leading-snug pt-0.5">
+                        <span className="text-[13px] font-bold text-slate-600 leading-snug">
                             Tôi đồng ý với <span className="text-[#FF6262] hover:underline cursor-pointer">điều khoản sử dụng</span> & chính sách bảo mật của Đại Phát.
                         </span>
                     </label>

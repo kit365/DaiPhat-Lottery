@@ -39,4 +39,6 @@ public interface ReturnBatchRepositoryPort {
     List<ReturnBatchModel> findByStatuses(List<ReturnBatchStatus> statuses);
 
     List<ReturnBatchModel> findBySupplierSettlementId(Long supplierSettlementId);
+
+    long nextHeaderBatchCodeSequence();
 }

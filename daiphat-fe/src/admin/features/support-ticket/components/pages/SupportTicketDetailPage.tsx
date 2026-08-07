@@ -324,7 +324,7 @@ export const SupportTicketDetailPage = () => {
                                                 ? 'Lý do từ chối'
                                                 : 'Kết quả xử lý'
                                         }
-                                        iconColor={ticket.status === TicketStatus.REJECTED ? '#B71D18' : '#00A76F'}
+                                        iconColor={ticket.status === TicketStatus.REJECTED ? '#B71D18' : '#FF3030'}
                                     />
                                     {(reasonComment?.content || ticket.response) && (
                                         <Box sx={{ mb: 2 }}>

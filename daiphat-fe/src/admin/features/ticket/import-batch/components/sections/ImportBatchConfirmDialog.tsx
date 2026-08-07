@@ -16,6 +16,7 @@ import {
 import CloseIcon from '@mui/icons-material/Close';
 import { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
+import { LoadingButton } from '../../../../../components/ui/LoadingButton';
 import { getBatchTypeLabel, getImportModeLabel } from '../../utils/batchTypeLabels';
 import type { ImportBatchImportMode } from '../../utils/batchTypeLabels';
 import type { InvoiceEvidenceValue } from '../../utils/invoiceEvidence';
@@ -236,14 +237,14 @@ export const ImportBatchConfirmDialog = ({
                     >
                         Hủy
                     </Button>
-                    <Button
+                    <LoadingButton
                         onClick={onConfirm}
                         variant="contained"
-                        className="btn-primary-admin"
+                        loading={isPending}
                         disabled={isPending}
-                    >
-                        {isPending ? 'Đang xử lý...' : 'Xác nhận & Lưu'}
-                    </Button>
+                        label="Xác nhận & Lưu"
+                        loadingLabel="Đang xử lý..."
+                    />
                 </DialogActions>
             </Dialog>
 

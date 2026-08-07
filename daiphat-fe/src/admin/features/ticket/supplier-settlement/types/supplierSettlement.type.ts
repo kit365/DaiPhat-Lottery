@@ -11,9 +11,12 @@ export interface SupplierSettlement {
     totalReturnValue: number;
     totalPaidAmount: number;
     remainingAmount: number;
+    isReturnExpired?: boolean;
+    expiredReturnValue?: number;
     status: SupplierSettlementStatus;
     statusLabel?: string | null;
     transactionId?: number | null;
+    paidAt?: string | null;
     createdAt?: string | null;
     updatedAt?: string | null;
 }
@@ -29,6 +32,8 @@ export interface SupplierSettlementKpis {
     totalPreparedForReturnTickets: number;
     totalReturnValue: number;
     remainingPayableAmount: number;
+    isReturnExpired?: boolean;
+    expiredReturnValue?: number;
 }
 
 export interface SettlementStationInventory {

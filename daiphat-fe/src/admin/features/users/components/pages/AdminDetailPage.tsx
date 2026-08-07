@@ -506,7 +506,6 @@ export const AdminDetailPage = () => {
                                 <Button
                                     variant="text"
                                     onClick={() => setOtpSent(false)}
-                                    sx={{ textTransform: 'none', fontWeight: 700 }}
                                 >
                                     Quay lại
                                 </Button>

@@ -276,10 +276,10 @@ export const BulkScheduleDialog = ({
                                 <Grid size={{ xs: 12 }}>
                                     <Box sx={{
                                         p: 2,
-                                        bgcolor: alpha(isExcessive ? '#FFAB00' : '#00A76F', 0.08),
+                                        bgcolor: alpha(isExcessive ? '#FFAB00' : '#FF3030', 0.08),
                                         borderRadius: "var(--shape-borderRadius-md)",
                                         border: '1px solid',
-                                        borderColor: alpha(isExcessive ? '#FFAB00' : '#00A76F', 0.24)
+                                        borderColor: alpha(isExcessive ? '#FFAB00' : '#FF3030', 0.24)
                                     }}>
                                         <Stack spacing={1.5}>
                                             <Stack direction="row" spacing={1} alignItems="center" sx={{ color: isExcessive ? '#B76E00' : '#118D57' }}>

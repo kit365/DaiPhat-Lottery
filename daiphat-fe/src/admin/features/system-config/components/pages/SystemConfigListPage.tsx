@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type ReactElement } from 'react';
 import {
     Box,
     Card,
@@ -14,7 +14,7 @@ import {
     Typography,
     styled,
 } from '@mui/material';
-import { Banknote, CreditCard, FileText, Gift, Globe2, LayoutList, MessageSquare, PackageMinus, ShoppingCart, Store, Ticket } from 'lucide-react';
+import { Banknote, CreditCard, FileText, Gift, Globe2, LayoutList, MessageSquare, PackageMinus, ShoppingCart, Sparkles, Store, Ticket } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { Breadcrumb } from '../../../../components/ui/Breadcrumb';
 import { Search } from '../../../../components/ui/Search';
@@ -46,7 +46,7 @@ const TabBadge = styled('span')(() => ({
 
 type TypeFilter = 'all' | ConfigType;
 
-const TYPE_TABS: { value: TypeFilter; label: string; icon: React.ReactNode; color: string }[] = [
+const TYPE_TABS: { value: TypeFilter; label: string; icon: ReactElement; color: string }[] = [
     { value: 'all', label: 'Tất cả', icon: <LayoutList size={18} />, color: 'primary.main' },
     {
         value: ConfigType.GENERAL_SETTING,
@@ -108,7 +108,47 @@ const TYPE_TABS: { value: TypeFilter; label: string; icon: React.ReactNode; colo
         icon: <Gift size={18} />,
         color: 'success.dark',
     },
+    {
+        value: ConfigType.FORTUNE_SETTING,
+        label: CONFIG_TYPE_LABELS[ConfigType.FORTUNE_SETTING],
+        icon: <Sparkles size={18} />,
+        color: 'error.dark',
+    },
 ];
+
+const renderTypeFilterTab = (
+    tab: (typeof TYPE_TABS)[number],
+    selected: boolean,
+    count: number
+) => (
+    <Tab
+        value={tab.value}
+        icon={tab.icon}
+        iconPosition="start"
+        label={
+            <Box
+                component="span"
+                sx={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 1,
+                    color: selected ? tab.color : 'text.secondary',
+                }}
+            >
+                <Box component="span">{tab.label}</Box>
+                <TabBadge
+                    sx={{
+                        ml: 0,
+                        bgcolor: selected ? tab.color : 'action.hover',
+                        color: selected ? '#fff' : 'text.secondary',
+                    }}
+                >
+                    {count}
+                </TabBadge>
+            </Box>
+        }
+    />
+);
 
 export const SystemConfigListPage = () => {
     const { user } = useAuthStore();
@@ -138,6 +178,7 @@ export const SystemConfigListPage = () => {
             [ConfigType.REFUND_SETTING]: 0,
             [ConfigType.COMPLAINT_SETTING]: 0,
             [ConfigType.PAYOUT_SETTING]: 0,
+            [ConfigType.FORTUNE_SETTING]: 0,
         };
         allConfigs.forEach((c) => {
             if (counts[c.configType] !== undefined) {
@@ -165,6 +206,18 @@ export const SystemConfigListPage = () => {
                 c.configValue.toLowerCase().includes(q)
         );
     }, [allConfigs, search, typeFilter]);
+
+    const [
+        allTab,
+        orderTab,
+        paymentTab,
+        ticketImportTab,
+        ticketReturnTab,
+        refundTab,
+        complaintTab,
+        payoutTab,
+        fortuneTab,
+    ] = TYPE_TABS;
 
     const handleEdit = (config: SystemConfigResponse) => {
         setSelectedConfig(config);
@@ -265,37 +318,27 @@ export const SystemConfigListPage = () => {
                             },
                         }}
                     >
-                        {TYPE_TABS.map((tab) => {
-                            const isSelected = typeFilter === tab.value;
-                            return (
-                                <Tab
-                                    key={tab.value}
-                                    value={tab.value}
-                                    label={
-                                        <Box
-                                            sx={{
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                gap: 1,
-                                                color: isSelected ? tab.color : 'text.secondary',
-                                            }}
-                                        >
-                                            {tab.icon}
-                                            {tab.label}
-                                            <TabBadge
-                                                sx={{
-                                                    ml: 0,
-                                                    bgcolor: isSelected ? tab.color : 'action.hover',
-                                                    color: isSelected ? '#fff' : 'text.secondary',
-                                                }}
-                                            >
-                                                {typeCounts[tab.value]}
-                                            </TabBadge>
-                                        </Box>
-                                    }
-                                />
-                            );
-                        })}
+                        {renderTypeFilterTab(allTab, typeFilter === allTab.value, typeCounts[allTab.value])}
+                        {renderTypeFilterTab(orderTab, typeFilter === orderTab.value, typeCounts[orderTab.value])}
+                        {renderTypeFilterTab(paymentTab, typeFilter === paymentTab.value, typeCounts[paymentTab.value])}
+                        {renderTypeFilterTab(
+                            ticketImportTab,
+                            typeFilter === ticketImportTab.value,
+                            typeCounts[ticketImportTab.value]
+                        )}
+                        {renderTypeFilterTab(
+                            ticketReturnTab,
+                            typeFilter === ticketReturnTab.value,
+                            typeCounts[ticketReturnTab.value]
+                        )}
+                        {renderTypeFilterTab(refundTab, typeFilter === refundTab.value, typeCounts[refundTab.value])}
+                        {renderTypeFilterTab(
+                            complaintTab,
+                            typeFilter === complaintTab.value,
+                            typeCounts[complaintTab.value]
+                        )}
+                        {renderTypeFilterTab(payoutTab, typeFilter === payoutTab.value, typeCounts[payoutTab.value])}
+                        {renderTypeFilterTab(fortuneTab, typeFilter === fortuneTab.value, typeCounts[fortuneTab.value])}
                     </Tabs>
                 </Box>
 

@@ -55,6 +55,9 @@ public record UpdateLotterySupplierRequest(
         @JsonFormat(pattern = "HH:mm")
         LocalTime returnCutOffTime,
 
+        @JsonFormat(pattern = "HH:mm")
+        LocalTime paymentCutOffTime,
+
         @NotNull(message = "Trạng thái không được để trống")
         Boolean isActive
 ) {

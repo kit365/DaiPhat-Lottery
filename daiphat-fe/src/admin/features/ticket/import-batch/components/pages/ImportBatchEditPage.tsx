@@ -331,6 +331,13 @@ export const ImportBatchEditPage = () => {
     );
     const linesDeclaredQuantity = sumImportBatchLineDeclaredQuantity(activeLines);
     const quantitiesMatch = declaredQuantitiesMatch(totalDeclareQuantity ?? 0, lines);
+
+    useEffect(() => {
+        setValue('totalDeclareQuantity', linesDeclaredQuantity, {
+            shouldValidate: true,
+            shouldDirty: true,
+        });
+    }, [linesDeclaredQuantity, setValue]);
     const lineQuantityAdjustmentActive = lineQuantityAdjustmentHighlightIndices.size > 0;
 
     useEffect(() => {
@@ -1135,23 +1142,14 @@ export const ImportBatchEditPage = () => {
                                 render={({ field, fieldState }) => (
                                     <TextField
                                         name={field.name}
-                                        inputRef={field.ref}
                                         value={formatViInteger(field.value)}
-                                        label="Tổng số lượng khai báo phiếu nhập lô"
+                                        label="Tổng số lượng khai báo (Tự động tính từ danh sách đài)"
                                         fullWidth
-                                        sx={{ maxWidth: { sm: 360 } }}
+                                        disabled
                                         error={!!fieldState.error}
-                                        helperText={fieldState.error?.message}
-                                        onChange={(e) => {
-                                            field.onChange(parseNonNegativeIntegerInput(e.target.value) ?? 0);
-                                        }}
-                                        onBlur={(e) => {
-                                            field.onBlur();
-                                            const parsed = parseNonNegativeIntegerInput(e.target.value) ?? 0;
-                                            handleTotalDeclareQuantityBlur(parsed);
-                                        }}
-                                        inputProps={{ inputMode: 'numeric' }}
+                                        helperText={fieldState.error?.message || 'Tự động tổng hợp từ số lượng khai báo của các nhà đài trong danh sách bên dưới.'}
                                         InputProps={{
+                                            readOnly: true,
                                             endAdornment: (
                                                 <InputAdornment position="end">
                                                     <Typography variant="body2" color="text.secondary">
@@ -1159,6 +1157,14 @@ export const ImportBatchEditPage = () => {
                                                     </Typography>
                                                 </InputAdornment>
                                             ),
+                                        }}
+                                        sx={{
+                                            maxWidth: { sm: 360 },
+                                            '& .MuiInputBase-input.Mui-disabled': {
+                                                WebkitTextFillColor: '#0F172A',
+                                                fontWeight: 700,
+                                                bgcolor: '#F8FAFC',
+                                            },
                                         }}
                                     />
                                 )}
@@ -1203,7 +1209,7 @@ export const ImportBatchEditPage = () => {
                                             <TableCell sx={{ width: 100, whiteSpace: 'nowrap' }}>
                                                 Ngày quay
                                             </TableCell>
-                                            <TableCell sx={{ width: 148 }}>Loại lô</TableCell>
+                                            <TableCell align="center" sx={{ width: 148 }}>Loại lô</TableCell>
                                             {showStatusColumn && (
                                                 <TableCell sx={{ width: 120 }}>Trạng thái dòng</TableCell>
                                             )}
@@ -1211,7 +1217,7 @@ export const ImportBatchEditPage = () => {
                                                 <TableCell sx={{ width: 108 }}>Tiến độ nhập</TableCell>
                                             )}
                                             <TableCell sx={{ width: 112 }}>Số lượng khai báo</TableCell>
-                                            <TableCell sx={{ width: 148 }}>Giá vốn</TableCell>
+                                            <TableCell align="center" sx={{ width: 148 }}>Giá vốn</TableCell>
                                             <TableCell align="right" sx={{ width: 108 }}>
                                                 Tổng giá vốn
                                             </TableCell>
@@ -1334,7 +1340,7 @@ export const ImportBatchEditPage = () => {
                                 disabled={!canAddRow || isLoadingStations}
                                 sx={{ alignSelf: 'flex-start' }}
                             >
-                                Thêm dòng
+                                Thêm đài
                             </Button>
 
                             {isAtRowLimit && (

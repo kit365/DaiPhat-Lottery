@@ -23,14 +23,14 @@ import {
     UNAVAILABLE_REFERENCE_MESSAGE,
 } from '../../../../components/notification/UnavailableReferenceState';
 import { QUERY_KEYS } from '../../../../../constants/queryKeys';
+import { TICKET_IMAGE_FALLBACK } from '../../../../constants/clientBannerAssets';
 
 const REFUND_TYPE_LABELS: Record<RefundType, string> = {
     [RefundType.FULL_ORDER]: 'Hoàn cả đơn',
     [RefundType.ORDER_DETAIL]: 'Hoàn từng vé'
 };
 
-const FALLBACK_TICKET_IMG =
-    'https://i.ibb.co/TBf95cjX/6b561e49-2b8d-4dc5-b4c7-cff26a273abc.png';
+const FALLBACK_TICKET_IMG = TICKET_IMAGE_FALLBACK;
 
 function resolveIncidentReason(
     serialStatus?: string | null,

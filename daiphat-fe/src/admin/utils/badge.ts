@@ -7,8 +7,8 @@ export const BADGE_COLOR_PALETTE = {
         unselected: { bg: 'rgba(145, 158, 171, 0.16)', text: '#637381' }
     },
     success: { // ACTIVE, COMPLETED, DELIVERED
-        selected: { bg: '#00A76F', text: '#FFFFFF' },
-        unselected: { bg: 'rgba(0, 167, 111, 0.16)', text: '#007867' }
+        selected: { bg: '#22C55E', text: '#FFFFFF' },
+        unselected: { bg: 'rgba(34, 197, 94, 0.16)', text: '#118D57' }
     },
     warning: { // PENDING, WAITING
         selected: { bg: '#FFAB00', text: '#1C252E' },

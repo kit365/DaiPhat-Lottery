@@ -35,7 +35,7 @@ export const SideBar = () => {
 
             {/* Logo */}
             <div className={isOpen
-                ? "pl-[28px] pt-[20px] pb-[8px]"
+                ? "pl-[24px] pt-[20px] pb-[8px]"
                 : "py-[20px] flex justify-center"
             }>
                 <Link to={ROUTES.ADMIN.DASHBOARD.ROOT} className="inline-block w-[40px] h-[40px]">

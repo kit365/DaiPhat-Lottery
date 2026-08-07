@@ -6,6 +6,7 @@ import com.daiphat.coreapi.application.mapper.lotteries.ImportBatchApplicationMa
 import com.daiphat.coreapi.application.mapper.lotteries.ReturnBatchApplicationMapper;
 import com.daiphat.coreapi.application.mapper.lotteries.SupplierSettlementApplicationMapper;
 import com.daiphat.coreapi.application.port.out.lotteries.ImportBatchRepositoryPort;
+import com.daiphat.coreapi.application.port.out.lotteries.LotterySupplierRepositoryPort;
 import com.daiphat.coreapi.application.port.out.lotteries.LotteryTicketSerialRepositoryPort;
 import com.daiphat.coreapi.application.port.out.lotteries.ReturnBatchRepositoryPort;
 import com.daiphat.coreapi.application.port.out.lotteries.SupplierSettlementRepositoryPort;
@@ -37,6 +38,8 @@ class SupplierSettlementServiceTest {
 
     @Mock
     private SupplierSettlementRepositoryPort supplierSettlementRepositoryPort;
+    @Mock
+    private LotterySupplierRepositoryPort lotterySupplierRepositoryPort;
     @Mock
     private ImportBatchRepositoryPort importBatchRepositoryPort;
     @Mock
@@ -162,8 +165,6 @@ class SupplierSettlementServiceTest {
         when(supplierSettlementRepositoryPort.sumPreparedReturnValueBySettlementId(5L))
                 .thenReturn(new BigDecimal("1500.250"));
         when(supplierSettlementRepositoryPort.existsCompletedInspectionReturnBatch(5L)).thenReturn(true);
-        when(supplierSettlementRepositoryPort.sumInStockGoodImportCostBySettlementId(5L))
-                .thenReturn(new BigDecimal("3200.000"));
         when(supplierSettlementRepositoryPort.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
         supplierSettlementService.recalculateTotalReturnValue(5L);
@@ -172,8 +173,8 @@ class SupplierSettlementServiceTest {
         verify(supplierSettlementRepositoryPort).save(captor.capture());
         assertThat(captor.getValue().getTotalImportValue()).isEqualByComparingTo("10000.000");
         assertThat(captor.getValue().getTotalReturnValue()).isEqualByComparingTo("1500.250");
-        // remaining = 3200 - 500 = 2700 (not import − return − paid)
-        assertThat(captor.getValue().getRemainingAmount()).isEqualByComparingTo("2700.000");
+        // remaining = 10000 - 1500.250 - 500 = 7999.750
+        assertThat(captor.getValue().getRemainingAmount()).isEqualByComparingTo("7999.750");
     }
 
     @Test

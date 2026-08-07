@@ -9,6 +9,7 @@ import { useCancelPayment, useProcessPayment, useSyncPaymentFromGateway } from '
 import { PaymentGateway, PaymentResult } from '../../../types/transaction.type';
 import { AppToast } from '../../../utils/toast.util';
 import { PaymentQrDialog } from '../../components/payment/PaymentQrDialog';
+import { CLIENT_PAGE_BACKGROUND } from '../../constants/clientBannerAssets';
 
 type CheckoutFlow = 'return' | 'cancel';
 
@@ -183,11 +184,11 @@ export const CheckoutResultPage = () => {
     return (
         <div
             className="client-page min-h-screen flex flex-col bg-fixed bg-cover bg-center"
-            style={{ backgroundImage: 'url("https://i.ibb.co/BVFGYpL1/86f05f70-fcf8-445f-978e-a0539eb2f0de.png")' }}
+            style={{ backgroundImage: `url("${CLIENT_PAGE_BACKGROUND}")` }}
         >
             <div className="flex-1 w-full mt-[70px] lg:mt-[80px] py-10 px-4 flex items-center justify-center">
                 <div className="bg-white rounded-[24px] shadow-xl max-w-[500px] w-full overflow-hidden border border-[#E5E8EB]">
-                    <div className={`h-2 w-full ${isSuccess ? 'bg-[#00A76F]' : 'bg-red-500'}`}></div>
+                    <div className={`h-2 w-full ${isSuccess ? 'bg-[#22C55E]' : 'bg-red-500'}`}></div>
 
                     <div className="p-8 flex flex-col items-center text-center">
                         <div className="relative mb-6">
@@ -195,16 +196,16 @@ export const CheckoutResultPage = () => {
                             <div className="absolute top-8 -right-6 w-3 h-3 rounded-full bg-[#3B82F6] opacity-60"></div>
                             <div className="absolute -bottom-2 -left-8 w-2.5 h-2.5 rounded-full bg-[#10B981] opacity-70"></div>
 
-                            <div className={`w-24 h-24 rounded-full flex items-center justify-center shadow-lg border-[3px] ${isSuccess ? 'bg-[#E8F5E9] border-[#E8F5E9] text-[#00A76F] shadow-[#00A76F]/20' : 'bg-red-50 border-red-50 text-red-500 shadow-red-500/20'}`}>
+                            <div className={`w-24 h-24 rounded-full flex items-center justify-center shadow-lg border-[3px] ${isSuccess ? 'bg-[#E8F5E9] border-[#E8F5E9] text-[#22C55E] shadow-[#22C55E]/20' : 'bg-red-50 border-red-50 text-red-500 shadow-red-500/20'}`}>
                                 {isSuccess ? (
-                                    <CheckCircle2 size={56} className="fill-[#00A76F] text-white" />
+                                    <CheckCircle2 size={56} className="fill-[#22C55E] text-white" />
                                 ) : (
                                     <XCircle size={56} className="fill-red-500 text-white" />
                                 )}
                             </div>
                         </div>
 
-                        <h1 className={`text-[28px] font-black mb-2 ${isSuccess ? 'text-[#00A76F]' : 'text-red-500'}`}>
+                        <h1 className={`text-[28px] font-black mb-2 ${isSuccess ? 'text-[#22C55E]' : 'text-red-500'}`}>
                             {isSuccess ? 'Thanh toán thành công!' : (isCancelFlow ? 'Đã hủy thanh toán' : 'Thanh toán chưa hoàn tất')}
                         </h1>
                         <p className="text-[#637381] text-[15px] mb-8">

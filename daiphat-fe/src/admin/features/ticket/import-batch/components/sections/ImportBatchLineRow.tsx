@@ -22,7 +22,8 @@ import { Controller, Control, UseFormSetValue } from 'react-hook-form';
 import { memo, useMemo, useEffect, useRef } from 'react';
 import dayjs from 'dayjs';
 import { CreateImportBatchFormValues, UpdateImportBatchFormValues } from '../../schemas/importBatch.schema';
-import { getBatchTypeLabel, getImportBatchLineStatusLabel, getImportBatchLineStatusChipColor } from '../../utils/batchTypeLabels';
+import { getBatchTypeBadgeClass, getBatchTypeLabel, getImportBatchLineStatusLabel, getImportBatchLineStatusChipColor } from '../../utils/batchTypeLabels';
+import { AdminStatusBadge } from '../../../../../components/ui/AdminStatusBadge';
 import { resolveDisplayBatchType } from '../../utils/importBatchDrawDate';
 import {
     formatViInteger,
@@ -72,6 +73,8 @@ interface ImportBatchLineRowProps {
     showErrors?: boolean;
     /** Temporary highlight for rows restored from the create screen. */
     highlighted?: boolean;
+    /** Hides the trailing actions column (create flow uses multi-select for stations). */
+    hideActionsColumn?: boolean;
     /** Highlights declare quantity when batch total was reduced below line sum (draft lines). */
     declareQuantityHighlighted?: boolean;
     declareQuantityAdjustmentHelper?: string;
@@ -109,6 +112,7 @@ export const ImportBatchLineRow = memo(function ImportBatchLineRow({
     showProgressColumn = false,
     showErrors = true,
     highlighted = false,
+    hideActionsColumn = false,
     declareQuantityHighlighted = false,
     declareQuantityAdjustmentHelper,
     shouldScrollDeclareQuantityIntoView = false,
@@ -277,26 +281,19 @@ export const ImportBatchLineRow = memo(function ImportBatchLineRow({
                     {drawDate ? dayjs(drawDate).format('DD/MM/YYYY') : '—'}
                 </Typography>
             </TableCell>
-            <TableCell sx={{ width: 168, whiteSpace: 'nowrap' }}>
-                {batchType ? (
-                    <Chip
-                        label={getBatchTypeLabel(batchType)}
-                        size="small"
-                        color={batchType === 'ADJUSTMENT' ? 'warning' : 'default'}
-                        sx={{
-                            maxWidth: '100%',
-                            '& .MuiChip-label': {
-                                overflow: 'visible',
-                                whiteSpace: 'nowrap',
-                                textOverflow: 'clip',
-                            },
-                        }}
-                    />
-                ) : (
-                    <Typography variant="caption" color="text.secondary">
-                        Chọn đài
-                    </Typography>
-                )}
+            <TableCell align="center" sx={{ width: 168, whiteSpace: 'nowrap' }}>
+                <Box sx={{ display: 'flex', justifyContent: 'center' }}>
+                    {batchType ? (
+                        <AdminStatusBadge
+                            label={getBatchTypeLabel(batchType)}
+                            modifier={getBatchTypeBadgeClass(batchType)}
+                        />
+                    ) : (
+                        <Typography variant="caption" color="text.secondary">
+                            Chọn đài
+                        </Typography>
+                    )}
+                </Box>
             </TableCell>
             {showStatusColumn && (
                 <TableCell sx={{ width: 120, whiteSpace: 'nowrap' }}>
@@ -386,8 +383,8 @@ export const ImportBatchLineRow = memo(function ImportBatchLineRow({
                     />
                 )}
             </TableCell>
-            <TableCell sx={{ width: 148 }}>
-                <Typography variant="body2" sx={{ lineHeight: 1.5 }} title="Tính từ giá bán × (1 − hoa hồng đài)">
+            <TableCell align="center" sx={{ width: 148 }}>
+                <Typography variant="body2" sx={{ lineHeight: 1.5, textAlign: 'center' }} title="Tính từ giá bán × (1 − hoa hồng đài)">
                     {formatImportCost(importCost)} VNĐ
                 </Typography>
                 <Controller
@@ -401,6 +398,7 @@ export const ImportBatchLineRow = memo(function ImportBatchLineRow({
                     {formatImportCost(lineTotal)} VNĐ
                 </Typography>
             </TableCell>
+            {!hideActionsColumn && (
             <TableCell
                 align="center"
                 sx={{
@@ -465,6 +463,7 @@ export const ImportBatchLineRow = memo(function ImportBatchLineRow({
                     )}
                 </Box>
             </TableCell>
+            )}
         </TableRow>
     );
 });

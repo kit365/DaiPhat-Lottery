@@ -15,8 +15,8 @@ import java.util.UUID;
 @Entity
 @Table(
         name = "fortune_casts",
-        uniqueConstraints = {
-                @UniqueConstraint(name = "uk_fortune_casts_user_cast_date", columnNames = {"user_id", "cast_date"})
+        indexes = {
+                @Index(name = "idx_fortune_casts_user_created_at", columnList = "user_id, created_at")
         }
 )
 @Getter

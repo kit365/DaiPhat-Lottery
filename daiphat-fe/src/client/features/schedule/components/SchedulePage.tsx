@@ -3,6 +3,8 @@
 import { useMemo } from 'react';
 import { BottomNav } from "../../../components/layout/BottomNav";
 import { useLotterySchedule } from "../hooks/useLotterySchedule";
+import type { LotteryStationSchedule } from '../types/schedule.types';
+import { CLIENT_PAGE_BACKGROUND } from '../../../constants/clientBannerAssets';
 import { Breadcrumb } from "../../../components/ui/Breadcrumb";
 
 const REGION_LABELS: Record<string, { label: string, bg: string, text: string }> = {
@@ -13,8 +15,14 @@ const REGION_LABELS: Record<string, { label: string, bg: string, text: string }>
 
 const DAY_OF_WEEK_MAP = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'];
 
-export const SchedulePage = () => {
-  const { scheduleByDay, availableRegions, regionDrawTimes, isLoading, error } = useLotterySchedule();
+type SchedulePageProps = {
+  initialSchedule?: LotteryStationSchedule[];
+};
+
+export const SchedulePage = ({ initialSchedule }: SchedulePageProps = {}) => {
+  const { scheduleByDay, availableRegions, regionDrawTimes, isLoading, error } = useLotterySchedule({
+    initialSchedule,
+  });
 
   const todayDayName = useMemo(() => {
     return DAY_OF_WEEK_MAP[new Date().getDay()];
@@ -25,7 +33,7 @@ export const SchedulePage = () => {
   return (
     <div 
       className="client-page relative min-h-screen overflow-x-hidden bg-fixed bg-cover bg-center"
-      style={{ backgroundImage: 'url("https://i.ibb.co/BVFGYpL1/86f05f70-fcf8-445f-978e-a0539eb2f0de.png")' }}
+      style={{ backgroundImage: `url("${CLIENT_PAGE_BACKGROUND}")` }}
     >
       <main className="relative z-1 pt-16 lg:pt-24 pb-12 lg:pb-20">
         <div className="max-w-[1280px] mx-auto px-4 xl:px-0">

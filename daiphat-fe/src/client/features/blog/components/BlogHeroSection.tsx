@@ -1,6 +1,8 @@
 import React from 'react';
 import { Breadcrumb } from '../../../components/ui/Breadcrumb';
 
+import { BLOG_HERO_DEFAULT } from '@/client/constants/clientBannerAssets';
+
 interface BlogHeroSectionProps {
   selectedCategory?: {
     name: string;
@@ -15,7 +17,7 @@ export const BlogHeroSection: React.FC<BlogHeroSectionProps> = ({ selectedCatego
       className="relative w-full aspect-[937/134] bg-cover bg-center bg-no-repeat flex items-center"
       style={{
         backgroundImage:
-          'url("https://cdn.phototourl.com/free/2026-06-04-d2a5e8c8-8df8-4e9c-9e68-ec6b633e5fc1.png")',
+          `url("${BLOG_HERO_DEFAULT}")`,
       }}
     >
       <div className="relative z-10 w-full max-w-[1440px] mx-auto px-4 lg:px-6">

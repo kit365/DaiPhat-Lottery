@@ -1,3 +1,5 @@
+"use client";
+
 import { Trophy, BellRing } from "lucide-react";
 import {
     NOTIFICATION_CHANNEL,
