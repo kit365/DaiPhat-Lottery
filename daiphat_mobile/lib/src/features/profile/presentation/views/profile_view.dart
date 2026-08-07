@@ -78,6 +78,10 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
               child: Column(
                 children: [
                   _buildHeaderAndProfileCard(context),
+                  if (viewModel.user?.isAdmin == true) ...[
+                    const SizedBox(height: 16),
+                    _buildAdminSection(context),
+                  ],
                   const SizedBox(height: 16),
                   _buildMyTicketsSection(),
                   const SizedBox(height: 16),
@@ -397,6 +401,121 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
     );
   }
 
+  Widget _buildAdminSection(BuildContext context) {
+    return _buildCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.admin_panel_settings_rounded,
+                  color: AppColors.primary,
+                  size: 22,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Bảng điều khiển Admin',
+                    style: GoogleFonts.publicSans(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.textMain,
+                    ),
+                  ),
+                  Text(
+                    'Quyền Quản trị viên & Nhân viên',
+                    style: GoogleFonts.publicSans(
+                      fontSize: 11,
+                      color: AppColors.textMuted,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          InkWell(
+            onTap: () => context.push(AppRoute.adminScan.path),
+            borderRadius: BorderRadius.circular(12),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFFD32F2F), Color(0xFFE53935)],
+                  begin: Alignment.centerLeft,
+                  end: Alignment.centerRight,
+                ),
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Color(0x33D32F2F),
+                    blurRadius: 10,
+                    offset: Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: const BoxDecoration(
+                      color: Colors.white24,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.qr_code_scanner_rounded,
+                      color: Colors.white,
+                      size: 24,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Quét vé số OCR (Trang Admin)',
+                          style: GoogleFonts.publicSans(
+                            color: Colors.white,
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'Kết nối Real-time với màn hình Web Admin',
+                          style: GoogleFonts.publicSans(
+                            color: Colors.white70,
+                            fontSize: 11,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Icon(
+                    Icons.arrow_forward_ios_rounded,
+                    color: Colors.white,
+                    size: 16,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildMyTicketsSection() {
     final summaryVm = _ticketsSummaryViewModel;
     if (summaryVm == null) {
@@ -643,7 +762,7 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Tiện ích',
+            'Tiện ích & Quản trị',
             style: GoogleFonts.publicSans(
               fontSize: 16,
               fontWeight: FontWeight.w700,
@@ -654,12 +773,23 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
           Row(
             children: [
               _buildUtilityItemIcon(
+                Icons.qr_code_scanner_rounded,
+                'Quét vé OCR',
+                onTap: () => context.push(AppRoute.adminScan.path),
+              ),
+              const SizedBox(width: 10),
+              _buildUtilityItemIcon(
                 Icons.notifications_active_outlined,
                 'Thông báo',
                 onTap: () => context.push(AppRoute.notifications.path),
               ),
               const SizedBox(width: 10),
               _buildUtilityItemIcon(Icons.auto_fix_high, 'Gieo quẻ'),
+              const SizedBox(width: 10),
+              _buildUtilityItemIcon(
+                Icons.calendar_month_outlined,
+                'Lịch mở thưởng',
+              ),
             ],
           ),
         ],
