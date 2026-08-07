@@ -29,6 +29,23 @@ def test_all_fields_missing():
     assert result.errors == []
 
 
+def test_real_world_serial_format_is_accepted():
+    # Real Vietnamese lottery serials mix letters and digits throughout
+    # (e.g. "32TV17"), not just a single optional leading letter.
+    validator = FormatValidator()
+    extracted = ExtractedTicketFields(
+        stationName="Cần Thơ",
+        serialNumber="32TV17",
+        numbers="123456",
+        drawDate="2026-08-05",
+    )
+
+    result = validator.validate(extracted)
+
+    assert result.is_valid
+    assert result.errors == []
+
+
 def test_invalid_serial_format_is_an_error_not_a_missing_field():
     validator = FormatValidator()
     extracted = ExtractedTicketFields(

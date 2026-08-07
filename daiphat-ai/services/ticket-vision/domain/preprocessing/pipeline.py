@@ -72,6 +72,115 @@ def perspective_warp(image: np.ndarray, corners: list[tuple[int, int]]) -> np.nd
     return cv2.warpPerspective(image, matrix, (out_width, out_height))
 
 
+MIN_OCR_CROP_DIMENSION = 300
+
+
+def upscale_if_too_small(image: np.ndarray, min_dimension: int = MIN_OCR_CROP_DIMENSION) -> np.ndarray:
+    """Upscale a warped ticket crop whose shorter side is below min_dimension.
+
+    EasyOCR's (and PaddleOCR's) text detector reliably under-detects or
+    returns zero boxes on small crops -- a ticket photographed far away, or
+    a detection region tighter than the full ticket, can otherwise starve
+    OCR down to empty results even though the text is legible once scaled
+    up. Uses INTER_CUBIC (vs. resize_if_needed's INTER_AREA) since this is
+    an upscale, not a downscale.
+    """
+    height, width = image.shape[:2]
+    shortest_side = min(height, width)
+    if shortest_side <= 0 or shortest_side >= min_dimension:
+        return image
+
+    scale = min_dimension / float(shortest_side)
+    new_size = (int(round(width * scale)), int(round(height * scale)))
+    return cv2.resize(image, new_size, interpolation=cv2.INTER_CUBIC)
+
+
+def rotate_quarter_turns(image: np.ndarray, quarter_turns: int) -> np.ndarray:
+    """Rotate clockwise by quarter_turns * 90 degrees (mod 4)."""
+    quarter_turns %= 4
+    if quarter_turns == 0:
+        return image
+    rotate_code = {
+        1: cv2.ROTATE_90_CLOCKWISE,
+        2: cv2.ROTATE_180,
+        3: cv2.ROTATE_90_COUNTERCLOCKWISE,
+    }[quarter_turns]
+    return cv2.rotate(image, rotate_code)
+
+
+def dominant_text_axis(image: np.ndarray) -> int:
+    """Cheap geometric guess at whether printed text in this image already
+    runs horizontally (0) or the image needs a 90-degree turn to make it so
+    (1) -- e.g. a ticket photographed in portrait/sideways orientation.
+
+    Uses the dominant direction of straight edges (Hough line segments):
+    dense printed text produces many short near-axis-aligned strokes, and
+    whichever axis carries more total line length wins. Can NOT distinguish
+    upright from upside-down (a 180-degree rotation looks identical to this
+    heuristic) -- that ambiguity is resolved separately with an OCR
+    confidence probe, since only the OCR engine actually knows which way is
+    "up" for the printed content (see TicketScanService._correct_orientation).
+    """
+    gray = to_grayscale(image)
+    edges = cv2.Canny(gray, 50, 150)
+    lines = cv2.HoughLinesP(edges, 1, np.pi / 180, threshold=60, minLineLength=25, maxLineGap=5)
+    if lines is None:
+        return 0
+
+    horizontal_length = 0.0
+    vertical_length = 0.0
+    for x1, y1, x2, y2 in lines[:, 0, :]:
+        length = float(np.hypot(x2 - x1, y2 - y1))
+        angle = abs(np.degrees(np.arctan2(y2 - y1, x2 - x1)))
+        angle = min(angle, 180 - angle)  # fold into 0..90
+        if angle <= 20:
+            horizontal_length += length
+        elif angle >= 70:
+            vertical_length += length
+
+    return 1 if vertical_length > horizontal_length * 1.3 else 0
+
+
+# Specular highlight (glare) detection thresholds, in HSV. A reflection off
+# the ticket's glossy surface under overhead lighting reads as a patch that
+# is both very bright (high V) and nearly colorless (low S) -- unlike
+# genuinely bright print (a yellow/white ticket background, gold foil),
+# which stays either saturated/colored or covers a large uniform area
+# rather than a tight blown-out blob.
+_GLARE_VALUE_THRESHOLD = 235
+_GLARE_SATURATION_THRESHOLD = 40
+_GLARE_DILATE_KERNEL = np.ones((5, 5), np.uint8)
+# Safety cap: if "glare" would cover more than this fraction of the image,
+# it's more likely a legitimately bright/white ticket background than an
+# actual reflection -- skip inpainting rather than risk hallucinating
+# texture over real (if pale) print.
+_MAX_GLARE_COVERAGE_RATIO = 0.25
+
+
+def remove_glare(image: np.ndarray) -> np.ndarray:
+    """Detect and inpaint specular highlights from a glossy ticket surface.
+
+    A flat, blown-out reflection gives OCR nothing to read (as opposed to
+    faded or noisy text, which at least has some signal) -- inpainting fills
+    the highlight with plausible surrounding texture/color instead, which is
+    strictly more useful to the text detector than solid white. No-op when
+    no glare-shaped region is found (the common case for a well-lit photo).
+    """
+    if len(image.shape) != 3:
+        return image  # already grayscale -- nothing to key color/glare off of
+
+    hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
+    _, saturation, value = cv2.split(hsv)
+
+    glare_mask = ((value >= _GLARE_VALUE_THRESHOLD) & (saturation <= _GLARE_SATURATION_THRESHOLD)).astype(np.uint8) * 255
+    coverage = np.count_nonzero(glare_mask) / glare_mask.size
+    if coverage <= 0 or coverage > _MAX_GLARE_COVERAGE_RATIO:
+        return image
+
+    glare_mask = cv2.dilate(glare_mask, _GLARE_DILATE_KERNEL, iterations=1)
+    return cv2.inpaint(image, glare_mask, inpaintRadius=5, flags=cv2.INPAINT_TELEA)
+
+
 def denoise(image: np.ndarray) -> np.ndarray:
     if len(image.shape) == 3:
         return cv2.fastNlMeansDenoisingColored(image, None, 7, 7, 7, 21)
@@ -114,6 +223,19 @@ class ProcessedTicketCrop:
         self.ocr_ready = ocr_ready
 
 
+def rotate_crop(crop: ProcessedTicketCrop, quarter_turns: int) -> ProcessedTicketCrop:
+    """Rotate both derivatives of a crop together, keeping them in sync --
+    used by TicketScanService._correct_orientation to fix a sideways or
+    upside-down ticket after the fact (perspective warp alone can't tell
+    content-orientation from pure geometry)."""
+    if quarter_turns % 4 == 0:
+        return crop
+    return ProcessedTicketCrop(
+        preview=rotate_quarter_turns(crop.preview, quarter_turns),
+        ocr_ready=rotate_quarter_turns(crop.ocr_ready, quarter_turns),
+    )
+
+
 def process_ticket_crop(source_image: np.ndarray, region: DetectedRegion) -> ProcessedTicketCrop:
     if len(region.corners) == 4:
         warped = perspective_warp(source_image, region.corners)
@@ -122,6 +244,9 @@ def process_ticket_crop(source_image: np.ndarray, region: DetectedRegion) -> Pro
         # axis-aligned box instead of failing the whole scan.
         x, y, w, h = region.bbox
         warped = source_image[y : y + h, x : x + w]
+
+    warped = upscale_if_too_small(warped)
+    warped = remove_glare(warped)
 
     preview = denoise(warped)
     gray = to_grayscale(preview)

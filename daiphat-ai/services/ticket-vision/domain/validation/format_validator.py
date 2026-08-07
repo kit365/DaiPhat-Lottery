@@ -8,7 +8,7 @@ from dto.response.scan_response import ExtractedTicketFields
 # separate constants (rather than importing the parser's private regexes)
 # so this module stays a self-contained, independently testable Layer-1
 # format check, per doc section 3.
-_SERIAL_PATTERN = re.compile(r"^[A-Za-z]?\d{5,8}$")
+_SERIAL_PATTERN = re.compile(r"^(?=.*[A-Za-z])(?=.*\d)[A-Za-z0-9]{4,10}$")
 _FALLBACK_NUMBER_LENGTHS = (4, 5, 6)
 
 
@@ -51,7 +51,7 @@ class FormatValidator:
         if not extracted.serialNumber:
             missing.append("serialNumber")
         elif not _SERIAL_PATTERN.match(extracted.serialNumber):
-            errors.append("serialNumber không đúng định dạng ([A-Za-z]?\\d{5,8}).")
+            errors.append("serialNumber không đúng định dạng (chữ và số, 4-10 ký tự).")
 
         if not extracted.numbers:
             missing.append("numbers")
