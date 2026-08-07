@@ -156,7 +156,7 @@ export const ImportBatchConfirmDialog = ({
                                 📋 THÔNG TIN CHUNG PHIẾU NHẬP
                             </Typography>
                             <Grid container spacing={2}>
-                                <Grid item xs={12} sm={6} md={3}>
+                                <Grid size={{ xs: 12, sm: 6, md: 3 }}>
                                     <Stack spacing={0.5}>
                                         <Stack direction="row" alignItems="center" spacing={0.5}>
                                             <CalendarTodayIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
@@ -166,7 +166,7 @@ export const ImportBatchConfirmDialog = ({
                                     </Stack>
                                 </Grid>
 
-                                <Grid item xs={12} sm={6} md={3}>
+                                <Grid size={{ xs: 12, sm: 6, md: 3 }}>
                                     <Stack spacing={0.5}>
                                         <Stack direction="row" alignItems="center" spacing={0.5}>
                                             <StorefrontIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
@@ -176,7 +176,7 @@ export const ImportBatchConfirmDialog = ({
                                     </Stack>
                                 </Grid>
 
-                                <Grid item xs={12} sm={6} md={3}>
+                                <Grid size={{ xs: 12, sm: 6, md: 3 }}>
                                     <Stack spacing={0.5}>
                                         <Stack direction="row" alignItems="center" spacing={0.5}>
                                             <CategoryIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
@@ -192,7 +192,7 @@ export const ImportBatchConfirmDialog = ({
                                     </Stack>
                                 </Grid>
 
-                                <Grid item xs={12} sm={6} md={3}>
+                                <Grid size={{ xs: 12, sm: 6, md: 3 }}>
                                     <Stack spacing={0.5}>
                                         <Stack direction="row" alignItems="center" spacing={0.5}>
                                             <PaymentsIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
@@ -245,7 +245,7 @@ export const ImportBatchConfirmDialog = ({
                                             </Button>
                                         </Stack>
                                     ) : (
-                                        <Typography variant="body2" color="text.secondary" italic>
+                                        <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
                                             Không có ảnh biên lai đính kèm
                                         </Typography>
                                     )}

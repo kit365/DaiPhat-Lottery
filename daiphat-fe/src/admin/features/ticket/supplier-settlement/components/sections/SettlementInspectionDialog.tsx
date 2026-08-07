@@ -194,7 +194,7 @@ export const SettlementInspectionDialog = ({
 
                     {/* Executive KPI Summary Cards */}
                     <Grid container spacing={2} sx={{ mb: 3 }}>
-                        <Grid item xs={12} sm={6} md={3}>
+                        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
                             <Card elevation={0} sx={{ p: 2, borderRadius: '12px', border: '1px solid #e2e8f0', bgcolor: '#fff' }}>
                                 <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 0.5 }}>
                                     <Inventory2OutlinedIcon sx={{ fontSize: '1.1rem', color: '#64748b' }} />
@@ -211,7 +211,7 @@ export const SettlementInspectionDialog = ({
                             </Card>
                         </Grid>
 
-                        <Grid item xs={12} sm={6} md={3}>
+                        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
                             <Card elevation={0} sx={{ p: 2, borderRadius: '12px', border: '1px solid #e2e8f0', bgcolor: '#fff' }}>
                                 <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 0.5 }}>
                                     <LocalShippingOutlinedIcon sx={{ fontSize: '1.1rem', color: '#0284c7' }} />
@@ -228,7 +228,7 @@ export const SettlementInspectionDialog = ({
                             </Card>
                         </Grid>
 
-                        <Grid item xs={12} sm={6} md={3}>
+                        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
                             <Card elevation={0} sx={{ p: 2, borderRadius: '12px', border: '1px solid #e2e8f0', bgcolor: '#fff' }}>
                                 <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 0.5 }}>
                                     <AssignmentReturnOutlinedIcon sx={{ fontSize: '1.1rem', color: '#16a34a' }} />
@@ -245,7 +245,7 @@ export const SettlementInspectionDialog = ({
                             </Card>
                         </Grid>
 
-                        <Grid item xs={12} sm={6} md={3}>
+                        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
                             <Card
                                 elevation={0}
                                 sx={{
@@ -344,7 +344,7 @@ export const SettlementInspectionDialog = ({
 
                     <Grid container spacing={3}>
                         {/* 1. Left Column: Import Batch Receipt (Sáng) */}
-                        <Grid item xs={12} md={6}>
+                        <Grid size={{ xs: 12, md: 6 }}>
                             <Card
                                 elevation={0}
                                 sx={{
@@ -410,7 +410,7 @@ export const SettlementInspectionDialog = ({
                         </Grid>
 
                         {/* 2. Right Column: Return Batch Evidence Receipt (Chiều - returnReceiptEvidenceUrl) */}
-                        <Grid item xs={12} md={6}>
+                        <Grid size={{ xs: 12, md: 6 }}>
                             <Card
                                 elevation={0}
                                 sx={{
