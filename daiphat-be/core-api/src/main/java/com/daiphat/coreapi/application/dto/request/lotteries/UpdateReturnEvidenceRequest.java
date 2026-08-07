@@ -1,7 +1,6 @@
 package com.daiphat.coreapi.application.dto.request.lotteries;
 
-public record ConfirmReturnBatchRequest(
-        String returnReceiptUrl,
+public record UpdateReturnEvidenceRequest(
         String returnReceiptEvidenceUrl
 ) {
 }
