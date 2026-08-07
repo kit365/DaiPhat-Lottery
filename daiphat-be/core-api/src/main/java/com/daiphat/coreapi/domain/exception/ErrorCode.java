@@ -610,7 +610,22 @@ public enum ErrorCode {
     FORTUNE_NO_INVENTORY(
             "FRT_003",
             "No sellable ticket endings are available for today's draw.",
-            HttpStatus.CONFLICT);
+            HttpStatus.CONFLICT),
+
+    // Ticket scan (camera OCR import, DP-269)
+    TICKET_SCAN_IMAGE_REQUIRED("LT_121", "Ảnh quét vé không được để trống.", HttpStatus.BAD_REQUEST),
+    TICKET_SCAN_SERVICE_UNAVAILABLE(
+            "LT_122",
+            "Dịch vụ quét vé số hiện không khả dụng, vui lòng thử lại sau.",
+            HttpStatus.SERVICE_UNAVAILABLE),
+    TICKET_SCAN_BATCH_CODE_MISMATCH(
+            "LT_123",
+            "Mã lô nhập không khớp với phiếu nhập lô đã chọn.",
+            HttpStatus.BAD_REQUEST),
+    TICKET_SCAN_NO_TICKETS_TO_IMPORT(
+            "LT_124",
+            "Không có vé nào được xác nhận để nhập kho.",
+            HttpStatus.BAD_REQUEST);
 
     private final String code;
     private final String message;
