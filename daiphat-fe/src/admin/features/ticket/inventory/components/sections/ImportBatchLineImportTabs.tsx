@@ -134,7 +134,6 @@ export const ImportBatchLineImportTabs = ({
                     return (
                         <Tab
                             key={line.id}
-                            disabled={cancelled}
                             label={
                                 <Stack direction="row" spacing={0.75} alignItems="center">
                                     <Box
@@ -204,7 +203,7 @@ export const ImportBatchLineImportTabs = ({
                         />
                     </Stack>
 
-                    {isLineCancelled(activeLine) && (
+                    {batchStatus !== 'CANCELLED' && isLineCancelled(activeLine) && (
                         <Alert severity="error" sx={{ mb: 2 }}>
                             {getImportBatchLineCancelledAlertMessage(activeLine.cancelReason)}
                         </Alert>

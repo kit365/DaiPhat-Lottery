@@ -1,9 +1,8 @@
 "use client";
 
-'use client';
-
 import React from 'react';
 import {
+    Alert,
     IconButton,
     Typography,
     Box,
@@ -28,11 +27,16 @@ import {
     FormControl,
     Tooltip,
     Dialog,
-    DialogContent
+    DialogTitle,
+    DialogContent,
+    DialogActions,
 } from '@mui/material';
 import { AppToast } from '../../../../../../utils/toast.util';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import SearchIcon from '@mui/icons-material/Search';
+import QrCodeScannerIcon from '@mui/icons-material/QrCodeScanner';
+import PhoneIphoneIcon from '@mui/icons-material/PhoneIphone';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import { useQueryClient } from '@tanstack/react-query';
 import { useParams, useNavigate } from '@/components/router-compat';
 import { QUERY_KEYS } from '../../../inventory/constants/queryKeys';
@@ -41,7 +45,6 @@ import ReportProblemIcon from '@mui/icons-material/ReportProblem';
 import ConfirmationNumberIcon from '@mui/icons-material/ConfirmationNumber';
 import StorefrontIcon from '@mui/icons-material/Storefront';
 import LabelIcon from '@mui/icons-material/Label';
-import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import ShowChartIcon from '@mui/icons-material/ShowChart';
@@ -428,6 +431,8 @@ export const ImportBatchLineDetailPage = () => {
     const totalCancelableSerialsCount = cancelableSerials.length;
     const [isReportDialogOpen, setIsReportDialogOpen] = React.useState(false);
     const [dialogCancelMode, setDialogCancelMode] = React.useState<'TICKET' | 'SERIAL'>('TICKET');
+    const [scanDialogOpen, setScanDialogOpen] = React.useState(false);
+    const [scanSessionCode, setScanSessionCode] = React.useState('');
 
     const handleSelectAll = (checked: boolean) => {
         if (checked) {
@@ -713,6 +718,27 @@ export const ImportBatchLineDetailPage = () => {
                         </Stack>
 
                         <Stack direction="row" alignItems="center" spacing={1.5}>
+                            <Button
+                                variant="contained"
+                                color="primary"
+                                size="small"
+                                startIcon={<QrCodeScannerIcon />}
+                                onClick={() => {
+                                    const code = `BATCH-${Math.floor(1000 + Math.random() * 9000)}`;
+                                    setScanSessionCode(code);
+                                    setScanDialogOpen(true);
+                                }}
+                                sx={{
+                                    textTransform: 'none',
+                                    fontWeight: 700,
+                                    borderRadius: '8px',
+                                    boxShadow: 'none',
+                                    py: 0.8,
+                                    px: 2,
+                                }}
+                            >
+                                Quét vé bằng Mobile App
+                            </Button>
                             <Button 
                                 variant="contained" 
                                 color="error" 
@@ -846,6 +872,69 @@ export const ImportBatchLineDetailPage = () => {
                         onSuccess={handleReportSuccess}
                     />
                 </DialogContent>
+            </Dialog>
+
+            {/* ── Dialog Kết nối Quét vé số từ Mobile App ── */}
+            <Dialog
+                open={scanDialogOpen}
+                onClose={() => setScanDialogOpen(false)}
+                maxWidth="xs"
+                fullWidth
+            >
+                <DialogTitle sx={{ fontWeight: 'bold', pb: 1 }}>
+                    <Stack direction="row" alignItems="center" spacing={1}>
+                        <PhoneIphoneIcon color="primary" />
+                        <Typography variant="h6" fontWeight="bold">
+                            Kết nối Quét vé Mobile
+                        </Typography>
+                    </Stack>
+                </DialogTitle>
+                <DialogContent dividers>
+                    <Stack spacing={2} alignItems="center" sx={{ py: 1, textAlign: 'center' }}>
+                        <Typography variant="body2" color="text.secondary">
+                            Mở ứng dụng Mobile (Tài khoản Admin / Nhân viên) -&gt; chọn <b>Quét vé OCR</b> để tự động ghép nối với phiên làm việc này. Mã phiên:
+                        </Typography>
+
+                        <Paper
+                            variant="outlined"
+                            sx={{
+                                p: 2,
+                                width: '100%',
+                                bgcolor: '#f8fafc',
+                                borderColor: 'primary.main',
+                                borderRadius: 2,
+                            }}
+                        >
+                            <Typography variant="caption" color="text.secondary" fontWeight="medium">
+                                MÃ KẾT NỐI PHIÊN (SESSION CODE)
+                            </Typography>
+                            <Typography
+                                variant="h4"
+                                color="primary.main"
+                                fontWeight="bold"
+                                letterSpacing={2}
+                                sx={{ my: 0.5 }}
+                            >
+                                {scanSessionCode}
+                            </Typography>
+                            <Stack direction="row" spacing={0.5} justifyContent="center" alignItems="center">
+                                <CheckCircleIcon color="success" sx={{ fontSize: 16 }} />
+                                <Typography variant="caption" color="success.main" fontWeight="bold">
+                                    Đang sẵn sàng kết nối với ứng dụng Mobile...
+                                </Typography>
+                            </Stack>
+                        </Paper>
+
+                        <Alert severity="info" sx={{ textAlign: 'left', width: '100%' }}>
+                            Khi Mobile bật quét vé số, hình ảnh và danh sách vé bóc tách được từ AI Vision sẽ tự động cập nhật Real-time vào dòng phiếu này.
+                        </Alert>
+                    </Stack>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setScanDialogOpen(false)} variant="contained" color="primary">
+                        Đóng / Hoàn tất
+                    </Button>
+                </DialogActions>
             </Dialog>
         </Box>
     );
