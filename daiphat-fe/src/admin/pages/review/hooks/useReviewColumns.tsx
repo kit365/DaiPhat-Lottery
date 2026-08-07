@@ -1,8 +1,8 @@
-import { GridActionsCell, GridActionsCellItem, GridColDef } from '@mui/x-data-grid';
+import { GridColDef } from '@mui/x-data-grid';
 import { Chip, Stack, Box, Avatar, ListItemText, Typography } from '@mui/material';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
-import DeleteIcon from '@mui/icons-material/Delete';
+import { AdminRowActionsMenu } from '../../../components/ui/AdminRowActionsMenu';
 import { useReviews } from './useReviews';
 
 const COLORS = {
@@ -153,49 +153,35 @@ export const useReviewColumns = () => {
             align: 'right',
             renderCell: (params) => (
                 <Box sx={{ height: '100%', display: 'flex', alignItems: 'center', px: 2 }}>
-                    <GridActionsCell {...params}>
-                        <GridActionsCellItem
-                            icon={<CheckCircleIcon sx={{ fontSize: '1.25rem', color: 'rgb(0, 167, 111)' }} />}
-                            label="Duyệt"
-                            onClick={() => changeStatus({ id: params.row.id, status: 'approved' })}
-                            showInMenu
-                            {...({
-                                sx: {
-                                    '& .MuiTypography-root': { fontSize: '0.8125rem', fontWeight: 600 }
-                                }
-                            } as any)}
-                        />
-                        <GridActionsCellItem
-                            icon={<VisibilityOffIcon sx={{ fontSize: '1.25rem', color: 'rgb(255, 171, 0)' }} />}
-                            label="Ẩn"
-                            onClick={() => changeStatus({ id: params.row.id, status: 'rejected' })}
-                            showInMenu
-                            {...({
-                                sx: {
-                                    '& .MuiTypography-root': { fontSize: '0.8125rem', fontWeight: 600 }
-                                }
-                            } as any)}
-                        />
-                        <GridActionsCellItem
-                            icon={<DeleteIcon sx={{ fontSize: '1.25rem', color: 'var(--palette-error-main)' }} />}
-                            label="Xóa"
-                            onClick={() => {
-                                if (window.confirm('Bạn có chắc chắn muốn xóa đánh giá này?')) {
-                                    deleteReview(params.row.id);
-                                }
-                            }}
-                            showInMenu
-                            {...({
-                                sx: {
-                                    '& .MuiTypography-root': {
-                                        fontSize: '0.8125rem',
-                                        fontWeight: 600,
-                                        color: 'var(--palette-error-main)'
+                    <AdminRowActionsMenu
+                        items={[
+                            {
+                                id: 'approve',
+                                label: 'Duyệt',
+                                icon: <CheckCircleIcon sx={{ fontSize: '1.25rem', color: 'rgb(0, 167, 111)' }} />,
+                                onClick: () => changeStatus({ id: params.row.id, status: 'approved' }),
+                                sx: { color: 'rgb(0, 167, 111)' },
+                            },
+                            {
+                                id: 'hide',
+                                label: 'Ẩn',
+                                icon: <VisibilityOffIcon sx={{ fontSize: '1.25rem', color: 'rgb(255, 171, 0)' }} />,
+                                onClick: () => changeStatus({ id: params.row.id, status: 'rejected' }),
+                                sx: { color: 'rgb(255, 171, 0)' },
+                            },
+                            {
+                                id: 'delete',
+                                label: 'Xóa',
+                                icon: 'delete',
+                                onClick: () => {
+                                    if (window.confirm('Bạn có chắc chắn muốn xóa đánh giá này?')) {
+                                        deleteReview(params.row.id);
                                     }
-                                }
-                            } as any)}
-                        />
-                    </GridActionsCell>
+                                },
+                                danger: true,
+                            },
+                        ]}
+                    />
                 </Box>
             ),
         },

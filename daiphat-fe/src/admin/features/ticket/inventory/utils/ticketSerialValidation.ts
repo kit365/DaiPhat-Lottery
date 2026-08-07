@@ -12,6 +12,7 @@ const ALWAYS_VISIBLE_ERROR_TYPES = new Set([
     'quota',
     'length',
     'api',
+    'image',
 ]);
 
 /** Show resolver errors only after field interaction or submit; always show programmatic errors. */
@@ -42,11 +43,16 @@ export const SERIAL_WITHOUT_TICKET_MESSAGE = 'Số sê-ri phải thuộc một d
 export const QUOTA_OVERFLOW_SERIAL_MESSAGE = 'Số lượng vé vượt quá số lượng còn lại có thể nhập.';
 export const QUOTA_UNDER_DECLARE_MESSAGE =
     'Số lượng vé nhập ít hơn số lượng còn lại theo khai báo.';
+export const SERIAL_IMAGE_REQUIRED_MESSAGE = 'Vui lòng tải ảnh vé cho số sê-ri này.';
 
 export const normalizeSerialNumber = (value?: string) => value?.trim().toLowerCase() ?? '';
 export const normalizeTicketNumbers = (value?: string) => value?.trim() ?? '';
 
-export type SerialInput = { id?: string | number; serialNumber?: string };
+export type SerialInput = {
+    id?: string | number;
+    serialNumber?: string;
+    ticketImg?: string | null;
+};
 export type TicketSectionInput = { numbers?: string; serials?: SerialInput[]; ticketId?: number };
 export type SerialPath = { sectionIndex: number; serialIndex: number };
 
@@ -100,6 +106,46 @@ export const findSectionRelationshipIssues = (
     });
 
     return issues;
+};
+
+const isPersistedSerialInput = (serial?: SerialInput) =>
+    serial?.id != null && String(serial.id).trim() !== '';
+
+const hasSerialImage = (ticketImg?: string | null) =>
+    typeof ticketImg === 'string' && ticketImg.trim().length > 0;
+
+/** Pending serial rows with a number must include an uploaded image URL. */
+export const findMissingSerialImagePaths = (sections: TicketSectionInput[]): SerialPath[] => {
+    const paths: SerialPath[] = [];
+
+    sections.forEach((section, sectionIndex) => {
+        (section.serials ?? []).forEach((serial, serialIndex) => {
+            if (!normalizeSerialNumber(serial.serialNumber)) {
+                return;
+            }
+            if (isPersistedSerialInput(serial)) {
+                return;
+            }
+            if (!hasSerialImage(serial.ticketImg)) {
+                paths.push({ sectionIndex, serialIndex });
+            }
+        });
+    });
+
+    return paths;
+};
+
+export const applyMissingSerialImageFieldErrors = (
+    paths: SerialPath[],
+    setError: UseFormSetError<CreateTicketFormValues>,
+    message: string = SERIAL_IMAGE_REQUIRED_MESSAGE
+) => {
+    paths.forEach(({ sectionIndex, serialIndex }) => {
+        setError(`ticketSections.${sectionIndex}.serials.${serialIndex}.ticketImg`, {
+            type: 'image',
+            message,
+        });
+    });
 };
 
 export const findQuotaOverflowSerialPaths = (
@@ -377,8 +423,13 @@ const findFirstSerialInSection = (
 
     for (let serialIndex = 0; serialIndex < serialErrors.length; serialIndex += 1) {
         const serialError = serialErrors[serialIndex];
-        if (serialError && typeof serialError === 'object' && 'serialNumber' in serialError) {
-            return { sectionIndex, serialIndex };
+        if (serialError && typeof serialError === 'object') {
+            if ('ticketImg' in serialError && serialError.ticketImg) {
+                return { sectionIndex, serialIndex };
+            }
+            if ('serialNumber' in serialError && serialError.serialNumber) {
+                return { sectionIndex, serialIndex };
+            }
         }
     }
 
@@ -391,6 +442,17 @@ export const scrollToSerialField = (sectionIndex: number, serialIndex: number) =
             behavior: 'smooth',
             block: 'center',
         });
+    });
+};
+
+export const scrollToSerialImageField = (sectionIndex: number, serialIndex: number) => {
+    requestAnimationFrame(() => {
+        document
+            .getElementById(`ticket-serial-image-field-${sectionIndex}-${serialIndex}`)
+            ?.scrollIntoView({
+                behavior: 'smooth',
+                block: 'center',
+            });
     });
 };
 

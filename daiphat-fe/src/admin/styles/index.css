@@ -340,6 +340,12 @@ input:-webkit-autofill:active {
     box-shadow: none !important;
 }
 
+.MuiButton-contained.btn-primary-admin,
+.MuiDialogActions-root .MuiButton-contained.btn-primary-admin {
+    background-color: var(--palette-text-primary) !important;
+    color: var(--palette-common-white) !important;
+}
+
 /* Outlined / Cancel button style for admin */
 .btn-outlined-admin {
     background-color: transparent !important;
@@ -368,6 +374,239 @@ input:-webkit-autofill:active {
 .btn-outlined-admin.Mui-disabled {
     color: rgba(145, 158, 171, 0.8) !important;
     border-color: rgba(145, 158, 171, 0.32) !important;
+}
+
+/* Import batch list — "Nhập ngay" CTA pulse */
+@keyframes import-batch-cta-pulse {
+    0%,
+    100% {
+        box-shadow: 0 0 0 0 rgba(var(--palette-info-mainChannel) / 0.2);
+    }
+
+    50% {
+        box-shadow: 0 0 0 4px rgba(var(--palette-info-lighterChannel) / 1),
+            0 0 0 7px rgba(var(--palette-info-mainChannel) / 0.14);
+    }
+}
+
+@keyframes import-batch-cta-shine {
+    0% {
+        transform: translateX(-140%) skewX(-18deg);
+    }
+
+    45%,
+    100% {
+        transform: translateX(240%) skewX(-18deg);
+    }
+}
+
+@keyframes import-batch-cta-arrow-nudge {
+    0%,
+    100% {
+        transform: translateX(0);
+    }
+
+    50% {
+        transform: translateX(3px);
+    }
+}
+
+@keyframes import-batch-cta-ticket-pop {
+    0%,
+    100% {
+        transform: scale(1) rotate(0deg);
+    }
+
+    35% {
+        transform: scale(1.1) rotate(-8deg);
+    }
+
+    70% {
+        transform: scale(1.05) rotate(5deg);
+    }
+}
+
+.import-batch-import-cta {
+    position: relative !important;
+    overflow: hidden !important;
+    isolation: isolate;
+    background-color: var(--palette-info-lighter) !important;
+    color: var(--palette-info-dark) !important;
+    border: 1px solid rgba(var(--palette-info-mainChannel) / 0.28) !important;
+    box-shadow: none !important;
+    animation: import-batch-cta-pulse 2.2s ease-in-out infinite;
+}
+
+.MuiButton-outlined.import-batch-import-cta:hover,
+.MuiButton-contained.import-batch-import-cta:hover {
+    background-color: rgba(var(--palette-info-lightChannel) / 0.38) !important;
+    color: var(--palette-info-darker) !important;
+    border-color: rgba(var(--palette-info-mainChannel) / 0.42) !important;
+    box-shadow: none !important;
+}
+
+.import-batch-import-cta::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    width: 42%;
+    background: linear-gradient(
+        105deg,
+        transparent 0%,
+        rgba(255, 255, 255, 0.55) 48%,
+        transparent 100%
+    );
+    pointer-events: none;
+    z-index: 0;
+    animation: import-batch-cta-shine 3.2s ease-in-out infinite;
+}
+
+.import-batch-import-cta .MuiButton-startIcon,
+.import-batch-import-cta .MuiButton-endIcon {
+    position: relative;
+    z-index: 1;
+}
+
+.import-batch-import-cta .import-batch-import-cta__arrow {
+    animation: import-batch-cta-arrow-nudge 1.1s ease-in-out infinite;
+}
+
+.import-batch-import-cta .import-batch-import-cta__ticket {
+    animation: import-batch-cta-ticket-pop 2.4s ease-in-out infinite;
+}
+
+.import-batch-import-cta:hover,
+.import-batch-import-cta:focus-visible {
+    animation: none;
+}
+
+.import-batch-import-cta:hover::after,
+.import-batch-import-cta:focus-visible::after {
+    animation: none;
+    opacity: 0;
+}
+
+.import-batch-import-cta:hover .import-batch-import-cta__arrow,
+.import-batch-import-cta:focus-visible .import-batch-import-cta__arrow {
+    animation: none;
+    transform: translateX(2px);
+}
+
+.import-batch-import-cta:hover .import-batch-import-cta__ticket,
+.import-batch-import-cta:focus-visible .import-batch-import-cta__ticket {
+    animation: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .import-batch-import-cta,
+    .import-batch-import-cta::after,
+    .import-batch-import-cta .import-batch-import-cta__arrow,
+    .import-batch-import-cta .import-batch-import-cta__ticket {
+        animation: none !important;
+    }
+}
+
+/* Import line table — compact equal-height row actions */
+.import-batch-line-table-action.MuiButton-root {
+    min-height: 32px !important;
+    height: 32px !important;
+    padding: 0 10px !important;
+    font-size: 0.8125rem !important;
+    font-weight: 700 !important;
+    min-width: unset !important;
+    border-radius: 8px !important;
+    text-transform: none !important;
+    white-space: nowrap;
+    box-shadow: none !important;
+}
+
+.import-batch-line-table-action .MuiButton-startIcon {
+    margin-right: 4px;
+    margin-left: -2px;
+}
+
+.import-batch-line-table-action.import-batch-import-cta {
+    animation: none !important;
+}
+
+.import-batch-line-table-action.import-batch-import-cta::after {
+    display: none;
+}
+
+.import-batch-line-table-action.import-batch-import-cta .import-batch-import-cta__ticket {
+    animation: none !important;
+}
+
+/* Ticket create / import entry */
+.admin-ticket-create-page {
+    width: 100%;
+    padding-bottom: 32px;
+}
+
+.admin-ticket-create-card {
+    overflow: hidden !important;
+    border-radius: var(--shape-borderRadius-lg) !important;
+    background: var(--palette-background-paper) !important;
+    box-shadow: var(--customShadows-card) !important;
+    border: 1px solid var(--palette-divider) !important;
+}
+
+.admin-ticket-create-card__body {
+    padding: 20px 24px 24px;
+}
+
+.admin-ticket-create-meta {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+}
+
+@media (max-width: 600px) {
+    .admin-ticket-create-meta {
+        grid-template-columns: 1fr;
+    }
+}
+
+.admin-ticket-create-readonly .MuiInputBase-root {
+    background-color: var(--palette-grey-100) !important;
+}
+
+.admin-ticket-create-readonly .MuiInputBase-input {
+    font-weight: 600 !important;
+    color: var(--palette-text-primary) !important;
+}
+
+.admin-ticket-create-section {
+    border: 1px solid var(--palette-divider);
+    border-radius: var(--shape-borderRadius-md, 8px);
+    background: var(--palette-background-paper);
+    padding: 16px;
+}
+
+.admin-ticket-create-section + .admin-ticket-create-section {
+    margin-top: 12px;
+}
+
+.admin-ticket-create-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 12px;
+    flex-wrap: wrap;
+    padding-top: 8px;
+}
+
+.admin-ticket-create-actions--sticky {
+    position: sticky;
+    bottom: 0;
+    z-index: 10;
+    margin-top: 16px;
+    padding: 16px 0 0;
+    background: linear-gradient(
+        180deg,
+        rgba(255, 255, 255, 0) 0%,
+        var(--palette-background-default) 24%
+    );
 }
 
 /* Form typography — sync create/edit pages */
@@ -450,15 +689,17 @@ input:-webkit-autofill:active {
     height: 2px !important;
 }
 
-/* Shared list layout — aligned with the Order list reference. */
+/* Shared list layout — full width inside admin main container. */
 .admin-list-page {
     width: 100%;
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 16px 24px 24px;
+    padding: 16px 0 24px;
     display: flex;
     flex-direction: column;
     gap: 24px;
+}
+
+.admin-page {
+    width: 100%;
 }
 
 .admin-list-header {
@@ -759,19 +1000,6 @@ input:-webkit-autofill:active {
     color: var(--palette-text-primary) !important;
     font-weight: 600 !important;
     font-size: 0.8125rem !important;
-    transition: color 0.2s;
-}
-
-.admin-datagrid .MuiDataGrid-cell:hover .admin-cell-title,
-.admin-datagrid .MuiDataGrid-cell:hover .ticket-title,
-.admin-datagrid .MuiDataGrid-cell:hover .supplier-title,
-.admin-datagrid .MuiDataGrid-cell:hover .admin-cell-date,
-.admin-datagrid .MuiDataGrid-cell:hover .date-text {
-    color: var(--palette-primary-main) !important;
-    color: var(--palette-text-primary);
-    font-weight: 600;
-    font-size: 0.8125rem;
-    transition: color 0.2s;
 }
 
 .admin-cell-text {
@@ -855,9 +1083,31 @@ input:-webkit-autofill:active {
 
 /* DataGrid action menu typography */
 .MuiDataGrid-menu .MuiTypography-root,
-.admin-menu-item .MuiTypography-root {
+.admin-menu-item .MuiTypography-root,
+.admin-row-actions-menu__paper .MuiTypography-root,
+.admin-row-actions-menu__paper .admin-menu-item,
+.admin-row-actions-menu__label {
     font-size: 0.8125rem !important;
-    font-weight: 600 !important;
+    font-weight: 700 !important;
+    line-height: 1.5;
+}
+
+.admin-row-actions-menu__paper .MuiListItemIcon-root {
+    min-width: 28px !important;
+}
+
+.admin-row-actions-menu__paper .MuiListItemIcon-root .MuiSvgIcon-root {
+    font-size: 1.25rem !important;
+    color: #1C252E;
+}
+
+.admin-menu-item--danger,
+.admin-menu-item--danger .admin-row-actions-menu__label {
+    color: var(--palette-error-main) !important;
+}
+
+.admin-menu-item--danger .MuiListItemIcon-root .MuiSvgIcon-root {
+    color: var(--palette-error-main) !important;
 }
 
 .admin-menu-item--danger .MuiTypography-root {
@@ -900,6 +1150,7 @@ input:-webkit-autofill:active {
 .admin-table-container {
     flex: 1;
     overflow: auto;
+    padding: 0 !important;
 }
 
 .admin-table {
@@ -925,17 +1176,54 @@ input:-webkit-autofill:active {
     border-bottom: 1px dashed var(--palette-divider) !important;
 }
 
-.admin-table .MuiTableRow-root:hover .MuiTableCell-body {
-    background-color: var(--palette-action-hover);
+.admin-table .MuiTableRow-root:hover,
+.admin-table .MuiTableRow-root.MuiTableRow-hover:hover {
+    background-color: transparent !important;
+}
+
+.admin-table .MuiTableRow-root:hover > .MuiTableCell-body {
+    background-color: transparent !important;
+}
+
+.admin-table .MuiTableRow-root.admin-table-row-attention > .MuiTableCell-body,
+.admin-table .MuiTableRow-root.admin-table-row-attention:hover > .MuiTableCell-body {
+    background-color: rgba(var(--palette-warning-mainChannel) / 0.04) !important;
+}
+
+.admin-row-actions-trigger {
+    color: var(--palette-text-secondary) !important;
+    border-radius: 8px !important;
+    padding: 4px !important;
+}
+
+.admin-row-actions-trigger:hover,
+.admin-row-actions-trigger[aria-expanded="true"] {
+    background-color: var(--palette-action-hover, rgba(145, 158, 171, 0.08)) !important;
+}
+
+.admin-row-actions-trigger .MuiSvgIcon-root {
+    font-size: 1.25rem;
+}
+
+.admin-datagrid .MuiDataGrid-actionsCell .MuiIconButton-root,
+.admin-table .admin-row-actions-trigger {
+    color: var(--palette-text-secondary);
 }
 
 .admin-table-action {
     color: var(--palette-text-secondary) !important;
 }
 
-.admin-table-action:hover {
-    color: var(--palette-primary-main) !important;
-    background-color: var(--palette-action-hover) !important;
+.admin-table .admin-table-action:hover {
+    color: var(--palette-text-secondary) !important;
+    background-color: transparent !important;
+}
+
+.admin-datagrid .MuiDataGrid-row:not(.admin-datagrid-row-expired):hover,
+.admin-datagrid .MuiDataGrid-row:not(.admin-datagrid-row-expired).Mui-hovered,
+.admin-datagrid .MuiDataGrid-row:not(.admin-datagrid-row-expired):hover .MuiDataGrid-cell,
+.admin-datagrid .MuiDataGrid-row:not(.admin-datagrid-row-expired).Mui-hovered .MuiDataGrid-cell {
+    background-color: transparent !important;
 }
 
 /* -------------------------------------------------------------------------

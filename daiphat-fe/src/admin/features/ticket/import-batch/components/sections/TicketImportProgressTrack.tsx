@@ -1,4 +1,4 @@
-import { Box, Typography } from '@mui/material';
+import { Box, Tooltip } from '@mui/material';
 import { formatImportProgressPercent } from '../../utils/importBatchProgress';
 
 type TicketImportProgressTrackProps = {
@@ -10,6 +10,9 @@ type TicketImportProgressTrackProps = {
     ariaLabel?: string;
 };
 
+export const formatImportProgressCountTooltip = (imported: number, declared: number) =>
+    `${imported.toLocaleString('vi-VN')} / ${declared.toLocaleString('vi-VN')} vé`;
+
 export const TicketImportProgressTrack = ({
     imported,
     declared,
@@ -20,9 +23,8 @@ export const TicketImportProgressTrack = ({
 }: TicketImportProgressTrackProps) => {
     const percent = declared > 0 ? Math.min(100, (imported / declared) * 100) : 0;
     const percentLabel = formatImportProgressPercent(imported, declared);
-    const showPercentLabel = percent > 0;
 
-    return (
+    const track = (
         <Box
             role="progressbar"
             aria-valuemin={0}
@@ -38,6 +40,7 @@ export const TicketImportProgressTrack = ({
                 bgcolor: trackColor,
                 border: 1,
                 borderColor: 'divider',
+                cursor: 'default',
             }}
         >
             <Box
@@ -51,28 +54,12 @@ export const TicketImportProgressTrack = ({
                     transition: 'width 0.25s ease',
                 }}
             />
-            {showPercentLabel && (
-                <Typography
-                    component="span"
-                    variant="caption"
-                    sx={{
-                        position: 'absolute',
-                        left: `${percent}%`,
-                        top: '50%',
-                        transform: 'translate(-100%, -50%)',
-                        px: 0.75,
-                        fontSize: height <= 16 ? '0.625rem' : '0.6875rem',
-                        fontWeight: 700,
-                        lineHeight: 1,
-                        color: 'common.white',
-                        textShadow: '0 1px 2px rgba(0,0,0,0.4)',
-                        pointerEvents: 'none',
-                        whiteSpace: 'nowrap',
-                    }}
-                >
-                    {percentLabel}
-                </Typography>
-            )}
         </Box>
+    );
+
+    return (
+        <Tooltip arrow placement="top" title={formatImportProgressCountTooltip(imported, declared)}>
+            {track}
+        </Tooltip>
     );
 };

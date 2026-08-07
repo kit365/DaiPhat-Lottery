@@ -28,9 +28,9 @@ export const getImportBatchStatusChipColor = (
 export const getImportBatchStatusBadgeClass = (status?: string) => {
     switch (status) {
         case 'DRAFT':
-        case 'PARTIALLY_IMPORTED':
-            return 'admin-status-badge--pending';
+            return 'admin-status-badge--draft';
         case 'RECEIVING':
+        case 'PARTIALLY_IMPORTED':
             return 'admin-status-badge--active';
         case 'CANCELLED':
             return 'admin-status-badge--inactive';
@@ -155,6 +155,24 @@ export const getImportBatchLineStatusChipColor = (
     if (status === 'CANCELLED') return 'error';
     if (status === 'OPEN') return 'warning';
     return 'default';
+};
+
+/** Global CSS: `.admin-status-badge` + modifier */
+export const getImportBatchLineStatusBadgeClass = (status?: string) => {
+    switch (status) {
+        case 'IMPORTED':
+            return 'admin-status-badge--success';
+        case 'IMPORTING':
+            return 'admin-status-badge--active';
+        case 'PAUSED':
+            return 'admin-status-badge--pending';
+        case 'CANCELLED':
+            return 'admin-status-badge--inactive';
+        case 'OPEN':
+            return 'admin-status-badge--pending';
+        default:
+            return 'admin-status-badge--draft';
+    }
 };
 
 export const IMPORT_BATCH_TYPE_LABELS: Record<string, string> = {

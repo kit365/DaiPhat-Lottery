@@ -214,6 +214,12 @@ export const adminTheme = createTheme({
                         boxShadow: 'none',
                     },
                 },
+                contained: {
+                    boxShadow: 'none',
+                    '&:hover': {
+                        boxShadow: 'none',
+                    },
+                },
                 containedPrimary: {
                     backgroundColor: 'var(--palette-text-primary)',
                     color: 'var(--palette-common-white)',
@@ -260,6 +266,23 @@ export const adminTheme = createTheme({
                     fontSize: '0.8125rem',
                 },
             },
+            variants: [
+                {
+                    props: { variant: 'contained', color: 'primary' },
+                    style: {
+                        backgroundColor: 'var(--palette-text-primary)',
+                        color: 'var(--palette-common-white)',
+                        '&:hover': {
+                            backgroundColor: 'var(--palette-grey-700)',
+                            boxShadow: 'var(--customShadows-z8)',
+                        },
+                        '&.Mui-disabled': {
+                            backgroundColor: 'rgba(145, 158, 171, 0.24)',
+                            color: 'rgba(145, 158, 171, 0.8)',
+                        },
+                    },
+                },
+            ],
         },
         MuiCheckbox: {
             defaultProps: {
@@ -345,6 +368,18 @@ export const adminTheme = createTheme({
                 },
             },
         },
+        MuiTableRow: {
+            styleOverrides: {
+                root: {
+                    '&:hover': {
+                        backgroundColor: 'transparent',
+                    },
+                    '&.MuiTableRow-hover:hover': {
+                        backgroundColor: 'transparent',
+                    },
+                },
+            },
+        },
         MuiDataGrid: {
             defaultProps: {
                 disableColumnMenu: true,
@@ -388,10 +423,14 @@ export const adminTheme = createTheme({
                     
                     '& .MuiDataGrid-cell': {
                         color: 'inherit', fontSize: "0.875rem", display: 'flex', alignItems: 'center',
-                        '&:hover': {
-                            '& .ticket-title': { color: `var(--palette-primary-main) !important` },
-                            '& .date-text': { color: `var(--palette-primary-main) !important` }
-                        }
+                    },
+
+                    '& .MuiDataGrid-row:hover, & .MuiDataGrid-row.Mui-hovered': {
+                        backgroundColor: 'transparent',
+                    },
+
+                    '& .MuiDataGrid-row:hover .MuiDataGrid-cell, & .MuiDataGrid-row.Mui-hovered .MuiDataGrid-cell': {
+                        backgroundColor: 'transparent',
                     },
                     
                     '& .MuiDataGrid-toolbarContainer': {

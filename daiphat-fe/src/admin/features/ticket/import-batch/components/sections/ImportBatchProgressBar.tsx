@@ -6,10 +6,12 @@ import {
     getImportBatchProgress,
 } from '../../utils/importBatchProgress';
 import { formatImportBatchLineCancelReason } from '../../utils/batchTypeLabels';
+import { formatImportProgressCountTooltip } from './TicketImportProgressTrack';
 
 type ImportBatchProgressBarProps = {
     batch: ImportBatch;
     resolveStationName?: (stationId: number) => string;
+    hideTitle?: boolean;
 };
 
 const formatTicketCount = (value: number) => `${value.toLocaleString('vi-VN')} vé`;
@@ -17,6 +19,7 @@ const formatTicketCount = (value: number) => `${value.toLocaleString('vi-VN')} v
 export const ImportBatchProgressBar = ({
     batch,
     resolveStationName,
+    hideTitle = false,
 }: ImportBatchProgressBarProps) => {
     const overall = getImportBatchProgress(batch);
     const segments = buildImportBatchProgressSegments(batch, resolveStationName);
@@ -26,46 +29,50 @@ export const ImportBatchProgressBar = ({
         return null;
     }
 
-    const showOverallPercent = overall.percent > 0;
+    const showOverallPercent = overall.percent > 0 && !hideTitle;
 
     return (
-        <Box sx={{ mt: 0.5 }}>
-            <Stack
-                direction={{ xs: 'column', sm: 'row' }}
-                spacing={0.5}
-                alignItems={{ sm: 'center' }}
-                justifyContent="space-between"
-                sx={{ mb: 1 }}
-            >
-                <Typography variant="subtitle2" fontWeight={600}>
-                    Tiến độ nhập vé tổng thể
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                    <Box component="span" fontWeight={600} color="text.primary">
-                        {formatTicketCount(overall.imported)}
-                    </Box>
-                    {' / '}
-                    {formatTicketCount(overall.declared)}
-                </Typography>
-            </Stack>
+        <Box sx={{ mt: hideTitle ? 0 : 0.5 }}>
+            {!hideTitle && (
+                <Stack
+                    direction="row"
+                    spacing={0.5}
+                    alignItems="center"
+                    justifyContent="space-between"
+                    sx={{ mb: 1 }}
+                >
+                    <Typography variant="subtitle2" fontWeight={600}>
+                        Tiến độ nhập vé tổng thể
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" sx={{ whiteSpace: 'nowrap' }}>
+                        <Box component="span" fontWeight={600} color="text.primary">
+                            {formatTicketCount(overall.imported)}
+                        </Box>
+                        {' / '}
+                        {formatTicketCount(overall.declared)}
+                    </Typography>
+                </Stack>
+            )}
 
-            <Box
-                role="progressbar"
-                aria-valuemin={0}
-                aria-valuemax={100}
-                aria-valuenow={Number(overall.percent.toFixed(1))}
-                aria-label={`Tiến độ nhập vé tổng thể ${overall.percentLabel}`}
-                sx={{
-                    position: 'relative',
-                    width: '100%',
-                    height: 20,
-                    borderRadius: 1,
-                    overflow: 'hidden',
-                    border: 1,
-                    borderColor: 'divider',
-                    bgcolor: 'background.paper',
-                }}
-            >
+            <Tooltip arrow placement="top" title={formatImportProgressCountTooltip(overall.imported, overall.declared)}>
+                <Box
+                    role="progressbar"
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-valuenow={Number(overall.percent.toFixed(1))}
+                    aria-label={`Tiến độ nhập vé tổng thể ${overall.percentLabel}`}
+                    sx={{
+                        position: 'relative',
+                        width: '100%',
+                        height: 20,
+                        borderRadius: 1,
+                        overflow: 'hidden',
+                        border: 1,
+                        borderColor: 'divider',
+                        bgcolor: 'background.paper',
+                        cursor: 'default',
+                    }}
+                >
                 <Box
                     sx={{
                         display: 'flex',
@@ -164,7 +171,8 @@ export const ImportBatchProgressBar = ({
                         {overall.percentLabel}
                     </Typography>
                 )}
-            </Box>
+                </Box>
+            </Tooltip>
         </Box>
     );
 };

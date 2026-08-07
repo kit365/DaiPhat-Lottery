@@ -1,16 +1,11 @@
 "use client";
 
+import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import {
     Alert,
     Autocomplete,
     Box,
     Button,
-    Chip,
-    Dialog,
-    DialogTitle,
-    DialogContent,
-    DialogActions,
-    Paper,
     Stack,
     TextField,
     ThemeProvider,
@@ -18,23 +13,14 @@ import {
     createTheme,
     useTheme,
 } from '@mui/material';
-import QrCodeScannerIcon from '@mui/icons-material/QrCodeScanner';
-import PhoneIphoneIcon from '@mui/icons-material/PhoneIphone';
-import CheckCircleIcon from '@mui/icons-material/CheckCircle';
-import CloudUploadIcon from '@mui/icons-material/CloudUpload';
-import { AppToast } from '../../../../../../utils/toast.util';
 import { Breadcrumb } from '../../../../../components/ui/Breadcrumb';
+import { CollapsibleCard } from '../../../../../components/ui/CollapsibleCard';
+import { CanAccess } from '../../../../../components/auth/CanAccess';
 import { Title } from '../../../../../components/ui/Title';
 import { LoadingButton } from '../../../../../components/ui/LoadingButton';
-import { prefixAdmin, ROUTES } from '../../../../../constants/routes';
+import { PERMISSIONS } from '../../../../../constants/permission.constants';
+import { ROUTES } from '../../../../../constants/routes';
 import { useBulkCreateTickets } from '../../hooks/useTicket';
-import { useBatchImportScannedTickets, useScanTicketImage } from '../../hooks/useTicketScan';
-import { TicketScanReviewDialog } from '../sections/TicketScanReviewDialog';
-import type {
-    ConfirmedScannedTicketPayload,
-    ScanBatchImportResult,
-    TicketScanResult,
-} from '../../types/ticketScan.type';
 import { toast } from 'react-toastify';
 import { useForm, useFieldArray, FieldErrors } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -55,7 +41,8 @@ import {
 } from '../../../import-batch/utils/importBatchProgress';
 import { formatImportBatchSelectLabel } from '../../../import-batch/utils/importBatchCode';
 import { ImportBatchSelectionCard } from '../sections/ImportBatchSelectionCard';
-import { ImportBatchLineImportTabs } from '../sections/ImportBatchLineImportTabs';
+import { ImportBatchLineImportDialog } from '../sections/ImportBatchLineImportDialog';
+import { ImportBatchLineImportTable } from '../sections/ImportBatchLineImportTable';
 import type { ImportBatch } from '../../../import-batch/types/importBatch.type';
 import {
     clearTicketLineFormDraft,
@@ -73,7 +60,15 @@ import {
     mergePersistedAndDraftSections,
 } from '../../utils/ticketLineFormHydration';
 import {
+    applySectionQuantityFieldErrors,
+    canAppendTicketSection,
+    countTotalQuotaSlots,
+    ensureSectionsQuantity,
+    findSectionQuantityOverflowIssues,
+} from '../../utils/ticketSectionQuantity';
+import {
     applyDuplicateNumberFieldErrors,
+    applyMissingSerialImageFieldErrors,
     applyQuotaOverflowFieldErrors,
     applySectionRelationshipFieldErrors,
     applySerialDuplicateFieldErrors,
@@ -82,6 +77,7 @@ import {
     findDuplicateNumberSectionIndices,
     findDuplicateSerialPaths,
     findFirstSerialErrorPath,
+    findMissingSerialImagePaths,
     findQuotaOverflowSerialPaths,
     findSectionRelationshipIssues,
     findSerialPathsForApiFailure,
@@ -92,6 +88,7 @@ import {
     scrollAndFocusNumberField,
     scrollToNumberField,
     scrollToSerialField,
+    scrollToSerialImageField,
 } from '../../utils/ticketSerialValidation';
 import {
     getTicketNumberLengthMessage,
@@ -101,6 +98,12 @@ import {
 } from '../../utils/ticketNumberValidation';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from '@/components/router-compat';
+
+const IMPORT_BATCH_DETAIL_PERMISSIONS = [
+    PERMISSIONS.IMPORT_BATCH.VIEW,
+    PERMISSIONS.IMPORT_BATCH.CREATE,
+    PERMISSIONS.TICKET.CREATE,
+];
 
 type LineFormDraft = TicketLineFormDraft;
 
@@ -113,39 +116,10 @@ export const TicketCreatePage = () => {
     const navigate = useNavigate();
     const queryClient = useQueryClient();
     const [searchParams, setSearchParams] = useSearchParams();
+    const [importDialogLineId, setImportDialogLineId] = useState<string | null>(null);
     const importBatchIdParam = searchParams.get('importBatchId');
     const importBatchLineIdParam = searchParams.get('importBatchLineId');
     const isBatchPreSelected = !!importBatchIdParam;
-
-    const [scanDialogOpen, setScanDialogOpen] = useState(false);
-    const [scanSessionCode, setScanSessionCode] = useState('');
-    const [mobileIsConnected, setMobileIsConnected] = useState(false);
-
-    // Simulated Real-time WebSocket connection listener from Mobile
-    useEffect(() => {
-        if (!scanDialogOpen || mobileIsConnected) return;
-
-        // When dialog is open and Mobile connects (e.g. after 3s)
-        const timer = setTimeout(() => {
-            setMobileIsConnected(true);
-            AppToast.success('📱 Thiết bị Mobile đã kết nối thành công! Đã sẵn sàng quét vé Real-time.');
-            // Automatically close modal to start receiving real-time scanned tickets
-            setScanDialogOpen(false);
-        }, 3500);
-
-        return () => clearTimeout(timer);
-    }, [scanDialogOpen, mobileIsConnected]);
-
-    // ── Camera ticket-scan (DP-269): "Laptop Test" upload → real scan/batch-import APIs ──
-    const [scanReviewOpen, setScanReviewOpen] = useState(false);
-    const [scanResult, setScanResult] = useState<TicketScanResult | null>(null);
-    const [scanError, setScanError] = useState<string | null>(null);
-    const [importResult, setImportResult] = useState<ScanBatchImportResult | null>(null);
-    const [lastScannedFile, setLastScannedFile] = useState<File | null>(null);
-    const [sourceImageUrl, setSourceImageUrl] = useState<string | null>(null);
-    const { mutateAsync: scanTicketImageAsync, isPending: isScanning } = useScanTicketImage();
-    const { mutateAsync: batchImportScannedAsync, isPending: isConfirmingImport } =
-        useBatchImportScannedTickets();
 
     const { data: draftBatches = [], isLoading: isLoadingDrafts } = useDraftImportBatches(true);
     const [selectedBatchId, setSelectedBatchId] = useStateFromParam(importBatchIdParam);
@@ -222,7 +196,6 @@ export const TicketCreatePage = () => {
         reset,
         watch,
         getValues,
-        setValue,
         setError,
         clearErrors,
         formState: { errors },
@@ -273,15 +246,6 @@ export const TicketCreatePage = () => {
     useEffect(() => {
         numberLengthRulesRef.current = numberLengthRules;
     }, [numberLengthRules]);
-
-    const remainingSerialQuota = useMemo(() => {
-        if (!selectedLine) {
-            return undefined;
-        }
-        const imported = selectedLine.totalQuantity ?? 0;
-        const declared = selectedLine.declareQuantity ?? 0;
-        return Math.max(0, declared - imported);
-    }, [selectedLine]);
 
     const { mutateAsync: bulkCreateAsync, isPending } = useBulkCreateTickets();
 
@@ -343,7 +307,12 @@ export const TicketCreatePage = () => {
                 String(entryTicketsData.importBatchLineId) === String(lineId)
                     ? entryTicketsData.tickets
                     : [];
-            const mergedSections = mergePersistedAndDraftSections(tickets, draft);
+            const remaining = Math.max(0, (line.declareQuantity ?? 0) - (line.totalQuantity ?? 0));
+            const mergedSections = ensureSectionsQuantity(
+                mergePersistedAndDraftSections(tickets, draft, {
+                    appendEditableSlot: remaining > 0,
+                })
+            );
 
             reset({
                 importBatchId: String(resolvedBatch.id),
@@ -585,181 +554,6 @@ export const TicketCreatePage = () => {
         syncBatchToUrl(batchId);
     };
 
-    const MAX_SCAN_FILE_SIZE_MB = 5;
-
-    const revokeSourceImageUrl = useCallback(() => {
-        setSourceImageUrl((prev) => {
-            if (prev) URL.revokeObjectURL(prev);
-            return null;
-        });
-    }, []);
-
-    const runScan = useCallback(
-        async (file: File) => {
-            if (!selectedLine || !resolvedBatch) {
-                AppToast.error('Vui lòng chọn phiếu nhập lô và dòng đài trước khi quét ảnh.');
-                return;
-            }
-            if (isLineCancelled(selectedLine)) {
-                AppToast.error(getImportBatchLineCancelledAlertMessage(selectedLine.cancelReason));
-                return;
-            }
-            if (isLinePaused(selectedLine)) {
-                AppToast.warning(IMPORT_BATCH_LINE_PAUSED_ENTRY_MESSAGE);
-                return;
-            }
-            if (!file.type.startsWith('image/')) {
-                AppToast.error('Vui lòng chọn một file ảnh (JPG, PNG...).');
-                return;
-            }
-            if (file.size > MAX_SCAN_FILE_SIZE_MB * 1024 * 1024) {
-                AppToast.error(`Ảnh vượt quá kích thước cho phép (${MAX_SCAN_FILE_SIZE_MB}MB).`);
-                return;
-            }
-
-            revokeSourceImageUrl();
-            setSourceImageUrl(URL.createObjectURL(file));
-            setLastScannedFile(file);
-            setScanResult(null);
-            setImportResult(null);
-            setScanError(null);
-            setScanReviewOpen(true);
-            setScanDialogOpen(false);
-
-            try {
-                const res = await scanTicketImageAsync({
-                    importBatchLineId: selectedLine.id,
-                    file,
-                    skipGlobalErrorToast: true,
-                });
-                if (res.success && res.data) {
-                    setScanResult(res.data);
-                } else {
-                    setScanError(res.message || 'Quét vé thất bại. Vui lòng thử lại.');
-                }
-            } catch (err: any) {
-                // If ticket-vision service is not running locally, provide a smart mock OCR scan result so developer/user can test full import flow
-                const errMsg = err?.response?.data?.message || err?.message || '';
-                if (errMsg.includes('không khả dụng') || errMsg.includes('500') || err?.response?.status === 500) {
-                    AppToast.info('💡 AI Vision chưa bật. Hệ thống tự động bóc tách giả lập vé từ ảnh để bạn tiếp tục test!');
-                    const randomNumbers = String(Math.floor(100000 + Math.random() * 900000));
-                    const randomSerial = `SER-${Math.floor(1000 + Math.random() * 9000)}`;
-                    setScanResult({
-                        scanId: `MOCK-SCAN-${Date.now()}`,
-                        ticketCount: 1,
-                        tickets: [
-                            {
-                                ticketIndex: 0,
-                                bbox: { x: 0.1, y: 0.1, width: 0.8, height: 0.8 },
-                                status: 'COMPLETE',
-                                confidence: 0.95,
-                                extracted: {
-                                    numbers: randomNumbers,
-                                    serialNumber: randomSerial,
-                                    stationName: resolveStationName(selectedLine.lotteryStationId),
-                                    drawDate: resolvedBatch.drawDate,
-                                },
-                                resolvedStationId: selectedLine.lotteryStationId,
-                                resolvedDrawDate: resolvedBatch.drawDate,
-                                ocrScanResultId: 999,
-                            },
-                        ],
-                    });
-                    setScanError(null);
-                } else {
-                    setScanError(errMsg || 'Đã xảy ra lỗi khi quét ảnh vé.');
-                }
-            }
-        },
-        [resolvedBatch, revokeSourceImageUrl, scanTicketImageAsync, selectedLine]
-    );
-
-    const handleScanFileSelected = useCallback(
-        (file: File) => {
-            void runScan(file);
-        },
-        [runScan]
-    );
-
-    const handleRetryScan = useCallback(() => {
-        if (lastScannedFile) {
-            void runScan(lastScannedFile);
-        } else {
-            fileInputRef.current?.click();
-        }
-    }, [lastScannedFile, runScan]);
-
-    const handleConfirmScannedImport = useCallback(
-        async (tickets: ConfirmedScannedTicketPayload[]) => {
-            if (!selectedLine || !resolvedBatch) {
-                AppToast.error('Không xác định được phiếu nhập lô. Vui lòng thử lại.');
-                return;
-            }
-            try {
-                // Clean mocked ocrScanResultId (999) before sending to real batch-import endpoint
-                const cleanTickets = tickets.map((t) => ({
-                    ...t,
-                    ocrScanResultId: t.ocrScanResultId === 999 ? undefined : t.ocrScanResultId,
-                }));
-
-                const res = await batchImportScannedAsync({
-                    data: {
-                        importBatchLineId: Number(selectedLine.id),
-                        batchCode: resolvedBatch.batchCode || '',
-                        tickets: cleanTickets,
-                        isAutoSave: false,
-                    },
-                    skipGlobalErrorToast: true,
-                });
-                if (res.success && res.data) {
-                    setImportResult(res.data);
-                    const { successCount, duplicateCount, failedCount } = res.data;
-                    if (failedCount === 0 && duplicateCount === 0) {
-                        AppToast.success(`Đã nhập kho thành công ${successCount}/${tickets.length} vé.`);
-                    } else {
-                        AppToast.warning(
-                            `Đã nhập ${successCount}/${tickets.length} vé — ${duplicateCount} trùng lặp, ${failedCount} thất bại.`
-                        );
-                    }
-                } else {
-                    AppToast.error(res.message || 'Nhập kho vé quét thất bại.');
-                }
-            } catch (err: any) {
-                const errMsg = err?.response?.data?.message || err?.message || '';
-                // If backend requires actual DB OCR scan record, fallback gracefully by filling the form sections for user submit
-                if (errMsg.includes('OCR') || errMsg.includes('OcrScanResult') || err?.response?.status === 500 || err?.response?.status === 404) {
-                    AppToast.success(`📷 Đã tự động điền ${tickets.length} vé vào bảng nhập liệu bên dưới!`);
-                    const currentSections = getValues('ticketSections');
-                    const newSections = tickets.map((t) => ({
-                        numbers: t.numbers,
-                        serials: [{ serialNumber: t.serialNumber }],
-                    }));
-                    setValue('ticketSections', [...currentSections.filter(s => s.numbers.trim() !== ''), ...newSections]);
-                    setScanReviewOpen(false);
-                } else {
-                    AppToast.error(errMsg || 'Đã xảy ra lỗi khi nhập kho vé quét.');
-                }
-            }
-        },
-        [batchImportScannedAsync, getValues, resolvedBatch, selectedLine, setValue]
-    );
-
-    const handleCloseScanReviewDialog = useCallback(() => {
-        setScanReviewOpen(false);
-        setScanResult(null);
-        setScanError(null);
-        setImportResult(null);
-        setLastScannedFile(null);
-        revokeSourceImageUrl();
-    }, [revokeSourceImageUrl]);
-
-    // Object URLs are per-mount resources — always release on unmount too.
-    useEffect(() => {
-        return () => {
-            if (sourceImageUrl) URL.revokeObjectURL(sourceImageUrl);
-        };
-    }, [sourceImageUrl]);
-
     const refreshDuplicateFieldState = useCallback(() => {
         const sections = getValues('ticketSections');
         const duplicatePaths = findDuplicateSerialPaths(sections);
@@ -819,10 +613,21 @@ export const TicketCreatePage = () => {
     );
 
     const handleAppendSection = useCallback(() => {
-        const newIndex = getValues('ticketSections').length;
+        const lineId = watch('importBatchLineId');
+        const line = batchLines.find((item) => String(item.id) === String(lineId));
+        const remaining = line
+            ? Math.max(0, (line.declareQuantity ?? 0) - (line.totalQuantity ?? 0))
+            : 0;
+        const sections = getValues('ticketSections');
+        if (!canAppendTicketSection(sections, remaining)) {
+            toast.error('Đã hết số lượng vé có thể nhập cho đài này');
+            return;
+        }
+
+        const newIndex = sections.length;
         appendSection(defaultSection());
         scrollAndFocusNumberField(newIndex);
-    }, [appendSection, getValues]);
+    }, [appendSection, batchLines, getValues, watch]);
 
     const handleRemoveSection = useCallback(
         (index: number) => {
@@ -839,6 +644,10 @@ export const TicketCreatePage = () => {
         if (sections && Array.isArray(sections)) {
             for (let sectionIndex = 0; sectionIndex < sections.length; sectionIndex += 1) {
                 const sectionError = sections[sectionIndex];
+                if (sectionError && typeof sectionError === 'object' && 'quantity' in sectionError) {
+                    scrollToNumberField(sectionIndex);
+                    return;
+                }
                 if (sectionError && typeof sectionError === 'object' && 'numbers' in sectionError) {
                     scrollToNumberField(sectionIndex);
                     return;
@@ -848,7 +657,19 @@ export const TicketCreatePage = () => {
 
         const firstPath = findFirstSerialErrorPath(formErrors);
         if (firstPath) {
-            scrollToSerialField(firstPath.sectionIndex, firstPath.serialIndex);
+            const serialError = formErrors.ticketSections?.[firstPath.sectionIndex]?.serials?.[
+                firstPath.serialIndex
+            ];
+            if (
+                serialError &&
+                typeof serialError === 'object' &&
+                'ticketImg' in serialError &&
+                serialError.ticketImg
+            ) {
+                scrollToSerialImageField(firstPath.sectionIndex, firstPath.serialIndex);
+            } else {
+                scrollToSerialField(firstPath.sectionIndex, firstPath.serialIndex);
+            }
         }
     }, []);
 
@@ -871,6 +692,7 @@ export const TicketCreatePage = () => {
 
         const imported = selectedLine.totalQuantity ?? 0;
         const declared = selectedLine.declareQuantity ?? 0;
+        const remaining = Math.max(0, declared - imported);
         if (declared > 0 && imported >= declared) {
             toast.info('Đài này đã nhập đủ số lượng khai báo');
             return;
@@ -902,8 +724,29 @@ export const TicketCreatePage = () => {
             return;
         }
 
+        const missingImagePaths = findMissingSerialImagePaths(data.ticketSections);
+        if (missingImagePaths.length > 0) {
+            applyMissingSerialImageFieldErrors(missingImagePaths, setError);
+            scrollToSerialImageField(
+                missingImagePaths[0].sectionIndex,
+                missingImagePaths[0].serialIndex
+            );
+            return;
+        }
+
+        const quantityIssues = findSectionQuantityOverflowIssues(data.ticketSections, remaining);
+        if (quantityIssues.length > 0) {
+            applySectionQuantityFieldErrors(quantityIssues, setError);
+            scrollToNumberField(quantityIssues[0].sectionIndex);
+            return;
+        }
+
+        if (countTotalQuotaSlots(data.ticketSections) > remaining) {
+            toast.error('Tổng số lượng vé vượt quá số vé còn lại có thể nhập');
+            return;
+        }
+
         const filledSerials = countPendingFilledSerials(data.ticketSections);
-        const remaining = Math.max(0, declared - imported);
         if (filledSerials > remaining) {
             const overflowPaths = findQuotaOverflowSerialPaths(data.ticketSections, remaining);
             applyQuotaOverflowFieldErrors(overflowPaths, setError);
@@ -973,7 +816,12 @@ export const TicketCreatePage = () => {
                 });
                 const refreshed = await refetchEntryTickets();
                 const tickets = refreshed.data?.tickets ?? [];
-                const mergedSections = mergePersistedAndDraftSections(tickets, defaultLineDraft());
+                const remainingAfter = Math.max(0, remaining - filledSerials);
+                const mergedSections = ensureSectionsQuantity(
+                    mergePersistedAndDraftSections(tickets, defaultLineDraft(), {
+                        appendEditableSlot: remainingAfter > 0,
+                    })
+                );
                 reset({
                     importBatchId: String(resolvedBatch.id),
                     importBatchLineId: lineId,
@@ -1037,6 +885,29 @@ export const TicketCreatePage = () => {
         }
     };
 
+    const handleOpenImportDialog = useCallback(
+        (lineId: string) => {
+            if (String(watchedLineId) !== lineId) {
+                handleTabChange(lineId);
+            } else {
+                applyLineToForm(lineId);
+            }
+            setImportDialogLineId(lineId);
+        },
+        [applyLineToForm, handleTabChange, watchedLineId]
+    );
+
+    const handleCloseImportDialog = useCallback(() => {
+        setImportDialogLineId(null);
+    }, []);
+
+    const dialogLine = useMemo(() => {
+        if (!importDialogLineId) {
+            return null;
+        }
+        return batchLines.find((line) => String(line.id) === String(importDialogLineId)) ?? null;
+    }, [batchLines, importDialogLineId]);
+
     const isLoading = isBatchLoading || (!isBatchPreSelected && isLoadingDrafts);
 
     const outerTheme = useTheme();
@@ -1071,182 +942,137 @@ export const TicketCreatePage = () => {
         [outerTheme]
     );
 
-    const fileInputRef = useRef<HTMLInputElement>(null);
-
     return (
-        <>
-            <input
-                type="file"
-                accept="image/*"
-                ref={fileInputRef}
-                style={{ display: 'none' }}
-                onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    // Reset so picking the exact same file again still fires onChange.
-                    e.target.value = '';
-                    if (file) {
-                        handleScanFileSelected(file);
-                    }
-                }}
-            />
-            <div className="mb-[calc(5*var(--spacing))] gap-[calc(2*var(--spacing))] flex items-center justify-between">
-                <div>
+        <ThemeProvider theme={localTheme}>
+            <Box className="admin-ticket-create-page">
+                <Breadcrumb
+                    items={[
+                        { label: 'Dashboard', to: '/' },
+                        { label: 'Kho vé số', to: ROUTES.ADMIN.TICKETS.LIST },
+                        { label: 'Nhập lô vé', to: ROUTES.ADMIN.IMPORT_BATCH.LIST },
+                        { label: 'Nhập vé' },
+                    ]}
+                />
+
+                <Box sx={{ mb: 2, mt: 1 }}>
                     <Title title="Nhập vé số" />
-                    <Breadcrumb
-                        items={[
-                            { label: 'Dashboard', to: '/' },
-                            { label: 'Kho vé số', to: `/${prefixAdmin}/ticket/list` },
-                            { label: 'Nhập vé' },
-                        ]}
-                    />
-                </div>
-                <Stack direction="row" alignItems="center" spacing={1.5}>
-                    {mobileIsConnected && (
-                        <Chip
-                            icon={<CheckCircleIcon />}
-                            label="📱 Đã kết nối Mobile Real-time"
-                            color="success"
-                            variant="outlined"
-                            sx={{ fontWeight: 'bold', height: 38, px: 1 }}
-                        />
-                    )}
-                    <Button
-                        variant="outlined"
-                        color="secondary"
-                        startIcon={<CloudUploadIcon />}
-                        disabled={!!resolvedBatch && !isImportBatchEditable(resolvedBatch)}
-                        onClick={() => fileInputRef.current?.click()}
-                        sx={{
-                            textTransform: 'none',
-                            fontWeight: 700,
-                            borderRadius: '8px',
-                            py: 1,
-                            px: 2,
-                        }}
-                    >
-                        Tải ảnh vé (Laptop Test)
-                    </Button>
-                    <Button
-                        variant={mobileIsConnected ? 'contained' : 'contained'}
-                        color={mobileIsConnected ? 'success' : 'primary'}
-                        startIcon={<QrCodeScannerIcon />}
-                        disabled={!!resolvedBatch && !isImportBatchEditable(resolvedBatch)}
-                        onClick={() => {
-                            const code = `BATCH-${Math.floor(1000 + Math.random() * 9000)}`;
-                            setScanSessionCode(code);
-                            setScanDialogOpen(true);
-                        }}
-                        sx={{
-                            textTransform: 'none',
-                            fontWeight: 700,
-                            borderRadius: '8px',
-                            py: 1,
-                            px: 2.5,
-                            boxShadow: mobileIsConnected
-                                ? '0 4px 12px rgba(46, 125, 50, 0.25)'
-                                : '0 4px 12px rgba(211, 47, 47, 0.2)',
-                        }}
-                    >
-                        {mobileIsConnected ? 'Đang bật Quét vé Mobile' : 'Quét vé bằng Mobile App'}
-                    </Button>
-                </Stack>
-            </div>
+                </Box>
 
-            <ThemeProvider theme={localTheme}>
-                <Stack spacing={3} sx={{ maxWidth: 960, mx: 'auto', pb: 6 }}>
-                    {resolvedBatch && resolvedBatch.status === 'CANCELLED' && (
-                        <Alert severity="error" sx={{ borderRadius: 2, boxShadow: '0 2px 8px rgba(211,47,47,0.1)' }}>
-                            {getImportBatchCancelledAlertMessage(resolvedBatch.cancelReason)}
-                        </Alert>
-                    )}
-
-                    {resolvedBatch &&
-                        !isImportBatchEditable(resolvedBatch) &&
-                        resolvedBatch.status !== 'CANCELLED' && (
-                            <Alert severity="warning" sx={{ borderRadius: 2 }}>
-                                Phiếu nhập lô này không còn ở trạng thái cho phép nhập. Không thể nhập thêm vé.
-                            </Alert>
-                        )}
-
-                    <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 2 }}>
-                        <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 2 }}>
-                            Phiếu nhập lô
-                        </Typography>
-
-                        {!isBatchPreSelected && (
-                            <Autocomplete
-                                sx={{ mb: 2 }}
-                                options={draftBatches}
-                                loading={isLoadingDrafts}
-                                value={
-                                    selectedBatchId
-                                        ? draftBatches.find(
-                                              (batch) => String(batch.id) === String(selectedBatchId)
-                                          ) ?? null
-                                        : null
-                                }
-                                onChange={(_e, batch) => handleBatchChange(batch)}
-                                getOptionLabel={formatImportBatchSelectLabel}
-                                isOptionEqualToValue={(a, b) => a.id === b.id}
-                                noOptionsText="Không có phiếu nhập lô ở trạng thái Nháp"
-                                renderInput={(params) => (
-                                    <TextField
-                                        {...params}
-                                        label="Chọn phiếu nhập lô"
-                                        placeholder="Chọn phiếu nhập lô trước khi nhập vé"
-                                        error={!!errors.importBatchId}
-                                        helperText={
-                                            errors.importBatchId?.message ||
-                                            'Chỉ hiển thị các phiếu nhập lô đang ở trạng thái Nháp.'
+                <Stack spacing={3}>
+                    <CollapsibleCard
+                        title="Phiếu nhập lô"
+                        expanded
+                        collapsible={false}
+                        onToggle={() => undefined}
+                        extraAction={
+                            resolvedBatch ? (
+                                <CanAccess anyOf={IMPORT_BATCH_DETAIL_PERMISSIONS}>
+                                    <Button
+                                        size="small"
+                                        variant="outlined"
+                                        className="btn-outlined-admin"
+                                        endIcon={<OpenInNewIcon sx={{ fontSize: '1rem !important' }} />}
+                                        onClick={() =>
+                                            navigate(ROUTES.ADMIN.IMPORT_BATCH.DETAIL(resolvedBatch.id))
                                         }
-                                    />
-                                )}
+                                    >
+                                        Xem phiếu
+                                    </Button>
+                                </CanAccess>
+                            ) : undefined
+                        }
+                    >
+                        <Stack p="calc(3 * var(--spacing))" spacing={2}>
+                            {!isBatchPreSelected && (
+                                <Autocomplete
+                                    options={draftBatches}
+                                    loading={isLoadingDrafts}
+                                    value={
+                                        selectedBatchId
+                                            ? draftBatches.find(
+                                                  (batch) => String(batch.id) === String(selectedBatchId)
+                                              ) ?? null
+                                            : null
+                                    }
+                                    onChange={(_e, batch) => handleBatchChange(batch)}
+                                    getOptionLabel={formatImportBatchSelectLabel}
+                                    isOptionEqualToValue={(a, b) => a.id === b.id}
+                                    noOptionsText="Không có phiếu nhập lô ở trạng thái Nháp"
+                                    renderInput={(params) => (
+                                        <TextField
+                                            {...params}
+                                            label="Chọn phiếu nhập lô"
+                                            placeholder="Chọn phiếu nhập lô trước khi nhập vé"
+                                            error={!!errors.importBatchId}
+                                            helperText={
+                                                errors.importBatchId?.message ||
+                                                'Chỉ hiển thị các phiếu nhập lô đang ở trạng thái Nháp.'
+                                            }
+                                        />
+                                    )}
+                                />
+                            )}
+
+                            <ImportBatchSelectionCard
+                                batch={resolvedBatch}
+                                isLoading={isBatchLoading}
+                                selectedBatchId={selectedBatchId}
+                                resolveStationName={resolveStationName}
                             />
-                        )}
 
-                        <ImportBatchSelectionCard
-                            batch={resolvedBatch}
-                            isLoading={isBatchLoading}
-                            selectedBatchId={selectedBatchId}
-                            resolveStationName={resolveStationName}
-                        />
-                    </Paper>
+                            {resolvedBatch && batchLines.length > 0 && (
+                                <ImportBatchLineImportTable
+                                    lines={batchLines}
+                                    batchStatus={resolvedBatch.status}
+                                    drawDate={resolvedBatch.drawDate}
+                                    resolveStationName={resolveStationName}
+                                    onImportLine={handleOpenImportDialog}
+                                />
+                            )}
 
-                        {resolvedBatch && resolvedBatch.status !== 'CANCELLED' && selectedLine && isLineCancelled(selectedLine) && (
-                            <Alert severity="error" sx={{ mt: 2 }}>
-                                {getImportBatchLineCancelledAlertMessage(selectedLine.cancelReason)}
-                            </Alert>
-                        )}
+                            {resolvedBatch && resolvedBatch.status === 'CANCELLED' && (
+                                <Alert severity="error">
+                                    {getImportBatchCancelledAlertMessage(resolvedBatch.cancelReason)}
+                                </Alert>
+                            )}
 
-                        {resolvedBatch && batchLines.length > 0 && (
-                        <ImportBatchLineImportTabs
-                            lines={batchLines}
-                            activeLineId={watchedLineId != null ? String(watchedLineId) : ''}
-                            batchStatus={resolvedBatch.status}
-                            drawDate={resolvedBatch.drawDate}
-                            resolveStationName={resolveStationName}
-                            onTabChange={handleTabChange}
-                            onSubmit={handleSubmit(onSubmit, handleInvalidSubmit)}
-                            isSubmitting={isPending}
-                            control={control}
-                            errors={errors}
-                            sectionFields={sectionFields}
-                            onAppendSection={handleAppendSection}
-                            removeSection={handleRemoveSection}
-                            onSerialFieldChange={handleSerialFieldChange}
-                            onRemoveSerial={handleRemoveSerial}
-                            onNumbersFieldChange={handleNumbersFieldChange}
-                            numberLengthRules={numberLengthRules}
-                            remainingSerialQuota={remainingSerialQuota}
-                        />
-                    )}
+                            {resolvedBatch &&
+                                !isImportBatchEditable(resolvedBatch) &&
+                                resolvedBatch.status !== 'CANCELLED' && (
+                                    <Alert severity="warning">
+                                        Phiếu nhập lô này không còn ở trạng thái cho phép nhập. Không thể nhập thêm vé.
+                                    </Alert>
+                                )}
+                        </Stack>
+                    </CollapsibleCard>
+
+                    <ImportBatchLineImportDialog
+                        open={!!importDialogLineId && !!dialogLine}
+                        line={dialogLine}
+                        lines={batchLines}
+                        batchStatus={resolvedBatch?.status ?? 'DRAFT'}
+                        drawDate={resolvedBatch?.drawDate}
+                        resolveStationName={resolveStationName}
+                        onClose={handleCloseImportDialog}
+                        onSubmit={handleSubmit(onSubmit, handleInvalidSubmit)}
+                        isSubmitting={isPending}
+                        control={control}
+                        errors={errors}
+                        sectionFields={sectionFields}
+                        onAppendSection={handleAppendSection}
+                        removeSection={handleRemoveSection}
+                        onSerialFieldChange={handleSerialFieldChange}
+                        onRemoveSerial={handleRemoveSerial}
+                        onNumbersFieldChange={handleNumbersFieldChange}
+                        numberLengthRules={numberLengthRules}
+                    />
 
                     {!resolvedBatch && !isLoading && (
                         <Alert severity="info">
                             Chọn phiếu nhập lô để bắt đầu nhập vé số. Nếu chưa có phiếu, hãy{' '}
                             <Typography
                                 component="span"
-                                sx={{ cursor: 'pointer', textDecoration: 'underline', fontWeight: 600 }}
+                                sx={{ cursor: 'pointer', textDecoration: 'underline', fontWeight: 700 }}
                                 onClick={() => navigate(ROUTES.ADMIN.IMPORT_BATCH.CREATE)}
                             >
                                 khai báo phiếu nhập lô
@@ -1255,132 +1081,25 @@ export const TicketCreatePage = () => {
                         </Alert>
                     )}
 
-                    <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+                    <Box className="admin-ticket-create-actions admin-ticket-create-actions--sticky">
                         <LoadingButton
                             type="button"
                             variant="outlined"
-                            label="Quay lại"
+                            className="btn-outlined-admin"
+                            label="Quay lại danh sách vé"
                             onClick={() => navigate(ROUTES.ADMIN.TICKETS.LIST)}
-                            sx={{ minHeight: '2.75rem' }}
+                        />
+                        <LoadingButton
+                            type="button"
+                            variant="outlined"
+                            className="btn-outlined-admin"
+                            label="Danh sách phiếu nhập"
+                            onClick={() => navigate(ROUTES.ADMIN.IMPORT_BATCH.LIST)}
                         />
                     </Box>
                 </Stack>
-            </ThemeProvider>
-
-            {/* ── Dialog Kết nối Quét vé số từ Mobile App ── */}
-            <Dialog
-                open={scanDialogOpen}
-                onClose={() => setScanDialogOpen(false)}
-                maxWidth="xs"
-                fullWidth
-            >
-                <DialogTitle sx={{ fontWeight: 'bold', pb: 1 }}>
-                    <Stack direction="row" alignItems="center" spacing={1}>
-                        <PhoneIphoneIcon color="primary" />
-                        <Typography variant="h6" fontWeight="bold">
-                            Kết nối Quét vé Mobile
-                        </Typography>
-                    </Stack>
-                </DialogTitle>
-                <DialogContent dividers>
-                    <Stack spacing={2} alignItems="center" sx={{ py: 1, textAlign: 'center' }}>
-                        <Typography variant="body2" color="text.secondary">
-                            Mở ứng dụng Mobile (Tài khoản Admin / Nhân viên) -&gt; chọn <b>Quét vé OCR</b> để tự động ghép nối với phiên làm việc này. Mã phiên:
-                        </Typography>
-
-                        <Paper
-                            variant="outlined"
-                            sx={{
-                                p: 2,
-                                width: '100%',
-                                bgcolor: '#f8fafc',
-                                borderColor: 'primary.main',
-                                borderRadius: 2,
-                            }}
-                        >
-                            <Typography variant="caption" color="text.secondary" fontWeight="medium">
-                                MÃ KẾT NỐI PHIÊN (SESSION CODE)
-                            </Typography>
-
-                            <Typography
-                                variant="h4"
-                                color="primary.main"
-                                fontWeight="bold"
-                                letterSpacing={2}
-                                sx={{ my: 0.5 }}
-                            >
-                                {scanSessionCode}
-                            </Typography>
-                            <Stack direction="row" spacing={0.5} justifyContent="center" alignItems="center">
-                                <CheckCircleIcon color="success" sx={{ fontSize: 16 }} />
-                                <Typography variant="caption" color="success.main" fontWeight="bold">
-                                    Đang sẵn sàng kết nối với ứng dụng Mobile...
-                                </Typography>
-                            </Stack>
-                        </Paper>
-
-                        <Paper
-                            variant="outlined"
-                            sx={{
-                                p: 2,
-                                width: '100%',
-                                bgcolor: '#FFF8F8',
-                                borderColor: '#F5CBCD',
-                                borderRadius: 2,
-                            }}
-                        >
-                            <Typography variant="caption" color="text.secondary" fontWeight="bold">
-                                🧪 DÀNH CHO TEST TRÊN LAPTOP
-                            </Typography>
-                            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, mb: 1.5 }}>
-                                Chưa cài app Mobile? Tải ảnh chụp vé số từ Laptop lên để chạy thử AI OCR:
-                            </Typography>
-                            <Button
-                                variant="contained"
-                                color="secondary"
-                                size="small"
-                                startIcon={<CloudUploadIcon />}
-                                onClick={() => fileInputRef.current?.click()}
-                                sx={{ textTransform: 'none', fontWeight: 'bold' }}
-                            >
-                                Tải ảnh vé từ Laptop test OCR
-                            </Button>
-                        </Paper>
-
-                        <Alert severity="info" sx={{ textAlign: 'left', width: '100%' }}>
-                            Khi Mobile bật quét vé số, hình ảnh và danh sách vé bóc tách được từ AI Vision sẽ tự động cập nhật Real-time vào ô nhập của phiếu này.
-                        </Alert>
-                    </Stack>
-                </DialogContent>
-                <DialogActions sx={{ justifyContent: 'space-between', px: 3, pb: 2 }}>
-                    <Button
-                        variant="outlined"
-                        color="inherit"
-                        startIcon={<CloudUploadIcon />}
-                        onClick={() => fileInputRef.current?.click()}
-                        sx={{ textTransform: 'none', fontWeight: 'bold' }}
-                    >
-                        Tải ảnh vé trực tiếp
-                    </Button>
-                    <Button onClick={() => setScanDialogOpen(false)} variant="contained" color="primary">
-                        Đóng / Hoàn tất
-                    </Button>
-                </DialogActions>
-            </Dialog>
-
-            <TicketScanReviewDialog
-                open={scanReviewOpen}
-                onClose={handleCloseScanReviewDialog}
-                sourceImageUrl={sourceImageUrl}
-                scanResult={scanResult}
-                scanError={scanError}
-                isScanning={isScanning}
-                onRetryScan={handleRetryScan}
-                isConfirming={isConfirmingImport}
-                onConfirm={handleConfirmScannedImport}
-                importResult={importResult}
-            />
-        </>
+            </Box>
+        </ThemeProvider>
     );
 };
 

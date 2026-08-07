@@ -1,13 +1,13 @@
 "use client";
 
-import type { ReactElement, ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { Link } from '@mui/material';
-import { GridActionsCell, GridActionsCellItem, GridRenderCellParams } from '@mui/x-data-grid';
+import { GridRenderCellParams } from '@mui/x-data-grid';
 import dayjs from 'dayjs';
 import { useNavigate } from '@/components/router-compat';
-import { EyeIcon } from '../../../../../assets/icons/index';
 import { ROUTES } from '../../../../../constants/routes';
-import { formatImportCost } from '../../../import-batch/utils/importCostCalculator';
+import { AdminRowActionsMenu } from '../../../../../components/ui/AdminRowActionsMenu';
+import { formatVnd } from '../../../import-batch/utils/importCostCalculator';
 import {
     getSupplierSettlementStatusLabel,
     getSupplierSettlementStatusModifier,
@@ -54,7 +54,7 @@ const MoneyCellWrapper = ({ children }: { children: ReactNode }) => (
 export const RenderMoneyCell = (params: GridRenderCellParams) => (
     <MoneyCellWrapper>
         <span className="admin-cell-text" style={{ fontWeight: 600, color: '#0f172a', textAlign: 'center' }}>
-            {formatImportCost(params.value)} VNĐ
+            {formatVnd(params.value)}
         </span>
     </MoneyCellWrapper>
 );
@@ -62,7 +62,7 @@ export const RenderMoneyCell = (params: GridRenderCellParams) => (
 export const RenderRemainingMoneyCell = (params: GridRenderCellParams) => (
     <MoneyCellWrapper>
         <span className="admin-cell-text" style={{ fontWeight: 700, color: '#166534', textAlign: 'center' }}>
-            {formatImportCost(params.value)} VNĐ
+            {formatVnd(params.value)}
         </span>
     </MoneyCellWrapper>
 );
@@ -94,16 +94,16 @@ export const RenderActionsCell = (params: GridRenderCellParams) => {
     const navigate = useNavigate();
     const id = params.row.id;
 
-    const items: ReactElement[] = [
-        <GridActionsCellItem
-            key="detail"
-            className="admin-menu-item"
-            icon={<EyeIcon />}
-            label="Xem chi tiết"
-            showInMenu
-            onClick={() => navigate(ROUTES.ADMIN.SUPPLIER_SETTLEMENT.DETAIL(id))}
-        />,
-    ];
-
-    return <GridActionsCell {...params}>{items}</GridActionsCell>;
+    return (
+        <AdminRowActionsMenu
+            items={[
+                {
+                    id: 'detail',
+                    label: 'Xem chi tiết',
+                    icon: 'view',
+                    onClick: () => navigate(ROUTES.ADMIN.SUPPLIER_SETTLEMENT.DETAIL(id)),
+                },
+            ]}
+        />
+    );
 };

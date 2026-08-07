@@ -1,7 +1,6 @@
 "use client";
 
 import AddIcon from '@mui/icons-material/Add';
-import { Stack } from '@mui/material';
 import { useNavigate } from '@/components/router-compat';
 import { Breadcrumb } from '../../../../../components/ui/Breadcrumb';
 import { Title } from '../../../../../components/ui/Title';
@@ -11,8 +10,6 @@ import { PERMISSIONS } from '../../../../../constants/permission.constants';
 import { prefixAdmin, ROUTES } from '../../../../../constants/routes';
 import { useImportBatchList } from '../../hooks/useImportBatch';
 import { ImportBatchList } from '../sections/ImportBatchList';
-import { IncompleteImportBatchNotification } from '../sections/IncompleteImportBatchNotification';
-import { MissingStationImportBatchNotification } from '../sections/MissingStationImportBatchNotification';
 
 export const ImportBatchListPage = () => {
     const navigate = useNavigate();
@@ -45,13 +42,6 @@ export const ImportBatchListPage = () => {
                     />
                 </CanAccess>
             </div>
-
-            <Stack spacing={2} sx={{ mb: 2 }}>
-                <CanAccess anyOf={[PERMISSIONS.IMPORT_BATCH.VIEW, PERMISSIONS.TICKET.CREATE]}>
-                    <IncompleteImportBatchNotification variant="compact" />
-                    <MissingStationImportBatchNotification pageBatches={listHook.batches} />
-                </CanAccess>
-            </Stack>
 
             <ImportBatchList listHook={listHook} />
         </>

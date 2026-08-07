@@ -4,7 +4,6 @@ import {
     Alert,
     Box,
     Button,
-    Chip,
     Stack,
     Table,
     TableBody,
@@ -29,19 +28,18 @@ import { PERMISSIONS } from '../../../../../constants/permission.constants';
 import { prefixAdmin, ROUTES } from '../../../../../constants/routes';
 import { useImportBatchDetail } from '../../hooks/useImportBatch';
 import { useStations } from '../../../../station/hooks/useStation';
-import { formatImportCost } from '../../utils/importCostCalculator';
+import { formatVnd } from '../../utils/importCostCalculator';
 import {
     getBatchTypeBadgeClass,
     getBatchTypeLabel,
     getImportBatchCancelledAlertMessage,
+    getImportBatchLineStatusBadgeClass,
     getImportBatchLineStatusLabel,
-    getImportBatchLineStatusChipColor,
-    formatImportBatchLineCancelReason,
-    getImportBatchStatusChipColor,
+    getImportBatchStatusBadgeClass,
     getImportBatchStatusLabel,
     getImportModeLabel,
     formatImportBatchCancelReason,
-    importBatchStatusChipSx,
+    formatImportBatchLineCancelReason,
 } from '../../utils/batchTypeLabels';
 import {
     displayImportBatchLineCodeRaw,
@@ -97,7 +95,7 @@ export const ImportBatchDetailPage = () => {
     const firstIncompleteLine = findFirstIncompleteLine(batch);
 
     return (
-        <Box sx={{ maxWidth: 1200, mx: 'auto' }}>
+        <Box className="admin-page">
             <Breadcrumb
                 items={[
                     { label: 'Vé số', to: `/${prefixAdmin}/ticket/list` },
@@ -115,11 +113,9 @@ export const ImportBatchDetailPage = () => {
                 <Box sx={{ minWidth: 0, flex: 1 }}>
                     <Stack direction="row" alignItems="center" spacing={1.5} flexWrap="wrap" useFlexGap>
                         <Title title={`Phiếu nhập lô ${formatImportBatchHeaderCode(batch.batchCode, batch.id)}`} />
-                        <Chip
+                        <AdminStatusBadge
                             label={getImportBatchStatusLabel(batch.status)}
-                            color={getImportBatchStatusChipColor(batch.status)}
-                            size="small"
-                            sx={importBatchStatusChipSx}
+                            modifier={getImportBatchStatusBadgeClass(batch.status)}
                         />
                     </Stack>
                     {cancelledReasonText && (
@@ -192,7 +188,7 @@ export const ImportBatchDetailPage = () => {
                             InputProps={{ readOnly: true }}
                         />
                         <TextField
-                            label="Số dòng"
+                            label="Số nhà đài"
                             value={batch.lineCount ?? batchLines.length}
                             fullWidth
                             InputProps={{ readOnly: true }}
@@ -207,8 +203,8 @@ export const ImportBatchDetailPage = () => {
                             InputProps={{ readOnly: true }}
                         />
                         <TextField
-                            label="Tổng giá trị khai báo (VNĐ)"
-                            value={formatImportCost(Number(totalDeclaredCostValue))}
+                            label="Tổng giá trị khai báo"
+                            value={formatVnd(Number(totalDeclaredCostValue))}
                             fullWidth
                             InputProps={{ readOnly: true }}
                         />
@@ -219,8 +215,8 @@ export const ImportBatchDetailPage = () => {
                             InputProps={{ readOnly: true }}
                         />
                         <TextField
-                            label="Tổng giá trị đã nhập (VNĐ)"
-                            value={formatImportCost(Number(totalImportedCostValue))}
+                            label="Tổng giá trị đã nhập"
+                            value={formatVnd(Number(totalImportedCostValue))}
                             fullWidth
                             InputProps={{ readOnly: true }}
                         />
@@ -283,17 +279,17 @@ export const ImportBatchDetailPage = () => {
                         </Box>
                     )}
 
-                    <TableContainer component={Paper} variant="outlined">
-                        <Table size="small">
+                    <TableContainer component={Paper} variant="outlined" className="admin-table-container">
+                        <Table size="small" className="admin-table">
                             <TableHead>
                                 <TableRow>
                                     <TableCell>Nhà đài</TableCell>
                                     <TableCell align="center">Loại lô</TableCell>
                                     <TableCell>Mã lô nhập</TableCell>
-                                    <TableCell>Trạng thái dòng</TableCell>
+                                    <TableCell align="center">Trạng thái</TableCell>
                                     <TableCell align="center">Đã nhập</TableCell>
                                     <TableCell align="center">Giá vốn</TableCell>
-                                    <TableCell align="right">GT đã nhập</TableCell>
+                                    <TableCell align="center">GT đã nhập</TableCell>
                                     <TableCell align="center">Thao tác</TableCell>
                                 </TableRow>
                             </TableHead>
@@ -319,11 +315,10 @@ export const ImportBatchDetailPage = () => {
                                                     {displayImportBatchLineCodeRaw(line.batchCode)}
                                                 </Typography>
                                             </TableCell>
-                                            <TableCell>
-                                                <Chip
+                                            <TableCell align="center">
+                                                <AdminStatusBadge
                                                     label={getImportBatchLineStatusLabel(line.status)}
-                                                    size="small"
-                                                    color={getImportBatchLineStatusChipColor(line.status)}
+                                                    modifier={getImportBatchLineStatusBadgeClass(line.status)}
                                                 />
                                                 {line.status === 'CANCELLED' && line.cancelReason && (
                                                     <Typography
@@ -349,13 +344,26 @@ export const ImportBatchDetailPage = () => {
                                                 </Typography>
                                             </TableCell>
                                             <TableCell align="center">
-                                                {formatImportCost(line.importCost)}
-                                            </TableCell>
-                                            <TableCell align="right">
-                                                {formatImportCost(line.totalCostValue)}
+                                                {formatVnd(line.importCost)}
                                             </TableCell>
                                             <TableCell align="center">
-                                                <IconButton size="small" color="primary" onClick={() => navigate(ROUTES.ADMIN.IMPORT_BATCH.LINE_DETAIL(batch.id, line.id))}>
+                                                {formatVnd(line.totalCostValue)}
+                                            </TableCell>
+                                            <TableCell align="center">
+                                                <IconButton
+                                                    size="small"
+                                                    className="admin-table-action"
+                                                    aria-label="Xem chi tiết"
+                                                    onClick={() =>
+                                                        navigate(
+                                                            ROUTES.ADMIN.IMPORT_BATCH.LINE_DETAIL(
+                                                                batch.id,
+                                                                line.id
+                                                            )
+                                                        )
+                                                    }
+                                                    sx={{ color: 'text.primary' }}
+                                                >
                                                     <VisibilityIcon fontSize="small" />
                                                 </IconButton>
                                             </TableCell>

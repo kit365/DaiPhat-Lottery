@@ -1,12 +1,10 @@
 import Box from '@mui/material/Box';
-import { GridColDef, GridRenderCellParams, GridActionsCellItem } from '@mui/x-data-grid';
+import { GridColDef, GridRenderCellParams } from '@mui/x-data-grid';
 import Avatar from '@mui/material/Avatar';
-import EditIcon from '@mui/icons-material/Edit';
-import DeleteIcon from '@mui/icons-material/Delete';
 import Typography from '@mui/material/Typography';
 import Stack from '@mui/material/Stack';
-import VisibilityIcon from '@mui/icons-material/Visibility';
 import { UserStatus, STATUS_COLORS, STATUS_LABELS } from '../../../../../types/user.type';
+import { AdminRowActionsMenu } from '../../../../components/ui/AdminRowActionsMenu';
 
 export const getColumnsConfig = (
     onEdit: (id: string) => void,
@@ -102,63 +100,41 @@ export const getColumnsConfig = (
         },
         {
             field: 'actions',
-            type: 'actions',
             headerName: '',
             width: 80,
             align: 'right',
-            getActions: (params) => {
-                const actions: any[] = [];
-                
-                if (permissions.canEdit) {
-                    actions.push(
-                        <GridActionsCellItem
-                            key="edit-inline"
-                            icon={<EditIcon sx={{ fontSize: '20px !important' }} />}
-                            label="Chỉnh sửa"
-                            onClick={() => onEdit(params.id as string)}
-                            {...({ sx: { width: 36, height: 36, '& .MuiSvgIcon-root': { fontSize: '20px !important' } } } as any)}
-                        />
-                    );
-                }
-                
-                if (permissions.canView) {
-                    actions.push(
-                        <GridActionsCellItem
-                            key="view"
-                            icon={<VisibilityIcon sx={{ fontSize: 20 }} />}
-                            label="Chi tiết"
-                            onClick={() => onView(params.id as string)}
-                            showInMenu
-                        />
-                    );
-                }
-                
-                if (permissions.canEdit) {
-                    actions.push(
-                        <GridActionsCellItem
-                            key="edit"
-                            icon={<EditIcon sx={{ fontSize: 20 }} />}
-                            label="Chỉnh sửa"
-                            onClick={() => onEdit(params.id as string)}
-                            showInMenu
-                        />
-                    );
-                }
-                
-                if (permissions.canDelete) {
-                    actions.push(
-                        <GridActionsCellItem
-                            key="delete"
-                            icon={<DeleteIcon sx={{ fontSize: 20, color: 'var(--palette-error-main)' }} />}
-                            label="Xóa"
-                            onClick={() => onDelete(params.id as string)}
-                            showInMenu
-                        />
-                    );
-                }
-
-                return actions;
-            },
+            sortable: false,
+            renderCell: (params: GridRenderCellParams) => (
+                <AdminRowActionsMenu
+                    items={[
+                        ...(permissions.canView
+                            ? [{
+                                id: 'view',
+                                label: 'Chi tiết',
+                                icon: 'view',
+                                onClick: () => onView(params.id as string),
+                            }]
+                            : []),
+                        ...(permissions.canEdit
+                            ? [{
+                                id: 'edit',
+                                label: 'Chỉnh sửa',
+                                icon: 'edit',
+                                onClick: () => onEdit(params.id as string),
+                            }]
+                            : []),
+                        ...(permissions.canDelete
+                            ? [{
+                                id: 'delete',
+                                label: 'Xóa',
+                                icon: 'delete',
+                                onClick: () => onDelete(params.id as string),
+                                danger: true,
+                            }]
+                            : []),
+                    ]}
+                />
+            ),
         },
     ];
 

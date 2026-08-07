@@ -20,7 +20,7 @@ import { motion } from "framer-motion";
 import { useAuthStore } from "../../../stores/useAuthStore";
 import { useNavigate } from "@/components/router-compat";
 import { authService } from "../../pages/authen/services/auth.service";
-import { ROUTES, prefixAdmin } from "../../constants/routes";
+import { ROUTES } from "../../constants/routes";
 import { NotificationPopover } from "./NotificationPopover";
 import { STORAGE_KEYS } from "../../../constants/storage.constants";
 import Cookies from "js-cookie";
@@ -117,27 +117,6 @@ export const Header = () => {
                     }}
                 >
                     <Box className="flex items-center gap-[6px]">
-                        <motion.div 
-                            {...navMotionProps}
-                            onMouseEnter={() => setHoveredItem('search')}
-                            onMouseLeave={() => setHoveredItem(null)}
-                            className="relative"
-                        >
-                            <Box className="flex items-center pr-[10px] cursor-pointer bg-[#919eab0d] rounded-[10px] transition-all duration-200 ease-in-out group relative z-10">
-                                <Box className="p-[8px] group-hover:scale-110 transition-transform">
-                                    <svg className="text-[1.25rem] text-[#637381]" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" role="img" id="«ro»" width="1em" height="1em" viewBox="0 0 24 24"><path fill="currentColor" d="m20.71 19.29l-3.4-3.39A7.92 7.92 0 0 0 19 11a8 8 0 1 0-8 8a7.92 7.92 0 0 0 4.9-1.69l3.39 3.4a1 1 0 0 0 1.42 0a1 1 0 0 0 0-1.42M5 11a6 6 0 1 1 6 6a6 6 0 0 1-6-6"></path></svg>
-                                </Box>
-                                <span className="h-[1.5rem] min-w-[1.5rem] flex items-center justify-center text-[#637381] text-[0.7rem] font-[700] px-[8px] rounded-[6px] bg-white border border-[#919eab24] shadow-sm"><span className="text-[0.45rem] mt-[0.5px] mr-[1px]">⌘</span>K</span>
-                            </Box>
-                            {hoveredItem === 'search' && (
-                                <motion.div
-                                    layoutId="header-highlight"
-                                    className="absolute inset-0 bg-[#919eab14] rounded-[10px] z-0"
-                                    transition={{ type: "spring", stiffness: 400, damping: 30 }}
-                                />
-                            )}
-                        </motion.div>
-
                         <NotificationPopover 
                             onMouseEnter={() => setHoveredItem('notif')}
                             onMouseLeave={() => setHoveredItem(null)}
