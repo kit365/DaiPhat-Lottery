@@ -6,7 +6,6 @@ import { PermissionGuard } from "../components/auth/PermissionGuard";
 import { PERMISSIONS } from "../constants/permission.constants";
 
 const TicketListPage = lazy(() => import("../features/ticket/inventory/components/pages/TicketListPage").then(m => ({ default: m.TicketListPage })));
-const TicketCreatePage = lazy(() => import("../features/ticket/inventory/components/pages/TicketCreatePage").then(m => ({ default: m.TicketCreatePage })));
 const TicketEditPage = lazy(() => import("../features/ticket/inventory/components/pages/TicketEditPage").then(m => ({ default: m.TicketEditPage })));
 const TicketDetailPage = lazy(() => import("../features/ticket/inventory/components/pages/TicketDetailPage").then(m => ({ default: m.TicketDetailPage })));
 const ExpiredTicketListPage = lazy(() => import("../features/ticket/inventory/components/pages/ExpiredTicketListPage").then(m => ({ default: m.ExpiredTicketListPage })));
@@ -112,7 +111,7 @@ export const AdminRoutes: AdminRouteItem[] = [
     { path: "dashboard/statistics/orders", permission: PERMISSIONS.STATISTICS.ORDER, Component: OrderStatisticsPage },
     { path: "dashboard/statistics/staff", permission: PERMISSIONS.ACCOUNT.VIEW, Component: StaffStatisticsPage },
     { path: "ticket/list", permission: PERMISSIONS.TICKET.VIEW, Component: TicketListPage },
-    { path: "ticket/create", permissions: [PERMISSIONS.TICKET.CREATE, PERMISSIONS.TICKET.VIEW, PERMISSIONS.IMPORT_BATCH.VIEW, PERMISSIONS.IMPORT_BATCH.CREATE], Component: TicketCreatePage },
+    { path: "ticket/create", permissions: [PERMISSIONS.TICKET.CREATE, PERMISSIONS.TICKET.VIEW, PERMISSIONS.IMPORT_BATCH.VIEW, PERMISSIONS.IMPORT_BATCH.CREATE], Component: ImportBatchCreatePage },
     { path: "import-batch/list", permission: PERMISSIONS.IMPORT_BATCH.VIEW, Component: ImportBatchListPage },
     { path: "import-batch/create", permission: PERMISSIONS.IMPORT_BATCH.CREATE, Component: ImportBatchCreatePage },
     { path: "import-batch/edit/:id", permission: PERMISSIONS.IMPORT_BATCH.CREATE, Component: ImportBatchEditPage },
