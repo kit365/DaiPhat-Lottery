@@ -1,7 +1,7 @@
-import { GridColDef, GridActionsCellItem } from "@mui/x-data-grid";
+import { GridColDef } from "@mui/x-data-grid";
 import { Chip, Typography } from "@mui/material";
-import { EditIcon, DeleteIcon } from "../../../assets/icons";
 import { Icon } from "@iconify/react";
+import { AdminRowActionsMenu } from "../../../components/ui/AdminRowActionsMenu";
 
 export const getShiftColumns = (onEdit: (id: string) => void, onDelete: (id: string) => void): GridColDef[] => [
     {
@@ -60,46 +60,28 @@ export const getShiftColumns = (onEdit: (id: string) => void, onDelete: (id: str
     {
         field: "actions",
         headerName: "",
-        type: "actions",
         width: 64,
         align: 'right',
         headerAlign: 'right',
-        getActions: (params) => [
-            <GridActionsCellItem
-                key="edit"
-                icon={<EditIcon />}
-                label="Chỉnh sửa"
-                onClick={() => onEdit(params.row._id)}
-                showInMenu
-                {...({
-                    sx: {
-                        '& .MuiTypography-root': {
-                            fontSize: '0.8125rem',
-                            fontWeight: "600"
-                        },
+        sortable: false,
+        renderCell: (params) => (
+            <AdminRowActionsMenu
+                items={[
+                    {
+                        id: 'edit',
+                        label: 'Chỉnh sửa',
+                        icon: 'edit',
+                        onClick: () => onEdit(params.row._id),
                     },
-                } as any)}
-            />,
-            <GridActionsCellItem
-                key="delete"
-                icon={<DeleteIcon />}
-                label="Xóa"
-                onClick={() => onDelete(params.row._id)}
-                showInMenu
-                {...({
-                    sx: {
-                        '& .MuiTypography-root': {
-                            fontSize: '0.8125rem',
-                            fontWeight: "600",
-                            color: "var(--palette-error-main)"
-                        },
+                    {
+                        id: 'delete',
+                        label: 'Xóa',
+                        icon: 'delete',
+                        onClick: () => onDelete(params.row._id),
+                        danger: true,
                     },
-                } as any)}
-            />,
-        ]
+                ]}
+            />
+        ),
     }
 ];
-
-
-
-

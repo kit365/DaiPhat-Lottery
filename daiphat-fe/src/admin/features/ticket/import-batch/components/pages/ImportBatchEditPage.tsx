@@ -88,7 +88,7 @@ import {
 } from '../../utils/importBatchDeclareQuantityAdjustment';
 import { formatViInteger, parseNonNegativeIntegerInput } from '../../../../supplier';
 import { computeImportBatchTotals } from '../../utils/importBatchTotals';
-import { formatImportCost } from '../../utils/importCostCalculator';
+import { formatVnd } from '../../utils/importCostCalculator';
 import { computeImportBatchRowLimit, IMPORT_BATCH_ROW_LIMIT_MESSAGE } from '../../utils/importBatchRowLimit';
 import {
     buildFormValuesFromBatch,
@@ -1029,7 +1029,7 @@ export const ImportBatchEditPage = () => {
 
     return (
         <ThemeProvider theme={localTheme}>
-            <Box sx={{ maxWidth: 1200, mx: 'auto' }}>
+            <Box className="admin-page">
                 <Breadcrumb
                     items={[
                         { label: 'Vé số', to: `/${prefixAdmin}/ticket/list` },
@@ -1325,7 +1325,7 @@ export const ImportBatchEditPage = () => {
                             >
                                 <Typography variant="body2">
                                     <strong>Tổng giá trị lô vé nhập:</strong>{' '}
-                                    {formatImportCost(totals.totalCost)} VNĐ
+                                    {formatVnd(totals.totalCost)}
                                 </Typography>
                             </Box>
 

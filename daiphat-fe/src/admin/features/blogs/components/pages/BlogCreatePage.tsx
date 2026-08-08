@@ -2,7 +2,6 @@
 
 import { Box, Stack, TextField, ThemeProvider, useTheme, MenuItem, Select, FormControl, InputLabel, FormHelperText, createTheme, Autocomplete, CircularProgress } from "@mui/material"
 import { LoadingButton } from "../../../../components/ui/LoadingButton";
-import { useTranslation } from "react-i18next";
 import { Breadcrumb } from "../../../../components/ui/Breadcrumb"
 import { Title } from "../../../../components/ui/Title"
 import { useState, type Dispatch, type SetStateAction } from "react"
@@ -24,7 +23,6 @@ import { CategoryTreeSelectGeneric } from "../../../../components/ui/CategoryTre
 import { getMinScheduleValue } from "../utils/blogForm.utils";
 
 export const BlogCreatePage = () => {
-    const { t } = useTranslation();
     const [expandedDetail, setExpandedDetail] = useState(true);
     const [expandedExtra, setExpandedExtra] = useState(true);
     const toggle = (setter: Dispatch<SetStateAction<boolean>>) =>
@@ -114,12 +112,12 @@ export const BlogCreatePage = () => {
         <>
             <div className="mb-[calc(5*var(--spacing))] gap-[calc(2*var(--spacing))] flex items-start justify-end">
                 <div className="mr-auto">
-                    <Title title={t("admin.blog.title.create")} />
+                    <Title title="Tạo mới bài viết" />
                     <Breadcrumb
                         items={[
-                            { label: t("admin.dashboard.title"), to: "/" },
-                            { label: t("admin.blog.title.list"), to: `/${prefixAdmin}/blog/list` },
-                            { label: t("admin.common.create") }
+                            { label: "Bảng điều khiển", to: "/" },
+                            { label: "Danh sách bài viết", to: `/${prefixAdmin}/blog/list` },
+                            { label: "Tạo mới" }
                         ]}
                     />
                 </div>
@@ -131,8 +129,8 @@ export const BlogCreatePage = () => {
                         gap: "calc(5 * var(--spacing))"
                     }}>
                         <CollapsibleCard
-                            title={t("admin.common.details")}
-                            subheader={t("admin.common.description")}
+                            title="Thông tin chung"
+                            subheader="Mô tả"
                             expanded={expandedDetail}
                             onToggle={toggle(setExpandedDetail)}
                         >
@@ -143,7 +141,7 @@ export const BlogCreatePage = () => {
                                     render={({ field, fieldState }) => (
                                         <TextField
                                             {...field}
-                                            label={t("admin.blog.fields.title")}
+                                            label="Tiêu đề bài viết"
                                             fullWidth
                                             error={!!fieldState.error}
                                             helperText={fieldState.error?.message}
@@ -156,7 +154,7 @@ export const BlogCreatePage = () => {
                                     render={({ field, fieldState }) => (
                                         <TextField
                                             {...field}
-                                            label={t("admin.blog.fields.excerpt")}
+                                            label="Mô tả ngắn"
                                             multiline
                                             rows={4}
                                             fullWidth
@@ -187,8 +185,8 @@ export const BlogCreatePage = () => {
                             </Stack>
                         </CollapsibleCard>
                         <CollapsibleCard
-                            title={t("admin.common.attributes")}
-                            subheader={t("admin.common.description")}
+                            title="Thuộc tính"
+                            subheader="Mô tả"
                             expanded={expandedExtra}
                             onToggle={toggle(setExpandedExtra)}
                         >
@@ -205,11 +203,11 @@ export const BlogCreatePage = () => {
                                         control={control}
                                         render={({ field }) => (
                                             <FormControl fullWidth>
-                                                <InputLabel id="status-select-label">{t("admin.common.status")}</InputLabel>
+                                                <InputLabel id="status-select-label">Trạng thái</InputLabel>
                                                 <Select
                                                     {...field}
                                                     labelId="status-select-label"
-                                                    label={t("admin.common.status")}
+                                                    label="Trạng thái"
                                                 >
                                                     {creatableBlogStatuses.map((opt) => (
                                                         <MenuItem key={opt.value} value={opt.value}>
@@ -252,8 +250,8 @@ export const BlogCreatePage = () => {
                                             control={control}
                                             categories={blogCategories}
                                             name="category"
-                                            label={t("admin.blog.fields.category")}
-                                            placeholder={t("admin.blog.fields.select_category")}
+                                            label="Danh mục bài viết"
+                                            placeholder="Chọn danh mục"
                                             multiple={true}
                                         />
                                     </Box>
@@ -293,8 +291,8 @@ export const BlogCreatePage = () => {
                                                 renderInput={(params) => (
                                                     <TextField
                                                         {...params}
-                                                        label={t("admin.blog.fields.tags")}
-                                                        placeholder={t("admin.blog.fields.tags_placeholder")}
+                                                        label="Tags"
+                                                        placeholder="+ Tags"
                                                         error={!!fieldState.error}
                                                         helperText={fieldState.error?.message}
                                                         InputProps={{
@@ -318,8 +316,8 @@ export const BlogCreatePage = () => {
                             <LoadingButton
                                 type="submit"
                                 loading={isPending || isUploading}
-                                label={t('admin.blog.title.create')}
-                                loadingLabel={t('admin.common.processing')}
+                                label="Tạo mới bài viết"
+                                loadingLabel="Đang xử lý..."
                             />
                         </Box>
                     </Stack>

@@ -9,8 +9,8 @@ export const EyeIcon = (props: SvgIconProps) => {
             viewBox="0 0 24 24"
             sx={{
                 fontSize: 20,
-                color: "#1C252E",
-                marginRight: "16px",
+                color: "currentColor",
+                marginRight: 0,
                 ...sx,
             }}
         >

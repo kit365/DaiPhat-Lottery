@@ -1,6 +1,5 @@
 "use client";
 
-import { useTranslation } from "react-i18next";
 import { useState, useEffect, memo, useCallback, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { ListItemIcon, Collapse, ButtonBase, Popover, Paper, Badge } from '@mui/material';
@@ -56,12 +55,10 @@ function isNavChildActive(pathname: string, search: string, childPath: string): 
 const SubNavItem = ({
     child,
     isSubActive,
-    t,
     onPrefetch,
 }: {
     child: any;
     isSubActive: boolean;
-    t: (key: string) => string;
     onPrefetch: (path: string) => void;
 }) => {
     const showSupportOpenBadge = child.badge === 'support-open';
@@ -77,7 +74,7 @@ const SubNavItem = ({
                         ? 'text-[#FF3030] font-[600] bg-[#FF303014]'
                         : 'text-[#637381] hover:bg-[#919eab14] hover:text-[#1C252E]'}`}
             >
-                <span className="truncate min-w-0 flex-1">{t(child.tKey || child.label)}</span>
+                <span className="truncate min-w-0 flex-1">{child.label}</span>
                 {showSupportOpenBadge && (
                     <span className="ml-2 shrink-0 inline-flex items-center">
                         <SupportTicketOpenBadgeLabel />
@@ -268,7 +265,6 @@ const ChatAttentionBadgeIcon = ({ children }: { children: ReactNode }) => {
 };
 
 export const NavItem = memo(({ item }: { item: any }) => {
-    const { t } = useTranslation();
     const router = useRouter();
     const { pathname, search } = useLocation();
     const { isOpen } = useSidebar();
@@ -403,7 +399,7 @@ export const NavItem = memo(({ item }: { item: any }) => {
 
                 {isOpen && (
                     <span className="flex-1 text-[0.875rem] text-left flex items-center min-w-0 self-stretch">
-                        <span className="truncate min-w-0">{t(item.tKey || item.label)}</span>
+                        <span className="truncate min-w-0">{item.label}</span>
                         {showRefundBadge && (
                             <span className="ml-auto pl-2 shrink-0 inline-flex items-center">
                                 <RefundPendingBadgeLabel />
@@ -431,7 +427,7 @@ export const NavItem = memo(({ item }: { item: any }) => {
                         )}
                     </span>
                 )}
-                {!isOpen && <span className="text-[0.625rem] font-[600] text-center" style={{ wordBreak: 'break-word', maxWidth: '60px', lineHeight: '1.2' }}>{t(item.tKey || item.label)}</span>}
+                {!isOpen && <span className="text-[0.625rem] font-[600] text-center" style={{ wordBreak: 'break-word', maxWidth: '60px', lineHeight: '1.2' }}>{item.label}</span>}
 
                 {hasChildren && isOpen && (
                     <ArrowIcon
@@ -490,7 +486,6 @@ export const NavItem = memo(({ item }: { item: any }) => {
                                             key={child.id}
                                             child={child}
                                             isSubActive={isNavChildActive(pathname, search, child.path)}
-                                            t={t}
                                             onPrefetch={handlePrefetch}
                                         />
                                     ))}
@@ -511,7 +506,6 @@ export const NavItem = memo(({ item }: { item: any }) => {
                                     key={child.id}
                                     child={child}
                                     isSubActive={isNavChildActive(pathname, search, child.path)}
-                                    t={t}
                                     onPrefetch={handlePrefetch}
                                 />
                             ))}

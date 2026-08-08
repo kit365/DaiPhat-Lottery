@@ -6,7 +6,6 @@ import Select, { SelectChangeEvent } from '@mui/material/Select';
 import MenuItem from '@mui/material/MenuItem';
 import Checkbox from '@mui/material/Checkbox';
 import { memo, useCallback, useMemo, useState } from 'react';
-import { useTranslation } from 'react-i18next';
 
 // Types
 interface Option {
@@ -79,7 +78,6 @@ const CHECKBOX_STYLE = {
 };
 
 export const SelectMulti = memo(({ label, options, sx, value, onChange, disabled }: SelectMultiProps) => {
-    const { t } = useTranslation();
     const [internalValues, setInternalValues] = useState<string[]>([]);
 
     // Use controlled value if provided, otherwise use internal state
@@ -201,7 +199,7 @@ export const SelectMulti = memo(({ label, options, sx, value, onChange, disabled
                         }
                     }}
                 >
-                    {t("admin.common.apply")}
+                    Áp dụng
                 </MenuItem>
             </Select>
         </FormControl>

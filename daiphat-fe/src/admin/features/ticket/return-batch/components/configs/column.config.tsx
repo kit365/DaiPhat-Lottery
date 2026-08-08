@@ -1,15 +1,13 @@
 "use client";
 
 import CalendarTodayOutlinedIcon from '@mui/icons-material/CalendarTodayOutlined';
-import MoreVertIcon from '@mui/icons-material/MoreVert';
-import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
-import { Avatar, Box, IconButton, ListItemIcon, ListItemText, Menu, MenuItem, Stack, Typography } from '@mui/material';
+import { Avatar, Box, Stack, Typography } from '@mui/material';
 import { GridColDef, GridRenderCellParams } from '@mui/x-data-grid';
 import dayjs from 'dayjs';
-import { useState } from 'react';
 import { useNavigate } from '@/components/router-compat';
+import { AdminRowActionsMenu } from '../../../../../components/ui/AdminRowActionsMenu';
 import { ROUTES } from '../../../../../constants/routes';
-import { formatImportCost } from '../../../import-batch/utils/importCostCalculator';
+import { formatVnd } from '../../../import-batch/utils/importCostCalculator';
 import type { ReturnBatch } from '../../types/returnBatch.type';
 import {
     getReturnBatchStatusBadgeClass,
@@ -20,42 +18,18 @@ import { returnBatchCodeMonospaceSx } from '../../utils/returnBatchCode';
 
 const ActionCell = ({ row }: { row: ReturnBatch }) => {
     const navigate = useNavigate();
-    const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
-
-    const handleOpen = (event: React.MouseEvent<HTMLElement>) => {
-        event.stopPropagation();
-        setAnchorEl(event.currentTarget);
-    };
-
-    const handleClose = (event?: React.MouseEvent) => {
-        if (event) event.stopPropagation();
-        setAnchorEl(null);
-    };
 
     return (
-        <Box onClick={(e) => e.stopPropagation()}>
-            <IconButton size="small" onClick={handleOpen}>
-                <MoreVertIcon fontSize="small" />
-            </IconButton>
-            <Menu
-                anchorEl={anchorEl}
-                open={Boolean(anchorEl)}
-                onClose={() => handleClose()}
-                onClick={(e) => e.stopPropagation()}
-            >
-                <MenuItem
-                    onClick={(e) => {
-                        handleClose(e);
-                        navigate(ROUTES.ADMIN.RETURN_BATCH.DETAIL(row.id));
-                    }}
-                >
-                    <ListItemIcon>
-                        <VisibilityOutlinedIcon fontSize="small" />
-                    </ListItemIcon>
-                    <ListItemText>Xem chi tiết</ListItemText>
-                </MenuItem>
-            </Menu>
-        </Box>
+        <AdminRowActionsMenu
+            items={[
+                {
+                    id: 'view',
+                    label: 'Xem chi tiết',
+                    icon: 'view',
+                    onClick: () => navigate(ROUTES.ADMIN.RETURN_BATCH.DETAIL(row.id)),
+                },
+            ]}
+        />
     );
 };
 
@@ -228,7 +202,7 @@ export const returnBatchColumnsConfig: GridColDef[] = [
         renderCell: (params: GridRenderCellParams<ReturnBatch>) => (
             <Box sx={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', height: '100%', pr: 1 }}>
                 <Typography variant="body2" fontWeight={700} color="#16a34a" sx={{ fontSize: '0.875rem' }}>
-                    {formatImportCost(params.row.totalReturnValue)} VNĐ
+                    {formatVnd(params.row.totalReturnValue)}
                 </Typography>
             </Box>
         ),

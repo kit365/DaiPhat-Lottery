@@ -1,5 +1,13 @@
 import type { ImportBatch, ImportBatchLine, ImportBatchLineStatus } from '../types/importBatch.type';
 import { getImportBatchLineStatusLabel, getImportBatchStatusLabel } from './batchTypeLabels';
+import { hasStartedImportBatchLineEntry } from './importBatchEditDraft';
+
+export type ImportBatchListRowActionType = 'add-stations' | 'import-tickets';
+
+export type ImportBatchListRowAction = {
+    type: ImportBatchListRowActionType;
+    label: string;
+};
 
 export type IncompleteImportBatchDisplayStatus = 'DRAFT' | 'RECEIVING' | 'PARTIALLY_IMPORTED';
 
@@ -130,6 +138,31 @@ export const isImportBatchEditable = (batch: ImportBatch) =>
 
 export const batchHasPendingLines = (batch: ImportBatch) =>
     isImportBatchEditable(batch) && getIncompleteLines(batch).length > 0;
+
+export const getImportBatchListRowAction = (batch: ImportBatch): ImportBatchListRowAction | null => {
+    if (!isImportBatchEditable(batch)) {
+        return null;
+    }
+
+    if (importBatchMissingStations(batch)) {
+        return {
+            type: 'add-stations',
+            label: hasStartedImportBatchLineEntry(batch.id) ? 'Tiếp tục nhập' : 'Bổ sung đài',
+        };
+    }
+
+    if (batchHasPendingLines(batch)) {
+        return {
+            type: 'import-tickets',
+            label: 'Nhập ngay',
+        };
+    }
+
+    return null;
+};
+
+export const importBatchNeedsAttention = (batch: ImportBatch) =>
+    getImportBatchListRowAction(batch) !== null;
 
 export const importBatchHasNoLines = (batch: ImportBatch) => {
     if (Array.isArray(batch.lines)) {

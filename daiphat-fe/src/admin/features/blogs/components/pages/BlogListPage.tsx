@@ -12,7 +12,6 @@ import { BlogToolbar } from "../sections/BlogToolbar";
 import { useBlogs, useBlogTypes } from "../../hooks/useBlog";
 import { useNestedBlogCategories } from "../../hooks/useBlogCategory";
 import { useState, useMemo } from "react";
-import { useTranslation } from "react-i18next";
 import { CanAccess } from "../../../../components/auth/CanAccess";
 import { PERMISSIONS } from "../../../../constants/permission.constants";
 
@@ -20,7 +19,6 @@ import { getTabBadgeStyles } from "../../../../utils/badge";
 import { BLOG_STATUS } from '../../types/blog.type';
 
 export const BlogListPage = () => {
-    const { t } = useTranslation();
     const navigate = useNavigate();
     const [sortBy, setSortBy] = useState("latest");
 
@@ -93,12 +91,12 @@ export const BlogListPage = () => {
         <>
             <div className="mb-[calc(5*var(--spacing))] gap-[calc(2*var(--spacing))] flex items-start justify-end">
                 <div className="mr-auto">
-                    <Title title={t("admin.blog.title.list")} />
+                    <Title title="Danh sách bài viết" />
                     <Breadcrumb
                         items={[
-                            { label: t("admin.dashboard.title"), to: "/" },
-                            { label: t("admin.blog.title.list"), to: `/${prefixAdmin}/blog/list` },
-                            { label: t("admin.common.list") }
+                            { label: "Bảng điều khiển", to: "/" },
+                            { label: "Danh sách bài viết", to: `/${prefixAdmin}/blog/list` },
+                            { label: "Danh sách" }
                         ]}
                     />
                 </div>
@@ -110,7 +108,7 @@ export const BlogListPage = () => {
                             variant="contained"
                             startIcon={<AddIcon />}
                         >
-                            {t("admin.blog.title.create")}
+                            Tạo mới bài viết
                         </Button>
                     </CanAccess>
                 </div>

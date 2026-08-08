@@ -2,7 +2,6 @@
 
 import { Toolbar, Box, Button, Badge, SvgIcon } from "@mui/material";
 import { useMemo, type Dispatch, type SetStateAction } from "react";
-import { useTranslation } from "react-i18next";
 import { Search } from "../../../../components/ui/Search";
 import { JiraFilter, toolbarStyles, IGridSettings } from "../../../../shared/data-grid";
 import { SettingsList } from "../../../../components/ui/SettingsList";
@@ -135,8 +134,6 @@ export const OrderToolbar = ({
     sortByUI,
     onSortChange,
 }: ToolbarProps) => {
-    const { t } = useTranslation();
-    
     const sortOptions = useMemo(() => [
         { value: 'default', label: "Mặc định" },
         { value: 'newest', label: "Mới nhất" },
