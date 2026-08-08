@@ -7,8 +7,9 @@ import { useForm, Controller } from 'react-hook-form';
 import { useNavigate, useParams } from '@/components/router-compat';
 import { toast } from 'react-toastify';
 import { PageHeader } from '../../../../components/ui/PageHeader';
+import { SpinnerLoading } from '../../../../components/ui/SpinnerLoading';
 import { CollapsibleCard } from '../../../../components/ui/CollapsibleCard';
-import { LoadingButton } from '../../../../components/ui/LoadingButton';
+import { Button } from '../../../../components/ui/Button';
 import { ROUTES } from '../../../../constants/routes';
 import { useSupplierDetail, useUpdateSupplier } from '../../hooks/useSupplier';
 import { SupplierFormFields } from '../sections/SupplierFormFields';
@@ -138,28 +139,25 @@ export const SupplierEditPage = () => {
         }
     };
 
-    if (isLoading) {
-        return null;
-    }
-
-    if (!supplier) {
-        return (
-            <Box sx={{ p: 3 }}>
-                <Typography>Không tìm thấy nhà cung cấp.</Typography>
-            </Box>
-        );
-    }
-
     return (
         <Box sx={{ maxWidth: 900, mx: 'auto' }}>
             <PageHeader
-                title={`Sửa nhà cung cấp #${supplier.id}`}
+                title={`Sửa nhà cung cấp #${supplier?.id ?? id}`}
                 breadcrumbItems={[
                     { label: 'Vé số', to: ROUTES.ADMIN.TICKETS.LIST },
                     { label: 'Nhà cung cấp', to: ROUTES.ADMIN.SUPPLIER.LIST },
-                    { label: `Sửa #${supplier.id}` },
+                    { label: `Sửa #${supplier?.id ?? id}` },
                 ]}
             />
+
+            {isLoading ? (
+                <SpinnerLoading />
+            ) : !supplier ? (
+                <Box sx={{ p: 3 }}>
+                    <Typography>Không tìm thấy nhà cung cấp.</Typography>
+                </Box>
+            ) : (
+                <>
 
             <form onSubmit={handleSubmit(onSubmit)} noValidate>
                 <CollapsibleCard title="Thông tin nhà cung cấp" expanded onToggle={() => undefined}>
@@ -198,7 +196,7 @@ export const SupplierEditPage = () => {
                             />
                         )}
                     />
-                    <LoadingButton
+                    <Button
                         type="submit"
                         variant="contained"
                         loading={isPending}
@@ -207,6 +205,8 @@ export const SupplierEditPage = () => {
                     />
                 </Stack>
             </form>
+                </>
+            )}
         </Box>
     );
 };

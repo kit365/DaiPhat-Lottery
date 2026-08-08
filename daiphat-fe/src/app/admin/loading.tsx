@@ -1,5 +1,5 @@
-import { AdminPageContentSkeleton } from '@/admin/components/ui/AdminPageContentSkeleton';
+import { SpinnerLoading } from '@/admin/components/ui/SpinnerLoading';
 
 export default function AdminLoading() {
-    return <AdminPageContentSkeleton />;
+    return <SpinnerLoading />;
 }

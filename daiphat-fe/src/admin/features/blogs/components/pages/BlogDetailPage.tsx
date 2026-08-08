@@ -9,7 +9,6 @@ import {
     Typography,
     Chip,
     Button,
-    CircularProgress,
     Divider,
     alpha,
     Avatar,
@@ -25,6 +24,7 @@ import { useBlogDetail, useBlogTypes, useDeleteBlog, useUpdateBlog } from "../..
 import { BLOG_STATUS, BlogStatus } from '../../types/blog.type';
 import { prefixAdmin } from "../../../../constants/routes";
 import { PageHeader } from "../../../../components/ui/PageHeader";
+import { SpinnerLoading } from "../../../../components/ui/SpinnerLoading";
 import { AppToast as toast } from "../../../../../utils/toast.util";
 import { useState } from "react";
 import { FacebookIcon, InstagramIcon, ShareIcon } from "../../../../assets/icons";
@@ -153,14 +153,7 @@ export const BlogDetailPage = () => {
     };
 
     // ── Loading / empty states ───────────────────────────────────────────────
-    if (isLoading) {
-        return (
-            <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "60vh" }}>
-                <CircularProgress color="inherit" />
-            </Box>
-        );
-    }
-    if (!blog) {
+    if (!isLoading && !blog) {
         return (
             <Box sx={{ p: 6, textAlign: "center" }}>
                 <Icon icon="solar:document-broken-bold-duotone" width={64} color="var(--palette-text-disabled)" />
@@ -172,7 +165,7 @@ export const BlogDetailPage = () => {
         );
     }
 
-    const thumbnail = blog.avatar || blog.thumbnail || (blog as any).featuredImage;
+    const thumbnail = blog?.avatar || blog?.thumbnail || (blog as any)?.featuredImage;
 
     // ──────────────────────────────────────────────────────────────────────────
     // Shared Header (always visible, both modes)
@@ -183,9 +176,10 @@ export const BlogDetailPage = () => {
             breadcrumbItems={[
                 { label: "Dashboard", to: "/" },
                 { label: "Bài viết", to: `/${prefixAdmin}/blog/list` },
-                { label: blog.name || blog.title || "Chi tiết" },
+                { label: blog?.name || blog?.title || "Chi tiết" },
             ]}
             action={
+            blog ? (
             <Stack direction="row" spacing={1} alignItems="center" justifyContent="flex-end" flexWrap="wrap">
                 <Button
                     variant="outlined"
@@ -321,14 +315,13 @@ export const BlogDetailPage = () => {
                     </Button>
                 )}
             </Stack>
+            ) : undefined
             }
         />
     );
 
-    // ──────────────────────────────────────────────────────────────────────────
-    // INFO VIEW — Admin dashboard layout
-    // ──────────────────────────────────────────────────────────────────────────
-    const infoView = (
+    // ── Render ───────────────────────────────────────────────────────────────
+    const infoView = blog ? (
         <Grid container spacing={3}>
             {/* Left */}
             <Grid size={{ xs: 12, md: 8 }}>
@@ -526,13 +519,16 @@ export const BlogDetailPage = () => {
                 </Stack>
             </Grid>
         </Grid>
-    );
+    ) : null;
 
-    // ── Render ───────────────────────────────────────────────────────────────
     return (
         <>
             {header}
-            {infoView}
+            {isLoading ? (
+                <SpinnerLoading />
+            ) : blog ? (
+                infoView
+            ) : null}
         </>
     );
 };

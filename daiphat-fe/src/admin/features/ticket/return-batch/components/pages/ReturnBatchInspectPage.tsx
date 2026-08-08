@@ -7,43 +7,14 @@ import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
 import ReportProblemIcon from '@mui/icons-material/ReportProblem';
 import SearchIcon from '@mui/icons-material/Search';
-import {
-    Alert,
-    Box,
-    Button,
-    Card,
-    Checkbox,
-    Chip,
-    CircularProgress,
-    Collapse,
-    Dialog,
-    DialogActions,
-    DialogContent,
-    DialogTitle,
-    IconButton,
-    InputAdornment,
-    Paper,
-    Radio,
-    RadioGroup,
-    Stack,
-    Tab,
-    Table,
-    TableBody,
-    TableCell,
-    TableContainer,
-    TableHead,
-    TableRow,
-    Tabs,
-    TextField,
-    Typography,
-} from '@mui/material';
+import { Alert, Box, Card, Checkbox, Chip, CircularProgress, Collapse, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, InputAdornment, Paper, Radio, RadioGroup, Stack, Tab, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Tabs, TextField, Typography } from '@mui/material';
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import Swal from 'sweetalert2';
 import { useParams } from '@/components/router-compat';
 import { PageHeader } from '../../../../../components/ui/PageHeader';
-import { LoadingButton } from '../../../../../components/ui/LoadingButton';
+import { Button } from '../../../../../components/ui/Button';
 import { ROUTES } from '../../../../../constants/routes';
 import { ReportSerialFaultPane } from '../../../import-batch/components/sections/ReportSerialFaultPane';
 import { UploadSingleFile } from '../../../../../components/upload/UploadSingleFile';
@@ -986,7 +957,7 @@ export const ReturnBatchInspectPage = () => {
                             Đóng / Quay lại
                         </Button>
 
-                        <LoadingButton
+                        <Button
                             variant="contained"
                             loading={confirmInspection.isPending}
                             onClick={handleConfirmInspectionSubmit}
@@ -1222,7 +1193,7 @@ export const ReturnBatchInspectPage = () => {
                     >
                         Hủy bỏ
                     </Button>
-                    <LoadingButton
+                    <Button
                         variant="contained"
                         loading={confirmInspection.isPending}
                         onClick={handleExecuteConfirmFromModal}

@@ -6,15 +6,14 @@ import {
     DialogTitle,
     DialogContent,
     DialogActions,
-    Button,
-    FormControl,
+FormControl,
     InputLabel,
     Select,
     MenuItem,
     Box,
     TextField
 } from '@mui/material';
-import { LoadingButton } from '../../../../components/ui/LoadingButton';
+import { Button } from '../../../../components/ui/Button';
 import { DrawResultDateMode } from '../../types/draw-result';
 
 interface DrawResultSyncModalProps {
@@ -163,7 +162,7 @@ export const DrawResultSyncModal: React.FC<DrawResultSyncModalProps> = ({
                 <Button onClick={onClose} color="inherit" disabled={loading}>
                     Hủy
                 </Button>
-                <LoadingButton
+                <Button
                     loading={loading}
                     onClick={handleSubmit}
                     label="Đồng bộ"

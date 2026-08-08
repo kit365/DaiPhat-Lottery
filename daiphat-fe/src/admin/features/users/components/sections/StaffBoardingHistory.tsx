@@ -1,6 +1,7 @@
 "use client";
 
-import { Box, Typography, CircularProgress, Chip, TablePagination, Collapse, Stack, Avatar, Divider, IconButton } from "@mui/material";
+import { Box, Typography, Chip, TablePagination, Collapse, Stack, Avatar, Divider, IconButton } from "@mui/material";
+import { SpinnerLoading } from "../../../../components/ui/SpinnerLoading";
 import { useQuery } from "@tanstack/react-query";
 import { getBoardingTicketServiceOrders } from '../../../../api/boarding-booking.api';
 import dayjs from "dayjs";
@@ -212,11 +213,7 @@ export const StaffBoardingHistory = ({ staffId }: StaffBoardingHistoryProps) => 
     const pagination = (res as any)?.data?.pagination || { totalRecords: 0 };
 
     if (isLoading) {
-        return (
-            <Box sx={{ p: 5, textAlign: "center" }}>
-                <CircularProgress size={32} />
-            </Box>
-        );
+        return <SpinnerLoading compact />;
     }
 
     if (ticketServiceOrders.length === 0) {

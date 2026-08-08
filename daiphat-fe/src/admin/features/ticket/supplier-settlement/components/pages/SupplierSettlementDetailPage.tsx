@@ -7,10 +7,11 @@ import CalendarTodayOutlinedIcon from '@mui/icons-material/CalendarTodayOutlined
 import FactCheckOutlinedIcon from '@mui/icons-material/FactCheckOutlined';
 import ZoomInIcon from '@mui/icons-material/ZoomIn';
 import ReceiptLongOutlinedIcon from '@mui/icons-material/ReceiptLongOutlined';
-import { Avatar, Box, Button, Card, Chip, CircularProgress, Dialog, DialogContent, DialogTitle, Grid, IconButton, Stack, Typography } from '@mui/material';
+import { Avatar, Box, Button, Card, Chip, Dialog, DialogContent, DialogTitle, Grid, IconButton, Stack, Typography } from '@mui/material';
 import dayjs from 'dayjs';
 import { useParams } from '@/components/router-compat';
 import { PageHeader } from '../../../../../components/ui/PageHeader';
+import { SpinnerLoading } from '../../../../../components/ui/SpinnerLoading';
 import { ROUTES } from '../../../../../constants/routes';
 import { formatImportCost } from '../../../import-batch/utils/importCostCalculator';
 import { useSupplierSettlementOverview } from '../../hooks/useSupplierSettlement';
@@ -31,8 +32,16 @@ export const SupplierSettlementDetailPage = () => {
 
     if (isLoading) {
         return (
-            <Box display="flex" justifyContent="center" alignItems="center" minHeight={320}>
-                <CircularProgress />
+            <Box sx={{ width: '100%', pb: 5 }}>
+                <PageHeader
+                    title="Chi tiết đối soát nhà cung cấp"
+                    breadcrumbItems={[
+                        { label: 'Vé số', to: ROUTES.ADMIN.TICKETS.LIST },
+                        { label: 'Đối soát NCC', to: ROUTES.ADMIN.SUPPLIER_SETTLEMENT.LIST },
+                        { label: `#${id}` },
+                    ]}
+                />
+                <SpinnerLoading />
             </Box>
         );
     }

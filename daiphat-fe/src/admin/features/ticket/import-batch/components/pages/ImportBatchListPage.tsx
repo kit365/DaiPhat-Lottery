@@ -3,7 +3,7 @@
 import AddIcon from '@mui/icons-material/Add';
 import { useNavigate } from '@/components/router-compat';
 import { PageHeader } from '../../../../../components/ui/PageHeader';
-import { LoadingButton } from '../../../../../components/ui/LoadingButton';
+import { Button } from '../../../../../components/ui/Button';
 import { CanAccess } from '../../../../../components/auth/CanAccess';
 import { PERMISSIONS } from '../../../../../constants/permission.constants';
 import { prefixAdmin, ROUTES } from '../../../../../constants/routes';
@@ -26,7 +26,7 @@ export const ImportBatchListPage = () => {
                 ]}
                 action={
                     <CanAccess permission={PERMISSIONS.IMPORT_BATCH.CREATE}>
-                        <LoadingButton
+                        <Button
                             onClick={() => navigate(ROUTES.ADMIN.IMPORT_BATCH.CREATE)}
                             label="Khai báo phiếu nhập"
                             startIcon={<AddIcon />}

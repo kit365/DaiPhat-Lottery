@@ -1,6 +1,6 @@
 "use client";
 
-import { Box, Stack, TextField, ThemeProvider, useTheme, createTheme, FormControl, InputLabel, MenuItem, OutlinedInput, Select, Button, Typography, IconButton, CircularProgress, Pagination, Chip, Table, TableBody, TableCell, TableContainer, TableHead, TableRow } from "@mui/material"
+import { Box, Stack, TextField, ThemeProvider, useTheme, createTheme, FormControl, InputLabel, MenuItem, OutlinedInput, Select, Typography, IconButton, CircularProgress, Pagination, Chip, Table, TableBody, TableCell, TableContainer, TableHead, TableRow } from '@mui/material'
 import { PageHeader } from "../../../../../components/ui/PageHeader"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { CollapsibleCard } from "../../../../../components/ui/CollapsibleCard"
@@ -16,7 +16,7 @@ import {
     getTicketStatusLabel,
     normalizeTicketStatus,
 } from "../../constants/ticket-status.config";
-import { LoadingButton } from "../../../../../components/ui/LoadingButton";
+import { Button } from '../../../../../components/ui/Button';
 import { useStations } from '../../../../station/hooks/useStation';
 import { useRegions } from "../../../../region/hooks/useRegion";
 import {
@@ -652,7 +652,7 @@ export const TicketEditPage = () => {
                         </CollapsibleCard>
 
                         <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: "calc(2 * var(--spacing))" }}>
-                            <LoadingButton
+                            <Button
                                 type="submit"
                                 loading={isPending}
                                 disabled={!isTicketEditable}

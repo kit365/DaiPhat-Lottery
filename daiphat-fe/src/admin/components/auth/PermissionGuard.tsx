@@ -7,6 +7,7 @@ import { toast } from "react-toastify";
 import { ROUTES } from "../../constants/routes";
 import { useAuth } from "../../pages/authen/hooks/useAuth";
 import { hasAnyPermission, hasPermission, resolveIsAdmin } from "../../utils/permission.util";
+import { SpinnerLoading } from "../ui/SpinnerLoading";
 
 interface Props {
     permission?: string;
@@ -53,7 +54,7 @@ export const PermissionGuard = ({ children, permission, permissions, fallback }:
 
     // Giữ shell admin (sidebar/header); không chặn bằng spinner toàn vùng content.
     if (!isReady || isWaitingInitialUser) {
-        return fallback ?? null;
+        return fallback ?? <SpinnerLoading />;
     }
 
     // `useAuth` clears the session and navigates to login on a failed /users/me

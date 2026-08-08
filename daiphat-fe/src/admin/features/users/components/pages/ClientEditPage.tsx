@@ -1,6 +1,7 @@
 "use client";
 
 import { PageHeader } from '../../../../components/ui/PageHeader';
+import { SpinnerLoading } from '../../../../components/ui/SpinnerLoading';
 import { useUpdateUser, useUserDetail, useDeleteUser } from "../../hooks/useUsers";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm, Controller } from "react-hook-form";
@@ -12,19 +13,18 @@ import { useEffect, useRef, useState } from "react";
 import {
     Box,
     TextField,
-    Button,
-    Typography,
+Typography,
     Card,
     MenuItem,
     CircularProgress,
     Stack,
     Chip
-} from "@mui/material";
+} from '@mui/material';
 import { UserStatus } from "../../../../../types/user.type";
 import Grid from "@mui/material/Grid";
 import { uploadImagesToCloudinary } from '../../../../api/uploadCloudinary.api';
 import { UserUserTicketList } from "../sections/UserTicketList";
-import { LoadingButton } from '../../../../components/ui/LoadingButton';
+import { Button } from '../../../../components/ui/Button';
 
 export const ClientEditPage = () => {
     const { id } = useParams();
@@ -127,9 +127,17 @@ export const ClientEditPage = () => {
     };
 
     if (isLoading) return (
-        <Box sx={{ display: 'flex', justifyContent: 'center', py: 5 }}>
-            <CircularProgress />
-        </Box>
+        <div className="p-[24px] pt-[16px] flex flex-col gap-[24px] max-w-[1200px] mx-auto w-full">
+            <PageHeader
+                title="Chỉnh sửa tài khoản khách hàng"
+                breadcrumbItems={[
+                    { label: "Dashboard", to: `/${prefixAdmin}` },
+                    { label: "Khách hàng", to: `/${prefixAdmin}/account-user/list` },
+                    { label: "Cập nhật" }
+                ]}
+            />
+            <SpinnerLoading />
+        </div>
     );
 
     return (
@@ -291,7 +299,7 @@ export const ClientEditPage = () => {
                             </div>
 
                             <div className="flex justify-end mt-[24px]">
-                                <LoadingButton
+                                <Button
                                     type="submit"
                                     loading={isPending}
                                     label="Lưu thay đổi"

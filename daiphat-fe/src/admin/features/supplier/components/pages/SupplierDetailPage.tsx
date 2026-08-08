@@ -1,9 +1,10 @@
 "use client";
 
-import { Box, CircularProgress, Typography } from '@mui/material';
+import { Box, Typography } from '@mui/material';
 import { useNavigate, useParams } from '@/components/router-compat';
 import { PageHeader } from '../../../../components/ui/PageHeader';
-import { LoadingButton } from '../../../../components/ui/LoadingButton';
+import { SpinnerLoading } from '../../../../components/ui/SpinnerLoading';
+import { Button } from '../../../../components/ui/Button';
 import { CanAccess } from '../../../../components/auth/CanAccess';
 import { PERMISSIONS } from '../../../../constants/permission.constants';
 import { ROUTES } from '../../../../constants/routes';
@@ -15,22 +16,6 @@ export const SupplierDetailPage = () => {
     const navigate = useNavigate();
     const { data: supplier, isLoading, isError } = useSupplierDetail(id);
 
-    if (isLoading) {
-        return (
-            <Box display="flex" justifyContent="center" alignItems="center" minHeight={320}>
-                <CircularProgress />
-            </Box>
-        );
-    }
-
-    if (isError || !supplier) {
-        return (
-            <Box display="flex" justifyContent="center" alignItems="center" minHeight={320}>
-                <Typography color="text.secondary">Không tìm thấy nhà cung cấp.</Typography>
-            </Box>
-        );
-    }
-
     return (
         <Box sx={{ maxWidth: 900, mx: 'auto' }}>
             <PageHeader
@@ -38,20 +23,30 @@ export const SupplierDetailPage = () => {
                 breadcrumbItems={[
                     { label: 'Vé số', to: ROUTES.ADMIN.TICKETS.LIST },
                     { label: 'Nhà cung cấp', to: ROUTES.ADMIN.SUPPLIER.LIST },
-                    { label: supplier.name },
+                    { label: supplier?.name ?? `#${id}` },
                 ]}
                 action={
-                    <CanAccess permission={PERMISSIONS.SUPPLIER.EDIT}>
-                        <LoadingButton
-                            label="Chỉnh sửa"
-                            className="btn-primary-admin"
-                            onClick={() => navigate(ROUTES.ADMIN.SUPPLIER.EDIT(supplier.id))}
-                        />
-                    </CanAccess>
+                    supplier ? (
+                        <CanAccess permission={PERMISSIONS.SUPPLIER.EDIT}>
+                            <Button
+                                label="Chỉnh sửa"
+                                className="btn-primary-admin"
+                                onClick={() => navigate(ROUTES.ADMIN.SUPPLIER.EDIT(supplier.id))}
+                            />
+                        </CanAccess>
+                    ) : undefined
                 }
             />
 
-            <SupplierInfoCard supplier={supplier} />
+            {isLoading ? (
+                <SpinnerLoading />
+            ) : isError || !supplier ? (
+                <Box display="flex" justifyContent="center" alignItems="center" minHeight={320}>
+                    <Typography color="text.secondary">Không tìm thấy nhà cung cấp.</Typography>
+                </Box>
+            ) : (
+                <SupplierInfoCard supplier={supplier} />
+            )}
         </Box>
     );
 };

@@ -12,8 +12,7 @@ import {
     formatSessionBoundaryDetail,
     parseSessionCloseNotice,
     formatWaitDuration,
-    TimelineRow,
-} from '../utils';
+    TimelineRow} from '../utils';
 import {
     Box,
     Stack,
@@ -21,8 +20,7 @@ import {
     Avatar,
     InputBase,
     CircularProgress,
-    Button,
-    Chip,
+Chip,
     Dialog,
     DialogTitle,
     DialogContent,
@@ -38,7 +36,7 @@ import {
     Collapse,
 } from '@mui/material';
 import { formatChatMessageContent } from '../../../../../client/utils/ticketSuggestToken.util';
-import { LoadingButton } from '../../../../components/ui/LoadingButton';
+import { Button } from '../../../../components/ui/Button';
 import { Icon } from '@iconify/react';
 import { useCallback, useRef, useEffect, useLayoutEffect, useState, useMemo } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
@@ -1055,7 +1053,7 @@ export const ChatWindow = ({ conversationId, onToggleDetails }: ChatWindowProps)
                     >
                         Hủy
                     </Button>
-                    <LoadingButton
+                    <Button
                         onClick={() => void confirmCloseConversation()}
                         loading={closeMutation.isPending}
                         label="Xác nhận đóng"

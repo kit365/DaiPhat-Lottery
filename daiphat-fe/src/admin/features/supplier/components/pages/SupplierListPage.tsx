@@ -3,7 +3,7 @@
 import AddIcon from '@mui/icons-material/Add';
 import { useNavigate } from '@/components/router-compat';
 import { PageHeader } from '../../../../components/ui/PageHeader';
-import { LoadingButton } from '../../../../components/ui/LoadingButton';
+import { Button } from '../../../../components/ui/Button';
 import { CanAccess } from '../../../../components/auth/CanAccess';
 import { PERMISSIONS } from '../../../../constants/permission.constants';
 import { prefixAdmin, ROUTES } from '../../../../constants/routes';
@@ -26,7 +26,7 @@ export const SupplierListPage = () => {
                 ]}
                 action={
                     <CanAccess permission={PERMISSIONS.SUPPLIER.CREATE}>
-                        <LoadingButton
+                        <Button
                             onClick={() => navigate(ROUTES.ADMIN.SUPPLIER.CREATE)}
                             label="Thêm nhà cung cấp"
                             startIcon={<AddIcon />}

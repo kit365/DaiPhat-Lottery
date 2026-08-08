@@ -1,26 +1,24 @@
 "use client";
 
 import { PageHeader } from "../../../../components/ui/PageHeader";
+import { SpinnerLoading } from "../../../../components/ui/SpinnerLoading";
 import {
     useCreateStreetAgentProfile,
     useStreetAgentProfileDetail,
-    useUploadStreetAgentSignedContract,
-} from "../../hooks/useStreetAgent";
+    useUploadStreetAgentSignedContract} from "../../hooks/useStreetAgent";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
     createStreetAgentProfileSchema,
-    CreateStreetAgentProfileFormValues,
-} from "../../schemas/street-agent.schema";
+    CreateStreetAgentProfileFormValues} from "../../schemas/street-agent.schema";
 import { ROUTES } from "../../../../constants/routes";
 import { toast } from "react-toastify";
 import { Link as RouterLink, useNavigate, useSearchParams } from "react-router-dom";
 import {
     Alert,
     Box,
-    Button,
-    Card,
+Card,
     Chip,
     CircularProgress,
     Stack,
@@ -28,13 +26,13 @@ import {
     StepLabel,
     Stepper,
     Typography,
-} from "@mui/material";
+} from '@mui/material';
 import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
 import CloudUploadIcon from "@mui/icons-material/CloudUpload";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import { uploadAdminImage } from "../../../../api/upload.api";
-import { LoadingButton } from "../../../../components/ui/LoadingButton";
+import { Button } from "../../../../components/ui/Button";
 import { StreetAgentProfileForm } from "../sections/StreetAgentProfileForm";
 import {
     parseCoverageAreaCodes,
@@ -285,8 +283,17 @@ export const StreetAgentCreatePage = () => {
 
     if (resumeId && isLoadingResume && !hydratedResume) {
         return (
-            <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
-                <CircularProgress />
+            <Box sx={{ maxWidth: "1200px", mx: "auto" }}>
+                <PageHeader
+                    title="Tạo hồ sơ đại lý bán dạo"
+                    breadcrumbItems={[
+                        { label: "Dashboard", to: "/" },
+                        { label: "Quản lý tài khoản", to: ROUTES.ADMIN.ACCOUNTS.ADMIN.LIST },
+                        { label: "Đại lý bán dạo", to: ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.LIST },
+                        { label: "Tiếp tục hoàn thiện" },
+                    ]}
+                />
+                <SpinnerLoading />
             </Box>
         );
     }
@@ -334,7 +341,7 @@ export const StreetAgentCreatePage = () => {
                         statusChip="PENDING"
                         vendorDefaults={vendorDefaults}
                         footer={
-                            <LoadingButton
+                            <Button
                                 type="submit"
                                 loading={isCreating}
                                 label="Lưu thông tin & tạo hợp đồng"

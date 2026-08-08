@@ -1,11 +1,12 @@
 "use client";
 
 import { PageHeader } from '../../../../components/ui/PageHeader';
+import { SpinnerLoading } from '../../../../components/ui/SpinnerLoading';
 import { useUserDetail, useConfirmUserPasswordReset, useInitiateUserPasswordReset } from "../../hooks/useUsers";
 import { prefixAdmin } from '../../../../constants/routes';
 import { toast } from "react-toastify";
 import { useNavigate, useParams } from "react-router-dom";
-import { Box, CircularProgress } from "@mui/material";
+import { Box } from "@mui/material";
 import { UserPasswordResetCard } from "../sections/UserPasswordResetCard";
 
 export const AdminChangePasswordPage = () => {
@@ -44,8 +45,16 @@ export const AdminChangePasswordPage = () => {
     };
 
     if (isLoading) return (
-        <Box sx={{ display: 'flex', justifyContent: 'center', py: 5 }}>
-            <CircularProgress />
+        <Box sx={{ maxWidth: '600px', mx: 'auto' }}>
+            <PageHeader
+                title="Đặt lại mật khẩu"
+                breadcrumbItems={[
+                    { label: "Dashboard", to: "/" },
+                    { label: "Quản trị viên", to: `/${prefixAdmin}/account-admin/list` },
+                    { label: "Đặt lại mật khẩu" }
+                ]}
+            />
+            <SpinnerLoading />
         </Box>
     );
 

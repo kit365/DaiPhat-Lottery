@@ -1,6 +1,7 @@
 "use client";
 
-import { Box, Typography, CircularProgress, Chip, TablePagination } from "@mui/material";
+import { Box, Typography, Chip, TablePagination } from "@mui/material";
+import { SpinnerLoading } from "../../../../components/ui/SpinnerLoading";
 import { useQuery } from "@tanstack/react-query";
 import { getOrders } from '../../../orders/services/orderService';
 import dayjs from "dayjs";
@@ -50,11 +51,7 @@ export const UserOrderHistory = ({ userId }: UserOrderHistoryProps) => {
     };
 
     if (isLoading) {
-        return (
-            <Box sx={{ p: 5, textAlign: 'center' }}>
-                <CircularProgress size={32} />
-            </Box>
-        );
+        return <SpinnerLoading compact />;
     }
 
     if (orders.length === 0) {

@@ -17,6 +17,7 @@ import {
 } from '@mui/material';
 import { useNavigate, useParams } from '@/components/router-compat';
 import { PageHeader } from '../../../../../components/ui/PageHeader';
+import { SpinnerLoading } from '../../../../../components/ui/SpinnerLoading';
 import { AdminStatusBadge } from '../../../../../components/ui/AdminStatusBadge';
 import { CollapsibleCard } from '../../../../../components/ui/CollapsibleCard';
 import { useState } from 'react';
@@ -78,32 +79,22 @@ export const ImportBatchDetailPage = () => {
     const cancelledReasonText =
         batch?.status === 'CANCELLED' ? formatImportBatchCancelReason(batch.cancelReason) : undefined;
 
-    if (isLoading) {
-        return null;
-    }
-
-    if (!batch) {
-        return (
-            <Box sx={{ p: 3 }}>
-                <Typography>Không tìm thấy phiếu nhập lô.</Typography>
-            </Box>
-        );
-    }
-
     return (
         <Box className="admin-page">
             <PageHeader
-                title={`Phiếu nhập lô ${formatImportBatchHeaderCode(batch.batchCode, batch.id)}`}
+                title={`Phiếu nhập lô ${batch ? formatImportBatchHeaderCode(batch.batchCode, batch.id) : `#${id}`}`}
                 breadcrumbItems={[
                     { label: 'Vé số', to: `/${prefixAdmin}/ticket/list` },
                     { label: 'Nhập lô vé', to: ROUTES.ADMIN.IMPORT_BATCH.LIST },
-                    { label: formatImportBatchHeaderCode(batch.batchCode, batch.id) },
+                    { label: batch ? formatImportBatchHeaderCode(batch.batchCode, batch.id) : `#${id}` },
                 ]}
                 titleExtra={
-                    <AdminStatusBadge
-                        label={getImportBatchStatusLabel(batch.status)}
-                        modifier={getImportBatchStatusBadgeClass(batch.status)}
-                    />
+                    batch ? (
+                        <AdminStatusBadge
+                            label={getImportBatchStatusLabel(batch.status)}
+                            modifier={getImportBatchStatusBadgeClass(batch.status)}
+                        />
+                    ) : undefined
                 }
                 description={
                     cancelledReasonText ? (
@@ -117,7 +108,7 @@ export const ImportBatchDetailPage = () => {
                     ) : undefined
                 }
                 action={
-                    canEditBatch ? (
+                    batch && canEditBatch ? (
                         <CanAccess permission={PERMISSIONS.IMPORT_BATCH.CREATE}>
                             <Stack direction="row" spacing={1}>
                                 <Button
@@ -142,6 +133,14 @@ export const ImportBatchDetailPage = () => {
                 }
             />
 
+            {isLoading ? (
+                <SpinnerLoading />
+            ) : !batch ? (
+                <Box sx={{ p: 3 }}>
+                    <Typography>Không tìm thấy phiếu nhập lô.</Typography>
+                </Box>
+            ) : (
+                <>
             {hasUnsavedDraft && (
                 <Alert severity="info" sx={{ mb: 2 }}>
                     Phiếu nhập lô đang được chỉnh sửa và chưa được lưu. Nội dung nháp cục bộ sẽ được
@@ -375,6 +374,8 @@ export const ImportBatchDetailPage = () => {
                 <Alert severity="info" sx={{ mt: 2 }}>
                     Phiếu đã nhập kho. Không thể chỉnh sửa hoặc xóa dòng.
                 </Alert>
+            )}
+                </>
             )}
         </Box>
     );

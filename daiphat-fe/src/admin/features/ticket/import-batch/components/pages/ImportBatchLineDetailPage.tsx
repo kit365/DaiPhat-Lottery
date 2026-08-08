@@ -29,6 +29,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import dayjs from 'dayjs';
 import { useParams, useNavigate } from '@/components/router-compat';
 import { PageHeader } from '../../../../../components/ui/PageHeader';
+import { SpinnerLoading } from '../../../../../components/ui/SpinnerLoading';
 import { AdminStatusBadge } from '../../../../../components/ui/AdminStatusBadge';
 import { Search } from '../../../../../components/ui/Search';
 import { prefixAdmin, ROUTES } from '../../../../../constants/routes';
@@ -510,8 +511,16 @@ export const ImportBatchLineDetailPage = () => {
 
     if (isBatchLoading || !line || !batch) {
         return (
-            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', py: 10 }}>
-                <CircularProgress size={32} />
+            <Box className="admin-page">
+                <PageHeader
+                    title="Chi tiết lô nhập"
+                    breadcrumbItems={[
+                        { label: 'Vé số', to: `/${prefixAdmin}/ticket/list` },
+                        { label: 'Nhập lô vé', to: ROUTES.ADMIN.IMPORT_BATCH.LIST },
+                        { label: id ? `Phiếu #${id}` : 'Chi tiết' },
+                    ]}
+                />
+                <SpinnerLoading />
             </Box>
         );
     }

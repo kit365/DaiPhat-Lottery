@@ -28,7 +28,7 @@ import ImageNotSupportedIcon from '@mui/icons-material/ImageNotSupported';
 import ReplayIcon from '@mui/icons-material/Replay';
 import CloseIcon from '@mui/icons-material/Close';
 import { useEffect, useMemo, useState } from 'react';
-import { LoadingButton } from '../../../../../components/ui/LoadingButton';
+import { Button } from '../../../../../components/ui/Button';
 import { AppToast } from '../../../../../../utils/toast.util';
 import { FIELD_LABELS, SCAN_IMPORT_OUTCOME_META, SCAN_STATUS_META } from '../../constants/scan-status.config';
 import {
@@ -157,7 +157,7 @@ export const TicketScanReviewDialog = ({
                     <Stack spacing={2} sx={{ py: 2 }}>
                         <Alert severity="error">{scanError}</Alert>
                         <Box>
-                            <LoadingButton
+                            <Button
                                 variant="outlined"
                                 color="error"
                                 label="Thử quét lại"
@@ -395,7 +395,7 @@ export const TicketScanReviewDialog = ({
                 {showResults ? (
                     <>
                         <span />
-                        <LoadingButton
+                        <Button
                             variant="contained"
                             label="Đóng"
                             onClick={onClose}
@@ -403,7 +403,7 @@ export const TicketScanReviewDialog = ({
                     </>
                 ) : (
                     <>
-                        <LoadingButton
+                        <Button
                             variant="outlined"
                             label="Quét lại ảnh khác"
                             startIcon={<ReplayIcon />}
@@ -411,14 +411,14 @@ export const TicketScanReviewDialog = ({
                             disabled={isScanning || isConfirming}
                         />
                         <Stack direction="row" spacing={1.5}>
-                            <LoadingButton
+                            <Button
                                 variant="outlined"
                                 color="inherit"
                                 label="Hủy"
                                 onClick={onClose}
                                 disabled={isConfirming}
                             />
-                            <LoadingButton
+                            <Button
                                 variant="contained"
                                 color="primary"
                                 label={`Xác nhận nhập kho (${includedCount} vé)`}

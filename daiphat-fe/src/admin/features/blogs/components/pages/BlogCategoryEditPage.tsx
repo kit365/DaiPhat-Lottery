@@ -1,8 +1,9 @@
 "use client";
 
-import { Box, MenuItem, Stack, TextField, CircularProgress, Typography } from "@mui/material";
-import { LoadingButton } from "../../../../components/ui/LoadingButton";
+import { Box, MenuItem, Stack, TextField, Typography } from "@mui/material";
+import { Button } from "../../../../components/ui/Button";
 import { PageHeader } from "../../../../components/ui/PageHeader";
+import { SpinnerLoading } from "../../../../components/ui/SpinnerLoading";
 import { Tiptap } from "../../../../components/layouts/titap/Tiptap";
 import { useState, useEffect, type Dispatch, type SetStateAction } from "react";
 import { CollapsibleCard } from "../../../../components/ui/CollapsibleCard";
@@ -107,12 +108,19 @@ export const BlogCategoryEditPage = () => {
         }
     };
 
-    // Hiển thị loading khi đang tải dữ liệu ban đầu
     if (isLoadingDetail) {
         return (
-            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
-                <CircularProgress color="inherit" />
-            </Box>
+            <>
+                <PageHeader
+                    title="Chỉnh sửa danh mục bài viết"
+                    breadcrumbItems={[
+                        { label: "Dashboard", to: "/" },
+                        { label: "Danh mục bài viết", to: `/${prefixAdmin}/blog-category/list` },
+                        { label: "Chỉnh sửa" }
+                    ]}
+                />
+                <SpinnerLoading />
+            </>
         );
     }
 
@@ -230,7 +238,7 @@ export const BlogCategoryEditPage = () => {
                             )}
                         />
 
-                        <LoadingButton
+                        <Button
                             type="submit"
                             loading={isUpdating || isUploading}
                             label="Cập nhật danh mục"

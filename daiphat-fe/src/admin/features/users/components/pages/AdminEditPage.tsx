@@ -1,6 +1,7 @@
 "use client";
 
 import { PageHeader } from '../../../../components/ui/PageHeader';
+import { SpinnerLoading } from '../../../../components/ui/SpinnerLoading';
 import { useUpdateUser, useUserDetail, useDeleteUser, useUploadUserAvatar } from "../../hooks/useUsers";
 import { useRoles } from "../../../role/hooks/useRole";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -22,7 +23,7 @@ import {
 } from "@mui/material";
 import { UserStatus } from "../../../../../types/user.type";
 import Grid from "@mui/material/Grid";
-import { LoadingButton } from '../../../../components/ui/LoadingButton';
+import { Button } from '../../../../components/ui/Button';
 
 export const AdminEditPage = () => {
     const { id } = useParams();
@@ -134,9 +135,17 @@ export const AdminEditPage = () => {
     };
 
     if (isLoading) return (
-        <Box sx={{ display: 'flex', justifyContent: 'center', py: 5 }}>
-            <CircularProgress />
-        </Box>
+        <div className="p-[24px] pt-[16px] flex flex-col gap-[24px] max-w-[1200px] mx-auto w-full">
+            <PageHeader
+                title="Chỉnh sửa quản trị viên"
+                breadcrumbItems={[
+                    { label: "Dashboard", to: `/${prefixAdmin}` },
+                    { label: "Quản trị viên", to: `/${prefixAdmin}/account-admin/list` },
+                    { label: "Cập nhật" }
+                ]}
+            />
+            <SpinnerLoading />
+        </div>
     );
 
     return (
@@ -208,7 +217,7 @@ export const AdminEditPage = () => {
                             </p>
 
                             <div className="mt-[32px]">
-                                <LoadingButton
+                                <Button
                                     variant="contained"
                                     color="error"
                                     onClick={handleDelete}
@@ -316,7 +325,7 @@ export const AdminEditPage = () => {
                             </div>
 
                             <div className="flex justify-end mt-[24px]">
-                                <LoadingButton
+                                <Button
                                     type="submit"
                                     loading={isPending}
                                     label="Lưu thay đổi"

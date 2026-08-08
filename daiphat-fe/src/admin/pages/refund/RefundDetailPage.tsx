@@ -8,7 +8,6 @@ import {
     Box,
     Button,
     Card,
-    CircularProgress,
     Divider,
     Grid,
     Link,
@@ -22,6 +21,7 @@ import {
 import { Icon } from '@iconify/react';
 import dayjs from 'dayjs';
 import { PageHeader } from '../../components/ui/PageHeader';
+import { SpinnerLoading } from '../../components/ui/SpinnerLoading';
 import { CanAccess } from '../../components/auth/CanAccess';
 import { PERMISSIONS } from '../../constants/permission.constants';
 import { prefixAdmin } from '../../constants/routes';
@@ -188,9 +188,17 @@ export const RefundDetailPage = () => {
 
     if (isLoading) {
         return (
-            <Box display="flex" justifyContent="center" py={8}>
-                <CircularProgress />
-            </Box>
+            <ThemeProvider theme={localTheme}>
+                <PageHeader
+                    title={`Yêu cầu hoàn tiền #${refundId}`}
+                    breadcrumbItems={[
+                        { label: 'Bảng điều khiển', to: `/${prefixAdmin}` },
+                        { label: 'Hoàn tiền', to: `/${prefixAdmin}/refunds/list` },
+                        { label: 'Chi tiết yêu cầu' },
+                    ]}
+                />
+                <SpinnerLoading />
+            </ThemeProvider>
         );
     }
 

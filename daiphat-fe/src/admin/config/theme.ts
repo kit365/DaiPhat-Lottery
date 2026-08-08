@@ -1,3 +1,4 @@
+import { Button } from '@/admin/components/ui/Button';
 import { createTheme } from '@mui/material/styles';
 import { createElement } from 'react';
 import SvgIcon from '@mui/material/SvgIcon';

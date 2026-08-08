@@ -3,8 +3,7 @@
 import {
     Alert,
     Box,
-    Button,
-    FormControl,
+FormControl,
     InputLabel,
     MenuItem,
     Select,
@@ -22,9 +21,10 @@ import {
     Paper,
 } from '@mui/material';
 import { PageHeader } from '../../../../../components/ui/PageHeader';
+import { SpinnerLoading } from '../../../../../components/ui/SpinnerLoading';
 import { AdminDatePicker } from '../../../../../components/ui/AdminDatePicker';
 import { SelectMulti } from '../../../../../components/ui/SelectMulti';
-import { LoadingButton } from '../../../../../components/ui/LoadingButton';
+import { Button } from '../../../../../components/ui/Button';
 import { ImportBatchReceiptUpload } from '../sections/ImportBatchReceiptUpload';
 import { uploadAdminImage } from '../../../../../api/upload.api';
 import { prefixAdmin, ROUTES } from '../../../../../constants/routes';
@@ -565,7 +565,21 @@ export const ImportBatchCreatePage = () => {
     };
 
     if (isLoadingSuppliers) {
-        return null;
+        return (
+            <ThemeProvider theme={localTheme}>
+                <Box className="admin-page">
+                    <PageHeader
+                        title="Khai báo phiếu nhập lô vé"
+                        breadcrumbItems={[
+                            { label: 'Vé số', to: `/${prefixAdmin}/ticket/list` },
+                            { label: 'Nhập lô vé', to: ROUTES.ADMIN.IMPORT_BATCH.LIST },
+                            { label: 'Khai báo phiếu nhập' },
+                        ]}
+                    />
+                    <SpinnerLoading />
+                </Box>
+            </ThemeProvider>
+        );
     }
 
     if (activeSuppliers.length === 0) {
@@ -918,7 +932,7 @@ export const ImportBatchCreatePage = () => {
                         </Paper>
 
                         <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1.5 }}>
-                            <LoadingButton
+                            <Button
                                 type="submit"
                                 variant="contained"
                                 loading={isPending || isSaving}

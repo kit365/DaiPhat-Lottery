@@ -14,7 +14,7 @@ import { dataGridStyles } from '../../../../../shared/data-grid';
 import { DATA_GRID_LOCALE_VN } from '../../../../../../shared/components/DataTable/localeText.config';
 import { useScanExpiredTickets } from '../../hooks/useTicket';
 import { toast } from 'react-toastify';
-import { LoadingButton } from '../../../../../components/ui/LoadingButton';
+import { Button } from '../../../../../components/ui/Button';
 import SyncIcon from '@mui/icons-material/Sync';
 import dayjs from 'dayjs';
 
@@ -103,7 +103,7 @@ export const ExpiredTicketListPage = () => {
                             { label: 'Vé số hết hạn' },
                         ]}
                 action={
-                    <LoadingButton
+                    <Button
                     variant="contained"
                     startIcon={<SyncIcon />}
                     onClick={handleScan}

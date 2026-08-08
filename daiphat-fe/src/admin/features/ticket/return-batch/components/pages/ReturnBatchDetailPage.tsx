@@ -3,9 +3,7 @@
 import {
     Alert,
     Box,
-    Button,
-    Chip,
-    CircularProgress,
+Chip,
     Stack,
     Table,
     TableBody,
@@ -22,8 +20,9 @@ import Swal from 'sweetalert2';
 import { useNavigate, useParams } from '@/components/router-compat';
 import { toast } from 'react-toastify';
 import { PageHeader } from '../../../../../components/ui/PageHeader';
+import { SpinnerLoading } from '../../../../../components/ui/SpinnerLoading';
 import { CollapsibleCard } from '../../../../../components/ui/CollapsibleCard';
-import { LoadingButton } from '../../../../../components/ui/LoadingButton';
+import { Button } from '../../../../../components/ui/Button';
 import { CanAccess } from '../../../../../components/auth/CanAccess';
 import { PERMISSIONS } from '../../../../../constants/permission.constants';
 import { ROUTES } from '../../../../../constants/routes';
@@ -57,8 +56,16 @@ export const ReturnBatchDetailPage = () => {
 
     if (isLoading) {
         return (
-            <Box display="flex" justifyContent="center" alignItems="center" minHeight={320}>
-                <CircularProgress />
+            <Box sx={{ width: '100%', pb: 5 }}>
+                <PageHeader
+                    title={`Phiếu trả vé #${id}`}
+                    breadcrumbItems={[
+                        { label: 'Vé số', to: ROUTES.ADMIN.TICKETS.LIST },
+                        { label: 'Trả vé NCC', to: ROUTES.ADMIN.RETURN_BATCH.LIST },
+                        { label: `#${id}` },
+                    ]}
+                />
+                <SpinnerLoading />
             </Box>
         );
     }
@@ -239,7 +246,7 @@ export const ReturnBatchDetailPage = () => {
                 <Stack direction="row" spacing={1} flexWrap="wrap">
                     {(batch.status === 'PENDING_INSPECTION' || batch.status === 'INSPECTING') && !batch.inspectionExpired && (
                         <CanAccess permission={PERMISSIONS.IMPORT_BATCH.CREATE}>
-                            <LoadingButton
+                            <Button
                                 label={batch.status === 'INSPECTING' ? 'Kiểm tra vé (Tiếp tục)' : 'Kiểm tra vé'}
                                 className="btn-primary-admin"
                                 loading={startInspection.isPending}
@@ -249,7 +256,7 @@ export const ReturnBatchDetailPage = () => {
                     )}
                     {batch.status === 'PENDING_HANDOVER' && (
                         <CanAccess permission={PERMISSIONS.IMPORT_BATCH.CREATE}>
-                            <LoadingButton
+                            <Button
                                 label="Xác nhận bàn giao"
                                 className="btn-primary-admin"
                                 loading={confirmHandover.isPending}

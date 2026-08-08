@@ -1,7 +1,8 @@
 "use client";
 
-import { Box, Stack, ThemeProvider, useTheme, createTheme, Button, Typography, CircularProgress, Chip } from "@mui/material"
+import { Box, Stack, ThemeProvider, useTheme, createTheme, Button, Typography, Chip } from "@mui/material"
 import { PageHeader } from "../../../../components/ui/PageHeader"
+import { SpinnerLoading } from "../../../../components/ui/SpinnerLoading"
 import { useState, useMemo } from "react"
 import { CollapsibleCard } from "../../../../components/ui/CollapsibleCard"
 import { prefixAdmin } from "../../../../constants/routes";
@@ -46,7 +47,19 @@ export const StationDetailPage = () => {
     }), [outerTheme]);
 
     if (isLoading) {
-        return <Box display="flex" justifyContent="center" alignItems="center" height="400px"><CircularProgress /></Box>
+        return (
+            <ThemeProvider theme={localTheme}>
+                <PageHeader
+                    title={"Chi tiết nhà đài"}
+                    breadcrumbItems={[
+                        { label: "Bảng điều khiển", to: `/${prefixAdmin}` },
+                        { label: "Nhà đài", to: `/${prefixAdmin}/provider/list` },
+                        { label: "Chi tiết" }
+                    ]}
+                />
+                <SpinnerLoading />
+            </ThemeProvider>
+        )
     }
 
     if (!stationDetail) {

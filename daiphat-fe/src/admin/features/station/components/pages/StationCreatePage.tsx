@@ -18,7 +18,7 @@ import { CreateStationFormValues, createStationSchema } from "../../schemas/stat
 
 import { prefixAdmin } from "../../../../constants/routes";
 import { toast } from "react-toastify";
-import { LoadingButton } from "../../../../components/ui/LoadingButton";
+import { Button } from "../../../../components/ui/Button";
 import { FormUploadSingleFile } from "../../../../components/upload/FormUploadSingleFile";
 
 export const StationCreatePage = () => {
@@ -454,7 +454,7 @@ export const StationCreatePage = () => {
                             </Stack>
                         </CollapsibleCard>
                         <Box gap="calc(3 * var(--spacing))" sx={{ display: "flex", alignItems: "center", justifyContent: "flex-end" }}>
-                            <LoadingButton
+                            <Button
                                 type="submit"
                                 className="btn-primary-admin"
                                 loading={isPending || isUploadingImage}

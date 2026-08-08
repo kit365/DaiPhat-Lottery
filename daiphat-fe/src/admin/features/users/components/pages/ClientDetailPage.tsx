@@ -13,11 +13,11 @@ import {
     TextField,
     MenuItem,
     Chip,
-    Button
-} from "@mui/material";
+} from '@mui/material';
 import Grid from "@mui/material/Grid";
 import { Icon } from "@iconify/react";
 import { PageHeader } from '../../../../components/ui/PageHeader';
+import { SpinnerLoading } from '../../../../components/ui/SpinnerLoading';
 import { prefixAdmin } from '../../../../constants/routes';
 import { useUserDetail, useUpdateUser, useDeleteUser } from "../../hooks/useUsers";
 import { UserStatus } from "../../../../../types/user.type";
@@ -26,7 +26,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { accountUserSchema } from "../../../../schemas/account-user.schema";
 import { toast } from "react-toastify";
 import { uploadImagesToCloudinary } from "../../../../api/uploadCloudinary.api";
-import { LoadingButton } from "../../../../components/ui/LoadingButton";
+import { Button } from "../../../../components/ui/Button";
 import { UserUserTicketList } from "../sections/UserTicketList";
 import { UserOrderHistory } from "../sections/UserOrderHistory";
 import { UserBoardingHistory } from "../sections/UserBoardingHistory";
@@ -135,9 +135,17 @@ export const ClientDetailPage = () => {
 
     if (isUserLoading) {
         return (
-            <Box sx={{ display: 'flex', justifyContent: 'center', py: 5 }}>
-                <CircularProgress />
-            </Box>
+            <div className="p-[24px] pt-[16px] flex flex-col gap-[24px] max-w-[1200px] mx-auto w-full">
+                <PageHeader
+                    title="Tài khoản"
+                    breadcrumbItems={[
+                        { label: "Dashboard", to: `/${prefixAdmin}` },
+                        { label: "Khách hàng", to: `/${prefixAdmin}/account-user/list` },
+                        { label: "Chi tiết" }
+                    ]}
+                />
+                <SpinnerLoading />
+            </div>
         );
     }
 
@@ -366,7 +374,7 @@ export const ClientDetailPage = () => {
                                 </div>
 
                                 <div className="flex justify-end mt-[24px]">
-                                    <LoadingButton
+                                    <Button
                                         type="submit"
                                         loading={isUpdating}
                                         label="Lưu thay đổi"

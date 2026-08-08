@@ -14,7 +14,6 @@ import {
     DialogContent,
     DialogTitle,
     FormControlLabel,
-    Skeleton,
     Stack,
     Switch,
     Tooltip,
@@ -23,6 +22,7 @@ import {
 import { useAuthStore } from '../../../../../stores/useAuthStore';
 import { PERMISSIONS } from '../../../../constants/permission.constants';
 import { hasPermission } from '../../../../utils/permission.util';
+import { SpinnerLoading } from '../../../../components/ui/SpinnerLoading';
 import { useAiServiceConfig, useUpdateAiServiceStatus } from '../../hooks/useChat';
 
 export const AiServiceControl = () => {
@@ -47,17 +47,7 @@ export const AiServiceControl = () => {
     };
 
     if (isLoading) {
-        return (
-            <Card className="admin-list-card" sx={{ p: 2.5, mb: 2.5 }}>
-                <Stack direction="row" spacing={2} alignItems="center">
-                    <Skeleton variant="rounded" width={44} height={44} />
-                    <Box sx={{ flex: 1 }}>
-                        <Skeleton width={180} />
-                    </Box>
-                    <Skeleton variant="rounded" width={96} height={32} />
-                </Stack>
-            </Card>
-        );
+        return <SpinnerLoading compact />;
     }
 
     if (isError || !config) {

@@ -8,7 +8,7 @@ import { useNavigate } from '@/components/router-compat';
 import { toast } from 'react-toastify';
 import { PageHeader } from '../../../../components/ui/PageHeader';
 import { CollapsibleCard } from '../../../../components/ui/CollapsibleCard';
-import { LoadingButton } from '../../../../components/ui/LoadingButton';
+import { Button } from '../../../../components/ui/Button';
 import { ROUTES } from '../../../../constants/routes';
 import { useCreateSupplier } from '../../hooks/useSupplier';
 import { SupplierFormFields } from '../sections/SupplierFormFields';
@@ -150,7 +150,7 @@ export const SupplierCreatePage = () => {
                             />
                         )}
                     />
-                    <LoadingButton
+                    <Button
                         type="submit"
                         variant="contained"
                         loading={isPending}

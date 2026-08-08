@@ -26,7 +26,7 @@ import {
     useWatch,
 } from 'react-hook-form';
 import { useEffect, useState } from 'react';
-import { LoadingButton } from '../../../../../components/ui/LoadingButton';
+import { Button } from '../../../../../components/ui/Button';
 import { CreateTicketFormValues } from '../../schemas/ticket.schema';
 import { TicketSerialImageField } from './TicketSerialImageField';
 import {
@@ -328,7 +328,7 @@ export const TicketNumberSectionBlock = ({
                     <Typography className="admin-form-label" sx={{ fontSize: compact ? '0.75rem' : undefined }}>
                         Số sê-ri
                     </Typography>
-                    <LoadingButton
+                    <Button
                         type="button"
                         variant="outlined"
                         size="small"

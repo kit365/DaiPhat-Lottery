@@ -1,7 +1,7 @@
 "use client";
 
 import { Box, MenuItem, Stack, TextField, ThemeProvider, useTheme } from "@mui/material"
-import { LoadingButton } from "../../../../components/ui/LoadingButton";
+import { Button } from "../../../../components/ui/Button";
 import { PageHeader } from "../../../../components/ui/PageHeader"
 import { Tiptap } from "../../../../components/layouts/titap/Tiptap"
 import { useState, type Dispatch, type SetStateAction } from "react";
@@ -185,7 +185,7 @@ export const BlogCategoryCreatePage = () => {
                                     </TextField>
                                 )}
                             />
-                            <LoadingButton
+                            <Button
                                 type="submit"
                                 loading={isPending || isUploading}
                                 label="Tạo danh mục"

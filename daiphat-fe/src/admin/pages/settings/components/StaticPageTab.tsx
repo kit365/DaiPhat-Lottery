@@ -7,6 +7,7 @@ import { settingPageSchema, SettingPageFormValues } from "../../../schemas/setti
 import { useSettingPage, useUpdateSettingPage } from "../hooks/useSettings";
 import { useEffect } from "react";
 import { Tiptap } from "../../../components/layouts/titap/Tiptap";
+import { SpinnerLoading } from "../../../components/ui/SpinnerLoading";
 import { StaticPageConfigKey } from "../services/staticPageService";
 
 interface StaticPageTabProps {
@@ -44,7 +45,7 @@ export const StaticPageTab = ({ configKey, label }: StaticPageTabProps) => {
         updatePage(data);
     };
 
-    if (isLoading) return <Typography>Đang tải...</Typography>;
+    if (isLoading) return <SpinnerLoading compact />;
     if (isError) {
         return (
             <Typography color="error">

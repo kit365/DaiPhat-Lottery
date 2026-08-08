@@ -2,40 +2,12 @@
 
 import { useEffect, useMemo, useState } from "react";
 import {
-    Alert,
-    Autocomplete,
-    Box,
-    Button,
-    Card,
-    Checkbox,
-    Chip,
-    Dialog,
-    DialogActions,
-    DialogContent,
-    DialogTitle,
-    Divider,
-    Drawer,
-    FormControl,
-    IconButton,
-    InputLabel,
-    MenuItem,
-    Select,
-    Stack,
-    Table,
-    TableBody,
-    TableCell,
-    TableContainer,
-    TableHead,
-    TablePagination,
-    TableRow,
-    TextField,
-    Typography,
-} from "@mui/material";
+    Alert, Autocomplete, Box, Card, Checkbox, Chip, Dialog, DialogActions, DialogContent, DialogTitle, Divider, Drawer, FormControl, IconButton, InputLabel, MenuItem, Select, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TablePagination, TableRow, TextField, Typography } from '@mui/material';
 import CloseIcon from "@mui/icons-material/Close";
 import { toast } from "react-toastify";
 import { useNavigate } from "@/components/router-compat";
 import { PageHeader } from "../../../../components/ui/PageHeader";
-import { LoadingButton } from "../../../../components/ui/LoadingButton";
+import { Button } from '../../../../components/ui/Button';
 import { ROUTES } from "../../../../constants/routes";
 import { PERMISSIONS } from "../../../../constants/permission.constants";
 import { usePermissions } from "../../../../hooks/usePermission";
@@ -759,7 +731,7 @@ export const VendorAllocationBatchListPage = () => {
                             {detailBatch.status === "CONFIRMED" && canEdit && (
                                 <>
                                     <Divider />
-                                    <LoadingButton
+                                    <Button
                                         loading={isOpeningReturn}
                                         label="Mở phiên trả vé"
                                         loadingLabel="Đang mở..."
@@ -804,7 +776,7 @@ export const VendorAllocationBatchListPage = () => {
                                         >
                                             Chọn tất cả còn giữ
                                         </Button>
-                                        <LoadingButton
+                                        <Button
                                             loading={isSubmittingReturns}
                                             variant="contained"
                                             label={`Gửi trả (${selectedSerialIds.length})`}
@@ -987,7 +959,7 @@ export const VendorAllocationBatchListPage = () => {
                                     )}
 
                                     {detailBatch.status === "RETURN_OPEN" && canEdit && (
-                                        <LoadingButton
+                                        <Button
                                             loading={isSettling}
                                             label="Quyết toán"
                                             loadingLabel="Đang quyết toán..."
@@ -1035,7 +1007,7 @@ export const VendorAllocationBatchListPage = () => {
                 </DialogContent>
                 <DialogActions>
                     <Button onClick={() => setCancelId(null)}>Đóng</Button>
-                    <LoadingButton
+                    <Button
                         loading={isCancelling}
                         color="error"
                         variant="contained"
@@ -1053,7 +1025,7 @@ export const VendorAllocationBatchListPage = () => {
                 </DialogContent>
                 <DialogActions>
                     <Button onClick={() => setReturnSessionId(null)}>Đóng</Button>
-                    <LoadingButton
+                    <Button
                         loading={isOpeningReturn}
                         variant="contained"
                         onClick={() => returnSessionId && handleOpenReturnSession(returnSessionId)}
@@ -1076,7 +1048,7 @@ export const VendorAllocationBatchListPage = () => {
                 </DialogContent>
                 <DialogActions>
                     <Button onClick={() => setSettleConfirmOpen(false)}>Đóng</Button>
-                    <LoadingButton
+                    <Button
                         loading={isSettling}
                         variant="contained"
                         onClick={handleSettle}

@@ -4,14 +4,13 @@ import { useParams } from "react-router-dom";
 import {
     Avatar,
     Box,
-    Button,
-    Card,
+Card,
     Chip,
     CircularProgress,
     Grid,
     Stack,
     Typography,
-} from "@mui/material";
+} from '@mui/material';
 import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
 import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
 import CloudUploadIcon from "@mui/icons-material/CloudUpload";
@@ -19,7 +18,8 @@ import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import { useRef, useState } from "react";
 import { toast } from "react-toastify";
 import { PageHeader } from "../../components/ui/PageHeader";
-import { LoadingButton } from "../../components/ui/LoadingButton";
+import { SpinnerLoading } from "../../components/ui/SpinnerLoading";
+import { Button } from "../../components/ui/Button";
 import { ROUTES } from "../../constants/routes";
 import { STATUS_LABELS } from "../../features/street-agent/components/configs/constants";
 import {
@@ -129,8 +129,17 @@ export const StreetAgentDetailPage = () => {
 
     if (isLoading) {
         return (
-            <Box sx={{ display: "flex", justifyContent: "center", py: 5 }}>
-                <CircularProgress />
+            <Box sx={{ maxWidth: "1200px", mx: "auto" }}>
+                <PageHeader
+                    title="Chi tiết đại lý bán dạo"
+                    breadcrumbItems={[
+                        { label: "Dashboard", to: "/" },
+                        { label: "Quản lý tài khoản", to: ROUTES.ADMIN.ACCOUNTS.ADMIN.LIST },
+                        { label: "Đại lý bán dạo", to: ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.LIST },
+                        { label: `#${id}` },
+                    ]}
+                />
+                <SpinnerLoading />
             </Box>
         );
     }
@@ -293,7 +302,7 @@ export const StreetAgentDetailPage = () => {
                                         <Typography variant="body2" color="text.secondary" sx={{ flex: 1, minWidth: 200 }}>
                                             In file PDF hợp đồng và đưa cho đại lý ký xác nhận.
                                         </Typography>
-                                        <LoadingButton
+                                        <Button
                                             variant="contained"
                                             color="inherit"
                                             startIcon={<PictureAsPdfIcon />}
@@ -341,7 +350,7 @@ export const StreetAgentDetailPage = () => {
                                                     </Button>
                                                 </Box>
                                             </Stack>
-                                            <LoadingButton
+                                            <Button
                                                 variant="outlined"
                                                 startIcon={<CloudUploadIcon />}
                                                 onClick={() => signedFileInputRef.current?.click()}

@@ -3,8 +3,7 @@
 import {
     Alert,
     Box,
-    Button,
-    Chip,
+Chip,
     FormControl,
     InputLabel,
     MenuItem,
@@ -26,8 +25,9 @@ import {
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import { PageHeader } from '../../../../../components/ui/PageHeader';
+import { SpinnerLoading } from '../../../../../components/ui/SpinnerLoading';
 import { CollapsibleCard } from '../../../../../components/ui/CollapsibleCard';
-import { LoadingButton } from '../../../../../components/ui/LoadingButton';
+import { Button } from '../../../../../components/ui/Button';
 import { ImagePreview } from '../../../../../components/ui/ImagePreview';
 import { prefixAdmin, ROUTES } from '../../../../../constants/routes';
 import {
@@ -106,7 +106,6 @@ import {
 } from '../../utils/importBatchEditChanges';
 import { isImportBatchEditable } from '../../utils/importBatchProgress';
 import { hasInvoiceEvidence } from '../../utils/invoiceEvidence';
-import LoadingScreen from '../../../../../components/ui/LoadingScreen';
 import type { ImportBatch, ImportBatchEligibleStation, UpdateImportBatchPayload } from '../../types/importBatch.type';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Controller, useFieldArray, useForm, useWatch, type Resolver } from 'react-hook-form';
@@ -985,7 +984,22 @@ export const ImportBatchEditPage = () => {
     };
 
     if (isBatchLoading || isLoadingSuppliers) {
-        return <LoadingScreen />;
+        return (
+            <ThemeProvider theme={localTheme}>
+                <Box className="admin-page">
+                    <PageHeader
+                        title={`Chỉnh sửa phiếu #${id}`}
+                        breadcrumbItems={[
+                            { label: 'Vé số', to: `/${prefixAdmin}/ticket/list` },
+                            { label: 'Nhập lô vé', to: ROUTES.ADMIN.IMPORT_BATCH.LIST },
+                            { label: `#${id}` },
+                            { label: 'Chỉnh sửa' },
+                        ]}
+                    />
+                    <SpinnerLoading />
+                </Box>
+            </ThemeProvider>
+        );
     }
 
     if (!batch && isBatchError) {
@@ -1399,7 +1413,7 @@ export const ImportBatchEditPage = () => {
                             )}
 
                             <Stack direction="row" spacing={2}>
-                                <LoadingButton
+                                <Button
                                     type="submit"
                                     variant="contained"
                                     loading={isPending || isSaving}

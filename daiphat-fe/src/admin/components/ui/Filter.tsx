@@ -1,4 +1,6 @@
-import { Button, Tooltip, Badge, SvgIcon } from '@mui/material';
+import { Button } from '@/admin/components/ui/Button';
+import {
+Tooltip, Badge, SvgIcon } from '@mui/material';
 import { FilterPanelTrigger } from '@mui/x-data-grid';
 
 const CustomFilterIcon = (props: any) => (

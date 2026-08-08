@@ -6,6 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { settingLoginSocialSchema, SettingLoginSocialFormValues } from "../../../schemas/setting.schema";
 import { useSettingLoginSocial, useUpdateSettingLoginSocial } from "../hooks/useSettings";
 import { useEffect } from "react";
+import { SpinnerLoading } from "../../../components/ui/SpinnerLoading";
 
 export const SocialLoginTab = () => {
     const { data: socialData, isLoading } = useSettingLoginSocial();
@@ -38,7 +39,7 @@ export const SocialLoginTab = () => {
         updateSocial(data);
     };
 
-    if (isLoading) return <Typography>Đang tải...</Typography>;
+    if (isLoading) return <SpinnerLoading compact />;
 
     return (
         <Card sx={{ p: 4, borderRadius: "16px", boxShadow: "0 0 2px 0 rgba(145, 158, 171, 0.2), 0 12px 24px -4px rgba(145, 158, 171, 0.12)" }}>

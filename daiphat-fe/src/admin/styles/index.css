@@ -1,3 +1,4 @@
+import { Button } from '@/admin/components/ui/Button';
 .admin-theme {
     max-width: 100vw;
     overflow-x: hidden;
@@ -1054,6 +1055,17 @@ input:-webkit-autofill:active {
     border-radius: 6px;
     background-color: var(--palette-grey-200);
     color: var(--palette-grey-800);
+}
+
+.admin-status-badge--compact {
+    min-width: auto;
+    height: 1.125rem;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    padding: 0 4px;
+    border-radius: 4px;
+    line-height: 1.2;
+    white-space: nowrap;
 }
 
 .admin-status-badge--draft {

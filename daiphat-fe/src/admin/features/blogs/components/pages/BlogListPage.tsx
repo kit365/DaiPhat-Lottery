@@ -1,11 +1,13 @@
 "use client";
 
-import Button from "@mui/material/Button";
+import { Button } from '@/admin/components/ui/Button';
+
+
 import AddIcon from '@mui/icons-material/Add';
 import { PageHeader } from "../../../../components/ui/PageHeader";
 import { prefixAdmin } from "../../../../constants/routes";
 import { useNavigate } from "react-router-dom";
-import { Card, Tabs, Tab } from "@mui/material";
+import { Card, Tabs, Tab } from '@mui/material';
 import { BlogList } from "../sections/BlogList";
 import { BlogToolbar } from "../sections/BlogToolbar";
 import { useBlogs, useBlogTypes } from "../../hooks/useBlog";

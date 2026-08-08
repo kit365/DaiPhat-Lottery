@@ -1,6 +1,8 @@
 "use client";
 
-import { Toolbar, Box, Button, SvgIcon, Tooltip, Menu, MenuItem } from "@mui/material";
+import { Button } from '@/admin/components/ui/Button';
+
+import { Toolbar, Box, SvgIcon, Tooltip, Menu, MenuItem } from '@mui/material';
 import { type Dispatch, type SetStateAction, useRef, useState } from "react";
 import { toast } from "react-toastify";
 import { Search } from "../../../components/ui/Search";

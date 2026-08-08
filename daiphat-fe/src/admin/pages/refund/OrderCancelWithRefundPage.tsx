@@ -10,7 +10,6 @@ import {
     CardContent,
     CardHeader,
     Chip,
-    CircularProgress,
     Collapse,
     Divider,
     Grid,
@@ -31,6 +30,7 @@ import { Icon } from '@iconify/react';
 import dayjs from 'dayjs';
 import { toast } from 'react-toastify';
 import { prefixAdmin } from '../../constants/routes';
+import { SpinnerLoading } from '../../components/ui/SpinnerLoading';
 import { useOrderDetail } from '../../features/orders/hooks/useOrder';
 import { useCancelOrderWithRefund } from './hooks/useRefundManagement';
 import { OrderStatus, resolveOrderDetailStatusBadge } from '../../../types/order.type';
@@ -623,8 +623,22 @@ export function OrderCancelWithRefundPage() {
 
     if (isLoading) {
         return (
-            <Box sx={{ display: 'flex', justifyContent: 'center', py: 20 }}>
-                <CircularProgress />
+            <Box sx={{ width: '100%', maxWidth: 1200, mx: 'auto', pb: 4 }}>
+                <Stack direction="row" alignItems="center" spacing={2} sx={{ mb: 3 }}>
+                    <IconButton onClick={() => navigate(-1)}>
+                        <Icon icon="solar:arrow-left-linear" width={24} />
+                    </IconButton>
+                    <Box>
+                        <Typography variant="h5" sx={{ fontWeight: 700 }}>
+                            Báo lỗi & Hủy đơn
+                        </Typography>
+                        <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                            Hủy đơn luôn kèm yêu cầu hoàn tiền. Chọn loại hủy, kiểm tra thông tin rồi xác
+                            nhận.
+                        </Typography>
+                    </Box>
+                </Stack>
+                <SpinnerLoading />
             </Box>
         );
     }

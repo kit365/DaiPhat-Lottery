@@ -4,6 +4,7 @@ import { Box, Stack, TextField, ThemeProvider, useTheme, CircularProgress, creat
 import { REGION_DATA } from "../../../../constants/region.constants";
 import { DAYS_OF_WEEK } from "../../../../constants/schedule.constants";
 import { PageHeader } from "../../../../components/ui/PageHeader";
+import { SpinnerLoading } from "../../../../components/ui/SpinnerLoading";
 import { TimePicker } from "@mui/x-date-pickers";
 import dayjs from "dayjs";
 import { Tiptap } from "../../../../components/layouts/titap/Tiptap";
@@ -17,7 +18,7 @@ import { CreateStationFormValues, createStationSchema } from "../../schemas/stat
 import { SwitchButton } from "../../../../components/ui/SwitchButton";
 import { prefixAdmin } from "../../../../constants/routes";
 import { toast } from "react-toastify";
-import { LoadingButton } from "../../../../components/ui/LoadingButton";
+import { Button } from "../../../../components/ui/Button";
 import { FormUploadSingleFile } from "../../../../components/upload/FormUploadSingleFile";
 import { useParams } from "react-router-dom";
 
@@ -161,9 +162,17 @@ export const StationEditPage = () => {
 
     if (isLoadingDetail) {
         return (
-            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
-                <CircularProgress color="inherit" />
-            </Box>
+            <>
+                <PageHeader
+                    title="Chỉnh sửa nhà đài"
+                    breadcrumbItems={[
+                        { label: "Dashboard", to: "/" },
+                        { label: "Nhà đài", to: `/${prefixAdmin}/provider/list` },
+                        { label: "Chỉnh sửa" }
+                    ]}
+                />
+                <SpinnerLoading />
+            </>
         );
     }
 
@@ -462,7 +471,7 @@ export const StationEditPage = () => {
                                 checkedValue="active"
                                 uncheckedValue="inactive"
                             />
-                            <LoadingButton
+                            <Button
                                 type="submit"
                                 className="btn-primary-admin"
                                 loading={isUpdating || isUploadingImage}

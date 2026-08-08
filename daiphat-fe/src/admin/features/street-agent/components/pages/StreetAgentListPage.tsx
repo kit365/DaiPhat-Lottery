@@ -1,6 +1,8 @@
 "use client";
 
-import Button from "@mui/material/Button";
+import { Button } from '@/admin/components/ui/Button';
+
+
 import AddIcon from "@mui/icons-material/Add";
 import { useNavigate } from "react-router-dom";
 import { PageHeader } from "../../../../components/ui/PageHeader";

@@ -20,7 +20,7 @@ import {
     AlertTitle,
     ListItemText,
 } from "@mui/material";
-import { LoadingButton } from '../../../../components/ui/LoadingButton';
+import { Button } from '../../../../components/ui/Button';
 import { UserAvatarUploader } from '../sections/UserAvatarUploader';
 
 export const AdminCreatePage = () => {
@@ -169,7 +169,7 @@ export const AdminCreatePage = () => {
                             Mật khẩu sẽ được hệ thống <strong>tự động tạo</strong> và gửi về email của người dùng. Người dùng sẽ được yêu cầu đổi mật khẩu trong lần đăng nhập đầu tiên.
                         </Alert>
 
-                        <LoadingButton
+                        <Button
                             type="submit"
                             variant="contained"
                             loading={isPending || isUploading}

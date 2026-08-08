@@ -9,7 +9,6 @@ import {
     Card,
     CardContent,
     Chip,
-    CircularProgress,
     Grid,
     Stack,
     Typography,
@@ -17,6 +16,7 @@ import {
 import { Icon } from '@iconify/react';
 import dayjs from 'dayjs';
 import { PageHeader } from '../../../../components/ui/PageHeader';
+import { SpinnerLoading } from '../../../../components/ui/SpinnerLoading';
 import { CanAccess } from '../../../../components/auth/CanAccess';
 import { PERMISSIONS } from '../../../../constants/permission.constants';
 import { prefixAdmin } from '../../../../constants/routes';
@@ -144,9 +144,17 @@ export const SupportTicketDetailPage = () => {
 
     if (isLoading) {
         return (
-            <Box display="flex" justifyContent="center" py={8}>
-                <CircularProgress />
-            </Box>
+            <>
+                <PageHeader
+                    title={`Khiếu nại #${ticketId}`}
+                    breadcrumbItems={[
+                        { label: 'Bảng điều khiển', to: `/${prefixAdmin}` },
+                        { label: 'Khiếu nại', to: `/${prefixAdmin}/support-tickets/list` },
+                        { label: `#${ticketId}` },
+                    ]}
+                />
+                <SpinnerLoading />
+            </>
         );
     }
 

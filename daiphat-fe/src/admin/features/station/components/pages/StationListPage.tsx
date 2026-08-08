@@ -1,8 +1,10 @@
 "use client";
 
+import { Button } from '@/admin/components/ui/Button';
+
 import AddIcon from '@mui/icons-material/Add';
 import SyncIcon from '@mui/icons-material/Sync';
-import Button from '@mui/material/Button';
+
 import { PageHeader } from "../../../../components/ui/PageHeader";
 import { prefixAdmin } from "../../../../constants/routes";
 import { useNavigate } from "react-router-dom";

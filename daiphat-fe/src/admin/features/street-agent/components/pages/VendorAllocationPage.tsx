@@ -3,26 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSidebar } from "../../../../context/sidebar/useSidebar";
 import {
-    Alert,
-    Autocomplete,
-    Box,
-    Button,
-    Card,
-    Chip,
-    CircularProgress,
-    Divider,
-    Drawer,
-    IconButton,
-    Stack,
-    Table,
-    TableBody,
-    TableCell,
-    TableContainer,
-    TableHead,
-    TableRow,
-    TextField,
-    Typography,
-} from "@mui/material";
+    Alert, Autocomplete, Box, Card, Chip, CircularProgress, Divider, Drawer, IconButton, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TextField, Typography } from '@mui/material';
 import AddIcon from "@mui/icons-material/Add";
 import RemoveIcon from "@mui/icons-material/Remove";
 import CloseIcon from "@mui/icons-material/Close";
@@ -30,7 +11,7 @@ import dayjs from "dayjs";
 import { toast } from "react-toastify";
 import { Link as RouterLink, useSearchParams } from "@/components/router-compat";
 import { PageHeader } from "../../../../components/ui/PageHeader";
-import { LoadingButton } from "../../../../components/ui/LoadingButton";
+import { Button } from '../../../../components/ui/Button';
 import { ROUTES } from "../../../../constants/routes";
 import { PERMISSIONS } from "../../../../constants/permission.constants";
 import { usePermissions } from "../../../../hooks/usePermission";
@@ -787,7 +768,7 @@ export const VendorAllocationPage = () => {
                             </Typography>
                         </Box>
                     </Stack>
-                    <LoadingButton
+                    <Button
                         variant="contained"
                         size="large"
                         loading={isCreatingDraft}

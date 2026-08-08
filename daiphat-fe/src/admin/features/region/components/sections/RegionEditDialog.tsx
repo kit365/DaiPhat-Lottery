@@ -2,8 +2,7 @@
 
 import {
     Box,
-    Button,
-    Dialog,
+Dialog,
     DialogActions,
     DialogContent,
     DialogTitle,
@@ -13,14 +12,14 @@ import {
     createTheme,
     useMediaQuery,
     useTheme,
-} from "@mui/material";
+} from '@mui/material';
 import { TimePicker } from "@mui/x-date-pickers";
 import dayjs from "dayjs";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect } from "react";
 import { toast } from "react-toastify";
-import { LoadingButton } from "../../../../components/ui/LoadingButton";
+import { Button } from "../../../../components/ui/Button";
 import { CanAccess } from "../../../../components/auth/CanAccess";
 import { PERMISSIONS } from "../../../../constants/permission.constants";
 import { updateRegionSchema, UpdateRegionFormValues } from "../../schemas/region.schema";
@@ -176,7 +175,7 @@ export const RegionEditDialog = ({ region, onClose }: RegionEditDialogProps) => 
                             Hủy
                         </Button>
                         <CanAccess permission={PERMISSIONS.REGION.EDIT}>
-                            <LoadingButton
+                            <Button
                                 type="submit"
                                 loading={isPending}
                                 label="Lưu thay đổi"

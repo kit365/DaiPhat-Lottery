@@ -1,5 +1,7 @@
 "use client";
 
+import { Button } from '@/admin/components/ui/Button';
+
 import AppBar from "@mui/material/AppBar";
 import useScrollTrigger from '@mui/material/useScrollTrigger';
 import React from "react";
@@ -7,7 +9,7 @@ import Container from "@mui/material/Container";
 import Box from '@mui/material/Box';
 import SettingsIcon from '@mui/icons-material/Settings';
 import Avatar from "@mui/material/Avatar";
-import Button from "@mui/material/Button";
+
 import Popover from "@mui/material/Popover";
 import MenuItem from "@mui/material/MenuItem";
 import Typography from "@mui/material/Typography";

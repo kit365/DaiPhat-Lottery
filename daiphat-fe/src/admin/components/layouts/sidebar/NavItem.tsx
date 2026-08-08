@@ -69,6 +69,7 @@ const SubNavItem = ({
             <Link
                 to={child.path}
                 onMouseEnter={() => onPrefetch(child.path)}
+                onPointerDown={() => onPrefetch(child.path)}
                 className={`sidebar-item-before rounded-[8px] inline-flex items-center py-[4px] pr-[8px] pl-[12px] w-full min-h-[36px] text-[0.875rem] transition-all duration-200
                     ${isSubActive
                         ? 'text-[#FF3030] font-[600] bg-[#FF303014]'
@@ -341,6 +342,11 @@ export const NavItem = memo(({ item }: { item: any }) => {
                         handlePrefetch(item.path);
                     }
                     handleMouseEnter(event);
+                }}
+                onPointerDown={() => {
+                    if (!hasChildren && item.path) {
+                        handlePrefetch(item.path);
+                    }
                 }}
                 onMouseLeave={handleMouseLeave}
                 sx={{

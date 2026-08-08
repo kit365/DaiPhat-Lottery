@@ -14,7 +14,8 @@ import { usePrefetchAdminPagesWhenIdle } from "../hooks/usePrefetchAdminPagesWhe
 
 import { SocketProvider } from "../context/SocketContext";
 import { AdminProviders } from "../providers/AdminProviders";
-import { AdminPageContentSkeleton } from "../components/ui/AdminPageContentSkeleton";
+import { SpinnerLoading } from "../components/ui/SpinnerLoading";
+import { PageNavigationProvider, usePageNavigation } from "../context/PageNavigationContext";
 
 import { Suspense } from "react";
 
@@ -24,6 +25,7 @@ const LayoutAdminContent = ({ children }: { children?: React.ReactNode }) => {
     const { user, token } = useAuthStore();
     const location = useLocation();
     const { isOpen } = useSidebar();
+    const { isNavigating } = usePageNavigation();
 
     usePrefetchAdminPagesWhenIdle(!!user && !!token);
 
@@ -47,9 +49,13 @@ const LayoutAdminContent = ({ children }: { children?: React.ReactNode }) => {
 
                 <ThemeProvider theme={adminTheme}>
                     <main className="max-w-[1536px] w-full mx-auto px-[40px] pt-[8px] pb-[64px]">
-                        <Suspense fallback={<AdminPageContentSkeleton />}>
-                            {children ? children : <Outlet />}
-                        </Suspense>
+                        {isNavigating ? (
+                            <SpinnerLoading />
+                        ) : (
+                            <Suspense fallback={<SpinnerLoading />}>
+                                {children ? children : <Outlet />}
+                            </Suspense>
+                        )}
                     </main>
                 </ThemeProvider>
             </div>
@@ -60,12 +66,14 @@ const LayoutAdminContent = ({ children }: { children?: React.ReactNode }) => {
 
 export const LayoutAdmin = ({ children }: { children?: React.ReactNode }) => {
     return (
-        <AdminProviders>
-            <SocketProvider>
-                <SidebarProvider>
-                    <LayoutAdminContent>{children}</LayoutAdminContent>
-                </SidebarProvider>
-            </SocketProvider>
-        </AdminProviders>
+        <PageNavigationProvider>
+            <AdminProviders>
+                <SocketProvider>
+                    <SidebarProvider>
+                        <LayoutAdminContent>{children}</LayoutAdminContent>
+                    </SidebarProvider>
+                </SocketProvider>
+            </AdminProviders>
+        </PageNavigationProvider>
     );
 };

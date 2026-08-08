@@ -3,21 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useMutation } from "@tanstack/react-query";
 import {
-    Box,
-    Card,
-    Stack,
-    Typography,
-    Avatar,
-    CircularProgress,
-    TextField,
-    InputAdornment,
-    IconButton,
-    List,
-    ListItemButton,
-    ListItemIcon,
-    ListItemText,
-    Button,
-} from "@mui/material";
+    Box, Card, Stack, Typography, Avatar, CircularProgress, TextField, InputAdornment, IconButton, List, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
 import Grid from "@mui/material/Grid";
 import { Icon } from "@iconify/react";
 import { PageHeader } from '../../../../components/ui/PageHeader';
@@ -28,7 +14,7 @@ import { accountAdminSchema } from "../../../../schemas/account-admin.schema";
 import { toast } from "react-toastify";
 import { AxiosError } from "axios";
 import { uploadImagesToCloudinary } from '../../../../api/uploadCloudinary.api';
-import { LoadingButton } from '../../../../components/ui/LoadingButton';
+import { Button } from '../../../../components/ui/Button';
 import * as zod from "zod";
 import { useAuthStore } from "../../../../../stores/useAuthStore";
 import { authService } from "../../../../pages/authen/services/auth.service";
@@ -580,7 +566,7 @@ export const ProfilePage = () => {
                                         >
                                             Hủy
                                         </Button>
-                                        <LoadingButton
+                                        <Button
                                             type="submit"
                                             loading={isUpdating}
                                             label="Lưu thay đổi"
@@ -687,7 +673,7 @@ export const ProfilePage = () => {
                                     />
 
                                     <Stack direction="row" justifyContent="flex-end">
-                                        <LoadingButton
+                                        <Button
                                             type="submit"
                                             disabled={!isPasswordValid}
                                             loading={isChangingPassword}

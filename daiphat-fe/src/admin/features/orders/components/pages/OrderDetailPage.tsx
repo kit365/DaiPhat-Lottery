@@ -12,7 +12,6 @@ import {
     Chip,
     IconButton,
     Select,
-    CircularProgress,
     alpha,
     Divider,
     Table,
@@ -26,6 +25,7 @@ import { Icon } from "@iconify/react";
 import { useNavigate, useParams } from "react-router-dom";
 import dayjs from "dayjs";
 import { PageHeader } from "../../../../components/ui/PageHeader";
+import { SpinnerLoading } from "../../../../components/ui/SpinnerLoading";
 import { useOrderDetail, useUpdateOrderStatus } from "../../hooks/useOrder";
 import { OrderStatus, resolveLotteryTicketSerialStatusBadge, resolveOrderDetailStatusBadge } from "../../../../../types/order.type";
 import { toast } from "react-toastify";
@@ -62,8 +62,16 @@ export const OrderDetailPage = () => {
 
     if (isLoading) {
         return (
-            <Box sx={{ display: 'flex', justifyContent: 'center', py: 20 }}>
-                <CircularProgress />
+            <Box>
+                <PageHeader
+                    title={`Đơn hàng #${id}`}
+                    breadcrumbItems={[
+                        { label: 'Bảng điều khiển', to: `/${prefixAdmin}/dashboard` },
+                        { label: 'Đơn hàng', to: `/${prefixAdmin}/order/list` },
+                        { label: 'Chi tiết đơn hàng' }
+                    ]}
+                />
+                <SpinnerLoading />
             </Box>
         );
     }

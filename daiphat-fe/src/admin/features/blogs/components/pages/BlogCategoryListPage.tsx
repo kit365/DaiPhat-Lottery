@@ -1,6 +1,8 @@
 "use client";
 
-import Button from "@mui/material/Button";
+import { Button } from '@/admin/components/ui/Button';
+
+
 import AddIcon from '@mui/icons-material/Add';
 import { PageHeader } from "../../../../components/ui/PageHeader";
 import { prefixAdmin } from "../../../../constants/routes";

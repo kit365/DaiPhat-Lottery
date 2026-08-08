@@ -1,7 +1,7 @@
 "use client";
 
 import { Box, Stack, TextField, ThemeProvider, useTheme, MenuItem, Select, FormControl, InputLabel, FormHelperText, createTheme, Autocomplete, CircularProgress } from "@mui/material"
-import { LoadingButton } from "../../../../components/ui/LoadingButton";
+import { Button } from "../../../../components/ui/Button";
 import { PageHeader } from "../../../../components/ui/PageHeader"
 import { useState, type Dispatch, type SetStateAction } from "react"
 import { Tiptap } from "../../../../components/layouts/titap/Tiptap"
@@ -308,7 +308,7 @@ export const BlogCreatePage = () => {
                             </Stack>
                         </CollapsibleCard>
                         <Box gap="calc(3 * var(--spacing))" sx={{ display: "flex", alignItems: "center", justifyContent: "flex-end" }}>
-                            <LoadingButton
+                            <Button
                                 type="submit"
                                 loading={isPending || isUploading}
                                 label="Tạo mới bài viết"

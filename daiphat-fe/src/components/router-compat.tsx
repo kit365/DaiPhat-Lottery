@@ -8,6 +8,13 @@ import {
   useParams as useNextParams,
 } from 'next/navigation';
 import NextLink from 'next/link';
+import { notifyPageNavigation } from '@/admin/context/PageNavigationContext';
+
+const maybeStartPageNavigation = (target: string) => {
+  if (target.startsWith('/admin')) {
+    notifyPageNavigation(target);
+  }
+};
 
 /** Matched React-Router-style params (e.g. `{ id: "45" }`) from AdminRoutes. */
 const RouteParamsContext = createContext<Record<string, string>>({});
@@ -41,6 +48,7 @@ export const useNavigate = () => {
       if (to === -1) router.back();
       return;
     }
+    maybeStartPageNavigation(to);
     if (options?.replace) {
       router.replace(to);
     } else {
@@ -143,10 +151,18 @@ export type LinkProps = Omit<React.ComponentPropsWithoutRef<typeof NextLink>, 'h
   state?: any;
 };
 
-export const Link: React.FC<LinkProps> = ({ to, href, state, children, className, ...props }) => {
+export const Link: React.FC<LinkProps> = ({ to, href, state, children, className, onClick, ...props }) => {
   const target = to || href || '#';
   return (
-    <NextLink href={target} className={className} {...props}>
+    <NextLink
+      href={target}
+      className={className}
+      onClick={(event) => {
+        maybeStartPageNavigation(target);
+        onClick?.(event);
+      }}
+      {...props}
+    >
       {children}
     </NextLink>
   );
@@ -162,6 +178,7 @@ export const Navigate = ({ to, replace = true }: { to: string; replace?: boolean
 
   useEffect(() => {
     if (to && fullPath !== to && pathname !== to) {
+      notifyPageNavigation(to);
       if (replace) {
         router.replace(to);
       } else {

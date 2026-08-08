@@ -5,10 +5,11 @@ import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { settingGeneralSchema, SettingGeneralFormValues } from "../../schemas/setting.schema";
 import { PageHeader } from "../../components/ui/PageHeader";
+import { SpinnerLoading } from "../../components/ui/SpinnerLoading";
 import { toast } from "react-toastify";
 import { useEffect, useRef, useState } from "react";
 import { useSettingGeneral, useUpdateSettingGeneral } from "./hooks/useSettingGeneral";
-import { LoadingButton } from "../../components/ui/LoadingButton";
+import { Button } from "../../components/ui/Button";
 import { Tiptap } from "../../components/layouts/titap/Tiptap";
 
 export const SettingGeneralPage = () => {
@@ -128,10 +129,6 @@ export const SettingGeneralPage = () => {
     const isPageLoading = isSettingsLoading;
     const saving = isSubmitting || isPending;
 
-    if (isPageLoading) {
-        return <Typography sx={{ p: 4 }}>Đang tải dữ liệu...</Typography>;
-    }
-
     return (
         <Box sx={{ width: '100%', mx: 'auto' }}>
             <PageHeader
@@ -141,6 +138,10 @@ export const SettingGeneralPage = () => {
                     { label: "Cài đặt" }
                 ]}
             />
+
+            {isPageLoading ? (
+                <SpinnerLoading />
+            ) : (
 
             <form onSubmit={handleSubmit(onSubmit)}>
                 <Grid container spacing={3}>
@@ -372,7 +373,7 @@ export const SettingGeneralPage = () => {
                             </Box>
 
                             <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 5 }}>
-                                <LoadingButton
+                                <Button
                                     type="submit"
                                     loading={saving}
                                     label="Lưu cài đặt"
@@ -388,6 +389,7 @@ export const SettingGeneralPage = () => {
                     </Grid>
                 </Grid>
             </form>
+            )}
         </Box >
     );
 };

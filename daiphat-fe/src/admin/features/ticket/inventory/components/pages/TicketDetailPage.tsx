@@ -1,7 +1,8 @@
 "use client";
 
-import { Box, Stack, ThemeProvider, useTheme, createTheme, Button, Typography, CircularProgress, Chip, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TextField, Select, MenuItem } from "@mui/material"
+import { Box, Stack, ThemeProvider, useTheme, createTheme, Button, Typography, Chip, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TextField, Select, MenuItem } from "@mui/material"
 import { PageHeader } from "../../../../../components/ui/PageHeader"
+import { SpinnerLoading } from "../../../../../components/ui/SpinnerLoading"
 import { useState, useMemo } from "react"
 import { CollapsibleCard } from "../../../../../components/ui/CollapsibleCard"
 import { prefixAdmin } from "../../../../../constants/routes";
@@ -84,7 +85,19 @@ export const TicketDetailPage = () => {
     }, [ticketDetail?.serials]);
 
     if (isLoadingTicket) {
-        return <Box display="flex" justifyContent="center" alignItems="center" height="400px"><CircularProgress /></Box>
+        return (
+            <ThemeProvider theme={localTheme}>
+                <PageHeader
+                    title={"Chi tiết vé số"}
+                    breadcrumbItems={[
+                        { label: "Dashboard", to: "/" },
+                        { label: "Kho vé số", to: `/${prefixAdmin}/ticket/list` },
+                        { label: "Chi tiết" }
+                    ]}
+                />
+                <SpinnerLoading />
+            </ThemeProvider>
+        )
     }
 
     if (!ticketDetail) {

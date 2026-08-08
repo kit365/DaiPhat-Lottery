@@ -152,15 +152,17 @@ const PaymentTermField = ({
                             }
                         }}
                         onWheel={preventNumberInputWheel}
-                        inputProps={{ min: 1, max: 999, step: 1, inputMode: 'numeric', maxLength: 3 }}
-                        InputProps={{
-                            endAdornment: (
-                                <InputAdornment position="end" sx={{ ml: 0, mr: 0.25 }}>
-                                    <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.875rem', lineHeight: 1, fontWeight: 600 }}>
-                                        ngày
-                                    </Typography>
-                                </InputAdornment>
-                            ),
+                        slotProps={{
+                            htmlInput: { min: 1, max: 999, step: 1, inputMode: 'numeric', maxLength: 3 },
+                            input: {
+                                endAdornment: (
+                                    <InputAdornment position="end" sx={{ ml: 0, mr: 0.25 }}>
+                                        <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.875rem', lineHeight: 1, fontWeight: 600 }}>
+                                            ngày
+                                        </Typography>
+                                    </InputAdornment>
+                                ),
+                            },
                         }}
                         sx={{
                             width: 84,
@@ -389,15 +391,17 @@ export const SupplierFormFields = ({
                                         }
                                     }}
                                     onWheel={preventNumberInputWheel}
-                                    inputProps={{ inputMode: 'numeric' }}
-                                    InputProps={{
-                                        endAdornment: (
-                                            <InputAdornment position="end">
-                                                <Typography variant="body2" color="text.secondary">
-                                                    VNĐ
-                                                </Typography>
-                                            </InputAdornment>
-                                        ),
+                                    slotProps={{
+                                        htmlInput: { inputMode: 'numeric' },
+                                        input: {
+                                            endAdornment: (
+                                                <InputAdornment position="end">
+                                                    <Typography variant="body2" color="text.secondary">
+                                                        VNĐ
+                                                    </Typography>
+                                                </InputAdornment>
+                                            ),
+                                        },
                                     }}
                                 />
                             );

@@ -2,23 +2,7 @@
 
 import { useMemo, useState } from "react";
 import {
-    Box,
-    Button,
-    Card,
-    Chip,
-    CircularProgress,
-    Dialog,
-    DialogActions,
-    DialogContent,
-    DialogTitle,
-    FormControlLabel,
-    IconButton,
-    MenuItem,
-    Stack,
-    Switch,
-    TextField,
-    Typography,
-} from "@mui/material";
+    Box, Card, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, FormControlLabel, IconButton, MenuItem, Stack, Switch, TextField, Typography } from '@mui/material';
 import { DataGrid, GridColDef, GridRenderCellParams } from "@mui/x-data-grid";
 import AddIcon from "@mui/icons-material/Add";
 import CloseIcon from "@mui/icons-material/Close";
@@ -27,7 +11,7 @@ import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "react-toastify";
 import { PageHeader } from "../../../../components/ui/PageHeader";
-import { LoadingButton } from "../../../../components/ui/LoadingButton";
+import { Button } from '../../../../components/ui/Button';
 import { CanAccess } from "../../../../components/auth/CanAccess";
 import { ROUTES } from "../../../../constants/routes";
 import { PERMISSIONS } from "../../../../constants/permission.constants";
@@ -409,7 +393,7 @@ export const LuckyPatternConfigPage = () => {
                     </DialogContent>
                     <DialogActions sx={{ px: 3, py: 2 }}>
                         <Button onClick={() => setOpenDialog(false)}>Hủy</Button>
-                        <LoadingButton
+                        <Button
                             type="submit"
                             loading={isCreating || isUpdating}
                             label={editing ? "Lưu" : "Tạo"}

@@ -7,7 +7,6 @@ import {
     Button,
     Card,
     Chip,
-    CircularProgress,
     Dialog,
     DialogActions,
     DialogContent,
@@ -27,6 +26,7 @@ import dayjs from 'dayjs';
 import { useNavigate, useParams, useLocation } from '@/components/router-compat';
 import { motion } from 'framer-motion';
 import { PageHeader } from '../../components/ui/PageHeader';
+import { SpinnerLoading } from '../../components/ui/SpinnerLoading';
 import { CanAccess } from '../../components/auth/CanAccess';
 import { PERMISSIONS } from '../../constants/permission.constants';
 import { prefixAdmin } from '../../constants/routes';
@@ -249,8 +249,16 @@ export const PrizePayoutDetailPage = () => {
 
     if (isLoading) {
         return (
-            <Box sx={{ py: 8, textAlign: 'center' }}>
-                <CircularProgress size={32} />
+            <Box sx={{ width: '100%' }}>
+                <PageHeader
+                    title={`Yêu cầu trả thưởng #${requestId}`}
+                    breadcrumbItems={[
+                        { label: 'Bảng điều khiển', to: `/${prefixAdmin}` },
+                        { label: 'Trả thưởng', to: `/${prefixAdmin}/prize-payouts/list` },
+                        { label: `#${requestId}` },
+                    ]}
+                />
+                <SpinnerLoading />
             </Box>
         );
     }
