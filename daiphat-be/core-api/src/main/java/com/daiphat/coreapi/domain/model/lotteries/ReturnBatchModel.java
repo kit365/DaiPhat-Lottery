@@ -30,7 +30,7 @@ public class ReturnBatchModel {
     private LocalDate drawDate;
     private Long supplierSettlementId;
     private String returnReceiptUrl;
-    private String returnReceiptEvidenceUrl;
+    private String returnEvidenceUrl;
     private com.daiphat.coreapi.domain.model.enums.lottery.ReturnDeliveryMode deliveryMode;
     @Builder.Default
     private Integer totalQuantity = 0;

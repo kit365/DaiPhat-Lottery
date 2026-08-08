@@ -1,5 +1,6 @@
 package com.daiphat.coreapi.application.service.lotteries;
 
+import com.daiphat.coreapi.application.port.in.lotteries.SupplierSettlementServicePort;
 import com.daiphat.coreapi.application.port.out.lotteries.LotterySupplierRepositoryPort;
 import com.daiphat.coreapi.application.port.out.lotteries.ReturnBatchRepositoryPort;
 import com.daiphat.coreapi.domain.model.enums.lottery.ReturnBatchStatus;
@@ -29,6 +30,7 @@ public class ReturnBatchAutoCancelService {
 
     private final ReturnBatchRepositoryPort returnBatchRepositoryPort;
     private final LotterySupplierRepositoryPort lotterySupplierRepositoryPort;
+    private final SupplierSettlementServicePort supplierSettlementServicePort;
     private final Clock clock;
 
     @Transactional
@@ -38,6 +40,9 @@ public class ReturnBatchAutoCancelService {
         for (ReturnBatchModel batch : returnBatchRepositoryPort.findByStatuses(OPEN_INSPECTION_STATUSES)) {
             if (cancelIfPastCutoff(batch, now)) {
                 cancelled++;
+                if (batch.getSupplierSettlementId() != null) {
+                    supplierSettlementServicePort.recalculateAmounts(batch.getSupplierSettlementId());
+                }
             }
         }
         return cancelled;
