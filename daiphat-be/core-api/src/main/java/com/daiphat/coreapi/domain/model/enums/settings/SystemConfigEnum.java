@@ -429,7 +429,7 @@ public enum SystemConfigEnum {
             true
     ),
     RETURN_BUFFER_TIME(
-            ConfigType.TICKET_IMPORT,
+            ConfigType.TICKET_RETURN,
             DataType.INT,
             "45",
             "Thời gian đệm (phút) trước hạn trả vé của nhà cung cấp",
