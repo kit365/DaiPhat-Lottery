@@ -47,7 +47,6 @@ import { LoadingButton } from '../../../../../components/ui/LoadingButton';
 import { Title } from '../../../../../components/ui/Title';
 import { ROUTES } from '../../../../../constants/routes';
 import { ReportSerialFaultPane } from '../../../import-batch/components/sections/ReportSerialFaultPane';
-import { UploadSingleFile } from '../../../../../components/upload/UploadSingleFile';
 import type { CancelSelectedSerial } from '../../../import-batch/hooks/useCancelTicketSelection';
 import { formatImportCost } from '../../../import-batch/utils/importCostCalculator';
 import { isFaultyTicketCondition, normalizeSerialStatus } from '../../../import-batch/utils/serialIncidentWorkflow';
@@ -308,8 +307,6 @@ export const ReturnBatchInspectPage = () => {
     const [searchQuery, setSearchQuery] = useState<string>('');
     const [showStationDetails, setShowStationDetails] = useState<boolean>(true);
     const [isConfirmModalOpen, setIsConfirmModalOpen] = useState<boolean>(false);
-    const [note, setNote] = useState<string>('');
-    const [returnEvidenceUrl, setReturnEvidenceUrl] = useState<string>('');
 
     const inStockSerials = useMemo(
         () => serials.filter(isReturnSelectableSerial),
@@ -488,9 +485,6 @@ export const ReturnBatchInspectPage = () => {
                 payload: {
                     deliveryMode,
                     serialIds: inStockSerials.map((s) => s.serialId),
-                    returnReceiptUrl: returnEvidenceUrl.trim() || null,
-                    returnEvidenceUrl: returnEvidenceUrl.trim() || null,
-                    note: note.trim() || null,
                 },
             });
             toast.success('Đã xác nhận kiểm tra vé — phiếu hoàn tất kiểm tra.');
@@ -1141,60 +1135,6 @@ export const ReturnBatchInspectPage = () => {
                                 </Table>
                             </Paper>
                         )}
-
-                        {/* Additional Info: Note & Return Evidence Image */}
-                        <Paper
-                            variant="outlined"
-                            sx={{
-                                p: 2,
-                                borderRadius: '12px',
-                                borderColor: '#E2E8F0',
-                                bgcolor: '#FFFFFF',
-                            }}
-                        >
-                            <Typography
-                                variant="caption"
-                                fontWeight={700}
-                                color="#1E293B"
-                                sx={{ textTransform: 'uppercase', letterSpacing: '0.5px', mb: 1.5, display: 'block' }}
-                            >
-                                Thông tin bổ sung
-                            </Typography>
-                            <Stack spacing={2}>
-                                <TextField
-                                    label="Ghi chú kiểm tra"
-                                    placeholder="Nhập ghi chú hoặc thông tin bổ sung cho đợt kiểm tra vé..."
-                                    value={note}
-                                    onChange={(e) => setNote(e.target.value)}
-                                    multiline
-                                    rows={2}
-                                    fullWidth
-                                    size="small"
-                                />
-
-                                <Box>
-                                    <Typography variant="body2" fontWeight={600} color="#334155" sx={{ mb: 1 }}>
-                                        Bằng chứng trả vé (Hình ảnh / Biên nhận)
-                                    </Typography>
-                                    <UploadSingleFile
-                                        value={returnEvidenceUrl}
-                                        onChange={(url) => setReturnEvidenceUrl(url || '')}
-                                        label="Tải lên ảnh bằng chứng trả vé"
-                                        autoUpload
-                                    />
-                                    {returnEvidenceUrl && (
-                                        <TextField
-                                            fullWidth
-                                            size="small"
-                                            label="Đường dẫn ảnh bằng chứng (returnEvidenceUrl)"
-                                            value={returnEvidenceUrl}
-                                            onChange={(e) => setReturnEvidenceUrl(e.target.value)}
-                                            sx={{ mt: 1 }}
-                                        />
-                                    )}
-                                </Box>
-                            </Stack>
-                        </Paper>
 
                         {/* Warning Note */}
                         <Alert

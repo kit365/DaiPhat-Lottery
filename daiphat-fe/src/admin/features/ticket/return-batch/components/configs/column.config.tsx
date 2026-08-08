@@ -59,6 +59,48 @@ const ActionCell = ({ row }: { row: ReturnBatch }) => {
     );
 };
 
+const BatchCodeCell = ({ row }: { row: ReturnBatch }) => {
+    const navigate = useNavigate();
+    const rawCode = row.batchCode?.trim() || `#${row.id}`;
+
+    return (
+        <Box sx={{ display: 'flex', alignItems: 'center', height: '100%' }}>
+            <Typography
+                variant="body2"
+                onClick={(e) => {
+                    e.stopPropagation();
+                    navigate(ROUTES.ADMIN.RETURN_BATCH.DETAIL(row.id));
+                }}
+                sx={{
+                    ...returnBatchCodeMonospaceSx,
+                    color: '#FF3030',
+                    bgcolor: '#FF303014',
+                    px: 1,
+                    py: 0.35,
+                    borderRadius: '6px',
+                    border: '1px solid #FF303026',
+                    display: 'inline-block',
+                    fontSize: '0.8125rem',
+                    lineHeight: 1.2,
+                    cursor: 'pointer',
+                    fontWeight: 700,
+                    transition: 'all 0.15s ease-in-out',
+                    '&:hover': {
+                        bgcolor: '#FF303024',
+                        borderColor: '#FF30304d',
+                        color: '#dc2626',
+                        transform: 'translateY(-1px)',
+                        boxShadow: '0 2px 5px rgba(255, 48, 48, 0.2)',
+                    },
+                }}
+                title={`Xem chi tiết phiếu trả ${rawCode}`}
+            >
+                {rawCode}
+            </Typography>
+        </Box>
+    );
+};
+
 export const returnBatchColumnsConfig: GridColDef[] = [
     {
         field: 'stt',
@@ -94,30 +136,7 @@ export const returnBatchColumnsConfig: GridColDef[] = [
         flex: 1.1,
         minWidth: 155,
         sortable: true,
-        renderCell: (params: GridRenderCellParams<ReturnBatch>) => {
-            const rawCode = params.row.batchCode?.trim() || `#${params.row.id}`;
-            return (
-                <Box sx={{ display: 'flex', alignItems: 'center', height: '100%' }}>
-                    <Typography
-                        variant="body2"
-                        sx={{
-                            ...returnBatchCodeMonospaceSx,
-                            color: '#FF3030',
-                            bgcolor: '#FF303014',
-                            px: 1,
-                            py: 0.35,
-                            borderRadius: '6px',
-                            border: '1px solid #FF303026',
-                            display: 'inline-block',
-                            fontSize: '0.8125rem',
-                            lineHeight: 1.2,
-                        }}
-                    >
-                        {rawCode}
-                    </Typography>
-                </Box>
-            );
-        },
+        renderCell: (params: GridRenderCellParams<ReturnBatch>) => <BatchCodeCell row={params.row} />,
     },
     {
         field: 'supplierName',
