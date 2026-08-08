@@ -11,6 +11,14 @@ import {
 
 export const columnsConfig: GridColDef[] = [
     {
+        field: 'supplierSettlementCode',
+        headerName: 'Mã đối soát',
+        flex: 1,
+        minWidth: 160,
+        hideable: false,
+        valueGetter: (_value, row) => row.supplierSettlementCode || (row.id != null ? `#${row.id}` : '—'),
+    },
+    {
         field: 'supplierName',
         headerName: 'Nhà cung cấp',
         flex: 1.3,

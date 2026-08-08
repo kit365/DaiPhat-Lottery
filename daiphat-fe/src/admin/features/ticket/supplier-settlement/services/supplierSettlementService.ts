@@ -42,3 +42,15 @@ export const getSupplierSettlementOverview = async (
     const response = await apiApp.get(`${BASE_URL}/${id}/overview`, withAuth());
     return response.data;
 };
+
+export const updateSupplierSettlementReceiptUrl = async (
+    id: number | string,
+    supplierSettlementReceiptUrl: string
+): Promise<ApiResponse<SupplierSettlement>> => {
+    const response = await apiApp.post(
+        `${BASE_URL}/${id}/receipt`,
+        { supplierSettlementReceiptUrl },
+        withAuth()
+    );
+    return response.data;
+};

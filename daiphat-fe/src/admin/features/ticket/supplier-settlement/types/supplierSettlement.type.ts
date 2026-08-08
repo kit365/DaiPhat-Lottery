@@ -7,10 +7,12 @@ export interface SupplierSettlement {
     supplierCode?: string | null;
     periodFrom: string;
     periodTo: string;
+    supplierSettlementCode?: string | null;
     totalImportValue: number;
     totalReturnValue: number;
     totalPaidAmount: number;
     remainingAmount: number;
+    supplierSettlementReceiptUrl?: string | null;
     isReturnExpired?: boolean;
     expiredReturnValue?: number;
     status: SupplierSettlementStatus;
@@ -59,12 +61,14 @@ export interface SettlementOverviewImportBatch {
     totalImportedCostValue?: number | null;
     totalDeclareQuantity?: number | null;
     totalDeclaredCostValue?: number | null;
+    invoiceEvidenceUrl?: string | null;
     receiptImageUrl?: string | null;
     evidenceUrl?: string | null;
 }
 
 export interface SettlementOverviewReturnBatch {
     id: number;
+    batchCode?: string | null;
     drawDate?: string | null;
     status?: string | null;
     statusLabel?: string | null;
@@ -72,7 +76,7 @@ export interface SettlementOverviewReturnBatch {
     totalReturnValue?: number | null;
     supplierName?: string | null;
     returnReceiptUrl?: string | null;
-    returnReceiptEvidenceUrl?: string | null;
+    returnEvidenceUrl?: string | null;
 }
 
 export interface SupplierSettlementOverview {

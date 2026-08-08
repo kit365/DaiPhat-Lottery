@@ -13,12 +13,20 @@ export const usePrefetchAdminPagesWhenIdle = (enabled: boolean) => {
         }
 
         const prefetchRoute = (path: string) => {
+            // In development, skip Next router.prefetch — it triggers concurrent page
+            // compiles that race on Windows and corrupt `.next` manifests (ENOENT).
+            // Chunk warm-up still happens via prefetchAdminPageChunk.
+            if (process.env.NODE_ENV === 'development') {
+                return;
+            }
             router.prefetch(path);
         };
 
-        ADMIN_PREFETCH_ROUTE_PRIORITY.slice(0, 5).forEach((path) => {
-            prefetchAdminRoute(path, prefetchRoute);
-        });
+        if (process.env.NODE_ENV !== 'development') {
+            ADMIN_PREFETCH_ROUTE_PRIORITY.slice(0, 5).forEach((path) => {
+                prefetchAdminRoute(path, prefetchRoute);
+            });
+        }
 
         return prefetchAdminPagesWhenIdle(prefetchRoute);
     }, [enabled, router]);

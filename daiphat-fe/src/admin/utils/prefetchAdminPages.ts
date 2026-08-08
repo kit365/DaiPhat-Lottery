@@ -25,10 +25,12 @@ export const prefetchAdminRoute = (
 
 /**
  * Sau khi admin shell sẵn sàng: prefetch route Next.js + JS chunk của từng trang ưu tiên.
+ * In development, serialize prefetches with longer gaps — concurrent `router.prefetch`
+ * on Windows + Turbopack/webpack races and corrupts `.next` build manifests (ENOENT).
  */
 export const prefetchAdminPagesWhenIdle = (
   prefetchRoute: PrefetchAdminRouteFn,
-  delay = 300,
+  delay = process.env.NODE_ENV === 'development' ? 1500 : 300,
 ): (() => void) => {
   if (shouldSkipClientPrefetch()) {
     return () => {};
@@ -38,24 +40,22 @@ export const prefetchAdminPagesWhenIdle = (
   let startHandle: ReturnType<typeof setTimeout> | null = null;
 
   const run = async () => {
-    const [firstRoute, secondRoute, thirdRoute, ...remainingRoutes] = ADMIN_PREFETCH_ROUTE_PRIORITY;
+    const routes = [...ADMIN_PREFETCH_ROUTE_PRIORITY];
+    const isDev = process.env.NODE_ENV === 'development';
+    // Dev: only warm the top few routes, one at a time.
+    const queue = isDev ? routes.slice(0, 4) : routes;
 
-    for (const path of [firstRoute, secondRoute, thirdRoute].filter(Boolean)) {
+    for (let i = 0; i < queue.length; i += 1) {
       if (cancelled) return;
-      prefetchAdminRoute(path, prefetchRoute);
-    }
-
-    for (const path of remainingRoutes) {
-      if (cancelled) {
-        return;
+      prefetchAdminRoute(queue[i], prefetchRoute);
+      if (i < queue.length - 1) {
+        if (isDev) {
+          await new Promise((resolve) => setTimeout(resolve, 1200));
+        } else {
+          await waitForPrefetchIdle();
+        }
       }
-
-      await waitForPrefetchIdle();
-      if (cancelled) {
-        return;
-      }
-
-      prefetchAdminRoute(path, prefetchRoute);
+      if (cancelled) return;
     }
   };
 

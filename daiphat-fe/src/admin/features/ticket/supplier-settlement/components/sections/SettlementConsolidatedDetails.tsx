@@ -285,7 +285,7 @@ export const SettlementConsolidatedDetails = ({
                                 <TableCell sx={{ fontWeight: 700, color: '#334155' }}>Trạng thái</TableCell>
                                 <TableCell align="right" sx={{ fontWeight: 700, color: '#334155' }}>Số lượng</TableCell>
                                 <TableCell align="right" sx={{ fontWeight: 700, color: '#166534' }}>Giá trị trả</TableCell>
-                                <TableCell align="center" sx={{ fontWeight: 700, color: '#334155' }}>Biên lai trả</TableCell>
+                                <TableCell align="center" sx={{ fontWeight: 700, color: '#334155' }}>Bằng chứng trả vé</TableCell>
                                 <TableCell align="center" width={80} sx={{ fontWeight: 700, color: '#334155' }}>Thao tác</TableCell>
                             </TableRow>
                         </TableHead>
@@ -293,7 +293,31 @@ export const SettlementConsolidatedDetails = ({
                             {returnBatches.map((batch) => (
                                 <TableRow key={batch.id} hover>
                                     <TableCell>
-                                        <Typography fontWeight={700} color="#0f172a">#{batch.id}</Typography>
+                                        <Typography
+                                            fontWeight={700}
+                                            color="#FF3030"
+                                            onClick={() => navigate(ROUTES.ADMIN.RETURN_BATCH.DETAIL(batch.id))}
+                                            sx={{
+                                                cursor: 'pointer',
+                                                display: 'inline-block',
+                                                bgcolor: '#FF303014',
+                                                px: 1,
+                                                py: 0.35,
+                                                borderRadius: '6px',
+                                                border: '1px solid #FF303026',
+                                                fontSize: '0.8125rem',
+                                                transition: 'all 0.15s ease',
+                                                '&:hover': {
+                                                    bgcolor: '#FF303024',
+                                                    borderColor: '#FF30304d',
+                                                    color: '#dc2626',
+                                                    transform: 'translateY(-1px)',
+                                                },
+                                            }}
+                                            title="Xem chi tiết phiếu trả vé"
+                                        >
+                                            #{batch.id}
+                                        </Typography>
                                     </TableCell>
                                     <TableCell sx={{ fontWeight: 500, color: '#334155' }}>
                                         {batch.drawDate ? dayjs(batch.drawDate).format('DD/MM/YYYY') : '—'}
@@ -310,9 +334,9 @@ export const SettlementConsolidatedDetails = ({
                                         {formatImportCost(batch.totalReturnValue)} VNĐ
                                     </TableCell>
                                     <TableCell align="center">
-                                        {batch.returnReceiptEvidenceUrl || batch.returnReceiptUrl ? (
+                                        {batch.returnEvidenceUrl || batch.returnReceiptUrl ? (
                                             <Chip
-                                                label="Có biên lai"
+                                                label="Có bằng chứng"
                                                 size="small"
                                                 color="success"
                                                 variant="outlined"

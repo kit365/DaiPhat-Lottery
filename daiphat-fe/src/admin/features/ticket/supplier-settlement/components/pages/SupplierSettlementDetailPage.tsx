@@ -1,24 +1,25 @@
-"use client";
-
-import { useState } from 'react';
+import { useMemo, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import ArrowBackOutlinedIcon from '@mui/icons-material/ArrowBackOutlined';
 import CalendarTodayOutlinedIcon from '@mui/icons-material/CalendarTodayOutlined';
 import FactCheckOutlinedIcon from '@mui/icons-material/FactCheckOutlined';
 import ZoomInIcon from '@mui/icons-material/ZoomIn';
 import ReceiptLongOutlinedIcon from '@mui/icons-material/ReceiptLongOutlined';
+import ReportProblemOutlinedIcon from '@mui/icons-material/ReportProblemOutlined';
 import { Avatar, Box, Button, Card, Chip, CircularProgress, Dialog, DialogContent, DialogTitle, Grid, IconButton, Stack, Typography } from '@mui/material';
 import dayjs from 'dayjs';
 import { useParams } from '@/components/router-compat';
+import { AppToast } from '../../../../../../utils/toast.util';
 import { Breadcrumb } from '../../../../../components/ui/Breadcrumb';
 import { Title } from '../../../../../components/ui/Title';
 import { ROUTES } from '../../../../../constants/routes';
 import { formatImportCost } from '../../../import-batch/utils/importCostCalculator';
-import { useSupplierSettlementOverview } from '../../hooks/useSupplierSettlement';
+import { useSupplierSettlementList, useSupplierSettlementOverview } from '../../hooks/useSupplierSettlement';
 import {
     getSupplierSettlementStatusLabel,
     getSupplierSettlementStatusModifier,
 } from '../../utils/settlementLabels';
+import { ExpiredReturnSettlementBanner } from '../sections/ExpiredReturnSettlementBanner';
 import { SettlementConsolidatedDetails } from '../sections/SettlementConsolidatedDetails';
 import { SettlementInspectionDialog } from '../sections/SettlementInspectionDialog';
 import { SettlementKpiCards } from '../sections/SettlementKpiCards';
@@ -27,8 +28,24 @@ export const SupplierSettlementDetailPage = () => {
     const navigate = useNavigate();
     const { id } = useParams<{ id: string }>();
     const { data: overview, isLoading, isError, refetch } = useSupplierSettlementOverview(id);
+    const { allSettlements } = useSupplierSettlementList();
     const [isInspectionOpen, setIsInspectionOpen] = useState(false);
     const [zoomImage, setZoomImage] = useState<{ url: string; title: string } | null>(null);
+
+    const settlement = overview?.settlement;
+    const isExpired = Boolean(settlement?.isReturnExpired);
+
+    const expiredItems = useMemo(
+        () => (allSettlements.length > 0 ? allSettlements.filter((s: any) => s.isReturnExpired) : []),
+        [allSettlements]
+    );
+    const expiredCount = expiredItems.length;
+    const totalExpiredSum = useMemo(
+        () => expiredItems.reduce((acc: number, curr: any) => acc + (curr.expiredReturnValue || curr.totalReturnValue || 0), 0),
+        [expiredItems]
+    );
+
+
 
     if (isLoading) {
         return (
@@ -46,7 +63,6 @@ export const SupplierSettlementDetailPage = () => {
         );
     }
 
-    const settlement = overview.settlement;
     const statusLabel = getSupplierSettlementStatusLabel(settlement.status, settlement.statusLabel);
     const periodFrom = settlement.periodFrom
         ? dayjs(settlement.periodFrom).format('DD/MM/YYYY')
@@ -91,11 +107,27 @@ export const SupplierSettlementDetailPage = () => {
                         items={[
                             { label: 'Vé số', to: ROUTES.ADMIN.TICKETS.LIST },
                             { label: 'Đối soát NCC', to: ROUTES.ADMIN.SUPPLIER_SETTLEMENT.LIST },
-                            { label: settlement.supplierName || `#${settlement.id}` },
+                            { label: settlement.supplierSettlementCode || settlement.supplierName || `#${settlement.id}` },
                         ]}
                     />
                 </div>
             </div>
+
+            {/* Expired Return Batch Alert Banner (Executive Card Style - Image 2) */}
+            {(isExpired || expiredCount > 0) && (
+                <Box sx={{ mb: 3 }}>
+                    <ExpiredReturnSettlementBanner
+                        expiredCount={expiredCount > 0 ? expiredCount : 1}
+                        totalExpiredValue={
+                            totalExpiredSum > 0
+                                ? totalExpiredSum
+                                : (settlement.expiredReturnValue || settlement.totalReturnValue || 0)
+                        }
+                        expiredItems={expiredItems.length > 0 ? expiredItems : [settlement]}
+                        currentSettlementId={Number(id)}
+                    />
+                </Box>
+            )}
 
             {/* Top Executive Header Card: Consolidated Info & 100% Balanced Financial Grid */}
             <Card
@@ -133,7 +165,7 @@ export const SupplierSettlementDetailPage = () => {
                             {supplierInitial}
                         </Avatar>
                         <Box>
-                            <Stack direction="row" spacing={1.25} alignItems="center">
+                            <Stack direction="row" spacing={1.25} alignItems="center" flexWrap="wrap">
                                 <Typography variant="h6" fontWeight={800} color="#0f172a">
                                     {settlement.supplierName || '—'}
                                 </Typography>
@@ -155,14 +187,28 @@ export const SupplierSettlementDetailPage = () => {
                                         {settlement.supplierCode}
                                     </Typography>
                                 )}
+                                {settlement.isReturnExpired && (
+                                    <span className="admin-status-badge admin-status-badge--cancelled">
+                                        Quá hạn trả vé
+                                    </span>
+                                )}
+                                <span className={`admin-status-badge ${getSupplierSettlementStatusModifier(settlement.status)}`}>
+                                    {statusLabel}
+                                </span>
                             </Stack>
-                            <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mt: 0.5 }}>
+                                <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mt: 0.5 }}>
                                 <Stack direction="row" spacing={0.5} alignItems="center">
                                     <CalendarTodayOutlinedIcon sx={{ fontSize: '0.9rem', color: '#64748b' }} />
                                     <Typography variant="body2" color="text.secondary" fontWeight={500}>
                                         Kỳ đối soát: <strong style={{ color: '#0f172a' }}>{periodFrom} — {periodTo}</strong>
                                     </Typography>
                                 </Stack>
+                                <Typography variant="caption" color="text.secondary">
+                                    • Mã đối soát:{' '}
+                                    <strong style={{ color: '#2563eb' }}>
+                                        {settlement.supplierSettlementCode || `#${settlement.id}`}
+                                    </strong>
+                                </Typography>
                                 {settlement.transactionId && (
                                     <Typography variant="caption" color="text.secondary">
                                         • Mã sổ cái: <strong>#{settlement.transactionId}</strong>
@@ -172,17 +218,17 @@ export const SupplierSettlementDetailPage = () => {
                         </Box>
                     </Stack>
 
-                    <Stack direction="row" spacing={1.5} alignItems="center">
+                    <Stack direction="row" spacing={1.5} alignItems="center" sx={{ ml: { xs: 0, md: 'auto' } }}>
                         <Button
                             variant="contained"
                             color="primary"
                             startIcon={<FactCheckOutlinedIcon />}
-                            onClick={() => setIsInspectionOpen(true)}
+                            onClick={() => navigate(ROUTES.ADMIN.SUPPLIER_SETTLEMENT.INSPECT(id || ''))}
                             sx={{
                                 borderRadius: '10px',
                                 textTransform: 'none',
                                 fontWeight: 700,
-                                px: 2,
+                                px: 2.25,
                                 py: 0.9,
                                 boxShadow: '0 2px 8px rgba(37, 99, 235, 0.25)',
                                 '&:hover': {
@@ -192,14 +238,6 @@ export const SupplierSettlementDetailPage = () => {
                         >
                             Tiến hành kiểm tra
                         </Button>
-                        {settlement.isReturnExpired && (
-                            <span className="admin-status-badge admin-status-badge--cancelled">
-                                Quá hạn trả vé
-                            </span>
-                        )}
-                        <span className={`admin-status-badge ${getSupplierSettlementStatusModifier(settlement.status)}`}>
-                            {statusLabel}
-                        </span>
                     </Stack>
                 </Stack>
 
