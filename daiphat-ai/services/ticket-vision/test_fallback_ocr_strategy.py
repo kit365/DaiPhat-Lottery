@@ -1,6 +1,6 @@
 from domain.ocr.base import OcrTextResult
 from domain.ocr.fallback_strategy import FallbackOcrStrategy
-from tests.conftest import StubOcrStrategy
+from conftest import StubOcrStrategy
 
 HIGH_CONF = [OcrTextResult(text="ok", confidence=0.95)]
 LOW_CONF = [OcrTextResult(text="ok?", confidence=0.3)]

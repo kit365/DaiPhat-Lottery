@@ -1,10 +1,10 @@
-package com.daiphat.coreapi.infrastructure.adapter.out.vision;
+package com.daiphat.coreapi.infrastructure.adapter.out.vision.api;
 
 import com.daiphat.coreapi.application.port.out.vision.TicketVisionPort;
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
 import com.daiphat.coreapi.infrastructure.dto.request.vision.RemoteScanMetadata;
-import com.daiphat.coreapi.infrastructure.dto.response.AiRemoteApiResponse;
+import com.daiphat.coreapi.infrastructure.dto.response.ai.AiRemoteApiResponse;
 import com.daiphat.coreapi.infrastructure.dto.response.vision.RemoteTicketScanResult;
 import com.daiphat.coreapi.shared.util.UrlUtils;
 import com.fasterxml.jackson.databind.ObjectMapper;

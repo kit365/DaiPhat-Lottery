@@ -1,4 +1,4 @@
-package com.daiphat.coreapi.infrastructure.adapter.out.vision;
+package com.daiphat.coreapi.infrastructure.adapter.out.vision.api;
 
 public final class TicketVisionApiConstants {
 

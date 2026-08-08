@@ -17,7 +17,7 @@ fi
 
 export PYTHONPATH="${ROOT_DIR}:${SERVICE_DIR}"
 
-exec "${ROOT_DIR}/.venv/bin/uvicorn" app.main:app \
+exec "${ROOT_DIR}/.venv/bin/uvicorn" main:app \
   --app-dir "${SERVICE_DIR}" \
   --host 0.0.0.0 \
   --port "${PORT}" \

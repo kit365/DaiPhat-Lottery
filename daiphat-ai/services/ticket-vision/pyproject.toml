@@ -29,11 +29,12 @@ dependencies = [
 dev = ["pytest>=7.4.0"]
 
 [tool.pytest.ini_options]
-# "." resolves this service's top-level packages (app, routers, domain, dto,
-# tests); ".." resolves the shared contracts/infra/libs at the daiphat-ai
-# repo root -- mirrors the PYTHONPATH used in Dockerfile/scripts/run_ticket_vision.sh.
+# "." resolves this service's top-level modules/packages (main, routers,
+# domain, dto, conftest); ".." resolves the shared contracts/infra/libs at
+# the daiphat-ai repo root -- mirrors the PYTHONPATH used in
+# Dockerfile/scripts/run_ticket_vision.sh.
 pythonpath = [".", ".."]
-testpaths = ["tests"]
+testpaths = ["."]
 
 [build-system]
 requires = ["hatchling"]

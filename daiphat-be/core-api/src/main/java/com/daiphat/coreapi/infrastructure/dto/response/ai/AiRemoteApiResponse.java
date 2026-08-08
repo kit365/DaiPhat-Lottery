@@ -1,4 +1,4 @@
-package com.daiphat.coreapi.infrastructure.dto.response;
+package com.daiphat.coreapi.infrastructure.dto.response.ai;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.Data;

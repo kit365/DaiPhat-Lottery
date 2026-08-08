@@ -31,7 +31,7 @@ class Settings(BaseSettings):
     # MVP contour-detection aspect-ratio band for a single ticket, and the
     # minimum contour area (as a ratio of the full image area) to keep a
     # candidate region. These are placeholder defaults — calibrate against
-    # real ticket photos (see services/ticket-vision/tests/fixtures/README.md).
+    # real ticket photos (see services/ticket-vision/fixtures/README.md).
     TICKET_VISION_MIN_TICKET_ASPECT_RATIO: float = 0.28
     TICKET_VISION_MAX_TICKET_ASPECT_RATIO: float = 0.62
     TICKET_VISION_MIN_TICKET_AREA_RATIO: float = 0.01

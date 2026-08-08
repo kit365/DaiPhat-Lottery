@@ -1,4 +1,4 @@
-package com.daiphat.coreapi.infrastructure.dto.request;
+package com.daiphat.coreapi.infrastructure.dto.request.ai;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 

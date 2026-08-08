@@ -4,7 +4,7 @@ import pytest
 from domain.ocr.base import DEFAULT_LANGUAGES, OcrStrategy, OcrTextResult
 from domain.parsing.ticket_parser import TicketParser
 from domain.stations.matcher import StationMatcher
-from tests.conftest import StubOcrStrategy
+from conftest import StubOcrStrategy
 
 # Requires opencv-python-headless + numpy to be installed -- see README.md
 # "Local setup" for why they aren't available in every environment.

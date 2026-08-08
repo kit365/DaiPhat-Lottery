@@ -21,9 +21,6 @@ def health_check():
 if __name__ == "__main__":
     import uvicorn
 
-    # Convenience for "Run" in an IDE. Note: pass the app object directly
-    # (not the "app.main:app" string) so this works regardless of the
-    # process's working directory / reload isn't needed for a quick check.
-    # For local dev with --reload, use scripts/run_ticket_vision.sh instead.
+    # Cho phép bấm Run trong IDE: python main.py
     # Swagger: http://127.0.0.1:8090/docs
-    uvicorn.run(app, host="127.0.0.1", port=8090)
+    uvicorn.run("main:app", host="127.0.0.1", port=8090, reload=True)
