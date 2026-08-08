@@ -34,6 +34,8 @@ import 'package:daiphat_mobile/src/features/profile/presentation/views/prize_pay
 import 'package:daiphat_mobile/src/features/profile/presentation/views/prize_payout_detail_view.dart';
 import 'package:daiphat_mobile/src/features/profile/presentation/views/complaints_view.dart';
 import 'package:daiphat_mobile/src/features/profile/presentation/views/complaint_detail_view.dart';
+import 'package:daiphat_mobile/src/features/admin/presentation/views/admin_scan_view.dart';
+import 'package:daiphat_mobile/src/features/admin/presentation/viewmodels/admin_scan_viewmodel.dart';
 import 'app_routes.dart';
 
 final rootNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'root');
@@ -260,6 +262,14 @@ GoRouter createAppRouter({
         notificationViewModel,
       ),
       _route(
+        AppRoute.adminScan,
+        loginViewModel,
+        registerViewModel,
+        forgotPasswordViewModel,
+        profileViewModel,
+        notificationViewModel,
+      ),
+      _route(
         AppRoute.profileOverview,
         loginViewModel,
         registerViewModel,
@@ -471,5 +481,7 @@ Widget _buildRoute(
     case AppRoute.complaintDetail:
       final id = int.tryParse(state.pathParameters['id'] ?? '') ?? 0;
       return ComplaintDetailView(ticketId: id);
+    case AppRoute.adminScan:
+      return AdminScanView(viewModel: AdminScanViewModel());
   }
 }

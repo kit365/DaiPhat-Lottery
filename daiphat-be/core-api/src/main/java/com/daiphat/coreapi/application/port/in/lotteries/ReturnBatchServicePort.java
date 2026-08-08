@@ -63,6 +63,8 @@ public interface ReturnBatchServicePort {
     /** @deprecated Prefer {@link #confirmInspection} / {@link #confirmHandover}. */
     ReturnBatchResponse markReturned(Long batchId, UUID operatorId);
 
+    ReturnBatchResponse updateEvidenceUrl(Long batchId, String returnReceiptEvidenceUrl);
+
     /** @deprecated Prefer {@link #confirmInspection} / {@link #confirmHandover}. */
     ReturnBatchResponse confirm(Long batchId, ConfirmReturnBatchRequest request);
 }

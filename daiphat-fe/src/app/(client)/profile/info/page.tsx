@@ -1,5 +1,6 @@
+import { ProfileTabWrapper } from '../ProfileTabWrapper';
 import { ProfileInfoTab } from '@/client/features/profile/pages/tabs/ProfileInfoTab';
 
 export default function ProfileInfoPage() {
-  return <ProfileInfoTab />;
+  return <ProfileTabWrapper content={<ProfileInfoTab />} />;
 }

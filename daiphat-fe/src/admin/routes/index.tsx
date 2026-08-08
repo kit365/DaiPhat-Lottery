@@ -74,6 +74,7 @@ const ImportBatchDetailPage = lazy(() => import("../features/ticket/import-batch
 const ImportBatchLineDetailPage = lazy(() => import("../features/ticket/import-batch/components/pages/ImportBatchLineDetailPage").then(m => ({ default: m.ImportBatchLineDetailPage })));
 const ReturnBatchListPage = lazy(() => import("../features/ticket/return-batch/components/pages/ReturnBatchListPage").then(m => ({ default: m.ReturnBatchListPage })));
 const ReturnBatchDetailPage = lazy(() => import("../features/ticket/return-batch/components/pages/ReturnBatchDetailPage").then(m => ({ default: m.ReturnBatchDetailPage })));
+const ReturnBatchInspectPage = lazy(() => import("../features/ticket/return-batch/components/pages/ReturnBatchInspectPage").then(m => ({ default: m.ReturnBatchInspectPage })));
 const SupplierSettlementListPage = lazy(() => import("../features/ticket/supplier-settlement/components/pages/SupplierSettlementListPage").then(m => ({ default: m.SupplierSettlementListPage })));
 const SupplierSettlementDetailPage = lazy(() => import("../features/ticket/supplier-settlement/components/pages/SupplierSettlementDetailPage").then(m => ({ default: m.SupplierSettlementDetailPage })));
 const SupplierListPage = lazy(() => import("../features/supplier/components/pages/SupplierListPage").then(m => ({ default: m.SupplierListPage })));
@@ -119,6 +120,7 @@ export const AdminRoutes: AdminRouteItem[] = [
     { path: "import-batch/detail/:id/line/:lineId", permission: PERMISSIONS.IMPORT_BATCH.VIEW, Component: ImportBatchLineDetailPage },
     { path: "return-batch/list", permissions: [PERMISSIONS.IMPORT_BATCH.VIEW, PERMISSIONS.SUPPLIER.VIEW], Component: ReturnBatchListPage },
     { path: "return-batch/detail/:id", permissions: [PERMISSIONS.IMPORT_BATCH.VIEW, PERMISSIONS.IMPORT_BATCH.CREATE, PERMISSIONS.SUPPLIER.VIEW], Component: ReturnBatchDetailPage },
+    { path: "return-batch/inspect/:id", permissions: [PERMISSIONS.IMPORT_BATCH.VIEW, PERMISSIONS.IMPORT_BATCH.CREATE, PERMISSIONS.SUPPLIER.VIEW], Component: ReturnBatchInspectPage },
     { path: "supplier-settlement/list", permissions: [PERMISSIONS.IMPORT_BATCH.VIEW, PERMISSIONS.SUPPLIER.VIEW], Component: SupplierSettlementListPage },
     { path: "supplier-settlement/detail/:id", permissions: [PERMISSIONS.IMPORT_BATCH.VIEW, PERMISSIONS.SUPPLIER.VIEW], Component: SupplierSettlementDetailPage },
     { path: "supplier/list", permission: PERMISSIONS.SUPPLIER.VIEW, Component: SupplierListPage },

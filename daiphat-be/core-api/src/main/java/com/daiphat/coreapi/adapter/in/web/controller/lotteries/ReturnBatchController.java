@@ -7,6 +7,7 @@ import com.daiphat.coreapi.application.dto.request.lotteries.AttachReturnSerials
 import com.daiphat.coreapi.application.dto.request.lotteries.ConfirmReturnHandoverRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.ConfirmReturnInspectionRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.UpdateReturnBatchLineStatusRequest;
+import com.daiphat.coreapi.application.dto.request.lotteries.UpdateReturnEvidenceRequest;
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.InspectableReturnSerialResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.ReturnBatchResponse;
@@ -130,7 +131,7 @@ public class ReturnBatchController {
                 "Đã xác nhận bàn giao vé trả nhà cung cấp.",
                 returnBatchServicePort.confirmHandover(
                         id,
-                        request != null ? request : new ConfirmReturnHandoverRequest(null),
+                        request != null ? request : new ConfirmReturnHandoverRequest(null, null),
                         principal.getId()
                 )
         );
@@ -172,6 +173,21 @@ public class ReturnBatchController {
         return ApiResponse.success(
                 "Cập nhật trạng thái dòng trả vé thành công.",
                 returnBatchServicePort.updateLineStatus(batchId, lineId, request)
+        );
+    }
+
+    @PostMapping("/{id}/evidence")
+    @PreAuthorize("hasAnyAuthority('importBatch:create')")
+    public ApiResponse<ReturnBatchResponse> updateEvidenceUrl(
+            @PathVariable Long id,
+            @RequestBody UpdateReturnEvidenceRequest request
+    ) {
+        return ApiResponse.success(
+                "Đã cập nhật ảnh biên lai trả vé thành công.",
+                returnBatchServicePort.updateEvidenceUrl(
+                        id,
+                        request != null ? request.returnReceiptEvidenceUrl() : null
+                )
         );
     }
 }

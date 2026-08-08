@@ -94,7 +94,6 @@ export const Footer = () => {
         { label: 'Facebook', icon: 'facebook', href: facebookUrl },
         { label: 'Telegram', icon: 'telegram', href: telegramUrl },
     ].filter((item) => item.href && item.href !== '#');
-
     const supportHours =
         supportOpenTime && supportCloseTime
             ? `${supportOpenTime} - ${supportCloseTime} mỗi ngày`
@@ -229,23 +228,6 @@ export const Footer = () => {
                                 <li className="text-[13px] text-slate-500">Chưa cấu hình thông tin liên hệ.</li>
                             ) : null}
                         </ul>
-                    </div>
-                </div>
-
-                <div className="border-t border-slate-200/80 py-6 mt-8 relative z-10">
-                    <div className="flex flex-col md:flex-row justify-between items-center gap-4 text-slate-500 text-[12px]">
-                        <p>{copyrightText}</p>
-                        <div className="flex items-center gap-6">
-                            {BOTTOM_LINKS.map((item) => (
-                                <Link
-                                    key={item.to}
-                                    to={item.to}
-                                    className="hover:text-[#ee1314] transition-colors duration-200"
-                                >
-                                    {item.label}
-                                </Link>
-                            ))}
-                        </div>
                     </div>
                 </div>
             </div>

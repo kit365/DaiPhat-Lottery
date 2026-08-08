@@ -282,6 +282,14 @@ class ApiClient {
     final statusCode = error.response?.statusCode;
     final responseData = error.response?.data;
 
+    if (statusCode == 401) {
+      return const ApiException('Tên đăng nhập hoặc mật khẩu không chính xác.');
+    }
+
+    if (statusCode == 403) {
+      return const ApiException('Tài khoản của bạn không có quyền truy cập.');
+    }
+
     if (responseData is Map<String, dynamic>) {
       final message = responseData['message'];
       if (message is String && message.isNotEmpty) {
@@ -301,15 +309,15 @@ class ApiClient {
     if (error.type == DioExceptionType.connectionTimeout ||
         error.type == DioExceptionType.receiveTimeout ||
         error.type == DioExceptionType.sendTimeout) {
-      return const ApiException('Yêu cầu đã hết thời gian chờ.');
+      return const ApiException('Yêu cầu đã hết thời gian chờ. Vui lòng kiểm tra lại kết nối mạng.');
     }
 
     if (error.type == DioExceptionType.connectionError) {
-      return const ApiException('Không thể kết nối đến máy chủ.');
+      return const ApiException('Không thể kết nối đến máy chủ. Vui lòng kiểm tra Backend API.');
     }
 
     return ApiException(
-      'Đã xảy ra lỗi khi gọi API.',
+      'Đăng nhập thất bại. Tên đăng nhập hoặc mật khẩu không đúng.',
       statusCode: statusCode,
     );
   }

@@ -20,6 +20,7 @@ public record ReturnBatchResponse(
         LocalDate drawDate,
         Long supplierSettlementId,
         String returnReceiptUrl,
+        String returnReceiptEvidenceUrl,
         com.daiphat.coreapi.domain.model.enums.lottery.ReturnDeliveryMode deliveryMode,
         String deliveryModeLabel,
         Integer totalQuantity,

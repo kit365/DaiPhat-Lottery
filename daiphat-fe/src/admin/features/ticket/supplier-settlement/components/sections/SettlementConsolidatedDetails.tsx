@@ -285,6 +285,7 @@ export const SettlementConsolidatedDetails = ({
                                 <TableCell sx={{ fontWeight: 700, color: '#334155' }}>Trạng thái</TableCell>
                                 <TableCell align="right" sx={{ fontWeight: 700, color: '#334155' }}>Số lượng</TableCell>
                                 <TableCell align="right" sx={{ fontWeight: 700, color: '#166534' }}>Giá trị trả</TableCell>
+                                <TableCell align="center" sx={{ fontWeight: 700, color: '#334155' }}>Biên lai trả</TableCell>
                                 <TableCell align="center" width={80} sx={{ fontWeight: 700, color: '#334155' }}>Thao tác</TableCell>
                             </TableRow>
                         </TableHead>
@@ -307,6 +308,25 @@ export const SettlementConsolidatedDetails = ({
                                     </TableCell>
                                     <TableCell align="right" sx={{ fontWeight: 700, color: '#166534' }}>
                                         {formatImportCost(batch.totalReturnValue)} VNĐ
+                                    </TableCell>
+                                    <TableCell align="center">
+                                        {batch.returnReceiptEvidenceUrl || batch.returnReceiptUrl ? (
+                                            <Chip
+                                                label="Có biên lai"
+                                                size="small"
+                                                color="success"
+                                                variant="outlined"
+                                                sx={{ height: 22, fontSize: '0.68rem', fontWeight: 700 }}
+                                            />
+                                        ) : (
+                                            <Chip
+                                                label="Chưa có"
+                                                size="small"
+                                                color="default"
+                                                variant="outlined"
+                                                sx={{ height: 22, fontSize: '0.68rem', fontWeight: 500 }}
+                                            />
+                                        )}
                                     </TableCell>
                                     <TableCell align="center">
                                         <Tooltip title="Xem chi tiết phiếu trả">

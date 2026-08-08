@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import Image from "next/image";
+import imageLoader from "@/utils/imageLoader";
 import { motion, AnimatePresence } from "framer-motion";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { Search, User as UserIcon, Home, Crosshair, Ticket, Bell, Wallet, ChevronDown, ShoppingCart, BookOpen, Trash2, Sparkles, CalendarDays } from "lucide-react";
@@ -132,6 +134,17 @@ export const Header = () => {
                   imgClassName="w-full h-full rounded-[10px] object-cover bg-white"
                   alt={siteName}
                 />
+                <div className="hidden">
+                  <Image 
+                    unoptimized
+                    src="https://i.ibb.co/YBYnq3HR/z7824247008533-94446d3b6c16598cda67404d805c15c4-removebg-preview.png" 
+                    alt="Đại Phát Logo"
+                    width={38}
+                    height={38}
+                    priority
+                    className="w-[38px] h-[38px] rounded-[10px] object-cover bg-white" 
+                  />
+                </div>
               </div>
               <div className="flex flex-col justify-center">
                   <span className="text-[20px] tracking-tight font-client-display font-black text-[#ee1314] leading-none mb-1">

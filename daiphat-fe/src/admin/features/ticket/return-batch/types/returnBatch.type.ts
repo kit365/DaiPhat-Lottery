@@ -34,6 +34,7 @@ export interface ReturnBatch {
     drawDate: string;
     supplierSettlementId?: number | null;
     returnReceiptUrl?: string | null;
+    returnReceiptEvidenceUrl?: string | null;
     totalQuantity: number;
     totalReturnValue: number;
     returnedBy?: string | null;

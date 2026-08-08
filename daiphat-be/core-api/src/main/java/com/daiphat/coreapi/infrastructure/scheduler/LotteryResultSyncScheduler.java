@@ -69,10 +69,17 @@ public class LotteryResultSyncScheduler {
 
     @Scheduled(cron = "${daiphat.lottery.result-backlog-sync-cron}")
     public void syncHistoricalBacklog() {
-        int backlogSynced = lotteryResultServicePort.syncHistoricalBacklog(backlogBatchSize);
+        try {
+            int backlogSynced = lotteryResultServicePort.syncHistoricalBacklog(backlogBatchSize);
 
-        if (backlogSynced > 0) {
-            log.info("Lottery result backlog scheduler synced backlogResults={}", backlogSynced);
+            if (backlogSynced > 0) {
+                log.info("Lottery result backlog scheduler synced backlogResults={}", backlogSynced);
+            }
+        } catch (Exception e) {
+            String detail = (e instanceof com.daiphat.coreapi.domain.exception.DomainException de && de.getInternalMessage() != null)
+                    ? de.getInternalMessage()
+                    : e.getMessage();
+            log.warn("Lottery result backlog scheduler encounter error: {}", detail);
         }
     }
 
@@ -121,12 +128,20 @@ public class LotteryResultSyncScheduler {
                 continue;
             }
 
-            LotteryResultModel result = lotteryResultServicePort.ensureResultForBoard(station.getId(), today);
-            if (result.getStatus() == LotteryResultStatus.COMPLETED) {
-                continue;
+            try {
+                LotteryResultModel result = lotteryResultServicePort.ensureResultForBoard(station.getId(), today);
+                if (result.getStatus() == LotteryResultStatus.COMPLETED) {
+                    continue;
+                }
+                lotteryResultServicePort.syncResult(result.getId(), LotteryStationSourceType.DEFAULT);
+                syncedCount++;
+            } catch (Exception e) {
+                String detail = (e instanceof com.daiphat.coreapi.domain.exception.DomainException de && de.getInternalMessage() != null)
+                        ? de.getInternalMessage()
+                        : e.getMessage();
+                log.warn("Không thể đồng bộ kết quả xổ số cho đài stationId={}, stationName={}: {}",
+                        station.getId(), station.getName(), detail);
             }
-            lotteryResultServicePort.syncResult(result.getId(), LotteryStationSourceType.DEFAULT);
-            syncedCount++;
         }
         return syncedCount;
     }

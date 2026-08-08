@@ -79,6 +79,13 @@ daiphat:
         base-url: ${DAIPHAT_AI_BASE_URL}
         connect-timeout-ms: 3000
         read-timeout-ms: 5000
+  ticket-vision:
+    service:
+      base-url: ${DAIPHAT_TICKET_VISION_BASE_URL}
+      # OCR on a multi-ticket photo takes 3-10s (doc: "Implementation Considerations & Risks");
+      # longer read timeout than the chat/fortune AI calls above.
+      connect-timeout-ms: 5000
+      read-timeout-ms: 15000
   chat:
     ai:
       confidence-threshold: 0.7

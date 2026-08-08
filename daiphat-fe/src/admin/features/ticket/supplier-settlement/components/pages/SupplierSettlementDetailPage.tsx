@@ -1,9 +1,13 @@
 "use client";
 
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import ArrowBackOutlinedIcon from '@mui/icons-material/ArrowBackOutlined';
 import CalendarTodayOutlinedIcon from '@mui/icons-material/CalendarTodayOutlined';
-import { Avatar, Box, Card, CircularProgress, IconButton, Stack, Typography } from '@mui/material';
+import FactCheckOutlinedIcon from '@mui/icons-material/FactCheckOutlined';
+import ZoomInIcon from '@mui/icons-material/ZoomIn';
+import ReceiptLongOutlinedIcon from '@mui/icons-material/ReceiptLongOutlined';
+import { Avatar, Box, Button, Card, Chip, CircularProgress, Dialog, DialogContent, DialogTitle, Grid, IconButton, Stack, Typography } from '@mui/material';
 import dayjs from 'dayjs';
 import { useParams } from '@/components/router-compat';
 import { Breadcrumb } from '../../../../../components/ui/Breadcrumb';
@@ -16,12 +20,15 @@ import {
     getSupplierSettlementStatusModifier,
 } from '../../utils/settlementLabels';
 import { SettlementConsolidatedDetails } from '../sections/SettlementConsolidatedDetails';
+import { SettlementInspectionDialog } from '../sections/SettlementInspectionDialog';
 import { SettlementKpiCards } from '../sections/SettlementKpiCards';
 
 export const SupplierSettlementDetailPage = () => {
     const navigate = useNavigate();
     const { id } = useParams<{ id: string }>();
-    const { data: overview, isLoading, isError } = useSupplierSettlementOverview(id);
+    const { data: overview, isLoading, isError, refetch } = useSupplierSettlementOverview(id);
+    const [isInspectionOpen, setIsInspectionOpen] = useState(false);
+    const [zoomImage, setZoomImage] = useState<{ url: string; title: string } | null>(null);
 
     if (isLoading) {
         return (
@@ -166,6 +173,25 @@ export const SupplierSettlementDetailPage = () => {
                     </Stack>
 
                     <Stack direction="row" spacing={1.5} alignItems="center">
+                        <Button
+                            variant="contained"
+                            color="primary"
+                            startIcon={<FactCheckOutlinedIcon />}
+                            onClick={() => setIsInspectionOpen(true)}
+                            sx={{
+                                borderRadius: '10px',
+                                textTransform: 'none',
+                                fontWeight: 700,
+                                px: 2,
+                                py: 0.9,
+                                boxShadow: '0 2px 8px rgba(37, 99, 235, 0.25)',
+                                '&:hover': {
+                                    boxShadow: '0 4px 12px rgba(37, 99, 235, 0.35)',
+                                },
+                            }}
+                        >
+                            Tiến hành kiểm tra
+                        </Button>
                         {settlement.isReturnExpired && (
                             <span className="admin-status-badge admin-status-badge--cancelled">
                                 Quá hạn trả vé
@@ -276,6 +302,18 @@ export const SupplierSettlementDetailPage = () => {
                     returnBatches={overview.returnBatches || []}
                 />
             </Box>
+
+            {/* Modal Dialog Tiến hành kiểm tra đối soát */}
+            <SettlementInspectionDialog
+                open={isInspectionOpen}
+                onClose={() => setIsInspectionOpen(false)}
+                settlement={settlement}
+                kpis={overview.kpis}
+                importBatches={overview.importBatches || []}
+                returnBatches={overview.returnBatches || []}
+                inventoryByStation={overview.inventoryByStation || []}
+                onRefresh={() => void refetch()}
+            />
         </Box>
     );
 };

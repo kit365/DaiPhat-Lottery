@@ -27,6 +27,7 @@ enum AppRoute {
   myTicketDetail,
   myOrders,
   orderDetail,
+  adminScan,
 }
 
 extension AppRouteDefinition on AppRoute {
@@ -88,6 +89,8 @@ extension AppRouteDefinition on AppRoute {
         return '/profile/orders';
       case AppRoute.orderDetail:
         return '/profile/orders/:id';
+      case AppRoute.adminScan:
+        return '/admin/scan';
     }
   }
 
@@ -149,6 +152,8 @@ extension AppRouteDefinition on AppRoute {
         return 'my_orders';
       case AppRoute.orderDetail:
         return 'order_detail';
+      case AppRoute.adminScan:
+        return 'admin_scan';
     }
   }
 
@@ -179,6 +184,7 @@ extension AppRouteDefinition on AppRoute {
       case AppRoute.myTicketDetail:
       case AppRoute.myOrders:
       case AppRoute.orderDetail:
+      case AppRoute.adminScan:
         return true;
       case AppRoute.home:
       case AppRoute.buyTicket:

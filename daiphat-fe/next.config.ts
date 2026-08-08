@@ -1,10 +1,18 @@
 import type { NextConfig } from 'next';
 import path from 'path';
-import bundleAnalyzer from '@next/bundle-analyzer';
 
-const withBundleAnalyzer = bundleAnalyzer({
-  enabled: process.env.ANALYZE === 'true',
-});
+const withBundleAnalyzer = (config: NextConfig): NextConfig => {
+  if (process.env.ANALYZE === 'true') {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const bundleAnalyzer = require('@next/bundle-analyzer');
+      return bundleAnalyzer({ enabled: true })(config);
+    } catch {
+      console.warn('Warning: @next/bundle-analyzer is not installed. Skipping bundle analysis.');
+    }
+  }
+  return config;
+};
 
 // Dev API calls use a relative base URL (same-origin) so HttpOnly cookies work.
 // Proxy /api/* to the Spring backend (defaults to local core-api).
