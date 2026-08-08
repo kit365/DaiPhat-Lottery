@@ -1,7 +1,8 @@
 import { API_PREFIX, API_VERSION } from '../../api/api.constants';
 
 export const DEFAULT_WS_SERVER_URL = 'http://localhost:8080';
-export const RECONNECT_DELAY_MS = 15000;
+/** Base delay between SockJS/STOMP reconnect attempts (avoids hammering Next proxy when BE is down). */
+export const RECONNECT_DELAY_MS = 30000;
 export const HEARTBEAT_MS = 10000;
 export const WS_ENDPOINT_PATH = `${API_PREFIX}${API_VERSION}/ws`;
 
