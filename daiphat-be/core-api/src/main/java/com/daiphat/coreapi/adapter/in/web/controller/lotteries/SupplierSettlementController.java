@@ -2,6 +2,7 @@ package com.daiphat.coreapi.adapter.in.web.controller.lotteries;
 
 import com.daiphat.coreapi.adapter.in.web.constants.ApiConstants;
 import com.daiphat.coreapi.adapter.in.web.response.ApiResponse;
+import com.daiphat.coreapi.application.dto.request.lotteries.UpdateSupplierSettlementReceiptRequest;
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.SupplierSettlementOverviewResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.SupplierSettlementResponse;
@@ -13,6 +14,8 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -69,5 +72,20 @@ public class SupplierSettlementController {
     @PreAuthorize("hasAnyAuthority('supplier:view', 'importBatch:view')")
     public ApiResponse<SupplierSettlementResponse> getById(@PathVariable Long id) {
         return ApiResponse.success(null, supplierSettlementServicePort.getById(id));
+    }
+
+    @PostMapping("/{id}/receipt")
+    @PreAuthorize("hasAnyAuthority('importBatch:create')")
+    public ApiResponse<SupplierSettlementResponse> updateReceiptUrl(
+            @PathVariable Long id,
+            @RequestBody UpdateSupplierSettlementReceiptRequest request
+    ) {
+        return ApiResponse.success(
+                "Đã cập nhật biên lai đối soát nhà cung cấp thành công.",
+                supplierSettlementServicePort.updateReceiptUrl(
+                        id,
+                        request != null ? request.supplierSettlementReceiptUrl() : null
+                )
+        );
     }
 }

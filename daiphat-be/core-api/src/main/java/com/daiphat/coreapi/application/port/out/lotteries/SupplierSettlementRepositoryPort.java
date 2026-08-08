@@ -17,6 +17,8 @@ public interface SupplierSettlementRepositoryPort {
 
     Optional<SupplierSettlementModel> findBySupplierIdAndPeriodFrom(Long supplierId, LocalDate periodFrom);
 
+    java.util.List<SupplierSettlementModel> findByStatus(SupplierSettlementStatus status);
+
     Page<SupplierSettlementModel> findAll(
             Pageable pageable,
             Long lotterySupplierId,
@@ -46,4 +48,7 @@ public interface SupplierSettlementRepositoryPort {
     BigDecimal sumInStockGoodImportCostBySettlementId(Long settlementId);
 
     BigDecimal sumExpiredReturnValueBySettlementId(Long settlementId);
+
+    /** Next value from {@code supplier_settlement_code_seq} for unique DS- codes. */
+    long nextSettlementCodeSequence();
 }

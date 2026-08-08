@@ -34,6 +34,12 @@ public interface SupplierSettlementServicePort {
      */
     void recalculateAmounts(Long settlementId);
 
+    /**
+     * Scan open settlements past supplier returnCutOffTime and mark isReturnExpired = true,
+     * so return tickets are forfeited and full import value is payable.
+     */
+    int updateExpiredSettlements();
+
     PageResponse<SupplierSettlementResponse> getAll(
             int page,
             int size,
@@ -52,4 +58,10 @@ public interface SupplierSettlementServicePort {
      * Full read-only overview: settlement header, KPIs, linked batches, inventory by station.
      */
     SupplierSettlementOverviewResponse getOverview(Long id);
+
+    /**
+     * Update settlement-level receipt/evidence URL (independent from return-batch returnEvidenceUrl).
+     * Empty/blank clears the field (persisted as null).
+     */
+    SupplierSettlementResponse updateReceiptUrl(Long settlementId, String supplierSettlementReceiptUrl);
 }
