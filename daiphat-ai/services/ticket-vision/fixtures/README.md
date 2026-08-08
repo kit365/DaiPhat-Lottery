@@ -12,7 +12,7 @@ regexes, status thresholds) but says nothing about real-world accuracy.
 
 Once real photos are available:
 
-- Add them here as `tests/fixtures/<condition>/<n>.jpg` (e.g. `blurry/01.jpg`,
+- Add them here as `fixtures/<condition>/<n>.jpg` (e.g. `blurry/01.jpg`,
   `shadow/01.jpg`, `multi-ticket/01.jpg`).
 - Add a `tests/test_real_samples.py` that runs the full
   `TicketScanService.scan_image` pipeline (with real EasyOCR/PaddleOCR, not

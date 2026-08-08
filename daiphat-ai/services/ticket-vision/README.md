@@ -58,7 +58,7 @@ placeholder defaults — see the Known limitations section.
   conditions; this environment had none, so `ContourTicketDetector`'s
   aspect-ratio band, `GenericLayoutStrategy`'s header/body split, and
   `TicketParser`'s field-disambiguation heuristics are best-effort against
-  the *described* format, not measured. See `tests/fixtures/README.md`.
+  the *described* format, not measured. See `fixtures/README.md`.
 - **Station master data**: Java should always pass `activeStations` in the
   `/v1/scan` request's `metadata` field — this service has no DB access and
   falls back to a small illustrative seed list
@@ -72,9 +72,19 @@ placeholder defaults — see the Known limitations section.
 ## Tests
 
 `pytest -q services/ticket-vision` from the `daiphat-ai/` root (see
-`daiphat-ai/README.md` for environment setup). Most tests
-(`test_ticket_parser.py`, `test_format_validator.py`, `test_status_resolver.py`,
-`test_station_matcher.py`, `test_fallback_ocr_strategy.py`, `test_scan_router.py`)
-run against fakes/stubs and don't need EasyOCR/PaddleOCR installed.
+`daiphat-ai/README.md` for environment setup). Test modules live flat at the
+service root next to the code they cover, matching `services/chat-bot`.
+Most tests (`test_ticket_parser.py`, `test_format_validator.py`,
+`test_status_resolver.py`, `test_station_matcher.py`,
+`test_fallback_ocr_strategy.py`, `test_scan_router.py`) run against
+fakes/stubs and don't need EasyOCR/PaddleOCR installed.
 `test_contour_detector.py` needs `opencv-python-headless` + `numpy` and
 uses `pytest.importorskip("cv2")` to skip gracefully if they're missing.
+
+## Layout
+
+Mirrors `services/chat-bot`: `main.py` is the FastAPI entrypoint at the
+service root (`uvicorn main:app --app-dir services/ticket-vision`), shared
+`contracts/`, `infra/` and `libs/` come from the `daiphat-ai/` root via
+`PYTHONPATH`, and business code is grouped under `domain/` with wire types
+under `dto/`.

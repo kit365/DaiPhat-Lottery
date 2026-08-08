@@ -24,14 +24,19 @@ DaiPhat-Lottery-Platform/
 | `services/` | One deployable microservice per feature |
 | `services/chat-bot/` | NLP intent classification for the web chat widget |
 | `services/ticket-vision/` | Camera ticket scan (DP-269) — Phase 1, port 8090 |
-| `contracts/` | OpenAPI specs shared with Java and mobile |
-| `infra/` | Docker, model download scripts |
-| `scripts/` | Dev and lint helpers |
+| `contracts/` | Response envelopes shared with Java and mobile (`APIResponse`) |
+| `infra/` | Shared runtime config (`config.py` `Settings`) and logging |
+| `scripts/` | Dev run helpers (`run_chat_bot.sh`, `run_ticket_vision.sh`) |
 
 ## Conventions
 
 - **libs/** = reusable code imported by services
-- **services/** = independent FastAPI apps with own `Dockerfile`
+- **services/** = independent FastAPI apps, each with `main.py` at the service
+  root as its entrypoint (`uvicorn main:app --app-dir services/<name>`),
+  `domain/` for business code, `dto/request` + `dto/response` for wire types,
+  and `test_*.py` flat at the service root
+- Shared `contracts/`, `infra/`, `libs/` are resolved from the `daiphat-ai/`
+  root via `PYTHONPATH`, never copied into a service
 - Mobile calls Java; Java calls Python (not direct mobile → Python)
 
 ## Roadmap (DP-269)
@@ -39,9 +44,9 @@ DaiPhat-Lottery-Platform/
 | Phase | Scope | Status |
 |-------|-------|--------|
 | 0 | Monorepo skeleton | Done |
-| 1 | FastAPI `ticket-vision` + `/health` + `/v1/scan`: OpenCV contour detection (MVP), EasyOCR with a PaddleOCR fallback strategy, station fuzzy matching, Layer-1 format validation, green/yellow/red status resolution | Done — not yet calibrated against real ticket photos (see `services/ticket-vision/tests/fixtures/README.md`); not yet wired into production CD (`docker-compose.prod.yml` / `ai-deploy.yml`) |
+| 1 | FastAPI `ticket-vision` + `/health` + `/v1/scan`: OpenCV contour detection (MVP), EasyOCR with a PaddleOCR fallback strategy, station fuzzy matching, Layer-1 format validation, green/yellow/red status resolution | Done — not yet calibrated against real ticket photos (see `services/ticket-vision/fixtures/README.md`); not yet wired into production CD (`docker-compose.prod.yml` / `ai-deploy.yml`) |
 | 2 | Fine-tuned YOLOv8 detector for overlapping/cluttered photos; per-station OCR region layouts | Not started — `TicketDetectorFactory`/`LayoutStrategyFactory` are the seams it plugs into |
-| 3 | Java `core-api` integration + Flutter scan UI | Not started |
+| 3 | Java `core-api` integration + Flutter scan UI | Java side done (`TicketVisionAdapter` → `POST /v1/scan`, Layer-2 business validation in `TicketScanImportService`); Flutter scan UI not started |
 
 ## Local setup
 
