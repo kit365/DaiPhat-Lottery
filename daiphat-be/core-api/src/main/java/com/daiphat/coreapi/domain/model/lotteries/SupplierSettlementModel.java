@@ -25,6 +25,7 @@ public class SupplierSettlementModel {
     private String supplierCode;
     private LocalDate periodFrom;
     private LocalDate periodTo;
+    private String supplierSettlementCode;
     @Builder.Default
     private BigDecimal totalImportValue = BigDecimal.ZERO;
     @Builder.Default
@@ -33,6 +34,7 @@ public class SupplierSettlementModel {
     private BigDecimal totalPaidAmount = BigDecimal.ZERO;
     @Builder.Default
     private BigDecimal remainingAmount = BigDecimal.ZERO;
+    private String supplierSettlementReceiptUrl;
     @Builder.Default
     private boolean isReturnExpired = false;
     @Builder.Default

@@ -13,6 +13,7 @@ import com.daiphat.coreapi.application.port.out.lotteries.SupplierSettlementRepo
 import com.daiphat.coreapi.domain.model.enums.lottery.SupplierSettlementStatus;
 import com.daiphat.coreapi.domain.model.lotteries.LotterySupplierModel;
 import com.daiphat.coreapi.domain.model.lotteries.SupplierSettlementModel;
+import com.daiphat.coreapi.shared.util.SupplierSettlementCodeGenerator;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -52,6 +53,8 @@ class SupplierSettlementServiceTest {
     private ImportBatchApplicationMapper importBatchApplicationMapper;
     @Mock
     private ReturnBatchApplicationMapper returnBatchApplicationMapper;
+    @Mock
+    private SupplierSettlementCodeGenerator supplierSettlementCodeGenerator;
 
     @InjectMocks
     private SupplierSettlementService supplierSettlementService;
@@ -90,6 +93,7 @@ class SupplierSettlementServiceTest {
                 .build();
         when(supplierSettlementRepositoryPort.findBySupplierIdAndPeriodFrom(7L, drawDate))
                 .thenReturn(Optional.empty());
+        when(supplierSettlementCodeGenerator.generateCode(drawDate)).thenReturn("DS-20260731-0001");
         when(supplierSettlementRepositoryPort.save(any())).thenAnswer(invocation -> {
             SupplierSettlementModel model = invocation.getArgument(0);
             model.setId(11L);
@@ -103,6 +107,7 @@ class SupplierSettlementServiceTest {
         SupplierSettlementModel saved = captor.getValue();
         assertThat(saved.getPeriodFrom()).isEqualTo(drawDate);
         assertThat(saved.getPeriodTo()).isEqualTo(drawDate.plusDays(5));
+        assertThat(saved.getSupplierSettlementCode()).isEqualTo("DS-20260731-0001");
         assertThat(saved.getStatus()).isEqualTo(SupplierSettlementStatus.OPEN);
         assertThat(result.getId()).isEqualTo(11L);
     }
@@ -117,6 +122,7 @@ class SupplierSettlementServiceTest {
                 .build();
         when(supplierSettlementRepositoryPort.findBySupplierIdAndPeriodFrom(7L, drawDate))
                 .thenReturn(Optional.empty());
+        when(supplierSettlementCodeGenerator.generateCode(drawDate)).thenReturn("DS-20260731-0002");
         when(supplierSettlementRepositoryPort.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
         supplierSettlementService.findOrCreateForImport(supplier, drawDate);

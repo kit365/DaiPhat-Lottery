@@ -46,6 +46,9 @@ public class SupplierSettlementEntity extends BaseEntity {
     @Column(name = "period_to", nullable = false)
     private LocalDate periodTo;
 
+    @Column(name = "supplier_settlement_code", nullable = false, length = 100, unique = true)
+    private String supplierSettlementCode;
+
     @Column(name = "total_import_value", nullable = false, precision = 18, scale = 3)
     @Builder.Default
     private BigDecimal totalImportValue = BigDecimal.ZERO;
@@ -61,6 +64,9 @@ public class SupplierSettlementEntity extends BaseEntity {
     @Column(name = "remaining_amount", nullable = false, precision = 18, scale = 3)
     @Builder.Default
     private BigDecimal remainingAmount = BigDecimal.ZERO;
+
+    @Column(name = "supplier_settlement_receipt_url", length = 500)
+    private String supplierSettlementReceiptUrl;
 
     @Column(name = "is_return_expired", nullable = false)
     @Builder.Default

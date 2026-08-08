@@ -20,10 +20,12 @@ public class SupplierSettlementPersistenceMapper {
                 .supplierCode(supplier != null ? supplier.getCode() : null)
                 .periodFrom(entity.getPeriodFrom())
                 .periodTo(entity.getPeriodTo())
+                .supplierSettlementCode(entity.getSupplierSettlementCode())
                 .totalImportValue(entity.getTotalImportValue())
                 .totalReturnValue(entity.getTotalReturnValue())
                 .totalPaidAmount(entity.getTotalPaidAmount())
                 .remainingAmount(entity.getRemainingAmount())
+                .supplierSettlementReceiptUrl(entity.getSupplierSettlementReceiptUrl())
                 .isReturnExpired(entity.isReturnExpired())
                 .expiredReturnValue(entity.getExpiredReturnValue())
                 .status(entity.getStatus())
@@ -51,10 +53,12 @@ public class SupplierSettlementPersistenceMapper {
                 .lotterySupplier(supplier)
                 .periodFrom(model.getPeriodFrom())
                 .periodTo(model.getPeriodTo())
+                .supplierSettlementCode(model.getSupplierSettlementCode())
                 .totalImportValue(model.getTotalImportValue())
                 .totalReturnValue(model.getTotalReturnValue())
                 .totalPaidAmount(model.getTotalPaidAmount())
                 .remainingAmount(model.getRemainingAmount())
+                .supplierSettlementReceiptUrl(model.getSupplierSettlementReceiptUrl())
                 .isReturnExpired(model.isReturnExpired())
                 .expiredReturnValue(model.getExpiredReturnValue())
                 .status(model.getStatus())
@@ -71,10 +75,12 @@ public class SupplierSettlementPersistenceMapper {
     public void updateEntityFromModel(SupplierSettlementModel model, SupplierSettlementEntity entity) {
         entity.setPeriodFrom(model.getPeriodFrom());
         entity.setPeriodTo(model.getPeriodTo());
+        entity.setSupplierSettlementCode(model.getSupplierSettlementCode());
         entity.setTotalImportValue(model.getTotalImportValue());
         entity.setTotalReturnValue(model.getTotalReturnValue());
         entity.setTotalPaidAmount(model.getTotalPaidAmount());
         entity.setRemainingAmount(model.getRemainingAmount());
+        entity.setSupplierSettlementReceiptUrl(model.getSupplierSettlementReceiptUrl());
         entity.setReturnExpired(model.isReturnExpired());
         entity.setExpiredReturnValue(model.getExpiredReturnValue());
         entity.setStatus(model.getStatus());

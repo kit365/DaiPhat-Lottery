@@ -55,6 +55,13 @@ public class SupplierSettlementRepositoryAdapter implements SupplierSettlementRe
     }
 
     @Override
+    public java.util.List<SupplierSettlementModel> findByStatus(SupplierSettlementStatus status) {
+        return supplierSettlementRepository.findByStatusAndDeletedAtIsNull(status).stream()
+                .map(supplierSettlementPersistenceMapper::toDomain)
+                .toList();
+    }
+
+    @Override
     public Page<SupplierSettlementModel> findAll(
             Pageable pageable,
             Long lotterySupplierId,
@@ -107,5 +114,10 @@ public class SupplierSettlementRepositoryAdapter implements SupplierSettlementRe
     public BigDecimal sumExpiredReturnValueBySettlementId(Long settlementId) {
         BigDecimal sum = supplierSettlementRepository.sumExpiredReturnValueBySettlementId(settlementId);
         return sum != null ? sum : BigDecimal.ZERO;
+    }
+
+    @Override
+    public long nextSettlementCodeSequence() {
+        return supplierSettlementRepository.nextSettlementCodeSequence();
     }
 }

@@ -1,5 +1,6 @@
 package com.daiphat.coreapi.infrastructure.persistence.repository.lotteries;
 
+import com.daiphat.coreapi.domain.model.enums.lottery.SupplierSettlementStatus;
 import com.daiphat.coreapi.infrastructure.persistence.entity.lotteries.SupplierSettlementEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
@@ -17,6 +18,8 @@ public interface SupplierSettlementRepository
             Long lotterySupplierId,
             LocalDate periodFrom
     );
+
+    java.util.List<SupplierSettlementEntity> findByStatusAndDeletedAtIsNull(SupplierSettlementStatus status);
 
     Optional<SupplierSettlementEntity> findByIdAndDeletedAtIsNull(Long id);
 
@@ -109,4 +112,7 @@ public interface SupplierSettlementRepository
               )
             """)
     BigDecimal sumExpiredReturnValueBySettlementId(@Param("settlementId") Long settlementId);
+
+    @Query(value = "SELECT nextval('supplier_settlement_code_seq')", nativeQuery = true)
+    long nextSettlementCodeSequence();
 }
