@@ -1,13 +1,12 @@
 "use client";
 
-import { Box, Stack, Typography } from '@mui/material';
+import { Box, Stack, Typography, FormControlLabel, Switch } from '@mui/material';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useEffect, useMemo, useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, Controller } from 'react-hook-form';
 import { useNavigate, useParams } from '@/components/router-compat';
 import { toast } from 'react-toastify';
-import { Breadcrumb } from '../../../../components/ui/Breadcrumb';
-import { Title } from '../../../../components/ui/Title';
+import { PageHeader } from '../../../../components/ui/PageHeader';
 import { CollapsibleCard } from '../../../../components/ui/CollapsibleCard';
 import { LoadingButton } from '../../../../components/ui/LoadingButton';
 import { ROUTES } from '../../../../constants/routes';
@@ -153,14 +152,14 @@ export const SupplierEditPage = () => {
 
     return (
         <Box sx={{ maxWidth: 900, mx: 'auto' }}>
-            <Breadcrumb
-                items={[
+            <PageHeader
+                title={`Sửa nhà cung cấp #${supplier.id}`}
+                breadcrumbItems={[
                     { label: 'Vé số', to: ROUTES.ADMIN.TICKETS.LIST },
                     { label: 'Nhà cung cấp', to: ROUTES.ADMIN.SUPPLIER.LIST },
                     { label: `Sửa #${supplier.id}` },
                 ]}
             />
-            <Title title={`Sửa nhà cung cấp #${supplier.id}`} />
 
             <form onSubmit={handleSubmit(onSubmit)} noValidate>
                 <CollapsibleCard title="Thông tin nhà cung cấp" expanded onToggle={() => undefined}>
@@ -169,17 +168,44 @@ export const SupplierEditPage = () => {
                             control={control}
                             missingFields={missingFields}
                             onActiveToggle={handleActiveToggle}
-                        />
-                        <LoadingButton
-                            type="submit"
-                            variant="contained"
-                            loading={isPending}
-                            label="Lưu thay đổi"
-                            loadingLabel="Đang lưu..."
-                            sx={{ alignSelf: 'flex-start' }}
+                            hideIsActive={true}
                         />
                     </Stack>
                 </CollapsibleCard>
+                
+                <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mt: 3 }}>
+                    <Controller
+                        name="isActive"
+                        control={control}
+                        render={({ field }) => (
+                            <FormControlLabel
+                                control={
+                                    <Switch
+                                        checked={field.value}
+                                        onChange={(e) => {
+                                            const nextActive = e.target.checked;
+                                            if (nextActive && !handleActiveToggle(true)) {
+                                                return;
+                                            }
+                                            if (!nextActive) {
+                                                handleActiveToggle(false);
+                                            }
+                                            field.onChange(nextActive);
+                                        }}
+                                    />
+                                }
+                                label={field.value ? 'Hoạt động' : 'Ngừng hoạt động'}
+                            />
+                        )}
+                    />
+                    <LoadingButton
+                        type="submit"
+                        variant="contained"
+                        loading={isPending}
+                        label="Lưu thay đổi"
+                        loadingLabel="Đang lưu..."
+                    />
+                </Stack>
             </form>
         </Box>
     );

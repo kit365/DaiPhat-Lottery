@@ -380,6 +380,55 @@ export const adminTheme = createTheme({
                 },
             },
         },
+        MuiSwitch: {
+            styleOverrides: {
+                root: {
+                    width: '36px !important',
+                    height: '20px !important',
+                    padding: '0 !important',
+                    margin: '8px !important',
+                },
+                switchBase: {
+                    padding: '0 !important',
+                    margin: '2px !important',
+                    transitionDuration: '300ms',
+                    '&.Mui-checked': {
+                        transform: 'translateX(16px) !important',
+                        color: '#fff !important',
+                        '& + .MuiSwitch-track': {
+                            backgroundColor: '#FF3030 !important',
+                            opacity: '1 !important',
+                            border: '0 !important',
+                        },
+                        '&.Mui-disabled + .MuiSwitch-track': {
+                            opacity: '0.5 !important',
+                        },
+                    },
+                    '&.Mui-focusVisible .MuiSwitch-thumb': {
+                        color: '#FF3030 !important',
+                        border: '4px solid #fff !important',
+                    },
+                    '&.Mui-disabled .MuiSwitch-thumb': {
+                        color: '#f5f5f5 !important',
+                    },
+                    '&.Mui-disabled + .MuiSwitch-track': {
+                        opacity: '0.7 !important',
+                    },
+                },
+                thumb: {
+                    boxSizing: 'border-box',
+                    width: '16px !important',
+                    height: '16px !important',
+                    boxShadow: '0 2px 4px 0 rgb(0 35 11 / 20%) !important',
+                },
+                track: {
+                    borderRadius: '10px !important',
+                    backgroundColor: '#919eab7a !important',
+                    opacity: '1 !important',
+                    transition: 'background-color 500ms',
+                },
+            },
+        },
         MuiDataGrid: {
             defaultProps: {
                 disableColumnMenu: true,

@@ -9,9 +9,9 @@ import {
     TextField,
     Typography,
 } from '@mui/material';
-import { TimePicker } from '@mui/x-date-pickers';
 import dayjs from 'dayjs';
 import { Control, Controller, useWatch } from 'react-hook-form';
+import { AdminTimePicker } from '../../../../components/ui/AdminTimePicker';
 import { SupplierFormValues } from '../../schemas/supplier.schema';
 import { SUPPLIER_TYPE_LABELS } from '../../utils/supplierLabels';
 import {
@@ -78,7 +78,7 @@ const PaymentTermField = ({
                     </Typography>
                     <Typography variant="caption" color="text.secondary">
                         {isSameDayMode
-                            ? 'Mặc định: Thanh toán ngay trong ngày quay vé (0 ngày)'
+                            ? 'Thanh toán ngay trong ngày quay vé'
                             : `Thanh toán theo kỳ dài hạn (${field.value || 0} ngày)`}
                     </Typography>
                 </Box>
@@ -400,7 +400,7 @@ export const SupplierFormFields = ({
                     name="importAllowFrom"
                     control={control}
                     render={({ field, fieldState }) => (
-                        <TimePicker
+                        <AdminTimePicker
                             label="Giờ cho phép nhập vé"
                             value={field.value ? dayjs(`2000-01-01T${field.value}`) : null}
                             onChange={(newValue) => {
@@ -424,7 +424,7 @@ export const SupplierFormFields = ({
                     name="returnCutOffTime"
                     control={control}
                     render={({ field, fieldState }) => (
-                        <TimePicker
+                        <AdminTimePicker
                             label="Hạn trả vé"
                             value={field.value ? dayjs(`2000-01-01T${field.value}`) : null}
                             minTime={minReturnCutOffTime}
@@ -449,7 +449,7 @@ export const SupplierFormFields = ({
                     name="paymentCutOffTime"
                     control={control}
                     render={({ field, fieldState }) => (
-                        <TimePicker
+                        <AdminTimePicker
                             label="Giờ thanh toán"
                             value={field.value ? dayjs(`2000-01-01T${field.value}`) : null}
                             minTime={minPaymentCutOffTime}

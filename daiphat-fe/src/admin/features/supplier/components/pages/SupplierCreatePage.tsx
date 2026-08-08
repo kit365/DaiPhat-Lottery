@@ -1,13 +1,12 @@
 "use client";
 
-import { Box, Stack } from '@mui/material';
+import { Box, Stack, FormControlLabel, Switch } from '@mui/material';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMemo, useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, Controller } from 'react-hook-form';
 import { useNavigate } from '@/components/router-compat';
 import { toast } from 'react-toastify';
-import { Breadcrumb } from '../../../../components/ui/Breadcrumb';
-import { Title } from '../../../../components/ui/Title';
+import { PageHeader } from '../../../../components/ui/PageHeader';
 import { CollapsibleCard } from '../../../../components/ui/CollapsibleCard';
 import { LoadingButton } from '../../../../components/ui/LoadingButton';
 import { ROUTES } from '../../../../constants/routes';
@@ -105,14 +104,14 @@ export const SupplierCreatePage = () => {
 
     return (
         <Box sx={{ maxWidth: 900, mx: 'auto' }}>
-            <Breadcrumb
-                items={[
+            <PageHeader
+                title="Thêm nhà cung cấp"
+                breadcrumbItems={[
                     { label: 'Vé số', to: ROUTES.ADMIN.TICKETS.LIST },
                     { label: 'Nhà cung cấp', to: ROUTES.ADMIN.SUPPLIER.LIST },
                     { label: 'Thêm mới' },
                 ]}
             />
-            <Title title="Thêm nhà cung cấp" />
 
             <form onSubmit={handleSubmit(onSubmit)} noValidate>
                 <CollapsibleCard title="Thông tin nhà cung cấp" expanded onToggle={() => undefined}>
@@ -123,16 +122,42 @@ export const SupplierCreatePage = () => {
                             onActiveToggle={handleActiveToggle}
                             hideIsActive={true}
                         />
-                        <LoadingButton
-                            type="submit"
-                            variant="contained"
-                            loading={isPending}
-                            label="Lưu"
-                            loadingLabel="Đang lưu..."
-                            sx={{ alignSelf: 'flex-end' }}
-                        />
                     </Stack>
                 </CollapsibleCard>
+                
+                <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mt: 3 }}>
+                    <Controller
+                        name="isActive"
+                        control={control}
+                        render={({ field }) => (
+                            <FormControlLabel
+                                control={
+                                    <Switch
+                                        checked={field.value}
+                                        onChange={(e) => {
+                                            const nextActive = e.target.checked;
+                                            if (nextActive && !handleActiveToggle(true)) {
+                                                return;
+                                            }
+                                            if (!nextActive) {
+                                                handleActiveToggle(false);
+                                            }
+                                            field.onChange(nextActive);
+                                        }}
+                                    />
+                                }
+                                label={field.value ? 'Hoạt động' : 'Ngừng hoạt động'}
+                            />
+                        )}
+                    />
+                    <LoadingButton
+                        type="submit"
+                        variant="contained"
+                        loading={isPending}
+                        label="Lưu"
+                        loadingLabel="Đang lưu..."
+                    />
+                </Stack>
             </form>
         </Box>
     );
