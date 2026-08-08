@@ -1,7 +1,6 @@
 import { Button } from '@mui/material';
 import { Icon } from '@iconify/react';
-import { Title } from '../../../../components/ui/Title';
-import { Breadcrumb } from '../../../../components/ui/Breadcrumb';
+import { PageHeader } from '../../../../components/ui/PageHeader';
 import { prefixAdmin } from '../../../../constants/routes';
 import { confirmAction } from '../../../../utils/swal';
 import {
@@ -16,17 +15,14 @@ export const NotificationListPage = () => {
 
     return (
         <>
-            <div className="mb-[calc(5*var(--spacing))] gap-[calc(2*var(--spacing))] flex items-start justify-end">
-                <div className="mr-auto">
-                    <Title title="Thông báo" />
-                    <Breadcrumb
-                        items={[
+            <PageHeader
+                title="Thông báo"
+                breadcrumbItems={[
                             { label: 'Bảng điều khiển', to: `/${prefixAdmin}` },
                             { label: 'Thông báo' },
                         ]}
-                    />
-                </div>
-                <div style={{ display: 'flex', gap: '16px' }}>
+                action={
+                    <div style={{ display: 'flex', gap: '16px' }}>
                     <Button
                         onClick={() => {
                             confirmAction(
@@ -79,7 +75,8 @@ export const NotificationListPage = () => {
                         Đánh dấu đã đọc tất cả
                     </Button>
                 </div>
-            </div>
+                }
+            />
 
             <NotificationList />
         </>

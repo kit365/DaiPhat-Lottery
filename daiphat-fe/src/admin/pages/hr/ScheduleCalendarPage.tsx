@@ -23,8 +23,7 @@ import { Icon } from '@iconify/react';
 import AddIcon from '@mui/icons-material/Add';
 import dayjs from 'dayjs';
 import { toast } from 'react-toastify';
-import { Title } from "../../components/ui/Title";
-import { Breadcrumb } from "../../components/ui/Breadcrumb";
+import { PageHeader } from "../../components/ui/PageHeader";
 import { prefixAdmin } from "../../constants/routes";
 import { confirmDelete } from "../../utils/swal";
 import { useCalendarData, useCreateSchedule, useUpdateSchedule, useBulkCreateSchedules, useDeleteSchedule, useBulkDeleteSchedules } from './hooks/useSchedules';
@@ -218,62 +217,60 @@ export const ScheduleCalendarPage = () => {
 
     return (
         <Box sx={{ p: "calc(3 * var(--spacing))" }}>
-            <Box sx={{ mb: '40px', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
-                <Box sx={{ flexGrow: 1 }}>
-                    <Title title="Lịch làm việc nhân viên" />
-                    <Breadcrumb
-                        items={[
-                            { label: "Dashboard", to: `/${prefixAdmin}` },
-                            { label: "Lịch làm việc" }
-                        ]}
-                    />
-                </Box>
-                <Box sx={{ display: 'flex', gap: '12px' }}>
-                    <Button
-                        variant="outlined"
-                        startIcon={<Icon icon="solar:calendar-add-bold-duotone" width={22} />}
-                        onClick={() => setOpenBulkDialog(true)}
-                        sx={{
-                            ...primaryButtonStyles,
-                            bgcolor: 'transparent',
-                            color: 'var(--palette-text-primary)',
-                            borderColor: 'var(--palette-background-neutral)',
-                            '&:hover': {
-                                bgcolor: 'var(--palette-action-hover)',
-                                borderColor: 'var(--palette-text-primary)',
-                            }
-                        }}
-                    >
-                        Phân ca hàng loạt
-                    </Button>
-                    <Button
-                        variant="outlined"
-                        color="error"
-                        startIcon={<Icon icon="solar:trash-bin-trash-bold-duotone" width={22} />}
-                        onClick={() => setOpenBulkDeleteDialog(true)}
-                        sx={{
-                            ...primaryButtonStyles,
-                            bgcolor: 'transparent',
-                            color: 'var(--palette-error-main)',
-                            borderColor: alpha('#FF5630', 0.24),
-                            '&:hover': {
-                                bgcolor: alpha('#FF5630', 0.08),
-                                borderColor: 'var(--palette-error-main)',
-                            }
-                        }}
-                    >
-                        Xóa nhiều ca
-                    </Button>
-                    <Button
-                        variant="contained"
-                        startIcon={<AddIcon />}
-                        onClick={() => handleOpenDialog()}
-                        sx={primaryButtonStyles}
-                    >
-                        Phân ca mới
-                    </Button>
-                </Box>
-            </Box>
+            <PageHeader
+                title="Lịch làm việc nhân viên"
+                breadcrumbItems={[
+                    { label: "Dashboard", to: `/${prefixAdmin}` },
+                    { label: "Lịch làm việc" }
+                ]}
+                action={
+                    <Box sx={{ display: 'flex', gap: '12px' }}>
+                        <Button
+                            variant="outlined"
+                            startIcon={<Icon icon="solar:calendar-add-bold-duotone" width={22} />}
+                            onClick={() => setOpenBulkDialog(true)}
+                            sx={{
+                                ...primaryButtonStyles,
+                                bgcolor: 'transparent',
+                                color: 'var(--palette-text-primary)',
+                                borderColor: 'var(--palette-background-neutral)',
+                                '&:hover': {
+                                    bgcolor: 'var(--palette-action-hover)',
+                                    borderColor: 'var(--palette-text-primary)',
+                                }
+                            }}
+                        >
+                            Phân ca hàng loạt
+                        </Button>
+                        <Button
+                            variant="outlined"
+                            color="error"
+                            startIcon={<Icon icon="solar:trash-bin-trash-bold-duotone" width={22} />}
+                            onClick={() => setOpenBulkDeleteDialog(true)}
+                            sx={{
+                                ...primaryButtonStyles,
+                                bgcolor: 'transparent',
+                                color: 'var(--palette-error-main)',
+                                borderColor: alpha('#FF5630', 0.24),
+                                '&:hover': {
+                                    bgcolor: alpha('#FF5630', 0.08),
+                                    borderColor: 'var(--palette-error-main)',
+                                }
+                            }}
+                        >
+                            Xóa nhiều ca
+                        </Button>
+                        <Button
+                            variant="contained"
+                            startIcon={<AddIcon />}
+                            onClick={() => handleOpenDialog()}
+                            sx={primaryButtonStyles}
+                        >
+                            Phân ca mới
+                        </Button>
+                    </Box>
+                }
+            />
 
             <Card
                 elevation={0}

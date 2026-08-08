@@ -18,8 +18,7 @@ import CloudUploadIcon from "@mui/icons-material/CloudUpload";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import { useRef, useState } from "react";
 import { toast } from "react-toastify";
-import { Breadcrumb } from "../../components/ui/Breadcrumb";
-import { Title } from "../../components/ui/Title";
+import { PageHeader } from "../../components/ui/PageHeader";
 import { LoadingButton } from "../../components/ui/LoadingButton";
 import { ROUTES } from "../../constants/routes";
 import { STATUS_LABELS } from "../../features/street-agent/components/configs/constants";
@@ -149,17 +148,15 @@ export const StreetAgentDetailPage = () => {
 
     return (
         <Box sx={{ maxWidth: "1200px", mx: "auto" }}>
-            <Box sx={{ mb: 5 }}>
-                <Title title="Chi tiết đại lý bán dạo" />
-                <Breadcrumb
-                    items={[
-                        { label: "Dashboard", to: "/" },
-                        { label: "Quản lý tài khoản", to: ROUTES.ADMIN.ACCOUNTS.ADMIN.LIST },
-                        { label: "Đại lý bán dạo", to: ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.LIST },
-                        { label: fullName || "Chi tiết" },
-                    ]}
-                />
-            </Box>
+            <PageHeader
+                title="Chi tiết đại lý bán dạo"
+                breadcrumbItems={[
+                    { label: "Dashboard", to: "/" },
+                    { label: "Quản lý tài khoản", to: ROUTES.ADMIN.ACCOUNTS.ADMIN.LIST },
+                    { label: "Đại lý bán dạo", to: ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.LIST },
+                    { label: fullName || "Chi tiết" },
+                ]}
+            />
 
             <Grid container spacing={3}>
                 <Grid size={{ xs: 12, md: 4 }}>

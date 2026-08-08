@@ -1,7 +1,6 @@
 "use client";
 
-import { Breadcrumb } from '../../../../components/ui/Breadcrumb';
-import { Title } from '../../../../components/ui/Title';
+import { PageHeader } from '../../../../components/ui/PageHeader';
 import { useUpdateUser, useUserDetail, useDeleteUser, useUploadUserAvatar } from "../../hooks/useUsers";
 import { useRoles } from "../../../role/hooks/useRole";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -143,18 +142,14 @@ export const AdminEditPage = () => {
     return (
         <div className="p-[24px] pt-[16px] flex flex-col gap-[24px] max-w-[1200px] mx-auto w-full">
             {/* Header */}
-            <div className="flex justify-between items-start">
-                <div>
-                    <Title title="Chỉnh sửa quản trị viên" />
-                    <Breadcrumb
-                        items={[
-                            { label: "Dashboard", to: `/${prefixAdmin}` },
-                            { label: "Quản trị viên", to: `/${prefixAdmin}/account-admin/list` },
-                            { label: "Cập nhật" }
-                        ]}
-                    />
-                </div>
-            </div>
+            <PageHeader
+                title="Chỉnh sửa quản trị viên"
+                breadcrumbItems={[
+                    { label: "Dashboard", to: `/${prefixAdmin}` },
+                    { label: "Quản trị viên", to: `/${prefixAdmin}/account-admin/list` },
+                    { label: "Cập nhật" }
+                ]}
+            />
 
             <form onSubmit={handleSubmit(onSubmit)}>
                 <div className="grid grid-cols-1 md:grid-cols-12 gap-[24px]">

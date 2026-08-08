@@ -6,8 +6,7 @@ import FactCheckOutlinedIcon from '@mui/icons-material/FactCheckOutlined';
 import HourglassEmptyOutlinedIcon from '@mui/icons-material/HourglassEmptyOutlined';
 import PaymentsOutlinedIcon from '@mui/icons-material/PaymentsOutlined';
 import { Box, Card, Stack, Typography } from '@mui/material';
-import { Breadcrumb } from '../../../../../components/ui/Breadcrumb';
-import { Title } from '../../../../../components/ui/Title';
+import { PageHeader } from '../../../../../components/ui/PageHeader';
 import { ROUTES } from '../../../../../constants/routes';
 import { formatImportCost } from '../../../import-batch/utils/importCostCalculator';
 import { useReturnBatchList } from '../../hooks/useReturnBatch';
@@ -31,17 +30,13 @@ export const ReturnBatchListPage = () => {
     return (
         <Box sx={{ width: '100%', pb: 5 }}>
             {/* Header */}
-            <div className="mb-[calc(4*var(--spacing))] flex items-start justify-end gap-[calc(2*var(--spacing))] flex-wrap">
-                <div className="mr-auto">
-                    <Title title="Danh sách phiếu trả vé" />
-                    <Breadcrumb
-                        items={[
-                            { label: 'Vé số', to: ROUTES.ADMIN.TICKETS.LIST },
-                            { label: 'Phiếu trả vé' },
-                        ]}
-                    />
-                </div>
-            </div>
+            <PageHeader
+                title="Danh sách phiếu trả vé"
+                breadcrumbItems={[
+                    { label: 'Vé số', to: ROUTES.ADMIN.TICKETS.LIST },
+                    { label: 'Phiếu trả vé' },
+                ]}
+            />
 
             {/* In-App Reminder Banner for Inspection Window & Cutoff */}
             <ReturnBatchReminderBanner batches={batches} />

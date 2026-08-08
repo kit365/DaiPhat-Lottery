@@ -3,8 +3,7 @@
 import AddIcon from '@mui/icons-material/Add';
 import SyncIcon from '@mui/icons-material/Sync';
 import Button from '@mui/material/Button';
-import { Breadcrumb } from "../../../../components/ui/Breadcrumb";
-import { Title } from "../../../../components/ui/Title";
+import { PageHeader } from "../../../../components/ui/PageHeader";
 import { prefixAdmin } from "../../../../constants/routes";
 import { useNavigate } from "react-router-dom";
 import { StationList } from "../sections/StationList";
@@ -24,18 +23,15 @@ export const StationListPage = () => {
 
     return (
         <>
-            <div className="mb-[calc(5*var(--spacing))] gap-[calc(2*var(--spacing))] flex items-start justify-end">
-                <div className="mr-auto">
-                    <Title title="Danh sách Nhà đài" />
-                    <Breadcrumb
-                        items={[
+            <PageHeader
+                title="Danh sách Nhà đài"
+                breadcrumbItems={[
                             { label: "Dashboard", to: "/" },
                             { label: "Nhà đài", to: `/${prefixAdmin}/provider/list` },
                             { label: "Danh sách" }
                         ]}
-                    />
-                </div>
-                <div className="flex gap-4">
+                action={
+                    <div className="flex gap-4">
                     <CanAccess permission={PERMISSIONS.PROVIDER.SYNC}>
                         <Button
                             onClick={() => setIsSyncModalOpen(true)}
@@ -57,7 +53,8 @@ export const StationListPage = () => {
                         </Button>
                     </CanAccess>
                 </div>
-            </div>
+                }
+            />
 
             <StationList />
 

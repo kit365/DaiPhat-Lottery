@@ -2,8 +2,7 @@
 
 import Button from "@mui/material/Button";
 import AddIcon from '@mui/icons-material/Add';
-import { Breadcrumb } from "../../../../components/ui/Breadcrumb";
-import { Title } from "../../../../components/ui/Title";
+import { PageHeader } from "../../../../components/ui/PageHeader";
 import { prefixAdmin } from "../../../../constants/routes";
 import { useNavigate } from "react-router-dom";
 import { useState } from "react";
@@ -17,18 +16,15 @@ export const BlogCategoryListPage = () => {
 
     return (
         <>
-            <div className="mb-[calc(5*var(--spacing))] gap-[calc(2*var(--spacing))] flex items-start justify-end">
-                <div className="mr-auto">
-                    <Title title="Danh sách" />
-                    <Breadcrumb
-                        items={[
+            <PageHeader
+                title="Danh sách"
+                breadcrumbItems={[
                             { label: "Bảng điều khiển", to: "/" },
                             { label: "Danh mục bài viết", to: `/${prefixAdmin}/blog-category/list` },
                             { label: "Danh sách" }
                         ]}
-                    />
-                </div>
-                <div style={{ display: 'flex', gap: '16px' }}>
+                action={
+                    <div style={{ display: 'flex', gap: '16px' }}>
                     <CanAccess permission={PERMISSIONS.ARTICLE.CREATE}>
                         <Button
                             onClick={() => navigate(`/${prefixAdmin}/blog-category/create`)}
@@ -40,7 +36,8 @@ export const BlogCategoryListPage = () => {
                         </Button>
                     </CanAccess>
                 </div>
-            </div>
+                }
+            />
             <BlogCategoryList isTrash={isTrash} />
         </>
     )

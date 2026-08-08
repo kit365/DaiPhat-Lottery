@@ -1,8 +1,7 @@
 "use client";
 
 import { Box, Stack, ThemeProvider, useTheme, createTheme, Button, Typography, CircularProgress, Chip } from "@mui/material"
-import { Breadcrumb } from "../../../../components/ui/Breadcrumb"
-import { Title } from "../../../../components/ui/Title"
+import { PageHeader } from "../../../../components/ui/PageHeader"
 import { useState, useMemo } from "react"
 import { CollapsibleCard } from "../../../../components/ui/CollapsibleCard"
 import { prefixAdmin } from "../../../../constants/routes";
@@ -69,21 +68,19 @@ export const StationDetailPage = () => {
 
     return (
         <>
-            <div className="mb-[calc(5*var(--spacing))] gap-[calc(2*var(--spacing))] flex items-start justify-end">
-                <div className="mr-auto">
-                    <Title title={"Chi tiết nhà đài"} />
-                    <Breadcrumb
-                        items={[
+            <PageHeader
+                title={"Chi tiết nhà đài"}
+                breadcrumbItems={[
                             { label: "Bảng điều khiển", to: `/${prefixAdmin}` },
                             { label: "Nhà đài", to: `/${prefixAdmin}/provider/list` },
                             { label: "Chi tiết" }
                         ]}
-                    />
-                </div>
-                <Button variant="contained" className="btn-primary-admin" onClick={() => navigate(`/${prefixAdmin}/provider/edit/${id}`)}>
+                action={
+                    <Button variant="contained" className="btn-primary-admin" onClick={() => navigate(`/${prefixAdmin}/provider/edit/${id}`)}>
                     Chỉnh sửa
                 </Button>
-            </div>
+                }
+            />
             <ThemeProvider theme={localTheme}>
                 <Stack sx={{
                     margin: "0px calc(15 * var(--spacing))",

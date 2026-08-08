@@ -2,7 +2,7 @@ import { Link as RouterLink } from "react-router-dom";
 import Breadcrumbs from "@mui/material/Breadcrumbs";
 import { Typography } from "@mui/material";
 
-type BreadcrumbItem = {
+export type BreadcrumbItem = {
     label: string;
     to?: string;
     onClick?: () => void;

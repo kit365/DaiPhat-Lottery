@@ -20,8 +20,7 @@ import {
 } from "@mui/material";
 import Grid from "@mui/material/Grid";
 import { Icon } from "@iconify/react";
-import { Breadcrumb } from '../../../../components/ui/Breadcrumb';
-import { Title } from '../../../../components/ui/Title';
+import { PageHeader } from '../../../../components/ui/PageHeader';
 import { useUpdateUser } from "../../hooks/useUsers";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -280,16 +279,14 @@ export const ProfilePage = () => {
     return (
         <Box sx={{ maxWidth: '1200px', mx: 'auto', pb: 10 }}>
             {/* Header Area */}
-            <Box sx={{ mb: 4 }}>
-                <Title title="Quản lý hồ sơ" />
-                <Breadcrumb
-                    items={[
-                        { label: "Trang chủ", to: "/" },
-                        { label: "Admin", to: "#" },
-                        { label: "Hồ sơ cá nhân" }
-                    ]}
-                />
-            </Box>
+            <PageHeader
+                title="Quản lý hồ sơ"
+                breadcrumbItems={[
+                    { label: "Trang chủ", to: "/" },
+                    { label: "Admin", to: "#" },
+                    { label: "Hồ sơ cá nhân" }
+                ]}
+            />
 
             {/* Profile Header Card */}
             <Card sx={{

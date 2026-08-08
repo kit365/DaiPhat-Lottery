@@ -3,8 +3,7 @@
 import { Box } from "@mui/material";
 import { useEffect, type ReactNode } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Title } from "../../components/ui/Title";
-import { Breadcrumb } from "../../components/ui/Breadcrumb";
+import { PageHeader } from "../../components/ui/PageHeader";
 import { GeneralSettingTab } from "./components/GeneralSettingTab";
 import { PolicySettingsTab } from "./components/PolicySettingsTab";
 import { ContentPagesTab } from "./components/ContentPagesTab";
@@ -78,10 +77,7 @@ export const SettingsPage = () => {
 
     return (
         <Box>
-            <Box sx={{ mb: 5 }}>
-                <Title title={section.title} />
-                <Breadcrumb items={breadcrumbs} />
-            </Box>
+            <PageHeader title={section.title} breadcrumbItems={breadcrumbs} />
 
             <Box sx={{ mt: 2 }}>{section.component}</Box>
         </Box>

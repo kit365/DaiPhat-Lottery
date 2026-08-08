@@ -124,7 +124,7 @@ export const SupplierCreatePage = () => {
                         />
                     </Stack>
                 </CollapsibleCard>
-                
+
                 <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mt: 3 }}>
                     <Controller
                         name="isActive"

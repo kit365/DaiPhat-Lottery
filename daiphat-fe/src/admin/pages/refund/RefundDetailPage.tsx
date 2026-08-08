@@ -21,8 +21,7 @@ import {
 } from '@mui/material';
 import { Icon } from '@iconify/react';
 import dayjs from 'dayjs';
-import { Breadcrumb } from '../../components/ui/Breadcrumb';
-import { Title } from '../../components/ui/Title';
+import { PageHeader } from '../../components/ui/PageHeader';
 import { CanAccess } from '../../components/auth/CanAccess';
 import { PERMISSIONS } from '../../constants/permission.constants';
 import { prefixAdmin } from '../../constants/routes';
@@ -236,27 +235,14 @@ export const RefundDetailPage = () => {
         <ThemeProvider theme={localTheme}>
             <Box sx={{ width: '100%', mx: 'auto' }}>
                 {/* Header — same pattern as Order Detail */}
-                <Box
-                    sx={{
-                        mb: 5,
-                        display: 'flex',
-                        alignItems: 'flex-start',
-                        justifyContent: 'space-between',
-                        gap: 2,
-                        flexWrap: 'wrap',
-                    }}
-                >
-                    <Box>
-                        <Title title={`Yêu cầu hoàn tiền #${refund.id}`} />
-                        <Breadcrumb
-                            items={[
-                                { label: 'Bảng điều khiển', to: `/${prefixAdmin}` },
-                                { label: 'Hoàn tiền', to: `/${prefixAdmin}/refunds/list` },
-                                { label: 'Chi tiết yêu cầu' },
-                            ]}
-                        />
-                    </Box>
-
+                <PageHeader
+                    title={`Yêu cầu hoàn tiền #${refund.id}`}
+                    breadcrumbItems={[
+                        { label: 'Bảng điều khiển', to: `/${prefixAdmin}` },
+                        { label: 'Hoàn tiền', to: `/${prefixAdmin}/refunds/list` },
+                        { label: 'Chi tiết yêu cầu' },
+                    ]}
+                    action={
                     <Stack direction="row" spacing={1.5} alignItems="center" flexWrap="wrap" useFlexGap>
                         <CanAccess permission={PERMISSIONS.REFUND.PROCESS}>
                             {canTransfer && !actionsDisabled && (
@@ -288,7 +274,8 @@ export const RefundDetailPage = () => {
                             {backLabel}
                         </Button>
                     </Stack>
-                </Box>
+                    }
+                />
 
                 {/* Stepper */}
                 <Card sx={{ p: 3, mb: 3, ...cardSx }}>

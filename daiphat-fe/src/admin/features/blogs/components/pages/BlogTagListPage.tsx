@@ -20,8 +20,7 @@ import {
 import { DataGrid, GridColDef } from '@mui/x-data-grid';
 import AddIcon from '@mui/icons-material/Add';
 import CloseIcon from '@mui/icons-material/Close';
-import { Breadcrumb } from "../../../../components/ui/Breadcrumb";
-import { Title } from "../../../../components/ui/Title";
+import { PageHeader } from "../../../../components/ui/PageHeader";
 import { Search } from "../../../../components/ui/Search";
 import { prefixAdmin } from "../../../../constants/routes";
 import { useBlogTagsPaged, useCreateBlogTag, useUpdateBlogTag, useDeleteBlogTag } from "../../hooks/useBlogTag";
@@ -193,18 +192,15 @@ export const BlogTagListPage = () => {
 
     return (
         <>
-            <div className="mb-[calc(5*var(--spacing))] gap-[calc(2*var(--spacing))] flex items-start justify-end">
-                <div className="mr-auto">
-                    <Title title="Thẻ bài viết" />
-                    <Breadcrumb
-                        items={[
+            <PageHeader
+                title="Thẻ bài viết"
+                breadcrumbItems={[
                             { label: "Bảng điều khiển", to: "/" },
                             { label: "Danh sách bài viết", to: `/${prefixAdmin}/blog/list` },
                             { label: "Thẻ bài viết" }
                         ]}
-                    />
-                </div>
-                <div>
+                action={
+                    <div>
                     <CanAccess permission={PERMISSIONS.ARTICLE.CREATE}>
                         <Button
                             onClick={handleOpenCreate}
@@ -216,7 +212,8 @@ export const BlogTagListPage = () => {
                         </Button>
                     </CanAccess>
                 </div>
-            </div>
+                }
+            />
 
             <Card elevation={0} sx={{
                 borderRadius: 'var(--shape-borderRadius-lg)',

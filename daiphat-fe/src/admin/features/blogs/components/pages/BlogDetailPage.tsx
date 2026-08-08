@@ -24,8 +24,7 @@ import "dayjs/locale/vi";
 import { useBlogDetail, useBlogTypes, useDeleteBlog, useUpdateBlog } from "../../hooks/useBlog";
 import { BLOG_STATUS, BlogStatus } from '../../types/blog.type';
 import { prefixAdmin } from "../../../../constants/routes";
-import { Breadcrumb } from "../../../../components/ui/Breadcrumb";
-import { Title } from "../../../../components/ui/Title";
+import { PageHeader } from "../../../../components/ui/PageHeader";
 import { AppToast as toast } from "../../../../../utils/toast.util";
 import { useState } from "react";
 import { FacebookIcon, InstagramIcon, ShareIcon } from "../../../../assets/icons";
@@ -179,22 +178,14 @@ export const BlogDetailPage = () => {
     // Shared Header (always visible, both modes)
     // ──────────────────────────────────────────────────────────────────────────
     const header = (
-        <Box sx={{ mb: 4, display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 2 }}>
-            <Box>
-                <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 0.5 }}>
-                    <Title title="Chi tiết bài viết" />
-                </Box>
-                <Box>
-                    <Breadcrumb
-                        items={[
-                            { label: "Dashboard", to: "/" },
-                            { label: "Bài viết", to: `/${prefixAdmin}/blog/list` },
-                            { label: blog.name || blog.title || "Chi tiết" },
-                        ]}
-                    />
-                </Box>
-            </Box>
-
+        <PageHeader
+            title="Chi tiết bài viết"
+            breadcrumbItems={[
+                { label: "Dashboard", to: "/" },
+                { label: "Bài viết", to: `/${prefixAdmin}/blog/list` },
+                { label: blog.name || blog.title || "Chi tiết" },
+            ]}
+            action={
             <Stack direction="row" spacing={1} alignItems="center" justifyContent="flex-end" flexWrap="wrap">
                 <Button
                     variant="outlined"
@@ -330,7 +321,8 @@ export const BlogDetailPage = () => {
                     </Button>
                 )}
             </Stack>
-        </Box>
+            }
+        />
     );
 
     // ──────────────────────────────────────────────────────────────────────────

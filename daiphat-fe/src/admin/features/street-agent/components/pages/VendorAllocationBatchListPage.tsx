@@ -34,8 +34,7 @@ import {
 import CloseIcon from "@mui/icons-material/Close";
 import { toast } from "react-toastify";
 import { useNavigate } from "@/components/router-compat";
-import { Breadcrumb } from "../../../../components/ui/Breadcrumb";
-import { Title } from "../../../../components/ui/Title";
+import { PageHeader } from "../../../../components/ui/PageHeader";
 import { LoadingButton } from "../../../../components/ui/LoadingButton";
 import { ROUTES } from "../../../../constants/routes";
 import { PERMISSIONS } from "../../../../constants/permission.constants";
@@ -377,24 +376,22 @@ export const VendorAllocationBatchListPage = () => {
 
     return (
         <Box sx={{ maxWidth: 1400, mx: "auto", pb: 5 }}>
-            <div className="mb-[calc(3*var(--spacing))] flex items-start justify-end gap-[calc(2*var(--spacing))] flex-wrap">
-                <div className="mr-auto">
-                    <Title title="Phiếu bàn giao vé" />
-                    <Breadcrumb
-                        items={[
-                            { label: "Dashboard", to: "/" },
-                            { label: "Đại lý bán dạo", to: ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.LIST },
-                            { label: "Phiếu bàn giao vé" },
-                        ]}
-                    />
-                </div>
-                <Button
-                    variant="contained"
-                    onClick={() => navigate(ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.ALLOCATION)}
-                >
-                    Tạo bàn giao mới
-                </Button>
-            </div>
+            <PageHeader
+                title="Phiếu bàn giao vé"
+                breadcrumbItems={[
+                    { label: "Dashboard", to: "/" },
+                    { label: "Đại lý bán dạo", to: ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.LIST },
+                    { label: "Phiếu bàn giao vé" },
+                ]}
+                action={
+                    <Button
+                        variant="contained"
+                        onClick={() => navigate(ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.ALLOCATION)}
+                    >
+                        Tạo bàn giao mới
+                    </Button>
+                }
+            />
 
             <Card
                 sx={{

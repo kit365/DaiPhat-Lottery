@@ -2,8 +2,7 @@
 
 import ReportProblemIcon from '@mui/icons-material/ReportProblem';
 import { Stack, Button } from '@mui/material';
-import { Breadcrumb } from '../../../../../components/ui/Breadcrumb';
-import { Title } from '../../../../../components/ui/Title';
+import { PageHeader } from '../../../../../components/ui/PageHeader';
 import { CanAccess } from '../../../../../components/auth/CanAccess';
 import { PERMISSIONS } from '../../../../../constants/permission.constants';
 import { prefixAdmin } from '../../../../../constants/routes';
@@ -92,18 +91,15 @@ export const TicketListPage = () => {
 
     return (
         <>
-            <div className="mb-[calc(5*var(--spacing))] gap-[calc(2*var(--spacing))] flex items-start justify-end">
-                <div className="mr-auto">
-                    <Title title="Danh sách vé số" />
-                    <Breadcrumb
-                        items={[
+            <PageHeader
+                title="Danh sách vé số"
+                breadcrumbItems={[
                             { label: 'Bảng điều khiển', to: '/' },
                             { label: 'Vé số', to: `/${prefixAdmin}/ticket/list` },
                             { label: 'Danh sách' },
                         ]}
-                    />
-                </div>
-                <Stack direction="row" spacing={1.5} alignItems="center">
+                action={
+                    <Stack direction="row" spacing={1.5} alignItems="center">
                     <Button
                         variant="contained"
                         color="error"
@@ -129,7 +125,8 @@ export const TicketListPage = () => {
                         Tiến hành hủy vé{cancelSelection.selectedSerials.length > 0 && ` (${cancelSelection.selectedSerials.length})`}
                     </Button>
                 </Stack>
-            </div>
+                }
+            />
 
             <Stack spacing={2} sx={{ mb: 2 }}>
                 <CanAccess anyOf={[PERMISSIONS.TICKET.CREATE, PERMISSIONS.IMPORT_BATCH.VIEW]}>

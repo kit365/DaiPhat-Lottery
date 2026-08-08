@@ -17,8 +17,7 @@ import {
 } from "@mui/material";
 import Grid from "@mui/material/Grid";
 import { Icon } from "@iconify/react";
-import { Breadcrumb } from '../../../../components/ui/Breadcrumb';
-import { Title } from '../../../../components/ui/Title';
+import { PageHeader } from '../../../../components/ui/PageHeader';
 import { prefixAdmin } from '../../../../constants/routes';
 import { useUserDetail, useUpdateUser, useDeleteUser } from "../../hooks/useUsers";
 import { UserStatus } from "../../../../../types/user.type";
@@ -145,18 +144,14 @@ export const ClientDetailPage = () => {
     return (
         <div className="p-[24px] pt-[16px] flex flex-col gap-[24px] max-w-[1200px] mx-auto w-full">
             {/* Header */}
-            <div className="flex justify-between items-start">
-                <div>
-                    <Title title="Tài khoản" />
-                    <Breadcrumb
-                        items={[
-                            { label: "Dashboard", to: `/${prefixAdmin}` },
-                            { label: "Khách hàng", to: `/${prefixAdmin}/account-user/list` },
-                            { label: user ? `${user.lastName} ${user.firstName}` : "Chi tiết" }
-                        ]}
-                    />
-                </div>
-            </div>
+            <PageHeader
+                title="Tài khoản"
+                breadcrumbItems={[
+                    { label: "Dashboard", to: `/${prefixAdmin}` },
+                    { label: "Khách hàng", to: `/${prefixAdmin}/account-user/list` },
+                    { label: user ? `${user.lastName} ${user.firstName}` : "Chi tiết" }
+                ]}
+            />
 
             <Tabs
                 value={currentTab}

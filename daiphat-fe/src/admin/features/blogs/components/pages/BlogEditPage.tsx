@@ -2,8 +2,7 @@
 
 import { Box, Stack, TextField, ThemeProvider, useTheme, CircularProgress, FormControl, InputLabel, Select, MenuItem, FormHelperText, Autocomplete, createTheme } from "@mui/material";
 import { LoadingButton } from "../../../../components/ui/LoadingButton";
-import { Breadcrumb } from "../../../../components/ui/Breadcrumb";
-import { Title } from "../../../../components/ui/Title";
+import { PageHeader } from "../../../../components/ui/PageHeader";
 import { Tiptap } from "../../../../components/layouts/titap/Tiptap";
 import { useState, useEffect, type Dispatch, type SetStateAction } from "react";
 import { CollapsibleCard } from "../../../../components/ui/CollapsibleCard";
@@ -231,18 +230,14 @@ export const BlogEditPage = () => {
 
     return (
         <>
-            <div className="mb-[calc(5*var(--spacing))] gap-[calc(2*var(--spacing))] flex items-start justify-end">
-                <div className="mr-auto">
-                    <Title title="Chỉnh sửa bài viết" />
-                    <Breadcrumb
-                        items={[
+            <PageHeader
+                title="Chỉnh sửa bài viết"
+                breadcrumbItems={[
                             { label: "Dashboard", to: "/" },
                             { label: "Bài viết", to: `/${prefixAdmin}/blog/list` },
                             { label: "Chỉnh sửa" }
                         ]}
-                    />
-                </div>
-            </div>
+            />
 
             <>
                 <form>

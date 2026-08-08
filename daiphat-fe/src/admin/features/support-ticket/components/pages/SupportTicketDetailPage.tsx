@@ -16,8 +16,7 @@ import {
 } from '@mui/material';
 import { Icon } from '@iconify/react';
 import dayjs from 'dayjs';
-import { Title } from '../../../../components/ui/Title';
-import { Breadcrumb } from '../../../../components/ui/Breadcrumb';
+import { PageHeader } from '../../../../components/ui/PageHeader';
 import { CanAccess } from '../../../../components/auth/CanAccess';
 import { PERMISSIONS } from '../../../../constants/permission.constants';
 import { prefixAdmin } from '../../../../constants/routes';
@@ -164,35 +163,33 @@ export const SupportTicketDetailPage = () => {
 
     return (
         <>
-            <Box sx={{ mb: 4, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 2, flexWrap: 'wrap' }}>
-                <Box>
-                    <Title title={`Khiếu nại #${ticket.id}`} />
-                    <Breadcrumb
-                        items={[
-                            { label: 'Bảng điều khiển', to: `/${prefixAdmin}` },
-                            { label: 'Khiếu nại', to: `/${prefixAdmin}/support-tickets/list` },
-                            { label: `#${ticket.id}` },
-                        ]}
-                    />
-                </Box>
-                <Stack direction="row" spacing={1} flexWrap="wrap">
-                    {canAssign && (
-                        <CanAccess permission={(PERMISSIONS.SUPPORT_TICKET as any).MANAGE}>
-                            <Button
-                                variant="contained"
-                                disabled={assignMutation.isPending}
-                                onClick={() => assignMutation.mutate(ticketId)}
-                                startIcon={<Icon icon="mdi:account-check-outline" />}
-                            >
-                                Tiếp nhận
-                            </Button>
-                        </CanAccess>
-                    )}
-                    <Button variant="outlined" onClick={() => navigate(`/${prefixAdmin}/support-tickets/list`)}>
-                        Quay lại
-                    </Button>
-                </Stack>
-            </Box>
+            <PageHeader
+                title={`Khiếu nại #${ticket.id}`}
+                breadcrumbItems={[
+                    { label: 'Bảng điều khiển', to: `/${prefixAdmin}` },
+                    { label: 'Khiếu nại', to: `/${prefixAdmin}/support-tickets/list` },
+                    { label: `#${ticket.id}` },
+                ]}
+                action={
+                    <Stack direction="row" spacing={1} flexWrap="wrap">
+                        {canAssign && (
+                            <CanAccess permission={(PERMISSIONS.SUPPORT_TICKET as any).MANAGE}>
+                                <Button
+                                    variant="contained"
+                                    disabled={assignMutation.isPending}
+                                    onClick={() => assignMutation.mutate(ticketId)}
+                                    startIcon={<Icon icon="mdi:account-check-outline" />}
+                                >
+                                    Tiếp nhận
+                                </Button>
+                            </CanAccess>
+                        )}
+                        <Button variant="outlined" onClick={() => navigate(`/${prefixAdmin}/support-tickets/list`)}>
+                            Quay lại
+                        </Button>
+                    </Stack>
+                }
+            />
 
             <Stack direction="row" alignItems="center" spacing={2} sx={{ mb: 3, flexWrap: 'wrap' }}>
                 <Chip label={TICKET_STATUS_LABELS[ticket.status]} color="primary" variant="outlined" />

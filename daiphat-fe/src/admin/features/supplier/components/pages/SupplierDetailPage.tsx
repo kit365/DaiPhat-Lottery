@@ -2,8 +2,7 @@
 
 import { Box, CircularProgress, Typography } from '@mui/material';
 import { useNavigate, useParams } from '@/components/router-compat';
-import { Breadcrumb } from '../../../../components/ui/Breadcrumb';
-import { Title } from '../../../../components/ui/Title';
+import { PageHeader } from '../../../../components/ui/PageHeader';
 import { LoadingButton } from '../../../../components/ui/LoadingButton';
 import { CanAccess } from '../../../../components/auth/CanAccess';
 import { PERMISSIONS } from '../../../../constants/permission.constants';
@@ -34,25 +33,23 @@ export const SupplierDetailPage = () => {
 
     return (
         <Box sx={{ maxWidth: 900, mx: 'auto' }}>
-            <div className="mb-[calc(3*var(--spacing))] flex items-start justify-end gap-[calc(2*var(--spacing))]">
-                <div className="mr-auto">
-                    <Title title="Chi tiết nhà cung cấp" />
-                    <Breadcrumb
-                        items={[
-                            { label: 'Vé số', to: ROUTES.ADMIN.TICKETS.LIST },
-                            { label: 'Nhà cung cấp', to: ROUTES.ADMIN.SUPPLIER.LIST },
-                            { label: supplier.name },
-                        ]}
-                    />
-                </div>
-                <CanAccess permission={PERMISSIONS.SUPPLIER.EDIT}>
-                    <LoadingButton
-                        label="Chỉnh sửa"
-                        className="btn-primary-admin"
-                        onClick={() => navigate(ROUTES.ADMIN.SUPPLIER.EDIT(supplier.id))}
-                    />
-                </CanAccess>
-            </div>
+            <PageHeader
+                title="Chi tiết nhà cung cấp"
+                breadcrumbItems={[
+                    { label: 'Vé số', to: ROUTES.ADMIN.TICKETS.LIST },
+                    { label: 'Nhà cung cấp', to: ROUTES.ADMIN.SUPPLIER.LIST },
+                    { label: supplier.name },
+                ]}
+                action={
+                    <CanAccess permission={PERMISSIONS.SUPPLIER.EDIT}>
+                        <LoadingButton
+                            label="Chỉnh sửa"
+                            className="btn-primary-admin"
+                            onClick={() => navigate(ROUTES.ADMIN.SUPPLIER.EDIT(supplier.id))}
+                        />
+                    </CanAccess>
+                }
+            />
 
             <SupplierInfoCard supplier={supplier} />
         </Box>

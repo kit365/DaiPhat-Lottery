@@ -21,8 +21,7 @@ import {
     createTheme,
     Paper,
 } from '@mui/material';
-import { Breadcrumb } from '../../../../../components/ui/Breadcrumb';
-import { Title } from '../../../../../components/ui/Title';
+import { PageHeader } from '../../../../../components/ui/PageHeader';
 import { AdminDatePicker } from '../../../../../components/ui/AdminDatePicker';
 import { SelectMulti } from '../../../../../components/ui/SelectMulti';
 import { LoadingButton } from '../../../../../components/ui/LoadingButton';
@@ -573,14 +572,14 @@ export const ImportBatchCreatePage = () => {
         return (
             <ThemeProvider theme={localTheme}>
                 <Box className="admin-page">
-                    <Breadcrumb
-                        items={[
+                    <PageHeader
+                        title="Khai báo phiếu nhập lô vé"
+                        breadcrumbItems={[
                             { label: 'Vé số', to: `/${prefixAdmin}/ticket/list` },
                             { label: 'Nhập lô vé', to: ROUTES.ADMIN.IMPORT_BATCH.LIST },
                             { label: 'Khai báo phiếu nhập' },
                         ]}
                     />
-                    <Title title="Khai báo phiếu nhập lô vé" />
 
                     <Alert severity="warning" sx={{ mb: 2 }}>
                         Chưa có nhà cung cấp. Vui lòng tạo nhà cung cấp trước khi nhập vé.
@@ -610,16 +609,14 @@ export const ImportBatchCreatePage = () => {
         <ThemeProvider theme={localTheme}>
             <Box className="admin-page" sx={{ pb: 4 }}>
                 {/* ── Header ── */}
-                <Breadcrumb
-                    items={[
+                <PageHeader
+                    title="Khai báo phiếu nhập lô vé"
+                    breadcrumbItems={[
                         { label: 'Vé số', to: `/${prefixAdmin}/ticket/list` },
                         { label: 'Nhập lô vé', to: ROUTES.ADMIN.IMPORT_BATCH.LIST },
                         { label: 'Khai báo phiếu nhập' },
                     ]}
                 />
-                <Box sx={{ mb: 3 }}>
-                    <Title title="Khai báo phiếu nhập lô vé" />
-                </Box>
 
                 <form id="import-batch-create-form" onSubmit={handleSubmit(onSubmit)}>
                     <Stack spacing={3}>

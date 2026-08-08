@@ -16,9 +16,8 @@ import {
     Paper,
 } from '@mui/material';
 import { useNavigate, useParams } from '@/components/router-compat';
-import { Breadcrumb } from '../../../../../components/ui/Breadcrumb';
+import { PageHeader } from '../../../../../components/ui/PageHeader';
 import { AdminStatusBadge } from '../../../../../components/ui/AdminStatusBadge';
-import { Title } from '../../../../../components/ui/Title';
 import { CollapsibleCard } from '../../../../../components/ui/CollapsibleCard';
 import { useState } from 'react';
 import { IconButton } from '@mui/material';
@@ -93,61 +92,55 @@ export const ImportBatchDetailPage = () => {
 
     return (
         <Box className="admin-page">
-            <Breadcrumb
-                items={[
+            <PageHeader
+                title={`Phiếu nhập lô ${formatImportBatchHeaderCode(batch.batchCode, batch.id)}`}
+                breadcrumbItems={[
                     { label: 'Vé số', to: `/${prefixAdmin}/ticket/list` },
                     { label: 'Nhập lô vé', to: ROUTES.ADMIN.IMPORT_BATCH.LIST },
                     { label: formatImportBatchHeaderCode(batch.batchCode, batch.id) },
                 ]}
-            />
-            <Stack
-                direction={{ xs: 'column', sm: 'row' }}
-                alignItems={{ xs: 'flex-start', sm: 'flex-start' }}
-                justifyContent="space-between"
-                spacing={2}
-                sx={{ mb: 2 }}
-            >
-                <Box sx={{ minWidth: 0, flex: 1 }}>
-                    <Stack direction="row" alignItems="center" spacing={1.5} flexWrap="wrap" useFlexGap>
-                        <Title title={`Phiếu nhập lô ${formatImportBatchHeaderCode(batch.batchCode, batch.id)}`} />
-                        <AdminStatusBadge
-                            label={getImportBatchStatusLabel(batch.status)}
-                            modifier={getImportBatchStatusBadgeClass(batch.status)}
-                        />
-                    </Stack>
-                    {cancelledReasonText && (
+                titleExtra={
+                    <AdminStatusBadge
+                        label={getImportBatchStatusLabel(batch.status)}
+                        modifier={getImportBatchStatusBadgeClass(batch.status)}
+                    />
+                }
+                description={
+                    cancelledReasonText ? (
                         <Typography
                             variant="body2"
                             color="text.secondary"
-                            sx={{ mt: 0.75, maxWidth: 720 }}
+                            sx={{ maxWidth: 720 }}
                         >
                             {cancelledReasonText}
                         </Typography>
-                    )}
-                </Box>
-                {canEditBatch && (
-                    <CanAccess permission={PERMISSIONS.IMPORT_BATCH.CREATE}>
-                        <Stack direction="row" spacing={1}>
-                            <Button
-                                variant="outlined"
-                                onClick={() => navigate(ROUTES.ADMIN.IMPORT_BATCH.EDIT(batch.id))}
-                            >
-                                Chỉnh sửa phiếu
-                            </Button>
-                            {canImportTickets && (
-                                <CanAccess permission={PERMISSIONS.TICKET.CREATE}>
-                                    <Button
-                                        variant="contained"
-                                        onClick={() => navigate(ROUTES.ADMIN.IMPORT_BATCH.LIST)}
-                                    >
-                                        Nhập vé vào phiếu
-                                    </Button>
-                                </CanAccess>
-                            )}
-                        </Stack>
-                    </CanAccess>
-                )}
-            </Stack>
+                    ) : undefined
+                }
+                action={
+                    canEditBatch ? (
+                        <CanAccess permission={PERMISSIONS.IMPORT_BATCH.CREATE}>
+                            <Stack direction="row" spacing={1}>
+                                <Button
+                                    variant="outlined"
+                                    onClick={() => navigate(ROUTES.ADMIN.IMPORT_BATCH.EDIT(batch.id))}
+                                >
+                                    Chỉnh sửa phiếu
+                                </Button>
+                                {canImportTickets && (
+                                    <CanAccess permission={PERMISSIONS.TICKET.CREATE}>
+                                        <Button
+                                            variant="contained"
+                                            onClick={() => navigate(ROUTES.ADMIN.IMPORT_BATCH.LIST)}
+                                        >
+                                            Nhập vé vào phiếu
+                                        </Button>
+                                    </CanAccess>
+                                )}
+                            </Stack>
+                        </CanAccess>
+                    ) : undefined
+                }
+            />
 
             {hasUnsavedDraft && (
                 <Alert severity="info" sx={{ mb: 2 }}>

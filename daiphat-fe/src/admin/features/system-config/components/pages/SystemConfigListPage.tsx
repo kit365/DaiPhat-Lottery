@@ -16,9 +16,8 @@ import {
 } from '@mui/material';
 import { Banknote, CreditCard, FileText, Gift, Globe2, LayoutList, MessageSquare, PackageMinus, ShoppingCart, Sparkles, Store, Ticket } from 'lucide-react';
 import { toast } from 'react-toastify';
-import { Breadcrumb } from '../../../../components/ui/Breadcrumb';
+import { PageHeader } from '../../../../components/ui/PageHeader';
 import { Search } from '../../../../components/ui/Search';
-import { Title } from '../../../../components/ui/Title';
 import { PERMISSIONS } from '../../../../constants/permission.constants';
 import { useAuthStore } from '../../../../../stores/useAuthStore';
 import { UpdateSystemConfigFormValues } from '../../../../schemas/system-config.schema';
@@ -256,18 +255,14 @@ export const SystemConfigListPage = () => {
 
     return (
         <>
-            <div className="mb-[calc(5*var(--spacing))] gap-[calc(2*var(--spacing))] flex items-start justify-end">
-                <div className="mr-auto">
-                    <Title title="Cấu hình hệ thống" />
-                    <Breadcrumb
-                        items={[
+            <PageHeader
+                title="Cấu hình hệ thống"
+                breadcrumbItems={[
                             { label: 'Dashboard', to: '/admin' },
                             { label: 'Cài đặt', to: '/admin/dashboard/settings' },
                             { label: 'Cấu hình hệ thống' },
                         ]}
-                    />
-                </div>
-            </div>
+            />
 
             <Card
                 sx={{

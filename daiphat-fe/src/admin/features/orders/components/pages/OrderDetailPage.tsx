@@ -25,8 +25,7 @@ import {
 import { Icon } from "@iconify/react";
 import { useNavigate, useParams } from "react-router-dom";
 import dayjs from "dayjs";
-import { Title } from "../../../../components/ui/Title";
-import { Breadcrumb } from "../../../../components/ui/Breadcrumb";
+import { PageHeader } from "../../../../components/ui/PageHeader";
 import { useOrderDetail, useUpdateOrderStatus } from "../../hooks/useOrder";
 import { OrderStatus, resolveLotteryTicketSerialStatusBadge, resolveOrderDetailStatusBadge } from "../../../../../types/order.type";
 import { toast } from "react-toastify";
@@ -133,20 +132,14 @@ export const OrderDetailPage = () => {
     return (
         <Box sx={{ width: '100%', mx: 'auto' }}>
             {/* Unified Header section */}
-            <Box sx={{ mb: 5, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
-                <Stack direction="row" spacing={2} alignItems="center">
-                    <Box>
-                        <Title title={`Đơn hàng #${order.orderCode || order.id?.slice(-6).toUpperCase() || 'ERROR'}`} />
-                        <Breadcrumb
-                            items={[
-                                { label: 'Bảng điều khiển', to: `/${prefixAdmin}/dashboard` },
-                                { label: 'Đơn hàng', to: `/${prefixAdmin}/order/list` },
-                                { label: 'Chi tiết đơn hàng' }
-                            ]}
-                        />
-                    </Box>
-                </Stack>
-
+            <PageHeader
+                title={`Đơn hàng #${order.orderCode || order.id?.slice(-6).toUpperCase() || 'ERROR'}`}
+                breadcrumbItems={[
+                    { label: 'Bảng điều khiển', to: `/${prefixAdmin}/dashboard` },
+                    { label: 'Đơn hàng', to: `/${prefixAdmin}/order/list` },
+                    { label: 'Chi tiết đơn hàng' }
+                ]}
+                action={
                 <Stack direction="row" spacing={1.5} alignItems="center">
                     {order.status === OrderStatus.PAID && (
                         <Button 
@@ -241,7 +234,8 @@ export const OrderDetailPage = () => {
                         Quay lại
                     </Button>
                 </Stack>
-            </Box>
+                }
+            />
 
             {/* Stepper Card (Full Width) */}
             <OrderSteppersCard order={order} />

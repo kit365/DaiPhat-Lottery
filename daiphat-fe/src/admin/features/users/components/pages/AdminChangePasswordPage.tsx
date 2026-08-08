@@ -1,7 +1,6 @@
 "use client";
 
-import { Breadcrumb } from '../../../../components/ui/Breadcrumb';
-import { Title } from '../../../../components/ui/Title';
+import { PageHeader } from '../../../../components/ui/PageHeader';
 import { useUserDetail, useConfirmUserPasswordReset, useInitiateUserPasswordReset } from "../../hooks/useUsers";
 import { prefixAdmin } from '../../../../constants/routes';
 import { toast } from "react-toastify";
@@ -52,16 +51,14 @@ export const AdminChangePasswordPage = () => {
 
     return (
         <Box sx={{ maxWidth: '600px', mx: 'auto' }}>
-            <Box sx={{ mb: 5 }}>
-                <Title title="Đặt lại mật khẩu" />
-                <Breadcrumb
-                    items={[
-                        { label: "Dashboard", to: "/" },
-                        { label: "Quản trị viên", to: `/${prefixAdmin}/account-admin/list` },
-                        { label: "Đặt lại mật khẩu" }
-                    ]}
-                />
-            </Box>
+            <PageHeader
+                title="Đặt lại mật khẩu"
+                breadcrumbItems={[
+                    { label: "Dashboard", to: "/" },
+                    { label: "Quản trị viên", to: `/${prefixAdmin}/account-admin/list` },
+                    { label: "Đặt lại mật khẩu" }
+                ]}
+            />
 
             <UserPasswordResetCard
                 accountName={account?.fullName}

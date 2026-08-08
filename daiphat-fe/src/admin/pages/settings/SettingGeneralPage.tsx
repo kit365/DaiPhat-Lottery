@@ -4,8 +4,7 @@ import { Box, Card, Grid, TextField, Typography, Stack } from "@mui/material";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { settingGeneralSchema, SettingGeneralFormValues } from "../../schemas/setting.schema";
-import { Title } from "../../components/ui/Title";
-import { Breadcrumb } from "../../components/ui/Breadcrumb";
+import { PageHeader } from "../../components/ui/PageHeader";
 import { toast } from "react-toastify";
 import { useEffect, useRef, useState } from "react";
 import { useSettingGeneral, useUpdateSettingGeneral } from "./hooks/useSettingGeneral";
@@ -135,15 +134,13 @@ export const SettingGeneralPage = () => {
 
     return (
         <Box sx={{ width: '100%', mx: 'auto' }}>
-            <Box sx={{ mb: 5 }}>
-                <Title title="Cài đặt hệ thống" />
-                <Breadcrumb
-                    items={[
-                        { label: "Dashboard", to: "/" },
-                        { label: "Cài đặt" }
-                    ]}
-                />
-            </Box>
+            <PageHeader
+                title="Cài đặt hệ thống"
+                breadcrumbItems={[
+                    { label: "Dashboard", to: "/" },
+                    { label: "Cài đặt" }
+                ]}
+            />
 
             <form onSubmit={handleSubmit(onSubmit)}>
                 <Grid container spacing={3}>

@@ -1,8 +1,7 @@
 "use client";
 
 import { useState, useMemo } from 'react';
-import { Title } from '../../../../components/ui/Title';
-import { Breadcrumb } from '../../../../components/ui/Breadcrumb';
+import { PageHeader } from '../../../../components/ui/PageHeader';
 import { prefixAdmin } from '../../../../constants/routes';
 import { useGetAdminTicketCategories } from '../../hooks/useSupportTicket';
 import { TicketCategoryList } from '../sections/TicketCategoryList';
@@ -60,18 +59,14 @@ export const TicketCategoryListPage = () => {
 
     return (
         <>
-            <div className="mb-[calc(5*var(--spacing))] flex items-start justify-end gap-[calc(2*var(--spacing))]">
-                <div className="mr-auto">
-                    <Title title="Danh mục khiếu nại" />
-                    <Breadcrumb
-                        items={[
-                            { label: 'Bảng điều khiển', to: `/${prefixAdmin}` },
-                            { label: 'Khiếu nại', to: `/${prefixAdmin}/support-tickets/list` },
-                            { label: 'Danh mục' },
-                        ]}
-                    />
-                </div>
-            </div>
+            <PageHeader
+                title="Danh mục khiếu nại"
+                breadcrumbItems={[
+                    { label: 'Bảng điều khiển', to: `/${prefixAdmin}` },
+                    { label: 'Khiếu nại', to: `/${prefixAdmin}/support-tickets/list` },
+                    { label: 'Danh mục' },
+                ]}
+            />
 
             <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
                 <Tabs 

@@ -1,8 +1,7 @@
 import { Button } from '@mui/material';
 import { Icon } from '@iconify/react';
 import { useNavigate } from 'react-router-dom';
-import { Title } from '../../components/ui/Title';
-import { Breadcrumb } from '../../components/ui/Breadcrumb';
+import { PageHeader } from '../../components/ui/PageHeader';
 import { CanAccess } from '../../components/auth/CanAccess';
 import { PERMISSIONS } from '../../constants/permission.constants';
 import { prefixAdmin } from '../../constants/routes';
@@ -13,17 +12,14 @@ export const PrizePayoutListPage = () => {
 
     return (
         <>
-            <div className="mb-[calc(5*var(--spacing))] gap-[calc(2*var(--spacing))] flex items-start justify-end">
-                <div className="mr-auto">
-                    <Title title="Quản lý trả thưởng" />
-                    <Breadcrumb
-                        items={[
+            <PageHeader
+                title="Quản lý trả thưởng"
+                breadcrumbItems={[
                             { label: 'Bảng điều khiển', to: `/${prefixAdmin}` },
                             { label: 'Trả thưởng' },
                         ]}
-                    />
-                </div>
-                <CanAccess permission={PERMISSIONS.PRIZE_PAYOUT.PROCESS}>
+                action={
+                    <CanAccess permission={PERMISSIONS.PRIZE_PAYOUT.PROCESS}>
                     <Button
                         variant="contained"
                         color="success"
@@ -34,7 +30,8 @@ export const PrizePayoutListPage = () => {
                         Tạo tại quầy
                     </Button>
                 </CanAccess>
-            </div>
+                }
+            />
             <PrizePayoutList />
         </>
     );

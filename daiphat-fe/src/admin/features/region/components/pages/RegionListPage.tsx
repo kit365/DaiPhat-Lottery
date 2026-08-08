@@ -1,8 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Breadcrumb } from "../../../../components/ui/Breadcrumb";
-import { Title } from "../../../../components/ui/Title";
+import { PageHeader } from "../../../../components/ui/PageHeader";
 import { prefixAdmin } from "../../../../constants/routes";
 import { useRegions } from "../../hooks/useRegion";
 import { LotteryRegionResponse } from "../../types/region.type";
@@ -16,18 +15,14 @@ export const RegionListPage = () => {
 
     return (
         <>
-            <div className="mb-[calc(5*var(--spacing))] gap-[calc(2*var(--spacing))] flex items-start justify-end">
-                <div className="mr-auto">
-                    <Title title="Quản lý Vùng Miền" />
-                    <Breadcrumb
-                        items={[
+            <PageHeader
+                title="Quản lý Vùng Miền"
+                breadcrumbItems={[
                             { label: "Dashboard", to: "/" },
                             { label: "Vùng Miền", to: `/${prefixAdmin}/region/list` },
                             { label: "Danh sách" },
                         ]}
-                    />
-                </div>
-            </div>
+            />
 
             <RegionList
                 regions={regions}

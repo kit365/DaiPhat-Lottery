@@ -5,8 +5,7 @@ import {
     Box,
     Divider
 } from '@mui/material';
-import { Title } from '../../../../components/ui/Title';
-import { Breadcrumb } from '../../../../components/ui/Breadcrumb';
+import { PageHeader } from '../../../../components/ui/PageHeader';
 
 import { AiServiceControl, ChatList, ChatWindow, ChatDetails, ChatSidebar } from '../sections';
 import { useConversations } from '../../hooks/useChat';
@@ -40,17 +39,13 @@ export const ChatPage = () => {
 
     return (
         <div className="admin-list-page">
-            <div className="mb-[calc(5*var(--spacing))] gap-[calc(2*var(--spacing))] flex items-start justify-end">
-                <div className="mr-auto">
-                    <Title title="Hỗ trợ trực tuyến" />
-                    <Breadcrumb
-                        items={[
+            <PageHeader
+                title="Hỗ trợ trực tuyến"
+                breadcrumbItems={[
                             { label: 'Dashboard', to: '/' },
                             { label: 'Hỗ trợ trực tuyến' },
                         ]}
-                    />
-                </div>
-            </div>
+            />
 
             <AiServiceControl />
 

@@ -28,8 +28,7 @@ import { Icon } from '@iconify/react';
 import dayjs from 'dayjs';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { Title } from '../../components/ui/Title';
-import { Breadcrumb } from '../../components/ui/Breadcrumb';
+import { PageHeader } from '../../components/ui/PageHeader';
 import { prefixAdmin } from '../../constants/routes';
 import { prizePayoutAdminApi } from '../../api/prizePayout.api';
 import { useAuthStore } from '../../../stores/useAuthStore';
@@ -528,17 +527,14 @@ export const PrizePayoutCreatePage = () => {
     return (
         <Box sx={{ width: '100%', mx: 'auto', pt: 1, pb: 5 }}>
             {/* Header Section */}
-            <Box sx={{ mb: 3, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2 }}>
-                <Box>
-                    <Title title="Tạo trả thưởng tại quầy" />
-                    <Breadcrumb
-                        items={[
-                            { label: 'Bảng điều khiển', to: `/${prefixAdmin}` },
-                            { label: 'Trả thưởng', to: `/${prefixAdmin}/prize-payouts/list` },
-                            { label: 'Tạo tại quầy' },
-                        ]}
-                    />
-                </Box>
+            <PageHeader
+                title="Tạo trả thưởng tại quầy"
+                breadcrumbItems={[
+                    { label: 'Bảng điều khiển', to: `/${prefixAdmin}` },
+                    { label: 'Trả thưởng', to: `/${prefixAdmin}/prize-payouts/list` },
+                    { label: 'Tạo tại quầy' },
+                ]}
+                action={
                 <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexShrink: 0 }}>
                     <Button
                         variant="outlined"
@@ -568,9 +564,8 @@ export const PrizePayoutCreatePage = () => {
                         Quay lại
                     </Button>
                 </Box>
-            </Box>
-
-            {/* Balanced 2-Column Responsive Layout Grid (Equal height) */}
+                }
+            />
             <Grid container spacing={2.5} alignItems="stretch">
                 
                 {/* LEFT COLUMN: Tra cứu, Kết quả vé, Định danh & Hợp đồng (50%) */}

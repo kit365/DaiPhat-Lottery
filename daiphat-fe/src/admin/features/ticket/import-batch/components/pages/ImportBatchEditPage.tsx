@@ -25,8 +25,7 @@ import {
     InputAdornment,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
-import { Breadcrumb } from '../../../../../components/ui/Breadcrumb';
-import { Title } from '../../../../../components/ui/Title';
+import { PageHeader } from '../../../../../components/ui/PageHeader';
 import { CollapsibleCard } from '../../../../../components/ui/CollapsibleCard';
 import { LoadingButton } from '../../../../../components/ui/LoadingButton';
 import { ImagePreview } from '../../../../../components/ui/ImagePreview';
@@ -1030,8 +1029,9 @@ export const ImportBatchEditPage = () => {
     return (
         <ThemeProvider theme={localTheme}>
             <Box className="admin-page">
-                <Breadcrumb
-                    items={[
+                <PageHeader
+                    title={`Chỉnh sửa phiếu ${formatImportBatchHeaderCode(batch.batchCode, batch.id)}`}
+                    breadcrumbItems={[
                         { label: 'Vé số', to: `/${prefixAdmin}/ticket/list` },
                         { label: 'Nhập lô vé', to: ROUTES.ADMIN.IMPORT_BATCH.LIST },
                         {
@@ -1040,13 +1040,8 @@ export const ImportBatchEditPage = () => {
                         },
                         { label: 'Chỉnh sửa' },
                     ]}
+                    titleExtra={<Chip label={getImportBatchStatusLabel(batch.status)} size="small" />}
                 />
-                <Stack direction="row" alignItems="center" spacing={1.5} sx={{ mb: 2 }}>
-                    <Title
-                        title={`Chỉnh sửa phiếu ${formatImportBatchHeaderCode(batch.batchCode, batch.id)}`}
-                    />
-                    <Chip label={getImportBatchStatusLabel(batch.status)} size="small" />
-                </Stack>
 
                 {id && hasUnsavedImportBatchEditDraft(id) && (
                     <Alert severity="info" sx={{ mb: 2 }}>

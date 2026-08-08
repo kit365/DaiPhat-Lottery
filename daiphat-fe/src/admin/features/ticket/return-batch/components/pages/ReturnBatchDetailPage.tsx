@@ -21,8 +21,7 @@ import { useState } from 'react';
 import Swal from 'sweetalert2';
 import { useNavigate, useParams } from '@/components/router-compat';
 import { toast } from 'react-toastify';
-import { Breadcrumb } from '../../../../../components/ui/Breadcrumb';
-import { Title } from '../../../../../components/ui/Title';
+import { PageHeader } from '../../../../../components/ui/PageHeader';
 import { CollapsibleCard } from '../../../../../components/ui/CollapsibleCard';
 import { LoadingButton } from '../../../../../components/ui/LoadingButton';
 import { CanAccess } from '../../../../../components/auth/CanAccess';
@@ -220,26 +219,23 @@ export const ReturnBatchDetailPage = () => {
     return (
         <Box sx={{ width: '100%', pb: 5 }}>
             {/* Page Header */}
-            <div className="mb-[calc(3*var(--spacing))] flex items-start justify-end gap-[calc(2*var(--spacing))] flex-wrap">
-                <div className="mr-auto">
-                    <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 0.5 }}>
-                        <Title title={`Phiếu trả vé ${batch.batchCode?.trim() || `#${batch.id}`}`} />
-                        <Chip
-                            size="small"
-                            label={getReturnBatchStatusLabel(batch.status, batch.statusLabel)}
-                            color={getReturnBatchStatusChipColor(batch.status)}
-                            variant="outlined"
-                            sx={{ fontWeight: 700 }}
-                        />
-                    </Stack>
-                    <Breadcrumb
-                        items={[
-                            { label: 'Vé số', to: ROUTES.ADMIN.TICKETS.LIST },
-                            { label: 'Trả vé NCC', to: ROUTES.ADMIN.RETURN_BATCH.LIST },
-                            { label: batch.batchCode?.trim() || `#${batch.id}` },
-                        ]}
+            <PageHeader
+                title={`Phiếu trả vé ${batch.batchCode?.trim() || `#${batch.id}`}`}
+                breadcrumbItems={[
+                    { label: 'Vé số', to: ROUTES.ADMIN.TICKETS.LIST },
+                    { label: 'Trả vé NCC', to: ROUTES.ADMIN.RETURN_BATCH.LIST },
+                    { label: batch.batchCode?.trim() || `#${batch.id}` },
+                ]}
+                titleExtra={
+                    <Chip
+                        size="small"
+                        label={getReturnBatchStatusLabel(batch.status, batch.statusLabel)}
+                        color={getReturnBatchStatusChipColor(batch.status)}
+                        variant="outlined"
+                        sx={{ fontWeight: 700 }}
                     />
-                </div>
+                }
+                action={
                 <Stack direction="row" spacing={1} flexWrap="wrap">
                     {(batch.status === 'PENDING_INSPECTION' || batch.status === 'INSPECTING') && !batch.inspectionExpired && (
                         <CanAccess permission={PERMISSIONS.IMPORT_BATCH.CREATE}>
@@ -262,7 +258,8 @@ export const ReturnBatchDetailPage = () => {
                         </CanAccess>
                     )}
                 </Stack>
-            </div>
+                }
+            />
 
             {/* System Status Alerts */}
             {batch.status === 'CANCELLED' && (

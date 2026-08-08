@@ -26,8 +26,7 @@ import { Icon } from '@iconify/react';
 import dayjs from 'dayjs';
 import { useNavigate, useParams, useLocation } from '@/components/router-compat';
 import { motion } from 'framer-motion';
-import { Title } from '../../components/ui/Title';
-import { Breadcrumb } from '../../components/ui/Breadcrumb';
+import { PageHeader } from '../../components/ui/PageHeader';
 import { CanAccess } from '../../components/auth/CanAccess';
 import { PERMISSIONS } from '../../constants/permission.constants';
 import { prefixAdmin } from '../../constants/routes';
@@ -307,30 +306,15 @@ export const PrizePayoutDetailPage = () => {
             className="w-full mx-auto font-['Public_Sans',sans-serif]"
         >
             {/* Header Section */}
-            <Box
-                sx={{
-                    mb: 3,
-                    display: 'flex',
-                    alignItems: 'flex-start',
-                    justifyContent: 'space-between',
-                    gap: 2,
-                    flexWrap: 'wrap',
-                }}
-            >
-                <Box>
-                    <Stack direction="row" alignItems="center" spacing={1.5} sx={{ mb: 0.5 }}>
-                        <Title title={`Yêu cầu trả thưởng ${detail.requestCode}`} />
-                        <PrizePayoutStatusBadge status={detail.status} />
-                    </Stack>
-                    <Breadcrumb
-                        items={[
-                            { label: 'Bảng điều khiển', to: `/${prefixAdmin}` },
-                            { label: 'Trả thưởng', to: `/${prefixAdmin}/prize-payouts/list` },
-                            { label: detail.requestCode },
-                        ]}
-                    />
-                </Box>
-
+            <PageHeader
+                title={`Yêu cầu trả thưởng ${detail.requestCode}`}
+                breadcrumbItems={[
+                    { label: 'Bảng điều khiển', to: `/${prefixAdmin}` },
+                    { label: 'Trả thưởng', to: `/${prefixAdmin}/prize-payouts/list` },
+                    { label: detail.requestCode },
+                ]}
+                titleExtra={<PrizePayoutStatusBadge status={detail.status} />}
+                action={
                 <Stack direction="row" spacing={1.5} alignItems="center" flexWrap="wrap" useFlexGap>
                     <CanAccess permission={PERMISSIONS.PRIZE_PAYOUT.PROCESS}>
                         {isPending && detail.requiresFourEyes && (
@@ -390,7 +374,8 @@ export const PrizePayoutDetailPage = () => {
                         {backLabel}
                     </Button>
                 </Stack>
-            </Box>
+                }
+            />
 
             {/* 2-Column Main Layout Grid */}
             <Grid container spacing={2.5}>

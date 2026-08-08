@@ -11,8 +11,7 @@ import { UserStatus } from '../../../../../types/user.type';
 import { getTabBadgeStyles } from '../../../../utils/badge';
 import { useMemo } from 'react';
 import { UserQueryParams } from '../../types/user.types';
-import { Breadcrumb } from "../../../../components/ui/Breadcrumb";
-import { Title } from "../../../../components/ui/Title";
+import { PageHeader } from "../../../../components/ui/PageHeader";
 import { prefixAdmin } from "../../../../constants/routes";
 import { useNavigate } from "@/components/router-compat";
 import { CanAccess } from "../../../../components/auth/CanAccess";
@@ -85,17 +84,14 @@ export const UserListPageBase = ({
 
     return (
         <>
-            <div className="mb-[calc(5*var(--spacing))] gap-[calc(2*var(--spacing))] flex items-start justify-end">
-                <div className="mr-auto">
-                    <Title title={title} />
-                    <Breadcrumb
-                        items={[
+            <PageHeader
+                title={title}
+                breadcrumbItems={[
                             { label: "Dashboard", to: "/" },
                             { label: title },
                         ]}
-                    />
-                </div>
-                <div>
+                action={
+                    <div>
                     <CanAccess permission={createPermission}>
                         <Button
                             variant="contained"
@@ -107,7 +103,8 @@ export const UserListPageBase = ({
                         </Button>
                     </CanAccess>
                 </div>
-            </div>
+                }
+            />
 
             <Card elevation={0} className="admin-datagrid-card" sx={{ height: 'auto' }}>
                 <Tabs

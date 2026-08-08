@@ -2,8 +2,7 @@
 
 import Button from "@mui/material/Button";
 import AddIcon from '@mui/icons-material/Add';
-import { Breadcrumb } from "../../../../components/ui/Breadcrumb";
-import { Title } from "../../../../components/ui/Title";
+import { PageHeader } from "../../../../components/ui/PageHeader";
 import { prefixAdmin } from "../../../../constants/routes";
 import { useNavigate } from "react-router-dom";
 import { Card, Tabs, Tab } from "@mui/material";
@@ -89,18 +88,15 @@ export const BlogListPage = () => {
 
     return (
         <>
-            <div className="mb-[calc(5*var(--spacing))] gap-[calc(2*var(--spacing))] flex items-start justify-end">
-                <div className="mr-auto">
-                    <Title title="Danh sách bài viết" />
-                    <Breadcrumb
-                        items={[
+            <PageHeader
+                title="Danh sách bài viết"
+                breadcrumbItems={[
                             { label: "Bảng điều khiển", to: "/" },
                             { label: "Danh sách bài viết", to: `/${prefixAdmin}/blog/list` },
                             { label: "Danh sách" }
                         ]}
-                    />
-                </div>
-                <div style={{ display: 'flex', gap: '16px' }}>
+                action={
+                    <div style={{ display: 'flex', gap: '16px' }}>
                     <CanAccess permission={PERMISSIONS.ARTICLE.CREATE}>
                         <Button
                             onClick={() => navigate(`/${prefixAdmin}/blog/create`)}
@@ -112,7 +108,8 @@ export const BlogListPage = () => {
                         </Button>
                     </CanAccess>
                 </div>
-            </div>
+                }
+            />
 
             <Card elevation={0} sx={{
                 borderRadius: 'var(--shape-borderRadius-lg)',

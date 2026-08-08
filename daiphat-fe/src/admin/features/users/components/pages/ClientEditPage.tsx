@@ -1,7 +1,6 @@
 "use client";
 
-import { Breadcrumb } from '../../../../components/ui/Breadcrumb';
-import { Title } from '../../../../components/ui/Title';
+import { PageHeader } from '../../../../components/ui/PageHeader';
 import { useUpdateUser, useUserDetail, useDeleteUser } from "../../hooks/useUsers";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm, Controller } from "react-hook-form";
@@ -136,18 +135,14 @@ export const ClientEditPage = () => {
     return (
         <div className="p-[24px] pt-[16px] flex flex-col gap-[24px] max-w-[1200px] mx-auto w-full">
             {/* Header */}
-            <div className="flex justify-between items-start">
-                <div>
-                    <Title title="Chỉnh sửa tài khoản khách hàng" />
-                    <Breadcrumb
-                        items={[
-                            { label: "Dashboard", to: `/${prefixAdmin}` },
-                            { label: "Khách hàng", to: `/${prefixAdmin}/account-user/list` },
-                            { label: "Cập nhật" }
-                        ]}
-                    />
-                </div>
-            </div>
+            <PageHeader
+                title="Chỉnh sửa tài khoản khách hàng"
+                breadcrumbItems={[
+                    { label: "Dashboard", to: `/${prefixAdmin}` },
+                    { label: "Khách hàng", to: `/${prefixAdmin}/account-user/list` },
+                    { label: "Cập nhật" }
+                ]}
+            />
 
             <form onSubmit={handleSubmit(onSubmit)}>
                 <div className="grid grid-cols-1 md:grid-cols-12 gap-[24px]">

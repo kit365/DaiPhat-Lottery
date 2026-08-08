@@ -1,7 +1,6 @@
 "use client";
 
-import { Breadcrumb } from '../../../../components/ui/Breadcrumb';
-import { Title } from '../../../../components/ui/Title';
+import { PageHeader } from '../../../../components/ui/PageHeader';
 import { CollapsibleCard } from '../../../../components/ui/CollapsibleCard';
 import { useCreateUser, useUploadUserAvatar } from "../../hooks/useUsers";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -72,18 +71,14 @@ export const ClientCreatePage = () => {
 
     return (
         <>
-            <div className="mb-[calc(5*var(--spacing))] gap-[calc(2*var(--spacing))] flex items-start justify-end">
-                <div className="mr-auto">
-                    <Title title="Thêm khách hàng mới" />
-                    <Breadcrumb
-                        items={[
+            <PageHeader
+                title="Thêm khách hàng mới"
+                breadcrumbItems={[
                             { label: "Dashboard", to: ROUTES.ADMIN.ROOT },
                             { label: "Danh sách Khách hàng", to: ROUTES.ADMIN.ACCOUNTS.USER.LIST },
                             { label: "Thêm khách hàng mới" },
                         ]}
-                    />
-                </div>
-            </div>
+            />
 
             <form onSubmit={handleSubmit(onSubmit)} noValidate>
                 <CollapsibleCard title="Thông tin khách hàng" expanded onToggle={() => undefined}>

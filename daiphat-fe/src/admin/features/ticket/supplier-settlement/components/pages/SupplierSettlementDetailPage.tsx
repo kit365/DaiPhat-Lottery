@@ -10,8 +10,7 @@ import ReceiptLongOutlinedIcon from '@mui/icons-material/ReceiptLongOutlined';
 import { Avatar, Box, Button, Card, Chip, CircularProgress, Dialog, DialogContent, DialogTitle, Grid, IconButton, Stack, Typography } from '@mui/material';
 import dayjs from 'dayjs';
 import { useParams } from '@/components/router-compat';
-import { Breadcrumb } from '../../../../../components/ui/Breadcrumb';
-import { Title } from '../../../../../components/ui/Title';
+import { PageHeader } from '../../../../../components/ui/PageHeader';
 import { ROUTES } from '../../../../../constants/routes';
 import { formatImportCost } from '../../../import-batch/utils/importCostCalculator';
 import { useSupplierSettlementOverview } from '../../hooks/useSupplierSettlement';
@@ -60,42 +59,38 @@ export const SupplierSettlementDetailPage = () => {
     return (
         <Box sx={{ width: '100%', pb: 5 }}>
             {/* Page Header with Circular Back Button */}
-            <div className="mb-[calc(4*var(--spacing))] flex items-start justify-end gap-[calc(2*var(--spacing))]">
-                <div className="mr-auto">
-                    <Stack direction="row" alignItems="center" spacing={1.5}>
-                        <IconButton
-                            onClick={() => navigate(ROUTES.ADMIN.SUPPLIER_SETTLEMENT.LIST)}
-                            size="small"
-                            sx={{
-                                bgcolor: '#ffffff',
-                                border: '1px solid #cbd5e1',
-                                color: '#334155',
-                                boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.06)',
-                                width: 34,
-                                height: 34,
-                                '&:hover': {
-                                    bgcolor: '#f1f5f9',
-                                    borderColor: '#94a3b8',
-                                    color: '#0f172a',
-                                    transform: 'translateX(-2px)',
-                                },
-                                transition: 'all 0.15s ease',
-                            }}
-                            title="Quay lại danh sách đối soát NCC"
-                        >
-                            <ArrowBackOutlinedIcon fontSize="small" />
-                        </IconButton>
-                        <Title title="Chi tiết đối soát nhà cung cấp" />
-                    </Stack>
-                    <Breadcrumb
-                        items={[
-                            { label: 'Vé số', to: ROUTES.ADMIN.TICKETS.LIST },
-                            { label: 'Đối soát NCC', to: ROUTES.ADMIN.SUPPLIER_SETTLEMENT.LIST },
-                            { label: settlement.supplierName || `#${settlement.id}` },
-                        ]}
-                    />
-                </div>
-            </div>
+            <PageHeader
+                title="Chi tiết đối soát nhà cung cấp"
+                breadcrumbItems={[
+                    { label: 'Vé số', to: ROUTES.ADMIN.TICKETS.LIST },
+                    { label: 'Đối soát NCC', to: ROUTES.ADMIN.SUPPLIER_SETTLEMENT.LIST },
+                    { label: settlement.supplierName || `#${settlement.id}` },
+                ]}
+                titleExtra={
+                    <IconButton
+                        onClick={() => navigate(ROUTES.ADMIN.SUPPLIER_SETTLEMENT.LIST)}
+                        size="small"
+                        sx={{
+                            bgcolor: '#ffffff',
+                            border: '1px solid #cbd5e1',
+                            color: '#334155',
+                            boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.06)',
+                            width: 34,
+                            height: 34,
+                            '&:hover': {
+                                bgcolor: '#f1f5f9',
+                                borderColor: '#94a3b8',
+                                color: '#0f172a',
+                                transform: 'translateX(-2px)',
+                            },
+                            transition: 'all 0.15s ease',
+                        }}
+                        title="Quay lại danh sách đối soát NCC"
+                    >
+                        <ArrowBackOutlinedIcon fontSize="small" />
+                    </IconButton>
+                }
+            />
 
             {/* Top Executive Header Card: Consolidated Info & 100% Balanced Financial Grid */}
             <Card

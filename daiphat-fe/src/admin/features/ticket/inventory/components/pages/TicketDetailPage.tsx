@@ -1,8 +1,7 @@
 "use client";
 
 import { Box, Stack, ThemeProvider, useTheme, createTheme, Button, Typography, CircularProgress, Chip, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TextField, Select, MenuItem } from "@mui/material"
-import { Breadcrumb } from "../../../../../components/ui/Breadcrumb"
-import { Title } from "../../../../../components/ui/Title"
+import { PageHeader } from "../../../../../components/ui/PageHeader"
 import { useState, useMemo } from "react"
 import { CollapsibleCard } from "../../../../../components/ui/CollapsibleCard"
 import { prefixAdmin } from "../../../../../constants/routes";
@@ -107,18 +106,15 @@ export const TicketDetailPage = () => {
 
     return (
         <>
-            <div className="mb-[calc(5*var(--spacing))] gap-[calc(2*var(--spacing))] flex items-start justify-end">
-                <div className="mr-auto">
-                    <Title title={"Chi tiết vé số"} />
-                    <Breadcrumb
-                        items={[
+            <PageHeader
+                title={"Chi tiết vé số"}
+                breadcrumbItems={[
                             { label: "Dashboard", to: "/" },
                             { label: "Kho vé số", to: `/${prefixAdmin}/ticket/list` },
                             { label: "Chi tiết" }
                         ]}
-                    />
-                </div>
-                <Button
+                action={
+                    <Button
                     variant="contained"
                     className="btn-primary-admin"
                     disabled={!canEditTicket}
@@ -126,7 +122,8 @@ export const TicketDetailPage = () => {
                 >
                     Chỉnh sửa
                 </Button>
-            </div>
+                }
+            />
             <ThemeProvider theme={localTheme}>
                 <Stack sx={{
                     margin: "0px calc(15 * var(--spacing))",

@@ -1,7 +1,6 @@
 "use client";
 
-import { Breadcrumb } from '../../../../components/ui/Breadcrumb';
-import { Title } from '../../../../components/ui/Title';
+import { PageHeader } from '../../../../components/ui/PageHeader';
 import { CollapsibleCard } from '../../../../components/ui/CollapsibleCard';
 import { useCreateUser, useUploadUserAvatar } from "../../hooks/useUsers";
 import { useRoles } from "../../../role/hooks/useRole";
@@ -77,18 +76,14 @@ export const AdminCreatePage = () => {
 
     return (
         <>
-            <div className="mb-[calc(5*var(--spacing))] gap-[calc(2*var(--spacing))] flex items-start justify-end">
-                <div className="mr-auto">
-                    <Title title="Thêm nhân viên mới" />
-                    <Breadcrumb
-                        items={[
+            <PageHeader
+                title="Thêm nhân viên mới"
+                breadcrumbItems={[
                             { label: "Dashboard", to: ROUTES.ADMIN.ROOT },
                             { label: "Danh sách Nhân viên", to: ROUTES.ADMIN.ACCOUNTS.ADMIN.LIST },
                             { label: "Thêm nhân viên mới" },
                         ]}
-                    />
-                </div>
-            </div>
+            />
 
             <form onSubmit={handleSubmit(onSubmit)} noValidate>
                 <CollapsibleCard title="Thông tin nhân viên" expanded onToggle={() => undefined}>

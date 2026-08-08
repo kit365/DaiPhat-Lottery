@@ -26,8 +26,7 @@ import RefreshIcon from "@mui/icons-material/Refresh";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "react-toastify";
-import { Breadcrumb } from "../../../../components/ui/Breadcrumb";
-import { Title } from "../../../../components/ui/Title";
+import { PageHeader } from "../../../../components/ui/PageHeader";
 import { LoadingButton } from "../../../../components/ui/LoadingButton";
 import { CanAccess } from "../../../../components/auth/CanAccess";
 import { ROUTES } from "../../../../constants/routes";
@@ -229,40 +228,38 @@ export const LuckyPatternConfigPage = () => {
 
     return (
         <>
-            <div className="mb-[calc(5*var(--spacing))] gap-[calc(2*var(--spacing))] flex items-start justify-end flex-wrap">
-                <div className="mr-auto">
-                    <Title title="Cấu hình số đẹp" />
-                    <Breadcrumb
-                        items={[
-                            { label: "Dashboard", to: "/" },
-                            { label: "Đại lý bán dạo", to: ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.LIST },
-                            { label: "Số đẹp" },
-                        ]}
-                    />
-                </div>
-                <CanAccess permission={PERMISSIONS.STREET_AGENT.EDIT}>
-                    <Stack direction="row" spacing={1.5}>
-                        <Button
-                            variant="outlined"
-                            startIcon={<RefreshIcon />}
-                            disabled={isRecomputing}
-                            onClick={() =>
-                                recompute(undefined, {
-                                    onSuccess: (response) =>
-                                        toast.success(response.message || "Đã đánh dấu lại số đẹp."),
-                                    onError: (error: any) =>
-                                        toast.error(error.response?.data?.message || "Recompute thất bại"),
-                                })
-                            }
-                        >
-                            Đánh dấu lại vé tồn
-                        </Button>
-                        <Button className="btn-primary-admin" variant="contained" startIcon={<AddIcon />} onClick={openCreate}>
-                            Thêm cấu hình
-                        </Button>
-                    </Stack>
-                </CanAccess>
-            </div>
+            <PageHeader
+                title="Cấu hình số đẹp"
+                breadcrumbItems={[
+                    { label: "Dashboard", to: "/" },
+                    { label: "Đại lý bán dạo", to: ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.LIST },
+                    { label: "Số đẹp" },
+                ]}
+                action={
+                    <CanAccess permission={PERMISSIONS.STREET_AGENT.EDIT}>
+                        <Stack direction="row" spacing={1.5}>
+                            <Button
+                                variant="outlined"
+                                startIcon={<RefreshIcon />}
+                                disabled={isRecomputing}
+                                onClick={() =>
+                                    recompute(undefined, {
+                                        onSuccess: (response) =>
+                                            toast.success(response.message || "Đã đánh dấu lại số đẹp."),
+                                        onError: (error: any) =>
+                                            toast.error(error.response?.data?.message || "Recompute thất bại"),
+                                    })
+                                }
+                            >
+                                Đánh dấu lại vé tồn
+                            </Button>
+                            <Button className="btn-primary-admin" variant="contained" startIcon={<AddIcon />} onClick={openCreate}>
+                                Thêm cấu hình
+                            </Button>
+                        </Stack>
+                    </CanAccess>
+                }
+            />
 
             <Card
                 elevation={0}

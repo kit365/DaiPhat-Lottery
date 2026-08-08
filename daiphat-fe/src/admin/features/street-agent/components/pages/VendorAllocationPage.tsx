@@ -29,8 +29,7 @@ import CloseIcon from "@mui/icons-material/Close";
 import dayjs from "dayjs";
 import { toast } from "react-toastify";
 import { Link as RouterLink, useSearchParams } from "@/components/router-compat";
-import { Breadcrumb } from "../../../../components/ui/Breadcrumb";
-import { Title } from "../../../../components/ui/Title";
+import { PageHeader } from "../../../../components/ui/PageHeader";
 import { LoadingButton } from "../../../../components/ui/LoadingButton";
 import { ROUTES } from "../../../../constants/routes";
 import { PERMISSIONS } from "../../../../constants/permission.constants";
@@ -390,18 +389,14 @@ export const VendorAllocationPage = () => {
 
     return (
         <Box sx={{ maxWidth: 1200, mx: "auto", pb: (!draftId && !blockingOpenBatch && profile) ? 12 : 5 }}>
-            <div className="mb-[calc(3*var(--spacing))] flex items-start justify-end gap-[calc(2*var(--spacing))] flex-wrap">
-                <div className="mr-auto">
-                    <Title title="Bàn giao vé cho đại lý bán dạo" />
-                    <Breadcrumb
-                        items={[
-                            { label: "Dashboard", to: "/" },
-                            { label: "Đại lý bán dạo", to: ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.LIST },
-                            { label: "Bàn giao vé" },
-                        ]}
-                    />
-                </div>
-            </div>
+            <PageHeader
+                title="Bàn giao vé cho đại lý bán dạo"
+                breadcrumbItems={[
+                    { label: "Dashboard", to: "/" },
+                    { label: "Đại lý bán dạo", to: ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.LIST },
+                    { label: "Bàn giao vé" },
+                ]}
+            />
 
             <Stack spacing={3}>
                 <Card sx={{ p: 3, borderRadius: "var(--shape-borderRadius-lg)", boxShadow: "var(--customShadows-card)" }}>

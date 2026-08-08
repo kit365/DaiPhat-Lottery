@@ -2,8 +2,7 @@
 
 import AddIcon from '@mui/icons-material/Add';
 import { useNavigate } from '@/components/router-compat';
-import { Breadcrumb } from '../../../../components/ui/Breadcrumb';
-import { Title } from '../../../../components/ui/Title';
+import { PageHeader } from '../../../../components/ui/PageHeader';
 import { LoadingButton } from '../../../../components/ui/LoadingButton';
 import { CanAccess } from '../../../../components/auth/CanAccess';
 import { PERMISSIONS } from '../../../../constants/permission.constants';
@@ -17,30 +16,28 @@ export const SupplierListPage = () => {
 
     return (
         <>
-            <div className="mb-[calc(5*var(--spacing))] gap-[calc(2*var(--spacing))] flex items-start justify-end">
-                <div className="mr-auto">
-                    <Title title="Danh sách nhà cung cấp" />
-                    <Breadcrumb
-                        items={[
-                            { label: 'Bảng điều khiển', to: '/' },
-                            { label: 'Vé số', to: `/${prefixAdmin}/ticket/list` },
-                            { label: 'Nhà cung cấp', to: ROUTES.ADMIN.SUPPLIER.LIST },
-                            { label: 'Danh sách' },
-                        ]}
-                    />
-                </div>
-                <CanAccess permission={PERMISSIONS.SUPPLIER.CREATE}>
-                    <LoadingButton
-                        onClick={() => navigate(ROUTES.ADMIN.SUPPLIER.CREATE)}
-                        label="Thêm nhà cung cấp"
-                        startIcon={<AddIcon />}
-                        sx={{
-                            minHeight: '2.25rem',
-                            padding: 'var(--shape-borderRadius-sm) calc(2 * var(--spacing))',
-                        }}
-                    />
-                </CanAccess>
-            </div>
+            <PageHeader
+                title="Danh sách nhà cung cấp"
+                breadcrumbItems={[
+                    { label: 'Bảng điều khiển', to: '/' },
+                    { label: 'Vé số', to: `/${prefixAdmin}/ticket/list` },
+                    { label: 'Nhà cung cấp', to: ROUTES.ADMIN.SUPPLIER.LIST },
+                    { label: 'Danh sách' },
+                ]}
+                action={
+                    <CanAccess permission={PERMISSIONS.SUPPLIER.CREATE}>
+                        <LoadingButton
+                            onClick={() => navigate(ROUTES.ADMIN.SUPPLIER.CREATE)}
+                            label="Thêm nhà cung cấp"
+                            startIcon={<AddIcon />}
+                            sx={{
+                                minHeight: '2.25rem',
+                                padding: 'var(--shape-borderRadius-sm) calc(2 * var(--spacing))',
+                            }}
+                        />
+                    </CanAccess>
+                }
+            />
 
             <SupplierList supplierHook={supplierHook} />
         </>

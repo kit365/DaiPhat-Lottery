@@ -1,7 +1,6 @@
 "use client";
 
-import { Breadcrumb } from "../../../../components/ui/Breadcrumb";
-import { Title } from "../../../../components/ui/Title";
+import { PageHeader } from "../../../../components/ui/PageHeader";
 import {
     useCreateStreetAgentProfile,
     useStreetAgentProfileDetail,
@@ -294,17 +293,15 @@ export const StreetAgentCreatePage = () => {
 
     return (
         <Box sx={{ maxWidth: "1200px", mx: "auto" }}>
-            <Box sx={{ mb: 5 }}>
-                <Title title="Tạo hồ sơ đại lý bán dạo" />
-                <Breadcrumb
-                    items={[
-                        { label: "Dashboard", to: "/" },
-                        { label: "Quản lý tài khoản", to: ROUTES.ADMIN.ACCOUNTS.ADMIN.LIST },
-                        { label: "Đại lý bán dạo", to: ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.LIST },
-                        { label: resumeId ? "Tiếp tục hoàn thiện" : "Tạo hồ sơ" },
-                    ]}
-                />
-            </Box>
+            <PageHeader
+                title="Tạo hồ sơ đại lý bán dạo"
+                breadcrumbItems={[
+                    { label: "Dashboard", to: "/" },
+                    { label: "Quản lý tài khoản", to: ROUTES.ADMIN.ACCOUNTS.ADMIN.LIST },
+                    { label: "Đại lý bán dạo", to: ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.LIST },
+                    { label: resumeId ? "Tiếp tục hoàn thiện" : "Tạo hồ sơ" },
+                ]}
+            />
 
             <Card
                 sx={{

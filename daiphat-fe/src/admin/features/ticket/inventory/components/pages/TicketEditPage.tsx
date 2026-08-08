@@ -1,8 +1,7 @@
 "use client";
 
 import { Box, Stack, TextField, ThemeProvider, useTheme, createTheme, FormControl, InputLabel, MenuItem, OutlinedInput, Select, Button, Typography, IconButton, CircularProgress, Pagination, Chip, Table, TableBody, TableCell, TableContainer, TableHead, TableRow } from "@mui/material"
-import { Breadcrumb } from "../../../../../components/ui/Breadcrumb"
-import { Title } from "../../../../../components/ui/Title"
+import { PageHeader } from "../../../../../components/ui/PageHeader"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { CollapsibleCard } from "../../../../../components/ui/CollapsibleCard"
 import { TicketSerialImageField } from "../sections/TicketSerialImageField"
@@ -294,18 +293,14 @@ export const TicketEditPage = () => {
 
     return (
         <>
-            <div className="mb-[calc(5*var(--spacing))] gap-[calc(2*var(--spacing))] flex items-start justify-end">
-                <div className="mr-auto">
-                    <Title title={"Sửa vé số"} />
-                    <Breadcrumb
-                        items={[
+            <PageHeader
+                title={"Sửa vé số"}
+                breadcrumbItems={[
                             { label: "Dashboard", to: "/" },
                             { label: "Kho vé số", to: `/${prefixAdmin}/ticket/list` },
                             { label: "Sửa vé" }
                         ]}
-                    />
-                </div>
-            </div>
+            />
             <ThemeProvider theme={localTheme}>
                 <form onSubmit={handleSubmit(onSubmit)}>
                     <Stack sx={{

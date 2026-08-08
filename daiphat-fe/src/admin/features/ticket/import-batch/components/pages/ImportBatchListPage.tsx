@@ -2,8 +2,7 @@
 
 import AddIcon from '@mui/icons-material/Add';
 import { useNavigate } from '@/components/router-compat';
-import { Breadcrumb } from '../../../../../components/ui/Breadcrumb';
-import { Title } from '../../../../../components/ui/Title';
+import { PageHeader } from '../../../../../components/ui/PageHeader';
 import { LoadingButton } from '../../../../../components/ui/LoadingButton';
 import { CanAccess } from '../../../../../components/auth/CanAccess';
 import { PERMISSIONS } from '../../../../../constants/permission.constants';
@@ -17,33 +16,31 @@ export const ImportBatchListPage = () => {
 
     return (
         <>
-            <div className="mb-[calc(5*var(--spacing))] flex flex-col gap-[calc(2*var(--spacing))] sm:flex-row sm:items-start sm:justify-between">
-                <div className="min-w-0">
-                    <Title title="Danh sách phiếu nhập lô" />
-                    <Breadcrumb
-                        items={[
-                            { label: 'Bảng điều khiển', to: '/' },
-                            { label: 'Vé số', to: `/${prefixAdmin}/ticket/list` },
-                            { label: 'Nhập lô vé', to: ROUTES.ADMIN.IMPORT_BATCH.LIST },
-                            { label: 'Danh sách' },
-                        ]}
-                    />
-                </div>
-                <CanAccess permission={PERMISSIONS.IMPORT_BATCH.CREATE}>
-                    <LoadingButton
-                        onClick={() => navigate(ROUTES.ADMIN.IMPORT_BATCH.CREATE)}
-                        label="Khai báo phiếu nhập"
-                        startIcon={<AddIcon />}
-                        className="btn-primary-admin"
-                        sx={{
-                            minHeight: '2.25rem',
-                            padding: 'var(--shape-borderRadius-sm) calc(2 * var(--spacing))',
-                            alignSelf: { xs: 'stretch', sm: 'flex-start' },
-                            whiteSpace: 'nowrap',
-                        }}
-                    />
-                </CanAccess>
-            </div>
+            <PageHeader
+                title="Danh sách phiếu nhập lô"
+                breadcrumbItems={[
+                    { label: 'Bảng điều khiển', to: '/' },
+                    { label: 'Vé số', to: `/${prefixAdmin}/ticket/list` },
+                    { label: 'Nhập lô vé', to: ROUTES.ADMIN.IMPORT_BATCH.LIST },
+                    { label: 'Danh sách' },
+                ]}
+                action={
+                    <CanAccess permission={PERMISSIONS.IMPORT_BATCH.CREATE}>
+                        <LoadingButton
+                            onClick={() => navigate(ROUTES.ADMIN.IMPORT_BATCH.CREATE)}
+                            label="Khai báo phiếu nhập"
+                            startIcon={<AddIcon />}
+                            className="btn-primary-admin"
+                            sx={{
+                                minHeight: '2.25rem',
+                                padding: 'var(--shape-borderRadius-sm) calc(2 * var(--spacing))',
+                                alignSelf: { xs: 'stretch', sm: 'flex-start' },
+                                whiteSpace: 'nowrap',
+                            }}
+                        />
+                    </CanAccess>
+                }
+            />
 
             <ImportBatchList listHook={listHook} />
         </>

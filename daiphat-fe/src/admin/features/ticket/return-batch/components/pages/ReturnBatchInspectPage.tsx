@@ -42,9 +42,8 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import Swal from 'sweetalert2';
 import { useParams } from '@/components/router-compat';
-import { Breadcrumb } from '../../../../../components/ui/Breadcrumb';
+import { PageHeader } from '../../../../../components/ui/PageHeader';
 import { LoadingButton } from '../../../../../components/ui/LoadingButton';
-import { Title } from '../../../../../components/ui/Title';
 import { ROUTES } from '../../../../../constants/routes';
 import { ReportSerialFaultPane } from '../../../import-batch/components/sections/ReportSerialFaultPane';
 import { UploadSingleFile } from '../../../../../components/upload/UploadSingleFile';
@@ -544,46 +543,42 @@ export const ReturnBatchInspectPage = () => {
     return (
         <Box sx={{ width: '100%', pb: 5 }}>
             {/* Page Header with Circular Back Button */}
-            <div className="mb-[calc(4*var(--spacing))] flex items-start justify-end gap-[calc(2*var(--spacing))]">
-                <div className="mr-auto">
-                    <Stack direction="row" alignItems="center" spacing={1.5}>
-                        <IconButton
-                            onClick={handleBackToDetail}
-                            size="small"
-                            sx={{
-                                bgcolor: '#ffffff',
-                                border: '1px solid #cbd5e1',
-                                color: '#334155',
-                                boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.06)',
-                                width: 34,
-                                height: 34,
-                                '&:hover': {
-                                    bgcolor: '#f1f5f9',
-                                    borderColor: '#94a3b8',
-                                    color: '#0f172a',
-                                    transform: 'translateX(-2px)',
-                                },
-                                transition: 'all 0.15s ease',
-                            }}
-                            title="Quay lại chi tiết phiếu trả vé"
-                        >
-                            <ArrowBackOutlinedIcon fontSize="small" />
-                        </IconButton>
-                        <Title title="Kiểm tra vé trả NCC" />
-                    </Stack>
-                    <Breadcrumb
-                        items={[
-                            { label: 'Vé số', to: ROUTES.ADMIN.TICKETS.LIST },
-                            { label: 'Trả vé NCC', to: ROUTES.ADMIN.RETURN_BATCH.LIST },
-                            {
-                                label: batch?.batchCode ? `Phiếu #${batch.batchCode}` : `Phiếu #${batchId}`,
-                                to: ROUTES.ADMIN.RETURN_BATCH.DETAIL(batchId),
+            <PageHeader
+                title="Kiểm tra vé trả NCC"
+                breadcrumbItems={[
+                    { label: 'Vé số', to: ROUTES.ADMIN.TICKETS.LIST },
+                    { label: 'Trả vé NCC', to: ROUTES.ADMIN.RETURN_BATCH.LIST },
+                    {
+                        label: batch?.batchCode ? `Phiếu #${batch.batchCode}` : `Phiếu #${batchId}`,
+                        to: ROUTES.ADMIN.RETURN_BATCH.DETAIL(batchId),
+                    },
+                    { label: 'Kiểm tra vé' },
+                ]}
+                titleExtra={
+                    <IconButton
+                        onClick={handleBackToDetail}
+                        size="small"
+                        sx={{
+                            bgcolor: '#ffffff',
+                            border: '1px solid #cbd5e1',
+                            color: '#334155',
+                            boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.06)',
+                            width: 34,
+                            height: 34,
+                            '&:hover': {
+                                bgcolor: '#f1f5f9',
+                                borderColor: '#94a3b8',
+                                color: '#0f172a',
+                                transform: 'translateX(-2px)',
                             },
-                            { label: 'Kiểm tra vé' },
-                        ]}
-                    />
-                </div>
-            </div>
+                            transition: 'all 0.15s ease',
+                        }}
+                        title="Quay lại chi tiết phiếu trả vé"
+                    >
+                        <ArrowBackOutlinedIcon fontSize="small" />
+                    </IconButton>
+                }
+            />
 
             <Card
                 elevation={0}

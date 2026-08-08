@@ -3,8 +3,7 @@
 import { Box, Stack, TextField, ThemeProvider, useTheme, createTheme, MenuItem, Typography } from "@mui/material"
 import { REGION_DATA } from "../../../../constants/region.constants";
 import { DAYS_OF_WEEK } from "../../../../constants/schedule.constants";
-import { Breadcrumb } from "../../../../components/ui/Breadcrumb"
-import { Title } from "../../../../components/ui/Title"
+import { PageHeader } from "../../../../components/ui/PageHeader"
 import { TimePicker } from "@mui/x-date-pickers";
 import dayjs from "dayjs";
 import { Tiptap } from "../../../../components/layouts/titap/Tiptap"
@@ -164,18 +163,14 @@ export const StationCreatePage = () => {
 
     return (
         <>
-            <div className="mb-[calc(5*var(--spacing))] gap-[calc(2*var(--spacing))] flex items-start justify-end">
-                <div className="mr-auto">
-                    <Title title="Tạo mới nhà đài" />
-                    <Breadcrumb
-                        items={[
+            <PageHeader
+                title="Tạo mới nhà đài"
+                breadcrumbItems={[
                             { label: "Dashboard", to: "/" },
                             { label: "Nhà đài", to: `/${prefixAdmin}/provider/list` },
                             { label: "Tạo mới" }
                         ]}
-                    />
-                </div>
-            </div>
+            />
             <ThemeProvider theme={localTheme}>
                 <form onSubmit={handleSubmit(onSubmit)}>
                     <Stack sx={{
