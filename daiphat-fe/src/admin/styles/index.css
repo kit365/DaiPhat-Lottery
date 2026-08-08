@@ -1165,11 +1165,6 @@ input:-webkit-autofill:active {
     background: var(--palette-background-neutral) !important;
 }
 
-.admin-table .MuiTableCell-head:first-of-type,
-.admin-table .MuiTableCell-body:first-of-type {
-    padding-left: 24px !important;
-}
-
 .admin-table .MuiTableCell-body {
     color: var(--palette-text-primary) !important;
     font-size: 0.875rem !important;
@@ -1217,6 +1212,33 @@ input:-webkit-autofill:active {
 .admin-table .admin-table-action:hover {
     color: var(--palette-text-secondary) !important;
     background-color: transparent !important;
+}
+
+.admin-import-batch-line-embed-panel {
+    padding: 12px;
+    background-color: var(--palette-background-neutral);
+}
+
+.admin-import-batch-line-embed-inner {
+    background-color: var(--palette-background-paper);
+    border: 1px solid var(--palette-divider);
+    border-radius: var(--shape-borderRadius-md);
+    overflow: hidden;
+}
+
+.admin-import-batch-line-embed-table.admin-table .MuiTableCell-head,
+.admin-import-batch-line-embed-table.admin-table .MuiTableCell-body {
+    padding: 8px 16px !important;
+    background-color: var(--palette-background-paper) !important;
+}
+
+.admin-import-batch-line-embed-table.admin-table .MuiTableRow-root:hover,
+.admin-import-batch-line-embed-table.admin-table .MuiTableRow-root.MuiTableRow-hover:hover,
+.admin-import-batch-line-embed-table.admin-table .MuiTableRow-root:hover > .MuiTableCell-body,
+.admin-import-batch-line-embed-table.admin-table .MuiTableRow-root.MuiTableRow-hover:hover > .MuiTableCell-body,
+.admin-import-batch-line-embed-table.admin-table .MuiTableRow-root:hover > .MuiTableCell-head,
+.admin-import-batch-line-embed-table.admin-table .MuiTableRow-root.MuiTableRow-hover:hover > .MuiTableCell-head {
+    background-color: var(--palette-background-paper) !important;
 }
 
 .admin-datagrid .MuiDataGrid-row:not(.admin-datagrid-row-expired):hover,

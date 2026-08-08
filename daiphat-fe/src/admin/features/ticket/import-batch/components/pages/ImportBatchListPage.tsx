@@ -17,8 +17,8 @@ export const ImportBatchListPage = () => {
 
     return (
         <>
-            <div className="mb-[calc(5*var(--spacing))] gap-[calc(2*var(--spacing))] flex items-start justify-end">
-                <div className="mr-auto">
+            <div className="mb-[calc(5*var(--spacing))] flex flex-col gap-[calc(2*var(--spacing))] sm:flex-row sm:items-start sm:justify-between">
+                <div className="min-w-0">
                     <Title title="Danh sách phiếu nhập lô" />
                     <Breadcrumb
                         items={[
@@ -38,6 +38,8 @@ export const ImportBatchListPage = () => {
                         sx={{
                             minHeight: '2.25rem',
                             padding: 'var(--shape-borderRadius-sm) calc(2 * var(--spacing))',
+                            alignSelf: { xs: 'stretch', sm: 'flex-start' },
+                            whiteSpace: 'nowrap',
                         }}
                     />
                 </CanAccess>

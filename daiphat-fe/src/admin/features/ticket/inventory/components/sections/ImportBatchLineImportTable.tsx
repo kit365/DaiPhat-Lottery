@@ -5,7 +5,6 @@ import {
     Box,
     Button,
     Divider,
-    Stack,
     Table,
     TableBody,
     TableCell,
@@ -18,6 +17,7 @@ import {
 import dayjs from 'dayjs';
 import type { ImportBatchLine, ImportBatchStatus } from '../../../import-batch/types/importBatch.type';
 import {
+    getBatchTypeBadgeClass,
     getBatchTypeLabel,
     getImportBatchLineStatusBadgeClass,
     getImportBatchLineStatusLabel,
@@ -29,7 +29,6 @@ import {
 } from '../../../import-batch/utils/importBatchCode';
 import {
     getLineImportProgress,
-    getLineStationColor,
     isLineCancelled,
     isLinePaused,
 } from '../../../import-batch/utils/importBatchProgress';
@@ -41,6 +40,7 @@ type ImportBatchLineImportTableProps = {
     drawDate?: string;
     resolveStationName: (stationId?: number | string) => string;
     onImportLine: (lineId: string) => void;
+    embedded?: boolean;
 };
 
 const canImportLine = (line: ImportBatchLine, batchStatus: ImportBatchStatus) => {
@@ -61,29 +61,43 @@ export const ImportBatchLineImportTable = ({
     drawDate,
     resolveStationName,
     onImportLine,
+    embedded = false,
 }: ImportBatchLineImportTableProps) => {
     const drawDateLabel = drawDate ? dayjs(drawDate).format('DD/MM/YYYY') : '—';
 
     return (
         <Box>
-            <Divider sx={{ my: 2, borderColor: 'var(--palette-divider)' }} />
+            {!embedded && (
+                <>
+                    <Divider sx={{ my: 2, borderColor: 'var(--palette-divider)' }} />
 
-            <Typography className="admin-form-title" sx={{ fontSize: '1rem !important', mb: 0.5 }}>
-                Danh sách nhà đài
-            </Typography>
-            <Typography className="admin-form-helper" sx={{ mb: 2, display: 'block' }}>
-                Chọn nhà đài và bấm <strong>Nhập</strong> để mở form nhập vé từng dãy số.
-            </Typography>
+                    <Typography className="admin-form-title" sx={{ fontSize: '1rem !important', mb: 0.5 }}>
+                        Danh sách nhà đài
+                    </Typography>
+                    <Typography className="admin-form-helper" sx={{ mb: 2, display: 'block' }}>
+                        Chọn nhà đài và bấm <strong>Nhập</strong> để mở form nhập vé từng dãy số.
+                    </Typography>
+                </>
+            )}
 
+            <Box className={embedded ? 'admin-import-batch-line-embed-inner' : undefined}>
             <TableContainer className="admin-table-container">
-                    <Table className="admin-table" sx={{ minWidth: 880 }}>
+                    <Table
+                        className={[
+                            'admin-table',
+                            embedded ? 'admin-import-batch-line-embed-table' : undefined,
+                        ]
+                            .filter(Boolean)
+                            .join(' ')}
+                        sx={{ minWidth: embedded ? 720 : 880 }}
+                    >
                         <TableHead>
                             <TableRow>
                                 <TableCell>Nhà đài</TableCell>
-                                <TableCell>Loại lô</TableCell>
-                                <TableCell>Mã lô</TableCell>
-                                <TableCell>Ngày quay</TableCell>
-                                <TableCell align="center" sx={{ minWidth: 148 }}>
+                                <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>Loại lô</TableCell>
+                                <TableCell sx={{ minWidth: embedded ? 200 : 220 }}>Mã lô</TableCell>
+                                {!embedded && <TableCell>Ngày quay</TableCell>}
+                                <TableCell align="center" sx={{ width: 100, minWidth: 100, maxWidth: 100 }}>
                                     Tiến độ
                                 </TableCell>
                                 <TableCell align="center">Trạng thái</TableCell>
@@ -95,7 +109,6 @@ export const ImportBatchLineImportTable = ({
                         <TableBody>
                             {lines.map((line) => {
                                 const progress = getLineImportProgress(line);
-                                const stationColor = getLineStationColor(lines, line);
                                 const stationName = resolveStationName(line.lotteryStationId);
                                 const importable = canImportLine(line, batchStatus);
                                 const cancelled = isLineCancelled(line);
@@ -106,37 +119,26 @@ export const ImportBatchLineImportTable = ({
                                     : undefined;
 
                                 return (
-                                    <TableRow key={line.id} hover={!cancelled}>
+                                    <TableRow key={line.id} hover={!embedded && !cancelled}>
                                         <TableCell>
-                                            <Stack direction="row" spacing={1} alignItems="center">
-                                                <Box
-                                                    component="span"
-                                                    sx={{
-                                                        width: 8,
-                                                        height: 8,
-                                                        borderRadius: '50%',
-                                                        bgcolor: stationColor.main,
-                                                        flexShrink: 0,
-                                                    }}
-                                                />
-                                                <span className="admin-cell-title">{stationName}</span>
-                                            </Stack>
+                                            <span className="admin-cell-title">{stationName}</span>
                                         </TableCell>
-                                        <TableCell>
-                                            <span className="admin-cell-text">
-                                                {getBatchTypeLabel(line.batchType)}
-                                            </span>
+                                        <TableCell align="center">
+                                            <Box sx={{ display: 'flex', justifyContent: 'center' }}>
+                                                <span
+                                                    className={`admin-status-badge ${getBatchTypeBadgeClass(line.batchType)}`}
+                                                >
+                                                    {getBatchTypeLabel(line.batchType)}
+                                                </span>
+                                            </Box>
                                         </TableCell>
-                                        <TableCell>
+                                        <TableCell sx={{ minWidth: embedded ? 200 : 220 }}>
                                             {batchCodeRaw ? (
-                                                <Tooltip title={batchCodeFormatted}>
+                                                <Tooltip title={batchCodeFormatted ?? batchCodeRaw}>
                                                     <Typography
+                                                        component="span"
                                                         className="admin-cell-text"
-                                                        noWrap
-                                                        sx={{
-                                                            ...importBatchCodeMonospaceSx,
-                                                            maxWidth: 160,
-                                                        }}
+                                                        sx={importBatchCodeMonospaceSx}
                                                     >
                                                         {batchCodeRaw}
                                                     </Typography>
@@ -145,16 +147,17 @@ export const ImportBatchLineImportTable = ({
                                                 <span className="admin-cell-text">—</span>
                                             )}
                                         </TableCell>
-                                        <TableCell>
-                                            <span className="admin-cell-text">{drawDateLabel}</span>
-                                        </TableCell>
+                                        {!embedded && (
+                                            <TableCell>
+                                                <span className="admin-cell-text">{drawDateLabel}</span>
+                                            </TableCell>
+                                        )}
                                         <TableCell align="center">
-                                            <Box sx={{ minWidth: 132, maxWidth: 160, mx: 'auto' }}>
+                                            <Box sx={{ width: 88, mx: 'auto' }}>
                                                 <TicketImportProgressTrack
                                                     imported={progress.imported}
                                                     declared={progress.declared}
-                                                    color={stationColor.main}
-                                                    trackColor={stationColor.track}
+                                                    height={5}
                                                     ariaLabel={`Tiến độ nhập vé ${stationName}`}
                                                 />
                                             </Box>
@@ -202,6 +205,7 @@ export const ImportBatchLineImportTable = ({
                         </TableBody>
                     </Table>
                 </TableContainer>
+            </Box>
         </Box>
     );
 };

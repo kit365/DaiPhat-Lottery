@@ -1,15 +1,12 @@
 "use client";
 
-import AddIcon from '@mui/icons-material/Add';
 import ReportProblemIcon from '@mui/icons-material/ReportProblem';
 import { Stack, Button } from '@mui/material';
-import { useNavigate } from '@/components/router-compat';
 import { Breadcrumb } from '../../../../../components/ui/Breadcrumb';
 import { Title } from '../../../../../components/ui/Title';
-import { LoadingButton } from '../../../../../components/ui/LoadingButton';
 import { CanAccess } from '../../../../../components/auth/CanAccess';
 import { PERMISSIONS } from '../../../../../constants/permission.constants';
-import { prefixAdmin, ROUTES } from '../../../../../constants/routes';
+import { prefixAdmin } from '../../../../../constants/routes';
 import { useTicketInventory } from '../../hooks/useTicketInventory';
 import { TicketList } from '../sections/TicketList';
 import { Tabs, Tab, Box } from '@mui/material';
@@ -22,7 +19,6 @@ import { getStationColor } from '../../../../station/utils/stationColor';
 import { useCancelTicketSelection } from '../../../import-batch/hooks/useCancelTicketSelection';
 
 export const TicketListPage = () => {
-    const navigate = useNavigate();
     const parseToISO = (dateStr: string) => {
         if (!dateStr) return undefined;
         const parts = dateStr.split('/');
@@ -108,18 +104,6 @@ export const TicketListPage = () => {
                     />
                 </div>
                 <Stack direction="row" spacing={1.5} alignItems="center">
-                    <CanAccess permission={PERMISSIONS.TICKET.CREATE}>
-                        <LoadingButton
-                            onClick={() => navigate(ROUTES.ADMIN.TICKETS.CREATE)}
-                            label="Thêm vé số"
-                            startIcon={<AddIcon />}
-                            className="btn-primary-admin"
-                            sx={{
-                                minHeight: '2.25rem',
-                                padding: 'var(--shape-borderRadius-sm) calc(2 * var(--spacing))',
-                            }}
-                        />
-                    </CanAccess>
                     <Button
                         variant="contained"
                         color="error"

@@ -36,7 +36,6 @@ import {
 } from '../../../import-batch/utils/importBatchCode';
 import {
     getLineImportProgress,
-    getLineStationColor,
     isLineCancelled,
     isLinePaused,
 } from '../../../import-batch/utils/importBatchProgress';
@@ -150,7 +149,6 @@ export const ImportBatchLineImportDialog = ({
     }
 
     const progress = getLineImportProgress(line);
-    const stationColors = getLineStationColor(lines, line);
     const stationName = resolveStationName(line.lotteryStationId);
     const linePaused = isLinePaused(line);
     const lineCancelled = isLineCancelled(line);
@@ -279,8 +277,6 @@ export const ImportBatchLineImportDialog = ({
                         <TicketImportProgressTrack
                             imported={progress.imported}
                             declared={progress.declared}
-                            color={stationColors.main}
-                            trackColor={stationColors.track}
                             ariaLabel={`Tiến độ nhập vé ${stationName}`}
                         />
                     </Box>

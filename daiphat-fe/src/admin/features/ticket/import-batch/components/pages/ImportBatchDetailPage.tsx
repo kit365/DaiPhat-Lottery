@@ -48,7 +48,6 @@ import {
     importBatchCodeMonospaceSx,
 } from '../../utils/importBatchCode';
 import {
-    findFirstIncompleteLine,
     hasTicketImportEligibleLines,
     isImportBatchEditable,
 } from '../../utils/importBatchProgress';
@@ -91,8 +90,6 @@ export const ImportBatchDetailPage = () => {
             </Box>
         );
     }
-
-    const firstIncompleteLine = findFirstIncompleteLine(batch);
 
     return (
         <Box className="admin-page">
@@ -141,14 +138,7 @@ export const ImportBatchDetailPage = () => {
                                 <CanAccess permission={PERMISSIONS.TICKET.CREATE}>
                                     <Button
                                         variant="contained"
-                                        onClick={() =>
-                                            navigate(
-                                                ROUTES.ADMIN.TICKETS.CREATE_FOR_BATCH(
-                                                    batch.id,
-                                                    firstIncompleteLine?.id
-                                                )
-                                            )
-                                        }
+                                        onClick={() => navigate(ROUTES.ADMIN.IMPORT_BATCH.LIST)}
                                     >
                                         Nhập vé vào phiếu
                                     </Button>

@@ -52,7 +52,6 @@ import {
     getImportBatchLineStatusBadgeClass,
     getImportBatchLineStatusLabel,
 } from '../../utils/batchTypeLabels';
-import { getLineStationColor } from '../../utils/importBatchProgress';
 import {
     buildCancelFlowStatusFilterOptions,
     getCancelFlowTicketStatusLabel,
@@ -519,7 +518,6 @@ export const ImportBatchLineDetailPage = () => {
     }
 
     const stationName = resolveStationName(line.lotteryStationId);
-    const stationColors = getLineStationColor(batch.lines ?? [], line);
     const batchCodeLabel = formatImportBatchHeaderCode(batch.batchCode, batch.id);
     const lineCodeRaw = displayImportBatchLineCodeRaw(line.batchCode);
     const firstSelected = selectedSerials[0];
@@ -588,8 +586,6 @@ export const ImportBatchLineDetailPage = () => {
                         <TicketImportProgressTrack
                             imported={line.totalQuantity ?? 0}
                             declared={line.declareQuantity ?? 0}
-                            color={stationColors.main}
-                            trackColor={stationColors.track}
                             ariaLabel={`Tiến độ nhập vé ${stationName}`}
                         />
                     </Box>

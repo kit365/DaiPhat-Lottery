@@ -1,11 +1,9 @@
-import { Box, Tooltip } from '@mui/material';
+import { LinearProgress, Tooltip } from '@mui/material';
 import { formatImportProgressPercent } from '../../utils/importBatchProgress';
 
 type TicketImportProgressTrackProps = {
     imported: number;
     declared: number;
-    color: string;
-    trackColor: string;
     height?: number;
     ariaLabel?: string;
 };
@@ -16,50 +14,32 @@ export const formatImportProgressCountTooltip = (imported: number, declared: num
 export const TicketImportProgressTrack = ({
     imported,
     declared,
-    color,
-    trackColor,
-    height = 20,
+    height = 6,
     ariaLabel,
 }: TicketImportProgressTrackProps) => {
     const percent = declared > 0 ? Math.min(100, (imported / declared) * 100) : 0;
     const percentLabel = formatImportProgressPercent(imported, declared);
-
-    const track = (
-        <Box
-            role="progressbar"
-            aria-valuemin={0}
-            aria-valuemax={100}
-            aria-valuenow={Number(percent.toFixed(1))}
-            aria-label={ariaLabel ?? `Tiến độ nhập vé ${percentLabel}`}
-            sx={{
-                position: 'relative',
-                width: '100%',
-                height,
-                borderRadius: 1,
-                overflow: 'hidden',
-                bgcolor: trackColor,
-                border: 1,
-                borderColor: 'divider',
-                cursor: 'default',
-            }}
-        >
-            <Box
-                sx={{
-                    position: 'absolute',
-                    left: 0,
-                    top: 0,
-                    bottom: 0,
-                    width: `${percent}%`,
-                    bgcolor: color,
-                    transition: 'width 0.25s ease',
-                }}
-            />
-        </Box>
-    );
+    const isComplete = declared > 0 && imported >= declared;
 
     return (
         <Tooltip arrow placement="top" title={formatImportProgressCountTooltip(imported, declared)}>
-            {track}
+            <LinearProgress
+                variant="determinate"
+                value={percent}
+                color={isComplete ? 'success' : 'warning'}
+                aria-label={ariaLabel ?? `Tiến độ nhập vé ${percentLabel}`}
+                sx={{
+                    width: '100%',
+                    height,
+                    borderRadius: 999,
+                    bgcolor: isComplete
+                        ? 'var(--palette-success-lighter)'
+                        : 'var(--palette-warning-lighter)',
+                    '& .MuiLinearProgress-bar': {
+                        borderRadius: 999,
+                    },
+                }}
+            />
         </Tooltip>
     );
 };
