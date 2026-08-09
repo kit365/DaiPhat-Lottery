@@ -95,7 +95,7 @@ export const useImportBatchLineImportForm = ({
     const hydratedEntryKeyRef = useRef<string | null>(null);
     const draftPersistReadyRef = useRef(false);
     const isApplyingLineRef = useRef(false);
-    const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+    const autoSaveTimerRef = useRef<number | undefined>(undefined);
     const isAutoSavingRef = useRef(false);
 
     const { data: importBatchDetail, isLoading: isBatchLoading } = useImportBatchDetail(

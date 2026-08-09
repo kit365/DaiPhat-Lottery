@@ -24,6 +24,7 @@ import {
 } from '@mui/material';
 import { useCallback, useEffect, useState } from 'react';
 import { AdminStatusBadge } from '../../../../../components/ui/AdminStatusBadge';
+import { ImagePreview } from '../../../../../components/ui/ImagePreview';
 import { StatRibbonCard, StatRibbonCardsGrid } from '../../../../../components/ui/StatRibbonCard';
 import { UploadSingleFile } from '../../../../../components/upload/UploadSingleFile';
 import { AppToast } from '../../../../../../utils/toast.util';
