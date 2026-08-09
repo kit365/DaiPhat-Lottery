@@ -1,7 +1,9 @@
 "use client";
 
+import { useRouter } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
+import Link from "next/link";
 import React, { useEffect, useRef } from "react";
-import { useLocation, useNavigate, Link } from "@/components/router-compat";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "../../../hooks/useAuth";
 import { useAuthStore } from "../../../../stores/useAuthStore";
@@ -46,8 +48,9 @@ export const ProfilePage = ({ children }: { children?: React.ReactNode }) => {
     const { data: pendingPayoutRes } = useMyPrizePayoutPendingCount();
     const pendingPayoutCount = pendingPayoutRes?.data ?? 0;
     const { activeCount: activeTicketCount } = useMySupportTicketActiveCount();
-    const location = useLocation();
-    const navigate = useNavigate();
+    const pathname = usePathname() ?? '';
+    const searchParamsForLocation = useSearchParams();
+    const router = useRouter();
     const avatarInputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
@@ -55,10 +58,10 @@ export const ProfilePage = ({ children }: { children?: React.ReactNode }) => {
             return;
         }
         if (!token) {
-            navigate('/');
+            router.push('/');
             openLoginModal();
         }
-    }, [token, isHydrated, isUserLoading, navigate, openLoginModal]);
+    }, [token, isHydrated, isUserLoading, router, openLoginModal]);
 
     if (!isHydrated || (token && isUserLoading)) {
         return (
@@ -101,7 +104,7 @@ export const ProfilePage = ({ children }: { children?: React.ReactNode }) => {
         return tab;
     });
 
-    const activeTabObj = tabs.find(t => location.pathname.startsWith(t.path)) || tabs[0];
+    const activeTabObj = tabs.find(t => pathname.startsWith(t.path)) || tabs[0];
     const avatarSrc = user.avatar || user.avatarUrl;
     const isUploadingAvatar = uploadAvatarMutation.isPending;
 
@@ -194,11 +197,11 @@ export const ProfilePage = ({ children }: { children?: React.ReactNode }) => {
                                 <div className="pb-4 pt-2 flex flex-col flex-1">
                                     <nav className="flex flex-col gap-1 flex-1">
                                         {tabs.map((tab) => {
-                                            const isActive = location.pathname.startsWith(tab.path);
+                                            const isActive = pathname.startsWith(tab.path);
                                             return (
                                                 <Link
                                                     key={tab.id}
-                                                    to={tab.path}
+                                                    href={tab.path}
                                                     className={`relative flex items-center justify-between px-6 py-3 text-[13px] font-medium transition-all outline-none cursor-pointer text-left overflow-hidden group
                                                     ${isActive ? 'bg-gradient-to-r from-[#FFF4F4] to-white text-[#c80f11]' : 'text-[#454F5B] hover:bg-[#FAFBFC] hover:text-[#212B36]'}
                                                 `}
@@ -237,7 +240,7 @@ export const ProfilePage = ({ children }: { children?: React.ReactNode }) => {
                             </div>
 
                             {/* Support Widget */}
-                            {(location.pathname === ROUTES.PUBLIC.PROFILE.ROOT || location.pathname === ROUTES.PUBLIC.PROFILE.OVERVIEW) && (
+                            {(pathname === ROUTES.PUBLIC.PROFILE.ROOT || pathname === ROUTES.PUBLIC.PROFILE.OVERVIEW) && (
                                 <div
                                     className="rounded-[20px] p-5 relative overflow-hidden flex flex-col justify-center min-h-[140px] bg-cover bg-center shadow-sm"
                                     style={{ backgroundImage: `url('${PROFILE_BANNERS[3]}')` }}
@@ -246,7 +249,7 @@ export const ProfilePage = ({ children }: { children?: React.ReactNode }) => {
                                         <h3 className="text-[14px] font-bold text-[#212B36] mb-1">Bạn cần hỗ trợ?</h3>
                                         <p className="text-[11px] font-medium text-[#637381] mb-3 leading-tight">Đội ngũ của chúng tôi luôn sẵn sàng!</p>
                                         <button
-                                            onClick={() => navigate('/profile/complaints')}
+                                            onClick={() => router.push('/profile/complaints')}
                                             className="bg-transparent border border-[#ee1314] text-[#ee1314] text-[11px] font-bold px-3 py-1.5 rounded-lg hover:bg-[#ee1314] hover:text-white transition-colors flex items-center gap-1.5 w-max cursor-pointer"
                                         >
                                             <i className="fa-solid fa-headset"></i>
@@ -265,7 +268,7 @@ export const ProfilePage = ({ children }: { children?: React.ReactNode }) => {
                             <div className="mt-2">
                                 <AnimatePresence mode="wait">
                                     <motion.div
-                                        key={location.pathname}
+                                        key={pathname}
                                         initial={{ opacity: 0, y: 10 }}
                                         animate={{ opacity: 1, y: 0 }}
                                         exit={{ opacity: 0, y: -10 }}

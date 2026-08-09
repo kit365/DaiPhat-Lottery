@@ -1,9 +1,10 @@
 "use client";
 
+import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
+import { usePathname, useSearchParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { authService } from "../services/auth.service";
 import { userService } from "../services/user.service";
-import { useLocation, useNavigate } from "@/components/router-compat";
 import { useAuthStore } from "../../../../stores/useAuthStore";
 import { toast } from "react-toastify";
 import { ROUTES } from "../../../constants/routes";
@@ -17,8 +18,9 @@ import { STORAGE_KEYS } from "../../../../constants/storage.constants";
 import { QUERY_KEYS } from "../../../../constants/queryKeys";
 
 export const useAuth = () => {
-    const navigate = useNavigate();
-    const location = useLocation();
+    const router = useAdminRouter();
+    const pathname = usePathname() ?? '';
+    const searchParamsForLocation = useSearchParams();
     const queryClient = useQueryClient();
     const { token, user, set, login: loginStore, logout, openProfileSetupModal } = useAuthStore();
 
@@ -57,9 +59,9 @@ export const useAuth = () => {
             Cookies.remove(STORAGE_KEYS.REFRESH_TOKEN, { path: '/' });
 
             // 3. Redirect back to Login
-            navigate(ROUTES.ADMIN.AUTH.LOGIN);
+            router.push(ROUTES.ADMIN.AUTH.LOGIN);
         }
-    }, [getMeQuery.isError, logout, navigate]);
+    }, [getMeQuery.isError, logout, router]);
 
     const loginMutation = useMutation({
         mutationFn: (data: LoginFormValues) => authService.login({ ...data, rememberMe: false }),
@@ -112,13 +114,13 @@ export const useAuth = () => {
 
                 if (!userInfo.hasPassword) {
                     toast.info("Vui lòng thiết lập mật khẩu cho lần đăng nhập đầu tiên.");
-                    navigate(ROUTES.ADMIN.AUTH.SETUP_PROFILE);
+                    router.push(ROUTES.ADMIN.AUTH.SETUP_PROFILE);
                 } else if (roleCode === USER_ROLES.ADMIN) {
                     toast.success("Chào mừng Quản trị viên!");
-                    navigate(ROUTES.ADMIN.DASHBOARD.SYSTEM);
+                    router.push(ROUTES.ADMIN.DASHBOARD.SYSTEM);
                 } else {
                     toast.success("Đăng nhập thành công!");
-                    navigate(ROUTES.ADMIN.DASHBOARD.SYSTEM);
+                    router.push(ROUTES.ADMIN.DASHBOARD.SYSTEM);
                 }
             } else {
                 toast.error(response.message || "Đăng nhập thất bại.");
@@ -150,7 +152,7 @@ export const useAuth = () => {
                 sessionStorage.removeItem(STORAGE_KEYS.PKCE_VERIFIER);
                 sessionStorage.removeItem(STORAGE_KEYS.OAUTH_REDIRECT_URI);
 
-                const isClientCallback = !location.pathname.startsWith(ROUTES.ADMIN.ROOT);
+                const isClientCallback = !pathname.startsWith(ROUTES.ADMIN.ROOT);
 
                 try {
                     const meResponse = await userService.getMe();
@@ -192,16 +194,16 @@ export const useAuth = () => {
                             sessionStorage.setItem(STORAGE_KEYS.FORCE_PROFILE_SETUP, "true");
                         }
 
-                        navigate(ROUTES.PUBLIC.HOME);
+                        router.push(ROUTES.PUBLIC.HOME);
                         return;
                     }
 
                     if (!userInfo.hasPassword || !userInfo.agreedToTerms) {
-                        navigate(ROUTES.ADMIN.AUTH.SETUP_PROFILE);
+                        router.push(ROUTES.ADMIN.AUTH.SETUP_PROFILE);
                     } else if (roleCode === USER_ROLES.ADMIN) {
-                        navigate(ROUTES.ADMIN.DASHBOARD.SYSTEM);
+                        router.push(ROUTES.ADMIN.DASHBOARD.SYSTEM);
                     } else {
-                        navigate(ROUTES.ADMIN.DASHBOARD.SYSTEM);
+                        router.push(ROUTES.ADMIN.DASHBOARD.SYSTEM);
                     }
                 } catch (error) {
                     toast.error("Xác thực Google thành công nhưng không lấy được thông tin người dùng.");
@@ -212,8 +214,8 @@ export const useAuth = () => {
             sessionStorage.removeItem(STORAGE_KEYS.PKCE_VERIFIER);
             sessionStorage.removeItem(STORAGE_KEYS.OAUTH_REDIRECT_URI);
             toast.error("Xác thực OAuth thất bại.");
-            const isClientCallback = !location.pathname.startsWith(ROUTES.ADMIN.ROOT);
-            navigate(isClientCallback ? "/login" : ROUTES.ADMIN.AUTH.LOGIN);
+            const isClientCallback = !pathname.startsWith(ROUTES.ADMIN.ROOT);
+            router.push(isClientCallback ? "/login" : ROUTES.ADMIN.AUTH.LOGIN);
         }
     });
 

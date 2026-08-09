@@ -1,5 +1,7 @@
 "use client";
 
+import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
+import { useRouteParams } from "@/hooks/useRouteParams";
 import { Box, Stack, ThemeProvider, useTheme, createTheme, Button, Typography, Chip, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TextField, Select, MenuItem } from "@mui/material"
 import { PageHeader } from "../../../../../components/ui/PageHeader"
 import { SpinnerLoading } from "../../../../../components/ui/SpinnerLoading"
@@ -7,7 +9,6 @@ import { useState, useMemo } from "react"
 import { CollapsibleCard } from "../../../../../components/ui/CollapsibleCard"
 import { prefixAdmin } from "../../../../../constants/routes";
 import { useTicketDetail } from "../../hooks/useTicket";
-import { useParams, useNavigate } from "react-router-dom";
 import { formatImportBatchCode } from "../../../import-batch/utils/importBatchCode";
 import { resolveAvailableTicketQuantity } from "../../utils/ticketQuantity";
 import dayjs from "dayjs";
@@ -36,8 +37,8 @@ const getSerialStatusChipSx = (status?: string, ticketCondition?: string) => {
 };
 
 export const TicketDetailPage = () => {
-    const { id } = useParams<{ id: string }>();
-    const navigate = useNavigate();
+    const { id } = useRouteParams();
+    const router = useAdminRouter();
 
     const { data: ticketDetail, isLoading: isLoadingTicket } = useTicketDetail(id);
     const { data: providersRes } = useStations({ limit: 1000 });
@@ -131,7 +132,7 @@ export const TicketDetailPage = () => {
                     variant="contained"
                     className="btn-primary-admin"
                     disabled={!canEditTicket}
-                    onClick={() => navigate(`/${prefixAdmin}/ticket/edit/${id}`)}
+                    onClick={() => router.push(`/${prefixAdmin}/ticket/edit/${id}`)}
                 >
                     Chỉnh sửa
                 </Button>
@@ -484,7 +485,7 @@ export const TicketDetailPage = () => {
                     </CollapsibleCard>
 
                     <Box sx={{ display: 'flex', justifyContent: 'flex-start' }}>
-                        <Button variant="outlined" color="inherit" onClick={() => navigate(`/${prefixAdmin}/ticket/list`)}>
+                        <Button variant="outlined" color="inherit" onClick={() => router.push(`/${prefixAdmin}/ticket/list`)}>
                             Quay lại danh sách
                         </Button>
                     </Box>

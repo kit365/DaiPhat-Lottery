@@ -1,10 +1,11 @@
 "use client";
 
+import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
+import { useRouteParams } from "@/hooks/useRouteParams";
 import { Box, Stack, Typography, FormControlLabel, Switch } from '@mui/material';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useEffect, useMemo, useState } from 'react';
 import { useForm, Controller } from 'react-hook-form';
-import { useNavigate, useParams } from '@/components/router-compat';
 import { toast } from 'react-toastify';
 import { PageHeader } from '../../../../components/ui/PageHeader';
 import { SpinnerLoading } from '../../../../components/ui/SpinnerLoading';
@@ -21,8 +22,8 @@ import {
 } from '../../utils/supplier-activation';
 
 export const SupplierEditPage = () => {
-    const { id } = useParams<{ id: string }>();
-    const navigate = useNavigate();
+    const { id } = useRouteParams();
+    const router = useAdminRouter();
     const { data: supplier, isLoading } = useSupplierDetail(id);
     const { mutateAsync, isPending } = useUpdateSupplier();
     const [activationErrorsVisible, setActivationErrorsVisible] = useState(false);
@@ -120,7 +121,7 @@ export const SupplierEditPage = () => {
             });
             if (res.success) {
                 toast.success(res.message || 'Cập nhật nhà cung cấp thành công.');
-                navigate(ROUTES.ADMIN.SUPPLIER.LIST);
+                router.push(ROUTES.ADMIN.SUPPLIER.LIST);
             } else {
                 toast.error(res.message || 'Cập nhật nhà cung cấp thất bại.');
             }

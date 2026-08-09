@@ -1,8 +1,8 @@
 "use client";
 
+import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
 import { Box, Link, ListItemText } from '@mui/material';
 import { GridRenderCellParams } from '@mui/x-data-grid';
-import { useNavigate } from '@/components/router-compat';
 import { prefixAdmin } from '../../../../../constants/routes';
 import { useTicketInventory } from '../../hooks/useTicketInventory';
 import { toast } from 'react-toastify';
@@ -22,7 +22,7 @@ interface RenderCreatedAtCellProps {
 
 export const RenderTicketCell = (params: GridRenderCellParams) => {
     const { numbers, quantity } = params.row;
-    const navigate = useNavigate();
+    const router = useAdminRouter();
     const id = params.row.id || params.row._id;
 
     return (
@@ -41,7 +41,7 @@ export const RenderTicketCell = (params: GridRenderCellParams) => {
                         className="admin-cell-title"
                         onClick={(e) => {
                             e.preventDefault();
-                            navigate(`/${prefixAdmin}/ticket/edit/${id}`);
+                            router.push(`/${prefixAdmin}/ticket/edit/${id}`);
                         }}
                         underline="hover"
                         sx={{ 
@@ -163,12 +163,12 @@ export const RenderTicketConditionCell = (params: GridRenderCellParams) => {
 };
 
 export const RenderActionsCell = (params: GridRenderCellParams) => {
-    const navigate = useNavigate();
+    const router = useAdminRouter();
     const { deleteTicket } = useTicketInventory();
     const id = params.row.id || params.row._id;
 
     const handleEdit = () => {
-        navigate(`/${prefixAdmin}/ticket/edit/${id}`);
+        router.push(`/${prefixAdmin}/ticket/edit/${id}`);
     };
 
     const handleDelete = () => {
@@ -195,7 +195,7 @@ export const RenderActionsCell = (params: GridRenderCellParams) => {
                     id: 'view',
                     label: 'Chi tiết',
                     icon: 'view',
-                    onClick: () => navigate(`/${prefixAdmin}/ticket/detail/${id}`),
+                    onClick: () => router.push(`/${prefixAdmin}/ticket/detail/${id}`),
                 },
                 {
                     id: 'edit',

@@ -1,12 +1,12 @@
 "use client";
 
+import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
 import { Avatar, Box, Link, ListItemText, IconButton, CircularProgress } from "@mui/material";
 import { GridRenderCellParams } from "@mui/x-data-grid";
 import { useDeleteStation, useUploadStationImage } from "../../hooks/useStation";
 import { Camera } from "lucide-react";
 import { useQueryClient } from '@tanstack/react-query';
 import { QUERY_KEYS } from '../../constants/queryKeys';
-import { useNavigate } from "react-router-dom";
 import { prefixAdmin } from "../../../../constants/routes";
 import { toast } from "react-toastify";
 import dayjs from 'dayjs';
@@ -25,7 +25,7 @@ export const RenderTitleCell = (params: GridRenderCellParams) => {
     const { name, avatar, image, thumbnailUrl, altImage } = params.row;
     const finalAvatar = avatar || thumbnailUrl || image;
     const id = params.row._id || params.row.id;
-    const navigate = useNavigate();
+    const router = useAdminRouter();
 
     const { mutateAsync: uploadImage, isPending } = useUploadStationImage();
     const queryClient = useQueryClient();
@@ -94,7 +94,7 @@ export const RenderTitleCell = (params: GridRenderCellParams) => {
                         className="admin-cell-title"
                         onClick={(e) => {
                             e.preventDefault();
-                            navigate(`/${prefixAdmin}/provider/edit/${id}`);
+                            router.push(`/${prefixAdmin}/provider/edit/${id}`);
                         }}
                         underline="hover"
                     >
@@ -163,7 +163,7 @@ export const RenderStatusCell = (params: GridRenderCellParams) => {
 }
 
 export const RenderActionsCell = (params: GridRenderCellParams) => {
-    const navigate = useNavigate();
+    const router = useAdminRouter();
     const { user } = useAuthStore();
     const roleCode = typeof user?.role === 'string' ? user.role : (user?.role?.code || '');
     const isAdmin = roleCode === 'ADMIN' || roleCode === 'SUPER_ADMIN';
@@ -174,7 +174,7 @@ export const RenderActionsCell = (params: GridRenderCellParams) => {
     const id = params.row._id || params.row.id;
 
     const handleEdit = () => {
-        navigate(`/${prefixAdmin}/provider/edit/${id}`);
+        router.push(`/${prefixAdmin}/provider/edit/${id}`);
     };
 
     const handleDelete = () => {
@@ -201,7 +201,7 @@ export const RenderActionsCell = (params: GridRenderCellParams) => {
             id: 'view',
             label: 'Chi tiết',
             icon: 'view',
-            onClick: () => navigate(`/${prefixAdmin}/provider/detail/${id}`),
+            onClick: () => router.push(`/${prefixAdmin}/provider/detail/${id}`),
         });
     }
 

@@ -1,7 +1,8 @@
 "use client";
 
+import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
+import { usePathname, useSearchParams } from "next/navigation";
 import React, { useMemo, useState } from 'react';
-import { useLocation, useNavigate } from '@/components/router-compat';
 import {
     Avatar,
     Box,
@@ -123,9 +124,10 @@ const SectionCard = ({
 );
 
 export function RefundCreatePage() {
-    const location = useLocation();
-    const navigate = useNavigate();
-    const state = (location.state || {}) as {
+    const pathname = usePathname() ?? '';
+    const searchParamsForLocation = useSearchParams();
+    const router = useAdminRouter();
+    const state = {} as {
         orderId?: string;
         orderCode?: string;
         replacements?: Record<
@@ -193,7 +195,7 @@ export function RefundCreatePage() {
         return (
             <Box sx={{ p: 3, textAlign: 'center' }}>
                 <Typography>Dữ liệu không hợp lệ.</Typography>
-                <Button onClick={() => navigate(-1)} sx={{ mt: 2 }}>
+                <Button onClick={() => router.back()} sx={{ mt: 2 }}>
                     Quay lại
                 </Button>
             </Box>
@@ -240,7 +242,7 @@ export function RefundCreatePage() {
             await updateOrderStatus(state.orderId!, 'PENDING_PICKUP', 'Xử lý sự cố hoàn tất');
 
             toast.success('Đã tạo yêu cầu hoàn tiền và cập nhật đơn hàng thành công');
-            navigate(`/${prefixAdmin}/order/detail/${state.orderId}`);
+            router.push(`/${prefixAdmin}/order/detail/${state.orderId}`);
         } catch (error: any) {
             toast.error(error?.response?.data?.message || 'Có lỗi xảy ra khi tạo yêu cầu hoàn tiền');
         } finally {
@@ -251,7 +253,7 @@ export function RefundCreatePage() {
     return (
         <Box sx={{ width: '100%', maxWidth: 1200, mx: 'auto', pb: 4 }}>
             <Stack direction="row" alignItems="center" spacing={2} sx={{ mb: 3 }}>
-                <IconButton onClick={() => navigate(-1)}>
+                <IconButton onClick={() => router.back()}>
                     <Icon icon="solar:arrow-left-linear" width={24} />
                 </IconButton>
                 <Box>
@@ -576,7 +578,7 @@ export function RefundCreatePage() {
                     <Stack direction="row" justifyContent="flex-end" spacing={2}>
                         <Button
                             variant="outlined"
-                            onClick={() => navigate(-1)}
+                            onClick={() => router.back()}
                             disabled={isSubmitting}
                             sx={{ textTransform: 'none', fontWeight: 700, borderRadius: '8px' }}
                         >

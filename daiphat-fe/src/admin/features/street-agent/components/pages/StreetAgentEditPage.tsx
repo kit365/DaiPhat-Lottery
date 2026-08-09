@@ -1,5 +1,8 @@
 "use client";
 
+import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
+import { useRouteParams } from "@/hooks/useRouteParams";
+import Link from "@/admin/components/navigation/AdminLink";
 import { PageHeader } from "../../../../components/ui/PageHeader";
 import { SpinnerLoading } from "../../../../components/ui/SpinnerLoading";
 import {
@@ -15,7 +18,6 @@ import {
     AdjustDepositFormValues} from "../../schemas/street-agent.schema";
 import { ROUTES } from "../../../../constants/routes";
 import { toast } from "react-toastify";
-import { Link as RouterLink, useNavigate, useParams } from "react-router-dom";
 import { Box,
 Alert } from '@mui/material';
 import { uploadAdminImage } from "../../../../api/upload.api";
@@ -81,8 +83,8 @@ const buildPayloadFromProfile = (profile: StreetAgentProfile) => ({
 });
 
 export const StreetAgentEditPage = () => {
-    const { id } = useParams();
-    const navigate = useNavigate();
+    const { id } = useRouteParams();
+    const router = useAdminRouter();
     const { data: profile, isLoading, refetch } = useStreetAgentProfileDetail(id);
     const { mutate: update, isPending } = useUpdateStreetAgentProfile();
     const { mutate: uploadSigned, isPending: isUploadingSigned } = useUploadStreetAgentSignedContract();
@@ -257,7 +259,7 @@ export const StreetAgentEditPage = () => {
                 onSuccess: (response) => {
                     if (response.success) {
                         toast.success(response.message || "Cập nhật hồ sơ đại lý bán dạo thành công!");
-                        navigate(ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.LIST);
+                        router.push(ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.LIST);
                     } else {
                         toast.error(response.message || "Cập nhật hồ sơ thất bại");
                     }
@@ -306,8 +308,8 @@ export const StreetAgentEditPage = () => {
                         <Button
                             color="inherit"
                             size="small"
-                            component={RouterLink}
-                            to={getStreetAgentOnboardingResumePath(id)}
+                            component={Link}
+                            href={getStreetAgentOnboardingResumePath(id)}
                         >
                             Tiếp tục hoàn thiện HĐ
                         </Button>

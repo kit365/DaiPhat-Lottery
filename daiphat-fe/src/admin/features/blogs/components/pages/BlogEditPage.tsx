@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouteParams } from "@/hooks/useRouteParams";
 import { Box, Stack, TextField, ThemeProvider, useTheme, FormControl, InputLabel, Select, MenuItem, FormHelperText, Autocomplete, createTheme, CircularProgress } from "@mui/material";
 import { Button } from "../../../../components/ui/Button";
 import { PageHeader } from "../../../../components/ui/PageHeader";
@@ -17,14 +18,13 @@ import { prefixAdmin } from "../../../../constants/routes";
 import { FormUploadSingleFile } from "../../../../components/upload/FormUploadSingleFile";
 import { uploadBlogImage } from "../../services/blogService";
 import { AppToast as toast } from "../../../../../utils/toast.util";
-import { useParams } from "react-router-dom";
 import { useNestedBlogCategories } from "../../hooks/useBlogCategory";
 import { CategoryTreeSelectGeneric } from "../../../../components/ui/CategoryTreeSelectGeneric";
 import { confirmAction } from "../../../../utils/swal";
 import { getMinScheduleValue } from "../utils/blogForm.utils";
 
 export const BlogEditPage = () => {
-    const { id } = useParams();
+    const { id } = useRouteParams();
     const [expandedDetail, setExpandedDetail] = useState(true);
     const [expandedExtra, setExpandedExtra] = useState(true);
 

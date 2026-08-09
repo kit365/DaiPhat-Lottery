@@ -1,7 +1,8 @@
 "use client";
 
+import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
+import { useRouteParams } from "@/hooks/useRouteParams";
 import { useEffect, useState, useRef } from "react";
-import { useParams, useNavigate } from "react-router-dom";
 import {
     Box,
     Card,
@@ -32,8 +33,8 @@ import { UserOrderHistory } from "../sections/UserOrderHistory";
 import { UserBoardingHistory } from "../sections/UserBoardingHistory";
 
 export const ClientDetailPage = () => {
-    const { id } = useParams();
-    const navigate = useNavigate();
+    const { id } = useRouteParams();
+    const router = useAdminRouter();
     const [currentTab, setCurrentTab] = useState("general");
     const { data: user, isLoading: isUserLoading } = useUserDetail(id);
     const { mutate: update, isPending: isUpdating } = useUpdateUser();
@@ -124,7 +125,7 @@ export const ClientDetailPage = () => {
             removeUser(id!, {
                 onSuccess: () => {
                     toast.success("Xóa tài khoản thành công!");
-                    navigate(`/${prefixAdmin}/account-user/list`);
+                    router.push(`/${prefixAdmin}/account-user/list`);
                 },
                 onError: (error: any) => {
                     toast.error(error.response?.data?.message || "Xóa thất bại");

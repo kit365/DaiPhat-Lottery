@@ -1,11 +1,11 @@
 "use client";
 
+import Link from "@/admin/components/navigation/AdminLink";
 import { useState } from "react"
 import {
     Box, Button, TextField, ThemeProvider, Typography, InputAdornment,
     IconButton, Paper, useMediaQuery, useTheme, CircularProgress
 } from "@mui/material"
-import { Link } from "@/components/router-compat"
 import { useForm, Controller } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { SiteLogo } from "@/client/components/layout/SiteLogo"
@@ -74,7 +74,7 @@ export const LoginPage = () => {
                             zIndex: "1101",
                             background: "transparent"
                         }}>
-                        <Link to="/" className="inline-block w-[40px] h-[40px]">
+                        <Link href="/" className="inline-block w-[40px] h-[40px]">
                             <SiteLogo className="w-10 h-10 rounded" imgClassName="w-full h-full object-contain" />
                         </Link>
                         <Button
@@ -193,7 +193,7 @@ export const LoginPage = () => {
                                             )}
                                         />
                                         <Box sx={{ display: "flex", justifyContent: "flex-end", mt: 1 }}>
-                                             <Link to={ROUTES.ADMIN.AUTH.FORGOT_PASSWORD} style={{ fontSize: "0.875rem", color: "var(--palette-text-primary)", fontWeight: 600, textDecoration: "none" }} className="hover:underline">
+                                             <Link href={ROUTES.ADMIN.AUTH.FORGOT_PASSWORD} style={{ fontSize: "0.875rem", color: "var(--palette-text-primary)", fontWeight: 600, textDecoration: "none" }} className="hover:underline">
                                                 Quên mật khẩu?
                                              </Link>
                                         </Box>

@@ -1,7 +1,9 @@
 "use client";
 
+import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
+import { useRouteParams } from "@/hooks/useRouteParams";
+import { usePathname, useSearchParams } from "next/navigation";
 import React, { useEffect, useMemo, useState } from 'react';
-import { useLocation, useNavigate, useParams } from '@/components/router-compat';
 import {
     Avatar,
     Box,
@@ -162,33 +164,54 @@ const SectionCard = ({
 );
 
 export function OrderCancelWithRefundPage() {
-    const { id: orderId } = useParams<{ id: string }>();
-    const navigate = useNavigate();
-    const location = useLocation();
-    const locationState = location.state as
-        | {
-              cancelType?: StaffCancelType;
-              replacements?: Record<
-                  number,
-                  {
-                      faultedBy: 'DAMAGED' | 'LOST';
-                      damagedReason?: string;
-                      damagedEvidenceUrl?: string;
-                  }
-              >;
-          }
-        | null;
+    const { id: orderId } = useRouteParams();
+    const router = useAdminRouter();
+    const pathname = usePathname() ?? '';
+    const searchParamsForLocation = useSearchParams();
+    const [cancelType, setCancelType] = useState<StaffCancelType | null>(null);
+    const [cancelReason, setCancelReason] = useState('');
+    const [incidents, setIncidents] = useState<Record<number, TicketIncidentState>>({});
+    const [expandedTicketId, setExpandedTicketId] = useState<number | null>(null);
+    const [navigationState, setNavigationState] = useState<{
+        cancelType?: StaffCancelType;
+        replacements?: Record<
+            number,
+            {
+                faultedBy: 'DAMAGED' | 'LOST';
+                damagedReason?: string;
+                damagedEvidenceUrl?: string;
+            }
+        >;
+    } | null>(null);
+
+    useEffect(() => {
+        try {
+            const raw = sessionStorage.getItem("daiphat:order-cancel-refund-state");
+            if (!raw) return;
+            const parsed = JSON.parse(raw) as {
+                cancelType?: StaffCancelType;
+                replacements?: Record<
+                    number,
+                    {
+                        faultedBy: 'DAMAGED' | 'LOST';
+                        damagedReason?: string;
+                        damagedEvidenceUrl?: string;
+                    }
+                >;
+            };
+            sessionStorage.removeItem("daiphat:order-cancel-refund-state");
+            setNavigationState(parsed);
+            if (parsed.cancelType) {
+                setCancelType(parsed.cancelType);
+            }
+        } catch {
+            // ignore malformed navigation payload
+        }
+    }, []);
 
     const { data: orderRes, isLoading } = useOrderDetail(orderId || '');
     const order = orderRes?.data;
     const cancelMutation = useCancelOrderWithRefund();
-
-    const [cancelType, setCancelType] = useState<StaffCancelType | null>(
-        locationState?.cancelType ?? null
-    );
-    const [cancelReason, setCancelReason] = useState('');
-    const [incidents, setIncidents] = useState<Record<number, TicketIncidentState>>({});
-    const [expandedTicketId, setExpandedTicketId] = useState<number | null>(null);
 
     const tickets = useMemo(() => {
         if (!order?.orderDetails) return [];
@@ -212,10 +235,10 @@ export function OrderCancelWithRefundPage() {
     }, [cancelType]);
 
     useEffect(() => {
-        if (!locationState?.replacements || tickets.length === 0) return;
+        if (!navigationState?.replacements || tickets.length === 0) return;
         const next: Record<number, TicketIncidentState> = {};
         for (const t of tickets) {
-            const prefill = locationState.replacements[t.id!];
+            const prefill = navigationState.replacements[t.id!];
             if (prefill?.faultedBy) {
                 next[t.id!] = {
                     faultedBy: prefill.faultedBy,
@@ -230,7 +253,7 @@ export function OrderCancelWithRefundPage() {
         if (Object.keys(next).length > 0) {
             setIncidents(next);
         }
-    }, [locationState?.replacements, tickets]);
+    }, [navigationState?.replacements, tickets]);
 
     const updateIncident = (ticketId: number, patch: Partial<TicketIncidentState>) => {
         const defaultIncident = {
@@ -612,9 +635,9 @@ export function OrderCancelWithRefundPage() {
             {
                 onSuccess: (res) => {
                     if (res.success && res.data?.id) {
-                        navigate(`/${prefixAdmin}/refunds/detail/${res.data.id}`);
+                        router.push(`/${prefixAdmin}/refunds/detail/${res.data.id}`);
                     } else {
-                        navigate(`/${prefixAdmin}/order/detail/${order.id}`);
+                        router.push(`/${prefixAdmin}/order/detail/${order.id}`);
                     }
                 },
             }
@@ -625,7 +648,7 @@ export function OrderCancelWithRefundPage() {
         return (
             <Box sx={{ width: '100%', maxWidth: 1200, mx: 'auto', pb: 4 }}>
                 <Stack direction="row" alignItems="center" spacing={2} sx={{ mb: 3 }}>
-                    <IconButton onClick={() => navigate(-1)}>
+                    <IconButton onClick={() => router.back()}>
                         <Icon icon="solar:arrow-left-linear" width={24} />
                     </IconButton>
                     <Box>
@@ -647,7 +670,7 @@ export function OrderCancelWithRefundPage() {
         return (
             <Box sx={{ p: 5, textAlign: 'center' }}>
                 <Typography>Không tìm thấy đơn hàng</Typography>
-                <Button onClick={() => navigate(-1)} sx={{ mt: 2 }}>
+                <Button onClick={() => router.back()} sx={{ mt: 2 }}>
                     Quay lại
                 </Button>
             </Box>
@@ -667,7 +690,7 @@ export function OrderCancelWithRefundPage() {
                     Chờ nhận vé.
                 </Typography>
                 <Button
-                    onClick={() => navigate(`/${prefixAdmin}/order/detail/${order.id}`)}
+                    onClick={() => router.push(`/${prefixAdmin}/order/detail/${order.id}`)}
                     sx={{ mt: 2 }}
                 >
                     Về chi tiết đơn
@@ -683,7 +706,7 @@ export function OrderCancelWithRefundPage() {
     return (
         <Box sx={{ width: '100%', maxWidth: 1200, mx: 'auto', pb: 4 }}>
             <Stack direction="row" alignItems="center" spacing={2} sx={{ mb: 3 }}>
-                <IconButton onClick={() => navigate(`/${prefixAdmin}/order/detail/${order.id}`)}>
+                <IconButton onClick={() => router.push(`/${prefixAdmin}/order/detail/${order.id}`)}>
                     <Icon icon="solar:arrow-left-linear" width={24} />
                 </IconButton>
                 <Box>
@@ -1245,7 +1268,7 @@ export function OrderCancelWithRefundPage() {
                                 <Button
                                     variant="outlined"
                                     onClick={() =>
-                                        navigate(`/${prefixAdmin}/order/detail/${order.id}`)
+                                        router.push(`/${prefixAdmin}/order/detail/${order.id}`)
                                     }
                                     disabled={cancelMutation.isPending}
                                     sx={{

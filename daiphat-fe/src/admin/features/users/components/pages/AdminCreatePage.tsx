@@ -1,5 +1,6 @@
 "use client";
 
+import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
 import { PageHeader } from '../../../../components/ui/PageHeader';
 import { CollapsibleCard } from '../../../../components/ui/CollapsibleCard';
 import { useCreateUser, useUploadUserAvatar } from "../../hooks/useUsers";
@@ -10,7 +11,6 @@ import { useEffect, useState } from "react";
 import { accountAdminSchema } from "../../../../schemas/account-admin.schema";
 import { ROUTES } from '../../../../constants/routes';
 import { toast } from "react-toastify";
-import { useNavigate } from '@/components/router-compat';
 import {
     Box,
     TextField,
@@ -24,7 +24,7 @@ import { Button } from '../../../../components/ui/Button';
 import { UserAvatarUploader } from '../sections/UserAvatarUploader';
 
 export const AdminCreatePage = () => {
-    const navigate = useNavigate();
+    const router = useAdminRouter();
     const { mutateAsync: create, isPending } = useCreateUser();
     const { mutateAsync: uploadAvatar } = useUploadUserAvatar();
     const { data: roles = [] } = useRoles();
@@ -68,7 +68,7 @@ export const AdminCreatePage = () => {
             }
 
             toast.success("Tạo nhân viên thành công!");
-            navigate(ROUTES.ADMIN.ACCOUNTS.ADMIN.LIST);
+            router.push(ROUTES.ADMIN.ACCOUNTS.ADMIN.LIST);
         } catch (error: any) {
             toast.error(error.response?.data?.message || "Tạo thất bại");
         }

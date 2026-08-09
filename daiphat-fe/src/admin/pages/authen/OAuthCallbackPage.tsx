@@ -1,14 +1,14 @@
 "use client";
 
+import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
 import { useEffect, useRef } from "react"
-import { useNavigate } from "@/components/router-compat"
 import { ROUTES } from "../../constants/routes"
 import { useAuth } from "./hooks/useAuth"
 import { LoadingSpinner } from "../../../client/components/ui/LoadingSpinner"
 import { STORAGE_KEYS } from "../../../constants/storage.constants"
 
 export const OAuthCallbackPage = () => {
-    const navigate = useNavigate()
+    const router = useAdminRouter()
     const { handleOAuthCallback: exchangeToken } = useAuth()
     const hasFetched = useRef(false)
 
@@ -21,7 +21,7 @@ export const OAuthCallbackPage = () => {
 
         if (!code) {
             const isClient = !window.location.pathname.startsWith(ROUTES.ADMIN.ROOT)
-            navigate(isClient ? ROUTES.PUBLIC.HOME : ROUTES.ADMIN.AUTH.LOGIN, { replace: true })
+            router.replace(isClient ? ROUTES.PUBLIC.HOME : ROUTES.ADMIN.AUTH.LOGIN)
             return
         }
 
@@ -30,7 +30,7 @@ export const OAuthCallbackPage = () => {
         const codeVerifier = sessionStorage.getItem(STORAGE_KEYS.PKCE_VERIFIER) || undefined
 
         exchangeToken({ code, redirectUri, codeVerifier })
-    }, [navigate, exchangeToken])
+    }, [router, exchangeToken])
 
     return <LoadingSpinner />
 }

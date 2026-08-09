@@ -1,5 +1,6 @@
 "use client";
 
+import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
 import { Button } from '@/admin/components/ui/Button';
 
 import AddIcon from '@mui/icons-material/Add';
@@ -7,7 +8,6 @@ import SyncIcon from '@mui/icons-material/Sync';
 
 import { PageHeader } from "../../../../components/ui/PageHeader";
 import { prefixAdmin } from "../../../../constants/routes";
-import { useNavigate } from "react-router-dom";
 import { StationList } from "../sections/StationList";
 import { SyncStationModal } from "../sections/SyncStationModal";
 import { SyncStationPreviewModal, SyncPreviewParams } from "../sections/SyncStationPreviewModal";
@@ -16,7 +16,7 @@ import { CanAccess } from "../../../../components/auth/CanAccess";
 import { PERMISSIONS } from "../../../../constants/permission.constants";
 
 export const StationListPage = () => {
-    const navigate = useNavigate();
+    const router = useAdminRouter();
     const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
     const [previewState, setPreviewState] = useState<{
         preview: any;
@@ -46,7 +46,7 @@ export const StationListPage = () => {
                     </CanAccess>
                     <CanAccess permission={PERMISSIONS.PROVIDER.CREATE}>
                         <Button
-                            onClick={() => navigate(`/${prefixAdmin}/provider/create`)}
+                            onClick={() => router.push(`/${prefixAdmin}/provider/create`)}
                             className="btn-primary-admin"
                             variant="contained"
                             startIcon={<AddIcon />}

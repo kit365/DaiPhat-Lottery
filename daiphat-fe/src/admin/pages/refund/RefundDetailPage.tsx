@@ -1,7 +1,9 @@
 "use client";
 
+import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
+import { useRouteParams } from "@/hooks/useRouteParams";
+import { usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useState, useMemo, type ReactNode } from 'react';
-import { useLocation, useNavigate, useParams } from '@/components/router-compat';
 import {
     Alert,
     Avatar,
@@ -109,15 +111,14 @@ const cardSx = {
 } as const;
 
 export const RefundDetailPage = () => {
-    const { id } = useParams<{ id: string }>();
-    const navigate = useNavigate();
-    const location = useLocation();
+    const { id } = useRouteParams();
+    const router = useAdminRouter();
+    const pathname = usePathname() ?? '';
+    const searchParams = useSearchParams();
     const refundId = Number(id);
-    const returnNav = location.state as {
-        returnTo?: string;
-        returnLabel?: string;
-        openTransfer?: boolean;
-    } | null;
+    const returnTo = searchParams?.get("returnTo") ?? undefined;
+    const returnLabel = searchParams?.get("returnLabel") ?? undefined;
+    const returnNav = { returnTo, returnLabel };
     const backPath =
         returnNav?.returnTo && returnNav.returnTo.startsWith(`/${prefixAdmin}/`)
             ? returnNav.returnTo
@@ -159,9 +160,7 @@ export const RefundDetailPage = () => {
     const refund = detail?.refund;
 
     useEffect(() => {
-        const shouldOpenTransfer = Boolean(
-            (location.state as { openTransfer?: boolean } | null)?.openTransfer
-        );
+        const shouldOpenTransfer = searchParams?.get("openTransfer") === "true";
         if (!shouldOpenTransfer || !refund) {
             return;
         }
@@ -176,15 +175,11 @@ export const RefundDetailPage = () => {
             setTransferOpen(true);
         }
 
-        navigate(location.pathname, {
-            replace: true,
-            state: {
-                ...(returnNav?.returnTo
-                    ? { returnTo: returnNav.returnTo, returnLabel: returnNav.returnLabel }
-                    : {}),
-            },
-        });
-    }, [location.pathname, location.state, navigate, refund, returnNav?.returnTo, returnNav?.returnLabel]);
+        const nextParams = new URLSearchParams(searchParams?.toString() ?? "");
+        nextParams.delete("openTransfer");
+        const nextQuery = nextParams.toString();
+        router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname);
+    }, [pathname, searchParams, router, refund, returnNav?.returnTo, returnNav?.returnLabel]);
 
     if (isLoading) {
         return (
@@ -206,7 +201,7 @@ export const RefundDetailPage = () => {
         return (
             <Box textAlign="center" py={8}>
                 <Typography color="text.secondary">Không tìm thấy yêu cầu hoàn tiền</Typography>
-                <Button sx={{ mt: 2 }} onClick={() => navigate(backPath)}>
+                <Button sx={{ mt: 2 }} onClick={() => router.push(backPath)}>
                     {backLabel === 'Quay lại' ? 'Quay lại danh sách' : backLabel}
                 </Button>
             </Box>
@@ -267,7 +262,7 @@ export const RefundDetailPage = () => {
                         </CanAccess>
                         <Button
                             variant="outlined"
-                            onClick={() => navigate(backPath)}
+                            onClick={() => router.push(backPath)}
                             startIcon={<Icon icon="eva:arrow-back-fill" />}
                             sx={{
                                 ...headerButtonSx,
@@ -337,7 +332,7 @@ export const RefundDetailPage = () => {
                                                 component="button"
                                                 variant="subtitle2"
                                                 onClick={() =>
-                                                    navigate(
+                                                    router.push(
                                                         `/${prefixAdmin}/order/detail/${(detail.orderSummary as any).id}`
                                                     )
                                                 }
@@ -416,7 +411,7 @@ export const RefundDetailPage = () => {
                                                     component="button"
                                                     variant="subtitle2"
                                                     onClick={() =>
-                                                        navigate(
+                                                        router.push(
                                                             `/${prefixAdmin}/order/detail/${(detail.orderSummary as any).id}`
                                                         )
                                                     }
@@ -668,9 +663,7 @@ export const RefundDetailPage = () => {
                                         variant="outlined"
                                         startIcon={<Icon icon="solar:user-id-linear" />}
                                         onClick={() =>
-                                            navigate(
-                                                `/${prefixAdmin}/account-user/detail/${detail.customerSummary.id}`
-                                            )
+                                            router.push(`/${prefixAdmin}/account-user/detail/${detail.customerSummary.id}`)
                                         }
                                         sx={{
                                             py: 1,

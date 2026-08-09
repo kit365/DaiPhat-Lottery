@@ -1,5 +1,6 @@
 "use client";
 
+import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
 import { useState, SyntheticEvent } from "react";
 import React from 'react';
 import {
@@ -24,7 +25,6 @@ import {
 } from "@mui/material";
 import { Icon } from "@iconify/react";
 import dayjs from "dayjs";
-import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import { confirmAction } from "../../../../utils/swal";
 import { formatVnd } from '../../../../utils/currency';
@@ -57,7 +57,7 @@ const TabBadge = styled('span')(() => ({
 }));
 
 export const OrderList = () => {
-    const navigate = useNavigate();
+    const router = useAdminRouter();
     const { settings, setSettings } = useSettings();
     
     const [tabStatus, setTabStatus] = useState('all');
@@ -119,7 +119,7 @@ export const OrderList = () => {
     };
 
     const handleViewDetail = (id: string) => {
-        navigate(`/${prefixAdmin}/order/detail/${id}`);
+        router.push(`/${prefixAdmin}/order/detail/${id}`);
     };
 
     const getOrderRowMenuItems = (row: { id: string; status: string }): AdminRowActionsMenuItem[] => {

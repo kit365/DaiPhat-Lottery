@@ -1,5 +1,8 @@
 "use client";
 
+import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
+import { useRouteParams } from "@/hooks/useRouteParams";
+import Link from "@/admin/components/navigation/AdminLink";
 import {
     Box,
     Card,
@@ -17,7 +20,6 @@ import {
     Tooltip,
 } from "@mui/material";
 import { Icon } from "@iconify/react";
-import { useNavigate, useParams, Link } from "react-router-dom";
 import dayjs from "dayjs";
 import "dayjs/locale/vi";
 import { useBlogDetail, useBlogTypes, useDeleteBlog, useUpdateBlog } from "../../hooks/useBlog";
@@ -59,8 +61,8 @@ const InfoRow = ({ label, children }: { label: string; children: React.ReactNode
 
 // ─── Main component ──────────────────────────────────────────────────────────
 export const BlogDetailPage = () => {
-    const { id } = useParams<{ id: string }>();
-    const navigate = useNavigate();
+    const { id } = useRouteParams();
+    const router = useAdminRouter();
 
     const { data: blog, isLoading, refetch } = useBlogDetail(id);
     const { data: blogTypes = [] } = useBlogTypes();
@@ -141,7 +143,7 @@ export const BlogDetailPage = () => {
         }
         deleteBlog(id!, {
             onSuccess: (res: any) => {
-                if (res.success !== false) { toast.success("Đã xóa bài viết"); navigate(`/${prefixAdmin}/blog/list`); }
+                if (res.success !== false) { toast.success("Đã xóa bài viết"); router.push(`/${prefixAdmin}/blog/list`); }
                 else toast.error(res.message || "Xóa thất bại");
             },
             onError: () => toast.error("Có lỗi khi xóa bài viết"),
@@ -149,7 +151,7 @@ export const BlogDetailPage = () => {
     };
 
     const goToScheduleEditor = () => {
-        navigate(`/${prefixAdmin}/blog/edit/${id}`);
+        router.push(`/${prefixAdmin}/blog/edit/${id}`);
     };
 
     // ── Loading / empty states ───────────────────────────────────────────────
@@ -158,7 +160,7 @@ export const BlogDetailPage = () => {
             <Box sx={{ p: 6, textAlign: "center" }}>
                 <Icon icon="solar:document-broken-bold-duotone" width={64} color="var(--palette-text-disabled)" />
                 <Typography sx={{ mt: 2, color: "var(--palette-text-disabled)" }}>Không tìm thấy bài viết</Typography>
-                <Button variant="contained" className="btn-primary-admin" onClick={() => navigate(`/${prefixAdmin}/blog/list`)} sx={{ mt: 3 }}>
+                <Button variant="contained" className="btn-primary-admin" onClick={() => router.push(`/${prefixAdmin}/blog/list`)} sx={{ mt: 3 }}>
                     Quay lại danh sách
                 </Button>
             </Box>
@@ -199,7 +201,7 @@ export const BlogDetailPage = () => {
                     <Button
                         variant="outlined"
                         startIcon={<Icon icon="solar:pen-bold" width={16} />}
-                        onClick={() => navigate(`/${prefixAdmin}/blog/edit/${id}`)}
+                        onClick={() => router.push(`/${prefixAdmin}/blog/edit/${id}`)}
                         sx={{
                             height: 36, fontWeight: 600, fontSize: "0.875rem", textTransform: "none",
                             borderRadius: "8px", borderColor: (t) => alpha(t.palette.grey[500], 0.4),

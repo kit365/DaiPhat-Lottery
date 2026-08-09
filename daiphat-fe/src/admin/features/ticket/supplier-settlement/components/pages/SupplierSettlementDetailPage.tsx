@@ -1,7 +1,8 @@
 "use client";
 
+import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
+import { useRouteParams } from "@/hooks/useRouteParams";
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import ArrowBackOutlinedIcon from '@mui/icons-material/ArrowBackOutlined';
 import CalendarTodayOutlinedIcon from '@mui/icons-material/CalendarTodayOutlined';
 import FactCheckOutlinedIcon from '@mui/icons-material/FactCheckOutlined';
@@ -9,7 +10,6 @@ import ZoomInIcon from '@mui/icons-material/ZoomIn';
 import ReceiptLongOutlinedIcon from '@mui/icons-material/ReceiptLongOutlined';
 import { Avatar, Box, Button, Card, Chip, Dialog, DialogContent, DialogTitle, Grid, IconButton, Stack, Typography } from '@mui/material';
 import dayjs from 'dayjs';
-import { useParams } from '@/components/router-compat';
 import { PageHeader } from '../../../../../components/ui/PageHeader';
 import { SpinnerLoading } from '../../../../../components/ui/SpinnerLoading';
 import { ROUTES } from '../../../../../constants/routes';
@@ -24,8 +24,8 @@ import { SettlementInspectionDialog } from '../sections/SettlementInspectionDial
 import { SettlementKpiCards } from '../sections/SettlementKpiCards';
 
 export const SupplierSettlementDetailPage = () => {
-    const navigate = useNavigate();
-    const { id } = useParams<{ id: string }>();
+    const router = useAdminRouter();
+    const { id } = useRouteParams();
     const { data: overview, isLoading, isError, refetch } = useSupplierSettlementOverview(id);
     const [isInspectionOpen, setIsInspectionOpen] = useState(false);
     const [zoomImage, setZoomImage] = useState<{ url: string; title: string } | null>(null);
@@ -77,7 +77,7 @@ export const SupplierSettlementDetailPage = () => {
                 ]}
                 titleExtra={
                     <IconButton
-                        onClick={() => navigate(ROUTES.ADMIN.SUPPLIER_SETTLEMENT.LIST)}
+                        onClick={() => router.push(ROUTES.ADMIN.SUPPLIER_SETTLEMENT.LIST)}
                         size="small"
                         sx={{
                             bgcolor: '#ffffff',

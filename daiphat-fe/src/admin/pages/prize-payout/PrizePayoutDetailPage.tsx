@@ -1,5 +1,8 @@
 "use client";
 
+import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
+import { useRouteParams } from "@/hooks/useRouteParams";
+import { usePathname, useSearchParams } from "next/navigation";
 import { useState, type ReactNode } from 'react';
 import {
     Alert,
@@ -23,7 +26,6 @@ import {
 } from '@mui/material';
 import { Icon } from '@iconify/react';
 import dayjs from 'dayjs';
-import { useNavigate, useParams, useLocation } from '@/components/router-compat';
 import { motion } from 'framer-motion';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { SpinnerLoading } from '../../components/ui/SpinnerLoading';
@@ -202,11 +204,14 @@ function TransferAmountBanner({
 }
 
 export const PrizePayoutDetailPage = () => {
-    const { id } = useParams<{ id: string }>();
-    const navigate = useNavigate();
-    const location = useLocation();
-    const returnNav = location.state as { returnTo?: string; returnLabel?: string } | null;
-    const fromSupportTicketId = new URLSearchParams(location.search || '').get('fromSupportTicketId');
+    const { id } = useRouteParams();
+    const router = useAdminRouter();
+    const pathname = usePathname() ?? '';
+    const searchParams = useSearchParams();
+    const returnTo = searchParams?.get("returnTo") ?? undefined;
+    const returnLabel = searchParams?.get("returnLabel") ?? undefined;
+    const returnNav = { returnTo, returnLabel };
+    const fromSupportTicketId = searchParams?.get("fromSupportTicketId");
     const complaintBackPath = fromSupportTicketId
         ? `/${prefixAdmin}/support-tickets/detail/${fromSupportTicketId}`
         : null;
@@ -269,7 +274,7 @@ export const PrizePayoutDetailPage = () => {
                 <Typography color="text.secondary" sx={{ mb: 2 }}>
                     Không tìm thấy yêu cầu trả thưởng
                 </Typography>
-                <Button variant="outlined" onClick={() => navigate(backPath)}>
+                <Button variant="outlined" onClick={() => router.push(backPath)}>
                     {backLabel === 'Quay lại' ? 'Quay lại danh sách' : backLabel}
                 </Button>
             </Box>
@@ -371,7 +376,7 @@ export const PrizePayoutDetailPage = () => {
                     </CanAccess>
                     <Button
                         variant="outlined"
-                        onClick={() => navigate(backPath)}
+                        onClick={() => router.push(backPath)}
                         startIcon={<Icon icon="eva:arrow-back-fill" />}
                         sx={{
                             ...headerButtonSx,

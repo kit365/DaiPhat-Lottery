@@ -1,5 +1,6 @@
 "use client";
 
+import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
 import { useState } from "react";
 import { motion } from "framer-motion";
 import {
@@ -36,13 +37,12 @@ import { toast } from "react-toastify";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
 import 'dayjs/locale/vi';
-import { useNavigate } from "react-router-dom";
 
 dayjs.extend(relativeTime);
 dayjs.locale('vi');
 
 export const NotificationPopover = ({ onMouseEnter, onMouseLeave, isHovered, layoutId }: any) => {
-    const navigate = useNavigate();
+    const router = useAdminRouter();
     const [isOpen, setIsOpen] = useState(false);
     const [tab, setTab] = useState("all");
 
@@ -70,12 +70,12 @@ export const NotificationPopover = ({ onMouseEnter, onMouseLeave, isHovered, lay
         }
         const path = getAdminNotificationPath(item);
         if (path) {
-            navigate(path);
+            router.push(path);
             handleClose();
             return;
         }
         if (item.link) {
-            navigate(item.link);
+            router.push(item.link);
             handleClose();
         }
     };
@@ -405,7 +405,7 @@ export const NotificationPopover = ({ onMouseEnter, onMouseLeave, isHovered, lay
                         size="large"
                         color="inherit"
                         onClick={() => {
-                            navigate(ROUTES.ADMIN.NOTIFICATIONS);
+                            router.push(ROUTES.ADMIN.NOTIFICATIONS);
                             handleClose();
                         }}
                         sx={{

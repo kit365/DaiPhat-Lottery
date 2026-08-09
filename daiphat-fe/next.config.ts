@@ -1,8 +1,6 @@
 import type { NextConfig } from 'next';
-import path from 'path';
 
-const withBundleAnalyzer = (config: NextConfig): NextConfig => {
-  if (process.env.ANALYZE === 'true') {
+const withBundleAnalyzer = (config: NextConfig): NextConfig => {  if (process.env.ANALYZE === 'true') {
     try {
       // eslint-disable-next-line @typescript-eslint/no-require-imports
       const bundleAnalyzer = require('@next/bundle-analyzer');
@@ -28,13 +26,7 @@ const normalizedBackendProxyTarget = backendProxyTarget.startsWith('http')
 const nextConfig: NextConfig = {
   output: 'standalone',
   compress: true,
-  turbopack: {
-    resolveAlias: {
-      'react-router-dom': './src/components/router-compat.tsx',
-    },
-  },
-  experimental: {
-    // Keep visited pages' RSC payload in the router cache so back-navigation is instant.
+  experimental: {    // Keep visited pages' RSC payload in the router cache so back-navigation is instant.
     staleTimes: {
       dynamic: 30,
       static: 180,
@@ -122,20 +114,5 @@ const nextConfig: NextConfig = {
       },
     ];
   },
-  webpack: (config) => {
-    config.externals = [...(config.externals || []), { canvas: 'canvas' }];
-    config.resolve.alias = {
-      ...config.resolve.alias,
-      'react-router-dom': path.resolve(__dirname, 'src/components/router-compat.tsx'),
-    };
-
-    // NOTE: no custom splitChunks here on purpose. Forcing single "admin" /
-    // "client-public" / "mui" chunks made every page download code for the
-    // whole section (e.g. Home pulled all of MUI for one icon). Next.js's
-    // default granular chunking splits per-route far better.
-
-    return config;
-  },
 };
-
 export default withBundleAnalyzer(nextConfig);

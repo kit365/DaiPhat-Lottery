@@ -1,12 +1,12 @@
 "use client";
 
+import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
 import { Button } from '@/admin/components/ui/Button';
 
 
 import AddIcon from '@mui/icons-material/Add';
 import { PageHeader } from "../../../../components/ui/PageHeader";
 import { prefixAdmin } from "../../../../constants/routes";
-import { useNavigate } from "react-router-dom";
 import { Card, Tabs, Tab } from '@mui/material';
 import { BlogList } from "../sections/BlogList";
 import { BlogToolbar } from "../sections/BlogToolbar";
@@ -20,7 +20,7 @@ import { getTabBadgeStyles } from "../../../../utils/badge";
 import { BLOG_STATUS } from '../../types/blog.type';
 
 export const BlogListPage = () => {
-    const navigate = useNavigate();
+    const router = useAdminRouter();
     const [sortBy, setSortBy] = useState("latest");
 
     const [tabStatus, setTabStatus] = useState(0); // 0: All, 1: Published, 2: Draft, 3: Scheduled, 4: Unpublished
@@ -101,7 +101,7 @@ export const BlogListPage = () => {
                     <div style={{ display: 'flex', gap: '16px' }}>
                     <CanAccess permission={PERMISSIONS.ARTICLE.CREATE}>
                         <Button
-                            onClick={() => navigate(`/${prefixAdmin}/blog/create`)}
+                            onClick={() => router.push(`/${prefixAdmin}/blog/create`)}
                             className="btn-primary-admin"
                             variant="contained"
                             startIcon={<AddIcon />}

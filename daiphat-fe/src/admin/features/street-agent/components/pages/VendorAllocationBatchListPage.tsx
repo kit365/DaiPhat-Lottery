@@ -1,11 +1,11 @@
 "use client";
 
+import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
 import { useEffect, useMemo, useState } from "react";
 import {
     Alert, Autocomplete, Box, Card, Checkbox, Chip, Dialog, DialogActions, DialogContent, DialogTitle, Divider, Drawer, FormControl, IconButton, InputLabel, MenuItem, Select, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TablePagination, TableRow, TextField, Typography } from '@mui/material';
 import CloseIcon from "@mui/icons-material/Close";
 import { toast } from "react-toastify";
-import { useNavigate } from "@/components/router-compat";
 import { PageHeader } from "../../../../components/ui/PageHeader";
 import { Button } from '../../../../components/ui/Button';
 import { ROUTES } from "../../../../constants/routes";
@@ -142,7 +142,7 @@ const Row = ({ label, value }: { label: string; value: string }) => (
 );
 
 export const VendorAllocationBatchListPage = () => {
-    const navigate = useNavigate();
+    const router = useAdminRouter();
     const { can } = usePermissions();
     const canEdit = can(PERMISSIONS.STREET_AGENT.EDIT);
 
@@ -224,7 +224,7 @@ export const VendorAllocationBatchListPage = () => {
             draftId: String(batch.id),
             businessDate: batch.businessDate,
         });
-        navigate(`${ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.ALLOCATION}?${params.toString()}`);
+        router.push(`${ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.ALLOCATION}?${params.toString()}`);
     };
 
     const handleCancel = () => {
@@ -358,7 +358,7 @@ export const VendorAllocationBatchListPage = () => {
                 action={
                     <Button
                         variant="contained"
-                        onClick={() => navigate(ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.ALLOCATION)}
+                        onClick={() => router.push(ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.ALLOCATION)}
                     >
                         Tạo bàn giao mới
                     </Button>

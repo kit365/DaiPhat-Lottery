@@ -4,7 +4,6 @@ import dynamic from 'next/dynamic';
 import type { ComponentType } from 'react';
 
 import { PermissionGuard } from '@/admin/components/auth/PermissionGuard';
-import { SpinnerLoading } from '@/admin/components/ui/SpinnerLoading';
 
 type AdminClientPageOptions =
     | {
@@ -27,7 +26,7 @@ function createLazyFeaturePage(loader: () => Promise<Record<string, unknown>>, e
         () => loader().then((module) => (module[exportName] ?? module.default) as ComponentType),
         {
             ssr: false,
-            loading: () => <SpinnerLoading />,
+            loading: () => null,
         }
     );
 }

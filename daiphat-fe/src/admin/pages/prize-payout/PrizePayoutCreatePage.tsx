@@ -1,3 +1,4 @@
+import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
     Alert,
@@ -26,7 +27,6 @@ import {
 } from '@mui/material';
 import { Icon } from '@iconify/react';
 import dayjs from 'dayjs';
-import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { prefixAdmin } from '../../constants/routes';
@@ -103,7 +103,7 @@ const lookupPayoutStatusChip = (item: PrizePayoutLookupItem) => {
 };
 
 export const PrizePayoutCreatePage = () => {
-    const navigate = useNavigate();
+    const router = useAdminRouter();
     const createMutation = useCreateStaffPrizePayoutBatch();
     const user = useAuthStore((s) => s.user);
     const draftPersistReadyRef = useRef(false);
@@ -346,7 +346,7 @@ export const PrizePayoutCreatePage = () => {
 
     const leaveCreatePage = () => {
         clearPrizePayoutCreateDraft();
-        navigate(`/${prefixAdmin}/prize-payouts/list`);
+        router.push(`/${prefixAdmin}/prize-payouts/list`);
     };
 
     const handleLookup = async () => {
@@ -483,7 +483,7 @@ export const PrizePayoutCreatePage = () => {
                         const firstId = response.data.claims[0].id;
                         clearPrizePayoutCreateDraft();
                         toast.success('Đã hoàn tất trả thưởng tại quầy');
-                        navigate(`/${prefixAdmin}/prize-payouts/detail/${firstId}`);
+                        router.push(`/${prefixAdmin}/prize-payouts/detail/${firstId}`);
                     }
                 },
             }

@@ -1,5 +1,7 @@
 "use client";
 
+import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
+import { useRouteParams } from "@/hooks/useRouteParams";
 import {
     Alert,
     Box,
@@ -110,7 +112,6 @@ import type { ImportBatch, ImportBatchEligibleStation, UpdateImportBatchPayload 
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Controller, useFieldArray, useForm, useWatch, type Resolver } from 'react-hook-form';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate, useParams } from '@/components/router-compat';
 import { toast } from 'react-toastify';
 import dayjs from 'dayjs';
 import { confirmAction, confirmDelete } from '../../../../../utils/swal';
@@ -124,8 +125,8 @@ const emptyLine = (): UpdateImportBatchLineFormValues => ({
 });
 
 export const ImportBatchEditPage = () => {
-    const { id } = useParams<{ id: string }>();
-    const navigate = useNavigate();
+    const { id } = useRouteParams();
+    const router = useAdminRouter();
     const outerTheme = useTheme();
     const [confirmOpen, setConfirmOpen] = useState(false);
     const [pendingValues, setPendingValues] = useState<UpdateImportBatchFormValues | null>(null);
@@ -850,7 +851,7 @@ export const ImportBatchEditPage = () => {
                 clearDraft();
                 setRemovedTicketIds([]);
                 toast.success(res.message || 'Cập nhật phiếu nhập lô thành công.');
-                navigate(ROUTES.ADMIN.IMPORT_BATCH.DETAIL(batch.id));
+                router.push(ROUTES.ADMIN.IMPORT_BATCH.DETAIL(batch.id));
             } else {
                 toast.error(res.message || 'Cập nhật phiếu nhập lô thất bại.');
             }
@@ -904,7 +905,7 @@ export const ImportBatchEditPage = () => {
 
     const handleCancel = () => {
         clearDraft();
-        navigate(ROUTES.ADMIN.IMPORT_BATCH.DETAIL(batch!.id));
+        router.push(ROUTES.ADMIN.IMPORT_BATCH.DETAIL(batch!.id));
     };
 
     const handleRemoveLine = (index: number) => {
@@ -1032,7 +1033,7 @@ export const ImportBatchEditPage = () => {
                 <Button
                     variant="contained"
                     className="btn-primary-admin"
-                    onClick={() => navigate(ROUTES.ADMIN.IMPORT_BATCH.DETAIL(batch.id))}
+                    onClick={() => router.push(ROUTES.ADMIN.IMPORT_BATCH.DETAIL(batch.id))}
                 >
                     Xem chi tiết phiếu
                 </Button>

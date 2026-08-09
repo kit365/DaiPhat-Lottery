@@ -1,7 +1,10 @@
 "use client";
 
+import { useRouter } from "next/navigation";
+import { useRouteParams } from "@/hooks/useRouteParams";
+import { useSearchParams } from "next/navigation";
+import Link from "next/link";
 import { useMemo, useState } from 'react';
-import { Link, useNavigate, useParams, useSearchParams } from '@/components/router-compat';
 import dayjs from 'dayjs';
 import {
     useCancelPrizePayout,
@@ -15,9 +18,9 @@ import { PrizePayoutComplaintButton } from '../../../../components/support/Prize
 import { PurchasedTicket } from '../../../../../types/lottery-ticket.type';
 
 export const PrizePayoutDetailTab = () => {
-    const { id } = useParams<{ id: string }>();
-    const navigate = useNavigate();
-    const [searchParams] = useSearchParams();
+    const { id } = useRouteParams();
+    const router = useRouter();
+    const searchParams = useSearchParams();
     const requestId = Number(id);
     const { data, isLoading } = useGetPrizePayoutDetail(requestId);
     const cancelMutation = useCancelPrizePayout();
@@ -44,7 +47,7 @@ export const PrizePayoutDetailTab = () => {
         return (
             <div className="bg-white rounded-2xl p-8 text-center border border-[#E5E8EB]">
                 <p className="text-[#637381] mb-4">Không tìm thấy yêu cầu trả thưởng</p>
-                <Link to="/profile/prize-payouts" className="text-[#ee1314] font-bold">Quay lại danh sách</Link>
+                <Link href="/profile/prize-payouts" className="text-[#ee1314] font-bold">Quay lại danh sách</Link>
             </div>
         );
     }
@@ -90,7 +93,7 @@ export const PrizePayoutDetailTab = () => {
                 <div className="flex items-center gap-2 flex-wrap">
                     <button
                         type="button"
-                        onClick={() => navigate('/profile/prize-payouts')}
+                        onClick={() => router.push('/profile/prize-payouts')}
                         className="text-[#637381] hover:text-[#212B36] text-[14px] font-medium cursor-pointer"
                     >
                         <i className="fa-solid fa-arrow-left mr-2"></i>Danh sách trả thưởng
@@ -98,7 +101,7 @@ export const PrizePayoutDetailTab = () => {
                     {backToComplaintPath && (
                         <button
                             type="button"
-                            onClick={() => navigate(backToComplaintPath)}
+                            onClick={() => router.push(backToComplaintPath)}
                             className="text-[#2065D1] hover:text-[#174ea1] text-[14px] font-semibold cursor-pointer"
                         >
                             <i className="fa-solid fa-rotate-left mr-2"></i>Quay lại khiếu nại #{effectiveComplaintId}

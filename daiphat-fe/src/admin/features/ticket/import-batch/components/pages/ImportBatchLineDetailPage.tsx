@@ -1,5 +1,7 @@
 "use client";
 
+import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
+import { useRouteParams } from "@/hooks/useRouteParams";
 import React from 'react';
 import {
     Box,
@@ -27,7 +29,6 @@ import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
 import ReportProblemIcon from '@mui/icons-material/ReportProblem';
 import { useQueryClient } from '@tanstack/react-query';
 import dayjs from 'dayjs';
-import { useParams, useNavigate } from '@/components/router-compat';
 import { PageHeader } from '../../../../../components/ui/PageHeader';
 import { SpinnerLoading } from '../../../../../components/ui/SpinnerLoading';
 import { AdminStatusBadge } from '../../../../../components/ui/AdminStatusBadge';
@@ -339,8 +340,8 @@ const CollapsibleRow = ({
 };
 
 export const ImportBatchLineDetailPage = () => {
-    const { id, lineId } = useParams();
-    const navigate = useNavigate();
+    const { id, lineId } = useRouteParams();
+    const router = useAdminRouter();
     const queryClient = useQueryClient();
 
     const { data: batch, isLoading: isBatchLoading } = useImportBatchDetail(id);
@@ -596,7 +597,7 @@ export const ImportBatchLineDetailPage = () => {
                     <Button
                         variant="outlined"
                         className="btn-outlined-admin"
-                        onClick={() => id && navigate(ROUTES.ADMIN.IMPORT_BATCH.DETAIL(id))}
+                        onClick={() => id && router.push(ROUTES.ADMIN.IMPORT_BATCH.DETAIL(id))}
                     >
                         Quay lại phiếu
                     </Button>

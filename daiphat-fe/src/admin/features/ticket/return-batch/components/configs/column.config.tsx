@@ -1,10 +1,10 @@
 "use client";
 
+import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
 import CalendarTodayOutlinedIcon from '@mui/icons-material/CalendarTodayOutlined';
 import { Avatar, Box, Stack, Typography } from '@mui/material';
 import { GridColDef, GridRenderCellParams } from '@mui/x-data-grid';
 import dayjs from 'dayjs';
-import { useNavigate } from '@/components/router-compat';
 import { AdminRowActionsMenu } from '../../../../../components/ui/AdminRowActionsMenu';
 import { ROUTES } from '../../../../../constants/routes';
 import { formatVnd } from '../../../import-batch/utils/importCostCalculator';
@@ -17,7 +17,7 @@ import {
 import { returnBatchCodeMonospaceSx } from '../../utils/returnBatchCode';
 
 const ActionCell = ({ row }: { row: ReturnBatch }) => {
-    const navigate = useNavigate();
+    const router = useAdminRouter();
 
     return (
         <AdminRowActionsMenu
@@ -26,7 +26,7 @@ const ActionCell = ({ row }: { row: ReturnBatch }) => {
                     id: 'view',
                     label: 'Xem chi tiết',
                     icon: 'view',
-                    onClick: () => navigate(ROUTES.ADMIN.RETURN_BATCH.DETAIL(row.id)),
+                    onClick: () => router.push(ROUTES.ADMIN.RETURN_BATCH.DETAIL(row.id)),
                 },
             ]}
         />

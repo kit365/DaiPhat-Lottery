@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "@/admin/components/navigation/AdminLink";
 import { ConversationTitle } from '../components/ConversationTitle';
 import { ConversationAvatarLetter } from '../components/ConversationAvatarLetter';
 import {
@@ -53,7 +54,6 @@ import {
 } from '../../hooks/useChat';
 import { useChatSocket } from '../../hooks/useChatSocket';
 import { chatService } from '../../services/chatService';
-import { Link } from '@/components/router-compat';
 import { prefixAdmin } from '../../../../constants/routes';
 import { Conversation, Message } from '../../../../../types/chat.type';
 import { ChatSocketMessageEvent } from '../../../../../types/websocket.type';
@@ -845,7 +845,7 @@ export const ChatWindow = ({ conversationId, onToggleDetails }: ChatWindowProps)
                                         Phiên hỗ trợ với{' '}
                                         <Box
                                             component={Link}
-                                            to={`/${prefixAdmin}/account-admin/detail/${operatorId}`}
+                                            href={`/${prefixAdmin}/account-admin/detail/${operatorId}`}
                                             sx={{
                                                 color: 'primary.main',
                                                 fontWeight: 600,

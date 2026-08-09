@@ -1,5 +1,7 @@
 "use client";
 
+import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
+import { useRouteParams } from "@/hooks/useRouteParams";
 import {
     Alert,
     Box,
@@ -17,7 +19,6 @@ import VisibilityIcon from '@mui/icons-material/Visibility';
 import dayjs from 'dayjs';
 import { useState } from 'react';
 import Swal from 'sweetalert2';
-import { useNavigate, useParams } from '@/components/router-compat';
 import { toast } from 'react-toastify';
 import { PageHeader } from '../../../../../components/ui/PageHeader';
 import { SpinnerLoading } from '../../../../../components/ui/SpinnerLoading';
@@ -45,8 +46,8 @@ import { InspectTicketsDialog } from '../sections/InspectTicketsDialog';
 import { ReturnBatchTicketsModal } from '../sections/ReturnBatchTicketsModal';
 
 export const ReturnBatchDetailPage = () => {
-    const navigate = useNavigate();
-    const { id } = useParams<{ id: string }>();
+    const router = useAdminRouter();
+    const { id } = useRouteParams();
     const { data: batch, isLoading, isError, refetch } = useReturnBatchDetail(id);
     const confirmHandover = useConfirmReturnHandover();
     const startInspection = useStartReturnInspection();
@@ -195,7 +196,7 @@ export const ReturnBatchDetailPage = () => {
 
     const handleInspectTickets = async () => {
         if (batch.inspectionExpired || batch.status === 'CANCELLED') {
-            navigate(ROUTES.ADMIN.RETURN_BATCH.INSPECT(batch.id));
+            router.push(ROUTES.ADMIN.RETURN_BATCH.INSPECT(batch.id));
             return;
         }
         if (canStartInspection(batch.status)) {
@@ -220,7 +221,7 @@ export const ReturnBatchDetailPage = () => {
                 return;
             }
         }
-        navigate(ROUTES.ADMIN.RETURN_BATCH.INSPECT(batch.id));
+        router.push(ROUTES.ADMIN.RETURN_BATCH.INSPECT(batch.id));
     };
 
     return (

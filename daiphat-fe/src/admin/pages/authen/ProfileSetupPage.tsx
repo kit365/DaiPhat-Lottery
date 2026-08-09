@@ -1,5 +1,8 @@
 "use client";
 
+import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
+import { usePathname, useSearchParams } from "next/navigation";
+import Link from "@/admin/components/navigation/AdminLink";
 import React, { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -7,7 +10,6 @@ import * as z from "zod";
 import { useAuthStore } from "../../../stores/useAuthStore";
 import { userService } from "./services/user.service";
 import { toast } from "react-toastify";
-import { useNavigate, Link, useLocation } from "@/components/router-compat";
 import { ROUTES } from "../../constants/routes";
 import { PERMISSIONS } from "../../constants/permission.constants";
 import { LogoAdmin } from "../../../assets/admin/logo";
@@ -61,8 +63,9 @@ export const ProfileSetupPage: React.FC = () => {
     const { usePasswordPolicy } = useForgotPassword();
     const { data: passwordPolicy } = usePasswordPolicy();
     
-    const navigate = useNavigate();
-    const location = useLocation();
+    const router = useAdminRouter();
+    const pathname = usePathname() ?? '';
+    const searchParamsForLocation = useSearchParams();
     
     const [showPassword, setShowPassword] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -137,7 +140,7 @@ export const ProfileSetupPage: React.FC = () => {
                     });
 
                     const destination = isAdmin ? ROUTES.ADMIN.DASHBOARD.ROOT : ROUTES.PUBLIC.HOME;
-                    navigate(destination, { replace: true });
+                    router.replace(destination);
                 }
             } else {
                 toast.error(response.message || "Có lỗi xảy ra khi cập nhật hồ sơ.");
@@ -160,7 +163,7 @@ export const ProfileSetupPage: React.FC = () => {
 
     if (!user) return null;
 
-    const isAdminRoute = location.pathname.startsWith("/admin");
+    const isAdminRoute = pathname.startsWith("/admin");
 
     return (
         <ThemeProvider theme={adminTheme}>
@@ -196,7 +199,7 @@ export const ProfileSetupPage: React.FC = () => {
                             zIndex: "1101",
                             background: "transparent"
                         }}>
-                        <Link to="/" className="inline-block w-[40px] h-[40px]">
+                        <Link href="/" className="inline-block w-[40px] h-[40px]">
                             <SiteLogo className="w-10 h-10 rounded" imgClassName="w-full h-full object-contain" />
                         </Link>
                         <IconButton

@@ -1,19 +1,19 @@
 "use client";
 
+import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
 import { Button } from '@/admin/components/ui/Button';
 
 
 import AddIcon from '@mui/icons-material/Add';
 import { PageHeader } from "../../../../components/ui/PageHeader";
 import { prefixAdmin } from "../../../../constants/routes";
-import { useNavigate } from "react-router-dom";
 import { useState } from "react";
 import { BlogCategoryList } from "../sections/BlogCategoryList";
 import { CanAccess } from "../../../../components/auth/CanAccess";
 import { PERMISSIONS } from "../../../../constants/permission.constants";
 
 export const BlogCategoryListPage = () => {
-    const navigate = useNavigate();
+    const router = useAdminRouter();
     const [isTrash] = useState(false);
 
     return (
@@ -29,7 +29,7 @@ export const BlogCategoryListPage = () => {
                     <div style={{ display: 'flex', gap: '16px' }}>
                     <CanAccess permission={PERMISSIONS.ARTICLE.CREATE}>
                         <Button
-                            onClick={() => navigate(`/${prefixAdmin}/blog-category/create`)}
+                            onClick={() => router.push(`/${prefixAdmin}/blog-category/create`)}
                             className="btn-primary-admin"
                             variant="contained"
                             startIcon={<AddIcon />}

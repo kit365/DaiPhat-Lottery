@@ -1,5 +1,7 @@
 "use client";
 
+import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
+import { useRouteParams } from "@/hooks/useRouteParams";
 import { PageHeader } from '../../../../components/ui/PageHeader';
 import { SpinnerLoading } from '../../../../components/ui/SpinnerLoading';
 import { useUpdateUser, useUserDetail, useDeleteUser, useUploadUserAvatar } from "../../hooks/useUsers";
@@ -9,7 +11,6 @@ import { useForm, Controller } from "react-hook-form";
 import { accountAdminSchema } from "../../../../schemas/account-admin.schema";
 import { prefixAdmin } from '../../../../constants/routes';
 import { toast } from "react-toastify";
-import { useNavigate, useParams } from "react-router-dom";
 import { useEffect, useRef, useState } from "react";
 import {
     Box,
@@ -26,8 +27,8 @@ import Grid from "@mui/material/Grid";
 import { Button } from '../../../../components/ui/Button';
 
 export const AdminEditPage = () => {
-    const { id } = useParams();
-    const navigate = useNavigate();
+    const { id } = useRouteParams();
+    const router = useAdminRouter();
     const { data: account, isLoading } = useUserDetail(id);
     const { mutate: update, isPending } = useUpdateUser();
     const { mutate: removeAccount } = useDeleteUser();
@@ -111,7 +112,7 @@ export const AdminEditPage = () => {
             removeAccount(id!, {
                 onSuccess: () => {
                     toast.success("Xóa quản trị viên thành công!");
-                    navigate(`/${prefixAdmin}/account-admin/list`);
+                    router.push(`/${prefixAdmin}/account-admin/list`);
                 },
                 onError: (error: any) => {
                     toast.error(error.response?.data?.message || "Xóa thất bại");
@@ -126,7 +127,7 @@ export const AdminEditPage = () => {
         update({ id: id!, data: payload }, {
             onSuccess: () => {
                 toast.success("Cập nhật quản trị viên thành công!");
-                navigate(`/${prefixAdmin}/account-admin/list`);
+                router.push(`/${prefixAdmin}/account-admin/list`);
             },
             onError: (error: any) => {
                 toast.error(error.response?.data?.message || "Cập nhật thất bại");

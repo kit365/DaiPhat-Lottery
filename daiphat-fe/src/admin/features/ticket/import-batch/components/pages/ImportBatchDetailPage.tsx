@@ -1,5 +1,7 @@
 "use client";
 
+import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
+import { useRouteParams } from "@/hooks/useRouteParams";
 import {
     Alert,
     Box,
@@ -15,7 +17,6 @@ import {
     Typography,
     Paper,
 } from '@mui/material';
-import { useNavigate, useParams } from '@/components/router-compat';
 import { PageHeader } from '../../../../../components/ui/PageHeader';
 import { SpinnerLoading } from '../../../../../components/ui/SpinnerLoading';
 import { AdminStatusBadge } from '../../../../../components/ui/AdminStatusBadge';
@@ -57,8 +58,8 @@ import { ImagePreview } from '../../../../../components/ui/ImagePreview';
 import dayjs from 'dayjs';
 
 export const ImportBatchDetailPage = () => {
-    const { id } = useParams<{ id: string }>();
-    const navigate = useNavigate();
+    const { id } = useRouteParams();
+    const router = useAdminRouter();
     const { data: batch, isLoading } = useImportBatchDetail(id);
     const { data: providersRes } = useStations({ limit: 1000 });
     const providers = (providersRes as any)?.data?.recordList || [];
@@ -113,7 +114,7 @@ export const ImportBatchDetailPage = () => {
                             <Stack direction="row" spacing={1}>
                                 <Button
                                     variant="outlined"
-                                    onClick={() => navigate(ROUTES.ADMIN.IMPORT_BATCH.EDIT(batch.id))}
+                                    onClick={() => router.push(ROUTES.ADMIN.IMPORT_BATCH.EDIT(batch.id))}
                                 >
                                     Chỉnh sửa phiếu
                                 </Button>
@@ -121,7 +122,7 @@ export const ImportBatchDetailPage = () => {
                                     <CanAccess permission={PERMISSIONS.TICKET.CREATE}>
                                         <Button
                                             variant="contained"
-                                            onClick={() => navigate(ROUTES.ADMIN.IMPORT_BATCH.LIST)}
+                                            onClick={() => router.push(ROUTES.ADMIN.IMPORT_BATCH.LIST)}
                                         >
                                             Nhập vé vào phiếu
                                         </Button>
@@ -337,7 +338,7 @@ export const ImportBatchDetailPage = () => {
                                                     className="admin-table-action"
                                                     aria-label="Xem chi tiết"
                                                     onClick={() =>
-                                                        navigate(
+                                                        router.push(
                                                             ROUTES.ADMIN.IMPORT_BATCH.LINE_DETAIL(
                                                                 batch.id,
                                                                 line.id

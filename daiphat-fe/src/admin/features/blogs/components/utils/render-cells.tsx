@@ -1,11 +1,11 @@
 "use client";
 
+import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
 import { Avatar, Box, Link, ListItemText } from "@mui/material";
 import { PERMISSIONS } from "../../../../constants/permission.constants";
 
 import { GridRenderCellParams } from "@mui/x-data-grid";
 import { useDeleteBlogCategory } from "../../hooks/useBlogCategory";
-import { useNavigate } from "react-router-dom";
 import { prefixAdmin } from "../../../../constants/routes";
 import { toast } from "react-toastify";
 import dayjs from 'dayjs';
@@ -23,7 +23,7 @@ interface RenderCreatedAtCellProps {
 // Tên danh mục + Icon/Avatar
 export const RenderTitleCell = (params: GridRenderCellParams) => {
     const { name, avatar, altImage, _id } = params.row;
-    const navigate = useNavigate();
+    const router = useAdminRouter();
 
     // avatar có thể là font-awesome class (vd: "fa-solid fa-star") hoặc URL ảnh
     const isFaIcon = avatar && typeof avatar === 'string' && avatar.startsWith('fa-');
@@ -77,7 +77,7 @@ export const RenderTitleCell = (params: GridRenderCellParams) => {
                         className="ticket-title"
                         onClick={(e) => {
                             e.preventDefault();
-                            navigate(`/${prefixAdmin}/blog-category/edit/${_id}`);
+                            router.push(`/${prefixAdmin}/blog-category/edit/${_id}`);
                         }}
                         underline="hover"
                         sx={{
@@ -179,7 +179,7 @@ export const RenderStatusCell = (params: GridRenderCellParams) => {
 
 // Actions
 export const BlogCategoryActionsCell = (_isTrash: boolean) => (params: GridRenderCellParams) => {
-    const navigate = useNavigate();
+    const router = useAdminRouter();
     const { mutate: deleteCategory } = useDeleteBlogCategory();
     const { can } = usePermissions();
     const canEdit = can(PERMISSIONS.ARTICLE.EDIT);
@@ -187,7 +187,7 @@ export const BlogCategoryActionsCell = (_isTrash: boolean) => (params: GridRende
     const _id = params.row.id || params.row.id;
 
     const handleEdit = () => {
-        navigate(`/${prefixAdmin}/blog-category/edit/${_id}`);
+        router.push(`/${prefixAdmin}/blog-category/edit/${_id}`);
     };
 
     const handleDelete = () => {
@@ -210,7 +210,7 @@ export const BlogCategoryActionsCell = (_isTrash: boolean) => (params: GridRende
             id: 'view',
             label: 'Chi tiết',
             icon: 'view',
-            onClick: () => navigate(`/${prefixAdmin}/blog-category/detail/${_id}`),
+            onClick: () => router.push(`/${prefixAdmin}/blog-category/detail/${_id}`),
         },
     ];
 

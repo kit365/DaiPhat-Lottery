@@ -1,5 +1,7 @@
 "use client";
 
+import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
+import { useRouteParams } from "@/hooks/useRouteParams";
 import ArrowBackOutlinedIcon from '@mui/icons-material/ArrowBackOutlined';
 import CloseIcon from '@mui/icons-material/Close';
 import ConfirmationNumberIcon from '@mui/icons-material/ConfirmationNumber';
@@ -9,10 +11,8 @@ import ReportProblemIcon from '@mui/icons-material/ReportProblem';
 import SearchIcon from '@mui/icons-material/Search';
 import { Alert, Box, Card, Checkbox, Chip, CircularProgress, Collapse, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, InputAdornment, Paper, Radio, RadioGroup, Stack, Tab, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Tabs, TextField, Typography } from '@mui/material';
 import React, { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import Swal from 'sweetalert2';
-import { useParams } from '@/components/router-compat';
 import { PageHeader } from '../../../../../components/ui/PageHeader';
 import { Button } from '../../../../../components/ui/Button';
 import { ROUTES } from '../../../../../constants/routes';
@@ -260,8 +260,8 @@ const CollapsibleInspectTicketRow = ({
 };
 
 export const ReturnBatchInspectPage = () => {
-    const navigate = useNavigate();
-    const { id } = useParams<{ id: string }>();
+    const router = useAdminRouter();
+    const { id } = useRouteParams();
     const batchId = id ? String(id) : '';
 
     const { data: batch, isLoading: isBatchLoading } = useReturnBatchDetail(batchId);
@@ -464,7 +464,7 @@ export const ReturnBatchInspectPage = () => {
                 },
             });
             toast.success('Đã xác nhận kiểm tra vé — phiếu hoàn tất kiểm tra.');
-            navigate(ROUTES.ADMIN.RETURN_BATCH.DETAIL(batchId));
+            router.push(ROUTES.ADMIN.RETURN_BATCH.DETAIL(batchId));
         } catch (err: any) {
             const msg = err?.response?.data?.message || 'Không thể hoàn tất kiểm tra vé.';
             if (
@@ -498,7 +498,7 @@ export const ReturnBatchInspectPage = () => {
     };
 
     const handleBackToDetail = () => {
-        navigate(ROUTES.ADMIN.RETURN_BATCH.DETAIL(batchId));
+        router.push(ROUTES.ADMIN.RETURN_BATCH.DETAIL(batchId));
     };
 
     const isLoading = isBatchLoading || isSerialsLoading;

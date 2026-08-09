@@ -1,8 +1,8 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import React, { useEffect, useMemo, useState } from 'react';
 import { format } from 'date-fns';
-import { useNavigate } from 'react-router-dom';
 import { OrderResponse } from '../../../types/order.type';
 import {
     formatRefundCountdown,
@@ -38,7 +38,7 @@ const ORDER_STATUS_LABELS: Record<string, string> = {
 };
 
 export const RefundRequestModal: React.FC<RefundRequestModalProps> = ({ isOpen, onClose, order }) => {
-    const navigate = useNavigate();
+    const router = useRouter();
     const { data: bankAccountsData, isLoading: isLoadingBankAccounts } = useGetBankAccounts(isOpen);
     const {
         data: eligibilityData,
@@ -111,7 +111,7 @@ export const RefundRequestModal: React.FC<RefundRequestModalProps> = ({ isOpen, 
                 onSuccess: (res) => {
                     if (res.success) {
                         onClose();
-                        navigate('/profile/orders');
+                        router.push('/profile/orders');
                     }
                 }
             }

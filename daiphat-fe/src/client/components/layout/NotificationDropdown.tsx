@@ -1,7 +1,8 @@
 "use client";
 
+import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
 import { Bell, ChevronRight, Newspaper, ShieldCheck, MoreHorizontal, Check, Settings, Trash2 } from "lucide-react";
 import {
   useDeleteAllMyReadNotifications,
@@ -65,7 +66,7 @@ const getNotificationMeta = (type: NotificationResponse["type"]) => {
 };
 
 export const NotificationDropdown = () => {
-  const navigate = useNavigate();
+  const router = useRouter();
   const {
     notifications,
     unreadCount,
@@ -214,13 +215,13 @@ export const NotificationDropdown = () => {
                     }
                     const result = await resolveNotificationNavigation(notification);
                     if (result.kind === "navigate") {
-                      navigate(result.path);
+                      router.push(result.path);
                       return;
                     }
                     if (result.kind === "unavailable") {
-                      navigate("/profile/notifications", {
-                        state: { unavailableMessage: result.message },
-                      } as any);
+                      router.push(
+                        `/profile/notifications?unavailableMessage=${encodeURIComponent(result.message)}`,
+                      );
                     }
                   }}
                   className={`relative flex gap-3 p-3 rounded-xl transition-colors hover:bg-slate-50 ${!notification.isRead ? "bg-[#FFF9F9]" : "bg-white opacity-[0.65]"
@@ -277,7 +278,7 @@ export const NotificationDropdown = () => {
 
       <div className="p-3 border-t border-[#E5E8EB] flex justify-center">
         <Link
-          to="/profile/notifications"
+          href="/profile/notifications"
           className={`flex items-center gap-1 py-1 font-bold text-[#ee1314] hover:underline transition-colors ${HEADER_DROPDOWN_ACTION_CLASS}`}
         >
           Xem tất cả thông báo <ChevronRight size={16} />

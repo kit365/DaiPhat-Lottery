@@ -1,5 +1,6 @@
 "use client";
 
+import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
 import {
     Alert,
     Box,
@@ -57,7 +58,6 @@ import { resolveInvoiceEvidenceUrl } from '../../utils/invoiceEvidence';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Controller, useFieldArray, useForm, useWatch, type Resolver } from 'react-hook-form';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate } from '@/components/router-compat';
 import { toast } from 'react-toastify';
 import dayjs from 'dayjs';
 
@@ -71,7 +71,7 @@ const buildDefaultFormValues = (): CreateImportBatchFormValues => ({
 });
 
 export const ImportBatchCreatePage = () => {
-    const navigate = useNavigate();
+    const router = useAdminRouter();
     const [confirmOpen, setConfirmOpen] = useState(false);
     const [pendingFormData, setPendingFormData] = useState<CreateImportBatchFormValues | null>(null);
     const [duplicateOpen, setDuplicateOpen] = useState(false);
@@ -495,7 +495,7 @@ export const ImportBatchCreatePage = () => {
         setConfirmOpen(false);
         setPendingFormData(null);
         clearDraft();
-        navigate(ROUTES.ADMIN.IMPORT_BATCH.EDIT(duplicateExistingBatch.id));
+        router.push(ROUTES.ADMIN.IMPORT_BATCH.EDIT(duplicateExistingBatch.id));
     };
 
     const handleCreateNewAnyway = async () => {
@@ -511,7 +511,7 @@ export const ImportBatchCreatePage = () => {
                 setConfirmOpen(false);
                 setPendingFormData(null);
                 handleCloseDuplicate();
-                navigate(ROUTES.ADMIN.IMPORT_BATCH.LIST);
+                router.push(ROUTES.ADMIN.IMPORT_BATCH.LIST);
             } else {
                 toast.error(res.message || 'Tạo phiếu nhập lô thất bại.');
             }
@@ -536,7 +536,7 @@ export const ImportBatchCreatePage = () => {
                 toast.success(res.message || 'Tạo phiếu nhập lô thành công.');
                 setConfirmOpen(false);
                 setPendingFormData(null);
-                navigate(ROUTES.ADMIN.IMPORT_BATCH.LIST);
+                router.push(ROUTES.ADMIN.IMPORT_BATCH.LIST);
             } else {
                 toast.error(res.message || 'Tạo phiếu nhập lô thất bại.');
             }
@@ -561,7 +561,7 @@ export const ImportBatchCreatePage = () => {
 
     const handleCancel = () => {
         clearDraft();
-        navigate(ROUTES.ADMIN.IMPORT_BATCH.LIST);
+        router.push(ROUTES.ADMIN.IMPORT_BATCH.LIST);
     };
 
     if (isLoadingSuppliers) {
@@ -603,13 +603,13 @@ export const ImportBatchCreatePage = () => {
                         <Button
                             variant="contained"
                             className="btn-primary-admin"
-                            onClick={() => navigate(ROUTES.ADMIN.SUPPLIER.CREATE)}
+                            onClick={() => router.push(ROUTES.ADMIN.SUPPLIER.CREATE)}
                         >
                             Tạo nhà cung cấp
                         </Button>
                         <Button
                             variant="outlined"
-                            onClick={() => navigate(ROUTES.ADMIN.SUPPLIER.LIST)}
+                            onClick={() => router.push(ROUTES.ADMIN.SUPPLIER.LIST)}
                         >
                             Quản lý nhà cung cấp
                         </Button>
@@ -801,7 +801,7 @@ export const ImportBatchCreatePage = () => {
                                                                         variant="text"
                                                                         sx={{ p: 0, minWidth: 0, verticalAlign: 'baseline' }}
                                                                         onClick={() =>
-                                                                            navigate(
+                                                                            router.push(
                                                                                 ROUTES.ADMIN.IMPORT_BATCH.DETAIL(
                                                                                     station.existingDraftBatchId!
                                                                                 )

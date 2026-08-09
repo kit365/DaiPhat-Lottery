@@ -1,6 +1,6 @@
 "use client";
 
-import { useParams } from "react-router-dom";
+import { useRouteParams } from "@/hooks/useRouteParams";
 import {
     Avatar,
     Box,
@@ -82,7 +82,7 @@ const SectionHeader = ({
 );
 
 export const StreetAgentDetailPage = () => {
-    const { id } = useParams();
+    const { id } = useRouteParams();
     const { data: profile, isLoading, refetch } = useStreetAgentProfileDetail(id);
     const { mutate: uploadSigned, isPending: isUploadingSigned } = useUploadStreetAgentSignedContract();
     const signedFileInputRef = useRef<HTMLInputElement>(null);

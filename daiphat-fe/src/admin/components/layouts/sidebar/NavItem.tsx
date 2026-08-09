@@ -1,9 +1,10 @@
 "use client";
 
+import { usePathname, useSearchParams } from "next/navigation";
+import Link from "@/admin/components/navigation/AdminLink";
 import { useState, useEffect, memo, useCallback, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { ListItemIcon, Collapse, ButtonBase, Popover, Paper, Badge } from '@mui/material';
-import { Link, useLocation } from "react-router-dom";
 import { ArrowIcon } from "../../../assets/icons";
 import { useSidebar } from "../../../context/sidebar/useSidebar";
 import { useAuthStore } from "../../../../stores/useAuthStore";
@@ -67,7 +68,7 @@ const SubNavItem = ({
     return (
         <li key={child.id} className="relative list-none">
             <Link
-                to={child.path}
+                href={child.path}
                 onMouseEnter={() => onPrefetch(child.path)}
                 onPointerDown={() => onPrefetch(child.path)}
                 className={`sidebar-item-before rounded-[8px] inline-flex items-center py-[4px] pr-[8px] pl-[12px] w-full min-h-[36px] text-[0.875rem] transition-all duration-200
@@ -267,7 +268,9 @@ const ChatAttentionBadgeIcon = ({ children }: { children: ReactNode }) => {
 
 export const NavItem = memo(({ item }: { item: any }) => {
     const router = useRouter();
-    const { pathname, search } = useLocation();
+    const pathname = usePathname() ?? '';
+    const searchParamsForLocation = useSearchParams();
+    const search = searchParamsForLocation?.toString() ? `?${searchParamsForLocation.toString()}` : '';
     const { isOpen } = useSidebar();
     const { user } = useAuthStore();
 
@@ -335,7 +338,7 @@ export const NavItem = memo(({ item }: { item: any }) => {
     return (
         <li className="inline-block w-full" style={{ listStyle: 'none' }}>
             <ButtonBase
-                {...(!hasChildren && { component: Link, to: item.path })}
+                {...(!hasChildren && item.path && { component: Link, href: item.path })}
                 onClick={hasChildren ? handleToggle : undefined}
                 onMouseEnter={(event) => {
                     if (!hasChildren && item.path) {

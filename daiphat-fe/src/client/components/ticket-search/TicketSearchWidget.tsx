@@ -1,7 +1,7 @@
 "use client";
 
+import Link from "next/link";
 import React, { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
 import { ROUTES } from '@/admin/constants/routes';
 import dayjs from 'dayjs';
 import { Search } from 'lucide-react';
@@ -196,7 +196,7 @@ export const TicketSearchWidget: React.FC = () => {
 
                 {hasSearchDigits && (
                     <Link
-                        to={`${ROUTES.PUBLIC.TICKETS}?ticketNumber=${encodeURIComponent(search)}&drawDate=${selectedDate}${stationId ? `&stationId=${stationId}` : ''}`}
+                        href={`${ROUTES.PUBLIC.TICKETS}?ticketNumber=${encodeURIComponent(search)}&drawDate=${selectedDate}${stationId ? `&stationId=${stationId}` : ''}`}
                         className="block text-center text-[13px] font-bold text-[#ee1314] hover:underline"
                     >
                         Xem tất cả kết quả →

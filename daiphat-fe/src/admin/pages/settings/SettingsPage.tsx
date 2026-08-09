@@ -1,8 +1,9 @@
 "use client";
 
+import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
+import { usePathname, useSearchParams } from "next/navigation";
 import { Box } from "@mui/material";
 import { useEffect, type ReactNode } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
 import { PageHeader } from "../../components/ui/PageHeader";
 import { GeneralSettingTab } from "./components/GeneralSettingTab";
 import { PolicySettingsTab } from "./components/PolicySettingsTab";
@@ -56,18 +57,19 @@ const PATH_REDIRECTS: Record<string, string> = {
 };
 
 export const SettingsPage = () => {
-    const location = useLocation();
-    const navigate = useNavigate();
+    const pathname = usePathname() ?? '';
+    const searchParamsForLocation = useSearchParams();
+    const router = useAdminRouter();
 
-    const currentPath = location.pathname.split("/").pop() ?? "general";
+    const currentPath = pathname.split("/").pop() ?? "general";
     const resolvedPath = PATH_REDIRECTS[currentPath] ?? currentPath;
     const section = SETTINGS_SECTIONS[resolvedPath] ?? SETTINGS_SECTIONS.general;
 
     useEffect(() => {
         if (currentPath !== section.path) {
-            navigate(`/${prefixAdmin}/dashboard/settings/${section.path}`, { replace: true });
+            router.replace(`/${prefixAdmin}/dashboard/settings/${section.path}`);
         }
-    }, [currentPath, section.path, navigate]);
+    }, [currentPath, section.path, router]);
 
     const breadcrumbs = [
         { label: "Dashboard", to: `/${prefixAdmin}` },

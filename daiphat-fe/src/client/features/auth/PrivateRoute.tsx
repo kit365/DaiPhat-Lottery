@@ -1,11 +1,12 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useEffect } from "react";
-import { Navigate, Outlet } from "react-router-dom";
 import { useAuthStore } from "../../../stores/useAuthStore";
 import { LoadingSpinner } from "../../components/ui/LoadingSpinner";
 
 export const PrivateRoute = ({ children }: { children?: React.ReactNode }) => {
+  const router = useRouter();
   const { token, isHydrated } = useAuthStore();
 
   // Failsafe: if persist rehydration callback is delayed/missed, unlock private routes.
@@ -36,13 +37,19 @@ export const PrivateRoute = ({ children }: { children?: React.ReactNode }) => {
     };
   }, [isHydrated]);
 
+  useEffect(() => {
+    if (isHydrated && !token) {
+      router.replace("/login");
+    }
+  }, [isHydrated, token, router]);
+
   if (!isHydrated) {
     return <LoadingSpinner />;
   }
 
   if (!token) {
-    return <Navigate to="/login" replace />;
+    return null;
   }
 
-  return children ? <>{children}</> : <Outlet />;
+  return <>{children}</>;
 };

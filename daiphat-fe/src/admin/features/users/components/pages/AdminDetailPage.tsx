@@ -1,7 +1,8 @@
 "use client";
 
+import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
+import { useRouteParams } from "@/hooks/useRouteParams";
 import { useEffect, useState, useRef } from "react";
-import { useParams, useNavigate } from "react-router-dom";
 import {
     Box,
     Card,
@@ -37,8 +38,8 @@ import { toast } from "react-toastify";
 import { Button } from '../../../../components/ui/Button';
 
 export const AdminDetailPage = () => {
-    const { id } = useParams();
-    const navigate = useNavigate();
+    const { id } = useRouteParams();
+    const router = useAdminRouter();
     const [currentTab, setCurrentTab] = useState("general");
     const { data: account, isLoading: isAccountLoading } = useUserDetail(id);
     const { mutate: update, isPending: isUpdating } = useUpdateUser();
@@ -171,7 +172,7 @@ export const AdminDetailPage = () => {
             removeAccount(id!, {
                 onSuccess: () => {
                     toast.success("Xóa quản trị viên thành công!");
-                    navigate(`/${prefixAdmin}/account-admin/list`);
+                    router.push(`/${prefixAdmin}/account-admin/list`);
                 },
                 onError: (error: any) => {
                     toast.error(error.response?.data?.message || "Xóa thất bại");

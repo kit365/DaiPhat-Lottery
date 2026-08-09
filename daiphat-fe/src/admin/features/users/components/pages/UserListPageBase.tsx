@@ -1,5 +1,6 @@
 "use client";
 
+import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
 import { RoleEnum } from "../../../../../types/role.type";
 import React, { useState } from 'react';
 import { Card, Button, Tabs, Tab } from '@mui/material';
@@ -13,7 +14,6 @@ import { useMemo } from 'react';
 import { UserQueryParams } from '../../types/user.types';
 import { PageHeader } from "../../../../components/ui/PageHeader";
 import { prefixAdmin } from "../../../../constants/routes";
-import { useNavigate } from "@/components/router-compat";
 import { CanAccess } from "../../../../components/auth/CanAccess";
 
 interface UserListPageBaseProps {
@@ -40,7 +40,7 @@ export const UserListPageBase = ({
     createLabel,
     isClient,
 }: UserListPageBaseProps) => {
-    const navigate = useNavigate();
+    const router = useAdminRouter();
     const [queryParams, setQueryParams] = useState<UserQueryParams>({
         page: 1,
         limit: 10,
@@ -96,7 +96,7 @@ export const UserListPageBase = ({
                         <Button
                             variant="contained"
                             startIcon={<AddIcon />}
-                            onClick={() => navigate(`/${prefixAdmin}/${createPath}`)}
+                            onClick={() => router.push(`/${prefixAdmin}/${createPath}`)}
                             className="btn-primary-admin"
                         >
                             {createLabel}

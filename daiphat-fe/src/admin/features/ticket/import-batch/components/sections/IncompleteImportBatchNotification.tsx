@@ -1,8 +1,8 @@
 "use client";
 
+import NextLink from "next/link";
 import WarningAmberOutlinedIcon from '@mui/icons-material/WarningAmberOutlined';
 import { Alert, Link, Typography } from '@mui/material';
-import { Link as RouterLink } from '@/components/router-compat';
 import { ROUTES } from '../../../../../constants/routes';
 import { useIncompleteImportBatches } from '../../hooks/useImportBatch';
 
@@ -22,8 +22,8 @@ export const IncompleteImportBatchNotification = () => {
             <Typography variant="body2" component="span">
                 Có <strong>{batches.length}</strong> phiếu nhập lô chưa hoàn tất.{' '}
                 <Link
-                    component={RouterLink}
-                    to={ROUTES.ADMIN.IMPORT_BATCH.LIST}
+                    component={NextLink}
+                    href={ROUTES.ADMIN.IMPORT_BATCH.LIST}
                     variant="body2"
                     fontWeight={600}
                     underline="hover"

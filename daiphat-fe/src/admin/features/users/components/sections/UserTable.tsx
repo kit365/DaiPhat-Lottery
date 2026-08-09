@@ -1,8 +1,8 @@
 "use client";
 
+import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
 import { RoleEnum } from "../../../../../types/role.type";
 import React, { useMemo } from 'react';
-import { useNavigate } from '@/components/router-compat';
 import { DataGrid } from '@mui/x-data-grid';
 import { Box, CircularProgress } from '@mui/material';
 import { useAuthStore } from '../../../../../stores/useAuthStore';
@@ -32,7 +32,7 @@ export const UserTable = ({
     onRefresh,
     isClient
 }: UserTableProps) => {
-    const navigate = useNavigate();
+    const router = useAdminRouter();
     const { user } = useAuthStore();
     
     const roleCode = typeof user?.role === 'string' ? user.role : (user?.role?.code || "");
@@ -72,7 +72,7 @@ export const UserTable = ({
                                     id: 'view',
                                     label: 'Chi tiết',
                                     icon: 'view',
-                                    onClick: () => navigate(
+                                    onClick: () => router.push(
                                         isClient
                                             ? `/admin/account-user/detail/${params.row.id}`
                                             : `/admin/account-admin/detail/${params.row.id}`
@@ -84,7 +84,7 @@ export const UserTable = ({
                                     id: 'edit',
                                     label: 'Chỉnh sửa',
                                     icon: 'edit',
-                                    onClick: () => navigate(
+                                    onClick: () => router.push(
                                         isClient
                                             ? `/admin/account-user/edit/${params.row.id}`
                                             : `/admin/account-admin/edit/${params.row.id}`
@@ -105,7 +105,7 @@ export const UserTable = ({
                 )
             }
         ];
-    }, [pagination?.currentPage, pagination?.limit, isClient, canView, canEdit, canDelete, navigate]);
+    }, [pagination?.currentPage, pagination?.limit, isClient, canView, canEdit, canDelete, router]);
 
     return (
         <Box sx={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, height: '100%' }}>

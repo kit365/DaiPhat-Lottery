@@ -1,7 +1,7 @@
 "use client";
 
+import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
 import AddIcon from '@mui/icons-material/Add';
-import { useNavigate } from '@/components/router-compat';
 import { PageHeader } from '../../../../../components/ui/PageHeader';
 import { Button } from '../../../../../components/ui/Button';
 import { CanAccess } from '../../../../../components/auth/CanAccess';
@@ -11,7 +11,7 @@ import { useImportBatchList } from '../../hooks/useImportBatch';
 import { ImportBatchList } from '../sections/ImportBatchList';
 
 export const ImportBatchListPage = () => {
-    const navigate = useNavigate();
+    const router = useAdminRouter();
     const listHook = useImportBatchList();
 
     return (
@@ -27,7 +27,7 @@ export const ImportBatchListPage = () => {
                 action={
                     <CanAccess permission={PERMISSIONS.IMPORT_BATCH.CREATE}>
                         <Button
-                            onClick={() => navigate(ROUTES.ADMIN.IMPORT_BATCH.CREATE)}
+                            onClick={() => router.push(ROUTES.ADMIN.IMPORT_BATCH.CREATE)}
                             label="Khai báo phiếu nhập"
                             startIcon={<AddIcon />}
                             className="btn-primary-admin"

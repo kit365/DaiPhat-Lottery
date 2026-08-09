@@ -1,7 +1,10 @@
 "use client";
 
+import { useRouter } from "next/navigation";
+import { useRouteParams } from "@/hooks/useRouteParams";
+import { usePathname, useSearchParams } from "next/navigation";
+import Link from "next/link";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useParams, useNavigate, Link, useLocation } from '@/components/router-compat';
 import { PROVINCE_ICON_FALLBACK, TICKET_IMAGE_FALLBACK } from '../../../../constants/clientBannerAssets';
 import QRCode from 'react-qr-code';
 import { useGetMyOrderDetail } from '../../../../hooks/useOrder';
@@ -114,9 +117,10 @@ const OrderStepper = ({ order }: { order: any }) => {
 };
 
 export const OrderDetailTab = () => {
-    const { id } = useParams<{ id: string }>();
-    const navigate = useNavigate();
-    const location = useLocation();
+    const { id } = useRouteParams();
+    const router = useRouter();
+    const pathname = usePathname() ?? '';
+    const searchParamsForLocation = useSearchParams();
     const { data: orderData, isLoading, isError, refetch: refetchOrder } = useGetMyOrderDetail(id || '');
     const { data: refundsData } = useGetMyRefunds({ orderId: id, limit: 100, page: 1 }, !!id);
     const processPaymentMutation = useProcessPayment();
@@ -263,8 +267,7 @@ export const OrderDetailTab = () => {
     }, [order?.id, order?.status, isPaymentCountdownExpired, handlePaymentExpired, refetchOrder]);
 
     useEffect(() => {
-        const state = location.state as { openRefund?: boolean } | null;
-        if (!state?.openRefund || !order || !isRefundCandidateStatus(order.status) || isLoadingEligibility) {
+        if (searchParamsForLocation?.get("openRefund") !== "true" || !order || !isRefundCandidateStatus(order.status) || isLoadingEligibility) {
             return;
         }
 
@@ -274,8 +277,8 @@ export const OrderDetailTab = () => {
             AppToast.error(refundIneligibleReason);
         }
 
-        navigate(location.pathname, { replace: true, state: null } as any);
-    }, [location.state, location.pathname, order, navigate, isLoadingEligibility, refundEligible, refundIneligibleReason]);
+        router.replace(pathname);
+    }, [searchParamsForLocation, pathname, order, router, isLoadingEligibility, refundEligible, refundIneligibleReason]);
 
     if (isLoading) {
         return (
@@ -366,9 +369,9 @@ export const OrderDetailTab = () => {
             {/* Header Title (with back button) */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div className="flex items-center gap-3 text-[14px] font-medium text-[#637381]">
-                    <Link to="/" className="hover:text-[#212B36] transition-colors">Trang chủ</Link>
+                    <Link href="/" className="hover:text-[#212B36] transition-colors">Trang chủ</Link>
                     <i className="fa-solid fa-chevron-right text-[10px]"></i>
-                    <Link to="/profile/orders" className="hover:text-[#212B36] transition-colors">Đơn hàng của tôi</Link>
+                    <Link href="/profile/orders" className="hover:text-[#212B36] transition-colors">Đơn hàng của tôi</Link>
                     <i className="fa-solid fa-chevron-right text-[10px]"></i>
                     <span className="text-[#212B36] font-bold">Chi tiết đơn hàng</span>
                 </div>
@@ -379,7 +382,7 @@ export const OrderDetailTab = () => {
                     <h1 className="client-heading m-0">Chi tiết đơn hàng</h1>
                 </div>
                 <button
-                    onClick={() => navigate('/profile/orders')}
+                    onClick={() => router.push('/profile/orders')}
                     className="px-5 py-2.5 bg-white border border-[#E5E8EB] rounded-xl text-[13px] font-bold text-[#454F5B] hover:bg-[#F9FAFB] transition-colors shadow-sm cursor-pointer flex items-center gap-2 w-max"
                 >
                     <i className="fa-solid fa-arrow-left"></i> Quay lại
@@ -561,7 +564,7 @@ export const OrderDetailTab = () => {
                                             })()}
                                             {isPaidOrCompleted && (
                                                 <Link
-                                                    to="/"
+                                                    href="/"
                                                     className="hidden lg:flex text-[#ee1314] hover:text-[#c80f11] text-[13px] font-bold items-center gap-1.5 hover:underline bg-[#FFF4F4] px-3 py-1.5 rounded-lg border border-[#FFEBEE]"
                                                 >
                                                     Tra kết quả <i className="fa-solid fa-arrow-up-right-from-square text-[11px]"></i>
@@ -569,7 +572,7 @@ export const OrderDetailTab = () => {
                                             )}
                                             {(pendingDetailRefund || (detail.status === 'REFUND_PENDING' && detailRefund)) && (
                                                 <Link
-                                                    to={`/profile/refunds/${(pendingDetailRefund || detailRefund)?.id}`}
+                                                    href={`/profile/refunds/${(pendingDetailRefund || detailRefund)?.id}`}
                                                     className="text-[#FFB020] text-[12px] font-bold flex items-center gap-1.5 hover:underline w-max"
                                                 >
                                                     <i className="fa-solid fa-clock text-[11px]"></i> Xem yêu cầu hủy
@@ -839,7 +842,7 @@ export const OrderDetailTab = () => {
                         </div>
                     </div>
                     <Link
-                        to={`/profile/refunds/${pendingFullOrderRefund.id}`}
+                        href={`/profile/refunds/${pendingFullOrderRefund.id}`}
                         className="h-9 px-4 rounded-xl border border-[#DFE3E8] bg-white text-[#454F5B] text-[13px] font-semibold hover:border-[#C4CDD5] hover:bg-[#F4F6F8] hover:text-[#212B36] transition-colors whitespace-nowrap self-start sm:self-center flex items-center justify-center shadow-[0_1px_2px_rgb(0,0,0,0.04)]"
                     >
                         Xem chi tiết

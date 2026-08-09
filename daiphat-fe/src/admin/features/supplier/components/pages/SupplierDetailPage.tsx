@@ -1,7 +1,8 @@
 "use client";
 
+import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
+import { useRouteParams } from "@/hooks/useRouteParams";
 import { Box, Typography } from '@mui/material';
-import { useNavigate, useParams } from '@/components/router-compat';
 import { PageHeader } from '../../../../components/ui/PageHeader';
 import { SpinnerLoading } from '../../../../components/ui/SpinnerLoading';
 import { Button } from '../../../../components/ui/Button';
@@ -12,8 +13,8 @@ import { useSupplierDetail } from '../../hooks/useSupplier';
 import { SupplierInfoCard } from '../sections/SupplierInfoCard';
 
 export const SupplierDetailPage = () => {
-    const { id } = useParams<{ id: string }>();
-    const navigate = useNavigate();
+    const { id } = useRouteParams();
+    const router = useAdminRouter();
     const { data: supplier, isLoading, isError } = useSupplierDetail(id);
 
     return (
@@ -31,7 +32,7 @@ export const SupplierDetailPage = () => {
                             <Button
                                 label="Chỉnh sửa"
                                 className="btn-primary-admin"
-                                onClick={() => navigate(ROUTES.ADMIN.SUPPLIER.EDIT(supplier.id))}
+                                onClick={() => router.push(ROUTES.ADMIN.SUPPLIER.EDIT(supplier.id))}
                             />
                         </CanAccess>
                     ) : undefined

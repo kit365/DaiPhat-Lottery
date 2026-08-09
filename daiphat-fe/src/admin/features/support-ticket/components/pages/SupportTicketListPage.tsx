@@ -1,10 +1,10 @@
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams } from "next/navigation";
 import { PageHeader } from '../../../../components/ui/PageHeader';
 import { prefixAdmin } from '../../../../constants/routes';
 import { SupportTicketList } from '../sections/SupportTicketList';
 
 export const SupportTicketListPage = () => {
-    const [searchParams] = useSearchParams();
+    const searchParams = useSearchParams();
     const filter = searchParams.get('filter');
     const isPrizePayout = filter === 'prize-payout';
     const isRefund = filter === 'refund';

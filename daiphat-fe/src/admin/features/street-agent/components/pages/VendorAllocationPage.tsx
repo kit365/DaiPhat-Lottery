@@ -1,5 +1,7 @@
 "use client";
 
+import { useAppSearchParams } from "@/hooks/useAppSearchParams";
+import Link from "@/admin/components/navigation/AdminLink";
 import { useEffect, useMemo, useState } from "react";
 import { useSidebar } from "../../../../context/sidebar/useSidebar";
 import {
@@ -9,7 +11,6 @@ import RemoveIcon from "@mui/icons-material/Remove";
 import CloseIcon from "@mui/icons-material/Close";
 import dayjs from "dayjs";
 import { toast } from "react-toastify";
-import { Link as RouterLink, useSearchParams } from "@/components/router-compat";
 import { PageHeader } from "../../../../components/ui/PageHeader";
 import { Button } from '../../../../components/ui/Button';
 import { ROUTES } from "../../../../constants/routes";
@@ -88,7 +89,7 @@ const pickSerialIds = (
 export const VendorAllocationPage = () => {
     const { can } = usePermissions();
     const canOverrideLucky = can(PERMISSIONS.STREET_AGENT.MANAGE);
-    const [searchParams, setSearchParams] = useSearchParams();
+    const [searchParams, setSearchParams] = useAppSearchParams();
     const { isOpen: isSidebarOpen } = useSidebar();
 
     const [profile, setProfile] = useState<StreetAgentProfile | null>(null);
@@ -484,8 +485,8 @@ export const VendorAllocationPage = () => {
                             <Button
                                 color="inherit"
                                 size="small"
-                                component={RouterLink}
-                                to={ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.ALLOCATION_BATCHES}
+                                component={Link}
+                                href={ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.ALLOCATION_BATCHES}
                             >
                                 Xem phiếu
                             </Button>

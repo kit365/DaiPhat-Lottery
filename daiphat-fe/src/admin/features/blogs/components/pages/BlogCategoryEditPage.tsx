@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouteParams } from "@/hooks/useRouteParams";
 import { Box, MenuItem, Stack, TextField, Typography } from "@mui/material";
 import { Button } from "../../../../components/ui/Button";
 import { PageHeader } from "../../../../components/ui/PageHeader";
@@ -16,11 +17,10 @@ import { FormUploadSingleFile } from "../../../../components/upload/FormUploadSi
 import { toast } from "react-toastify";
 import { CategoryParentSelect } from "../../../../components/ui/CategoryTreeSelect";
 import { uploadBlogImage } from "../../services/blogService";
-import { useParams } from "react-router-dom";
 import dayjs from "dayjs";
 
 export const BlogCategoryEditPage = () => {
-    const { id } = useParams();
+    const { id } = useRouteParams();
     const [expandedDetail, setExpandedDetail] = useState(true);
     const [expandedHistory, setExpandedHistory] = useState(true);
 

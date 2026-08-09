@@ -1,5 +1,8 @@
 "use client";
 
+import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
+import { useAppSearchParams } from "@/hooks/useAppSearchParams";
+import Link from "@/admin/components/navigation/AdminLink";
 import { PageHeader } from "../../../../components/ui/PageHeader";
 import { SpinnerLoading } from "../../../../components/ui/SpinnerLoading";
 import {
@@ -14,7 +17,6 @@ import {
     CreateStreetAgentProfileFormValues} from "../../schemas/street-agent.schema";
 import { ROUTES } from "../../../../constants/routes";
 import { toast } from "react-toastify";
-import { Link as RouterLink, useNavigate, useSearchParams } from "react-router-dom";
 import {
     Alert,
     Box,
@@ -82,8 +84,8 @@ const toFormValues = (profile: StreetAgentProfile): CreateStreetAgentProfileForm
 });
 
 export const StreetAgentCreatePage = () => {
-    const navigate = useNavigate();
-    const [searchParams, setSearchParams] = useSearchParams();
+    const router = useAdminRouter();
+    const [searchParams, setSearchParams] = useAppSearchParams();
     const resumeIdParam = searchParams.get("resumeId");
     const resumeId = resumeIdParam && /^\d+$/.test(resumeIdParam) ? Number(resumeIdParam) : null;
 
@@ -478,7 +480,7 @@ export const StreetAgentCreatePage = () => {
                                 color="inherit"
                                 onClick={() => {
                                     if (profileId) {
-                                        navigate(`${ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.EDIT}/${profileId}`);
+                                        router.push(`${ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.EDIT}/${profileId}`);
                                         return;
                                     }
                                     setActiveStep(0);
@@ -527,15 +529,15 @@ export const StreetAgentCreatePage = () => {
                         <Stack direction="row" spacing={1.5}>
                             <Button
                                 variant="contained"
-                                onClick={() => navigate(ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.LIST)}
+                                onClick={() => router.push(ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.LIST)}
                                 sx={{ fontWeight: 700, borderRadius: "8px" }}
                             >
                                 Về danh sách
                             </Button>
                             <Button
                                 variant="outlined"
-                                component={RouterLink}
-                                to={`${ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.EDIT}/${profile.id}`}
+                                component={Link}
+                                href={`${ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.EDIT}/${profile.id}`}
                                 sx={{ fontWeight: 700, borderRadius: "8px" }}
                             >
                                 Mở trang chỉnh sửa

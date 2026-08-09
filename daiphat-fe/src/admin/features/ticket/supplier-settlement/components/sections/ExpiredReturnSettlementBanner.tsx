@@ -1,7 +1,7 @@
 "use client";
 
+import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import ReportProblemOutlinedIcon from '@mui/icons-material/ReportProblemOutlined';
 import ArrowForwardOutlinedIcon from '@mui/icons-material/ArrowForwardOutlined';
 import CloseIcon from '@mui/icons-material/Close';
@@ -46,14 +46,14 @@ export const ExpiredReturnSettlementBanner = ({
     totalExpiredValue,
     expiredItems = [],
 }: ExpiredReturnSettlementBannerProps) => {
-    const navigate = useNavigate();
+    const router = useAdminRouter();
     const [openModal, setOpenModal] = useState(false);
 
     if (expiredCount <= 0) return null;
 
     const handleActionClick = () => {
         if (expiredCount === 1 && expiredItems.length === 1) {
-            navigate(ROUTES.ADMIN.SUPPLIER_SETTLEMENT.DETAIL(expiredItems[0].id));
+            router.push(ROUTES.ADMIN.SUPPLIER_SETTLEMENT.DETAIL(expiredItems[0].id));
         } else {
             setOpenModal(true);
         }
@@ -61,7 +61,7 @@ export const ExpiredReturnSettlementBanner = ({
 
     const handleNavigateDetail = (id: number) => {
         setOpenModal(false);
-        navigate(ROUTES.ADMIN.SUPPLIER_SETTLEMENT.DETAIL(id));
+        router.push(ROUTES.ADMIN.SUPPLIER_SETTLEMENT.DETAIL(id));
     };
 
     return (

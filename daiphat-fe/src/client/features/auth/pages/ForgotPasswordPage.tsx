@@ -1,7 +1,7 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowLeft, Check, Eye, EyeOff, Lock, Mail, ShieldCheck } from "lucide-react";
 import Cookies from "js-cookie";
@@ -23,7 +23,7 @@ const STEPS = {
 type Step = keyof typeof STEPS;
 
 export const ForgotPasswordPage = () => {
-    const navigate = useNavigate();
+    const router = useRouter();
     const queryClient = useQueryClient();
     const { token, logout } = useAuthStore();
     const [step, setStep] = useState<Step>(STEPS.EMAIL);
@@ -167,7 +167,7 @@ export const ForgotPasswordPage = () => {
                 <div className="lg:absolute lg:top-8 lg:left-12 flex items-center pt-6 pl-6 lg:p-0 z-20 shrink-0">
                     <button
                         type="button"
-                        onClick={() => navigate("/login")}
+                        onClick={() => router.push("/login")}
                         className="inline-flex items-center gap-2 text-[#D32F2F] font-bold text-[14px] hover:underline bg-white/80 px-4 py-2 rounded-full backdrop-blur-sm shadow-sm"
                     >
                         <ArrowLeft size={18} />
@@ -264,7 +264,7 @@ export const ForgotPasswordPage = () => {
                         <Step key="success" icon={<Check size={34} />} title="Thành công!" description="Mật khẩu đã được thay đổi. Bạn có thể đăng nhập bằng mật khẩu mới.">
                             <button
                                 type="button"
-                                onClick={() => navigate("/login")}
+                                onClick={() => router.push("/login")}
                                 className="w-full h-[48px] bg-[#D32F2F] text-white rounded-xl font-bold text-[15px] hover:bg-[#B71C1C] transition-all"
                             >
                                 Đăng nhập ngay
@@ -279,7 +279,7 @@ export const ForgotPasswordPage = () => {
                             Nhớ mật khẩu rồi?{" "}
                             <button
                                 type="button"
-                                onClick={() => navigate("/login")}
+                                onClick={() => router.push("/login")}
                                 className="text-[#D32F2F] font-bold hover:underline"
                             >
                                 Quay lại đăng nhập

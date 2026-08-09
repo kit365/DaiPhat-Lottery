@@ -1,7 +1,7 @@
 "use client";
 
+import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
 import AddIcon from '@mui/icons-material/Add';
-import { useNavigate } from '@/components/router-compat';
 import { PageHeader } from '../../../../components/ui/PageHeader';
 import { Button } from '../../../../components/ui/Button';
 import { CanAccess } from '../../../../components/auth/CanAccess';
@@ -11,7 +11,7 @@ import { useSupplierList } from '../../hooks/useSupplier';
 import { SupplierList } from '../sections/SupplierList';
 
 export const SupplierListPage = () => {
-    const navigate = useNavigate();
+    const router = useAdminRouter();
     const supplierHook = useSupplierList();
 
     return (
@@ -27,7 +27,7 @@ export const SupplierListPage = () => {
                 action={
                     <CanAccess permission={PERMISSIONS.SUPPLIER.CREATE}>
                         <Button
-                            onClick={() => navigate(ROUTES.ADMIN.SUPPLIER.CREATE)}
+                            onClick={() => router.push(ROUTES.ADMIN.SUPPLIER.CREATE)}
                             label="Thêm nhà cung cấp"
                             startIcon={<AddIcon />}
                             sx={{

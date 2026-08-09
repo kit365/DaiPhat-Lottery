@@ -1,7 +1,8 @@
 "use client";
 
+import { useRouter } from "next/navigation";
+import Link from "next/link";
 import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
 import { ROUTES } from '@/admin/constants/routes';
 import { Trash2, ChevronRight } from 'lucide-react';
 import { useCartStore, CartItem } from '../../../stores/useCartStore';
@@ -20,7 +21,7 @@ import {
 } from '../../constants/clientBannerAssets';
 
 export const CartPage = () => {
-    const navigate = useNavigate();
+    const router = useRouter();
     const { items, updateQuantity, removeItem, clearBuyNow } = useCartStore();
     const { token, openLoginModal } = useAuthStore();
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -197,7 +198,7 @@ export const CartPage = () => {
                                     <div className="py-12 flex flex-col items-center justify-center text-center">
                                         <div className="w-24 h-24 mb-4 opacity-50"><i className="fa-solid fa-cart-arrow-down text-[60px] text-gray-300"></i></div>
                                         <p className="text-[16px] text-[#212B36] font-medium mb-2">Giỏ hàng của bạn đang trống.</p>
-                                        <button onClick={() => navigate('/mua-ve')} className="text-[#ee1314] font-bold hover:underline">Mua vé ngay</button>
+                                        <button onClick={() => router.push('/mua-ve')} className="text-[#ee1314] font-bold hover:underline">Mua vé ngay</button>
                                     </div>
                                 )}
                             </div>
@@ -223,7 +224,7 @@ export const CartPage = () => {
                                             openLoginModal();
                                             return;
                                         }
-                                        navigate('/checkout');
+                                        router.push('/checkout');
                                     }}
                                     disabled={selectedItems.length === 0}
                                     className="w-full h-[48px] bg-[#ee1314] text-white font-bold rounded-lg hover:bg-[#d00f10] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-md shadow-[#ee1314]/20"
@@ -247,7 +248,7 @@ export const CartPage = () => {
                                 openLoginModal();
                                 return;
                             }
-                            navigate(ROUTES.PUBLIC.FORTUNE);
+                            router.push(ROUTES.PUBLIC.FORTUNE);
                         }}
                         role="link"
                         tabIndex={0}
@@ -258,7 +259,7 @@ export const CartPage = () => {
                                     openLoginModal();
                                     return;
                                 }
-                                navigate(ROUTES.PUBLIC.FORTUNE);
+                                router.push(ROUTES.PUBLIC.FORTUNE);
                             }
                         }}
                     >
@@ -278,7 +279,7 @@ export const CartPage = () => {
                                         openLoginModal();
                                         return;
                                     }
-                                    navigate(ROUTES.PUBLIC.FORTUNE);
+                                    router.push(ROUTES.PUBLIC.FORTUNE);
                                 }}
                             >
                                 LẮC QUẺ NGAY <ChevronRight size={14} strokeWidth={3} />

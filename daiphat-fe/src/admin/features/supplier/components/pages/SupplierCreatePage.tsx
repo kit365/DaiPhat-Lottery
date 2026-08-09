@@ -1,10 +1,10 @@
 "use client";
 
+import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
 import { Box, Stack, FormControlLabel, Switch } from '@mui/material';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMemo, useState } from 'react';
 import { useForm, Controller } from 'react-hook-form';
-import { useNavigate } from '@/components/router-compat';
 import { toast } from 'react-toastify';
 import { PageHeader } from '../../../../components/ui/PageHeader';
 import { CollapsibleCard } from '../../../../components/ui/CollapsibleCard';
@@ -20,7 +20,7 @@ import {
 } from '../../utils/supplier-activation';
 
 export const SupplierCreatePage = () => {
-    const navigate = useNavigate();
+    const router = useAdminRouter();
     const { mutateAsync, isPending } = useCreateSupplier();
     const [activationErrorsVisible, setActivationErrorsVisible] = useState(false);
 
@@ -84,7 +84,7 @@ export const SupplierCreatePage = () => {
             });
             if (res.success) {
                 toast.success(res.message || 'Tạo nhà cung cấp thành công.');
-                navigate(ROUTES.ADMIN.SUPPLIER.LIST);
+                router.push(ROUTES.ADMIN.SUPPLIER.LIST);
             } else {
                 toast.error(res.message || 'Tạo nhà cung cấp thất bại.');
             }

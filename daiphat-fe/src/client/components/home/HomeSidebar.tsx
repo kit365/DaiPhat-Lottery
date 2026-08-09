@@ -1,5 +1,5 @@
+import Link from "next/link";
 import React from 'react';
-import { Link } from 'react-router-dom';
 
 import { HOME_SIDEBAR_CTA_BANNER } from '@/client/constants/clientBannerAssets';
 import { ROUTES } from '@/admin/constants/routes';
@@ -25,7 +25,7 @@ export const HomeSidebar: React.FC<HomeSidebarProps> = ({ showLoto, setShowLoto,
       <TicketSearchWidget />
 
       <Link
-        to={ROUTES.PUBLIC.TICKETS}
+        href={ROUTES.PUBLIC.TICKETS}
         className="relative overflow-hidden rounded-[16px] shadow-sm cursor-pointer transition-transform hover:scale-[1.02] active:scale-[0.98] w-full min-h-[150px] flex items-center p-5 group bg-[#e41212]"
       >
         {/* Background Image */}

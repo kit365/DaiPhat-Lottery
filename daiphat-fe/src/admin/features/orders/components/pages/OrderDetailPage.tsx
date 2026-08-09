@@ -1,5 +1,7 @@
 "use client";
 
+import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
+import { useRouteParams } from "@/hooks/useRouteParams";
 import { useState } from "react";
 import {
     Box,
@@ -22,7 +24,6 @@ import {
     TableRow
 } from "@mui/material";
 import { Icon } from "@iconify/react";
-import { useNavigate, useParams } from "react-router-dom";
 import dayjs from "dayjs";
 import { PageHeader } from "../../../../components/ui/PageHeader";
 import { SpinnerLoading } from "../../../../components/ui/SpinnerLoading";
@@ -47,8 +48,8 @@ const PAYMENT_STATUS_OPTIONS: { [key: string]: { label: string; color: string; b
 };
 
 export const OrderDetailPage = () => {
-    const { id } = useParams();
-    const navigate = useNavigate();
+    const { id } = useRouteParams();
+    const router = useAdminRouter();
     const { data: orderRes, isLoading, refetch } = useOrderDetail(id || "");
     const order = orderRes?.data;
     const { mutate: updateStatus } = useUpdateOrderStatus();
@@ -57,7 +58,7 @@ export const OrderDetailPage = () => {
 
     const handleBaoLoiHuyDon = () => {
         if (!order) return;
-        navigate(`/${prefixAdmin}/order/detail/${order.id}/cancel-with-refund`);
+        router.push(`/${prefixAdmin}/order/detail/${order.id}/cancel-with-refund`);
     };
 
     if (isLoading) {
@@ -224,7 +225,7 @@ export const OrderDetailPage = () => {
                     </Button>
                     <Button 
                         variant="outlined" 
-                        onClick={() => navigate(-1)} 
+                        onClick={() => router.back()} 
                         startIcon={<Icon icon="eva:arrow-back-fill" />}
                         sx={{
                             fontWeight: 700,
@@ -578,7 +579,7 @@ export const OrderDetailPage = () => {
                                 variant="outlined" 
                                 startIcon={<Icon icon="solar:user-id-linear" />}
                                 disabled={!((order as any).user?.id || (order as any).userId)}
-                                onClick={() => navigate(`/${prefixAdmin}/account-user/detail/${(order as any).user?.id || (order as any).userId}`)}
+                                onClick={() => router.push(`/${prefixAdmin}/account-user/detail/${(order as any).user?.id || (order as any).userId}`)}
                                 sx={{ 
                                     py: 1, 
                                     fontWeight: 700, 

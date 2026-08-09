@@ -1,11 +1,11 @@
 "use client";
 
+import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
 import { Button } from '@/admin/components/ui/Button';
 
 
 import AddIcon from '@mui/icons-material/Add';
 import { ReactNode } from "react";
-import { useNavigate } from "@/components/router-compat";
 import { PageHeader, type BreadcrumbItem } from "./PageHeader";
 
 interface ListHeaderProps {
@@ -24,14 +24,14 @@ export const ListHeader = ({
     addButtonPath,
     action,
 }: ListHeaderProps) => {
-    const navigate = useNavigate();
+    const router = useAdminRouter();
 
     const resolvedAction = (
         <>
             {action}
             {addButtonLabel && addButtonPath ? (
                 <Button
-                    onClick={() => navigate(addButtonPath)}
+                    onClick={() => router.push(addButtonPath)}
                     className="btn-primary-admin"
                     variant="contained"
                     startIcon={<AddIcon />}

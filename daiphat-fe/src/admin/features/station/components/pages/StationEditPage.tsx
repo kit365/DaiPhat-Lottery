@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouteParams } from "@/hooks/useRouteParams";
 import { Box, Stack, TextField, ThemeProvider, useTheme, CircularProgress, createTheme, MenuItem, Typography } from "@mui/material";
 import { REGION_DATA } from "../../../../constants/region.constants";
 import { DAYS_OF_WEEK } from "../../../../constants/schedule.constants";
@@ -20,10 +21,9 @@ import { prefixAdmin } from "../../../../constants/routes";
 import { toast } from "react-toastify";
 import { Button } from "../../../../components/ui/Button";
 import { FormUploadSingleFile } from "../../../../components/upload/FormUploadSingleFile";
-import { useParams } from "react-router-dom";
 
 export const StationEditPage = () => {
-    const { id } = useParams();
+    const { id } = useRouteParams();
     const [expandedDetail, setExpandedDetail] = useState(true);
 
     const toggle = (setter: Dispatch<SetStateAction<boolean>>) =>

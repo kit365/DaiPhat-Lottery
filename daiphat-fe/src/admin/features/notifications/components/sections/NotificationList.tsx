@@ -1,5 +1,6 @@
 "use client";
 
+import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
     Box,
@@ -26,7 +27,6 @@ import { confirmAction } from '../../../../utils/swal';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import 'dayjs/locale/vi';
-import { useNavigate } from '@/components/router-compat';
 import {
     getAdminNotificationAccentBackground,
     getAdminNotificationAccentColor,
@@ -40,7 +40,7 @@ dayjs.extend(relativeTime);
 dayjs.locale('vi');
 
 export const NotificationList = () => {
-    const navigate = useNavigate();
+    const router = useAdminRouter();
     const [tab, setTab] = useState('all');
     const scrollContainerRef = useRef<HTMLDivElement | null>(null);
     const loadMoreRef = useRef<HTMLDivElement | null>(null);
@@ -98,7 +98,7 @@ export const NotificationList = () => {
         }
         const path = getAdminNotificationPath(item);
         if (path) {
-            navigate(path);
+            router.push(path);
         }
     };
 

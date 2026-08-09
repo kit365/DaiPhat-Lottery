@@ -1,7 +1,10 @@
 "use client";
 
+import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
+import { useRouteParams } from "@/hooks/useRouteParams";
+import { usePathname, useSearchParams } from "next/navigation";
+import Link from "@/admin/components/navigation/AdminLink";
 import { useMemo, type ReactNode } from 'react';
-import { Link, useLocation, useNavigate, useParams } from '@/components/router-compat';
 import {
     Alert,
     Box,
@@ -110,9 +113,10 @@ function buildReferenceLink(refType?: TicketRefType, refId?: string, supportTick
 }
 
 export const SupportTicketDetailPage = () => {
-    const { id } = useParams<{ id: string }>();
-    const navigate = useNavigate();
-    const location = useLocation();
+    const { id } = useRouteParams();
+    const router = useAdminRouter();
+    const pathname = usePathname() ?? '';
+    const searchParamsForLocation = useSearchParams();
     const ticketId = Number(id);
 
     const { data, isLoading, isError } = useGetStaffTicketDetail(ticketId);
@@ -162,7 +166,7 @@ export const SupportTicketDetailPage = () => {
         return (
             <Box textAlign="center" py={8}>
                 <Typography color="text.secondary">Không tìm thấy yêu cầu hỗ trợ</Typography>
-                <Button sx={{ mt: 2 }} onClick={() => navigate(`/${prefixAdmin}/support-tickets/list`)}>
+                <Button sx={{ mt: 2 }} onClick={() => router.push(`/${prefixAdmin}/support-tickets/list`)}>
                     Quay lại danh sách
                 </Button>
             </Box>
@@ -192,7 +196,7 @@ export const SupportTicketDetailPage = () => {
                                 </Button>
                             </CanAccess>
                         )}
-                        <Button variant="outlined" onClick={() => navigate(`/${prefixAdmin}/support-tickets/list`)}>
+                        <Button variant="outlined" onClick={() => router.push(`/${prefixAdmin}/support-tickets/list`)}>
                             Quay lại
                         </Button>
                     </Stack>
@@ -292,11 +296,7 @@ export const SupportTicketDetailPage = () => {
                                         </FieldLabel>
                                         {referenceLink ? (
                                             <Link
-                                                to={referenceLink}
-                                                state={{
-                                                    returnTo: `${location.pathname}${location.search}`,
-                                                    returnLabel: `Quay lại khiếu nại #${ticket.id}`,
-                                                }}
+                                                href={`${referenceLink}${referenceLink.includes("?") ? "&" : "?"}returnTo=${encodeURIComponent(`${pathname}${searchParamsForLocation?.toString() ? `?${searchParamsForLocation.toString()}` : ""}`)}&returnLabel=${encodeURIComponent(`Quay lại khiếu nại #${ticket.id}`)}`}
                                                 style={{ fontWeight: 700, color: '#2065D1' }}
                                             >
                                                 {ticket.refType === TicketRefType.PRIZE_CLAIM

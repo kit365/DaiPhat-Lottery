@@ -1,3 +1,4 @@
+import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
 import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
 import Inventory2OutlinedIcon from '@mui/icons-material/Inventory2Outlined';
 import MoveToInboxOutlinedIcon from '@mui/icons-material/MoveToInboxOutlined';
@@ -21,7 +22,6 @@ import {
 } from '@mui/material';
 import dayjs from 'dayjs';
 import { useState } from 'react';
-import { useNavigate } from '@/components/router-compat';
 import { ROUTES } from '../../../../../constants/routes';
 import { formatImportCost } from '../../../import-batch/utils/importCostCalculator';
 import { getImportBatchStatusBadgeClass, getImportBatchStatusLabel } from '../../../import-batch/utils/batchTypeLabels';
@@ -43,7 +43,7 @@ export const SettlementConsolidatedDetails = ({
     importBatches = [],
     returnBatches = [],
 }: Props) => {
-    const navigate = useNavigate();
+    const router = useAdminRouter();
     const [activeTab, setActiveTab] = useState(0);
 
     return (
@@ -252,7 +252,7 @@ export const SettlementConsolidatedDetails = ({
                                             <IconButton
                                                 size="small"
                                                 color="primary"
-                                                onClick={() => navigate(ROUTES.ADMIN.IMPORT_BATCH.DETAIL(batch.id))}
+                                                onClick={() => router.push(ROUTES.ADMIN.IMPORT_BATCH.DETAIL(batch.id))}
                                             >
                                                 <VisibilityOutlinedIcon fontSize="small" />
                                             </IconButton>
@@ -333,7 +333,7 @@ export const SettlementConsolidatedDetails = ({
                                             <IconButton
                                                 size="small"
                                                 color="primary"
-                                                onClick={() => navigate(ROUTES.ADMIN.RETURN_BATCH.DETAIL(batch.id))}
+                                                onClick={() => router.push(ROUTES.ADMIN.RETURN_BATCH.DETAIL(batch.id))}
                                             >
                                                 <VisibilityOutlinedIcon fontSize="small" />
                                             </IconButton>
