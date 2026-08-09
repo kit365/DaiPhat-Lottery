@@ -1,9 +1,10 @@
 "use client";
 
-import { Box, Stack, TextField, ThemeProvider, useTheme, CircularProgress, FormControl, InputLabel, Select, MenuItem, FormHelperText, Autocomplete, createTheme } from "@mui/material";
-import { LoadingButton } from "../../../../components/ui/LoadingButton";
-import { Breadcrumb } from "../../../../components/ui/Breadcrumb";
-import { Title } from "../../../../components/ui/Title";
+import { useRouteParams } from "@/hooks/useRouteParams";
+import { Box, Stack, TextField, ThemeProvider, useTheme, FormControl, InputLabel, Select, MenuItem, FormHelperText, Autocomplete, createTheme, CircularProgress } from "@mui/material";
+import { Button } from "../../../../components/ui/Button";
+import { PageHeader } from "../../../../components/ui/PageHeader";
+import { SpinnerLoading } from "../../../../components/ui/SpinnerLoading";
 import { Tiptap } from "../../../../components/layouts/titap/Tiptap";
 import { useState, useEffect, type Dispatch, type SetStateAction } from "react";
 import { CollapsibleCard } from "../../../../components/ui/CollapsibleCard";
@@ -17,14 +18,13 @@ import { prefixAdmin } from "../../../../constants/routes";
 import { FormUploadSingleFile } from "../../../../components/upload/FormUploadSingleFile";
 import { uploadBlogImage } from "../../services/blogService";
 import { AppToast as toast } from "../../../../../utils/toast.util";
-import { useParams } from "react-router-dom";
 import { useNestedBlogCategories } from "../../hooks/useBlogCategory";
 import { CategoryTreeSelectGeneric } from "../../../../components/ui/CategoryTreeSelectGeneric";
 import { confirmAction } from "../../../../utils/swal";
 import { getMinScheduleValue } from "../utils/blogForm.utils";
 
 export const BlogEditPage = () => {
-    const { id } = useParams();
+    const { id } = useRouteParams();
     const [expandedDetail, setExpandedDetail] = useState(true);
     const [expandedExtra, setExpandedExtra] = useState(true);
 
@@ -176,9 +176,17 @@ export const BlogEditPage = () => {
 
     if (isLoadingDetail) {
         return (
-            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
-                <CircularProgress color="inherit" />
-            </Box>
+            <>
+                <PageHeader
+                    title="Chỉnh sửa bài viết"
+                    breadcrumbItems={[
+                        { label: "Dashboard", to: "/" },
+                        { label: "Bài viết", to: `/${prefixAdmin}/blog/list` },
+                        { label: "Chỉnh sửa" }
+                    ]}
+                />
+                <SpinnerLoading />
+            </>
         );
     }
 
@@ -231,18 +239,14 @@ export const BlogEditPage = () => {
 
     return (
         <>
-            <div className="mb-[calc(5*var(--spacing))] gap-[calc(2*var(--spacing))] flex items-start justify-end">
-                <div className="mr-auto">
-                    <Title title="Chỉnh sửa bài viết" />
-                    <Breadcrumb
-                        items={[
+            <PageHeader
+                title="Chỉnh sửa bài viết"
+                breadcrumbItems={[
                             { label: "Dashboard", to: "/" },
                             { label: "Bài viết", to: `/${prefixAdmin}/blog/list` },
                             { label: "Chỉnh sửa" }
                         ]}
-                    />
-                </div>
-            </div>
+            />
 
             <>
                 <form>
@@ -445,7 +449,7 @@ export const BlogEditPage = () => {
                         </CollapsibleCard>
 
                         <Box gap="calc(3 * var(--spacing))" sx={{ display: "flex", alignItems: "center", justifyContent: "flex-end" }}>
-                            <LoadingButton
+                            <Button
                                 type="button"
                                 onClick={handleSubmitWithStatus(targetStatus, confirmBeforeSubmit)}
                                 loading={isUpdating || isUploading}

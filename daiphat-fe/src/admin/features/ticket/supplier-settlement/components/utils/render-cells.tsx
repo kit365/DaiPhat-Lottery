@@ -1,10 +1,10 @@
 "use client";
 
+import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
 import type { ReactNode } from 'react';
 import { Link } from '@mui/material';
 import { GridRenderCellParams } from '@mui/x-data-grid';
 import dayjs from 'dayjs';
-import { useNavigate } from '@/components/router-compat';
 import { ROUTES } from '../../../../../constants/routes';
 import { AdminRowActionsMenu } from '../../../../../components/ui/AdminRowActionsMenu';
 import { formatVnd } from '../../../import-batch/utils/importCostCalculator';
@@ -14,7 +14,7 @@ import {
 } from '../../utils/settlementLabels';
 
 export const RenderSupplierNameCell = (params: GridRenderCellParams) => {
-    const navigate = useNavigate();
+    const router = useAdminRouter();
     const id = params.row.id;
     const name = params.row.supplierName || '—';
     const code = params.row.supplierCode;
@@ -26,7 +26,7 @@ export const RenderSupplierNameCell = (params: GridRenderCellParams) => {
                 className="admin-cell-title"
                 onClick={(e) => {
                     e.preventDefault();
-                    navigate(ROUTES.ADMIN.SUPPLIER_SETTLEMENT.DETAIL(id));
+                    router.push(ROUTES.ADMIN.SUPPLIER_SETTLEMENT.DETAIL(id));
                 }}
                 underline="hover"
             >
@@ -91,7 +91,7 @@ export const RenderStatusCell = (params: GridRenderCellParams) => {
 };
 
 export const RenderActionsCell = (params: GridRenderCellParams) => {
-    const navigate = useNavigate();
+    const router = useAdminRouter();
     const id = params.row.id;
 
     return (
@@ -101,7 +101,7 @@ export const RenderActionsCell = (params: GridRenderCellParams) => {
                     id: 'detail',
                     label: 'Xem chi tiết',
                     icon: 'view',
-                    onClick: () => navigate(ROUTES.ADMIN.SUPPLIER_SETTLEMENT.DETAIL(id)),
+                    onClick: () => router.push(ROUTES.ADMIN.SUPPLIER_SETTLEMENT.DETAIL(id)),
                 },
             ]}
         />

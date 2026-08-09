@@ -1,3 +1,4 @@
+import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
 import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
 import {
     IconButton,
@@ -11,7 +12,6 @@ import {
     Typography,
 } from '@mui/material';
 import dayjs from 'dayjs';
-import { useNavigate } from '@/components/router-compat';
 import { CollapsibleCard } from '../../../../../components/ui/CollapsibleCard';
 import { ROUTES } from '../../../../../constants/routes';
 import { formatImportCost } from '../../../import-batch/utils/importCostCalculator';
@@ -23,7 +23,7 @@ interface Props {
 }
 
 export const SettlementReturnBatchesSection = ({ batches }: Props) => {
-    const navigate = useNavigate();
+    const router = useAdminRouter();
 
     return (
         <CollapsibleCard title={`Phiếu trả vé (${batches.length})`} expanded onToggle={() => undefined}>
@@ -68,7 +68,7 @@ export const SettlementReturnBatchesSection = ({ batches }: Props) => {
                                             size="small"
                                             color="primary"
                                             onClick={() =>
-                                                navigate(ROUTES.ADMIN.RETURN_BATCH.DETAIL(batch.id))
+                                                router.push(ROUTES.ADMIN.RETURN_BATCH.DETAIL(batch.id))
                                             }
                                         >
                                             <VisibilityOutlinedIcon fontSize="small" />

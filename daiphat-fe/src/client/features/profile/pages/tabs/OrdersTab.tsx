@@ -1,7 +1,7 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { OrderStatus, OrderType, GetMyOrdersParams, OrderResponse } from '../../../../../types/order.type';
 import { useGetMyOrders, useGetMyOrderDetail } from '../../../../hooks/useOrder';
 import { useProcessPayment } from '../../../../hooks/useTransaction';
@@ -30,7 +30,7 @@ const ORDER_TYPE_MAP: Record<OrderType, { label: string, icon: string }> = {
 };
 
 export const OrdersTab = () => {
-    const navigate = useNavigate();
+    const router = useRouter();
     const [activeTab, setActiveTab] = useState<OrderStatus | 'ALL'>('ALL');
     const [showFilter, setShowFilter] = useState(false);
     const [sortByUI, setSortByUI] = useState('default');
@@ -157,9 +157,9 @@ export const OrdersTab = () => {
         setPayingOrder(null);
         setIsPreparingPayment(false);
         if (orderId) {
-            navigate(`/profile/orders/${orderId}`);
+            router.push(`/profile/orders/${orderId}`);
         }
-    }, [navigate, payingOrder?.id]);
+    }, [router, payingOrder?.id]);
 
     const handlePaymentExpired = useCallback(() => {
         AppToast.error('Phiên thanh toán đã hết hạn. Đơn hàng đã bị hủy.');
@@ -169,9 +169,9 @@ export const OrdersTab = () => {
         setPayingOrder(null);
         setIsPreparingPayment(false);
         if (orderId) {
-            navigate(`/profile/orders/${orderId}`);
+            router.push(`/profile/orders/${orderId}`);
         }
-    }, [navigate, payingOrder?.id]);
+    }, [router, payingOrder?.id]);
 
     const handlePaymentDialogClose = useCallback(() => {
         setPaymentDialogOpen(false);
@@ -428,7 +428,7 @@ export const OrdersTab = () => {
                                                             order={order}
                                                             hasPendingRefund={hasPendingRefund}
                                                             isPaying={processPaymentMutation.isPending}
-                                                            onViewDetail={() => navigate(`/profile/orders/${order.id}`)}
+                                                            onViewDetail={() => router.push(`/profile/orders/${order.id}`)}
                                                             onRequestRefund={() => handleRequestRefund(order)}
                                                             onQuickPayment={
                                                                 order.status === OrderStatus.PENDING_PAYMENT

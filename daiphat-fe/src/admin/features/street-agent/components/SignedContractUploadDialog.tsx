@@ -3,14 +3,13 @@
 import { useEffect, useMemo, useState } from "react";
 import {
     Box,
-    Button,
-    Dialog,
+Dialog,
     DialogActions,
     DialogContent,
     DialogTitle,
     Typography,
-} from "@mui/material";
-import { LoadingButton } from "../../../components/ui/LoadingButton";
+} from '@mui/material';
+import { Button } from "../../../components/ui/Button";
 
 interface SignedContractUploadDialogProps {
     open: boolean;
@@ -128,7 +127,7 @@ export const SignedContractUploadDialog = ({
                 <Button onClick={onClose} disabled={uploading}>
                     Hủy
                 </Button>
-                <LoadingButton
+                <Button
                     loading={uploading}
                     variant="contained"
                     disabled={!file}

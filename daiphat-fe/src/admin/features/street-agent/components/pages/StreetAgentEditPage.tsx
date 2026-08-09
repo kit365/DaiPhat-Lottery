@@ -1,26 +1,27 @@
 "use client";
 
-import { Breadcrumb } from "../../../../components/ui/Breadcrumb";
-import { Title } from "../../../../components/ui/Title";
+import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
+import { useRouteParams } from "@/hooks/useRouteParams";
+import Link from "@/admin/components/navigation/AdminLink";
+import { PageHeader } from "../../../../components/ui/PageHeader";
+import { SpinnerLoading } from "../../../../components/ui/SpinnerLoading";
 import {
     useStreetAgentProfileDetail,
     useUpdateStreetAgentProfile,
-    useUploadStreetAgentSignedContract,
-} from "../../hooks/useStreetAgent";
+    useUploadStreetAgentSignedContract} from "../../hooks/useStreetAgent";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { useEffect, useRef, useState } from "react";
 import {
     updateStreetAgentProfileSchema,
     UpdateStreetAgentProfileFormValues,
-    AdjustDepositFormValues,
-} from "../../schemas/street-agent.schema";
+    AdjustDepositFormValues} from "../../schemas/street-agent.schema";
 import { ROUTES } from "../../../../constants/routes";
 import { toast } from "react-toastify";
-import { Link as RouterLink, useNavigate, useParams } from "react-router-dom";
-import { Box, Button, CircularProgress, Alert } from "@mui/material";
+import { Box,
+Alert } from '@mui/material';
 import { uploadAdminImage } from "../../../../api/upload.api";
-import { LoadingButton } from "../../../../components/ui/LoadingButton";
+import { Button } from "../../../../components/ui/Button";
 import { StreetAgentProfileForm } from "../sections/StreetAgentProfileForm";
 import { DepositAdjustDialog } from "../sections/DepositAdjustDialog";
 import { openStreetAgentContractPrint, getStreetAgentOnboardingResumePath } from "../../services/streetAgentService";
@@ -82,8 +83,8 @@ const buildPayloadFromProfile = (profile: StreetAgentProfile) => ({
 });
 
 export const StreetAgentEditPage = () => {
-    const { id } = useParams();
-    const navigate = useNavigate();
+    const { id } = useRouteParams();
+    const router = useAdminRouter();
     const { data: profile, isLoading, refetch } = useStreetAgentProfileDetail(id);
     const { mutate: update, isPending } = useUpdateStreetAgentProfile();
     const { mutate: uploadSigned, isPending: isUploadingSigned } = useUploadStreetAgentSignedContract();
@@ -258,7 +259,7 @@ export const StreetAgentEditPage = () => {
                 onSuccess: (response) => {
                     if (response.success) {
                         toast.success(response.message || "Cập nhật hồ sơ đại lý bán dạo thành công!");
-                        navigate(ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.LIST);
+                        router.push(ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.LIST);
                     } else {
                         toast.error(response.message || "Cập nhật hồ sơ thất bại");
                     }
@@ -272,25 +273,32 @@ export const StreetAgentEditPage = () => {
 
     if (isLoading) {
         return (
-            <Box sx={{ display: "flex", justifyContent: "center", py: 5 }}>
-                <CircularProgress />
-            </Box>
-        );
-    }
-
-    return (
-        <Box sx={{ maxWidth: "1200px", mx: "auto" }}>
-            <Box sx={{ mb: 5 }}>
-                <Title title="Chỉnh sửa hồ sơ đại lý bán dạo" />
-                <Breadcrumb
-                    items={[
+            <Box sx={{ maxWidth: "1200px", mx: "auto" }}>
+                <PageHeader
+                    title="Chỉnh sửa hồ sơ đại lý bán dạo"
+                    breadcrumbItems={[
                         { label: "Dashboard", to: "/" },
                         { label: "Quản lý tài khoản", to: ROUTES.ADMIN.ACCOUNTS.ADMIN.LIST },
                         { label: "Đại lý bán dạo", to: ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.LIST },
                         { label: "Cập nhật" },
                     ]}
                 />
+                <SpinnerLoading />
             </Box>
+        );
+    }
+
+    return (
+        <Box sx={{ maxWidth: "1200px", mx: "auto" }}>
+            <PageHeader
+                title="Chỉnh sửa hồ sơ đại lý bán dạo"
+                breadcrumbItems={[
+                    { label: "Dashboard", to: "/" },
+                    { label: "Quản lý tài khoản", to: ROUTES.ADMIN.ACCOUNTS.ADMIN.LIST },
+                    { label: "Đại lý bán dạo", to: ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.LIST },
+                    { label: "Cập nhật" },
+                ]}
+            />
 
             {profile?.status === "PENDING" && !profile.contractDocumentUrl && id ? (
                 <Alert
@@ -300,8 +308,8 @@ export const StreetAgentEditPage = () => {
                         <Button
                             color="inherit"
                             size="small"
-                            component={RouterLink}
-                            to={getStreetAgentOnboardingResumePath(id)}
+                            component={Link}
+                            href={getStreetAgentOnboardingResumePath(id)}
                         >
                             Tiếp tục hoàn thiện HĐ
                         </Button>
@@ -348,7 +356,7 @@ export const StreetAgentEditPage = () => {
                     isStatusActionPending={isStatusActionPending}
                     vendorDefaults={vendorDefaults}
                     footer={
-                        <LoadingButton
+                        <Button
                             type="submit"
                             loading={isPending && !depositDialogOpen && !isStatusActionPending}
                             label="Lưu thay đổi"

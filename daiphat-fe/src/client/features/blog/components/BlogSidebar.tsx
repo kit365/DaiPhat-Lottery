@@ -1,7 +1,8 @@
 "use client";
 
+import { useRouter } from "next/navigation";
+import Link from "next/link";
 import React from 'react';
-import { Link, useNavigate } from 'react-router-dom';
 import { usePublicCategories, usePublicPosts } from '../hooks/useBlog';
 import { BLOG_SIDEBAR_BANNER } from '@/client/constants/clientBannerAssets';
 import { ROUTES } from '@/admin/constants/routes';
@@ -52,7 +53,7 @@ export const BlogCategoryWidget = ({
             return (
               <li key={cat.id} className={isLast ? '' : 'border-b border-[#F4F6F8]'}>
                 <Link
-                  to={cat.slug === 'all' ? '/blogs' : `/blogs?category=${cat.slug}`}
+                  href={cat.slug === 'all' ? '/blogs' : `/blogs?category=${cat.slug}`}
                   className={`flex items-center justify-between px-4 py-2.5 rounded-lg transition-colors group ${isActive ? 'bg-[#FFF4F4] text-[#ee1314]' : 'hover:bg-[#FAFBFC] text-[#454F5B]'
                     }`}
                 >
@@ -75,7 +76,7 @@ export const BlogCategoryWidget = ({
 };
 
 export const BlogFeaturedWidget = () => {
-  const navigate = useNavigate();
+  const router = useRouter();
   const { data: featuredData, isLoading } = usePublicPosts({
     page: 1,
     limit: 6,
@@ -104,7 +105,7 @@ export const BlogFeaturedWidget = () => {
                   if (!post.slug) {
                     return;
                   }
-                  navigate(`/blogs/detail/${post.slug}`);
+                  router.push(`/blogs/detail/${post.slug}`);
                 }}
               >
                 <img 
@@ -135,7 +136,7 @@ export const BlogFeaturedWidget = () => {
 
 export const BuyTicketBanner = () => (
   <Link
-    to={ROUTES.PUBLIC.TICKETS}
+    href={ROUTES.PUBLIC.TICKETS}
     className="block mt-6 rounded-xl overflow-hidden shadow-[0_2px_12px_rgb(0,0,0,0.03)] group relative aspect-[1448/1086]"
   >
     <div

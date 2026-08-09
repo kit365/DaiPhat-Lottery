@@ -1,7 +1,8 @@
 'use client';
 
+import { usePathname, useSearchParams } from "next/navigation";
+import Link from "next/link";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
-import { Link, useLocation } from 'react-router-dom';
 import { Loader2, ShoppingCart, Shuffle, CalendarHeart } from 'lucide-react';
 import { isAxiosError } from 'axios';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -151,7 +152,8 @@ function sleep(ms: number) {
 }
 
 export function FortuneCastPage() {
-  const location = useLocation();
+  const pathname = usePathname() ?? '';
+    const searchParamsForLocation = useSearchParams();
   const token = useAuthStore((s) => s.token);
   const openLoginModal = useAuthStore((s) => s.openLoginModal);
   const { user } = useAuth();
@@ -286,7 +288,7 @@ export function FortuneCastPage() {
 
   useLayoutEffect(() => {
     scrollToTop();
-  }, [location.pathname]);
+  }, [pathname]);
 
   useLayoutEffect(() => {
     if (loadingToday) return;
@@ -602,7 +604,7 @@ export function FortuneCastPage() {
                       </div>
 
                       <Link
-                        to={result.buyPath}
+                        href={result.buyPath}
                         className="w-full inline-flex items-center justify-center gap-2 px-4 py-3.5 md:py-4 rounded-full bg-[#ee1314] text-white font-black text-[15px] md:text-[16px] hover:bg-red-700 text-center shadow-[0_8px_20px_rgba(238,19,20,0.24)] no-underline shrink-0"
                       >
                         <ShoppingCart className="w-5 h-5" />

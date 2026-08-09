@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { useNavigate, Navigate } from "react-router-dom";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Lock, Eye, EyeOff, Mail } from "lucide-react";
 import { useAuth } from "../../../hooks/useAuth";
@@ -10,7 +10,7 @@ import { redirectToGoogleOAuth } from "../../../utils/google-oauth.util";
 import { CLIENT_LOGO } from "../../../constants/clientBannerAssets";
 
 export const LoginPage = () => {
-    const navigate = useNavigate();
+    const router = useRouter();
     const [showPassword, setShowPassword] = useState(false);
     const {
         loginForm: { register, formState: { errors } },
@@ -21,8 +21,15 @@ export const LoginPage = () => {
         resendVerificationMutation: { isPending: isResendingVerification },
         isAuthenticated,
     } = useAuth();
+
+    useEffect(() => {
+        if (isAuthenticated) {
+            router.replace("/");
+        }
+    }, [isAuthenticated, router]);
+
     if (isAuthenticated) {
-        return <Navigate to="/" replace />;
+        return null;
     }
 
     const handleGoogleLogin = async () => {
@@ -44,7 +51,7 @@ export const LoginPage = () => {
             <div className="relative z-10 flex-1 flex flex-col lg:flex-row w-full max-w-[1440px] mx-auto min-h-[100dvh]">
 
                 {/* Header Logo (Mobile & Desktop) */}
-                <div className="lg:absolute lg:top-8 lg:left-12 flex items-center gap-3 cursor-pointer z-20 font-client-display transition-transform hover:scale-[1.02] pt-6 pl-6 lg:p-0 shrink-0" onClick={() => navigate("/")}>
+                <div className="lg:absolute lg:top-8 lg:left-12 flex items-center gap-3 cursor-pointer z-20 font-client-display transition-transform hover:scale-[1.02] pt-6 pl-6 lg:p-0 shrink-0" onClick={() => router.push("/")}>
                     <div className="relative p-[2px] bg-gradient-to-tr from-[#ee1314] to-[#F59E0B] rounded-xl shadow-md shadow-[#ee1314]/10">
                         <img 
                             src="https://i.ibb.co/YBYnq3HR/z7824247008533-94446d3b6c16598cda67404d805c15c4-removebg-preview.png" 
@@ -57,7 +64,7 @@ export const LoginPage = () => {
                         <span className="text-[8.5px] lg:text-[9.5px] font-bold text-[#F59E0B] leading-none uppercase tracking-wider whitespace-nowrap">Tài lộc - May mắn - Thịnh vượng</span>
                     </div>
                     <div className="hidden">
-                        <AuthBranding onClick={() => navigate("/")} />
+                        <AuthBranding onClick={() => router.push("/")} />
                     </div>
                 </div>
 
@@ -107,7 +114,7 @@ export const LoginPage = () => {
                                     <label htmlFor="password" className="text-[13px] xl:text-[14px] font-semibold text-[#333333]">Mật khẩu</label>
                                     <button
                                         type="button"
-                                        onClick={() => navigate("/forgot-password")}
+                                        onClick={() => router.push("/forgot-password")}
                                         className="text-[12px] xl:text-[13px] font-bold text-[#D32F2F] hover:underline"
                                     >
                                         Quên mật khẩu?
@@ -189,7 +196,7 @@ export const LoginPage = () => {
                             <p className="text-[#666666] text-[13px] xl:text-[14px]">
                                 Chưa có tài khoản?{" "}
                                 <button
-                                    onClick={() => navigate("/register")}
+                                    onClick={() => router.push("/register")}
                                     className="text-[#D32F2F] font-bold hover:underline cursor-pointer"
                                 >
                                     Đăng ký ngay

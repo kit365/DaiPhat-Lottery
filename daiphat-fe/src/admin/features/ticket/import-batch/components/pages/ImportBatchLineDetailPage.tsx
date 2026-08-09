@@ -1,5 +1,7 @@
 "use client";
 
+import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
+import { useRouteParams } from "@/hooks/useRouteParams";
 import React from 'react';
 import {
     Box,
@@ -27,11 +29,10 @@ import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
 import ReportProblemIcon from '@mui/icons-material/ReportProblem';
 import { useQueryClient } from '@tanstack/react-query';
 import dayjs from 'dayjs';
-import { useParams, useNavigate } from '@/components/router-compat';
-import { Breadcrumb } from '../../../../../components/ui/Breadcrumb';
+import { PageHeader } from '../../../../../components/ui/PageHeader';
+import { SpinnerLoading } from '../../../../../components/ui/SpinnerLoading';
 import { AdminStatusBadge } from '../../../../../components/ui/AdminStatusBadge';
 import { Search } from '../../../../../components/ui/Search';
-import { Title } from '../../../../../components/ui/Title';
 import { prefixAdmin, ROUTES } from '../../../../../constants/routes';
 import { QUERY_KEYS } from '../../../inventory/constants/queryKeys';
 import { getTicketStatusLabel, normalizeTicketStatus } from '../../../inventory/constants/ticket-status.config';
@@ -339,8 +340,8 @@ const CollapsibleRow = ({
 };
 
 export const ImportBatchLineDetailPage = () => {
-    const { id, lineId } = useParams();
-    const navigate = useNavigate();
+    const { id, lineId } = useRouteParams();
+    const router = useAdminRouter();
     const queryClient = useQueryClient();
 
     const { data: batch, isLoading: isBatchLoading } = useImportBatchDetail(id);
@@ -511,8 +512,16 @@ export const ImportBatchLineDetailPage = () => {
 
     if (isBatchLoading || !line || !batch) {
         return (
-            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', py: 10 }}>
-                <CircularProgress size={32} />
+            <Box className="admin-page">
+                <PageHeader
+                    title="Chi tiết lô nhập"
+                    breadcrumbItems={[
+                        { label: 'Vé số', to: `/${prefixAdmin}/ticket/list` },
+                        { label: 'Nhập lô vé', to: ROUTES.ADMIN.IMPORT_BATCH.LIST },
+                        { label: id ? `Phiếu #${id}` : 'Chi tiết' },
+                    ]}
+                />
+                <SpinnerLoading />
             </Box>
         );
     }
@@ -524,8 +533,9 @@ export const ImportBatchLineDetailPage = () => {
 
     return (
         <Box className="admin-page">
-            <Breadcrumb
-                items={[
+            <PageHeader
+                title="Chi tiết lô nhập"
+                breadcrumbItems={[
                     { label: 'Vé số', to: `/${prefixAdmin}/ticket/list` },
                     { label: 'Nhập lô vé', to: ROUTES.ADMIN.IMPORT_BATCH.LIST },
                     {
@@ -534,18 +544,8 @@ export const ImportBatchLineDetailPage = () => {
                     },
                     { label: stationName },
                 ]}
-            />
-
-            <Stack
-                direction={{ xs: 'column', sm: 'row' }}
-                alignItems={{ xs: 'flex-start', sm: 'flex-start' }}
-                justifyContent="space-between"
-                spacing={2}
-                sx={{ mb: 2 }}
-            >
-                <Box sx={{ minWidth: 0, flex: 1 }}>
-                    <Stack direction="row" alignItems="center" spacing={1.5} flexWrap="wrap" useFlexGap sx={{ mb: 1.5 }}>
-                        <Title title="Chi tiết lô nhập" />
+                titleExtra={
+                    <>
                         <AdminStatusBadge
                             label={getImportBatchLineStatusLabel(line.status)}
                             modifier={getImportBatchLineStatusBadgeClass(line.status)}
@@ -554,51 +554,55 @@ export const ImportBatchLineDetailPage = () => {
                             label={getBatchTypeLabel(line.batchType)}
                             modifier={getBatchTypeBadgeClass(line.batchType)}
                         />
-                    </Stack>
+                    </>
+                }
+                description={
+                    <>
+                        <Box
+                            className="admin-ticket-create-meta"
+                            sx={{
+                                gridTemplateColumns: {
+                                    xs: '1fr',
+                                    sm: 'repeat(2, minmax(0, 1fr))',
+                                    md: 'repeat(4, minmax(0, 1fr))',
+                                },
+                                mb: 1.5,
+                            }}
+                        >
+                            <LineDetailInfoItem label="Mã lô" value={lineCodeRaw || '—'} monospace />
+                            <LineDetailInfoItem
+                                label="Ngày quay"
+                                value={batch.drawDate ? dayjs(batch.drawDate).format('DD/MM/YYYY') : '—'}
+                            />
+                            <LineDetailInfoItem
+                                label="SL đã nhập / khai báo"
+                                value={`${(line.totalQuantity ?? 0).toLocaleString('vi-VN')} / ${(line.declareQuantity ?? 0).toLocaleString('vi-VN')} vé`}
+                            />
+                            <LineDetailInfoItem
+                                label="Giá vốn"
+                                value={formatVnd(line.importCost)}
+                            />
+                        </Box>
 
-                    <Box
-                        className="admin-ticket-create-meta"
-                        sx={{
-                            gridTemplateColumns: {
-                                xs: '1fr',
-                                sm: 'repeat(2, minmax(0, 1fr))',
-                                md: 'repeat(4, minmax(0, 1fr))',
-                            },
-                            mb: 1.5,
-                        }}
+                        <Box sx={{ maxWidth: 360 }}>
+                            <TicketImportProgressTrack
+                                imported={line.totalQuantity ?? 0}
+                                declared={line.declareQuantity ?? 0}
+                                ariaLabel={`Tiến độ nhập vé ${stationName}`}
+                            />
+                        </Box>
+                    </>
+                }
+                action={
+                    <Button
+                        variant="outlined"
+                        className="btn-outlined-admin"
+                        onClick={() => id && router.push(ROUTES.ADMIN.IMPORT_BATCH.DETAIL(id))}
                     >
-                        <LineDetailInfoItem label="Mã lô" value={lineCodeRaw || '—'} monospace />
-                        <LineDetailInfoItem
-                            label="Ngày quay"
-                            value={batch.drawDate ? dayjs(batch.drawDate).format('DD/MM/YYYY') : '—'}
-                        />
-                        <LineDetailInfoItem
-                            label="SL đã nhập / khai báo"
-                            value={`${(line.totalQuantity ?? 0).toLocaleString('vi-VN')} / ${(line.declareQuantity ?? 0).toLocaleString('vi-VN')} vé`}
-                        />
-                        <LineDetailInfoItem
-                            label="Giá vốn"
-                            value={formatVnd(line.importCost)}
-                        />
-                    </Box>
-
-                    <Box sx={{ maxWidth: 360 }}>
-                        <TicketImportProgressTrack
-                            imported={line.totalQuantity ?? 0}
-                            declared={line.declareQuantity ?? 0}
-                            ariaLabel={`Tiến độ nhập vé ${stationName}`}
-                        />
-                    </Box>
-                </Box>
-
-                <Button
-                    variant="outlined"
-                    className="btn-outlined-admin"
-                    onClick={() => id && navigate(ROUTES.ADMIN.IMPORT_BATCH.DETAIL(id))}
-                >
-                    Quay lại phiếu
-                </Button>
-            </Stack>
+                        Quay lại phiếu
+                    </Button>
+                }
+            />
 
             <Card elevation={0} className="admin-datagrid-card">
                 <Box

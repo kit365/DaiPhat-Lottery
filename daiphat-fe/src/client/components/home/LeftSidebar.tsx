@@ -1,8 +1,8 @@
 "use client";
 
 import React, { useState, useMemo } from 'react';
+import { MapPin } from 'lucide-react';
 import { DatePicker } from '../common/DatePicker';
-import LocationOnIcon from '@mui/icons-material/LocationOn';
 import { QuickCheckTicketBanner } from './QuickCheckTicketBanner';
 
 interface LeftSidebarProps {
@@ -98,7 +98,7 @@ export const LeftSidebar: React.FC<LeftSidebarProps> = ({
         {/* Card Header */}
         <div className="px-5 py-4 flex items-center gap-2.5 border-b border-gray-100">
           <div className="w-6 h-6 rounded-full bg-[#ee1314] flex items-center justify-center shadow-sm">
-            <LocationOnIcon sx={{ fontSize: 16, color: 'white' }} />
+            <MapPin className="w-4 h-4 text-white" strokeWidth={2.5} aria-hidden />
           </div>
           <h3 className="text-[16px] font-bold text-[#333333]">Chọn tỉnh thành</h3>
         </div>

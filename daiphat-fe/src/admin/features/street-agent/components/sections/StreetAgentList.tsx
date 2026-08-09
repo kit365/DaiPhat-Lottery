@@ -1,7 +1,7 @@
 "use client";
 
+import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
 import React, { useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { DataGrid } from "@mui/x-data-grid";
 import {
     Box,
@@ -37,7 +37,7 @@ const TabBadge = styled("span")(() => ({
 }));
 
 export const StreetAgentList = () => {
-    const navigate = useNavigate();
+    const router = useAdminRouter();
     const [status, setStatus] = useState("all");
     const [search, setSearch] = useState("");
     const [page, setPage] = useState(0);
@@ -59,11 +59,11 @@ export const StreetAgentList = () => {
     const pagination = res?.data?.pagination || { totalRecords: 0 };
 
     const handleEdit = (id: number) => {
-        navigate(`${ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.EDIT}/${id}`);
+        router.push(`${ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.EDIT}/${id}`);
     };
 
     const handleResumeOnboarding = (id: number) => {
-        navigate(getStreetAgentOnboardingResumePath(id));
+        router.push(getStreetAgentOnboardingResumePath(id));
     };
 
     const handleStatusChange = (_event: React.SyntheticEvent, newValue: string) => {

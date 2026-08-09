@@ -1,5 +1,6 @@
 "use client";
 
+import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
 import PlaylistAddOutlinedIcon from '@mui/icons-material/PlaylistAddOutlined';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
@@ -24,7 +25,6 @@ import {
 } from '@mui/material';
 import dayjs from 'dayjs';
 import React, { useCallback, useMemo, useState } from 'react';
-import { useNavigate } from '@/components/router-compat';
 import { CanAccess } from '../../../../../components/auth/CanAccess';
 import { AdminRowActionsMenu } from '../../../../../components/ui/AdminRowActionsMenu';
 import { PERMISSIONS } from '../../../../../constants/permission.constants';
@@ -65,7 +65,7 @@ type ImportBatchListProps = {
 };
 
 export const ImportBatchList = ({ listHook }: ImportBatchListProps) => {
-    const navigate = useNavigate();
+    const router = useAdminRouter();
     const { batches, pagination, isLoading, filters, setPage, setLimit } = listHook;
     const [openRows, setOpenRows] = useState<number[]>([]);
     const [importTarget, setImportTarget] = useState<{ batchId: number; lineId: string } | null>(
@@ -90,13 +90,13 @@ export const ImportBatchList = ({ listHook }: ImportBatchListProps) => {
     const rowsPerPage = filters.size ?? 10;
 
     const handleViewDetail = useCallback(
-        (batchId: number) => navigate(ROUTES.ADMIN.IMPORT_BATCH.DETAIL(batchId)),
-        [navigate]
+        (batchId: number) => router.push(ROUTES.ADMIN.IMPORT_BATCH.DETAIL(batchId)),
+        [router]
     );
 
     const handleEditBatch = useCallback(
-        (batchId: number) => navigate(ROUTES.ADMIN.IMPORT_BATCH.EDIT(batchId)),
-        [navigate]
+        (batchId: number) => router.push(ROUTES.ADMIN.IMPORT_BATCH.EDIT(batchId)),
+        [router]
     );
 
     const toggleRow = useCallback((batch: ImportBatch) => {

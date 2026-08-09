@@ -1,5 +1,7 @@
 "use client";
 
+import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
+import { useRouteParams } from "@/hooks/useRouteParams";
 import ArrowBackOutlinedIcon from '@mui/icons-material/ArrowBackOutlined';
 import CloseIcon from '@mui/icons-material/Close';
 import ConfirmationNumberIcon from '@mui/icons-material/ConfirmationNumber';
@@ -7,44 +9,12 @@ import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
 import ReportProblemIcon from '@mui/icons-material/ReportProblem';
 import SearchIcon from '@mui/icons-material/Search';
-import {
-    Alert,
-    Box,
-    Button,
-    Card,
-    Checkbox,
-    Chip,
-    CircularProgress,
-    Collapse,
-    Dialog,
-    DialogActions,
-    DialogContent,
-    DialogTitle,
-    IconButton,
-    InputAdornment,
-    Paper,
-    Radio,
-    RadioGroup,
-    Stack,
-    Tab,
-    Table,
-    TableBody,
-    TableCell,
-    TableContainer,
-    TableHead,
-    TableRow,
-    Tabs,
-    TextField,
-    Typography,
-} from '@mui/material';
+import { Alert, Box, Card, Checkbox, Chip, CircularProgress, Collapse, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, InputAdornment, Paper, Radio, RadioGroup, Stack, Tab, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Tabs, TextField, Typography } from '@mui/material';
 import React, { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import Swal from 'sweetalert2';
-import { useParams } from '@/components/router-compat';
-import { Breadcrumb } from '../../../../../components/ui/Breadcrumb';
-import { LoadingButton } from '../../../../../components/ui/LoadingButton';
-import { Title } from '../../../../../components/ui/Title';
+import { PageHeader } from '../../../../../components/ui/PageHeader';
+import { Button } from '../../../../../components/ui/Button';
 import { ROUTES } from '../../../../../constants/routes';
 import { ReportSerialFaultPane } from '../../../import-batch/components/sections/ReportSerialFaultPane';
 import { UploadSingleFile } from '../../../../../components/upload/UploadSingleFile';
@@ -290,8 +260,8 @@ const CollapsibleInspectTicketRow = ({
 };
 
 export const ReturnBatchInspectPage = () => {
-    const navigate = useNavigate();
-    const { id } = useParams<{ id: string }>();
+    const router = useAdminRouter();
+    const { id } = useRouteParams();
     const batchId = id ? String(id) : '';
 
     const { data: batch, isLoading: isBatchLoading } = useReturnBatchDetail(batchId);
@@ -494,7 +464,7 @@ export const ReturnBatchInspectPage = () => {
                 },
             });
             toast.success('Đã xác nhận kiểm tra vé — phiếu hoàn tất kiểm tra.');
-            navigate(ROUTES.ADMIN.RETURN_BATCH.DETAIL(batchId));
+            router.push(ROUTES.ADMIN.RETURN_BATCH.DETAIL(batchId));
         } catch (err: any) {
             const msg = err?.response?.data?.message || 'Không thể hoàn tất kiểm tra vé.';
             if (
@@ -528,7 +498,7 @@ export const ReturnBatchInspectPage = () => {
     };
 
     const handleBackToDetail = () => {
-        navigate(ROUTES.ADMIN.RETURN_BATCH.DETAIL(batchId));
+        router.push(ROUTES.ADMIN.RETURN_BATCH.DETAIL(batchId));
     };
 
     const isLoading = isBatchLoading || isSerialsLoading;
@@ -544,46 +514,42 @@ export const ReturnBatchInspectPage = () => {
     return (
         <Box sx={{ width: '100%', pb: 5 }}>
             {/* Page Header with Circular Back Button */}
-            <div className="mb-[calc(4*var(--spacing))] flex items-start justify-end gap-[calc(2*var(--spacing))]">
-                <div className="mr-auto">
-                    <Stack direction="row" alignItems="center" spacing={1.5}>
-                        <IconButton
-                            onClick={handleBackToDetail}
-                            size="small"
-                            sx={{
-                                bgcolor: '#ffffff',
-                                border: '1px solid #cbd5e1',
-                                color: '#334155',
-                                boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.06)',
-                                width: 34,
-                                height: 34,
-                                '&:hover': {
-                                    bgcolor: '#f1f5f9',
-                                    borderColor: '#94a3b8',
-                                    color: '#0f172a',
-                                    transform: 'translateX(-2px)',
-                                },
-                                transition: 'all 0.15s ease',
-                            }}
-                            title="Quay lại chi tiết phiếu trả vé"
-                        >
-                            <ArrowBackOutlinedIcon fontSize="small" />
-                        </IconButton>
-                        <Title title="Kiểm tra vé trả NCC" />
-                    </Stack>
-                    <Breadcrumb
-                        items={[
-                            { label: 'Vé số', to: ROUTES.ADMIN.TICKETS.LIST },
-                            { label: 'Trả vé NCC', to: ROUTES.ADMIN.RETURN_BATCH.LIST },
-                            {
-                                label: batch?.batchCode ? `Phiếu #${batch.batchCode}` : `Phiếu #${batchId}`,
-                                to: ROUTES.ADMIN.RETURN_BATCH.DETAIL(batchId),
+            <PageHeader
+                title="Kiểm tra vé trả NCC"
+                breadcrumbItems={[
+                    { label: 'Vé số', to: ROUTES.ADMIN.TICKETS.LIST },
+                    { label: 'Trả vé NCC', to: ROUTES.ADMIN.RETURN_BATCH.LIST },
+                    {
+                        label: batch?.batchCode ? `Phiếu #${batch.batchCode}` : `Phiếu #${batchId}`,
+                        to: ROUTES.ADMIN.RETURN_BATCH.DETAIL(batchId),
+                    },
+                    { label: 'Kiểm tra vé' },
+                ]}
+                titleExtra={
+                    <IconButton
+                        onClick={handleBackToDetail}
+                        size="small"
+                        sx={{
+                            bgcolor: '#ffffff',
+                            border: '1px solid #cbd5e1',
+                            color: '#334155',
+                            boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.06)',
+                            width: 34,
+                            height: 34,
+                            '&:hover': {
+                                bgcolor: '#f1f5f9',
+                                borderColor: '#94a3b8',
+                                color: '#0f172a',
+                                transform: 'translateX(-2px)',
                             },
-                            { label: 'Kiểm tra vé' },
-                        ]}
-                    />
-                </div>
-            </div>
+                            transition: 'all 0.15s ease',
+                        }}
+                        title="Quay lại chi tiết phiếu trả vé"
+                    >
+                        <ArrowBackOutlinedIcon fontSize="small" />
+                    </IconButton>
+                }
+            />
 
             <Card
                 elevation={0}
@@ -991,7 +957,7 @@ export const ReturnBatchInspectPage = () => {
                             Đóng / Quay lại
                         </Button>
 
-                        <LoadingButton
+                        <Button
                             variant="contained"
                             loading={confirmInspection.isPending}
                             onClick={handleConfirmInspectionSubmit}
@@ -1227,7 +1193,7 @@ export const ReturnBatchInspectPage = () => {
                     >
                         Hủy bỏ
                     </Button>
-                    <LoadingButton
+                    <Button
                         variant="contained"
                         loading={confirmInspection.isPending}
                         onClick={handleExecuteConfirmFromModal}

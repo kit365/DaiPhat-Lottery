@@ -1,10 +1,11 @@
 "use client";
 
-import { Box, Typography, CircularProgress, Chip, TablePagination } from "@mui/material";
+import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
+import { Box, Typography, Chip, TablePagination } from "@mui/material";
+import { SpinnerLoading } from "../../../../components/ui/SpinnerLoading";
 import { useQuery } from "@tanstack/react-query";
 import { getOrders } from '../../../orders/services/orderService';
 import dayjs from "dayjs";
-import { useNavigate } from "react-router-dom";
 import { prefixAdmin } from '../../../../constants/routes';
 import { useMemo, useState } from "react";
 import { getOrderStatusBadge } from '../../../orders/constants/orderStatus.constants';
@@ -14,7 +15,7 @@ interface UserOrderHistoryProps {
 }
 
 export const UserOrderHistory = ({ userId }: UserOrderHistoryProps) => {
-    const navigate = useNavigate();
+    const router = useAdminRouter();
     const [page, setPage] = useState(0);
     const [rowsPerPage, setRowsPerPage] = useState(5);
 
@@ -50,11 +51,7 @@ export const UserOrderHistory = ({ userId }: UserOrderHistoryProps) => {
     };
 
     if (isLoading) {
-        return (
-            <Box sx={{ p: 5, textAlign: 'center' }}>
-                <CircularProgress size={32} />
-            </Box>
-        );
+        return <SpinnerLoading compact />;
     }
 
     if (orders.length === 0) {
@@ -92,7 +89,7 @@ export const UserOrderHistory = ({ userId }: UserOrderHistoryProps) => {
                             <Box
                                 key={orderId || orderCode}
                                 onClick={() => {
-                                    if (orderId) navigate(`/${prefixAdmin}/order/detail/${orderId}`);
+                                    if (orderId) router.push(`/${prefixAdmin}/order/detail/${orderId}`);
                                 }}
                                 sx={{
                                     display: 'grid',

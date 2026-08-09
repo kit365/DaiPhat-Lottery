@@ -1,7 +1,7 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { ROUTES } from "../../../admin/constants/routes";
 import { useAuth } from "../../hooks/useAuth";
@@ -10,7 +10,7 @@ import { GoogleIcon, VisualPanelContent, AuthBranding } from "./SharedAuth";
 import { redirectToGoogleOAuth } from "../../utils/google-oauth.util";
 
 export const LoginContent = ({ onSwitchToRegister }: { onSwitchToRegister?: () => void }) => {
-    const navigate = useNavigate();
+    const router = useRouter();
     const [showPassword, setShowPassword] = useState(false);
     const {
         loginForm: {
@@ -103,7 +103,7 @@ export const LoginContent = ({ onSwitchToRegister }: { onSwitchToRegister?: () =
                         onClick={(e) => {
                             e.preventDefault();
                             closeAuthModals();
-                            navigate("/forgot-password");
+                            router.push("/forgot-password");
                         }}
                         className="text-[#FF6262] hover:underline cursor-pointer"
                     >

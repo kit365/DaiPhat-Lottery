@@ -1,65 +1,41 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
+import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
+import { usePathname } from "next/navigation";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+
+import {
+    clearAdminAuthSession,
+    completeAdminLoginSession,
+    getUserRoleCode,
+    isRestrictedAdminRoleCode,
+    persistAdminAccessToken,
+} from "@/admin/lib/adminSession.utils";
 import { authService } from "../services/auth.service";
 import { userService } from "../services/user.service";
-import { useLocation, useNavigate } from "@/components/router-compat";
 import { useAuthStore } from "../../../../stores/useAuthStore";
 import { toast } from "react-toastify";
 import { ROUTES } from "../../../constants/routes";
 import { USER_ROLES } from "../../../../constants/role.constants";
-import { useEffect } from "react";
-import { User } from "../../../../types/user.type";
 import { LoginResponse } from "../types/auth.type";
 import { LoginFormValues } from "../../../schemas/login.schema";
-import Cookies from "js-cookie";
 import { STORAGE_KEYS } from "../../../../constants/storage.constants";
 import { QUERY_KEYS } from "../../../../constants/queryKeys";
+import { prefetchAdminDestination } from "@/admin/utils/prefetchAdminPages";
 
 export const useAuth = () => {
-    const navigate = useNavigate();
-    const location = useLocation();
+    const router = useAdminRouter();
+    const pathname = usePathname() ?? "";
     const queryClient = useQueryClient();
-    const { token, user, set, login: loginStore, logout, openProfileSetupModal } = useAuthStore();
+    const { user, token, logout } = useAuthStore();
+    const [isCompletingAuth, setIsCompletingAuth] = useState(false);
 
-    const getMeQuery = useQuery({
-        queryKey: [QUERY_KEYS.AUTH_ME, token],
-        queryFn: userService.getMe,
-        enabled: !!token,
-        retry: false,
-        staleTime: 1000 * 60 * 10,
-    });
-
-    useEffect(() => {
-        if (getMeQuery.data) {
-            const isSuccess = getMeQuery.data.isSuccess ?? getMeQuery.data.success;
-            if (isSuccess && getMeQuery.data.data) {
-                const userData = getMeQuery.data.data as User;
-                const currentUser = useAuthStore.getState().user;
-
-                if (JSON.stringify(currentUser) !== JSON.stringify(userData)) {
-                    set({ user: userData });
-                }
-            } else if (!isSuccess) {
-                logout();
-            }
-        }
-    }, [getMeQuery.data, set, logout]);
-
-    // Handle Auth Errors - Redirect to login on hard failures and CLEAR SESSION
-    useEffect(() => {
-        if (getMeQuery.isError) {
-            // 1. Clear Zustand Store
-            logout();
-
-            // 2. Clear Cookies using unified keys
-            Cookies.remove(STORAGE_KEYS.TOKEN, { path: '/' });
-            Cookies.remove(STORAGE_KEYS.REFRESH_TOKEN, { path: '/' });
-
-            // 3. Redirect back to Login
-            navigate(ROUTES.ADMIN.AUTH.LOGIN);
-        }
-    }, [getMeQuery.isError, logout, navigate]);
+    const redirectAfterAuth = (destination: string) => {
+        setIsCompletingAuth(true);
+        prefetchAdminDestination(destination, router.prefetch);
+        router.replace(destination);
+    };
 
     const loginMutation = useMutation({
         mutationFn: (data: LoginFormValues) => authService.login({ ...data, rememberMe: false }),
@@ -69,166 +45,133 @@ export const useAuth = () => {
             const accessToken = authData?.access_token ?? authData?.accessToken;
             const expiresIn = authData?.expires_in ?? authData?.expiresIn;
 
-            if (isSuccess && accessToken) {
-                const ttlSeconds = expiresIn && expiresIn > 0 ? expiresIn : 900;
-                const cookieOptions = {
-                    expires: Math.max(ttlSeconds, 60) / 86400,
-                    path: '/'
-                };
-                Cookies.set(STORAGE_KEYS.TOKEN, accessToken, cookieOptions);
-                set({
-                    token: accessToken,
-                    expiresAt: Date.now() + ttlSeconds * 1000
-                });
-
-                const meResponse = authData?.user
-                    ? { isSuccess: true, success: true, message: "Success", data: authData.user }
-                    : await userService.getMe();
-                const meSuccess = meResponse.isSuccess ?? meResponse.success;
-                const userInfo = meResponse.data;
-
-                if (!meSuccess || !userInfo) {
-                    toast.error("Đăng nhập thành công nhưng không lấy được thông tin người dùng.");
-                    return;
-                }
-
-                const roleCode = userInfo.role?.code || "";
-                if (roleCode === USER_ROLES.MEMBER || roleCode === USER_ROLES.STREET_AGENT) {
-                    toast.error("Tài khoản này không có quyền truy cập vùng quản trị.");
-                    logout();
-                    Cookies.remove(STORAGE_KEYS.TOKEN, { path: '/' });
-                    Cookies.remove(STORAGE_KEYS.REFRESH_TOKEN, { path: '/' });
-                    return;
-                }
-
-                loginStore(userInfo, accessToken, expiresIn);
-
-                queryClient.setQueryData([QUERY_KEYS.AUTH_ME, accessToken], {
-                    isSuccess: true,
-                    success: true,
-                    message: "Success",
-                    data: userInfo
-                });
-
-                if (!userInfo.hasPassword) {
-                    toast.info("Vui lòng thiết lập mật khẩu cho lần đăng nhập đầu tiên.");
-                    navigate(ROUTES.ADMIN.AUTH.SETUP_PROFILE);
-                } else if (roleCode === USER_ROLES.ADMIN) {
-                    toast.success("Chào mừng Quản trị viên!");
-                    navigate(ROUTES.ADMIN.DASHBOARD.SYSTEM);
-                } else {
-                    toast.success("Đăng nhập thành công!");
-                    navigate(ROUTES.ADMIN.DASHBOARD.SYSTEM);
-                }
-            } else {
+            if (!isSuccess || !accessToken) {
                 toast.error(response.message || "Đăng nhập thất bại.");
+                return;
+            }
+
+            persistAdminAccessToken(accessToken, expiresIn);
+
+            const meResponse = authData?.user
+                ? { isSuccess: true, success: true, message: "Success", data: authData.user }
+                : await userService.getMe();
+            const meSuccess = meResponse.isSuccess ?? meResponse.success;
+            const userInfo = meResponse.data;
+
+            if (!meSuccess || !userInfo) {
+                toast.error("Đăng nhập thành công nhưng không lấy được thông tin người dùng.");
+                clearAdminAuthSession();
+                return;
+            }
+
+            const roleCode = getUserRoleCode(userInfo);
+            if (isRestrictedAdminRoleCode(roleCode)) {
+                toast.error("Tài khoản này không có quyền truy cập vùng quản trị.");
+                clearAdminAuthSession();
+                return;
+            }
+
+            completeAdminLoginSession(queryClient, userInfo, accessToken, expiresIn);
+
+            const destination = !userInfo.hasPassword
+                ? ROUTES.ADMIN.AUTH.SETUP_PROFILE
+                : ROUTES.ADMIN.DASHBOARD.SYSTEM;
+
+            redirectAfterAuth(destination);
+
+            if (!userInfo.hasPassword) {
+                toast.info("Vui lòng thiết lập mật khẩu cho lần đăng nhập đầu tiên.");
+            } else if (roleCode === USER_ROLES.ADMIN) {
+                toast.success("Chào mừng Quản trị viên!");
+            } else {
+                toast.success("Đăng nhập thành công!");
             }
         },
         onError: (error: { response?: { data?: { message?: string } } }) => {
             toast.error(error.response?.data?.message || "Lỗi đăng nhập.");
-        }
+        },
     });
 
     const oauthCallbackMutation = useMutation({
         mutationFn: (params: { code: string; redirectUri: string; codeVerifier?: string }) =>
             authService.exchangeGoogleToken(params.code, params.redirectUri, params.codeVerifier),
         onSuccess: async (response) => {
-            if (response?.access_token) {
-                const { access_token, expires_in } = response;
+            if (!response?.access_token) {
+                return;
+            }
 
-                const cookieOptions = {
-                    expires: expires_in ? expires_in / 86400 : 7,
-                    path: '/'
-                };
+            const { access_token, expires_in } = response;
+            persistAdminAccessToken(access_token, expires_in);
 
-                Cookies.set(STORAGE_KEYS.TOKEN, access_token, cookieOptions);
-                set({
-                    token: access_token,
-                    expiresAt: expires_in ? Date.now() + expires_in * 1000 : null
+            sessionStorage.removeItem(STORAGE_KEYS.PKCE_VERIFIER);
+            sessionStorage.removeItem(STORAGE_KEYS.OAUTH_REDIRECT_URI);
+
+            const isClientCallback = !pathname.startsWith(ROUTES.ADMIN.ROOT);
+
+            try {
+                const meResponse = await userService.getMe();
+                const meSuccess = meResponse.isSuccess ?? meResponse.success;
+                const userInfo = meResponse.data;
+
+                if (!meSuccess || !userInfo) {
+                    toast.error("Xác thực Google thành công nhưng không lấy được thông tin người dùng.");
+                    return;
+                }
+
+                const roleCode = getUserRoleCode(userInfo);
+                if (!isClientCallback && isRestrictedAdminRoleCode(roleCode)) {
+                    toast.error("Tài khoản này không có quyền truy cập vùng quản trị.");
+                    clearAdminAuthSession();
+                    return;
+                }
+
+                completeAdminLoginSession(queryClient, userInfo, access_token, expires_in);
+                queryClient.setQueryData([QUERY_KEYS.CLIENT_ME, access_token], {
+                    isSuccess: true,
+                    success: true,
+                    message: "Success",
+                    data: userInfo,
                 });
 
-                sessionStorage.removeItem(STORAGE_KEYS.PKCE_VERIFIER);
-                sessionStorage.removeItem(STORAGE_KEYS.OAUTH_REDIRECT_URI);
+                toast.success("Xác thực Google thành công!");
 
-                const isClientCallback = !location.pathname.startsWith(ROUTES.ADMIN.ROOT);
-
-                try {
-                    const meResponse = await userService.getMe();
-                    const meSuccess = meResponse.isSuccess ?? meResponse.success;
-                    const userInfo = meResponse.data;
-
-                    if (!meSuccess || !userInfo) {
-                        toast.error("Xác thực Google thành công nhưng không lấy được thông tin người dùng.");
-                        return;
+                if (isClientCallback) {
+                    if (!userInfo.agreedToTerms) {
+                        sessionStorage.setItem(STORAGE_KEYS.FORCE_PROFILE_SETUP, "true");
                     }
 
-                    const roleCode = userInfo.role?.code || "";
-                    if (!isClientCallback && (roleCode === USER_ROLES.MEMBER || roleCode === USER_ROLES.STREET_AGENT)) {
-                        toast.error("Tài khoản này không có quyền truy cập vùng quản trị.");
-                        logout();
-                        Cookies.remove(STORAGE_KEYS.TOKEN, { path: '/' });
-                        Cookies.remove(STORAGE_KEYS.REFRESH_TOKEN, { path: '/' });
-                        return;
-                    }
-
-                    loginStore(userInfo, access_token, expires_in);
-                    queryClient.setQueryData([QUERY_KEYS.AUTH_ME, access_token], {
-                        isSuccess: true,
-                        success: true,
-                        message: 'Success',
-                        data: userInfo
-                    });
-                    queryClient.setQueryData([QUERY_KEYS.CLIENT_ME, access_token], {
-                        isSuccess: true,
-                        success: true,
-                        message: 'Success',
-                        data: userInfo
-                    });
-
-                    toast.success("Xác thực Google thành công!");
-
-                    if (isClientCallback) {
-                        if (!userInfo.agreedToTerms) {
-                            sessionStorage.setItem(STORAGE_KEYS.FORCE_PROFILE_SETUP, "true");
-                        }
-
-                        navigate(ROUTES.PUBLIC.HOME);
-                        return;
-                    }
-
-                    if (!userInfo.hasPassword || !userInfo.agreedToTerms) {
-                        navigate(ROUTES.ADMIN.AUTH.SETUP_PROFILE);
-                    } else if (roleCode === USER_ROLES.ADMIN) {
-                        navigate(ROUTES.ADMIN.DASHBOARD.SYSTEM);
-                    } else {
-                        navigate(ROUTES.ADMIN.DASHBOARD.SYSTEM);
-                    }
-                } catch (error) {
-                    toast.error("Xác thực Google thành công nhưng không lấy được thông tin người dùng.");
+                    router.push(ROUTES.PUBLIC.HOME);
+                    return;
                 }
+
+                const destination =
+                    !userInfo.hasPassword || !userInfo.agreedToTerms
+                        ? ROUTES.ADMIN.AUTH.SETUP_PROFILE
+                        : ROUTES.ADMIN.DASHBOARD.SYSTEM;
+
+                redirectAfterAuth(destination);
+            } catch {
+                toast.error("Xác thực Google thành công nhưng không lấy được thông tin người dùng.");
             }
         },
         onError: () => {
             sessionStorage.removeItem(STORAGE_KEYS.PKCE_VERIFIER);
             sessionStorage.removeItem(STORAGE_KEYS.OAUTH_REDIRECT_URI);
             toast.error("Xác thực OAuth thất bại.");
-            const isClientCallback = !location.pathname.startsWith(ROUTES.ADMIN.ROOT);
-            navigate(isClientCallback ? "/login" : ROUTES.ADMIN.AUTH.LOGIN);
-        }
+            const isClientCallback = !pathname.startsWith(ROUTES.ADMIN.ROOT);
+            router.push(isClientCallback ? "/login" : ROUTES.ADMIN.AUTH.LOGIN);
+        },
     });
 
     return {
         user,
         token,
-        isLoading: getMeQuery.isLoading || loginMutation.isPending || oauthCallbackMutation.isPending,
-        isUserLoading: getMeQuery.isLoading,
-        isUserError: getMeQuery.isError,
-        isFetching: getMeQuery.isFetching,
+        isLoading: loginMutation.isPending || oauthCallbackMutation.isPending || isCompletingAuth,
+        isRedirecting: isCompletingAuth,
         login: loginMutation.mutate,
         logout,
-        getMe: getMeQuery.refetch,
         handleOAuthCallback: oauthCallbackMutation.mutate,
         isLoginPending: loginMutation.isPending,
-        isOAuthPending: oauthCallbackMutation.isPending
+        isOAuthPending: oauthCallbackMutation.isPending,
     };
 };

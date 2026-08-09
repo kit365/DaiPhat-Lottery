@@ -1,37 +1,18 @@
 "use client";
 
+import { useAppSearchParams } from "@/hooks/useAppSearchParams";
+import Link from "@/admin/components/navigation/AdminLink";
 import { useEffect, useMemo, useState } from "react";
 import { useSidebar } from "../../../../context/sidebar/useSidebar";
 import {
-    Alert,
-    Autocomplete,
-    Box,
-    Button,
-    Card,
-    Chip,
-    CircularProgress,
-    Divider,
-    Drawer,
-    IconButton,
-    Stack,
-    Table,
-    TableBody,
-    TableCell,
-    TableContainer,
-    TableHead,
-    TableRow,
-    TextField,
-    Typography,
-} from "@mui/material";
+    Alert, Autocomplete, Box, Card, Chip, CircularProgress, Divider, Drawer, IconButton, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TextField, Typography } from '@mui/material';
 import AddIcon from "@mui/icons-material/Add";
 import RemoveIcon from "@mui/icons-material/Remove";
 import CloseIcon from "@mui/icons-material/Close";
 import dayjs from "dayjs";
 import { toast } from "react-toastify";
-import { Link as RouterLink, useSearchParams } from "@/components/router-compat";
-import { Breadcrumb } from "../../../../components/ui/Breadcrumb";
-import { Title } from "../../../../components/ui/Title";
-import { LoadingButton } from "../../../../components/ui/LoadingButton";
+import { PageHeader } from "../../../../components/ui/PageHeader";
+import { Button } from '../../../../components/ui/Button';
 import { ROUTES } from "../../../../constants/routes";
 import { PERMISSIONS } from "../../../../constants/permission.constants";
 import { usePermissions } from "../../../../hooks/usePermission";
@@ -108,7 +89,7 @@ const pickSerialIds = (
 export const VendorAllocationPage = () => {
     const { can } = usePermissions();
     const canOverrideLucky = can(PERMISSIONS.STREET_AGENT.MANAGE);
-    const [searchParams, setSearchParams] = useSearchParams();
+    const [searchParams, setSearchParams] = useAppSearchParams();
     const { isOpen: isSidebarOpen } = useSidebar();
 
     const [profile, setProfile] = useState<StreetAgentProfile | null>(null);
@@ -390,18 +371,14 @@ export const VendorAllocationPage = () => {
 
     return (
         <Box sx={{ maxWidth: 1200, mx: "auto", pb: (!draftId && !blockingOpenBatch && profile) ? 12 : 5 }}>
-            <div className="mb-[calc(3*var(--spacing))] flex items-start justify-end gap-[calc(2*var(--spacing))] flex-wrap">
-                <div className="mr-auto">
-                    <Title title="Bàn giao vé cho đại lý bán dạo" />
-                    <Breadcrumb
-                        items={[
-                            { label: "Dashboard", to: "/" },
-                            { label: "Đại lý bán dạo", to: ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.LIST },
-                            { label: "Bàn giao vé" },
-                        ]}
-                    />
-                </div>
-            </div>
+            <PageHeader
+                title="Bàn giao vé cho đại lý bán dạo"
+                breadcrumbItems={[
+                    { label: "Dashboard", to: "/" },
+                    { label: "Đại lý bán dạo", to: ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.LIST },
+                    { label: "Bàn giao vé" },
+                ]}
+            />
 
             <Stack spacing={3}>
                 <Card sx={{ p: 3, borderRadius: "var(--shape-borderRadius-lg)", boxShadow: "var(--customShadows-card)" }}>
@@ -508,8 +485,8 @@ export const VendorAllocationPage = () => {
                             <Button
                                 color="inherit"
                                 size="small"
-                                component={RouterLink}
-                                to={ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.ALLOCATION_BATCHES}
+                                component={Link}
+                                href={ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.ALLOCATION_BATCHES}
                             >
                                 Xem phiếu
                             </Button>
@@ -792,7 +769,7 @@ export const VendorAllocationPage = () => {
                             </Typography>
                         </Box>
                     </Stack>
-                    <LoadingButton
+                    <Button
                         variant="contained"
                         size="large"
                         loading={isCreatingDraft}

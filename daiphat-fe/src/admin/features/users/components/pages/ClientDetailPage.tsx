@@ -1,7 +1,8 @@
 "use client";
 
+import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
+import { useRouteParams } from "@/hooks/useRouteParams";
 import { useEffect, useState, useRef } from "react";
-import { useParams, useNavigate } from "react-router-dom";
 import {
     Box,
     Card,
@@ -13,12 +14,11 @@ import {
     TextField,
     MenuItem,
     Chip,
-    Button
-} from "@mui/material";
+} from '@mui/material';
 import Grid from "@mui/material/Grid";
-import { Icon } from "@iconify/react";
-import { Breadcrumb } from '../../../../components/ui/Breadcrumb';
-import { Title } from '../../../../components/ui/Title';
+import { Icon } from '@/admin/components/ui/AdminIcon';
+import { PageHeader } from '../../../../components/ui/PageHeader';
+import { SpinnerLoading } from '../../../../components/ui/SpinnerLoading';
 import { prefixAdmin } from '../../../../constants/routes';
 import { useUserDetail, useUpdateUser, useDeleteUser } from "../../hooks/useUsers";
 import { UserStatus } from "../../../../../types/user.type";
@@ -27,14 +27,14 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { accountUserSchema } from "../../../../schemas/account-user.schema";
 import { toast } from "react-toastify";
 import { uploadImagesToCloudinary } from "../../../../api/uploadCloudinary.api";
-import { LoadingButton } from "../../../../components/ui/LoadingButton";
+import { Button } from "../../../../components/ui/Button";
 import { UserUserTicketList } from "../sections/UserTicketList";
 import { UserOrderHistory } from "../sections/UserOrderHistory";
 import { UserBoardingHistory } from "../sections/UserBoardingHistory";
 
 export const ClientDetailPage = () => {
-    const { id } = useParams();
-    const navigate = useNavigate();
+    const { id } = useRouteParams();
+    const router = useAdminRouter();
     const [currentTab, setCurrentTab] = useState("general");
     const { data: user, isLoading: isUserLoading } = useUserDetail(id);
     const { mutate: update, isPending: isUpdating } = useUpdateUser();
@@ -125,7 +125,7 @@ export const ClientDetailPage = () => {
             removeUser(id!, {
                 onSuccess: () => {
                     toast.success("Xóa tài khoản thành công!");
-                    navigate(`/${prefixAdmin}/account-user/list`);
+                    router.push(`/${prefixAdmin}/account-user/list`);
                 },
                 onError: (error: any) => {
                     toast.error(error.response?.data?.message || "Xóa thất bại");
@@ -136,27 +136,31 @@ export const ClientDetailPage = () => {
 
     if (isUserLoading) {
         return (
-            <Box sx={{ display: 'flex', justifyContent: 'center', py: 5 }}>
-                <CircularProgress />
-            </Box>
+            <div className="p-[24px] pt-[16px] flex flex-col gap-[24px] max-w-[1200px] mx-auto w-full">
+                <PageHeader
+                    title="Tài khoản"
+                    breadcrumbItems={[
+                        { label: "Dashboard", to: `/${prefixAdmin}` },
+                        { label: "Khách hàng", to: `/${prefixAdmin}/account-user/list` },
+                        { label: "Chi tiết" }
+                    ]}
+                />
+                <SpinnerLoading />
+            </div>
         );
     }
 
     return (
         <div className="p-[24px] pt-[16px] flex flex-col gap-[24px] max-w-[1200px] mx-auto w-full">
             {/* Header */}
-            <div className="flex justify-between items-start">
-                <div>
-                    <Title title="Tài khoản" />
-                    <Breadcrumb
-                        items={[
-                            { label: "Dashboard", to: `/${prefixAdmin}` },
-                            { label: "Khách hàng", to: `/${prefixAdmin}/account-user/list` },
-                            { label: user ? `${user.lastName} ${user.firstName}` : "Chi tiết" }
-                        ]}
-                    />
-                </div>
-            </div>
+            <PageHeader
+                title="Tài khoản"
+                breadcrumbItems={[
+                    { label: "Dashboard", to: `/${prefixAdmin}` },
+                    { label: "Khách hàng", to: `/${prefixAdmin}/account-user/list` },
+                    { label: user ? `${user.lastName} ${user.firstName}` : "Chi tiết" }
+                ]}
+            />
 
             <Tabs
                 value={currentTab}
@@ -371,7 +375,7 @@ export const ClientDetailPage = () => {
                                 </div>
 
                                 <div className="flex justify-end mt-[24px]">
-                                    <LoadingButton
+                                    <Button
                                         type="submit"
                                         loading={isUpdating}
                                         label="Lưu thay đổi"

@@ -1,9 +1,9 @@
 "use client";
 
+import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
 import WarningAmberOutlinedIcon from '@mui/icons-material/WarningAmberOutlined';
 import { Alert, Button, Stack, Typography } from '@mui/material';
 import { useMemo, useState } from 'react';
-import { useNavigate } from '@/components/router-compat';
 import type { ImportBatch } from '../../types/importBatch.type';
 import { ROUTES } from '../../../../../constants/routes';
 import { importBatchMissingStations } from '../../utils/importBatchProgress';
@@ -33,7 +33,7 @@ const mergeMissingStationBatches = (
 export const MissingStationImportBatchNotification = ({
     pageBatches = [],
 }: MissingStationImportBatchNotificationProps) => {
-    const navigate = useNavigate();
+    const router = useAdminRouter();
     const [detailOpen, setDetailOpen] = useState(false);
     const { data: apiBatches = [], isLoading, isError } = useImportBatchesWithoutLines();
 
@@ -61,7 +61,7 @@ export const MissingStationImportBatchNotification = ({
     const anyHaveStartedEntry = startedEntryCount > 0;
 
     const handleContinue = (batch: ImportBatch) => {
-        navigate(ROUTES.ADMIN.IMPORT_BATCH.EDIT(batch.id));
+        router.push(ROUTES.ADMIN.IMPORT_BATCH.EDIT(batch.id));
     };
 
     const bannerText = !isMulti

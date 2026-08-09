@@ -1,7 +1,9 @@
-import { useState, useEffect } from 'react';
 import {
     Box,
+    Checkbox,
+    FormControl,
     FormControlLabel,
+    FormHelperText,
     InputAdornment,
     MenuItem,
     Stack,
@@ -9,9 +11,10 @@ import {
     TextField,
     Typography,
 } from '@mui/material';
-import { TimePicker } from '@mui/x-date-pickers';
+import { useRef, useEffect } from 'react';
 import dayjs from 'dayjs';
 import { Control, Controller, useWatch } from 'react-hook-form';
+import { AdminTimePicker } from '../../../../components/ui/AdminTimePicker';
 import { SupplierFormValues } from '../../schemas/supplier.schema';
 import { SUPPLIER_TYPE_LABELS } from '../../utils/supplierLabels';
 import {
@@ -26,8 +29,6 @@ import {
     preventNumberInputWheel,
 } from '../../utils/supplierNumberFields';
 
-const PAYMENT_TERM_HELPER = '0 = Thanh toán trong ngày.';
-
 const PaymentTermField = ({
     field,
     fieldState,
@@ -39,108 +40,151 @@ const PaymentTermField = ({
     activationMissing: boolean;
     fieldHelper: (field: SupplierActivationField, defaultText?: string) => string | undefined;
 }) => {
-    const [isSameDayMode, setIsSameDayMode] = useState<boolean>(() => (field.value ?? 0) === 0);
+    const lastTermDaysRef = useRef(7);
 
-    const handleSwitchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const checked = e.target.checked;
-        setIsSameDayMode(checked);
-        if (checked) {
-            field.onChange(0);
-        } else {
-            const nextVal = (field.value && Number(field.value) > 0) ? Number(field.value) : 7;
-            field.onChange(nextVal);
+    useEffect(() => {
+        const current = Number(field.value);
+        if (Number.isFinite(current) && current > 0) {
+            lastTermDaysRef.current = current;
         }
+    }, [field.value]);
+
+    const isSameDay =
+        field.value === 0 ||
+        field.value === '' ||
+        field.value === null ||
+        field.value === undefined;
+
+    const handleModeChange = (mode: 'same_day' | 'term') => {
+        if (mode === 'same_day') {
+            const current = Number(field.value);
+            if (Number.isFinite(current) && current > 0) {
+                lastTermDaysRef.current = current;
+            }
+            field.onChange(0);
+            return;
+        }
+
+        field.onChange(lastTermDaysRef.current || 7);
     };
 
-    const isValueError = !isSameDayMode && (field.value === 0 || field.value === null || field.value === undefined || field.value === '');
+    const handleDaysChange = (raw: string) => {
+        if (raw === '') {
+            field.onChange('');
+            return;
+        }
+        if (!/^\d{1,3}$/.test(raw)) return;
+
+        const parsed = Number(raw);
+        if (!Number.isFinite(parsed)) return;
+        lastTermDaysRef.current = parsed;
+        field.onChange(parsed);
+    };
+
+    const daysInputValue = isSameDay
+        ? (lastTermDaysRef.current || 7)
+        : (field.value === '' || field.value === null || field.value === undefined ? '' : field.value);
+
+    const isValueError =
+        !isSameDay &&
+        (field.value === 0 ||
+            field.value === null ||
+            field.value === undefined ||
+            field.value === '');
+
+    const helperText =
+        isValueError
+            ? 'Số ngày thanh toán theo kỳ phải lớn hơn 0'
+            : fieldState.error?.message || fieldHelper('PAYMENT_TERM_DAYS');
+
+    const hasError = !!fieldState.error || activationMissing || isValueError;
 
     return (
-        <Box
-            sx={{
-                p: 2.25,
-                borderRadius: '12px',
-                bgcolor: '#f8fafc',
-                border: '1px solid',
-                borderColor: (fieldState.error || activationMissing || isValueError) ? '#ef4444' : '#e2e8f0',
-                transition: 'all 0.2s ease',
-                ...missingFieldInputSx(activationMissing),
-            }}
-        >
-            <Stack
-                direction={{ xs: 'column', sm: 'row' }}
-                alignItems={{ xs: 'flex-start', sm: 'center' }}
-                justifyContent="space-between"
-                spacing={2}
-            >
-                <Box>
-                    <Typography variant="subtitle2" fontWeight={700} color="#0f172a">
-                        Thời hạn thanh toán
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary">
-                        {isSameDayMode
-                            ? 'Mặc định: Thanh toán ngay trong ngày quay vé (0 ngày)'
-                            : `Thanh toán theo kỳ dài hạn (${field.value || 0} ngày)`}
-                    </Typography>
-                </Box>
+        <FormControl error={hasError} fullWidth>
+            <Typography variant="body2" sx={{ mb: 1, fontWeight: 600, color: 'var(--palette-text-primary)' }}>
+                Thời hạn thanh toán
+            </Typography>
 
+            <Stack
+                direction="row"
+                spacing={2}
+                alignItems="center"
+                flexWrap="wrap"
+                useFlexGap
+            >
                 <FormControlLabel
                     control={
-                        <Switch
-                            checked={isSameDayMode}
-                            onChange={handleSwitchChange}
-                            color="primary"
+                        <Checkbox
+                            size="small"
+                            checked={isSameDay}
+                            onChange={() => handleModeChange('same_day')}
                         />
                     }
-                    label={
-                        <Typography variant="body2" fontWeight={600} color={isSameDayMode ? '#0f172a' : '#64748b'}>
-                            Thanh toán trong ngày
-                        </Typography>
-                    }
+                    label="Trong ngày"
                 />
-            </Stack>
 
-            {!isSameDayMode && (
-                <Box sx={{ mt: 2 }}>
+                <Stack direction="row" spacing={1} alignItems="center">
+                    <FormControlLabel
+                        control={
+                            <Checkbox
+                                size="small"
+                                checked={!isSameDay}
+                                onChange={() => handleModeChange('term')}
+                            />
+                        }
+                        label="Theo ngày"
+                    />
+
                     <TextField
                         name={field.name}
                         onBlur={field.onBlur}
                         inputRef={field.ref}
-                        value={field.value ?? ''}
+                        value={daysInputValue}
                         type="number"
-                        label="Số ngày thanh toán (theo kỳ)"
-                        fullWidth
+                        placeholder="7"
                         size="small"
-                        error={!!fieldState.error || isValueError || activationMissing}
-                        helperText={
-                            (isValueError
-                                ? 'Số ngày thanh toán theo kỳ phải lớn hơn 0'
-                                : fieldState.error?.message) ||
-                            fieldHelper(
-                                'PAYMENT_TERM_DAYS',
-                                'Nhập số ngày hạn thanh toán (ví dụ: 7, 15, 30 ngày)'
-                            )
-                        }
-                        onChange={(e) => {
-                            const raw = e.target.value;
-                            if (raw === '') {
-                                field.onChange('');
-                                return;
-                            }
-                            const parsed = Number(raw);
-                            if (!Number.isFinite(parsed)) return;
-                            field.onChange(parsed);
-                        }}
+                        disabled={isSameDay}
+                        error={hasError && !isSameDay}
+                        onChange={(e) => handleDaysChange(e.target.value)}
                         onKeyDown={(e) => {
                             if (e.key === '-' || e.key === 'e' || e.key === 'E' || e.key === '+') {
                                 e.preventDefault();
                             }
                         }}
-                        onWheel={(e) => {
-                            if (e.target && 'blur' in e.target && typeof (e.target as any).blur === 'function') {
-                                (e.target as HTMLElement).blur();
-                            }
+                        onWheel={preventNumberInputWheel}
+                        slotProps={{
+                            htmlInput: { min: 1, max: 999, step: 1, inputMode: 'numeric', maxLength: 3 },
+                            input: {
+                                endAdornment: (
+                                    <InputAdornment position="end" sx={{ ml: 0, mr: 0.25 }}>
+                                        <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.875rem', lineHeight: 1, fontWeight: 600 }}>
+                                            ngày
+                                        </Typography>
+                                    </InputAdornment>
+                                ),
+                            },
                         }}
                         sx={{
+                            width: 84,
+                            ...missingFieldInputSx(activationMissing && !isSameDay),
+                            '& .MuiOutlinedInput-root': {
+                                height: 28,
+                                minHeight: 28,
+                                fontSize: '0.875rem',
+                                borderRadius: '6px',
+                                pr: 0.5,
+                            },
+                            '& .MuiOutlinedInput-input': {
+                                py: 0,
+                                px: 0.5,
+                                height: '100%',
+                                boxSizing: 'border-box',
+                                textAlign: 'center',
+                            },
+                            '& .MuiInputAdornment-root': {
+                                height: 'auto',
+                                ml: 0,
+                            },
                             '& input::-webkit-outer-spin-button, & input::-webkit-inner-spin-button': {
                                 WebkitAppearance: 'none',
                                 margin: 0,
@@ -149,20 +193,12 @@ const PaymentTermField = ({
                                 MozAppearance: 'textfield',
                             },
                         }}
-                        inputProps={{ min: 1, step: 1, inputMode: 'numeric' }}
-                        InputProps={{
-                            endAdornment: (
-                                <InputAdornment position="end">
-                                    <Typography variant="body2" color="text.secondary">
-                                        ngày
-                                    </Typography>
-                                </InputAdornment>
-                            ),
-                        }}
                     />
-                </Box>
-            )}
-        </Box>
+                </Stack>
+            </Stack>
+
+            {helperText ? <FormHelperText>{helperText}</FormHelperText> : null}
+        </FormControl>
     );
 };
 
@@ -355,15 +391,17 @@ export const SupplierFormFields = ({
                                         }
                                     }}
                                     onWheel={preventNumberInputWheel}
-                                    inputProps={{ inputMode: 'numeric' }}
-                                    InputProps={{
-                                        endAdornment: (
-                                            <InputAdornment position="end">
-                                                <Typography variant="body2" color="text.secondary">
-                                                    VNĐ
-                                                </Typography>
-                                            </InputAdornment>
-                                        ),
+                                    slotProps={{
+                                        htmlInput: { inputMode: 'numeric' },
+                                        input: {
+                                            endAdornment: (
+                                                <InputAdornment position="end">
+                                                    <Typography variant="body2" color="text.secondary">
+                                                        VNĐ
+                                                    </Typography>
+                                                </InputAdornment>
+                                            ),
+                                        },
                                     }}
                                 />
                             );
@@ -372,35 +410,12 @@ export const SupplierFormFields = ({
                 </Box>
             </Stack>
 
-            {/* Chế độ thanh toán (Số ngày thanh toán) */}
-            <Box data-activation-field="paymentTermDays">
-                <Controller
-                    name="paymentTermDays"
-                    control={control}
-                    render={({ field, fieldState }) => {
-                        const activationMissing = isFieldMissing(
-                            missingFields,
-                            'PAYMENT_TERM_DAYS'
-                        );
-                        return (
-                            <PaymentTermField
-                                field={field}
-                                fieldState={fieldState}
-                                activationMissing={activationMissing}
-                                fieldHelper={fieldHelper}
-                            />
-                        );
-                    }}
-                />
-            </Box>
-
-            {/* Mốc thời gian quy định */}
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
                 <Controller
                     name="importAllowFrom"
                     control={control}
                     render={({ field, fieldState }) => (
-                        <TimePicker
+                        <AdminTimePicker
                             label="Giờ cho phép nhập vé"
                             value={field.value ? dayjs(`2000-01-01T${field.value}`) : null}
                             onChange={(newValue) => {
@@ -424,7 +439,7 @@ export const SupplierFormFields = ({
                     name="returnCutOffTime"
                     control={control}
                     render={({ field, fieldState }) => (
-                        <TimePicker
+                        <AdminTimePicker
                             label="Hạn trả vé"
                             value={field.value ? dayjs(`2000-01-01T${field.value}`) : null}
                             minTime={minReturnCutOffTime}
@@ -449,7 +464,7 @@ export const SupplierFormFields = ({
                     name="paymentCutOffTime"
                     control={control}
                     render={({ field, fieldState }) => (
-                        <TimePicker
+                        <AdminTimePicker
                             label="Giờ thanh toán"
                             value={field.value ? dayjs(`2000-01-01T${field.value}`) : null}
                             minTime={minPaymentCutOffTime}
@@ -471,6 +486,27 @@ export const SupplierFormFields = ({
                     )}
                 />
             </Stack>
+
+            <Box data-activation-field="paymentTermDays">
+                <Controller
+                        name="paymentTermDays"
+                        control={control}
+                        render={({ field, fieldState }) => {
+                            const activationMissing = isFieldMissing(
+                                missingFields,
+                                'PAYMENT_TERM_DAYS'
+                            );
+                            return (
+                                <PaymentTermField
+                                    field={field}
+                                    fieldState={fieldState}
+                                    activationMissing={activationMissing}
+                                    fieldHelper={fieldHelper}
+                                />
+                            );
+                        }}
+                    />
+                </Box>
 
             {!hideIsActive && (
                 <Controller
@@ -498,6 +534,7 @@ export const SupplierFormFields = ({
                     )}
                 />
             )}
+
         </Stack>
     );
 };

@@ -1,7 +1,7 @@
 'use client';
 
+import Link from "next/link";
 import { useQuery } from '@tanstack/react-query';
-import { Link } from 'react-router-dom';
 import { FileText, ChevronRight } from 'lucide-react';
 import { getPublicSystemConfigByKey } from '@/client/services/systemConfigService';
 import { getStaticPage, type StaticPageConfigKey } from '@/client/constants/staticPages';
@@ -37,7 +37,7 @@ const EmptyState = ({ title }: { title: string }) => (
             Trang &ldquo;{title}&rdquo; sẽ sớm có mặt. Vui lòng quay lại sau.
         </p>
         <Link
-            to="/"
+            href="/"
             className="mt-6 text-[13.5px] font-semibold text-[#637381] hover:text-[#212B36] transition-colors duration-200"
         >
             Về trang chủ

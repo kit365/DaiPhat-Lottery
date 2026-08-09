@@ -1,5 +1,5 @@
 import { ClientPage } from './ClientPage';
 
-export default function AdminSettingsRoute() {
+export default function AdminGeneralSettingsRoute() {
   return <ClientPage />;
 }

@@ -1,3 +1,4 @@
+import { Button } from '@/admin/components/ui/Button';
 import { SxProps, Theme } from '@mui/material';
 import { COLORS } from './constants';
 

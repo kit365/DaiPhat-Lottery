@@ -1,7 +1,7 @@
 "use client";
 
 import { Box, Card, SxProps, Theme, Typography } from '@mui/material';
-import { Icon } from '@iconify/react';
+import { Icon } from '@/admin/components/ui/AdminIcon';
 import type { ReactNode } from 'react';
 
 export type StatRibbonColor = 'orange' | 'green' | 'cyan' | 'purple' | 'red';
@@ -22,6 +22,7 @@ export interface StatRibbonCardProps {
     label: string;
     icon: string;
     color?: StatRibbonColor;
+    valueSize?: 'default' | 'compact';
     sx?: SxProps<Theme>;
 }
 
@@ -30,9 +31,11 @@ export const StatRibbonCard = ({
     label,
     icon,
     color = 'orange',
+    valueSize = 'default',
     sx,
 }: StatRibbonCardProps) => {
     const theme = COLOR_THEMES[color];
+    const isCompactValue = valueSize === 'compact' || value.length > 14;
 
     return (
         <Card
@@ -90,12 +93,15 @@ export const StatRibbonCard = ({
             >
                 <Typography
                     sx={{
-                        fontSize: '2rem',
+                        fontSize: isCompactValue
+                            ? { xs: '1.125rem', sm: '1.25rem', md: '1.375rem' }
+                            : { xs: '1.5rem', sm: '1.75rem', md: '2rem' },
                         fontWeight: 700,
-                        lineHeight: 1.15,
+                        lineHeight: 1.2,
                         color: 'var(--palette-text-primary, #1C252E)',
                         fontFamily: 'Barlow, Public Sans, sans-serif',
-                        wordBreak: 'break-word',
+                        wordBreak: 'keep-all',
+                        overflowWrap: 'anywhere',
                     }}
                 >
                     {value}
@@ -123,6 +129,7 @@ export interface StatRibbonCardsGridProps {
         sm?: number;
         md?: number;
         lg?: number;
+        xl?: number;
     };
 }
 
@@ -138,6 +145,7 @@ export const StatRibbonCardsGrid = ({
                 sm: `repeat(${columns.sm ?? 2}, minmax(0, 1fr))`,
                 md: `repeat(${columns.md ?? 4}, minmax(0, 1fr))`,
                 ...(columns.lg ? { lg: `repeat(${columns.lg}, minmax(0, 1fr))` } : {}),
+                ...(columns.xl ? { xl: `repeat(${columns.xl}, minmax(0, 1fr))` } : {}),
             },
             gap: 3,
             width: '100%',

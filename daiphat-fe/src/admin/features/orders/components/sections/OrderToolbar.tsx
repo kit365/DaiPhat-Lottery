@@ -1,6 +1,8 @@
 "use client";
 
-import { Toolbar, Box, Button, Badge, SvgIcon } from "@mui/material";
+import { Button } from '@/admin/components/ui/Button';
+
+import { Toolbar, Box, Badge, SvgIcon } from '@mui/material';
 import { useMemo, type Dispatch, type SetStateAction } from "react";
 import { Search } from "../../../../components/ui/Search";
 import { JiraFilter, toolbarStyles, IGridSettings } from "../../../../shared/data-grid";

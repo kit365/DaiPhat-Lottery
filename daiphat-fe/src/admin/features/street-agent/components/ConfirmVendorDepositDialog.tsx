@@ -2,17 +2,16 @@
 
 import { useEffect, useMemo, useState } from "react";
 import {
-    Button,
-    Dialog,
+Dialog,
     DialogActions,
     DialogContent,
     DialogTitle,
     Stack,
     TextField,
     Typography,
-} from "@mui/material";
+} from '@mui/material';
 import { toast } from "react-toastify";
-import { LoadingButton } from "../../../components/ui/LoadingButton";
+import { Button } from "../../../components/ui/Button";
 import { useConfirmVendorAllocation } from "../hooks/useVendorAllocation";
 import { useVendorSettingsDefaults } from "../hooks/useVendorSettingsDefaults";
 import { StreetAgentProfile, VendorAllocationBatch } from "../types/street-agent.type";
@@ -207,7 +206,7 @@ export const ConfirmVendorDepositDialog = ({
                 <Button onClick={onClose} disabled={isPending}>
                     Đóng
                 </Button>
-                <LoadingButton
+                <Button
                     loading={isPending}
                     variant="contained"
                     onClick={handleSubmit}

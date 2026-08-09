@@ -1,7 +1,7 @@
 "use client";
 
+import { useSearchParams } from "next/navigation";
 import { useEffect, useLayoutEffect, useMemo, useState } from "react";
-import { useSearchParams } from "react-router-dom";
 
 import dynamic from 'next/dynamic';
 
@@ -29,7 +29,7 @@ const scrollWindowToTop = () => {
 };
 
 export const HomePage = ({ initialData }: { initialData?: HomeServerInitialData }) => {
-  const [searchParams] = useSearchParams();
+  const searchParams = useSearchParams();
   const urlDrawDate = searchParams.get('drawDate');
   const urlStationId = searchParams.get('stationId');
   const urlStationIds = searchParams.get('stationIds');

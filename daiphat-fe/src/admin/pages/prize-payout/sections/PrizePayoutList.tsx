@@ -1,5 +1,6 @@
 "use client";
 
+import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
 import { useEffect, useState, type SyntheticEvent } from 'react';
 import React from 'react';
 import {
@@ -20,7 +21,6 @@ import {
     Typography,
 } from '@mui/material';
 import dayjs from 'dayjs';
-import { useNavigate } from '@/components/router-compat';
 import { prefixAdmin } from '../../../constants/routes';
 import { PrizePayoutStatusBadge } from '../../../../client/components/prize-payout/PrizePayoutStatusBadge';
 import {
@@ -59,7 +59,7 @@ const headerCellSx = {
 };
 
 export const PrizePayoutList = () => {
-    const navigate = useNavigate();
+    const router = useAdminRouter();
     const [page, setPage] = useState(0);
     const [rowsPerPage, setRowsPerPage] = useState(10);
     const [search, setSearch] = useState('');
@@ -249,7 +249,7 @@ export const PrizePayoutList = () => {
                                         key={row.id}
                                         hover
                                         sx={{ cursor: 'pointer' }}
-                                        onClick={() => navigate(detailPath(row.id))}
+                                        onClick={() => router.push(detailPath(row.id))}
                                     >
                                         <TableCell sx={cellBorderSx}>
                                             <Typography

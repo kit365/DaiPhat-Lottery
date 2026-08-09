@@ -1,7 +1,7 @@
 "use client";
 
 import { Box, Divider, Stack, SxProps, Theme, Tooltip, Typography } from '@mui/material';
-import { Icon } from '@iconify/react';
+import { Icon } from '@/admin/components/ui/AdminIcon';
 import dayjs from 'dayjs';
 import dynamic from 'next/dynamic';
 import type { ReactNode } from 'react';

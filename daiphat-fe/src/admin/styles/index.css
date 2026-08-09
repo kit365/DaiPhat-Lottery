@@ -1056,6 +1056,17 @@ input:-webkit-autofill:active {
     color: var(--palette-grey-800);
 }
 
+.admin-status-badge--compact {
+    min-width: auto;
+    height: 1.125rem;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    padding: 0 4px;
+    border-radius: 4px;
+    line-height: 1.2;
+    white-space: nowrap;
+}
+
 .admin-status-badge--draft {
     background-color: #e5e7eb;
     color: #374151;
@@ -1251,6 +1262,21 @@ input:-webkit-autofill:active {
 /* -------------------------------------------------------------------------
    MUI DatePicker / DateTimePicker / TimePicker Global Styling
    ------------------------------------------------------------------------- */
+/* Picker Input Box Styling */
+.MuiPickersOutlinedInput-root {
+    border-radius: var(--shape-borderRadius) !important;
+}
+
+.MuiPickersOutlinedInput-root.Mui-focused .MuiPickersOutlinedInput-notchedOutline,
+.MuiPickersOutlinedInput-root.Mui-focused.Mui-error .MuiPickersOutlinedInput-notchedOutline {
+    border-color: #1C252E !important;
+    border-width: 2px !important;
+}
+
+.MuiFormControl-root:has(.MuiPickersOutlinedInput-root.Mui-focused) .MuiInputLabel-root {
+    color: #1C252E !important;
+}
+
 .MuiPickersPopper-root .MuiPaper-root {
     border-radius: var(--shape-borderRadius-lg) !important;
     box-shadow: var(--customShadows-z20) !important;
@@ -1259,13 +1285,13 @@ input:-webkit-autofill:active {
 
 /* Selected Date Day Circle in Calendar */
 .MuiPickersDay-root.Mui-selected {
-    background-color: var(--palette-text-primary) !important;
-    color: var(--palette-common-white) !important;
+    background-color: #FF3030 !important;
+    color: #FFFFFF !important;
     font-weight: 700 !important;
 }
 
 .MuiPickersDay-root.Mui-selected:hover {
-    background-color: var(--palette-grey-700) !important;
+    background-color: rgba(255, 48, 48, 0.8) !important;
 }
 
 /* Today Indicator */
@@ -1275,26 +1301,55 @@ input:-webkit-autofill:active {
 
 /* Selected Time Item in Digital Clock / TimePicker */
 .MuiMultiSectionDigitalClockSection-item.Mui-selected {
-    background-color: var(--palette-text-primary) !important;
-    color: var(--palette-common-white) !important;
+    background-color: #FF3030 !important;
+    color: #FFFFFF !important;
     font-weight: 700 !important;
     border-radius: 8px !important;
 }
 
 .MuiMultiSectionDigitalClockSection-item.Mui-selected:hover {
-    background-color: var(--palette-grey-700) !important;
+    background-color: rgba(255, 48, 48, 0.8) !important;
 }
 
 /* AM / PM Selector Button */
 .MuiTimePickerToolbar-ampmSelection .MuiButton-root.Mui-selected,
 .MuiPickersToolbarText-root.Mui-selected {
-    color: var(--palette-text-primary) !important;
+    color: #FF3030 !important;
     font-weight: 700 !important;
 }
 
 .MuiTimePickerToolbar-ampmSelection .MuiButton-root.Mui-selected {
-    background-color: var(--palette-text-primary) !important;
-    color: var(--palette-common-white) !important;
+    background-color: #FF3030 !important;
+    color: #FFFFFF !important;
+}
+
+/* Picker Action Buttons (Cancel / OK) */
+.MuiPickersLayout-root .MuiDialogActions-root .MuiButton-root {
+    border-radius: 8px !important;
+    text-transform: none !important;
+    font-weight: 700 !important;
+    padding: 6px 16px !important;
+}
+
+/* Cancel Button */
+.MuiPickersLayout-root .MuiDialogActions-root .MuiButton-root:first-of-type {
+    border: 1px solid rgba(145, 158, 171, 0.32) !important;
+    color: #1C252E !important;
+    background-color: transparent !important;
+}
+.MuiPickersLayout-root .MuiDialogActions-root .MuiButton-root:first-of-type:hover {
+    background-color: rgba(145, 158, 171, 0.08) !important;
+    border-color: rgba(145, 158, 171, 0.48) !important;
+}
+
+/* OK Button */
+.MuiPickersLayout-root .MuiDialogActions-root .MuiButton-root:last-of-type {
+    background-color: #1C252E !important;
+    color: #FFFFFF !important;
+    border: 1px solid #1C252E !important;
+}
+.MuiPickersLayout-root .MuiDialogActions-root .MuiButton-root:last-of-type:hover {
+    background-color: #3f4a56 !important; /* Slightly lighter black/dark-grey for hover */
 }
 
 /* Analog Clock Pointer & Pin */

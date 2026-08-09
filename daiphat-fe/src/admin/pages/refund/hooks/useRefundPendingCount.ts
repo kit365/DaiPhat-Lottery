@@ -9,6 +9,7 @@ import { hasPermission } from '../../../utils/permission.util';
 import { PERMISSIONS } from '../../../constants/permission.constants';
 import { countPendingRefunds } from '../../../../types/refund.type';
 import { ADMIN_BADGE_POLL_MS } from '../../../hooks/adminBadgePoll';
+import { useAdminDeferredQueries } from '../../../hooks/useAdminDeferredQueries';
 
 /**
  * Polls staff refund statusCounts for the sidebar badge (non-PAID count).
@@ -16,13 +17,14 @@ import { ADMIN_BADGE_POLL_MS } from '../../../hooks/adminBadgePoll';
  */
 export const useRefundPendingCount = () => {
     const { user, token } = useAuthStore();
+    const deferred = useAdminDeferredQueries();
     const canView = Boolean(token) && Boolean(user) && hasPermission(user, PERMISSIONS.REFUND.VIEW);
 
     const query = useQuery({
         queryKey: [QUERY_KEYS.ADMIN_REFUNDS, 'pending-count'],
         queryFn: () => refundAdminApi.getStaffRefunds({ page: 1, limit: 1 }),
-        enabled: canView,
-        refetchOnWindowFocus: canView,
+        enabled: canView && deferred,
+        refetchOnWindowFocus: canView && deferred,
         refetchInterval: (q) => {
             if (!canView) return false;
             if (q.state.error) return false;

@@ -1,5 +1,7 @@
 "use client";
 
+import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
+import Link from "@/admin/components/navigation/AdminLink";
 import { PERMISSIONS } from "../../../../constants/permission.constants";
 
 import { Box, Card, Pagination, Stack, CircularProgress, Avatar, SvgIcon, ListItemText } from "@mui/material";
@@ -13,8 +15,6 @@ import { AdminRowActionsMenu, type AdminRowActionsMenuItem } from "../../../../c
 import dayjs from "dayjs";
 import 'dayjs/locale/vi';
 
-import { useNavigate } from "react-router-dom";
-import { Link } from "react-router-dom";
 import { AppToast as toast } from "../../../../../utils/toast.util";
 import { confirmAction, confirmDelete } from "../../../../utils/swal";
 import { useDeleteBlog, useUpdateBlog } from "../../hooks/useBlog";
@@ -43,7 +43,7 @@ export const BlogList = ({ blogs = [], isLoading = false, page, onPageChange, pa
 
     const currentData = blogs;
 
-    const navigate = useNavigate();
+    const router = useAdminRouter();
     const { mutate: deleteBlog } = useDeleteBlog();
     const { mutate: updateBlog } = useUpdateBlog();
 
@@ -92,7 +92,7 @@ export const BlogList = ({ blogs = [], isLoading = false, page, onPageChange, pa
 
     const handleChangeStatus = (blogId: string, newStatus: string) => {
         if (newStatus === BLOG_STATUS.SCHEDULED) {
-            navigate(`/${prefixAdmin}/blog/edit/${blogId}`);
+            router.push(`/${prefixAdmin}/blog/edit/${blogId}`);
             return;
         }
 
@@ -138,7 +138,7 @@ export const BlogList = ({ blogs = [], isLoading = false, page, onPageChange, pa
                 id: 'view',
                 label: 'Chi tiết',
                 icon: 'view',
-                onClick: () => navigate(`/${prefixAdmin}/blog/detail/${blogId}`),
+                onClick: () => router.push(`/${prefixAdmin}/blog/detail/${blogId}`),
             },
         ];
 
@@ -147,7 +147,7 @@ export const BlogList = ({ blogs = [], isLoading = false, page, onPageChange, pa
                 id: 'edit',
                 label: 'Chỉnh sửa',
                 icon: 'edit',
-                onClick: () => navigate(`/${prefixAdmin}/blog/edit/${blogId}`),
+                onClick: () => router.push(`/${prefixAdmin}/blog/edit/${blogId}`),
             });
 
             (STATUS_ACTIONS[status] || []).forEach((action) => {
@@ -221,7 +221,7 @@ export const BlogList = ({ blogs = [], isLoading = false, page, onPageChange, pa
                         <ListItemText
                             primary={
                                 <Link
-                                    to={`/${prefixAdmin}/blog/edit/${blogId}`}
+                                    href={`/${prefixAdmin}/blog/edit/${blogId}`}
                                     style={{
                                         color: "var(--palette-text-primary)",
                                         fontWeight: 600,
@@ -231,7 +231,7 @@ export const BlogList = ({ blogs = [], isLoading = false, page, onPageChange, pa
                                     className="hover:underline"
                                     onClick={(e) => {
                                         e.preventDefault();
-                                        navigate(`/${prefixAdmin}/blog/detail/${blogId}`);
+                                        router.push(`/${prefixAdmin}/blog/detail/${blogId}`);
                                     }}
                                 >
                                     {title}
@@ -395,7 +395,7 @@ export const BlogList = ({ blogs = [], isLoading = false, page, onPageChange, pa
                                     <Stack sx={{ flex: 1, gap: "8px" }}>
                                         <Link
                                             className="text-[0.875rem] font-[600] leading-[1.57143] line-clamp-2 hover:underline"
-                                            to={`/${prefixAdmin}/blog/detail/${blog.id || blog._id}`}
+                                            href={`/${prefixAdmin}/blog/detail/${blog.id || blog._id}`}
                                         >
                                             {blog.title}
                                         </Link>

@@ -1,5 +1,7 @@
 "use client";
 
+import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
+import { useRouteParams } from "@/hooks/useRouteParams";
 import {
     Alert,
     Box,
@@ -15,10 +17,9 @@ import {
     Typography,
     Paper,
 } from '@mui/material';
-import { useNavigate, useParams } from '@/components/router-compat';
-import { Breadcrumb } from '../../../../../components/ui/Breadcrumb';
+import { PageHeader } from '../../../../../components/ui/PageHeader';
+import { SpinnerLoading } from '../../../../../components/ui/SpinnerLoading';
 import { AdminStatusBadge } from '../../../../../components/ui/AdminStatusBadge';
-import { Title } from '../../../../../components/ui/Title';
 import { CollapsibleCard } from '../../../../../components/ui/CollapsibleCard';
 import { useState } from 'react';
 import { IconButton } from '@mui/material';
@@ -57,8 +58,8 @@ import { ImagePreview } from '../../../../../components/ui/ImagePreview';
 import dayjs from 'dayjs';
 
 export const ImportBatchDetailPage = () => {
-    const { id } = useParams<{ id: string }>();
-    const navigate = useNavigate();
+    const { id } = useRouteParams();
+    const router = useAdminRouter();
     const { data: batch, isLoading } = useImportBatchDetail(id);
     const { data: providersRes } = useStations({ limit: 1000 });
     const providers = (providersRes as any)?.data?.recordList || [];
@@ -79,76 +80,68 @@ export const ImportBatchDetailPage = () => {
     const cancelledReasonText =
         batch?.status === 'CANCELLED' ? formatImportBatchCancelReason(batch.cancelReason) : undefined;
 
-    if (isLoading) {
-        return null;
-    }
-
-    if (!batch) {
-        return (
-            <Box sx={{ p: 3 }}>
-                <Typography>Không tìm thấy phiếu nhập lô.</Typography>
-            </Box>
-        );
-    }
-
     return (
         <Box className="admin-page">
-            <Breadcrumb
-                items={[
+            <PageHeader
+                title={`Phiếu nhập lô ${batch ? formatImportBatchHeaderCode(batch.batchCode, batch.id) : `#${id}`}`}
+                breadcrumbItems={[
                     { label: 'Vé số', to: `/${prefixAdmin}/ticket/list` },
                     { label: 'Nhập lô vé', to: ROUTES.ADMIN.IMPORT_BATCH.LIST },
-                    { label: formatImportBatchHeaderCode(batch.batchCode, batch.id) },
+                    { label: batch ? formatImportBatchHeaderCode(batch.batchCode, batch.id) : `#${id}` },
                 ]}
-            />
-            <Stack
-                direction={{ xs: 'column', sm: 'row' }}
-                alignItems={{ xs: 'flex-start', sm: 'flex-start' }}
-                justifyContent="space-between"
-                spacing={2}
-                sx={{ mb: 2 }}
-            >
-                <Box sx={{ minWidth: 0, flex: 1 }}>
-                    <Stack direction="row" alignItems="center" spacing={1.5} flexWrap="wrap" useFlexGap>
-                        <Title title={`Phiếu nhập lô ${formatImportBatchHeaderCode(batch.batchCode, batch.id)}`} />
+                titleExtra={
+                    batch ? (
                         <AdminStatusBadge
                             label={getImportBatchStatusLabel(batch.status)}
                             modifier={getImportBatchStatusBadgeClass(batch.status)}
                         />
-                    </Stack>
-                    {cancelledReasonText && (
+                    ) : undefined
+                }
+                description={
+                    cancelledReasonText ? (
                         <Typography
                             variant="body2"
                             color="text.secondary"
-                            sx={{ mt: 0.75, maxWidth: 720 }}
+                            sx={{ maxWidth: 720 }}
                         >
                             {cancelledReasonText}
                         </Typography>
-                    )}
-                </Box>
-                {canEditBatch && (
-                    <CanAccess permission={PERMISSIONS.IMPORT_BATCH.CREATE}>
-                        <Stack direction="row" spacing={1}>
-                            <Button
-                                variant="outlined"
-                                onClick={() => navigate(ROUTES.ADMIN.IMPORT_BATCH.EDIT(batch.id))}
-                            >
-                                Chỉnh sửa phiếu
-                            </Button>
-                            {canImportTickets && (
-                                <CanAccess permission={PERMISSIONS.TICKET.CREATE}>
-                                    <Button
-                                        variant="contained"
-                                        onClick={() => navigate(ROUTES.ADMIN.IMPORT_BATCH.LIST)}
-                                    >
-                                        Nhập vé vào phiếu
-                                    </Button>
-                                </CanAccess>
-                            )}
-                        </Stack>
-                    </CanAccess>
-                )}
-            </Stack>
+                    ) : undefined
+                }
+                action={
+                    batch && canEditBatch ? (
+                        <CanAccess permission={PERMISSIONS.IMPORT_BATCH.CREATE}>
+                            <Stack direction="row" spacing={1}>
+                                <Button
+                                    variant="outlined"
+                                    onClick={() => router.push(ROUTES.ADMIN.IMPORT_BATCH.EDIT(batch.id))}
+                                >
+                                    Chỉnh sửa phiếu
+                                </Button>
+                                {canImportTickets && (
+                                    <CanAccess permission={PERMISSIONS.TICKET.CREATE}>
+                                        <Button
+                                            variant="contained"
+                                            onClick={() => router.push(ROUTES.ADMIN.IMPORT_BATCH.LIST)}
+                                        >
+                                            Nhập vé vào phiếu
+                                        </Button>
+                                    </CanAccess>
+                                )}
+                            </Stack>
+                        </CanAccess>
+                    ) : undefined
+                }
+            />
 
+            {isLoading ? (
+                <SpinnerLoading />
+            ) : !batch ? (
+                <Box sx={{ p: 3 }}>
+                    <Typography>Không tìm thấy phiếu nhập lô.</Typography>
+                </Box>
+            ) : (
+                <>
             {hasUnsavedDraft && (
                 <Alert severity="info" sx={{ mb: 2 }}>
                     Phiếu nhập lô đang được chỉnh sửa và chưa được lưu. Nội dung nháp cục bộ sẽ được
@@ -345,7 +338,7 @@ export const ImportBatchDetailPage = () => {
                                                     className="admin-table-action"
                                                     aria-label="Xem chi tiết"
                                                     onClick={() =>
-                                                        navigate(
+                                                        router.push(
                                                             ROUTES.ADMIN.IMPORT_BATCH.LINE_DETAIL(
                                                                 batch.id,
                                                                 line.id
@@ -382,6 +375,8 @@ export const ImportBatchDetailPage = () => {
                 <Alert severity="info" sx={{ mt: 2 }}>
                     Phiếu đã nhập kho. Không thể chỉnh sửa hoặc xóa dòng.
                 </Alert>
+            )}
+                </>
             )}
         </Box>
     );

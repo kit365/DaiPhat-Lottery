@@ -1,8 +1,8 @@
 "use client";
 
+import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
 import { Alert, Button } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
-import { useNavigate } from '@/components/router-compat';
 import { ROUTES } from '../../../../../constants/routes';
 import { getImportBatches } from '../../services/importBatchService';
 import { QUERY_KEYS } from '../../constants/queryKeys';
@@ -10,7 +10,7 @@ import { usePermissions } from '../../../../../hooks/usePermission';
 import { PERMISSIONS } from '../../../../../constants/permission.constants';
 
 export const ImportBatchDraftBanner = () => {
-    const navigate = useNavigate();
+    const router = useAdminRouter();
     const { can } = usePermissions();
     const canView = can(PERMISSIONS.IMPORT_BATCH.VIEW) || can(PERMISSIONS.IMPORT_BATCH.CREATE);
 
@@ -35,7 +35,7 @@ export const ImportBatchDraftBanner = () => {
                 <Button
                     color="inherit"
                     size="small"
-                    onClick={() => navigate(ROUTES.ADMIN.IMPORT_BATCH.LIST)}
+                    onClick={() => router.push(ROUTES.ADMIN.IMPORT_BATCH.LIST)}
                 >
                     Xem danh sách
                 </Button>

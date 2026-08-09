@@ -1,7 +1,8 @@
 "use client";
 
+import { useRouter } from "next/navigation";
+import Link from "next/link";
 import React, { useCallback, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
 import { Trash2, ChevronRight, ShieldCheck, ArrowLeft, Store, CreditCard, CheckCircle2 } from 'lucide-react';
 import { useCartStore, CartItem } from '../../../stores/useCartStore';
 import { useAuthStore } from '../../../stores/useAuthStore';
@@ -25,7 +26,7 @@ import {
 import { Breadcrumb } from '../../components/ui/Breadcrumb';
 
 export const CheckoutPage = () => {
-    const navigate = useNavigate();
+    const router = useRouter();
     const {
         items,
         buyNowItems,
@@ -102,9 +103,9 @@ export const CheckoutPage = () => {
         if (!token) {
             toast.error("Vui lòng đăng nhập để tiếp tục thanh toán");
             openLoginModal();
-            navigate('/cart', { replace: true });
+            router.replace('/cart');
         }
-    }, [token, navigate, openLoginModal]);
+    }, [token, router, openLoginModal]);
 
     React.useEffect(() => {
         // Mua ngay: không validate/đẩy về giỏ theo giỏ chính — tránh mất phiên mua ngay.
@@ -113,7 +114,7 @@ export const CheckoutPage = () => {
         const validateCartStock = async () => {
             const hasAdjustment = await validateAndSyncCartStock();
             if (hasAdjustment) {
-                navigate('/cart', { replace: true });
+                router.replace('/cart');
             }
         };
 
@@ -126,9 +127,9 @@ export const CheckoutPage = () => {
         const hasCheckoutItems = checkoutItems.some((item) => item.quantity > 0);
         if (!hasCheckoutItems) {
             if (isBuyNow) clearBuyNow();
-            navigate('/cart', { replace: true });
+            router.replace('/cart');
         }
-    }, [checkoutItems, isBuyNow, clearBuyNow, navigate, paymentDialogOpen]);
+    }, [checkoutItems, isBuyNow, clearBuyNow, router, paymentDialogOpen]);
 
     const getMaxStock = (item: CartItem) =>
         typeof item.maxStock === 'number' ? item.maxStock : 999;
@@ -270,7 +271,7 @@ export const CheckoutPage = () => {
                         // For cash or if no transaction id
                         toast.success("Đặt hàng thành công!");
                         finalizeSuccessfulCheckout();
-                        navigate('/'); // Navigate to success page
+                        router.push('/'); // Navigate to success page
                     }
                 }
             }
@@ -289,22 +290,22 @@ export const CheckoutPage = () => {
         const orderId = pendingPaymentOrder?.orderId;
         closePaymentDialog();
         if (orderId) {
-            navigate(`/profile/orders/${orderId}`);
+            router.push(`/profile/orders/${orderId}`);
         } else {
-            navigate('/profile/orders');
+            router.push('/profile/orders');
         }
-    }, [closePaymentDialog, navigate, pendingPaymentOrder?.orderId]);
+    }, [closePaymentDialog, router, pendingPaymentOrder?.orderId]);
 
     const handlePaymentExpired = useCallback(() => {
         toast.error('Phiên thanh toán đã hết hạn. Đơn hàng đã bị hủy.');
         const orderId = pendingPaymentOrder?.orderId;
         closePaymentDialog();
         if (orderId) {
-            navigate(`/profile/orders/${orderId}`);
+            router.push(`/profile/orders/${orderId}`);
         } else {
-            navigate('/profile/orders');
+            router.push('/profile/orders');
         }
-    }, [closePaymentDialog, navigate, pendingPaymentOrder?.orderId]);
+    }, [closePaymentDialog, router, pendingPaymentOrder?.orderId]);
 
     const handlePaymentDialogClose = useCallback(() => {
         toast.info('Đơn đang chờ thanh toán. Bạn có thể thanh toán lại từ Đơn hàng của tôi.');
@@ -313,16 +314,16 @@ export const CheckoutPage = () => {
         finalizeSuccessfulCheckout();
         closePaymentDialog();
         if (orderId) {
-            navigate(`/profile/orders/${orderId}`);
+            router.push(`/profile/orders/${orderId}`);
         } else {
-            navigate('/profile/orders');
+            router.push('/profile/orders');
         }
-    }, [closePaymentDialog, finalizeSuccessfulCheckout, navigate, pendingPaymentOrder?.orderId]);
+    }, [closePaymentDialog, finalizeSuccessfulCheckout, router, pendingPaymentOrder?.orderId]);
 
     const handleBackToCart = () => {
         // Huỷ phiên mua ngay — giữ nguyên giỏ hàng chính.
         clearBuyNow();
-        navigate('/cart');
+        router.push('/cart');
     };
 
     const isSubmitting = createOrderMutation.isPending || processPaymentMutation.isPending;

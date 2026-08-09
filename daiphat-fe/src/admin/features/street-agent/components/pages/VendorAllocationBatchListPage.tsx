@@ -1,42 +1,13 @@
 "use client";
 
+import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
 import { useEffect, useMemo, useState } from "react";
 import {
-    Alert,
-    Autocomplete,
-    Box,
-    Button,
-    Card,
-    Checkbox,
-    Chip,
-    Dialog,
-    DialogActions,
-    DialogContent,
-    DialogTitle,
-    Divider,
-    Drawer,
-    FormControl,
-    IconButton,
-    InputLabel,
-    MenuItem,
-    Select,
-    Stack,
-    Table,
-    TableBody,
-    TableCell,
-    TableContainer,
-    TableHead,
-    TablePagination,
-    TableRow,
-    TextField,
-    Typography,
-} from "@mui/material";
+    Alert, Autocomplete, Box, Card, Checkbox, Chip, Dialog, DialogActions, DialogContent, DialogTitle, Divider, Drawer, FormControl, IconButton, InputLabel, MenuItem, Select, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TablePagination, TableRow, TextField, Typography } from '@mui/material';
 import CloseIcon from "@mui/icons-material/Close";
 import { toast } from "react-toastify";
-import { useNavigate } from "@/components/router-compat";
-import { Breadcrumb } from "../../../../components/ui/Breadcrumb";
-import { Title } from "../../../../components/ui/Title";
-import { LoadingButton } from "../../../../components/ui/LoadingButton";
+import { PageHeader } from "../../../../components/ui/PageHeader";
+import { Button } from '../../../../components/ui/Button';
 import { ROUTES } from "../../../../constants/routes";
 import { PERMISSIONS } from "../../../../constants/permission.constants";
 import { usePermissions } from "../../../../hooks/usePermission";
@@ -171,7 +142,7 @@ const Row = ({ label, value }: { label: string; value: string }) => (
 );
 
 export const VendorAllocationBatchListPage = () => {
-    const navigate = useNavigate();
+    const router = useAdminRouter();
     const { can } = usePermissions();
     const canEdit = can(PERMISSIONS.STREET_AGENT.EDIT);
 
@@ -253,7 +224,7 @@ export const VendorAllocationBatchListPage = () => {
             draftId: String(batch.id),
             businessDate: batch.businessDate,
         });
-        navigate(`${ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.ALLOCATION}?${params.toString()}`);
+        router.push(`${ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.ALLOCATION}?${params.toString()}`);
     };
 
     const handleCancel = () => {
@@ -377,24 +348,22 @@ export const VendorAllocationBatchListPage = () => {
 
     return (
         <Box sx={{ maxWidth: 1400, mx: "auto", pb: 5 }}>
-            <div className="mb-[calc(3*var(--spacing))] flex items-start justify-end gap-[calc(2*var(--spacing))] flex-wrap">
-                <div className="mr-auto">
-                    <Title title="Phiếu bàn giao vé" />
-                    <Breadcrumb
-                        items={[
-                            { label: "Dashboard", to: "/" },
-                            { label: "Đại lý bán dạo", to: ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.LIST },
-                            { label: "Phiếu bàn giao vé" },
-                        ]}
-                    />
-                </div>
-                <Button
-                    variant="contained"
-                    onClick={() => navigate(ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.ALLOCATION)}
-                >
-                    Tạo bàn giao mới
-                </Button>
-            </div>
+            <PageHeader
+                title="Phiếu bàn giao vé"
+                breadcrumbItems={[
+                    { label: "Dashboard", to: "/" },
+                    { label: "Đại lý bán dạo", to: ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.LIST },
+                    { label: "Phiếu bàn giao vé" },
+                ]}
+                action={
+                    <Button
+                        variant="contained"
+                        onClick={() => router.push(ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.ALLOCATION)}
+                    >
+                        Tạo bàn giao mới
+                    </Button>
+                }
+            />
 
             <Card
                 sx={{
@@ -762,7 +731,7 @@ export const VendorAllocationBatchListPage = () => {
                             {detailBatch.status === "CONFIRMED" && canEdit && (
                                 <>
                                     <Divider />
-                                    <LoadingButton
+                                    <Button
                                         loading={isOpeningReturn}
                                         label="Mở phiên trả vé"
                                         loadingLabel="Đang mở..."
@@ -807,7 +776,7 @@ export const VendorAllocationBatchListPage = () => {
                                         >
                                             Chọn tất cả còn giữ
                                         </Button>
-                                        <LoadingButton
+                                        <Button
                                             loading={isSubmittingReturns}
                                             variant="contained"
                                             label={`Gửi trả (${selectedSerialIds.length})`}
@@ -990,7 +959,7 @@ export const VendorAllocationBatchListPage = () => {
                                     )}
 
                                     {detailBatch.status === "RETURN_OPEN" && canEdit && (
-                                        <LoadingButton
+                                        <Button
                                             loading={isSettling}
                                             label="Quyết toán"
                                             loadingLabel="Đang quyết toán..."
@@ -1038,7 +1007,7 @@ export const VendorAllocationBatchListPage = () => {
                 </DialogContent>
                 <DialogActions>
                     <Button onClick={() => setCancelId(null)}>Đóng</Button>
-                    <LoadingButton
+                    <Button
                         loading={isCancelling}
                         color="error"
                         variant="contained"
@@ -1056,7 +1025,7 @@ export const VendorAllocationBatchListPage = () => {
                 </DialogContent>
                 <DialogActions>
                     <Button onClick={() => setReturnSessionId(null)}>Đóng</Button>
-                    <LoadingButton
+                    <Button
                         loading={isOpeningReturn}
                         variant="contained"
                         onClick={() => returnSessionId && handleOpenReturnSession(returnSessionId)}
@@ -1079,7 +1048,7 @@ export const VendorAllocationBatchListPage = () => {
                 </DialogContent>
                 <DialogActions>
                     <Button onClick={() => setSettleConfirmOpen(false)}>Đóng</Button>
-                    <LoadingButton
+                    <Button
                         loading={isSettling}
                         variant="contained"
                         onClick={handleSettle}

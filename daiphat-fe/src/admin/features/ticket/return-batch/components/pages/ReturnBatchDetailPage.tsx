@@ -1,11 +1,11 @@
 "use client";
 
+import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
+import { useRouteParams } from "@/hooks/useRouteParams";
 import {
     Alert,
     Box,
-    Button,
-    Chip,
-    CircularProgress,
+Chip,
     Stack,
     Table,
     TableBody,
@@ -19,12 +19,11 @@ import VisibilityIcon from '@mui/icons-material/Visibility';
 import dayjs from 'dayjs';
 import { useState } from 'react';
 import Swal from 'sweetalert2';
-import { useNavigate, useParams } from '@/components/router-compat';
 import { toast } from 'react-toastify';
-import { Breadcrumb } from '../../../../../components/ui/Breadcrumb';
-import { Title } from '../../../../../components/ui/Title';
+import { PageHeader } from '../../../../../components/ui/PageHeader';
+import { SpinnerLoading } from '../../../../../components/ui/SpinnerLoading';
 import { CollapsibleCard } from '../../../../../components/ui/CollapsibleCard';
-import { LoadingButton } from '../../../../../components/ui/LoadingButton';
+import { Button } from '../../../../../components/ui/Button';
 import { CanAccess } from '../../../../../components/auth/CanAccess';
 import { PERMISSIONS } from '../../../../../constants/permission.constants';
 import { ROUTES } from '../../../../../constants/routes';
@@ -47,8 +46,8 @@ import { InspectTicketsDialog } from '../sections/InspectTicketsDialog';
 import { ReturnBatchTicketsModal } from '../sections/ReturnBatchTicketsModal';
 
 export const ReturnBatchDetailPage = () => {
-    const navigate = useNavigate();
-    const { id } = useParams<{ id: string }>();
+    const router = useAdminRouter();
+    const { id } = useRouteParams();
     const { data: batch, isLoading, isError, refetch } = useReturnBatchDetail(id);
     const confirmHandover = useConfirmReturnHandover();
     const startInspection = useStartReturnInspection();
@@ -58,8 +57,16 @@ export const ReturnBatchDetailPage = () => {
 
     if (isLoading) {
         return (
-            <Box display="flex" justifyContent="center" alignItems="center" minHeight={320}>
-                <CircularProgress />
+            <Box sx={{ width: '100%', pb: 5 }}>
+                <PageHeader
+                    title={`Phiếu trả vé #${id}`}
+                    breadcrumbItems={[
+                        { label: 'Vé số', to: ROUTES.ADMIN.TICKETS.LIST },
+                        { label: 'Trả vé NCC', to: ROUTES.ADMIN.RETURN_BATCH.LIST },
+                        { label: `#${id}` },
+                    ]}
+                />
+                <SpinnerLoading />
             </Box>
         );
     }
@@ -189,7 +196,7 @@ export const ReturnBatchDetailPage = () => {
 
     const handleInspectTickets = async () => {
         if (batch.inspectionExpired || batch.status === 'CANCELLED') {
-            navigate(ROUTES.ADMIN.RETURN_BATCH.INSPECT(batch.id));
+            router.push(ROUTES.ADMIN.RETURN_BATCH.INSPECT(batch.id));
             return;
         }
         if (canStartInspection(batch.status)) {
@@ -214,36 +221,33 @@ export const ReturnBatchDetailPage = () => {
                 return;
             }
         }
-        navigate(ROUTES.ADMIN.RETURN_BATCH.INSPECT(batch.id));
+        router.push(ROUTES.ADMIN.RETURN_BATCH.INSPECT(batch.id));
     };
 
     return (
         <Box sx={{ width: '100%', pb: 5 }}>
             {/* Page Header */}
-            <div className="mb-[calc(3*var(--spacing))] flex items-start justify-end gap-[calc(2*var(--spacing))] flex-wrap">
-                <div className="mr-auto">
-                    <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 0.5 }}>
-                        <Title title={`Phiếu trả vé ${batch.batchCode?.trim() || `#${batch.id}`}`} />
-                        <Chip
-                            size="small"
-                            label={getReturnBatchStatusLabel(batch.status, batch.statusLabel)}
-                            color={getReturnBatchStatusChipColor(batch.status)}
-                            variant="outlined"
-                            sx={{ fontWeight: 700 }}
-                        />
-                    </Stack>
-                    <Breadcrumb
-                        items={[
-                            { label: 'Vé số', to: ROUTES.ADMIN.TICKETS.LIST },
-                            { label: 'Trả vé NCC', to: ROUTES.ADMIN.RETURN_BATCH.LIST },
-                            { label: batch.batchCode?.trim() || `#${batch.id}` },
-                        ]}
+            <PageHeader
+                title={`Phiếu trả vé ${batch.batchCode?.trim() || `#${batch.id}`}`}
+                breadcrumbItems={[
+                    { label: 'Vé số', to: ROUTES.ADMIN.TICKETS.LIST },
+                    { label: 'Trả vé NCC', to: ROUTES.ADMIN.RETURN_BATCH.LIST },
+                    { label: batch.batchCode?.trim() || `#${batch.id}` },
+                ]}
+                titleExtra={
+                    <Chip
+                        size="small"
+                        label={getReturnBatchStatusLabel(batch.status, batch.statusLabel)}
+                        color={getReturnBatchStatusChipColor(batch.status)}
+                        variant="outlined"
+                        sx={{ fontWeight: 700 }}
                     />
-                </div>
+                }
+                action={
                 <Stack direction="row" spacing={1} flexWrap="wrap">
                     {(batch.status === 'PENDING_INSPECTION' || batch.status === 'INSPECTING') && !batch.inspectionExpired && (
                         <CanAccess permission={PERMISSIONS.IMPORT_BATCH.CREATE}>
-                            <LoadingButton
+                            <Button
                                 label={batch.status === 'INSPECTING' ? 'Kiểm tra vé (Tiếp tục)' : 'Kiểm tra vé'}
                                 className="btn-primary-admin"
                                 loading={startInspection.isPending}
@@ -253,7 +257,7 @@ export const ReturnBatchDetailPage = () => {
                     )}
                     {batch.status === 'PENDING_HANDOVER' && (
                         <CanAccess permission={PERMISSIONS.IMPORT_BATCH.CREATE}>
-                            <LoadingButton
+                            <Button
                                 label="Xác nhận bàn giao"
                                 className="btn-primary-admin"
                                 loading={confirmHandover.isPending}
@@ -262,7 +266,8 @@ export const ReturnBatchDetailPage = () => {
                         </CanAccess>
                     )}
                 </Stack>
-            </div>
+                }
+            />
 
             {/* System Status Alerts */}
             {batch.status === 'CANCELLED' && (

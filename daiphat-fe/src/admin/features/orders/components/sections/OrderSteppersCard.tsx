@@ -1,6 +1,6 @@
 import React from 'react';
 import { Card, Grid, Box, Typography } from '@mui/material';
-import { Icon } from '@iconify/react';
+import { Icon } from '@/admin/components/ui/AdminIcon';
 import dayjs from 'dayjs';
 import { OrderStatus } from '../../../../../types/order.type';
 

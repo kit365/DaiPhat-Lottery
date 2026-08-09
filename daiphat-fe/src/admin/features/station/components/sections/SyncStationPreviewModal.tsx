@@ -6,8 +6,7 @@ import {
     DialogTitle,
     DialogContent,
     DialogActions,
-    Button,
-    Table,
+Table,
     TableBody,
     TableCell,
     TableContainer,
@@ -20,7 +19,7 @@ import {
 } from '@mui/material';
 import dayjs from 'dayjs';
 import { toast } from 'react-toastify';
-import { LoadingButton } from '../../../../components/ui/LoadingButton';
+import { Button } from '../../../../components/ui/Button';
 import { useConfirmSyncStations } from '../../hooks/useStation';
 import { confirmAction } from '../../../../utils/swal';
 
@@ -416,7 +415,7 @@ export const SyncStationPreviewModal: React.FC<SyncStationPreviewModalProps> = (
                     >
                         Hủy
                     </Button>
-                    <LoadingButton
+                    <Button
                         loading={isPending}
                         onClick={handleConfirmSave}
                         label="Xác nhận & Lưu"

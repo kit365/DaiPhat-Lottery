@@ -6,7 +6,7 @@ import DashboardCard from "../../components/dashboard/DashboardCard";
 import AnalyticsWidget from "../../components/dashboard/AnalyticsWidget";
 import { useState, useEffect } from "react";
 import { getAnalyticsStats } from "../../api/dashboard.api";
-import { Icon } from "@iconify/react";
+import { Icon } from '@/admin/components/ui/AdminIcon';
 
 const CurrentVisits = ({ data }: { data: any[] }) => {
     const theme = useTheme();

@@ -1,5 +1,5 @@
 import { Alert, AlertTitle, Box, Typography } from '@mui/material';
-import { Icon } from '@iconify/react';
+import { Icon } from '@/admin/components/ui/AdminIcon';
 import type { OrderCutoffPhase } from '../../hooks/useOrder';
 
 interface OrderCutoffReminderBannerProps {

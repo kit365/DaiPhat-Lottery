@@ -70,14 +70,16 @@ export const columnsConfig: GridColDef<ITicket>[] = [
     {
         field: 'status',
         headerName: 'Trạng thái',
-        width: 140,
+        width: 96,
+        minWidth: 88,
         filterable: false,
         renderCell: RenderStatusCell,
     },
     {
         field: 'ticketCondition',
         headerName: 'Tình trạng vé',
-        width: 140,
+        width: 96,
+        minWidth: 88,
         align: 'center',
         headerAlign: 'center',
         filterable: false,

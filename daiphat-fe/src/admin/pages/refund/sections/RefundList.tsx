@@ -1,5 +1,6 @@
 "use client";
 
+import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
 import { useEffect, useState, type SyntheticEvent } from 'react';
 import React from 'react';
 import {
@@ -20,9 +21,8 @@ import {
     Stack,
     Avatar,
 } from '@mui/material';
-import { Icon } from '@iconify/react';
+import { Icon } from '@/admin/components/ui/AdminIcon';
 import dayjs from 'dayjs';
-import { useNavigate } from '@/components/router-compat';
 import { PERMISSIONS } from '../../../constants/permission.constants';
 import { prefixAdmin } from '../../../constants/routes';
 import { AdminRowActionsMenu } from '../../../components/ui/AdminRowActionsMenu';
@@ -168,7 +168,7 @@ const resolveAssignedStaff = (refund: RefundRequestResponse) => {
 };
 
 export const RefundList = () => {
-    const navigate = useNavigate();
+    const router = useAdminRouter();
     const [page, setPage] = useState(0);
     const [rowsPerPage, setRowsPerPage] = useState(10);
     const [search, setSearch] = useState('');
@@ -216,11 +216,11 @@ export const RefundList = () => {
     };
 
     const handleViewDetail = (id: number) => {
-        navigate(detailPath(id));
+        router.push(detailPath(id));
     };
 
     const handleConfirmTransfer = (id: number) => {
-        navigate(detailPath(id), { state: { openTransfer: true } } as any);
+        router.push(`${detailPath(id)}?openTransfer=true`);
     };
 
     const emptyMessage =

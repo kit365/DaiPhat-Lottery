@@ -1,29 +1,16 @@
 "use client";
 
+import { Button } from '@/admin/components/ui/Button';
+
 import React, { useState, useMemo, useEffect } from 'react';
 import { Search } from "../../../../components/ui/Search";
 import { JiraFilter } from "../../../../shared/data-grid";
-import { Badge, SvgIcon } from "@mui/material";
-import {
-    Box,
-    Typography,
-    Card,
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableRow,
-    styled,
-    CircularProgress,
-    IconButton,
-    Checkbox,
-    CheckboxProps,
-    Button
-} from '@mui/material';
+import { Badge, SvgIcon } from '@mui/material';
+import { Box, Typography, Card, Table, TableBody, TableCell, TableHead, TableRow, styled, CircularProgress, IconButton, Checkbox, CheckboxProps } from '@mui/material';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import KeyboardArrowRightIcon from '@mui/icons-material/KeyboardArrowRight';
 import SaveIcon from '@mui/icons-material/Save';
-import LoadingScreen from '../../../../components/ui/LoadingScreen';
+import { SpinnerLoading } from '../../../../components/ui/SpinnerLoading';
 import { useRoles, useUpdateRole, usePermissions, useReorderPermissions } from '../../hooks/useRole';
 import { AppToast as toast } from '../../../../../utils/toast.util';
 import {
@@ -329,7 +316,7 @@ export const RoleMatrixOverview = () => {
     };
 
     if (isLoading) {
-        return <LoadingScreen />;
+        return <SpinnerLoading compact />;
     }
 
     if (roles.length === 0) {

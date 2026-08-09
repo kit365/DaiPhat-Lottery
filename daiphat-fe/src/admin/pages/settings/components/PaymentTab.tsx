@@ -6,6 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { settingPaymentSchema, SettingPaymentFormValues } from "../../../schemas/setting.schema";
 import { useSettingPayment, useUpdateSettingPayment } from "../hooks/useSettings";
 import { useEffect } from "react";
+import { SpinnerLoading } from "../../../components/ui/SpinnerLoading";
 
 export const PaymentTab = () => {
     const { data: paymentData, isLoading } = useSettingPayment();
@@ -39,7 +40,7 @@ export const PaymentTab = () => {
         updatePayment(data);
     };
 
-    if (isLoading) return <Typography>Đang tải...</Typography>;
+    if (isLoading) return <SpinnerLoading compact />;
 
     return (
         <Card sx={{ p: 4, borderRadius: "16px", boxShadow: "0 0 2px 0 rgba(145, 158, 171, 0.2), 0 12px 24px -4px rgba(145, 158, 171, 0.12)" }}>

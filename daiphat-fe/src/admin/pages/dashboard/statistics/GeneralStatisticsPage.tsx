@@ -8,7 +8,7 @@ import RefreshIcon from '@mui/icons-material/Refresh';
 import { getEcommerceStats } from '../../../api/dashboard.api';
 import DashboardCard from '../../../components/dashboard/DashboardCard';
 import SummaryWidget from '../../../components/dashboard/SummaryWidget';
-import { Icon } from '@iconify/react';
+import { Icon } from '@/admin/components/ui/AdminIcon';
 
 export const GeneralStatisticsPage = () => {
     const [loading, setLoading] = useState(true);

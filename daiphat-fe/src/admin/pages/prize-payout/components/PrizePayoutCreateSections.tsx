@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { Avatar, Box, Card, CardContent, CardHeader, Stack, Typography } from '@mui/material';
-import { Icon } from '@iconify/react';
+import { Icon } from '@/admin/components/ui/AdminIcon';
 import { formatPrizePayoutCurrency } from '../../../../types/prize-payout.type';
 
 export const SectionCard = ({

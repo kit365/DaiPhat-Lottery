@@ -1,5 +1,7 @@
 "use client";
 
+import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
+import { useRouteParams } from "@/hooks/useRouteParams";
 import { useState } from "react";
 import {
     Box,
@@ -12,7 +14,6 @@ import {
     Chip,
     IconButton,
     Select,
-    CircularProgress,
     alpha,
     Divider,
     Table,
@@ -22,11 +23,10 @@ import {
     TableHead,
     TableRow
 } from "@mui/material";
-import { Icon } from "@iconify/react";
-import { useNavigate, useParams } from "react-router-dom";
+import { Icon } from '@/admin/components/ui/AdminIcon';
 import dayjs from "dayjs";
-import { Title } from "../../../../components/ui/Title";
-import { Breadcrumb } from "../../../../components/ui/Breadcrumb";
+import { PageHeader } from "../../../../components/ui/PageHeader";
+import { SpinnerLoading } from "../../../../components/ui/SpinnerLoading";
 import { useOrderDetail, useUpdateOrderStatus } from "../../hooks/useOrder";
 import { OrderStatus, resolveLotteryTicketSerialStatusBadge, resolveOrderDetailStatusBadge } from "../../../../../types/order.type";
 import { toast } from "react-toastify";
@@ -48,8 +48,8 @@ const PAYMENT_STATUS_OPTIONS: { [key: string]: { label: string; color: string; b
 };
 
 export const OrderDetailPage = () => {
-    const { id } = useParams();
-    const navigate = useNavigate();
+    const { id } = useRouteParams();
+    const router = useAdminRouter();
     const { data: orderRes, isLoading, refetch } = useOrderDetail(id || "");
     const order = orderRes?.data;
     const { mutate: updateStatus } = useUpdateOrderStatus();
@@ -58,13 +58,21 @@ export const OrderDetailPage = () => {
 
     const handleBaoLoiHuyDon = () => {
         if (!order) return;
-        navigate(`/${prefixAdmin}/order/detail/${order.id}/cancel-with-refund`);
+        router.push(`/${prefixAdmin}/order/detail/${order.id}/cancel-with-refund`);
     };
 
     if (isLoading) {
         return (
-            <Box sx={{ display: 'flex', justifyContent: 'center', py: 20 }}>
-                <CircularProgress />
+            <Box>
+                <PageHeader
+                    title={`Đơn hàng #${id}`}
+                    breadcrumbItems={[
+                        { label: 'Bảng điều khiển', to: `/${prefixAdmin}/dashboard` },
+                        { label: 'Đơn hàng', to: `/${prefixAdmin}/order/list` },
+                        { label: 'Chi tiết đơn hàng' }
+                    ]}
+                />
+                <SpinnerLoading />
             </Box>
         );
     }
@@ -133,20 +141,14 @@ export const OrderDetailPage = () => {
     return (
         <Box sx={{ width: '100%', mx: 'auto' }}>
             {/* Unified Header section */}
-            <Box sx={{ mb: 5, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
-                <Stack direction="row" spacing={2} alignItems="center">
-                    <Box>
-                        <Title title={`Đơn hàng #${order.orderCode || order.id?.slice(-6).toUpperCase() || 'ERROR'}`} />
-                        <Breadcrumb
-                            items={[
-                                { label: 'Bảng điều khiển', to: `/${prefixAdmin}/dashboard` },
-                                { label: 'Đơn hàng', to: `/${prefixAdmin}/order/list` },
-                                { label: 'Chi tiết đơn hàng' }
-                            ]}
-                        />
-                    </Box>
-                </Stack>
-
+            <PageHeader
+                title={`Đơn hàng #${order.orderCode || order.id?.slice(-6).toUpperCase() || 'ERROR'}`}
+                breadcrumbItems={[
+                    { label: 'Bảng điều khiển', to: `/${prefixAdmin}/dashboard` },
+                    { label: 'Đơn hàng', to: `/${prefixAdmin}/order/list` },
+                    { label: 'Chi tiết đơn hàng' }
+                ]}
+                action={
                 <Stack direction="row" spacing={1.5} alignItems="center">
                     {order.status === OrderStatus.PAID && (
                         <Button 
@@ -223,7 +225,7 @@ export const OrderDetailPage = () => {
                     </Button>
                     <Button 
                         variant="outlined" 
-                        onClick={() => navigate(-1)} 
+                        onClick={() => router.back()} 
                         startIcon={<Icon icon="eva:arrow-back-fill" />}
                         sx={{
                             fontWeight: 700,
@@ -241,7 +243,8 @@ export const OrderDetailPage = () => {
                         Quay lại
                     </Button>
                 </Stack>
-            </Box>
+                }
+            />
 
             {/* Stepper Card (Full Width) */}
             <OrderSteppersCard order={order} />
@@ -576,7 +579,7 @@ export const OrderDetailPage = () => {
                                 variant="outlined" 
                                 startIcon={<Icon icon="solar:user-id-linear" />}
                                 disabled={!((order as any).user?.id || (order as any).userId)}
-                                onClick={() => navigate(`/${prefixAdmin}/account-user/detail/${(order as any).user?.id || (order as any).userId}`)}
+                                onClick={() => router.push(`/${prefixAdmin}/account-user/detail/${(order as any).user?.id || (order as any).userId}`)}
                                 sx={{ 
                                     py: 1, 
                                     fontWeight: 700, 

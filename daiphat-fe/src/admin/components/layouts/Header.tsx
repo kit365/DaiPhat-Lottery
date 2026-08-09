@@ -1,5 +1,8 @@
 "use client";
 
+import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
+import { Button } from '@/admin/components/ui/Button';
+
 import AppBar from "@mui/material/AppBar";
 import useScrollTrigger from '@mui/material/useScrollTrigger';
 import React from "react";
@@ -7,18 +10,17 @@ import Container from "@mui/material/Container";
 import Box from '@mui/material/Box';
 import SettingsIcon from '@mui/icons-material/Settings';
 import Avatar from "@mui/material/Avatar";
-import Button from "@mui/material/Button";
+
 import Popover from "@mui/material/Popover";
 import MenuItem from "@mui/material/MenuItem";
 import Typography from "@mui/material/Typography";
 import Divider from "@mui/material/Divider";
 import Stack from "@mui/material/Stack";
-import { Icon } from "@iconify/react";
+import { Icon } from '@/admin/components/ui/AdminIcon';
 import { useState } from "react";
 import { toast } from 'react-toastify';
 import { motion } from "framer-motion";
 import { useAuthStore } from "../../../stores/useAuthStore";
-import { useNavigate } from "@/components/router-compat";
 import { authService } from "../../pages/authen/services/auth.service";
 import { ROUTES } from "../../constants/routes";
 import { NotificationPopover } from "./NotificationPopover";
@@ -57,7 +59,7 @@ function ElevationScroll(props: Props) {
 }
 
 export const Header = () => {
-    const navigate = useNavigate();
+    const router = useAdminRouter();
     const { user, logout: logoutStore } = useAuthStore();
     const [anchorElUser, setAnchorElUser] = useState<HTMLButtonElement | null>(null);
     const [hoveredItem, setHoveredItem] = useState<string | null>(null);
@@ -77,7 +79,7 @@ export const Header = () => {
             Cookies.remove(STORAGE_KEYS.TOKEN, { path: '/' });
             Cookies.remove(STORAGE_KEYS.REFRESH_TOKEN, { path: '/' });
             toast.success("Đăng xuất thành công!");
-            navigate(ROUTES.ADMIN.AUTH.LOGIN);
+            router.push(ROUTES.ADMIN.AUTH.LOGIN);
 
             // Attempt server-side logout (browser sends HttpOnly cookie automatically)
             await authService.logout();
@@ -282,7 +284,7 @@ export const Header = () => {
                                         transition={{ type: "spring", stiffness: 400, damping: 20 }}
                                     >
                                         <MenuItem 
-                                            onClick={() => { navigate(ROUTES.ADMIN.PROFILE); handleCloseUser(); }}
+                                            onClick={() => { router.push(ROUTES.ADMIN.PROFILE); handleCloseUser(); }}
                                             sx={{ 
                                                 borderRadius: '8px',
                                                 typography: 'body2',

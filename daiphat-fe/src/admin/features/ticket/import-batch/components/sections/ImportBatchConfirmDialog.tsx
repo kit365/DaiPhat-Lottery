@@ -1,22 +1,10 @@
 "use client";
 
-import {
-    Alert,
-    Box,
-    Button,
-    Dialog,
-    DialogActions,
-    DialogContent,
-    DialogTitle,
-    Divider,
-    IconButton,
-    Stack,
-    Typography,
-} from '@mui/material';
+import { Alert, Box, Dialog, DialogActions, DialogContent, DialogTitle, Divider, IconButton, Stack, Typography } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
-import { LoadingButton } from '../../../../../components/ui/LoadingButton';
+import { Button } from '../../../../../components/ui/Button';
 import { getBatchTypeLabel, getImportModeLabel } from '../../utils/batchTypeLabels';
 import type { ImportBatchImportMode } from '../../utils/batchTypeLabels';
 import type { InvoiceEvidenceValue } from '../../utils/invoiceEvidence';
@@ -235,7 +223,7 @@ export const ImportBatchConfirmDialog = ({
                     >
                         Hủy
                     </Button>
-                    <LoadingButton
+                    <Button
                         onClick={onConfirm}
                         variant="contained"
                         color="primary"

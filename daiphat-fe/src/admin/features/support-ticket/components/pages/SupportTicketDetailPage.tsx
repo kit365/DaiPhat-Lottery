@@ -1,7 +1,10 @@
 "use client";
 
+import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
+import { useRouteParams } from "@/hooks/useRouteParams";
+import { usePathname, useSearchParams } from "next/navigation";
+import Link from "@/admin/components/navigation/AdminLink";
 import { useMemo, type ReactNode } from 'react';
-import { Link, useLocation, useNavigate, useParams } from '@/components/router-compat';
 import {
     Alert,
     Box,
@@ -9,15 +12,14 @@ import {
     Card,
     CardContent,
     Chip,
-    CircularProgress,
     Grid,
     Stack,
     Typography,
 } from '@mui/material';
-import { Icon } from '@iconify/react';
+import { Icon } from '@/admin/components/ui/AdminIcon';
 import dayjs from 'dayjs';
-import { Title } from '../../../../components/ui/Title';
-import { Breadcrumb } from '../../../../components/ui/Breadcrumb';
+import { PageHeader } from '../../../../components/ui/PageHeader';
+import { SpinnerLoading } from '../../../../components/ui/SpinnerLoading';
 import { CanAccess } from '../../../../components/auth/CanAccess';
 import { PERMISSIONS } from '../../../../constants/permission.constants';
 import { prefixAdmin } from '../../../../constants/routes';
@@ -111,9 +113,10 @@ function buildReferenceLink(refType?: TicketRefType, refId?: string, supportTick
 }
 
 export const SupportTicketDetailPage = () => {
-    const { id } = useParams<{ id: string }>();
-    const navigate = useNavigate();
-    const location = useLocation();
+    const { id } = useRouteParams();
+    const router = useAdminRouter();
+    const pathname = usePathname() ?? '';
+    const searchParamsForLocation = useSearchParams();
     const ticketId = Number(id);
 
     const { data, isLoading, isError } = useGetStaffTicketDetail(ticketId);
@@ -145,9 +148,17 @@ export const SupportTicketDetailPage = () => {
 
     if (isLoading) {
         return (
-            <Box display="flex" justifyContent="center" py={8}>
-                <CircularProgress />
-            </Box>
+            <>
+                <PageHeader
+                    title={`Khiếu nại #${ticketId}`}
+                    breadcrumbItems={[
+                        { label: 'Bảng điều khiển', to: `/${prefixAdmin}` },
+                        { label: 'Khiếu nại', to: `/${prefixAdmin}/support-tickets/list` },
+                        { label: `#${ticketId}` },
+                    ]}
+                />
+                <SpinnerLoading />
+            </>
         );
     }
 
@@ -155,7 +166,7 @@ export const SupportTicketDetailPage = () => {
         return (
             <Box textAlign="center" py={8}>
                 <Typography color="text.secondary">Không tìm thấy yêu cầu hỗ trợ</Typography>
-                <Button sx={{ mt: 2 }} onClick={() => navigate(`/${prefixAdmin}/support-tickets/list`)}>
+                <Button sx={{ mt: 2 }} onClick={() => router.push(`/${prefixAdmin}/support-tickets/list`)}>
                     Quay lại danh sách
                 </Button>
             </Box>
@@ -164,35 +175,33 @@ export const SupportTicketDetailPage = () => {
 
     return (
         <>
-            <Box sx={{ mb: 4, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 2, flexWrap: 'wrap' }}>
-                <Box>
-                    <Title title={`Khiếu nại #${ticket.id}`} />
-                    <Breadcrumb
-                        items={[
-                            { label: 'Bảng điều khiển', to: `/${prefixAdmin}` },
-                            { label: 'Khiếu nại', to: `/${prefixAdmin}/support-tickets/list` },
-                            { label: `#${ticket.id}` },
-                        ]}
-                    />
-                </Box>
-                <Stack direction="row" spacing={1} flexWrap="wrap">
-                    {canAssign && (
-                        <CanAccess permission={(PERMISSIONS.SUPPORT_TICKET as any).MANAGE}>
-                            <Button
-                                variant="contained"
-                                disabled={assignMutation.isPending}
-                                onClick={() => assignMutation.mutate(ticketId)}
-                                startIcon={<Icon icon="mdi:account-check-outline" />}
-                            >
-                                Tiếp nhận
-                            </Button>
-                        </CanAccess>
-                    )}
-                    <Button variant="outlined" onClick={() => navigate(`/${prefixAdmin}/support-tickets/list`)}>
-                        Quay lại
-                    </Button>
-                </Stack>
-            </Box>
+            <PageHeader
+                title={`Khiếu nại #${ticket.id}`}
+                breadcrumbItems={[
+                    { label: 'Bảng điều khiển', to: `/${prefixAdmin}` },
+                    { label: 'Khiếu nại', to: `/${prefixAdmin}/support-tickets/list` },
+                    { label: `#${ticket.id}` },
+                ]}
+                action={
+                    <Stack direction="row" spacing={1} flexWrap="wrap">
+                        {canAssign && (
+                            <CanAccess permission={(PERMISSIONS.SUPPORT_TICKET as any).MANAGE}>
+                                <Button
+                                    variant="contained"
+                                    disabled={assignMutation.isPending}
+                                    onClick={() => assignMutation.mutate(ticketId)}
+                                    startIcon={<Icon icon="mdi:account-check-outline" />}
+                                >
+                                    Tiếp nhận
+                                </Button>
+                            </CanAccess>
+                        )}
+                        <Button variant="outlined" onClick={() => router.push(`/${prefixAdmin}/support-tickets/list`)}>
+                            Quay lại
+                        </Button>
+                    </Stack>
+                }
+            />
 
             <Stack direction="row" alignItems="center" spacing={2} sx={{ mb: 3, flexWrap: 'wrap' }}>
                 <Chip label={TICKET_STATUS_LABELS[ticket.status]} color="primary" variant="outlined" />
@@ -287,11 +296,7 @@ export const SupportTicketDetailPage = () => {
                                         </FieldLabel>
                                         {referenceLink ? (
                                             <Link
-                                                to={referenceLink}
-                                                state={{
-                                                    returnTo: `${location.pathname}${location.search}`,
-                                                    returnLabel: `Quay lại khiếu nại #${ticket.id}`,
-                                                }}
+                                                href={`${referenceLink}${referenceLink.includes("?") ? "&" : "?"}returnTo=${encodeURIComponent(`${pathname}${searchParamsForLocation?.toString() ? `?${searchParamsForLocation.toString()}` : ""}`)}&returnLabel=${encodeURIComponent(`Quay lại khiếu nại #${ticket.id}`)}`}
                                                 style={{ fontWeight: 700, color: '#2065D1' }}
                                             >
                                                 {ticket.refType === TicketRefType.PRIZE_CLAIM

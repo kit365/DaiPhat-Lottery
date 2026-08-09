@@ -1,8 +1,10 @@
 "use client";
 
+import { useRouter } from "next/navigation";
+import { useSearchParams } from "next/navigation";
+import Link from "next/link";
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { ChevronRight, CheckCircle2, ShieldCheck, RefreshCw, ChevronDown, Filter, LayoutGrid, Heart, SlidersHorizontal, Trash2, Search } from 'lucide-react';
 import { useCartStore, CartItem } from '../../../stores/useCartStore';
 import { useAuthStore } from '../../../stores/useAuthStore';
@@ -156,8 +158,8 @@ if (typeof window !== 'undefined') {
     });
 }
 export const BuyTicketPage = () => {
-    const navigate = useNavigate();
-    const [searchParams] = useSearchParams();
+    const router = useRouter();
+    const searchParams = useSearchParams();
     const urlStationId = searchParams.get('stationId');
     const urlStationIds = searchParams.get('stationIds');
     const urlRegion = searchParams.get('region');
@@ -808,7 +810,7 @@ export const BuyTicketPage = () => {
         if (!buyNowItems?.length) return;
 
         useCartStore.getState().startBuyNow(buyNowItems);
-        navigate('/checkout');
+        router.push('/checkout');
     };
 
     return (

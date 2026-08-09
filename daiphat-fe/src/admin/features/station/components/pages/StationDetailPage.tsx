@@ -1,13 +1,14 @@
 "use client";
 
-import { Box, Stack, ThemeProvider, useTheme, createTheme, Button, Typography, CircularProgress, Chip } from "@mui/material"
-import { Breadcrumb } from "../../../../components/ui/Breadcrumb"
-import { Title } from "../../../../components/ui/Title"
+import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
+import { useRouteParams } from "@/hooks/useRouteParams";
+import { Box, Stack, ThemeProvider, useTheme, createTheme, Button, Typography, Chip } from "@mui/material"
+import { PageHeader } from "../../../../components/ui/PageHeader"
+import { SpinnerLoading } from "../../../../components/ui/SpinnerLoading"
 import { useState, useMemo } from "react"
 import { CollapsibleCard } from "../../../../components/ui/CollapsibleCard"
 import { prefixAdmin } from "../../../../constants/routes";
 import { DAYS_OF_WEEK } from "../../../../constants/schedule.constants";
-import { useParams, useNavigate } from "react-router-dom";
 import { useStationDetail } from "../../hooks/useStation";
 
 const REGION_LABELS: Record<string, string> = {
@@ -21,8 +22,8 @@ const DAY_LABEL: Record<string, string> = Object.fromEntries(
 );
 
 export const StationDetailPage = () => {
-    const { id } = useParams<{ id: string }>();
-    const navigate = useNavigate();
+    const { id } = useRouteParams();
+    const router = useAdminRouter();
 
     const { data: stationDetail, isLoading } = useStationDetail(id);
 
@@ -47,7 +48,19 @@ export const StationDetailPage = () => {
     }), [outerTheme]);
 
     if (isLoading) {
-        return <Box display="flex" justifyContent="center" alignItems="center" height="400px"><CircularProgress /></Box>
+        return (
+            <ThemeProvider theme={localTheme}>
+                <PageHeader
+                    title={"Chi tiết nhà đài"}
+                    breadcrumbItems={[
+                        { label: "Bảng điều khiển", to: `/${prefixAdmin}` },
+                        { label: "Nhà đài", to: `/${prefixAdmin}/provider/list` },
+                        { label: "Chi tiết" }
+                    ]}
+                />
+                <SpinnerLoading />
+            </ThemeProvider>
+        )
     }
 
     if (!stationDetail) {
@@ -69,21 +82,19 @@ export const StationDetailPage = () => {
 
     return (
         <>
-            <div className="mb-[calc(5*var(--spacing))] gap-[calc(2*var(--spacing))] flex items-start justify-end">
-                <div className="mr-auto">
-                    <Title title={"Chi tiết nhà đài"} />
-                    <Breadcrumb
-                        items={[
+            <PageHeader
+                title={"Chi tiết nhà đài"}
+                breadcrumbItems={[
                             { label: "Bảng điều khiển", to: `/${prefixAdmin}` },
                             { label: "Nhà đài", to: `/${prefixAdmin}/provider/list` },
                             { label: "Chi tiết" }
                         ]}
-                    />
-                </div>
-                <Button variant="contained" className="btn-primary-admin" onClick={() => navigate(`/${prefixAdmin}/provider/edit/${id}`)}>
+                action={
+                    <Button variant="contained" className="btn-primary-admin" onClick={() => router.push(`/${prefixAdmin}/provider/edit/${id}`)}>
                     Chỉnh sửa
                 </Button>
-            </div>
+                }
+            />
             <ThemeProvider theme={localTheme}>
                 <Stack sx={{
                     margin: "0px calc(15 * var(--spacing))",
@@ -214,7 +225,7 @@ export const StationDetailPage = () => {
                     </CollapsibleCard>
 
                     <Box sx={{ display: 'flex', justifyContent: 'flex-start' }}>
-                        <Button variant="outlined" color="inherit" onClick={() => navigate(`/${prefixAdmin}/provider/list`)}>
+                        <Button variant="outlined" color="inherit" onClick={() => router.push(`/${prefixAdmin}/provider/list`)}>
                             Quay lại danh sách
                         </Button>
                     </Box>

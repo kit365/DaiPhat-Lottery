@@ -1,5 +1,8 @@
 "use client";
 
+import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
+import { useRouteParams } from "@/hooks/useRouteParams";
+import Link from "@/admin/components/navigation/AdminLink";
 import {
     Box,
     Card,
@@ -9,7 +12,6 @@ import {
     Typography,
     Chip,
     Button,
-    CircularProgress,
     Divider,
     alpha,
     Avatar,
@@ -17,15 +19,14 @@ import {
     SpeedDialAction,
     Tooltip,
 } from "@mui/material";
-import { Icon } from "@iconify/react";
-import { useNavigate, useParams, Link } from "react-router-dom";
+import { Icon } from '@/admin/components/ui/AdminIcon';
 import dayjs from "dayjs";
 import "dayjs/locale/vi";
 import { useBlogDetail, useBlogTypes, useDeleteBlog, useUpdateBlog } from "../../hooks/useBlog";
 import { BLOG_STATUS, BlogStatus } from '../../types/blog.type';
 import { prefixAdmin } from "../../../../constants/routes";
-import { Breadcrumb } from "../../../../components/ui/Breadcrumb";
-import { Title } from "../../../../components/ui/Title";
+import { PageHeader } from "../../../../components/ui/PageHeader";
+import { SpinnerLoading } from "../../../../components/ui/SpinnerLoading";
 import { AppToast as toast } from "../../../../../utils/toast.util";
 import { useState } from "react";
 import { FacebookIcon, InstagramIcon, ShareIcon } from "../../../../assets/icons";
@@ -60,8 +61,8 @@ const InfoRow = ({ label, children }: { label: string; children: React.ReactNode
 
 // ─── Main component ──────────────────────────────────────────────────────────
 export const BlogDetailPage = () => {
-    const { id } = useParams<{ id: string }>();
-    const navigate = useNavigate();
+    const { id } = useRouteParams();
+    const router = useAdminRouter();
 
     const { data: blog, isLoading, refetch } = useBlogDetail(id);
     const { data: blogTypes = [] } = useBlogTypes();
@@ -142,7 +143,7 @@ export const BlogDetailPage = () => {
         }
         deleteBlog(id!, {
             onSuccess: (res: any) => {
-                if (res.success !== false) { toast.success("Đã xóa bài viết"); navigate(`/${prefixAdmin}/blog/list`); }
+                if (res.success !== false) { toast.success("Đã xóa bài viết"); router.push(`/${prefixAdmin}/blog/list`); }
                 else toast.error(res.message || "Xóa thất bại");
             },
             onError: () => toast.error("Có lỗi khi xóa bài viết"),
@@ -150,51 +151,37 @@ export const BlogDetailPage = () => {
     };
 
     const goToScheduleEditor = () => {
-        navigate(`/${prefixAdmin}/blog/edit/${id}`);
+        router.push(`/${prefixAdmin}/blog/edit/${id}`);
     };
 
     // ── Loading / empty states ───────────────────────────────────────────────
-    if (isLoading) {
-        return (
-            <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "60vh" }}>
-                <CircularProgress color="inherit" />
-            </Box>
-        );
-    }
-    if (!blog) {
+    if (!isLoading && !blog) {
         return (
             <Box sx={{ p: 6, textAlign: "center" }}>
                 <Icon icon="solar:document-broken-bold-duotone" width={64} color="var(--palette-text-disabled)" />
                 <Typography sx={{ mt: 2, color: "var(--palette-text-disabled)" }}>Không tìm thấy bài viết</Typography>
-                <Button variant="contained" className="btn-primary-admin" onClick={() => navigate(`/${prefixAdmin}/blog/list`)} sx={{ mt: 3 }}>
+                <Button variant="contained" className="btn-primary-admin" onClick={() => router.push(`/${prefixAdmin}/blog/list`)} sx={{ mt: 3 }}>
                     Quay lại danh sách
                 </Button>
             </Box>
         );
     }
 
-    const thumbnail = blog.avatar || blog.thumbnail || (blog as any).featuredImage;
+    const thumbnail = blog?.avatar || blog?.thumbnail || (blog as any)?.featuredImage;
 
     // ──────────────────────────────────────────────────────────────────────────
     // Shared Header (always visible, both modes)
     // ──────────────────────────────────────────────────────────────────────────
     const header = (
-        <Box sx={{ mb: 4, display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 2 }}>
-            <Box>
-                <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 0.5 }}>
-                    <Title title="Chi tiết bài viết" />
-                </Box>
-                <Box>
-                    <Breadcrumb
-                        items={[
-                            { label: "Dashboard", to: "/" },
-                            { label: "Bài viết", to: `/${prefixAdmin}/blog/list` },
-                            { label: blog.name || blog.title || "Chi tiết" },
-                        ]}
-                    />
-                </Box>
-            </Box>
-
+        <PageHeader
+            title="Chi tiết bài viết"
+            breadcrumbItems={[
+                { label: "Dashboard", to: "/" },
+                { label: "Bài viết", to: `/${prefixAdmin}/blog/list` },
+                { label: blog?.name || blog?.title || "Chi tiết" },
+            ]}
+            action={
+            blog ? (
             <Stack direction="row" spacing={1} alignItems="center" justifyContent="flex-end" flexWrap="wrap">
                 <Button
                     variant="outlined"
@@ -214,7 +201,7 @@ export const BlogDetailPage = () => {
                     <Button
                         variant="outlined"
                         startIcon={<Icon icon="solar:pen-bold" width={16} />}
-                        onClick={() => navigate(`/${prefixAdmin}/blog/edit/${id}`)}
+                        onClick={() => router.push(`/${prefixAdmin}/blog/edit/${id}`)}
                         sx={{
                             height: 36, fontWeight: 600, fontSize: "0.875rem", textTransform: "none",
                             borderRadius: "8px", borderColor: (t) => alpha(t.palette.grey[500], 0.4),
@@ -330,13 +317,13 @@ export const BlogDetailPage = () => {
                     </Button>
                 )}
             </Stack>
-        </Box>
+            ) : undefined
+            }
+        />
     );
 
-    // ──────────────────────────────────────────────────────────────────────────
-    // INFO VIEW — Admin dashboard layout
-    // ──────────────────────────────────────────────────────────────────────────
-    const infoView = (
+    // ── Render ───────────────────────────────────────────────────────────────
+    const infoView = blog ? (
         <Grid container spacing={3}>
             {/* Left */}
             <Grid size={{ xs: 12, md: 8 }}>
@@ -534,13 +521,16 @@ export const BlogDetailPage = () => {
                 </Stack>
             </Grid>
         </Grid>
-    );
+    ) : null;
 
-    // ── Render ───────────────────────────────────────────────────────────────
     return (
         <>
             {header}
-            {infoView}
+            {isLoading ? (
+                <SpinnerLoading />
+            ) : blog ? (
+                infoView
+            ) : null}
         </>
     );
 };

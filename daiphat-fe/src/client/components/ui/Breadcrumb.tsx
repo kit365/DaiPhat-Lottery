@@ -1,5 +1,5 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+import Link from 'next/link';
 import { ChevronRight } from 'lucide-react';
 
 export interface BreadcrumbItem {
@@ -28,7 +28,7 @@ export const Breadcrumb: React.FC<BreadcrumbProps> = ({ items, className = '', t
         return (
           <React.Fragment key={index}>
             {item.to && !isLast ? (
-              <Link to={item.to} className={`${linkHover} transition-colors`}>
+              <Link href={item.to} className={`${linkHover} transition-colors`}>
                 {item.label}
               </Link>
             ) : (

@@ -1,5 +1,6 @@
 "use client";
 
+import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
 import React, { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { getTickets } from '../../../ticket/inventory/services/ticketService';
@@ -45,7 +46,7 @@ import {
     DialogContent,
     DialogActions
 } from '@mui/material';
-import { Icon } from '@iconify/react';
+import { Icon } from '@/admin/components/ui/AdminIcon';
 import { UploadFiles } from '../../../../components/ui/UploadFiles';
 import dayjs from 'dayjs';
 import { resolveLotteryTicketSerialStatusBadge, resolveOrderDetailStatusBadge } from '../../../../../types/order.type';
@@ -53,7 +54,6 @@ import {
     resolveOrderDetailTicketDisplay,
     IncidentTicketDisplay,
 } from '../../constants/incidentTicket.constants';
-import { useNavigate } from '@/components/router-compat';
 import { prefixAdmin, ROUTES } from '../../../../constants/routes';
 import { refundAdminApi } from '../../../../api/refund.api';
 import { QUERY_KEYS } from '../../../../../constants/queryKeys';
@@ -193,7 +193,7 @@ export function OrderInspectionSection({
     onCancel,
     onMoveToReadyForPickup,
 }: OrderInspectionSectionProps) {
-    const navigate = useNavigate();
+    const router = useAdminRouter();
     const [replacementAvailability, setReplacementAvailability] = useState<Record<number, boolean>>({});
     const [availableReplacements, setAvailableReplacements] = useState<Record<number, any[]>>({});
     const [replacements, setReplacements] = useState<Record<number, TicketReplacementState>>({});
@@ -237,7 +237,7 @@ export function OrderInspectionSection({
             toast.info('Chưa có yêu cầu hoàn tiền cho các vé đã báo lỗi của đơn này');
             return;
         }
-        navigate(`${ROUTES.ADMIN.REFUNDS.DETAIL}${latestRefundRequest.id}`);
+        router.push(`${ROUTES.ADMIN.REFUNDS.DETAIL}${latestRefundRequest.id}`);
     };
 
     const incidentTickets = useMemo(() => {
@@ -402,12 +402,14 @@ export function OrderInspectionSection({
                 damagedEvidenceUrl: state.damagedEvidenceUrl || '',
             };
         }
-        navigate(`/${prefixAdmin}/order/detail/${orderId}/cancel-with-refund`, {
-            state: {
-                cancelType: 'OUT_OF_STOCK_INCIDENT' as const,
+        sessionStorage.setItem(
+            "daiphat:order-cancel-refund-state",
+            JSON.stringify({
+                cancelType: "OUT_OF_STOCK_INCIDENT" as const,
                 replacements: replacementPayload,
-            },
-        } as any);
+            }),
+        );
+        router.push(`/${prefixAdmin}/order/detail/${orderId}/cancel-with-refund`);
     };
 
     const quickReasons: Record<string, string[]> = {

@@ -1,8 +1,8 @@
 "use client";
 
-import { Avatar, Box, Chip, Link, ListItemText } from '@mui/material';
+import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
+import { Box, Link, ListItemText } from '@mui/material';
 import { GridRenderCellParams } from '@mui/x-data-grid';
-import { useNavigate } from '@/components/router-compat';
 import { prefixAdmin } from '../../../../../constants/routes';
 import { useTicketInventory } from '../../hooks/useTicketInventory';
 import { toast } from 'react-toastify';
@@ -21,35 +21,19 @@ interface RenderCreatedAtCellProps {
 }
 
 export const RenderTicketCell = (params: GridRenderCellParams) => {
-    const { stationName, numbers, avatar, ticketImg, batchCode, quantity } = params.row;
-    const navigate = useNavigate();
+    const { numbers, quantity } = params.row;
+    const router = useAdminRouter();
     const id = params.row.id || params.row._id;
-
-    const displayImage = avatar || ticketImg;
-    const displayName = stationName || params.row.providerName || 'Không xác định';
 
     return (
         <Box
             sx={{
                 display: 'flex',
                 alignItems: 'center',
-                py: 'calc(2 * var(--spacing))',
-                gap: 'calc(2 * var(--spacing))',
+                py: 'calc(1 * var(--spacing))',
                 width: '100%',
             }}
         >
-            <Avatar
-                alt={displayName}
-                src={displayImage}
-                variant="rounded"
-                sx={{
-                    width: '64px',
-                    height: '64px',
-                    borderRadius: 'var(--shape-borderRadius-md)',
-                    backgroundColor: 'var(--palette-background-neutral)',
-                }}
-            />
-
             <ListItemText
                 primary={
                     <Link
@@ -57,7 +41,7 @@ export const RenderTicketCell = (params: GridRenderCellParams) => {
                         className="admin-cell-title"
                         onClick={(e) => {
                             e.preventDefault();
-                            navigate(`/${prefixAdmin}/ticket/edit/${id}`);
+                            router.push(`/${prefixAdmin}/ticket/edit/${id}`);
                         }}
                         underline="hover"
                         sx={{ 
@@ -148,7 +132,7 @@ export const RenderStatusCell = (params: GridRenderCellParams) => {
     const label = statusDisplayName || getTicketStatusLabel(status) || status || '—';
     const modifier = ticketStatusModifier(status);
 
-    return <span className={`admin-status-badge ${modifier}`.trim()}>{label}</span>;
+    return <span className={`admin-status-badge admin-status-badge--compact ${modifier}`.trim()}>{label}</span>;
 };
 
 const ticketConditionModifier = (condition?: string | null): string => {
@@ -175,16 +159,16 @@ export const RenderTicketConditionCell = (params: GridRenderCellParams) => {
 
     const modifier = ticketConditionModifier(ticketCondition);
 
-    return <span className={`admin-status-badge ${modifier}`.trim()}>{label}</span>;
+    return <span className={`admin-status-badge admin-status-badge--compact ${modifier}`.trim()}>{label}</span>;
 };
 
 export const RenderActionsCell = (params: GridRenderCellParams) => {
-    const navigate = useNavigate();
+    const router = useAdminRouter();
     const { deleteTicket } = useTicketInventory();
     const id = params.row.id || params.row._id;
 
     const handleEdit = () => {
-        navigate(`/${prefixAdmin}/ticket/edit/${id}`);
+        router.push(`/${prefixAdmin}/ticket/edit/${id}`);
     };
 
     const handleDelete = () => {
@@ -211,7 +195,7 @@ export const RenderActionsCell = (params: GridRenderCellParams) => {
                     id: 'view',
                     label: 'Chi tiết',
                     icon: 'view',
-                    onClick: () => navigate(`/${prefixAdmin}/ticket/detail/${id}`),
+                    onClick: () => router.push(`/${prefixAdmin}/ticket/detail/${id}`),
                 },
                 {
                     id: 'edit',

@@ -19,7 +19,7 @@ import {
 import dayjs from 'dayjs';
 import { Control, FieldArrayWithId, FieldErrors, useFormState, useWatch } from 'react-hook-form';
 import type { ImportBatchLine, ImportBatchStatus } from '../../../import-batch/types/importBatch.type';
-import { LoadingButton } from '../../../../../components/ui/LoadingButton';
+import { Button } from '../../../../../components/ui/Button';
 import { AdminStatusBadge } from '../../../../../components/ui/AdminStatusBadge';
 import {
     getBatchTypeBadgeClass,
@@ -298,7 +298,7 @@ export const ImportBatchLineImportDialog = ({
                         Dãy số & sê-ri
                     </Typography>
                     {canImport && (
-                        <LoadingButton
+                        <Button
                             type="button"
                             variant="outlined"
                             className="btn-outlined-admin"
@@ -350,7 +350,7 @@ export const ImportBatchLineImportDialog = ({
             </DialogContent>
 
             <DialogActions sx={{ px: 2.5, py: 1.5, gap: 0.75 }}>
-                <LoadingButton
+                <Button
                     type="button"
                     variant="outlined"
                     className="btn-outlined-admin"
@@ -358,7 +358,7 @@ export const ImportBatchLineImportDialog = ({
                     onClick={onClose}
                     sx={dialogFooterButtonSx}
                 />
-                <LoadingButton
+                <Button
                     type="button"
                     variant="outlined"
                     className="import-batch-import-cta"

@@ -1,6 +1,6 @@
 import { GridColDef } from "@mui/x-data-grid";
 import { Chip, Typography } from "@mui/material";
-import { Icon } from "@iconify/react";
+import { Icon } from '@/admin/components/ui/AdminIcon';
 import { AdminRowActionsMenu } from "../../../components/ui/AdminRowActionsMenu";
 
 export const getShiftColumns = (onEdit: (id: string) => void, onDelete: (id: string) => void): GridColDef[] => [

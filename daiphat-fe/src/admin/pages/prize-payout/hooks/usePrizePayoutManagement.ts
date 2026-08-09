@@ -11,6 +11,7 @@ import {
     GetStaffPrizePayoutsParams,
     RejectPrizePayoutRequest,
 } from '../../../../types/prize-payout.type';
+import { invalidateAdminBadgeCounts } from '../../../utils/invalidateAdminBadgeCounts';
 
 const getErrorMessage = (error: any, fallback: string) =>
     error?.response?.data?.message || error.message || fallback;
@@ -40,6 +41,7 @@ export const useCreateStaffPrizePayout = () => {
             if (response.success) {
                 toast.success(response.message || 'Đã tạo yêu cầu trả thưởng tại quầy');
                 queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.ADMIN_PRIZE_PAYOUTS] });
+                invalidateAdminBadgeCounts(queryClient);
             } else {
                 toast.error(response.message || 'Không thể tạo yêu cầu');
             }
@@ -56,6 +58,7 @@ export const useCreateStaffPrizePayoutBatch = () => {
             if (response.success) {
                 toast.success(response.message || 'Đã gửi yêu cầu trả thưởng — chờ duyệt');
                 queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.ADMIN_PRIZE_PAYOUTS] });
+                invalidateAdminBadgeCounts(queryClient);
             } else {
                 toast.error(response.message || 'Không thể tạo yêu cầu');
             }
@@ -72,6 +75,7 @@ export const useApprovePrizePayout = () => {
             if (response.success) {
                 toast.success(response.message || 'Đã duyệt yêu cầu trả thưởng');
                 queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.ADMIN_PRIZE_PAYOUTS] });
+                invalidateAdminBadgeCounts(queryClient);
                 queryClient.invalidateQueries({
                     queryKey: [QUERY_KEYS.ADMIN_PRIZE_PAYOUT_DETAIL, id],
                 });
@@ -92,6 +96,7 @@ export const useCompletePrizePayout = () => {
             if (response.success) {
                 toast.success(response.message || 'Xác nhận trả thưởng thành công');
                 queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.ADMIN_PRIZE_PAYOUTS] });
+                invalidateAdminBadgeCounts(queryClient);
                 queryClient.invalidateQueries({
                     queryKey: [QUERY_KEYS.ADMIN_PRIZE_PAYOUT_DETAIL, variables.id],
                 });
@@ -112,6 +117,7 @@ export const useRejectPrizePayout = () => {
             if (response.success) {
                 toast.success(response.message || 'Đã từ chối yêu cầu');
                 queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.ADMIN_PRIZE_PAYOUTS] });
+                invalidateAdminBadgeCounts(queryClient);
                 queryClient.invalidateQueries({
                     queryKey: [QUERY_KEYS.ADMIN_PRIZE_PAYOUT_DETAIL, variables.id],
                 });
