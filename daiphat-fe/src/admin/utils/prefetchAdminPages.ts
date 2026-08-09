@@ -12,6 +12,7 @@ const prefetchedRoutes = new Set<string>();
 export const prefetchAdminRoute = (
     path: string,
     prefetchRoute: PrefetchAdminRouteFn,
+    options?: { loadChunk?: boolean },
 ): void => {
     const [pathname] = String(path || '').split('?');
     if (!pathname || prefetchedRoutes.has(pathname)) {
@@ -20,7 +21,9 @@ export const prefetchAdminRoute = (
 
     prefetchedRoutes.add(pathname);
     prefetchRoute(pathname);
-    prefetchAdminPageChunk(pathname);
+    if (options?.loadChunk !== false) {
+        prefetchAdminPageChunk(pathname);
+    }
 };
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));

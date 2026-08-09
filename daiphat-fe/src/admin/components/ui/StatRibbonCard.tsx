@@ -1,7 +1,7 @@
 "use client";
 
 import { Box, Card, SxProps, Theme, Typography } from '@mui/material';
-import { Icon } from '@iconify/react';
+import { Icon } from '@/admin/components/ui/AdminIcon';
 import type { ReactNode } from 'react';
 
 export type StatRibbonColor = 'orange' | 'green' | 'cyan' | 'purple' | 'red';

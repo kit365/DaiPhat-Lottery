@@ -6,6 +6,8 @@ import { useAuthStore } from '../../../../stores/useAuthStore';
 import { hasPermission } from '../../../utils/permission.util';
 import { PERMISSIONS } from '../../../constants/permission.constants';
 import { TicketRefType } from '../../../../types/support.type';
+import { ADMIN_BADGE_POLL_MS } from '../../../hooks/adminBadgePoll';
+import { useAdminDeferredQueries } from '../../../hooks/useAdminDeferredQueries';
 
 const OPEN_STATUSES = 'OPEN,IN_PROGRESS,WAITING_FOR_CUSTOMER';
 const PRIZE_PAYOUT_CATEGORY_CODES = 'PRIZE_PAYOUT_SLOW_PROCESSING,PRIZE_PAYOUT_PAID_ISSUE';
@@ -19,6 +21,7 @@ export const useSupportTicketOpenCount = (options?: {
 }) => {
     const prizePayoutOnly = options?.prizePayoutOnly === true;
     const { user } = useAuthStore();
+    const deferred = useAdminDeferredQueries();
     const canView = hasPermission(user, PERMISSIONS.SUPPORT_TICKET.VIEW);
 
     const query = useQuery({
@@ -39,10 +42,15 @@ export const useSupportTicketOpenCount = (options?: {
                       }
                     : {}),
             }),
-        enabled: canView,
-        refetchOnWindowFocus: true,
-        refetchInterval: 5_000,
-        staleTime: 0,
+        enabled: canView && deferred,
+        refetchOnWindowFocus: canView && deferred,
+        refetchInterval: (q) => {
+            if (!canView || !deferred) return false;
+            if (q.state.error) return false;
+            return ADMIN_BADGE_POLL_MS;
+        },
+        staleTime: ADMIN_BADGE_POLL_MS / 2,
+        retry: false,
     });
 
     const openCount = useMemo(

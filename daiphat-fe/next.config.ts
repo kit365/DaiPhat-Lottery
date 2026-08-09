@@ -37,7 +37,6 @@ const nextConfig: NextConfig = {
       'lucide-react',
       'framer-motion',
       'dayjs',
-      '@iconify/react',
       'react-day-picker',
       'date-fns',
     ],
@@ -111,6 +110,66 @@ const nextConfig: NextConfig = {
         source: '/admin/management/dashboard',
         destination: '/admin/dashboard',
         permanent: false,
+      },
+      {
+        source: '/admin/dashboard/settings/content',
+        destination: '/admin/dashboard/settings/pages',
+        permanent: true,
+      },
+      {
+        source: '/admin/dashboard/settings/page-privacy',
+        destination: '/admin/dashboard/settings/policies',
+        permanent: true,
+      },
+      {
+        source: '/admin/dashboard/settings/page-terms',
+        destination: '/admin/dashboard/settings/policies',
+        permanent: true,
+      },
+      {
+        source: '/admin/dashboard/settings/page-shipping',
+        destination: '/admin/dashboard/settings/policies',
+        permanent: true,
+      },
+      {
+        source: '/admin/dashboard/settings/page-returns',
+        destination: '/admin/dashboard/settings/policies',
+        permanent: true,
+      },
+      {
+        source: '/admin/dashboard/settings/page-about',
+        destination: '/admin/dashboard/settings/pages',
+        permanent: true,
+      },
+      {
+        source: '/admin/dashboard/settings/page-faq',
+        destination: '/admin/dashboard/settings/pages',
+        permanent: true,
+      },
+      {
+        source: '/admin/dashboard/settings/map',
+        destination: '/admin/dashboard/settings/general',
+        permanent: true,
+      },
+      {
+        source: '/admin/dashboard/settings/point',
+        destination: '/admin/dashboard/settings/general',
+        permanent: true,
+      },
+      {
+        source: '/admin/dashboard/settings/shipping',
+        destination: '/admin/dashboard/settings/general',
+        permanent: true,
+      },
+      {
+        source: '/admin/dashboard/settings/payment',
+        destination: '/admin/dashboard/settings/general',
+        permanent: true,
+      },
+      {
+        source: '/admin/dashboard/settings/social',
+        destination: '/admin/dashboard/settings/general',
+        permanent: true,
       },
     ];
   },

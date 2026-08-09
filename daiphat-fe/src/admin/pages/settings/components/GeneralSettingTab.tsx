@@ -10,7 +10,7 @@ import {
     Stack,
     InputAdornment,
 } from "@mui/material";
-import { Icon } from "@iconify/react";
+import { Icon } from '@/admin/components/ui/AdminIcon';
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { TimePicker } from "@mui/x-date-pickers/TimePicker";

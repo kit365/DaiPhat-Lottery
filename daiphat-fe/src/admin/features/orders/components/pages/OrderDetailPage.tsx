@@ -23,7 +23,7 @@ import {
     TableHead,
     TableRow
 } from "@mui/material";
-import { Icon } from "@iconify/react";
+import { Icon } from '@/admin/components/ui/AdminIcon';
 import dayjs from "dayjs";
 import { PageHeader } from "../../../../components/ui/PageHeader";
 import { SpinnerLoading } from "../../../../components/ui/SpinnerLoading";

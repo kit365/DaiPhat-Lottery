@@ -5,7 +5,7 @@ import { useMutation } from "@tanstack/react-query";
 import {
     Box, Card, Stack, Typography, Avatar, CircularProgress, TextField, InputAdornment, IconButton, List, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
 import Grid from "@mui/material/Grid";
-import { Icon } from "@iconify/react";
+import { Icon } from '@/admin/components/ui/AdminIcon';
 import { PageHeader } from '../../../../components/ui/PageHeader';
 import { useUpdateUser } from "../../hooks/useUsers";
 import { useForm, Controller } from "react-hook-form";

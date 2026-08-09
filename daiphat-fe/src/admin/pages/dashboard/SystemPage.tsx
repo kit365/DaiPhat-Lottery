@@ -4,7 +4,7 @@ import { Grid, Box, Typography, Button, Divider, Stack, Avatar, CircularProgress
 import { useAuthStore } from "../../../stores/useAuthStore";
 import dynamic from 'next/dynamic';
 const Chart = dynamic(() => import('react-apexcharts'), { ssr: false });
-import { Icon } from '@iconify/react';
+import { Icon } from '@/admin/components/ui/AdminIcon';
 import { useState, useEffect } from "react";
 import DashboardCard from "../../components/dashboard/DashboardCard";
 import WelcomeWidget from "../../components/dashboard/WelcomeWidget";

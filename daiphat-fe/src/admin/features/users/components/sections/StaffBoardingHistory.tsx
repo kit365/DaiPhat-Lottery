@@ -8,7 +8,7 @@ import { getBoardingTicketServiceOrders } from '../../../../api/boarding-booking
 import dayjs from "dayjs";
 import { prefixAdmin } from '../../../../constants/routes';
 import { useMemo, useState } from "react";
-import { Icon } from "@iconify/react";
+import { Icon } from '@/admin/components/ui/AdminIcon';
 
 interface StaffBoardingHistoryProps {
     staffId: string;

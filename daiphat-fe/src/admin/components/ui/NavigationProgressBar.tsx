@@ -3,7 +3,7 @@
 import { Box, LinearProgress } from '@mui/material';
 import { usePageNavigation } from '../../context/PageNavigationContext';
 
-/** Thin top bar while Next.js loads route JS — does not block page content. */
+/** Thin top bar while Next.js loads the route JS bundle — does not block page content. */
 export function NavigationProgressBar() {
     const { isNavigating } = usePageNavigation();
 

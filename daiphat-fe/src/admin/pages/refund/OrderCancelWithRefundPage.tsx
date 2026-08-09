@@ -28,7 +28,7 @@ import {
     ToggleButtonGroup,
     Typography,
 } from '@mui/material';
-import { Icon } from '@iconify/react';
+import { Icon } from '@/admin/components/ui/AdminIcon';
 import dayjs from 'dayjs';
 import { toast } from 'react-toastify';
 import { prefixAdmin } from '../../constants/routes';

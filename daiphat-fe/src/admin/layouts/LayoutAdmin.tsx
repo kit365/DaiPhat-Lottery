@@ -15,6 +15,8 @@ import { SocketProvider } from "../context/SocketContext";
 import { AdminProviders } from "../providers/AdminProviders";
 import { NavigationProgressBar } from "../components/ui/NavigationProgressBar";
 import { PageNavigationProvider } from "../context/PageNavigationContext";
+import { AdminSessionProvider } from "../context/AdminSessionProvider";
+import { AdminBadgeCountsProvider } from "../context/AdminBadgeCountsProvider";
 
 const LayoutAdminContent = ({ children }: { children?: React.ReactNode }) => {
     const { user, token } = useAuthStore();
@@ -46,11 +48,15 @@ export const LayoutAdmin = ({ children }: { children?: React.ReactNode }) => {
     return (
         <PageNavigationProvider>
             <AdminProviders>
-                <SocketProvider>
-                    <SidebarProvider>
-                        <LayoutAdminContent>{children}</LayoutAdminContent>
-                    </SidebarProvider>
-                </SocketProvider>
+                <AdminSessionProvider>
+                    <SocketProvider>
+                        <AdminBadgeCountsProvider>
+                            <SidebarProvider>
+                                <LayoutAdminContent>{children}</LayoutAdminContent>
+                            </SidebarProvider>
+                        </AdminBadgeCountsProvider>
+                    </SocketProvider>
+                </AdminSessionProvider>
             </AdminProviders>
         </PageNavigationProvider>
     );

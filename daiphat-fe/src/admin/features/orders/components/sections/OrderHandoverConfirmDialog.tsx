@@ -13,7 +13,7 @@ import {
     Box,
     Stack,
 } from '@mui/material';
-import { Icon } from '@iconify/react';
+import { Icon } from '@/admin/components/ui/AdminIcon';
 
 interface OrderHandoverConfirmDialogProps {
     open: boolean;

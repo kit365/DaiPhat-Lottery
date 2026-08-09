@@ -20,12 +20,13 @@ import {
     Tab,
     Tooltip
 } from "@mui/material";
-import { Icon } from "@iconify/react";
+import { Icon } from '@/admin/components/ui/AdminIcon';
 import {
     useNotifications,
     useMarkAsRead,
     useMarkAllAsRead,
 } from "../../features/notifications/hooks/useNotification";
+import { useAdminBadgeCounts } from "../../context/AdminBadgeCountsProvider";
 import { ROUTES } from "../../constants/routes";
 import {
     getAdminNotificationAccentColor,
@@ -46,7 +47,10 @@ export const NotificationPopover = ({ onMouseEnter, onMouseLeave, isHovered, lay
     const [isOpen, setIsOpen] = useState(false);
     const [tab, setTab] = useState("all");
 
-    const { data: res } = useNotifications();
+    const { counts } = useAdminBadgeCounts();
+    const unreadBadgeCount = counts.notificationUnread ?? 0;
+
+    const { data: res } = useNotifications({ enabled: isOpen });
     const { mutate: markAsRead } = useMarkAsRead();
     const { mutate: markAllAsRead } = useMarkAllAsRead();
 
@@ -107,7 +111,7 @@ export const NotificationPopover = ({ onMouseEnter, onMouseLeave, isHovered, lay
                             transition: 'all 0.15s ease-in-out',
                         }}
                     >
-                        <Badge badgeContent={unreadNotifications.length} color="error">
+                        <Badge badgeContent={unreadBadgeCount} color="error">
                             <Icon icon="solar:bell-bing-bold-duotone" width={24} />
                         </Badge>
                     </IconButton>

@@ -8,6 +8,7 @@ import {
     GetStaffRefundsParams,
     TransferRefundRequestRequest,
 } from '../../../../types/refund.type';
+import { invalidateAdminBadgeCounts } from '../../../utils/invalidateAdminBadgeCounts';
 
 const getErrorMessage = (error: any, fallback: string) =>
     error?.response?.data?.message || error.message || fallback;
@@ -41,6 +42,7 @@ export const useTransferRefund = () => {
             if (response.success) {
                 toast.success(response.message || 'Xác nhận chuyển khoản thành công');
                 queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.ADMIN_REFUNDS] });
+                invalidateAdminBadgeCounts(queryClient);
                 queryClient.invalidateQueries({
                     queryKey: [QUERY_KEYS.ADMIN_REFUND_DETAIL, variables.id],
                 });
@@ -66,6 +68,7 @@ export const useRequestBankInfoUpdate = () => {
                     response.message || 'Đã gửi yêu cầu cập nhật tài khoản ngân hàng cho khách hàng'
                 );
                 queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.ADMIN_REFUNDS] });
+                invalidateAdminBadgeCounts(queryClient);
                 queryClient.invalidateQueries({
                     queryKey: [QUERY_KEYS.ADMIN_REFUND_DETAIL, variables.id],
                 });
@@ -96,7 +99,9 @@ export const useCancelOrderWithRefund = () => {
             if (response.success) {
                 toast.success(response.message || 'Đã hủy đơn và tạo yêu cầu hoàn tiền');
                 queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.ADMIN_REFUNDS] });
+                invalidateAdminBadgeCounts(queryClient);
                 queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.ADMIN_ORDERS] });
+                invalidateAdminBadgeCounts(queryClient);
                 queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.ADMIN_ORDER_DETAIL] });
             } else {
                 toast.error(response.message || 'Không thể hủy đơn với hoàn tiền');

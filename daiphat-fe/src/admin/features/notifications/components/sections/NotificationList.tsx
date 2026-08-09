@@ -17,7 +17,7 @@ import {
     IconButton,
     Tooltip,
 } from '@mui/material';
-import { Icon } from '@iconify/react';
+import { Icon } from '@/admin/components/ui/AdminIcon';
 import {
     useNotifications,
     useMarkAsRead,

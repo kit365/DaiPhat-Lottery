@@ -1,6 +1,6 @@
 import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
 import { Button } from '@mui/material';
-import { Icon } from '@iconify/react';
+import { Icon } from '@/admin/components/ui/AdminIcon';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { CanAccess } from '../../components/auth/CanAccess';
 import { PERMISSIONS } from '../../constants/permission.constants';

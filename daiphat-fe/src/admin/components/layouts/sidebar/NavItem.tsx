@@ -10,13 +10,7 @@ import { useSidebar } from "../../../context/sidebar/useSidebar";
 import { useAuthStore } from "../../../../stores/useAuthStore";
 import { hasPermission, resolveRoleCode } from "../../../utils/permission.util";
 import { prefetchAdminRoute } from "../../../utils/prefetchAdminPages";
-import { useRefundPendingCount } from "../../../pages/refund/hooks/useRefundPendingCount";
-import { usePrizePayoutPendingCount } from "../../../pages/prize-payout/hooks/usePrizePayoutPendingCount";
-import { usePreparingOrderCount } from "../../../features/orders/hooks/useOrder";
-import { useSupportTicketOpenCount } from "../../../features/support-ticket/hooks/useSupportTicketOpenCount";
-import { useChatWaitingCount } from "../../../features/chat/hooks/useChatWaitingCount";
-
-import { useReturnBatchPendingCount } from "../../../features/ticket/return-batch/hooks/useReturnBatchPendingCount";
+import { useAdminBadgeCounts } from "../../../context/AdminBadgeCountsProvider";
 
 function parseNavPath(rawPath: string): { pathname: string; search: string } {
     const [pathname, query = ''] = String(rawPath || '').split('?');
@@ -116,9 +110,17 @@ const sidebarIconBadgeSx = {
     right: 2,
 };
 
-/** Isolated so only the Refund menu item polls pending counts. */
+/** Sidebar badges — fed by a single batch API in AdminBadgeCountsProvider. */
+const useSidebarBadgeCount = (
+    selector: (counts: ReturnType<typeof useAdminBadgeCounts>["counts"]) => number | null,
+) => {
+    const { counts } = useAdminBadgeCounts();
+    const value = selector(counts);
+    return value ?? 0;
+};
+
 const RefundPendingBadgeLabel = () => {
-    const { pendingCount } = useRefundPendingCount();
+    const pendingCount = useSidebarBadgeCount((counts) => counts.refundPending);
     if (pendingCount <= 0) return null;
     return (
         <Badge
@@ -129,7 +131,7 @@ const RefundPendingBadgeLabel = () => {
 };
 
 const RefundPendingBadgeIcon = ({ children }: { children: ReactNode }) => {
-    const { pendingCount } = useRefundPendingCount();
+    const pendingCount = useSidebarBadgeCount((counts) => counts.refundPending);
     return (
         <Badge
             badgeContent={pendingCount > 99 ? '99+' : pendingCount}
@@ -141,9 +143,8 @@ const RefundPendingBadgeIcon = ({ children }: { children: ReactNode }) => {
     );
 };
 
-/** Isolated so only the Prize Payout menu item polls pending counts. */
 const PrizePayoutPendingBadgeLabel = () => {
-    const { pendingCount } = usePrizePayoutPendingCount();
+    const pendingCount = useSidebarBadgeCount((counts) => counts.prizePayoutPending);
     if (pendingCount <= 0) return null;
     return (
         <Badge
@@ -154,7 +155,7 @@ const PrizePayoutPendingBadgeLabel = () => {
 };
 
 const PrizePayoutPendingBadgeIcon = ({ children }: { children: ReactNode }) => {
-    const { pendingCount } = usePrizePayoutPendingCount();
+    const pendingCount = useSidebarBadgeCount((counts) => counts.prizePayoutPending);
     return (
         <Badge
             badgeContent={pendingCount > 99 ? '99+' : pendingCount}
@@ -166,9 +167,8 @@ const PrizePayoutPendingBadgeIcon = ({ children }: { children: ReactNode }) => {
     );
 };
 
-/** Isolated badge for all open support tickets (complaints). */
 const SupportTicketOpenBadgeLabel = () => {
-    const { openCount } = useSupportTicketOpenCount();
+    const openCount = useSidebarBadgeCount((counts) => counts.supportTicketOpen);
     if (openCount <= 0) return null;
     return (
         <Badge
@@ -179,7 +179,7 @@ const SupportTicketOpenBadgeLabel = () => {
 };
 
 const SupportTicketOpenBadgeIcon = ({ children }: { children: ReactNode }) => {
-    const { openCount } = useSupportTicketOpenCount();
+    const openCount = useSidebarBadgeCount((counts) => counts.supportTicketOpen);
     return (
         <Badge
             badgeContent={openCount > 99 ? '99+' : openCount}
@@ -191,9 +191,8 @@ const SupportTicketOpenBadgeIcon = ({ children }: { children: ReactNode }) => {
     );
 };
 
-/** Isolated badge for active return batches (excluding cancelled and handed over). */
 const ReturnBatchPendingBadgeLabel = () => {
-    const { pendingCount } = useReturnBatchPendingCount();
+    const pendingCount = useSidebarBadgeCount((counts) => counts.returnBatchPending);
     if (pendingCount <= 0) return null;
     return (
         <Badge
@@ -204,7 +203,7 @@ const ReturnBatchPendingBadgeLabel = () => {
 };
 
 const ReturnBatchPendingBadgeIcon = ({ children }: { children: ReactNode }) => {
-    const { pendingCount } = useReturnBatchPendingCount();
+    const pendingCount = useSidebarBadgeCount((counts) => counts.returnBatchPending);
     return (
         <Badge
             badgeContent={pendingCount > 99 ? '99+' : pendingCount}
@@ -216,9 +215,8 @@ const ReturnBatchPendingBadgeIcon = ({ children }: { children: ReactNode }) => {
     );
 };
 
-/** Isolated so only the Orders menu item polls PREPARING counts. */
 const PreparingOrderBadgeLabel = () => {
-    const { preparingCount } = usePreparingOrderCount();
+    const preparingCount = useSidebarBadgeCount((counts) => counts.ordersPreparing);
     if (preparingCount <= 0) return null;
     return (
         <Badge
@@ -229,7 +227,7 @@ const PreparingOrderBadgeLabel = () => {
 };
 
 const PreparingOrderBadgeIcon = ({ children }: { children: ReactNode }) => {
-    const { preparingCount } = usePreparingOrderCount();
+    const preparingCount = useSidebarBadgeCount((counts) => counts.ordersPreparing);
     return (
         <Badge
             badgeContent={preparingCount > 99 ? '99+' : preparingCount}
@@ -241,9 +239,8 @@ const PreparingOrderBadgeIcon = ({ children }: { children: ReactNode }) => {
     );
 };
 
-/** Isolated so only the Chat / online-support menu item polls waiting/unread counts. */
 const ChatAttentionBadgeLabel = () => {
-    const { badgeCount } = useChatWaitingCount();
+    const badgeCount = useSidebarBadgeCount((counts) => counts.chatAttention);
     if (badgeCount <= 0) return null;
     return (
         <Badge
@@ -254,7 +251,7 @@ const ChatAttentionBadgeLabel = () => {
 };
 
 const ChatAttentionBadgeIcon = ({ children }: { children: ReactNode }) => {
-    const { badgeCount } = useChatWaitingCount();
+    const badgeCount = useSidebarBadgeCount((counts) => counts.chatAttention);
     return (
         <Badge
             badgeContent={badgeCount > 99 ? '99+' : badgeCount}
@@ -312,7 +309,7 @@ export const NavItem = memo(({ item }: { item: any }) => {
     const isParentHighlighted = isActive || isChildActive;
 
     const [open, setOpen] = useState(isChildActive);
-    const [anchorEl, setAnchorEl] = useState<HTMLButtonElement | null>(null);
+    const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
     useEffect(() => {
         if (isChildActive) setOpen(true);
     }, [isChildActive]);
@@ -323,7 +320,7 @@ export const NavItem = memo(({ item }: { item: any }) => {
         }
     };
 
-    const handleMouseEnter = (event: React.MouseEvent<HTMLButtonElement>) => {
+    const handleMouseEnter = (event: React.MouseEvent<HTMLElement>) => {
         if (!isOpen && hasChildren) {
             setAnchorEl(event.currentTarget);
         }

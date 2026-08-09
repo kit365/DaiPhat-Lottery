@@ -1,7 +1,7 @@
 "use client";
 
 import { Box, Card, Grid, TextField, Button, Typography, Stack, Alert, Link } from "@mui/material";
-import { Icon } from "@iconify/react";
+import { Icon } from '@/admin/components/ui/AdminIcon';
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";

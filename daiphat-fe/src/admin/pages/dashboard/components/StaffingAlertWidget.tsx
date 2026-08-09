@@ -1,7 +1,7 @@
 "use client";
 
 import { Card, Typography, Stack, Box, alpha, Button, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Chip } from "@mui/material";
-import { Icon } from "@iconify/react";
+import { Icon } from '@/admin/components/ui/AdminIcon';
 import { useQuery } from "@tanstack/react-query";
 import { getStaffingStatus } from "../../../api/dashboard.api";
 import dayjs from "dayjs";

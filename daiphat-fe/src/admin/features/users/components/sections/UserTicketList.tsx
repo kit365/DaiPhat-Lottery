@@ -22,7 +22,7 @@ import {
     MenuItem,
     Stack,
 } from "@mui/material";
-import { Icon } from "@iconify/react";
+import { Icon } from '@/admin/components/ui/AdminIcon';
 import { useUserTickets, useCreateUserTicket, useUpdateUserTicket, useDeleteUserTicket } from "../../hooks/useUserTicket";
 import { CircularProgress } from "@mui/material";
 import { uploadImagesToCloudinary } from '../../../../api/uploadCloudinary.api';

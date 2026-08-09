@@ -38,7 +38,7 @@ Chip,
 } from '@mui/material';
 import { formatChatMessageContent } from '../../../../../client/utils/ticketSuggestToken.util';
 import { Button } from '../../../../components/ui/Button';
-import { Icon } from '@iconify/react';
+import { Icon } from '@/admin/components/ui/AdminIcon';
 import { useCallback, useRef, useEffect, useLayoutEffect, useState, useMemo } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { AppToast as toast } from '../../../../../utils/toast.util';

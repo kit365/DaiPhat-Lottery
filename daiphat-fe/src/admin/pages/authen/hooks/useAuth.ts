@@ -2,7 +2,7 @@
 
 import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
 import { usePathname, useSearchParams } from "next/navigation";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { authService } from "../services/auth.service";
 import { userService } from "../services/user.service";
 import { useAuthStore } from "../../../../stores/useAuthStore";
@@ -16,6 +16,7 @@ import { LoginFormValues } from "../../../schemas/login.schema";
 import Cookies from "js-cookie";
 import { STORAGE_KEYS } from "../../../../constants/storage.constants";
 import { QUERY_KEYS } from "../../../../constants/queryKeys";
+import { useAdminMeQuery } from "@/admin/hooks/useAdminMeQuery";
 
 export const useAuth = () => {
     const router = useAdminRouter();
@@ -24,13 +25,7 @@ export const useAuth = () => {
     const queryClient = useQueryClient();
     const { token, user, set, login: loginStore, logout, openProfileSetupModal } = useAuthStore();
 
-    const getMeQuery = useQuery({
-        queryKey: [QUERY_KEYS.AUTH_ME, token],
-        queryFn: userService.getMe,
-        enabled: !!token,
-        retry: false,
-        staleTime: 1000 * 60 * 10,
-    });
+    const getMeQuery = useAdminMeQuery();
 
     useEffect(() => {
         if (getMeQuery.data) {

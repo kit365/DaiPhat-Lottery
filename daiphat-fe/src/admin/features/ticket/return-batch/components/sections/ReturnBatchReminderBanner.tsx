@@ -1,5 +1,5 @@
 import { Alert, AlertTitle, Stack, Typography } from '@mui/material';
-import { Icon } from '@iconify/react';
+import { Icon } from '@/admin/components/ui/AdminIcon';
 import { useMemo } from 'react';
 import type { ReturnBatch } from '../../types/returnBatch.type';
 import { formatMinutesUntilCutoff } from '../../utils/returnBatchLabels';

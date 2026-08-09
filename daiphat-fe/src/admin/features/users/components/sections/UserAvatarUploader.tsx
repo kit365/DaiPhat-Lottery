@@ -2,7 +2,7 @@
 
 import React, { useRef } from 'react';
 import { Box, Card, Typography, Stack, CircularProgress } from '@mui/material';
-import { Icon } from '@iconify/react';
+import { Icon } from '@/admin/components/ui/AdminIcon';
 import { toast } from 'react-toastify';
 
 interface UserAvatarUploaderProps {

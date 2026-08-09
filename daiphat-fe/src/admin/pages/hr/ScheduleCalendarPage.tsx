@@ -19,7 +19,7 @@ import {
     Tab,
     alpha,
 } from '@mui/material';
-import { Icon } from '@iconify/react';
+import { Icon } from '@/admin/components/ui/AdminIcon';
 import AddIcon from '@mui/icons-material/Add';
 import dayjs from 'dayjs';
 import { toast } from 'react-toastify';

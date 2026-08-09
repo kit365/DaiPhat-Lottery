@@ -8,39 +8,45 @@ import {
     useMemo,
     useState,
     type ReactNode,
-} from 'react';
-import { usePathname } from 'next/navigation';
+} from "react";
+import { usePathname } from "next/navigation";
 
 function normalizeRoutePath(path: string): string {
-    const [pathname] = String(path || '').split('?');
-    const trimmed = pathname.replace(/\/$/, '');
-    return trimmed || '/';
+    const [pathname] = String(path || "").split("?");
+    const trimmed = pathname.replace(/\/$/, "");
+    return trimmed || "/";
 }
 
 type PageNavigationContextValue = {
     startNavigation: (path: string) => void;
+    completeNavigation: () => void;
     isNavigating: boolean;
 };
 
 const PageNavigationContext = createContext<PageNavigationContextValue>({
     startNavigation: () => undefined,
+    completeNavigation: () => undefined,
     isNavigating: false,
 });
 
 export function PageNavigationProvider({ children }: { children: ReactNode }) {
-    const pathname = usePathname() || '';
-    const [pendingPath, setPendingPath] = useState<string | null>(null);
+    const pathname = usePathname() || "";
+    const [isNavigating, setIsNavigating] = useState(false);
 
     const startNavigation = useCallback(
         (path: string) => {
             const target = normalizeRoutePath(path);
             const current = normalizeRoutePath(pathname);
             if (target !== current) {
-                setPendingPath(target);
+                setIsNavigating(true);
             }
         },
         [pathname],
     );
+
+    const completeNavigation = useCallback(() => {
+        setIsNavigating(false);
+    }, []);
 
     useEffect(() => {
         const handler = (event: Event) => {
@@ -50,37 +56,27 @@ export function PageNavigationProvider({ children }: { children: ReactNode }) {
             }
         };
 
-        window.addEventListener('page:navigation-start', handler);
-        return () => window.removeEventListener('page:navigation-start', handler);
+        window.addEventListener("page:navigation-start", handler);
+        return () => window.removeEventListener("page:navigation-start", handler);
     }, [startNavigation]);
 
+    // Failsafe — never leave the progress bar stuck.
     useEffect(() => {
-        if (!pendingPath) {
+        if (!isNavigating) {
             return;
         }
 
-        const current = normalizeRoutePath(pathname);
-        const target = normalizeRoutePath(pendingPath);
-        if (current === target) {
-            setPendingPath(null);
-        }
-    }, [pathname, pendingPath]);
-
-    useEffect(() => {
-        if (!pendingPath) {
-            return;
-        }
-
-        const timeout = window.setTimeout(() => setPendingPath(null), 15000);
+        const timeout = window.setTimeout(() => setIsNavigating(false), 20_000);
         return () => window.clearTimeout(timeout);
-    }, [pendingPath]);
+    }, [isNavigating]);
 
     const value = useMemo(
         () => ({
             startNavigation,
-            isNavigating: pendingPath !== null,
+            completeNavigation,
+            isNavigating,
         }),
-        [startNavigation, pendingPath],
+        [startNavigation, completeNavigation, isNavigating],
     );
 
     return (
@@ -93,12 +89,12 @@ export function PageNavigationProvider({ children }: { children: ReactNode }) {
 export const usePageNavigation = () => useContext(PageNavigationContext);
 
 export const notifyPageNavigation = (path: string) => {
-    if (typeof window === 'undefined') {
+    if (typeof window === "undefined") {
         return;
     }
 
     window.dispatchEvent(
-        new CustomEvent('page:navigation-start', {
+        new CustomEvent("page:navigation-start", {
             detail: { path },
         }),
     );
