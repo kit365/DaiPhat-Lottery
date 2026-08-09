@@ -26,7 +26,6 @@ import {
 import {
     countPendingFilledSerials,
     extractPendingDraftSections,
-    isPersistedSerial,
     mergePersistedAndDraftSections,
 } from '../utils/ticketLineFormHydration';
 import {
@@ -67,6 +66,12 @@ import {
     resolveRegionLengthRules,
 } from '../utils/ticketNumberValidation';
 import { useBulkCreateTickets } from './useTicket';
+import {
+    IMPORT_LINE_DB_AUTOSAVE_DEBOUNCE_MS,
+    IMPORT_LINE_DB_AUTOSAVE_SERIAL_THRESHOLD,
+    IMPORT_LINE_DRAFT_AUTOSAVE_MS,
+} from '../constants/importBatchLineImport.constants';
+import { buildImportBatchLineSubmitPayload } from '../utils/importBatchLineImportSubmit';
 
 type LineFormDraft = TicketLineFormDraft;
 
@@ -89,6 +94,9 @@ export const useImportBatchLineImportForm = ({
     const queryClient = useQueryClient();
     const hydratedEntryKeyRef = useRef<string | null>(null);
     const draftPersistReadyRef = useRef(false);
+    const isApplyingLineRef = useRef(false);
+    const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+    const isAutoSavingRef = useRef(false);
 
     const { data: importBatchDetail, isLoading: isBatchLoading } = useImportBatchDetail(
         enabled ? batchId || undefined : undefined
@@ -193,6 +201,70 @@ export const useImportBatchLineImportForm = ({
 
     const { mutateAsync: bulkCreateAsync, isPending } = useBulkCreateTickets();
 
+    const persistDraftToLocal = useCallback(() => {
+        if (!batchId || !activeLineId || !draftPersistReadyRef.current || isApplyingLineRef.current) {
+            return;
+        }
+
+        const pendingSections = extractPendingDraftSections(getValues('ticketSections'));
+        if (pendingSections == null) {
+            return;
+        }
+
+        writeTicketLineFormDraft(batchId, activeLineId, {
+            ticketSections: pendingSections,
+        });
+    }, [activeLineId, batchId, getValues]);
+
+    const refreshFormAfterPersist = useCallback(
+        async (lineId: string, line: ImportBatchLine, filledSerials: number, remainingBefore: number) => {
+            if (!resolvedBatch) {
+                return;
+            }
+
+            clearTicketLineFormDraft(resolvedBatch.id, lineId);
+            hydratedEntryKeyRef.current = null;
+
+            await queryClient.invalidateQueries({
+                queryKey: [IMPORT_BATCH_QUERY_KEYS.IMPORT_BATCH_DETAIL],
+            });
+            await queryClient.invalidateQueries({
+                queryKey: [IMPORT_BATCH_QUERY_KEYS.IMPORT_BATCH_LIST],
+            });
+            await queryClient.invalidateQueries({
+                queryKey: [
+                    IMPORT_BATCH_QUERY_KEYS.IMPORT_BATCH_LINE_ENTRY_TICKETS,
+                    String(resolvedBatch.id),
+                    lineId,
+                ],
+            });
+
+            const refreshed = await refetchEntryTickets();
+            const tickets = refreshed.data?.tickets ?? [];
+            const remainingAfter = Math.max(0, remainingBefore - filledSerials);
+            const mergedSections = ensureSectionsQuantity(
+                mergePersistedAndDraftSections(tickets, defaultLineDraft(), {
+                    appendEditableSlot: remainingAfter > 0,
+                })
+            );
+
+            isApplyingLineRef.current = true;
+            draftPersistReadyRef.current = false;
+            reset({
+                importBatchId: String(resolvedBatch.id),
+                importBatchLineId: lineId,
+                stationId: String(line.lotteryStationId),
+                ticketSections: mergedSections,
+                drawDate: resolvedBatch.drawDate,
+            });
+            window.setTimeout(() => {
+                draftPersistReadyRef.current = true;
+                isApplyingLineRef.current = false;
+            }, 0);
+        },
+        [queryClient, refetchEntryTickets, reset, resolvedBatch]
+    );
+
     const resolveStationName = useCallback(
         (stationId?: number | string) => {
             if (!stationId) return '—';
@@ -225,6 +297,8 @@ export const useImportBatchLineImportForm = ({
                 })
             );
 
+            isApplyingLineRef.current = true;
+            draftPersistReadyRef.current = false;
             reset({
                 importBatchId: String(resolvedBatch.id),
                 importBatchLineId: lineId,
@@ -232,7 +306,10 @@ export const useImportBatchLineImportForm = ({
                 ticketSections: mergedSections,
                 drawDate: resolvedBatch.drawDate,
             });
-            draftPersistReadyRef.current = true;
+            window.setTimeout(() => {
+                draftPersistReadyRef.current = true;
+                isApplyingLineRef.current = false;
+            }, 0);
         },
         [batchLines, entryTicketsData, reset, resolvedBatch]
     );
@@ -278,26 +355,118 @@ export const useImportBatchLineImportForm = ({
             return;
         }
 
-        const flush = () => {
-            if (!draftPersistReadyRef.current) {
-                return;
-            }
-            const pendingSections = extractPendingDraftSections(getValues('ticketSections'));
-            if (pendingSections == null) {
-                clearTicketLineFormDraft(batchId, activeLineId);
-                return;
-            }
-            writeTicketLineFormDraft(batchId, activeLineId, {
-                ticketSections: pendingSections,
-            });
-        };
+        const debounceId = window.setTimeout(() => {
+            persistDraftToLocal();
+        }, IMPORT_LINE_DRAFT_AUTOSAVE_MS);
 
-        const debounceId = window.setTimeout(flush, 400);
         return () => {
             window.clearTimeout(debounceId);
-            flush();
+            persistDraftToLocal();
         };
-    }, [activeLineId, batchId, enabled, getValues, watchedTicketSections]);
+    }, [activeLineId, batchId, enabled, persistDraftToLocal, watchedTicketSections]);
+
+    const tryAutoSaveTickets = useCallback(async () => {
+        if (
+            !enabled ||
+            !resolvedBatch ||
+            !selectedLine ||
+            !activeLineId ||
+            isPending ||
+            isAutoSavingRef.current ||
+            isApplyingLineRef.current
+        ) {
+            return;
+        }
+
+        if (isLineCancelled(selectedLine) || isLinePaused(selectedLine)) {
+            return;
+        }
+
+        const imported = selectedLine.totalQuantity ?? 0;
+        const declared = selectedLine.declareQuantity ?? 0;
+        const remaining = Math.max(0, declared - imported);
+        if (declared > 0 && imported >= declared) {
+            return;
+        }
+
+        const data = getValues();
+        const duplicatePaths = findDuplicateSerialPaths(data.ticketSections);
+        const duplicateNumberIndices = findDuplicateNumberSectionIndices(data.ticketSections);
+        if (duplicatePaths.length > 0 || duplicateNumberIndices.length > 0) {
+            return;
+        }
+
+        const filledSerials = countPendingFilledSerials(data.ticketSections);
+        if (filledSerials === 0 || filledSerials > remaining) {
+            return;
+        }
+
+        const payload = buildImportBatchLineSubmitPayload(data, {
+            drawDate: resolvedBatch.drawDate,
+            isAutoSave: true,
+            requireTicketImages: false,
+        });
+        if (!payload) {
+            return;
+        }
+
+        try {
+            isAutoSavingRef.current = true;
+            const res = await bulkCreateAsync({ data: payload, skipGlobalErrorToast: true });
+            if (!res.success) {
+                return;
+            }
+
+            toast.info(`Đã tự lưu ${filledSerials.toLocaleString('vi-VN')} vé vào hệ thống.`);
+            await refreshFormAfterPersist(String(selectedLine.id), selectedLine, filledSerials, remaining);
+            onSuccess?.();
+        } catch {
+            // Keep draft locally when auto-save fails; operator can retry manually.
+        } finally {
+            isAutoSavingRef.current = false;
+        }
+    }, [
+        activeLineId,
+        bulkCreateAsync,
+        enabled,
+        getValues,
+        isPending,
+        onSuccess,
+        refreshFormAfterPersist,
+        resolvedBatch,
+        selectedLine,
+    ]);
+
+    useEffect(() => {
+        if (!enabled || !batchId || !activeLineId || !draftPersistReadyRef.current) {
+            return;
+        }
+
+        const pendingCount = countPendingFilledSerials(watchedTicketSections ?? []);
+        if (pendingCount === 0) {
+            return;
+        }
+
+        window.clearTimeout(autoSaveTimerRef.current);
+        const delay =
+            pendingCount >= IMPORT_LINE_DB_AUTOSAVE_SERIAL_THRESHOLD
+                ? 0
+                : IMPORT_LINE_DB_AUTOSAVE_DEBOUNCE_MS;
+
+        autoSaveTimerRef.current = window.setTimeout(() => {
+            void tryAutoSaveTickets();
+        }, delay);
+
+        return () => {
+            window.clearTimeout(autoSaveTimerRef.current);
+        };
+    }, [
+        activeLineId,
+        batchId,
+        enabled,
+        tryAutoSaveTickets,
+        watchedTicketSections,
+    ]);
 
     const refreshDuplicateFieldState = useCallback(() => {
         const sections = getValues('ticketSections');
@@ -343,7 +512,10 @@ export const useImportBatchLineImportForm = ({
 
     const handleSerialFieldChange = useCallback(() => {
         refreshDuplicateFieldState();
-    }, [refreshDuplicateFieldState]);
+        window.setTimeout(() => {
+            persistDraftToLocal();
+        }, 0);
+    }, [persistDraftToLocal, refreshDuplicateFieldState]);
 
     const handleRemoveSerial = useCallback(() => {
         queueMicrotask(() => {
@@ -500,31 +672,13 @@ export const useImportBatchLineImportForm = ({
             );
         }
 
-        const payload = {
-            importBatchLineId: Number(data.importBatchLineId),
-            stationId: Number(data.stationId),
-            drawDate: data.drawDate || resolvedBatch.drawDate,
+        const payload = buildImportBatchLineSubmitPayload(data, {
+            drawDate: resolvedBatch.drawDate,
             isAutoSave: false,
-            tickets: data.ticketSections
-                .map((section) => ({
-                    numbers: section.numbers.trim(),
-                    serials: section.serials
-                        .filter(
-                            (serial) =>
-                                !isPersistedSerial(serial) && serial.serialNumber.trim()
-                        )
-                        .map((serial) => ({
-                            serialNumber: serial.serialNumber.trim(),
-                            ticketImg:
-                                typeof serial.ticketImg === 'string' && serial.ticketImg.trim()
-                                    ? serial.ticketImg.trim()
-                                    : undefined,
-                        })),
-                }))
-                .filter((ticket) => ticket.numbers && ticket.serials.length > 0),
-        };
+            requireTicketImages: true,
+        });
 
-        if (filledSerials === 0 || payload.tickets.length === 0) {
+        if (!payload || filledSerials === 0) {
             toast.error('Vui lòng nhập ít nhất một dãy số kèm số sê-ri.');
             return;
         }
@@ -533,37 +687,12 @@ export const useImportBatchLineImportForm = ({
             const res = await bulkCreateAsync({ data: payload, skipGlobalErrorToast: true });
             if (res.success) {
                 toast.success('Nhập vé số thành công!');
-                const lineId = String(selectedLine.id);
-                clearTicketLineFormDraft(resolvedBatch.id, lineId);
-                hydratedEntryKeyRef.current = null;
-                await queryClient.invalidateQueries({
-                    queryKey: [IMPORT_BATCH_QUERY_KEYS.IMPORT_BATCH_DETAIL],
-                });
-                await queryClient.invalidateQueries({
-                    queryKey: [IMPORT_BATCH_QUERY_KEYS.IMPORT_BATCH_LIST],
-                });
-                await queryClient.invalidateQueries({
-                    queryKey: [
-                        IMPORT_BATCH_QUERY_KEYS.IMPORT_BATCH_LINE_ENTRY_TICKETS,
-                        String(resolvedBatch.id),
-                        lineId,
-                    ],
-                });
-                const refreshed = await refetchEntryTickets();
-                const tickets = refreshed.data?.tickets ?? [];
-                const remainingAfter = Math.max(0, remaining - filledSerials);
-                const mergedSections = ensureSectionsQuantity(
-                    mergePersistedAndDraftSections(tickets, defaultLineDraft(), {
-                        appendEditableSlot: remainingAfter > 0,
-                    })
+                await refreshFormAfterPersist(
+                    String(selectedLine.id),
+                    selectedLine,
+                    filledSerials,
+                    remaining
                 );
-                reset({
-                    importBatchId: String(resolvedBatch.id),
-                    importBatchLineId: lineId,
-                    stationId: String(selectedLine.lotteryStationId),
-                    ticketSections: mergedSections,
-                    drawDate: resolvedBatch.drawDate,
-                });
                 onSuccess?.();
             } else {
                 toast.error(res.message || 'Nhập vé số thất bại');

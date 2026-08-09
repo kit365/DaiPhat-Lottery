@@ -3,6 +3,7 @@
 import type { CSSProperties } from "react";
 import type { SvgIconComponent } from "@mui/icons-material";
 import {
+    Assignment,
     AccountBalance,
     AccountBalanceWallet,
     AddCircle,
@@ -22,10 +23,14 @@ import {
     Edit,
     EmojiEvents,
     Facebook,
+    FactCheck,
+    FileDownload,
+    FileUpload,
     HeadsetMic,
     HelpOutline,
     History,
     Home,
+    HourglassEmpty,
     Info,
     Instagram,
     Inventory2,
@@ -85,6 +90,11 @@ function resolveIcon(icon: string): SvgIconComponent {
 
     const key = icon.toLowerCase();
 
+    if (key.includes("hourglass")) return HourglassEmpty;
+    if (key.includes("clipboard-check") || key.includes("fact-check")) return FactCheck;
+    if (key.includes("clipboard")) return Assignment;
+    if (key.includes("import")) return FileDownload;
+    if (key.includes("export")) return FileUpload;
     if (key.includes("arrow-left") || key.includes("arrow-back")) return ArrowBack;
     if (key.includes("done-all") || key.includes("check-circle")) return CheckCircle;
     if (key.includes("close")) return Close;

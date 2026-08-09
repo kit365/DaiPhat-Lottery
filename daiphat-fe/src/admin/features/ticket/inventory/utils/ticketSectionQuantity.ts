@@ -63,8 +63,9 @@ export const buildSerialsForQuantity = (
     quantity: number
 ): TicketSerialForm[] => {
     const persisted = currentSerials.filter((serial) => isPersistedSerial(serial));
-    const targetTotal = Math.max(quantity, persisted.length, 1);
-    const next: TicketSerialForm[] = [...persisted];
+    const targetTotal = Math.max(quantity, persisted.length, currentSerials.length, 1);
+    const next: TicketSerialForm[] =
+        currentSerials.length > 0 ? [...currentSerials] : [emptySerial()];
 
     while (next.length < targetTotal) {
         next.push(emptySerial());

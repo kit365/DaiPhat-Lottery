@@ -20,10 +20,8 @@ import {
 import { columnsConfig, columnsInitialState } from '../configs/column.config';
 import { SupplierSettlementToolbar } from './SupplierSettlementToolbar';
 import { DATA_GRID_LOCALE_VN } from '../../../../../../shared/components/DataTable/localeText.config';
-import { formatImportCost } from '../../../import-batch/utils/importCostCalculator';
 import type { useSupplierSettlementList } from '../../hooks/useSupplierSettlement';
 import type { SupplierSettlementStatus } from '../../types/supplierSettlement.type';
-import { StatRibbonCard, StatRibbonCardsGrid } from '../../../../../components/ui/StatRibbonCard';
 
 declare module '@mui/x-data-grid' {
     interface ToolbarPropsOverrides {
@@ -55,9 +53,6 @@ export const SupplierSettlementList = ({
     } = listHook;
 
     const sourceData = allSettlements.length > 0 ? allSettlements : settlements;
-    const totalImportSum = sourceData.reduce((acc: number, curr: any) => acc + (curr.totalImportValue || 0), 0);
-    const totalReturnSum = sourceData.reduce((acc: number, curr: any) => acc + (curr.totalReturnValue || 0), 0);
-    const remainingSum = sourceData.reduce((acc: number, curr: any) => acc + (curr.remainingAmount || 0), 0);
 
     const expiredItems = sourceData.filter((s: any) => s.isReturnExpired);
     const expiredCount = expiredItems.length;
@@ -86,7 +81,7 @@ export const SupplierSettlementList = ({
     }
 
     return (
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, width: '100%' }}>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, width: '100%' }}>
             {/* Top Executive Warning Alert Banner if any settlement is return expired */}
             <ExpiredReturnSettlementBanner
                 expiredCount={expiredCount}
@@ -94,49 +89,6 @@ export const SupplierSettlementList = ({
                 expiredItems={expiredItems}
             />
 
-            {/* Top Executive Overview Metric Cards */}
-            <StatRibbonCardsGrid
-                columns={{
-                    xs: 1,
-                    sm: 2,
-                    md: expiredCount > 0 ? 5 : 4,
-                }}
-            >
-                <StatRibbonCard
-                    value={(pagination?.totalRecords || 0).toLocaleString('vi-VN')}
-                    label="Số kỳ đối soát"
-                    icon="solar:clipboard-list-bold-duotone"
-                    color="orange"
-                />
-                <StatRibbonCard
-                    value={`${formatImportCost(totalImportSum)} VNĐ`}
-                    label="Tổng giá trị nhập"
-                    icon="solar:import-bold-duotone"
-                    color="cyan"
-                />
-                <StatRibbonCard
-                    value={`${formatImportCost(totalReturnSum)} VNĐ`}
-                    label="Tổng giá trị trả"
-                    icon="solar:export-bold-duotone"
-                    color="purple"
-                />
-                <StatRibbonCard
-                    value={`${formatImportCost(remainingSum)} VNĐ`}
-                    label="Còn phải trả"
-                    icon="solar:wallet-money-bold-duotone"
-                    color="green"
-                />
-                {expiredCount > 0 ? (
-                    <StatRibbonCard
-                        value={`${formatImportCost(totalExpiredSum)} VNĐ`}
-                        label={`Quá hạn trả vé (${expiredCount} kỳ)`}
-                        icon="solar:danger-triangle-bold-duotone"
-                        color="red"
-                    />
-                ) : null}
-            </StatRibbonCardsGrid>
-
-            {/* Main DataGrid Card Container */}
             <Card elevation={0} className="admin-datagrid-card">
                 <Box sx={dataGridContainerStyles}>
                     <DataGrid
