@@ -13,7 +13,7 @@ import { toast } from "react-toastify";
 import { ROUTES } from "../../constants/routes";
 import { PERMISSIONS } from "../../constants/permission.constants";
 import { LogoAdmin } from "../../../assets/admin/logo";
-import { useAuth } from "./hooks/useAuth";
+import { useAdminSession } from "@/admin/context/AdminSessionProvider";
 import { useForgotPassword } from "./hooks/use-forgot-password";
 import { motion } from "framer-motion";
 import { useQueryClient } from "@tanstack/react-query";
@@ -59,7 +59,7 @@ type SetupFormData = z.infer<typeof setupSchema>;
 
 export const ProfileSetupPage: React.FC = () => {
     const { user, set } = useAuthStore();
-    const { isUserLoading } = useAuth();
+    const { isUserLoading } = useAdminSession();
     const { usePasswordPolicy } = useForgotPassword();
     const { data: passwordPolicy } = usePasswordPolicy();
     

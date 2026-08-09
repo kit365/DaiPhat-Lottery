@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "@/admin/components/navigation/AdminLink";
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import {
     Box, Button, TextField, ThemeProvider, Typography, InputAdornment,
     IconButton, Paper, useMediaQuery, useTheme, CircularProgress
@@ -15,6 +15,7 @@ import { loginSchema, LoginFormValues } from "../../schemas/login.schema"
 import { useAuth } from "./hooks/useAuth"
 import { motion } from "framer-motion"
 import { ROUTES } from "../../constants/routes"
+import { prefetchAdminPageChunk } from "@/admin/lib/adminPagePrefetchRegistry";
 
 export const LoginPage = () => {
     const theme = useTheme();
@@ -36,7 +37,11 @@ export const LoginPage = () => {
         },
     })
 
-    const { login: loginMutate, isLoading: isPending } = useAuth()
+    const { login: loginMutate, isLoading: isPending, isRedirecting } = useAuth()
+
+    useEffect(() => {
+        prefetchAdminPageChunk(ROUTES.ADMIN.DASHBOARD.SYSTEM);
+    }, []);
 
     const onSubmit = (data: LoginFormValues) => {
         loginMutate(data)
@@ -46,6 +51,26 @@ export const LoginPage = () => {
         <>
             <ThemeProvider theme={adminTheme}>
                 <div className="min-h-screen flex items-center justify-center bg-[#F4F6F8] relative overflow-hidden">
+                    {isRedirecting && (
+                        <Box
+                            sx={{
+                                position: "fixed",
+                                inset: 0,
+                                zIndex: 2000,
+                                display: "flex",
+                                flexDirection: "column",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                gap: 2,
+                                bgcolor: "rgba(244, 246, 248, 0.92)",
+                            }}
+                        >
+                            <CircularProgress size={36} thickness={4} sx={{ color: "#B71833" }} />
+                            <Typography sx={{ color: "#637381", fontWeight: 600 }}>
+                                Đang vào hệ thống...
+                            </Typography>
+                        </Box>
+                    )}
                     {/* Decorative Background Elements */}
                     <Box sx={{
                         position: "absolute",

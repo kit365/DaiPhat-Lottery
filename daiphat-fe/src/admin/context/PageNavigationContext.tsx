@@ -49,6 +49,10 @@ export function PageNavigationProvider({ children }: { children: ReactNode }) {
     }, []);
 
     useEffect(() => {
+        setIsNavigating(false);
+    }, [pathname]);
+
+    useEffect(() => {
         const handler = (event: Event) => {
             const detail = (event as CustomEvent<{ path?: string }>).detail;
             if (detail?.path) {

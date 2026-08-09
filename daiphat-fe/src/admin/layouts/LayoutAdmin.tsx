@@ -15,8 +15,8 @@ import { SocketProvider } from "../context/SocketContext";
 import { AdminProviders } from "../providers/AdminProviders";
 import { NavigationProgressBar } from "../components/ui/NavigationProgressBar";
 import { PageNavigationProvider } from "../context/PageNavigationContext";
-import { AdminSessionProvider } from "../context/AdminSessionProvider";
 import { AdminBadgeCountsProvider } from "../context/AdminBadgeCountsProvider";
+import { SpinnerLoading } from "../components/ui/SpinnerLoading";
 
 const LayoutAdminContent = ({ children }: { children?: React.ReactNode }) => {
     const { user, token } = useAuthStore();
@@ -34,7 +34,7 @@ const LayoutAdminContent = ({ children }: { children?: React.ReactNode }) => {
 
                 <ThemeProvider theme={adminTheme}>
                     <main className="max-w-[1536px] w-full mx-auto px-[40px] pt-[8px] pb-[64px]">
-                        <Suspense fallback={null}>
+                        <Suspense fallback={<SpinnerLoading message="Đang tải trang..." minHeight={360} />}>
                             {children}
                         </Suspense>
                     </main>
@@ -48,15 +48,13 @@ export const LayoutAdmin = ({ children }: { children?: React.ReactNode }) => {
     return (
         <PageNavigationProvider>
             <AdminProviders>
-                <AdminSessionProvider>
-                    <SocketProvider>
-                        <AdminBadgeCountsProvider>
-                            <SidebarProvider>
-                                <LayoutAdminContent>{children}</LayoutAdminContent>
-                            </SidebarProvider>
-                        </AdminBadgeCountsProvider>
-                    </SocketProvider>
-                </AdminSessionProvider>
+                <SocketProvider>
+                    <AdminBadgeCountsProvider>
+                        <SidebarProvider>
+                            <LayoutAdminContent>{children}</LayoutAdminContent>
+                        </SidebarProvider>
+                    </AdminBadgeCountsProvider>
+                </SocketProvider>
             </AdminProviders>
         </PageNavigationProvider>
     );

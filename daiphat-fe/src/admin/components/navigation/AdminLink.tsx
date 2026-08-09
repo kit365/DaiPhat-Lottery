@@ -2,7 +2,7 @@
 
 import NextLink from "next/link";
 import type { ComponentProps } from "react";
-import { notifyPageNavigation } from "@/admin/context/PageNavigationContext";
+import { maybeNotifyAdminNavigation } from "@/admin/lib/adminNavigation";
 
 type AdminLinkProps = ComponentProps<typeof NextLink> & {
     /** @deprecated React Router compat — use `href` */
@@ -27,8 +27,8 @@ export default function AdminLink({ href, to, onClick, ...props }: AdminLinkProp
         <NextLink
             href={resolvedHref}
             onClick={(event) => {
-                if (target.startsWith("/admin")) {
-                    notifyPageNavigation(target);
+                if (target) {
+                    maybeNotifyAdminNavigation(target);
                 }
                 onClick?.(event);
             }}

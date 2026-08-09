@@ -34,6 +34,10 @@ function wrapWithNavigationComplete<P extends object>(Component: ComponentType<P
     return Wrapped;
 }
 
+function PageContentLoading() {
+    return <SpinnerLoading message="Đang tải trang..." minHeight={360} />;
+}
+
 function createLazyFeaturePage(loader: () => Promise<Record<string, unknown>>, exportName: string) {
     return dynamic(
         () =>
@@ -43,7 +47,7 @@ function createLazyFeaturePage(loader: () => Promise<Record<string, unknown>>, e
             }),
         {
             ssr: false,
-            loading: () => null,
+            loading: PageContentLoading,
         },
     );
 }

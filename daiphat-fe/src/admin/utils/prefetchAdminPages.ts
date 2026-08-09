@@ -9,11 +9,21 @@ export type PrefetchAdminRouteFn = (path: string) => void;
 
 const prefetchedRoutes = new Set<string>();
 
+// `router.prefetch()` also asks the Turbopack dev server to compile the
+// route's RSC payload on demand — same contention problem as chunk warming.
+// Skip all speculative route prefetching in dev; only real navigations
+// should occupy the compiler queue there.
+const isDevRuntime = process.env.NODE_ENV !== 'production';
+
 export const prefetchAdminRoute = (
     path: string,
     prefetchRoute: PrefetchAdminRouteFn,
     options?: { loadChunk?: boolean },
 ): void => {
+    if (isDevRuntime) {
+        return;
+    }
+
     const [pathname] = String(path || '').split('?');
     if (!pathname || prefetchedRoutes.has(pathname)) {
         return;
@@ -24,6 +34,14 @@ export const prefetchAdminRoute = (
     if (options?.loadChunk !== false) {
         prefetchAdminPageChunk(pathname);
     }
+};
+
+/** Warm route + JS chunk before navigating (e.g. right after login). */
+export const prefetchAdminDestination = (
+    path: string,
+    prefetchRoute: PrefetchAdminRouteFn,
+): void => {
+    prefetchAdminRoute(path, prefetchRoute, { loadChunk: true });
 };
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));

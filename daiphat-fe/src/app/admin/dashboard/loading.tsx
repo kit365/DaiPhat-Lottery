@@ -1,4 +1,4 @@
-export default function AdminLoading() {
+export default function AdminDashboardLoading() {
     return (
         <div
             className="flex min-h-[320px] flex-col items-center justify-center gap-3 py-10"

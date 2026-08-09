@@ -7,6 +7,7 @@ import { useAuthStore } from "../../../stores/useAuthStore";
 import { USER_ROLES } from "../../../constants/role.constants";
 import { toast } from "react-toastify";
 import { ROUTES } from "../../constants/routes";
+import { SpinnerLoading } from "../ui/SpinnerLoading";
 
 interface Props {
     children?: ReactNode;
@@ -69,20 +70,24 @@ export const AuthGuard = ({ children }: Props) => {
         router,
     ]);
 
+    const sessionFallback = (
+        <SpinnerLoading message="Đang xác thực phiên đăng nhập..." minHeight={360} />
+    );
+
     if (!isHydrated) {
-        return null;
+        return sessionFallback;
     }
 
     if (!token || isRestrictedRole) {
-        return null;
+        return sessionFallback;
     }
 
     if (isSetupIncomplete && !isSetupPath) {
-        return null;
+        return sessionFallback;
     }
 
     if (user && isSetupComplete && isSetupPath) {
-        return null;
+        return sessionFallback;
     }
 
     return <>{children}</>;

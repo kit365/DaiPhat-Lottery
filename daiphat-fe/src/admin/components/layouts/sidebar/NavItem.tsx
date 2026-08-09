@@ -63,6 +63,7 @@ const SubNavItem = ({
         <li key={child.id} className="relative list-none">
             <Link
                 href={child.path}
+                prefetch={false}
                 onMouseEnter={() => onPrefetch(child.path)}
                 onPointerDown={() => onPrefetch(child.path)}
                 className={`sidebar-item-before rounded-[8px] inline-flex items-center py-[4px] pr-[8px] pl-[12px] w-full min-h-[36px] text-[0.875rem] transition-all duration-200
@@ -335,7 +336,7 @@ export const NavItem = memo(({ item }: { item: any }) => {
     return (
         <li className="inline-block w-full" style={{ listStyle: 'none' }}>
             <ButtonBase
-                {...(!hasChildren && item.path && { component: Link, href: item.path })}
+                {...(!hasChildren && item.path && { component: Link, href: item.path, prefetch: false })}
                 onClick={hasChildren ? handleToggle : undefined}
                 onMouseEnter={(event) => {
                     if (!hasChildren && item.path) {
