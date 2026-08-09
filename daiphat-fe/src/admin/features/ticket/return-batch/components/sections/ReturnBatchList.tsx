@@ -29,8 +29,8 @@ export const ReturnBatchList = ({
         filters,
         setSearch,
         setStatus,
-        setPage,
-        setLimit,
+        paginationModel,
+        onPaginationModelChange,
     } = listHook;
 
     const handleFilterChange = (fieldId: string, values: string[]) => {
@@ -111,18 +111,8 @@ export const ReturnBatchList = ({
                     paginationMode="server"
                     loading={isLoading}
                     rowCount={pagination?.totalRecords || 0}
-                    paginationModel={{
-                        page: (filters.page ?? 1) - 1,
-                        pageSize: filters.size ?? 10,
-                    }}
-                    onPaginationModelChange={(model) => {
-                        if (model.page + 1 !== (filters.page ?? 1)) {
-                            setPage(model.page + 1);
-                        }
-                        if (model.pageSize !== (filters.size ?? 10)) {
-                            setLimit(model.pageSize);
-                        }
-                    }}
+                    paginationModel={paginationModel}
+                    onPaginationModelChange={onPaginationModelChange}
                     pageSizeOptions={[5, 10, 20, 50]}
                     initialState={returnBatchColumnsInitialState}
                     getRowHeight={() => 'auto'}

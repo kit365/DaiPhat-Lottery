@@ -57,6 +57,13 @@ public class TicketVisionAdapter implements TicketVisionPort {
 
     @Override
     public RemoteTicketScanResult scan(byte[] imageBytes, String fileName, RemoteScanMetadata metadata) {
+        if (baseUrl == null || baseUrl.isBlank()) {
+            log.warn("ticket-vision base URL is unconfigured or empty");
+            throw new DomainException(
+                    ErrorCode.TICKET_SCAN_SERVICE_UNAVAILABLE,
+                    "ticket-vision service is not configured"
+            );
+        }
         String url = baseUrl + TicketVisionApiConstants.SCAN_PATH;
         try {
             ResponseEntity<AiRemoteApiResponse<RemoteTicketScanResult>> response = restTemplate.exchange(

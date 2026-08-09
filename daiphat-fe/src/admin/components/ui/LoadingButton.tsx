@@ -31,6 +31,8 @@ export const LoadingButton = ({
     sx,
     className,
     variant = "contained",
+    color = "primary",
+    disabled,
     ...props
 }: LoadingButtonProps) => {
     const defaultSx: SxProps<Theme> = {
@@ -62,12 +64,13 @@ export const LoadingButton = ({
 
     return (
         <Button
+            {...props}
             variant={variant}
-            disabled={loading || props.disabled}
+            color={color}
+            disabled={loading || disabled}
             className={mergedClassName}
             sx={defaultSx}
             startIcon={loading ? <MiniSpinner /> : startIcon}
-            {...props}
         >
             {loading ? loadingLabel || "Đang xử lý..." : label}
         </Button>

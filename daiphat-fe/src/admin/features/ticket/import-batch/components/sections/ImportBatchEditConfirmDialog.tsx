@@ -19,7 +19,7 @@ import type {
     ImportBatchEditFieldChange,
     ImportBatchEditInvoiceChange,
 } from '../../utils/importBatchEditChanges';
-import { formatImportCost } from '../../utils/importCostCalculator';
+import { formatVnd } from '../../utils/importCostCalculator';
 
 interface ImportBatchEditConfirmDialogProps {
     open: boolean;
@@ -93,8 +93,6 @@ const SectionCard = ({
         {children}
     </Box>
 );
-
-const formatVnd = (value: number) => `${formatImportCost(value)} VNĐ`;
 
 const InvoiceThumbnail = ({
     label,

@@ -57,8 +57,8 @@ export const TicketList = ({
         setDateRangeFilter,
         clearFilters,
         setSearchFilter,
-        setPage,
-        setLimit,
+        paginationModel,
+        onPaginationModelChange,
     } = ticketHook;
 
     const internalCancelSelection = useCancelTicketSelection(tickets);
@@ -163,18 +163,8 @@ export const TicketList = ({
                         paginationMode="server"
                         loading={isLoading}
                         rowCount={pagination?.totalRecords || 0}
-                        paginationModel={{
-                            page: filters.page - 1,
-                            pageSize: filters.limit,
-                        }}
-                        onPaginationModelChange={(model) => {
-                            if (model.page + 1 !== filters.page) {
-                                setPage(model.page + 1);
-                            }
-                            if (model.pageSize !== filters.limit) {
-                                setLimit(model.pageSize);
-                            }
-                        }}
+                        paginationModel={paginationModel}
+                        onPaginationModelChange={onPaginationModelChange}
                         pageSizeOptions={[5, 10, 20, 50]}
                         initialState={columnsInitialState}
                         getRowHeight={() => 'auto'}

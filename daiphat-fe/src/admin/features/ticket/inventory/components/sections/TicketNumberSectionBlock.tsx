@@ -13,7 +13,6 @@ import {
     TableBody,
     TableCell,
     TableContainer,
-    TableHead,
     TableRow,
     TextField,
     Typography,
@@ -40,6 +39,10 @@ import {
     sanitizeTicketNumberInput,
 } from '../../utils/ticketNumberValidation';
 import { isPersistedSerial } from '../../utils/ticketLineFormHydration';
+import {
+    buildSerialsForQuantity,
+    getMaxQuantityForSection,
+} from '../../utils/ticketSectionQuantity';
 
 type TicketNumberSectionBlockProps = {
     sectionIndex: number;
@@ -48,10 +51,57 @@ type TicketNumberSectionBlockProps = {
     canEdit: boolean;
     canRemove: boolean;
     numberLengthRules: TicketNumberLengthRules;
+    compact?: boolean;
+    remainingQuota?: number;
     onRemove: () => void;
     onSerialFieldChange?: (sectionIndex: number, serialIndex: number) => void;
     onRemoveSerial?: (sectionIndex: number, serialIndex: number) => void;
     onNumbersFieldChange?: (sectionIndex: number) => void;
+};
+
+const COMPACT_ROW_HEIGHT = 32;
+const COMPACT_HEADER_FIELD_HEIGHT = 40;
+
+const compactFieldSx = {
+    '& .MuiInputBase-root': {
+        minHeight: COMPACT_ROW_HEIGHT,
+        height: COMPACT_ROW_HEIGHT,
+    },
+    '& .MuiInputBase-input': {
+        py: 0,
+        height: `${COMPACT_ROW_HEIGHT}px`,
+        boxSizing: 'border-box',
+        fontSize: '0.8125rem',
+    },
+    '& .MuiFormHelperText-root': {
+        mt: 0.25,
+        fontSize: '0.6875rem',
+    },
+};
+
+const compactHeaderFieldSx = {
+    '& .MuiInputBase-root': {
+        minHeight: COMPACT_HEADER_FIELD_HEIGHT,
+    },
+    '& .MuiInputBase-input': {
+        py: '10px',
+        fontSize: '0.875rem',
+        boxSizing: 'border-box',
+    },
+    '& .MuiInputLabel-root': {
+        fontSize: '0.875rem',
+    },
+    '& .MuiFormHelperText-root': {
+        mt: 0.25,
+        fontSize: '0.6875rem',
+    },
+};
+
+const compactActionButtonSx = {
+    minHeight: '2rem !important',
+    py: '2px !important',
+    px: '10px !important',
+    fontSize: '0.8125rem !important',
 };
 
 export const TicketNumberSectionBlock = ({
@@ -61,12 +111,14 @@ export const TicketNumberSectionBlock = ({
     canEdit,
     canRemove,
     numberLengthRules,
+    compact = false,
+    remainingQuota,
     onRemove,
     onSerialFieldChange,
     onRemoveSerial,
     onNumbersFieldChange,
 }: TicketNumberSectionBlockProps) => {
-    const { fields, append, remove } = useFieldArray({
+    const { fields, replace, remove } = useFieldArray({
         control,
         name: `ticketSections.${sectionIndex}.serials`,
     });
@@ -98,24 +150,46 @@ export const TicketNumberSectionBlock = ({
         }
     }, [sectionSerialMessage]);
 
+    const watchedSections = useWatch({
+        control,
+        name: 'ticketSections',
+    });
+
+    const maxQuantity =
+        remainingQuota != null
+            ? getMaxQuantityForSection(watchedSections ?? [], sectionIndex, remainingQuota)
+            : 999;
+
     return (
         <Box
-            sx={{
-                border: 1,
-                borderColor: 'divider',
-                borderRadius: 1.5,
-                p: 1.5,
-                bgcolor: 'background.default',
-            }}
+            className={compact ? undefined : 'admin-ticket-create-section'}
+            sx={
+                compact
+                    ? {
+                          border: '1px solid var(--palette-divider)',
+                          borderRadius: '8px',
+                          bgcolor: 'var(--palette-grey-50)',
+                          p: 1.25,
+                      }
+                    : undefined
+            }
         >
-            <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1 }}>
+            <Stack
+                direction="row"
+                alignItems="center"
+                justifyContent="space-between"
+                sx={{ mb: compact ? 1 : 1.5 }}
+            >
                 <Stack direction="row" spacing={1} alignItems="center" sx={{ minWidth: 0 }}>
-                    <Typography variant="subtitle2" fontWeight={700}>
+                    <Typography
+                        className="admin-form-title"
+                        sx={{ fontSize: compact ? '0.8125rem !important' : '0.9375rem !important' }}
+                    >
                         Dãy số #{sectionIndex + 1}
                         {numbersLocked ? ' (đã lưu)' : ''}
                     </Typography>
                     {!serialsExpanded && (
-                        <Typography variant="caption" color="text.secondary">
+                        <Typography className="admin-form-helper">
                             ({fields.length} sê-ri
                             {filledSerialCount > 0 ? `, ${filledSerialCount} đã nhập` : ''})
                         </Typography>
@@ -148,75 +222,231 @@ export const TicketNumberSectionBlock = ({
                 </Stack>
             </Stack>
 
-            <Box id={`ticket-number-field-${sectionIndex}`} sx={{ mb: 1.5 }}>
-                <Controller
-                    name={`ticketSections.${sectionIndex}.numbers`}
-                    control={control}
-                    render={({ field, fieldState }) => (
-                        <TextField
-                            {...field}
-                            label="Dãy số"
-                            size="small"
-                            fullWidth
-                            placeholder={getTicketNumberLengthHint(numberLengthRules)}
-                            disabled={!numbersEditable}
-                            InputProps={numbersLocked ? { readOnly: true } : undefined}
-                            error={shouldShowFieldError(fieldState, isSubmitted)}
-                            helperText={getVisibleFieldErrorMessage(fieldState, isSubmitted)}
-                            inputProps={{
-                                inputMode: 'numeric',
-                                maxLength: numberLengthRules.maxLength,
-                            }}
-                            onChange={(event) => {
-                                const nextValue = sanitizeTicketNumberInput(
-                                    event.target.value,
-                                    numberLengthRules.maxLength
-                                );
-                                field.onChange(nextValue);
-                                onNumbersFieldChange?.(sectionIndex);
-                            }}
+            <Box id={`ticket-number-field-${sectionIndex}`} sx={{ mb: compact ? 1 : 1.5 }}>
+                <Stack direction="row" spacing={0.75} alignItems="flex-start">
+                    <Box sx={{ flex: 1, minWidth: 0 }}>
+                        <Controller
+                            name={`ticketSections.${sectionIndex}.numbers`}
+                            control={control}
+                            render={({ field, fieldState }) => (
+                                <TextField
+                                    {...field}
+                                    label="Dãy số"
+                                    size="small"
+                                    fullWidth
+                                    placeholder={getTicketNumberLengthHint(numberLengthRules)}
+                                    disabled={!numbersEditable}
+                                    InputProps={numbersLocked ? { readOnly: true } : undefined}
+                                    error={shouldShowFieldError(fieldState, isSubmitted)}
+                                    helperText={getVisibleFieldErrorMessage(fieldState, isSubmitted)}
+                                    sx={compact ? compactHeaderFieldSx : undefined}
+                                    inputProps={{
+                                        inputMode: 'numeric',
+                                        maxLength: numberLengthRules.maxLength,
+                                    }}
+                                    onChange={(event) => {
+                                        const nextValue = sanitizeTicketNumberInput(
+                                            event.target.value,
+                                            numberLengthRules.maxLength
+                                        );
+                                        field.onChange(nextValue);
+                                        onNumbersFieldChange?.(sectionIndex);
+                                    }}
+                                />
+                            )}
                         />
+                    </Box>
+                    {compact && !numbersLocked && (
+                        <Box sx={{ width: 80, flexShrink: 0 }}>
+                            <Controller
+                                name={`ticketSections.${sectionIndex}.quantity`}
+                                control={control}
+                                render={({ field, fieldState }) => (
+                                    <>
+                                        <TextField
+                                            {...field}
+                                            value={field.value ?? 1}
+                                            label="SL"
+                                            type="number"
+                                            size="small"
+                                            fullWidth
+                                            disabled={!canEdit}
+                                            error={shouldShowFieldError(fieldState, isSubmitted)}
+                                            helperText={
+                                                compact
+                                                    ? undefined
+                                                    : getVisibleFieldErrorMessage(fieldState, isSubmitted)
+                                            }
+                                            sx={compact ? compactHeaderFieldSx : undefined}
+                                            inputProps={{
+                                                min: 1,
+                                                max: maxQuantity,
+                                                inputMode: 'numeric',
+                                                style: { textAlign: 'center' },
+                                            }}
+                                            onChange={(event) => {
+                                                const raw = parseInt(event.target.value, 10);
+                                                const nextQty = Number.isFinite(raw)
+                                                    ? Math.min(maxQuantity, Math.max(1, raw))
+                                                    : 1;
+                                                field.onChange(nextQty);
+                                                replace(
+                                                    buildSerialsForQuantity(
+                                                        watchedSerials ?? [],
+                                                        nextQty
+                                                    )
+                                                );
+                                            }}
+                                        />
+                                        {compact &&
+                                            shouldShowFieldError(fieldState, isSubmitted) &&
+                                            getVisibleFieldErrorMessage(fieldState, isSubmitted) && (
+                                                <Typography
+                                                    variant="caption"
+                                                    color="error"
+                                                    sx={{
+                                                        display: 'block',
+                                                        mt: 0.25,
+                                                        fontSize: '0.625rem',
+                                                        lineHeight: 1.2,
+                                                    }}
+                                                >
+                                                    {getVisibleFieldErrorMessage(fieldState, isSubmitted)}
+                                                </Typography>
+                                            )}
+                                    </>
+                                )}
+                            />
+                        </Box>
                     )}
-                />
+                </Stack>
             </Box>
 
             <Collapse in={serialsExpanded}>
-                <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1 }}>
-                    <Typography variant="caption" fontWeight={600} color="text.secondary">
+                {!compact && (
+                <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 0.75 }}>
+                    <Typography className="admin-form-label" sx={{ fontSize: compact ? '0.75rem' : undefined }}>
                         Số sê-ri
                     </Typography>
                     <LoadingButton
                         type="button"
-                        variant="text"
+                        variant="outlined"
                         size="small"
-                        label="Thêm dòng"
-                        startIcon={<AddIcon fontSize="small" />}
-                        onClick={() => append({ serialNumber: '', ticketImg: undefined })}
+                        className="btn-outlined-admin"
+                        label="Thêm sê-ri"
+                        startIcon={<AddIcon sx={{ fontSize: '1rem !important' }} />}
+                        onClick={() =>
+                            replace([
+                                ...(watchedSerials ?? []),
+                                { serialNumber: '', ticketImg: undefined },
+                            ])
+                        }
                         disabled={!canEdit}
-                        sx={{ minHeight: '1.75rem', px: 0.5 }}
+                        sx={compact ? compactActionButtonSx : { minHeight: '2rem', px: 1.25, py: 0.25 }}
                     />
                 </Stack>
+                )}
 
-                <TableContainer>
-                    <Table size="small" sx={{ '& .MuiTableCell-root': { px: 0.75 } }}>
-                        <TableHead>
-                            <TableRow>
-                                <TableCell width={36}>#</TableCell>
-                                <TableCell>Số sê-ri</TableCell>
-                                <TableCell width={120}>Ảnh</TableCell>
-                                <TableCell width={36} />
-                            </TableRow>
-                        </TableHead>
+                {compact ? (
+                    <Stack spacing={0.75}>
+                        {fields.map((item, serialIndex) => {
+                            const serialPersisted = isPersistedSerial(watchedSerials?.[serialIndex]);
+                            const serialEditable = canEdit && !serialPersisted;
+
+                            return (
+                                <Stack
+                                    key={item.id}
+                                    direction="row"
+                                    alignItems="center"
+                                    spacing={0.75}
+                                    sx={{ minHeight: COMPACT_ROW_HEIGHT }}
+                                >
+                                    <Box
+                                        sx={{
+                                            width: 24,
+                                            flexShrink: 0,
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                        }}
+                                    >
+                                        <Typography
+                                            component="span"
+                                            sx={{ fontSize: '0.75rem', lineHeight: 1 }}
+                                        >
+                                            {serialIndex + 1}
+                                        </Typography>
+                                    </Box>
+
+                                    <Box
+                                        id={`ticket-serial-field-${sectionIndex}-${serialIndex}`}
+                                        sx={{ flex: 1, minWidth: 0 }}
+                                    >
+                                        <Controller
+                                            name={`ticketSections.${sectionIndex}.serials.${serialIndex}.serialNumber`}
+                                            control={control}
+                                            render={({ field, fieldState }) => (
+                                                <TextField
+                                                    {...field}
+                                                    size="small"
+                                                    fullWidth
+                                                    placeholder="Số sê-ri"
+                                                    disabled={!serialEditable}
+                                                    InputProps={
+                                                        serialPersisted ? { readOnly: true } : undefined
+                                                    }
+                                                    error={shouldShowFieldError(fieldState, isSubmitted)}
+                                                    sx={compactFieldSx}
+                                                    onChange={(event) => {
+                                                        field.onChange(event);
+                                                        onSerialFieldChange?.(sectionIndex, serialIndex);
+                                                    }}
+                                                />
+                                            )}
+                                        />
+                                    </Box>
+
+                                    <Box sx={{ flexShrink: 0 }}>
+                                        <TicketSerialImageField
+                                            control={control}
+                                            sectionIndex={sectionIndex}
+                                            serialIndex={serialIndex}
+                                            compact
+                                            compactThumbSize={COMPACT_ROW_HEIGHT}
+                                            disabled={!serialEditable}
+                                        />
+                                    </Box>
+                                </Stack>
+                            );
+                        })}
+                    </Stack>
+                ) : (
+                <TableContainer className="admin-table-container">
+                    <Table
+                        size="small"
+                        className="admin-table"
+                        sx={{
+                            '& .MuiTableCell-root': {
+                                py: 0.75,
+                                px: 0.75,
+                            },
+                        }}
+                    >
                         <TableBody>
                             {fields.map((item, serialIndex) => {
                                 const serialPersisted = isPersistedSerial(
                                     watchedSerials?.[serialIndex]
                                 );
                                 const serialEditable = canEdit && !serialPersisted;
+                                const canDeleteRow =
+                                    fields.length > 1 && !serialPersisted && canEdit;
+
                                 return (
                                     <TableRow key={item.id} hover>
-                                        <TableCell sx={{ py: 0.75 }}>{serialIndex + 1}</TableCell>
-                                        <TableCell sx={{ py: 0.75 }}>
+                                        <TableCell align="center" width={36}>
+                                            {serialIndex + 1}
+                                        </TableCell>
+                                        <TableCell>
                                             <Box
                                                 id={`ticket-serial-field-${sectionIndex}-${serialIndex}`}
                                             >
@@ -228,7 +458,7 @@ export const TicketNumberSectionBlock = ({
                                                             {...field}
                                                             size="small"
                                                             fullWidth
-                                                            placeholder="Nhập số sê-ri"
+                                                            placeholder="Số sê-ri"
                                                             disabled={!serialEditable}
                                                             InputProps={
                                                                 serialPersisted
@@ -255,30 +485,39 @@ export const TicketNumberSectionBlock = ({
                                                 />
                                             </Box>
                                         </TableCell>
-                                        <TableCell sx={{ py: 0.75 }}>
-                                            <TicketSerialImageField
-                                                control={control}
-                                                sectionIndex={sectionIndex}
-                                                serialIndex={serialIndex}
-                                                compact
-                                                disabled={!serialEditable}
-                                            />
+                                        <TableCell align="right" width={120}>
+                                            <Box
+                                                sx={{
+                                                    display: 'flex',
+                                                    justifyContent: 'flex-end',
+                                                    width: '100%',
+                                                }}
+                                            >
+                                                <TicketSerialImageField
+                                                    control={control}
+                                                    sectionIndex={sectionIndex}
+                                                    serialIndex={serialIndex}
+                                                    disabled={!serialEditable}
+                                                />
+                                            </Box>
                                         </TableCell>
-                                        <TableCell sx={{ py: 0.75 }}>
-                                            {fields.length > 1 && !serialPersisted && (
-                                                <IconButton
-                                                    size="small"
-                                                    color="error"
-                                                    aria-label="Xóa dòng"
-                                                    disabled={!canEdit}
-                                                    onClick={() => {
-                                                        remove(serialIndex);
-                                                        onRemoveSerial?.(sectionIndex, serialIndex);
-                                                    }}
-                                                >
-                                                    <DeleteOutlineIcon fontSize="small" />
-                                                </IconButton>
-                                            )}
+                                        <TableCell width={36}>
+                                            <IconButton
+                                                size="small"
+                                                color="error"
+                                                aria-label="Xóa dòng"
+                                                disabled={!canDeleteRow}
+                                                onClick={() => {
+                                                    remove(serialIndex);
+                                                    onRemoveSerial?.(sectionIndex, serialIndex);
+                                                }}
+                                                sx={{
+                                                    opacity: canDeleteRow ? 1 : 0.28,
+                                                    cursor: canDeleteRow ? 'pointer' : 'not-allowed',
+                                                }}
+                                            >
+                                                <DeleteOutlineIcon fontSize="small" />
+                                            </IconButton>
                                         </TableCell>
                                     </TableRow>
                                 );
@@ -286,6 +525,7 @@ export const TicketNumberSectionBlock = ({
                         </TableBody>
                     </Table>
                 </TableContainer>
+                )}
 
                 {sectionSerialMessage && (
                     <Typography variant="caption" color="error" sx={{ mt: 0.5, display: 'block' }}>

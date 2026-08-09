@@ -302,11 +302,11 @@ export const SupplierSettlementDetailPage = () => {
                         </Typography>
                     </Box>
 
-                    {/* 5. Còn phải trả NCC (Ẩn khi quá hạn trả vé - isReturnExpired = true) */}
+                    {/* 5. Còn phải trả (Ẩn khi quá hạn trả vé - isReturnExpired = true) */}
                     {!settlement.isReturnExpired && (
                         <Box sx={{ p: 2, borderRadius: '12px', bgcolor: '#f0fdf4', border: '1px solid #bbf7d0' }}>
                             <Typography variant="caption" fontWeight={700} color="#166534" display="block">
-                                Còn phải trả NCC
+                                Còn phải trả
                             </Typography>
                             <Typography variant="h6" fontWeight={800} color="#15803d" sx={{ mt: 0.5 }}>
                                 {formatImportCost(settlement.remainingAmount)} VNĐ

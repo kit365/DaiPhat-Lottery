@@ -14,6 +14,7 @@ interface TicketSerialImageFieldProps {
     index?: number;
     disabled?: boolean;
     compact?: boolean;
+    compactThumbSize?: number;
 }
 
 export const TicketSerialImageField = ({
@@ -23,6 +24,7 @@ export const TicketSerialImageField = ({
     index,
     disabled,
     compact,
+    compactThumbSize,
 }: TicketSerialImageFieldProps) => {
     const uploadImage = useCallback(async (file: File) => uploadAdminImage(file), []);
 
@@ -33,13 +35,22 @@ export const TicketSerialImageField = ({
     ) as FieldPath<any>;
 
     return (
-        <Box sx={{ width: '100%' }}>
+        <Box
+            id={
+                sectionIndex !== undefined && serialIndex !== undefined
+                    ? `ticket-serial-image-field-${sectionIndex}-${serialIndex}`
+                    : undefined
+            }
+            sx={{ width: compact ? 'auto' : '100%' }}
+        >
             <FormUploadSingleFile
                 name={fieldName}
                 control={control}
                 disabled={disabled}
                 customUpload={uploadImage}
                 compact={compact}
+                compactThumbSize={compactThumbSize ?? (compact ? 32 : undefined)}
+                autoUpload
             />
         </Box>
     );

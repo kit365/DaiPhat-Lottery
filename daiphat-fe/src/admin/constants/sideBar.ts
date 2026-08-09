@@ -1,9 +1,6 @@
 import { ROUTES } from "./routes";
-import DataExplorationIcon from "@mui/icons-material/DataExploration";
-import ScheduleSendIcon from "@mui/icons-material/ScheduleSend";
 import ExtensionIcon from "@mui/icons-material/Extension";
 import ArticleIcon from "@mui/icons-material/Article";
-import DiscountIcon from "@mui/icons-material/Discount";
 import PeopleIcon from "@mui/icons-material/People";
 import SecurityIcon from "@mui/icons-material/Security";
 import SettingsIcon from "@mui/icons-material/Settings";
@@ -16,6 +13,7 @@ import SupportAgentIcon from "@mui/icons-material/SupportAgent";
 import PaymentsIcon from "@mui/icons-material/Payments";
 import EmojiEventsIcon from "@mui/icons-material/EmojiEvents";
 import FactCheckIcon from "@mui/icons-material/FactCheck";
+import LocalShippingIcon from "@mui/icons-material/LocalShipping";
 
 import { PERMISSIONS } from "./permission.constants";
 
@@ -75,6 +73,18 @@ export const menuManagementData = [
         ]
     },
     {
+        id: "supplier-management",
+        label: "Nhà cung cấp",
+        tKey: "admin.sidebar.supplier_management",
+        Icon: LocalShippingIcon,
+        permission: PERMISSIONS.SUPPLIER.VIEW,
+        children: [
+            { id: "supplier", label: "Danh sách", path: ROUTES.ADMIN.SUPPLIER.LIST, permission: PERMISSIONS.SUPPLIER.VIEW },
+            { id: "supplier-settlement", label: "Đối soát", path: ROUTES.ADMIN.SUPPLIER_SETTLEMENT.LIST, permission: PERMISSIONS.IMPORT_BATCH.VIEW },
+            { id: "return-batch", label: "Trả vé", path: ROUTES.ADMIN.RETURN_BATCH.LIST, permission: PERMISSIONS.IMPORT_BATCH.VIEW, badge: 'return-batch-pending' },
+        ],
+    },
+    {
         id: "tickets",
         label: "Vé số",
         tKey: "admin.sidebar.tickets",
@@ -83,9 +93,6 @@ export const menuManagementData = [
         children: [
             { id: "list", label: "Kho vé số", tKey: "admin.sidebar.list", path: ROUTES.ADMIN.TICKETS.LIST, permission: PERMISSIONS.TICKET.VIEW },
             { id: "import-batch", label: "Nhập lô vé", path: ROUTES.ADMIN.IMPORT_BATCH.LIST, permission: PERMISSIONS.IMPORT_BATCH.VIEW },
-            { id: "return-batch", label: "Trả vé NCC", path: ROUTES.ADMIN.RETURN_BATCH.LIST, permission: PERMISSIONS.IMPORT_BATCH.VIEW, badge: 'return-batch-pending' },
-            { id: "supplier-settlement", label: "Đối soát NCC", path: ROUTES.ADMIN.SUPPLIER_SETTLEMENT.LIST, permission: PERMISSIONS.IMPORT_BATCH.VIEW },
-            { id: "supplier", label: "Nhà cung cấp", path: ROUTES.ADMIN.SUPPLIER.LIST, permission: PERMISSIONS.SUPPLIER.VIEW },
             { id: "provider", label: "Nhà đài", tKey: "admin.sidebar.provider", path: ROUTES.ADMIN.TICKETS.PROVIDER, permission: PERMISSIONS.PROVIDER.VIEW },
             { id: "region", label: "Vùng miền", path: ROUTES.ADMIN.TICKETS.REGION, permission: PERMISSIONS.REGION.VIEW },
         ]

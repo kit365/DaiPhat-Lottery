@@ -1,75 +1,99 @@
-import { ADMIN_PREFETCH_ROUTE_PRIORITY } from '../constants/adminPrefetchRoutes';
-import { prefetchAdminPageChunk } from '../lib/adminPagePrefetchRegistry';
 import {
-  shouldSkipClientPrefetch,
-  waitForPrefetchIdle,
-} from '@/client/utils/prefetchImagesWhenIdle';
+    ADMIN_PREFETCH_ALL_ROUTES,
+    ADMIN_PREFETCH_ROUTE_PRIORITY,
+} from '../constants/adminPrefetchRoutes';
+import { prefetchAdminPageChunk } from '../lib/adminPagePrefetchRegistry';
+import { shouldSkipClientPrefetch } from '@/client/utils/prefetchImagesWhenIdle';
 
 export type PrefetchAdminRouteFn = (path: string) => void;
 
 const prefetchedRoutes = new Set<string>();
 
 export const prefetchAdminRoute = (
-  path: string,
-  prefetchRoute: PrefetchAdminRouteFn,
+    path: string,
+    prefetchRoute: PrefetchAdminRouteFn,
 ): void => {
-  const [pathname] = String(path || '').split('?');
-  if (!pathname || prefetchedRoutes.has(pathname)) {
-    return;
-  }
+    const [pathname] = String(path || '').split('?');
+    if (!pathname || prefetchedRoutes.has(pathname)) {
+        return;
+    }
 
-  prefetchedRoutes.add(pathname);
-  prefetchRoute(pathname);
-  prefetchAdminPageChunk(pathname);
+    prefetchedRoutes.add(pathname);
+    prefetchRoute(pathname);
+    prefetchAdminPageChunk(pathname);
+};
+
+const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const prefetchRoutesInBatches = async (
+    routes: readonly string[],
+    prefetchRoute: PrefetchAdminRouteFn,
+    batchSize: number,
+    batchDelayMs: number,
+    isCancelled: () => boolean,
+) => {
+    for (let index = 0; index < routes.length; index += batchSize) {
+        if (isCancelled()) {
+            return;
+        }
+
+        const batch = routes.slice(index, index + batchSize);
+        batch.forEach((path) => prefetchAdminRoute(path, prefetchRoute));
+
+        if (index + batchSize < routes.length) {
+            await delay(batchDelayMs);
+        }
+    }
 };
 
 /**
- * Sau khi admin shell sẵn sàng: prefetch route Next.js + JS chunk của từng trang ưu tiên.
- * In development, serialize prefetches with longer gaps — concurrent `router.prefetch`
- * on Windows + Turbopack/webpack races and corrupts `.next` build manifests (ENOENT).
+ * Sau khi admin shell sẵn sàng:
+ * - Prefetch ngay các route ưu tiên
+ * - Sau đó prefetch toàn bộ route sidebar theo batch (không chờ idle từng route)
  */
 export const prefetchAdminPagesWhenIdle = (
-  prefetchRoute: PrefetchAdminRouteFn,
-  delay = process.env.NODE_ENV === 'development' ? 1500 : 300,
+    prefetchRoute: PrefetchAdminRouteFn,
+    delayMs = 200,
 ): (() => void) => {
-  if (shouldSkipClientPrefetch()) {
-    return () => {};
-  }
+    if (shouldSkipClientPrefetch()) {
+        return () => {};
+    }
 
-  let cancelled = false;
-  let startHandle: ReturnType<typeof setTimeout> | null = null;
+    let cancelled = false;
+    let startHandle: ReturnType<typeof setTimeout> | null = null;
 
-  const run = async () => {
-    const routes = [...ADMIN_PREFETCH_ROUTE_PRIORITY];
-    const isDev = process.env.NODE_ENV === 'development';
-    // Dev: only warm the top few routes, one at a time.
-    const queue = isDev ? routes.slice(0, 4) : routes;
+    const run = async () => {
+        const prioritySet = new Set<string>(ADMIN_PREFETCH_ROUTE_PRIORITY);
+        const remainingRoutes = ADMIN_PREFETCH_ALL_ROUTES.filter((path) => !prioritySet.has(path));
 
-    for (let i = 0; i < queue.length; i += 1) {
-      if (cancelled) return;
-      prefetchAdminRoute(queue[i], prefetchRoute);
-      if (i < queue.length - 1) {
-        if (isDev) {
-          await new Promise((resolve) => setTimeout(resolve, 1200));
-        } else {
-          await waitForPrefetchIdle();
+        await prefetchRoutesInBatches(
+            ADMIN_PREFETCH_ROUTE_PRIORITY,
+            prefetchRoute,
+            ADMIN_PREFETCH_ROUTE_PRIORITY.length,
+            0,
+            () => cancelled,
+        );
+
+        await prefetchRoutesInBatches(
+            remainingRoutes,
+            prefetchRoute,
+            4,
+            120,
+            () => cancelled,
+        );
+    };
+
+    startHandle = setTimeout(() => {
+        startHandle = null;
+        void run();
+    }, delayMs);
+
+    return () => {
+        cancelled = true;
+
+        if (startHandle) {
+            clearTimeout(startHandle);
+            startHandle = null;
         }
-      }
-      if (cancelled) return;
-    }
-  };
-
-  startHandle = setTimeout(() => {
-    startHandle = null;
-    void run();
-  }, delay);
-
-  return () => {
-    cancelled = true;
-
-    if (startHandle) {
-      clearTimeout(startHandle);
-      startHandle = null;
-    }
-  };
+    };
 };

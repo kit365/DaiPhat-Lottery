@@ -2,7 +2,6 @@
 
 import AddIcon from '@mui/icons-material/Add';
 import { useNavigate } from '@/components/router-compat';
-import { useTranslation } from 'react-i18next';
 import { Breadcrumb } from '../../../../components/ui/Breadcrumb';
 import { Title } from '../../../../components/ui/Title';
 import { LoadingButton } from '../../../../components/ui/LoadingButton';
@@ -13,7 +12,6 @@ import { useSupplierList } from '../../hooks/useSupplier';
 import { SupplierList } from '../sections/SupplierList';
 
 export const SupplierListPage = () => {
-    const { t } = useTranslation();
     const navigate = useNavigate();
     const supplierHook = useSupplierList();
 
@@ -24,7 +22,7 @@ export const SupplierListPage = () => {
                     <Title title="Danh sách nhà cung cấp" />
                     <Breadcrumb
                         items={[
-                            { label: t('admin.dashboard.title'), to: '/' },
+                            { label: 'Bảng điều khiển', to: '/' },
                             { label: 'Vé số', to: `/${prefixAdmin}/ticket/list` },
                             { label: 'Nhà cung cấp', to: ROUTES.ADMIN.SUPPLIER.LIST },
                             { label: 'Danh sách' },

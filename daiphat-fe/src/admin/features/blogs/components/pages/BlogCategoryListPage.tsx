@@ -8,12 +8,10 @@ import { prefixAdmin } from "../../../../constants/routes";
 import { useNavigate } from "react-router-dom";
 import { useState } from "react";
 import { BlogCategoryList } from "../sections/BlogCategoryList";
-import { useTranslation } from "react-i18next";
 import { CanAccess } from "../../../../components/auth/CanAccess";
 import { PERMISSIONS } from "../../../../constants/permission.constants";
 
 export const BlogCategoryListPage = () => {
-    const { t } = useTranslation();
     const navigate = useNavigate();
     const [isTrash] = useState(false);
 
@@ -21,12 +19,12 @@ export const BlogCategoryListPage = () => {
         <>
             <div className="mb-[calc(5*var(--spacing))] gap-[calc(2*var(--spacing))] flex items-start justify-end">
                 <div className="mr-auto">
-                    <Title title={t("admin.common.list")} />
+                    <Title title="Danh sách" />
                     <Breadcrumb
                         items={[
-                            { label: t("admin.dashboard.title"), to: "/" },
-                            { label: t("admin.blog.title.category"), to: `/${prefixAdmin}/blog-category/list` },
-                            { label: t("admin.common.list") }
+                            { label: "Bảng điều khiển", to: "/" },
+                            { label: "Danh mục bài viết", to: `/${prefixAdmin}/blog-category/list` },
+                            { label: "Danh sách" }
                         ]}
                     />
                 </div>
@@ -38,7 +36,7 @@ export const BlogCategoryListPage = () => {
                             variant="contained"
                             startIcon={<AddIcon />}
                         >
-                            {t("admin.blog.title.category_create")}
+                            Tạo danh mục bài viết
                         </Button>
                     </CanAccess>
                 </div>
@@ -47,7 +45,3 @@ export const BlogCategoryListPage = () => {
         </>
     )
 }
-
-
-
-

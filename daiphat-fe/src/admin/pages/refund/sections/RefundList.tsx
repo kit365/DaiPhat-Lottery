@@ -16,19 +16,16 @@ import {
     TableContainer,
     TableHead,
     TableRow,
-    IconButton,
     TablePagination,
     Stack,
     Avatar,
-    Menu,
-    MenuItem,
 } from '@mui/material';
 import { Icon } from '@iconify/react';
 import dayjs from 'dayjs';
 import { useNavigate } from '@/components/router-compat';
-import { CanAccess } from '../../../components/auth/CanAccess';
 import { PERMISSIONS } from '../../../constants/permission.constants';
 import { prefixAdmin } from '../../../constants/routes';
+import { AdminRowActionsMenu } from '../../../components/ui/AdminRowActionsMenu';
 import { RefundStatusBadge } from '../../../../client/components/refund/RefundStatusBadge';
 import {
     computeProcessingSecondsLeft,
@@ -176,7 +173,6 @@ export const RefundList = () => {
     const [rowsPerPage, setRowsPerPage] = useState(10);
     const [search, setSearch] = useState('');
     const [statusTab, setStatusTab] = useState(DEFAULT_STATUS_TAB);
-    const [anchorEl, setAnchorEl] = useState<{ [key: number]: HTMLElement | null }>({});
 
     const { settings, setSettings } = useSettings();
 
@@ -217,14 +213,6 @@ export const RefundList = () => {
     const handleChangeRowsPerPage = (event: React.ChangeEvent<HTMLInputElement>) => {
         setRowsPerPage(parseInt(event.target.value, 10));
         setPage(0);
-    };
-
-    const handleOpenMenu = (event: React.MouseEvent<HTMLElement>, id: number) => {
-        setAnchorEl({ ...anchorEl, [id]: event.currentTarget });
-    };
-
-    const handleCloseMenu = (id: number) => {
-        setAnchorEl({ ...anchorEl, [id]: null });
     };
 
     const handleViewDetail = (id: number) => {
@@ -565,83 +553,28 @@ export const RefundList = () => {
                                             align="right"
                                             sx={{ ...cellBorderSx, width: 80 }}
                                         >
-                                            <IconButton
-                                                onClick={(e) => handleOpenMenu(e, refund.id)}
-                                                sx={{
-                                                    color: 'var(--palette-text-primary)',
-                                                    bgcolor: anchorEl[refund.id]
-                                                        ? 'var(--palette-action-hover)'
-                                                        : 'transparent',
-                                                    '&:hover': {
-                                                        bgcolor:
-                                                            'rgba(var(--palette-action-activeChannel) / var(--palette-action-hoverOpacity))',
+                                            <AdminRowActionsMenu
+                                                minWidth={220}
+                                                items={[
+                                                    {
+                                                        id: 'view',
+                                                        label: 'Chi tiết',
+                                                        icon: 'view',
+                                                        onClick: () => handleViewDetail(refund.id),
                                                     },
-                                                }}
-                                            >
-                                                <Icon icon="eva:more-vertical-fill" width={20} />
-                                            </IconButton>
-
-                                            <Menu
-                                                anchorEl={anchorEl[refund.id]}
-                                                open={Boolean(anchorEl[refund.id])}
-                                                onClose={() => handleCloseMenu(refund.id)}
-                                                anchorOrigin={{
-                                                    vertical: 'bottom',
-                                                    horizontal: 'right',
-                                                }}
-                                                transformOrigin={{
-                                                    vertical: 'top',
-                                                    horizontal: 'right',
-                                                }}
-                                                slotProps={{
-                                                    paper: {
-                                                        sx: {
-                                                            width: 220,
-                                                            boxShadow: 'var(--customShadows-z20)',
-                                                            borderRadius:
-                                                                'var(--shape-borderRadius-md)',
-                                                            p: 0.5,
-                                                        },
+                                                    {
+                                                        id: 'transfer',
+                                                        label: 'Xác nhận chuyển khoản',
+                                                        icon: (
+                                                            <Icon icon="solar:card-transfer-bold" width={18} />
+                                                        ),
+                                                        onClick: () => handleConfirmTransfer(refund.id),
+                                                        hidden: !canConfirmTransfer(refund),
+                                                        permission: PERMISSIONS.REFUND.PROCESS,
+                                                        sx: { color: 'var(--palette-success-main)' },
                                                     },
-                                                }}
-                                            >
-                                                <MenuItem
-                                                    onClick={() => {
-                                                        handleCloseMenu(refund.id);
-                                                        handleViewDetail(refund.id);
-                                                    }}
-                                                >
-                                                    <Icon
-                                                        icon="eva:eye-fill"
-                                                        width={18}
-                                                        style={{ marginRight: 8 }}
-                                                    />
-                                                    Chi tiết
-                                                </MenuItem>
-
-                                                {canConfirmTransfer(refund) && (
-                                                    <CanAccess
-                                                        permission={PERMISSIONS.REFUND.PROCESS}
-                                                    >
-                                                        <MenuItem
-                                                            onClick={() => {
-                                                                handleCloseMenu(refund.id);
-                                                                handleConfirmTransfer(refund.id);
-                                                            }}
-                                                            sx={{
-                                                                color: 'var(--palette-success-main)',
-                                                            }}
-                                                        >
-                                                            <Icon
-                                                                icon="solar:card-transfer-bold"
-                                                                width={18}
-                                                                style={{ marginRight: 8 }}
-                                                            />
-                                                            Xác nhận chuyển khoản
-                                                        </MenuItem>
-                                                    </CanAccess>
-                                                )}
-                                            </Menu>
+                                                ]}
+                                            />
                                         </TableCell>
                                     </TableRow>
                                 );

@@ -12,6 +12,21 @@ export const getImportBatchStatusLabel = (status?: string) => {
     return IMPORT_BATCH_STATUS_LABELS[status] ?? status;
 };
 
+/** Shorter Vietnamese labels for table status badges; full label elsewhere via getImportBatchStatusLabel. */
+export const IMPORT_BATCH_STATUS_CHIP_LABELS: Record<string, string> = {
+    DRAFT: 'Nháp',
+    RECEIVING: 'Đang nhập lô',
+    PARTIALLY_IMPORTED: 'Một phần',
+    CANCELLED: 'Đã hủy',
+    IMPORTED: 'Đã nhập',
+    IN_LEDGER: 'Đã vào sổ',
+};
+
+export const getImportBatchStatusChipLabel = (status?: string) => {
+    if (!status) return '—';
+    return IMPORT_BATCH_STATUS_CHIP_LABELS[status] ?? getImportBatchStatusLabel(status);
+};
+
 export const getImportBatchStatusChipColor = (
     status?: string
 ): 'default' | 'warning' | 'error' | 'success' | 'info' => {
@@ -28,10 +43,11 @@ export const getImportBatchStatusChipColor = (
 export const getImportBatchStatusBadgeClass = (status?: string) => {
     switch (status) {
         case 'DRAFT':
-        case 'PARTIALLY_IMPORTED':
-            return 'admin-status-badge--pending';
+            return 'admin-status-badge--draft';
         case 'RECEIVING':
             return 'admin-status-badge--active';
+        case 'PARTIALLY_IMPORTED':
+            return 'admin-status-badge--pending';
         case 'CANCELLED':
             return 'admin-status-badge--inactive';
         case 'IMPORTED':
@@ -135,9 +151,9 @@ export const IMPORT_BATCH_LINE_PAUSED_ENTRY_MESSAGE =
 
 export const IMPORT_BATCH_LINE_STATUS_LABELS: Record<string, string> = {
     OPEN: 'Nháp',
-    IMPORTING: 'Đang nhập lô',
+    IMPORTING: 'Đang nhập',
     PAUSED: 'Tạm dừng nhập',
-    IMPORTED: 'Đã nhập đủ',
+    IMPORTED: 'Đã đủ',
     CANCELLED: 'Đã hủy',
 };
 
@@ -155,6 +171,24 @@ export const getImportBatchLineStatusChipColor = (
     if (status === 'CANCELLED') return 'error';
     if (status === 'OPEN') return 'warning';
     return 'default';
+};
+
+/** Global CSS: `.admin-status-badge` + modifier */
+export const getImportBatchLineStatusBadgeClass = (status?: string) => {
+    switch (status) {
+        case 'IMPORTED':
+            return 'admin-status-badge--success';
+        case 'IMPORTING':
+            return 'admin-status-badge--active';
+        case 'PAUSED':
+            return 'admin-status-badge--pending';
+        case 'CANCELLED':
+            return 'admin-status-badge--inactive';
+        case 'OPEN':
+            return 'admin-status-badge--pending';
+        default:
+            return 'admin-status-badge--draft';
+    }
 };
 
 export const IMPORT_BATCH_TYPE_LABELS: Record<string, string> = {
@@ -213,8 +247,8 @@ export const getImportModeLabel = (mode?: string) => {
 
 /** Shorter Vietnamese labels for table chips; full label available via tooltip. */
 export const IMPORT_MODE_CHIP_LABELS: Record<string, string> = {
-    IN_DAY: 'Nhập trong ngày',
-    SAME_DAY: 'Nhập trong ngày',
+    IN_DAY: 'Trong ngày',
+    SAME_DAY: 'Trong ngày',
     POST_DRAW_SUPPLEMENT: 'Bổ sung sau quay',
 };
 

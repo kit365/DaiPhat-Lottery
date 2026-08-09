@@ -1,9 +1,7 @@
 "use client";
 
-import type { ReactElement } from 'react';
 import { Avatar, Box, Chip, Link, ListItemText } from '@mui/material';
-import { GridActionsCell, GridActionsCellItem, GridRenderCellParams } from '@mui/x-data-grid';
-import { DeleteIcon, EditIcon, EyeIcon } from '../../../../../assets/icons/index';
+import { GridRenderCellParams } from '@mui/x-data-grid';
 import { useNavigate } from '@/components/router-compat';
 import { prefixAdmin } from '../../../../../constants/routes';
 import { useTicketInventory } from '../../hooks/useTicketInventory';
@@ -14,6 +12,7 @@ import { confirmDelete } from '../../../../../utils/swal';
 import { useStations } from '../../../../station/hooks/useStation';
 import { formatImportBatchCode } from '../../../import-batch/utils/importBatchCode';
 import { getTicketStatusLabel, normalizeTicketStatus } from '../../constants/ticket-status.config';
+import { AdminRowActionsMenu } from '../../../../../components/ui/AdminRowActionsMenu';
 
 dayjs.locale('vi');
 
@@ -205,32 +204,29 @@ export const RenderActionsCell = (params: GridRenderCellParams) => {
         });
     };
 
-    const items: ReactElement[] = [
-        <GridActionsCellItem
-            key="view"
-            className="admin-menu-item"
-            icon={<EyeIcon />}
-            label="Chi tiết"
-            onClick={() => navigate(`/${prefixAdmin}/ticket/detail/${id}`)}
-            showInMenu
-        />,
-        <GridActionsCellItem
-            key="edit"
-            className="admin-menu-item"
-            icon={<EditIcon />}
-            label="Chỉnh sửa"
-            onClick={handleEdit}
-            showInMenu
-        />,
-        <GridActionsCellItem
-            key="delete"
-            className="admin-menu-item admin-menu-item--danger"
-            icon={<DeleteIcon />}
-            label="Xóa"
-            onClick={handleDelete}
-            showInMenu
-        />,
-    ];
-
-    return <GridActionsCell {...params}>{items}</GridActionsCell>;
+    return (
+        <AdminRowActionsMenu
+            items={[
+                {
+                    id: 'view',
+                    label: 'Chi tiết',
+                    icon: 'view',
+                    onClick: () => navigate(`/${prefixAdmin}/ticket/detail/${id}`),
+                },
+                {
+                    id: 'edit',
+                    label: 'Chỉnh sửa',
+                    icon: 'edit',
+                    onClick: handleEdit,
+                },
+                {
+                    id: 'delete',
+                    label: 'Xóa',
+                    icon: 'delete',
+                    onClick: handleDelete,
+                    danger: true,
+                },
+            ]}
+        />
+    );
 };

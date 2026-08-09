@@ -24,8 +24,8 @@ export const ReviewList = () => {
         filters,
         setStatusFilter,
         setSearchFilter,
-        setPage,
-        setLimit,
+        paginationModel,
+        onPaginationModelChange,
     } = useReviews();
     const columns = useReviewColumns();
 
@@ -113,17 +113,8 @@ export const ReviewList = () => {
                     pagination
                     paginationMode="server"
                     rowCount={pagination.totalRecords || 0}
-                    paginationModel={{
-                        page: pagination.currentPage - 1,
-                        pageSize: pagination.limit,
-                    }}
-                    onPaginationModelChange={(model) => {
-                        if (model.pageSize !== pagination.limit) {
-                            setLimit(model.pageSize);
-                        } else if (model.page + 1 !== pagination.currentPage) {
-                            setPage(model.page + 1);
-                        }
-                    }}
+                    paginationModel={paginationModel}
+                    onPaginationModelChange={onPaginationModelChange}
                     pageSizeOptions={[5, 10, 20]}
                     getRowHeight={() => 'auto'}
                     checkboxSelection

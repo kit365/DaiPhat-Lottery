@@ -2,7 +2,6 @@
 
 import { memo } from "react";
 import { Editor } from '@tiptap/react';
-import { useTranslation } from "react-i18next";
 import { BoldIcon, ItalicIcon, UnderlineIcon, StrikeIcon } from "../../../../assets/icons";
 import { ButtonTiptap } from "./ButtonTiptap";
 
@@ -17,34 +16,33 @@ interface BasicFormattingProps {
 }
 
 export const FormatButtons = memo(({ editor, state }: BasicFormattingProps) => {
-    const { t } = useTranslation();
     if (!editor) return null;
 
     const FORMAT_BUTTONS = [
         {
             key: "bold",
-            title: t("admin.tiptap.toolbar.bold"),
+            title: "In đậm (Ctrl + B)",
             icon: <BoldIcon />,
             action: (editor: Editor) => editor.chain().focus().toggleBold().run(),
             activeKey: "isBold" as const,
         },
         {
             key: "italic",
-            title: t("admin.tiptap.toolbar.italic"),
+            title: "In nghiêng (Ctrl + I)",
             icon: <ItalicIcon />,
             action: (editor: Editor) => editor.chain().focus().toggleItalic().run(),
             activeKey: "isItalic" as const,
         },
         {
             key: "underline",
-            title: t("admin.tiptap.toolbar.underline"),
+            title: "Gạch chân (Ctrl + U)",
             icon: <UnderlineIcon />,
             action: (editor: Editor) => editor.chain().focus().toggleUnderline().run(),
             activeKey: "isUnderline" as const,
         },
         {
             key: "strike",
-            title: t("admin.tiptap.toolbar.strike"),
+            title: "Gạch ngang",
             icon: <StrikeIcon />,
             action: (editor: Editor) => editor.chain().focus().toggleStrike().run(),
             activeKey: "isStrike" as const,

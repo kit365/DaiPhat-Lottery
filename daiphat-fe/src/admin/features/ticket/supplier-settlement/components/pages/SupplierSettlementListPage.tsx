@@ -1,6 +1,5 @@
 "use client";
 
-import { useTranslation } from 'react-i18next';
 import { Breadcrumb } from '../../../../../components/ui/Breadcrumb';
 import { Title } from '../../../../../components/ui/Title';
 import { prefixAdmin, ROUTES } from '../../../../../constants/routes';
@@ -8,7 +7,6 @@ import { useSupplierSettlementList } from '../../hooks/useSupplierSettlement';
 import { SupplierSettlementList } from '../sections/SupplierSettlementList';
 
 export const SupplierSettlementListPage = () => {
-    const { t } = useTranslation();
     const listHook = useSupplierSettlementList();
 
     return (
@@ -18,7 +16,7 @@ export const SupplierSettlementListPage = () => {
                     <Title title="Đối soát nhà cung cấp" />
                     <Breadcrumb
                         items={[
-                            { label: t('admin.dashboard.title'), to: '/' },
+                            { label: 'Bảng điều khiển', to: '/' },
                             { label: 'Vé số', to: `/${prefixAdmin}/ticket/list` },
                             { label: 'Đối soát NCC', to: ROUTES.ADMIN.SUPPLIER_SETTLEMENT.LIST },
                             { label: 'Danh sách' },

@@ -4,13 +4,16 @@ import {
 } from '@mui/x-data-grid';
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
-import Typography from '@mui/material/Typography';
 import CircularProgress from '@mui/material/CircularProgress';
 import { SortAscendingIcon, SortDescendingIcon, UnsortedIcon } from '../../../../../assets/icons';
 import {
     IGridSettings,
     useSettings,
+    adminDataGridRowHeightProps,
+    adminDataGridRowHeightSx,
+    ADMIN_DATAGRID_ROW_MIN_HEIGHT,
     columnsPanelStyles,
+    dataGridContainerStyles,
     dataGridStyles,
     filterPanelStyles,
 } from '../../../../../shared/data-grid';
@@ -19,6 +22,8 @@ import { SupplierSettlementToolbar } from './SupplierSettlementToolbar';
 import { DATA_GRID_LOCALE_VN } from '../../../../../../shared/components/DataTable/localeText.config';
 import { formatImportCost } from '../../../import-batch/utils/importCostCalculator';
 import type { useSupplierSettlementList } from '../../hooks/useSupplierSettlement';
+import type { SupplierSettlementStatus } from '../../types/supplierSettlement.type';
+import { StatRibbonCard, StatRibbonCardsGrid } from '../../../../../components/ui/StatRibbonCard';
 
 declare module '@mui/x-data-grid' {
     interface ToolbarPropsOverrides {
@@ -46,9 +51,8 @@ export const SupplierSettlementList = ({
         filters,
         setSearchFilter,
         setStatusFilter,
-        setExpiredOnlyFilter,
-        setPage,
-        setLimit,
+        paginationModel,
+        onPaginationModelChange,
         setSort,
     } = listHook;
 
@@ -64,7 +68,16 @@ export const SupplierSettlementList = ({
         0
     );
 
+    const handleFilterChange = (fieldId: string, values: string[]) => {
+        if (fieldId === 'status') {
+            setStatusFilter(values.length > 0 ? (values[0] as SupplierSettlementStatus) : undefined);
+        }
+    };
 
+    const handleClearFilters = () => {
+        setStatusFilter(undefined);
+        setSearchFilter('');
+    };
 
     if (error) {
         return (
@@ -83,130 +96,51 @@ export const SupplierSettlementList = ({
                 expiredItems={expiredItems}
             />
 
-            {/* Top Executive Overview Metric Cards (Dynamic 4 or 5 columns) */}
-            <Box
-                sx={{
-                    display: 'grid',
-                    gridTemplateColumns: {
-                        xs: '1fr',
-                        sm: 'repeat(2, 1fr)',
-                        md: expiredCount > 0 ? 'repeat(5, 1fr)' : 'repeat(4, 1fr)',
-                    },
-                    gap: 2,
-                    width: '100%',
+            {/* Top Executive Overview Metric Cards */}
+            <StatRibbonCardsGrid
+                columns={{
+                    xs: 1,
+                    sm: 2,
+                    md: expiredCount > 0 ? 5 : 4,
                 }}
             >
-                {/* 1. Tổng kỳ đối soát */}
-                <Card
-                    elevation={0}
-                    sx={{
-                        p: 2.5,
-                        borderRadius: '16px',
-                        bgcolor: '#ffffff',
-                        border: '1px solid #e2e8f0',
-                        boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
-                    }}
-                >
-                    <Typography variant="caption" fontWeight={600} color="#64748b" display="block">
-                        Số kỳ đối soát
-                    </Typography>
-                    <Typography variant="h5" fontWeight={800} color="#0f172a" sx={{ mt: 0.5 }}>
-                        {pagination?.totalRecords || 0}
-                    </Typography>
-                </Card>
-
-                {/* 2. Tổng giá trị nhập */}
-                <Card
-                    elevation={0}
-                    sx={{
-                        p: 2.5,
-                        borderRadius: '16px',
-                        bgcolor: '#ffffff',
-                        border: '1px solid #e2e8f0',
-                        boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
-                    }}
-                >
-                    <Typography variant="caption" fontWeight={600} color="#64748b" display="block">
-                        Tổng giá trị nhập
-                    </Typography>
-                    <Typography variant="h5" fontWeight={800} color="#0f172a" sx={{ mt: 0.5 }}>
-                        {formatImportCost(totalImportSum)} VNĐ
-                    </Typography>
-                </Card>
-
-                {/* 3. Tổng giá trị trả */}
-                <Card
-                    elevation={0}
-                    sx={{
-                        p: 2.5,
-                        borderRadius: '16px',
-                        bgcolor: '#ffffff',
-                        border: '1px solid #e2e8f0',
-                        boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
-                    }}
-                >
-                    <Typography variant="caption" fontWeight={600} color="#64748b" display="block">
-                        Tổng giá trị trả
-                    </Typography>
-                    <Typography variant="h5" fontWeight={800} color="#0f172a" sx={{ mt: 0.5 }}>
-                        {formatImportCost(totalReturnSum)} VNĐ
-                    </Typography>
-                </Card>
-
-                {/* 4. Còn phải trả NCC */}
-                <Card
-                    elevation={0}
-                    sx={{
-                        p: 2.5,
-                        borderRadius: '16px',
-                        bgcolor: '#f0fdf4',
-                        border: '1px solid #bbf7d0',
-                        boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
-                    }}
-                >
-                    <Typography variant="caption" fontWeight={700} color="#166534" display="block">
-                        Còn phải trả NCC
-                    </Typography>
-                    <Typography variant="h5" fontWeight={800} color="#15803d" sx={{ mt: 0.5 }}>
-                        {formatImportCost(remainingSum)} VNĐ
-                    </Typography>
-                </Card>
-
-                {/* 5. Giá trị quá hạn trả (Hiển thị khi có kỳ đối soát bị quá hạn) */}
-                {expiredCount > 0 && (
-                    <Card
-                        elevation={0}
-                        sx={{
-                            p: 2.5,
-                            borderRadius: '16px',
-                            bgcolor: '#fef2f2',
-                            border: '1.5px solid #fecaca',
-                            boxShadow: '0 2px 8px 0 rgba(239, 68, 68, 0.1)',
-                        }}
-                    >
-                        <Typography variant="caption" fontWeight={800} color="#dc2626" display="flex" alignItems="center" gap={0.5}>
-                            <span>🔴 Quá hạn trả vé ({expiredCount} kỳ)</span>
-                        </Typography>
-                        <Typography variant="h5" fontWeight={800} color="#991b1b" sx={{ mt: 0.5 }}>
-                            {formatImportCost(totalExpiredSum)} VNĐ
-                        </Typography>
-                    </Card>
-                )}
-            </Box>
+                <StatRibbonCard
+                    value={(pagination?.totalRecords || 0).toLocaleString('vi-VN')}
+                    label="Số kỳ đối soát"
+                    icon="solar:clipboard-list-bold-duotone"
+                    color="orange"
+                />
+                <StatRibbonCard
+                    value={`${formatImportCost(totalImportSum)} VNĐ`}
+                    label="Tổng giá trị nhập"
+                    icon="solar:import-bold-duotone"
+                    color="cyan"
+                />
+                <StatRibbonCard
+                    value={`${formatImportCost(totalReturnSum)} VNĐ`}
+                    label="Tổng giá trị trả"
+                    icon="solar:export-bold-duotone"
+                    color="purple"
+                />
+                <StatRibbonCard
+                    value={`${formatImportCost(remainingSum)} VNĐ`}
+                    label="Còn phải trả"
+                    icon="solar:wallet-money-bold-duotone"
+                    color="green"
+                />
+                {expiredCount > 0 ? (
+                    <StatRibbonCard
+                        value={`${formatImportCost(totalExpiredSum)} VNĐ`}
+                        label={`Quá hạn trả vé (${expiredCount} kỳ)`}
+                        icon="solar:danger-triangle-bold-duotone"
+                        color="red"
+                    />
+                ) : null}
+            </StatRibbonCardsGrid>
 
             {/* Main DataGrid Card Container */}
-            <Card
-                elevation={0}
-                className="admin-datagrid-card"
-                sx={{
-                    borderRadius: '16px',
-                    border: '1px solid #e2e8f0',
-                    boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
-                    bgcolor: '#ffffff',
-                    overflow: 'hidden',
-                }}
-            >
-                <Box sx={{ width: '100%', flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+            <Card elevation={0} className="admin-datagrid-card">
+                <Box sx={dataGridContainerStyles}>
                     <DataGrid
                         rows={settlements}
                         getRowId={(row) => row.id}
@@ -248,10 +182,9 @@ export const SupplierSettlementList = ({
                                 settings,
                                 onSettingsChange: setSettings,
                                 filters,
-                                expiredCount,
                                 onSearchChange: setSearchFilter,
-                                onStatusChange: setStatusFilter,
-                                onExpiredOnlyToggle: setExpiredOnlyFilter,
+                                onFilterChange: handleFilterChange,
+                                onClearFilters: handleClearFilters,
                             } as any,
                         }}
                         localeText={DATA_GRID_LOCALE_VN}
@@ -272,26 +205,18 @@ export const SupplierSettlementList = ({
                         }}
                         loading={isLoading}
                         rowCount={pagination?.totalRecords || 0}
-                        paginationModel={{
-                            page: filters.page - 1,
-                            pageSize: filters.limit,
-                        }}
-                        onPaginationModelChange={(model) => {
-                            if (model.page + 1 !== filters.page) {
-                                setPage(model.page + 1);
-                            }
-                            if (model.pageSize !== filters.limit) {
-                                setLimit(model.pageSize);
-                            }
-                        }}
+                        paginationModel={paginationModel}
+                        onPaginationModelChange={onPaginationModelChange}
                         pageSizeOptions={[5, 10, 20, 50]}
                         initialState={columnsInitialState}
-                        getRowHeight={() => 'auto'}
+                        {...adminDataGridRowHeightProps}
                         disableRowSelectionOnClick
                         className="admin-datagrid"
                         sx={{
                             ...dataGridStyles,
+                            ...adminDataGridRowHeightSx,
                             '& .MuiDataGrid-row': {
+                                minHeight: `${ADMIN_DATAGRID_ROW_MIN_HEIGHT}px !important`,
                                 borderLeft: '5px solid transparent',
                             },
                             '& .admin-datagrid-row-expired': {
@@ -305,7 +230,7 @@ export const SupplierSettlementList = ({
                             '& .admin-datagrid-row-expired:hover .MuiDataGrid-cell': {
                                 bgcolor: '#ffe4e6 !important',
                             },
-                        }}
+                        } as import('@mui/material/styles').SxProps<import('@mui/material/styles').Theme>}
                     />
                 </Box>
             </Card>

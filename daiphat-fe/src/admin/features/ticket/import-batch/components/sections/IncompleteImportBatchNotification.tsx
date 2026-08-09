@@ -26,7 +26,6 @@ import {
     getImportModeNotificationLabel,
 } from '../../utils/batchTypeLabels';
 import {
-    findFirstIncompleteLine,
     getImportBatchProgress,
     getIncompleteLines,
     resolveImportBatchStationNames,
@@ -186,9 +185,8 @@ export const IncompleteImportBatchNotification = ({
         [providers]
     );
 
-    const handleContinue = (batch: ImportBatch) => {
-        const firstLine = findFirstIncompleteLine(batch);
-        navigate(ROUTES.ADMIN.TICKETS.CREATE_FOR_BATCH(batch.id, firstLine?.id));
+    const handleContinue = (_batch: ImportBatch) => {
+        navigate(ROUTES.ADMIN.IMPORT_BATCH.LIST);
     };
 
     if (isLoading || batches.length === 0) {

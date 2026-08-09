@@ -9,6 +9,7 @@ import {
 } from '../services/supplierSettlementService';
 import type { SupplierSettlementListParams, SupplierSettlementStatus } from '../types/supplierSettlement.type';
 import { QUERY_KEYS } from '../constants/queryKeys';
+import { useServerPagination } from '../../../../shared/data-grid/useServerPagination';
 
 export const useSupplierSettlements = (params?: SupplierSettlementListParams, options?: any) => {
     return useQuery({
@@ -49,11 +50,16 @@ interface ISupplierSettlementFilters {
     lotterySupplierId?: number;
     sortBy?: string;
     direction?: string;
-    page: number;
-    limit: number;
 }
 
 export const useSupplierSettlementList = () => {
+    const {
+        apiPage,
+        pageSize,
+        paginationModel,
+        onPaginationModelChange,
+        resetPage,
+    } = useServerPagination(10);
     const [filters, setFilters] = useState<ISupplierSettlementFilters>({
         search: '',
         status: undefined,
@@ -61,8 +67,6 @@ export const useSupplierSettlementList = () => {
         lotterySupplierId: undefined,
         sortBy: 'periodFrom',
         direction: 'desc',
-        page: 1,
-        limit: 10,
     });
 
     const queryParams = useMemo(
@@ -72,10 +76,10 @@ export const useSupplierSettlementList = () => {
             lotterySupplierId: filters.lotterySupplierId,
             sortBy: filters.sortBy,
             direction: filters.direction,
-            page: filters.page,
-            size: filters.limit,
+            page: apiPage,
+            size: pageSize,
         }),
-        [filters]
+        [apiPage, filters, pageSize]
     );
 
     const { data, isLoading, error } = useSupplierSettlements(queryParams, {
@@ -99,27 +103,23 @@ export const useSupplierSettlementList = () => {
     };
 
     const setSearchFilter = (search: string) => {
-        setFilters((prev) => ({ ...prev, search, page: 1 }));
+        setFilters((prev) => ({ ...prev, search }));
+        resetPage();
     };
 
     const setStatusFilter = (status?: SupplierSettlementStatus) => {
-        setFilters((prev) => ({ ...prev, status, expiredOnly: false, page: 1 }));
+        setFilters((prev) => ({ ...prev, status, expiredOnly: false }));
+        resetPage();
     };
 
     const setExpiredOnlyFilter = (expiredOnly?: boolean) => {
-        setFilters((prev) => ({ ...prev, expiredOnly: expiredOnly ?? !prev.expiredOnly, page: 1 }));
+        setFilters((prev) => ({ ...prev, expiredOnly: expiredOnly ?? !prev.expiredOnly }));
+        resetPage();
     };
 
     const setSupplierFilter = (lotterySupplierId?: number) => {
-        setFilters((prev) => ({ ...prev, lotterySupplierId, page: 1 }));
-    };
-
-    const setPage = (page: number) => {
-        setFilters((prev) => ({ ...prev, page }));
-    };
-
-    const setLimit = (limit: number) => {
-        setFilters((prev) => ({ ...prev, limit, page: 1 }));
+        setFilters((prev) => ({ ...prev, lotterySupplierId }));
+        resetPage();
     };
 
     const setSort = (sortBy?: string, direction?: string) => {
@@ -127,8 +127,8 @@ export const useSupplierSettlementList = () => {
             ...prev,
             sortBy: sortBy || 'periodFrom',
             direction: direction || 'desc',
-            page: 1,
         }));
+        resetPage();
     };
 
     return {
@@ -138,12 +138,12 @@ export const useSupplierSettlementList = () => {
         isLoading,
         error,
         filters,
+        paginationModel,
+        onPaginationModelChange,
         setSearchFilter,
         setStatusFilter,
         setExpiredOnlyFilter,
         setSupplierFilter,
-        setPage,
-        setLimit,
         setSort,
     };
 };
