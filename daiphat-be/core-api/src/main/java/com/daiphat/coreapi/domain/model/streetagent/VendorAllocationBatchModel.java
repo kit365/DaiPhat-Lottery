@@ -5,6 +5,7 @@ import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
 import com.daiphat.coreapi.domain.service.streetagent.VendorDepositCalculator;
 import com.daiphat.coreapi.domain.service.streetagent.VendorSettlementCalculator;
+import com.daiphat.coreapi.domain.service.streetagent.VendorAllocationSuggestionBuilder;
 import lombok.*;
 import java.math.BigDecimal;
 import java.time.*;
@@ -19,11 +20,17 @@ public class VendorAllocationBatchModel {
     @Builder.Default private AllocationBatchType batchType = AllocationBatchType.STREET_AGENT;
     @Builder.Default private AllocationBatchStatus status = AllocationBatchStatus.DRAFT;
     private LocalDateTime reservationExpiresAt;
+    private Integer requestedQuantity;
+    private Integer reserveCountSnapshot;
+    private BigDecimal reservePercentSnapshot;
     private BigDecimal faceValueSnapshot;
     private BigDecimal vendorUnitPriceSnapshot;
+    private BigDecimal commissionRateSnapshot;
     private BigDecimal depositRateSnapshot;
     private VendorLateReturnPolicy latePolicySnapshot;
     private LocalTime returnCutoffSnapshot;
+    private LocalTime supplierReturnCutoffSnapshot;
+    private Integer returnBufferMinutesSnapshot;
     private int allocatedQuantity;
     private int returnedQuantity;
     private int soldQuantity;
@@ -33,6 +40,8 @@ public class VendorAllocationBatchModel {
     private BigDecimal commissionPayable;
     private BigDecimal depositRefundAmount;
     private BigDecimal depositForfeitedAmount;
+    private BigDecimal depositAppliedAmount;
+    private BigDecimal depositExcessRefundAmount;
     private BigDecimal forcedPurchaseAmount;
     private BigDecimal additionalAmountDue;
     private BigDecimal depositBalanceBefore;
@@ -50,6 +59,17 @@ public class VendorAllocationBatchModel {
             LocalDateTime reservationExpiresAt, List<VendorAllocationSerialModel> serials,
             String luckyOverrideReason
     ) {
+        return createDraft(batchCode, profileId, businessDate, reservationExpiresAt, serials,
+                luckyOverrideReason, serials == null ? 0 : serials.size(),
+                new VendorAllocationSuggestionBuilder.ReservePolicy(0, BigDecimal.ZERO));
+    }
+
+    public static VendorAllocationBatchModel createDraft(
+            String batchCode, Long profileId, LocalDate businessDate,
+            LocalDateTime reservationExpiresAt, List<VendorAllocationSerialModel> serials,
+            String luckyOverrideReason, int requestedQuantity,
+            VendorAllocationSuggestionBuilder.ReservePolicy reservePolicy
+    ) {
         if (serials == null || serials.isEmpty() || reservationExpiresAt == null) {
             throw new DomainException(ErrorCode.VENDOR_ALLOCATION_SERIAL_INVALID);
         }
@@ -59,6 +79,8 @@ public class VendorAllocationBatchModel {
         return VendorAllocationBatchModel.builder()
                 .batchCode(batchCode).streetAgentProfileId(profileId).businessDate(businessDate)
                 .status(AllocationBatchStatus.DRAFT).reservationExpiresAt(reservationExpiresAt)
+                .requestedQuantity(requestedQuantity).reserveCountSnapshot(reservePolicy.fixedReserve())
+                .reservePercentSnapshot(reservePolicy.reservePercent())
                 .allocatedQuantity(serials.size()).luckyOverrideReason(luckyOverrideReason)
                 .serials(serials)
                 .details(quantities.entrySet().stream().map(entry -> VendorAllocationBatchDetailModel.builder()
@@ -73,6 +95,7 @@ public class VendorAllocationBatchModel {
     public void confirmHandover(
             LocalDateTime now, BigDecimal vendorUnitPrice, BigDecimal depositRate,
             VendorLateReturnPolicy latePolicy, LocalTime returnCutoff,
+            LocalTime supplierReturnCutoff, Integer returnBufferMinutes,
             BigDecimal depositReceivedAmount, BigDecimal depositBalanceBefore, UUID operatorId
     ) {
         if (status != AllocationBatchStatus.DRAFT || isDraftExpired(now) || serials.isEmpty()) {
@@ -90,6 +113,8 @@ public class VendorAllocationBatchModel {
         depositRateSnapshot = depositRate;
         latePolicySnapshot = latePolicy;
         returnCutoffSnapshot = returnCutoff;
+        supplierReturnCutoffSnapshot = supplierReturnCutoff;
+        returnBufferMinutesSnapshot = returnBufferMinutes;
         BigDecimal required = VendorDepositCalculator.calculate(allocatedQuantity, vendorUnitPrice, depositRate);
         if (depositReceivedAmount == null || depositReceivedAmount.compareTo(required) < 0) {
             throw new DomainException(ErrorCode.VENDOR_ALLOCATION_DEPOSIT_INSUFFICIENT);
@@ -104,6 +129,15 @@ public class VendorAllocationBatchModel {
         status = AllocationBatchStatus.CONFIRMED;
     }
 
+    /** Compatibility overload for callers created before supplier-window snapshots existed. */
+    public void confirmHandover(
+            LocalDateTime now, BigDecimal vendorUnitPrice, BigDecimal depositRate,
+            VendorLateReturnPolicy latePolicy, LocalTime returnCutoff,
+            BigDecimal depositReceivedAmount, BigDecimal depositBalanceBefore, UUID operatorId) {
+        confirmHandover(now, vendorUnitPrice, depositRate, latePolicy, returnCutoff, null, null,
+                depositReceivedAmount, depositBalanceBefore, operatorId);
+    }
+
     public void openReturnSession() {
         if (status != AllocationBatchStatus.CONFIRMED) {
             throw new DomainException(ErrorCode.VENDOR_ALLOCATION_INVALID_STATE);
@@ -111,7 +145,7 @@ public class VendorAllocationBatchModel {
         status = AllocationBatchStatus.RETURN_OPEN;
     }
 
-    public void recordReturnedSerials(Collection<Long> serialIds, LocalDateTime returnedAt) {
+    public void stageReturnedSerials(Collection<Long> serialIds) {
         if (status != AllocationBatchStatus.RETURN_OPEN || serialIds == null || serialIds.isEmpty()) {
             throw new DomainException(ErrorCode.VENDOR_ALLOCATION_INVALID_STATE);
         }
@@ -126,8 +160,40 @@ public class VendorAllocationBatchModel {
             if (serial == null) {
                 throw new DomainException(ErrorCode.VENDOR_ALLOCATION_RETURN_SERIAL_INVALID);
             }
-            serial.returnFromStreetAgent(returnedAt);
+            serial.stageStreetAgentReturn();
         }
+    }
+
+    /**
+     * Kept only for callers compiled before the two-step vendor return receipt flow.
+     * New use-cases must stage the physical tickets, then confirm the inspection.
+     */
+    @Deprecated(forRemoval = false)
+    public void recordReturnedSerials(Collection<Long> serialIds, LocalDateTime returnedAt) {
+        stageReturnedSerials(serialIds);
+        confirmReturnedSerials(List.of(), returnedAt);
+    }
+
+    public void confirmReturnedSerials(Collection<Long> rejectedSerialIds, LocalDateTime returnedAt) {
+        if (status != AllocationBatchStatus.RETURN_OPEN) {
+            throw new DomainException(ErrorCode.VENDOR_ALLOCATION_INVALID_STATE);
+        }
+        Set<Long> rejected = rejectedSerialIds == null ? Set.of() : new HashSet<>(rejectedSerialIds);
+        Map<Long, VendorAllocationSerialModel> serialById = serials.stream()
+                .collect(java.util.stream.Collectors.toMap(VendorAllocationSerialModel::getSerialId, value -> value));
+        if (rejected.stream().anyMatch(id -> !serialById.containsKey(id)
+                || serialById.get(id).getStatus() != AllocationSerialStatus.RETURN_PENDING_INSPECTION)) {
+            throw new DomainException(ErrorCode.VENDOR_ALLOCATION_RETURN_SERIAL_INVALID);
+        }
+        serials.stream()
+                .filter(serial -> serial.getStatus() == AllocationSerialStatus.RETURN_PENDING_INSPECTION)
+                .forEach(serial -> {
+                    if (rejected.contains(serial.getSerialId())) {
+                        serial.rejectStreetAgentReturn("Từ chối khi kiểm nhận");
+                    } else {
+                        serial.returnFromStreetAgent(returnedAt);
+                    }
+                });
         recalculateQuantities();
     }
 
@@ -141,33 +207,43 @@ public class VendorAllocationBatchModel {
                 depositReceivedAmount, isLate(now), latePolicySnapshot);
     }
 
-    public VendorSettlementCalculator.Result settle(LocalDateTime now, BigDecimal profileBalanceBefore, UUID operatorId) {
-        VendorSettlementCalculator.Result result = previewSettlement(now);
+    public VendorSettlementCalculator.Result settle(
+            LocalDateTime settledAt, LocalDateTime returnConfirmedAt,
+            BigDecimal profileBalanceBefore, UUID operatorId) {
+        VendorSettlementCalculator.Result result = previewSettlement(returnConfirmedAt);
         BigDecimal held = depositReceivedAmount == null ? BigDecimal.ZERO : depositReceivedAmount;
         BigDecimal before = profileBalanceBefore == null ? BigDecimal.ZERO : profileBalanceBefore;
         if (before.compareTo(held) < 0) {
             throw new DomainException(ErrorCode.VENDOR_ALLOCATION_INVALID_STATE);
         }
-        serials.stream().filter(serial -> serial.getStatus() == AllocationSerialStatus.HANDED_OVER)
+        serials.stream().filter(serial -> serial.getStatus() == AllocationSerialStatus.HANDED_OVER
+                        || serial.getStatus() == AllocationSerialStatus.RETURN_REJECTED)
                 .forEach(VendorAllocationSerialModel::markSoldAtSettlement);
         recalculateQuantities();
         grossCashRemitted = result.grossCashRemitted();
         commissionPayable = result.commissionPayable();
         depositRefundAmount = result.depositRefundAmount();
         depositForfeitedAmount = result.depositForfeitedAmount();
+        depositAppliedAmount = result.depositAppliedAmount();
+        depositExcessRefundAmount = result.depositExcessRefundAmount();
         forcedPurchaseAmount = result.forcedPurchaseAmount();
         additionalAmountDue = result.additionalAmountDue();
         depositBalanceBefore = before;
         depositBalanceAfter = before.subtract(held);
-        settledAt = now;
+        this.settledAt = settledAt;
         settledBy = operatorId;
-        status = isLate(now) ? AllocationBatchStatus.LATE_SETTLED : AllocationBatchStatus.SETTLED;
+        status = isLate(returnConfirmedAt) ? AllocationBatchStatus.LATE_SETTLED : AllocationBatchStatus.SETTLED;
         return result;
+    }
+
+    /** Compatibility overload; current application service always passes inspection confirmation time. */
+    public VendorSettlementCalculator.Result settle(LocalDateTime now, BigDecimal profileBalanceBefore, UUID operatorId) {
+        return settle(now, now, profileBalanceBefore, operatorId);
     }
 
     private boolean isLate(LocalDateTime now) {
         return now != null && returnCutoffSnapshot != null
-                && now.isAfter(businessDate.atTime(returnCutoffSnapshot));
+                && !now.isBefore(businessDate.atTime(returnCutoffSnapshot));
     }
 
     private void recalculateQuantities() {

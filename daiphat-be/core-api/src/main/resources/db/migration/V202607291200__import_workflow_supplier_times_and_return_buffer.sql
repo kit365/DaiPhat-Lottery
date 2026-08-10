@@ -1,10 +1,3 @@
--- Rename supplier ticket schedule columns to match new import workflow naming.
-ALTER TABLE lottery_suppliers
-    RENAME COLUMN ticket_import_time TO import_allow_from;
-
-ALTER TABLE lottery_suppliers
-    RENAME COLUMN ticket_return_time TO return_cut_off_time;
-
 -- Migrate legacy LATE_IMPORT line types (type no longer exists).
 UPDATE import_batch_lines
 SET batch_type = 'NEW'

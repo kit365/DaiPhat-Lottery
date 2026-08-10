@@ -103,10 +103,34 @@ class VendorAllocationBatchModelTest {
         var settlement = batch.settle(now.plusHours(2), BigDecimal.valueOf(1_000), UUID.randomUUID());
 
         assertThat(batch.getStatus()).isEqualTo(AllocationBatchStatus.SETTLED);
-        assertThat(serial.getTicketStatus()).isEqualTo(LotteryTicketSerialStatus.IN_STOCK);
+        // Physical stock is restored by the application service only after settlement.
+        assertThat(serial.getTicketStatus()).isEqualTo(LotteryTicketSerialStatus.WITH_STREET_AGENT);
         assertThat(settlement.soldQuantity()).isZero();
         assertThat(settlement.depositRefundAmount()).isEqualByComparingTo("1000");
         assertThat(batch.getDepositBalanceAfter()).isZero();
+    }
+
+    @Test
+    void only_confirmed_inspection_counts_as_returned() {
+        LocalDateTime now = LocalDateTime.of(2026, 8, 5, 9, 0);
+        VendorAllocationSerialModel serial = serial();
+        VendorAllocationBatchModel batch = VendorAllocationBatchModel.createDraft("VND-1", 7L,
+                LocalDate.of(2026, 8, 5), now.plusMinutes(15), List.of(serial), null);
+        serial.markReservedByBatch(99L);
+        batch.confirmHandover(now, BigDecimal.valueOf(9_000), new BigDecimal("0.10"),
+                VendorLateReturnPolicy.FORFEIT_DEPOSIT, LocalTime.of(15, 0),
+                BigDecimal.valueOf(1_000), BigDecimal.ZERO, UUID.randomUUID());
+
+        batch.openReturnSession();
+        batch.stageReturnedSerials(List.of(1L));
+        assertThat(serial.getStatus()).isEqualTo(AllocationSerialStatus.RETURN_PENDING_INSPECTION);
+        assertThat(batch.getReturnedQuantity()).isZero();
+        assertThat(serial.getTicketStatus()).isEqualTo(LotteryTicketSerialStatus.WITH_STREET_AGENT);
+
+        batch.confirmReturnedSerials(List.of(), now.plusMinutes(30));
+        assertThat(serial.getStatus()).isEqualTo(AllocationSerialStatus.RETURNED);
+        assertThat(batch.getReturnedQuantity()).isOne();
+        assertThat(serial.getTicketStatus()).isEqualTo(LotteryTicketSerialStatus.WITH_STREET_AGENT);
     }
 
     @Test

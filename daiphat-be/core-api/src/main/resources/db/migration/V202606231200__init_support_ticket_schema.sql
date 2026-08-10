@@ -5,6 +5,7 @@ CREATE TABLE IF NOT EXISTS ticket_categories (
     description VARCHAR(500),
     priority INT NOT NULL DEFAULT 2,
     required_ref_type VARCHAR(50),
+    parent_id BIGINT REFERENCES ticket_categories(id),
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
     created_at TIMESTAMP,
     updated_at TIMESTAMP,

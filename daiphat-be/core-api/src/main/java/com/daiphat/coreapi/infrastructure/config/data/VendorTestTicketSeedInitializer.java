@@ -38,7 +38,11 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.DayOfWeek;
 import java.util.Comparator;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 /**
  * Local-only fixture for manually testing vendor allocation.
@@ -170,6 +174,20 @@ public class VendorTestTicketSeedInitializer implements ApplicationRunner {
                         .lastModifiedBy(SEED_MARKER)
                         .build()));
 
+        // This fixture runs at application start. Load the existing local data
+        // once so a restart neither emits an N+1 query storm nor keeps adding
+        // another 100 tickets per station.
+        Map<String, LotteryTicketEntity> ticketsByStationAndNumber = new HashMap<>();
+        ticketRepository.findAllByStation_IdInAndDrawDateAndDeletedAtIsNull(
+                        stations.stream().map(LotteryStationEntity::getId).toList(), drawDate
+                )
+                .forEach(ticket -> ticketsByStationAndNumber.put(ticketKey(ticket.getStation().getId(), ticket.getNumbers()), ticket));
+        Set<String> seededSerialNumbers = new HashSet<>(serialRepository
+                .findBySerialNumberPrefixWithTicketFetched("VENDOR-TEST-")
+                .stream()
+                .map(LotteryTicketSerialEntity::getSerialNumber)
+                .toList());
+
         int createdSerials = 0;
         int stationOrder = 0;
         for (LotteryStationEntity station : stations) {
@@ -195,12 +213,11 @@ public class VendorTestTicketSeedInitializer implements ApplicationRunner {
 
             int stationCreated = 0;
             for (int ticketIndex = 1; ticketIndex <= TICKETS_PER_STATION; ticketIndex++) {
-                String numbers = resolveTicketNumber(station.getId(), drawDate, stationOrder, ticketIndex);
-                LotteryTicketEntity ticket = ticketRepository
-                        .findByStation_IdAndNumbersAndDrawDateAndDeletedAtIsNull(
-                                station.getId(), numbers, drawDate
-                        )
-                        .orElseGet(() -> ticketRepository.save(LotteryTicketEntity.builder()
+                String numbers = resolveTicketNumber(stationOrder, ticketIndex);
+                String ticketKey = ticketKey(station.getId(), numbers);
+                LotteryTicketEntity ticket = ticketsByStationAndNumber.get(ticketKey);
+                if (ticket == null) {
+                    ticket = ticketRepository.save(LotteryTicketEntity.builder()
                                 .station(station)
                                 .numbers(numbers)
                                 .drawDate(drawDate)
@@ -210,12 +227,12 @@ public class VendorTestTicketSeedInitializer implements ApplicationRunner {
                                 .active(true)
                                 .createdBy(SEED_MARKER)
                                 .lastModifiedBy(SEED_MARKER)
-                                .build()));
+                                .build());
+                    ticketsByStationAndNumber.put(ticketKey, ticket);
+                }
 
                 String serialNumber = "VENDOR-TEST-" + station.getId() + "-" + numbers;
-                boolean serialExists = serialRepository.findByTicket_IdAndDeletedAtIsNull(ticket.getId()).stream()
-                        .anyMatch(serial -> serialNumber.equals(serial.getSerialNumber()));
-                if (serialExists) {
+                if (!seededSerialNumbers.add(serialNumber)) {
                     continue;
                 }
 
@@ -262,17 +279,13 @@ public class VendorTestTicketSeedInitializer implements ApplicationRunner {
                 createdSerials, stations.size(), drawDate);
     }
 
-    private String resolveTicketNumber(Long stationId, LocalDate drawDate, int stationOrder, int ticketIndex) {
+    private String resolveTicketNumber(int stationOrder, int ticketIndex) {
         int candidate = 700_000 + stationOrder * 1000 + ticketIndex;
-        for (int offset = 0; offset < 100_000; offset++) {
-            String numbers = String.format("%06d", (candidate + offset) % 1_000_000);
-            if (!ticketRepository.existsByStation_IdAndNumbersAndDrawDateAndDeletedAtIsNull(
-                    stationId, numbers, drawDate
-            )) {
-                return numbers;
-            }
-        }
-        throw new IllegalStateException("Unable to allocate a local vendor test ticket number.");
+        return String.format("%06d", candidate % 1_000_000);
+    }
+
+    private String ticketKey(Long stationId, String numbers) {
+        return stationId + ":" + numbers;
     }
 
 }

@@ -61,11 +61,12 @@ const defaultValues: CreateStreetAgentProfileFormValues = {
     imageUrl: "",
     contactAddress: "",
     contactProvince: "",
+    contactWard: "",
     coverageAreaCodes: [],
-    commissionRate: null,
     contractStartDate: "",
     contractEndDate: "",
-    dailyTicketCap: null,
+    contractMaxDailyCap: null,
+    approvedDailyCap: null,
 };
 
 const toFormValues = (profile: StreetAgentProfile): CreateStreetAgentProfileFormValues => ({
@@ -76,11 +77,12 @@ const toFormValues = (profile: StreetAgentProfile): CreateStreetAgentProfileForm
     imageUrl: profile.imageUrl || "",
     contactAddress: profile.contactAddress || "",
     contactProvince: profile.contactProvince || "",
+    contactWard: profile.contactWard || "",
     coverageAreaCodes: parseCoverageAreaCodes(profile.coverageArea),
-    commissionRate: profile.commissionRate ?? null,
     contractStartDate: profile.contractStartDate || "",
     contractEndDate: profile.contractEndDate || "",
-    dailyTicketCap: profile.dailyTicketCap ?? null,
+    contractMaxDailyCap: profile.contractMaxDailyCap ?? null,
+    approvedDailyCap: profile.approvedDailyCap ?? null,
 });
 
 export const StreetAgentCreatePage = () => {
@@ -97,7 +99,10 @@ export const StreetAgentCreatePage = () => {
         isError: isResumeError,
         refetch: refetchResume,
     } = useStreetAgentProfileDetail(resumeId ?? undefined);
-    const { defaults: vendorDefaults } = useVendorSettingsDefaults();
+    const {
+        defaults: vendorDefaults,
+        isSuccess: vendorSettingsLoaded,
+    } = useVendorSettingsDefaults();
 
     const fileInputRef = useRef<HTMLInputElement>(null);
     const signedFileInputRef = useRef<HTMLInputElement>(null);
@@ -107,15 +112,32 @@ export const StreetAgentCreatePage = () => {
     const [hydratedResume, setHydratedResume] = useState(false);
     const [pendingSignedFile, setPendingSignedFile] = useState<File | null>(null);
     const [viewSignedOpen, setViewSignedOpen] = useState(false);
+    const defaultsAppliedRef = useRef(false);
 
     const { control, handleSubmit, setValue, watch, reset } = useForm<CreateStreetAgentProfileFormValues>({
         resolver: zodResolver(createStreetAgentProfileSchema) as any,
         defaultValues,
+        mode: "all",
+        reValidateMode: "onChange",
     });
 
     const imageUrl = watch("imageUrl");
     const profile = createdProfile ?? resumeProfile ?? null;
     const profileId = profile?.id ?? resumeId;
+
+    useEffect(() => {
+        if (resumeProfile || !vendorSettingsLoaded || defaultsAppliedRef.current) return;
+        if (vendorDefaults.defaultContractMaxDailyCap != null) {
+            setValue("contractMaxDailyCap", vendorDefaults.defaultContractMaxDailyCap, { shouldValidate: true });
+        }
+        if (vendorDefaults.defaultApprovedDailyCap != null) {
+            const approved = vendorDefaults.defaultContractMaxDailyCap == null
+                ? vendorDefaults.defaultApprovedDailyCap
+                : Math.min(vendorDefaults.defaultApprovedDailyCap, vendorDefaults.defaultContractMaxDailyCap);
+            setValue("approvedDailyCap", approved, { shouldValidate: true });
+        }
+        defaultsAppliedRef.current = true;
+    }, [resumeProfile, setValue, vendorDefaults, vendorSettingsLoaded]);
 
     useEffect(() => {
         if (!resumeProfile || hydratedResume) return;
@@ -198,12 +220,12 @@ export const StreetAgentCreatePage = () => {
             imageUrl: data.imageUrl || undefined,
             contactAddress: data.contactAddress || undefined,
             contactProvince: data.contactProvince || undefined,
+            contactWard: data.contactWard || undefined,
             coverageArea: serializeCoverageAreaCodes(data.coverageAreaCodes || []),
-            commissionRate: data.commissionRate ?? undefined,
             contractStartDate: data.contractStartDate || undefined,
             contractEndDate: data.contractEndDate || undefined,
-            dailyTicketCap: data.dailyTicketCap ?? undefined,
-            depositBalance: 0,
+            contractMaxDailyCap: data.contractMaxDailyCap ?? undefined,
+            approvedDailyCap: data.approvedDailyCap ?? undefined,
         };
 
         create(payload, {
@@ -290,7 +312,7 @@ export const StreetAgentCreatePage = () => {
                     title="Tạo hồ sơ đại lý bán dạo"
                     breadcrumbItems={[
                         { label: "Dashboard", to: "/" },
-                        { label: "Quản lý tài khoản", to: ROUTES.ADMIN.ACCOUNTS.ADMIN.LIST },
+                        { label: "Quản lý đại lý", to: ROUTES.ADMIN.ACCOUNTS.ADMIN.LIST },
                         { label: "Đại lý bán dạo", to: ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.LIST },
                         { label: "Tiếp tục hoàn thiện" },
                     ]}
@@ -306,7 +328,7 @@ export const StreetAgentCreatePage = () => {
                 title="Tạo hồ sơ đại lý bán dạo"
                 breadcrumbItems={[
                     { label: "Dashboard", to: "/" },
-                    { label: "Quản lý tài khoản", to: ROUTES.ADMIN.ACCOUNTS.ADMIN.LIST },
+                    { label: "Quản lý đại lý", to: ROUTES.ADMIN.ACCOUNTS.ADMIN.LIST },
                     { label: "Đại lý bán dạo", to: ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.LIST },
                     { label: resumeId ? "Tiếp tục hoàn thiện" : "Tạo hồ sơ" },
                 ]}
@@ -334,6 +356,7 @@ export const StreetAgentCreatePage = () => {
                     <StreetAgentProfileForm
                         mode="create"
                         control={control}
+                        setValue={setValue}
                         imageUrl={imageUrl}
                         isUploading={isUploading}
                         fileInputRef={fileInputRef}
@@ -371,7 +394,7 @@ export const StreetAgentCreatePage = () => {
                                     Hoàn thiện hồ sơ đại lý
                                 </Typography>
                                 <Typography variant="body2" color="text.secondary">
-                                    Vui lòng thực hiện các bước dưới đây để kích hoạt tài khoản
+                                    Vui lòng thực hiện các bước dưới đây để kích hoạt hồ sơ đại lý
                                 </Typography>
                             </Box>
                             <Box sx={{ textAlign: { xs: "left", sm: "right" } }}>

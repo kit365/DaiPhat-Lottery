@@ -11,8 +11,8 @@ export const STREET_AGENT_PHASE_UI = {
         (envOverride !== "false" && process.env.NODE_ENV !== "production"),
     /** Phase 2 allocation eligibility — released */
     phase2Released: true,
-    /** Phase 3 settlement — not released */
-    phase3Released: false,
-    /** Phase 4 confidence engine — not released (values still shown read-only) */
-    phase4Released: false,
+    /** Phase 3 settlement — released */
+    phase3Released: true,
+    /** Phase 4 confidence engine — released */
+    phase4Released: true,
 } as const;

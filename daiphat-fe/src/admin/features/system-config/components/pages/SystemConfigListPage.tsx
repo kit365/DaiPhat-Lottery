@@ -1,6 +1,7 @@
 import { useMemo, useState, type ReactElement } from 'react';
 import {
     Box,
+    Button,
     Card,
     Stack,
     Tab,
@@ -21,9 +22,10 @@ import { Search } from '../../../../components/ui/Search';
 import { PERMISSIONS } from '../../../../constants/permission.constants';
 import { useAuthStore } from '../../../../../stores/useAuthStore';
 import { UpdateSystemConfigFormValues } from '../../../../schemas/system-config.schema';
-import { useSystemConfigs, useUpdateSystemConfig } from '../../hooks/useSystemConfig';
+import { useBulkUpdateVendorConfidencePolicy, useSystemConfigs, useUpdateSystemConfig } from '../../hooks/useSystemConfig';
 import { SystemConfigEditDialog } from '../sections/SystemConfigEditDialog';
 import { SystemConfigTableRow } from '../sections/SystemConfigTableRow';
+import { VendorConfidencePolicyDialog } from '../sections/VendorConfidencePolicyDialog';
 import {
     CONFIG_TYPE_LABELS,
     ConfigType,
@@ -158,11 +160,15 @@ export const SystemConfigListPage = () => {
     const [search, setSearch] = useState('');
     const [typeFilter, setTypeFilter] = useState<TypeFilter>('all');
     const [selectedConfig, setSelectedConfig] = useState<SystemConfigResponse | null>(null);
+    const [confidencePolicyOpen, setConfidencePolicyOpen] = useState(false);
 
     const { data: configsRes, isLoading } = useSystemConfigs('all');
     const { mutate: updateConfig, isPending } = useUpdateSystemConfig();
+    const { mutate: bulkUpdateConfidence, isPending: isBulkConfidencePending } =
+        useBulkUpdateVendorConfidencePolicy();
 
     const allConfigs = configsRes?.data || [];
+    const hasConfidenceConfigs = allConfigs.some((c) => c.configKey.startsWith('VENDOR_CONFIDENCE_'));
 
     const typeCounts = useMemo(() => {
         const counts: Record<TypeFilter, number> = {
@@ -219,6 +225,10 @@ export const SystemConfigListPage = () => {
     ] = TYPE_TABS;
 
     const handleEdit = (config: SystemConfigResponse) => {
+        if (config.configKey.startsWith('VENDOR_CONFIDENCE_')) {
+            setConfidencePolicyOpen(true);
+            return;
+        }
         setSelectedConfig(config);
     };
 
@@ -251,6 +261,26 @@ export const SystemConfigListPage = () => {
                 },
             }
         );
+    };
+
+    const handleBulkConfidenceSubmit = (values: Record<string, string>) => {
+        bulkUpdateConfidence(values, {
+            onSuccess: (res) => {
+                if (res.success) {
+                    toast.success(res.message || 'Cập nhật bộ cấu hình confidence thành công!');
+                    setConfidencePolicyOpen(false);
+                } else {
+                    toast.error(res.message || 'Cập nhật bộ cấu hình confidence thất bại!');
+                }
+            },
+            onError: (err: any) => {
+                toast.error(
+                    err?.response?.data?.message ||
+                        err.message ||
+                        'Cập nhật bộ cấu hình confidence thất bại!'
+                );
+            },
+        });
     };
 
     return (
@@ -286,9 +316,20 @@ export const SystemConfigListPage = () => {
                             onChange={setSearch}
                             maxWidth="100%"
                         />
-                        <Typography variant="body2" color="text.secondary" sx={{ whiteSpace: 'nowrap' }}>
-                            {filteredConfigs.length} cấu hình
-                        </Typography>
+                        <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
+                            {canEdit && hasConfidenceConfigs && (
+                                <Button
+                                    variant="outlined"
+                                    size="small"
+                                    onClick={() => setConfidencePolicyOpen(true)}
+                                >
+                                    Chỉnh policy confidence
+                                </Button>
+                            )}
+                            <Typography variant="body2" color="text.secondary" sx={{ whiteSpace: 'nowrap' }}>
+                                {filteredConfigs.length} cấu hình
+                            </Typography>
+                        </Stack>
                     </Stack>
 
                     <Tabs
@@ -393,6 +434,14 @@ export const SystemConfigListPage = () => {
                 onClose={handleCloseDialog}
                 onSubmit={handleSubmit}
                 isPending={isPending}
+            />
+
+            <VendorConfidencePolicyDialog
+                open={confidencePolicyOpen}
+                configs={allConfigs}
+                loading={isBulkConfidencePending}
+                onClose={() => setConfidencePolicyOpen(false)}
+                onSubmit={handleBulkConfidenceSubmit}
             />
         </>
     );

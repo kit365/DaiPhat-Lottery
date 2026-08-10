@@ -21,3 +21,10 @@ export const updateSystemConfig = async (
     const response = await apiApp.put(`${BASE_URL}/${id}`, data);
     return response.data;
 };
+
+export const bulkUpdateVendorConfidencePolicy = async (
+    values: Record<string, string>
+): Promise<ApiResponse<SystemConfigResponse[]>> => {
+    const response = await apiApp.put(`${BASE_URL}/vendor-confidence-policy`, { values });
+    return response.data;
+};

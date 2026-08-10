@@ -1,19 +1,48 @@
 "use client";
 
 import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
+import { useAppSearchParams } from "@/hooks/useAppSearchParams";
 import { useEffect, useMemo, useState } from "react";
 import {
-    Alert, Autocomplete, Box, Card, Checkbox, Chip, Dialog, DialogActions, DialogContent, DialogTitle, Divider, Drawer, FormControl, IconButton, InputLabel, MenuItem, Select, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TablePagination, TableRow, TextField, Typography } from '@mui/material';
+    Alert,
+    Autocomplete,
+    Box,
+    Card,
+    Checkbox,
+    Chip,
+    Dialog,
+    DialogActions,
+    DialogContent,
+    DialogTitle,
+    Drawer,
+    FormControl,
+    IconButton,
+    InputLabel,
+    MenuItem,
+    Select,
+    Stack,
+    Table,
+    TableBody,
+    TableCell,
+    TableContainer,
+    TableHead,
+    TablePagination,
+    TableRow,
+    TextField,
+    Typography,
+} from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 import { toast } from "react-toastify";
-import { PageHeader } from "../../../../components/ui/PageHeader";
-import { Button } from '../../../../components/ui/Button';
+import { Breadcrumb } from "../../../../components/ui/Breadcrumb";
+import { Title } from "../../../../components/ui/Title";
+import { Button } from "../../../../components/ui/Button";
 import { ROUTES } from "../../../../constants/routes";
 import { PERMISSIONS } from "../../../../constants/permission.constants";
 import { usePermissions } from "../../../../hooks/usePermission";
 import { useStreetAgentProfiles } from "../../hooks/useStreetAgent";
 import {
     useCancelVendorAllocation,
+    useConfirmVendorReturnInspection,
     useOpenVendorAllocationReturnSession,
     useReturnVendorAllocationSerials,
     useSettleVendorAllocation,
@@ -23,16 +52,13 @@ import {
 } from "../../hooks/useVendorAllocation";
 import {
     StreetAgentProfile,
-    VendorAllocationAllocatedSerial,
     VendorAllocationBatch,
-    VendorSettlementPreview,
 } from "../../types/street-agent.type";
 import {
     ALLOCATION_BATCH_STATUS_FILTER_OPTIONS,
     ALLOCATION_BATCH_STATUS_LABELS,
 } from "../configs/constants";
 import {
-    formatCommission,
     formatCountdown,
     formatCurrency,
     formatDate,
@@ -40,9 +66,11 @@ import {
 } from "../../utils/format";
 import { ConfirmVendorDepositDialog } from "../ConfirmVendorDepositDialog";
 import {
-    VENDOR_LATE_RETURN_POLICY_LABELS,
-    VendorLateReturnPolicyValue,
-} from "../../hooks/useVendorSettingsDefaults";
+    VendorBatchInfoSection,
+    VendorBatchDepositSnapshotSection,
+    VendorSettlementBreakdown,
+    mapPreviewToBreakdown,
+} from "../sections/VendorBatchDrawerSections";
 
 const fieldSx = {
     "& .MuiOutlinedInput-root": {
@@ -61,88 +89,17 @@ const profileLabel = (p?: StreetAgentProfile | null) => {
 };
 
 const settlementStatusLabel = (status: string) => {
+    if (status === "HANDED_OVER" || status === "CONFIRMED") return "Chưa quyết toán — chờ mở phiên trả";
+    if (status === "RETURN_OPEN") return "Đang nhận trả";
     if (status === "SETTLED") return "Đúng hạn";
     if (status === "LATE_SETTLED") return "Trễ hạn";
+    if (status === "CANCELLED" || status === "EXPIRED" || status === "DRAFT") return "Không áp dụng";
     return "Chưa quyết toán";
 };
 
-const latePolicyLabel = (policy?: string | null) => {
-    if (!policy) return "—";
-    return (
-        VENDOR_LATE_RETURN_POLICY_LABELS[policy as VendorLateReturnPolicyValue] ||
-        policy
-    );
-};
-
-const SettlementBreakdown = ({
-    allocatedQuantity,
-    returnedQuantity,
-    soldQuantity,
-    grossCashRemitted,
-    commissionPayable,
-    agencyNetSalesAmount,
-    depositRefundAmount,
-    depositForfeitedAmount,
-    forcedPurchaseAmount,
-    additionalAmountDue,
-    late,
-    latePolicySnapshot,
-}: {
-    allocatedQuantity?: number | null;
-    returnedQuantity?: number | null;
-    soldQuantity?: number | null;
-    grossCashRemitted?: number | null;
-    commissionPayable?: number | null;
-    agencyNetSalesAmount?: number | null;
-    depositRefundAmount?: number | null;
-    depositForfeitedAmount?: number | null;
-    forcedPurchaseAmount?: number | null;
-    additionalAmountDue?: number | null;
-    late?: boolean | null;
-    latePolicySnapshot?: string | null;
-}) => (
-    <Stack spacing={1}>
-        <Row label="Tổng vé giao" value={String(allocatedQuantity ?? "—")} />
-        <Row label="Vé đã trả" value={String(returnedQuantity ?? "—")} />
-        <Row label="Vé được tính đã bán" value={String(soldQuantity ?? "—")} />
-        <Row label="Tiền vendor giao lại" value={formatCurrency(grossCashRemitted)} />
-        <Row label="Hoa hồng vendor" value={formatCurrency(commissionPayable)} />
-        <Row label="Tiền đại lý thực thu" value={formatCurrency(agencyNetSalesAmount)} />
-        <Row label="Cọc được hoàn" value={formatCurrency(depositRefundAmount)} />
-        <Row label="Cọc bị giữ" value={formatCurrency(depositForfeitedAmount)} />
-        <Row label="Giá trị force purchase" value={formatCurrency(forcedPurchaseAmount)} />
-        <Row label="Khoản phải thu thêm" value={formatCurrency(additionalAmountDue)} />
-        <Stack direction="row" justifyContent="space-between" alignItems="center">
-            <Typography variant="body2" color="text.secondary">
-                Đúng hạn / trễ
-            </Typography>
-            {late == null ? (
-                <Typography variant="body2">—</Typography>
-            ) : (
-                <Chip
-                    size="small"
-                    color={late ? "warning" : "success"}
-                    label={late ? "Trễ hạn" : "Đúng hạn"}
-                />
-            )}
-        </Stack>
-        <Row label="Policy nếu trả trễ" value={latePolicyLabel(latePolicySnapshot)} />
-    </Stack>
-);
-
-const Row = ({ label, value }: { label: string; value: string }) => (
-    <Stack direction="row" justifyContent="space-between" gap={2}>
-        <Typography variant="body2" color="text.secondary">
-            {label}
-        </Typography>
-        <Typography variant="body2" sx={{ fontWeight: 600, textAlign: "right" }}>
-            {value}
-        </Typography>
-    </Stack>
-);
-
 export const VendorAllocationBatchListPage = () => {
     const router = useAdminRouter();
+    const [searchParams, setSearchParams] = useAppSearchParams();
     const { can } = usePermissions();
     const canEdit = can(PERMISSIONS.STREET_AGENT.EDIT);
 
@@ -153,7 +110,11 @@ export const VendorAllocationBatchListPage = () => {
     const [businessDateFrom, setBusinessDateFrom] = useState("");
     const [businessDateTo, setBusinessDateTo] = useState("");
     const [nowMs, setNowMs] = useState(Date.now());
-    const [detailId, setDetailId] = useState<number | null>(null);
+    const [detailId, setDetailId] = useState<number | null>(() => {
+        const raw = searchParams.get("batchId");
+        const parsed = raw ? Number(raw) : NaN;
+        return Number.isFinite(parsed) ? parsed : null;
+    });
     const [confirmBatch, setConfirmBatch] = useState<VendorAllocationBatch | null>(null);
     const [cancelId, setCancelId] = useState<number | null>(null);
     const [returnSessionId, setReturnSessionId] = useState<number | null>(null);
@@ -161,6 +122,11 @@ export const VendorAllocationBatchListPage = () => {
     const [scanInput, setScanInput] = useState("");
     const [previewEnabled, setPreviewEnabled] = useState(false);
     const [settleConfirmOpen, setSettleConfirmOpen] = useState(false);
+    const [inspectionConfirmOpen, setInspectionConfirmOpen] = useState(false);
+    const [rejectedInspectionSerialIds, setRejectedInspectionSerialIds] = useState<number[]>([]);
+    const [inspectionNote, setInspectionNote] = useState("");
+    const [cashReceivedFromVendor, setCashReceivedFromVendor] = useState("");
+    const [cashPaidToVendor, setCashPaidToVendor] = useState("");
 
     useEffect(() => {
         const timer = window.setInterval(() => setNowMs(Date.now()), 1000);
@@ -168,10 +134,29 @@ export const VendorAllocationBatchListPage = () => {
     }, []);
 
     useEffect(() => {
+        const current = searchParams.get("batchId");
+        const nextId = detailId != null ? String(detailId) : null;
+        if ((current ?? null) === nextId) {
+            return;
+        }
+        const next = new URLSearchParams(searchParams);
+        if (detailId != null) {
+            next.set("batchId", String(detailId));
+        } else {
+            next.delete("batchId");
+        }
+        setSearchParams(next, { replace: true });
+        // Only sync URL when detailId changes; avoid loops from searchParams identity.
+    }, [detailId]);
+
+    useEffect(() => {
         setSelectedSerialIds([]);
         setScanInput("");
         setPreviewEnabled(false);
         setSettleConfirmOpen(false);
+        setInspectionConfirmOpen(false);
+        setRejectedInspectionSerialIds([]);
+        setInspectionNote("");
     }, [detailId]);
 
     const { data: profilesRes, isLoading: isLoadingProfiles } = useStreetAgentProfiles({
@@ -216,7 +201,26 @@ export const VendorAllocationBatchListPage = () => {
         useOpenVendorAllocationReturnSession();
     const { mutate: submitReturns, isPending: isSubmittingReturns } =
         useReturnVendorAllocationSerials();
+    const { mutate: confirmReturnInspection, isPending: isConfirmingInspection } =
+        useConfirmVendorReturnInspection();
     const { mutate: settleBatch, isPending: isSettling } = useSettleVendorAllocation();
+
+    const expectedCashReceived = settlementPreview
+        ? (settlementPreview.forcedPurchaseAmount > 0
+            ? settlementPreview.additionalAmountDue
+            : settlementPreview.grossCashRemitted)
+        : 0;
+    const expectedCashPaid = settlementPreview
+        ? settlementPreview.commissionPayable
+            + settlementPreview.depositRefundAmount
+            + (settlementPreview.depositExcessRefundAmount || 0)
+        : 0;
+
+    useEffect(() => {
+        if (!settleConfirmOpen || !settlementPreview) return;
+        setCashReceivedFromVendor(String(expectedCashReceived));
+        setCashPaidToVendor(String(expectedCashPaid));
+    }, [settleConfirmOpen, settlementPreview, expectedCashReceived, expectedCashPaid]);
 
     const continueDraft = (batch: VendorAllocationBatch) => {
         const params = new URLSearchParams({
@@ -256,15 +260,6 @@ export const VendorAllocationBatchListPage = () => {
         });
     };
 
-    const toggleSerial = (serial: VendorAllocationAllocatedSerial) => {
-        if (serial.allocationStatus !== "HANDED_OVER") return;
-        setSelectedSerialIds((prev) =>
-            prev.includes(serial.serialId)
-                ? prev.filter((id) => id !== serial.serialId)
-                : [...prev, serial.serialId]
-        );
-    };
-
     const handleScanSubmit = () => {
         const raw = scanInput.trim();
         if (!raw || !detailBatch?.serials?.length) return;
@@ -295,15 +290,54 @@ export const VendorAllocationBatchListPage = () => {
             { id: detailId, data: { serialIds: selectedSerialIds } },
             {
                 onSuccess: (response) => {
-                    toast.success(response.message || "Đã ghi nhận vé trả.");
+                    toast.success(response.message || "Đã tạo phiếu nhận vé trả, chờ kiểm nhận.");
                     setSelectedSerialIds([]);
-                    setPreviewEnabled(true);
+                    setPreviewEnabled(false);
                     refetchDetail();
                     refetch();
-                    refetchPreview();
                 },
                 onError: (error: any) => {
                     toast.error(getApiErrorMessage(error, "Gửi serial trả thất bại"));
+                },
+            }
+        );
+    };
+
+    const openInspectionConfirmation = () => {
+        if (!detailBatch) return;
+        const pendingSerials = (detailBatch.serials || []).filter(
+            (serial) => serial.allocationStatus === "RETURN_PENDING_INSPECTION"
+        );
+        if (pendingSerials.length === 0) {
+            toast.info("Không có serial nào đang chờ kiểm nhận.");
+            return;
+        }
+        setRejectedInspectionSerialIds([]);
+        setInspectionNote("");
+        setInspectionConfirmOpen(true);
+    };
+
+    const handleConfirmInspection = () => {
+        if (!detailId) return;
+        confirmReturnInspection(
+            {
+                id: detailId,
+                data: {
+                    rejectedSerialIds: rejectedInspectionSerialIds,
+                    note: inspectionNote.trim() || undefined,
+                },
+            },
+            {
+                onSuccess: (response) => {
+                    toast.success(response.message || "Đã hoàn tất kiểm nhận vé trả.");
+                    setInspectionConfirmOpen(false);
+                    setRejectedInspectionSerialIds([]);
+                    setInspectionNote("");
+                    refetchDetail();
+                    refetch();
+                },
+                onError: (error: any) => {
+                    toast.error(getApiErrorMessage(error, "Xác nhận kiểm nhận thất bại"));
                 },
             }
         );
@@ -317,7 +351,17 @@ export const VendorAllocationBatchListPage = () => {
             );
             return;
         }
-        settleBatch(detailId, {
+        const received = Number(cashReceivedFromVendor);
+        const paid = Number(cashPaidToVendor);
+        if (!Number.isFinite(received) || !Number.isFinite(paid)) {
+            toast.error("Nhập số tiền thực nhận và thực chi trước khi quyết toán.");
+            return;
+        }
+        if (received !== expectedCashReceived || paid !== expectedCashPaid) {
+            toast.error("Số tiền xác nhận phải khớp với preview quyết toán.");
+            return;
+        }
+        settleBatch({ id: detailId, data: { cashReceivedFromVendor: received, cashPaidToVendor: paid } }, {
             onSuccess: (response) => {
                 toast.success(response.message || "Đã quyết toán phiếu bàn giao.");
                 setSettleConfirmOpen(false);
@@ -342,28 +386,30 @@ export const VendorAllocationBatchListPage = () => {
     const previewErrorMessage =
         (previewError as any)?.response?.data?.message ||
         (previewError ? "Không tải được preview quyết toán." : null);
-
-    const settledReadonly =
-        detailBatch?.status === "SETTLED" || detailBatch?.status === "LATE_SETTLED";
+    const pendingInspectionSerials = (detailBatch?.serials || []).filter(
+        (serial) => serial.allocationStatus === "RETURN_PENDING_INSPECTION"
+    );
 
     return (
         <Box sx={{ maxWidth: 1400, mx: "auto", pb: 5 }}>
-            <PageHeader
-                title="Phiếu bàn giao vé"
-                breadcrumbItems={[
-                    { label: "Dashboard", to: "/" },
-                    { label: "Đại lý bán dạo", to: ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.LIST },
-                    { label: "Phiếu bàn giao vé" },
-                ]}
-                action={
-                    <Button
-                        variant="contained"
-                        onClick={() => router.push(ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.ALLOCATION)}
-                    >
-                        Tạo bàn giao mới
-                    </Button>
-                }
-            />
+            <div className="mb-[calc(3*var(--spacing))] flex items-start justify-end gap-[calc(2*var(--spacing))] flex-wrap">
+                <div className="mr-auto">
+                    <Title title="Phiếu bàn giao vé" />
+                    <Breadcrumb
+                        items={[
+                            { label: "Dashboard", to: "/" },
+                            { label: "Đại lý bán dạo", to: ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.LIST },
+                            { label: "Phiếu bàn giao vé" },
+                        ]}
+                    />
+                </div>
+                <Button
+                    variant="contained"
+                    onClick={() => router.push(ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.ALLOCATION)}
+                >
+                    Tạo bàn giao mới
+                </Button>
+            </div>
 
             <Card
                 sx={{
@@ -509,12 +555,12 @@ export const VendorAllocationBatchListPage = () => {
                                             <TableCell align="right">{row.returnedQuantity ?? 0}</TableCell>
                                             <TableCell align="right">{row.soldQuantity ?? 0}</TableCell>
                                             <TableCell align="right">
-                                                {row.depositReceivedAmount != null ||
-                                                row.depositRequiredAmount != null
-                                                    ? `${formatCurrency(row.depositReceivedAmount)} / ${formatCurrency(
-                                                          row.depositRequiredAmount
-                                                      )}`
-                                                    : "—"}
+                                                {row.depositReceivedAmount != null || row.depositRequiredAmount != null ? (
+                                                    <Box sx={{ whiteSpace: "nowrap" }}>
+                                                        <Typography variant="caption" color="text.secondary">Cần thu:</Typography> {formatCurrency(row.depositRequiredAmount)}<br />
+                                                        <Typography variant="caption" color="text.secondary">Đã thu:</Typography> {formatCurrency(row.depositReceivedAmount)}
+                                                    </Box>
+                                                ) : "—"}
                                             </TableCell>
                                             <TableCell align="right">
                                                 {isTerminal
@@ -573,7 +619,7 @@ export const VendorAllocationBatchListPage = () => {
                                                             color="primary"
                                                             onClick={() => setReturnSessionId(row.id)}
                                                         >
-                                                            Mở phiên trả
+                                                            Mở phiên trả vé
                                                         </Button>
                                                     )}
                                                     {isReturnOpen && (
@@ -582,7 +628,7 @@ export const VendorAllocationBatchListPage = () => {
                                                                 size="small"
                                                                 onClick={() => setDetailId(row.id)}
                                                             >
-                                                                Quét trả
+                                                                {canEdit ? "Quét trả" : "Xem trả"}
                                                             </Button>
                                                             <Button
                                                                 size="small"
@@ -593,16 +639,18 @@ export const VendorAllocationBatchListPage = () => {
                                                             >
                                                                 Preview
                                                             </Button>
-                                                            <Button
-                                                                size="small"
-                                                                color="success"
-                                                                onClick={() => {
-                                                                    setDetailId(row.id);
-                                                                    setPreviewEnabled(true);
-                                                                }}
-                                                            >
-                                                                Quyết toán
-                                                            </Button>
+                                                            {canEdit && (
+                                                                <Button
+                                                                    size="small"
+                                                                    color="success"
+                                                                    onClick={() => {
+                                                                        setDetailId(row.id);
+                                                                        setPreviewEnabled(true);
+                                                                    }}
+                                                                >
+                                                                    Quyết toán
+                                                                </Button>
+                                                            )}
                                                         </>
                                                     )}
                                                     <Button
@@ -652,338 +700,79 @@ export const VendorAllocationBatchListPage = () => {
                     {isLoadingDetail || !detailBatch ? (
                         <Typography color="text.secondary">Đang tải...</Typography>
                     ) : (
-                        <Stack spacing={2}>
-                            <Typography>
-                                <strong>Mã:</strong> {detailBatch.batchCode}
-                            </Typography>
-                            <Typography>
-                                <strong>Trạng thái:</strong>{" "}
-                                {ALLOCATION_BATCH_STATUS_LABELS[detailBatch.status] || detailBatch.status}
-                            </Typography>
-                            <Typography>
-                                <strong>Ngày KD:</strong> {formatDate(detailBatch.businessDate)}
-                            </Typography>
-                            <Typography>
-                                <strong>Đại lý:</strong>{" "}
-                                {profileLabel(profileById.get(detailBatch.streetAgentProfileId))}
-                            </Typography>
+                        <Stack spacing={3}>
+                            <VendorBatchInfoSection batch={detailBatch} profile={profileById.get(detailBatch.streetAgentProfileId)} />
+                            <VendorBatchDepositSnapshotSection batch={detailBatch} />
 
-                            <Divider />
-                            <Typography variant="subtitle2">Số lượng</Typography>
-                            <Row label="Đã giao" value={String(detailBatch.allocatedQuantity)} />
-                            <Row label="Đã trả" value={String(detailBatch.returnedQuantity ?? 0)} />
-                            <Row label="Đã bán" value={String(detailBatch.soldQuantity ?? 0)} />
-
-                            <Divider />
-                            <Typography variant="subtitle2">Cọc & snapshot</Typography>
-                            <Row
-                                label="Mệnh giá snapshot"
-                                value={formatCurrency(detailBatch.faceValueSnapshot)}
-                            />
-                            <Row
-                                label="Giá vendor snapshot"
-                                value={formatCurrency(detailBatch.vendorUnitPriceSnapshot)}
-                            />
-                            <Row
-                                label="Tỷ lệ cọc snapshot"
-                                value={formatCommission(detailBatch.depositRateSnapshot)}
-                            />
-                            <Row
-                                label="Cọc cần thu"
-                                value={formatCurrency(detailBatch.depositRequiredAmount)}
-                            />
-                            <Row
-                                label="Cọc thực nhận"
-                                value={formatCurrency(detailBatch.depositReceivedAmount)}
-                            />
-                            <Row
-                                label="Số dư cọc trước"
-                                value={formatCurrency(detailBatch.depositBalanceBefore)}
-                            />
-                            <Row
-                                label="Số dư cọc sau"
-                                value={formatCurrency(detailBatch.depositBalanceAfter)}
-                            />
-                            <Row
-                                label="Giờ chốt trả"
-                                value={detailBatch.returnCutoffSnapshot || "—"}
-                            />
-                            <Row
-                                label="Policy trả trễ"
-                                value={latePolicyLabel(detailBatch.latePolicySnapshot)}
-                            />
-                            {detailBatch.depositReceivedAt && (
-                                <Row
-                                    label="Nhận cọc lúc"
-                                    value={formatDateTime(detailBatch.depositReceivedAt)}
-                                />
-                            )}
-                            {detailBatch.settledAt && (
-                                <Row label="Quyết toán lúc" value={formatDateTime(detailBatch.settledAt)} />
-                            )}
-                            {detailBatch.reservationExpiresAt && detailBatch.status === "DRAFT" && (
-                                <Row
-                                    label="Hết hạn giữ"
-                                    value={formatDateTime(detailBatch.reservationExpiresAt)}
-                                />
-                            )}
-
-                            {detailBatch.status === "CONFIRMED" && canEdit && (
-                                <>
-                                    <Divider />
-                                    <Button
-                                        loading={isOpeningReturn}
-                                        label="Mở phiên trả vé"
-                                        loadingLabel="Đang mở..."
-                                        onClick={() => handleOpenReturnSession(detailBatch.id)}
-                                    />
-                                </>
-                            )}
-
-                            {detailBatch.status === "RETURN_OPEN" && (
-                                <>
-                                    <Divider />
-                                    <Typography variant="subtitle2">Quét / chọn serial trả</Typography>
-                                    <Alert severity="info" sx={{ py: 0.5 }}>
-                                        Tick checkbox chỉ chọn tạm. Phải bấm <strong>Gửi trả</strong> để
-                                        ghi nhận về kho — quyết toán mới cập nhật &quot;Vé đã trả&quot;.
-                                    </Alert>
-                                    <TextField
-                                        label="Nhập / quét serial"
-                                        value={scanInput}
-                                        onChange={(e) => setScanInput(e.target.value)}
-                                        onKeyDown={(e) => {
-                                            if (e.key === "Enter") {
-                                                e.preventDefault();
-                                                handleScanSubmit();
-                                            }
-                                        }}
-                                        helperText="Nhập serialNumber hoặc serialId rồi Enter. Chỉ chọn được serial đang HANDED_OVER."
-                                        sx={fieldSx}
-                                        fullWidth
-                                        size="small"
-                                    />
-                                    <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-                                        <Button
-                                            size="small"
-                                            variant="outlined"
-                                            onClick={selectAllReturnable}
-                                            disabled={
-                                                !(detailBatch.serials || []).some(
-                                                    (s) => s.allocationStatus === "HANDED_OVER"
-                                                )
-                                            }
-                                        >
-                                            Chọn tất cả còn giữ
-                                        </Button>
-                                        <Button
-                                            loading={isSubmittingReturns}
-                                            variant="contained"
-                                            label={`Gửi trả (${selectedSerialIds.length})`}
-                                            loadingLabel="Đang gửi..."
-                                            disabled={selectedSerialIds.length === 0}
-                                            onClick={handleSubmitReturns}
-                                            sx={{ flex: 1, minWidth: 140 }}
-                                        />
-                                        <Button
-                                            variant="outlined"
-                                            disabled={selectedSerialIds.length === 0}
-                                            onClick={() => setSelectedSerialIds([])}
-                                        >
-                                            Bỏ chọn
-                                        </Button>
-                                    </Stack>
-                                    {selectedSerialIds.length > 0 && (
-                                        <Alert severity="warning" sx={{ py: 0.5 }}>
-                                            Đã chọn {selectedSerialIds.length} vé chưa gửi. Bấm{" "}
-                                            <strong>Gửi trả</strong> trước khi xem preview / quyết toán.
-                                        </Alert>
-                                    )}
-                                </>
-                            )}
-
-                            <Typography variant="subtitle2" sx={{ pt: 1 }}>
-                                Serial ({detailBatch.serials?.length || 0})
-                            </Typography>
-                            <TableContainer sx={{ maxHeight: 280 }}>
-                                <Table size="small" stickyHeader>
-                                    <TableHead>
-                                        <TableRow>
-                                            {detailBatch.status === "RETURN_OPEN" && (
-                                                <TableCell padding="checkbox" />
-                                            )}
-                                            <TableCell>Số vé</TableCell>
-                                            <TableCell>Serial</TableCell>
-                                            <TableCell>Trạng thái</TableCell>
-                                        </TableRow>
-                                    </TableHead>
-                                    <TableBody>
-                                        {(detailBatch.serials || []).map((s) => {
-                                            const selectable = s.allocationStatus === "HANDED_OVER";
-                                            const pendingSelected = selectedSerialIds.includes(s.serialId);
-                                            const returned = s.allocationStatus === "RETURNED";
-                                            return (
-                                                <TableRow
-                                                    key={s.serialId}
-                                                    hover={selectable}
-                                                    selected={pendingSelected}
-                                                    onClick={() =>
-                                                        detailBatch.status === "RETURN_OPEN" &&
-                                                        toggleSerial(s)
-                                                    }
-                                                    sx={{
-                                                        cursor:
-                                                            detailBatch.status === "RETURN_OPEN" &&
-                                                            selectable
-                                                                ? "pointer"
-                                                                : "default",
-                                                        opacity:
-                                                            detailBatch.status === "RETURN_OPEN" &&
-                                                            !selectable &&
-                                                            !returned
-                                                                ? 0.55
-                                                                : 1,
-                                                    }}
-                                                >
-                                                    {detailBatch.status === "RETURN_OPEN" && (
-                                                        <TableCell padding="checkbox">
-                                                            <Checkbox
-                                                                size="small"
-                                                                checked={pendingSelected || returned}
-                                                                disabled={!selectable}
-                                                                onChange={() => toggleSerial(s)}
-                                                                onClick={(e) => e.stopPropagation()}
-                                                            />
-                                                        </TableCell>
-                                                    )}
-                                                    <TableCell>{s.ticketNumbers}</TableCell>
-                                                    <TableCell sx={{ fontFamily: "monospace" }}>
-                                                        {s.serialNumber}
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        <Stack spacing={0.25}>
-                                                            <Chip
-                                                                size="small"
-                                                                label={
-                                                                    returned
-                                                                        ? "Đã trả"
-                                                                        : pendingSelected
-                                                                          ? "Chờ gửi trả"
-                                                                          : s.allocationStatus
-                                                                }
-                                                                color={
-                                                                    returned
-                                                                        ? "success"
-                                                                        : pendingSelected
-                                                                          ? "warning"
-                                                                          : "default"
-                                                                }
-                                                                variant="outlined"
-                                                            />
-                                                            {s.returnedAt && (
-                                                                <Typography
-                                                                    variant="caption"
-                                                                    color="text.secondary"
-                                                                >
-                                                                    {formatDateTime(s.returnedAt)}
-                                                                </Typography>
-                                                            )}
-                                                        </Stack>
-                                                    </TableCell>
-                                                </TableRow>
-                                            );
-                                        })}
-                                    </TableBody>
-                                </Table>
-                            </TableContainer>
-
-                            {(detailBatch.status === "RETURN_OPEN" || settledReadonly) && (
-                                <>
-                                    <Divider />
-                                    <Stack
-                                        direction="row"
-                                        justifyContent="space-between"
-                                        alignItems="center"
-                                        flexWrap="wrap"
-                                        gap={1}
-                                    >
-                                        <Typography variant="subtitle2">Quyết toán</Typography>
-                                        {detailBatch.status === "RETURN_OPEN" && (
-                                            <Button
-                                                size="small"
-                                                onClick={() => {
-                                                    setPreviewEnabled(true);
-                                                    refetchPreview();
-                                                }}
-                                                disabled={isLoadingPreview || isFetchingPreview}
-                                            >
-                                                {previewEnabled ? "Tải lại preview" : "Xem trước quyết toán"}
-                                            </Button>
-                                        )}
-                                    </Stack>
-
-                                    {detailBatch.status === "RETURN_OPEN" && previewErrorMessage && (
-                                        <Alert severity="error">{previewErrorMessage}</Alert>
-                                    )}
-
-                                    {detailBatch.status === "RETURN_OPEN" &&
-                                        previewEnabled &&
-                                        (isLoadingPreview || isFetchingPreview) && (
-                                            <Typography color="text.secondary">
-                                                Đang tải preview...
-                                            </Typography>
-                                        )}
-
-                                    {detailBatch.status === "RETURN_OPEN" &&
-                                        settlementPreview &&
-                                        !(isLoadingPreview || isFetchingPreview) && (
-                                            <SettlementBreakdown
-                                                {...mapPreviewToBreakdown(settlementPreview)}
-                                            />
-                                        )}
-
-                                    {settledReadonly && (
-                                        <SettlementBreakdown
-                                            allocatedQuantity={detailBatch.allocatedQuantity}
-                                            returnedQuantity={detailBatch.returnedQuantity}
-                                            soldQuantity={detailBatch.soldQuantity}
-                                            grossCashRemitted={detailBatch.grossCashRemitted}
-                                            commissionPayable={detailBatch.commissionPayable}
-                                            depositRefundAmount={detailBatch.depositRefundAmount}
-                                            depositForfeitedAmount={detailBatch.depositForfeitedAmount}
-                                            forcedPurchaseAmount={detailBatch.forcedPurchaseAmount}
-                                            additionalAmountDue={detailBatch.additionalAmountDue}
-                                            late={detailBatch.status === "LATE_SETTLED"}
-                                            latePolicySnapshot={detailBatch.latePolicySnapshot}
-                                        />
-                                    )}
-
-                                    {detailBatch.status === "RETURN_OPEN" && canEdit && (
-                                        <Button
-                                            loading={isSettling}
-                                            label="Quyết toán"
-                                            loadingLabel="Đang quyết toán..."
-                                            disabled={
-                                                !settlementPreview ||
-                                                isLoadingPreview ||
-                                                selectedSerialIds.length > 0
-                                            }
-                                            onClick={() => setSettleConfirmOpen(true)}
-                                        />
-                                    )}
-                                    {detailBatch.status === "RETURN_OPEN" &&
-                                        selectedSerialIds.length > 0 && (
-                                            <Typography variant="caption" color="warning.main">
-                                                Gửi trả {selectedSerialIds.length} vé đã chọn trước khi quyết
-                                                toán.
-                                            </Typography>
-                                        )}
-                                </>
-                            )}
+                            <Button
+                                variant="contained"
+                                color="primary"
+                                size="large"
+                                onClick={() => router.push(ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.ALLOCATION_BATCH_DETAIL(detailId!))}
+                                fullWidth
+                                sx={{ mt: 2 }}
+                            >
+                                Mở trang xử lý phiếu
+                            </Button>
                         </Stack>
                     )}
                 </Box>
             </Drawer>
+
+            <Dialog
+                open={inspectionConfirmOpen}
+                onClose={() => !isConfirmingInspection && setInspectionConfirmOpen(false)}
+                fullWidth
+                maxWidth="sm"
+            >
+                <DialogTitle>Kiểm nhận vé vendor trả</DialogTitle>
+                <DialogContent>
+                    <Alert severity="info" sx={{ mb: 2 }}>
+                        Các serial không bị đánh dấu từ chối sẽ được nhận vào phiếu trả. Vé bị từ chối vẫn tính là vendor chưa trả khi quyết toán.
+                    </Alert>
+                    <Stack spacing={0.5} sx={{ maxHeight: 280, overflowY: "auto" }}>
+                        {pendingInspectionSerials.map((serial) => {
+                            const rejected = rejectedInspectionSerialIds.includes(serial.serialId);
+                            return (
+                                <Stack key={serial.serialId} direction="row" alignItems="center" spacing={1}>
+                                    <Checkbox
+                                        checked={rejected}
+                                        onChange={() => setRejectedInspectionSerialIds((current) =>
+                                            rejected
+                                                ? current.filter((id) => id !== serial.serialId)
+                                                : [...current, serial.serialId]
+                                        )}
+                                    />
+                                    <Typography variant="body2" sx={{ flex: 1 }}>
+                                        {serial.ticketNumbers} · <Box component="span" sx={{ fontFamily: "monospace" }}>{serial.serialNumber}</Box>
+                                    </Typography>
+                                    <Chip size="small" color={rejected ? "error" : "success"} label={rejected ? "Từ chối" : "Nhận"} />
+                                </Stack>
+                            );
+                        })}
+                    </Stack>
+                    <TextField
+                        label="Ghi chú kiểm nhận"
+                        value={inspectionNote}
+                        onChange={(event) => setInspectionNote(event.target.value)}
+                        fullWidth
+                        multiline
+                        minRows={2}
+                        sx={{ mt: 2 }}
+                        helperText="Bắt buộc nhập khi có vé từ chối."
+                    />
+                </DialogContent>
+                <DialogActions>
+                    <Button disabled={isConfirmingInspection} onClick={() => setInspectionConfirmOpen(false)}>Hủy</Button>
+                    <Button
+                        loading={isConfirmingInspection}
+                        label="Xác nhận kiểm nhận"
+                        loadingLabel="Đang xác nhận..."
+                        disabled={rejectedInspectionSerialIds.length > 0 && !inspectionNote.trim()}
+                        onClick={handleConfirmInspection}
+                    />
+                </DialogActions>
+            </Dialog>
 
             <ConfirmVendorDepositDialog
                 open={!!confirmBatch}
@@ -1039,7 +828,31 @@ export const VendorAllocationBatchListPage = () => {
                 <DialogTitle>Xác nhận quyết toán?</DialogTitle>
                 <DialogContent>
                     {settlementPreview ? (
-                        <SettlementBreakdown {...mapPreviewToBreakdown(settlementPreview)} />
+                        <Stack spacing={2.5} sx={{ pt: 1 }}>
+                            <VendorSettlementBreakdown {...mapPreviewToBreakdown(settlementPreview)} />
+                            <Alert severity="info">
+                                Nhập lại số tiền thực tế nhân viên đã thu/chi. Hệ thống chỉ chốt khi khớp preview.
+                            </Alert>
+                            <TextField
+                                autoFocus
+                                type="number"
+                                label="Tiền thực nhận từ vendor (VNĐ)"
+                                value={cashReceivedFromVendor}
+                                onChange={(event) => setCashReceivedFromVendor(event.target.value)}
+                                inputProps={{ min: 0, step: 1 }}
+                                helperText={`Theo preview: ${formatCurrency(expectedCashReceived)}`}
+                                fullWidth
+                            />
+                            <TextField
+                                type="number"
+                                label="Tiền thực chi cho vendor (VNĐ)"
+                                value={cashPaidToVendor}
+                                onChange={(event) => setCashPaidToVendor(event.target.value)}
+                                inputProps={{ min: 0, step: 1 }}
+                                helperText={`Theo preview: ${formatCurrency(expectedCashPaid)}`}
+                                fullWidth
+                            />
+                        </Stack>
                     ) : (
                         <Typography>
                             Hệ thống sẽ chốt số vé bán/trả và cập nhật số dư cọc theo snapshot của phiếu.
@@ -1066,18 +879,3 @@ export const VendorAllocationBatchListPage = () => {
         </Box>
     );
 };
-
-const mapPreviewToBreakdown = (preview: VendorSettlementPreview) => ({
-    allocatedQuantity: preview.allocatedQuantity,
-    returnedQuantity: preview.returnedQuantity,
-    soldQuantity: preview.soldQuantity,
-    grossCashRemitted: preview.grossCashRemitted,
-    commissionPayable: preview.commissionPayable,
-    agencyNetSalesAmount: preview.agencyNetSalesAmount,
-    depositRefundAmount: preview.depositRefundAmount,
-    depositForfeitedAmount: preview.depositForfeitedAmount,
-    forcedPurchaseAmount: preview.forcedPurchaseAmount,
-    additionalAmountDue: preview.additionalAmountDue,
-    late: preview.late,
-    latePolicySnapshot: preview.latePolicySnapshot,
-});

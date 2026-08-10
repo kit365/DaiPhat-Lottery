@@ -1,9 +1,6 @@
 -- Remove auto-seeded default supplier (if present) and relax NOT NULL so
 -- historical import batches can exist without a supplier reference.
 
-ALTER TABLE import_batches
-    ALTER COLUMN supplier_id DROP NOT NULL;
-
 UPDATE import_batches ib
 SET supplier_id = NULL
 FROM lottery_suppliers ls

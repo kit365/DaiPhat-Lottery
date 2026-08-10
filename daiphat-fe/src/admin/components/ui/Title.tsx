@@ -9,6 +9,7 @@ export const Title = ({ title, disableBottomMargin = false }: TitleProps) => {
     return (
         <Typography
             variant="h6"
+            component="h1"
             sx={{
                 fontSize: '1.4375rem',
                 fontWeight: 700,

@@ -1,6 +1,4 @@
-ALTER TABLE lottery_stations
-    ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT FALSE;
-
+-- is_active belongs to the lottery_stations CREATE TABLE.
 UPDATE lottery_stations
 SET is_active = TRUE
 WHERE status = 'ACTIVE'

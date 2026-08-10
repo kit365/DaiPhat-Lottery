@@ -21,6 +21,7 @@ public interface VendorAllocationRepositoryPort {
     long sumAllocatedForDay(Long profileId, LocalDate date, Collection<AllocationBatchStatus> statuses);
     List<VendorAllocationSerialModel> findCandidates(LocalDate drawDate);
     List<VendorAllocationSerialModel> lockCandidates(Collection<Long> serialIds);
+    List<VendorAllocationSerialModel> lockCandidatesForStations(LocalDate drawDate, Collection<Long> stationIds);
     VendorAllocationBatchModel save(VendorAllocationBatchModel model);
     Optional<VendorAllocationBatchModel> findById(Long id);
     Optional<VendorAllocationBatchModel> findByIdForUpdate(Long id);

@@ -6,7 +6,9 @@ import { ConfigType } from "../../system-config/types/system-config";
 
 export const VENDOR_SETTING_KEYS = {
     STREET_AGENT_COUNTER_RESERVE_PER_STATION: "STREET_AGENT_COUNTER_RESERVE_PER_STATION",
-    VENDOR_DEFAULT_UNIT_PRICE: "VENDOR_DEFAULT_UNIT_PRICE",
+    VENDOR_COMMISSION_RATE: "VENDOR_COMMISSION_RATE",
+    VENDOR_DEFAULT_CONTRACT_MAX_DAILY_CAP: "VENDOR_DEFAULT_CONTRACT_MAX_DAILY_CAP",
+    VENDOR_DEFAULT_APPROVED_DAILY_CAP: "VENDOR_DEFAULT_APPROVED_DAILY_CAP",
     VENDOR_DEPOSIT_RATE: "VENDOR_DEPOSIT_RATE",
     VENDOR_DRAFT_RESERVATION_TTL_MINUTES: "VENDOR_DRAFT_RESERVATION_TTL_MINUTES",
     VENDOR_RETURN_CUTOFF: "VENDOR_RETURN_CUTOFF",
@@ -22,7 +24,9 @@ export const VENDOR_LATE_RETURN_POLICY_LABELS: Record<VendorLateReturnPolicyValu
 
 export interface VendorSettingsDefaults {
     counterReservePerStation: number | null;
-    defaultUnitPrice: number | null;
+    commissionRate: number | null;
+    defaultContractMaxDailyCap: number | null;
+    defaultApprovedDailyCap: number | null;
     depositRate: number | null;
     draftReservationTtlMinutes: number | null;
     returnCutoff: string | null;
@@ -45,7 +49,9 @@ export const useVendorSettingsDefaults = () => {
         const latePolicy = byKey[VENDOR_SETTING_KEYS.VENDOR_LATE_RETURN_POLICY];
         return {
             counterReservePerStation: parseNumber(byKey[VENDOR_SETTING_KEYS.STREET_AGENT_COUNTER_RESERVE_PER_STATION]),
-            defaultUnitPrice: parseNumber(byKey[VENDOR_SETTING_KEYS.VENDOR_DEFAULT_UNIT_PRICE]),
+            commissionRate: parseNumber(byKey[VENDOR_SETTING_KEYS.VENDOR_COMMISSION_RATE]),
+            defaultContractMaxDailyCap: parseNumber(byKey[VENDOR_SETTING_KEYS.VENDOR_DEFAULT_CONTRACT_MAX_DAILY_CAP]),
+            defaultApprovedDailyCap: parseNumber(byKey[VENDOR_SETTING_KEYS.VENDOR_DEFAULT_APPROVED_DAILY_CAP]),
             depositRate: parseNumber(byKey[VENDOR_SETTING_KEYS.VENDOR_DEPOSIT_RATE]),
             draftReservationTtlMinutes: parseNumber(byKey[VENDOR_SETTING_KEYS.VENDOR_DRAFT_RESERVATION_TTL_MINUTES]),
             returnCutoff: byKey[VENDOR_SETTING_KEYS.VENDOR_RETURN_CUTOFF] || null,

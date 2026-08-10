@@ -23,6 +23,9 @@ public class AllocationBatchDetailEntity extends BaseEntity {
     @Column(name = "allocated_quantity", nullable = false) @Builder.Default private Integer allocatedQuantity = 0;
     @Column(name = "returned_quantity", nullable = false) @Builder.Default private Integer returnedQuantity = 0;
     @Column(name = "sold_quantity", nullable = false) @Builder.Default private Integer soldQuantity = 0;
+    @Column(name = "eligible_quantity_snapshot") private Integer eligibleQuantitySnapshot;
+    @Column(name = "agency_reserve_quantity_snapshot") private Integer agencyReserveQuantitySnapshot;
+    @Column(name = "vendor_capacity_snapshot") private Integer vendorCapacitySnapshot;
 
     @OneToMany(mappedBy = "allocationBatchDetail", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default

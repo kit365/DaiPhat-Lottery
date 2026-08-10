@@ -31,6 +31,15 @@ public interface LotteryTicketRepository
             LocalDate drawDate
     );
 
+    /**
+     * Used by local fixture loading to avoid an existence query for every
+     * generated ticket number.
+     */
+    List<LotteryTicketEntity> findAllByStation_IdInAndDrawDateAndDeletedAtIsNull(
+            Collection<Long> stationIds,
+            LocalDate drawDate
+    );
+
     List<LotteryTicketEntity> findAllByIdInAndDeletedAtIsNull(Collection<Long> ids);
 
     List<LotteryTicketEntity> findAllByDrawDateLessThanEqualAndStatusInAndDeletedAtIsNull(LocalDate drawDate, Collection<LotteryTicketStatus> statuses);

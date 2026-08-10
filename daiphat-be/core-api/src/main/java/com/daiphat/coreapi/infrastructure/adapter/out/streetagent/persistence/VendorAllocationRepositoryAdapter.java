@@ -25,6 +25,7 @@ public class VendorAllocationRepositoryAdapter implements VendorAllocationReposi
     private final AllocationBatchRepository batchRepository;
     private final AgentTicketStockRepository agentTicketStockRepository;
     private final LotteryTicketSerialRepository serialRepository;
+    private final ReturnBatchLineRepository returnBatchLineRepository;
     private final StreetAgentProfileRepository profileRepository;
     private final LotteryStationRepository stationRepository;
 
@@ -32,7 +33,7 @@ public class VendorAllocationRepositoryAdapter implements VendorAllocationReposi
 
     @Override
     public Optional<VendorAllocationBatchModel> findOpenByProfileId(Long profileId, Collection<AllocationBatchStatus> statuses) {
-        return batchRepository.findFirstByStreetAgentProfile_IdAndStatusInOrderByCreatedAtDesc(profileId, statuses)
+        return batchRepository.findOpenByProfileId(profileId, statuses, org.springframework.data.domain.PageRequest.of(0, 1)).stream().findFirst()
                 .map(this::batchModel);
     }
 
@@ -45,6 +46,7 @@ public class VendorAllocationRepositoryAdapter implements VendorAllocationReposi
             Pageable pageable) {
         return batchRepository.findAll((root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
+            predicates.add(cb.isNull(root.get("deletedAt")));
             if (profileId != null) {
                 predicates.add(cb.equal(root.get("streetAgentProfile").get("id"), profileId));
             }
@@ -64,15 +66,18 @@ public class VendorAllocationRepositoryAdapter implements VendorAllocationReposi
     public long sumAllocatedForDay(Long profileId, LocalDate date, Collection<AllocationBatchStatus> statuses) { return batchRepository.sumAllocatedForDay(profileId, date, statuses); }
     public List<VendorAllocationSerialModel> findCandidates(LocalDate drawDate) { return serialRepository.findVendorAllocationCandidates(drawDate).stream().map(this::serialModel).toList(); }
     public List<VendorAllocationSerialModel> lockCandidates(Collection<Long> serialIds) { return serialRepository.findAllByIdForAllocationUpdate(serialIds).stream().map(this::serialModel).toList(); }
-    public Optional<VendorAllocationBatchModel> findById(Long id) { return batchRepository.findById(id).map(this::batchModel); }
+    public List<VendorAllocationSerialModel> lockCandidatesForStations(LocalDate drawDate, Collection<Long> stationIds) {
+        return serialRepository.lockVendorAllocationCandidatesForStations(drawDate, stationIds).stream().map(this::serialModel).toList();
+    }
+    public Optional<VendorAllocationBatchModel> findById(Long id) { return batchRepository.findById(id).filter(e -> e.getDeletedAt() == null).map(this::batchModel); }
     public Optional<VendorAllocationBatchModel> findByIdForUpdate(Long id) { return batchRepository.findByIdForUpdate(id).map(this::batchModel); }
     public List<VendorAllocationBatchModel> findExpiredDrafts(LocalDateTime now) { return batchRepository.findExpiredDrafts(now).stream().map(this::batchModel).toList(); }
     public List<VendorAllocationBatchModel> findOpenDrafts() { return batchRepository.findAllDrafts().stream().map(this::batchModel).toList(); }
 
     public VendorAllocationBatchModel save(VendorAllocationBatchModel model) {
         AllocationBatchEntity entity = model.getId() == null ? new AllocationBatchEntity() : batchRepository.findById(model.getId()).orElseThrow();
-        entity.setBatchCode(model.getBatchCode()); entity.setBatchType(model.getBatchType()); entity.setBusinessDate(model.getBusinessDate()); entity.setStatus(model.getStatus()); entity.setReservationExpiresAt(model.getReservationExpiresAt());
-        entity.setFaceValueSnapshot(model.getFaceValueSnapshot()); entity.setVendorUnitPriceSnapshot(model.getVendorUnitPriceSnapshot()); entity.setDepositRateSnapshot(model.getDepositRateSnapshot()); entity.setLatePolicySnapshot(model.getLatePolicySnapshot()); entity.setReturnCutoffSnapshot(model.getReturnCutoffSnapshot()); entity.setAllocatedQuantity(model.getAllocatedQuantity()); entity.setReturnedQuantity(model.getReturnedQuantity()); entity.setSoldQuantity(model.getSoldQuantity()); entity.setDepositRequiredAmount(model.getDepositRequiredAmount()); entity.setDepositReceivedAmount(model.getDepositReceivedAmount()); entity.setGrossCashRemitted(model.getGrossCashRemitted()); entity.setCommissionPayable(model.getCommissionPayable()); entity.setDepositRefundAmount(model.getDepositRefundAmount()); entity.setDepositForfeitedAmount(model.getDepositForfeitedAmount()); entity.setForcedPurchaseAmount(model.getForcedPurchaseAmount()); entity.setAdditionalAmountDue(model.getAdditionalAmountDue()); entity.setDepositBalanceBefore(model.getDepositBalanceBefore()); entity.setDepositBalanceAfter(model.getDepositBalanceAfter()); entity.setDepositReceivedAt(model.getDepositReceivedAt()); entity.setDepositReceivedBy(model.getDepositReceivedBy()); entity.setSettledAt(model.getSettledAt()); entity.setSettledBy(model.getSettledBy()); entity.setLuckyOverrideReason(model.getLuckyOverrideReason());
+        entity.setBatchCode(model.getBatchCode()); entity.setBatchType(model.getBatchType()); entity.setBusinessDate(model.getBusinessDate()); entity.setStatus(model.getStatus()); entity.setReservationExpiresAt(model.getReservationExpiresAt()); entity.setRequestedQuantity(model.getRequestedQuantity()); entity.setReserveCountSnapshot(model.getReserveCountSnapshot()); entity.setReservePercentSnapshot(model.getReservePercentSnapshot());
+        entity.setFaceValueSnapshot(model.getFaceValueSnapshot()); entity.setVendorUnitPriceSnapshot(model.getVendorUnitPriceSnapshot()); entity.setCommissionRateSnapshot(model.getCommissionRateSnapshot()); entity.setDepositRateSnapshot(model.getDepositRateSnapshot()); entity.setLatePolicySnapshot(model.getLatePolicySnapshot()); entity.setReturnCutoffSnapshot(model.getReturnCutoffSnapshot()); entity.setSupplierReturnCutoffSnapshot(model.getSupplierReturnCutoffSnapshot()); entity.setReturnBufferMinutesSnapshot(model.getReturnBufferMinutesSnapshot()); entity.setAllocatedQuantity(model.getAllocatedQuantity()); entity.setReturnedQuantity(model.getReturnedQuantity()); entity.setSoldQuantity(model.getSoldQuantity()); entity.setDepositRequiredAmount(model.getDepositRequiredAmount()); entity.setDepositReceivedAmount(model.getDepositReceivedAmount()); entity.setGrossCashRemitted(model.getGrossCashRemitted()); entity.setCommissionPayable(model.getCommissionPayable()); entity.setDepositRefundAmount(model.getDepositRefundAmount()); entity.setDepositForfeitedAmount(model.getDepositForfeitedAmount()); entity.setDepositAppliedAmount(model.getDepositAppliedAmount()); entity.setDepositExcessRefundAmount(model.getDepositExcessRefundAmount()); entity.setForcedPurchaseAmount(model.getForcedPurchaseAmount()); entity.setAdditionalAmountDue(model.getAdditionalAmountDue()); entity.setDepositBalanceBefore(model.getDepositBalanceBefore()); entity.setDepositBalanceAfter(model.getDepositBalanceAfter()); entity.setDepositReceivedAt(model.getDepositReceivedAt()); entity.setDepositReceivedBy(model.getDepositReceivedBy()); entity.setSettledAt(model.getSettledAt()); entity.setSettledBy(model.getSettledBy()); entity.setLuckyOverrideReason(model.getLuckyOverrideReason());
         if (entity.getStreetAgentProfile() == null || !Objects.equals(entity.getStreetAgentProfile().getId(), model.getStreetAgentProfileId())) entity.setStreetAgentProfile(profileRepository.getReferenceById(model.getStreetAgentProfileId()));
         if (model.getId() == null) {
             Map<Long, AllocationBatchDetailEntity> details = new HashMap<>();
@@ -84,6 +89,9 @@ public class VendorAllocationRepositoryAdapter implements VendorAllocationReposi
                         .allocatedQuantity(detail.getAllocatedQuantity())
                         .returnedQuantity(detail.getReturnedQuantity())
                         .soldQuantity(detail.getSoldQuantity())
+                        .eligibleQuantitySnapshot(detail.getEligibleQuantitySnapshot())
+                        .agencyReserveQuantitySnapshot(detail.getAgencyReserveQuantitySnapshot())
+                        .vendorCapacitySnapshot(detail.getVendorCapacitySnapshot())
                         .build();
                 entity.getDetails().add(d);
                 details.put(detail.getStationId(), d);
@@ -114,6 +122,8 @@ public class VendorAllocationRepositoryAdapter implements VendorAllocationReposi
                         .reservedExpiresAt(serial.getReservedExpiresAt())
                         .returnedAt(serial.getReturnedAt())
                         .soldAt(serial.getSoldAt())
+                        .vendorReturnBatchLine(serial.getVendorReturnBatchLineId() == null ? null : returnBatchLineRepository.getReferenceById(serial.getVendorReturnBatchLineId()))
+                        .returnRejectionReason(serial.getReturnRejectionReason())
                         .luckyOverride(serial.isLuckyOverride())
                         .luckyOverrideReason(serial.getLuckyOverrideReason())
                         .luckyOverrideBy(serial.getLuckyOverrideBy())
@@ -133,6 +143,8 @@ public class VendorAllocationRepositoryAdapter implements VendorAllocationReposi
                     item.setReservedExpiresAt(update.getReservedExpiresAt());
                     item.setReturnedAt(update.getReturnedAt());
                     item.setSoldAt(update.getSoldAt());
+                    item.setVendorReturnBatchLine(update.getVendorReturnBatchLineId() == null ? null : returnBatchLineRepository.getReferenceById(update.getVendorReturnBatchLineId()));
+                    item.setReturnRejectionReason(update.getReturnRejectionReason());
                     item.setLuckyOverride(update.isLuckyOverride());
                     item.setLuckyOverrideReason(update.getLuckyOverrideReason());
                     item.setLuckyOverrideBy(update.getLuckyOverrideBy());
@@ -149,6 +161,9 @@ public class VendorAllocationRepositoryAdapter implements VendorAllocationReposi
                     detail.setAllocatedQuantity(update.getAllocatedQuantity());
                     detail.setReturnedQuantity(update.getReturnedQuantity());
                     detail.setSoldQuantity(update.getSoldQuantity());
+                    detail.setEligibleQuantitySnapshot(update.getEligibleQuantitySnapshot());
+                    detail.setAgencyReserveQuantitySnapshot(update.getAgencyReserveQuantitySnapshot());
+                    detail.setVendorCapacitySnapshot(update.getVendorCapacitySnapshot());
                 }
             });
         }
@@ -163,7 +178,7 @@ public class VendorAllocationRepositoryAdapter implements VendorAllocationReposi
                             || model.getTicketStatus() == LotteryTicketSerialStatus.WITH_STREET_AGENT
                             ? model.getAllocationBatchId() : null);
             if (model.getTicketStatus() == LotteryTicketSerialStatus.IN_STOCK || model.getTicketStatus() == LotteryTicketSerialStatus.WITH_STREET_AGENT || model.getTicketStatus() == LotteryTicketSerialStatus.SOLD) { entity.setReservedAt(null); entity.setReservationExpiresAt(null); }
-            else { entity.setReservedAt(LocalDateTime.now()); entity.setReservationExpiresAt(model.getReservedExpiresAt()); }
+            else { entity.setReservedAt(model.getReservedAt()); entity.setReservationExpiresAt(model.getReservedExpiresAt()); }
             entity.setLucky(model.isLucky()); entity.setLuckyBadges(model.getLuckyBadges());
         }
         serialRepository.flush();
@@ -180,8 +195,8 @@ public class VendorAllocationRepositoryAdapter implements VendorAllocationReposi
     }
 
     private VendorAllocationBatchModel batchModel(AllocationBatchEntity e, List<VendorAllocationSerialModel> serials) {
-        List<VendorAllocationBatchDetailModel> details = e.getDetails().stream().map(d -> VendorAllocationBatchDetailModel.builder().id(d.getId()).stationId(d.getLotteryStation().getId()).drawDate(d.getDrawDate()).allocatedQuantity(d.getAllocatedQuantity()).returnedQuantity(d.getReturnedQuantity()).soldQuantity(d.getSoldQuantity()).build()).toList();
-        return VendorAllocationBatchModel.builder().id(e.getId()).batchCode(e.getBatchCode()).streetAgentProfileId(e.getStreetAgentProfile().getId()).businessDate(e.getBusinessDate()).batchType(e.getBatchType()).status(e.getStatus()).reservationExpiresAt(e.getReservationExpiresAt()).faceValueSnapshot(e.getFaceValueSnapshot()).vendorUnitPriceSnapshot(e.getVendorUnitPriceSnapshot()).depositRateSnapshot(e.getDepositRateSnapshot()).latePolicySnapshot(e.getLatePolicySnapshot()).returnCutoffSnapshot(e.getReturnCutoffSnapshot()).allocatedQuantity(e.getAllocatedQuantity()).returnedQuantity(e.getReturnedQuantity()).soldQuantity(e.getSoldQuantity()).depositRequiredAmount(e.getDepositRequiredAmount()).depositReceivedAmount(e.getDepositReceivedAmount()).grossCashRemitted(e.getGrossCashRemitted()).commissionPayable(e.getCommissionPayable()).depositRefundAmount(e.getDepositRefundAmount()).depositForfeitedAmount(e.getDepositForfeitedAmount()).forcedPurchaseAmount(e.getForcedPurchaseAmount()).additionalAmountDue(e.getAdditionalAmountDue()).depositBalanceBefore(e.getDepositBalanceBefore()).depositBalanceAfter(e.getDepositBalanceAfter()).depositReceivedAt(e.getDepositReceivedAt()).depositReceivedBy(e.getDepositReceivedBy()).settledAt(e.getSettledAt()).settledBy(e.getSettledBy()).luckyOverrideReason(e.getLuckyOverrideReason()).details(details).serials(serials).build();
+        List<VendorAllocationBatchDetailModel> details = e.getDetails().stream().map(d -> VendorAllocationBatchDetailModel.builder().id(d.getId()).stationId(d.getLotteryStation().getId()).drawDate(d.getDrawDate()).allocatedQuantity(d.getAllocatedQuantity()).returnedQuantity(d.getReturnedQuantity()).soldQuantity(d.getSoldQuantity()).eligibleQuantitySnapshot(d.getEligibleQuantitySnapshot()).agencyReserveQuantitySnapshot(d.getAgencyReserveQuantitySnapshot()).vendorCapacitySnapshot(d.getVendorCapacitySnapshot()).build()).toList();
+        return VendorAllocationBatchModel.builder().id(e.getId()).batchCode(e.getBatchCode()).streetAgentProfileId(e.getStreetAgentProfile().getId()).businessDate(e.getBusinessDate()).batchType(e.getBatchType()).status(e.getStatus()).reservationExpiresAt(e.getReservationExpiresAt()).requestedQuantity(e.getRequestedQuantity()).reserveCountSnapshot(e.getReserveCountSnapshot()).reservePercentSnapshot(e.getReservePercentSnapshot()).faceValueSnapshot(e.getFaceValueSnapshot()).vendorUnitPriceSnapshot(e.getVendorUnitPriceSnapshot()).commissionRateSnapshot(e.getCommissionRateSnapshot()).depositRateSnapshot(e.getDepositRateSnapshot()).latePolicySnapshot(e.getLatePolicySnapshot()).returnCutoffSnapshot(e.getReturnCutoffSnapshot()).supplierReturnCutoffSnapshot(e.getSupplierReturnCutoffSnapshot()).returnBufferMinutesSnapshot(e.getReturnBufferMinutesSnapshot()).allocatedQuantity(e.getAllocatedQuantity()).returnedQuantity(e.getReturnedQuantity()).soldQuantity(e.getSoldQuantity()).depositRequiredAmount(e.getDepositRequiredAmount()).depositReceivedAmount(e.getDepositReceivedAmount()).grossCashRemitted(e.getGrossCashRemitted()).commissionPayable(e.getCommissionPayable()).depositRefundAmount(e.getDepositRefundAmount()).depositForfeitedAmount(e.getDepositForfeitedAmount()).depositAppliedAmount(e.getDepositAppliedAmount()).depositExcessRefundAmount(e.getDepositExcessRefundAmount()).forcedPurchaseAmount(e.getForcedPurchaseAmount()).additionalAmountDue(e.getAdditionalAmountDue()).depositBalanceBefore(e.getDepositBalanceBefore()).depositBalanceAfter(e.getDepositBalanceAfter()).depositReceivedAt(e.getDepositReceivedAt()).depositReceivedBy(e.getDepositReceivedBy()).settledAt(e.getSettledAt()).settledBy(e.getSettledBy()).luckyOverrideReason(e.getLuckyOverrideReason()).details(details).serials(serials).build();
     }
 
     private VendorAllocationSerialModel stockModel(AgentTicketStockEntity item) {
@@ -195,6 +210,8 @@ public class VendorAllocationRepositoryAdapter implements VendorAllocationReposi
         model.setReservedExpiresAt(item.getReservedExpiresAt());
         model.setReturnedAt(item.getReturnedAt());
         model.setSoldAt(item.getSoldAt());
+        model.setVendorReturnBatchLineId(item.getVendorReturnBatchLine() == null ? null : item.getVendorReturnBatchLine().getId());
+        model.setReturnRejectionReason(item.getReturnRejectionReason());
         model.setLuckyOverride(Boolean.TRUE.equals(item.getLuckyOverride()));
         model.setLuckyOverrideReason(item.getLuckyOverrideReason());
         model.setLuckyOverrideBy(item.getLuckyOverrideBy());
@@ -214,6 +231,10 @@ public class VendorAllocationRepositoryAdapter implements VendorAllocationReposi
                 .serialNumber(s.getSerialNumber())
                 .drawDate(t.getDrawDate())
                 .drawTime(st.getDrawTime())
+                .supplierReturnCutoffTime(s.getImportBatchLine() != null
+                        && s.getImportBatchLine().getImportBatch() != null
+                        && s.getImportBatchLine().getImportBatch().getSupplier() != null
+                        ? s.getImportBatchLine().getImportBatch().getSupplier().getReturnCutOffTime() : null)
                 .drawDays(st.getDrawDays())
                 .stationActive(st.isActive())
                 .ticketActive(Boolean.TRUE.equals(t.getActive()))

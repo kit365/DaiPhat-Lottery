@@ -1,18 +1,26 @@
 -- Return batches (supplier + draw date) and per-station lines.
 CREATE TABLE IF NOT EXISTS return_batches (
     id                       BIGSERIAL PRIMARY KEY,
-    lottery_supplier_id      BIGINT NOT NULL,
+    batch_code               VARCHAR(100),
+    -- SUPPLIER_RETURN: outbound return to supplier.
+    -- STREET_AGENT_RETURN: inbound receipt from a vendor; linked to allocation later.
+    return_batch_type        VARCHAR(30) NOT NULL DEFAULT 'SUPPLIER_RETURN',
+    lottery_supplier_id      BIGINT,
+    source_allocation_batch_id BIGINT,
     draw_date                DATE NOT NULL,
     supplier_settlement_id   BIGINT,
     return_receipt_url       VARCHAR(500),
+    return_receipt_evidence_url VARCHAR(500),
     delivery_mode            VARCHAR(40),
     total_quantity           INT NOT NULL DEFAULT 0,
     total_return_value       NUMERIC(18, 3) NOT NULL DEFAULT 0,
     returned_by              UUID,
     returned_at              TIMESTAMP,
     confirmed_at             TIMESTAMP,
-    status                   VARCHAR(30) NOT NULL DEFAULT 'PENDING',
+    status                   VARCHAR(30) NOT NULL DEFAULT 'PENDING_INSPECTION',
     note                     TEXT,
+    cancel_reason            TEXT,
+    cancelled_at             TIMESTAMP,
     created_at               TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at               TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     created_by               VARCHAR(100) DEFAULT 'SYSTEM',
@@ -32,10 +40,20 @@ CREATE INDEX IF NOT EXISTS idx_return_batches_settlement_id
     ON return_batches (supplier_settlement_id);
 CREATE INDEX IF NOT EXISTS idx_return_batches_status
     ON return_batches (status);
+CREATE INDEX IF NOT EXISTS idx_return_batches_type
+    ON return_batches (return_batch_type);
+CREATE INDEX IF NOT EXISTS idx_return_batches_source_allocation
+    ON return_batches (source_allocation_batch_id);
+CREATE INDEX IF NOT EXISTS idx_return_batches_batch_code
+    ON return_batches (batch_code);
+
+CREATE SEQUENCE IF NOT EXISTS return_batch_header_code_seq START WITH 1 INCREMENT BY 1;
 
 CREATE UNIQUE INDEX IF NOT EXISTS uq_return_batches_pending_supplier_draw
     ON return_batches (lottery_supplier_id, draw_date)
-    WHERE deleted_at IS NULL AND status = 'PENDING';
+    WHERE deleted_at IS NULL
+      AND return_batch_type = 'SUPPLIER_RETURN'
+      AND status = 'PENDING';
 
 CREATE TABLE IF NOT EXISTS return_batch_lines (
     id                   BIGSERIAL PRIMARY KEY,
@@ -82,3 +100,6 @@ ALTER TABLE lottery_ticket_serials
 
 CREATE INDEX IF NOT EXISTS idx_lottery_ticket_serials_return_batch_line_id
     ON lottery_ticket_serials (return_batch_line_id);
+CREATE INDEX IF NOT EXISTS idx_lottery_ticket_serials_sellable
+    ON lottery_ticket_serials (status, ticket_condition, return_batch_line_id)
+    WHERE deleted_at IS NULL;
