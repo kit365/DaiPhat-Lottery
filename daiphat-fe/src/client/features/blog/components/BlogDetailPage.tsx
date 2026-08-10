@@ -1,7 +1,10 @@
 "use client";
 
+import { useRouter } from "next/navigation";
+import { useRouteParams } from "@/hooks/useRouteParams";
+import { useSearchParams } from "next/navigation";
+import Link from "next/link";
 import React, { useEffect } from 'react';
-import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { RightSidebarBlog } from './BlogSidebar';
 import { usePublicPostBySlug, useRelatedPublicPosts, useIncrementPostView } from '../hooks/useBlog';
 import { useBlogDetail } from '../../../../admin/features/blogs/hooks/useBlog';
@@ -9,10 +12,10 @@ import { BLOG_HERO_DEFAULT } from '@/client/constants/clientBannerAssets';
 import { Breadcrumb } from '../../../components/ui/Breadcrumb';
 
 export const BlogDetailPage = () => {
-  const { slug } = useParams<{ slug: string }>();
-  const [searchParams] = useSearchParams();
+  const { slug } = useRouteParams();
+  const searchParams = useSearchParams();
   const previewId = searchParams.get('previewId');
-  const navigate = useNavigate();
+  const router = useRouter();
 
   const { data: publicPost, isLoading: isLoadingPublic, isError: isErrorPublic } = usePublicPostBySlug(!previewId ? slug : undefined);
   const { data: adminPost, isLoading: isLoadingAdmin, isError: isErrorAdmin } = useBlogDetail(previewId || undefined);
@@ -172,7 +175,7 @@ export const BlogDetailPage = () => {
               <h3 className="text-[20px] font-bold text-[#212B36] mb-6">Bài viết liên quan</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 {relatedPosts.map(relatedPost => (
-                  <div key={relatedPost.id} className="group cursor-pointer" onClick={() => { navigate(`/blogs/detail/${relatedPost.slug}`); }}>
+                  <div key={relatedPost.id} className="group cursor-pointer" onClick={() => { router.push(`/blogs/detail/${relatedPost.slug}`); }}>
                     <div className="rounded-xl overflow-hidden mb-3 aspect-[16/10]">
                       <img
                         src={relatedPost.thumbnail || '/assets/img/blog/blog-post-1.jpg'}

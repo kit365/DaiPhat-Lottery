@@ -2,18 +2,17 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
-    Button,
-    Dialog,
+Dialog,
     DialogActions,
     DialogContent,
     DialogTitle,
     Stack,
     TextField,
-} from "@mui/material";
+} from '@mui/material';
 import { useEffect } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { adjustDepositSchema, AdjustDepositFormValues } from "../../schemas/street-agent.schema";
-import { LoadingButton } from "../../../../components/ui/LoadingButton";
+import { Button } from "../../../../components/ui/Button";
 
 interface DepositAdjustDialogProps {
     open: boolean;
@@ -102,7 +101,7 @@ export const DepositAdjustDialog = ({
                     <Button onClick={handleClose} disabled={loading}>
                         Hủy
                     </Button>
-                    <LoadingButton type="submit" loading={loading} label="Xác nhận" loadingLabel="Đang lưu..." />
+                    <Button type="submit" loading={loading} label="Xác nhận" loadingLabel="Đang lưu..." />
                 </DialogActions>
             </form>
         </Dialog>

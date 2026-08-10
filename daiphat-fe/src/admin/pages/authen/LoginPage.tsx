@@ -1,11 +1,11 @@
 "use client";
 
-import { useState } from "react"
+import Link from "@/admin/components/navigation/AdminLink";
+import { useEffect, useState } from "react"
 import {
     Box, Button, TextField, ThemeProvider, Typography, InputAdornment,
     IconButton, Paper, useMediaQuery, useTheme, CircularProgress
 } from "@mui/material"
-import { Link } from "@/components/router-compat"
 import { useForm, Controller } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { SiteLogo } from "@/client/components/layout/SiteLogo"
@@ -15,6 +15,7 @@ import { loginSchema, LoginFormValues } from "../../schemas/login.schema"
 import { useAuth } from "./hooks/useAuth"
 import { motion } from "framer-motion"
 import { ROUTES } from "../../constants/routes"
+import { prefetchAdminPageChunk } from "@/admin/lib/adminPagePrefetchRegistry";
 
 export const LoginPage = () => {
     const theme = useTheme();
@@ -36,7 +37,11 @@ export const LoginPage = () => {
         },
     })
 
-    const { login: loginMutate, isLoading: isPending } = useAuth()
+    const { login: loginMutate, isLoading: isPending, isRedirecting } = useAuth()
+
+    useEffect(() => {
+        prefetchAdminPageChunk(ROUTES.ADMIN.DASHBOARD.SYSTEM);
+    }, []);
 
     const onSubmit = (data: LoginFormValues) => {
         loginMutate(data)
@@ -46,6 +51,26 @@ export const LoginPage = () => {
         <>
             <ThemeProvider theme={adminTheme}>
                 <div className="min-h-screen flex items-center justify-center bg-[#F4F6F8] relative overflow-hidden">
+                    {isRedirecting && (
+                        <Box
+                            sx={{
+                                position: "fixed",
+                                inset: 0,
+                                zIndex: 2000,
+                                display: "flex",
+                                flexDirection: "column",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                gap: 2,
+                                bgcolor: "rgba(244, 246, 248, 0.92)",
+                            }}
+                        >
+                            <CircularProgress size={36} thickness={4} sx={{ color: "#B71833" }} />
+                            <Typography sx={{ color: "#637381", fontWeight: 600 }}>
+                                Đang vào hệ thống...
+                            </Typography>
+                        </Box>
+                    )}
                     {/* Decorative Background Elements */}
                     <Box sx={{
                         position: "absolute",
@@ -74,7 +99,7 @@ export const LoginPage = () => {
                             zIndex: "1101",
                             background: "transparent"
                         }}>
-                        <Link to="/" className="inline-block w-[40px] h-[40px]">
+                        <Link href="/" className="inline-block w-[40px] h-[40px]">
                             <SiteLogo className="w-10 h-10 rounded" imgClassName="w-full h-full object-contain" />
                         </Link>
                         <Button
@@ -193,7 +218,7 @@ export const LoginPage = () => {
                                             )}
                                         />
                                         <Box sx={{ display: "flex", justifyContent: "flex-end", mt: 1 }}>
-                                             <Link to={ROUTES.ADMIN.AUTH.FORGOT_PASSWORD} style={{ fontSize: "0.875rem", color: "var(--palette-text-primary)", fontWeight: 600, textDecoration: "none" }} className="hover:underline">
+                                             <Link href={ROUTES.ADMIN.AUTH.FORGOT_PASSWORD} style={{ fontSize: "0.875rem", color: "var(--palette-text-primary)", fontWeight: 600, textDecoration: "none" }} className="hover:underline">
                                                 Quên mật khẩu?
                                              </Link>
                                         </Box>

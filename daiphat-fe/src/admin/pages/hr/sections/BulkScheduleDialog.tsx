@@ -30,7 +30,7 @@ import { useSchedules } from '../hooks/useSchedules';
 import { useRoles } from '../../../features/role/hooks/useRole';
 import CloseIcon from '@mui/icons-material/Close';
 import { dialogStyles } from '../configs/styles.config';
-import { Icon } from '@iconify/react';
+import { Icon } from '@/admin/components/ui/AdminIcon';
 
 interface BulkScheduleDialogProps {
     open: boolean;

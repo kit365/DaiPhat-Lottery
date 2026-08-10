@@ -4,10 +4,11 @@ import { Grid, Box, Typography, Button, Divider, Stack, Avatar, CircularProgress
 import { useAuthStore } from "../../../stores/useAuthStore";
 import dynamic from 'next/dynamic';
 const Chart = dynamic(() => import('react-apexcharts'), { ssr: false });
-import { Icon } from '@iconify/react';
+import { Icon } from '@/admin/components/ui/AdminIcon';
 import { useState, useEffect } from "react";
 import DashboardCard from "../../components/dashboard/DashboardCard";
 import WelcomeWidget from "../../components/dashboard/WelcomeWidget";
+import SummaryWidget from "../../components/dashboard/SummaryWidget";
 import { getSystemStats } from "../../api/dashboard.api";
 import { ImportBatchDraftBanner } from "../../features/ticket/import-batch";
 
@@ -211,44 +212,6 @@ const NewTicketsTable = ({ tickets }: { tickets: any[] }) => {
 
 
 
-
-const SummaryWidget = ({ title, total, percent, color, chartData }: any) => {
-    const chartOptions: any = {
-        chart: { sparkline: { enabled: true } },
-        stroke: { width: 3, curve: 'smooth' },
-        grid: { padding: { top: 0, bottom: 0 } },
-        xaxis: { labels: { show: false }, axisBorder: { show: false }, axisTicks: { show: false } },
-        yaxis: { labels: { show: false } },
-        fill: { type: 'gradient', gradient: { shade: 'dark', type: 'vertical', gradientToColors: [color], stops: [0, 100] } },
-        colors: [color],
-        tooltip: { enabled: false }
-    };
-
-    return (
-        <DashboardCard sx={{
-            display: 'flex',
-            alignItems: 'center',
-            p: 3,
-            bgcolor: 'var(--palette-background-paper)',
-            borderRadius: '16px',
-            boxShadow: 'var(--customShadows-card)',
-            color: 'var(--palette-text-primary)',
-        }}>
-            <Box sx={{ flexGrow: 1 }}>
-                <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'var(--palette-text-secondary)', mb: 1 }}>{title}</Typography>
-                <Typography variant="h4" sx={{ fontWeight: 700 }}>{total}</Typography>
-                <Tooltip title="So với tuần trước" arrow placement="top">
-                    <Stack direction="row" alignItems="center" spacing={0.5} sx={{ mt: 1, color: percent > 0 ? 'var(--palette-success-main)' : 'var(--palette-error-main)', cursor: 'help', width: 'fit-content' }}>
-                        <Icon icon={percent > 0 ? "solar:double-alt-arrow-up-bold-duotone" : "solar:double-alt-arrow-down-bold-duotone"} width={20} />
-                        <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>{percent > 0 ? '+' : ''}{percent}%</Typography>
-                    </Stack>
-                </Tooltip>
-            </Box>
-
-            <Chart type="line" series={[{ data: chartData }]} options={chartOptions} width={120} height={60} />
-        </DashboardCard>
-    );
-};
 
 const TopCustomers = ({ customers }: { customers: any[] }) => {
     return (

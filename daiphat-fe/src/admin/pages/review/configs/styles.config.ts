@@ -34,10 +34,6 @@ export const dataGridStyles: SxProps<Theme> = {
         alignItems: 'center',
         padding: '12px',
     },
-
-    '& .MuiDataGrid-row:hover': {
-        backgroundColor: COLORS.borderHover,
-    },
 };
 
 export const dataGridCardStyles = {

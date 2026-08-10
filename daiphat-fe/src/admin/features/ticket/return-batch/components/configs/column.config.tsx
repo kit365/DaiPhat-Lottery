@@ -1,115 +1,62 @@
 "use client";
 
-import CalendarTodayOutlinedIcon from '@mui/icons-material/CalendarTodayOutlined';
-import MoreVertIcon from '@mui/icons-material/MoreVert';
-import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
-import { Avatar, Box, IconButton, ListItemIcon, ListItemText, Menu, MenuItem, Stack, Typography } from '@mui/material';
+import type { ReactNode } from 'react';
+import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
+import { Box } from '@mui/material';
 import { GridColDef, GridRenderCellParams } from '@mui/x-data-grid';
 import dayjs from 'dayjs';
-import { useState } from 'react';
-import { useNavigate } from '@/components/router-compat';
+import { AdminRowActionsMenu } from '../../../../../components/ui/AdminRowActionsMenu';
 import { ROUTES } from '../../../../../constants/routes';
-import { formatImportCost } from '../../../import-batch/utils/importCostCalculator';
+import { formatVnd } from '../../../import-batch/utils/importCostCalculator';
 import type { ReturnBatch } from '../../types/returnBatch.type';
 import {
     getReturnBatchStatusBadgeClass,
     getReturnBatchStatusLabel,
 } from '../../utils/returnBatchLabels';
 
-import { returnBatchCodeMonospaceSx } from '../../utils/returnBatchCode';
-
 const ActionCell = ({ row }: { row: ReturnBatch }) => {
-    const navigate = useNavigate();
-    const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
-
-    const handleOpen = (event: React.MouseEvent<HTMLElement>) => {
-        event.stopPropagation();
-        setAnchorEl(event.currentTarget);
-    };
-
-    const handleClose = (event?: React.MouseEvent) => {
-        if (event) event.stopPropagation();
-        setAnchorEl(null);
-    };
+    const router = useAdminRouter();
 
     return (
-        <Box onClick={(e) => e.stopPropagation()}>
-            <IconButton size="small" onClick={handleOpen}>
-                <MoreVertIcon fontSize="small" />
-            </IconButton>
-            <Menu
-                anchorEl={anchorEl}
-                open={Boolean(anchorEl)}
-                onClose={() => handleClose()}
-                onClick={(e) => e.stopPropagation()}
-            >
-                <MenuItem
-                    onClick={(e) => {
-                        handleClose(e);
-                        navigate(ROUTES.ADMIN.RETURN_BATCH.DETAIL(row.id));
-                    }}
-                >
-                    <ListItemIcon>
-                        <VisibilityOutlinedIcon fontSize="small" />
-                    </ListItemIcon>
-                    <ListItemText>Xem chi tiết</ListItemText>
-                </MenuItem>
-            </Menu>
-        </Box>
+        <AdminRowActionsMenu
+            items={[
+                {
+                    id: 'view',
+                    label: 'Xem chi tiết',
+                    icon: 'view',
+                    onClick: () => router.push(ROUTES.ADMIN.RETURN_BATCH.DETAIL(row.id)),
+                },
+            ]}
+        />
     );
 };
 
-const BatchCodeCell = ({ row }: { row: ReturnBatch }) => {
-    const navigate = useNavigate();
-    const rawCode = row.batchCode?.trim() || `#${row.id}`;
+const CellText = ({ children, className = 'admin-cell-text' }: { children: ReactNode; className?: string }) => (
+    <div className="flex h-full w-full items-center">
+        <span className={className}>{children}</span>
+    </div>
+);
 
-    return (
-        <Box sx={{ display: 'flex', alignItems: 'center', height: '100%' }}>
-            <Typography
-                variant="body2"
-                onClick={(e) => {
-                    e.stopPropagation();
-                    navigate(ROUTES.ADMIN.RETURN_BATCH.DETAIL(row.id));
-                }}
-                sx={{
-                    ...returnBatchCodeMonospaceSx,
-                    color: '#FF3030',
-                    bgcolor: '#FF303014',
-                    px: 1,
-                    py: 0.35,
-                    borderRadius: '6px',
-                    border: '1px solid #FF303026',
-                    display: 'inline-block',
-                    fontSize: '0.8125rem',
-                    lineHeight: 1.2,
-                    cursor: 'pointer',
-                    fontWeight: 700,
-                    transition: 'all 0.15s ease-in-out',
-                    '&:hover': {
-                        bgcolor: '#FF303024',
-                        borderColor: '#FF30304d',
-                        color: '#dc2626',
-                        transform: 'translateY(-1px)',
-                        boxShadow: '0 2px 5px rgba(255, 48, 48, 0.2)',
-                    },
-                }}
-                title={`Xem chi tiết phiếu trả ${rawCode}`}
-            >
-                {rawCode}
-            </Typography>
-        </Box>
-    );
-};
+const CellTextCenter = ({ children }: { children: ReactNode }) => (
+    <div className="flex h-full w-full items-center justify-center">
+        <span className="admin-cell-text">{children}</span>
+    </div>
+);
 
 export const returnBatchColumnsConfig: GridColDef[] = [
     {
         field: 'stt',
         headerName: 'STT',
-        width: 60,
+        width: 72,
+        minWidth: 72,
+        maxWidth: 72,
+        flex: 0,
         align: 'center',
         headerAlign: 'center',
         sortable: false,
         filterable: false,
+        disableColumnMenu: true,
+        resizable: false,
         renderCell: (params: GridRenderCellParams<ReturnBatch>) => {
             const api = params.api;
             const page = api.state?.pagination?.paginationModel?.page || 0;
@@ -123,11 +70,7 @@ export const returnBatchColumnsConfig: GridColDef[] = [
                 rowIndex = 0;
             }
             const sttNumber = page * pageSize + rowIndex + 1;
-            return (
-                <Typography variant="body2" fontWeight={700} color="#64748b">
-                    {sttNumber}
-                </Typography>
-            );
+            return <CellTextCenter>{sttNumber}</CellTextCenter>;
         },
     },
     {
@@ -136,140 +79,97 @@ export const returnBatchColumnsConfig: GridColDef[] = [
         flex: 1.1,
         minWidth: 155,
         sortable: true,
-        renderCell: (params: GridRenderCellParams<ReturnBatch>) => <BatchCodeCell row={params.row} />,
+        renderCell: (params: GridRenderCellParams<ReturnBatch>) => {
+            const rawCode = params.row.batchCode?.trim() || `#${params.row.id}`;
+            return <CellText>{rawCode}</CellText>;
+        },
     },
     {
         field: 'supplierName',
         headerName: 'Nhà cung cấp',
         flex: 1.5,
-        minWidth: 220,
+        minWidth: 190,
         sortable: true,
         renderCell: (params: GridRenderCellParams<ReturnBatch>) => {
             const supplierName = params.row.supplierName || '—';
             const supplierCode = params.row.supplierCode;
-            const initial = supplierName.charAt(0).toUpperCase();
 
             return (
-                <Stack direction="row" spacing={1.25} alignItems="center" sx={{ py: 0.5, minWidth: 0, height: '100%' }}>
-                    <Avatar
-                        sx={{
-                            width: 32,
-                            height: 32,
-                            bgcolor: '#f1f5f9',
-                            color: '#0284c7',
-                            fontWeight: 700,
-                            fontSize: '0.8rem',
-                            border: '1px solid #e2e8f0',
-                            flexShrink: 0,
-                        }}
-                    >
-                        {initial}
-                    </Avatar>
-                    <Box sx={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                        <Typography
-                            variant="body2"
-                            fontWeight={700}
-                            color="#1e293b"
-                            noWrap
-                            sx={{ lineHeight: 1.2, fontSize: '0.875rem' }}
-                        >
-                            {supplierName}
-                        </Typography>
-                        {supplierCode && (
-                            <Typography
-                                variant="caption"
-                                sx={{
-                                    fontFamily: 'monospace',
-                                    color: '#64748b',
-                                    bgcolor: '#f8fafc',
-                                    px: 0.75,
-                                    py: 0.1,
-                                    borderRadius: '4px',
-                                    border: '1px solid #e2e8f0',
-                                    fontSize: '0.68rem',
-                                    fontWeight: 600,
-                                    display: 'inline-block',
-                                    width: 'fit-content',
-                                    lineHeight: 1.2,
-                                }}
-                            >
-                                {supplierCode}
-                            </Typography>
-                        )}
-                    </Box>
-                </Stack>
+                <div className="flex flex-col gap-0.5 py-1">
+                    <span className="admin-cell-title">{supplierName}</span>
+                    {supplierCode ? <span className="admin-cell-subtitle">{supplierCode}</span> : null}
+                </div>
             );
         },
     },
     {
         field: 'drawDate',
         headerName: 'Ngày quay',
-        flex: 1.1,
-        minWidth: 150,
+        width: 120,
+        minWidth: 112,
+        maxWidth: 128,
+        flex: 0,
         align: 'center',
         headerAlign: 'center',
         sortable: true,
         renderCell: (params: GridRenderCellParams<ReturnBatch>) => (
-            <Stack direction="row" spacing={0.75} alignItems="center" justifyContent="center" sx={{ width: '100%', height: '100%' }}>
-                <CalendarTodayOutlinedIcon sx={{ fontSize: '0.9rem', color: '#64748b' }} />
-                <Typography variant="body2" fontWeight={600} color="#334155" sx={{ fontSize: '0.875rem' }}>
-                    {params.row.drawDate ? dayjs(params.row.drawDate).format('DD/MM/YYYY') : '—'}
-                </Typography>
-            </Stack>
+            <CellTextCenter>
+                {params.row.drawDate ? dayjs(params.row.drawDate).format('DD/MM/YYYY') : '—'}
+            </CellTextCenter>
         ),
     },
     {
         field: 'totalQuantity',
         headerName: 'Số lượng',
         type: 'number',
-        flex: 1,
-        minWidth: 130,
+        width: 100,
+        minWidth: 96,
+        maxWidth: 110,
+        flex: 0,
         align: 'center',
         headerAlign: 'center',
         sortable: true,
         renderCell: (params: GridRenderCellParams<ReturnBatch>) => (
-            <Box sx={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
-                <Typography variant="body2" fontWeight={700} color="#0f172a" sx={{ fontSize: '0.875rem' }}>
-                    {new Intl.NumberFormat('vi-VN').format(params.row.totalQuantity ?? 0)}
-                </Typography>
-            </Box>
+            <CellTextCenter>
+                {new Intl.NumberFormat('vi-VN').format(params.row.totalQuantity ?? 0)}
+            </CellTextCenter>
         ),
     },
     {
         field: 'totalReturnValue',
         headerName: 'Giá trị trả',
         type: 'number',
-        flex: 1.25,
-        minWidth: 165,
-        align: 'right',
-        headerAlign: 'right',
+        width: 120,
+        minWidth: 110,
+        maxWidth: 130,
+        flex: 0,
+        align: 'center',
+        headerAlign: 'center',
         sortable: true,
         renderCell: (params: GridRenderCellParams<ReturnBatch>) => (
-            <Box sx={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', height: '100%', pr: 1 }}>
-                <Typography variant="body2" fontWeight={700} color="#16a34a" sx={{ fontSize: '0.875rem' }}>
-                    {formatImportCost(params.row.totalReturnValue)} VNĐ
-                </Typography>
-            </Box>
+            <CellTextCenter>{formatVnd(params.row.totalReturnValue)}</CellTextCenter>
         ),
     },
     {
         field: 'status',
         headerName: 'Trạng thái',
         flex: 1.2,
-        minWidth: 180,
+        minWidth: 160,
         sortable: true,
-        align: 'center',
-        headerAlign: 'center',
+        align: 'right',
+        headerAlign: 'right',
         renderCell: (params: GridRenderCellParams<ReturnBatch>) => (
-            <span className={`admin-status-badge ${getReturnBatchStatusBadgeClass(params.row.status)}`}>
-                {getReturnBatchStatusLabel(params.row.status, params.row.statusLabel)}
-            </span>
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', width: '100%', height: '100%' }}>
+                <span className={`admin-status-badge ${getReturnBatchStatusBadgeClass(params.row.status)}`}>
+                    {getReturnBatchStatusLabel(params.row.status, params.row.statusLabel)}
+                </span>
+            </Box>
         ),
     },
     {
         field: 'actions',
         headerName: '',
-        width: 60,
+        width: 50,
         sortable: false,
         filterable: false,
         align: 'right',
@@ -280,5 +180,9 @@ export const returnBatchColumnsConfig: GridColDef[] = [
 export const returnBatchColumnsInitialState = {
     columns: {
         columnVisibilityModel: {},
+        dimensions: {
+            stt: { width: 72, maxWidth: 72, minWidth: 72 },
+            totalReturnValue: { width: 120, maxWidth: 130, minWidth: 110 },
+        },
     },
 };

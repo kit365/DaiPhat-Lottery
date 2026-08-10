@@ -1,8 +1,9 @@
 "use client";
 
-import { Box, Stack, TextField, ThemeProvider, useTheme, createTheme, FormControl, InputLabel, MenuItem, OutlinedInput, Select, Button, Typography, IconButton, CircularProgress, Pagination, Chip, Table, TableBody, TableCell, TableContainer, TableHead, TableRow } from "@mui/material"
-import { Breadcrumb } from "../../../../../components/ui/Breadcrumb"
-import { Title } from "../../../../../components/ui/Title"
+import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
+import { useRouteParams } from "@/hooks/useRouteParams";
+import { Box, Stack, TextField, ThemeProvider, useTheme, createTheme, FormControl, InputLabel, MenuItem, OutlinedInput, Select, Typography, IconButton, CircularProgress, Pagination, Chip, Table, TableBody, TableCell, TableContainer, TableHead, TableRow } from '@mui/material'
+import { PageHeader } from "../../../../../components/ui/PageHeader"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { CollapsibleCard } from "../../../../../components/ui/CollapsibleCard"
 import { TicketSerialImageField } from "../sections/TicketSerialImageField"
@@ -17,7 +18,7 @@ import {
     getTicketStatusLabel,
     normalizeTicketStatus,
 } from "../../constants/ticket-status.config";
-import { LoadingButton } from "../../../../../components/ui/LoadingButton";
+import { Button } from '../../../../../components/ui/Button';
 import { useStations } from '../../../../station/hooks/useStation';
 import { useRegions } from "../../../../region/hooks/useRegion";
 import {
@@ -33,7 +34,6 @@ import { resolveAvailableTicketQuantity } from "../../utils/ticketQuantity";
 import { buildSerialStatusFilterOptions } from "../../constants/serial-status-filter.config";
 import dayjs from "dayjs";
 import "dayjs/locale/en-gb";
-import { useParams, useNavigate } from "react-router-dom";
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import AddIcon from '@mui/icons-material/Add';
 
@@ -59,8 +59,8 @@ const getValidDays = (schedule: string) => {
 };
 
 export const TicketEditPage = () => {
-    const { id } = useParams<{ id: string }>();
-    const navigate = useNavigate();
+    const { id } = useRouteParams();
+    const router = useAdminRouter();
 
     const { data: ticketDetail, isLoading: isLoadingTicket } = useTicketDetail(id);
 
@@ -276,7 +276,7 @@ export const TicketEditPage = () => {
                 onSuccess: (res: any) => {
                     if (res.success) {
                         toast.success(res.message || "Cập nhật vé số thành công!");
-                        navigate(`/${prefixAdmin}/ticket/list`);
+                        router.push(`/${prefixAdmin}/ticket/list`);
                     } else {
                         toast.error(res.message || "Cập nhật vé số thất bại");
                     }
@@ -294,18 +294,14 @@ export const TicketEditPage = () => {
 
     return (
         <>
-            <div className="mb-[calc(5*var(--spacing))] gap-[calc(2*var(--spacing))] flex items-start justify-end">
-                <div className="mr-auto">
-                    <Title title={"Sửa vé số"} />
-                    <Breadcrumb
-                        items={[
+            <PageHeader
+                title={"Sửa vé số"}
+                breadcrumbItems={[
                             { label: "Dashboard", to: "/" },
                             { label: "Kho vé số", to: `/${prefixAdmin}/ticket/list` },
                             { label: "Sửa vé" }
                         ]}
-                    />
-                </div>
-            </div>
+            />
             <ThemeProvider theme={localTheme}>
                 <form onSubmit={handleSubmit(onSubmit)}>
                     <Stack sx={{
@@ -657,7 +653,7 @@ export const TicketEditPage = () => {
                         </CollapsibleCard>
 
                         <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: "calc(2 * var(--spacing))" }}>
-                            <LoadingButton
+                            <Button
                                 type="submit"
                                 loading={isPending}
                                 disabled={!isTicketEditable}

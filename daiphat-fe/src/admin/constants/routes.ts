@@ -30,22 +30,8 @@ export const ROUTES = {
         },
         TICKETS: {
             LIST: `/${prefixAdmin}/ticket/list`,
-            CREATE: `/${prefixAdmin}/ticket/create`,
             DETAIL: (id: number | string) => `/${prefixAdmin}/ticket/detail/${id}`,
             EDIT: (id: number | string) => `/${prefixAdmin}/ticket/edit/${id}`,
-            CREATE_FOR_BATCH: (importBatchId: number | string, importBatchLineId?: number | string) => {
-                const params = new URLSearchParams({ importBatchId: String(importBatchId) });
-                if (importBatchLineId != null) {
-                    params.set('importBatchLineId', String(importBatchLineId));
-                }
-                return `/${prefixAdmin}/ticket/create?${params.toString()}`;
-            },
-            CREATE_FOR_BATCH_LINE: (importBatchLineId: number | string, importBatchId?: number | string) => {
-                if (importBatchId != null) {
-                    return ROUTES.ADMIN.TICKETS.CREATE_FOR_BATCH(importBatchId, importBatchLineId);
-                }
-                return `/${prefixAdmin}/ticket/create?importBatchLineId=${importBatchLineId}`;
-            },
             PROVIDER: `/${prefixAdmin}/provider/list`,
             PROVIDER_DETAIL: (id: number | string) => `/${prefixAdmin}/provider/detail/${id}`,
             PROVIDER_EDIT: (id: number | string) => `/${prefixAdmin}/provider/edit/${id}`,
@@ -130,6 +116,7 @@ export const ROUTES = {
                 LUCKY_PATTERNS: `/${prefixAdmin}/street-agent/lucky-patterns`,
                 ALLOCATION: `/${prefixAdmin}/street-agent/allocation`,
                 ALLOCATION_BATCHES: `/${prefixAdmin}/street-agent/allocation/batches`,
+                ALLOCATION_BATCH_DETAIL: (id: number | string) => `/${prefixAdmin}/street-agent/allocation/batches/${id}`,
                 CONTRACT_PDF: (id: number | string) => `/${prefixAdmin}/street-agent/contract/${id}`,
             }
         },

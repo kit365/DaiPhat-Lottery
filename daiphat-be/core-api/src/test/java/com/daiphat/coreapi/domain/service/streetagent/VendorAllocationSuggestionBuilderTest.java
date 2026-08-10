@@ -15,6 +15,56 @@ import static org.assertj.core.api.Assertions.assertThat;
 class VendorAllocationSuggestionBuilderTest {
 
     @Test
+    void applies_max_of_fixed_and_percent_reserve_with_ceiling() {
+        List<VendorAllocationSerialModel> serials = new ArrayList<>();
+        serials.addAll(stationSerials(1L, "A", "A", 5, false));
+        serials.addAll(stationSerials(2L, "B", "B", 40, false));
+        serials.addAll(stationSerials(3L, "C", "C", 100, false));
+
+        VendorAllocationSuggestionBuilder.Suggestion suggestion = VendorAllocationSuggestionBuilder.build(
+                serials, 200, 200,
+                new VendorAllocationSuggestionBuilder.ReservePolicy(10, new BigDecimal("0.20")), null);
+
+        assertThat(suggestion.totalVendorCapacity()).isEqualTo(110);
+        assertThat(suggestion.stations()).extracting(VendorAllocationSuggestionBuilder.StationSuggestion::vendorCapacity)
+                .containsExactly(0, 30, 80);
+        assertThat(suggestion.stations()).extracting(VendorAllocationSuggestionBuilder.StationSuggestion::effectiveAgencyReserveQuantity)
+                .containsExactly(5, 10, 20);
+    }
+
+    @Test
+    void reports_inventory_shortfall_and_rebalances_when_small_station_is_exhausted() {
+        List<VendorAllocationSerialModel> serials = new ArrayList<>();
+        serials.addAll(stationSerials(1L, "A", "A", 15, false)); // capacity 5
+        serials.addAll(stationSerials(2L, "B", "B", 20, false)); // capacity 10
+        serials.addAll(stationSerials(3L, "C", "C", 18, false)); // capacity 8
+
+        VendorAllocationSuggestionBuilder.Suggestion suggestion = VendorAllocationSuggestionBuilder.build(
+                serials, 40, 30,
+                new VendorAllocationSuggestionBuilder.ReservePolicy(10, new BigDecimal("0.20")), null);
+
+        assertThat(suggestion.allowedQuantity()).isEqualTo(23);
+        assertThat(suggestion.shortfallQuantity()).isEqualTo(7);
+        assertThat(suggestion.inventoryShortfallQuantity()).isEqualTo(7);
+        assertThat(suggestion.shortageReasons()).containsExactly("INSUFFICIENT_STATION_CAPACITY");
+        assertThat(suggestion.stations()).extracting(VendorAllocationSuggestionBuilder.StationSuggestion::suggestedCount)
+                .containsExactly(5, 10, 8);
+    }
+
+    @Test
+    void reports_cap_shortfall_separately_from_inventory_shortfall() {
+        List<VendorAllocationSerialModel> serials = stationSerials(1L, "A", "A", 100, false);
+        VendorAllocationSuggestionBuilder.Suggestion suggestion = VendorAllocationSuggestionBuilder.build(
+                serials, 30, 50,
+                new VendorAllocationSuggestionBuilder.ReservePolicy(10, new BigDecimal("0.20")), null);
+
+        assertThat(suggestion.allowedQuantity()).isEqualTo(30);
+        assertThat(suggestion.capShortfallQuantity()).isEqualTo(20);
+        assertThat(suggestion.inventoryShortfallQuantity()).isZero();
+        assertThat(suggestion.shortageReasons()).containsExactly("DAILY_CAP_LIMIT");
+    }
+
+    @Test
     void groups_by_station_and_ticket_number_with_planner_suggestion() {
         List<VendorAllocationSerialModel> serials = new ArrayList<>();
         serials.addAll(stationSerials(1L, "Đài HCM", "001001", 12, false));

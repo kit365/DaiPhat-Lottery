@@ -310,7 +310,7 @@ const CollapsibleRow = ({
 export const ImportBatchLineDetailModal = ({ line, batch, stationName, onClose }: Props) => {
     const queryClient = useQueryClient();
     // Destructure tickets directly instead of data (since hook returns tickets mapped array)
-    const { tickets, isLoading } = useTicketInventory({ limit: 1000, importBatchLineId: line.id });
+    const { tickets, isLoading } = useTicketInventory({ importBatchLineId: line.id }, 1000);
 
     // States for report fault pane
     const [reportSerials, setReportSerials] = React.useState<any[]>([]);

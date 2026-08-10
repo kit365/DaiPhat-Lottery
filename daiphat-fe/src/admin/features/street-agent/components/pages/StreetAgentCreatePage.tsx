@@ -1,27 +1,26 @@
 "use client";
 
-import { Breadcrumb } from "../../../../components/ui/Breadcrumb";
-import { Title } from "../../../../components/ui/Title";
+import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
+import { useAppSearchParams } from "@/hooks/useAppSearchParams";
+import Link from "@/admin/components/navigation/AdminLink";
+import { PageHeader } from "../../../../components/ui/PageHeader";
+import { SpinnerLoading } from "../../../../components/ui/SpinnerLoading";
 import {
     useCreateStreetAgentProfile,
     useStreetAgentProfileDetail,
-    useUploadStreetAgentSignedContract,
-} from "../../hooks/useStreetAgent";
+    useUploadStreetAgentSignedContract} from "../../hooks/useStreetAgent";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
     createStreetAgentProfileSchema,
-    CreateStreetAgentProfileFormValues,
-} from "../../schemas/street-agent.schema";
+    CreateStreetAgentProfileFormValues} from "../../schemas/street-agent.schema";
 import { ROUTES } from "../../../../constants/routes";
 import { toast } from "react-toastify";
-import { Link as RouterLink, useNavigate, useSearchParams } from "react-router-dom";
 import {
     Alert,
     Box,
-    Button,
-    Card,
+Card,
     Chip,
     CircularProgress,
     Stack,
@@ -29,13 +28,13 @@ import {
     StepLabel,
     Stepper,
     Typography,
-} from "@mui/material";
+} from '@mui/material';
 import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
 import CloudUploadIcon from "@mui/icons-material/CloudUpload";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import { uploadAdminImage } from "../../../../api/upload.api";
-import { LoadingButton } from "../../../../components/ui/LoadingButton";
+import { Button } from "../../../../components/ui/Button";
 import { StreetAgentProfileForm } from "../sections/StreetAgentProfileForm";
 import {
     parseCoverageAreaCodes,
@@ -62,11 +61,12 @@ const defaultValues: CreateStreetAgentProfileFormValues = {
     imageUrl: "",
     contactAddress: "",
     contactProvince: "",
+    contactWard: "",
     coverageAreaCodes: [],
-    commissionRate: null,
     contractStartDate: "",
     contractEndDate: "",
-    dailyTicketCap: null,
+    contractMaxDailyCap: null,
+    approvedDailyCap: null,
 };
 
 const toFormValues = (profile: StreetAgentProfile): CreateStreetAgentProfileFormValues => ({
@@ -77,16 +77,17 @@ const toFormValues = (profile: StreetAgentProfile): CreateStreetAgentProfileForm
     imageUrl: profile.imageUrl || "",
     contactAddress: profile.contactAddress || "",
     contactProvince: profile.contactProvince || "",
+    contactWard: profile.contactWard || "",
     coverageAreaCodes: parseCoverageAreaCodes(profile.coverageArea),
-    commissionRate: profile.commissionRate ?? null,
     contractStartDate: profile.contractStartDate || "",
     contractEndDate: profile.contractEndDate || "",
-    dailyTicketCap: profile.dailyTicketCap ?? null,
+    contractMaxDailyCap: profile.contractMaxDailyCap ?? null,
+    approvedDailyCap: profile.approvedDailyCap ?? null,
 });
 
 export const StreetAgentCreatePage = () => {
-    const navigate = useNavigate();
-    const [searchParams, setSearchParams] = useSearchParams();
+    const router = useAdminRouter();
+    const [searchParams, setSearchParams] = useAppSearchParams();
     const resumeIdParam = searchParams.get("resumeId");
     const resumeId = resumeIdParam && /^\d+$/.test(resumeIdParam) ? Number(resumeIdParam) : null;
 
@@ -98,7 +99,10 @@ export const StreetAgentCreatePage = () => {
         isError: isResumeError,
         refetch: refetchResume,
     } = useStreetAgentProfileDetail(resumeId ?? undefined);
-    const { defaults: vendorDefaults } = useVendorSettingsDefaults();
+    const {
+        defaults: vendorDefaults,
+        isSuccess: vendorSettingsLoaded,
+    } = useVendorSettingsDefaults();
 
     const fileInputRef = useRef<HTMLInputElement>(null);
     const signedFileInputRef = useRef<HTMLInputElement>(null);
@@ -108,15 +112,32 @@ export const StreetAgentCreatePage = () => {
     const [hydratedResume, setHydratedResume] = useState(false);
     const [pendingSignedFile, setPendingSignedFile] = useState<File | null>(null);
     const [viewSignedOpen, setViewSignedOpen] = useState(false);
+    const defaultsAppliedRef = useRef(false);
 
     const { control, handleSubmit, setValue, watch, reset } = useForm<CreateStreetAgentProfileFormValues>({
         resolver: zodResolver(createStreetAgentProfileSchema) as any,
         defaultValues,
+        mode: "all",
+        reValidateMode: "onChange",
     });
 
     const imageUrl = watch("imageUrl");
     const profile = createdProfile ?? resumeProfile ?? null;
     const profileId = profile?.id ?? resumeId;
+
+    useEffect(() => {
+        if (resumeProfile || !vendorSettingsLoaded || defaultsAppliedRef.current) return;
+        if (vendorDefaults.defaultContractMaxDailyCap != null) {
+            setValue("contractMaxDailyCap", vendorDefaults.defaultContractMaxDailyCap, { shouldValidate: true });
+        }
+        if (vendorDefaults.defaultApprovedDailyCap != null) {
+            const approved = vendorDefaults.defaultContractMaxDailyCap == null
+                ? vendorDefaults.defaultApprovedDailyCap
+                : Math.min(vendorDefaults.defaultApprovedDailyCap, vendorDefaults.defaultContractMaxDailyCap);
+            setValue("approvedDailyCap", approved, { shouldValidate: true });
+        }
+        defaultsAppliedRef.current = true;
+    }, [resumeProfile, setValue, vendorDefaults, vendorSettingsLoaded]);
 
     useEffect(() => {
         if (!resumeProfile || hydratedResume) return;
@@ -199,12 +220,12 @@ export const StreetAgentCreatePage = () => {
             imageUrl: data.imageUrl || undefined,
             contactAddress: data.contactAddress || undefined,
             contactProvince: data.contactProvince || undefined,
+            contactWard: data.contactWard || undefined,
             coverageArea: serializeCoverageAreaCodes(data.coverageAreaCodes || []),
-            commissionRate: data.commissionRate ?? undefined,
             contractStartDate: data.contractStartDate || undefined,
             contractEndDate: data.contractEndDate || undefined,
-            dailyTicketCap: data.dailyTicketCap ?? undefined,
-            depositBalance: 0,
+            contractMaxDailyCap: data.contractMaxDailyCap ?? undefined,
+            approvedDailyCap: data.approvedDailyCap ?? undefined,
         };
 
         create(payload, {
@@ -286,25 +307,32 @@ export const StreetAgentCreatePage = () => {
 
     if (resumeId && isLoadingResume && !hydratedResume) {
         return (
-            <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
-                <CircularProgress />
+            <Box sx={{ maxWidth: "1200px", mx: "auto" }}>
+                <PageHeader
+                    title="Tạo hồ sơ đại lý bán dạo"
+                    breadcrumbItems={[
+                        { label: "Dashboard", to: "/" },
+                        { label: "Quản lý đại lý", to: ROUTES.ADMIN.ACCOUNTS.ADMIN.LIST },
+                        { label: "Đại lý bán dạo", to: ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.LIST },
+                        { label: "Tiếp tục hoàn thiện" },
+                    ]}
+                />
+                <SpinnerLoading />
             </Box>
         );
     }
 
     return (
         <Box sx={{ maxWidth: "1200px", mx: "auto" }}>
-            <Box sx={{ mb: 5 }}>
-                <Title title="Tạo hồ sơ đại lý bán dạo" />
-                <Breadcrumb
-                    items={[
-                        { label: "Dashboard", to: "/" },
-                        { label: "Quản lý tài khoản", to: ROUTES.ADMIN.ACCOUNTS.ADMIN.LIST },
-                        { label: "Đại lý bán dạo", to: ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.LIST },
-                        { label: resumeId ? "Tiếp tục hoàn thiện" : "Tạo hồ sơ" },
-                    ]}
-                />
-            </Box>
+            <PageHeader
+                title="Tạo hồ sơ đại lý bán dạo"
+                breadcrumbItems={[
+                    { label: "Dashboard", to: "/" },
+                    { label: "Quản lý đại lý", to: ROUTES.ADMIN.ACCOUNTS.ADMIN.LIST },
+                    { label: "Đại lý bán dạo", to: ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.LIST },
+                    { label: resumeId ? "Tiếp tục hoàn thiện" : "Tạo hồ sơ" },
+                ]}
+            />
 
             <Card
                 sx={{
@@ -328,6 +356,7 @@ export const StreetAgentCreatePage = () => {
                     <StreetAgentProfileForm
                         mode="create"
                         control={control}
+                        setValue={setValue}
                         imageUrl={imageUrl}
                         isUploading={isUploading}
                         fileInputRef={fileInputRef}
@@ -337,7 +366,7 @@ export const StreetAgentCreatePage = () => {
                         statusChip="PENDING"
                         vendorDefaults={vendorDefaults}
                         footer={
-                            <LoadingButton
+                            <Button
                                 type="submit"
                                 loading={isCreating}
                                 label="Lưu thông tin & tạo hợp đồng"
@@ -365,7 +394,7 @@ export const StreetAgentCreatePage = () => {
                                     Hoàn thiện hồ sơ đại lý
                                 </Typography>
                                 <Typography variant="body2" color="text.secondary">
-                                    Vui lòng thực hiện các bước dưới đây để kích hoạt tài khoản
+                                    Vui lòng thực hiện các bước dưới đây để kích hoạt hồ sơ đại lý
                                 </Typography>
                             </Box>
                             <Box sx={{ textAlign: { xs: "left", sm: "right" } }}>
@@ -474,7 +503,7 @@ export const StreetAgentCreatePage = () => {
                                 color="inherit"
                                 onClick={() => {
                                     if (profileId) {
-                                        navigate(`${ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.EDIT}/${profileId}`);
+                                        router.push(`${ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.EDIT}/${profileId}`);
                                         return;
                                     }
                                     setActiveStep(0);
@@ -523,15 +552,15 @@ export const StreetAgentCreatePage = () => {
                         <Stack direction="row" spacing={1.5}>
                             <Button
                                 variant="contained"
-                                onClick={() => navigate(ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.LIST)}
+                                onClick={() => router.push(ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.LIST)}
                                 sx={{ fontWeight: 700, borderRadius: "8px" }}
                             >
                                 Về danh sách
                             </Button>
                             <Button
                                 variant="outlined"
-                                component={RouterLink}
-                                to={`${ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.EDIT}/${profile.id}`}
+                                component={Link}
+                                href={`${ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.EDIT}/${profile.id}`}
                                 sx={{ fontWeight: 700, borderRadius: "8px" }}
                             >
                                 Mở trang chỉnh sửa

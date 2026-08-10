@@ -1,10 +1,10 @@
 "use client";
 
+import Link from "@/admin/components/navigation/AdminLink";
 import React, { useEffect, useMemo, useRef } from 'react';
 import {
     Box,
     Chip,
-    CircularProgress,
     Link as MuiLink,
     Paper,
     Stack,
@@ -17,7 +17,7 @@ import {
     TextField,
     Typography,
 } from '@mui/material';
-import { Link as RouterLink } from '@/components/router-compat';
+import { SpinnerLoading } from '../../../../../components/ui/SpinnerLoading';
 import dayjs from 'dayjs';
 import { useQueries } from '@tanstack/react-query';
 import { getOrderDetail } from '../../../../orders/services/orderService';
@@ -241,11 +241,7 @@ export const TicketIncidentRefundStep: React.FC<Props> = ({
     }, [ordersLoadedKey, incidentKey, orderIds, ordersById, incidentItems, onSyncOrderDrafts, refundDraftByOrderId]);
 
     if (isLoading) {
-        return (
-            <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-                <CircularProgress size={32} />
-            </Box>
-        );
+        return <SpinnerLoading compact />;
     }
 
     return (
@@ -307,8 +303,8 @@ export const TicketIncidentRefundStep: React.FC<Props> = ({
                             >
                                 <Stack spacing={0.5}>
                                     <MuiLink
-                                        component={RouterLink}
-                                        to={`/${prefixAdmin}/order/detail/${orderId}`}
+                                        component={Link}
+                                        href={`/${prefixAdmin}/order/detail/${orderId}`}
                                         target="_blank"
                                         rel="noopener noreferrer"
                                         underline="hover"

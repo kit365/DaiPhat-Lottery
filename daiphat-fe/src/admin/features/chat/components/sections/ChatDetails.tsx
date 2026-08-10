@@ -8,7 +8,7 @@ import {
     Grid,
     Chip,
 } from '@mui/material';
-import { Icon } from '@iconify/react';
+import { Icon } from '@/admin/components/ui/AdminIcon';
 import { Conversation } from '../../../../../types/chat.type';
 import { getConversationDisplayTitle, getAssigneeDisplayLabel, getConversationAvatarLetter, getManagementUnreadCount } from '../utils';
 import { useAuthStore } from '../../../../../stores/useAuthStore';

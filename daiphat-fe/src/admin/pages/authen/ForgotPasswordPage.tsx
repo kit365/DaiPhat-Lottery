@@ -1,12 +1,13 @@
 "use client";
 
+import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
+import Link from "@/admin/components/navigation/AdminLink";
 import { useState, useEffect, useRef } from "react";
 import { 
     Box, Button, Container, TextField, Typography, IconButton, Paper, 
     InputAdornment, CircularProgress,
     Dialog, DialogTitle, DialogContent, DialogActions, DialogContentText
 } from "@mui/material";
-import { Link, useNavigate } from "@/components/router-compat";
 import { motion, AnimatePresence } from "framer-motion";
 import { SiteLogo } from "@/client/components/layout/SiteLogo";
 import { EyeIcon, NoEyeIcon } from "../../assets/icons";
@@ -34,7 +35,7 @@ const STEPS = {
 type Step = keyof typeof STEPS;
 
 export const ForgotPasswordPage = () => {
-    const navigate = useNavigate();
+    const router = useAdminRouter();
     const [step, setStep] = useState<Step>(STEPS.EMAIL);
     const [email, setEmail] = useState("");
     const [emailError, setEmailError] = useState("");
@@ -90,7 +91,7 @@ export const ForgotPasswordPage = () => {
         } else if (step === STEPS.OTP) {
             setStep(STEPS.EMAIL);
         } else {
-            navigate("/admin/auth/login");
+            router.push("/admin/auth/login");
         }
     };
 
@@ -203,7 +204,7 @@ export const ForgotPasswordPage = () => {
 
             {/* Header Logo */}
             <Container disableGutters sx={{ height: "72px", px: 3, display: "flex", alignItems: "center", position: "fixed", top: 0, left: 0, zIndex: 1101 }}>
-                <Link to="/admin/auth/login" className="inline-block w-[40px] h-[40px]">
+                <Link href="/admin/auth/login" className="inline-block w-[40px] h-[40px]">
                     <SiteLogo className="w-10 h-10 rounded" imgClassName="w-full h-full object-contain" />
                 </Link>
             </Container>
@@ -236,7 +237,7 @@ export const ForgotPasswordPage = () => {
                                 icon={<MailIcon sx={{ fontSize: 40, color: "primary.main" }} />}
                                 title="Quên mật khẩu?"
                                 description="Vui lòng nhập email liên kết với tài khoản của bạn. Chúng tôi sẽ gửi mã OTP để đặt lại mật khẩu."
-                                onBack={() => navigate("/admin/auth/login")}
+                                onBack={() => router.push("/admin/auth/login")}
                             >
                                 <form onSubmit={handleRequestOtp}>
                                     <TextField
@@ -397,7 +398,7 @@ export const ForgotPasswordPage = () => {
                                 title="Thành công!"
                                 description="Mật khẩu của bạn đã được thay đổi thành công. Bây giờ bạn có thể đăng nhập bằng mật khẩu mới."
                             >
-                                <PrimaryButton onClick={() => navigate("/admin/auth/login")}>
+                                <PrimaryButton onClick={() => router.push("/admin/auth/login")}>
                                     Quay lại Đăng nhập
                                 </PrimaryButton>
                             </StepLayout>

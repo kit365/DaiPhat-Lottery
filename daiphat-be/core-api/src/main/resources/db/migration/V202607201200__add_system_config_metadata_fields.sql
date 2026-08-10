@@ -1,9 +1,4 @@
-ALTER TABLE system_config
-    ADD COLUMN IF NOT EXISTS config_name VARCHAR(100) NOT NULL DEFAULT '',
-    ADD COLUMN IF NOT EXISTS unit VARCHAR(30),
-    ADD COLUMN IF NOT EXISTS validation_rules TEXT,
-    ADD COLUMN IF NOT EXISTS is_editable BOOLEAN NOT NULL DEFAULT TRUE;
-
+-- Metadata columns are part of the system_config CREATE TABLE.
 UPDATE system_config SET
     config_name = 'Thời gian ân hạn hủy đơn',
     unit = 'phút',

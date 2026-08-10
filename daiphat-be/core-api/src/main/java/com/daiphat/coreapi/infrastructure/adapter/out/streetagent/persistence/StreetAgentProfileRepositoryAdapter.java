@@ -5,6 +5,7 @@ import com.daiphat.coreapi.domain.model.enums.streetagent.StreetAgentProfileStat
 import com.daiphat.coreapi.domain.model.streetagent.StreetAgentProfileModel;
 import com.daiphat.coreapi.infrastructure.persistence.mapper.streetagent.StreetAgentProfilePersistenceMapper;
 import com.daiphat.coreapi.infrastructure.persistence.repository.streetagent.StreetAgentProfileRepository;
+import com.daiphat.coreapi.infrastructure.persistence.repository.UserRepository;
 import com.daiphat.coreapi.infrastructure.persistence.specification.StreetAgentProfileSpecification;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -19,6 +20,7 @@ import java.util.Optional;
 public class StreetAgentProfileRepositoryAdapter implements StreetAgentProfileRepositoryPort {
 
     private final StreetAgentProfileRepository streetAgentProfileRepository;
+    private final UserRepository userRepository;
     private final StreetAgentProfilePersistenceMapper streetAgentProfilePersistenceMapper;
 
     @Override
@@ -37,6 +39,13 @@ public class StreetAgentProfileRepositoryAdapter implements StreetAgentProfileRe
     @Override
     public StreetAgentProfileModel save(StreetAgentProfileModel profile) {
         var entity = streetAgentProfilePersistenceMapper.toEntity(profile);
+        if (profile.getUserId() != null) {
+            entity.setUser(userRepository.getReferenceById(profile.getUserId()));
+        } else if (profile.getId() != null) {
+            // MapStruct intentionally ignores the relation. Preserve legacy links on normal updates.
+            streetAgentProfileRepository.findById(profile.getId()).map(existing -> existing.getUser())
+                    .ifPresent(entity::setUser);
+        }
         return streetAgentProfilePersistenceMapper.toDomain(streetAgentProfileRepository.save(entity));
     }
 
@@ -71,6 +80,11 @@ public class StreetAgentProfileRepositoryAdapter implements StreetAgentProfileRe
                         StreetAgentProfileSpecification.filter(normalizedSearch, statuses, contactProvinces),
                         pageable)
                 .map(streetAgentProfilePersistenceMapper::toDomain);
+    }
+
+    @Override
+    public List<Long> findAllActiveIds() {
+        return streetAgentProfileRepository.findAllActiveIds();
     }
 
     @Override

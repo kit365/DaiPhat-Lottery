@@ -6,8 +6,7 @@ import {
     DialogTitle,
     DialogContent,
     DialogActions,
-    Button,
-    FormControl,
+FormControl,
     InputLabel,
     Select,
     MenuItem,
@@ -26,7 +25,7 @@ import {
 } from '@mui/material';
 import { useApprovePrizeStructurePreview, useSyncPrizeStructure } from '../../hooks/usePrizeStructure';
 import { toast } from 'react-toastify';
-import { LoadingButton } from '../../../../components/ui/LoadingButton';
+import { Button } from '../../../../components/ui/Button';
 import { PrizeStructureSyncItem, PrizeStructureSyncResponse, PrizeStructureSource } from '../../types/prize-structure';
 
 interface SyncPrizeStructureModalProps {
@@ -221,7 +220,7 @@ export const SyncPrizeStructureModal: React.FC<SyncPrizeStructureModalProps> = (
                 <Button onClick={handleClose} disabled={isPending || isApproving} color="inherit">
                     Hủy
                 </Button>
-                {preview ? <LoadingButton className="btn-primary-admin" loading={isApproving} onClick={handleApprove} label="Xác nhận lưu" variant="contained" /> : <LoadingButton className="btn-primary-admin" loading={isPending} onClick={handleSubmit} label="Tạo" variant="contained" />}
+                {preview ? <Button className="btn-primary-admin" loading={isApproving} onClick={handleApprove} label="Xác nhận lưu" variant="contained" /> : <Button className="btn-primary-admin" loading={isPending} onClick={handleSubmit} label="Tạo" variant="contained" />}
             </DialogActions>
         </Dialog>
     );

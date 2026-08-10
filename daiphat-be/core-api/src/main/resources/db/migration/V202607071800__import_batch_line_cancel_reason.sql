@@ -1,6 +1,3 @@
-ALTER TABLE import_batch_lines
-    ADD COLUMN IF NOT EXISTS cancel_reason TEXT;
-
 -- Backfill incomplete lines on already-cancelled batches with station-specific reasons.
 UPDATE import_batch_lines l
 SET

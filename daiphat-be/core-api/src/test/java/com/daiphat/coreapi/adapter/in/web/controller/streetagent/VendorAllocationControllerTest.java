@@ -3,6 +3,7 @@ package com.daiphat.coreapi.adapter.in.web.controller.streetagent;
 import com.daiphat.coreapi.adapter.in.web.security.AuthenticatedUserPrincipal;
 import com.daiphat.coreapi.application.dto.request.streetagent.ConfirmVendorAllocationRequest;
 import com.daiphat.coreapi.application.dto.request.streetagent.ReturnVendorAllocationSerialsRequest;
+import com.daiphat.coreapi.application.dto.request.streetagent.SettleVendorAllocationRequest;
 import com.daiphat.coreapi.application.port.in.streetagent.VendorAllocationServicePort;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -67,15 +68,18 @@ class VendorAllocationControllerTest {
     }
 
     @Test
-    void mutation_endpoints_require_street_agent_or_member_edit_authority() throws NoSuchMethodException {
+    void mutation_endpoints_follow_vendor_action_permissions() throws NoSuchMethodException {
         for (var method : List.of(
                 VendorAllocationController.class.getMethod("confirm", Long.class, ConfirmVendorAllocationRequest.class, AuthenticatedUserPrincipal.class),
                 VendorAllocationController.class.getMethod("openReturnSession", Long.class),
                 VendorAllocationController.class.getMethod("recordReturns", Long.class, ReturnVendorAllocationSerialsRequest.class),
-                VendorAllocationController.class.getMethod("settle", Long.class, AuthenticatedUserPrincipal.class))) {
+                VendorAllocationController.class.getMethod("settle", Long.class, SettleVendorAllocationRequest.class, AuthenticatedUserPrincipal.class))) {
             PreAuthorize authorization = method.getAnnotation(PreAuthorize.class);
             assertThat(authorization).isNotNull();
-            assertThat(authorization.value()).isEqualTo("hasAnyAuthority('streetAgent:edit', 'member:edit')");
+            String expected = method.getName().equals("confirm") || method.getName().equals("settle")
+                    ? "hasAuthority('streetAgent:manage')"
+                    : "hasAuthority('streetAgent:edit')";
+            assertThat(authorization.value()).isEqualTo(expected);
         }
     }
 }

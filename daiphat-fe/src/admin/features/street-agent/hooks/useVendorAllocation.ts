@@ -1,14 +1,16 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
     cancelVendorAllocation,
+    confirmVendorReturnInspection,
     confirmVendorAllocation,
     createVendorAllocationDraft,
     getOpenVendorAllocationBatch,
     getVendorAllocationBatch,
     getVendorAllocationSettlementPreview,
     getVendorAllocationSuggestion,
+    getVendorConfirmationQuote,
     listVendorAllocationBatches,
     openVendorAllocationReturnSession,
     returnVendorAllocationSerials,
@@ -16,8 +18,10 @@ import {
 } from "../services/vendorAllocationService";
 import {
     ConfirmVendorAllocationPayload,
+    ConfirmVendorReturnInspectionPayload,
     CreateVendorAllocationDraftPayload,
     ReturnVendorAllocationSerialsPayload,
+    SettleVendorAllocationPayload,
     VendorAllocationBatch,
     VendorAllocationBatchListParams,
 } from "../types/street-agent.type";
@@ -33,9 +37,13 @@ const invalidateVendorAllocationQueries = (
         queryClient.invalidateQueries({
             queryKey: [QUERY_KEYS.VENDOR_ALLOCATION_SETTLEMENT_PREVIEW, batchId],
         });
+        queryClient.invalidateQueries({
+            queryKey: [QUERY_KEYS.VENDOR_ALLOCATION_CONFIRMATION_QUOTE, batchId],
+        });
     } else {
         queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.VENDOR_ALLOCATION_BATCH] });
         queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.VENDOR_ALLOCATION_SETTLEMENT_PREVIEW] });
+        queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.VENDOR_ALLOCATION_CONFIRMATION_QUOTE] });
     }
     queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.VENDOR_ALLOCATION_LIST] });
     queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.VENDOR_ALLOCATION_OPEN] });
@@ -44,17 +52,25 @@ const invalidateVendorAllocationQueries = (
     }
     queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.STREET_AGENT_PROFILES] });
     queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.STREET_AGENT_PROFILE_DETAIL] });
+    queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.STREET_AGENT_CONFIDENCE] });
+    queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.STREET_AGENT_DAILY_SALES_REPORTS] });
+    queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.DAILY_SALES_REPORT_DETAIL] });
 };
 
 export const useVendorAllocationSuggestion = (
     profileId?: number | string | null,
     businessDate?: string | null,
+    requestedQuantity?: number | null,
+    faceValue?: number | null,
     enabled = true
 ) => {
     return useQuery({
-        queryKey: [QUERY_KEYS.VENDOR_ALLOCATION_SUGGESTION, profileId, businessDate],
-        queryFn: () => getVendorAllocationSuggestion(profileId!, businessDate!),
+        queryKey: [QUERY_KEYS.VENDOR_ALLOCATION_SUGGESTION, profileId, businessDate, requestedQuantity, faceValue],
+        queryFn: () => getVendorAllocationSuggestion(profileId!, businessDate!, requestedQuantity ?? undefined, faceValue ?? undefined),
         enabled: enabled && !!profileId && !!businessDate,
+        // Keep the current suggestion visible while a new quantity/denomination is loading.
+        // The page overlays a small progress state instead of collapsing/rebuilding the card.
+        placeholderData: keepPreviousData,
         select: (response) => response.data,
     });
 };
@@ -95,6 +111,22 @@ export const useVendorAllocationBatch = (id?: number | string | null) => {
                       : undefined;
             return status === "DRAFT" ? 5_000 : false;
         },
+    });
+};
+
+export const useVendorConfirmationQuote = (
+    id?: number | string | null,
+    enabled = true
+) => {
+    return useQuery({
+        queryKey: [QUERY_KEYS.VENDOR_ALLOCATION_CONFIRMATION_QUOTE, id],
+        queryFn: () => getVendorConfirmationQuote(id!),
+        enabled: enabled && !!id,
+        select: (response) => response.data,
+        staleTime: 0,
+        gcTime: 0,
+        refetchOnMount: "always",
+        refetchOnWindowFocus: true,
     });
 };
 
@@ -165,12 +197,28 @@ export const useReturnVendorAllocationSerials = () => {
     });
 };
 
+export const useConfirmVendorReturnInspection = () => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: ({
+            id,
+            data,
+        }: {
+            id: number | string;
+            data: ConfirmVendorReturnInspectionPayload;
+        }) => confirmVendorReturnInspection(id, data),
+        onSuccess: (_response, variables) => {
+            invalidateVendorAllocationQueries(queryClient, variables.id);
+        },
+    });
+};
+
 export const useSettleVendorAllocation = () => {
     const queryClient = useQueryClient();
     return useMutation({
-        mutationFn: (id: number | string) => settleVendorAllocation(id),
-        onSuccess: (_response, id) => {
-            invalidateVendorAllocationQueries(queryClient, id);
+        mutationFn: ({ id, data }: { id: number | string; data: SettleVendorAllocationPayload }) => settleVendorAllocation(id, data),
+        onSuccess: (_response, variables) => {
+            invalidateVendorAllocationQueries(queryClient, variables.id);
         },
     });
 };

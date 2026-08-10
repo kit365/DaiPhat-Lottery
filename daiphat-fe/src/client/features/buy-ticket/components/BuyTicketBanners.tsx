@@ -1,8 +1,8 @@
+import Link from "next/link";
 import React from 'react';
 
 import AppImage from '@/components/AppImage';
 
-import { Link } from 'react-router-dom';
 
 
 
@@ -18,7 +18,7 @@ export const BuyTicketBanners = React.memo(() => (
 
     {/* Banner 1 */}
 
-    <Link to={ROUTES.PUBLIC.TICKETS} className="relative block transition-transform hover:-translate-y-1 rounded-2xl overflow-hidden shadow-sm group h-[320px]">
+    <Link href={ROUTES.PUBLIC.TICKETS} className="relative block transition-transform hover:-translate-y-1 rounded-2xl overflow-hidden shadow-sm group h-[320px]">
 
       <AppImage 
 
@@ -54,7 +54,7 @@ export const BuyTicketBanners = React.memo(() => (
 
     {/* Banner 2 */}
 
-    <Link to={ROUTES.PUBLIC.FORTUNE} className="relative block transition-transform hover:-translate-y-1 rounded-2xl overflow-hidden shadow-sm group h-[220px]">
+    <Link href={ROUTES.PUBLIC.FORTUNE} className="relative block transition-transform hover:-translate-y-1 rounded-2xl overflow-hidden shadow-sm group h-[220px]">
 
       <AppImage 
 

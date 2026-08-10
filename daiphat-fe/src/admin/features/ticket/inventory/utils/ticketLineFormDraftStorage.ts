@@ -19,7 +19,7 @@ export const ticketLineFormDraftStorageKey = (batchId: string | number) =>
 const emptySerial = () => ({ serialNumber: '', ticketImg: undefined as string | undefined });
 
 export const defaultTicketLineFormDraft = (): TicketLineFormDraft => ({
-    ticketSections: [{ numbers: '', serials: [emptySerial()] }],
+    ticketSections: [{ numbers: '', quantity: 1, serials: [emptySerial()] }],
 });
 
 export const readTicketLineFormDrafts = (

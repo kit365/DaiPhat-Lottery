@@ -31,7 +31,7 @@ import {
     preventNumberInputWheel,
 } from '../../../../supplier';
 import { computeImportBatchLineTotal } from '../../utils/importBatchTotals';
-import { computeImportCostFromStation, formatImportCost } from '../../utils/importCostCalculator';
+import { computeImportCostFromStation, formatVnd } from '../../utils/importCostCalculator';
 import type { ImportBatchEligibleStation, ImportBatchLineStatus, ImportBatchType } from '../../types/importBatch.type';
 
 type ImportBatchLineFormValues = CreateImportBatchFormValues | UpdateImportBatchFormValues;
@@ -385,7 +385,7 @@ export const ImportBatchLineRow = memo(function ImportBatchLineRow({
             </TableCell>
             <TableCell align="center" sx={{ width: 148 }}>
                 <Typography variant="body2" sx={{ lineHeight: 1.5, textAlign: 'center' }} title="Tính từ giá bán × (1 − hoa hồng đài)">
-                    {formatImportCost(importCost)} VNĐ
+                    {formatVnd(importCost)}
                 </Typography>
                 <Controller
                     name={`lines.${index}.importCost`}
@@ -395,7 +395,7 @@ export const ImportBatchLineRow = memo(function ImportBatchLineRow({
             </TableCell>
             <TableCell align="right" sx={{ width: 108, whiteSpace: 'nowrap' }}>
                 <Typography variant="body2" sx={{ fontWeight: 600, lineHeight: 1.5 }}>
-                    {formatImportCost(lineTotal)} VNĐ
+                    {formatVnd(lineTotal)}
                 </Typography>
             </TableCell>
             {!hideActionsColumn && (

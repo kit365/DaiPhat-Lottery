@@ -12,6 +12,10 @@ CREATE TABLE IF NOT EXISTS conversations (
     closed_by UUID,
     close_reason VARCHAR(30),
     close_note TEXT,
+    escalation_reason VARCHAR(40),
+    escalated_at TIMESTAMP,
+    handoff_summary TEXT,
+    closed_at TIMESTAMP,
     auto_close_warning_sent_at TIMESTAMP,
     created_at TIMESTAMP,
     updated_at TIMESTAMP,
@@ -38,6 +42,11 @@ CREATE INDEX IF NOT EXISTS idx_conversations_last_message_at
 
 CREATE INDEX IF NOT EXISTS idx_conversations_customer_created
     ON conversations (customer_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_conversations_escalated_at
+    ON conversations (escalated_at DESC) WHERE escalated_at IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_conversations_customer_spam_closed_at
+    ON conversations (customer_id, close_reason, closed_at DESC)
+    WHERE close_reason = 'SPAM' AND deleted_at IS NULL;
 
 CREATE TABLE IF NOT EXISTS messages (
     id BIGSERIAL PRIMARY KEY,

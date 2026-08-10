@@ -1,7 +1,7 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { PurchasedTicket } from '../../../types/lottery-ticket.type';
 import { formatPrizePayoutCurrency, PrizePayoutPreviewResponse } from '../../../types/prize-payout.type';
 import { useGetBankAccounts } from '../../hooks/useBankAccount';
@@ -21,7 +21,7 @@ export const PrizePayoutRequestModal: React.FC<PrizePayoutRequestModalProps> = (
     onClose,
     ticket,
 }) => {
-    const navigate = useNavigate();
+    const router = useRouter();
     const [step, setStep] = useState<1 | 2>(1);
     const [bankAccountId, setBankAccountId] = useState<number | ''>('');
     const [showBankForm, setShowBankForm] = useState(false);
@@ -68,7 +68,7 @@ export const PrizePayoutRequestModal: React.FC<PrizePayoutRequestModalProps> = (
                 onSuccess: (response) => {
                     if (response.success && response.data?.id) {
                         onClose();
-                        navigate(`/profile/prize-payouts/${response.data.id}`);
+                        router.push(`/profile/prize-payouts/${response.data.id}`);
                         window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
                     }
                 },

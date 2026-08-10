@@ -1,6 +1,7 @@
 package com.daiphat.coreapi.application.dto.response.lotteries;
 
 import com.daiphat.coreapi.domain.model.enums.lottery.ReturnBatchStatus;
+import com.daiphat.coreapi.domain.model.enums.lottery.ReturnBatchType;
 import lombok.Builder;
 
 import java.math.BigDecimal;
@@ -14,6 +15,8 @@ import java.util.UUID;
 public record ReturnBatchResponse(
         Long id,
         String batchCode,
+        ReturnBatchType returnBatchType,
+        Long sourceAllocationBatchId,
         Long lotterySupplierId,
         String supplierName,
         String supplierCode,

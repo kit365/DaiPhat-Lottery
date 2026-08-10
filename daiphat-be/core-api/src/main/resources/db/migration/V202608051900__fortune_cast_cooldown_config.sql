@@ -1,8 +1,4 @@
--- Fortune cast cooldown: allow multiple casts per calendar day + admin-configurable interval.
-ALTER TABLE fortune_casts DROP CONSTRAINT IF EXISTS uk_fortune_casts_user_cast_date;
-
-CREATE INDEX IF NOT EXISTS idx_fortune_casts_user_created_at
-    ON fortune_casts (user_id, created_at DESC);
+-- Fortune cast schema already permits multiple casts and has the lookup index.
 
 INSERT INTO system_config (
     config_key,

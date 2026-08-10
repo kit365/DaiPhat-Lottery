@@ -1,3 +1,4 @@
+import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
     Alert,
@@ -24,12 +25,10 @@ import {
     TextField,
     Typography,
 } from '@mui/material';
-import { Icon } from '@iconify/react';
+import { Icon } from '@/admin/components/ui/AdminIcon';
 import dayjs from 'dayjs';
-import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { Title } from '../../components/ui/Title';
-import { Breadcrumb } from '../../components/ui/Breadcrumb';
+import { PageHeader } from '../../components/ui/PageHeader';
 import { prefixAdmin } from '../../constants/routes';
 import { prizePayoutAdminApi } from '../../api/prizePayout.api';
 import { useAuthStore } from '../../../stores/useAuthStore';
@@ -104,7 +103,7 @@ const lookupPayoutStatusChip = (item: PrizePayoutLookupItem) => {
 };
 
 export const PrizePayoutCreatePage = () => {
-    const navigate = useNavigate();
+    const router = useAdminRouter();
     const createMutation = useCreateStaffPrizePayoutBatch();
     const user = useAuthStore((s) => s.user);
     const draftPersistReadyRef = useRef(false);
@@ -347,7 +346,7 @@ export const PrizePayoutCreatePage = () => {
 
     const leaveCreatePage = () => {
         clearPrizePayoutCreateDraft();
-        navigate(`/${prefixAdmin}/prize-payouts/list`);
+        router.push(`/${prefixAdmin}/prize-payouts/list`);
     };
 
     const handleLookup = async () => {
@@ -484,7 +483,7 @@ export const PrizePayoutCreatePage = () => {
                         const firstId = response.data.claims[0].id;
                         clearPrizePayoutCreateDraft();
                         toast.success('Đã hoàn tất trả thưởng tại quầy');
-                        navigate(`/${prefixAdmin}/prize-payouts/detail/${firstId}`);
+                        router.push(`/${prefixAdmin}/prize-payouts/detail/${firstId}`);
                     }
                 },
             }
@@ -528,17 +527,14 @@ export const PrizePayoutCreatePage = () => {
     return (
         <Box sx={{ width: '100%', mx: 'auto', pt: 1, pb: 5 }}>
             {/* Header Section */}
-            <Box sx={{ mb: 3, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2 }}>
-                <Box>
-                    <Title title="Tạo trả thưởng tại quầy" />
-                    <Breadcrumb
-                        items={[
-                            { label: 'Bảng điều khiển', to: `/${prefixAdmin}` },
-                            { label: 'Trả thưởng', to: `/${prefixAdmin}/prize-payouts/list` },
-                            { label: 'Tạo tại quầy' },
-                        ]}
-                    />
-                </Box>
+            <PageHeader
+                title="Tạo trả thưởng tại quầy"
+                breadcrumbItems={[
+                    { label: 'Bảng điều khiển', to: `/${prefixAdmin}` },
+                    { label: 'Trả thưởng', to: `/${prefixAdmin}/prize-payouts/list` },
+                    { label: 'Tạo tại quầy' },
+                ]}
+                action={
                 <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexShrink: 0 }}>
                     <Button
                         variant="outlined"
@@ -568,9 +564,8 @@ export const PrizePayoutCreatePage = () => {
                         Quay lại
                     </Button>
                 </Box>
-            </Box>
-
-            {/* Balanced 2-Column Responsive Layout Grid (Equal height) */}
+                }
+            />
             <Grid container spacing={2.5} alignItems="stretch">
                 
                 {/* LEFT COLUMN: Tra cứu, Kết quả vé, Định danh & Hợp đồng (50%) */}

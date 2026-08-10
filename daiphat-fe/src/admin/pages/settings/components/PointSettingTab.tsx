@@ -4,6 +4,7 @@ import { Box, Card, Grid, TextField, Button, Typography, Stack, InputAdornment }
 import { useForm, Controller } from "react-hook-form";
 import { useSettingPoint, useUpdateSettingPoint } from "../hooks/useSettings";
 import { useEffect } from "react";
+import { SpinnerLoading } from "../../../components/ui/SpinnerLoading";
 
 export interface PointSettingFormValues {
     MONEY_PER_POINT: number;
@@ -35,7 +36,7 @@ export const PointSettingTab = () => {
         updatePoint(data);
     };
 
-    if (isLoading) return <Typography>Đang tải...</Typography>;
+    if (isLoading) return <SpinnerLoading compact />;
 
     return (
         <Stack spacing={3}>

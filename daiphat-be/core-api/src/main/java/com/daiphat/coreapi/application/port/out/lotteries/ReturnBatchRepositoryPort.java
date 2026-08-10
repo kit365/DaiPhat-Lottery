@@ -24,6 +24,8 @@ public interface ReturnBatchRepositoryPort {
 
     Optional<ReturnBatchModel> findBySupplierAndDrawDate(Long supplierId, LocalDate drawDate);
 
+    Optional<ReturnBatchModel> findStreetAgentByAllocationBatchId(Long allocationBatchId);
+
     Page<ReturnBatchModel> findAll(
             Pageable pageable,
             Long lotterySupplierId,

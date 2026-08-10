@@ -2,8 +2,7 @@
 
 import {
     Box,
-    Button,
-    Chip,
+Chip,
     Dialog,
     DialogActions,
     DialogContent,
@@ -23,7 +22,7 @@ import dayjs from 'dayjs';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Controller, useForm } from 'react-hook-form';
 import { useEffect } from 'react';
-import { LoadingButton } from '../../../../components/ui/LoadingButton';
+import { Button } from '../../../../components/ui/Button';
 import {
     createUpdateSystemConfigSchema,
     UpdateSystemConfigFormValues,
@@ -433,7 +432,7 @@ export const SystemConfigEditDialog = ({
                         <Button onClick={onClose} variant="outlined" color="inherit" disabled={isPending}>
                             Hủy
                         </Button>
-                        <LoadingButton
+                        <Button
                             type="submit"
                             loading={isPending}
                             label="Lưu thay đổi"

@@ -38,9 +38,8 @@ import {
     DialogActions,
     DialogContentText
 } from '@mui/material';
-import { Icon } from '@iconify/react';
-import { Title } from '../../../../components/ui/Title';
-import { Breadcrumb } from '../../../../components/ui/Breadcrumb';
+import { Icon } from '@/admin/components/ui/AdminIcon';
+import { PageHeader } from '../../../../components/ui/PageHeader';
 import { CounterToolbar } from '../sections/CounterToolbar';
 import { prefixAdmin } from '../../../../constants/routes';
 import { useTickets } from '../../../ticket/inventory/hooks/useTicket';
@@ -561,19 +560,17 @@ export const CounterOrderCreatePage = () => {
     return (
         <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: 'calc(100vh - 100px)' }}>
             {/* Header Area */}
-            <Box sx={{ mb: 4 }}>
-                <Title title="Tạo đơn tại quầy" />
-                <Breadcrumb
-                    items={[
-                        { label: 'Bảng điều khiển', to: `/${prefixAdmin}/dashboard` },
-                        { label: 'Đơn hàng', to: `/${prefixAdmin}/order/list` },
-                        activeStep === 1 
-                            ? { label: 'Tạo đơn tại quầy' }
-                            : { label: 'Tạo đơn tại quầy', onClick: () => setActiveStep(1) },
-                        ...(activeStep === 2 ? [{ label: 'Thông tin đơn hàng' }] : [])
-                    ]}
-                />
-            </Box>
+            <PageHeader
+                title="Tạo đơn tại quầy"
+                breadcrumbItems={[
+                    { label: 'Bảng điều khiển', to: `/${prefixAdmin}/dashboard` },
+                    { label: 'Đơn hàng', to: `/${prefixAdmin}/order/list` },
+                    activeStep === 1
+                        ? { label: 'Tạo đơn tại quầy' }
+                        : { label: 'Tạo đơn tại quầy', onClick: () => setActiveStep(1) },
+                    ...(activeStep === 2 ? [{ label: 'Thông tin đơn hàng' }] : [])
+                ]}
+            />
 
 
 

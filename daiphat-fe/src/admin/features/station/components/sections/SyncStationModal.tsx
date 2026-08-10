@@ -6,8 +6,7 @@ import {
     DialogTitle,
     DialogContent,
     DialogActions,
-    Button,
-    TextField,
+TextField,
     FormControl,
     InputLabel,
     Select,
@@ -16,7 +15,7 @@ import {
 } from '@mui/material';
 import { usePreviewSyncStations } from '../../hooks/useStation';
 import { toast } from 'react-toastify';
-import { LoadingButton } from '../../../../components/ui/LoadingButton';
+import { Button } from '../../../../components/ui/Button';
 import type { SyncPreviewParams } from './SyncStationPreviewModal';
 
 interface SyncStationModalProps {
@@ -107,7 +106,7 @@ export const SyncStationModal: React.FC<SyncStationModalProps> = ({
                 <Button onClick={onClose} disabled={isPending} color="inherit">
                     Hủy
                 </Button>
-                <LoadingButton
+                <Button
                     loading={isPending}
                     onClick={handleSubmit}
                     label="Đồng bộ"

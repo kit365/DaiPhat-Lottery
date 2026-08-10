@@ -32,6 +32,7 @@ public class VendorAllocationSerialModel {
     private String serialNumber;
     private LocalDate drawDate;
     private LocalTime drawTime;
+    private LocalTime supplierReturnCutoffTime;
     private List<DayOfWeek> drawDays;
     @Builder.Default
     private boolean stationActive = true;
@@ -42,6 +43,8 @@ public class VendorAllocationSerialModel {
     private LotteryTicketSerialStatus ticketStatus;
     private TicketCondition ticketCondition;
     private Long returnBatchLineId;
+    private Long vendorReturnBatchLineId;
+    private String returnRejectionReason;
     private boolean lucky;
     private String luckyBadges;
     private AllocationSerialStatus status;
@@ -123,18 +126,43 @@ public class VendorAllocationSerialModel {
         allocationBatchId = null;
     }
 
-    public void returnFromStreetAgent(LocalDateTime returnedAt) {
+    public void stageStreetAgentReturn() {
         if (status != AllocationSerialStatus.HANDED_OVER || ticketStatus != LotteryTicketSerialStatus.WITH_STREET_AGENT) {
             throw new DomainException(ErrorCode.VENDOR_ALLOCATION_RETURN_SERIAL_INVALID);
         }
+        status = AllocationSerialStatus.RETURN_PENDING_INSPECTION;
+    }
+
+    public void returnFromStreetAgent(LocalDateTime returnedAt) {
+        if (status != AllocationSerialStatus.RETURN_PENDING_INSPECTION
+                || ticketStatus != LotteryTicketSerialStatus.WITH_STREET_AGENT) {
+            throw new DomainException(ErrorCode.VENDOR_ALLOCATION_RETURN_SERIAL_INVALID);
+        }
         status = AllocationSerialStatus.RETURNED;
-        ticketStatus = LotteryTicketSerialStatus.IN_STOCK;
         reservedExpiresAt = null;
         this.returnedAt = returnedAt;
     }
 
+    public void rejectStreetAgentReturn(String reason) {
+        if (status != AllocationSerialStatus.RETURN_PENDING_INSPECTION
+                || ticketStatus != LotteryTicketSerialStatus.WITH_STREET_AGENT) {
+            throw new DomainException(ErrorCode.VENDOR_ALLOCATION_RETURN_SERIAL_INVALID);
+        }
+        status = AllocationSerialStatus.RETURN_REJECTED;
+        returnRejectionReason = reason;
+    }
+
+    public void restoreAcceptedReturnToStock(boolean sellable) {
+        if (status != AllocationSerialStatus.RETURNED) {
+            throw new DomainException(ErrorCode.VENDOR_ALLOCATION_INVALID_STATE);
+        }
+        ticketStatus = sellable ? LotteryTicketSerialStatus.IN_STOCK : LotteryTicketSerialStatus.EXPIRED;
+        reservedExpiresAt = null;
+    }
+
     public void markSoldAtSettlement() {
-        if (status != AllocationSerialStatus.HANDED_OVER || ticketStatus != LotteryTicketSerialStatus.WITH_STREET_AGENT) {
+        if ((status != AllocationSerialStatus.HANDED_OVER && status != AllocationSerialStatus.RETURN_REJECTED)
+                || ticketStatus != LotteryTicketSerialStatus.WITH_STREET_AGENT) {
             throw new DomainException(ErrorCode.VENDOR_ALLOCATION_INVALID_STATE);
         }
         status = AllocationSerialStatus.SOLD;

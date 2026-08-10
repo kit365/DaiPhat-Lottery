@@ -8,8 +8,7 @@ import {
 } from '@mui/material';
 import { DataGrid } from '@mui/x-data-grid';
 import AddIcon from '@mui/icons-material/Add';
-import { Title } from "../../components/ui/Title";
-import { Breadcrumb } from "../../components/ui/Breadcrumb";
+import { PageHeader } from "../../components/ui/PageHeader";
 import { prefixAdmin } from "../../constants/routes";
 import { useShifts, useCreateShift, useUpdateShift, useDeleteShift } from './hooks/useShifts';
 import { getShiftColumns } from './configs/shift.config';
@@ -96,25 +95,23 @@ export const ShiftListPage = () => {
 
     return (
         <Box sx={{ p: "calc(3 * var(--spacing))" }}>
-            <Box sx={{ mb: '40px', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
-                <Box sx={{ flexGrow: 1 }}>
-                    <Title title="Quản lý Ca làm việc" />
-                    <Breadcrumb
-                        items={[
-                            { label: "Dashboard", to: `/${prefixAdmin}` },
-                            { label: "Ca làm việc" }
-                        ]}
-                    />
-                </Box>
-                <Button
-                    variant="contained"
-                    startIcon={<AddIcon />}
-                    onClick={() => handleOpenDialog()}
-                    sx={primaryButtonStyles}
-                >
-                    Tạo ca trực
-                </Button>
-            </Box>
+            <PageHeader
+                title="Quản lý Ca làm việc"
+                breadcrumbItems={[
+                    { label: "Dashboard", to: `/${prefixAdmin}` },
+                    { label: "Ca làm việc" }
+                ]}
+                action={
+                    <Button
+                        variant="contained"
+                        startIcon={<AddIcon />}
+                        onClick={() => handleOpenDialog()}
+                        sx={primaryButtonStyles}
+                    >
+                        Tạo ca trực
+                    </Button>
+                }
+            />
 
             <Card sx={dataGridCardStyles}>
                 <Box sx={dataGridContainerStyles}>

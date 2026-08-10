@@ -1,13 +1,3 @@
--- Allow decimal unit costs (scale 3) on import batch money columns.
-ALTER TABLE import_batch_lines
-    ALTER COLUMN import_cost TYPE NUMERIC(18, 3),
-    ALTER COLUMN declared_cost_value TYPE NUMERIC(18, 3),
-    ALTER COLUMN total_cost_value TYPE NUMERIC(18, 3);
-
-ALTER TABLE import_batches
-    ALTER COLUMN total_declared_cost_value TYPE NUMERIC(18, 3),
-    ALTER COLUMN total_imported_cost_value TYPE NUMERIC(18, 3);
-
 -- Supplier settlement aggregate (auto-created per supplier + draw date).
 CREATE TABLE IF NOT EXISTS supplier_settlements (
     id                   BIGSERIAL PRIMARY KEY,
@@ -20,6 +10,9 @@ CREATE TABLE IF NOT EXISTS supplier_settlements (
     remaining_amount     NUMERIC(18, 3) NOT NULL DEFAULT 0,
     status               VARCHAR(30) NOT NULL DEFAULT 'OPEN',
     transaction_id       BIGINT,
+    paid_at              TIMESTAMP,
+    is_return_expired    BOOLEAN NOT NULL DEFAULT FALSE,
+    expired_return_value NUMERIC(18, 3) NOT NULL DEFAULT 0.000,
     created_at           TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at           TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     created_by           VARCHAR(100) DEFAULT 'SYSTEM',
@@ -37,6 +30,8 @@ CREATE INDEX IF NOT EXISTS idx_supplier_settlements_period_from
     ON supplier_settlements (period_from);
 CREATE INDEX IF NOT EXISTS idx_supplier_settlements_status
     ON supplier_settlements (status);
+CREATE INDEX IF NOT EXISTS idx_supplier_settlements_paid_at
+    ON supplier_settlements (paid_at);
 
 ALTER TABLE import_batches
     DROP CONSTRAINT IF EXISTS fk_import_batches_supplier_settlement_id;

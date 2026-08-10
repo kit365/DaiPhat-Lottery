@@ -11,12 +11,17 @@ import lombok.Setter;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Getter
 @Setter
 @Builder
 public class StreetAgentProfileModel {
     private Long id;
+    /** Required for newly onboarded vendors; legacy profiles can remain unlinked until backfilled. */
+    private UUID userId;
+    /** Read-only projection from the linked user; never persisted on street_agent_profiles. */
+    private String email;
     private String firstName;
     private String lastName;
     private String phone;
@@ -24,13 +29,24 @@ public class StreetAgentProfileModel {
     private String imageUrl;
     private String contactAddress;
     private String contactProvince;
+    private String contactWard;
     private String coverageArea;
     private BigDecimal commissionRate;
     private LocalDate contractStartDate;
     private LocalDate contractEndDate;
     private String contractCode;
     private String contractDocumentUrl;
-    private Integer dailyTicketCap;
+    private Integer contractMaxDailyCap;
+    private Integer approvedDailyCap;
+    /** Read-model value resolved from the current confidence tier; never persisted. */
+    private Integer effectiveDailyCap;
+    /** Contextual value populated by allocation queries when a business date is known. */
+    private Integer remainingDailyCap;
+    private String dailyCapAdjustmentReason;
+    private UUID dailyCapAdjustedBy;
+    private LocalDateTime dailyCapAdjustedAt;
+    /** Compatibility-only for callers compiled against the pre-split model; never persisted. */
+    @Deprecated private Integer dailyTicketCap;
     @Builder.Default
     private BigDecimal confidenceScore = new BigDecimal("25");
     @Builder.Default
@@ -61,7 +77,7 @@ public class StreetAgentProfileModel {
     public boolean isVendorAllocationEligible(LocalDate businessDate) {
         return hasContractInForce(businessDate)
                 && hasSignedContractDocument()
-                && hasValidDailyTicketCap()
+                && hasValidDailyCaps()
                 && hasClearedLegacyDeposit();
     }
 
@@ -79,9 +95,37 @@ public class StreetAgentProfileModel {
         return contractDocumentUrl != null && !contractDocumentUrl.isBlank();
     }
 
-    public boolean hasValidDailyTicketCap() {
-        return dailyTicketCap != null && dailyTicketCap > 0;
+    public boolean hasValidDailyCaps() {
+        Integer contractCap = contractMaxDailyCap != null ? contractMaxDailyCap : dailyTicketCap;
+        Integer approvedCap = approvedDailyCap != null ? approvedDailyCap : dailyTicketCap;
+        return contractCap != null && contractCap > 0
+                && approvedCap != null && approvedCap > 0
+                && approvedCap <= contractCap;
     }
+
+    public int effectiveBaseDailyCap() {
+        if (!hasValidDailyCaps()) {
+            throw new DomainException(ErrorCode.VENDOR_ALLOCATION_DAILY_CAP_MISSING);
+        }
+        return Math.min(contractMaxDailyCap != null ? contractMaxDailyCap : dailyTicketCap,
+                approvedDailyCap != null ? approvedDailyCap : dailyTicketCap);
+    }
+
+    public void changeApprovedDailyCap(Integer cap, String reason, UUID actor, LocalDateTime changedAt) {
+        if (cap == null || cap <= 0 || contractMaxDailyCap == null || cap > contractMaxDailyCap) {
+            throw new DomainException(ErrorCode.STREET_AGENT_APPROVED_CAP_EXCEEDS_CONTRACT);
+        }
+        if (reason == null || reason.isBlank()) {
+            throw new DomainException(ErrorCode.STREET_AGENT_APPROVED_CAP_EXCEEDS_CONTRACT);
+        }
+        approvedDailyCap = cap;
+        dailyCapAdjustmentReason = reason.trim();
+        dailyCapAdjustedBy = actor;
+        dailyCapAdjustedAt = changedAt;
+    }
+
+    /** @deprecated use {@link #hasValidDailyCaps()}. */
+    @Deprecated public boolean hasValidDailyTicketCap() { return hasValidDailyCaps(); }
 
     /**
      * True when profile has no leftover deposit. Call this only after confirming there is
@@ -93,7 +137,7 @@ public class StreetAgentProfileModel {
 
     /** @deprecated Prefer {@link #hasContractInForce} + {@link #hasValidDailyTicketCap}. */
     public boolean hasEffectiveContract(LocalDate businessDate) {
-        return hasContractInForce(businessDate) && hasValidDailyTicketCap();
+        return hasContractInForce(businessDate) && hasValidDailyCaps();
     }
 
     /**
@@ -110,7 +154,7 @@ public class StreetAgentProfileModel {
         if (!hasSignedContractDocument()) {
             throw new DomainException(ErrorCode.VENDOR_ALLOCATION_SIGNED_CONTRACT_MISSING);
         }
-        if (!hasValidDailyTicketCap()) {
+        if (!hasValidDailyCaps()) {
             throw new DomainException(ErrorCode.VENDOR_ALLOCATION_DAILY_CAP_MISSING);
         }
     }

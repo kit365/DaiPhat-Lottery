@@ -61,6 +61,8 @@ public class ReturnBatchApplicationMapper {
         return ReturnBatchResponse.builder()
                 .id(model.getId())
                 .batchCode(model.getBatchCode())
+                .returnBatchType(model.getReturnBatchType())
+                .sourceAllocationBatchId(model.getSourceAllocationBatchId())
                 .lotterySupplierId(model.getLotterySupplierId())
                 .supplierName(model.getSupplierName())
                 .supplierCode(model.getSupplierCode())

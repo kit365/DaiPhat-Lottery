@@ -5,7 +5,7 @@ import WelcomeWidget from "../../components/dashboard/WelcomeWidget";
 import SummaryWidget from "../../components/dashboard/SummaryWidget";
 import DashboardCard from "../../components/dashboard/DashboardCard";
 import { useAuthStore } from "../../../stores/useAuthStore";
-import { Icon } from '@iconify/react';
+import { Icon } from '@/admin/components/ui/AdminIcon';
 import { useState, useEffect } from "react";
 import { getEcommerceStats } from "../../api/dashboard.api";
 import Chart from 'react-apexcharts';

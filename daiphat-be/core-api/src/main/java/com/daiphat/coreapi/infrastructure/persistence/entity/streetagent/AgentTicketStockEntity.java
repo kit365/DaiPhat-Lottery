@@ -4,6 +4,7 @@ import com.daiphat.coreapi.domain.model.enums.streetagent.AllocationSerialStatus
 import com.daiphat.coreapi.infrastructure.persistence.entity.BaseEntity;
 import com.daiphat.coreapi.infrastructure.persistence.entity.lotteries.LotteryTicketEntity;
 import com.daiphat.coreapi.infrastructure.persistence.entity.lotteries.LotteryTicketSerialEntity;
+import com.daiphat.coreapi.infrastructure.persistence.entity.lotteries.ReturnBatchLineEntity;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
@@ -61,6 +62,14 @@ public class AgentTicketStockEntity extends BaseEntity {
 
     @Column(name = "sold_at")
     private LocalDateTime soldAt;
+
+    /** Audit link for a vendor-to-agency receipt. It never occupies the serial's supplier-return link. */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "vendor_return_batch_line_id")
+    private ReturnBatchLineEntity vendorReturnBatchLine;
+
+    @Column(name = "return_rejection_reason", length = 500)
+    private String returnRejectionReason;
 
     @Column(name = "lucky_override", nullable = false)
     @Builder.Default

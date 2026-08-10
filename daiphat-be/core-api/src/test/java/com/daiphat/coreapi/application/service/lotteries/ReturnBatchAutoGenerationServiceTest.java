@@ -83,6 +83,10 @@ class ReturnBatchAutoGenerationServiceTest {
                 .thenReturn(new SimpleTransactionStatus());
         org.mockito.Mockito.doNothing().when(transactionManager).commit(any());
         org.mockito.Mockito.doNothing().when(transactionManager).rollback(any());
+        when(returnBatchCodeGenerator.generateHeaderCode(any())).thenAnswer(invocation -> {
+            LocalDate drawDate = invocation.getArgument(0);
+            return "PT-" + drawDate.format(java.time.format.DateTimeFormatter.BASIC_ISO_DATE) + "-0001";
+        });
 
         service = new ReturnBatchAutoGenerationService(
                 lotterySupplierRepositoryPort,

@@ -3,8 +3,7 @@
 import { useState } from "react";
 import SyncIcon from '@mui/icons-material/Sync';
 import { Button } from "@mui/material";
-import { Breadcrumb } from "../../../../components/ui/Breadcrumb";
-import { Title } from "../../../../components/ui/Title";
+import { PageHeader } from "../../../../components/ui/PageHeader";
 import { prefixAdmin } from "../../../../constants/routes";
 import { PrizeStructureList } from "../sections/PrizeStructureList";
 import { SyncPrizeStructureModal } from "../sections/SyncPrizeStructureModal";
@@ -18,18 +17,15 @@ export const PrizeStructureListPage = () => {
 
     return (
         <>
-            <div className="mb-[calc(5*var(--spacing))] gap-[calc(2*var(--spacing))] flex items-start justify-end">
-                <div className="mr-auto">
-                    <Title title="Cơ cấu giải thưởng" />
-                    <Breadcrumb
-                        items={[
+            <PageHeader
+                title="Cơ cấu giải thưởng"
+                breadcrumbItems={[
                             { label: "Dashboard", to: "/" },
                             { label: "Cơ cấu giải thưởng", to: `/${prefixAdmin}/prize-structures/list` },
                             { label: "Danh sách" }
                         ]}
-                    />
-                </div>
-                <div>
+                action={
+                    <div>
                     <CanAccess permission={PERMISSIONS.PRIZE_STRUCTURE.SYNC}>
                         <Button
                             onClick={() => setIsSyncModalOpen(true)}
@@ -41,7 +37,8 @@ export const PrizeStructureListPage = () => {
                         </Button>
                     </CanAccess>
                 </div>
-            </div>
+                }
+            />
 
             <PrizeStructureList hook={hook} />
 

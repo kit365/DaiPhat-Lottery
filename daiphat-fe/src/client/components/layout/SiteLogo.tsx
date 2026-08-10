@@ -1,5 +1,6 @@
 'use client';
 
+import React, { useState, useEffect } from 'react';
 import { BrandMark } from '@/client/components/auth/SharedAuth';
 import { useSiteBranding } from '@/client/hooks/useSiteBranding';
 
@@ -21,8 +22,16 @@ export const SiteLogo = ({
     fallback = 'mark',
 }: SiteLogoProps) => {
     const { logoUrl, name } = useSiteBranding();
+    const [mounted, setMounted] = useState(false);
 
-    if (!logoUrl) {
+    useEffect(() => {
+        setMounted(true);
+    }, []);
+
+    // SSR or first client render (before mount) will ignore cached logoUrl to match server output exactly.
+    const safeLogoUrl = mounted ? logoUrl : '';
+
+    if (!safeLogoUrl) {
         if (fallback === 'none') return null;
         
         // Trả về Avatar chứa chữ cái đầu tiên (tinh tế hơn)
@@ -41,7 +50,7 @@ export const SiteLogo = ({
 
     return (
         <span className={`inline-flex shrink-0 overflow-hidden ${className}`}>
-            <img src={logoUrl} alt={alt || name} className={imgClassName} />
+            <img src={safeLogoUrl} alt={alt || name} className={imgClassName} />
         </span>
     );
 };

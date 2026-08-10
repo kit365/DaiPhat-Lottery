@@ -1,32 +1,30 @@
 "use client";
 
-import { Breadcrumb } from '../../../../components/ui/Breadcrumb';
-import { Title } from '../../../../components/ui/Title';
+import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
+import { PageHeader } from '../../../../components/ui/PageHeader';
+import { CollapsibleCard } from '../../../../components/ui/CollapsibleCard';
 import { useCreateUser, useUploadUserAvatar } from "../../hooks/useUsers";
 import { useRoles } from "../../../role/hooks/useRole";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm, Controller } from "react-hook-form";
 import { useEffect, useState } from "react";
 import { accountAdminSchema } from "../../../../schemas/account-admin.schema";
-import { prefixAdmin } from '../../../../constants/routes';
+import { ROUTES } from '../../../../constants/routes';
 import { toast } from "react-toastify";
-import { useNavigate } from "react-router-dom";
 import {
     Box,
     TextField,
-    Card,
     MenuItem,
     Stack,
     Alert,
     AlertTitle,
     ListItemText,
 } from "@mui/material";
-import Grid from "@mui/material/Grid";
-import { LoadingButton } from '../../../../components/ui/LoadingButton';
+import { Button } from '../../../../components/ui/Button';
 import { UserAvatarUploader } from '../sections/UserAvatarUploader';
 
 export const AdminCreatePage = () => {
-    const navigate = useNavigate();
+    const router = useAdminRouter();
     const { mutateAsync: create, isPending } = useCreateUser();
     const { mutateAsync: uploadAvatar } = useUploadUserAvatar();
     const { data: roles = [] } = useRoles();
@@ -69,140 +67,119 @@ export const AdminCreatePage = () => {
                 }
             }
 
-            toast.success("Tạo quản trị viên thành công!");
-            navigate(`/${prefixAdmin}/account-admin/list`);
+            toast.success("Tạo nhân viên thành công!");
+            router.push(ROUTES.ADMIN.ACCOUNTS.ADMIN.LIST);
         } catch (error: any) {
             toast.error(error.response?.data?.message || "Tạo thất bại");
         }
     };
 
     return (
-        <Box sx={{ p: 3, pt: 2, display: "flex", flexDirection: "column", gap: 3, maxWidth: 1200, margin: "0 auto", width: "100%" }}>
-            {/* Header */}
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                <Box>
-                    <Title title="Tạo quản trị viên mới" />
-                    <Breadcrumb
-                        items={[
-                            { label: "Dashboard", to: `/${prefixAdmin}` },
-                            { label: "Quản trị viên", to: `/${prefixAdmin}/account-admin/list` },
-                            { label: "Tạo mới" }
+        <>
+            <PageHeader
+                title="Thêm nhân viên mới"
+                breadcrumbItems={[
+                            { label: "Dashboard", to: ROUTES.ADMIN.ROOT },
+                            { label: "Danh sách Nhân viên", to: ROUTES.ADMIN.ACCOUNTS.ADMIN.LIST },
+                            { label: "Thêm nhân viên mới" },
                         ]}
-                    />
-                </Box>
-            </Box>
+            />
 
-            <form onSubmit={handleSubmit(onSubmit)}>
-                <Grid container spacing={3}>
-                    <Grid size={{ xs: 12, md: 4 }}>
+            <form onSubmit={handleSubmit(onSubmit)} noValidate>
+                <CollapsibleCard title="Thông tin nhân viên" expanded onToggle={() => undefined}>
+                    <Stack spacing={3} sx={{ p: 3 }}>
                         <UserAvatarUploader
+                            embedded
                             avatarPreview={avatarPreview}
                             onFileSelect={(file, preview) => {
                                 setAvatarFile(file);
                                 setAvatarPreview(preview);
                             }}
                         />
-                    </Grid>
 
-                    <Grid size={{ xs: 12, md: 8 }}>
-                        <Card sx={{ 
-                            p: 4, 
-                            borderRadius: '16px',
-                            border: '1px solid var(--palette-divider)',
-                            boxShadow: 'var(--shadow-sm)',
-                            bgcolor: 'var(--palette-background-paper)'
-                        }}>
-                            <Box sx={{ mb: 3 }}>
-                                <Alert severity="info" sx={{ borderRadius: "var(--shape-borderRadius)" }}>
-                                    <AlertTitle>Thông tin mật khẩu</AlertTitle>
-                                    Mật khẩu sẽ được hệ thống <strong>tự động tạo</strong> và gửi về email của người dùng. Người dùng sẽ được yêu cầu đổi mật khẩu trong lần đăng nhập đầu tiên.
-                                </Alert>
-                            </Box>
+                        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' }, gap: 3 }}>
+                            <Controller
+                                name="firstName"
+                                control={control}
+                                render={({ field, fieldState }) => (
+                                    <TextField
+                                        {...field}
+                                        label="Tên"
+                                        fullWidth
+                                        error={!!fieldState.error}
+                                        helperText={fieldState.error?.message}
+                                    />
+                                )}
+                            />
 
-                            <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 3 }}>
-                                <Controller
-                                    name="firstName"
-                                    control={control}
-                                    render={({ field, fieldState }) => (
-                                        <TextField
-                                            {...field}
-                                            label="Tên"
-                                            fullWidth
-                                            error={!!fieldState.error}
-                                            helperText={fieldState.error?.message}
-                                            sx={{ '& .MuiOutlinedInput-root': { borderRadius: "var(--shape-borderRadius)", fontSize: '0.875rem' } }}
-                                        />
-                                    )}
-                                />
+                            <Controller
+                                name="lastName"
+                                control={control}
+                                render={({ field, fieldState }) => (
+                                    <TextField
+                                        {...field}
+                                        label="Họ"
+                                        fullWidth
+                                        error={!!fieldState.error}
+                                        helperText={fieldState.error?.message}
+                                    />
+                                )}
+                            />
 
-                                <Controller
-                                    name="lastName"
-                                    control={control}
-                                    render={({ field, fieldState }) => (
-                                        <TextField
-                                            {...field}
-                                            label="Họ"
-                                            fullWidth
-                                            error={!!fieldState.error}
-                                            helperText={fieldState.error?.message}
-                                            sx={{ '& .MuiOutlinedInput-root': { borderRadius: "var(--shape-borderRadius)", fontSize: '0.875rem' } }}
-                                        />
-                                    )}
-                                />
+                            <Controller
+                                name="email"
+                                control={control}
+                                render={({ field, fieldState }) => (
+                                    <TextField
+                                        {...field}
+                                        label="Email"
+                                        fullWidth
+                                        error={!!fieldState.error}
+                                        helperText={fieldState.error?.message}
+                                    />
+                                )}
+                            />
 
-                                <Controller
-                                    name="email"
-                                    control={control}
-                                    render={({ field, fieldState }) => (
-                                        <TextField
-                                            {...field}
-                                            label="Email"
-                                            fullWidth
-                                            error={!!fieldState.error}
-                                            helperText={fieldState.error?.message}
-                                            sx={{ '& .MuiOutlinedInput-root': { borderRadius: "var(--shape-borderRadius)", fontSize: '0.875rem' } }}
-                                        />
-                                    )}
-                                />
+                            <Controller
+                                name="roles"
+                                control={control}
+                                render={({ field, fieldState }) => (
+                                    <TextField
+                                        {...field}
+                                        label="Vai trò"
+                                        select
+                                        fullWidth
+                                        error={!!fieldState.error}
+                                        helperText={fieldState.error?.message}
+                                        value={field.value?.[0] || ""}
+                                        onChange={(e) => field.onChange([e.target.value])}
+                                    >
+                                        {roles.map((role: any) => (
+                                            <MenuItem key={role.code} value={role.code}>
+                                                <ListItemText primary={role.name} />
+                                            </MenuItem>
+                                        ))}
+                                    </TextField>
+                                )}
+                            />
+                        </Box>
 
-                                <Controller
-                                    name="roles"
-                                    control={control}
-                                    render={({ field, fieldState }) => (
-                                        <TextField
-                                            {...field}
-                                            label="Vai trò"
-                                            select
-                                            fullWidth
-                                            error={!!fieldState.error}
-                                            helperText={fieldState.error?.message}
-                                            value={field.value?.[0] || ""}
-                                            onChange={(e) => field.onChange([e.target.value])}
-                                            sx={{ '& .MuiOutlinedInput-root': { borderRadius: "var(--shape-borderRadius)", fontSize: '0.875rem' } }}
-                                        >
-                                            {roles.map((role: any) => (
-                                                <MenuItem key={role.code} value={role.code} sx={{ fontSize: '0.875rem' }}>
-                                                    <ListItemText primary={role.name} />
-                                                </MenuItem>
-                                            ))}
-                                        </TextField>
-                                    )}
-                                />
+                        <Alert severity="info" sx={{ borderRadius: "var(--shape-borderRadius)" }}>
+                            <AlertTitle>Thông tin mật khẩu</AlertTitle>
+                            Mật khẩu sẽ được hệ thống <strong>tự động tạo</strong> và gửi về email của người dùng. Người dùng sẽ được yêu cầu đổi mật khẩu trong lần đăng nhập đầu tiên.
+                        </Alert>
 
-                            </Box>
-
-                            <Stack direction="row" justifyContent="flex-end" sx={{ mt: 3 }}>
-                                <LoadingButton
-                                    type="submit"
-                                    loading={isPending || isUploading}
-                                    label="Tạo người dùng"
-                                    loadingLabel={isUploading ? "Đang tải ảnh..." : "Đang tạo..."}
-                                />
-                            </Stack>
-                        </Card>
-                    </Grid>
-                </Grid>
+                        <Button
+                            type="submit"
+                            variant="contained"
+                            loading={isPending || isUploading}
+                            label="Lưu"
+                            loadingLabel={isUploading ? "Đang tải ảnh..." : "Đang lưu..."}
+                            sx={{ alignSelf: 'flex-end' }}
+                        />
+                    </Stack>
+                </CollapsibleCard>
             </form>
-        </Box>
+        </>
     );
 };

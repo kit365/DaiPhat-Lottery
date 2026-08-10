@@ -94,6 +94,34 @@ public class UserService implements UserServicePort {
 
     @Override
     @Transactional
+    public UserResponse createInternalStreetAgent(CreateUserRequest request) {
+        log.info("Creating internal non-login street agent identity for email: {}", request.email());
+
+        userValidationService.ensureEmailAvailable(request.email(), null);
+        userValidationService.ensurePhoneAvailable(request.phone(), null);
+        String internalUsername = internalStreetAgentUsername(request.phone());
+        userValidationService.ensureUsernameAvailable(internalUsername, null);
+
+        UserModel user = userApplicationMapper.toUserModel(request);
+        user.setUsername(internalUsername);
+        user.onboardInternalStreetAgentUser();
+        assignRoleToUser(user, RoleConstants.ROLE_STREET_AGENT);
+
+        // No password and no UserCreatedEvent: this identity is solely the
+        // one-to-one owner of a staff-managed street-agent profile.
+        return userApplicationMapper.mapToUserResponse(userRepositoryPort.save(user));
+    }
+
+    private String internalStreetAgentUsername(String phone) {
+        String normalizedPhone = phone == null ? "" : phone.replaceAll("\\D", "");
+        if (normalizedPhone.isBlank()) {
+            throw new DomainException(ErrorCode.PHONE_REQUIRED);
+        }
+        return "street-agent-" + normalizedPhone;
+    }
+
+    @Override
+    @Transactional
     public void update(UUID id, UpdateUserRequest request) {
         log.info("Updating user with id: {}", id);
         UserModel user = userLookupService.findByIdOrThrow(id);

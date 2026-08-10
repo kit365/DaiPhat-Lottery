@@ -1,18 +1,18 @@
 "use client";
 
+import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
 import { Avatar, Box, Link, ListItemText } from "@mui/material";
 import { PERMISSIONS } from "../../../../constants/permission.constants";
 
-import { GridActionsCell, GridActionsCellItem, GridRenderCellParams } from "@mui/x-data-grid";
-import { DeleteIcon, EditIcon, EyeIcon } from "../../../../assets/icons/index";
+import { GridRenderCellParams } from "@mui/x-data-grid";
 import { useDeleteBlogCategory } from "../../hooks/useBlogCategory";
-import { useNavigate } from "react-router-dom";
 import { prefixAdmin } from "../../../../constants/routes";
 import { toast } from "react-toastify";
 import dayjs from 'dayjs';
 import 'dayjs/locale/vi';
 import { confirmDelete } from "../../../../utils/swal";
 import { usePermissions } from "../../../../hooks/usePermission";
+import { AdminRowActionsMenu, type AdminRowActionsMenuItem } from "../../../../components/ui/AdminRowActionsMenu";
 
 dayjs.locale('vi');
 
@@ -23,7 +23,7 @@ interface RenderCreatedAtCellProps {
 // Tên danh mục + Icon/Avatar
 export const RenderTitleCell = (params: GridRenderCellParams) => {
     const { name, avatar, altImage, _id } = params.row;
-    const navigate = useNavigate();
+    const router = useAdminRouter();
 
     // avatar có thể là font-awesome class (vd: "fa-solid fa-star") hoặc URL ảnh
     const isFaIcon = avatar && typeof avatar === 'string' && avatar.startsWith('fa-');
@@ -77,7 +77,7 @@ export const RenderTitleCell = (params: GridRenderCellParams) => {
                         className="ticket-title"
                         onClick={(e) => {
                             e.preventDefault();
-                            navigate(`/${prefixAdmin}/blog-category/edit/${_id}`);
+                            router.push(`/${prefixAdmin}/blog-category/edit/${_id}`);
                         }}
                         underline="hover"
                         sx={{
@@ -179,16 +179,15 @@ export const RenderStatusCell = (params: GridRenderCellParams) => {
 
 // Actions
 export const BlogCategoryActionsCell = (_isTrash: boolean) => (params: GridRenderCellParams) => {
-    const navigate = useNavigate();
+    const router = useAdminRouter();
     const { mutate: deleteCategory } = useDeleteBlogCategory();
-    const { can, canAny } = usePermissions();
+    const { can } = usePermissions();
     const canEdit = can(PERMISSIONS.ARTICLE.EDIT);
     const canDelete = can(PERMISSIONS.ARTICLE.DELETE);
-    const showActionsMenu = canAny([PERMISSIONS.ARTICLE.EDIT, PERMISSIONS.ARTICLE.DELETE]);
     const _id = params.row.id || params.row.id;
 
     const handleEdit = () => {
-        navigate(`/${prefixAdmin}/blog-category/edit/${_id}`);
+        router.push(`/${prefixAdmin}/blog-category/edit/${_id}`);
     };
 
     const handleDelete = () => {
@@ -206,78 +205,35 @@ export const BlogCategoryActionsCell = (_isTrash: boolean) => (params: GridRende
         });
     };
 
-    if (!showActionsMenu) {
-        return (
-            <GridActionsCell {...params}>
-                <GridActionsCellItem
-                    icon={<EyeIcon />}
-                    label="Chi tiết"
-                    showInMenu
-                    {...({
-                        sx: {
-                            '& .MuiTypography-root': {
-                                fontSize: '0.8125rem',
-                                fontWeight: "600"
-                            },
-                        },
-                    } as any)}
-                    onClick={() => navigate(`/${prefixAdmin}/blog-category/detail/${_id}`)}
-                />
-            </GridActionsCell>
-        );
+    const items: AdminRowActionsMenuItem[] = [
+        {
+            id: 'view',
+            label: 'Chi tiết',
+            icon: 'view',
+            onClick: () => router.push(`/${prefixAdmin}/blog-category/detail/${_id}`),
+        },
+    ];
+
+    if (canEdit) {
+        items.push({
+            id: 'edit',
+            label: 'Chỉnh sửa',
+            icon: 'edit',
+            onClick: handleEdit,
+        });
     }
 
-    return (
-        <GridActionsCell {...params}>
-            <GridActionsCellItem
-                icon={<EyeIcon />}
-                label="Chi tiết"
-                showInMenu
-                {...({
-                    sx: {
-                        '& .MuiTypography-root': {
-                            fontSize: '0.8125rem',
-                            fontWeight: "600"
-                        },
-                    },
-                } as any)}
-                onClick={() => navigate(`/${prefixAdmin}/blog-category/detail/${_id}`)}
-            />
-            {canEdit && (
-                <GridActionsCellItem
-                    icon={<EditIcon />}
-                    label="Chỉnh sửa"
-                    showInMenu
-                    {...({
-                        sx: {
-                            '& .MuiTypography-root': {
-                                fontSize: '0.8125rem',
-                                fontWeight: "600"
-                            },
-                        },
-                    } as any)}
-                    onClick={handleEdit}
-                />
-            )}
-            {canDelete && (
-                <GridActionsCellItem
-                    icon={<DeleteIcon />}
-                    label="Xóa"
-                    showInMenu
-                    {...({
-                        sx: {
-                            '& .MuiTypography-root': {
-                                fontSize: '0.8125rem',
-                                fontWeight: "600",
-                                color: "var(--palette-error-main)"
-                            },
-                        },
-                    } as any)}
-                    onClick={handleDelete}
-                />
-            )}
-        </GridActionsCell>
-    );
+    if (canDelete) {
+        items.push({
+            id: 'delete',
+            label: 'Xóa',
+            icon: 'delete',
+            onClick: handleDelete,
+            danger: true,
+        });
+    }
+
+    return <AdminRowActionsMenu items={items} />;
 }
 
 export const getRenderActionsCell = BlogCategoryActionsCell;

@@ -1,9 +1,10 @@
 "use client";
 
-import { Box, MenuItem, Stack, TextField, CircularProgress, Typography } from "@mui/material";
-import { LoadingButton } from "../../../../components/ui/LoadingButton";
-import { Breadcrumb } from "../../../../components/ui/Breadcrumb";
-import { Title } from "../../../../components/ui/Title";
+import { useRouteParams } from "@/hooks/useRouteParams";
+import { Box, MenuItem, Stack, TextField, Typography } from "@mui/material";
+import { Button } from "../../../../components/ui/Button";
+import { PageHeader } from "../../../../components/ui/PageHeader";
+import { SpinnerLoading } from "../../../../components/ui/SpinnerLoading";
 import { Tiptap } from "../../../../components/layouts/titap/Tiptap";
 import { useState, useEffect, type Dispatch, type SetStateAction } from "react";
 import { CollapsibleCard } from "../../../../components/ui/CollapsibleCard";
@@ -16,11 +17,10 @@ import { FormUploadSingleFile } from "../../../../components/upload/FormUploadSi
 import { toast } from "react-toastify";
 import { CategoryParentSelect } from "../../../../components/ui/CategoryTreeSelect";
 import { uploadBlogImage } from "../../services/blogService";
-import { useParams } from "react-router-dom";
 import dayjs from "dayjs";
 
 export const BlogCategoryEditPage = () => {
-    const { id } = useParams();
+    const { id } = useRouteParams();
     const [expandedDetail, setExpandedDetail] = useState(true);
     const [expandedHistory, setExpandedHistory] = useState(true);
 
@@ -108,29 +108,32 @@ export const BlogCategoryEditPage = () => {
         }
     };
 
-    // Hiển thị loading khi đang tải dữ liệu ban đầu
     if (isLoadingDetail) {
         return (
-            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
-                <CircularProgress color="inherit" />
-            </Box>
+            <>
+                <PageHeader
+                    title="Chỉnh sửa danh mục bài viết"
+                    breadcrumbItems={[
+                        { label: "Dashboard", to: "/" },
+                        { label: "Danh mục bài viết", to: `/${prefixAdmin}/blog-category/list` },
+                        { label: "Chỉnh sửa" }
+                    ]}
+                />
+                <SpinnerLoading />
+            </>
         );
     }
 
     return (
         <>
-            <div className="mb-[calc(5*var(--spacing))] gap-[calc(2*var(--spacing))] flex items-start justify-end">
-                <div className="mr-auto">
-                    <Title title="Chỉnh sửa danh mục bài viết" />
-                    <Breadcrumb
-                        items={[
+            <PageHeader
+                title="Chỉnh sửa danh mục bài viết"
+                breadcrumbItems={[
                             { label: "Dashboard", to: "/" },
                             { label: "Danh mục bài viết", to: `/${prefixAdmin}/blog-category/list` },
                             { label: "Chỉnh sửa" }
                         ]}
-                    />
-                </div>
-            </div>
+            />
 
             <form onSubmit={handleSubmit(onSubmit)}>
                 <Stack sx={{ margin: "0px calc(15 * var(--spacing))", gap: "calc(5 * var(--spacing))" }}>
@@ -235,7 +238,7 @@ export const BlogCategoryEditPage = () => {
                             )}
                         />
 
-                        <LoadingButton
+                        <Button
                             type="submit"
                             loading={isUpdating || isUploading}
                             label="Cập nhật danh mục"

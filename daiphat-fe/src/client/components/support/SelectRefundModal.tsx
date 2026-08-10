@@ -1,7 +1,7 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useGetMyRefunds } from '../../hooks/useRefund';
 import { RefundRequestResponse, REFUND_STATUS_LABELS } from '../../../types/refund.type';
 import { resolveRefundComplaintEligibility } from '../../utils/refundComplaintEligibility.logic';
@@ -29,7 +29,7 @@ export const SelectRefundModal: React.FC<SelectRefundModalProps> = ({
     onSelect,
     selectedRefundId,
 }) => {
-    const navigate = useNavigate();
+    const router = useRouter();
     const { data: refundsData, isLoading } = useGetMyRefunds({ page: 1, limit: 100 }, isOpen);
     const refunds = (refundsData?.data?.recordList || []) as RefundRequestResponse[];
 
@@ -37,7 +37,7 @@ export const SelectRefundModal: React.FC<SelectRefundModalProps> = ({
 
     const handleCreateRefund = () => {
         onClose();
-        navigate('/profile/orders');
+        router.push('/profile/orders');
     };
 
     return (

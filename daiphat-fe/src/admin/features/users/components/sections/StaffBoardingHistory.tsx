@@ -1,13 +1,14 @@
 "use client";
 
-import { Box, Typography, CircularProgress, Chip, TablePagination, Collapse, Stack, Avatar, Divider, IconButton } from "@mui/material";
+import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
+import { Box, Typography, Chip, TablePagination, Collapse, Stack, Avatar, Divider, IconButton } from "@mui/material";
+import { SpinnerLoading } from "../../../../components/ui/SpinnerLoading";
 import { useQuery } from "@tanstack/react-query";
 import { getBoardingTicketServiceOrders } from '../../../../api/boarding-booking.api';
 import dayjs from "dayjs";
-import { useNavigate } from "react-router-dom";
 import { prefixAdmin } from '../../../../constants/routes';
 import { useMemo, useState } from "react";
-import { Icon } from "@iconify/react";
+import { Icon } from '@/admin/components/ui/AdminIcon';
 
 interface StaffBoardingHistoryProps {
     staffId: string;
@@ -23,7 +24,7 @@ const boardingStatusMap: Record<string, { label: string; color: string; bg: stri
 };
 
 const BoardingRow = ({ ticketServiceOrder }: { ticketServiceOrder: any }) => {
-    const navigate = useNavigate();
+    const router = useAdminRouter();
     const [open, setOpen] = useState(false);
 
     const status = boardingStatusMap[ticketServiceOrder.boardingStatus] || {
@@ -64,7 +65,7 @@ const BoardingRow = ({ ticketServiceOrder }: { ticketServiceOrder: any }) => {
                         cursor: "pointer",
                         "&:hover": { textDecoration: "underline" },
                     }}
-                    onClick={() => navigate(`/${prefixAdmin}/boarding/detail/${ticketServiceOrder._id}`)}
+                    onClick={() => router.push(`/${prefixAdmin}/boarding/detail/${ticketServiceOrder._id}`)}
                 >
                     #{ticketServiceOrder.code || ticketServiceOrder._id?.slice(-6).toUpperCase()}
                 </Typography>
@@ -212,11 +213,7 @@ export const StaffBoardingHistory = ({ staffId }: StaffBoardingHistoryProps) => 
     const pagination = (res as any)?.data?.pagination || { totalRecords: 0 };
 
     if (isLoading) {
-        return (
-            <Box sx={{ p: 5, textAlign: "center" }}>
-                <CircularProgress size={32} />
-            </Box>
-        );
+        return <SpinnerLoading compact />;
     }
 
     if (ticketServiceOrders.length === 0) {

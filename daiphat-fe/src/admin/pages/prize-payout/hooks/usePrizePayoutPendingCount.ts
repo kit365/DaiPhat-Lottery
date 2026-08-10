@@ -9,6 +9,7 @@ import { hasPermission } from '../../../utils/permission.util';
 import { PERMISSIONS } from '../../../constants/permission.constants';
 import { PrizePayoutRequestStatus } from '../../../../types/prize-payout.type';
 import { ADMIN_BADGE_POLL_MS } from '../../../hooks/adminBadgePoll';
+import { useAdminDeferredQueries } from '../../../hooks/useAdminDeferredQueries';
 
 /**
  * Polls staff prize-payout pendingCount for the sidebar badge.
@@ -16,6 +17,7 @@ import { ADMIN_BADGE_POLL_MS } from '../../../hooks/adminBadgePoll';
  */
 export const usePrizePayoutPendingCount = () => {
     const { user, token } = useAuthStore();
+    const deferred = useAdminDeferredQueries();
     const canView = Boolean(token) && Boolean(user) && hasPermission(user, PERMISSIONS.PRIZE_PAYOUT.VIEW);
 
     const query = useQuery({
@@ -26,8 +28,8 @@ export const usePrizePayoutPendingCount = () => {
                 limit: 1,
                 status: PrizePayoutRequestStatus.PENDING,
             }),
-        enabled: canView,
-        refetchOnWindowFocus: canView,
+        enabled: canView && deferred,
+        refetchOnWindowFocus: canView && deferred,
         refetchInterval: (q) => {
             if (!canView) return false;
             if (q.state.error) return false;

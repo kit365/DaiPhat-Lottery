@@ -6,7 +6,6 @@
  */
 export {
     TicketListPage,
-    TicketCreatePage,
     TicketEditPage,
     TicketDetailPage,
     ExpiredTicketListPage,

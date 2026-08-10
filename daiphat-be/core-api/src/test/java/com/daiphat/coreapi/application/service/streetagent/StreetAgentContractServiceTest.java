@@ -75,8 +75,6 @@ class StreetAgentContractServiceTest {
                 .thenReturn(Optional.of(config(SystemConfigEnum.SITE_LEGAL_REPRESENTATIVE_TITLE, "Giám đốc")));
         when(systemConfigRepositoryPort.findActiveByConfigKey(SystemConfigEnum.SITE_CONTRACT_SIGNING_PLACE.name()))
                 .thenReturn(Optional.of(config(SystemConfigEnum.SITE_CONTRACT_SIGNING_PLACE, "TP. Hồ Chí Minh")));
-        when(systemConfigRepositoryPort.findActiveByConfigKey(SystemConfigEnum.VENDOR_DEFAULT_UNIT_PRICE.name()))
-                .thenReturn(Optional.of(config(SystemConfigEnum.VENDOR_DEFAULT_UNIT_PRICE, "9000")));
         when(systemConfigRepositoryPort.findActiveByConfigKey(SystemConfigEnum.VENDOR_DEPOSIT_RATE.name()))
                 .thenReturn(Optional.of(config(SystemConfigEnum.VENDOR_DEPOSIT_RATE, "0.10")));
         when(systemConfigRepositoryPort.findActiveByConfigKey(SystemConfigEnum.VENDOR_RETURN_CUTOFF.name()))

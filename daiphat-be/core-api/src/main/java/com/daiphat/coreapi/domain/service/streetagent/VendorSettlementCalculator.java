@@ -17,6 +17,8 @@ public final class VendorSettlementCalculator {
             BigDecimal commissionPayable,
             BigDecimal depositRefundAmount,
             BigDecimal depositForfeitedAmount,
+            BigDecimal depositAppliedAmount,
+            BigDecimal depositExcessRefundAmount,
             BigDecimal forcedPurchaseAmount,
             BigDecimal additionalAmountDue,
             BigDecimal agencyNetSalesAmount
@@ -36,9 +38,11 @@ public final class VendorSettlementCalculator {
 
         if (late && latePolicy == VendorLateReturnPolicy.FORCE_PURCHASE_ALL) {
             BigDecimal forcedPurchase = money(vendorUnitPrice.multiply(BigDecimal.valueOf(allocatedQuantity)));
-            BigDecimal due = money(forcedPurchase.subtract(depositHeld).max(BigDecimal.ZERO));
+            BigDecimal applied = money(depositHeld.min(forcedPurchase));
+            BigDecimal excessRefund = money(depositHeld.subtract(applied));
+            BigDecimal due = money(forcedPurchase.subtract(applied));
             return new Result(soldQuantity, returnedQuantity, forcedPurchase, BigDecimal.ZERO,
-                    BigDecimal.ZERO, money(depositHeld), forcedPurchase, due, forcedPurchase);
+                    BigDecimal.ZERO, BigDecimal.ZERO, applied, excessRefund, forcedPurchase, due, forcedPurchase);
         }
 
         BigDecimal gross = money(faceValue.multiply(BigDecimal.valueOf(soldQuantity)));
@@ -47,6 +51,7 @@ public final class VendorSettlementCalculator {
         BigDecimal refund = late ? BigDecimal.ZERO : money(depositHeld);
         BigDecimal forfeited = late ? money(depositHeld) : BigDecimal.ZERO;
         return new Result(soldQuantity, returnedQuantity, gross, commission, refund, forfeited,
+                BigDecimal.ZERO, BigDecimal.ZERO,
                 BigDecimal.ZERO, BigDecimal.ZERO, money(gross.subtract(commission)));
     }
 

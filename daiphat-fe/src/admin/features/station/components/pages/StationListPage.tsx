@@ -1,12 +1,13 @@
 "use client";
 
+import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
+import { Button } from '@/admin/components/ui/Button';
+
 import AddIcon from '@mui/icons-material/Add';
 import SyncIcon from '@mui/icons-material/Sync';
-import Button from '@mui/material/Button';
-import { Breadcrumb } from "../../../../components/ui/Breadcrumb";
-import { Title } from "../../../../components/ui/Title";
+
+import { PageHeader } from "../../../../components/ui/PageHeader";
 import { prefixAdmin } from "../../../../constants/routes";
-import { useNavigate } from "react-router-dom";
 import { StationList } from "../sections/StationList";
 import { SyncStationModal } from "../sections/SyncStationModal";
 import { SyncStationPreviewModal, SyncPreviewParams } from "../sections/SyncStationPreviewModal";
@@ -15,7 +16,7 @@ import { CanAccess } from "../../../../components/auth/CanAccess";
 import { PERMISSIONS } from "../../../../constants/permission.constants";
 
 export const StationListPage = () => {
-    const navigate = useNavigate();
+    const router = useAdminRouter();
     const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
     const [previewState, setPreviewState] = useState<{
         preview: any;
@@ -24,18 +25,15 @@ export const StationListPage = () => {
 
     return (
         <>
-            <div className="mb-[calc(5*var(--spacing))] gap-[calc(2*var(--spacing))] flex items-start justify-end">
-                <div className="mr-auto">
-                    <Title title="Danh sách Nhà đài" />
-                    <Breadcrumb
-                        items={[
+            <PageHeader
+                title="Danh sách Nhà đài"
+                breadcrumbItems={[
                             { label: "Dashboard", to: "/" },
                             { label: "Nhà đài", to: `/${prefixAdmin}/provider/list` },
                             { label: "Danh sách" }
                         ]}
-                    />
-                </div>
-                <div className="flex gap-4">
+                action={
+                    <div className="flex gap-4">
                     <CanAccess permission={PERMISSIONS.PROVIDER.SYNC}>
                         <Button
                             onClick={() => setIsSyncModalOpen(true)}
@@ -48,7 +46,7 @@ export const StationListPage = () => {
                     </CanAccess>
                     <CanAccess permission={PERMISSIONS.PROVIDER.CREATE}>
                         <Button
-                            onClick={() => navigate(`/${prefixAdmin}/provider/create`)}
+                            onClick={() => router.push(`/${prefixAdmin}/provider/create`)}
                             className="btn-primary-admin"
                             variant="contained"
                             startIcon={<AddIcon />}
@@ -57,7 +55,8 @@ export const StationListPage = () => {
                         </Button>
                     </CanAccess>
                 </div>
-            </div>
+                }
+            />
 
             <StationList />
 

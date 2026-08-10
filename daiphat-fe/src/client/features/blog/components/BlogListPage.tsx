@@ -1,7 +1,7 @@
 "use client";
 
+import { useAppSearchParams } from "@/hooks/useAppSearchParams";
 import React from 'react';
-import { useSearchParams } from 'react-router-dom';
 import { RightSidebarBlog } from './BlogSidebar';
 import { usePublicCategories, usePublicPosts } from '../hooks/useBlog';
 import { Pagination } from '../../../components/common/Pagination';
@@ -11,7 +11,7 @@ import { BlogSearchFilter } from './BlogSearchFilter';
 import { BlogPostCard } from './BlogPostCard';
 
 export const BlogListPage = () => {
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useAppSearchParams();
 
   // URL States
   const categorySlug = searchParams.get('category') || 'all';

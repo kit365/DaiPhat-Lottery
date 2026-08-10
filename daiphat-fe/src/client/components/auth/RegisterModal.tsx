@@ -1,7 +1,7 @@
 "use client";
 
+import Link from "next/link";
 import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { CheckCircle2 } from "lucide-react";
 import { useAuth } from "../../hooks/useAuth";

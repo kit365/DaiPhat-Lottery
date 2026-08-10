@@ -7,6 +7,7 @@ import { deleteTicket } from '../services/ticketService';
 import { useTickets } from './useTicket';
 import { resolveAvailableTicketQuantity } from '../utils/ticketQuantity';
 import { buildTicketStatusFilterOptions } from '../constants/ticket-status.config';
+import { useServerPagination } from '../../../../shared/data-grid/useServerPagination';
 
 interface ITicketFilters {
     status?: string[];
@@ -17,13 +18,21 @@ interface ITicketFilters {
     drawDateTo?: string;
     importBatchLineId?: number | null;
     search?: string;
-    page: number;
-    limit: number;
 }
 
 /** Controller cho trang kho vé (filter/pagination nội bộ). List theo params → dùng `useTickets`. */
-export const useTicketInventory = (initialFilters?: Partial<ITicketFilters>) => {
+export const useTicketInventory = (
+    initialFilters?: Partial<ITicketFilters>,
+    initialPageSize = 10,
+) => {
     const queryClient = useQueryClient();
+    const {
+        apiPage,
+        pageSize,
+        paginationModel,
+        onPaginationModelChange,
+        resetPage,
+    } = useServerPagination(initialPageSize);
     const [filters, setFilters] = useState<ITicketFilters>({
         status: [],
         batchCode: [],
@@ -33,8 +42,6 @@ export const useTicketInventory = (initialFilters?: Partial<ITicketFilters>) => 
         drawDateTo: undefined,
         importBatchLineId: null,
         search: '',
-        page: 1,
-        limit: 10,
         ...initialFilters,
     });
 
@@ -47,10 +54,10 @@ export const useTicketInventory = (initialFilters?: Partial<ITicketFilters>) => 
             drawDateFrom: filters.drawDateFrom || undefined,
             drawDateTo: filters.drawDateTo || undefined,
             importBatchLineId: filters.importBatchLineId || undefined,
-            page: filters.page,
-            limit: filters.limit,
+            page: apiPage,
+            limit: pageSize,
         }),
-        [filters]
+        [apiPage, filters, pageSize]
     );
 
     const statusDiscoveryParams = useMemo(
@@ -119,9 +126,10 @@ export const useTicketInventory = (initialFilters?: Partial<ITicketFilters>) => 
         );
 
         if (validStatuses.length !== filters.status.length) {
-            setFilters((prev) => ({ ...prev, status: validStatuses, page: 1 }));
+            setFilters((prev) => ({ ...prev, status: validStatuses }));
+            resetPage();
         }
-    }, [availableTicketStatusOptions, filters.status]);
+    }, [availableTicketStatusOptions, filters.status, resetPage]);
 
     const pagination = (data as any)?.data?.pagination || (data as any)?.pagination || {
         totalRecords: 0,
@@ -138,27 +146,23 @@ export const useTicketInventory = (initialFilters?: Partial<ITicketFilters>) => 
     });
 
     const setFilter = (fieldId: string, values: string[]) => {
-        setFilters((prev) => ({ ...prev, [fieldId]: values, page: 1 }));
+        setFilters((prev) => ({ ...prev, [fieldId]: values }));
+        resetPage();
     };
 
     const setDateRangeFilter = (drawDateFrom?: string, drawDateTo?: string) => {
-        setFilters((prev) => ({ ...prev, drawDateFrom, drawDateTo, page: 1 }));
+        setFilters((prev) => ({ ...prev, drawDateFrom, drawDateTo }));
+        resetPage();
     };
 
     const setImportBatchLineId = (importBatchLineId: number | null) => {
-        setFilters((prev) => ({ ...prev, importBatchLineId, page: 1 }));
+        setFilters((prev) => ({ ...prev, importBatchLineId }));
+        resetPage();
     };
 
     const setSearchFilter = (search: string) => {
-        setFilters((prev) => ({ ...prev, search, page: 1 }));
-    };
-
-    const setPage = (page: number) => {
-        setFilters((prev) => ({ ...prev, page }));
-    };
-
-    const setLimit = (limit: number) => {
-        setFilters((prev) => ({ ...prev, limit, page: 1 }));
+        setFilters((prev) => ({ ...prev, search }));
+        resetPage();
     };
 
     const clearFilters = () => {
@@ -171,9 +175,8 @@ export const useTicketInventory = (initialFilters?: Partial<ITicketFilters>) => 
             drawDateTo: undefined,
             importBatchLineId: null,
             search: '',
-            page: 1,
-            limit: 10,
         });
+        resetPage();
     };
 
     return {
@@ -183,12 +186,12 @@ export const useTicketInventory = (initialFilters?: Partial<ITicketFilters>) => 
         isLoading,
         error,
         filters,
+        paginationModel,
+        onPaginationModelChange,
         setFilter,
         setDateRangeFilter,
         setImportBatchLineId,
         setSearchFilter,
-        setPage,
-        setLimit,
         clearFilters,
         deleteTicket: deleteMutation.mutate,
     };

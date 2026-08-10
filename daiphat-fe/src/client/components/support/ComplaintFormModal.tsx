@@ -1,7 +1,7 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import React, { useEffect, useMemo, useState, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
 import {
     SupportTicketResponse,
     TicketCategoryResponse,
@@ -52,7 +52,7 @@ export const ComplaintFormModal: React.FC<ComplaintFormModalProps> = ({
     defaultCategoryCode,
     requireEvidence = false,
 }) => {
-    const navigate = useNavigate();
+    const router = useRouter();
     const isEditing = !!editingTicket;
 
     const { data: categoriesData } = useGetTicketCategories();
@@ -272,7 +272,7 @@ export const ComplaintFormModal: React.FC<ComplaintFormModalProps> = ({
                     onSuccess: (res) => {
                         if (res.success && res.data) {
                             onClose();
-                            navigate(`/profile/complaints/${res.data.id}`);
+                            router.push(`/profile/complaints/${res.data.id}`);
                         }
                     },
                 }

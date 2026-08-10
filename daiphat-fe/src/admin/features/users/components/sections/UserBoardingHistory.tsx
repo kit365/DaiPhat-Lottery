@@ -1,10 +1,11 @@
 "use client";
 
-import { Box, Typography, CircularProgress, Chip, Stack, TablePagination } from "@mui/material";
+import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
+import { Box, Typography, Chip, Stack, TablePagination } from "@mui/material";
+import { SpinnerLoading } from "../../../../components/ui/SpinnerLoading";
 import { useQuery } from "@tanstack/react-query";
 import { getBoardingTicketServiceOrders } from '../../../../api/boarding-booking.api';
 import dayjs from "dayjs";
-import { useNavigate } from "react-router-dom";
 import { prefixAdmin } from '../../../../constants/routes';
 import { useMemo, useState } from "react";
 
@@ -13,7 +14,7 @@ interface UserBoardingHistoryProps {
 }
 
 export const UserBoardingHistory = ({ userId }: UserBoardingHistoryProps) => {
-    const navigate = useNavigate();
+    const router = useAdminRouter();
     const [page, setPage] = useState(0);
     const [rowsPerPage, setRowsPerPage] = useState(5);
 
@@ -58,11 +59,7 @@ export const UserBoardingHistory = ({ userId }: UserBoardingHistoryProps) => {
     };
 
     if (isLoading) {
-        return (
-            <Box sx={{ p: 5, textAlign: 'center' }}>
-                <CircularProgress size={32} />
-            </Box>
-        );
+        return <SpinnerLoading compact />;
     }
 
     if (ticketServiceOrders.length === 0) {
@@ -87,7 +84,7 @@ export const UserBoardingHistory = ({ userId }: UserBoardingHistoryProps) => {
                     {ticketServiceOrders.map((ticketServiceOrder: any) => (
                         <Box
                             key={ticketServiceOrder._id}
-                            onClick={() => navigate(`/${prefixAdmin}/boarding/detail/${ticketServiceOrder._id}`)}
+                            onClick={() => router.push(`/${prefixAdmin}/boarding/detail/${ticketServiceOrder._id}`)}
                             sx={{
                                 display: 'grid',
                                 gridTemplateColumns: '220px 1fr 180px 150px 150px',

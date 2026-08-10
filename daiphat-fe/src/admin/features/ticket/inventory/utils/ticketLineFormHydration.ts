@@ -1,6 +1,7 @@
 import type { CreateTicketFormValues } from '../schemas/ticket.schema';
 import type { TicketLineFormDraft } from './ticketLineFormDraftStorage';
 import { defaultTicketLineFormDraft } from './ticketLineFormDraftStorage';
+import { ensureSectionsQuantity } from './ticketSectionQuantity';
 
 export type EntryTicketSerial = {
     id?: number;
@@ -17,6 +18,11 @@ export type EntryTicket = {
 type FormSection = CreateTicketFormValues['ticketSections'][number];
 type FormSerial = FormSection['serials'][number];
 
+type MergeSectionsOptions = {
+    /** When false, do not append a blank editable section (e.g. line already fully imported). */
+    appendEditableSlot?: boolean;
+};
+
 const emptySerial = (): FormSerial => ({
     serialNumber: '',
     ticketImg: undefined,
@@ -24,6 +30,10 @@ const emptySerial = (): FormSerial => ({
 
 const normalizeNumbers = (value?: string | null) => (value ?? '').trim();
 const normalizeSerial = (value?: string | null) => (value ?? '').trim().toLowerCase();
+
+export const hasPendingSerialContent = (serial?: FormSerial | null) =>
+    !!normalizeSerial(serial?.serialNumber) ||
+    (typeof serial?.ticketImg === 'string' && serial.ticketImg.trim().length > 0);
 
 export const isPersistedSerial = (serial?: { id?: string | number | null } | null) =>
     serial?.id != null && String(serial.id).trim() !== '';
@@ -51,6 +61,7 @@ export const mapEntryTicketsToSections = (tickets: EntryTicket[] = []): FormSect
         sections.push({
             ticketId: ticket.id,
             numbers,
+            quantity: serials.length,
             serials,
         });
     });
@@ -65,8 +76,10 @@ export const mapEntryTicketsToSections = (tickets: EntryTicket[] = []): FormSect
  */
 export const mergePersistedAndDraftSections = (
     persistedTickets: EntryTicket[] = [],
-    draft?: TicketLineFormDraft | null
+    draft?: TicketLineFormDraft | null,
+    options?: MergeSectionsOptions
 ): FormSection[] => {
+    const shouldAppendEditableSlot = options?.appendEditableSlot ?? true;
     const persistedSections = mapEntryTicketsToSections(persistedTickets);
     const draftSections = draft?.ticketSections ?? [];
 
@@ -83,7 +96,7 @@ export const mergePersistedAndDraftSections = (
         const numbers = normalizeNumbers(draftSection.numbers);
         const numbersKey = numbers.toLowerCase();
         const draftSerials = (draftSection.serials ?? []).filter(
-            (serial) => !isPersistedSerial(serial) && normalizeSerial(serial.serialNumber)
+            (serial) => !isPersistedSerial(serial) && hasPendingSerialContent(serial)
         );
 
         if (!numbers) {
@@ -134,7 +147,7 @@ export const mergePersistedAndDraftSections = (
         const numbers = normalizeNumbers(draftSection.numbers);
         if (!numbers) {
             const hasPendingSerial = (draftSection.serials ?? []).some(
-                (serial) => !isPersistedSerial(serial) && normalizeSerial(serial.serialNumber)
+                (serial) => !isPersistedSerial(serial) && hasPendingSerialContent(serial)
             );
             if (hasPendingSerial) {
                 // serial without numbers is invalid for submit but keep for restore UX
@@ -159,7 +172,7 @@ export const mergePersistedAndDraftSections = (
         const pendingOnly = (draftSection.serials ?? []).filter(
             (serial) => !isPersistedSerial(serial)
         );
-        if (pendingOnly.some((serial) => normalizeSerial(serial.serialNumber)) || numbers) {
+        if (pendingOnly.some((serial) => hasPendingSerialContent(serial)) || numbers) {
             merged.push({
                 numbers,
                 serials: pendingOnly.length > 0 ? pendingOnly : [emptySerial()],
@@ -168,17 +181,32 @@ export const mergePersistedAndDraftSections = (
     });
 
     if (merged.length === 0) {
-        return defaultTicketLineFormDraft().ticketSections;
+        return shouldAppendEditableSlot ? defaultTicketLineFormDraft().ticketSections : [];
     }
 
     const hasEditableSlot = merged.some((section) =>
         (section.serials ?? []).some((serial) => !isPersistedSerial(serial))
     );
-    if (!hasEditableSlot) {
+    if (!hasEditableSlot && shouldAppendEditableSlot) {
         merged.push(defaultTicketLineFormDraft().ticketSections[0]);
     }
 
-    return merged;
+    if (!shouldAppendEditableSlot) {
+        return merged.filter((section) => {
+            if (section.ticketId != null) {
+                return true;
+            }
+            const numbers = normalizeNumbers(section.numbers);
+            const hasFilledPending = (section.serials ?? []).some(
+                (serial) =>
+                    !isPersistedSerial(serial) &&
+                    hasPendingSerialContent(serial)
+            );
+            return !!numbers || hasFilledPending;
+        });
+    }
+
+    return ensureSectionsQuantity(merged);
 };
 
 /** Persist only unsaved (non-persisted) content to localStorage.
@@ -191,9 +219,7 @@ export const extractPendingDraftSections = (
 
     sections.forEach((section) => {
         const pendingSerials = (section.serials ?? []).filter((serial) => !isPersistedSerial(serial));
-        const hasFilledPending = pendingSerials.some((serial) =>
-            normalizeSerial(serial.serialNumber)
-        );
+        const hasFilledPending = pendingSerials.some((serial) => hasPendingSerialContent(serial));
         const numbers = normalizeNumbers(section.numbers);
 
         if (!hasFilledPending && !numbers) {
@@ -212,6 +238,7 @@ export const extractPendingDraftSections = (
 
         pending.push({
             numbers: section.numbers ?? '',
+            quantity: section.quantity,
             serials:
                 pendingSerials.length > 0
                     ? pendingSerials.map((serial) => ({
@@ -226,9 +253,7 @@ export const extractPendingDraftSections = (
     // Drop purely empty template sections (no numbers, no filled serials).
     const meaningful = pending.filter((section) => {
         const numbers = normalizeNumbers(section.numbers);
-        const hasFilled = (section.serials ?? []).some((serial) =>
-            normalizeSerial(serial.serialNumber)
-        );
+        const hasFilled = (section.serials ?? []).some((serial) => hasPendingSerialContent(serial));
         return !!numbers || hasFilled;
     });
 
@@ -242,3 +267,54 @@ export const countPendingFilledSerials = (sections: FormSection[] = []) =>
         ).length;
         return total + filled;
     }, 0);
+
+const MAX_PREFILL_SERIAL_SLOTS = 50;
+
+/** Pre-fill empty serial rows to match remaining import quota (e.g. 5 vé → 5 rows). */
+export const padSerialSlotsForQuota = (
+    sections: FormSection[] = [],
+    remainingQuota?: number
+): FormSection[] => {
+    if (!remainingQuota || remainingQuota <= 0) {
+        return sections;
+    }
+
+    const targetSlots = Math.min(remainingQuota, MAX_PREFILL_SERIAL_SLOTS);
+    let paddedPrimary = false;
+
+    const padded = sections.map((section) => {
+        if (section.ticketId != null || paddedPrimary) {
+            return section;
+        }
+
+        const pendingSerials = (section.serials ?? []).filter((serial) => !isPersistedSerial(serial));
+        const hasFilledPending = pendingSerials.some((serial) =>
+            normalizeSerial(serial.serialNumber)
+        );
+
+        if (hasFilledPending) {
+            paddedPrimary = true;
+            return section;
+        }
+
+        paddedPrimary = true;
+        if (pendingSerials.length >= targetSlots) {
+            return section;
+        }
+
+        const nextSerials = [...pendingSerials];
+        while (nextSerials.length < targetSlots) {
+            nextSerials.push(emptySerial());
+        }
+        return { ...section, serials: nextSerials };
+    });
+
+    if (!paddedPrimary) {
+        padded.push({
+            numbers: '',
+            serials: Array.from({ length: targetSlots }, () => emptySerial()),
+        });
+    }
+
+    return padded;
+};

@@ -13,6 +13,15 @@ public enum AllocationBatchStatus {
         return this == DRAFT || this == CONFIRMED || this == RETURN_OPEN;
     }
 
+    /** Statuses that consume daily ticket cap until CANCELLED/EXPIRED. */
+    public boolean isCapConsuming() {
+        return this == DRAFT
+                || this == CONFIRMED
+                || this == RETURN_OPEN
+                || this == SETTLED
+                || this == LATE_SETTLED;
+    }
+
     public boolean isTerminalForConfidence() {
         return this == SETTLED || this == LATE_SETTLED;
     }

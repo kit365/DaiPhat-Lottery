@@ -75,7 +75,7 @@
     <tr><th>Bên B - Người bán vé số dạo</th><td th:text="${contract.vendorFullName}">Nguyễn Văn A</td></tr>
     <tr><th>Số điện thoại</th><td th:text="${contract.vendorPhone}">0900000000</td></tr>
     <tr><th>Số CCCD</th><td th:text="${contract.vendorCccd}">000000000000</td></tr>
-    <tr><th>Địa chỉ / Tỉnh thành</th><td><span th:text="${contract.vendorAddress}">—</span> / <span th:text="${contract.vendorProvince}">—</span></td></tr>
+    <tr><th>Địa chỉ liên hệ</th><td><span th:text="${contract.vendorAddress}">—</span>, <span th:text="${contract.vendorWard}">—</span>, <span th:text="${contract.vendorProvince}">—</span></td></tr>
     <tr><th>Địa bàn bán</th><td th:text="${contract.vendorCoverageArea}">—</td></tr>
 </table>
 
@@ -85,7 +85,7 @@
 </div>
 <div class="article">
     <div class="article-title">Điều 2. Hạn mức và bàn giao vé</div>
-    <p>Hợp đồng có hiệu lực từ <strong th:text="${contract.contractStartDate}">01/01/2026</strong> đến <strong th:text="${contract.contractEndDate}">31/12/2026</strong>. Hạn mức tối đa hiện hành là <strong th:text="${contract.dailyTicketCap}">100 vé/ngày</strong>. Danh sách serial, đài xổ, ngày kinh doanh, số lượng và giá trị của từng lần giao được xác nhận trên từng phiếu bàn giao; phiếu này là phụ lục không tách rời của hợp đồng.</p>
+    <p>Hợp đồng có hiệu lực từ <strong th:text="${contract.contractStartDate}">01/01/2026</strong> đến <strong th:text="${contract.contractEndDate}">31/12/2026</strong>. Trần hạn mức theo hợp đồng là <strong th:text="${contract.contractMaxDailyCap}">100 vé/ngày</strong>. Hạn mức bàn giao thực tế do Bên A phê duyệt theo tình hình kinh doanh và mức tín nhiệm, nhưng không vượt trần này. Danh sách serial, đài xổ, ngày kinh doanh, số lượng và giá trị của từng lần giao được xác nhận trên từng phiếu bàn giao; phiếu này là phụ lục không tách rời của hợp đồng.</p>
 </div>
 <div class="article">
     <div class="article-title">Điều 3. Giá bán, hoa hồng và tiền cọc</div>

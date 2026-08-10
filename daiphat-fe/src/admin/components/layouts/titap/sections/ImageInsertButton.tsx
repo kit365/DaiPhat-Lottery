@@ -5,10 +5,8 @@ import { InsertImageIcon } from "../../../../assets/icons";
 import { ButtonTiptap } from "./ButtonTiptap";
 import { memo, useCallback, useState } from "react";
 import type { Editor } from '@tiptap/react'
-import { useTranslation } from "react-i18next";
 
 export const ImageInsertButton = memo(({ editor }: { editor: Editor }) => {
-    const { t } = useTranslation();
     const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
     const [url, setUrl] = useState('');
     const [alt, setAlt] = useState('');
@@ -51,7 +49,7 @@ export const ImageInsertButton = memo(({ editor }: { editor: Editor }) => {
 
     return (
         <>
-            <ButtonTiptap title={t("admin.tiptap.toolbar.insert_image")} onClick={handleToggle}>
+            <ButtonTiptap title="Chèn hình ảnh" onClick={handleToggle}>
                 <InsertImageIcon />
             </ButtonTiptap>
 
@@ -74,7 +72,7 @@ export const ImageInsertButton = memo(({ editor }: { editor: Editor }) => {
                 }}
             >
                 <Typography sx={{ mb: "10px", fontWeight: 600, fontSize: "0.875rem" }}>
-                    {t("admin.tiptap.image_dialog.title")}
+                    Thêm hình ảnh
                 </Typography>
 
                 <Stack>
@@ -82,7 +80,7 @@ export const ImageInsertButton = memo(({ editor }: { editor: Editor }) => {
                         fullWidth
                         autoFocus
                         size="small"
-                        placeholder={t("admin.tiptap.image_dialog.url_placeholder")}
+                        placeholder="Đường dẫn ảnh"
                         value={url}
                         onChange={(e) => setUrl(e.target.value)}
                         sx={inputSx}
@@ -91,7 +89,7 @@ export const ImageInsertButton = memo(({ editor }: { editor: Editor }) => {
                     <TextField
                         fullWidth
                         size="small"
-                        placeholder={t("admin.tiptap.image_dialog.alt_placeholder")}
+                        placeholder="Mô tả"
                         value={alt}
                         onChange={(e) => setAlt(e.target.value)}
                         sx={inputSx}
@@ -116,7 +114,7 @@ export const ImageInsertButton = memo(({ editor }: { editor: Editor }) => {
                             '&:hover': { bgcolor: '#454F5B' },
                         }}
                     >
-                        {t("admin.common.save")}
+                        Lưu
                     </Button>
                 </Stack>
             </Popover>

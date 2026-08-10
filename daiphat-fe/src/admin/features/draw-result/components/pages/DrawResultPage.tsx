@@ -4,8 +4,7 @@ import React, { useState } from 'react';
 import { Button } from '@mui/material';
 import SyncIcon from '@mui/icons-material/Sync';
 import dayjs from 'dayjs';
-import { Title } from '../../../../components/ui/Title';
-import { Breadcrumb } from '../../../../components/ui/Breadcrumb';
+import { PageHeader } from '../../../../components/ui/PageHeader';
 import { prefixAdmin } from '../../../../constants/routes';
 import { DrawResultList } from '../sections/DrawResultList';
 import { DrawResultSyncModal } from '../sections/DrawResultSyncModal';
@@ -43,18 +42,15 @@ export const DrawResultPage: React.FC = () => {
 
     return (
         <>
-            <div className="mb-[calc(5*var(--spacing))] gap-[calc(2*var(--spacing))] flex items-start justify-end">
-                <div className="mr-auto">
-                    <Title title="Kết quả Xổ số" />
-                    <Breadcrumb
-                        items={[
+            <PageHeader
+                title="Kết quả Xổ số"
+                breadcrumbItems={[
                             { label: "Dashboard", to: "/" },
                             { label: "Kết quả xổ số", to: `/${prefixAdmin}/draw-results` },
                             { label: "Danh sách" }
                         ]}
-                    />
-                </div>
-                <div>
+                action={
+                    <div>
                     <CanAccess permission={PERMISSIONS.LOTTERY_RESULT.SYNC}>
                         <Button
                             onClick={() => setIsSyncModalOpen(true)}
@@ -66,7 +62,8 @@ export const DrawResultPage: React.FC = () => {
                         </Button>
                     </CanAccess>
                 </div>
-            </div>
+                }
+            />
 
             <DrawResultList
                 data={filteredRows}

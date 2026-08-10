@@ -1,5 +1,8 @@
 "use client";
 
+import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
+import { useRouteParams } from "@/hooks/useRouteParams";
+import { usePathname, useSearchParams } from "next/navigation";
 import { useState, type ReactNode } from 'react';
 import {
     Alert,
@@ -7,7 +10,6 @@ import {
     Button,
     Card,
     Chip,
-    CircularProgress,
     Dialog,
     DialogActions,
     DialogContent,
@@ -22,12 +24,11 @@ import {
     TextField,
     Typography,
 } from '@mui/material';
-import { Icon } from '@iconify/react';
+import { Icon } from '@/admin/components/ui/AdminIcon';
 import dayjs from 'dayjs';
-import { useNavigate, useParams, useLocation } from '@/components/router-compat';
 import { motion } from 'framer-motion';
-import { Title } from '../../components/ui/Title';
-import { Breadcrumb } from '../../components/ui/Breadcrumb';
+import { PageHeader } from '../../components/ui/PageHeader';
+import { SpinnerLoading } from '../../components/ui/SpinnerLoading';
 import { CanAccess } from '../../components/auth/CanAccess';
 import { PERMISSIONS } from '../../constants/permission.constants';
 import { prefixAdmin } from '../../constants/routes';
@@ -203,11 +204,14 @@ function TransferAmountBanner({
 }
 
 export const PrizePayoutDetailPage = () => {
-    const { id } = useParams<{ id: string }>();
-    const navigate = useNavigate();
-    const location = useLocation();
-    const returnNav = location.state as { returnTo?: string; returnLabel?: string } | null;
-    const fromSupportTicketId = new URLSearchParams(location.search || '').get('fromSupportTicketId');
+    const { id } = useRouteParams();
+    const router = useAdminRouter();
+    const pathname = usePathname() ?? '';
+    const searchParams = useSearchParams();
+    const returnTo = searchParams?.get("returnTo") ?? undefined;
+    const returnLabel = searchParams?.get("returnLabel") ?? undefined;
+    const returnNav = { returnTo, returnLabel };
+    const fromSupportTicketId = searchParams?.get("fromSupportTicketId");
     const complaintBackPath = fromSupportTicketId
         ? `/${prefixAdmin}/support-tickets/detail/${fromSupportTicketId}`
         : null;
@@ -250,8 +254,16 @@ export const PrizePayoutDetailPage = () => {
 
     if (isLoading) {
         return (
-            <Box sx={{ py: 8, textAlign: 'center' }}>
-                <CircularProgress size={32} />
+            <Box sx={{ width: '100%' }}>
+                <PageHeader
+                    title={`Yêu cầu trả thưởng #${requestId}`}
+                    breadcrumbItems={[
+                        { label: 'Bảng điều khiển', to: `/${prefixAdmin}` },
+                        { label: 'Trả thưởng', to: `/${prefixAdmin}/prize-payouts/list` },
+                        { label: `#${requestId}` },
+                    ]}
+                />
+                <SpinnerLoading />
             </Box>
         );
     }
@@ -262,7 +274,7 @@ export const PrizePayoutDetailPage = () => {
                 <Typography color="text.secondary" sx={{ mb: 2 }}>
                     Không tìm thấy yêu cầu trả thưởng
                 </Typography>
-                <Button variant="outlined" onClick={() => navigate(backPath)}>
+                <Button variant="outlined" onClick={() => router.push(backPath)}>
                     {backLabel === 'Quay lại' ? 'Quay lại danh sách' : backLabel}
                 </Button>
             </Box>
@@ -307,30 +319,15 @@ export const PrizePayoutDetailPage = () => {
             className="w-full mx-auto font-['Public_Sans',sans-serif]"
         >
             {/* Header Section */}
-            <Box
-                sx={{
-                    mb: 3,
-                    display: 'flex',
-                    alignItems: 'flex-start',
-                    justifyContent: 'space-between',
-                    gap: 2,
-                    flexWrap: 'wrap',
-                }}
-            >
-                <Box>
-                    <Stack direction="row" alignItems="center" spacing={1.5} sx={{ mb: 0.5 }}>
-                        <Title title={`Yêu cầu trả thưởng ${detail.requestCode}`} />
-                        <PrizePayoutStatusBadge status={detail.status} />
-                    </Stack>
-                    <Breadcrumb
-                        items={[
-                            { label: 'Bảng điều khiển', to: `/${prefixAdmin}` },
-                            { label: 'Trả thưởng', to: `/${prefixAdmin}/prize-payouts/list` },
-                            { label: detail.requestCode },
-                        ]}
-                    />
-                </Box>
-
+            <PageHeader
+                title={`Yêu cầu trả thưởng ${detail.requestCode}`}
+                breadcrumbItems={[
+                    { label: 'Bảng điều khiển', to: `/${prefixAdmin}` },
+                    { label: 'Trả thưởng', to: `/${prefixAdmin}/prize-payouts/list` },
+                    { label: detail.requestCode },
+                ]}
+                titleExtra={<PrizePayoutStatusBadge status={detail.status} />}
+                action={
                 <Stack direction="row" spacing={1.5} alignItems="center" flexWrap="wrap" useFlexGap>
                     <CanAccess permission={PERMISSIONS.PRIZE_PAYOUT.PROCESS}>
                         {isPending && detail.requiresFourEyes && (
@@ -379,7 +376,7 @@ export const PrizePayoutDetailPage = () => {
                     </CanAccess>
                     <Button
                         variant="outlined"
-                        onClick={() => navigate(backPath)}
+                        onClick={() => router.push(backPath)}
                         startIcon={<Icon icon="eva:arrow-back-fill" />}
                         sx={{
                             ...headerButtonSx,
@@ -390,7 +387,8 @@ export const PrizePayoutDetailPage = () => {
                         {backLabel}
                     </Button>
                 </Stack>
-            </Box>
+                }
+            />
 
             {/* 2-Column Main Layout Grid */}
             <Grid container spacing={2.5}>

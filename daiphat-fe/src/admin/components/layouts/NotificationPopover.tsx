@@ -1,5 +1,6 @@
 "use client";
 
+import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
 import { useState } from "react";
 import { motion } from "framer-motion";
 import {
@@ -19,12 +20,13 @@ import {
     Tab,
     Tooltip
 } from "@mui/material";
-import { Icon } from "@iconify/react";
+import { Icon } from '@/admin/components/ui/AdminIcon';
 import {
     useNotifications,
     useMarkAsRead,
     useMarkAllAsRead,
 } from "../../features/notifications/hooks/useNotification";
+import { useAdminBadgeCounts } from "../../context/AdminBadgeCountsProvider";
 import { ROUTES } from "../../constants/routes";
 import {
     getAdminNotificationAccentColor,
@@ -36,17 +38,19 @@ import { toast } from "react-toastify";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
 import 'dayjs/locale/vi';
-import { useNavigate } from "react-router-dom";
 
 dayjs.extend(relativeTime);
 dayjs.locale('vi');
 
 export const NotificationPopover = ({ onMouseEnter, onMouseLeave, isHovered, layoutId }: any) => {
-    const navigate = useNavigate();
+    const router = useAdminRouter();
     const [isOpen, setIsOpen] = useState(false);
     const [tab, setTab] = useState("all");
 
-    const { data: res } = useNotifications();
+    const { counts } = useAdminBadgeCounts();
+    const unreadBadgeCount = counts.notificationUnread ?? 0;
+
+    const { data: res } = useNotifications({ enabled: isOpen });
     const { mutate: markAsRead } = useMarkAsRead();
     const { mutate: markAllAsRead } = useMarkAllAsRead();
 
@@ -70,12 +74,12 @@ export const NotificationPopover = ({ onMouseEnter, onMouseLeave, isHovered, lay
         }
         const path = getAdminNotificationPath(item);
         if (path) {
-            navigate(path);
+            router.push(path);
             handleClose();
             return;
         }
         if (item.link) {
-            navigate(item.link);
+            router.push(item.link);
             handleClose();
         }
     };
@@ -107,7 +111,7 @@ export const NotificationPopover = ({ onMouseEnter, onMouseLeave, isHovered, lay
                             transition: 'all 0.15s ease-in-out',
                         }}
                     >
-                        <Badge badgeContent={unreadNotifications.length} color="error">
+                        <Badge badgeContent={unreadBadgeCount} color="error">
                             <Icon icon="solar:bell-bing-bold-duotone" width={24} />
                         </Badge>
                     </IconButton>
@@ -405,7 +409,7 @@ export const NotificationPopover = ({ onMouseEnter, onMouseLeave, isHovered, lay
                         size="large"
                         color="inherit"
                         onClick={() => {
-                            navigate(ROUTES.ADMIN.NOTIFICATIONS);
+                            router.push(ROUTES.ADMIN.NOTIFICATIONS);
                             handleClose();
                         }}
                         sx={{

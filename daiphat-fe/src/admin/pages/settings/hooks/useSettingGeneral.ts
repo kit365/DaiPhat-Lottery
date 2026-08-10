@@ -29,6 +29,7 @@ export const useUpdateSettingGeneral = () => {
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: SYSTEM_CONFIG_KEYS.all });
             queryClient.invalidateQueries({ queryKey: ["public-system-config"] });
+            queryClient.invalidateQueries({ queryKey: ["public-system-config-batch"] });
             toast.success("Cập nhật cài đặt thành công!");
         },
         onError: (error: unknown) => {

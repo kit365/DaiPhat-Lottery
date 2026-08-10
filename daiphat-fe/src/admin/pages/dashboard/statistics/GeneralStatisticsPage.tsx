@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from 'react';
-import { useTranslation } from 'react-i18next';
 import { Box, Typography, Stack, IconButton, Skeleton } from '@mui/material';
 import dynamic from 'next/dynamic';
 const Chart = dynamic(() => import('react-apexcharts'), { ssr: false });
@@ -9,10 +8,9 @@ import RefreshIcon from '@mui/icons-material/Refresh';
 import { getEcommerceStats } from '../../../api/dashboard.api';
 import DashboardCard from '../../../components/dashboard/DashboardCard';
 import SummaryWidget from '../../../components/dashboard/SummaryWidget';
-import { Icon } from '@iconify/react';
+import { Icon } from '@/admin/components/ui/AdminIcon';
 
 export const GeneralStatisticsPage = () => {
-    const { t } = useTranslation();
     const [loading, setLoading] = useState(true);
     const [data, setData] = useState<any>(null);
 
@@ -64,8 +62,8 @@ export const GeneralStatisticsPage = () => {
         <Box p={3}>
             <Stack direction="row" justifyContent="space-between" alignItems="center" mb={4}>
                 <Box>
-                    <Typography variant="h4" sx={{ fontWeight: 700, mb: 1 }}>{t('admin.dashboard.statistics.general_title', 'Thống kê Doanh thu thuần')}</Typography>
-                    <Typography variant="body2" sx={{ color: 'text.secondary' }}>{t('admin.dashboard.statistics.general_desc', 'Báo cáo lợi nhuận thực tế từ tất cả nguồn thu (Vé số, Dịch vụ).')}</Typography>
+                    <Typography variant="h4" sx={{ fontWeight: 700, mb: 1 }}>Thống kê Doanh thu thuần</Typography>
+                    <Typography variant="body2" sx={{ color: 'text.secondary' }}>Báo cáo lợi nhuận thực tế từ tất cả nguồn thu (Vé số, Dịch vụ).</Typography>
                 </Box>
                 <IconButton onClick={fetchData} sx={{ bgcolor: 'rgba(255, 48, 48, 0.08)', color: 'primary.main' }}>
                     <RefreshIcon />
@@ -76,7 +74,7 @@ export const GeneralStatisticsPage = () => {
                 {/* Summary Widgets with History Hover */}
                 <Box sx={{ gridColumn: { xs: 'span 12', sm: 'span 6', md: 'span 4' } }}>
                     <SummaryWidget
-                        title={t('admin.dashboard.statistics.monthly_revenue', 'Doanh thu tháng này')}
+                        title="Doanh thu tháng này"
                         total={(summary?.monthlyRevenue || 0).toLocaleString() + 'đ'}
                         percent={summary?.revenueMonthPercent || 0}
                         chartData={yearlyRevenueChart?.total || []}
@@ -85,7 +83,7 @@ export const GeneralStatisticsPage = () => {
                 </Box>
                 <Box sx={{ gridColumn: { xs: 'span 12', sm: 'span 6', md: 'span 4' } }}>
                     <SummaryWidget
-                        title={t('admin.dashboard.statistics.ticket_revenue', 'Doanh thu Vé số')}
+                        title="Doanh thu Vé số"
                         total={(summary?.shopRevenue || 0).toLocaleString() + 'đ'}
                         percent={5.2}
                         color="#FF3030"
@@ -94,7 +92,7 @@ export const GeneralStatisticsPage = () => {
                 </Box>
                 <Box sx={{ gridColumn: { xs: 'span 12', sm: 'span 6', md: 'span 4' } }}>
                     <SummaryWidget
-                        title={t('admin.dashboard.statistics.service_revenue', 'Doanh thu Dịch vụ')}
+                        title="Doanh thu Dịch vụ"
                         total={(summary?.ticketServiceRevenue || 0).toLocaleString() + 'đ'}
                         percent={2.1}
                         color="#FFAB00"
@@ -105,12 +103,12 @@ export const GeneralStatisticsPage = () => {
                 {/* Hàng 2: Xu hướng doanh thu tổng thể (Full width) */}
                 <Box sx={{ gridColumn: 'span 12' }}>
                     <DashboardCard sx={{ p: 3 }}>
-                        <Typography variant="h6" sx={{ mb: 3, fontWeight: 600 }}>{t('admin.dashboard.statistics.monthly_trend', 'Xu hướng Doanh thu hàng tháng')}</Typography>
+                        <Typography variant="h6" sx={{ mb: 3, fontWeight: 600 }}>Xu hướng Doanh thu hàng tháng</Typography>
                         <Chart
                             options={chartOptions}
                             series={[
-                                { name: t('admin.dashboard.statistics.ticket', 'Vé số'), data: yearlyRevenueChart?.shop || [] },
-                                { name: t('admin.dashboard.statistics.service', 'Dịch vụ'), data: yearlyRevenueChart?.ticketService || [] },
+                                { name: 'Vé số', data: yearlyRevenueChart?.shop || [] },
+                                { name: 'Dịch vụ', data: yearlyRevenueChart?.ticketService || [] },
                             ]}
                             type="area"
                             height={400}
@@ -126,8 +124,8 @@ export const GeneralStatisticsPage = () => {
                             <Icon icon="solar:chart-2-bold-duotone" width={24} />
                         </Box>
                         <Box>
-                            <Typography variant="h6" sx={{ fontWeight: 700 }}>{t('admin.dashboard.statistics.accumulated_revenue', 'Tổng doanh thu tích lũy')}</Typography>
-                            <Typography variant="body2" sx={{ color: 'text.secondary' }}>{t('admin.dashboard.statistics.accumulated_desc', 'Cơ cấu doanh thu trọn đời từ tất cả các nguồn (Vé số, Dịch vụ).')}</Typography>
+                            <Typography variant="h6" sx={{ fontWeight: 700 }}>Tổng doanh thu tích lũy</Typography>
+                            <Typography variant="body2" sx={{ color: 'text.secondary' }}>Cơ cấu doanh thu trọn đời từ tất cả các nguồn (Vé số, Dịch vụ).</Typography>
                         </Box>
                     </Stack>
 
@@ -137,15 +135,15 @@ export const GeneralStatisticsPage = () => {
                                 <Box sx={{ position: 'absolute', right: -20, top: -20, opacity: 0.1 }}>
                                     <Icon icon="solar:banknote-bold-duotone" width={160} />
                                 </Box>
-                                <Typography variant="subtitle2" sx={{ opacity: 0.72, mb: 1, fontWeight: 700, textTransform: 'uppercase' }}>{t('admin.dashboard.statistics.all_time_total', 'Tổng doanh thu (All-time)')}</Typography>
+                                <Typography variant="subtitle2" sx={{ opacity: 0.72, mb: 1, fontWeight: 700, textTransform: 'uppercase' }}>Tổng doanh thu (All-time)</Typography>
                                 <Typography variant="h2" sx={{ fontWeight: 800 }}>{(summary?.allTimeRevenue?.total || 0).toLocaleString()}đ</Typography>
-                                <Typography variant="body2" sx={{ mt: 2, opacity: 0.8 }}>{t('admin.dashboard.statistics.all_time_desc', 'Dữ liệu được tổng hợp từ ngày bắt đầu vận hành hệ thống.')}</Typography>
+                                <Typography variant="body2" sx={{ mt: 2, opacity: 0.8 }}>Dữ liệu được tổng hợp từ ngày bắt đầu vận hành hệ thống.</Typography>
                             </Box>
 
                              <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 3 }}>
                                 {[
-                                    { label: t('admin.dashboard.statistics.ticket', 'Vé số'), value: summary?.allTimeRevenue?.shop || 0, color: '#FF3030', icon: 'solar:ticket-bold-duotone' },
-                                    { label: t('admin.dashboard.statistics.service', 'Dịch vụ'), value: summary?.allTimeRevenue?.ticketService || 0, color: '#FFAB00', icon: 'solar:tea-cup-bold-duotone' },
+                                    { label: 'Vé số', value: summary?.allTimeRevenue?.shop || 0, color: '#FF3030', icon: 'solar:ticket-bold-duotone' },
+                                    { label: 'Dịch vụ', value: summary?.allTimeRevenue?.ticketService || 0, color: '#FFAB00', icon: 'solar:tea-cup-bold-duotone' },
                                 ].map((item) => (
                                     <Box key={item.label} sx={{ p: 2, borderRadius: 2, bgcolor: 'var(--palette-background-neutral)', border: '1px solid var(--palette-divider)' }}>
                                         <Stack direction="row" spacing={1} alignItems="center" mb={1}>
@@ -162,7 +160,7 @@ export const GeneralStatisticsPage = () => {
                         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                             <Chart
                                 options={{
-                                    labels: [t('admin.dashboard.statistics.ticket', 'Vé số'), t('admin.dashboard.statistics.service', 'Dịch vụ')],
+                                    labels: ['Vé số', 'Dịch vụ'],
                                     colors: ['#FF3030', '#FFAB00'],
                                     stroke: { width: 0 },
                                     legend: { position: 'bottom', fontWeight: 600 },

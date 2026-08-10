@@ -9,6 +9,7 @@ import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.List;
 import java.util.Optional;
 
 @Repository
@@ -17,6 +18,9 @@ public interface StreetAgentProfileRepository extends JpaRepository<StreetAgentP
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select p from StreetAgentProfileEntity p where p.id = :id and p.deletedAt is null")
     Optional<StreetAgentProfileEntity> findByIdForUpdate(@Param("id") Long id);
+    @Query("select p.id from StreetAgentProfileEntity p where p.deletedAt is null")
+    List<Long> findAllActiveIds();
+
     boolean existsByPhoneAndDeletedAtIsNull(String phone);
     boolean existsByCccdAndDeletedAtIsNull(String cccd);
     boolean existsByPhoneAndIdNotAndDeletedAtIsNull(String phone, Long id);

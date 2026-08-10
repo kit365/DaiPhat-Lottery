@@ -13,7 +13,11 @@ CREATE TABLE IF NOT EXISTS street_agent_profiles (
     contract_document_url       VARCHAR(500),
     contract_start_date         DATE,
     contract_end_date           DATE,
-    daily_ticket_cap            INTEGER,
+    contract_max_daily_cap      INTEGER,
+    approved_daily_cap          INTEGER,
+    daily_cap_adjustment_reason VARCHAR(500),
+    daily_cap_adjusted_by       UUID REFERENCES users(id),
+    daily_cap_adjusted_at       TIMESTAMP,
     confidence_score            NUMERIC(5, 2) NOT NULL DEFAULT 25,
     confidence_tier             VARCHAR(20) NOT NULL DEFAULT 'NEW',
     confidence_calculated_at    TIMESTAMP,
@@ -28,8 +32,11 @@ CREATE TABLE IF NOT EXISTS street_agent_profiles (
 
     CONSTRAINT uq_street_agent_profiles_phone UNIQUE (phone),
     CONSTRAINT uq_street_agent_profiles_cccd UNIQUE (cccd),
-    CONSTRAINT ck_street_agent_profiles_daily_ticket_cap
-        CHECK (daily_ticket_cap IS NULL OR daily_ticket_cap > 0)
+    CONSTRAINT ck_street_agent_profiles_daily_caps CHECK (
+        (contract_max_daily_cap IS NULL AND approved_daily_cap IS NULL)
+        OR (contract_max_daily_cap > 0 AND approved_daily_cap > 0
+            AND approved_daily_cap <= contract_max_daily_cap)
+    )
 );
 
 CREATE INDEX IF NOT EXISTS idx_street_agent_profiles_status ON street_agent_profiles(status);
