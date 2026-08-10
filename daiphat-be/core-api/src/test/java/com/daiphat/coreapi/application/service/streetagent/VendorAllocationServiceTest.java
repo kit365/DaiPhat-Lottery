@@ -3,6 +3,7 @@ package com.daiphat.coreapi.application.service.streetagent;
 import com.daiphat.coreapi.application.dto.request.streetagent.CreateVendorAllocationDraftRequest;
 import com.daiphat.coreapi.application.dto.request.streetagent.ConfirmVendorAllocationRequest;
 import com.daiphat.coreapi.application.dto.request.streetagent.ReturnVendorAllocationSerialsRequest;
+import com.daiphat.coreapi.application.port.in.streetagent.VendorSettlementProjectionServicePort;
 import com.daiphat.coreapi.application.port.out.settings.SystemConfigRepositoryPort;
 import com.daiphat.coreapi.application.port.out.streetagent.StreetAgentProfileRepositoryPort;
 import com.daiphat.coreapi.application.port.out.streetagent.VendorAllocationRepositoryPort;
@@ -40,6 +41,7 @@ class VendorAllocationServiceTest {
     private VendorAllocationRepositoryPort allocationRepositoryPort;
     private StreetAgentProfileRepositoryPort profileRepositoryPort;
     private SystemConfigRepositoryPort systemConfigRepositoryPort;
+    private VendorSettlementProjectionServicePort projectionServicePort;
     private VendorAllocationService service;
 
     @BeforeEach
@@ -47,12 +49,24 @@ class VendorAllocationServiceTest {
         allocationRepositoryPort = mock(VendorAllocationRepositoryPort.class);
         profileRepositoryPort = mock(StreetAgentProfileRepositoryPort.class);
         when(profileRepositoryPort.findById(7L)).thenReturn(Optional.of(eligibleProfile()));
+        when(profileRepositoryPort.findByIdForUpdate(7L)).thenReturn(Optional.of(eligibleProfile()));
         systemConfigRepositoryPort = mock(SystemConfigRepositoryPort.class);
+        projectionServicePort = mock(VendorSettlementProjectionServicePort.class);
+        when(projectionServicePort.projectOnSettle(any(), any(), any(), any()))
+                .thenReturn(new VendorSettlementProjectionServicePort.ProjectionLinks(1L, 2L));
         when(systemConfigRepositoryPort.findActiveByConfigKey(anyString())).thenAnswer(invocation -> {
             SystemConfigEnum config = SystemConfigEnum.valueOf(invocation.getArgument(0));
             return Optional.of(SystemConfigModel.builder().configKey(config.name()).configValue(config.getDefaultValue()).build());
         });
-        service = new VendorAllocationService(allocationRepositoryPort, profileRepositoryPort, systemConfigRepositoryPort);
+        service = new VendorAllocationService(
+                allocationRepositoryPort, profileRepositoryPort, systemConfigRepositoryPort, projectionServicePort);
+    }
+
+    private VendorAllocationService newService(
+            VendorAllocationRepositoryPort allocations,
+            StreetAgentProfileRepositoryPort profiles,
+            SystemConfigRepositoryPort configs) {
+        return new VendorAllocationService(allocations, profiles, configs, projectionServicePort);
     }
 
     @Test
@@ -60,7 +74,7 @@ class VendorAllocationServiceTest {
         StreetAgentProfileRepositoryPort profileRepositoryPort = mock(StreetAgentProfileRepositoryPort.class);
         when(profileRepositoryPort.findById(7L)).thenReturn(Optional.of(
                 eligibleProfileBuilder().status(StreetAgentProfileStatus.INACTIVE).build()));
-        service = new VendorAllocationService(allocationRepositoryPort, profileRepositoryPort, mock(SystemConfigRepositoryPort.class));
+        service = newService(allocationRepositoryPort, profileRepositoryPort, mock(SystemConfigRepositoryPort.class));
 
         assertThatThrownBy(() -> service.getSuggestion(7L, businessDate))
                 .isInstanceOf(DomainException.class)
@@ -74,7 +88,9 @@ class VendorAllocationServiceTest {
         StreetAgentProfileRepositoryPort profileRepositoryPort = mock(StreetAgentProfileRepositoryPort.class);
         when(profileRepositoryPort.findById(7L)).thenReturn(Optional.of(
                 eligibleProfileBuilder().dailyTicketCap(null).build()));
-        service = new VendorAllocationService(allocationRepositoryPort, profileRepositoryPort, mock(SystemConfigRepositoryPort.class));
+        when(profileRepositoryPort.findByIdForUpdate(7L)).thenReturn(Optional.of(
+                eligibleProfileBuilder().dailyTicketCap(null).build()));
+        service = newService(allocationRepositoryPort, profileRepositoryPort, mock(SystemConfigRepositoryPort.class));
 
         assertThatThrownBy(() -> service.createDraft(request(101L)))
                 .isInstanceOf(DomainException.class)
@@ -88,8 +104,10 @@ class VendorAllocationServiceTest {
         StreetAgentProfileRepositoryPort profileRepositoryPort = mock(StreetAgentProfileRepositoryPort.class);
         when(profileRepositoryPort.findById(7L)).thenReturn(Optional.of(
                 eligibleProfileBuilder().depositBalance(new BigDecimal("50000")).build()));
+        when(profileRepositoryPort.findByIdForUpdate(7L)).thenReturn(Optional.of(
+                eligibleProfileBuilder().depositBalance(new BigDecimal("50000")).build()));
         when(allocationRepositoryPort.existsOpenBatchByProfileId(eq(7L), anyCollection())).thenReturn(false);
-        service = new VendorAllocationService(allocationRepositoryPort, profileRepositoryPort, mock(SystemConfigRepositoryPort.class));
+        service = newService(allocationRepositoryPort, profileRepositoryPort, mock(SystemConfigRepositoryPort.class));
 
         assertThatThrownBy(() -> service.createDraft(request(101L)))
                 .isInstanceOf(DomainException.class)
@@ -141,7 +159,7 @@ class VendorAllocationServiceTest {
                         .contractStartDate(businessDate.minusYears(2))
                         .contractEndDate(businessDate.minusYears(1))
                         .build()));
-        service = new VendorAllocationService(allocationRepositoryPort, profileRepositoryPort, mock(SystemConfigRepositoryPort.class));
+        service = newService(allocationRepositoryPort, profileRepositoryPort, mock(SystemConfigRepositoryPort.class));
 
         assertThatThrownBy(() -> service.getCandidates(7L, businessDate))
                 .isInstanceOf(DomainException.class)
@@ -195,11 +213,12 @@ class VendorAllocationServiceTest {
     @Test
     void createDraft_rejects_serial_past_draw_time() {
         LocalDate today = DrawScheduleUtils.today();
-        when(profileRepositoryPort.findById(7L)).thenReturn(Optional.of(
-                eligibleProfileBuilder()
-                        .contractStartDate(today.minusDays(1))
-                        .contractEndDate(today.plusDays(1))
-                        .build()));
+        StreetAgentProfileModel profile = eligibleProfileBuilder()
+                .contractStartDate(today.minusDays(1))
+                .contractEndDate(today.plusDays(1))
+                .build();
+        when(profileRepositoryPort.findById(7L)).thenReturn(Optional.of(profile));
+        when(profileRepositoryPort.findByIdForUpdate(7L)).thenReturn(Optional.of(profile));
         when(allocationRepositoryPort.existsOpenBatchByProfileId(eq(7L), anyCollection())).thenReturn(false);
         when(allocationRepositoryPort.sumAllocatedForDay(eq(7L), eq(today), anyCollection())).thenReturn(0L);
         when(allocationRepositoryPort.lockCandidates(anyCollection())).thenReturn(List.of(
@@ -334,6 +353,18 @@ class VendorAllocationServiceTest {
     }
 
     @Test
+    void confirmation_quote_derives_vendor_price_from_commission_rate() {
+        VendorAllocationBatchModel batch = draftBatch(99L);
+        when(allocationRepositoryPort.findById(99L)).thenReturn(Optional.of(batch));
+
+        var quote = service.getConfirmationQuote(99L);
+
+        assertThat(quote.vendorUnitPrice()).isEqualByComparingTo("9000");
+        assertThat(quote.depositRate()).isEqualByComparingTo("0.10");
+        assertThat(quote.depositRequiredAmount()).isEqualByComparingTo("900");
+    }
+
+    @Test
     void confirm_records_actual_deposit_and_updates_profile_balance_once() {
         VendorAllocationBatchModel batch = draftBatch(99L);
         when(allocationRepositoryPort.findByIdForUpdate(99L)).thenReturn(Optional.of(batch));
@@ -371,7 +402,7 @@ class VendorAllocationServiceTest {
     }
 
     @Test
-    void return_session_and_scan_returned_serial_to_stock() {
+    void return_session_and_scan_stages_return_for_inspection() {
         VendorAllocationBatchModel batch = draftBatch(99L);
         batch.confirmHandover(java.time.LocalDateTime.now(), BigDecimal.valueOf(9000), new BigDecimal("0.10"),
                 VendorLateReturnPolicy.FORFEIT_DEPOSIT, java.time.LocalTime.of(15, 0), BigDecimal.valueOf(900), BigDecimal.ZERO, UUID.randomUUID());
@@ -383,13 +414,14 @@ class VendorAllocationServiceTest {
         var response = service.recordReturns(99L, new ReturnVendorAllocationSerialsRequest(List.of(101L)));
 
         assertThat(response.status()).isEqualTo(AllocationBatchStatus.RETURN_OPEN.name());
-        assertThat(response.returnedQuantity()).isOne();
+        // Counting as returned starts only after staff confirms the physical inspection.
+        assertThat(response.returnedQuantity()).isZero();
         assertThat(response.serials()).singleElement().extracting(
                 serial -> serial.allocationStatus(),
                 serial -> serial.ticketStatus(),
                 serial -> serial.returnedAt())
-                .containsExactly("RETURNED", "IN_STOCK", batch.getSerials().getFirst().getReturnedAt());
-        assertThat(batch.getSerials().getFirst().getTicketStatus()).isEqualTo(LotteryTicketSerialStatus.IN_STOCK);
+                .containsExactly("RETURN_PENDING_INSPECTION", "WITH_STREET_AGENT", null);
+        assertThat(batch.getSerials().getFirst().getTicketStatus()).isEqualTo(LotteryTicketSerialStatus.WITH_STREET_AGENT);
     }
 
     @Test
@@ -418,7 +450,9 @@ class VendorAllocationServiceTest {
         when(profileRepositoryPort.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
         when(allocationRepositoryPort.sumAllocatedForDay(eq(7L), eq(businessDate), anyCollection())).thenReturn(0L);
 
-        var response = service.settle(99L, operatorId);
+        var response = service.settle(99L,
+                new com.daiphat.coreapi.application.dto.request.streetagent.SettleVendorAllocationRequest(
+                        BigDecimal.ZERO, new BigDecimal("90000")), operatorId);
 
         assertThat(response.status()).isEqualTo(AllocationBatchStatus.SETTLED.name());
         assertThat(response.depositBalanceAfter()).isEqualByComparingTo("0");

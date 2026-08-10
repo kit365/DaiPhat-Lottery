@@ -10,11 +10,12 @@ const streetAgentProfileBaseSchema = z.object({
     imageUrl: z.string().optional().nullable(),
     contactAddress: z.string().max(255, "Địa chỉ không vượt quá 255 ký tự").optional(),
     contactProvince: z.string().max(100, "Tỉnh/thành không vượt quá 100 ký tự").optional(),
+    contactWard: z.string().max(100, "Phường/xã không vượt quá 100 ký tự").optional(),
     coverageAreaCodes: z.array(z.string()).optional().default([]),
-    commissionRate: z.coerce.number().min(0, "Tỷ lệ hoa hồng phải từ 0 trở lên").max(1, "Tỷ lệ hoa hồng không vượt quá 100%").optional().nullable(),
     contractStartDate: z.string().optional().nullable(),
     contractEndDate: z.string().optional().nullable(),
-    dailyTicketCap: z.coerce.number().min(1, "Hạn mức ngày phải lớn hơn 0").optional().nullable(),
+    contractMaxDailyCap: z.coerce.number().int().min(1, "Trần hạn mức hợp đồng phải lớn hơn 0").optional().nullable(),
+    approvedDailyCap: z.coerce.number().int().min(1, "Hạn mức vận hành phải lớn hơn 0").optional().nullable(),
 });
 
 const contractDateRefinement = (data: { contractStartDate?: string | null; contractEndDate?: string | null }) => {
@@ -38,11 +39,26 @@ export const createStreetAgentProfileSchema = streetAgentProfileBaseSchema
                 path: ["contractEndDate"],
             });
         }
-        if (data.dailyTicketCap == null) {
+        if (data.contractMaxDailyCap == null) {
             ctx.addIssue({
                 code: z.ZodIssueCode.custom,
-                message: "Vui lòng nhập hạn mức vé/ngày",
-                path: ["dailyTicketCap"],
+                message: "Vui lòng nhập trần hạn mức trong hợp đồng",
+                path: ["contractMaxDailyCap"],
+            });
+        }
+        if (data.approvedDailyCap == null) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: "Vui lòng nhập hạn mức vận hành ban đầu",
+                path: ["approvedDailyCap"],
+            });
+        }
+        if (data.contractMaxDailyCap != null && data.approvedDailyCap != null
+            && data.approvedDailyCap > data.contractMaxDailyCap) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: "Hạn mức vận hành không được vượt trần trong hợp đồng",
+                path: ["approvedDailyCap"],
             });
         }
     })
@@ -51,10 +67,21 @@ export const createStreetAgentProfileSchema = streetAgentProfileBaseSchema
         path: ["contractEndDate"],
     });
 
-export const updateStreetAgentProfileSchema = streetAgentProfileBaseSchema.refine(contractDateRefinement, {
-    message: "Ngày kết thúc hợp đồng phải sau ngày bắt đầu",
-    path: ["contractEndDate"],
-});
+export const updateStreetAgentProfileSchema = streetAgentProfileBaseSchema
+    .refine(contractDateRefinement, {
+        message: "Ngày kết thúc hợp đồng phải sau ngày bắt đầu",
+        path: ["contractEndDate"],
+    })
+    .superRefine((data, ctx) => {
+        if (data.contractMaxDailyCap != null && data.approvedDailyCap != null
+            && data.approvedDailyCap > data.contractMaxDailyCap) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: "Hạn mức vận hành không được vượt trần trong hợp đồng",
+                path: ["approvedDailyCap"],
+            });
+        }
+    });
 
 export const adjustDepositSchema = z.object({
     depositBalance: z.coerce.number().min(0, "Số dư ký quỹ phải từ 0 trở lên"),

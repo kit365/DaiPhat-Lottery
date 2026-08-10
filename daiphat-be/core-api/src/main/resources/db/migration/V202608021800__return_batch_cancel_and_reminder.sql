@@ -1,8 +1,4 @@
--- Return batch cutoff cancel support + urgent reminder config.
-ALTER TABLE return_batches
-    ADD COLUMN IF NOT EXISTS cancel_reason TEXT,
-    ADD COLUMN IF NOT EXISTS cancelled_at TIMESTAMP;
-
+-- Return batch cancel fields are part of the return_batches CREATE TABLE.
 INSERT INTO system_config (
     config_key,
     config_value,

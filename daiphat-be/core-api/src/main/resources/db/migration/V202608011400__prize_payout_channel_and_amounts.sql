@@ -1,34 +1,3 @@
--- Prize payout: channel, tax/commission/net, payment method; bank nullable for cash IN_PERSON.
-ALTER TABLE prize_payout_requests
-    ADD COLUMN IF NOT EXISTS channel VARCHAR(30),
-    ADD COLUMN IF NOT EXISTS tax_amount NUMERIC(15, 2),
-    ADD COLUMN IF NOT EXISTS commission_amount NUMERIC(15, 2),
-    ADD COLUMN IF NOT EXISTS net_amount NUMERIC(15, 2),
-    ADD COLUMN IF NOT EXISTS payment_method VARCHAR(30);
-
-UPDATE prize_payout_requests
-SET channel = COALESCE(channel, 'ONLINE'),
-    tax_amount = COALESCE(tax_amount, 0),
-    commission_amount = COALESCE(commission_amount, 0),
-    net_amount = COALESCE(net_amount, gross_amount),
-    payment_method = COALESCE(payment_method, 'TRANSFER')
-WHERE channel IS NULL
-   OR tax_amount IS NULL
-   OR commission_amount IS NULL
-   OR net_amount IS NULL;
-
-ALTER TABLE prize_payout_requests
-    ALTER COLUMN channel SET NOT NULL,
-    ALTER COLUMN tax_amount SET NOT NULL,
-    ALTER COLUMN commission_amount SET NOT NULL,
-    ALTER COLUMN net_amount SET NOT NULL;
-
-ALTER TABLE prize_payout_requests
-    ALTER COLUMN bank_account_id DROP NOT NULL;
-
-CREATE INDEX IF NOT EXISTS idx_prize_payout_requests_channel
-    ON prize_payout_requests (channel);
-
 -- System config for prize payout rules (configurable, not hardcoded).
 INSERT INTO system_config (
     config_key,
@@ -152,4 +121,17 @@ SELECT
     NOW()
 WHERE NOT EXISTS (
     SELECT 1 FROM system_config WHERE config_key = 'PRIZE_PAYOUT_COMMISSION_TIERS'
+);
+
+INSERT INTO system_config (
+    config_key, config_value, config_type, data_type, description,
+    config_name, unit, validation_rules, is_editable, is_active, created_at, updated_at
+)
+SELECT
+    'MAX_PRIZE_PAYOUT_ONLINE_REJECT', '3', 'PAYOUT_SETTING', 'INT',
+    'Số lần tối đa yêu cầu trả thưởng online bị từ chối trước khi bắt buộc đổi thưởng tại đại lý',
+    'Số lần từ chối trả thưởng online tối đa', 'lần', '{"min":1,"max":20}',
+    TRUE, TRUE, NOW(), NOW()
+WHERE NOT EXISTS (
+    SELECT 1 FROM system_config WHERE config_key = 'MAX_PRIZE_PAYOUT_ONLINE_REJECT'
 );

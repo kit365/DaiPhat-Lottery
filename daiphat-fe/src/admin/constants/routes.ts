@@ -115,6 +115,7 @@ export const ROUTES = {
                 LUCKY_PATTERNS: `/${prefixAdmin}/street-agent/lucky-patterns`,
                 ALLOCATION: `/${prefixAdmin}/street-agent/allocation`,
                 ALLOCATION_BATCHES: `/${prefixAdmin}/street-agent/allocation/batches`,
+                ALLOCATION_BATCH_DETAIL: (id: number | string) => `/${prefixAdmin}/street-agent/allocation/batches/${id}`,
                 CONTRACT_PDF: (id: number | string) => `/${prefixAdmin}/street-agent/contract/${id}`,
             }
         },

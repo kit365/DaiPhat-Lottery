@@ -81,8 +81,8 @@ export const getColumnsConfig = (
         valueFormatter: (value) => formatCoverageAreaDisplay(value),
     },
     {
-        field: "dailyTicketCap",
-        headerName: "Hạn mức/ngày",
+        field: "effectiveDailyCap",
+        headerName: "Hạn mức hiện hành",
         width: 120,
         valueFormatter: (value) => value ?? "—",
     },

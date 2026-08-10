@@ -5,11 +5,14 @@ import lombok.Builder;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.UUID;
 import com.daiphat.coreapi.domain.model.enums.streetagent.VendorConfidenceTier;
 
 @Builder
 public record StreetAgentProfileResponse(
         Long id,
+        UUID userId,
+        String email,
         String firstName,
         String lastName,
         String phone,
@@ -17,18 +20,24 @@ public record StreetAgentProfileResponse(
         String imageUrl,
         String contactAddress,
         String contactProvince,
+        String contactWard,
         String coverageArea,
         BigDecimal commissionRate,
         LocalDate contractStartDate,
         LocalDate contractEndDate,
         String contractCode,
         String contractDocumentUrl,
-        Integer dailyTicketCap,
+        Integer contractMaxDailyCap,
+        Integer approvedDailyCap,
+        Integer effectiveDailyCap,
+        Integer remainingDailyCap,
         BigDecimal confidenceScore,
         VendorConfidenceTier confidenceTier,
         LocalDateTime confidenceCalculatedAt,
         BigDecimal depositBalance,
         String depositAdjustmentReason,
+        String dailyCapAdjustmentReason,
+        LocalDateTime dailyCapAdjustedAt,
         String status,
         LocalDateTime createdAt,
         LocalDateTime updatedAt,

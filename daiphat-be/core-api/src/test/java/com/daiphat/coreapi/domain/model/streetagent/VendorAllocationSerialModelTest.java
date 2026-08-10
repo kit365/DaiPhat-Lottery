@@ -93,10 +93,11 @@ class VendorAllocationSerialModelTest {
         model.reserveForDraft(LocalDateTime.now().plusMinutes(10));
         model.handOver();
         LocalDateTime returnedAt = LocalDateTime.now();
+        model.stageStreetAgentReturn();
         model.returnFromStreetAgent(returnedAt);
 
         assertThat(model.getStatus()).isEqualTo(AllocationSerialStatus.RETURNED);
-        assertThat(model.getTicketStatus()).isEqualTo(LotteryTicketSerialStatus.IN_STOCK);
+        assertThat(model.getTicketStatus()).isEqualTo(LotteryTicketSerialStatus.WITH_STREET_AGENT);
         assertThat(model.getReturnedAt()).isEqualTo(returnedAt);
         assertThat(model.getReservedExpiresAt()).isNull();
     }

@@ -27,11 +27,17 @@ public class AllocationBatchEntity extends BaseEntity {
     @Enumerated(EnumType.STRING) @Column(nullable = false, length = 30)
     @Builder.Default private AllocationBatchStatus status = AllocationBatchStatus.DRAFT;
     @Column(name = "reservation_expires_at") private LocalDateTime reservationExpiresAt;
+    @Column(name = "requested_quantity") private Integer requestedQuantity;
+    @Column(name = "reserve_count_snapshot") private Integer reserveCountSnapshot;
+    @Column(name = "reserve_percent_snapshot", precision = 6, scale = 5) private BigDecimal reservePercentSnapshot;
     @Column(name = "face_value_snapshot", precision = 18, scale = 0) private BigDecimal faceValueSnapshot;
     @Column(name = "vendor_unit_price_snapshot", precision = 18, scale = 0) private BigDecimal vendorUnitPriceSnapshot;
+    @Column(name = "commission_rate_snapshot", precision = 6, scale = 5) private BigDecimal commissionRateSnapshot;
     @Column(name = "deposit_rate_snapshot", precision = 6, scale = 5) private BigDecimal depositRateSnapshot;
     @Enumerated(EnumType.STRING) @Column(name = "late_policy_snapshot", length = 30) private VendorLateReturnPolicy latePolicySnapshot;
     @Column(name = "return_cutoff_snapshot") private LocalTime returnCutoffSnapshot;
+    @Column(name = "supplier_return_cutoff_snapshot") private LocalTime supplierReturnCutoffSnapshot;
+    @Column(name = "return_buffer_minutes_snapshot") private Integer returnBufferMinutesSnapshot;
     @Column(name = "allocated_quantity", nullable = false) @Builder.Default private Integer allocatedQuantity = 0;
     @Column(name = "returned_quantity", nullable = false) @Builder.Default private Integer returnedQuantity = 0;
     @Column(name = "sold_quantity", nullable = false) @Builder.Default private Integer soldQuantity = 0;
@@ -41,6 +47,8 @@ public class AllocationBatchEntity extends BaseEntity {
     @Column(name = "commission_payable", precision = 18, scale = 0) private BigDecimal commissionPayable;
     @Column(name = "deposit_refund_amount", precision = 18, scale = 0) private BigDecimal depositRefundAmount;
     @Column(name = "deposit_forfeited_amount", precision = 18, scale = 0) private BigDecimal depositForfeitedAmount;
+    @Column(name = "deposit_applied_amount", precision = 18, scale = 0) private BigDecimal depositAppliedAmount;
+    @Column(name = "deposit_excess_refund_amount", precision = 18, scale = 0) private BigDecimal depositExcessRefundAmount;
     @Column(name = "forced_purchase_amount", precision = 18, scale = 0) private BigDecimal forcedPurchaseAmount;
     @Column(name = "additional_amount_due", precision = 18, scale = 0) private BigDecimal additionalAmountDue;
     @Column(name = "deposit_balance_before", precision = 18, scale = 0) private BigDecimal depositBalanceBefore;

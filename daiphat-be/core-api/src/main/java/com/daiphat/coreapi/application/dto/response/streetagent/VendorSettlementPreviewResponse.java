@@ -12,6 +12,8 @@ public record VendorSettlementPreviewResponse(
         BigDecimal agencyNetSalesAmount,
         BigDecimal depositRefundAmount,
         BigDecimal depositForfeitedAmount,
+        BigDecimal depositAppliedAmount,
+        BigDecimal depositExcessRefundAmount,
         BigDecimal forcedPurchaseAmount,
         BigDecimal additionalAmountDue,
         boolean late,

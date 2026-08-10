@@ -1,6 +1,3 @@
-ALTER TABLE ticket_categories ADD COLUMN parent_id BIGINT;
-ALTER TABLE ticket_categories ADD CONSTRAINT fk_ticket_categories_parent FOREIGN KEY (parent_id) REFERENCES ticket_categories (id);
-
 -- Seed parent categories
 INSERT INTO ticket_categories (name, code, description, priority, required_ref_type, created_at, updated_at, created_by, last_modified_by)
 VALUES

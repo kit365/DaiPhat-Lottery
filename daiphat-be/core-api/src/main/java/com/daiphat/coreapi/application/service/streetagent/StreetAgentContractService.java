@@ -19,6 +19,7 @@ import org.thymeleaf.context.Context;
 import org.thymeleaf.spring6.SpringTemplateEngine;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.text.NumberFormat;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
@@ -56,7 +57,9 @@ public class StreetAgentContractService implements StreetAgentContractServicePor
                 .orElseThrow(() -> new DomainException(ErrorCode.STREET_AGENT_PROFILE_NOT_FOUND));
         requireCompleteContract(profile);
 
-        BigDecimal unitPrice = decimalConfig(SystemConfigEnum.VENDOR_DEFAULT_UNIT_PRICE);
+        BigDecimal commissionRate = decimalConfig(SystemConfigEnum.VENDOR_COMMISSION_RATE);
+        BigDecimal faceValue = BigDecimal.valueOf(10_000);
+        BigDecimal unitPrice = faceValue.multiply(BigDecimal.ONE.subtract(commissionRate)).setScale(0, RoundingMode.HALF_UP);
         BigDecimal depositRate = decimalConfig(SystemConfigEnum.VENDOR_DEPOSIT_RATE);
         VendorLateReturnPolicy lateReturnPolicy = VendorLateReturnPolicy.valueOf(
                 stringConfig(SystemConfigEnum.VENDOR_LATE_RETURN_POLICY));
@@ -77,13 +80,15 @@ public class StreetAgentContractService implements StreetAgentContractServicePor
                 profile.getCccd(),
                 dash(profile.getContactAddress()),
                 dash(profile.getContactProvince()),
+                dash(profile.getContactWard()),
                 dash(profile.getCoverageArea()),
                 profile.getContractCode().trim(),
                 LocalDate.now().format(DISPLAY_DATE),
                 profile.getContractStartDate().format(DISPLAY_DATE),
                 profile.getContractEndDate().format(DISPLAY_DATE),
-                formatNumber(profile.getDailyTicketCap()) + " vé/ngày",
-                commission(profile.getCommissionRate()),
+                formatNumber(profile.getContractMaxDailyCap() != null
+                        ? profile.getContractMaxDailyCap() : profile.getDailyTicketCap()) + " vé/ngày",
+                commission(commissionRate),
                 formatCurrency(unitPrice) + "/vé",
                 formatPercent(depositRate) + " trên tổng giá trị vendor của mỗi phiếu bàn giao",
                 "Tiền cọc = số vé xác nhận bàn giao × " + formatCurrency(unitPrice)
@@ -109,8 +114,7 @@ public class StreetAgentContractService implements StreetAgentContractServicePor
                 && !blank(profile.getContractCode())
                 && profile.getContractStartDate() != null
                 && profile.getContractEndDate() != null
-                && profile.getDailyTicketCap() != null
-                && profile.getDailyTicketCap() > 0;
+                && profile.hasValidDailyCaps();
         if (!complete) {
             throw new DomainException(ErrorCode.STREET_AGENT_CONTRACT_INCOMPLETE);
         }

@@ -13,7 +13,7 @@ import {
 } from "@mui/material";
 import { getColumnsConfig, columnsInitialState } from "../configs/column.config";
 import { DATA_GRID_LOCALE_VN } from "../../../../../shared/components/DataTable/localeText.config";
-import { useStreetAgentProfiles } from "../../hooks/useStreetAgent";
+import { useStreetAgentProfileStatusCounts, useStreetAgentProfiles } from "../../hooks/useStreetAgent";
 import { ROUTES } from "../../../../constants/routes";
 import { STATUS_OPTIONS } from "../configs/constants";
 import { Search } from "../../../../components/ui/Search";
@@ -54,6 +54,7 @@ export const StreetAgentList = () => {
     );
 
     const { data: res, isLoading } = useStreetAgentProfiles(params);
+    const { counts: statusCounts, isLoading: isLoadingStatusCounts } = useStreetAgentProfileStatusCounts();
 
     const profiles = res?.data?.recordList || [];
     const pagination = res?.data?.pagination || { totalRecords: 0 };
@@ -99,7 +100,7 @@ export const StreetAgentList = () => {
                         label={option.label}
                         icon={
                             <TabBadge sx={getTabBadgeStyles(option.value, status === option.value)}>
-                                {option.value === "all" ? pagination.totalRecords || 0 : 0}
+                                {isLoadingStatusCounts ? "—" : statusCounts[option.value as keyof typeof statusCounts]}
                             </TabBadge>
                         }
                         iconPosition="end"

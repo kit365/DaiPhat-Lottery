@@ -38,6 +38,9 @@ public record UpdateStreetAgentProfileRequest(
         @Size(max = 100, message = "Tỉnh/thành không vượt quá 100 ký tự")
         String contactProvince,
 
+        @Size(max = 100, message = "Phường/xã không vượt quá 100 ký tự")
+        String contactWard,
+
         @Size(max = 255, message = "Địa bàn bán không vượt quá 255 ký tự")
         String coverageArea,
 
@@ -51,11 +54,6 @@ public record UpdateStreetAgentProfileRequest(
         @JsonFormat(pattern = "yyyy-MM-dd")
         LocalDate contractEndDate,
 
-        @DecimalMin(value = "0", message = "Số dư ký quỹ phải từ 0 trở lên")
-        BigDecimal depositBalance,
-
-        String depositAdjustmentReason,
-
         String status,
 
         @Size(max = 100, message = "Mã hợp đồng không vượt quá 100 ký tự")
@@ -64,17 +62,59 @@ public record UpdateStreetAgentProfileRequest(
         @Size(max = 500, message = "URL hợp đồng không vượt quá 500 ký tự")
         String contractDocumentUrl,
 
-        @jakarta.validation.constraints.Min(value = 1, message = "Hạn mức ngày phải lớn hơn 0")
-        Integer dailyTicketCap
+        @jakarta.validation.constraints.Min(value = 1, message = "Trần hạn mức hợp đồng phải lớn hơn 0")
+        Integer contractMaxDailyCap
 ) {
+    /** @deprecated deposit adjustments use the audited transaction endpoint. */
+    @Deprecated public UpdateStreetAgentProfileRequest(
+            String firstName, String lastName, String phone, String cccd, String imageUrl,
+            String contactAddress, String contactProvince, String coverageArea,
+            BigDecimal commissionRate, LocalDate contractStartDate, LocalDate contractEndDate,
+            BigDecimal ignoredLegacyDepositBalance, String ignoredLegacyDepositAdjustmentReason, String status
+    ) {
+        this(firstName, lastName, phone, cccd, imageUrl, contactAddress, contactProvince, null, coverageArea,
+                commissionRate, contractStartDate, contractEndDate, ignoredLegacyDepositBalance,
+                ignoredLegacyDepositAdjustmentReason, status);
+    }
+
+    /** @deprecated deposit adjustments use the audited transaction endpoint. */
+    @Deprecated public String depositAdjustmentReason() { return null; }
+    /** @deprecated use {@link #contractMaxDailyCap()}. */
+    @Deprecated public Integer dailyTicketCap() { return contractMaxDailyCap; }
+    public UpdateStreetAgentProfileRequest(
+            String firstName, String lastName, String phone, String cccd, String imageUrl,
+            String contactAddress, String contactProvince, String contactWard, String coverageArea,
+            BigDecimal commissionRate, LocalDate contractStartDate, LocalDate contractEndDate,
+            BigDecimal ignoredLegacyDepositBalance, String ignoredLegacyDepositAdjustmentReason, String status
+    ) {
+        this(firstName, lastName, phone, cccd, imageUrl, contactAddress, contactProvince,
+                contactWard, coverageArea, commissionRate, contractStartDate, contractEndDate,
+                status, null, null, null);
+    }
+
+    /** Source compatibility for server-side callers during the API transition. */
+    @Deprecated
     public UpdateStreetAgentProfileRequest(
             String firstName, String lastName, String phone, String cccd, String imageUrl,
             String contactAddress, String contactProvince, String coverageArea,
             BigDecimal commissionRate, LocalDate contractStartDate, LocalDate contractEndDate,
-            BigDecimal depositBalance, String depositAdjustmentReason, String status
-    ) {
+            BigDecimal ignoredLegacyDepositBalance, String ignoredLegacyDepositAdjustmentReason, String status,
+            String contractCode, String contractDocumentUrl, Integer legacyDailyTicketCap) {
+        this(firstName, lastName, phone, cccd, imageUrl, contactAddress, contactProvince, null, coverageArea,
+                commissionRate, contractStartDate, contractEndDate, ignoredLegacyDepositBalance,
+                ignoredLegacyDepositAdjustmentReason, status, contractCode, contractDocumentUrl, legacyDailyTicketCap);
+    }
+
+    /** Source compatibility for server-side callers during the API transition. */
+    @Deprecated
+    public UpdateStreetAgentProfileRequest(
+            String firstName, String lastName, String phone, String cccd, String imageUrl,
+            String contactAddress, String contactProvince, String contactWard, String coverageArea,
+            BigDecimal commissionRate, LocalDate contractStartDate, LocalDate contractEndDate,
+            BigDecimal ignoredLegacyDepositBalance, String ignoredLegacyDepositAdjustmentReason, String status,
+            String contractCode, String contractDocumentUrl, Integer legacyDailyTicketCap) {
         this(firstName, lastName, phone, cccd, imageUrl, contactAddress, contactProvince,
-                coverageArea, commissionRate, contractStartDate, contractEndDate, depositBalance,
-                depositAdjustmentReason, status, null, null, null);
+                contactWard, coverageArea, commissionRate, contractStartDate, contractEndDate,
+                status, contractCode, contractDocumentUrl, legacyDailyTicketCap);
     }
 }

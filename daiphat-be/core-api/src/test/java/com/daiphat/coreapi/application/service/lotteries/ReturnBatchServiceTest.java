@@ -24,6 +24,7 @@ import com.daiphat.coreapi.domain.model.lotteries.ReturnBatchLineModel;
 import com.daiphat.coreapi.domain.model.lotteries.ReturnBatchModel;
 import com.daiphat.coreapi.domain.model.lotteries.SupplierSettlementModel;
 import com.daiphat.coreapi.shared.util.ImportBatchConfigResolver;
+import com.daiphat.coreapi.shared.util.ReturnBatchCodeGenerator;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -81,6 +82,8 @@ class ReturnBatchServiceTest {
     @Mock
     private ReturnBatchAutoCancelService returnBatchAutoCancelService;
     @Mock
+    private ReturnBatchCodeGenerator returnBatchCodeGenerator;
+    @Mock
     private Clock clock;
 
     @InjectMocks
@@ -98,6 +101,7 @@ class ReturnBatchServiceTest {
                 .build();
         when(clock.instant()).thenReturn(Instant.parse("2026-07-31T10:00:00Z"));
         when(clock.getZone()).thenReturn(ZONE);
+        when(returnBatchCodeGenerator.generateHeaderCode(any(LocalDate.class))).thenReturn("RB-TEST-001");
         when(lotterySupplierServicePort.getActiveModelById(7L)).thenReturn(supplier);
         when(supplierSettlementServicePort.findOrCreateForImport(any(), eq(DRAW_DATE)))
                 .thenReturn(SupplierSettlementModel.builder().id(50L).lotterySupplierId(7L).periodFrom(DRAW_DATE).build());

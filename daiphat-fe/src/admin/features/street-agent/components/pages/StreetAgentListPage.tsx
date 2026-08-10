@@ -18,7 +18,7 @@ export const StreetAgentListPage = () => {
                 title="Danh sách đại lý bán dạo"
                 breadcrumbItems={[
                             { label: "Dashboard", to: "/" },
-                            { label: "Quản lý tài khoản", to: ROUTES.ADMIN.ACCOUNTS.ADMIN.LIST },
+                            { label: "Quản lý đại lý", to: ROUTES.ADMIN.ACCOUNTS.ADMIN.LIST },
                             { label: "Đại lý bán dạo", to: ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.LIST },
                             { label: "Danh sách" },
                         ]}

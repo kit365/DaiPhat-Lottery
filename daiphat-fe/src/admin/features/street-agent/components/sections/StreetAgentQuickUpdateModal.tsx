@@ -149,11 +149,9 @@ export const StreetAgentQuickUpdateModal = ({ open, onClose, id }: StreetAgentQu
                     contactAddress: profile.contactAddress || undefined,
                     contactProvince: formValues.contactProvince || undefined,
                     coverageArea: serializeCoverageAreaCodes(formValues.coverageAreaCodes),
-                    commissionRate: profile.commissionRate ?? undefined,
                     contractStartDate: profile.contractStartDate || undefined,
                     contractEndDate: profile.contractEndDate || undefined,
-                    dailyTicketCap: profile.dailyTicketCap ?? undefined,
-                    depositBalance: profile.depositBalance ?? undefined,
+                    contractMaxDailyCap: profile.contractMaxDailyCap ?? undefined,
                 },
             },
             {

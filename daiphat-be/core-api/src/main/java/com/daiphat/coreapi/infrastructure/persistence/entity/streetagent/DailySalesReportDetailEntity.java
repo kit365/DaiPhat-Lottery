@@ -7,10 +7,6 @@ import lombok.experimental.SuperBuilder;
 
 import java.math.BigDecimal;
 
-/**
- * Draw.io {@code Daily_Sales_Report_Detail} skeleton.
- * {@code detailId} has no FK until reviewer confirms Allocation detail vs Product.
- */
 @Entity
 @Table(name = "daily_sales_report_details")
 @Getter
@@ -28,8 +24,9 @@ public class DailySalesReportDetailEntity extends BaseEntity {
     @JoinColumn(name = "report_id", nullable = false)
     private DailySalesReportEntity report;
 
-    @Column(name = "detail_id")
-    private Long detailId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "detail_id", nullable = false)
+    private AllocationBatchDetailEntity allocationBatchDetail;
 
     @Column(name = "allocated_quantity", nullable = false)
     @Builder.Default
