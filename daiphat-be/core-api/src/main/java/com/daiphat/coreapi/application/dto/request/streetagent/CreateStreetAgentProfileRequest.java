@@ -64,24 +64,9 @@ public record CreateStreetAgentProfileRequest(
         @Size(max = 500, message = "URL hợp đồng không vượt quá 500 ký tự")
         String contractDocumentUrl,
 
-        @jakarta.validation.constraints.Min(value = 1, message = "Trần hạn mức hợp đồng phải lớn hơn 0")
-        Integer contractMaxDailyCap,
-
-        @jakarta.validation.constraints.Min(value = 1, message = "Hạn mức vận hành phải lớn hơn 0")
-        Integer approvedDailyCap
+        @jakarta.validation.constraints.Min(value = 1, message = "Hạn mức hợp đồng phải lớn hơn 0")
+        Integer contractMaxDailyCap
 ) {
-    /** Source compatibility for callers using the pre-contactWard canonical shape. */
-    public CreateStreetAgentProfileRequest(
-            String email, String firstName, String lastName, String phone, String cccd, String imageUrl,
-            String contactAddress, String contactProvince, String coverageArea,
-            BigDecimal commissionRate, LocalDate contractStartDate, LocalDate contractEndDate,
-            String contractCode, String contractDocumentUrl, Integer contractMaxDailyCap,
-            Integer approvedDailyCap) {
-        this(email, firstName, lastName, phone, cccd, imageUrl, contactAddress, contactProvince, null,
-                coverageArea, commissionRate, contractStartDate, contractEndDate, contractCode,
-                contractDocumentUrl, contractMaxDailyCap, approvedDailyCap);
-    }
-
     public CreateStreetAgentProfileRequest(
             String firstName, String lastName, String phone, String cccd, String imageUrl,
             String contactAddress, String contactProvince, String coverageArea,
@@ -100,7 +85,7 @@ public record CreateStreetAgentProfileRequest(
     ) {
         this(null, firstName, lastName, phone, cccd, imageUrl, contactAddress, contactProvince,
                 contactWard, coverageArea, commissionRate, contractStartDate, contractEndDate,
-                (String) null, null, null, null);
+                (String) null, null, null);
     }
 
     /** Source compatibility for server-side callers during the API transition. */
@@ -110,10 +95,10 @@ public record CreateStreetAgentProfileRequest(
             String contactAddress, String contactProvince, String coverageArea,
             BigDecimal commissionRate, LocalDate contractStartDate, LocalDate contractEndDate,
             BigDecimal ignoredLegacyDepositBalance, String contractCode, String contractDocumentUrl,
-            Integer legacyDailyTicketCap) {
+            Integer legacyContractDailyCap) {
         this(null, firstName, lastName, phone, cccd, imageUrl, contactAddress, contactProvince, null,
                 coverageArea, commissionRate, contractStartDate, contractEndDate, contractCode,
-                contractDocumentUrl, legacyDailyTicketCap, legacyDailyTicketCap);
+                contractDocumentUrl, legacyContractDailyCap);
     }
 
 }

@@ -1,1 +1,0 @@
--- commission_rate belongs to the lottery_stations CREATE TABLE.

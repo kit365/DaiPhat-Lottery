@@ -189,7 +189,7 @@ export const VendorAllocationBatchDetailPage = () => {
     };
 
     const breadcrumbItems = [
-        { label: "Đại lý bán dạo", to: ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.LIST },
+        { label: "Đại lý bán dạo" },
         { label: "Phiếu bàn giao vé", to: ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.ALLOCATION_BATCHES },
         { label: `Chi tiết ${detailBatch?.batchCode || detailId}` },
     ];

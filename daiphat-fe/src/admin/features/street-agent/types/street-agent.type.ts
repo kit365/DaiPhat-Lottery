@@ -26,14 +26,10 @@ export interface StreetAgentProfile {
     contractDocumentUrl?: string;
     /** Trần ghi trong hợp đồng; chỉ đổi khi có phụ lục/hợp đồng mới. */
     contractMaxDailyCap?: number;
-    /** Hạn mức vận hành do quản lý duyệt, luôn không vượt trần hợp đồng. */
-    approvedDailyCap?: number;
-    /** Hạn mức áp dụng sau khi nhân hệ số tier tin cậy. */
+    /** Hạn mức áp dụng sau khi nhân hệ số tier tin cậy trên trần hợp đồng. */
     effectiveDailyCap?: number;
     /** Hạn mức còn lại của ngày kinh doanh đang được xem. */
     remainingDailyCap?: number;
-    dailyCapAdjustmentReason?: string;
-    dailyCapAdjustedAt?: string;
     confidenceScore?: number;
     confidenceTier?: VendorConfidenceTier;
     confidenceCalculatedAt?: string;
@@ -53,7 +49,7 @@ export interface StreetAgentQueryParams {
     status?: string;
 }
 
-/** Client-owned onboarding fields only. Commercial policy is resolved by BE. */
+/** Staff-entered contract terms; commission and other commercial policy remain system-owned. */
 export interface CreateStreetAgentProfilePayload {
     firstName: string;
     lastName: string;
@@ -66,6 +62,7 @@ export interface CreateStreetAgentProfilePayload {
     coverageArea?: string;
     contractStartDate?: string;
     contractEndDate?: string;
+    contractMaxDailyCap?: number;
 }
 
 export interface LuckyPatternConfig {
@@ -362,9 +359,4 @@ export interface ReturnVendorAllocationSerialsPayload {
 export interface SettleVendorAllocationPayload {
     cashReceivedFromVendor: number;
     cashPaidToVendor: number;
-}
-
-export interface UpdateApprovedDailyCapPayload {
-    approvedDailyCap: number;
-    reason: string;
 }

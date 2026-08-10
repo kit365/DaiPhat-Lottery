@@ -5,9 +5,6 @@ import com.daiphat.coreapi.adapter.in.web.response.ApiResponse;
 import com.daiphat.coreapi.application.dto.document.ContractPdfDocument;
 import com.daiphat.coreapi.application.dto.request.streetagent.CreateStreetAgentProfileRequest;
 import com.daiphat.coreapi.application.dto.request.streetagent.UpdateStreetAgentProfileRequest;
-import com.daiphat.coreapi.application.dto.request.streetagent.UpdateApprovedDailyCapRequest;
-import com.daiphat.coreapi.adapter.in.web.security.AuthenticatedUserPrincipal;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.response.streetagent.DailySalesReportResponse;
 import com.daiphat.coreapi.application.dto.response.streetagent.StreetAgentProfileResponse;
@@ -28,7 +25,6 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -99,16 +95,6 @@ public class StreetAgentProfileController {
             @Valid @RequestBody UpdateStreetAgentProfileRequest request) {
         StreetAgentProfileResponse response = streetAgentProfileServicePort.update(id, request);
         return ApiResponse.success("Cập nhật hồ sơ đại lý bán dạo thành công.", response);
-    }
-
-    @PatchMapping(ID_PATH + "/approved-daily-cap")
-    @PreAuthorize("hasAuthority('streetAgent:manage')")
-    public ApiResponse<StreetAgentProfileResponse> updateApprovedDailyCap(
-            @PathVariable Long id,
-            @Valid @RequestBody UpdateApprovedDailyCapRequest request,
-            @AuthenticationPrincipal AuthenticatedUserPrincipal principal) {
-        return ApiResponse.success("Đã điều chỉnh hạn mức vận hành.",
-                streetAgentProfileServicePort.updateApprovedDailyCap(id, request, principal.getId()));
     }
 
     @DeleteMapping(ID_PATH)

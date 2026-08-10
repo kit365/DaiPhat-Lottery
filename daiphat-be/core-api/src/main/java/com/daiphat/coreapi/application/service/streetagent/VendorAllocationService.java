@@ -632,8 +632,7 @@ public class VendorAllocationService implements VendorAllocationServicePort {
         int consumed = Math.toIntExact(vendorAllocationRepositoryPort.sumAllocatedForDay(
                 profile.getId(), businessDate, CAP_CONSUMING));
         return VendorDailyCapCalculator.remaining(
-                profile.getContractMaxDailyCap() != null ? profile.getContractMaxDailyCap() : profile.getDailyTicketCap(),
-                profile.getApprovedDailyCap() != null ? profile.getApprovedDailyCap() : profile.getDailyTicketCap(),
+                profile.effectiveBaseDailyCap(),
                 vendorConfidencePolicyResolver.capPercentage(profile.getConfidenceTier()),
                 consumed);
     }
@@ -643,8 +642,7 @@ public class VendorAllocationService implements VendorAllocationServicePort {
         long consumed = vendorAllocationRepositoryPort.sumAllocatedForDay(profile.getId(), batch.getBusinessDate(), CAP_CONSUMING);
         long withoutThisDraft = Math.max(0, consumed - batch.getAllocatedQuantity());
         return VendorDailyCapCalculator.remaining(
-                profile.getContractMaxDailyCap() != null ? profile.getContractMaxDailyCap() : profile.getDailyTicketCap(),
-                profile.getApprovedDailyCap() != null ? profile.getApprovedDailyCap() : profile.getDailyTicketCap(),
+                profile.effectiveBaseDailyCap(),
                 vendorConfidencePolicyResolver.capPercentage(profile.getConfidenceTier()),
                 Math.toIntExact(withoutThisDraft));
     }

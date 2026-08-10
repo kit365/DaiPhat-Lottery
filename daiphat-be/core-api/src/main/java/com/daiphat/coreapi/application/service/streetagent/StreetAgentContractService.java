@@ -86,8 +86,7 @@ public class StreetAgentContractService implements StreetAgentContractServicePor
                 LocalDate.now().format(DISPLAY_DATE),
                 profile.getContractStartDate().format(DISPLAY_DATE),
                 profile.getContractEndDate().format(DISPLAY_DATE),
-                formatNumber(profile.getContractMaxDailyCap() != null
-                        ? profile.getContractMaxDailyCap() : profile.getDailyTicketCap()) + " vé/ngày",
+                formatNumber(profile.getContractMaxDailyCap()) + " vé/ngày",
                 commission(commissionRate),
                 formatCurrency(unitPrice) + "/vé",
                 formatPercent(depositRate) + " trên tổng giá trị vendor của mỗi phiếu bàn giao",
@@ -114,7 +113,7 @@ public class StreetAgentContractService implements StreetAgentContractServicePor
                 && !blank(profile.getContractCode())
                 && profile.getContractStartDate() != null
                 && profile.getContractEndDate() != null
-                && profile.hasValidDailyCaps();
+                && profile.hasValidContractDailyCap();
         if (!complete) {
             throw new DomainException(ErrorCode.STREET_AGENT_CONTRACT_INCOMPLETE);
         }

@@ -18,7 +18,6 @@ class VendorSettingsContractTest {
             SystemConfigEnum.STREET_AGENT_COUNTER_RESERVE_PERCENT_PER_STATION,
             SystemConfigEnum.VENDOR_COMMISSION_RATE,
             SystemConfigEnum.VENDOR_DEFAULT_CONTRACT_MAX_DAILY_CAP,
-            SystemConfigEnum.VENDOR_DEFAULT_APPROVED_DAILY_CAP,
             SystemConfigEnum.VENDOR_DEPOSIT_RATE,
             SystemConfigEnum.VENDOR_DRAFT_RESERVATION_TTL_MINUTES,
             SystemConfigEnum.VENDOR_RETURN_CUTOFF,
@@ -33,7 +32,6 @@ class VendorSettingsContractTest {
         assertThat(SystemConfigEnum.STREET_AGENT_COUNTER_RESERVE_PERCENT_PER_STATION.getDefaultValue()).isEqualTo("0.20");
         assertThat(SystemConfigEnum.VENDOR_COMMISSION_RATE.getDefaultValue()).isEqualTo("0.10");
         assertThat(SystemConfigEnum.VENDOR_DEFAULT_CONTRACT_MAX_DAILY_CAP.getDefaultValue()).isEqualTo("200");
-        assertThat(SystemConfigEnum.VENDOR_DEFAULT_APPROVED_DAILY_CAP.getDefaultValue()).isEqualTo("100");
         assertThat(SystemConfigEnum.VENDOR_DRAFT_RESERVATION_TTL_MINUTES.getDefaultValue()).isEqualTo("15");
         assertThat(SystemConfigEnum.VENDOR_RETURN_CUTOFF.getDefaultValue()).isEqualTo("15:00");
     }

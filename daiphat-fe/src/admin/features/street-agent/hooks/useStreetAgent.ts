@@ -9,14 +9,12 @@ import {
     getStreetAgentProfiles,
     listStreetAgentDailySalesReports,
     updateStreetAgentProfile,
-    updateApprovedDailyCap,
     uploadStreetAgentSignedContract,
 } from "../services/streetAgentService";
 import {
     DailySalesReportListParams,
     CreateStreetAgentProfilePayload,
     StreetAgentQueryParams,
-    UpdateApprovedDailyCapPayload,
 } from "../types/street-agent.type";
 import { QUERY_KEYS } from "../constants/queryKeys";
 
@@ -119,21 +117,6 @@ export const useUpdateStreetAgentProfile = () => {
             queryClient.invalidateQueries({
                 queryKey: [QUERY_KEYS.STREET_AGENT_PROFILE_DETAIL, variables.id],
             });
-        },
-    });
-};
-
-export const useUpdateApprovedDailyCap = () => {
-    const queryClient = useQueryClient();
-    return useMutation({
-        mutationFn: ({ id, data }: { id: string | number; data: UpdateApprovedDailyCapPayload }) =>
-            updateApprovedDailyCap(id, data),
-        onSuccess: (_response, variables) => {
-            queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.STREET_AGENT_PROFILES] });
-            queryClient.invalidateQueries({
-                queryKey: [QUERY_KEYS.STREET_AGENT_PROFILE_DETAIL, variables.id],
-            });
-            queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.STREET_AGENT_CONFIDENCE, variables.id] });
         },
     });
 };

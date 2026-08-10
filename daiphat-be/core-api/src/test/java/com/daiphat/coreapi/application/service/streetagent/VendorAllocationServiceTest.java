@@ -37,7 +37,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.*;
 
 class VendorAllocationServiceTest {
-    private final LocalDate businessDate = LocalDate.of(2026, 8, 10);
+    // Confirm tests must not accidentally cross the draw-time guard as wall-clock time passes.
+    private final LocalDate businessDate = LocalDate.now(DrawScheduleUtils.VIETNAM_ZONE).plusDays(1);
     private VendorAllocationRepositoryPort allocationRepositoryPort;
     private StreetAgentProfileRepositoryPort profileRepositoryPort;
     private SystemConfigRepositoryPort systemConfigRepositoryPort;
@@ -87,9 +88,9 @@ class VendorAllocationServiceTest {
     void blocks_missing_daily_cap_with_specific_code() {
         StreetAgentProfileRepositoryPort profileRepositoryPort = mock(StreetAgentProfileRepositoryPort.class);
         when(profileRepositoryPort.findById(7L)).thenReturn(Optional.of(
-                eligibleProfileBuilder().dailyTicketCap(null).build()));
+                eligibleProfileBuilder().contractMaxDailyCap(null).build()));
         when(profileRepositoryPort.findByIdForUpdate(7L)).thenReturn(Optional.of(
-                eligibleProfileBuilder().dailyTicketCap(null).build()));
+                eligibleProfileBuilder().contractMaxDailyCap(null).build()));
         service = newService(allocationRepositoryPort, profileRepositoryPort, mock(SystemConfigRepositoryPort.class));
 
         assertThatThrownBy(() -> service.createDraft(request(101L)))
@@ -277,7 +278,7 @@ class VendorAllocationServiceTest {
                 StreetAgentProfileModel.builder().id(7L).contractCode("HD-001")
                         .contractDocumentUrl("https://cdn.example.com/contracts/signed.pdf")
                         .contractStartDate(businessDate.minusDays(1)).contractEndDate(businessDate.plusDays(1))
-                        .dailyTicketCap(4).confidenceTier(VendorConfidenceTier.NEW)
+                        .contractMaxDailyCap(4).confidenceTier(VendorConfidenceTier.NEW)
                         .depositBalance(new BigDecimal("100000")).build()));
         when(allocationRepositoryPort.existsOpenBatchByProfileId(eq(7L), anyCollection())).thenReturn(false);
 
@@ -292,7 +293,7 @@ class VendorAllocationServiceTest {
         when(profileRepositoryPort.findById(7L)).thenReturn(Optional.of(
                 StreetAgentProfileModel.builder().id(7L).contractCode("HD-001")
                         .contractStartDate(businessDate.minusDays(30)).contractEndDate(businessDate.minusDays(1))
-                        .dailyTicketCap(4).confidenceTier(VendorConfidenceTier.NEW)
+                        .contractMaxDailyCap(4).confidenceTier(VendorConfidenceTier.NEW)
                         .depositBalance(BigDecimal.ZERO).build()));
 
         assertThatThrownBy(() -> service.getSuggestion(7L, businessDate))
@@ -521,7 +522,7 @@ class VendorAllocationServiceTest {
                 .contractCode("HD-001")
                 .contractDocumentUrl("https://cdn.example.com/contracts/signed.pdf")
                 .contractStartDate(businessDate.minusDays(1)).contractEndDate(businessDate.plusDays(1))
-                .dailyTicketCap(4).confidenceTier(VendorConfidenceTier.NEW)
+                .contractMaxDailyCap(4).confidenceTier(VendorConfidenceTier.NEW)
                 .depositBalance(BigDecimal.ZERO);
     }
 }

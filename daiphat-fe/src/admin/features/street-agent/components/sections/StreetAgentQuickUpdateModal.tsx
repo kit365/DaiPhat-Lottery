@@ -151,7 +151,6 @@ export const StreetAgentQuickUpdateModal = ({ open, onClose, id }: StreetAgentQu
                     coverageArea: serializeCoverageAreaCodes(formValues.coverageAreaCodes),
                     contractStartDate: profile.contractStartDate || undefined,
                     contractEndDate: profile.contractEndDate || undefined,
-                    contractMaxDailyCap: profile.contractMaxDailyCap ?? undefined,
                 },
             },
             {

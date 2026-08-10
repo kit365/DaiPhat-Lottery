@@ -251,13 +251,12 @@ export const StreetAgentDetailPage = () => {
                         </Card>
 
                         <Card sx={{ p: 4, borderRadius: "var(--shape-borderRadius-lg)", boxShadow: "var(--customShadows-card)" }}>
-                            <SectionHeader title="Điều kiện nhận vé" badge="Phase 2 · Allocation" />
+                            <SectionHeader title="Điều kiện nhận vé" />
                             <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)" }, gap: 3 }}>
                                 <InfoItem label="Ngày bắt đầu hợp đồng" value={formatDate(profile.contractStartDate)} />
                                 <InfoItem label="Ngày kết thúc hợp đồng" value={formatDate(profile.contractEndDate)} />
-                                <InfoItem label="Trần hạn mức hợp đồng" value={profile.contractMaxDailyCap != null ? `${profile.contractMaxDailyCap} vé/ngày` : "—"} />
-                                <InfoItem label="Hạn mức vận hành" value={profile.approvedDailyCap != null ? `${profile.approvedDailyCap} vé/ngày` : "—"} />
-                                <InfoItem label="Hạn mức hiện hành" value={profile.effectiveDailyCap != null ? `${profile.effectiveDailyCap} vé/ngày` : "—"} />
+                                <InfoItem label="Hạn mức theo hợp đồng" value={profile.contractMaxDailyCap != null ? `${profile.contractMaxDailyCap} vé/ngày` : "—"} />
+                                <InfoItem label="Hạn mức giao thực tế" value={profile.effectiveDailyCap != null ? `${profile.effectiveDailyCap} vé/ngày` : "—"} />
                                 <Box sx={{ gridColumn: { sm: "1 / -1" } }}>
                                     <InfoItem label="Địa bàn bán" value={formatCoverageAreaDisplay(profile.coverageArea)} />
                                 </Box>
@@ -265,7 +264,7 @@ export const StreetAgentDetailPage = () => {
                         </Card>
 
                         <Card sx={{ p: 4, borderRadius: "var(--shape-borderRadius-lg)", boxShadow: "var(--customShadows-card)" }}>
-                            <SectionHeader title="Điểm tin cậy (BE)" badge="Phase 4 · Confidence" />
+                            <SectionHeader title="Điểm tin cậy" />
                             {id ? <StreetAgentConfidencePanel profileId={id} /> : null}
                             <Box sx={{ mt: 2 }}>
                                 <InfoItem

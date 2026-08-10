@@ -2,7 +2,6 @@ package com.daiphat.coreapi.application.service.streetagent;
 
 import com.daiphat.coreapi.application.dto.request.streetagent.CreateStreetAgentProfileRequest;
 import com.daiphat.coreapi.application.dto.request.streetagent.UpdateStreetAgentProfileRequest;
-import com.daiphat.coreapi.application.dto.request.streetagent.UpdateApprovedDailyCapRequest;
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.response.streetagent.StreetAgentProfileResponse;
 import com.daiphat.coreapi.application.dto.storage.StorageResult;
@@ -33,7 +32,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
@@ -153,12 +151,13 @@ public class StreetAgentProfileService implements StreetAgentProfileServicePort 
                     .build());
             model.setUserId(vendorUser.id());
             model.setEmail(vendorUser.email());
-            // These commercial controls are server-owned. Client input is deliberately ignored.
+            // Commission remains system-owned. The contract ceiling defaults from settings,
+            // while staff may override it for this signed contract.
             model.setCommissionRate(decimalConfig(SystemConfigEnum.VENDOR_COMMISSION_RATE));
-            int contractCap = integerConfig(SystemConfigEnum.VENDOR_DEFAULT_CONTRACT_MAX_DAILY_CAP);
-            int approvedCap = Math.min(contractCap, integerConfig(SystemConfigEnum.VENDOR_DEFAULT_APPROVED_DAILY_CAP));
-            model.setContractMaxDailyCap(contractCap);
-            model.setApprovedDailyCap(approvedCap);
+            Integer configuredContractCap = integerConfig(SystemConfigEnum.VENDOR_DEFAULT_CONTRACT_MAX_DAILY_CAP);
+            model.setContractMaxDailyCap(request.contractMaxDailyCap() != null
+                    ? request.contractMaxDailyCap()
+                    : configuredContractCap);
         }
         model.setDepositBalance(BigDecimal.ZERO);
         generateContractCodeIfNeeded(model);
@@ -185,24 +184,24 @@ public class StreetAgentProfileService implements StreetAgentProfileServicePort 
         }
         validateContractDates(request.contractStartDate(), request.contractEndDate());
 
+        boolean contractTermsChanged = profile.hasSignedContractTermsChanged(
+                request.contractStartDate(),
+                request.contractEndDate(),
+                request.contractMaxDailyCap());
         streetAgentProfileApplicationMapper.updateModel(profile, request);
+        if (contractTermsChanged) {
+            // A signature is valid only for the exact terms that were signed.  Clear it
+            // atomically, issue a fresh contract reference, and let status synchronization
+            // keep the profile out of vendor allocation until the new file is uploaded.
+            profile.requireContractResign();
+            regenerateContractCode(profile);
+        }
         generateContractCodeIfNeeded(profile);
         synchronizeOperationalStatus(profile, true);
 
         StreetAgentProfileModel saved = streetAgentProfileRepositoryPort.save(profile);
         log.info("Street agent profile updated with id: {}", saved.getId());
         return toResponse(saved);
-    }
-
-    @Override
-    @Transactional
-    public StreetAgentProfileResponse updateApprovedDailyCap(
-            Long id, UpdateApprovedDailyCapRequest request, UUID operatorId) {
-        StreetAgentProfileModel profile = streetAgentProfileRepositoryPort.findByIdForUpdate(id)
-                .orElseThrow(() -> new DomainException(ErrorCode.STREET_AGENT_PROFILE_NOT_FOUND));
-        profile.changeApprovedDailyCap(request.approvedDailyCap(), request.reason(), operatorId, LocalDateTime.now());
-        synchronizeOperationalStatus(profile, true);
-        return toResponse(streetAgentProfileRepositoryPort.save(profile));
     }
 
     @Override
@@ -240,10 +239,9 @@ public class StreetAgentProfileService implements StreetAgentProfileServicePort 
     }
 
     private StreetAgentProfileResponse toResponse(StreetAgentProfileModel profile) {
-        if (profile.hasValidDailyCaps() && vendorConfidencePolicyResolver != null) {
+        if (profile.hasValidContractDailyCap() && vendorConfidencePolicyResolver != null) {
             profile.setEffectiveDailyCap(VendorDailyCapCalculator.effective(
                     profile.getContractMaxDailyCap(),
-                    profile.getApprovedDailyCap(),
                     vendorConfidencePolicyResolver.capPercentage(profile.getConfidenceTier())
             ));
         } else {
@@ -270,10 +268,16 @@ public class StreetAgentProfileService implements StreetAgentProfileServicePort 
         boolean hasNoContractCode = profile.getContractCode() == null || profile.getContractCode().isBlank();
         boolean hasContractTerms = profile.getContractStartDate() != null
                 && profile.getContractEndDate() != null
-                && profile.hasValidDailyCaps();
+                && profile.hasValidContractDailyCap();
         if (!hasNoContractCode || !hasContractTerms) {
             return;
         }
+        String datePart = LocalDate.now().format(DateTimeFormatter.BASIC_ISO_DATE);
+        String reference = UUID.randomUUID().toString().substring(0, 8).toUpperCase(Locale.ROOT);
+        profile.setContractCode("HD-CTV-" + datePart + "-" + reference);
+    }
+
+    private void regenerateContractCode(StreetAgentProfileModel profile) {
         String datePart = LocalDate.now().format(DateTimeFormatter.BASIC_ISO_DATE);
         String reference = UUID.randomUUID().toString().substring(0, 8).toUpperCase(Locale.ROOT);
         profile.setContractCode("HD-CTV-" + datePart + "-" + reference);

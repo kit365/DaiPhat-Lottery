@@ -216,8 +216,8 @@ export const LuckyPatternConfigPage = () => {
                 title="Cấu hình số đẹp"
                 breadcrumbItems={[
                     { label: "Dashboard", to: "/" },
-                    { label: "Đại lý bán dạo", to: ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.LIST },
-                    { label: "Số đẹp" },
+                    { label: "Vé số" },
+                    { label: "Cấu hình số đẹp" },
                 ]}
                 action={
                     <CanAccess permission={PERMISSIONS.STREET_AGENT.EDIT}>
