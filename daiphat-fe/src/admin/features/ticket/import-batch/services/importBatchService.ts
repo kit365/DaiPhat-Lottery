@@ -92,6 +92,22 @@ export const updateImportBatch = async (
     return response.data;
 };
 
+/** Attach invoice evidence when the batch currently has none (settlement / fill-in). */
+export const attachImportBatchInvoiceEvidence = async (
+    id: number | string,
+    invoiceEvidenceUrl: string
+): Promise<ApiResponse<ImportBatch>> => {
+    const response = await apiApp.post(
+        `${BASE_URL}/${id}/invoice-evidence`,
+        { invoiceEvidenceUrl },
+        {
+            ...withAuth(),
+            skipGlobalErrorToast: true,
+        }
+    );
+    return response.data;
+};
+
 export const getImportBatchTimePolicy = async (): Promise<ApiResponse<ImportBatchTimePolicy>> => {
     const response = await apiApp.get(`${BASE_URL}/time-policy`, withAuth());
     return response.data;

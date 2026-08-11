@@ -103,20 +103,63 @@ export const useUpdateImportBatch = (batchId?: string | number) => {
     });
 };
 
+export interface IImportBatchFilters {
+    search?: string;
+    status?: ImportBatchStatus | '';
+    importMode?: ImportBatchImportMode | '';
+    batchType?: ImportBatchType | '';
+    page: number;
+    size: number;
+}
+
 export const useImportBatchList = () => {
-    const [filters, setFilters] = useState<ImportBatchListParams>({
+    const [filters, setFilters] = useState<IImportBatchFilters>({
+        search: '',
+        status: '',
+        importMode: '',
+        batchType: '',
         page: 1,
         size: 10,
-        // Default sort is applied by backend (drawDate desc, createdAt desc)
     });
 
-    const { data, isLoading, error } = useQuery({
-        queryKey: [QUERY_KEYS.IMPORT_BATCH_LIST, filters],
-        queryFn: () => getImportBatches(filters),
+    const queryParams = useMemo(
+        () => ({
+            status: filters.status || undefined,
+            batchType: filters.batchType || undefined,
+            page: filters.page,
+            size: filters.size,
+        }),
+        [filters.status, filters.batchType, filters.page, filters.size]
+    );
+
+    const { data, isLoading, error, refetch } = useQuery({
+        queryKey: [QUERY_KEYS.IMPORT_BATCH_LIST, queryParams],
+        queryFn: () => getImportBatches(queryParams),
         placeholderData: keepPreviousData,
     });
 
-    const batches = useMemo(() => data?.data?.recordList ?? [], [data]);
+    const rawBatches = useMemo(() => data?.data?.recordList ?? [], [data]);
+
+    const batches = useMemo(() => {
+        let result = rawBatches;
+        if (filters.search && filters.search.trim()) {
+            const q = filters.search.trim().toLowerCase();
+            result = result.filter((b) => {
+                const batchCodeMatch = b.batchCode?.toLowerCase().includes(q);
+                const supplierMatch = b.supplierName?.toLowerCase().includes(q);
+                const drawDateMatch = b.drawDate?.includes(q);
+                const linesMatch = (b.lines || []).some(
+                    (l) => l.batchCode?.toLowerCase().includes(q)
+                );
+                return batchCodeMatch || supplierMatch || drawDateMatch || linesMatch;
+            });
+        }
+        if (filters.importMode) {
+            result = result.filter((b) => b.importMode === filters.importMode);
+        }
+        return result;
+    }, [rawBatches, filters.search, filters.importMode]);
+
     const pagination = data?.data?.pagination ?? {
         totalRecords: 0,
         totalPages: 0,
@@ -126,10 +169,19 @@ export const useImportBatchList = () => {
 
     return {
         batches,
+        rawBatches,
         pagination,
         isLoading,
         error,
+        refetch,
         filters,
+        setSearch: (search: string) => setFilters((prev) => ({ ...prev, search, page: 1 })),
+        setStatus: (status: ImportBatchStatus | '') =>
+            setFilters((prev) => ({ ...prev, status, page: 1 })),
+        setImportMode: (importMode: ImportBatchImportMode | '') =>
+            setFilters((prev) => ({ ...prev, importMode, page: 1 })),
+        setBatchType: (batchType: ImportBatchType | '') =>
+            setFilters((prev) => ({ ...prev, batchType, page: 1 })),
         setPage: (page: number) => setFilters((prev) => ({ ...prev, page })),
         setLimit: (size: number) => setFilters((prev) => ({ ...prev, size, page: 1 })),
     };
