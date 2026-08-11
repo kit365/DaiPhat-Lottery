@@ -9,7 +9,8 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public enum ReturnBatchType implements LabeledEnum {
     SUPPLIER_RETURN("Trả vé cho nhà cung cấp"),
-    STREET_AGENT_RETURN("Nhận vé trả từ người bán dạo");
+    STREET_AGENT_RETURN("Nhận vé trả từ người bán dạo"),
+    EXCESS_SUPPLIER_RETURN("Nhập trả hàng thừa");
 
     private final String label;
 }

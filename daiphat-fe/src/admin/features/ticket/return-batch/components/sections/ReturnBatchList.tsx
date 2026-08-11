@@ -62,7 +62,17 @@ export const ReturnBatchList = ({
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, width: '100%' }}>
             <ReturnBatchReminderBanner batches={batches} />
 
-            <Card elevation={0} className="admin-datagrid-card">
+            <Card
+                elevation={0}
+                className="admin-datagrid-card"
+                sx={{
+                    borderRadius: '16px',
+                    border: '1px solid #e2e8f0',
+                    boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
+                    bgcolor: '#ffffff',
+                    overflow: 'hidden',
+                }}
+            >
                 <Box sx={dataGridContainerStyles}>
                     <LazyDataGrid
                         rows={batches}
@@ -85,7 +95,8 @@ export const ReturnBatchList = ({
                                         display: 'flex',
                                         alignItems: 'center',
                                         justifyContent: 'center',
-                                        height: '100%',
+                                        minHeight: 240,
+                                        py: 5,
                                     }}
                                 >
                                     {isLoading ? (
