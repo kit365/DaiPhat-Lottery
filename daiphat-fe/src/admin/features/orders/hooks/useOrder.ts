@@ -175,15 +175,18 @@ export const useCreateOrder = () => {
     });
 };
 
-/** Polls statusCounts for the sidebar PREPARING badge. */
+/** Polls PREPARING statusCounts for sidebar badges, split by order type. */
 export const usePreparingOrderCount = () => {
     const { user, token } = useAuthStore();
     const deferred = useAdminDeferredQueries();
     const canView = Boolean(token) && Boolean(user) && hasPermission(user, PERMISSIONS.ORDER.VIEW);
 
-    const query = useQuery({
-        queryKey: [GLOBAL_QUERY_KEYS.ADMIN_ORDERS, 'preparing-count'],
-        queryFn: () => getOrders({ page: 1, size: 1 }, { skipGlobalErrorToast: true }),
+    const onlineQuery = useQuery({
+        queryKey: [GLOBAL_QUERY_KEYS.ADMIN_ORDERS, 'preparing-count', 'ONLINE'],
+        queryFn: () => getOrders(
+            { page: 1, size: 1, orderType: 'ONLINE' },
+            { skipGlobalErrorToast: true }
+        ),
         enabled: canView && deferred,
         refetchOnWindowFocus: canView && deferred,
         refetchInterval: (q) => {
@@ -195,14 +198,43 @@ export const usePreparingOrderCount = () => {
         retry: false,
     });
 
-    const preparingCount = useMemo(() => {
-        const counts = query.data?.data?.statusCounts as Record<string, number> | undefined;
+    const directQuery = useQuery({
+        queryKey: [GLOBAL_QUERY_KEYS.ADMIN_ORDERS, 'preparing-count', 'DIRECT'],
+        queryFn: () => getOrders(
+            { page: 1, size: 1, orderType: 'DIRECT' },
+            { skipGlobalErrorToast: true }
+        ),
+        enabled: canView && deferred,
+        refetchOnWindowFocus: canView && deferred,
+        refetchInterval: (q) => {
+            if (!canView || !deferred) return false;
+            if (q.state.error) return false;
+            return 30_000;
+        },
+        staleTime: 15_000,
+        retry: false,
+    });
+
+    const onlinePreparingCount = useMemo(() => {
+        const counts = onlineQuery.data?.data?.statusCounts as Record<string, number> | undefined;
         return Number(counts?.PREPARING) || 0;
-    }, [query.data?.data?.statusCounts]);
+    }, [onlineQuery.data?.data?.statusCounts]);
+
+    const directPreparingCount = useMemo(() => {
+        const counts = directQuery.data?.data?.statusCounts as Record<string, number> | undefined;
+        return Number(counts?.PREPARING) || 0;
+    }, [directQuery.data?.data?.statusCounts]);
+
+    const preparingCount = onlinePreparingCount + directPreparingCount;
 
     return {
+        /** ONLINE PREPARING — badge for "Danh sách đơn". */
+        onlinePreparingCount,
+        /** DIRECT PREPARING — badge for "Đơn tại quầy". */
+        directPreparingCount,
+        /** Combined total for parent "Đơn hàng". */
         preparingCount,
-        isLoading: query.isLoading,
+        isLoading: onlineQuery.isLoading || directQuery.isLoading,
     };
 };
 
