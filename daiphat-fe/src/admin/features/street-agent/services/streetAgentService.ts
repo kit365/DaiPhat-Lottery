@@ -10,7 +10,6 @@ import {
     CreateStreetAgentProfilePayload,
     StreetAgentQueryParams,
     VendorConfidence,
-    UpdateApprovedDailyCapPayload,
 } from '../types/street-agent.type';
 
 const BASE_URL = '/street-agent-profiles';
@@ -68,14 +67,6 @@ export const updateStreetAgentProfile = async (
     data: Record<string, unknown>
 ): Promise<ApiResponse<StreetAgentProfile>> => {
     const response = await apiApp.put(`${BASE_URL}/${id}`, data);
-    return response.data;
-};
-
-export const updateApprovedDailyCap = async (
-    id: number | string,
-    data: UpdateApprovedDailyCapPayload
-): Promise<ApiResponse<StreetAgentProfile>> => {
-    const response = await apiApp.patch(`${BASE_URL}/${id}/approved-daily-cap`, data);
     return response.data;
 };
 

@@ -46,6 +46,7 @@ public record VendorAllocationBatchResponse(
         Long agentSettlementId,
         Long dailySalesReportId,
         Long returnBatchId,
+        VendorAllocationReturnWorkflowResponse returnWorkflow,
         List<VendorAllocationBatchDetailResponse> details,
         List<VendorAllocationSerialResponse> serials
 ) {

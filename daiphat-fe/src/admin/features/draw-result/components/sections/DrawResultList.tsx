@@ -1,4 +1,5 @@
-import { DataGrid, GridColDef } from '@mui/x-data-grid';
+import type { GridColDef } from '@mui/x-data-grid';
+import { LazyDataGrid } from '@/admin/shared/data-grid/LazyDataGrid';
 import Card from '@mui/material/Card';
 import Box from '@mui/material/Box';
 import CircularProgress from '@mui/material/CircularProgress';
@@ -61,7 +62,7 @@ export const DrawResultList = ({
                         </span>
                     </Box>
                 ) : (
-                    <DataGrid
+                    <LazyDataGrid
                         rows={data || []}
                         getRowId={(row) => row.id}
                         columns={columnsConfig(onViewDetails)}

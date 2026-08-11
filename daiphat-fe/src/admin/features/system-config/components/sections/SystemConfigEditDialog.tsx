@@ -26,7 +26,7 @@ import { Button } from '../../../../components/ui/Button';
 import {
     createUpdateSystemConfigSchema,
     UpdateSystemConfigFormValues,
-} from '../../../../schemas/system-config.schema';
+} from '@/admin/features/system-config/schemas/system-config.schema';
 import {
     CONFIG_DATA_TYPE_LABELS,
     CONFIG_TYPE_LABELS,

@@ -10,15 +10,15 @@ import { PageHeader } from '../../../../components/ui/PageHeader';
 import { useUpdateUser } from "../../hooks/useUsers";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { accountAdminSchema } from "../../../../schemas/account-admin.schema";
+import { accountAdminSchema } from "@/admin/features/users/schemas/account-admin.schema";
 import { toast } from "react-toastify";
 import { AxiosError } from "axios";
-import { uploadImagesToCloudinary } from '../../../../api/uploadCloudinary.api';
+import { uploadImagesToCloudinary } from "@/admin/shared/services/uploadCloudinary.service";
 import { Button } from '../../../../components/ui/Button';
 import * as zod from "zod";
 import { useAuthStore } from "../../../../../stores/useAuthStore";
-import { authService } from "../../../../pages/authen/services/auth.service";
-import { PasswordPolicy } from "../../../../pages/authen/types/auth.type";
+import { authService } from "@/admin/features/auth/services/auth.service";
+import { PasswordPolicy } from "@/admin/features/auth/types/auth.type";
 
 const passwordSchema = zod.object({
     currentPassword: zod.string().min(1, "Vui lòng nhập mật khẩu hiện tại"),

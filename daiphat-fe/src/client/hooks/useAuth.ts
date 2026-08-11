@@ -3,14 +3,14 @@
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { authService } from "../../admin/pages/authen/services/auth.service";
-import { userService } from "../../admin/pages/authen/services/user.service";
+import { authService } from "@/shared/auth/services/auth.service";
+import { userService } from "@/shared/auth/services/user.service";
 import { useAuthStore } from "../../stores/useAuthStore";
 import { User } from "../../types/user.type";
 import { AppToast } from "../../utils/toast.util";
 import { STORAGE_KEYS } from "../../constants/storage.constants";
 import Cookies from "js-cookie";
-import { RegisterRequest } from "../../admin/pages/authen/types/auth.type";
+import { RegisterRequest } from "@/shared/auth/types/auth.type";
 import { updateUser } from "../../admin/features/users/services/userService";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";

@@ -38,7 +38,7 @@ import { QUERY_KEYS } from '../../../inventory/constants/queryKeys';
 import { getTicketStatusLabel, normalizeTicketStatus } from '../../../inventory/constants/ticket-status.config';
 import { useTicketInventory } from '../../../inventory/hooks/useTicketInventory';
 import { useStations } from '../../../../station/hooks/useStation';
-import { ReportSerialFaultPane } from '../sections/ReportSerialFaultPane';
+import { LazyReportSerialFaultPane } from '../sections/LazyReportSerialFaultPane';
 import { TicketImportProgressTrack } from '../sections/TicketImportProgressTrack';
 import { useImportBatchDetail } from '../../hooks/useImportBatch';
 import {
@@ -760,7 +760,7 @@ export const ImportBatchLineDetailPage = () => {
                 }}
             >
                 <DialogContent sx={{ p: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-                    <ReportSerialFaultPane
+                    <LazyReportSerialFaultPane
                         serials={selectedSerials}
                         ticketNumbers={firstSelected ? firstSelected.ticketNumbers : ''}
                         ticketId={firstSelected ? firstSelected.ticketId : undefined}

@@ -7,7 +7,7 @@ import { Phone, Lock, Eye, EyeOff, Mail, User } from "lucide-react";
 import { useAuth } from "../../../hooks/useAuth";
 import { GoogleIcon, AuthBranding } from "../../../components/auth/SharedAuth";
 import { PasswordStrengthMeter } from "../../../components/auth/PasswordStrengthMeter";
-import { useForgotPassword } from "../../../../admin/pages/authen/hooks/use-forgot-password";
+import { useForgotPassword } from "@/shared/auth/hooks/useForgotPassword";
 import { redirectToGoogleOAuth } from "../../../utils/google-oauth.util";
 import { CLIENT_LOGO } from "../../../constants/clientBannerAssets";
 

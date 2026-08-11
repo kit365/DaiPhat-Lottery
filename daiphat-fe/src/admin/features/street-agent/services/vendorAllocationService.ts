@@ -130,6 +130,14 @@ export const returnVendorAllocationSerials = async (
     return response.data;
 };
 
+export const removeVendorAllocationReturnSerial = async (
+    id: number | string,
+    serialId: number | string
+): Promise<ApiResponse<VendorAllocationBatch>> => {
+    const response = await apiApp.delete(`${BASE_URL}/${id}/returns/${serialId}`);
+    return response.data;
+};
+
 export const confirmVendorReturnInspection = async (
     id: number | string,
     data: ConfirmVendorReturnInspectionPayload
@@ -141,7 +149,12 @@ export const confirmVendorReturnInspection = async (
 export const getVendorAllocationSettlementPreview = async (
     id: number | string
 ): Promise<ApiResponse<VendorSettlementPreview>> => {
-    const response = await apiApp.get(`${BASE_URL}/${id}/settlement-preview`);
+    // Preview is a read model whose business 409s are rendered by the page.
+    // Do not let the global interceptor show a second toast during a status
+    // transition (for example, immediately after a successful settlement).
+    const response = await apiApp.get(`${BASE_URL}/${id}/settlement-preview`, {
+        skipGlobalErrorToast: true,
+    });
     return response.data;
 };
 

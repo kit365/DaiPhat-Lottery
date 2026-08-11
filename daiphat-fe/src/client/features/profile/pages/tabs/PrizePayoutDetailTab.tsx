@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useRouter } from "next/navigation";
 import { useRouteParams } from "@/hooks/useRouteParams";
@@ -12,7 +12,7 @@ import {
 } from '../../../../hooks/usePrizePayout';
 import { PrizePayoutRequestStatus, formatPrizePayoutCurrency } from '../../../../../types/prize-payout.type';
 import { PrizePayoutStatusStepper } from '../../../../components/prize-payout/PrizePayoutStatusStepper';
-import { TransferEvidencePreview } from '../../../../../admin/pages/refund/components/TransferEvidencePreview';
+import { TransferEvidencePreview } from '@/admin/features/refund/components/TransferEvidencePreview';
 import { PrizePayoutRequestModal } from '../../../../components/prize-payout/PrizePayoutRequestModal';
 import { PrizePayoutComplaintButton } from '../../../../components/support/PrizePayoutComplaintButton';
 import { PurchasedTicket } from '../../../../../types/lottery-ticket.type';

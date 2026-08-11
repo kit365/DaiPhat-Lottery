@@ -10,7 +10,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'react-toastify';
 import Swal from 'sweetalert2';
 import { Button } from '../../../../../components/ui/Button';
-import { ReportSerialFaultPane } from '../../../import-batch/components/sections/ReportSerialFaultPane';
+import { LazyReportSerialFaultPane } from '../../../import-batch/components/sections/LazyReportSerialFaultPane';
 import type { CancelSelectedSerial } from '../../../import-batch/hooks/useCancelTicketSelection';
 import { formatImportCost } from '../../../import-batch/utils/importCostCalculator';
 import { isFaultyTicketCondition, normalizeSerialStatus } from '../../../import-batch/utils/serialIncidentWorkflow';
@@ -397,7 +397,7 @@ export const InspectTicketsDialog = ({
                         </Alert>
                     )}
                     {activeStep === 'REPORT' && (
-                        <ReportSerialFaultPane
+                        <LazyReportSerialFaultPane
                             serials={selectedSerialsForReport}
                             ticketNumbers={reportDialogProps.ticketNumbers}
                             ticketId={reportDialogProps.ticketId}

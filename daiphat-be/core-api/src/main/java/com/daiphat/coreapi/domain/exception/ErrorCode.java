@@ -457,7 +457,7 @@ public enum ErrorCode {
             HttpStatus.BAD_REQUEST),
     VENDOR_ALLOCATION_DAILY_CAP_MISSING(
             "SAG_019",
-            "Hạn mức vé ngày (dailyTicketCap) chưa được cấu hình hoặc phải lớn hơn 0.",
+            "Hạn mức vé/ngày theo hợp đồng chưa được cấu hình hoặc phải lớn hơn 0.",
             HttpStatus.BAD_REQUEST),
     VENDOR_ALLOCATION_PROFILE_INACTIVE(
             "SAG_020",
@@ -483,10 +483,6 @@ public enum ErrorCode {
             "SAG_025",
             "Báo cáo bán hàng ngày không tồn tại.",
             HttpStatus.NOT_FOUND),
-    STREET_AGENT_APPROVED_CAP_EXCEEDS_CONTRACT(
-            "SAG_026",
-            "Hạn mức vận hành không được vượt trần hạn mức trong hợp đồng.",
-            HttpStatus.BAD_REQUEST),
     VENDOR_SETTLEMENT_CASH_MISMATCH(
             "SAG_027",
             "Số tiền xác nhận không khớp với số tiền quyết toán hệ thống.",
@@ -494,6 +490,10 @@ public enum ErrorCode {
     VENDOR_ALLOCATION_QUOTE_STALE(
             "SAG_028",
             "Báo giá cọc đã thay đổi. Vui lòng tải lại trước khi xác nhận bàn giao.",
+            HttpStatus.CONFLICT),
+    VENDOR_SETTLEMENT_PREVIEW_STALE(
+            "SAG_029",
+            "Bản tính quyết toán đã thay đổi. Vui lòng tải lại trước khi xác nhận.",
             HttpStatus.CONFLICT),
 
     // Support Ticket Errors

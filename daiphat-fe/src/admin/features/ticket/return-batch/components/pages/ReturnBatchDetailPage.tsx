@@ -25,7 +25,6 @@ import CloseIcon from '@mui/icons-material/Close';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import dayjs from 'dayjs';
 import { useEffect, useState } from 'react';
-import Swal from 'sweetalert2';
 import { toast } from 'react-toastify';
 import { PageHeader } from '../../../../../components/ui/PageHeader';
 import { SpinnerLoading } from '../../../../../components/ui/SpinnerLoading';
@@ -33,7 +32,7 @@ import { CollapsibleCard } from '../../../../../components/ui/CollapsibleCard';
 import { Button } from '../../../../../components/ui/Button';
 import { CanAccess } from '../../../../../components/auth/CanAccess';
 import { UploadSingleFile } from '../../../../../components/upload/UploadSingleFile';
-import { uploadAdminImage } from '../../../../../api/upload.api';
+import { uploadAdminImage } from '@/admin/shared/services/upload.service';
 import { PERMISSIONS } from '../../../../../constants/permission.constants';
 import { ROUTES } from '../../../../../constants/routes';
 import { formatImportCost } from '../../../import-batch/utils/importCostCalculator';
@@ -194,6 +193,7 @@ export const ReturnBatchDetailPage = () => {
                     message === RETURN_BATCH_INSPECTION_EXPIRED_MESSAGE ||
                     err?.response?.data?.errorCode === 'LT_120'
                 ) {
+                    const { default: Swal } = await import('sweetalert2');
                     await Swal.fire({
                         icon: 'warning',
                         title: 'Inspection period expired',

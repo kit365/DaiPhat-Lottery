@@ -2,7 +2,7 @@
 
 import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
 import React, { useMemo, useState } from "react";
-import { DataGrid } from "@mui/x-data-grid";
+import { LazyDataGrid } from "@/admin/shared/data-grid/LazyDataGrid";
 import {
     Box,
     Card,
@@ -135,7 +135,7 @@ export const StreetAgentList = () => {
             >
                 <Box sx={{ flex: 1, minWidth: 240 }}>
                     <Search
-                        placeholder="Tìm kiếm đại lý bán dạo..."
+                        placeholder="Tìm kiếm người bán vé số..."
                         value={search}
                         onChange={(val) => {
                             setSearch(val);
@@ -151,7 +151,7 @@ export const StreetAgentList = () => {
             </Box>
 
             <Box sx={{ width: "100%", flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minHeight: 640 }}>
-                <DataGrid
+                <LazyDataGrid
                     className="admin-datagrid"
                     rows={profiles}
                     getRowId={(row) => row.id}

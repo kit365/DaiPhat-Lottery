@@ -126,6 +126,15 @@ const isAuthRequiredRequest = (url?: string) => {
     return AUTH_REQUIRED_PATHS.some((path) => url.includes(path));
 };
 
+/** Public read-only endpoints should degrade silently (branding, static config, etc.). */
+const isPublicReadEndpoint = (url?: string) => {
+    if (!url) {
+        return false;
+    }
+
+    return url.includes('/public/');
+};
+
 const handleExpiredSession = (showToast: boolean = true) => {
     clearAuthSession();
 
@@ -171,7 +180,8 @@ apiApp.interceptors.response.use(
     async (error: AxiosError) => {
         const { response } = error;
         const originalRequest = error.config as ApiRequestConfig | undefined;
-        const skipToast = Boolean(originalRequest?.skipGlobalErrorToast);
+        const skipToast = Boolean(originalRequest?.skipGlobalErrorToast)
+            || isPublicReadEndpoint(originalRequest?.url);
 
         // Request bị hủy (Strict Mode / đổi route / poll restart) — không báo "mất mạng"
         if (axios.isCancel(error) || (error as AxiosError).code === "ERR_CANCELED") {

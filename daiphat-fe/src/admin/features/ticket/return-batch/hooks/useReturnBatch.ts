@@ -185,6 +185,7 @@ export const useReturnBatchList = () => {
 
     const queryParams = useMemo(
         () => ({
+            returnBatchType: 'SUPPLIER_RETURN' as const,
             search: filters.search || undefined,
             status: filters.status || undefined,
             page: apiPage,

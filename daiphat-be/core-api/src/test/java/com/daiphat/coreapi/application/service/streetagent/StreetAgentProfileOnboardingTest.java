@@ -53,7 +53,7 @@ class StreetAgentProfileOnboardingTest {
         LocalDate start = LocalDate.now().plusDays(1);
         CreateStreetAgentProfileRequest request = new CreateStreetAgentProfileRequest(
                 null, "Nguyen", "Van A", "0901234567", "079123456789", null,
-                null, null, null, null, start, start.plusMonths(6), null, null, null, null);
+                null, null, null, null, null, start, start.plusMonths(6), null, null, null);
         StreetAgentProfileModel model = StreetAgentProfileModel.builder()
                 .contractStartDate(start)
                 .contractEndDate(start.plusMonths(6))
@@ -79,5 +79,32 @@ class StreetAgentProfileOnboardingTest {
         assertThat(model.getUserId()).isEqualTo(userId);
         assertThat(model.getEmail()).isNull();
         assertThat(model.getDepositBalance()).isEqualByComparingTo(BigDecimal.ZERO);
+        assertThat(model.getContractMaxDailyCap()).isEqualTo(200);
+    }
+
+    @Test
+    @DisplayName("uses the staff-selected contract cap instead of the default")
+    void create_usesStaffSelectedContractCap() {
+        LocalDate start = LocalDate.now().plusDays(1);
+        CreateStreetAgentProfileRequest request = new CreateStreetAgentProfileRequest(
+                null, "Nguyen", "Van B", "0901234568", "079123456780", null,
+                null, null, null, null, null, start, start.plusMonths(6), null, null, 350);
+        StreetAgentProfileModel model = StreetAgentProfileModel.builder()
+                .contractStartDate(start)
+                .contractEndDate(start.plusMonths(6))
+                .build();
+        UUID userId = UUID.randomUUID();
+
+        when(profileRepository.existsByPhone("0901234568")).thenReturn(false);
+        when(profileRepository.existsByCccd("079123456780")).thenReturn(false);
+        when(profileMapper.toModel(request)).thenReturn(model);
+        when(systemConfigRepository.findActiveByConfigKey(any())).thenReturn(Optional.empty());
+        when(userService.createInternalStreetAgent(any())).thenReturn(UserResponse.builder().id(userId).build());
+        when(profileRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(profileMapper.toResponse(any())).thenReturn(StreetAgentProfileResponse.builder().id(2L).build());
+
+        service.create(request);
+
+        assertThat(model.getContractMaxDailyCap()).isEqualTo(350);
     }
 }

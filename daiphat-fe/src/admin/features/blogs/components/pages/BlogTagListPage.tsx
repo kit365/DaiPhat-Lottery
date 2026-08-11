@@ -17,7 +17,8 @@ import {
     TextField,
     Typography,
 } from '@mui/material';
-import { DataGrid, GridColDef } from '@mui/x-data-grid';
+import type { GridColDef } from '@mui/x-data-grid';
+import { LazyDataGrid } from '@/admin/shared/data-grid/LazyDataGrid';
 import AddIcon from '@mui/icons-material/Add';
 import CloseIcon from '@mui/icons-material/Close';
 import { PageHeader } from "../../../../components/ui/PageHeader";
@@ -233,7 +234,7 @@ export const BlogTagListPage = () => {
 
             <Card elevation={0} className="admin-datagrid-card">
                 <div style={{ width: '100%', flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-                    <DataGrid
+                    <LazyDataGrid
                         rows={tags}
                         getRowId={(row) => row.id}
                         loading={isLoading}

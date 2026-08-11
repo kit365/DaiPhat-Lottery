@@ -17,7 +17,7 @@ import {
     ToggleButtonGroup,
     Typography,
 } from '@mui/material';
-import { uploadAdminImage } from '../../../../../api/upload.api';
+import { uploadAdminImage } from '@/admin/shared/services/upload.service';
 import { AppToast } from '../../../../../../utils/toast.util';
 import { updateSupplierSettlementReceiptUrl } from '../../services/supplierSettlementService';
 import type { SettlementOverviewImportBatch } from '../../types/supplierSettlement.type';

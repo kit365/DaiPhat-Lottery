@@ -3,7 +3,8 @@
 import { useMemo, useState } from "react";
 import {
     Box, Card, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, FormControlLabel, IconButton, MenuItem, Stack, Switch, TextField, Typography } from '@mui/material';
-import { DataGrid, GridColDef, GridRenderCellParams } from "@mui/x-data-grid";
+import type { GridColDef, GridRenderCellParams } from "@mui/x-data-grid";
+import { LazyDataGrid } from "@/admin/shared/data-grid/LazyDataGrid";
 import AddIcon from "@mui/icons-material/Add";
 import CloseIcon from "@mui/icons-material/Close";
 import RefreshIcon from "@mui/icons-material/Refresh";
@@ -216,8 +217,8 @@ export const LuckyPatternConfigPage = () => {
                 title="Cấu hình số đẹp"
                 breadcrumbItems={[
                     { label: "Dashboard", to: "/" },
-                    { label: "Đại lý bán dạo", to: ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.LIST },
-                    { label: "Số đẹp" },
+                    { label: "Vé số" },
+                    { label: "Cấu hình số đẹp" },
                 ]}
                 action={
                     <CanAccess permission={PERMISSIONS.STREET_AGENT.EDIT}>
@@ -255,7 +256,7 @@ export const LuckyPatternConfigPage = () => {
                 }}
             >
                 <Box sx={{ width: "100%", minHeight: 520 }}>
-                    <DataGrid
+                    <LazyDataGrid
                         className="admin-datagrid"
                         rows={patterns}
                         getRowId={(row) => row.id}

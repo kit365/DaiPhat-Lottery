@@ -391,18 +391,8 @@ public enum SystemConfigEnum {
             ConfigType.VENDOR_SETTING,
             DataType.INT,
             "200",
-            "Trần hạn mức vé/ngày mặc định khi tạo hợp đồng vendor mới.",
-            "Trần hợp đồng mặc định",
-            "vé/ngày",
-            "{\"min\":1,\"max\":100000}",
-            true
-    ),
-    VENDOR_DEFAULT_APPROVED_DAILY_CAP(
-            ConfigType.VENDOR_SETTING,
-            DataType.INT,
-            "100",
-            "Hạn mức vận hành ban đầu mặc định khi tạo vendor mới; không được vượt trần hợp đồng.",
-            "Hạn mức vận hành mặc định",
+            "Hạn mức vé/ngày mặc định được ghi trong hợp đồng khi tạo vendor mới.",
+            "Hạn mức hợp đồng mặc định",
             "vé/ngày",
             "{\"min\":1,\"max\":100000}",
             true

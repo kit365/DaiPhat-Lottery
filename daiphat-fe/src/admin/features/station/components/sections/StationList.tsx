@@ -1,10 +1,10 @@
 "use client";
 
 import { useMemo, useState } from 'react';
-import {
-    DataGrid,
+import type {
     GridColDef,
 } from '@mui/x-data-grid';
+import { LazyDataGrid } from '@/admin/shared/data-grid/LazyDataGrid';
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import CircularProgress from '@mui/material/CircularProgress';
@@ -115,7 +115,7 @@ export const StationList = () => {
     return (
         <Card elevation={0} className="admin-datagrid-card">
             <Box sx={{ width: '100%', flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-                <DataGrid
+                <LazyDataGrid
                     rows={stations}
                     getRowId={(row) => row._id || row.id}
                     columns={columnsConfig}

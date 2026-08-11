@@ -4,7 +4,7 @@ import { Box, Stack, TextField, ThemeProvider, useTheme, MenuItem, Select, FormC
 import { Button } from "../../../../components/ui/Button";
 import { PageHeader } from "../../../../components/ui/PageHeader"
 import { useState, type Dispatch, type SetStateAction } from "react"
-import { Tiptap } from "../../../../components/layouts/titap/Tiptap"
+import { LazyTiptap } from "../../../../components/layouts/titap/LazyTiptap"
 import { CollapsibleCard } from "../../../../components/ui/CollapsibleCard"
 import { useCreateBlog, useBlogTypes, useBlogStatuses } from "../../hooks/useBlog";
 import { useBlogTags } from "../../hooks/useBlogTag";
@@ -164,7 +164,7 @@ export const BlogCreatePage = () => {
                                     control={control}
                                     render={({ field, fieldState }) => (
                                         <Box>
-                                            <Tiptap
+                                            <LazyTiptap
                                                 value={field.value ?? ""}
                                                 onChange={field.onChange}
                                             />

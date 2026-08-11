@@ -7,7 +7,7 @@ import { SpinnerLoading } from '../../../../components/ui/SpinnerLoading';
 import { useUpdateUser, useUserDetail, useDeleteUser } from "../../hooks/useUsers";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm, Controller } from "react-hook-form";
-import { accountUserSchema } from "../../../../schemas/account-user.schema";
+import { accountUserSchema } from "@/admin/features/users/schemas/account-user.schema";
 import { prefixAdmin } from '../../../../constants/routes';
 import { toast } from "react-toastify";
 import { useEffect, useRef, useState } from "react";
@@ -23,8 +23,7 @@ Typography,
 } from '@mui/material';
 import { UserStatus } from "../../../../../types/user.type";
 import Grid from "@mui/material/Grid";
-import { uploadImagesToCloudinary } from '../../../../api/uploadCloudinary.api';
-import { UserUserTicketList } from "../sections/UserTicketList";
+import { uploadImagesToCloudinary } from "@/admin/shared/services/uploadCloudinary.service";
 import { Button } from '../../../../components/ui/Button';
 
 export const ClientEditPage = () => {
@@ -308,8 +307,6 @@ export const ClientEditPage = () => {
                                 />
                             </div>
                         </div>
-
-                        {id && <UserUserTicketList userId={id} />}
                     </div>
                 </div>
             </form>

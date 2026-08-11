@@ -15,6 +15,7 @@ import com.daiphat.coreapi.application.port.in.lotteries.ReturnBatchServicePort;
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
 import com.daiphat.coreapi.domain.model.enums.lottery.ReturnBatchStatus;
+import com.daiphat.coreapi.domain.model.enums.lottery.ReturnBatchType;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -68,6 +69,7 @@ public class ReturnBatchController {
             @RequestParam(defaultValue = DEFAULT_LIMIT) int size,
             @RequestParam(required = false) Long lotterySupplierId,
             @RequestParam(required = false) Long supplierSettlementId,
+            @RequestParam(defaultValue = "SUPPLIER_RETURN") ReturnBatchType returnBatchType,
             @RequestParam(required = false) ReturnBatchStatus status,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate drawDateFrom,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate drawDateTo,
@@ -82,6 +84,7 @@ public class ReturnBatchController {
                         size,
                         lotterySupplierId,
                         supplierSettlementId,
+                        returnBatchType,
                         status,
                         drawDateFrom,
                         drawDateTo,

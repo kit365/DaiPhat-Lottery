@@ -1,4 +1,5 @@
-import { DataGrid, GridColDef } from '@mui/x-data-grid';
+import type { GridColDef } from '@mui/x-data-grid';
+import { LazyDataGrid } from '@/admin/shared/data-grid/LazyDataGrid';
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import CircularProgress from '@mui/material/CircularProgress';
@@ -63,7 +64,7 @@ export const ReturnBatchList = ({
 
             <Card elevation={0} className="admin-datagrid-card">
                 <Box sx={dataGridContainerStyles}>
-                    <DataGrid
+                    <LazyDataGrid
                         rows={batches}
                         getRowId={(row) => row.id}
                         columns={returnBatchColumnsConfig}

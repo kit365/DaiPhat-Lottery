@@ -6,7 +6,7 @@ import { DAYS_OF_WEEK } from "../../../../constants/schedule.constants";
 import { PageHeader } from "../../../../components/ui/PageHeader"
 import { TimePicker } from "@mui/x-date-pickers";
 import dayjs from "dayjs";
-import { Tiptap } from "../../../../components/layouts/titap/Tiptap"
+import { LazyTiptap } from "../../../../components/layouts/titap/LazyTiptap"
 import { useState, useMemo, type Dispatch, type SetStateAction } from "react";
 import { CollapsibleCard } from "../../../../components/ui/CollapsibleCard";
 import { useCreateStation, useUploadStationImage } from "../../hooks/useStation";
@@ -444,7 +444,7 @@ export const StationCreatePage = () => {
                                         name="description"
                                         control={control}
                                         render={({ field }) => (
-                                            <Tiptap
+                                            <LazyTiptap
                                                 value={field.value ?? ""}
                                                 onChange={field.onChange}
                                             />

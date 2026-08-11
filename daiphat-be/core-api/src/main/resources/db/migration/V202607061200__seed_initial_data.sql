@@ -30,39 +30,12 @@ VALUES
     ('MIEN_BAC', 'Miền Bắc', 'TRADITIONAL', 0, 99999, 0)
 ON CONFLICT (code) DO NOTHING;
 
--- V202606221200__init_system_config_schema.sql
-
-INSERT INTO system_config (
-    config_key,
-    config_value,
-    config_type,
-    data_type,
-    description,
-    is_active
-)
-VALUES
-    ('ORDER_CANCEL_GRACE_MIN', '30', 'ORDER_SETTING', 'INT', 'Thời gian ân hạn hủy đơn (phút)', TRUE),
-    ('CUSTOMER_CANCEL_CUTOFF', '14:30', 'ORDER_SETTING', 'TIME', 'Giờ chốt hủy đơn của khách hàng', TRUE),
-    ('ORDER_PREPARE_SLA_MIN', '30', 'ORDER_SETTING', 'INT', 'SLA chuẩn bị đơn (phút)', TRUE),
-    ('VENDOR_RETURN_CUTOFF', '15:00', 'ORDER_SETTING', 'TIME', 'Giờ chốt trả vé cho đại lý', TRUE),
-    ('STAFF_INCIDENT_CUTOFF', '16:00', 'REFUND_SETTING', 'TIME', 'Giờ chốt xử lý sự cố của nhân viên', TRUE),
-    ('INVALID_INFO_EXPIRED_DAYS', '7', 'REFUND_SETTING', 'INT', 'Số ngày hết hạn thông tin không hợp lệ', TRUE),
-    ('LATE_IMPORT_TIME', '14:30', 'TICKET_IMPORT', 'TIME', 'Giờ chốt sau đó lô nhập trong ngày được phân loại LATE_IMPORT', TRUE),
-    ('IMPORT_BATCH_CUTOFF_TIME', '15:00', 'TICKET_IMPORT', 'TIME', 'Giờ chốt sau đó không cho phép tạo lô nhập trong ngày (trừ lô nhập bổ sung)', TRUE)
-ON CONFLICT (config_key) DO UPDATE SET
-    config_value = EXCLUDED.config_value,
-    config_type = EXCLUDED.config_type,
-    data_type = EXCLUDED.data_type,
-    description = EXCLUDED.description,
-    is_active = EXCLUDED.is_active,
-    updated_at = CURRENT_TIMESTAMP;
-
 -- V202606231200__init_support_ticket_schema.sql
 
 INSERT INTO ticket_categories (name, code, description, priority, required_ref_type, created_at, updated_at, created_by, last_modified_by)
 VALUES
     ('Khiếu nại đơn hàng', 'ORDER_ISSUE', 'Khiếu nại liên quan đến đơn hàng đã đặt', 1, 'ORDER', NOW(), NOW(), 'SYSTEM', 'SYSTEM'),
-    ('Lỗi thanh toán', 'PAYMENT_ISSUE', 'Khiếu nại về giao dịch thanh toán', 2, 'PAYMENT_TRANSACTION', NOW(), NOW(), 'SYSTEM', 'SYSTEM'),
+    ('Lỗi thanh toán', 'PAYMENT_ISSUE', 'Khiếu nại về giao dịch thanh toán', 1, 'PAYMENT_TRANSACTION', NOW(), NOW(), 'SYSTEM', 'SYSTEM'),
     ('Hỗ trợ chung', 'GENERAL', 'Yêu cầu hỗ trợ không gắn đối tượng cụ thể', 2, NULL, NOW(), NOW(), 'SYSTEM', 'SYSTEM')
 ON CONFLICT (code) DO UPDATE SET
     name = EXCLUDED.name,
@@ -71,6 +44,33 @@ ON CONFLICT (code) DO UPDATE SET
     required_ref_type = EXCLUDED.required_ref_type,
     updated_at = NOW(),
     last_modified_by = 'SYSTEM';
+
+-- Complaint category parents are reference data, so seed and wire them here
+-- instead of maintaining separate parent backfill migrations.
+INSERT INTO ticket_categories (
+    name, code, description, priority, required_ref_type,
+    created_at, updated_at, created_by, last_modified_by
+)
+VALUES
+    ('Đơn hàng', 'GROUP_ORDER', 'Nhóm khiếu nại liên quan đến đơn hàng', 1, NULL, NOW(), NOW(), 'SYSTEM', 'SYSTEM'),
+    ('Thanh toán & Hoàn tiền', 'GROUP_PAYMENT', 'Nhóm khiếu nại thanh toán và hoàn tiền', 1, NULL, NOW(), NOW(), 'SYSTEM', 'SYSTEM'),
+    ('Hỗ trợ chung', 'GROUP_GENERAL', 'Nhóm các yêu cầu hỗ trợ khác', 2, NULL, NOW(), NOW(), 'SYSTEM', 'SYSTEM'),
+    ('Khiếu nại trả thưởng', 'GROUP_PRIZE_PAYOUT', 'Nhóm khiếu nại liên quan đến trả thưởng / nhận thưởng', 3, NULL, NOW(), NOW(), 'SYSTEM', 'SYSTEM')
+ON CONFLICT (code) DO UPDATE SET
+    name = EXCLUDED.name,
+    description = EXCLUDED.description,
+    priority = EXCLUDED.priority,
+    updated_at = NOW(),
+    last_modified_by = 'SYSTEM';
+
+UPDATE ticket_categories
+SET parent_id = CASE
+    WHEN code = 'ORDER_ISSUE' THEN (SELECT id FROM ticket_categories WHERE code = 'GROUP_ORDER')
+    WHEN code = 'PAYMENT_ISSUE' THEN (SELECT id FROM ticket_categories WHERE code = 'GROUP_PAYMENT')
+    WHEN code = 'GENERAL' THEN (SELECT id FROM ticket_categories WHERE code = 'GROUP_GENERAL')
+    ELSE parent_id
+END
+WHERE code IN ('ORDER_ISSUE', 'PAYMENT_ISSUE', 'GENERAL');
 
 -- V202607061130__init_ai_service_config_schema.sql
 
@@ -172,17 +172,17 @@ JOIN (
         ),
         (
             'WEB_SEARCH',
-            'Reserved intent for future general web or platform information lookup flows.',
+            'Find available lottery tickets in inventory by number fragment or station.',
             70,
             FALSE,
-            '{"defaultConfidence": 0.70}'
+            '{"defaultConfidence": 0.88}'
         ),
         (
             'WEB_SUGGEST',
-            'Reserved intent for future number suggestion and recommendation flows.',
+            'Suggest available lottery tickets currently for sale from inventory.',
             80,
             FALSE,
-            '{"defaultConfidence": 0.70}'
+            '{"defaultConfidence": 0.85}'
         ),
         (
             'WEB_SUPPORT',

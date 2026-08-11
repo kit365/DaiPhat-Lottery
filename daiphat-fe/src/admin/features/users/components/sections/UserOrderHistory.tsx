@@ -8,7 +8,7 @@ import { getOrders } from '../../../orders/services/orderService';
 import dayjs from "dayjs";
 import { prefixAdmin } from '../../../../constants/routes';
 import { useMemo, useState } from "react";
-import { getOrderStatusBadge } from '../../../orders/constants/orderStatus.constants';
+import { getOrderStatusBadge } from '@/admin/features/orders/utils/orderStatusBadge';
 
 interface UserOrderHistoryProps {
     userId: string;

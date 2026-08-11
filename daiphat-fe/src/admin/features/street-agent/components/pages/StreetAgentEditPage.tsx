@@ -2,14 +2,13 @@
 
 import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
 import { useRouteParams } from "@/hooks/useRouteParams";
-import Link from "@/admin/components/navigation/AdminLink";
 import { PageHeader } from "../../../../components/ui/PageHeader";
 import { SpinnerLoading } from "../../../../components/ui/SpinnerLoading";
 import {
     useStreetAgentProfileDetail,
-    useUpdateApprovedDailyCap,
     useUpdateStreetAgentProfile,
-    useUploadStreetAgentSignedContract} from "../../hooks/useStreetAgent";
+    useUploadStreetAgentSignedContract,
+} from "../../hooks/useStreetAgent";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { useEffect, useRef, useState } from "react";
@@ -19,11 +18,12 @@ import {
 } from "../../schemas/street-agent.schema";
 import { ROUTES } from "../../../../constants/routes";
 import { toast } from "react-toastify";
-import { Alert, Box, Dialog, DialogActions, DialogContent, DialogTitle, Stack, TextField, Typography } from "@mui/material";
-import { uploadAdminImage } from "../../../../api/upload.api";
+import { Alert, Box } from "@mui/material";
+import { uploadAdminImage } from "@/admin/shared/services/upload.service";
+import Link from "@/admin/components/navigation/AdminLink";
 import { Button } from "../../../../components/ui/Button";
 import { StreetAgentProfileForm } from "../sections/StreetAgentProfileForm";
-import { openStreetAgentContractPrint, getStreetAgentOnboardingResumePath } from "../../services/streetAgentService";
+import { getStreetAgentOnboardingResumePath } from "../../services/streetAgentService";
 import {
     parseCoverageAreaCodes,
     serializeCoverageAreaCodes,
@@ -49,7 +49,6 @@ const defaultValues: UpdateStreetAgentProfileFormValues = {
     contractStartDate: "",
     contractEndDate: "",
     contractMaxDailyCap: null,
-    approvedDailyCap: null,
 };
 
 const buildBasePayload = (data: UpdateStreetAgentProfileFormValues) => ({
@@ -87,7 +86,6 @@ export const StreetAgentEditPage = () => {
     const router = useAdminRouter();
     const { data: profile, isLoading, refetch } = useStreetAgentProfileDetail(id);
     const { mutate: update, isPending } = useUpdateStreetAgentProfile();
-    const { mutate: updateApprovedCap, isPending: isUpdatingApprovedCap } = useUpdateApprovedDailyCap();
     const { mutate: uploadSigned, isPending: isUploadingSigned } = useUploadStreetAgentSignedContract();
     const { defaults: vendorDefaults } = useVendorSettingsDefaults();
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -96,9 +94,6 @@ export const StreetAgentEditPage = () => {
     const [isStatusActionPending, setIsStatusActionPending] = useState(false);
     const [pendingSignedFile, setPendingSignedFile] = useState<File | null>(null);
     const [viewSignedOpen, setViewSignedOpen] = useState(false);
-    const [approvedCapDialogOpen, setApprovedCapDialogOpen] = useState(false);
-    const [nextApprovedCap, setNextApprovedCap] = useState("");
-    const [approvedCapReason, setApprovedCapReason] = useState("");
 
     const { control, handleSubmit, setValue, watch, reset, getValues } = useForm<UpdateStreetAgentProfileFormValues>({
         resolver: zodResolver(updateStreetAgentProfileSchema) as any,
@@ -108,6 +103,15 @@ export const StreetAgentEditPage = () => {
     });
 
     const imageUrl = watch("imageUrl");
+    const watchStartDate = watch("contractStartDate");
+    const watchEndDate = watch("contractEndDate");
+    const watchCap = watch("contractMaxDailyCap");
+
+    const isContractChanged = Boolean(profile?.contractDocumentUrl && (
+        (profile.contractStartDate || "") !== (watchStartDate || "") ||
+        (profile.contractEndDate || "") !== (watchEndDate || "") ||
+        (profile.contractMaxDailyCap ?? null) !== (watchCap ?? null)
+    ));
 
     useEffect(() => {
         if (profile) {
@@ -119,11 +123,11 @@ export const StreetAgentEditPage = () => {
                 imageUrl: profile.imageUrl || "",
                 contactAddress: profile.contactAddress || "",
                 contactProvince: profile.contactProvince || "",
+                contactWard: profile.contactWard || "",
                 coverageAreaCodes: parseCoverageAreaCodes(profile.coverageArea),
                 contractStartDate: profile.contractStartDate || "",
                 contractEndDate: profile.contractEndDate || "",
                 contractMaxDailyCap: profile.contractMaxDailyCap ?? null,
-                approvedDailyCap: profile.approvedDailyCap ?? null,
             });
         }
     }, [profile, reset]);
@@ -228,14 +232,31 @@ export const StreetAgentEditPage = () => {
         );
     };
 
-    const onSubmit = (data: UpdateStreetAgentProfileFormValues) => {
+    const submitProfileUpdate = (data: UpdateStreetAgentProfileFormValues) => {
+        const hadSignedContract = Boolean(profile?.contractDocumentUrl);
+        const contractTermsChanged = hadSignedContract && (
+            (profile?.contractStartDate || "") !== (data.contractStartDate || "") ||
+            (profile?.contractEndDate || "") !== (data.contractEndDate || "") ||
+            (profile?.contractMaxDailyCap ?? null) !== (data.contractMaxDailyCap ?? null)
+        );
+
         update(
             { id: id!, data: buildBasePayload(data) },
             {
                 onSuccess: (response) => {
                     if (response.success) {
-                        toast.success(response.message || "Cập nhật hồ sơ đại lý bán dạo thành công!");
-                        router.push(ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.LIST);
+                        const updatedProfile = response.data;
+                        if (contractTermsChanged || (updatedProfile?.status === "PENDING" && !updatedProfile.contractDocumentUrl)) {
+                            toast.info(
+                                contractTermsChanged
+                                    ? "Đã lưu thay đổi. Bản ký cũ không còn hiệu lực; hãy in hợp đồng mới và tải bản đã ký lên."
+                                    : "Đã lưu hồ sơ. Vui lòng hoàn thiện và tải bản hợp đồng đã ký lên."
+                            );
+                            void refetch();
+                        } else {
+                            toast.success(response.message || "Cập nhật hồ sơ người bán vé số thành công!");
+                            router.push(ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.LIST);
+                        }
                     } else {
                         toast.error(response.message || "Cập nhật hồ sơ thất bại");
                     }
@@ -247,53 +268,18 @@ export const StreetAgentEditPage = () => {
         );
     };
 
-    const openApprovedCapDialog = () => {
-        setNextApprovedCap(String(profile?.approvedDailyCap ?? ""));
-        setApprovedCapReason("");
-        setApprovedCapDialogOpen(true);
-    };
-
-    const saveApprovedCap = () => {
-        if (!id || !profile) return;
-        const approvedDailyCap = Number(nextApprovedCap);
-        if (!Number.isInteger(approvedDailyCap) || approvedDailyCap <= 0) {
-            toast.error("Hạn mức vận hành phải là số nguyên dương.");
-            return;
-        }
-        if (profile.contractMaxDailyCap != null && approvedDailyCap > profile.contractMaxDailyCap) {
-            toast.error("Hạn mức vận hành không được vượt trần trong hợp đồng.");
-            return;
-        }
-        if (!approvedCapReason.trim()) {
-            toast.error("Cần nhập lý do điều chỉnh hạn mức.");
-            return;
-        }
-        updateApprovedCap(
-            { id, data: { approvedDailyCap, reason: approvedCapReason.trim() } },
-            {
-                onSuccess: (response) => {
-                    if (response.success) {
-                        toast.success(response.message || "Đã cập nhật hạn mức vận hành.");
-                        setApprovedCapDialogOpen(false);
-                        void refetch();
-                    } else {
-                        toast.error(response.message || "Cập nhật hạn mức thất bại.");
-                    }
-                },
-                onError: (error: any) => toast.error(error.response?.data?.message || "Cập nhật hạn mức thất bại."),
-            }
-        );
+    const onSubmit = (data: UpdateStreetAgentProfileFormValues) => {
+        submitProfileUpdate(data);
     };
 
     if (isLoading) {
         return (
             <Box sx={{ maxWidth: "1200px", mx: "auto" }}>
                 <PageHeader
-                    title="Chỉnh sửa hồ sơ đại lý bán dạo"
+                    title="Chỉnh sửa hồ sơ người bán vé số"
                     breadcrumbItems={[
                         { label: "Dashboard", to: "/" },
-                        { label: "Quản lý đại lý", to: ROUTES.ADMIN.ACCOUNTS.ADMIN.LIST },
-                        { label: "Đại lý bán dạo", to: ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.LIST },
+                        { label: "Người bán vé số", to: ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.LIST },
                         { label: "Cập nhật" },
                     ]}
                 />
@@ -305,16 +291,15 @@ export const StreetAgentEditPage = () => {
     return (
         <Box sx={{ maxWidth: "1200px", mx: "auto" }}>
             <PageHeader
-                title="Chỉnh sửa hồ sơ đại lý bán dạo"
+                title="Chỉnh sửa hồ sơ người bán vé số"
                 breadcrumbItems={[
                     { label: "Dashboard", to: "/" },
-                    { label: "Quản lý đại lý", to: ROUTES.ADMIN.ACCOUNTS.ADMIN.LIST },
-                    { label: "Đại lý bán dạo", to: ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.LIST },
+                    { label: "Người bán vé số", to: ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.LIST },
                     { label: "Cập nhật" },
                 ]}
             />
 
-            {profile?.status === "PENDING" && !profile.contractDocumentUrl && id ? (
+            {profile?.status === "PENDING" && !profile.contractDocumentUrl && id && (
                 <Alert
                     severity="warning"
                     sx={{ mb: 3 }}
@@ -329,9 +314,15 @@ export const StreetAgentEditPage = () => {
                         </Button>
                     }
                 >
-                    Hồ sơ đang PENDING — cần in hợp đồng và upload bản đã ký trước khi vendor nhận vé.
+                    Hồ sơ chưa đủ điều kiện nhận vé. Vui lòng hoàn thiện và tải bản hợp đồng đã ký.
                 </Alert>
-            ) : null}
+            )}
+
+            {isContractChanged && (
+                <Alert severity="error" sx={{ mb: 3 }}>
+                    Cảnh báo: Bạn đang thay đổi thông tin hợp đồng. Lưu thay đổi sẽ làm mất hiệu lực bản hợp đồng đã ký hiện tại và hồ sơ sẽ chuyển về trạng thái chờ xử lý (PENDING). Bạn sẽ cần in và tải lại bản ký mới.
+                </Alert>
+            )}
 
             <form onSubmit={handleSubmit(onSubmit)}>
                 <StreetAgentProfileForm
@@ -348,26 +339,13 @@ export const StreetAgentEditPage = () => {
                     confidenceTier={profile?.confidenceTier}
                     contractCode={profile?.contractCode}
                     contractDocumentUrl={profile?.contractDocumentUrl}
+                    contractMaxDailyCap={profile?.contractMaxDailyCap}
                     effectiveDailyCap={profile?.effectiveDailyCap}
-                    remainingDailyCap={profile?.remainingDailyCap}
                     depositBalance={profile?.depositBalance}
-                    onPrintContract={async () => {
-                        if (!id) return;
-                        try {
-                            await openStreetAgentContractPrint(id);
-                        } catch (error: any) {
-                            toast.error(
-                                error?.message ||
-                                    error?.response?.data?.message ||
-                                    "Không mở được hợp đồng PDF"
-                            );
-                        }
-                    }}
                     onUploadSignedDocument={handleSelectSignedDocument}
                     onViewSignedDocument={() => setViewSignedOpen(true)}
                     isUploadingSignedDocument={isUploadingSigned}
                     signedFileInputRef={signedFileInputRef}
-                    onAdjustApprovedDailyCap={openApprovedCapDialog}
                     onLockProfile={() => runStatusUpdate("INACTIVE", "Đã khóa hồ sơ")}
                     onReactivateProfile={() => runStatusUpdate("PENDING", "Đã kích hoạt lại hồ sơ")}
                     isStatusActionPending={isStatusActionPending}
@@ -399,40 +377,6 @@ export const StreetAgentEditPage = () => {
                 fileName={profile?.contractCode ? `Hop-dong-da-ky-${profile.contractCode}` : undefined}
                 onClose={() => setViewSignedOpen(false)}
             />
-
-            <Dialog open={approvedCapDialogOpen} onClose={() => !isUpdatingApprovedCap && setApprovedCapDialogOpen(false)} maxWidth="xs" fullWidth>
-                <DialogTitle>Điều chỉnh hạn mức vận hành</DialogTitle>
-                <DialogContent>
-                    <Stack spacing={2.5} sx={{ pt: 1 }}>
-                        <Typography variant="body2" color="text.secondary">
-                            Trần trong hợp đồng: {profile?.contractMaxDailyCap ?? "—"} vé/ngày. Thao tác này được lưu kèm lý do và người duyệt.
-                        </Typography>
-                        <TextField
-                            autoFocus
-                            type="number"
-                            label="Hạn mức vận hành mới"
-                            value={nextApprovedCap}
-                            onChange={(event) => setNextApprovedCap(event.target.value)}
-                            inputProps={{ min: 1, max: profile?.contractMaxDailyCap ?? undefined }}
-                            fullWidth
-                        />
-                        <TextField
-                            label="Lý do điều chỉnh"
-                            value={approvedCapReason}
-                            onChange={(event) => setApprovedCapReason(event.target.value)}
-                            inputProps={{ maxLength: 500 }}
-                            multiline
-                            minRows={3}
-                            fullWidth
-                        />
-                    </Stack>
-                </DialogContent>
-                <DialogActions>
-                    <Button onClick={() => setApprovedCapDialogOpen(false)} disabled={isUpdatingApprovedCap}>Hủy</Button>
-                    <Button loading={isUpdatingApprovedCap} onClick={saveApprovedCap} label="Lưu hạn mức" loadingLabel="Đang lưu..." />
-                </DialogActions>
-            </Dialog>
-
         </Box>
     );
 };

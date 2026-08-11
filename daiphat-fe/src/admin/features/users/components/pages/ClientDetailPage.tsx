@@ -24,13 +24,11 @@ import { useUserDetail, useUpdateUser, useDeleteUser } from "../../hooks/useUser
 import { UserStatus } from "../../../../../types/user.type";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { accountUserSchema } from "../../../../schemas/account-user.schema";
+import { accountUserSchema } from "@/admin/features/users/schemas/account-user.schema";
 import { toast } from "react-toastify";
-import { uploadImagesToCloudinary } from "../../../../api/uploadCloudinary.api";
+import { uploadImagesToCloudinary } from "@/admin/shared/services/uploadCloudinary.service";
 import { Button } from "../../../../components/ui/Button";
-import { UserUserTicketList } from "../sections/UserTicketList";
 import { UserOrderHistory } from "../sections/UserOrderHistory";
-import { UserBoardingHistory } from "../sections/UserBoardingHistory";
 
 export const ClientDetailPage = () => {
     const { id } = useRouteParams();
@@ -198,16 +196,6 @@ export const ClientDetailPage = () => {
                         <Stack direction="row" spacing={1} alignItems="center">
                             <Icon icon="solar:cart-large-bold" width={20} />
                             <span>Lịch sử đơn hàng</span>
-                        </Stack>
-                    }
-                />
-                <Tab
-                    disableRipple
-                    value="boarding"
-                    label={
-                        <Stack direction="row" spacing={1} alignItems="center">
-                            <Icon icon="solar:home-2-bold" width={20} />
-                            <span>Lịch sử khách sạn</span>
                         </Stack>
                     }
                 />
@@ -383,8 +371,6 @@ export const ClientDetailPage = () => {
                                     />
                                 </div>
                             </div>
-
-                            {id && <UserUserTicketList userId={id} />}
                         </div>
                     </div>
                 </form>
@@ -396,15 +382,6 @@ export const ClientDetailPage = () => {
                         <Typography variant="h6">Lịch sử đơn hàng sản phẩm</Typography>
                     </Box>
                     <UserOrderHistory userId={id} />
-                </Card>
-            )}
-
-            {currentTab === "boarding" && id && (
-                <Card sx={{ borderRadius: "var(--shape-borderRadius-lg)", boxShadow: "var(--customShadows-card)", overflow: 'hidden' }}>
-                    <Box sx={{ p: 3, borderBottom: '1px dashed var(--palette-divider)' }}>
-                        <Typography variant="h6">Lịch sử khách sạn (Boarding)</Typography>
-                    </Box>
-                    <UserBoardingHistory userId={id} />
                 </Card>
             )}
 

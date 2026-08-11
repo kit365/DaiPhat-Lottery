@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from 'react';
-import { DataGrid } from '@mui/x-data-grid';
+import { LazyDataGrid } from '@/admin/shared/data-grid/LazyDataGrid';
 import Card from '@mui/material/Card';
 import Box from '@mui/material/Box';
 import CircularProgress from '@mui/material/CircularProgress';
@@ -32,7 +32,7 @@ export const BlogCategoryList = ({ isTrash = false }: { isTrash?: boolean }) => 
     return (
         <Card elevation={0} className="admin-datagrid-card">
             <div style={{ width: '100%', flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-                <DataGrid
+                <LazyDataGrid
                     rows={categories}
                     getRowId={(row) => row.id}
                     loading={isLoading}

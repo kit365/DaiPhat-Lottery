@@ -79,8 +79,6 @@ public record UpdateStreetAgentProfileRequest(
 
     /** @deprecated deposit adjustments use the audited transaction endpoint. */
     @Deprecated public String depositAdjustmentReason() { return null; }
-    /** @deprecated use {@link #contractMaxDailyCap()}. */
-    @Deprecated public Integer dailyTicketCap() { return contractMaxDailyCap; }
     public UpdateStreetAgentProfileRequest(
             String firstName, String lastName, String phone, String cccd, String imageUrl,
             String contactAddress, String contactProvince, String contactWard, String coverageArea,
@@ -99,10 +97,10 @@ public record UpdateStreetAgentProfileRequest(
             String contactAddress, String contactProvince, String coverageArea,
             BigDecimal commissionRate, LocalDate contractStartDate, LocalDate contractEndDate,
             BigDecimal ignoredLegacyDepositBalance, String ignoredLegacyDepositAdjustmentReason, String status,
-            String contractCode, String contractDocumentUrl, Integer legacyDailyTicketCap) {
+            String contractCode, String contractDocumentUrl, Integer legacyContractDailyCap) {
         this(firstName, lastName, phone, cccd, imageUrl, contactAddress, contactProvince, null, coverageArea,
                 commissionRate, contractStartDate, contractEndDate, ignoredLegacyDepositBalance,
-                ignoredLegacyDepositAdjustmentReason, status, contractCode, contractDocumentUrl, legacyDailyTicketCap);
+                ignoredLegacyDepositAdjustmentReason, status, contractCode, contractDocumentUrl, legacyContractDailyCap);
     }
 
     /** Source compatibility for server-side callers during the API transition. */
@@ -112,9 +110,9 @@ public record UpdateStreetAgentProfileRequest(
             String contactAddress, String contactProvince, String contactWard, String coverageArea,
             BigDecimal commissionRate, LocalDate contractStartDate, LocalDate contractEndDate,
             BigDecimal ignoredLegacyDepositBalance, String ignoredLegacyDepositAdjustmentReason, String status,
-            String contractCode, String contractDocumentUrl, Integer legacyDailyTicketCap) {
+            String contractCode, String contractDocumentUrl, Integer legacyContractDailyCap) {
         this(firstName, lastName, phone, cccd, imageUrl, contactAddress, contactProvince,
                 contactWard, coverageArea, commissionRate, contractStartDate, contractEndDate,
-                status, contractCode, contractDocumentUrl, legacyDailyTicketCap);
+                status, contractCode, contractDocumentUrl, legacyContractDailyCap);
     }
 }

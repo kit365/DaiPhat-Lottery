@@ -78,18 +78,6 @@ public class StreetAgentProfileEntity extends BaseEntity {
     @Column(name = "contract_max_daily_cap")
     private Integer contractMaxDailyCap;
 
-    @Column(name = "approved_daily_cap")
-    private Integer approvedDailyCap;
-
-    @Column(name = "daily_cap_adjustment_reason", length = 500)
-    private String dailyCapAdjustmentReason;
-
-    @Column(name = "daily_cap_adjusted_by")
-    private java.util.UUID dailyCapAdjustedBy;
-
-    @Column(name = "daily_cap_adjusted_at")
-    private java.time.LocalDateTime dailyCapAdjustedAt;
-
     @Column(name = "confidence_score", nullable = false, precision = 5, scale = 2)
     @Builder.Default
     private BigDecimal confidenceScore = new BigDecimal("25");
@@ -121,7 +109,6 @@ public class StreetAgentProfileEntity extends BaseEntity {
     }
 
     public boolean hasEffectiveContract(LocalDate businessDate) {
-        return hasContractInForce(businessDate) && contractMaxDailyCap != null && contractMaxDailyCap > 0
-                && approvedDailyCap != null && approvedDailyCap > 0 && approvedDailyCap <= contractMaxDailyCap;
+        return hasContractInForce(businessDate) && contractMaxDailyCap != null && contractMaxDailyCap > 0;
     }
 }

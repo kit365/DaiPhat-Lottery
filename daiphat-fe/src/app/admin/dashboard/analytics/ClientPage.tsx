@@ -1,6 +1,6 @@
-"use client";
+﻿"use client";
 
-import AnalyticsPage from '@/admin/pages/dashboard/AnalyticsPage';
+import AnalyticsPage from '@/admin/features/dashboard/components/pages/AnalyticsPage';
 import { createAdminClientPage } from '@/admin/lib/createAdminClientPage';
 import { PERMISSIONS } from '@/admin/constants/permission.constants';
 

@@ -27,6 +27,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
+import java.math.BigDecimal;
 import java.util.Collection;
 import java.util.List;
 
@@ -52,8 +53,9 @@ public class VendorAllocationController {
     public ApiResponse<VendorAllocationSuggestionResponse> getSuggestion(
             @RequestParam Long profileId,
             @RequestParam LocalDate businessDate,
-            @RequestParam(required = false) Integer requestedQuantity) {
-        return ApiResponse.success(null, vendorAllocationServicePort.getSuggestion(profileId, businessDate, requestedQuantity));
+            @RequestParam(required = false) Integer requestedQuantity,
+            @RequestParam(required = false) BigDecimal faceValue) {
+        return ApiResponse.success(null, vendorAllocationServicePort.getSuggestion(profileId, businessDate, requestedQuantity, faceValue));
     }
 
     @GetMapping("/open")
@@ -124,6 +126,15 @@ public class VendorAllocationController {
         return ApiResponse.success("Đã ghi nhận vé trả.", vendorAllocationServicePort.recordReturns(id, request));
     }
 
+    @DeleteMapping("/{id}/returns/{serialId}")
+    @PreAuthorize("hasAuthority('streetAgent:edit')")
+    public ApiResponse<VendorAllocationBatchResponse> removeReturn(
+            @PathVariable Long id,
+            @PathVariable Long serialId) {
+        return ApiResponse.success("Đã bỏ vé khỏi danh sách chờ kiểm nhận.",
+                vendorAllocationServicePort.removeReturn(id, serialId));
+    }
+
     @PostMapping("/{id}/return-inspection/confirm")
     @PreAuthorize("hasAuthority('streetAgent:edit')")
     public ApiResponse<VendorAllocationBatchResponse> confirmReturnInspection(
@@ -148,12 +159,6 @@ public class VendorAllocationController {
             @Valid @RequestBody SettleVendorAllocationRequest request,
             @AuthenticationPrincipal AuthenticatedUserPrincipal principal) {
         return ApiResponse.success("Đã quyết toán phiếu bàn giao.", vendorAllocationServicePort.settle(id, request, principal.getId()));
-    }
-
-    /** Source compatibility for direct controller tests; HTTP clients must send the request body. */
-    @Deprecated
-    public ApiResponse<VendorAllocationBatchResponse> settle(Long id, AuthenticatedUserPrincipal principal) {
-        return ApiResponse.success("Đã quyết toán phiếu bàn giao.", vendorAllocationServicePort.settle(id, principal.getId()));
     }
 
     @PostMapping("/{id}/cancel")
