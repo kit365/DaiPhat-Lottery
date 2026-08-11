@@ -105,7 +105,7 @@ export const StreetAgentQuickUpdateModal = ({ open, onClose, id }: StreetAgentQu
     }, [profile, open]);
 
     const fullName = useMemo(
-        () => `${formValues.lastName} ${formValues.firstName}`.trim() || "Đại lý bán dạo",
+        () => `${formValues.lastName} ${formValues.firstName}`.trim() || "Người bán vé số",
         [formValues.firstName, formValues.lastName]
     );
 
@@ -156,7 +156,7 @@ export const StreetAgentQuickUpdateModal = ({ open, onClose, id }: StreetAgentQu
             {
                 onSuccess: (response) => {
                     if (response.success) {
-                        toast.success(response.message || "Cập nhật hồ sơ đại lý bán dạo thành công!");
+                        toast.success(response.message || "Cập nhật hồ sơ người bán vé số thành công!");
                         onClose();
                     } else {
                         toast.error(response.message || "Cập nhật thất bại");
@@ -171,9 +171,9 @@ export const StreetAgentQuickUpdateModal = ({ open, onClose, id }: StreetAgentQu
 
     const getStatusMessage = (status: string) => {
         if (status === "INACTIVE") {
-            return "Đại lý đang ngưng hoạt động";
+            return "Người bán vé số đang ngưng hoạt động";
         }
-        return "Đại lý đang hoạt động bình thường";
+        return "Người bán vé số đang hoạt động bình thường";
     };
 
     const getAlertSeverity = (status: string) => (status === "INACTIVE" ? "warning" : "success");

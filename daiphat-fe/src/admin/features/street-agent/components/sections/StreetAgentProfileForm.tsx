@@ -212,7 +212,7 @@ export const StreetAgentProfileForm = ({
                 <>
                     <SectionTitle
                         title={isEdit ? "Hợp đồng đã ký" : "Hợp đồng"}
-                        helperText={isEdit ? "Chưa có bản đã ký. Tải file lên sau khi đại lý bán dạo ký xác nhận." : "Hợp đồng sẽ được tạo sau khi lưu hồ sơ."}
+                        helperText={isEdit ? "Chưa có bản đã ký. Tải file lên sau khi người bán vé số ký xác nhận." : "Hợp đồng sẽ được tạo sau khi lưu hồ sơ."}
                     />
                     {isEdit ? (
                         <Stack spacing={2}>
@@ -247,7 +247,7 @@ export const StreetAgentProfileForm = ({
         <Box>
             <Stack spacing={3}>
                 <Card sx={{ p: 3, borderRadius: "var(--shape-borderRadius-lg)", boxShadow: "var(--customShadows-card)" }}>
-                        <SectionTitle title="Thông tin cá nhân" helperText="Thông tin cơ bản của đại lý." />
+                        <SectionTitle title="Thông tin cá nhân" helperText="Thông tin cơ bản của người bán vé số." />
                         <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)" }, gap: 3 }}>
                             <Box sx={{ gridColumn: { sm: "1 / -1" }, display: "flex", justifyContent: "center", mb: 2, position: "relative" }}>
                                 {statusChip && (
@@ -550,7 +550,7 @@ export const StreetAgentProfileForm = ({
 
                     {vendorDefaults && (
                         <Card sx={{ p: 3, borderRadius: "var(--shape-borderRadius-lg)", boxShadow: "var(--customShadows-card)" }}>
-                            <SectionTitle title="Chính sách áp dụng" helperText="Các giá trị này được cấu hình chung từ hệ thống và áp dụng tự động cho đại lý." />
+                            <SectionTitle title="Chính sách áp dụng" helperText="Các giá trị này được cấu hình chung từ hệ thống và áp dụng tự động cho người bán vé số." />
                             <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)" }, gap: 3 }}>
                                 <ReadOnlyRow
                                     label="Tỷ lệ hoa hồng theo mệnh giá"
@@ -561,8 +561,8 @@ export const StreetAgentProfileForm = ({
                                     }
                                     helperText={
                                         vendorDefaults.commissionRate == null
-                                            ? "Giá vendor = mệnh giá - hoa hồng"
-                                            : `Tham khảo (giá bán khách 10.000đ/vé): Hoa hồng ${formatCurrency(10000 * vendorDefaults.commissionRate)}/vé · Giá vendor ${formatCurrency(10000 * (1 - vendorDefaults.commissionRate))}/vé. Bảng kê thực tế là gốc.`
+                                            ? "Giá người bán vé số = mệnh giá - hoa hồng"
+                                            : `Tham khảo (giá bán khách 10.000đ/vé): Hoa hồng ${formatCurrency(10000 * vendorDefaults.commissionRate)}/vé · Giá người bán vé số ${formatCurrency(10000 * (1 - vendorDefaults.commissionRate))}/vé. Bảng kê thực tế là gốc.`
                                     }
                                 />
                                 <ReadOnlyRow

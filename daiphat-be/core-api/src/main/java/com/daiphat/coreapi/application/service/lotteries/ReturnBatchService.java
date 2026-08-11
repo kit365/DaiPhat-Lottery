@@ -153,6 +153,7 @@ public class ReturnBatchService implements ReturnBatchServicePort {
             int size,
             Long lotterySupplierId,
             Long supplierSettlementId,
+            ReturnBatchType returnBatchType,
             ReturnBatchStatus status,
             LocalDate drawDateFrom,
             LocalDate drawDateTo,
@@ -160,6 +161,9 @@ public class ReturnBatchService implements ReturnBatchServicePort {
             String sortBy,
             String direction
     ) {
+        ReturnBatchType effectiveReturnBatchType = returnBatchType != null
+                ? returnBatchType
+                : ReturnBatchType.SUPPLIER_RETURN;
         String field = sortBy != null && SORTABLE_FIELDS.contains(sortBy) ? sortBy : "drawDate";
         PageRequest pageRequest = PageRequest.of(
                 Math.max(page - 1, 0),
@@ -167,7 +171,16 @@ public class ReturnBatchService implements ReturnBatchServicePort {
                 SortUtils.createSort(field, direction != null ? direction : "desc")
         );
         Page<ReturnBatchResponse> responsePage = returnBatchRepositoryPort
-                .findAll(pageRequest, lotterySupplierId, supplierSettlementId, status, drawDateFrom, drawDateTo, search)
+                .findAll(
+                        pageRequest,
+                        lotterySupplierId,
+                        supplierSettlementId,
+                        effectiveReturnBatchType,
+                        status,
+                        drawDateFrom,
+                        drawDateTo,
+                        search
+                )
                 .map(model -> {
                     if (isSupplierReturn(model) && model.getStatus() != null && model.getStatus().isOpenForInspection()) {
                         returnBatchAutoCancelService.cancelIfPastCutoff(model);

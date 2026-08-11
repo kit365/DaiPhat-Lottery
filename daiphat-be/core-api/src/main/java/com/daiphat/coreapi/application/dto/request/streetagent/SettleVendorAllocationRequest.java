@@ -1,11 +1,13 @@
 package com.daiphat.coreapi.application.dto.request.streetagent;
 
-import jakarta.validation.constraints.DecimalMin;
-import jakarta.validation.constraints.NotNull;
-import java.math.BigDecimal;
+import jakarta.validation.constraints.AssertTrue;
+import jakarta.validation.constraints.NotBlank;
 
-/** Amounts physically counted by staff. Both must exactly match the server preview. */
+/**
+ * Confirms the immutable settlement preview. Monetary values are intentionally not accepted
+ * from the client: the server derives them from the frozen batch snapshots and return outcome.
+ */
 public record SettleVendorAllocationRequest(
-        @NotNull @DecimalMin(value = "0") BigDecimal cashReceivedFromVendor,
-        @NotNull @DecimalMin(value = "0") BigDecimal cashPaidToVendor
+        @NotBlank String settlementFingerprint,
+        @AssertTrue boolean confirmed
 ) {}

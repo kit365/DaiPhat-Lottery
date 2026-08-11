@@ -137,11 +137,11 @@ export const StreetAgentDetailPage = () => {
         return (
             <Box sx={{ maxWidth: "1200px", mx: "auto" }}>
                 <PageHeader
-                    title="Chi tiết đại lý bán dạo"
+                    title="Chi tiết người bán vé số"
                     breadcrumbItems={[
                         { label: "Dashboard", to: "/" },
                         { label: "Quản lý tài khoản", to: ROUTES.ADMIN.ACCOUNTS.ADMIN.LIST },
-                        { label: "Đại lý bán dạo", to: ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.LIST },
+                        { label: "Người bán vé số", to: ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.LIST },
                         { label: `#${id}` },
                     ]}
                 />
@@ -153,7 +153,7 @@ export const StreetAgentDetailPage = () => {
     if (!profile) {
         return (
             <Box sx={{ py: 5, textAlign: "center" }}>
-                <Typography>Không tìm thấy hồ sơ đại lý bán dạo.</Typography>
+                <Typography>Không tìm thấy hồ sơ người bán vé số.</Typography>
             </Box>
         );
     }
@@ -164,11 +164,11 @@ export const StreetAgentDetailPage = () => {
     return (
         <Box sx={{ maxWidth: "1200px", mx: "auto" }}>
             <PageHeader
-                title="Chi tiết đại lý bán dạo"
+                title="Chi tiết người bán vé số"
                 breadcrumbItems={[
                     { label: "Dashboard", to: "/" },
                     { label: "Quản lý tài khoản", to: ROUTES.ADMIN.ACCOUNTS.ADMIN.LIST },
-                    { label: "Đại lý bán dạo", to: ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.LIST },
+                    { label: "Người bán vé số", to: ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.LIST },
                     { label: fullName || "Chi tiết" },
                 ]}
             />
@@ -329,7 +329,7 @@ export const StreetAgentDetailPage = () => {
                                                 </Stack>
                                                 <Box sx={{ p: 2.5, border: "1px solid var(--palette-divider, #e0e0e0)", borderRadius: 2, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 2, bgcolor: "var(--palette-background-neutral, #f4f6f8)" }}>
                                                     <Typography variant="body2" color="text.secondary" sx={{ flex: 1, minWidth: 200 }}>
-                                                        In file PDF hợp đồng và đưa cho đại lý ký xác nhận.
+                                                        In file PDF hợp đồng và đưa cho người bán vé số ký xác nhận.
                                                     </Typography>
                                                     <Button
                                                         variant="contained"

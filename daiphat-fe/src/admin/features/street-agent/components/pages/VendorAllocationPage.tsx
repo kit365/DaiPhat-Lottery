@@ -100,7 +100,7 @@ const SHORTAGE_REASON_LABELS: Record<string, string> = {
     NO_ELIGIBLE_TICKET: "Không còn vé hợp lệ để giao.",
     RETURN_CUTOFF_REACHED: "Đã qua giờ nhận trả vé của ngày kinh doanh.",
     INSUFFICIENT_INVENTORY: "Kho không đủ vé",
-    VENDOR_CAP_REACHED: "Vượt hạn mức vendor",
+    VENDOR_CAP_REACHED: "Vượt hạn mức người bán vé số",
     AGENCY_RESERVE_CAP: "Không đủ vé sau khi chừa quầy",
     DRAW_TIME_PASSED: "Đã qua giờ xổ",
     INSUFFICIENT_FUNDS: "Không đủ số dư cọc",
@@ -267,6 +267,10 @@ export const VendorAllocationPage = () => {
 
     useEffect(() => {
         if (!suggestion?.stations || draftId) return;
+        if ((suggestion.availableFaceValues?.length ?? 0) > 1 && !faceValue) {
+            setSelectedSerialIds([]);
+            return;
+        }
         if (selectionMode === "SYSTEM") {
             setSelectedSerialIds(getSuggestedSerialIds(suggestion));
         } else {
@@ -278,7 +282,7 @@ export const VendorAllocationPage = () => {
             setSelectedSerialIds((current) => current.filter((serialId) => currentSerialIds.has(serialId)));
         }
         setAcceptShortfall(false);
-    }, [suggestion, draftId, selectionMode]);
+    }, [suggestion, draftId, selectionMode, faceValue]);
 
     useEffect(() => {
         if (draftBatch?.status && draftBatch.status !== "DRAFT") {
@@ -341,6 +345,7 @@ export const VendorAllocationPage = () => {
         !suggestionBlockedMessage &&
         (remainingCap ?? 0) > 0 &&
         hasSelectableInventory &&
+        !((suggestion?.availableFaceValues?.length ?? 0) > 1 && !faceValue) &&
         totalSelected > 0;
 
     const applyRequestedQuantity = () => {
@@ -366,12 +371,12 @@ export const VendorAllocationPage = () => {
 
     const handleCreateDraft = () => {
         if (!profile?.id) {
-            toast.error("Vui lòng chọn đại lý bán dạo");
+            toast.error("Vui lòng chọn người bán vé số");
             return;
         }
         if (blockingOpenBatch) {
             toast.error(
-                `Vendor còn phiếu mở ${blockingOpenBatch.batchCode} (${ALLOCATION_BATCH_STATUS_LABELS[blockingOpenBatch.status] || blockingOpenBatch.status}). Không thể tạo phiếu mới.`
+                `Người bán vé số còn phiếu mở ${blockingOpenBatch.batchCode} (${ALLOCATION_BATCH_STATUS_LABELS[blockingOpenBatch.status] || blockingOpenBatch.status}). Không thể tạo phiếu mới.`
             );
             return;
         }
@@ -452,10 +457,10 @@ export const VendorAllocationPage = () => {
     return (
         <Box sx={{ maxWidth: 1200, mx: "auto", pb: (!draftId && !blockingOpenBatch && profile) ? 12 : 5 }}>
             <PageHeader
-                title="Bàn giao vé cho đại lý bán dạo"
+                title="Bàn giao vé cho người bán vé số"
                 breadcrumbItems={[
                     { label: "Dashboard", to: "/" },
-                    { label: "Đại lý bán dạo" },
+                    { label: "Người bán vé số" },
                     { label: "Bàn giao vé" },
                 ]}
             />
@@ -477,7 +482,7 @@ export const VendorAllocationPage = () => {
                             }
                             isOptionEqualToValue={(a, b) => a.id === b.id}
                             renderInput={(params) => (
-                                <TextField {...params} label="Đại lý bán dạo *" sx={fieldSx} />
+                                <TextField {...params} label="Người bán vé số *" sx={fieldSx} />
                             )}
                         />
                         <TextField
@@ -594,7 +599,7 @@ export const VendorAllocationPage = () => {
                             </Button>
                         }
                     >
-                        Đại lý bán dạo này chưa hoàn tất hồ sơ (Trạng thái: {profile.status}). Vui lòng hoàn tất hồ sơ trước khi giao vé.
+                        Người bán vé số này chưa hoàn tất hồ sơ (Trạng thái: {profile.status}). Vui lòng hoàn tất hồ sơ trước khi giao vé.
                     </Alert>
                 )}
 {suggestionErrorMessage && !blockingOpenBatch && (
@@ -707,7 +712,7 @@ export const VendorAllocationPage = () => {
 
                     {!profile ? (
                         <Alert severity="info">
-                            Chọn đại lý bán dạo để xem gợi ý phân bổ vé theo đài và số vé.
+                            Chọn người bán vé số để xem gợi ý phân bổ vé theo đài và số vé.
                         </Alert>
                     ) : profile.status !== "ACTIVE" ? (
                         <Alert severity="warning">
@@ -838,7 +843,7 @@ export const VendorAllocationPage = () => {
                 ) : (
                     <Card sx={{ p: 4, borderRadius: "var(--shape-borderRadius-lg)", boxShadow: "var(--customShadows-card)", textAlign: "center" }}>
                         <Typography variant="h6" gutterBottom>
-                            Đại lý đang có phiếu bàn giao mở
+                            Người bán vé số đang có phiếu bàn giao mở
                         </Typography>
                         <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
                             Không thể tạo thêm phiếu mới do đại lý này còn phiếu <strong>{blockingOpenBatch.batchCode}</strong> đang ở trạng thái {ALLOCATION_BATCH_STATUS_LABELS[blockingOpenBatch.status] || blockingOpenBatch.status}.

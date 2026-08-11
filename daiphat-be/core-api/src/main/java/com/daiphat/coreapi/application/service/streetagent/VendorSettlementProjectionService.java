@@ -41,18 +41,6 @@ public class VendorSettlementProjectionService
             VendorAllocationBatchModel batch,
             StreetAgentProfileModel profile,
             UUID operatorId,
-        LocalDateTime settledAt) {
-        ReportRecord report = upsertDailyReport(batch);
-        SettlementRecord settlement = upsertSettlement(batch, report.id(), settledAt, operatorId, null);
-        recalculateConfidence(profile, settledAt);
-        return new ProjectionLinks(settlement.id(), report.id());
-    }
-
-    @Override
-    public ProjectionLinks projectOnSettle(
-            VendorAllocationBatchModel batch,
-            StreetAgentProfileModel profile,
-            UUID operatorId,
             LocalDateTime settledAt,
             Long returnBatchId) {
         ReportRecord report = upsertDailyReport(batch);

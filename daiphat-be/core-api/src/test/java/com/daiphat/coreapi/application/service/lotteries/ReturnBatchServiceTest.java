@@ -16,6 +16,7 @@ import com.daiphat.coreapi.application.port.out.lotteries.ReturnBatchRepositoryP
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus;
 import com.daiphat.coreapi.domain.model.enums.lottery.ReturnBatchLineStatus;
 import com.daiphat.coreapi.domain.model.enums.lottery.ReturnBatchStatus;
+import com.daiphat.coreapi.domain.model.enums.lottery.ReturnBatchType;
 import com.daiphat.coreapi.domain.model.lotteries.ImportBatchLineModel;
 import com.daiphat.coreapi.domain.model.lotteries.LotterySupplierModel;
 import com.daiphat.coreapi.domain.model.lotteries.LotteryTicketModel;
@@ -35,6 +36,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
+import org.springframework.data.domain.Page;
 
 import java.math.BigDecimal;
 import java.time.Clock;
@@ -49,6 +51,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -156,6 +159,72 @@ class ReturnBatchServiceTest {
         assertThat(response.supplierSettlementId()).isEqualTo(50L);
         assertThat(response.status()).isEqualTo(ReturnBatchStatus.PENDING_INSPECTION);
         verify(supplierSettlementServicePort).findOrCreateForImport(supplier, DRAW_DATE);
+    }
+
+    @Test
+    @DisplayName("getAll defaults to supplier return batches when no type is supplied")
+    void getAll_defaultsToSupplierReturnType() {
+        when(returnBatchRepositoryPort.findAll(
+                any(), any(), any(), any(), any(), any(), any(), any()
+        )).thenReturn(Page.empty());
+
+        returnBatchService.getAll(
+                1,
+                10,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null
+        );
+
+        verify(returnBatchRepositoryPort).findAll(
+                any(),
+                isNull(),
+                isNull(),
+                eq(ReturnBatchType.SUPPLIER_RETURN),
+                isNull(),
+                isNull(),
+                isNull(),
+                isNull()
+        );
+    }
+
+    @Test
+    @DisplayName("getAll forwards an explicit street-agent return type")
+    void getAll_forwardsStreetAgentReturnType() {
+        when(returnBatchRepositoryPort.findAll(
+                any(), any(), any(), any(), any(), any(), any(), any()
+        )).thenReturn(Page.empty());
+
+        returnBatchService.getAll(
+                1,
+                10,
+                null,
+                null,
+                ReturnBatchType.STREET_AGENT_RETURN,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null
+        );
+
+        verify(returnBatchRepositoryPort).findAll(
+                any(),
+                isNull(),
+                isNull(),
+                eq(ReturnBatchType.STREET_AGENT_RETURN),
+                isNull(),
+                isNull(),
+                isNull(),
+                isNull()
+        );
     }
 
     @Test

@@ -70,10 +70,21 @@ public class VendorAllocationBatchModel {
             String luckyOverrideReason, int requestedQuantity,
             VendorAllocationSuggestionBuilder.ReservePolicy reservePolicy
     ) {
+        return createDraft(batchCode, profileId, businessDate, LocalDateTime.now(), reservationExpiresAt,
+                serials, luckyOverrideReason, requestedQuantity, reservePolicy);
+    }
+
+    /** Uses the command timestamp supplied by the application service. */
+    public static VendorAllocationBatchModel createDraft(
+            String batchCode, Long profileId, LocalDate businessDate,
+            LocalDateTime reservedAt, LocalDateTime reservationExpiresAt, List<VendorAllocationSerialModel> serials,
+            String luckyOverrideReason, int requestedQuantity,
+            VendorAllocationSuggestionBuilder.ReservePolicy reservePolicy
+    ) {
         if (serials == null || serials.isEmpty() || reservationExpiresAt == null) {
             throw new DomainException(ErrorCode.VENDOR_ALLOCATION_SERIAL_INVALID);
         }
-        serials.forEach(serial -> serial.reserveForDraft(reservationExpiresAt));
+        serials.forEach(serial -> serial.reserveForDraft(reservedAt, reservationExpiresAt));
         Map<Long, Long> quantities = serials.stream().collect(java.util.stream.Collectors.groupingBy(
                 VendorAllocationSerialModel::getStationId, LinkedHashMap::new, java.util.stream.Collectors.counting()));
         return VendorAllocationBatchModel.builder()
@@ -164,6 +175,17 @@ public class VendorAllocationBatchModel {
         }
     }
 
+    public void removeStagedReturn(Long serialId) {
+        if (status != AllocationBatchStatus.RETURN_OPEN || serialId == null) {
+            throw new DomainException(ErrorCode.VENDOR_ALLOCATION_INVALID_STATE);
+        }
+        VendorAllocationSerialModel serial = serials.stream()
+                .filter(value -> Objects.equals(value.getSerialId(), serialId))
+                .findFirst()
+                .orElseThrow(() -> new DomainException(ErrorCode.VENDOR_ALLOCATION_RETURN_SERIAL_INVALID));
+        serial.removeFromStreetAgentReturnInspection();
+    }
+
     /**
      * Kept only for callers compiled before the two-step vendor return receipt flow.
      * New use-cases must stage the physical tickets, then confirm the inspection.
@@ -175,21 +197,31 @@ public class VendorAllocationBatchModel {
     }
 
     public void confirmReturnedSerials(Collection<Long> rejectedSerialIds, LocalDateTime returnedAt) {
+        Map<Long, String> reasons = rejectedSerialIds == null ? Map.of() : rejectedSerialIds.stream()
+                .collect(java.util.stream.Collectors.toMap(id -> id, ignored -> "Từ chối khi kiểm nhận"));
+        confirmReturnedSerials(reasons, returnedAt);
+    }
+
+    public void confirmReturnedSerials(Map<Long, String> rejectedReasons, LocalDateTime returnedAt) {
         if (status != AllocationBatchStatus.RETURN_OPEN) {
             throw new DomainException(ErrorCode.VENDOR_ALLOCATION_INVALID_STATE);
         }
-        Set<Long> rejected = rejectedSerialIds == null ? Set.of() : new HashSet<>(rejectedSerialIds);
+        Map<Long, String> rejected = rejectedReasons == null ? Map.of() : new LinkedHashMap<>(rejectedReasons);
         Map<Long, VendorAllocationSerialModel> serialById = serials.stream()
                 .collect(java.util.stream.Collectors.toMap(VendorAllocationSerialModel::getSerialId, value -> value));
-        if (rejected.stream().anyMatch(id -> !serialById.containsKey(id)
+        if (rejected.keySet().stream().anyMatch(id -> !serialById.containsKey(id)
                 || serialById.get(id).getStatus() != AllocationSerialStatus.RETURN_PENDING_INSPECTION)) {
+            throw new DomainException(ErrorCode.VENDOR_ALLOCATION_RETURN_SERIAL_INVALID);
+        }
+        if (serials.stream().noneMatch(serial -> serial.getStatus() == AllocationSerialStatus.RETURN_PENDING_INSPECTION)
+                || rejected.values().stream().anyMatch(reason -> reason == null || reason.isBlank())) {
             throw new DomainException(ErrorCode.VENDOR_ALLOCATION_RETURN_SERIAL_INVALID);
         }
         serials.stream()
                 .filter(serial -> serial.getStatus() == AllocationSerialStatus.RETURN_PENDING_INSPECTION)
                 .forEach(serial -> {
-                    if (rejected.contains(serial.getSerialId())) {
-                        serial.rejectStreetAgentReturn("Từ chối khi kiểm nhận");
+                    if (rejected.containsKey(serial.getSerialId())) {
+                        serial.rejectStreetAgentReturn(rejected.get(serial.getSerialId()).trim());
                     } else {
                         serial.returnFromStreetAgent(returnedAt);
                     }
@@ -218,7 +250,7 @@ public class VendorAllocationBatchModel {
         }
         serials.stream().filter(serial -> serial.getStatus() == AllocationSerialStatus.HANDED_OVER
                         || serial.getStatus() == AllocationSerialStatus.RETURN_REJECTED)
-                .forEach(VendorAllocationSerialModel::markSoldAtSettlement);
+                .forEach(serial -> serial.markSoldAtSettlement(settledAt));
         recalculateQuantities();
         grossCashRemitted = result.grossCashRemitted();
         commissionPayable = result.commissionPayable();

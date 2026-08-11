@@ -3,12 +3,19 @@ package com.daiphat.coreapi.application.service.streetagent;
 import com.daiphat.coreapi.application.dto.request.streetagent.CreateVendorAllocationDraftRequest;
 import com.daiphat.coreapi.application.dto.request.streetagent.ConfirmVendorAllocationRequest;
 import com.daiphat.coreapi.application.dto.request.streetagent.ReturnVendorAllocationSerialsRequest;
+import com.daiphat.coreapi.application.dto.request.streetagent.ConfirmVendorReturnInspectionRequest;
+import com.daiphat.coreapi.application.dto.request.streetagent.RejectedVendorReturnSerialRequest;
 import com.daiphat.coreapi.application.port.in.streetagent.VendorSettlementProjectionServicePort;
+import com.daiphat.coreapi.application.port.in.lotteries.LotteryTicketAggregateSyncUseCase;
+import com.daiphat.coreapi.application.port.out.lotteries.ReturnBatchRepositoryPort;
 import com.daiphat.coreapi.application.port.out.settings.SystemConfigRepositoryPort;
+import com.daiphat.coreapi.application.port.out.streetagent.AgentDepositTransactionRepositoryPort;
 import com.daiphat.coreapi.application.port.out.streetagent.StreetAgentProfileRepositoryPort;
 import com.daiphat.coreapi.application.port.out.streetagent.VendorAllocationRepositoryPort;
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus;
+import com.daiphat.coreapi.domain.model.enums.lottery.ReturnBatchStatus;
+import com.daiphat.coreapi.domain.model.enums.lottery.ReturnBatchType;
 import com.daiphat.coreapi.domain.model.enums.streetagent.AllocationBatchStatus;
 import com.daiphat.coreapi.domain.model.enums.streetagent.StreetAgentProfileStatus;
 import com.daiphat.coreapi.domain.model.enums.streetagent.VendorConfidenceTier;
@@ -19,6 +26,8 @@ import com.daiphat.coreapi.domain.model.settings.SystemConfigModel;
 import com.daiphat.coreapi.domain.model.streetagent.StreetAgentProfileModel;
 import com.daiphat.coreapi.domain.model.streetagent.VendorAllocationBatchModel;
 import com.daiphat.coreapi.domain.model.streetagent.VendorAllocationSerialModel;
+import com.daiphat.coreapi.domain.model.lotteries.ReturnBatchLineModel;
+import com.daiphat.coreapi.domain.model.lotteries.ReturnBatchModel;
 import com.daiphat.coreapi.domain.service.streetagent.VendorTicketSellabilityPolicy;
 import com.daiphat.coreapi.shared.util.DrawScheduleUtils;
 import org.junit.jupiter.api.BeforeEach;
@@ -43,6 +52,9 @@ class VendorAllocationServiceTest {
     private StreetAgentProfileRepositoryPort profileRepositoryPort;
     private SystemConfigRepositoryPort systemConfigRepositoryPort;
     private VendorSettlementProjectionServicePort projectionServicePort;
+    private LotteryTicketAggregateSyncUseCase ticketAggregateSyncUseCase;
+    private AgentDepositTransactionRepositoryPort depositTransactionRepositoryPort;
+    private ReturnBatchRepositoryPort returnBatchRepositoryPort;
     private VendorAllocationService service;
 
     @BeforeEach
@@ -53,21 +65,28 @@ class VendorAllocationServiceTest {
         when(profileRepositoryPort.findByIdForUpdate(7L)).thenReturn(Optional.of(eligibleProfile()));
         systemConfigRepositoryPort = mock(SystemConfigRepositoryPort.class);
         projectionServicePort = mock(VendorSettlementProjectionServicePort.class);
-        when(projectionServicePort.projectOnSettle(any(), any(), any(), any()))
+        ticketAggregateSyncUseCase = mock(LotteryTicketAggregateSyncUseCase.class);
+        depositTransactionRepositoryPort = mock(AgentDepositTransactionRepositoryPort.class);
+        returnBatchRepositoryPort = mock(ReturnBatchRepositoryPort.class);
+        when(projectionServicePort.projectOnSettle(any(), any(), any(), any(), any()))
                 .thenReturn(new VendorSettlementProjectionServicePort.ProjectionLinks(1L, 2L));
         when(systemConfigRepositoryPort.findActiveByConfigKey(anyString())).thenAnswer(invocation -> {
             SystemConfigEnum config = SystemConfigEnum.valueOf(invocation.getArgument(0));
             return Optional.of(SystemConfigModel.builder().configKey(config.name()).configValue(config.getDefaultValue()).build());
         });
         service = new VendorAllocationService(
-                allocationRepositoryPort, profileRepositoryPort, systemConfigRepositoryPort, projectionServicePort);
+                allocationRepositoryPort, profileRepositoryPort, systemConfigRepositoryPort, projectionServicePort,
+                new VendorConfidencePolicyResolver(systemConfigRepositoryPort), ticketAggregateSyncUseCase,
+                depositTransactionRepositoryPort, returnBatchRepositoryPort);
     }
 
     private VendorAllocationService newService(
             VendorAllocationRepositoryPort allocations,
             StreetAgentProfileRepositoryPort profiles,
             SystemConfigRepositoryPort configs) {
-        return new VendorAllocationService(allocations, profiles, configs, projectionServicePort);
+        return new VendorAllocationService(allocations, profiles, configs, projectionServicePort,
+                new VendorConfidencePolicyResolver(configs), ticketAggregateSyncUseCase,
+                depositTransactionRepositoryPort, returnBatchRepositoryPort);
     }
 
     @Test
@@ -133,12 +152,15 @@ class VendorAllocationServiceTest {
     void confirm_holds_deposit_without_blocking_as_legacy() {
         VendorAllocationBatchModel batch = draftBatch(99L);
         when(allocationRepositoryPort.findByIdForUpdate(99L)).thenReturn(Optional.of(batch));
+        when(allocationRepositoryPort.findById(99L)).thenReturn(Optional.of(batch));
         when(profileRepositoryPort.findByIdForUpdate(7L)).thenReturn(Optional.of(eligibleProfile()));
         when(allocationRepositoryPort.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
         when(profileRepositoryPort.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
         when(allocationRepositoryPort.sumAllocatedForDay(eq(7L), eq(businessDate), anyCollection())).thenReturn(1L);
 
-        var response = service.confirm(99L, new ConfirmVendorAllocationRequest(BigDecimal.valueOf(90000)), UUID.randomUUID());
+        var response = service.confirm(99L,
+                new ConfirmVendorAllocationRequest(BigDecimal.valueOf(90000), service.getConfirmationQuote(99L).quoteFingerprint()),
+                UUID.randomUUID());
 
         assertThat(response.status()).isEqualTo(AllocationBatchStatus.CONFIRMED.name());
         assertThat(response.depositReceivedAmount()).isEqualByComparingTo("90000");
@@ -369,12 +391,15 @@ class VendorAllocationServiceTest {
     void confirm_records_actual_deposit_and_updates_profile_balance_once() {
         VendorAllocationBatchModel batch = draftBatch(99L);
         when(allocationRepositoryPort.findByIdForUpdate(99L)).thenReturn(Optional.of(batch));
+        when(allocationRepositoryPort.findById(99L)).thenReturn(Optional.of(batch));
         when(profileRepositoryPort.findByIdForUpdate(7L)).thenReturn(Optional.of(eligibleProfile()));
         when(allocationRepositoryPort.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
         when(profileRepositoryPort.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
         when(allocationRepositoryPort.sumAllocatedForDay(eq(7L), eq(businessDate), anyCollection())).thenReturn(1L);
 
-        var response = service.confirm(99L, new ConfirmVendorAllocationRequest(BigDecimal.valueOf(900)), UUID.randomUUID());
+        var response = service.confirm(99L,
+                new ConfirmVendorAllocationRequest(BigDecimal.valueOf(900), service.getConfirmationQuote(99L).quoteFingerprint()),
+                UUID.randomUUID());
 
         assertThat(response.status()).isEqualTo(AllocationBatchStatus.CONFIRMED.name());
         assertThat(response.depositRequiredAmount()).isEqualByComparingTo("900");
@@ -393,13 +418,43 @@ class VendorAllocationServiceTest {
     void confirm_rejects_deposit_below_required_amount() {
         VendorAllocationBatchModel batch = draftBatch(99L);
         when(allocationRepositoryPort.findByIdForUpdate(99L)).thenReturn(Optional.of(batch));
+        when(allocationRepositoryPort.findById(99L)).thenReturn(Optional.of(batch));
         when(profileRepositoryPort.findByIdForUpdate(7L)).thenReturn(Optional.of(eligibleProfile()));
 
-        assertThatThrownBy(() -> service.confirm(99L, new ConfirmVendorAllocationRequest(BigDecimal.valueOf(899)), UUID.randomUUID()))
+        assertThatThrownBy(() -> service.confirm(99L,
+                new ConfirmVendorAllocationRequest(BigDecimal.valueOf(899), service.getConfirmationQuote(99L).quoteFingerprint()),
+                UUID.randomUUID()))
                 .isInstanceOf(DomainException.class)
                 .extracting(error -> ((DomainException) error).getErrorCode())
                 .isEqualTo(com.daiphat.coreapi.domain.exception.ErrorCode.VENDOR_ALLOCATION_DEPOSIT_INSUFFICIENT);
         verify(profileRepositoryPort, never()).save(any());
+    }
+
+    @Test
+    void confirm_rejects_missing_quote_fingerprint_even_for_internal_callers() {
+        VendorAllocationBatchModel batch = draftBatch(99L);
+        when(allocationRepositoryPort.findByIdForUpdate(99L)).thenReturn(Optional.of(batch));
+        when(profileRepositoryPort.findByIdForUpdate(7L)).thenReturn(Optional.of(eligibleProfile()));
+
+        assertThatThrownBy(() -> service.confirm(99L,
+                new ConfirmVendorAllocationRequest(BigDecimal.valueOf(900), null), UUID.randomUUID()))
+                .isInstanceOf(DomainException.class)
+                .extracting(error -> ((DomainException) error).getErrorCode())
+                .isEqualTo(com.daiphat.coreapi.domain.exception.ErrorCode.VENDOR_ALLOCATION_QUOTE_STALE);
+    }
+
+    @Test
+    void confirm_rejects_legacy_balance_held_before_the_draft() {
+        VendorAllocationBatchModel batch = draftBatch(99L);
+        when(allocationRepositoryPort.findByIdForUpdate(99L)).thenReturn(Optional.of(batch));
+        when(profileRepositoryPort.findByIdForUpdate(7L)).thenReturn(Optional.of(
+                eligibleProfileBuilder().depositBalance(BigDecimal.ONE).build()));
+
+        assertThatThrownBy(() -> service.confirm(99L,
+                new ConfirmVendorAllocationRequest(BigDecimal.valueOf(900), "any-fingerprint"), UUID.randomUUID()))
+                .isInstanceOf(DomainException.class)
+                .extracting(error -> ((DomainException) error).getErrorCode())
+                .isEqualTo(com.daiphat.coreapi.domain.exception.ErrorCode.VENDOR_ALLOCATION_LEGACY_DEPOSIT);
     }
 
     @Test
@@ -408,6 +463,10 @@ class VendorAllocationServiceTest {
         batch.confirmHandover(java.time.LocalDateTime.now(), BigDecimal.valueOf(9000), new BigDecimal("0.10"),
                 VendorLateReturnPolicy.FORFEIT_DEPOSIT, java.time.LocalTime.of(15, 0), BigDecimal.valueOf(900), BigDecimal.ZERO, UUID.randomUUID());
         when(allocationRepositoryPort.findByIdForUpdate(99L)).thenReturn(Optional.of(batch));
+        when(returnBatchRepositoryPort.findStreetAgentByAllocationBatchId(99L)).thenReturn(Optional.of(
+                returnReceipt(1L, ReturnBatchStatus.PENDING_INSPECTION)));
+        when(returnBatchRepositoryPort.findLinesByBatchId(1L)).thenReturn(List.of(
+                ReturnBatchLineModel.builder().id(11L).lotteryStationId(1L).build()));
         when(allocationRepositoryPort.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
         when(allocationRepositoryPort.sumAllocatedForDay(eq(7L), eq(businessDate), anyCollection())).thenReturn(1L);
 
@@ -423,6 +482,83 @@ class VendorAllocationServiceTest {
                 serial -> serial.returnedAt())
                 .containsExactly("RETURN_PENDING_INSPECTION", "WITH_STREET_AGENT", null);
         assertThat(batch.getSerials().getFirst().getTicketStatus()).isEqualTo(LotteryTicketSerialStatus.WITH_STREET_AGENT);
+    }
+
+    @Test
+    void inspection_confirmation_restores_accepted_ticket_to_inventory_and_keeps_rejected_with_vendor() {
+        VendorAllocationSerialModel accepted = serial(101L, 1L, "Đài HCM", "001001", "S1", false);
+        VendorAllocationSerialModel rejected = serial(102L, 1L, "Đài HCM", "001002", "S2", false);
+        VendorAllocationBatchModel batch = VendorAllocationBatchModel.createDraft(
+                "VND-TEST", 7L, businessDate, LocalDateTime.now().plusMinutes(15), List.of(accepted, rejected), null);
+        batch.setId(99L);
+        accepted.markReservedByBatch(99L);
+        rejected.markReservedByBatch(99L);
+        batch.confirmHandover(LocalDateTime.now(), BigDecimal.valueOf(9_000), new BigDecimal("0.10"),
+                VendorLateReturnPolicy.FORFEIT_DEPOSIT, LocalTime.of(15, 0), BigDecimal.valueOf(1_800), BigDecimal.ZERO,
+                UUID.randomUUID());
+        batch.openReturnSession();
+
+        ReturnBatchModel receipt = returnReceipt(1L, ReturnBatchStatus.PENDING_INSPECTION);
+        when(allocationRepositoryPort.findByIdForUpdate(99L)).thenReturn(Optional.of(batch));
+        when(allocationRepositoryPort.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(allocationRepositoryPort.sumAllocatedForDay(eq(7L), eq(businessDate), anyCollection())).thenReturn(2L);
+        when(returnBatchRepositoryPort.findStreetAgentByAllocationBatchId(99L)).thenReturn(Optional.of(receipt));
+        when(returnBatchRepositoryPort.findLinesByBatchId(1L)).thenReturn(List.of(
+                ReturnBatchLineModel.builder().id(11L).lotteryStationId(1L).build()));
+
+        service.recordReturns(99L, new ReturnVendorAllocationSerialsRequest(List.of(101L, 102L)));
+        var response = service.confirmReturnInspection(99L,
+                new ConfirmVendorReturnInspectionRequest(
+                        List.of(new RejectedVendorReturnSerialRequest(102L, "Rách vé")), null), UUID.randomUUID());
+
+        assertThat(receipt.getStatus()).isEqualTo(ReturnBatchStatus.RECEIVED);
+        assertThat(accepted.getTicketStatus()).isEqualTo(LotteryTicketSerialStatus.IN_STOCK);
+        assertThat(accepted.getStatus().name()).isEqualTo("RETURNED");
+        assertThat(rejected.getTicketStatus()).isEqualTo(LotteryTicketSerialStatus.WITH_STREET_AGENT);
+        assertThat(rejected.getStatus().name()).isEqualTo("RETURN_REJECTED");
+        assertThat(rejected.getReturnRejectionReason()).isEqualTo("Rách vé");
+        assertThat(response.returnWorkflow()).extracting(
+                workflow -> workflow.stage(), workflow -> workflow.acceptedReturnQuantity(), workflow -> workflow.rejectedReturnQuantity())
+                .containsExactly("READY_FOR_SETTLEMENT", 1, 1);
+    }
+
+    @Test
+    void settle_rejects_a_stale_or_unacknowledged_preview() {
+        VendorAllocationBatchModel batch = draftBatch(99L);
+        UUID operatorId = UUID.randomUUID();
+        LocalDateTime now = LocalDateTime.now();
+        batch.confirmHandover(
+                now,
+                BigDecimal.valueOf(9000),
+                new BigDecimal("0.10"),
+                VendorLateReturnPolicy.FORFEIT_DEPOSIT,
+                LocalTime.of(23, 59),
+                BigDecimal.valueOf(90000),
+                BigDecimal.ZERO,
+                operatorId);
+        batch.openReturnSession();
+        batch.recordReturnedSerials(List.of(101L), now.plusMinutes(1));
+
+        StreetAgentProfileModel profile = eligibleProfileBuilder()
+                .depositBalance(new BigDecimal("90000"))
+                .build();
+        when(allocationRepositoryPort.findById(99L)).thenReturn(Optional.of(batch));
+        when(allocationRepositoryPort.findByIdForUpdate(99L)).thenReturn(Optional.of(batch));
+        when(returnBatchRepositoryPort.findStreetAgentByAllocationBatchId(99L)).thenReturn(Optional.of(
+                returnReceipt(1L, ReturnBatchStatus.RECEIVED)));
+        when(profileRepositoryPort.findByIdForUpdate(7L)).thenReturn(Optional.of(profile));
+
+        var preview = service.previewSettlement(99L);
+        assertThat(preview.settlementFingerprint()).isNotBlank();
+
+        assertThatThrownBy(() -> service.settle(99L,
+                new com.daiphat.coreapi.application.dto.request.streetagent.SettleVendorAllocationRequest(
+                        preview.settlementFingerprint(), false), operatorId))
+                .isInstanceOf(DomainException.class);
+        assertThatThrownBy(() -> service.settle(99L,
+                new com.daiphat.coreapi.application.dto.request.streetagent.SettleVendorAllocationRequest(
+                        "stale-preview", true), operatorId))
+                .isInstanceOf(DomainException.class);
     }
 
     @Test
@@ -445,15 +581,19 @@ class VendorAllocationServiceTest {
         StreetAgentProfileModel profile = eligibleProfileBuilder()
                 .depositBalance(new BigDecimal("90000"))
                 .build();
+        when(allocationRepositoryPort.findById(99L)).thenReturn(Optional.of(batch));
         when(allocationRepositoryPort.findByIdForUpdate(99L)).thenReturn(Optional.of(batch));
+        when(returnBatchRepositoryPort.findStreetAgentByAllocationBatchId(99L)).thenReturn(Optional.of(
+                returnReceipt(1L, ReturnBatchStatus.RECEIVED)));
         when(profileRepositoryPort.findByIdForUpdate(7L)).thenReturn(Optional.of(profile));
         when(allocationRepositoryPort.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
         when(profileRepositoryPort.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
         when(allocationRepositoryPort.sumAllocatedForDay(eq(7L), eq(businessDate), anyCollection())).thenReturn(0L);
 
+        var preview = service.previewSettlement(99L);
         var response = service.settle(99L,
                 new com.daiphat.coreapi.application.dto.request.streetagent.SettleVendorAllocationRequest(
-                        BigDecimal.ZERO, new BigDecimal("90000")), operatorId);
+                        preview.settlementFingerprint(), true), operatorId);
 
         assertThat(response.status()).isEqualTo(AllocationBatchStatus.SETTLED.name());
         assertThat(response.depositBalanceAfter()).isEqualByComparingTo("0");
@@ -481,6 +621,7 @@ class VendorAllocationServiceTest {
                 .drawTime(drawTime)
                 .drawDays(List.of(drawDate.getDayOfWeek()))
                 .faceValue(BigDecimal.valueOf(10_000))
+                .supplierReturnCutoffTime(LocalTime.of(17, 0))
                 .ticketStatus(LotteryTicketSerialStatus.IN_STOCK)
                 .ticketCondition(TicketCondition.GOOD)
                 .lucky(false)
@@ -496,10 +637,21 @@ class VendorAllocationServiceTest {
                 .ticketNumbers(ticketNumbers)
                 .serialNumber(serialNumber)
                 .drawDate(businessDate)
+                .supplierReturnCutoffTime(LocalTime.of(17, 0))
                 .faceValue(BigDecimal.valueOf(10_000))
                 .ticketStatus(LotteryTicketSerialStatus.IN_STOCK)
                 .ticketCondition(TicketCondition.GOOD)
                 .lucky(lucky)
+                .build();
+    }
+
+    private ReturnBatchModel returnReceipt(Long id, ReturnBatchStatus status) {
+        return ReturnBatchModel.builder()
+                .id(id)
+                .returnBatchType(ReturnBatchType.STREET_AGENT_RETURN)
+                .sourceAllocationBatchId(99L)
+                .status(status)
+                .confirmedAt(status == ReturnBatchStatus.RECEIVED ? LocalDateTime.now() : null)
                 .build();
     }
 

@@ -135,7 +135,7 @@ export const StreetAgentList = () => {
             >
                 <Box sx={{ flex: 1, minWidth: 240 }}>
                     <Search
-                        placeholder="Tìm kiếm đại lý bán dạo..."
+                        placeholder="Tìm kiếm người bán vé số..."
                         value={search}
                         onChange={(val) => {
                             setSearch(val);

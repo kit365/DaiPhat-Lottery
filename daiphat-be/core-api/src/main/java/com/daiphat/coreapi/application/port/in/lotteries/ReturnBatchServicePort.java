@@ -10,6 +10,7 @@ import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.InspectableReturnSerialResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.ReturnBatchResponse;
 import com.daiphat.coreapi.domain.model.enums.lottery.ReturnBatchStatus;
+import com.daiphat.coreapi.domain.model.enums.lottery.ReturnBatchType;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -26,6 +27,7 @@ public interface ReturnBatchServicePort {
             int size,
             Long lotterySupplierId,
             Long supplierSettlementId,
+            ReturnBatchType returnBatchType,
             ReturnBatchStatus status,
             LocalDate drawDateFrom,
             LocalDate drawDateTo,

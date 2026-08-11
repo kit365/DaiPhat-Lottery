@@ -51,7 +51,7 @@ import { ContractDocumentViewerDialog } from "../ContractDocumentViewerDialog";
 const SIGNED_DOC_TYPES = ["application/pdf", "image/jpeg", "image/jpg", "image/png"];
 const SIGNED_DOC_MAX_SIZE = 10 * 1024 * 1024;
 
-const STEPS = ["Thông tin vendor", "In & ký hợp đồng", "Hoàn tất hồ sơ"] as const;
+const STEPS = ["Thông tin người bán vé số", "In & ký hợp đồng", "Hoàn tất hồ sơ"] as const;
 
 const defaultValues: CreateStreetAgentProfileFormValues = {
     firstName: "",
@@ -300,10 +300,10 @@ export const StreetAgentCreatePage = () => {
         return (
             <Box sx={{ maxWidth: "1200px", mx: "auto" }}>
                 <PageHeader
-                    title="Tạo hồ sơ đại lý bán dạo"
+                    title="Tạo hồ sơ người bán vé số"
                     breadcrumbItems={[
                         { label: "Dashboard", to: "/" },
-                        { label: "Đại lý bán dạo", to: ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.LIST },
+                        { label: "Người bán vé số", to: ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.LIST },
                         { label: "Tiếp tục hoàn thiện" },
                     ]}
                 />
@@ -315,10 +315,10 @@ export const StreetAgentCreatePage = () => {
     return (
         <Box sx={{ maxWidth: "1200px", mx: "auto" }}>
             <PageHeader
-                title="Tạo hồ sơ đại lý bán dạo"
+                title="Tạo hồ sơ người bán vé số"
                 breadcrumbItems={[
                     { label: "Dashboard", to: "/" },
-                    { label: "Đại lý bán dạo", to: ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.LIST },
+                    { label: "Người bán vé số", to: ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.LIST },
                     { label: resumeId ? "Tiếp tục hoàn thiện" : "Tạo hồ sơ" },
                 ]}
             />
@@ -382,10 +382,10 @@ export const StreetAgentCreatePage = () => {
                         <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 2 }}>
                             <Box>
                                 <Typography variant="h6" sx={{ fontWeight: 700, mb: 0.5 }}>
-                                    Hoàn thiện hồ sơ đại lý
+                                    Hoàn thiện hồ sơ người bán vé số
                                 </Typography>
                                 <Typography variant="body2" color="text.secondary">
-                                    Vui lòng thực hiện các bước dưới đây để kích hoạt hồ sơ đại lý
+                                    Vui lòng thực hiện các bước dưới đây để kích hoạt hồ sơ người bán vé số
                                 </Typography>
                             </Box>
                             <Box sx={{ textAlign: { xs: "left", sm: "right" } }}>
@@ -416,7 +416,7 @@ export const StreetAgentCreatePage = () => {
                             </Stack>
                             <Box sx={{ p: 2.5, border: "1px solid var(--palette-divider, #e0e0e0)", borderRadius: 2, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 2, bgcolor: "var(--palette-background-neutral, #f4f6f8)" }}>
                                 <Typography variant="body2" color="text.secondary" sx={{ flex: 1, minWidth: 200 }}>
-                                    In file PDF hợp đồng và đưa cho đại lý ký xác nhận.
+                                    In file PDF hợp đồng và đưa cho người bán vé số ký xác nhận.
                                 </Typography>
                                 <Button
                                     variant="contained"
@@ -524,9 +524,9 @@ export const StreetAgentCreatePage = () => {
                 >
                     <Stack spacing={2.5} alignItems="flex-start">
                         <Alert severity="success" sx={{ width: "100%" }}>
-                            Hồ sơ đã hoàn tất
+                            Hồ sơ người bán vé số đã hoàn tất
                             {profile.status === "ACTIVE"
-                                ? " và đang ACTIVE — vendor có thể nhận vé."
+                                ? " và đang ACTIVE — người bán vé số có thể nhận vé."
                                 : `. Trạng thái hiện tại: ${profile.status}.`}
                         </Alert>
 

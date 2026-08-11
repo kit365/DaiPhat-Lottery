@@ -491,6 +491,10 @@ public enum ErrorCode {
             "SAG_028",
             "Báo giá cọc đã thay đổi. Vui lòng tải lại trước khi xác nhận bàn giao.",
             HttpStatus.CONFLICT),
+    VENDOR_SETTLEMENT_PREVIEW_STALE(
+            "SAG_029",
+            "Bản tính quyết toán đã thay đổi. Vui lòng tải lại trước khi xác nhận.",
+            HttpStatus.CONFLICT),
 
     // Support Ticket Errors
     TICKET_NOT_FOUND("TKT_001", "Yêu cầu hỗ trợ không tồn tại.", HttpStatus.NOT_FOUND),

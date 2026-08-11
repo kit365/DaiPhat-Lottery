@@ -254,7 +254,7 @@ export const StreetAgentEditPage = () => {
                             );
                             void refetch();
                         } else {
-                            toast.success(response.message || "Cập nhật hồ sơ đại lý bán dạo thành công!");
+                            toast.success(response.message || "Cập nhật hồ sơ người bán vé số thành công!");
                             router.push(ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.LIST);
                         }
                     } else {
@@ -276,10 +276,10 @@ export const StreetAgentEditPage = () => {
         return (
             <Box sx={{ maxWidth: "1200px", mx: "auto" }}>
                 <PageHeader
-                    title="Chỉnh sửa hồ sơ đại lý bán dạo"
+                    title="Chỉnh sửa hồ sơ người bán vé số"
                     breadcrumbItems={[
                         { label: "Dashboard", to: "/" },
-                        { label: "Đại lý bán dạo", to: ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.LIST },
+                        { label: "Người bán vé số", to: ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.LIST },
                         { label: "Cập nhật" },
                     ]}
                 />
@@ -291,10 +291,10 @@ export const StreetAgentEditPage = () => {
     return (
         <Box sx={{ maxWidth: "1200px", mx: "auto" }}>
             <PageHeader
-                title="Chỉnh sửa hồ sơ đại lý bán dạo"
+                title="Chỉnh sửa hồ sơ người bán vé số"
                 breadcrumbItems={[
                     { label: "Dashboard", to: "/" },
-                    { label: "Đại lý bán dạo", to: ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.LIST },
+                    { label: "Người bán vé số", to: ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.LIST },
                     { label: "Cập nhật" },
                 ]}
             />
