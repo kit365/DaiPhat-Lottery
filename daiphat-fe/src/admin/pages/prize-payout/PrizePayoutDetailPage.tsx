@@ -43,7 +43,7 @@ import {
     PRIZE_PAYOUT_TICKET_ORIGIN_LABELS,
     PRIZE_PAYOUT_VERIFICATION_LABELS,
 } from '../../../types/prize-payout.type';
-import { prizePayoutAdminApi } from '../../api/prizePayout.api';
+import { prizePayoutAdminApi } from "@/admin/features/prize-payout/services/prizePayoutService";
 import {
     useApprovePrizePayout,
     useCompletePrizePayout,

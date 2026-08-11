@@ -4,7 +4,7 @@ import {
 } from '../../../features/system-config/services/systemConfigService';
 import { ConfigType, SystemConfigResponse } from '../../../features/system-config/types/system-config';
 import { SettingGeneralFormValues } from '../../../schemas/setting.schema';
-import { uploadAdminImage } from '../../../api/upload.api';
+import { uploadAdminImage } from '@/admin/shared/services/upload.service';
 
 /** Form field → system_config.config_key (GENERAL_SETTING only; secrets stay out). */
 export const GENERAL_SETTING_FIELD_KEYS = {

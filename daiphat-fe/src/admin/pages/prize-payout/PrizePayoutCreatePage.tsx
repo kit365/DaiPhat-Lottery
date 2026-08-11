@@ -30,7 +30,7 @@ import dayjs from 'dayjs';
 import { useQuery } from '@tanstack/react-query';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { prefixAdmin } from '../../constants/routes';
-import { prizePayoutAdminApi } from '../../api/prizePayout.api';
+import { prizePayoutAdminApi } from "@/admin/features/prize-payout/services/prizePayoutService";
 import { useAuthStore } from '../../../stores/useAuthStore';
 import {
     formatPrizePayoutCurrency,

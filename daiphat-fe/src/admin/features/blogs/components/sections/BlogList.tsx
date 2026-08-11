@@ -5,7 +5,8 @@ import Link from "@/admin/components/navigation/AdminLink";
 import { PERMISSIONS } from "../../../../constants/permission.constants";
 
 import { Box, Card, Pagination, Stack, CircularProgress, Avatar, SvgIcon, ListItemText } from "@mui/material";
-import { DataGrid, GridColDef } from '@mui/x-data-grid';
+import type { GridColDef } from '@mui/x-data-grid';
+import { LazyDataGrid } from '@/admin/shared/data-grid/LazyDataGrid';
 import { SortAscendingIcon, SortDescendingIcon, UnsortedIcon, EyeIcon } from "../../../../assets/icons";
 import { prefixAdmin } from "../../../../constants/routes";
 import { DATA_GRID_LOCALE_VN } from "../../../../../shared/components/DataTable/localeText.config";
@@ -320,7 +321,7 @@ export const BlogList = ({ blogs = [], isLoading = false, page, onPageChange, pa
         <>
             {viewMode === 'list' ? (
                 <Card elevation={0} className="admin-datagrid-card">
-                    <DataGrid
+                    <LazyDataGrid
                         rows={currentData.map(b => ({ ...b, id: b._id || b.id }))}
                         getRowId={(row) => row.id}
                         loading={isLoading}

@@ -59,7 +59,7 @@ import {
     type RefundOrderDraft,
 } from './TicketIncidentRefundStep';
 import { createPartialRefund } from '../../../../orders/services/orderService';
-import { refundAdminApi } from '../../../../../api/refund.api';
+import { refundAdminApi } from '@/admin/features/refund/services/refundService';
 import { getOrderStatusBadge } from '../../../../orders/constants/orderStatus.constants';
 import { OrderStatus } from '../../../../../../types/order.type';
 import {

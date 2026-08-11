@@ -6,7 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { settingPageSchema, SettingPageFormValues } from "../../../schemas/setting.schema";
 import { useSettingPage, useUpdateSettingPage } from "../hooks/useSettings";
 import { useEffect } from "react";
-import { Tiptap } from "../../../components/layouts/titap/Tiptap";
+import { LazyTiptap } from "../../../components/layouts/titap/LazyTiptap";
 import { SpinnerLoading } from "../../../components/ui/SpinnerLoading";
 import { StaticPageConfigKey } from "../services/staticPageService";
 
@@ -87,7 +87,7 @@ export const StaticPageTab = ({ configKey, label }: StaticPageTabProps) => {
                             name="content"
                             control={control}
                             render={({ field }) => (
-                                <Tiptap value={field.value} onChange={field.onChange} />
+                                <LazyTiptap value={field.value} onChange={field.onChange} />
                             )}
                         />
                     </Box>

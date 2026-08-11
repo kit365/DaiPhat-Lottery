@@ -20,7 +20,7 @@ import {
 import { ROUTES } from "../../../../constants/routes";
 import { toast } from "react-toastify";
 import { Alert, Box, Dialog, DialogActions, DialogContent, DialogTitle, Stack, TextField, Typography } from "@mui/material";
-import { uploadAdminImage } from "../../../../api/upload.api";
+import { uploadAdminImage } from "@/admin/shared/services/upload.service";
 import { Button } from "../../../../components/ui/Button";
 import { StreetAgentProfileForm } from "../sections/StreetAgentProfileForm";
 import { openStreetAgentContractPrint, getStreetAgentOnboardingResumePath } from "../../services/streetAgentService";

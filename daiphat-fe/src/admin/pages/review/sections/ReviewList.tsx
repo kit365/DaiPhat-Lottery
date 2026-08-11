@@ -1,5 +1,5 @@
 import React from 'react';
-import { DataGrid } from '@mui/x-data-grid';
+import { LazyDataGrid } from '@/admin/shared/data-grid/LazyDataGrid';
 import { Card, Box, Typography, Tabs, Tab } from '@mui/material';
 import { useReviews } from '../hooks/useReviews';
 import { useReviewColumns } from '../hooks/useReviewColumns';
@@ -94,7 +94,7 @@ export const ReviewList = () => {
             </Box>
 
             <Box sx={dataGridContainerStyles}>
-                <DataGrid
+                <LazyDataGrid
                     className="admin-datagrid"
                     rows={reviews}
                     loading={isLoading}

@@ -51,6 +51,8 @@ const PageBody = ({ configKey, title }: { configKey?: StaticPageConfigKey; title
         queryFn: () => getPublicSystemConfigByKey(configKey as string),
         enabled: Boolean(configKey),
         staleTime: 5 * 60 * 1000,
+        retry: false,
+        throwOnError: false,
     });
 
     if (!configKey) {

@@ -5,7 +5,7 @@ import { Box, MenuItem, Stack, TextField, Typography } from "@mui/material";
 import { Button } from "../../../../components/ui/Button";
 import { PageHeader } from "../../../../components/ui/PageHeader";
 import { SpinnerLoading } from "../../../../components/ui/SpinnerLoading";
-import { Tiptap } from "../../../../components/layouts/titap/Tiptap";
+import { LazyTiptap } from "../../../../components/layouts/titap/LazyTiptap";
 import { useState, useEffect, type Dispatch, type SetStateAction } from "react";
 import { CollapsibleCard } from "../../../../components/ui/CollapsibleCard";
 import { useBlogCategoryDetail, useNestedBlogCategories, useUpdateBlogCategory, useBlogCategoryStatuses } from "../../hooks/useBlogCategory";
@@ -169,7 +169,7 @@ export const BlogCategoryEditPage = () => {
                                 name="description"
                                 control={control}
                                 render={({ field }) => (
-                                    <Tiptap
+                                    <LazyTiptap
                                         value={field.value ?? ""}
                                         onChange={field.onChange}
                                     />

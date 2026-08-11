@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import * as api from "../../../api/work-schedule.api";
+import * as api from "@/admin/features/hr/services/scheduleService";
 
 export const useSchedules = (params?: any) => {
     return useQuery({

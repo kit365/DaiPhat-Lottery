@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { Box, Typography, Skeleton } from '@mui/material';
 import dynamic from 'next/dynamic';
 const Chart = dynamic(() => import('react-apexcharts'), { ssr: false });
-import { getDetailedOrderStats } from '../../../api/dashboard.api';
+import { getDetailedOrderStats } from "@/admin/features/dashboard/services/dashboardService";
 import DashboardCard from '../../../components/dashboard/DashboardCard';
 import SummaryWidget from '../../../components/dashboard/SummaryWidget';
 

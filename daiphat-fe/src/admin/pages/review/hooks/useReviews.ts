@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
-import { getReviews, changeReviewStatus, deleteReview } from '../../../api/review.api';
+import { getReviews, changeReviewStatus, deleteReview } from "@/admin/features/review/services/reviewService";
 import { useServerPagination } from '../../../shared/data-grid/useServerPagination';
 
 interface IReviewFilters {

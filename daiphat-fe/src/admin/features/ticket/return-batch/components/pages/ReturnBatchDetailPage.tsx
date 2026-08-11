@@ -18,7 +18,6 @@ Chip,
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import dayjs from 'dayjs';
 import { useState } from 'react';
-import Swal from 'sweetalert2';
 import { toast } from 'react-toastify';
 import { PageHeader } from '../../../../../components/ui/PageHeader';
 import { SpinnerLoading } from '../../../../../components/ui/SpinnerLoading';
@@ -42,7 +41,6 @@ import {
     getReturnBatchStatusLabel,
 } from '../../utils/returnBatchLabels';
 import { RETURN_BATCH_INSPECTION_EXPIRED_MESSAGE } from '../../types/returnBatch.type';
-import { InspectTicketsDialog } from '../sections/InspectTicketsDialog';
 import { ReturnBatchTicketsModal } from '../sections/ReturnBatchTicketsModal';
 
 export const ReturnBatchDetailPage = () => {
@@ -51,7 +49,6 @@ export const ReturnBatchDetailPage = () => {
     const { data: batch, isLoading, isError, refetch } = useReturnBatchDetail(id);
     const confirmHandover = useConfirmReturnHandover();
     const startInspection = useStartReturnInspection();
-    const [inspectOpen, setInspectOpen] = useState(false);
     const [ticketsModalOpen, setTicketsModalOpen] = useState(false);
     const [selectedStationName, setSelectedStationName] = useState<string | null>(null);
 
@@ -80,6 +77,7 @@ export const ReturnBatchDetailPage = () => {
     }
 
     const handleConfirmHandover = () => {
+        void import('sweetalert2').then(({ default: Swal }) => {
         const linesRows = (batch.lines || [])
             .map(
                 (line, index) => `
@@ -192,6 +190,7 @@ export const ReturnBatchDetailPage = () => {
                 }
             }
         });
+        });
     };
 
     const handleInspectTickets = async () => {
@@ -208,6 +207,7 @@ export const ReturnBatchDetailPage = () => {
                     message === RETURN_BATCH_INSPECTION_EXPIRED_MESSAGE ||
                     err?.response?.data?.errorCode === 'LT_120'
                 ) {
+                    const { default: Swal } = await import('sweetalert2');
                     await Swal.fire({
                         icon: 'warning',
                         title: 'Inspection period expired',

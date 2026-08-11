@@ -5,7 +5,7 @@ import { Box, Typography, Stack, IconButton, Skeleton } from '@mui/material';
 import dynamic from 'next/dynamic';
 const Chart = dynamic(() => import('react-apexcharts'), { ssr: false });
 import RefreshIcon from '@mui/icons-material/Refresh';
-import { getEcommerceStats } from '../../../api/dashboard.api';
+import { getEcommerceStats } from "@/admin/features/dashboard/services/dashboardService";
 import DashboardCard from '../../../components/dashboard/DashboardCard';
 import SummaryWidget from '../../../components/dashboard/SummaryWidget';
 import { Icon } from '@/admin/components/ui/AdminIcon';

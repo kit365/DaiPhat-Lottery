@@ -7,7 +7,7 @@ import {
     getSettingLoginSocial, updateSettingLoginSocial,
     getSettingAppPassword, updateSettingAppPassword,
     getSettingPoint, updateSettingPoint,
-} from "../../../api/setting.api";
+} from "@/admin/features/settings/services/legacySettingService";
 import { toast } from "react-toastify";
 import { ConfigType } from "../../../features/system-config/types/system-config";
 import { SYSTEM_CONFIG_KEYS } from "../../../features/system-config/hooks/useSystemConfig";

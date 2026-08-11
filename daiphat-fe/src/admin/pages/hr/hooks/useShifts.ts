@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import * as api from "../../../api/shift.api";
+import * as api from "@/admin/features/hr/services/shiftService";
 
 export const useShifts = (params?: any) => {
     return useQuery({

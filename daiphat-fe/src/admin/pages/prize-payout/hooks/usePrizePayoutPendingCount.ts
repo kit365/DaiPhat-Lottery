@@ -2,7 +2,7 @@
 
 import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { prizePayoutAdminApi } from '../../../api/prizePayout.api';
+import { prizePayoutAdminApi } from "@/admin/features/prize-payout/services/prizePayoutService";
 import { QUERY_KEYS } from '../../../../constants/queryKeys';
 import { useAuthStore } from '../../../../stores/useAuthStore';
 import { hasPermission } from '../../../utils/permission.util';

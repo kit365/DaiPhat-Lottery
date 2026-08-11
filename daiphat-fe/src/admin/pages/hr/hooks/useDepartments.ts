@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import * as api from "../../../api/department.api";
+import * as api from "@/admin/features/hr/services/departmentService";
 
 export const useDepartments = (params?: any) => {
     return useQuery({

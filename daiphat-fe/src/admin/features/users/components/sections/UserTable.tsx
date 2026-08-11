@@ -3,7 +3,7 @@
 import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
 import { RoleEnum } from "../../../../../types/role.type";
 import React, { useMemo } from 'react';
-import { DataGrid } from '@mui/x-data-grid';
+import { LazyDataGrid } from '@/admin/shared/data-grid/LazyDataGrid';
 import { Box, CircularProgress } from '@mui/material';
 import { useAuthStore } from '../../../../../stores/useAuthStore';
 import { PERMISSIONS } from '../../../../constants/permission.constants';
@@ -109,7 +109,7 @@ export const UserTable = ({
 
     return (
         <Box sx={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, height: '100%' }}>
-            <DataGrid
+            <LazyDataGrid
                 rows={data || []}
                 columns={columns}
                 getRowId={(row) => row.id}

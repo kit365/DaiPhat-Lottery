@@ -6,7 +6,7 @@ import {
     Card,
     Button,
 } from '@mui/material';
-import { DataGrid } from '@mui/x-data-grid';
+import { LazyDataGrid } from '@/admin/shared/data-grid/LazyDataGrid';
 import AddIcon from '@mui/icons-material/Add';
 import { PageHeader } from "../../components/ui/PageHeader";
 import { prefixAdmin } from "../../constants/routes";
@@ -113,7 +113,7 @@ export const DepartmentListPage = () => {
 
             <Card sx={dataGridCardStyles}>
                 <Box sx={dataGridContainerStyles}>
-                    <DataGrid
+                    <LazyDataGrid
                         rows={departments}
                         columns={columns}
                         getRowId={(row) => row._id}

@@ -14,6 +14,12 @@ export function Providers({ children }: { children: React.ReactNode }) {
             staleTime: 1000 * 60 * 2, // 2 minutes staleTime
             gcTime: 1000 * 60 * 10, // 10 minutes cache time
             refetchOnWindowFocus: false,
+            // API lỗi/mất mạng không được đẩy lên error boundary — UI fallback tại chỗ.
+            throwOnError: false,
+            retry: 1,
+          },
+          mutations: {
+            throwOnError: false,
           },
         },
       })

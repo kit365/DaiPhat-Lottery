@@ -4,7 +4,7 @@ import { Box, Button, ButtonBase, FormHelperText, Stack, Typography } from "@mui
 import { UploadFileIcon, UploadIcon } from "../../assets/icons";
 import { useDropzone } from "react-dropzone";
 import { memo, useCallback, useEffect, useRef, useState } from "react";
-import { uploadImagesToCloudinary } from "../../api/uploadCloudinary.api";
+import { uploadImagesToCloudinary } from "@/admin/shared/services/uploadCloudinary.service";
 import { AppToast } from "../../../utils/toast.util";
 
 interface CustomFile extends File {

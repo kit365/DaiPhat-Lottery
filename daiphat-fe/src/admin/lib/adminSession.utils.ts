@@ -1,7 +1,7 @@
 import Cookies from "js-cookie";
 import type { QueryClient } from "@tanstack/react-query";
 
-import type { GetMeResponse } from "@/admin/pages/authen/types/auth.type";
+import type { GetMeResponse } from '@/shared/auth/types/auth.type';
 import { QUERY_KEYS } from "@/constants/queryKeys";
 import { STORAGE_KEYS } from "@/constants/storage.constants";
 import { USER_ROLES } from "@/constants/role.constants";

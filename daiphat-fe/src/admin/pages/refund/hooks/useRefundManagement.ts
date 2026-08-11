@@ -2,7 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-toastify';
-import { refundAdminApi } from '../../../api/refund.api';
+import { refundAdminApi } from "@/admin/features/refund/services/refundService";
 import { QUERY_KEYS } from '../../../../constants/queryKeys';
 import {
     GetStaffRefundsParams,

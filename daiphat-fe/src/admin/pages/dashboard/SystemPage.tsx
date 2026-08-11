@@ -9,7 +9,7 @@ import { useState, useEffect } from "react";
 import DashboardCard from "../../components/dashboard/DashboardCard";
 import WelcomeWidget from "../../components/dashboard/WelcomeWidget";
 import SummaryWidget from "../../components/dashboard/SummaryWidget";
-import { getSystemStats } from "../../api/dashboard.api";
+import { getSystemStats } from "@/admin/features/dashboard/services/dashboardService";
 import { ImportBatchDraftBanner } from "../../features/ticket/import-batch";
 
 

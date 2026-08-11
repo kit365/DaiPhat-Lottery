@@ -30,7 +30,6 @@ import {
     useUploadUserAvatar
 } from "../../hooks/useUsers";
 import { useRoles } from "../../../role/hooks/useRole";
-import { StaffBoardingHistory } from "../sections/StaffBoardingHistory";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { accountAdminSchema } from "../../../../schemas/account-admin.schema";
@@ -235,16 +234,6 @@ export const AdminDetailPage = () => {
                         <Stack direction="row" spacing={1} alignItems="center">
                             <Icon icon="solar:user-id-bold" width={20} />
                             <span>Tổng quan</span>
-                        </Stack>
-                    }
-                />
-                <Tab
-                    disableRipple
-                    value="boarding-history"
-                    label={
-                        <Stack direction="row" spacing={1} alignItems="center">
-                            <Icon icon="solar:home-2-bold" width={20} />
-                            <span>Lịch sử boarding</span>
                         </Stack>
                     }
                 />
@@ -463,16 +452,6 @@ export const AdminDetailPage = () => {
                         </div>
                     </div>
                 </form>
-            )}
-
-            {currentTab === "boarding-history" && id && (
-                <Card sx={{ borderRadius: "var(--shape-borderRadius-lg)", boxShadow: "var(--customShadows-card)", overflow: 'hidden' }}>
-                    <Box sx={{ p: 3, borderBottom: '1px dashed var(--palette-divider)' }}>
-                        <Typography variant="h6">Lịch sử boarding</Typography>
-                        <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.5 }}>Toàn bộ đơn lưu trú quản trị viên được phân công</Typography>
-                    </Box>
-                    <StaffBoardingHistory staffId={id} />
-                </Card>
             )}
 
             {currentTab === "security" && (

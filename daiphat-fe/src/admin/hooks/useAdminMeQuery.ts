@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { userService } from "@/admin/pages/authen/services/user.service";
+import { userService } from '@/shared/auth/services/user.service';
 import { QUERY_KEYS } from "@/constants/queryKeys";
 import { useAuthStore } from "@/stores/useAuthStore";
 

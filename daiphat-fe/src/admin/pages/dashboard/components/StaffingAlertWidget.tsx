@@ -3,7 +3,7 @@
 import { Card, Typography, Stack, Box, alpha, Button, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Chip } from "@mui/material";
 import { Icon } from '@/admin/components/ui/AdminIcon';
 import { useQuery } from "@tanstack/react-query";
-import { getStaffingStatus } from "../../../api/dashboard.api";
+import { getStaffingStatus } from "@/admin/features/dashboard/services/dashboardService";
 import dayjs from "dayjs";
 
 export const StaffingAlertWidget = () => {
@@ -13,10 +13,10 @@ export const StaffingAlertWidget = () => {
         refetchInterval: 300000 
     });
 
-    const staffingData = statusRes?.data || [];
-    
-    const understaffedShifts = staffingData.filter((s: any) => 
-        s.requirements.some((r: any) => r.status === "thi?u")
+    const staffingData = Array.isArray(statusRes?.data) ? statusRes.data : [];
+
+    const understaffedShifts = staffingData.filter((s: { requirements?: Array<{ status?: string }> }) =>
+        s.requirements?.some((r) => r.status === 'thiếu'),
     );
 
     if (isLoading) return null;
@@ -54,8 +54,8 @@ export const StaffingAlertWidget = () => {
                         </TableRow>
                     </TableHead>
                     <TableBody>
-                        {staffingData.map((shift: any) => (
-                            shift.requirements.filter((r: any) => r.status === "thi?u").map((req: any) => (
+                        {staffingData.map((shift: { shiftId: string; requirements: Array<{ roleId: string; status: string; diff: number }> }) =>
+                            shift.requirements.filter((r) => r.status === 'thiếu').map((req) => (
                                 <TableRow key={`${shift.shiftId}-${req.roleId}`}>
                                     <TableCell sx={{ fontWeight: 600 }}>
                                         Ca tr?c: {shift.shiftId.substring(shift.shiftId.length - 4)} (Thi?u vai tr�)
@@ -71,7 +71,7 @@ export const StaffingAlertWidget = () => {
                                     </TableCell>
                                 </TableRow>
                             ))
-                        ))}
+                        )}
                     </TableBody>
                 </Table>
             </TableContainer>

@@ -7,12 +7,12 @@ import DashboardCard from "../../components/dashboard/DashboardCard";
 import { useAuthStore } from "../../../stores/useAuthStore";
 import { Icon } from '@/admin/components/ui/AdminIcon';
 import { useState, useEffect } from "react";
-import { getEcommerceStats } from "../../api/dashboard.api";
-import Chart from 'react-apexcharts';
+import { getEcommerceStats } from "@/admin/features/dashboard/services/dashboardService";
+import Chart from '@/components/ApexChartCompat';
 
 const SalesByCategory = ({ data }: { data: any[] }) => {
     const total = data?.reduce((acc, curr) => acc + curr.total, 0) || 0;
-    const labels = data?.map(item => item.label) || ['Tr?ng', 'Tr?ng'];
+    const labels = data?.map(item => item.label) || ['Trống', 'Trống'];
     const series = data?.map(item => (total > 0 ? (item.total / total) * 100 : 0)) || [0, 0];
 
     const chartOptions: any = {
@@ -42,7 +42,7 @@ const SalesByCategory = ({ data }: { data: any[] }) => {
                     },
                     total: {
                         show: true,
-                        label: 'T?ng thu',
+                        label: 'Tổng thu',
                         formatter: () => {
                             if (total >= 1000000) return (total / 1000000).toFixed(1) + 'M';
                             if (total >= 1000) return (total / 1000).toFixed(1) + 'K';
@@ -59,7 +59,7 @@ const SalesByCategory = ({ data }: { data: any[] }) => {
     return (
         <DashboardCard>
             <Box sx={{ p: 3, pb: 0 }}>
-                <Typography variant="h6" sx={{ fontWeight: 600, fontSize: '1.125rem' }}>Doanh s? theo danh m?c</Typography>
+                <Typography variant="h6" sx={{ fontWeight: 600, fontSize: '1.125rem' }}>Doanh số theo danh mục</Typography>
             </Box>
 
             <Box sx={{ height: 320, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -175,7 +175,7 @@ const YearlySales = ({ data }: { data: number[] }) => {
                         <Typography sx={{ fontSize: '0.813rem', fontWeight: 500, color: 'var(--palette-text-secondary)' }}>Doanh thu</Typography>
                     </Box>
                     <Typography variant="h5" sx={{ fontWeight: 700 }}>
-                        {(Array.isArray(data) ? data.reduce((a: number, b: number) => a + b, 0) : 0).toLocaleString()}d
+                        {(Array.isArray(data) ? data.reduce((a: number, b: number) => a + b, 0) : 0).toLocaleString()}đ
                     </Typography>
                 </Box>
             </Box>
@@ -210,8 +210,8 @@ const TopCustomers = ({ customers }: { customers: any[] }) => {
                                         <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>{customer.fullName}</Typography>
                                     </Stack>
                                 </TableCell>
-                                <TableCell sx={{ borderBottom: 'dashed 1px var(--palette-divider)', fontWeight: 600 }}>{customer.totalOrders}</TableCell>
-                                <TableCell sx={{ borderBottom: 'dashed 1px var(--palette-divider)', fontWeight: 600 }}>{customer.totalSpent.toLocaleString()}d</TableCell>
+                                <TableCell sx={{ borderBottom: 'dashed 1px var(--palette-divider)', fontWeight: 600 }}>{customer.totalOrders ?? 0}</TableCell>
+                                <TableCell sx={{ borderBottom: 'dashed 1px var(--palette-divider)', fontWeight: 600 }}>{(customer.totalSpent ?? 0).toLocaleString()}đ</TableCell>
                                 <TableCell align="right" sx={{ borderBottom: 'dashed 1px var(--palette-divider)' }}>
                                     <Box
                                         sx={{
@@ -380,7 +380,7 @@ export const EcommercePage = () => {
 
             {/* Stats Summary Section */}
             <Grid sx={{ flexGrow: 0, flexBasis: 'auto', width: 'calc(100% * 4 / var(--Grid-parent-columns) - (var(--Grid-parent-columns) - 4) * (var(--Grid-parent-columnSpacing) / var(--Grid-parent-columns)))' }}>
-                <SummaryWidget title="T?ng s?n ph?m" total={stats?.summary?.totalTickets?.toString() || "0"} percent={0} color="#FF3030" chartData={[25, 66, 41, 89, 63, 25, 44, 12]} />
+                <SummaryWidget title="Tổng sản phẩm" total={stats?.summary?.totalTickets?.toString() || "0"} percent={0} color="#FF3030" chartData={[25, 66, 41, 89, 63, 25, 44, 12]} />
             </Grid>
             <Grid sx={{ flexGrow: 0, flexBasis: 'auto', width: 'calc(100% * 4 / var(--Grid-parent-columns) - (var(--Grid-parent-columns) - 4) * (var(--Grid-parent-columnSpacing) / var(--Grid-parent-columns)))' }}>
                 <SummaryWidget
@@ -413,7 +413,7 @@ export const EcommercePage = () => {
                 <SalesByCategory data={stats?.topCategories} />
             </Grid>
             <Grid sx={{ flexGrow: 0, flexBasis: 'auto', width: 'calc(100% * 8 / var(--Grid-parent-columns) - (var(--Grid-parent-columns) - 8) * (var(--Grid-parent-columnSpacing) / var(--Grid-parent-columns)))' }}>
-                <YearlySales data={stats?.yearlyRevenueChart} />
+                <YearlySales data={stats?.yearlyRevenueChart?.total ?? stats?.yearlyRevenueChart} />
             </Grid>
 
             <Grid sx={{ flexGrow: 0, flexBasis: 'auto', width: 'calc(100% * 8 / var(--Grid-parent-columns) - (var(--Grid-parent-columns) - 8) * (var(--Grid-parent-columnSpacing) / var(--Grid-parent-columns)))' }}>

@@ -10,7 +10,7 @@ import { toast } from "react-toastify";
 import { useEffect, useRef, useState } from "react";
 import { useSettingGeneral, useUpdateSettingGeneral } from "./hooks/useSettingGeneral";
 import { Button } from "../../components/ui/Button";
-import { Tiptap } from "../../components/layouts/titap/Tiptap";
+import { LazyTiptap } from "../../components/layouts/titap/LazyTiptap";
 
 export const SettingGeneralPage = () => {
     const [previewUrl, setPreviewUrl] = useState<string>("");
@@ -345,7 +345,7 @@ export const SettingGeneralPage = () => {
                                             name="privacyPolicy"
                                             control={control}
                                             render={({ field }) => (
-                                                <Tiptap value={field.value} onChange={field.onChange} />
+                                                <LazyTiptap value={field.value} onChange={field.onChange} />
                                             )}
                                         />
                                     </Box>
@@ -355,7 +355,7 @@ export const SettingGeneralPage = () => {
                                             name="termsOfUse"
                                             control={control}
                                             render={({ field }) => (
-                                                <Tiptap value={field.value} onChange={field.onChange} />
+                                                <LazyTiptap value={field.value} onChange={field.onChange} />
                                             )}
                                         />
                                     </Box>
@@ -365,7 +365,7 @@ export const SettingGeneralPage = () => {
                                             name="conditions"
                                             control={control}
                                             render={({ field }) => (
-                                                <Tiptap value={field.value} onChange={field.onChange} />
+                                                <LazyTiptap value={field.value} onChange={field.onChange} />
                                             )}
                                         />
                                     </Box>

@@ -13,7 +13,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { accountAdminSchema } from "../../../../schemas/account-admin.schema";
 import { toast } from "react-toastify";
 import { AxiosError } from "axios";
-import { uploadImagesToCloudinary } from '../../../../api/uploadCloudinary.api';
+import { uploadImagesToCloudinary } from "@/admin/shared/services/uploadCloudinary.service";
 import { Button } from '../../../../components/ui/Button';
 import * as zod from "zod";
 import { useAuthStore } from "../../../../../stores/useAuthStore";

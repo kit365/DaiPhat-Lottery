@@ -55,7 +55,7 @@ import {
     IncidentTicketDisplay,
 } from '../../constants/incidentTicket.constants';
 import { prefixAdmin, ROUTES } from '../../../../constants/routes';
-import { refundAdminApi } from '../../../../api/refund.api';
+import { refundAdminApi } from "@/admin/features/refund/services/refundService";
 import { QUERY_KEYS } from '../../../../../constants/queryKeys';
 import { RefundRequestResponse } from '../../../../../types/refund.type';
 
