@@ -1,9 +1,9 @@
 "use client";
 
-import {
-    DataGrid,
+import type {
     GridColDef,
 } from '@mui/x-data-grid';
+import { LazyDataGrid } from '@/admin/shared/data-grid/LazyDataGrid';
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import CircularProgress from '@mui/material/CircularProgress';
@@ -467,7 +467,7 @@ export const TicketCategoryList = ({
                     }
                 }
             }}>
-                <DataGrid
+                <LazyDataGrid
                     rows={displayCategories}
                     getRowId={(row) => row.id}
                     columns={columns}

@@ -1,9 +1,9 @@
 "use client";
 
-import {
-    DataGrid,
+import type {
     GridColDef,
 } from '@mui/x-data-grid';
+import { LazyDataGrid } from '@/admin/shared/data-grid/LazyDataGrid';
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import CircularProgress from '@mui/material/CircularProgress';
@@ -25,7 +25,7 @@ import { buildCancelSelectColumn } from '../configs/cancelSelectColumn.config';
 import { DATA_GRID_LOCALE_VN } from '../../../../../../shared/components/DataTable/localeText.config';
 import type { useTicketInventory } from '../../hooks/useTicketInventory';
 import { useCancelTicketSelection } from '../../../import-batch/hooks/useCancelTicketSelection';
-import { ReportSerialFaultPane } from '../../../import-batch/components/sections/ReportSerialFaultPane';
+import { LazyReportSerialFaultPane } from '../../../import-batch/components/sections/LazyReportSerialFaultPane';
 import { QUERY_KEYS } from '../../constants/queryKeys';
 
 declare module '@mui/x-data-grid' {
@@ -102,7 +102,7 @@ export const TicketList = ({
         <>
             <Card elevation={0} className="admin-datagrid-card">
                 <Box sx={dataGridContainerStyles}>
-                    <DataGrid
+                    <LazyDataGrid
                         rows={tickets}
                         getRowId={(row) => row.id || row._id}
                         columns={columns}
@@ -175,6 +175,7 @@ export const TicketList = ({
                 </Box>
             </Card>
 
+            {cancelSelection.isReportDialogOpen && (
             <Dialog
                 open={cancelSelection.isReportDialogOpen}
                 onClose={cancelSelection.closeReportDialog}
@@ -195,7 +196,7 @@ export const TicketList = ({
                 }}
             >
                 <DialogContent sx={{ p: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', height: '100%' }}>
-                    <ReportSerialFaultPane
+                    <LazyReportSerialFaultPane
                         serials={cancelSelection.selectedSerials}
                         ticketNumbers={cancelSelection.reportDialogProps.ticketNumbers}
                         ticketId={cancelSelection.reportDialogProps.ticketId}
@@ -208,6 +209,7 @@ export const TicketList = ({
                     />
                 </DialogContent>
             </Dialog>
+            )}
         </>
     );
 };

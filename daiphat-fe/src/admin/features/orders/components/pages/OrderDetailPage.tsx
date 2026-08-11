@@ -37,7 +37,7 @@ import { PERMISSIONS } from "../../../../constants/permission.constants";
 import { OrderInspectionSection } from "../sections/OrderInspectionSection";
 import { OrderHandoverConfirmDialog } from "../sections/OrderHandoverConfirmDialog";
 import { OrderSteppersCard } from "../sections/OrderSteppersCard";
-import { getOrderStatusBadge } from "../../constants/orderStatus.constants";
+import { getOrderStatusBadge } from '../../utils/orderStatusBadge';
 import { resolveOrderPaymentMethodLabel } from "../../../../../utils/orderPayment.util";
 
 const PAYMENT_STATUS_OPTIONS: { [key: string]: { label: string; color: string; bg: string } } = {

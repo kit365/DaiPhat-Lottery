@@ -1,9 +1,9 @@
-"use client";
+﻿"use client";
 
 import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Eye, EyeOff, Check, X, ShieldCheck } from 'lucide-react';
-import { useAuth } from '../../../admin/pages/authen/hooks/useAuth';
+import { useAuth } from '@/admin/features/auth/hooks/useAuth';
 import { calculatePasswordStrength } from '../../../utils/password-evaluator.util';
 import { cn } from '../../../utils/cn';
 

@@ -16,7 +16,7 @@ import Swal from 'sweetalert2';
 import { PageHeader } from '../../../../../components/ui/PageHeader';
 import { Button } from '../../../../../components/ui/Button';
 import { ROUTES } from '../../../../../constants/routes';
-import { ReportSerialFaultPane } from '../../../import-batch/components/sections/ReportSerialFaultPane';
+import { LazyReportSerialFaultPane } from '../../../import-batch/components/sections/LazyReportSerialFaultPane';
 import { UploadSingleFile } from '../../../../../components/upload/UploadSingleFile';
 import type { CancelSelectedSerial } from '../../../import-batch/hooks/useCancelTicketSelection';
 import { formatImportCost } from '../../../import-batch/utils/importCostCalculator';
@@ -569,7 +569,7 @@ export const ReturnBatchInspectPage = () => {
                     )}
 
                     {activeStep === 'REPORT' && (
-                        <ReportSerialFaultPane
+                        <LazyReportSerialFaultPane
                             serials={selectedSerialsForReport}
                             ticketNumbers={reportDialogProps.ticketNumbers}
                             ticketId={reportDialogProps.ticketId}

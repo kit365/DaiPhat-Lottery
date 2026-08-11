@@ -8,7 +8,7 @@ import { PageHeader } from "../../../../components/ui/PageHeader";
 import { SpinnerLoading } from "../../../../components/ui/SpinnerLoading";
 import { TimePicker } from "@mui/x-date-pickers";
 import dayjs from "dayjs";
-import { Tiptap } from "../../../../components/layouts/titap/Tiptap";
+import { LazyTiptap } from "../../../../components/layouts/titap/LazyTiptap";
 import { useState, useEffect, type Dispatch, type SetStateAction, useMemo } from "react";
 import { CollapsibleCard } from "../../../../components/ui/CollapsibleCard";
 import { useStationDetail, useUpdateStation, useUploadStationImage } from "../../hooks/useStation";
@@ -454,7 +454,7 @@ export const StationEditPage = () => {
                                         name="description"
                                         control={control}
                                         render={({ field }) => (
-                                            <Tiptap
+                                            <LazyTiptap
                                                 value={field.value ?? ""}
                                                 onChange={field.onChange}
                                             />

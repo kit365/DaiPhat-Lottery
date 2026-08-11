@@ -1,3 +1,4 @@
+export { LazyDataGrid } from './LazyDataGrid';
 export { JiraFilter } from './JiraFilter';
 export type { Option, FilterField } from './JiraFilter';
 export { useSettings } from './useSettings';

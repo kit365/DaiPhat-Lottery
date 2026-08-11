@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuthStore } from "../../../stores/useAuthStore";
-import { authService } from "../../../admin/pages/authen/services/auth.service";
+import { authService } from "@/shared/auth/services/auth.service";
 import CloseIcon from '@mui/icons-material/Close';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import { VERIFY_MODAL_BACKGROUND } from '@/client/constants/clientBannerAssets';

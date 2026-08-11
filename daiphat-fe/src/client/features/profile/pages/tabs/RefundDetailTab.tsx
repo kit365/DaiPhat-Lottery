@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useRouter } from "next/navigation";
 import { useRouteParams } from "@/hooks/useRouteParams";
@@ -19,7 +19,7 @@ import { RefundStatusBadge } from '../../../../components/refund/RefundStatusBad
 import { RefundStatusStepper } from '../../../../components/refund/RefundStatusStepper';
 import { RefundComplaintButton } from '../../../../components/support/RefundComplaintButton';
 import { BankAccountFormModal } from '../../../../components/refund/BankAccountFormModal';
-import { TransferEvidencePreview } from '../../../../../admin/pages/refund/components/TransferEvidencePreview';
+import { TransferEvidencePreview } from '@/admin/features/refund/components/TransferEvidencePreview';
 import {
     UnavailableReferenceState,
     UNAVAILABLE_REFERENCE_MESSAGE,

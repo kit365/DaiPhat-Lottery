@@ -1,6 +1,6 @@
-"use client";
+﻿"use client";
 
-import { ShiftListPage } from '@/admin/pages/hr/ShiftListPage';
+import { ShiftListPage } from '@/admin/features/hr/components/pages/ShiftListPage';
 
 import { createAdminClientPage } from '@/admin/lib/createAdminClientPage';
 

@@ -27,7 +27,7 @@ import { AdminDatePicker } from '../../../../../components/ui/AdminDatePicker';
 import { SelectMulti } from '../../../../../components/ui/SelectMulti';
 import { Button } from '../../../../../components/ui/Button';
 import { ImportBatchReceiptUpload } from '../sections/ImportBatchReceiptUpload';
-import { uploadAdminImage } from '../../../../../api/upload.api';
+import { uploadAdminImage } from '@/admin/shared/services/upload.service';
 import { prefixAdmin, ROUTES } from '../../../../../constants/routes';
 import { useCreateImportBatch, useEligibleImportBatchStations, useImportBatchTimePolicy } from '../../hooks/useImportBatch';
 import { useActiveSuppliers } from '../../../../supplier';

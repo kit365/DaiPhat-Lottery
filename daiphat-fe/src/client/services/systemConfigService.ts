@@ -1,3 +1,4 @@
+import type { AxiosError } from 'axios';
 import { apiApp } from '../../api';
 
 interface SystemConfigModel {
@@ -11,16 +12,20 @@ type ApiBody<T> = {
     data?: T;
 };
 
+const PUBLIC_CONFIG_REQUEST = { skipGlobalErrorToast: true } as const;
+
+const emptyConfigMap = (keys: readonly string[]) =>
+    Object.fromEntries(keys.map((key) => [key, null]));
+
 export const getPublicSystemConfigByKey = async (key: string): Promise<SystemConfigModel | null> => {
     try {
-        const response = await apiApp.get(`/public/system-configs/${key}`);
+        const response = await apiApp.get(`/public/system-configs/${key}`, PUBLIC_CONFIG_REQUEST);
         const body = response.data as ApiBody<SystemConfigModel>;
         if (body?.success === false || body?.isSuccess === false) {
             return null;
         }
         return body?.data ?? null;
-    } catch (error) {
-        console.error('Failed to get public system config', error);
+    } catch {
         return null;
     }
 };
@@ -36,11 +41,12 @@ export const getPublicSystemConfigsByKeys = async (
 
     try {
         const response = await apiApp.get('/public/system-configs/batch', {
+            ...PUBLIC_CONFIG_REQUEST,
             params: { keys: uniqueKeys.join(',') },
         });
         const body = response.data as ApiBody<Record<string, SystemConfigModel>>;
         if (body?.success === false || body?.isSuccess === false) {
-            return Object.fromEntries(uniqueKeys.map((key) => [key, null]));
+            return emptyConfigMap(uniqueKeys);
         }
 
         const data = body?.data ?? {};
@@ -48,10 +54,15 @@ export const getPublicSystemConfigsByKeys = async (
             uniqueKeys.map((key) => [key, data[key] ?? null]),
         );
     } catch (error) {
-        console.warn('Batch public config failed, falling back to per-key requests', error);
-        const entries = await Promise.all(
-            uniqueKeys.map(async (key) => [key, await getPublicSystemConfigByKey(key)] as const),
-        );
-        return Object.fromEntries(entries);
+        const status = (error as AxiosError)?.response?.status;
+        // Old BE without batch endpoint — try per-key once.
+        if (status === 404) {
+            const entries = await Promise.all(
+                uniqueKeys.map(async (key) => [key, await getPublicSystemConfigByKey(key)] as const),
+            );
+            return Object.fromEntries(entries);
+        }
+
+        return emptyConfigMap(uniqueKeys);
     }
 };

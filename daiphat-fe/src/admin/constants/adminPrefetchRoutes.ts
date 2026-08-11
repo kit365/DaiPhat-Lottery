@@ -1,4 +1,4 @@
-import { ROUTES } from './routes';
+﻿import { ROUTES } from './routes';
 import { menuDevelopmentData, menuManagementData, menuOverviewData } from './sideBar';
 import { registerAdminPageChunkLoader } from '../lib/adminPagePrefetchRegistry';
 
@@ -84,8 +84,8 @@ const registerPriorityChunkLoaders = () => {
         [ROUTES.ADMIN.ORDERS.LIST, () => import('@/admin/features/orders/components/pages/OrderListPage')],
         [ROUTES.ADMIN.ORDERS.CREATE_COUNTER, () => import('@/admin/features/orders/components/pages/CounterOrderCreatePage')],
         [ROUTES.ADMIN.CHAT, () => import('@/admin/features/chat/components/pages/ChatPage')],
-        [ROUTES.ADMIN.REFUNDS.LIST, () => import('@/admin/pages/refund/RefundListPage')],
-        [ROUTES.ADMIN.PRIZE_PAYOUTS.LIST, () => import('@/admin/pages/prize-payout/PrizePayoutListPage')],
+        [ROUTES.ADMIN.REFUNDS.LIST, () => import('@/admin/features/refund/components/pages/RefundListPage')],
+        [ROUTES.ADMIN.PRIZE_PAYOUTS.LIST, () => import('@/admin/features/prize-payout/components/pages/PrizePayoutListPage')],
         [ROUTES.ADMIN.SUPPORT_TICKETS.LIST, () => import('@/admin/features/support-ticket/components/pages/SupportTicketListPage')],
         [ROUTES.ADMIN.SUPPORT_TICKETS.CATEGORIES, () => import('@/admin/features/support-ticket/components/pages/TicketCategoryListPage')],
         [ROUTES.ADMIN.IMPORT_BATCH.LIST, () => import('@/admin/features/ticket/import-batch/components/pages/ImportBatchListPage')],
@@ -93,10 +93,10 @@ const registerPriorityChunkLoaders = () => {
         [ROUTES.ADMIN.RETURN_BATCH.LIST, () => import('@/admin/features/ticket/return-batch/components/pages/ReturnBatchListPage')],
         [ROUTES.ADMIN.SUPPLIER_SETTLEMENT.LIST, () => import('@/admin/features/ticket/supplier-settlement/components/pages/SupplierSettlementListPage')],
         [ROUTES.ADMIN.SUPPLIER.LIST, () => import('@/admin/features/supplier/components/pages/SupplierListPage')],
-        [ROUTES.ADMIN.DASHBOARD.ROOT, () => import('@/admin/pages/dashboard/DashboardPage')],
-        [ROUTES.ADMIN.DASHBOARD.SYSTEM, () => import('@/admin/pages/dashboard/SystemPage')],
-        [ROUTES.ADMIN.DASHBOARD.ECOMMERCE, () => import('@/admin/pages/dashboard/EcommercePage')],
-        [ROUTES.ADMIN.DASHBOARD.ANALYTICS, () => import('@/admin/pages/dashboard/AnalyticsPage')],
+        [ROUTES.ADMIN.DASHBOARD.ROOT, () => import('@/admin/features/dashboard/components/pages/DashboardPage')],
+        [ROUTES.ADMIN.DASHBOARD.SYSTEM, () => import('@/admin/features/dashboard/components/pages/SystemPage')],
+        [ROUTES.ADMIN.DASHBOARD.ECOMMERCE, () => import('@/admin/features/dashboard/components/pages/EcommercePage')],
+        [ROUTES.ADMIN.DASHBOARD.ANALYTICS, () => import('@/admin/features/dashboard/components/pages/AnalyticsPage')],
         [ROUTES.ADMIN.BLOGS.LIST, () => import('@/admin/features/blogs/components/pages/BlogListPage')],
         [ROUTES.ADMIN.BLOGS.CATEGORIES, () => import('@/admin/features/blogs/components/pages/BlogCategoryListPage')],
         [ROUTES.ADMIN.BLOGS.TAGS, () => import('@/admin/features/blogs/components/pages/BlogTagListPage')],
@@ -107,20 +107,20 @@ const registerPriorityChunkLoaders = () => {
         [ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.ALLOCATION_BATCHES, () => import('@/admin/features/street-agent/components/pages/VendorAllocationBatchListPage')],
         [ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.LUCKY_PATTERNS, () => import('@/admin/features/street-agent/components/pages/LuckyPatternConfigPage')],
         [ROUTES.ADMIN.ROLES.LIST, () => import('@/admin/features/role/components/pages/RoleListPage')],
-        [ROUTES.ADMIN.REVIEWS, () => import('@/admin/pages/review/ReviewListPage')],
+        [ROUTES.ADMIN.REVIEWS, () => import('@/admin/features/review/components/pages/ReviewListPage')],
         [ROUTES.ADMIN.DASHBOARD.SETTINGS.SYSTEM_CONFIG, () => import('@/admin/features/system-config/components/pages/SystemConfigListPage')],
         [ROUTES.ADMIN.NOTIFICATIONS, () => import('@/admin/features/notifications/components/pages/NotificationListPage')],
-        [ROUTES.ADMIN.DASHBOARD.SETTINGS.GENERAL, () => import('@/admin/pages/settings/GeneralSettingsPage')],
-        [ROUTES.ADMIN.DASHBOARD.SETTINGS.POLICIES, () => import('@/admin/pages/settings/PoliciesSettingsPage')],
-        [ROUTES.ADMIN.DASHBOARD.SETTINGS.PAGES, () => import('@/admin/pages/settings/ContentSettingsPage')],
-        [ROUTES.ADMIN.DASHBOARD.SETTINGS.APP_PASSWORD, () => import('@/admin/pages/settings/AppPasswordSettingsPage')],
-        [ROUTES.ADMIN.DASHBOARD.STATISTICS.GENERAL, () => import('@/admin/pages/dashboard/statistics/GeneralStatisticsPage')],
-        [ROUTES.ADMIN.DASHBOARD.STATISTICS.ORDERS, () => import('@/admin/pages/dashboard/statistics/OrderStatisticsPage')],
-        ['/admin/dashboard/statistics/staff', () => import('@/admin/pages/dashboard/statistics/StaffStatisticsPage')],
+        [ROUTES.ADMIN.DASHBOARD.SETTINGS.GENERAL, () => import('@/admin/features/settings/components/pages/GeneralSettingsPage')],
+        [ROUTES.ADMIN.DASHBOARD.SETTINGS.POLICIES, () => import('@/admin/features/settings/components/pages/PoliciesSettingsPage')],
+        [ROUTES.ADMIN.DASHBOARD.SETTINGS.PAGES, () => import('@/admin/features/settings/components/pages/ContentSettingsPage')],
+        [ROUTES.ADMIN.DASHBOARD.SETTINGS.APP_PASSWORD, () => import('@/admin/features/settings/components/pages/AppPasswordSettingsPage')],
+        [ROUTES.ADMIN.DASHBOARD.STATISTICS.GENERAL, () => import('@/admin/features/dashboard/components/statistics/GeneralStatisticsPage')],
+        [ROUTES.ADMIN.DASHBOARD.STATISTICS.ORDERS, () => import('@/admin/features/dashboard/components/statistics/OrderStatisticsPage')],
+        ['/admin/dashboard/statistics/staff', () => import('@/admin/features/dashboard/components/statistics/StaffStatisticsPage')],
         [ROUTES.ADMIN.PROFILE, () => import('@/admin/features/users/components/pages/ProfilePage')],
-        ['/admin/department/list', () => import('@/admin/pages/hr/DepartmentListPage')],
-        ['/admin/shift/list', () => import('@/admin/pages/hr/ShiftListPage')],
-        ['/admin/schedule-calendar', () => import('@/admin/pages/hr/ScheduleCalendarPage')],
+        ['/admin/department/list', () => import('@/admin/features/hr/components/pages/DepartmentListPage')],
+        ['/admin/shift/list', () => import('@/admin/features/hr/components/pages/ShiftListPage')],
+        ['/admin/schedule-calendar', () => import('@/admin/features/hr/components/pages/ScheduleCalendarPage')],
     ];
 
     loaders.forEach(([path, loader]) => registerAdminPageChunkLoader(path, loader));

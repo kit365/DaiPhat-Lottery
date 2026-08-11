@@ -1,6 +1,6 @@
-"use client";
+﻿"use client";
 
-import { ContentSettingsPage } from '@/admin/pages/settings/ContentSettingsPage';
+import { ContentSettingsPage } from '@/admin/features/settings/components/pages/ContentSettingsPage';
 
 import { createAdminClientPage } from '@/admin/lib/createAdminClientPage';
 import { PERMISSIONS } from '@/admin/constants/permission.constants';

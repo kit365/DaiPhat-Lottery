@@ -21,7 +21,7 @@ import { PageHeader } from '../../../../components/ui/PageHeader';
 import { Search } from '../../../../components/ui/Search';
 import { PERMISSIONS } from '../../../../constants/permission.constants';
 import { useAuthStore } from '../../../../../stores/useAuthStore';
-import { UpdateSystemConfigFormValues } from '../../../../schemas/system-config.schema';
+import { UpdateSystemConfigFormValues } from '@/admin/features/system-config/schemas/system-config.schema';
 import { useBulkUpdateVendorConfidencePolicy, useSystemConfigs, useUpdateSystemConfig } from '../../hooks/useSystemConfig';
 import { SystemConfigEditDialog } from '../sections/SystemConfigEditDialog';
 import { SystemConfigTableRow } from '../sections/SystemConfigTableRow';
