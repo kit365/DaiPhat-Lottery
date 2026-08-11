@@ -21,6 +21,10 @@ public interface SupplierSettlementRepository
 
     java.util.List<SupplierSettlementEntity> findByStatusAndDeletedAtIsNull(SupplierSettlementStatus status);
 
+    java.util.List<SupplierSettlementEntity> findByStatusInAndDeletedAtIsNull(
+            java.util.Collection<SupplierSettlementStatus> statuses
+    );
+
     Optional<SupplierSettlementEntity> findByIdAndDeletedAtIsNull(Long id);
 
     @Query("""
@@ -92,26 +96,139 @@ public interface SupplierSettlementRepository
             FROM LotteryTicketSerialEntity s
             JOIN s.importBatchLine ibl
             JOIN ibl.importBatch ib
-            LEFT JOIN ReturnBatchLineEntity rbl ON s.returnBatchLineId = rbl.id
-            LEFT JOIN rbl.returnBatch rb
+            JOIN s.ticket t
             WHERE ib.supplierSettlementId = :settlementId
               AND s.deletedAt IS NULL
               AND ibl.deletedAt IS NULL
               AND ib.deletedAt IS NULL
+              AND t.deletedAt IS NULL
+              AND s.status = com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus.EXPIRED
+              AND NOT EXISTS (
+                  SELECT 1 FROM OrderDetailEntity od
+                  WHERE od.lotteryTicketSerial = s
+                     OR od.replacedByTicketSerial = s
+              )
+            """)
+    BigDecimal sumExpiredReturnValueBySettlementId(@Param("settlementId") Long settlementId);
+
+    @Query("""
+            SELECT COUNT(s.id)
+            FROM LotteryTicketSerialEntity s
+            JOIN s.importBatchLine ibl
+            JOIN ibl.importBatch ib
+            JOIN s.ticket t
+            WHERE ib.supplierSettlementId = :settlementId
+              AND s.deletedAt IS NULL
+              AND ibl.deletedAt IS NULL
+              AND ib.deletedAt IS NULL
+              AND t.deletedAt IS NULL
+              AND s.status = com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus.EXPIRED
+              AND NOT EXISTS (
+                  SELECT 1 FROM OrderDetailEntity od
+                  WHERE od.lotteryTicketSerial = s
+                     OR od.replacedByTicketSerial = s
+              )
+            """)
+    long countExpiredReturnTicketsBySettlementId(@Param("settlementId") Long settlementId);
+
+    @Query("""
+            SELECT COUNT(s.id)
+            FROM LotteryTicketSerialEntity s
+            JOIN s.importBatchLine ibl
+            JOIN ibl.importBatch ib
+            WHERE ib.supplierSettlementId = :settlementId
+              AND s.deletedAt IS NULL
+              AND ibl.deletedAt IS NULL
+              AND ib.deletedAt IS NULL
+              AND s.ticketCondition <> com.daiphat.coreapi.domain.model.enums.lottery.TicketCondition.VOIDED
+            """)
+    long countImportedTicketsBySettlementId(@Param("settlementId") Long settlementId);
+
+    @Query("""
+            SELECT COUNT(s.id)
+            FROM LotteryTicketSerialEntity s
+            JOIN ReturnBatchLineEntity l ON s.returnBatchLineId = l.id
+            JOIN l.returnBatch b
+            WHERE b.supplierSettlementId = :settlementId
+              AND s.returnBatchLineId IS NOT NULL
+              AND s.deletedAt IS NULL
+              AND l.deletedAt IS NULL
+              AND b.deletedAt IS NULL
+              AND b.status IN (
+                  com.daiphat.coreapi.domain.model.enums.lottery.ReturnBatchStatus.PENDING_HANDOVER,
+                  com.daiphat.coreapi.domain.model.enums.lottery.ReturnBatchStatus.HANDED_OVER
+              )
               AND s.status IN (
                   com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus.IN_STOCK,
                   com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus.EXPIRED
               )
-              AND (
-                  rb IS NULL
-                  OR rb.status IN (
-                      com.daiphat.coreapi.domain.model.enums.lottery.ReturnBatchStatus.PENDING_INSPECTION,
-                      com.daiphat.coreapi.domain.model.enums.lottery.ReturnBatchStatus.INSPECTING,
-                      com.daiphat.coreapi.domain.model.enums.lottery.ReturnBatchStatus.CANCELLED
-                  )
-              )
+              AND s.ticketCondition = com.daiphat.coreapi.domain.model.enums.lottery.TicketCondition.GOOD
             """)
-    BigDecimal sumExpiredReturnValueBySettlementId(@Param("settlementId") Long settlementId);
+    long countPreparedReturnTicketsBySettlementId(@Param("settlementId") Long settlementId);
+
+    /**
+     * Prepared-return serials for missing-return resolution UI.
+     * Columns: serialId, serialNumber, status, ticketCondition, stationName, importCost
+     */
+    @Query("""
+            SELECT s.id,
+                   s.serialNumber,
+                   s.status,
+                   s.ticketCondition,
+                   st.name,
+                   ibl.importCost
+            FROM LotteryTicketSerialEntity s
+            JOIN ReturnBatchLineEntity l ON s.returnBatchLineId = l.id
+            JOIN l.returnBatch b
+            JOIN s.importBatchLine ibl
+            JOIN s.ticket t
+            JOIN t.station st
+            WHERE b.supplierSettlementId = :settlementId
+              AND s.returnBatchLineId IS NOT NULL
+              AND s.deletedAt IS NULL
+              AND l.deletedAt IS NULL
+              AND b.deletedAt IS NULL
+              AND ibl.deletedAt IS NULL
+              AND t.deletedAt IS NULL
+              AND b.status IN (
+                  com.daiphat.coreapi.domain.model.enums.lottery.ReturnBatchStatus.PENDING_HANDOVER,
+                  com.daiphat.coreapi.domain.model.enums.lottery.ReturnBatchStatus.HANDED_OVER
+              )
+              AND s.status IN (
+                  com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus.IN_STOCK,
+                  com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus.EXPIRED
+              )
+              AND s.ticketCondition = com.daiphat.coreapi.domain.model.enums.lottery.TicketCondition.GOOD
+            ORDER BY st.name ASC, s.serialNumber ASC
+            """)
+    java.util.List<Object[]> findPreparedReturnSerialRowsBySettlementId(@Param("settlementId") Long settlementId);
+
+    /**
+     * IN_STOCK + GOOD serials for import discrepancy resolution.
+     * Columns: serialId, serialNumber, status, ticketCondition, stationName, importCost
+     */
+    @Query("""
+            SELECT s.id,
+                   s.serialNumber,
+                   s.status,
+                   s.ticketCondition,
+                   st.name,
+                   ibl.importCost
+            FROM LotteryTicketSerialEntity s
+            JOIN s.importBatchLine ibl
+            JOIN ibl.importBatch ib
+            JOIN s.ticket t
+            JOIN t.station st
+            WHERE ib.supplierSettlementId = :settlementId
+              AND s.deletedAt IS NULL
+              AND ibl.deletedAt IS NULL
+              AND ib.deletedAt IS NULL
+              AND t.deletedAt IS NULL
+              AND s.status = com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus.IN_STOCK
+              AND s.ticketCondition = com.daiphat.coreapi.domain.model.enums.lottery.TicketCondition.GOOD
+            ORDER BY st.name ASC, s.serialNumber ASC
+            """)
+    java.util.List<Object[]> findImportResolvableSerialRowsBySettlementId(@Param("settlementId") Long settlementId);
 
     @Query(value = "SELECT nextval('supplier_settlement_code_seq')", nativeQuery = true)
     long nextSettlementCodeSequence();

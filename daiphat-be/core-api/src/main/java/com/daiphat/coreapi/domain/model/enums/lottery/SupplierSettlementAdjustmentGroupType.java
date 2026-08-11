@@ -5,10 +5,10 @@ import lombok.RequiredArgsConstructor;
 
 @Getter
 @RequiredArgsConstructor
-public enum SupplierSettlementStatus {
-    OPEN("Đang mở"),
-    RECEIPT_OVERDUE("Quá hạn biên lai"),
-    CLOSED("Đã chốt");
+public enum SupplierSettlementAdjustmentGroupType {
+    IMPORT("Nhập"),
+    RETURN("Trả"),
+    SETTLEMENT("Thanh toán");
 
     private final String label;
 }

@@ -1,6 +1,15 @@
 package com.daiphat.coreapi.application.port.in.lotteries;
 
+import com.daiphat.coreapi.application.dto.request.lotteries.AddSettlementMonetaryAdjustmentRequest;
+import com.daiphat.coreapi.application.dto.request.lotteries.CompleteSettlementReconciliationRequest;
+import com.daiphat.coreapi.application.dto.request.lotteries.ConfirmSettlementMatchingRequest;
+import com.daiphat.coreapi.application.dto.request.lotteries.ResolveImportDiscrepancyRequest;
+import com.daiphat.coreapi.application.dto.request.lotteries.ResolveReturnDiscrepancyRequest;
+import com.daiphat.coreapi.application.dto.request.lotteries.ResolveUnitPriceDiscrepancyRequest;
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
+import com.daiphat.coreapi.application.dto.response.lotteries.SettlementCompleteResultResponse;
+import com.daiphat.coreapi.application.dto.response.lotteries.SettlementResolvableSerialResponse;
+import com.daiphat.coreapi.application.dto.response.lotteries.SupplierSettlementAdjustmentResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.SupplierSettlementOverviewResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.SupplierSettlementResponse;
 import com.daiphat.coreapi.domain.model.enums.lottery.SupplierSettlementStatus;
@@ -8,6 +17,8 @@ import com.daiphat.coreapi.domain.model.lotteries.LotterySupplierModel;
 import com.daiphat.coreapi.domain.model.lotteries.SupplierSettlementModel;
 
 import java.time.LocalDate;
+import java.util.List;
+import java.util.UUID;
 
 public interface SupplierSettlementServicePort {
 
@@ -40,6 +51,12 @@ public interface SupplierSettlementServicePort {
      */
     int updateExpiredSettlements();
 
+    /**
+     * Transition OPEN settlements past VERIFICATION_DEADLINE with missing receipt to RECEIPT_OVERDUE
+     * and notify Admin once (idempotent via status gate).
+     */
+    int markReceiptOverdueSettlements();
+
     PageResponse<SupplierSettlementResponse> getAll(
             int page,
             int size,
@@ -64,4 +81,46 @@ public interface SupplierSettlementServicePort {
      * Empty/blank clears the field (persisted as null).
      */
     SupplierSettlementResponse updateReceiptUrl(Long settlementId, String supplierSettlementReceiptUrl);
+
+    SupplierSettlementResponse confirmMatching(
+            Long settlementId,
+            ConfirmSettlementMatchingRequest request,
+            UUID actorId
+    );
+
+    List<SettlementResolvableSerialResponse> listMissingReturnTickets(Long settlementId);
+
+    List<SettlementResolvableSerialResponse> listImportResolvableTickets(Long settlementId);
+
+    SupplierSettlementResponse resolveImportDiscrepancy(
+            Long settlementId,
+            ResolveImportDiscrepancyRequest request,
+            UUID actorId
+    );
+
+    SupplierSettlementResponse resolveReturnDiscrepancy(
+            Long settlementId,
+            ResolveReturnDiscrepancyRequest request,
+            UUID actorId
+    );
+
+    SupplierSettlementResponse resolveUnitPriceDiscrepancy(
+            Long settlementId,
+            ResolveUnitPriceDiscrepancyRequest request,
+            UUID actorId
+    );
+
+    SupplierSettlementAdjustmentResponse addSettlementMonetaryAdjustment(
+            Long settlementId,
+            AddSettlementMonetaryAdjustmentRequest request,
+            UUID actorId
+    );
+
+    SupplierSettlementResponse recalculateReconciliation(Long settlementId, UUID actorId);
+
+    SettlementCompleteResultResponse completeReconciliation(
+            Long settlementId,
+            CompleteSettlementReconciliationRequest request,
+            UUID actorId
+    );
 }

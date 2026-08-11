@@ -214,6 +214,15 @@ public class LotteryTicketSerialRepositoryAdapter implements LotteryTicketSerial
     }
 
     @Override
+    public Optional<LotteryTicketSerialModel> findFirstBySerialNumber(String serialNumber) {
+        if (serialNumber == null || serialNumber.isBlank()) {
+            return Optional.empty();
+        }
+        return lotteryTicketSerialRepository.findFirstBySerialNumberAndDeletedAtIsNull(serialNumber.trim())
+                .map(lotteryTicketSerialPersistenceMapper::toDomain);
+    }
+
+    @Override
     public long countByReturnBatchLineId(Long returnBatchLineId) {
         return lotteryTicketSerialRepository.countByReturnBatchLineIdAndDeletedAtIsNull(returnBatchLineId);
     }

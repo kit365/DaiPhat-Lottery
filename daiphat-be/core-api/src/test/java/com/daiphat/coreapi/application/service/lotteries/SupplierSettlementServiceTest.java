@@ -5,14 +5,21 @@ import com.daiphat.coreapi.application.dto.response.lotteries.SupplierSettlement
 import com.daiphat.coreapi.application.mapper.lotteries.ImportBatchApplicationMapper;
 import com.daiphat.coreapi.application.mapper.lotteries.ReturnBatchApplicationMapper;
 import com.daiphat.coreapi.application.mapper.lotteries.SupplierSettlementApplicationMapper;
+import com.daiphat.coreapi.application.port.in.lotteries.LotteryTicketSerialServicePort;
 import com.daiphat.coreapi.application.port.out.lotteries.ImportBatchRepositoryPort;
 import com.daiphat.coreapi.application.port.out.lotteries.LotterySupplierRepositoryPort;
 import com.daiphat.coreapi.application.port.out.lotteries.LotteryTicketSerialRepositoryPort;
 import com.daiphat.coreapi.application.port.out.lotteries.ReturnBatchRepositoryPort;
+import com.daiphat.coreapi.application.port.out.lotteries.SupplierSettlementAdjustmentRepositoryPort;
 import com.daiphat.coreapi.application.port.out.lotteries.SupplierSettlementRepositoryPort;
+import com.daiphat.coreapi.application.port.in.notification.NotificationServicePort;
+import com.daiphat.coreapi.application.port.out.user.UserRepositoryPort;
 import com.daiphat.coreapi.domain.model.enums.lottery.SupplierSettlementStatus;
+import com.daiphat.coreapi.domain.model.enums.user.UserStatus;
+import com.daiphat.coreapi.domain.model.UserModel;
 import com.daiphat.coreapi.domain.model.lotteries.LotterySupplierModel;
 import com.daiphat.coreapi.domain.model.lotteries.SupplierSettlementModel;
+import com.daiphat.coreapi.shared.util.SupplierPaymentCutOffCalculator;
 import com.daiphat.coreapi.shared.util.SupplierSettlementCodeGenerator;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -23,13 +30,18 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
+import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalTime;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -40,6 +52,8 @@ class SupplierSettlementServiceTest {
     @Mock
     private SupplierSettlementRepositoryPort supplierSettlementRepositoryPort;
     @Mock
+    private SupplierSettlementAdjustmentRepositoryPort supplierSettlementAdjustmentRepositoryPort;
+    @Mock
     private LotterySupplierRepositoryPort lotterySupplierRepositoryPort;
     @Mock
     private ImportBatchRepositoryPort importBatchRepositoryPort;
@@ -48,6 +62,8 @@ class SupplierSettlementServiceTest {
     @Mock
     private LotteryTicketSerialRepositoryPort lotteryTicketSerialRepositoryPort;
     @Mock
+    private LotteryTicketSerialServicePort lotteryTicketSerialServicePort;
+    @Mock
     private SupplierSettlementApplicationMapper supplierSettlementApplicationMapper;
     @Mock
     private ImportBatchApplicationMapper importBatchApplicationMapper;
@@ -55,9 +71,25 @@ class SupplierSettlementServiceTest {
     private ReturnBatchApplicationMapper returnBatchApplicationMapper;
     @Mock
     private SupplierSettlementCodeGenerator supplierSettlementCodeGenerator;
+    @Mock
+    private SupplierPaymentCutOffCalculator supplierPaymentCutOffCalculator;
+    @Mock
+    private NotificationServicePort notificationService;
+    @Mock
+    private UserRepositoryPort userRepositoryPort;
+    @Mock
+    private Clock clock;
 
     @InjectMocks
     private SupplierSettlementService supplierSettlementService;
+
+    private static final ZoneId ZONE = ZoneId.of("Asia/Ho_Chi_Minh");
+
+    private void fixedClock(LocalDate date, LocalTime time) {
+        Instant instant = date.atTime(time).atZone(ZONE).toInstant();
+        when(clock.instant()).thenReturn(instant);
+        when(clock.getZone()).thenReturn(ZONE);
+    }
 
     @Test
     @DisplayName("reuses existing settlement for same supplier and draw date")
@@ -219,6 +251,9 @@ class SupplierSettlementServiceTest {
         when(importBatchRepositoryPort.findBySupplierSettlementId(5L)).thenReturn(List.of());
         when(returnBatchRepositoryPort.findBySupplierSettlementId(5L)).thenReturn(List.of());
         when(lotteryTicketSerialRepositoryPort.aggregateInventoryByStationForSettlement(5L)).thenReturn(List.of());
+        when(supplierSettlementRepositoryPort.countExpiredReturnTicketsBySettlementId(5L)).thenReturn(0L);
+        when(supplierSettlementRepositoryPort.countImportedTicketsBySettlementId(5L)).thenReturn(0L);
+        when(supplierSettlementRepositoryPort.countPreparedReturnTicketsBySettlementId(5L)).thenReturn(0L);
 
         SupplierSettlementOverviewResponse overview = supplierSettlementService.getOverview(5L);
 
@@ -228,6 +263,65 @@ class SupplierSettlementServiceTest {
         assertThat(overview.inventoryByStation()).isEmpty();
         assertThat(overview.kpis().totalImportedTickets()).isZero();
         assertThat(overview.kpis().totalSoldTickets()).isZero();
+        assertThat(overview.kpis().totalExpiredReturnTickets()).isZero();
         assertThat(overview.kpis().remainingPayableAmount()).isEqualByComparingTo(BigDecimal.ZERO);
+    }
+
+    @Test
+    @DisplayName("markReceiptOverdue transitions OPEN past verification deadline without receipt")
+    void markReceiptOverdue_marksOnce() {
+        fixedClock(LocalDate.of(2026, 8, 8), LocalTime.of(17, 1));
+        when(supplierPaymentCutOffCalculator.resolveVerificationDeadline()).thenReturn(LocalTime.of(17, 0));
+
+        SupplierSettlementModel overdueCandidate = SupplierSettlementModel.builder()
+                .id(21L)
+                .supplierName("Minh Chính")
+                .supplierSettlementCode("DS-20260808-0001")
+                .periodFrom(LocalDate.of(2026, 8, 8))
+                .periodTo(LocalDate.of(2026, 8, 8))
+                .supplierSettlementReceiptUrl(null)
+                .status(SupplierSettlementStatus.OPEN)
+                .build();
+        when(supplierSettlementRepositoryPort.findByStatus(SupplierSettlementStatus.OPEN))
+                .thenReturn(List.of(overdueCandidate));
+        when(supplierSettlementRepositoryPort.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(userRepositoryPort.findAllByRoleCodes(any())).thenReturn(List.of(
+                UserModel.builder().id(java.util.UUID.randomUUID()).status(UserStatus.ACTIVE).build()
+        ));
+
+        int updated = supplierSettlementService.markReceiptOverdueSettlements();
+
+        assertThat(updated).isEqualTo(1);
+        ArgumentCaptor<SupplierSettlementModel> captor = ArgumentCaptor.forClass(SupplierSettlementModel.class);
+        verify(supplierSettlementRepositoryPort).save(captor.capture());
+        assertThat(captor.getValue().getStatus()).isEqualTo(SupplierSettlementStatus.RECEIPT_OVERDUE);
+        verify(notificationService, times(1)).createNotification(any());
+    }
+
+    @Test
+    @DisplayName("markReceiptOverdue skips settlements that already have receipt or are before deadline")
+    void markReceiptOverdue_skipsNonCandidates() {
+        fixedClock(LocalDate.of(2026, 8, 8), LocalTime.of(16, 0));
+        when(supplierPaymentCutOffCalculator.resolveVerificationDeadline()).thenReturn(LocalTime.of(17, 0));
+
+        SupplierSettlementModel withReceipt = SupplierSettlementModel.builder()
+                .id(22L)
+                .periodFrom(LocalDate.of(2026, 8, 8))
+                .supplierSettlementReceiptUrl("https://cdn.example/receipt.jpg")
+                .status(SupplierSettlementStatus.OPEN)
+                .build();
+        SupplierSettlementModel beforeDeadline = SupplierSettlementModel.builder()
+                .id(23L)
+                .periodFrom(LocalDate.of(2026, 8, 8))
+                .status(SupplierSettlementStatus.OPEN)
+                .build();
+        when(supplierSettlementRepositoryPort.findByStatus(SupplierSettlementStatus.OPEN))
+                .thenReturn(List.of(withReceipt, beforeDeadline));
+
+        int updated = supplierSettlementService.markReceiptOverdueSettlements();
+
+        assertThat(updated).isZero();
+        verify(supplierSettlementRepositoryPort, never()).save(any());
+        verify(notificationService, never()).createNotification(any());
     }
 }
