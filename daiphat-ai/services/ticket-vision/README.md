@@ -28,20 +28,34 @@ route by `routers/scan.py`.
 ## Design patterns (see doc section 9)
 
 - **Strategy + Factory, ticket detection** (`domain/detection/`):
-  `ContourTicketDetector` (MVP, OpenCV contours + aspect-ratio filter) is
-  the only implementation today. `TicketDetectorFactory` is where a future
-  YOLOv8 detector plugs in without touching callers.
+  `ContourTicketDetector` (MVP, OpenCV contours + aspect-ratio filter) and
+  `YoloObbTicketDetector` (fine-tuned YOLOv8-OBB) both implement
+  `TicketDetectorStrategy`. `TicketDetectorFactory` resolves one per request
+  — `ScanMetadata.detectorStrategy` wins, else
+  `TICKET_VISION_DETECTOR_STRATEGY` — and degrades to the contour detector
+  when YOLO's weights or `ultralytics` are unavailable, so a scan never
+  fails over a missing model file. Corner ordering, reading order and the
+  max-tickets cap live in `domain/detection/ordering.py` and are shared by
+  both, so ticket indices don't shift between strategies. See
+  `models/README.md` for how `best.pt` reaches the service.
 - **Strategy + Factory, OCR engine fallback** (`domain/ocr/`): `EasyOcrStrategy`
   (primary) and `PaddleOcrStrategy` (fallback) both implement `OcrStrategy`.
   `FallbackOcrStrategy` composes them — tries EasyOCR first, retries with
   PaddleOCR if EasyOCR raises or its average confidence is below
   `TICKET_VISION_LOW_CONFIDENCE_THRESHOLD`, and keeps whichever result
   scored higher. `OcrStrategyFactory` builds this composite.
-- **Strategy + Factory, per-station OCR layout** (`domain/layouts/`):
+- **Strategy + Factory, OCR region layout** (`domain/layouts/`):
   `GenericLayoutStrategy` splits a ticket crop into `header`/`body` bands
-  using a placeholder ratio. `LayoutStrategyFactory` always resolves to it
-  today (station isn't known until after OCR runs) but is the seam for
-  calibrated per-station layouts (Ho Chi Minh, Da Nang, Can Tho, ...) later.
+  using a placeholder ratio. `YoloFieldLayoutStrategy`
+  (`TICKET_VISION_LAYOUT_STRATEGY=yolo_field`) instead crops each field
+  exactly, using the same weights' per-field classes — station-agnostic, so
+  it sidesteps hand-calibrating ~40 station designs. It always returns the
+  whole crop alongside the field crops, so it can only add information: a
+  field the model misses still parses exactly as it does today. Regions
+  named `field:<name>` are bound straight to that field by `TicketParser`,
+  skipping the token-shape/position guessing the whole-ticket path needs —
+  but every value is still validated (date parsed, station fuzzy-matched,
+  serial/number shape-checked) before it's accepted.
 
 ## Config
 
