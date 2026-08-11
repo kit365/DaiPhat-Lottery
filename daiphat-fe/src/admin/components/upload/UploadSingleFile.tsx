@@ -2,9 +2,9 @@
 
 import { Box, Button, ButtonBase, FormHelperText, Stack, Typography } from "@mui/material";
 import { UploadFileIcon, UploadIcon } from "../../assets/icons";
-import { useDropzone } from "react-dropzone";
+import { useDropzone, type Accept } from "react-dropzone";
 import { memo, useCallback, useEffect, useRef, useState } from "react";
-import { uploadImagesToCloudinary } from "@/admin/shared/services/uploadCloudinary.service";
+import { uploadAdminImage } from "@/admin/shared/services/upload.service";
 import { AppToast } from "../../../utils/toast.util";
 
 interface CustomFile extends File {
@@ -26,6 +26,7 @@ interface UploadSingleFileProps {
     label?: string;
     required?: boolean;
     maxFileSizeMb?: number;
+    accept?: Accept;
 }
 
 export const UploadSingleFile = memo(
@@ -43,6 +44,7 @@ export const UploadSingleFile = memo(
         label = "Hình ảnh",
         required,
         maxFileSizeMb = 10,
+        accept = { "image/*": [] },
     }: UploadSingleFileProps) => {
         const [localFile, setLocalFile] = useState<CustomFile | null>(null);
         const [isUploading, setIsUploading] = useState(false);
@@ -75,20 +77,16 @@ export const UploadSingleFile = memo(
                 if (customUpload) {
                     url = await customUpload(file);
                 } else {
-                    const urls = await uploadImagesToCloudinary([file]);
-                    url = urls[0];
+                    url = await uploadAdminImage(file);
                 }
                 onChange(url);
                 setLocalFile(null);
-                if (!(compact && autoUpload)) {
-                    AppToast.success("Tải ảnh lên thành công!");
-                }
             } catch (err: any) {
                 AppToast.error(err?.message || "Tải ảnh lên thất bại!");
             } finally {
                 setIsUploading(false);
             }
-        }, [customUpload, onChange, compact, autoUpload]);
+        }, [customUpload, onChange]);
 
         const onDrop = useCallback((acceptedFiles: File[]) => {
             if (!acceptedFiles.length) return;
@@ -112,7 +110,7 @@ export const UploadSingleFile = memo(
         }, [useRawFile, onChange, autoUpload, uploadFile, maxFileSizeMb]);
 
         const { getRootProps, getInputProps, isDragActive } = useDropzone({
-            accept: { "image/*": [] },
+            accept,
             multiple: false,
             onDrop,
             disabled: disabled || isUploading,

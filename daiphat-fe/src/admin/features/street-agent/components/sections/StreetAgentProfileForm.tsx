@@ -30,6 +30,7 @@ import {
 } from "../../hooks/useVendorSettingsDefaults";
 import { formatConfidencePoints, formatCurrency, formatVnd } from "../../utils/format";
 import { useVietnamLocation } from "../../hooks/useVietnamLocation";
+import { AdminDatePicker } from "../../../../components/ui/AdminDatePicker";
 
 const fieldSx = {
     "& .MuiOutlinedInput-root": {
@@ -65,14 +66,47 @@ interface StreetAgentProfileFormProps {
     onReactivateProfile?: () => void;
     isStatusActionPending?: boolean;
     vendorDefaults?: VendorSettingsDefaults | null;
-    footer: React.ReactNode;
+    footer?: React.ReactNode;
+    sections?: {
+        personal?: boolean;
+        signedContract?: boolean;
+        contract?: boolean;
+        contact?: boolean;
+        policy?: boolean;
+        statusSummary?: boolean;
+        footer?: boolean;
+    };
 }
 
-const SectionTitle = ({ title, helperText }: { title: string; helperText?: string }) => (
+const SectionTitle = ({
+    title,
+    helperText,
+    inlineAdornment,
+    endAdornment,
+}: {
+    title: string;
+    helperText?: string;
+    inlineAdornment?: React.ReactNode;
+    endAdornment?: React.ReactNode;
+}) => (
     <Box sx={{ mb: 3 }}>
-        <Typography variant="subtitle1" component="h2" sx={{ fontWeight: 600, mb: helperText ? 0.5 : 0 }}>
-            {title}
-        </Typography>
+        <Stack
+            direction="row"
+            alignItems="center"
+            justifyContent="space-between"
+            spacing={2}
+            useFlexGap
+            flexWrap="wrap"
+            sx={{ mb: helperText ? 0.5 : 0 }}
+        >
+            <Stack direction="row" alignItems="center" spacing={1} useFlexGap flexWrap="wrap">
+                <Typography variant="subtitle1" component="h2" sx={{ fontWeight: 600, m: 0 }}>
+                    {title}
+                </Typography>
+                {inlineAdornment}
+            </Stack>
+            {endAdornment}
+        </Stack>
         {helperText && (
             <Typography variant="body2" sx={{ color: "var(--palette-text-secondary)" }}>
                 {helperText}
@@ -107,6 +141,21 @@ const getStatusChipStyle = (status?: string) => {
     return { bgcolor: "rgba(145, 158, 171, 0.16)", color: "var(--palette-text-secondary)" };
 };
 
+const STATUS_CHIP_SX = {
+    borderRadius: "var(--shape-borderRadius-sm)",
+    fontWeight: 700,
+    fontSize: "0.75rem",
+    height: 28,
+};
+
+const ACTION_CHIP_SX = {
+    borderRadius: "var(--shape-borderRadius-sm)",
+    fontWeight: 700,
+    fontSize: "0.8125rem",
+    height: 32,
+    px: 0.5,
+};
+
 export const StreetAgentProfileForm = ({
     control,
     setValue,
@@ -133,12 +182,27 @@ export const StreetAgentProfileForm = ({
     isStatusActionPending = false,
     vendorDefaults,
     footer,
+    sections: sectionsProp,
 }: StreetAgentProfileFormProps) => {
+    const sections = {
+        personal: true,
+        signedContract: true,
+        contract: true,
+        contact: true,
+        policy: true,
+        statusSummary: true,
+        footer: true,
+        ...sectionsProp,
+    };
     const isEdit = mode === "edit";
     const { data: vietnamLocations, isLoading: isLoadingLocations } = useVietnamLocation();
     const contactProvince = useWatch({
         control: control as Control<StreetAgentFormValues>,
         name: "contactProvince",
+    });
+    const contractStartDate = useWatch({
+        control: control as Control<StreetAgentFormValues>,
+        name: "contractStartDate",
     });
     const selectedProvince = useMemo(
         () => vietnamLocations?.find((province) => province.name === contactProvince),
@@ -160,20 +224,84 @@ export const StreetAgentProfileForm = ({
         event.target.value = "";
     };
 
-    const signedContractCard = (
-        <Card sx={{ p: 3, borderRadius: "var(--shape-borderRadius-lg)", boxShadow: "var(--customShadows-card)" }}>
+    const statusActionButton =
+        isEdit && sections.statusSummary ? (
+            statusChip === "INACTIVE" ? (
+                <Chip
+                    label={isStatusActionPending ? "Đang xử lý..." : "Kích hoạt lại"}
+                    onClick={onReactivateProfile}
+                    disabled={isStatusActionPending}
+                    clickable={!isStatusActionPending}
+                    sx={{
+                        bgcolor: "rgba(34, 197, 94, 0.12)",
+                        color: "rgb(17, 141, 87)",
+                        ...ACTION_CHIP_SX,
+                        "&:hover": {
+                            bgcolor: "rgba(34, 197, 94, 0.2)",
+                        },
+                    }}
+                />
+            ) : (
+                <Chip
+                    label={isStatusActionPending ? "Đang xử lý..." : "Khóa hồ sơ"}
+                    onClick={onLockProfile}
+                    disabled={isStatusActionPending}
+                    clickable={!isStatusActionPending}
+                    sx={{
+                        bgcolor: "rgba(255, 86, 48, 0.08)",
+                        color: "var(--palette-error-dark)",
+                        ...ACTION_CHIP_SX,
+                        "&:hover": {
+                            bgcolor: "rgba(255, 86, 48, 0.16)",
+                        },
+                    }}
+                />
+            )
+        ) : null;
+
+    const personalStatusBadge = statusChip ? (
+        <Chip
+            label={STATUS_LABELS[statusChip] || statusChip}
+            sx={{
+                ...getStatusChipStyle(statusChip),
+                ...STATUS_CHIP_SX,
+            }}
+        />
+    ) : null;
+
+    const profileMetricsSection =
+        isEdit && sections.statusSummary ? (
+            <Box
+                sx={{
+                    display: "grid",
+                    gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)" },
+                    gap: 3,
+                }}
+            >
+                <ReadOnlyRow label="Cọc đang giữ" value={formatVnd(depositBalance ?? 0)} />
+                <ReadOnlyRow
+                    label="Điểm tin cậy"
+                    value={formatConfidencePoints(confidenceScore, confidenceTier)}
+                />
+            </Box>
+        ) : null;
+
+    const signedContractSection = sections.signedContract ? (
+        <>
             {isEdit && contractDocumentUrl ? (
                 <Stack direction={{ xs: "column", sm: "row" }} alignItems={{ xs: "flex-start", sm: "center" }} justifyContent="space-between" spacing={2} useFlexGap flexWrap="wrap">
                     <Stack spacing={0.5}>
                         <Stack direction="row" alignItems="center" spacing={1.5}>
-                            <Typography variant="subtitle1" component="h2" sx={{ fontWeight: 600, m: 0 }}>
+                            <Typography variant="subtitle2" component="h3" sx={{ fontWeight: 600, m: 0 }}>
                                 Hợp đồng đã ký
                             </Typography>
                             <Chip
                                 size="small"
                                 label="Đã tải lên"
-                                color="success"
-                                sx={{ height: 24, fontWeight: 600, fontSize: "0.75rem" }}
+                                sx={{
+                                    ...getStatusChipStyle("ACTIVE"),
+                                    ...STATUS_CHIP_SX,
+                                }}
                             />
                         </Stack>
                         <Typography variant="body2" sx={{ color: "var(--palette-text-secondary)" }}>
@@ -209,13 +337,19 @@ export const StreetAgentProfileForm = ({
                     />
                 </Stack>
             ) : (
-                <>
-                    <SectionTitle
-                        title={isEdit ? "Hợp đồng đã ký" : "Hợp đồng"}
-                        helperText={isEdit ? "Chưa có bản đã ký. Tải file lên sau khi người bán vé số ký xác nhận." : "Hợp đồng sẽ được tạo sau khi lưu hồ sơ."}
-                    />
+                <Stack spacing={2}>
+                    <Box>
+                        <Typography variant="subtitle2" component="h3" sx={{ fontWeight: 600, mb: 0.5 }}>
+                            {isEdit ? "Hợp đồng đã ký" : "Hợp đồng"}
+                        </Typography>
+                        <Typography variant="body2" sx={{ color: "var(--palette-text-secondary)" }}>
+                            {isEdit
+                                ? "Chưa có bản đã ký. Tải file lên sau khi người bán vé số ký xác nhận."
+                                : "Hợp đồng sẽ được tạo sau khi lưu hồ sơ."}
+                        </Typography>
+                    </Box>
                     {isEdit ? (
-                        <Stack spacing={2}>
+                        <>
                             <Button
                                 variant="contained"
                                 startIcon={<CloudUploadIcon aria-hidden="true" />}
@@ -232,38 +366,36 @@ export const StreetAgentProfileForm = ({
                                 className="hidden"
                                 accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
                             />
-                        </Stack>
+                        </>
                     ) : (
                         <Alert severity="info" icon={<PictureAsPdfIcon fontSize="small" aria-hidden="true" />}>
                             Lưu hồ sơ trước. Sau đó hệ thống sẽ tạo bản dự thảo để bạn in, ký và tải bản đã ký lên ở bước tiếp theo.
                         </Alert>
                     )}
-                </>
+                </Stack>
             )}
-        </Card>
-    );
+        </>
+    ) : null;
+
+    const contractSubsectionSx = {
+        pt: 3,
+        mt: 3,
+        borderTop: "1px dashed var(--palette-divider)",
+    } as const;
 
     return (
         <Box>
             <Stack spacing={3}>
+                {sections.personal ? (
                 <Card sx={{ p: 3, borderRadius: "var(--shape-borderRadius-lg)", boxShadow: "var(--customShadows-card)" }}>
-                        <SectionTitle title="Thông tin cá nhân" helperText="Thông tin cơ bản của người bán vé số." />
+                        <SectionTitle
+                            title="Thông tin cá nhân"
+                            helperText="Thông tin cơ bản của người bán vé số."
+                            inlineAdornment={personalStatusBadge}
+                            endAdornment={statusActionButton}
+                        />
                         <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)" }, gap: 3 }}>
-                            <Box sx={{ gridColumn: { sm: "1 / -1" }, display: "flex", justifyContent: "center", mb: 2, position: "relative" }}>
-                                {statusChip && (
-                                    <Box sx={{ position: "absolute", top: 0, right: 0 }}>
-                                        <Chip
-                                            label={STATUS_LABELS[statusChip] || statusChip}
-                                            sx={{
-                                                ...getStatusChipStyle(statusChip),
-                                                borderRadius: "var(--shape-borderRadius-sm)",
-                                                fontWeight: 700,
-                                                fontSize: "0.75rem",
-                                                height: "24px",
-                                            }}
-                                        />
-                                    </Box>
-                                )}
+                            <Box sx={{ gridColumn: { sm: "1 / -1" }, display: "flex", justifyContent: "center", mb: 2 }}>
                                 <Stack alignItems="center" spacing={2}>
                                 <div
                                     role="button"
@@ -327,11 +459,11 @@ export const StreetAgentProfileForm = ({
                             />
                         </Box>
                     </Card>
+                ) : null}
 
-                    {isEdit && signedContractCard}
-
+                    {sections.contract ? (
                     <Card sx={{ p: 3, borderRadius: "var(--shape-borderRadius-lg)", boxShadow: "var(--customShadows-card)" }}>
-                        <SectionTitle title="Điều kiện nhận vé" helperText="Hạn mức giao theo hợp đồng và chính sách vận hành." />
+                        <SectionTitle title="Thông tin hợp đồng" helperText="Hạn mức giao theo hợp đồng và chính sách vận hành." />
                         <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)" }, gap: 3 }}>
                             <Controller
                                 name="contractStartDate"
@@ -340,17 +472,12 @@ export const StreetAgentProfileForm = ({
                                     isEdit && contractDocumentUrl ? (
                                         <ReadOnlyRow label="Ngày bắt đầu hợp đồng" value={field.value ? field.value.split("-").reverse().join("/") : "—"} />
                                     ) : (
-                                        <TextField
-                                            {...field}
-                                            required
-                                            value={field.value ?? ""}
-                                            type="date"
+                                        <AdminDatePicker
                                             label="Ngày bắt đầu hợp đồng"
-                                            slotProps={{ inputLabel: { shrink: true } }}
-                                            fullWidth
+                                            value={field.value ?? ""}
+                                            onChange={field.onChange}
                                             error={!!fieldState.error}
                                             helperText={fieldState.error?.message}
-                                            sx={fieldSx}
                                         />
                                     )
                                 )}
@@ -362,17 +489,13 @@ export const StreetAgentProfileForm = ({
                                     isEdit && contractDocumentUrl ? (
                                         <ReadOnlyRow label="Ngày kết thúc hợp đồng" value={field.value ? field.value.split("-").reverse().join("/") : "—"} />
                                     ) : (
-                                        <TextField
-                                            {...field}
-                                            required
-                                            value={field.value ?? ""}
-                                            type="date"
+                                        <AdminDatePicker
                                             label="Ngày kết thúc hợp đồng"
-                                            slotProps={{ inputLabel: { shrink: true } }}
-                                            fullWidth
+                                            value={field.value ?? ""}
+                                            onChange={field.onChange}
+                                            min={contractStartDate || undefined}
                                             error={!!fieldState.error}
                                             helperText={fieldState.error?.message}
-                                            sx={fieldSx}
                                         />
                                     )
                                 )}
@@ -415,8 +538,14 @@ export const StreetAgentProfileForm = ({
                                 />
                             )}
                         </Box>
-                    </Card>
 
+                        {profileMetricsSection ? <Box sx={contractSubsectionSx}>{profileMetricsSection}</Box> : null}
+
+                        {signedContractSection ? <Box sx={contractSubsectionSx}>{signedContractSection}</Box> : null}
+                    </Card>
+                    ) : null}
+
+                    {sections.contact ? (
                     <Card sx={{ p: 3, borderRadius: "var(--shape-borderRadius-lg)", boxShadow: "var(--customShadows-card)" }}>
                         <SectionTitle title="Thông tin liên hệ" helperText="Địa chỉ và khu vực hoạt động bán vé." />
                         <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)" }, gap: 3 }}>
@@ -547,8 +676,9 @@ export const StreetAgentProfileForm = ({
                             />
                         </Box>
                     </Card>
+                    ) : null}
 
-                    {vendorDefaults && (
+                    {sections.policy && vendorDefaults && (
                         <Card sx={{ p: 3, borderRadius: "var(--shape-borderRadius-lg)", boxShadow: "var(--customShadows-card)" }}>
                             <SectionTitle title="Chính sách áp dụng" helperText="Các giá trị này được cấu hình chung từ hệ thống và áp dụng tự động cho người bán vé số." />
                             <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)" }, gap: 3 }}>
@@ -589,49 +719,11 @@ export const StreetAgentProfileForm = ({
                         </Card>
                     )}
 
-                    {!isEdit && signedContractCard}
-
-                    {isEdit && (
-                        <Card sx={{ p: 2.5, borderRadius: "var(--shape-borderRadius-lg)", bgcolor: "var(--palette-background-neutral)", border: "1px solid var(--palette-divider)", boxShadow: "none" }}>
-                            <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)" }, gap: 3 }}>
-                                <ReadOnlyRow label="Cọc đang giữ" value={formatVnd(depositBalance ?? 0)} />
-                                <ReadOnlyRow
-                                    label="Điểm tin cậy"
-                                    value={formatConfidencePoints(confidenceScore, confidenceTier)}
-                                />
-                            </Box>
-
-                            <Box sx={{ mt: 3, pt: 2, borderTop: "1px dashed var(--palette-divider)", display: "flex", justifyContent: "flex-end" }}>
-                                {statusChip === "INACTIVE" ? (
-                                    <Button
-                                        variant="outlined"
-                                        color="primary"
-                                        size="small"
-                                        onClick={onReactivateProfile}
-                                        disabled={isStatusActionPending}
-                                        sx={{ fontWeight: 600, borderRadius: "6px" }}
-                                    >
-                                        {isStatusActionPending ? "Đang xử lý..." : "Kích hoạt lại"}
-                                    </Button>
-                                ) : (
-                                    <Button
-                                        variant="text"
-                                        color="error"
-                                        size="small"
-                                        onClick={onLockProfile}
-                                        disabled={isStatusActionPending}
-                                        sx={{ fontWeight: 600, borderRadius: "6px" }}
-                                    >
-                                        {isStatusActionPending ? "Đang xử lý..." : "Khóa hồ sơ"}
-                                    </Button>
-                                )}
-                            </Box>
-                        </Card>
-                    )}
-
+                    {sections.footer && footer ? (
                     <Stack direction="row" justifyContent="flex-end">
                         {footer}
                     </Stack>
+                    ) : null}
                 </Stack>
             </Box>
     );

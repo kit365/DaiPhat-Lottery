@@ -158,7 +158,6 @@ export const StreetAgentEditPage = () => {
             setIsUploading(true);
             const url = await uploadAdminImage(file);
             setValue("imageUrl", url, { shouldValidate: true });
-            toast.success("Tải ảnh lên thành công!");
         } catch {
             toast.error("Tải ảnh lên thất bại!");
         } finally {

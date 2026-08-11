@@ -62,6 +62,7 @@ import { formatCountdown, formatCurrency, formatDate } from "../../utils/format"
 import { useVendorSettingsDefaults } from "../../hooks/useVendorSettingsDefaults";
 import { ConfirmVendorDepositDialog } from "../ConfirmVendorDepositDialog";
 import { AdminTicketCard } from "../../../../components/ui/AdminTicketCard";
+import { AdminDatePicker } from "../../../../components/ui/AdminDatePicker";
 import { VendorAllocationStationDrawer } from "../sections/VendorAllocationStationDrawer";
 
 const fieldSx = {
@@ -481,17 +482,17 @@ export const VendorAllocationPage = () => {
                                 (option.phone ? ` — ${option.phone}` : "")
                             }
                             isOptionEqualToValue={(a, b) => a.id === b.id}
+                            loadingText="Đang tải danh sách…"
+                            noOptionsText="Không tìm thấy người bán vé số"
                             renderInput={(params) => (
                                 <TextField {...params} label="Người bán vé số *" sx={fieldSx} />
                             )}
                         />
-                        <TextField
-                            type="date"
+                        <AdminDatePicker
                             label="Ngày kinh doanh"
                             value={businessDate}
-                            onChange={(e) => setBusinessDate(e.target.value)}
-                            InputLabelProps={{ shrink: true }}
-                            sx={fieldSx}
+                            onChange={setBusinessDate}
+                            disabled={!!draftId}
                         />
                     </Box>
 

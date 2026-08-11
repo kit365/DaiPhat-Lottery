@@ -56,6 +56,7 @@ import {
     formatCurrency,
 } from "../../utils/format";
 import { ConfirmVendorDepositDialog } from "../ConfirmVendorDepositDialog";
+import { AdminDatePicker } from "../../../../components/ui/AdminDatePicker";
 import {
     VendorBatchInfoSection,
     VendorBatchDepositSnapshotSection,
@@ -417,6 +418,8 @@ export const VendorAllocationBatchListPage = () => {
                         }}
                         getOptionLabel={profileLabel}
                         isOptionEqualToValue={(a, b) => a.id === b.id}
+                        loadingText="Đang tải danh sách…"
+                        noOptionsText="Không tìm thấy người bán vé số"
                         renderInput={(params) => (
                             <TextField {...params} label="Người bán vé số" sx={fieldSx} />
                         )}
@@ -439,27 +442,23 @@ export const VendorAllocationBatchListPage = () => {
                             ))}
                         </Select>
                     </FormControl>
-                    <TextField
-                        type="date"
+                    <AdminDatePicker
                         label="Từ ngày"
                         value={businessDateFrom}
-                        onChange={(e) => {
-                            setBusinessDateFrom(e.target.value);
+                        onChange={(value) => {
+                            setBusinessDateFrom(value);
                             setPage(1);
                         }}
-                        InputLabelProps={{ shrink: true }}
-                        sx={fieldSx}
+                        max={businessDateTo || undefined}
                     />
-                    <TextField
-                        type="date"
+                    <AdminDatePicker
                         label="Đến ngày"
                         value={businessDateTo}
-                        onChange={(e) => {
-                            setBusinessDateTo(e.target.value);
+                        onChange={(value) => {
+                            setBusinessDateTo(value);
                             setPage(1);
                         }}
-                        InputLabelProps={{ shrink: true }}
-                        sx={fieldSx}
+                        min={businessDateFrom || undefined}
                     />
                 </Box>
             </Card>

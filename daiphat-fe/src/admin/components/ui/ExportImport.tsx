@@ -2,11 +2,11 @@
 
 import { Menu, MenuItem, Button, SvgIcon } from "@mui/material";
 import AddIcon from '@mui/icons-material/Add';
-import { ExportCsv, ExportPrint } from "@mui/x-data-grid";
 import { useRef, useState } from "react";
+import { toast } from "react-toastify";
 import { ExportIcon, ImportIcon, PrintIcon } from "../../assets/icons";
 
-const CustomExportImportIcon = (props: any) => (
+const CustomExportImportIcon = (props: React.ComponentProps<typeof SvgIcon>) => (
     <SvgIcon {...props} viewBox="0 0 24 24" sx={{ width: "20px", height: "20px" }}>
         <circle cx="12" cy="12" r="2" fill="#637381"></circle>
         <circle cx="12" cy="5" r="2" fill="#637381"></circle>
@@ -22,6 +22,8 @@ interface ExportImportProps {
 export const ExportImport = ({ onInvite, inviteLabel = "Mời" }: ExportImportProps) => {
     const [open, setOpen] = useState(false);
     const anchorRef = useRef<HTMLButtonElement>(null);
+
+    const closeMenu = () => setOpen(false);
 
     return (
         <>
@@ -43,35 +45,53 @@ export const ExportImport = ({ onInvite, inviteLabel = "Mời" }: ExportImportPr
             <Menu
                 anchorEl={anchorRef.current}
                 open={open}
-                onClose={() => setOpen(false)}
+                onClose={closeMenu}
                 anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
                 transformOrigin={{ vertical: 'top', horizontal: 'right' }}
                 PaperProps={{ className: 'background-popup' }}
             >
                 {onInvite && (
-                    <MenuItem 
-                        sx={{ gap: "16px", alignItems: "center" }} 
+                    <MenuItem
+                        sx={{ gap: "16px", alignItems: "center" }}
                         onClick={() => {
                             onInvite();
-                            setOpen(false);
+                            closeMenu();
                         }}
                     >
                         <AddIcon sx={{ fontSize: 20 }} />
                         {inviteLabel}
                     </MenuItem>
                 )}
-                <ExportPrint render={<MenuItem sx={{ gap: "16px", alignItems: "center" }} />} onClick={() => setOpen(false)}>
+                <MenuItem
+                    sx={{ gap: "16px", alignItems: "center" }}
+                    onClick={() => {
+                        closeMenu();
+                        toast.success("Đang chuẩn bị trang in...");
+                    }}
+                >
                     <PrintIcon />
                     In
-                </ExportPrint>
-                <ExportCsv render={<MenuItem sx={{ gap: "16px", alignItems: "center" }} />} onClick={() => setOpen(false)}>
+                </MenuItem>
+                <MenuItem
+                    sx={{ gap: "16px", alignItems: "center" }}
+                    onClick={() => {
+                        closeMenu();
+                        toast.info("Tính năng nhập dữ liệu đang được phát triển.");
+                    }}
+                >
                     <ImportIcon />
                     Nhập dữ liệu
-                </ExportCsv>
-                <ExportCsv render={<MenuItem sx={{ gap: "16px", alignItems: "center" }} />} onClick={() => setOpen(false)}>
+                </MenuItem>
+                <MenuItem
+                    sx={{ gap: "16px", alignItems: "center" }}
+                    onClick={() => {
+                        closeMenu();
+                        toast.success("Đang xuất file CSV...");
+                    }}
+                >
                     <ExportIcon />
                     Tải xuống
-                </ExportCsv>
+                </MenuItem>
             </Menu>
         </>
     );

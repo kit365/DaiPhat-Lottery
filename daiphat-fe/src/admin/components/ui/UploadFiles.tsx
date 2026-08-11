@@ -4,7 +4,7 @@ import { Box, Button, ButtonBase, FormHelperText, Stack, Typography } from "@mui
 import { UploadFileIcon, UploadIcon } from "../../assets/icons"
 import { useDropzone } from 'react-dropzone';
 import { useEffect, memo, useState, useCallback, useRef, useMemo } from "react";
-import { uploadImagesToCloudinary } from "@/admin/shared/services/uploadCloudinary.service";
+import { uploadAdminImage } from "@/admin/shared/services/upload.service";
 import { AppToast } from '../../../utils/toast.util';
 
 interface CustomFile extends File {
@@ -65,14 +65,10 @@ export const UploadFiles = memo(({ files, onFilesChange, compact }: UploadFilesP
 
         try {
             setIsUploading(true);
-            const uploadedUrls = await uploadImagesToCloudinary(filesToUpload);
+            const uploadedUrls = await Promise.all(filesToUpload.map((file) => uploadAdminImage(file)));
 
-            // Giữ lại các ảnh đã là URL, thay thế các File object bằng URL mới nhận được
             const currentLinks = files.filter(f => typeof f === 'string');
             onFilesChange([...currentLinks, ...uploadedUrls] as any);
-
-            onFilesChange([...currentLinks, ...uploadedUrls] as any);
-            AppToast.success('Tải ảnh lên thành công!');
         } catch (error) {
             AppToast.error('Tải ảnh lên thất bại!');
         } finally {
