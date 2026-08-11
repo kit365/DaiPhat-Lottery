@@ -53,18 +53,21 @@ class VendorAllocationControllerTest {
 
         assertThat(controller.openReturnSession(BATCH_ID).isSuccess()).isTrue();
         assertThat(controller.recordReturns(BATCH_ID, request).isSuccess()).isTrue();
+        assertThat(controller.removeReturn(BATCH_ID, 101L).isSuccess()).isTrue();
 
         verify(vendorAllocationServicePort).openReturnSession(BATCH_ID);
         verify(vendorAllocationServicePort).recordReturns(BATCH_ID, request);
+        verify(vendorAllocationServicePort).removeReturn(BATCH_ID, 101L);
     }
 
     @Test
     void preview_and_settle_delegate_to_service_with_operator() {
+        SettleVendorAllocationRequest request = new SettleVendorAllocationRequest("settlement-preview", true);
         assertThat(controller.previewSettlement(BATCH_ID).isSuccess()).isTrue();
-        assertThat(controller.settle(BATCH_ID, principal).isSuccess()).isTrue();
+        assertThat(controller.settle(BATCH_ID, request, principal).isSuccess()).isTrue();
 
         verify(vendorAllocationServicePort).previewSettlement(BATCH_ID);
-        verify(vendorAllocationServicePort).settle(BATCH_ID, OPERATOR_ID);
+        verify(vendorAllocationServicePort).settle(BATCH_ID, request, OPERATOR_ID);
     }
 
     @Test
@@ -73,6 +76,7 @@ class VendorAllocationControllerTest {
                 VendorAllocationController.class.getMethod("confirm", Long.class, ConfirmVendorAllocationRequest.class, AuthenticatedUserPrincipal.class),
                 VendorAllocationController.class.getMethod("openReturnSession", Long.class),
                 VendorAllocationController.class.getMethod("recordReturns", Long.class, ReturnVendorAllocationSerialsRequest.class),
+                VendorAllocationController.class.getMethod("removeReturn", Long.class, Long.class),
                 VendorAllocationController.class.getMethod("settle", Long.class, SettleVendorAllocationRequest.class, AuthenticatedUserPrincipal.class))) {
             PreAuthorize authorization = method.getAnnotation(PreAuthorize.class);
             assertThat(authorization).isNotNull();

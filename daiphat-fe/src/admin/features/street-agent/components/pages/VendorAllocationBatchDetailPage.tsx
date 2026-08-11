@@ -1,52 +1,92 @@
 import React, { useEffect, useState } from "react";
 import { useRouteParams } from "@/hooks/useRouteParams";
-import { Box, Stack, Paper, Dialog, DialogTitle, DialogContent, DialogActions, TextField, Alert, Typography, Accordion, AccordionSummary, AccordionDetails, Chip } from "@mui/material";
-import { toast } from "react-toastify";
+import {
+    Accordion,
+    AccordionDetails,
+    AccordionSummary,
+    Alert,
+    Box,
+    Chip,
+    Dialog,
+    DialogActions,
+    DialogContent,
+    DialogTitle,
+    Paper,
+    Stack,
+    Step,
+    StepContent,
+    StepLabel,
+    Stepper,
+    TextField,
+    Typography,
+} from "@mui/material";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import { toast } from "react-toastify";
 import { Breadcrumb } from "../../../../components/ui/Breadcrumb";
-import { Title } from "../../../../components/ui/Title";
 import { Button } from "../../../../components/ui/Button";
+import { Title } from "../../../../components/ui/Title";
 import { ROUTES } from "../../../../constants/routes";
 import { PERMISSIONS } from "../../../../constants/permission.constants";
 import { usePermissions } from "../../../../hooks/usePermission";
-const getApiErrorMessage = (error: any, fallback: string) => error?.response?.data?.message || fallback;
-import { formatCurrency, formatDate } from "../../utils/format";
+import { formatDate } from "../../utils/format";
 import { ALLOCATION_BATCH_STATUS_LABELS } from "../configs/constants";
 import {
-    useOpenVendorAllocationReturnSession,
-    useReturnVendorAllocationSerials,
     useConfirmVendorReturnInspection,
+    useOpenVendorAllocationReturnSession,
+    useRemoveVendorAllocationReturnSerial,
+    useReturnVendorAllocationSerials,
     useSettleVendorAllocation,
     useVendorAllocationBatch,
     useVendorSettlementPreview,
 } from "../../hooks/useVendorAllocation";
 import { useStreetAgentProfiles } from "../../hooks/useStreetAgent";
-import { VendorBatchDepositSnapshotSection, VendorBatchSerialReturnSection, VendorBatchSettlementSection, mapPreviewToBreakdown, VendorSettlementBreakdown } from "../sections/VendorBatchDrawerSections";
+import {
+    mapPreviewToBreakdown,
+    VendorBatchDepositSnapshotSection,
+    VendorBatchInspectionSection,
+    VendorBatchReturnEntrySection,
+    VendorBatchSettlementSection,
+    VendorSettlementBreakdown,
+    VendorSettlementConfirmationSummary,
+} from "../sections/VendorBatchDrawerSections";
+
+const getApiErrorMessage = (error: any, fallback: string) =>
+    error?.response?.data?.message || fallback;
+
+const fallbackStage = (status?: string, pendingInspectionQuantity = 0) => {
+    if (status === "SETTLED" || status === "LATE_SETTLED") return "SETTLED";
+    if (status === "RETURN_OPEN") {
+        return pendingInspectionQuantity > 0 ? "INSPECTION" : "RETURN_ENTRY";
+    }
+    return "RETURN_ENTRY";
+};
 
 export const VendorAllocationBatchDetailPage = () => {
     const { id: rawId } = useRouteParams();
     const detailId = Number(rawId);
-
     const { can } = usePermissions();
-    const canEdit = can(PERMISSIONS.STREET_AGENT.MANAGE);
+    const canEdit = can(PERMISSIONS.STREET_AGENT.EDIT);
 
     const [scanInput, setScanInput] = useState("");
     const [selectedSerialIds, setSelectedSerialIds] = useState<number[]>([]);
-
-    const [previewEnabled, setPreviewEnabled] = useState(false);
-    const [returnSessionConfirmOpen, setReturnSessionConfirmOpen] = useState(false);
+    const [rejectedSerialIds, setRejectedSerialIds] = useState<number[]>([]);
+    const [rejectionReasons, setRejectionReasons] = useState<Record<number, string>>({});
     const [inspectionConfirmOpen, setInspectionConfirmOpen] = useState(false);
-    const [rejectedInspectionSerialIds, setRejectedInspectionSerialIds] = useState<number[]>([]);
-    const [inspectionNote, setInspectionNote] = useState("");
-
     const [settleConfirmOpen, setSettleConfirmOpen] = useState(false);
-    const [cashReceivedFromVendor, setCashReceivedFromVendor] = useState("");
-    const [cashPaidToVendor, setCashPaidToVendor] = useState("");
+    const [previewEnabled, setPreviewEnabled] = useState(false);
 
-    const { data: detailBatch, isLoading: isLoadingDetail, refetch: refetchDetail } = useVendorAllocationBatch(detailId || undefined);
-
+    const { data: batch, isLoading, refetch: refetchBatch } = useVendorAllocationBatch(detailId || undefined);
     const { data: profilesRes } = useStreetAgentProfiles({ page: 1, limit: 100 });
-    const profile = profilesRes?.data?.recordList?.find(p => p.id === detailBatch?.streetAgentProfileId);
+    const profile = profilesRes?.data?.recordList?.find((item) => item.id === batch?.streetAgentProfileId);
+
+    const pendingInspectionCount = batch?.returnWorkflow?.pendingInspectionQuantity
+        ?? (batch?.serials || []).filter((serial) => serial.allocationStatus === "RETURN_PENDING_INSPECTION").length;
+    const stage = batch?.returnWorkflow?.stage ?? fallbackStage(batch?.status, pendingInspectionCount);
+    const isSettled = stage === "SETTLED";
+    const isReadyForSettlement = stage === "READY_FOR_SETTLEMENT";
+    const isInspection = stage === "INSPECTION";
+    const isReturnEntry = stage === "RETURN_ENTRY" && batch?.status === "RETURN_OPEN";
+    const needsReturnSession = batch?.status === "CONFIRMED";
 
     const {
         data: settlementPreview,
@@ -56,321 +96,276 @@ export const VendorAllocationBatchDetailPage = () => {
         refetch: refetchPreview,
     } = useVendorSettlementPreview(
         detailId || undefined,
-        previewEnabled && detailBatch?.status === "RETURN_OPEN"
+        previewEnabled && isReadyForSettlement,
     );
 
     const { mutate: openReturnSession, isPending: isOpeningReturn } = useOpenVendorAllocationReturnSession();
     const { mutate: submitReturns, isPending: isSubmittingReturns } = useReturnVendorAllocationSerials();
-    const { mutate: confirmReturnInspection, isPending: isConfirmingInspection } = useConfirmVendorReturnInspection();
+    const { mutate: removeReturn, isPending: isRemovingReturn } = useRemoveVendorAllocationReturnSerial();
+    const { mutate: confirmInspection, isPending: isConfirmingInspection } = useConfirmVendorReturnInspection();
     const { mutate: settleBatch, isPending: isSettling } = useSettleVendorAllocation();
 
-    const expectedCashReceived = settlementPreview
-        ? (settlementPreview.forcedPurchaseAmount > 0
-            ? settlementPreview.additionalAmountDue
-            : settlementPreview.grossCashRemitted)
-        : 0;
-    const expectedCashPaid = settlementPreview
-        ? settlementPreview.commissionPayable
-            + settlementPreview.depositRefundAmount
-            + (settlementPreview.depositExcessRefundAmount || 0)
-        : 0;
-
     useEffect(() => {
-        if (!settleConfirmOpen || !settlementPreview) return;
-        setCashReceivedFromVendor(String(expectedCashReceived));
-        setCashPaidToVendor(String(expectedCashPaid));
-    }, [settleConfirmOpen, settlementPreview, expectedCashReceived, expectedCashPaid]);
+        if (isReadyForSettlement) setPreviewEnabled(true);
+    }, [isReadyForSettlement]);
 
     const handleOpenReturnSession = () => {
         if (!detailId) return;
         openReturnSession(detailId, {
             onSuccess: (response) => {
                 toast.success(response.message || "Đã mở phiên nhận vé trả.");
-                setReturnSessionConfirmOpen(false);
-                refetchDetail();
+                refetchBatch();
             },
             onError: (error: any) => toast.error(getApiErrorMessage(error, "Mở phiên trả thất bại")),
         });
     };
 
     const handleScanSubmit = () => {
-        if (!detailBatch?.serials || !scanInput.trim()) return;
+        if (!batch?.serials || !scanInput.trim()) return;
         const query = scanInput.trim().toLowerCase();
-        const found = detailBatch.serials.find(
-            (s) =>
-                s.serialNumber.toLowerCase() === query ||
-                String(s.serialId) === query
+        const found = batch.serials.find((serial) =>
+            serial.serialNumber.toLowerCase() === query || String(serial.serialId) === query,
         );
-
         if (!found) {
-            toast.error("Không tìm thấy serial trong phiếu bàn giao này");
+            toast.error("Không tìm thấy serial trong phiếu bàn giao này.");
             return;
         }
         if (found.allocationStatus !== "HANDED_OVER") {
-            toast.error(`Serial đang ở trạng thái ${found.allocationStatus}, không thể chọn để trả.`);
+            toast.error("Serial này không còn ở trạng thái người bán vé số đang giữ.");
             return;
         }
-
-        setSelectedSerialIds((prev) => {
-            if (prev.includes(found.serialId)) {
-                toast.warning("Serial này đã được chọn");
-                return prev;
-            }
-            return [...prev, found.serialId];
-        });
+        setSelectedSerialIds((current) => current.includes(found.serialId) ? current : [...current, found.serialId]);
         setScanInput("");
     };
 
     const handleSubmitReturns = () => {
         if (!detailId || selectedSerialIds.length === 0) return;
-        submitReturns(
-            { id: detailId, data: { serialIds: selectedSerialIds } },
-            {
-                onSuccess: (response) => {
-                    toast.success(response.message || "Đã gửi danh sách vé trả về đại lý.");
-                    setSelectedSerialIds([]);
-                    refetchDetail();
-                    if (previewEnabled) refetchPreview();
-                },
-                onError: (error: any) => toast.error(getApiErrorMessage(error, "Gửi vé trả thất bại")),
-            }
-        );
+        submitReturns({ id: detailId, data: { serialIds: selectedSerialIds } }, {
+            onSuccess: (response) => {
+                toast.success(response.message || "Đã gửi vé vào phiên kiểm nhận.");
+                setSelectedSerialIds([]);
+                refetchBatch();
+            },
+            onError: (error: any) => toast.error(getApiErrorMessage(error, "Gửi vé trả thất bại")),
+        });
+    };
+
+    const handleRemoveReturn = (serialId: number) => {
+        if (!detailId) return;
+        removeReturn({ id: detailId, serialId }, {
+            onSuccess: (response) => {
+                toast.success(response.message || "Đã đưa serial trở lại bước nhập vé trả.");
+                setRejectedSerialIds((current) => current.filter((id) => id !== serialId));
+                setRejectionReasons((current) => {
+                    const next = { ...current };
+                    delete next[serialId];
+                    return next;
+                });
+                refetchBatch();
+            },
+            onError: (error: any) => toast.error(getApiErrorMessage(error, "Không thể bỏ serial khỏi phiên kiểm nhận")),
+        });
+    };
+
+    const openInspectionConfirmation = () => {
+        if (pendingInspectionCount === 0) {
+            toast.info("Không có serial nào chờ kiểm nhận.");
+            return;
+        }
+        const missingReason = rejectedSerialIds.some((id) => !rejectionReasons[id]?.trim());
+        if (missingReason) {
+            toast.error("Mỗi vé từ chối cần có lý do.");
+            return;
+        }
+        setInspectionConfirmOpen(true);
     };
 
     const handleConfirmInspection = () => {
         if (!detailId) return;
-        confirmReturnInspection(
-            {
-                id: detailId,
-                data: {
-                    rejectedSerialIds: rejectedInspectionSerialIds,
-                    note: inspectionNote.trim() || undefined,
-                },
+        confirmInspection({
+            id: detailId,
+            data: {
+                rejectedSerials: rejectedSerialIds.map((serialId) => ({
+                    serialId,
+                    reason: rejectionReasons[serialId].trim(),
+                })),
             },
-            {
-                onSuccess: (response) => {
-                    toast.success(response.message || "Kiểm nhận hoàn tất.");
-                    setInspectionConfirmOpen(false);
-                    setRejectedInspectionSerialIds([]);
-                    setInspectionNote("");
-                    refetchDetail();
-                    if (previewEnabled) refetchPreview();
-                },
-                onError: (error: any) => toast.error(getApiErrorMessage(error, "Xác nhận kiểm nhận thất bại")),
-            }
-        );
+        }, {
+            onSuccess: (response) => {
+                toast.success(response.message || "Đã chốt kết quả kiểm nhận.");
+                setInspectionConfirmOpen(false);
+                setRejectedSerialIds([]);
+                setRejectionReasons({});
+                refetchBatch();
+            },
+            onError: (error: any) => toast.error(getApiErrorMessage(error, "Chốt kiểm nhận thất bại")),
+        });
     };
 
     const handleSettle = () => {
-        if (!detailId) return;
-        const received = Number(cashReceivedFromVendor);
-        const paid = Number(cashPaidToVendor);
-        if (!Number.isFinite(received) || !Number.isFinite(paid) || received < 0 || paid < 0) {
-            toast.error("Số tiền thu/chi không hợp lệ");
-            return;
-        }
+        if (!detailId || !settlementPreview) return;
         settleBatch(
             {
                 id: detailId,
                 data: {
-                    cashReceivedFromVendor: received,
-                    cashPaidToVendor: paid,
+                    settlementFingerprint: settlementPreview.settlementFingerprint,
+                    confirmed: true,
                 },
             },
             {
                 onSuccess: (response) => {
                     toast.success(response.message || "Đã quyết toán phiếu.");
                     setSettleConfirmOpen(false);
-                    refetchDetail();
+                    refetchBatch();
                 },
-                onError: (error: any) => toast.error(getApiErrorMessage(error, "Quyết toán thất bại")),
+                onError: (error: any) => {
+                    if (error?.response?.status === 409) {
+                        toast.error("Dữ liệu đã thay đổi, hệ thống đang tính lại...");
+                        setSettleConfirmOpen(false);
+                        refetchPreview();
+                    } else {
+                        toast.error(getApiErrorMessage(error, "Quyết toán thất bại"));
+                    }
+                },
             }
         );
     };
 
     const breadcrumbItems = [
-        { label: "Đại lý bán dạo", to: ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.LIST },
+        { label: "Người bán vé số", to: ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.LIST },
         { label: "Phiếu bàn giao vé", to: ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.ALLOCATION_BATCHES },
-        { label: `Chi tiết ${detailBatch?.batchCode || detailId}` },
+        { label: `Chi tiết ${batch?.batchCode || detailId}` },
     ];
 
-    if (!detailBatch && !isLoadingDetail) {
-        return (
-            <Box>
-                <Breadcrumb items={breadcrumbItems} />
-                <Alert severity="error">Không tìm thấy phiếu bàn giao (ID: {detailId})</Alert>
-            </Box>
-        );
+    if (!batch && !isLoading) {
+        return <Box><Breadcrumb items={breadcrumbItems} /><Alert severity="error">Không tìm thấy phiếu bàn giao.</Alert></Box>;
     }
 
     return (
         <Box>
             <Breadcrumb items={breadcrumbItems} />
-            <Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" alignItems="flex-start" spacing={2} sx={{ mb: 3 }}>
-                <Title title={`Chi tiết phiếu bàn giao vé ${detailBatch?.batchCode}`} />
-            </Stack>
-
-            {isLoadingDetail ? (
-                <Typography color="text.secondary">Đang tải chi tiết...</Typography>
-            ) : detailBatch && (
-                <Box display="grid" gridTemplateColumns={{ xs: '1fr', md: '1fr 2fr' }} gap={3}>
-                    <Box>
-                        <Paper sx={{ p: 2, height: '100%' }}>
-                            {/* Compact Header */}
-                            <Stack spacing={1} sx={{ mb: 2 }}>
-                                <Typography variant="subtitle1" fontWeight={600}>
-                                    Thông tin phiếu
-                                </Typography>
-                                <Stack direction="row" spacing={2} alignItems="center">
-                                    <Typography variant="body2"><strong>Mã:</strong> {detailBatch.batchCode}</Typography>
-                                    <Typography variant="body2"><strong>Ngày:</strong> {formatDate(detailBatch.businessDate)}</Typography>
+            <Title title={`Chi tiết phiếu bàn giao vé ${batch?.batchCode || ""}`} />
+            {isLoading ? <Typography color="text.secondary">Đang tải chi tiết...</Typography> : batch && (
+                <Stack spacing={3} sx={{ mt: 3 }}>
+                    <Paper sx={{ p: 2.5 }}>
+                        <Stack spacing={1.5}>
+                            <Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" gap={1}>
+                                <Stack direction="row" spacing={2} flexWrap="wrap" useFlexGap>
+                                    <Typography variant="body2"><strong>Mã:</strong> {batch.batchCode}</Typography>
+                                    <Typography variant="body2"><strong>Ngày KD:</strong> {formatDate(batch.businessDate)}</Typography>
+                                    <Typography variant="body2"><strong>Người bán vé số:</strong> {profile ? `${profile.lastName || ""} ${profile.firstName || ""}`.trim() : "—"}</Typography>
                                 </Stack>
-                                <Stack direction="row" spacing={2} alignItems="center">
-                                    <Typography variant="body2">
-                                        <strong>Đại lý:</strong> {profile ? `${profile.lastName || ""} ${profile.firstName || ""}`.trim() : "—"}
-                                    </Typography>
-                                    <Chip
-                                        label={ALLOCATION_BATCH_STATUS_LABELS[detailBatch.status] || detailBatch.status}
-                                        size="small"
-                                        color={detailBatch.status === 'SETTLED' ? 'success' : 'default'}
-                                    />
-                                </Stack>
+                                <Chip size="small" label={ALLOCATION_BATCH_STATUS_LABELS[batch.status] || batch.status} color={isSettled ? "success" : "default"} />
                             </Stack>
+                            <Stack direction={{ xs: "column", sm: "row" }} spacing={1} alignItems={{ sm: "center" }}>
+                                {["Nhập vé trả", "Kiểm nhận", "Quyết toán"].map((label, index) => {
+                                    const activeIndex = isSettled || isReadyForSettlement ? 2 : isInspection ? 1 : 0;
+                                    return <Chip key={label} size="small" label={`${index + 1}. ${label}`} color={index === activeIndex ? "primary" : index < activeIndex ? "success" : "default"} variant={index === activeIndex ? "filled" : "outlined"} />;
+                                })}
+                            </Stack>
+                            <Stack direction="row" spacing={3} flexWrap="wrap" useFlexGap>
+                                <Typography variant="body2" color="text.secondary">Đã giao: <strong>{batch.allocatedQuantity}</strong></Typography>
+                                <Typography variant="body2" color="text.secondary">Đã nhận: <strong>{batch.returnWorkflow?.acceptedReturnQuantity ?? batch.returnedQuantity ?? 0}</strong></Typography>
+                                <Typography variant="body2" color="text.secondary">Tính đã bán: <strong>{batch.soldQuantity ?? 0}</strong></Typography>
+                            </Stack>
+                        </Stack>
+                    </Paper>
 
-                            {/* KPI Row */}
-                            <Box display="grid" gridTemplateColumns="repeat(2, 1fr)" gap={2} sx={{ mb: 3 }}>
-                                <Paper variant="outlined" sx={{ p: 1.5, textAlign: 'center' }}>
-                                    <Typography variant="caption" color="text.secondary">Đã giao</Typography>
-                                    <Typography variant="h6">{detailBatch.allocatedQuantity}</Typography>
-                                </Paper>
-                                <Paper variant="outlined" sx={{ p: 1.5, textAlign: 'center' }}>
-                                    <Typography variant="caption" color="text.secondary">Đã trả</Typography>
-                                    <Typography variant="h6">{detailBatch.returnedQuantity ?? 0}</Typography>
-                                </Paper>
-                                <Paper variant="outlined" sx={{ p: 1.5, textAlign: 'center' }}>
-                                    <Typography variant="caption" color="text.secondary">Đã bán</Typography>
-                                    <Typography variant="h6">{detailBatch.soldQuantity ?? 0}</Typography>
-                                </Paper>
-                                <Paper variant="outlined" sx={{ p: 1.5, textAlign: 'center' }}>
-                                    <Typography variant="caption" color="text.secondary">Còn lại</Typography>
-                                    <Typography variant="h6">{Math.max(0, (detailBatch.allocatedQuantity || 0) - (detailBatch.returnedQuantity || 0) - (detailBatch.soldQuantity || 0))}</Typography>
-                                </Paper>
-                            </Box>
+                    <Stepper activeStep={isSettled || isReadyForSettlement ? 2 : isInspection ? 1 : 0} orientation="vertical" sx={{ px: 2 }}>
+                        {/* Step 1: Nhập vé trả */}
+                        <Step>
+                            <StepLabel>Nhập vé trả</StepLabel>
+                            <StepContent>
+                                {needsReturnSession ? (
+                                    <Stack spacing={2} sx={{ mt: 1 }}>
+                                        <Typography color="text.secondary">Mở phiên khi người bán vé số mang vé ế đến; sau đó nhân viên mới quét hoặc chọn serial để kiểm nhận.</Typography>
+                                        <Button loading={isOpeningReturn} disabled={!canEdit} label="Mở phiên nhận vé trả" loadingLabel="Đang mở..." onClick={handleOpenReturnSession} />
+                                    </Stack>
+                                ) : (
+                                    <Box sx={{ mt: 1 }}>
+                                        <VendorBatchReturnEntrySection
+                                            batch={batch}
+                                            canEdit={canEdit && Boolean(batch.returnWorkflow?.canEditReturns ?? true)}
+                                            scanInput={scanInput}
+                                            setScanInput={setScanInput}
+                                            selectedSerialIds={selectedSerialIds}
+                                            setSelectedSerialIds={setSelectedSerialIds}
+                                            isSubmittingReturns={isSubmittingReturns}
+                                            onScanSubmit={handleScanSubmit}
+                                            onSubmitReturns={handleSubmitReturns}
+                                            onSelectAllReturnable={() => setSelectedSerialIds((batch.serials || []).filter((serial) => serial.allocationStatus === "HANDED_OVER").map((serial) => serial.serialId))}
+                                        />
+                                    </Box>
+                                )}
+                            </StepContent>
+                        </Step>
 
-                            <Accordion variant="outlined" elevation={0} sx={{ '&:before': { display: 'none' } }}>
-                                <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                                    <Typography variant="subtitle2">Chi tiết đối soát</Typography>
-                                </AccordionSummary>
-                                <AccordionDetails sx={{ pt: 0 }}>
-                                    <VendorBatchDepositSnapshotSection batch={detailBatch} />
-                                </AccordionDetails>
-                            </Accordion>
+                        {/* Step 2: Kiểm nhận */}
+                        <Step>
+                            <StepLabel>Kiểm nhận và chốt kết quả</StepLabel>
+                            <StepContent>
+                                <Box sx={{ mt: 1 }}>
+                                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>Có thể bỏ một serial khỏi phiên để quay lại bước nhập trước khi chốt.</Typography>
+                                    <VendorBatchInspectionSection
+                                        batch={batch}
+                                        rejectedInspectionSerialIds={rejectedSerialIds}
+                                        setRejectedInspectionSerialIds={setRejectedSerialIds}
+                                        inspectionNotes={rejectionReasons}
+                                        setInspectionNotes={setRejectionReasons}
+                                        isConfirmingInspection={isConfirmingInspection || isRemovingReturn}
+                                        onConfirmInspection={openInspectionConfirmation}
+                                        onRemoveReturn={handleRemoveReturn}
+                                    />
+                                </Box>
+                            </StepContent>
+                        </Step>
 
-                            <Box sx={{ mt: 2 }} />
-                            <VendorBatchSettlementSection
-                                batch={detailBatch}
-                                canEdit={canEdit}
-                                previewEnabled={previewEnabled}
-                                settlementPreview={settlementPreview}
-                                isLoadingPreview={isLoadingPreview}
-                                isFetchingPreview={isFetchingPreview}
-                                previewErrorMessage={previewError ? getApiErrorMessage(previewError, "Lỗi preview") : null}
-                                selectedSerialIdsCount={selectedSerialIds.length}
-                                pendingInspectionCount={detailBatch.serials?.filter((s) => s.allocationStatus === "RETURN_PENDING_INSPECTION").length || 0}
-                                isSettling={isSettling}
-                                onEnablePreview={() => setPreviewEnabled(true)}
-                                onSettle={() => setSettleConfirmOpen(true)}
-                            />
-                        </Paper>
-                    </Box>
-                    <Box sx={{ minWidth: 0 }}>
-                        <Paper sx={{ p: 2, height: '100%' }}>
-                            <VendorBatchSerialReturnSection
-                                batch={detailBatch}
-                                canEdit={canEdit}
-                                scanInput={scanInput}
-                                setScanInput={setScanInput}
-                                selectedSerialIds={selectedSerialIds}
-                                setSelectedSerialIds={setSelectedSerialIds}
-                                isOpeningReturn={isOpeningReturn}
-                                isSubmittingReturns={isSubmittingReturns}
-                                onOpenReturnSession={() => setReturnSessionConfirmOpen(true)}
-                                onScanSubmit={handleScanSubmit}
-                                onSubmitReturns={handleSubmitReturns}
-                                onSelectAllReturnable={() => {
-                                    const ids = (detailBatch.serials || [])
-                                        .filter((s) => s.allocationStatus === "HANDED_OVER")
-                                        .map((s) => s.serialId);
-                                    setSelectedSerialIds(ids);
-                                }}
-                            />
-                        </Paper>
-                    </Box>
-                </Box>
+                        {/* Step 3: Quyết toán */}
+                        <Step>
+                            <StepLabel>{isSettled ? "Kết quả quyết toán" : "Quyết toán"}</StepLabel>
+                            <StepContent>
+                                <Box sx={{ mt: 1 }}>
+                                    <VendorBatchSettlementSection
+                                        batch={batch}
+                                        previewEnabled={previewEnabled}
+                                        settlementPreview={settlementPreview}
+                                        isLoadingPreview={isLoadingPreview}
+                                        isFetchingPreview={isFetchingPreview}
+                                        previewErrorMessage={previewError ? getApiErrorMessage(previewError, "Không thể tính quyết toán") : null}
+                                        isSettling={isSettling}
+                                        onEnablePreview={() => previewEnabled ? refetchPreview() : setPreviewEnabled(true)}
+                                        onSettle={() => setSettleConfirmOpen(true)}
+                                    />
+                                </Box>
+                            </StepContent>
+                        </Step>
+                    </Stepper>
+                </Stack>
             )}
 
-            <Dialog open={returnSessionConfirmOpen} onClose={() => setReturnSessionConfirmOpen(false)}>
-                <DialogTitle>Mở phiên trả vé?</DialogTitle>
+            <Dialog open={inspectionConfirmOpen} onClose={() => !isConfirmingInspection && setInspectionConfirmOpen(false)} maxWidth="xs" fullWidth>
+                <DialogTitle>Chốt kết quả nhận trả?</DialogTitle>
                 <DialogContent>
-                    Phiếu sẽ chuyển sang trạng thái đang trả vé để quét serial trả về.
+                    <Stack spacing={1.5} sx={{ pt: 1 }}>
+                        <Typography>Đã nhận lại: <strong>{pendingInspectionCount - rejectedSerialIds.length}</strong> vé</Typography>
+                        <Typography>Bị từ chối: <strong>{rejectedSerialIds.length}</strong> vé</Typography>
+                        <Typography color="text.secondary">Vé từ chối hoặc không mang trả sẽ được tính là người bán vé số đã bán khi quyết toán.</Typography>
+                    </Stack>
                 </DialogContent>
                 <DialogActions>
-                    <Button onClick={() => setReturnSessionConfirmOpen(false)}>Đóng</Button>
-                    <Button
-                        loading={isOpeningReturn}
-                        variant="contained"
-                        onClick={handleOpenReturnSession}
-                        label="Mở phiên trả"
-                        loadingLabel="Đang mở..."
-                    />
+                    <Button variant="outlined" onClick={() => setInspectionConfirmOpen(false)}>Quay lại</Button>
+                    <Button loading={isConfirmingInspection} label="Chốt kết quả" loadingLabel="Đang chốt..." onClick={handleConfirmInspection} />
                 </DialogActions>
             </Dialog>
 
-            <Dialog open={settleConfirmOpen} onClose={() => setSettleConfirmOpen(false)}>
-                <DialogTitle>Xác nhận quyết toán?</DialogTitle>
+            <Dialog open={settleConfirmOpen} onClose={() => !isSettling && setSettleConfirmOpen(false)} maxWidth="sm" fullWidth>
+                <DialogTitle>Xác nhận quyết toán</DialogTitle>
                 <DialogContent>
-                    {settlementPreview ? (
-                        <Stack spacing={2.5} sx={{ pt: 1 }}>
-                            <VendorSettlementBreakdown {...mapPreviewToBreakdown(settlementPreview)} />
-                            <Alert severity="info">
-                                Nhập lại số tiền thực tế nhân viên đã thu/chi. Hệ thống chỉ chốt khi khớp preview.
-                            </Alert>
-                            <TextField
-                                autoFocus
-                                type="number"
-                                label="Tiền thực nhận từ vendor (VNĐ)"
-                                value={cashReceivedFromVendor}
-                                onChange={(event) => setCashReceivedFromVendor(event.target.value)}
-                                inputProps={{ min: 0, step: 1 }}
-                                helperText={`Theo preview: ${formatCurrency(expectedCashReceived)}`}
-                                fullWidth
-                            />
-                            <TextField
-                                type="number"
-                                label="Tiền thực chi cho vendor (VNĐ)"
-                                value={cashPaidToVendor}
-                                onChange={(event) => setCashPaidToVendor(event.target.value)}
-                                inputProps={{ min: 0, step: 1 }}
-                                helperText={`Theo preview: ${formatCurrency(expectedCashPaid)}`}
-                                fullWidth
-                            />
-                        </Stack>
-                    ) : (
-                        <Typography>
-                            Hệ thống sẽ chốt số vé bán/trả và cập nhật số dư cọc theo snapshot của phiếu.
-                        </Typography>
-                    )}
+                    {settlementPreview && <VendorSettlementConfirmationSummary preview={settlementPreview} />}
                 </DialogContent>
                 <DialogActions>
-                    <Button onClick={() => setSettleConfirmOpen(false)}>Đóng</Button>
-                    <Button
-                        loading={isSettling}
-                        variant="contained"
-                        onClick={handleSettle}
-                        disabled={detailBatch?.status !== "RETURN_OPEN"}
-                        label="Quyết toán"
-                        loadingLabel="Đang quyết toán..."
-                    />
+                    <Button variant="outlined" onClick={() => setSettleConfirmOpen(false)}>Hủy</Button>
+                    <Button loading={isSettling} label="Xác nhận quyết toán" loadingLabel="Đang quyết toán..." onClick={handleSettle} />
                 </DialogActions>
             </Dialog>
         </Box>

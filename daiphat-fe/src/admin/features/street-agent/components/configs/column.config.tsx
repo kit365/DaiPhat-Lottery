@@ -19,7 +19,7 @@ export const getColumnsConfig = (
 ): GridColDef[] => [
     {
         field: "fullName",
-        headerName: "Đại lý bán dạo",
+        headerName: "Người bán vé số",
         minWidth: 280,
         flex: 1.5,
         valueGetter: (_value, row) => `${row.lastName || ""} ${row.firstName || ""}`.trim(),

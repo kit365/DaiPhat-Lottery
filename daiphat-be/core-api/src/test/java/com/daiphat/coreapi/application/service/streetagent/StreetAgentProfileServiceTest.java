@@ -703,7 +703,7 @@ class StreetAgentProfileServiceTest {
                 target.setContractCode(source.contractCode());
                 target.setContractStartDate(source.contractStartDate());
                 target.setContractEndDate(source.contractEndDate());
-                target.setDailyTicketCap(source.dailyTicketCap());
+                target.setContractMaxDailyCap(source.contractMaxDailyCap());
                 target.setStatus(StreetAgentProfileStatus.fromCode(source.status()));
                 return null;
             }).when(streetAgentProfileApplicationMapper).updateModel(eq(existing), eq(request));
@@ -785,6 +785,35 @@ class StreetAgentProfileServiceTest {
             when(streetAgentProfileApplicationMapper.toResponse(existing)).thenReturn(buildResponse());
 
             assertThat(streetAgentProfileService.update(PROFILE_ID, request).id()).isEqualTo(PROFILE_ID);
+        }
+
+        @Test
+        @DisplayName("đổi trần hợp đồng sẽ yêu cầu ký lại và chuyển hồ sơ về PENDING")
+        void update_contractTermChangeInvalidatesSignedDocument() {
+            UpdateStreetAgentProfileRequest request = buildCompleteContractUpdateRequest(BigDecimal.ZERO, "ACTIVE");
+            StreetAgentProfileModel existing = buildEligibleModel(BigDecimal.ZERO);
+            existing.setId(PROFILE_ID);
+            existing.setContractMaxDailyCap(50);
+            String oldContractCode = existing.getContractCode();
+
+            stubUpdateUniqueConstraintsPass(existing);
+            doAnswer(invocation -> {
+                StreetAgentProfileModel target = invocation.getArgument(0);
+                UpdateStreetAgentProfileRequest source = invocation.getArgument(1);
+                target.setContractStartDate(source.contractStartDate());
+                target.setContractEndDate(source.contractEndDate());
+                target.setContractMaxDailyCap(source.contractMaxDailyCap());
+                return null;
+            }).when(streetAgentProfileApplicationMapper).updateModel(eq(existing), eq(request));
+            when(streetAgentProfileRepositoryPort.save(existing)).thenReturn(existing);
+            when(streetAgentProfileApplicationMapper.toResponse(existing)).thenReturn(buildResponse());
+
+            streetAgentProfileService.update(PROFILE_ID, request);
+
+            assertThat(existing.getContractDocumentUrl()).isNull();
+            assertThat(existing.getStatus()).isEqualTo(StreetAgentProfileStatus.PENDING);
+            assertThat(existing.getContractCode()).isNotBlank().isNotEqualTo(oldContractCode);
+            verify(streetAgentProfileRepositoryPort).save(existing);
         }
 
         @Test
@@ -995,7 +1024,7 @@ class StreetAgentProfileServiceTest {
         StreetAgentProfileModel model = buildModel();
         model.setContractCode("HD-VENDOR-001");
         model.setContractDocumentUrl("https://cdn.example.com/contracts/signed.pdf");
-        model.setDailyTicketCap(100);
+        model.setContractMaxDailyCap(100);
         model.setDepositBalance(depositBalance);
         return model;
     }

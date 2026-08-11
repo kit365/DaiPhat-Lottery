@@ -51,7 +51,7 @@ import { ContractDocumentViewerDialog } from "../ContractDocumentViewerDialog";
 const SIGNED_DOC_TYPES = ["application/pdf", "image/jpeg", "image/jpg", "image/png"];
 const SIGNED_DOC_MAX_SIZE = 10 * 1024 * 1024;
 
-const STEPS = ["Thông tin vendor", "In & ký hợp đồng", "Hoàn tất hồ sơ"] as const;
+const STEPS = ["Thông tin người bán vé số", "In & ký hợp đồng", "Hoàn tất hồ sơ"] as const;
 
 const defaultValues: CreateStreetAgentProfileFormValues = {
     firstName: "",
@@ -65,8 +65,7 @@ const defaultValues: CreateStreetAgentProfileFormValues = {
     coverageAreaCodes: [],
     contractStartDate: "",
     contractEndDate: "",
-    contractMaxDailyCap: null,
-    approvedDailyCap: null,
+    contractMaxDailyCap: 200,
 };
 
 const toFormValues = (profile: StreetAgentProfile): CreateStreetAgentProfileFormValues => ({
@@ -81,8 +80,7 @@ const toFormValues = (profile: StreetAgentProfile): CreateStreetAgentProfileForm
     coverageAreaCodes: parseCoverageAreaCodes(profile.coverageArea),
     contractStartDate: profile.contractStartDate || "",
     contractEndDate: profile.contractEndDate || "",
-    contractMaxDailyCap: profile.contractMaxDailyCap ?? null,
-    approvedDailyCap: profile.approvedDailyCap ?? null,
+    contractMaxDailyCap: profile.contractMaxDailyCap ?? 200,
 });
 
 export const StreetAgentCreatePage = () => {
@@ -101,7 +99,6 @@ export const StreetAgentCreatePage = () => {
     } = useStreetAgentProfileDetail(resumeId ?? undefined);
     const {
         defaults: vendorDefaults,
-        isSuccess: vendorSettingsLoaded,
     } = useVendorSettingsDefaults();
 
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -112,7 +109,6 @@ export const StreetAgentCreatePage = () => {
     const [hydratedResume, setHydratedResume] = useState(false);
     const [pendingSignedFile, setPendingSignedFile] = useState<File | null>(null);
     const [viewSignedOpen, setViewSignedOpen] = useState(false);
-    const defaultsAppliedRef = useRef(false);
 
     const { control, handleSubmit, setValue, watch, reset } = useForm<CreateStreetAgentProfileFormValues>({
         resolver: zodResolver(createStreetAgentProfileSchema) as any,
@@ -124,20 +120,6 @@ export const StreetAgentCreatePage = () => {
     const imageUrl = watch("imageUrl");
     const profile = createdProfile ?? resumeProfile ?? null;
     const profileId = profile?.id ?? resumeId;
-
-    useEffect(() => {
-        if (resumeProfile || !vendorSettingsLoaded || defaultsAppliedRef.current) return;
-        if (vendorDefaults.defaultContractMaxDailyCap != null) {
-            setValue("contractMaxDailyCap", vendorDefaults.defaultContractMaxDailyCap, { shouldValidate: true });
-        }
-        if (vendorDefaults.defaultApprovedDailyCap != null) {
-            const approved = vendorDefaults.defaultContractMaxDailyCap == null
-                ? vendorDefaults.defaultApprovedDailyCap
-                : Math.min(vendorDefaults.defaultApprovedDailyCap, vendorDefaults.defaultContractMaxDailyCap);
-            setValue("approvedDailyCap", approved, { shouldValidate: true });
-        }
-        defaultsAppliedRef.current = true;
-    }, [resumeProfile, setValue, vendorDefaults, vendorSettingsLoaded]);
 
     useEffect(() => {
         if (!resumeProfile || hydratedResume) return;
@@ -162,6 +144,16 @@ export const StreetAgentCreatePage = () => {
         setActiveStep(0);
         setHydratedResume(true);
     }, [resumeProfile, hydratedResume, reset]);
+
+    const defaultsAppliedRef = useRef(false);
+
+    useEffect(() => {
+        if (resumeProfile || defaultsAppliedRef.current) return;
+        if (vendorDefaults?.defaultContractMaxDailyCap != null) {
+            setValue("contractMaxDailyCap", vendorDefaults.defaultContractMaxDailyCap);
+            defaultsAppliedRef.current = true;
+        }
+    }, [resumeProfile, setValue, vendorDefaults]);
 
     useEffect(() => {
         if (isResumeError && resumeId) {
@@ -225,7 +217,6 @@ export const StreetAgentCreatePage = () => {
             contractStartDate: data.contractStartDate || undefined,
             contractEndDate: data.contractEndDate || undefined,
             contractMaxDailyCap: data.contractMaxDailyCap ?? undefined,
-            approvedDailyCap: data.approvedDailyCap ?? undefined,
         };
 
         create(payload, {
@@ -309,11 +300,10 @@ export const StreetAgentCreatePage = () => {
         return (
             <Box sx={{ maxWidth: "1200px", mx: "auto" }}>
                 <PageHeader
-                    title="Tạo hồ sơ đại lý bán dạo"
+                    title="Tạo hồ sơ người bán vé số"
                     breadcrumbItems={[
                         { label: "Dashboard", to: "/" },
-                        { label: "Quản lý đại lý", to: ROUTES.ADMIN.ACCOUNTS.ADMIN.LIST },
-                        { label: "Đại lý bán dạo", to: ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.LIST },
+                        { label: "Người bán vé số", to: ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.LIST },
                         { label: "Tiếp tục hoàn thiện" },
                     ]}
                 />
@@ -325,11 +315,10 @@ export const StreetAgentCreatePage = () => {
     return (
         <Box sx={{ maxWidth: "1200px", mx: "auto" }}>
             <PageHeader
-                title="Tạo hồ sơ đại lý bán dạo"
+                title="Tạo hồ sơ người bán vé số"
                 breadcrumbItems={[
                     { label: "Dashboard", to: "/" },
-                    { label: "Quản lý đại lý", to: ROUTES.ADMIN.ACCOUNTS.ADMIN.LIST },
-                    { label: "Đại lý bán dạo", to: ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.LIST },
+                    { label: "Người bán vé số", to: ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.LIST },
                     { label: resumeId ? "Tiếp tục hoàn thiện" : "Tạo hồ sơ" },
                 ]}
             />
@@ -364,6 +353,8 @@ export const StreetAgentCreatePage = () => {
                         onFileChange={handleFileChange}
                         depositBalance={0}
                         statusChip="PENDING"
+                        contractMaxDailyCap={profile?.contractMaxDailyCap}
+                        effectiveDailyCap={profile?.effectiveDailyCap}
                         vendorDefaults={vendorDefaults}
                         footer={
                             <Button
@@ -391,10 +382,10 @@ export const StreetAgentCreatePage = () => {
                         <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 2 }}>
                             <Box>
                                 <Typography variant="h6" sx={{ fontWeight: 700, mb: 0.5 }}>
-                                    Hoàn thiện hồ sơ đại lý
+                                    Hoàn thiện hồ sơ người bán vé số
                                 </Typography>
                                 <Typography variant="body2" color="text.secondary">
-                                    Vui lòng thực hiện các bước dưới đây để kích hoạt hồ sơ đại lý
+                                    Vui lòng thực hiện các bước dưới đây để kích hoạt hồ sơ người bán vé số
                                 </Typography>
                             </Box>
                             <Box sx={{ textAlign: { xs: "left", sm: "right" } }}>
@@ -404,7 +395,13 @@ export const StreetAgentCreatePage = () => {
                                 <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.5 }}>
                                     {profile?.contractCode || "—"}
                                 </Typography>
-                                <Chip label={statusLabel} size="small" color={profile?.status === "PENDING" ? "warning" : "default"} sx={{ height: 22, fontSize: "0.7rem", fontWeight: 700 }} />
+                                <Chip label={statusLabel} size="small" color={profile?.status === "PENDING" ? "warning" : "default"} sx={{ height: 22, fontSize: "0.7rem", fontWeight: 700, mb: 1 }} />
+                                <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                                    Hiệu lực: {profile?.contractStartDate ? profile.contractStartDate.split("-").reverse().join("/") : "—"} - {profile?.contractEndDate ? profile.contractEndDate.split("-").reverse().join("/") : "—"}
+                                </Typography>
+                                <Typography variant="body2" color="text.secondary">
+                                    Hạn mức: {profile?.contractMaxDailyCap != null ? profile.contractMaxDailyCap : "—"} vé/ngày
+                                </Typography>
                             </Box>
                         </Box>
 
@@ -419,7 +416,7 @@ export const StreetAgentCreatePage = () => {
                             </Stack>
                             <Box sx={{ p: 2.5, border: "1px solid var(--palette-divider, #e0e0e0)", borderRadius: 2, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 2, bgcolor: "var(--palette-background-neutral, #f4f6f8)" }}>
                                 <Typography variant="body2" color="text.secondary" sx={{ flex: 1, minWidth: 200 }}>
-                                    In file PDF hợp đồng và đưa cho đại lý ký xác nhận.
+                                    In file PDF hợp đồng và đưa cho người bán vé số ký xác nhận.
                                 </Typography>
                                 <Button
                                     variant="contained"
@@ -527,9 +524,9 @@ export const StreetAgentCreatePage = () => {
                 >
                     <Stack spacing={2.5} alignItems="flex-start">
                         <Alert severity="success" sx={{ width: "100%" }}>
-                            Hồ sơ đã hoàn tất
+                            Hồ sơ người bán vé số đã hoàn tất
                             {profile.status === "ACTIVE"
-                                ? " và đang ACTIVE — vendor có thể nhận vé."
+                                ? " và đang ACTIVE — người bán vé số có thể nhận vé."
                                 : `. Trạng thái hiện tại: ${profile.status}.`}
                         </Alert>
 

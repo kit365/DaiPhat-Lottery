@@ -4,6 +4,7 @@ import com.daiphat.coreapi.application.dto.request.streetagent.CreateVendorAlloc
 import com.daiphat.coreapi.application.dto.request.streetagent.ConfirmVendorAllocationRequest;
 import com.daiphat.coreapi.application.dto.request.streetagent.ReturnVendorAllocationSerialsRequest;
 import com.daiphat.coreapi.application.dto.request.streetagent.ConfirmVendorReturnInspectionRequest;
+import com.daiphat.coreapi.application.dto.request.streetagent.RejectedVendorReturnSerialRequest;
 import com.daiphat.coreapi.application.dto.request.streetagent.SettleVendorAllocationRequest;
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.response.streetagent.*;
@@ -20,6 +21,7 @@ import com.daiphat.coreapi.domain.model.enums.settings.SystemConfigEnum;
 import com.daiphat.coreapi.domain.model.enums.lottery.ReturnBatchLineStatus;
 import com.daiphat.coreapi.domain.model.enums.lottery.ReturnBatchStatus;
 import com.daiphat.coreapi.domain.model.enums.lottery.ReturnBatchType;
+import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus;
 import com.daiphat.coreapi.domain.model.lotteries.ReturnBatchLineModel;
 import com.daiphat.coreapi.domain.model.lotteries.ReturnBatchModel;
 import com.daiphat.coreapi.domain.model.enums.streetagent.*;
@@ -81,23 +83,6 @@ public class VendorAllocationService implements VendorAllocationServicePort {
         this.returnBatchRepositoryPort = returnBatchRepositoryPort;
     }
 
-    /** Compatibility constructor for legacy unit tests; production uses Spring's full constructor. */
-    @Deprecated
-    public VendorAllocationService(
-            VendorAllocationRepositoryPort vendorAllocationRepositoryPort,
-            StreetAgentProfileRepositoryPort streetAgentProfileRepositoryPort,
-            SystemConfigRepositoryPort systemConfigRepositoryPort,
-            VendorSettlementProjectionServicePort vendorSettlementProjectionServicePort) {
-        this.vendorAllocationRepositoryPort = vendorAllocationRepositoryPort;
-        this.streetAgentProfileRepositoryPort = streetAgentProfileRepositoryPort;
-        this.systemConfigRepositoryPort = systemConfigRepositoryPort;
-        this.vendorSettlementProjectionServicePort = vendorSettlementProjectionServicePort;
-        this.vendorConfidencePolicyResolver = new VendorConfidencePolicyResolver(systemConfigRepositoryPort);
-        this.lotteryTicketAggregateSyncUseCase = ticketId -> { };
-        this.agentDepositTransactionRepositoryPort = transaction -> { };
-        this.returnBatchRepositoryPort = null;
-    }
-
     @Override @Transactional(readOnly = true)
     public List<VendorAllocationCandidateResponse> getCandidates(Long profileId, LocalDate businessDate) {
         requireEligible(profile(profileId), businessDate);
@@ -110,13 +95,38 @@ public class VendorAllocationService implements VendorAllocationServicePort {
 
     @Override @Transactional(readOnly = true)
     public VendorAllocationSuggestionResponse getSuggestion(Long profileId, LocalDate businessDate, Integer requestedQuantity) {
+        return getSuggestion(profileId, businessDate, requestedQuantity, null);
+    }
+
+    @Override @Transactional(readOnly = true)
+    public VendorAllocationSuggestionResponse getSuggestion(
+            Long profileId, LocalDate businessDate, Integer requestedQuantity, BigDecimal faceValue) {
         StreetAgentProfileModel profile = profile(profileId);
         requireEligible(profile, businessDate);
         int remaining = remainingCap(profile, businessDate);
         List<VendorAllocationSerialModel> raw = vendorAllocationRepositoryPort.findCandidates(businessDate);
-        List<VendorAllocationSerialModel> serials = filterSellable(raw, businessDate);
+        List<VendorAllocationSerialModel> eligibleCandidates = filterSellable(raw, businessDate);
+        List<BigDecimal> availableFaceValues = eligibleCandidates.stream()
+                .map(VendorAllocationSerialModel::getFaceValue)
+                .filter(Objects::nonNull)
+                .distinct()
+                .sorted()
+                .toList();
+        BigDecimal selectedFaceValue = faceValue != null
+                ? faceValue
+                : availableFaceValues.size() == 1 ? availableFaceValues.get(0) : null;
+        List<VendorAllocationSerialModel> denominationCandidates = selectedFaceValue == null
+                ? eligibleCandidates
+                : eligibleCandidates.stream()
+                        .filter(serial -> serial.getFaceValue() != null
+                                && serial.getFaceValue().compareTo(selectedFaceValue) == 0)
+                        .toList();
+        List<VendorAllocationSerialModel> serials = denominationCandidates;
         String blockedReason = serials.isEmpty()
-                ? VendorTicketSellabilityPolicy.resolveBlockedReason(businessDate, remaining, raw)
+                ? VendorTicketSellabilityPolicy.resolveBlockedReason(
+                        businessDate,
+                        remaining,
+                        faceValue == null ? raw : denominationCandidates)
                 : null;
         int requested = requestedQuantity == null ? remaining : requestedQuantity;
         if (requested < 0) {
@@ -124,7 +134,7 @@ public class VendorAllocationService implements VendorAllocationServicePort {
         }
         VendorAllocationSuggestionBuilder.Suggestion suggestion =
                 VendorAllocationSuggestionBuilder.build(serials, remaining, requested, counterReservePolicy(), blockedReason);
-        return toSuggestionResponse(suggestion);
+        return toSuggestionResponse(suggestion, selectedFaceValue, availableFaceValues);
     }
 
     @Override @Transactional
@@ -153,6 +163,10 @@ public class VendorAllocationService implements VendorAllocationServicePort {
         if (serials.size() != ids.size() || serials.stream().anyMatch(s -> !s.isEligibleForDraft(request.businessDate()))) {
             throw new DomainException(ErrorCode.VENDOR_ALLOCATION_SERIAL_INVALID);
         }
+        if (request.faceValue() != null && serials.stream().anyMatch(s -> s.getFaceValue() == null
+                || s.getFaceValue().compareTo(request.faceValue()) != 0)) {
+            throw new DomainException(ErrorCode.VENDOR_ALLOCATION_SERIAL_INVALID);
+        }
         boolean lucky = serials.stream().anyMatch(VendorAllocationSerialModel::isLucky);
         if (lucky && (!canOverrideLuckyTicket || blank(request.luckyOverrideReason()))) {
             throw new DomainException(ErrorCode.VENDOR_ALLOCATION_LUCKY_OVERRIDE_REQUIRED);
@@ -161,8 +175,19 @@ public class VendorAllocationService implements VendorAllocationServicePort {
             throw new DomainException(ErrorCode.VENDOR_ALLOCATION_SERIAL_INVALID);
         }
         int requested = request.requestedQuantity() == null ? ids.size() : request.requestedQuantity();
+        BigDecimal selectedFaceValue = serials.stream()
+                .map(VendorAllocationSerialModel::getFaceValue)
+                .filter(Objects::nonNull)
+                .findFirst()
+                .orElse(null);
+        List<VendorAllocationSerialModel> lockedEligibleInventory = filterSellable(
+                lockedStationInventory, request.businessDate()).stream()
+                .filter(candidate -> selectedFaceValue == null
+                        || (candidate.getFaceValue() != null
+                        && candidate.getFaceValue().compareTo(selectedFaceValue) == 0))
+                .toList();
         VendorAllocationSuggestionBuilder.Suggestion lockedQuote = VendorAllocationSuggestionBuilder.build(
-                filterSellable(lockedStationInventory, request.businessDate()), remaining, requested, counterReservePolicy(), null);
+                lockedEligibleInventory, remaining, requested, counterReservePolicy(), null);
         if (ids.size() > lockedQuote.allowedQuantity()) {
             throw new DomainException(ErrorCode.VENDOR_ALLOCATION_COUNTER_RESERVE_VIOLATED);
         }
@@ -180,12 +205,13 @@ public class VendorAllocationService implements VendorAllocationServicePort {
         if (selectedByStation.entrySet().stream().anyMatch(entry -> entry.getValue() > quotaByStation.getOrDefault(entry.getKey(), 0))) {
             throw new DomainException(ErrorCode.VENDOR_ALLOCATION_COUNTER_RESERVE_VIOLATED);
         }
+        LocalDateTime reservedAt = now();
         VendorDraftReservation reservation = VendorDraftReservation.create(
-                now(),
+                reservedAt,
                 integerConfig(SystemConfigEnum.VENDOR_DRAFT_RESERVATION_TTL_MINUTES));
         VendorAllocationBatchModel batch = VendorAllocationBatchModel.createDraft(
                 "VND-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase(Locale.ROOT),
-                profile.getId(), request.businessDate(), reservation.expiresAt(), serials,
+                profile.getId(), request.businessDate(), reservedAt, reservation.expiresAt(), serials,
                 lucky ? request.luckyOverrideReason().trim() : null,
                 requested, counterReservePolicy());
         Map<Long, VendorAllocationSuggestionBuilder.StationSuggestion> stationQuotes = lockedQuote.stations().stream()
@@ -235,11 +261,14 @@ public class VendorAllocationService implements VendorAllocationServicePort {
         BigDecimal commissionRate = decimalConfig(SystemConfigEnum.VENDOR_COMMISSION_RATE);
         BigDecimal unitPrice = vendorUnitPrice(batch, commissionRate);
         BigDecimal depositRate = decimalConfig(SystemConfigEnum.VENDOR_DEPOSIT_RATE);
-        LocalTime returnCutoff = resolveReturnWindow(batch, now).effectiveVendorCutoff();
+        ReturnWindow returnWindow = resolveReturnWindow(batch, now);
+        LocalTime returnCutoff = returnWindow.effectiveVendorCutoff();
         String latePolicy = stringConfig(SystemConfigEnum.VENDOR_LATE_RETURN_POLICY);
         BigDecimal required = VendorDepositCalculator.calculate(
                 batch.getAllocatedQuantity(), unitPrice, depositRate);
-        String fingerprint = quoteFingerprint(batch, commissionRate, unitPrice, depositRate, returnCutoff, latePolicy);
+        String fingerprint = quoteFingerprint(
+                batch, commissionRate, unitPrice, depositRate, returnCutoff,
+                returnWindow.supplierReturnCutoff(), returnWindow.bufferMinutes(), latePolicy);
         return new VendorConfirmationQuoteResponse(
                 batch.getId(),
                 batch.getAllocatedQuantity(),
@@ -301,6 +330,11 @@ public class VendorAllocationService implements VendorAllocationServicePort {
         StreetAgentProfileModel profile = profileForUpdate(batch.getStreetAgentProfileId());
         // The profile may have changed while the draft was being held; do not hand over on stale eligibility.
         profile.requireVendorAllocationPrerequisites(batch.getBusinessDate());
+        // A DRAFT has never received a deposit. Any existing balance at this point is a
+        // pre-existing/legacy balance and must be reconciled before new money is accepted.
+        if (!profile.hasClearedLegacyDeposit()) {
+            throw new DomainException(ErrorCode.VENDOR_ALLOCATION_LEGACY_DEPOSIT);
+        }
         if (batch.getAllocatedQuantity() > remainingCapIncludingCurrentBatch(profile, batch)) {
             throw new DomainException(ErrorCode.VENDOR_ALLOCATION_DAILY_CAP_EXCEEDED);
         }
@@ -309,11 +343,12 @@ public class VendorAllocationService implements VendorAllocationServicePort {
         BigDecimal depositRate = decimalConfig(SystemConfigEnum.VENDOR_DEPOSIT_RATE);
         String latePolicy = stringConfig(SystemConfigEnum.VENDOR_LATE_RETURN_POLICY);
         ReturnWindow returnWindow = resolveReturnWindow(batch, now);
-        String expectedFingerprint = quoteFingerprint(batch, commissionRate, unitPrice, depositRate,
-                returnWindow.effectiveVendorCutoff(), latePolicy);
+        String expectedFingerprint = quoteFingerprint(
+                batch, commissionRate, unitPrice, depositRate, returnWindow.effectiveVendorCutoff(),
+                returnWindow.supplierReturnCutoff(), returnWindow.bufferMinutes(), latePolicy);
         // HTTP validation requires the fingerprint. The legacy one-argument DTO constructor is
         // retained only for direct server-side callers compiled before this API hardening.
-        if (request.quoteFingerprint() != null && !request.quoteFingerprint().equals(expectedFingerprint)) {
+        if (blank(request.quoteFingerprint()) || !request.quoteFingerprint().equals(expectedFingerprint)) {
             throw new DomainException(ErrorCode.VENDOR_ALLOCATION_QUOTE_STALE);
         }
         batch.setCommissionRateSnapshot(commissionRate);
@@ -381,12 +416,38 @@ public class VendorAllocationService implements VendorAllocationServicePort {
     }
 
     @Override @Transactional
+    public VendorAllocationBatchResponse removeReturn(Long id, Long serialId) {
+        VendorAllocationBatchModel batch = vendorAllocationRepositoryPort.findByIdForUpdate(id)
+                .orElseThrow(() -> new DomainException(ErrorCode.VENDOR_ALLOCATION_NOT_FOUND));
+        if (returnBatchRepositoryPort == null) {
+            batch.removeStagedReturn(serialId);
+            saveSerialsAndSync(batch.getSerials());
+            return batchResponse(vendorAllocationRepositoryPort.save(batch), remaining(batch), null, null);
+        }
+        ReturnBatchModel receipt = requireStreetAgentReturnBatch(batch);
+        if (receipt.getStatus() != ReturnBatchStatus.PENDING_INSPECTION
+                && receipt.getStatus() != ReturnBatchStatus.INSPECTING) {
+            throw new DomainException(ErrorCode.VENDOR_ALLOCATION_INVALID_STATE);
+        }
+        batch.removeStagedReturn(serialId);
+        boolean hasPendingInspection = batch.getSerials().stream()
+                .anyMatch(serial -> serial.getStatus() == AllocationSerialStatus.RETURN_PENDING_INSPECTION);
+        receipt.setStatus(hasPendingInspection ? ReturnBatchStatus.INSPECTING : ReturnBatchStatus.PENDING_INSPECTION);
+        returnBatchRepositoryPort.save(receipt);
+        saveSerialsAndSync(batch.getSerials());
+        return batchResponse(vendorAllocationRepositoryPort.save(batch), remaining(batch), null, null);
+    }
+
+    @Override @Transactional
     public VendorAllocationBatchResponse confirmReturnInspection(
             Long id, ConfirmVendorReturnInspectionRequest request, UUID operatorId) {
         VendorAllocationBatchModel batch = vendorAllocationRepositoryPort.findByIdForUpdate(id)
                 .orElseThrow(() -> new DomainException(ErrorCode.VENDOR_ALLOCATION_NOT_FOUND));
+        Map<Long, String> rejectedReasons = rejectedReasons(request);
         if (returnBatchRepositoryPort == null) {
-            batch.confirmReturnedSerials(request == null ? null : request.rejectedSerialIds(), now());
+            LocalDateTime confirmedAt = now();
+            batch.confirmReturnedSerials(rejectedReasons, confirmedAt);
+            restoreAcceptedReturnStock(batch, confirmedAt);
             saveSerialsAndSync(batch.getSerials());
             return batchResponse(vendorAllocationRepositoryPort.save(batch), remaining(batch), null, null);
         }
@@ -395,7 +456,8 @@ public class VendorAllocationService implements VendorAllocationServicePort {
             throw new DomainException(ErrorCode.VENDOR_ALLOCATION_INVALID_STATE);
         }
         LocalDateTime confirmedAt = now();
-        batch.confirmReturnedSerials(request == null ? null : request.rejectedSerialIds(), confirmedAt);
+        batch.confirmReturnedSerials(rejectedReasons, confirmedAt);
+        restoreAcceptedReturnStock(batch, confirmedAt);
         refreshStreetAgentReturnLines(receipt, batch);
         receipt.setStatus(ReturnBatchStatus.RECEIVED);
         receipt.setConfirmedAt(confirmedAt);
@@ -412,31 +474,27 @@ public class VendorAllocationService implements VendorAllocationServicePort {
     @Override @Transactional(readOnly = true)
     public VendorSettlementPreviewResponse previewSettlement(Long id) {
         VendorAllocationBatchModel batch = batch(id);
+        ReturnBatchModel receipt = requireReturnReceiptReadyForSettlement(batch);
         LocalDateTime timing = settlementTiming(batch);
         VendorSettlementCalculator.Result result = batch.previewSettlement(timing);
-        return settlementPreview(batch, result, isLate(batch, timing));
+        return settlementPreview(batch, result, isLate(batch, timing), receipt);
     }
 
     @Override @Transactional
     public VendorAllocationBatchResponse settle(Long id, SettleVendorAllocationRequest request, UUID operatorId) {
         VendorAllocationBatchModel batch = vendorAllocationRepositoryPort.findByIdForUpdate(id)
                 .orElseThrow(() -> new DomainException(ErrorCode.VENDOR_ALLOCATION_NOT_FOUND));
+        ReturnBatchModel receipt = requireReturnReceiptReadyForSettlement(batch);
         StreetAgentProfileModel profile = profileForUpdate(batch.getStreetAgentProfileId());
         LocalDateTime settledAt = now();
         LocalDateTime returnConfirmedAt = settlementTiming(batch);
         VendorSettlementCalculator.Result expected = batch.previewSettlement(returnConfirmedAt);
-        BigDecimal expectedReceived = expected.forcedPurchaseAmount().signum() > 0
-                ? expected.additionalAmountDue() : expected.grossCashRemitted();
-        BigDecimal expectedPaid = expected.commissionPayable()
-                .add(expected.depositRefundAmount()).add(expected.depositExcessRefundAmount());
-        if (request.cashReceivedFromVendor().compareTo(expectedReceived) != 0
-                || request.cashPaidToVendor().compareTo(expectedPaid) != 0) {
-            throw new DomainException(ErrorCode.VENDOR_SETTLEMENT_CASH_MISMATCH);
+        String expectedFingerprint = settlementFingerprint(batch, expected, isLate(batch, returnConfirmedAt), receipt);
+        if (request == null || !request.confirmed() || blank(request.settlementFingerprint())
+                || !request.settlementFingerprint().equals(expectedFingerprint)) {
+            throw new DomainException(ErrorCode.VENDOR_SETTLEMENT_PREVIEW_STALE);
         }
         batch.settle(settledAt, returnConfirmedAt, profile.getDepositBalance(), operatorId);
-        batch.getSerials().stream()
-                .filter(serial -> serial.getStatus() == AllocationSerialStatus.RETURNED)
-                .forEach(serial -> serial.restoreAcceptedReturnToStock(!serial.isPastDrawNow()));
         profile.setDepositBalance(batch.getDepositBalanceAfter());
         streetAgentProfileRepositoryPort.save(profile);
         agentDepositTransactionRepositoryPort.record(new AgentDepositTransactionRepositoryPort.DepositTransaction(
@@ -457,17 +515,6 @@ public class VendorAllocationService implements VendorAllocationServicePort {
         }
         streetAgentProfileRepositoryPort.save(profile);
         return batchResponse(saved, remaining(saved), links.agentSettlementId(), links.dailySalesReportId());
-    }
-
-    @Override
-    @Deprecated
-    public VendorAllocationBatchResponse settle(Long id, UUID operatorId) {
-        VendorSettlementPreviewResponse preview = previewSettlement(id);
-        BigDecimal received = preview.forcedPurchaseAmount().signum() > 0
-                ? preview.additionalAmountDue() : preview.grossCashRemitted();
-        BigDecimal paid = preview.commissionPayable().add(preview.depositRefundAmount())
-                .add(preview.depositExcessRefundAmount());
-        return settle(id, new SettleVendorAllocationRequest(received, paid), operatorId);
     }
 
     @Override @Transactional
@@ -554,6 +601,22 @@ public class VendorAllocationService implements VendorAllocationServicePort {
         return receipt;
     }
 
+    /**
+     * The physical return receipt is the gate before any financial calculation. A batch in
+     * RETURN_OPEN alone is not sufficient because its serial outcome can still change.
+     */
+    private ReturnBatchModel requireReturnReceiptReadyForSettlement(VendorAllocationBatchModel batch) {
+        if (returnBatchRepositoryPort == null) {
+            // Legacy unit-test adapters do not model return receipts. Production wiring always does.
+            return null;
+        }
+        ReturnBatchModel receipt = requireStreetAgentReturnBatch(batch);
+        if (receipt.getStatus() != ReturnBatchStatus.RECEIVED) {
+            throw new DomainException(ErrorCode.VENDOR_ALLOCATION_INVALID_STATE);
+        }
+        return receipt;
+    }
+
     private void refreshStreetAgentReturnLines(ReturnBatchModel receipt, VendorAllocationBatchModel batch) {
         List<ReturnBatchLineModel> lines = returnBatchRepositoryPort.findLinesByBatchId(receipt.getId());
         int totalQuantity = 0;
@@ -571,6 +634,27 @@ public class VendorAllocationService implements VendorAllocationServicePort {
         }
         receipt.setTotalQuantity(totalQuantity);
         receipt.setTotalReturnValue(totalValue);
+    }
+
+    private void restoreAcceptedReturnStock(VendorAllocationBatchModel batch, LocalDateTime confirmedAt) {
+        batch.getSerials().stream()
+                .filter(serial -> serial.getStatus() == AllocationSerialStatus.RETURNED)
+                .filter(serial -> serial.getTicketStatus() == LotteryTicketSerialStatus.WITH_STREET_AGENT)
+                .forEach(serial -> serial.restoreAcceptedReturnToStock(!serial.isPastDrawAt(confirmedAt)));
+    }
+
+    private Map<Long, String> rejectedReasons(ConfirmVendorReturnInspectionRequest request) {
+        if (request == null || request.rejectedSerials() == null || request.rejectedSerials().isEmpty()) {
+            return Map.of();
+        }
+        Map<Long, String> reasons = new LinkedHashMap<>();
+        for (RejectedVendorReturnSerialRequest rejected : request.rejectedSerials()) {
+            if (rejected == null || rejected.serialId() == null || blank(rejected.reason())
+                    || reasons.putIfAbsent(rejected.serialId(), rejected.reason().trim()) != null) {
+                throw new DomainException(ErrorCode.VENDOR_ALLOCATION_RETURN_SERIAL_INVALID);
+            }
+        }
+        return reasons;
     }
 
     private LocalDateTime settlementTiming(VendorAllocationBatchModel batch) {
@@ -632,8 +716,7 @@ public class VendorAllocationService implements VendorAllocationServicePort {
         int consumed = Math.toIntExact(vendorAllocationRepositoryPort.sumAllocatedForDay(
                 profile.getId(), businessDate, CAP_CONSUMING));
         return VendorDailyCapCalculator.remaining(
-                profile.getContractMaxDailyCap() != null ? profile.getContractMaxDailyCap() : profile.getDailyTicketCap(),
-                profile.getApprovedDailyCap() != null ? profile.getApprovedDailyCap() : profile.getDailyTicketCap(),
+                profile.effectiveBaseDailyCap(),
                 vendorConfidencePolicyResolver.capPercentage(profile.getConfidenceTier()),
                 consumed);
     }
@@ -643,8 +726,7 @@ public class VendorAllocationService implements VendorAllocationServicePort {
         long consumed = vendorAllocationRepositoryPort.sumAllocatedForDay(profile.getId(), batch.getBusinessDate(), CAP_CONSUMING);
         long withoutThisDraft = Math.max(0, consumed - batch.getAllocatedQuantity());
         return VendorDailyCapCalculator.remaining(
-                profile.getContractMaxDailyCap() != null ? profile.getContractMaxDailyCap() : profile.getDailyTicketCap(),
-                profile.getApprovedDailyCap() != null ? profile.getApprovedDailyCap() : profile.getDailyTicketCap(),
+                profile.effectiveBaseDailyCap(),
                 vendorConfidencePolicyResolver.capPercentage(profile.getConfidenceTier()),
                 Math.toIntExact(withoutThisDraft));
     }
@@ -658,9 +740,9 @@ public class VendorAllocationService implements VendorAllocationServicePort {
         if (b.getGrossCashRemitted() != null && b.getCommissionPayable() != null) {
             agencyNet = b.getGrossCashRemitted().subtract(b.getCommissionPayable());
         }
-        Long returnBatchId = returnBatchRepositoryPort == null ? null
-                : returnBatchRepositoryPort.findStreetAgentByAllocationBatchId(b.getId())
-                .map(ReturnBatchModel::getId).orElse(null);
+        ReturnBatchModel returnBatch = returnBatchRepositoryPort == null ? null
+                : returnBatchRepositoryPort.findStreetAgentByAllocationBatchId(b.getId()).orElse(null);
+        Long returnBatchId = returnBatch == null ? null : returnBatch.getId();
         return new VendorAllocationBatchResponse(
                 b.getId(),
                 b.getBatchCode(),
@@ -701,6 +783,7 @@ public class VendorAllocationService implements VendorAllocationServicePort {
                 agentSettlementId,
                 dailySalesReportId,
                 returnBatchId,
+                returnWorkflow(b, returnBatch),
                 b.getDetails().stream()
                         .map(d -> new VendorAllocationBatchDetailResponse(
                                 d.getStationId(),
@@ -712,10 +795,49 @@ public class VendorAllocationService implements VendorAllocationServicePort {
                 b.getSerials().stream().map(this::serialResponse).toList());
     }
 
+    private VendorAllocationReturnWorkflowResponse returnWorkflow(
+            VendorAllocationBatchModel batch, ReturnBatchModel receipt) {
+        int handedOver = (int) batch.getSerials().stream()
+                .filter(serial -> serial.getStatus() == AllocationSerialStatus.HANDED_OVER).count();
+        int pending = (int) batch.getSerials().stream()
+                .filter(serial -> serial.getStatus() == AllocationSerialStatus.RETURN_PENDING_INSPECTION).count();
+        int accepted = (int) batch.getSerials().stream()
+                .filter(serial -> serial.getStatus() == AllocationSerialStatus.RETURNED).count();
+        int rejected = (int) batch.getSerials().stream()
+                .filter(serial -> serial.getStatus() == AllocationSerialStatus.RETURN_REJECTED).count();
+        boolean settled = batch.getStatus() == AllocationBatchStatus.SETTLED
+                || batch.getStatus() == AllocationBatchStatus.LATE_SETTLED;
+        ReturnBatchStatus receiptStatus = receipt == null ? null : receipt.getStatus();
+        String stage = settled ? "SETTLED"
+                : receiptStatus == ReturnBatchStatus.RECEIVED ? "READY_FOR_SETTLEMENT"
+                : receiptStatus == ReturnBatchStatus.INSPECTING ? "INSPECTION"
+                : "RETURN_ENTRY";
+        boolean editable = batch.getStatus() == AllocationBatchStatus.RETURN_OPEN
+                && (receiptStatus == ReturnBatchStatus.PENDING_INSPECTION || receiptStatus == ReturnBatchStatus.INSPECTING);
+        boolean readyForSettlement = batch.getStatus() == AllocationBatchStatus.RETURN_OPEN
+                && receiptStatus == ReturnBatchStatus.RECEIVED;
+        return new VendorAllocationReturnWorkflowResponse(
+                receipt == null ? null : receipt.getId(),
+                receiptStatus == null ? null : receiptStatus.name(),
+                stage,
+                handedOver,
+                pending,
+                accepted,
+                rejected,
+                handedOver,
+                editable,
+                receiptStatus == ReturnBatchStatus.INSPECTING && pending > 0,
+                readyForSettlement,
+                readyForSettlement);
+    }
+
     private VendorSettlementPreviewResponse settlementPreview(
             VendorAllocationBatchModel batch,
             VendorSettlementCalculator.Result result,
-            boolean late) {
+            boolean late,
+            ReturnBatchModel receipt) {
+        VendorSettlementCalculator.CounterCashMovement counterCash =
+                VendorSettlementCalculator.counterCashMovement(result);
         return new VendorSettlementPreviewResponse(
                 batch.getId(),
                 batch.getAllocatedQuantity(),
@@ -723,6 +845,7 @@ public class VendorAllocationService implements VendorAllocationServicePort {
                 result.returnedQuantity(),
                 result.grossCashRemitted(),
                 result.commissionPayable(),
+                batch.getCommissionRateSnapshot(),
                 result.agencyNetSalesAmount(),
                 result.depositRefundAmount(),
                 result.depositForfeitedAmount(),
@@ -730,8 +853,41 @@ public class VendorAllocationService implements VendorAllocationServicePort {
                 result.depositExcessRefundAmount(),
                 result.forcedPurchaseAmount(),
                 result.additionalAmountDue(),
+                counterCash.dueFromVendor(),
+                counterCash.payableToVendor(),
                 late,
-                batch.getLatePolicySnapshot() == null ? null : batch.getLatePolicySnapshot().name());
+                batch.getLatePolicySnapshot() == null ? null : batch.getLatePolicySnapshot().name(),
+                settlementFingerprint(batch, result, late, receipt));
+    }
+
+    /**
+     * Ties the UI confirmation to the exact finalized return outcome and financial snapshot.
+     * It deliberately contains no client-provided money: the server remains the source of truth.
+     */
+    private String settlementFingerprint(
+            VendorAllocationBatchModel batch,
+            VendorSettlementCalculator.Result result,
+            boolean late,
+            ReturnBatchModel receipt) {
+        String serialOutcome = batch.getSerials().stream()
+                .sorted(Comparator.comparing(VendorAllocationSerialModel::getSerialId))
+                .map(serial -> serial.getSerialId() + ":" + serial.getStatus())
+                .collect(Collectors.joining(","));
+        String material = String.join("|",
+                String.valueOf(batch.getId()), String.valueOf(batch.getStatus()),
+                String.valueOf(batch.getBusinessDate()), String.valueOf(batch.getReturnCutoffSnapshot()),
+                String.valueOf(batch.getFaceValueSnapshot()), String.valueOf(batch.getVendorUnitPriceSnapshot()),
+                String.valueOf(batch.getDepositReceivedAmount()), String.valueOf(batch.getLatePolicySnapshot()),
+                String.valueOf(late), String.valueOf(receipt == null ? null : receipt.getId()),
+                String.valueOf(receipt == null ? null : receipt.getStatus()),
+                String.valueOf(receipt == null ? null : receipt.getConfirmedAt()),
+                String.valueOf(result.soldQuantity()), String.valueOf(result.returnedQuantity()),
+                String.valueOf(result.grossCashRemitted()), String.valueOf(result.commissionPayable()),
+                String.valueOf(result.depositRefundAmount()), String.valueOf(result.depositForfeitedAmount()),
+                String.valueOf(result.depositAppliedAmount()), String.valueOf(result.depositExcessRefundAmount()),
+                String.valueOf(result.forcedPurchaseAmount()), String.valueOf(result.additionalAmountDue()),
+                serialOutcome);
+        return sha256(material);
     }
 
     private boolean isLate(VendorAllocationBatchModel batch, LocalDateTime now) {
@@ -776,8 +932,12 @@ public class VendorAllocationService implements VendorAllocationServicePort {
     }
 
     private VendorAllocationSuggestionResponse toSuggestionResponse(
-            VendorAllocationSuggestionBuilder.Suggestion suggestion) {
+            VendorAllocationSuggestionBuilder.Suggestion suggestion,
+            BigDecimal faceValue,
+            List<BigDecimal> availableFaceValues) {
         return new VendorAllocationSuggestionResponse(
+                faceValue,
+                availableFaceValues,
                 suggestion.requestedQuantity(),
                 suggestion.remainingDailyCap(),
                 suggestion.capLimitedQuantity(),
@@ -894,12 +1054,18 @@ public class VendorAllocationService implements VendorAllocationServicePort {
 
     private String quoteFingerprint(VendorAllocationBatchModel batch, BigDecimal commissionRate,
                                     BigDecimal unitPrice, BigDecimal depositRate,
-                                    LocalTime returnCutoff, String latePolicy) {
+                                    LocalTime returnCutoff, LocalTime supplierReturnCutoff,
+                                    int returnBufferMinutes, String latePolicy) {
         String material = String.join("|",
                 String.valueOf(batch.getId()), String.valueOf(batch.getAllocatedQuantity()),
                 String.valueOf(batch.getFaceValueSnapshot()), String.valueOf(commissionRate),
                 String.valueOf(unitPrice), String.valueOf(depositRate), String.valueOf(returnCutoff),
+                String.valueOf(supplierReturnCutoff), String.valueOf(returnBufferMinutes),
                 String.valueOf(latePolicy), String.valueOf(batch.getReservationExpiresAt()));
+        return sha256(material);
+    }
+
+    private String sha256(String material) {
         try {
             byte[] digest = MessageDigest.getInstance("SHA-256").digest(material.getBytes(StandardCharsets.UTF_8));
             return HexFormat.of().formatHex(digest);

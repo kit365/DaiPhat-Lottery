@@ -61,8 +61,8 @@ class StreetAgentProfileVendorEligibilityTest {
 
     @Test
     void missing_or_non_positive_daily_cap_throws_daily_cap_missing() {
-        var missingCap = eligibleBuilder().dailyTicketCap(null).build();
-        var zeroCap = eligibleBuilder().dailyTicketCap(0).build();
+        var missingCap = eligibleBuilder().contractMaxDailyCap(null).build();
+        var zeroCap = eligibleBuilder().contractMaxDailyCap(0).build();
 
         assertThat(missingCap.hasContractInForce(BUSINESS_DATE)).isTrue();
         assertThat(missingCap.isVendorAllocationEligible(BUSINESS_DATE)).isFalse();
@@ -106,7 +106,7 @@ class StreetAgentProfileVendorEligibilityTest {
     void inactive_status_takes_precedence_over_other_failures() {
         var profile = eligibleBuilder()
                 .status(StreetAgentProfileStatus.INACTIVE)
-                .dailyTicketCap(null)
+                .contractMaxDailyCap(null)
                 .depositBalance(new BigDecimal("1"))
                 .build();
 
@@ -122,7 +122,7 @@ class StreetAgentProfileVendorEligibilityTest {
                 .contractDocumentUrl("https://cdn.example.com/contracts/signed.pdf")
                 .contractStartDate(LocalDate.of(2026, 1, 1))
                 .contractEndDate(LocalDate.of(2026, 12, 31))
-                .dailyTicketCap(100)
+                .contractMaxDailyCap(100)
                 .depositBalance(BigDecimal.ZERO);
     }
 }

@@ -12,6 +12,7 @@ public record CreateVendorAllocationDraftRequest(
         @NotNull LocalDate businessDate,
         @NotEmpty List<Long> serialIds,
         @Positive Integer requestedQuantity,
+        @Positive java.math.BigDecimal faceValue,
         Boolean acceptShortfall,
         String luckyOverrideReason
 ) {
@@ -19,6 +20,6 @@ public record CreateVendorAllocationDraftRequest(
     public CreateVendorAllocationDraftRequest(
             Long streetAgentProfileId, LocalDate businessDate, List<Long> serialIds, String luckyOverrideReason) {
         this(streetAgentProfileId, businessDate, serialIds,
-                serialIds == null ? null : serialIds.size(), false, luckyOverrideReason);
+                serialIds == null ? null : serialIds.size(), null, false, luckyOverrideReason);
     }
 }

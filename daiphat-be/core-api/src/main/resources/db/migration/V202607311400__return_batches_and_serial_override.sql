@@ -49,11 +49,19 @@ CREATE INDEX IF NOT EXISTS idx_return_batches_batch_code
 
 CREATE SEQUENCE IF NOT EXISTS return_batch_header_code_seq START WITH 1 INCREMENT BY 1;
 
-CREATE UNIQUE INDEX IF NOT EXISTS uq_return_batches_pending_supplier_draw
+-- One supplier return batch per supplier + draw date, regardless of status.
+-- This keeps auto-generation idempotent and supports the vendor return type.
+DROP INDEX IF EXISTS uq_return_batches_pending_supplier_draw;
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_return_batches_supplier_draw
     ON return_batches (lottery_supplier_id, draw_date)
     WHERE deleted_at IS NULL
-      AND return_batch_type = 'SUPPLIER_RETURN'
-      AND status = 'PENDING';
+      AND return_batch_type = 'SUPPLIER_RETURN';
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_return_batches_street_agent_allocation
+    ON return_batches (source_allocation_batch_id)
+    WHERE deleted_at IS NULL
+      AND return_batch_type = 'STREET_AGENT_RETURN';
 
 CREATE TABLE IF NOT EXISTS return_batch_lines (
     id                   BIGSERIAL PRIMARY KEY,

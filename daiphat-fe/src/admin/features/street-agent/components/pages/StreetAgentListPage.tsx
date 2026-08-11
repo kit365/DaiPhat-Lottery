@@ -15,12 +15,11 @@ export const StreetAgentListPage = () => {
     return (
         <>
             <PageHeader
-                title="Danh sách đại lý bán dạo"
+                title="Danh sách người bán vé số"
                 breadcrumbItems={[
                             { label: "Dashboard", to: "/" },
-                            { label: "Quản lý đại lý", to: ROUTES.ADMIN.ACCOUNTS.ADMIN.LIST },
-                            { label: "Đại lý bán dạo", to: ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.LIST },
-                            { label: "Danh sách" },
+                            { label: "Người bán vé số" },
+                            { label: "Hồ sơ người bán vé số" },
                         ]}
                 action={
                     <Button

@@ -24,6 +24,36 @@ public final class VendorSettlementCalculator {
             BigDecimal agencyNetSalesAmount
     ) {}
 
+    /**
+     * Counter-facing, mutually exclusive cash movement.  This is deliberately derived in
+     * the domain calculator rather than reconstructed by a screen from gross/commission/
+     * deposit rows.  In particular FORCE_PURCHASE_ALL has a deposit offset that must not
+     * be shown as an additional cash collection.
+     */
+    public record CounterCashMovement(
+            BigDecimal dueFromVendor,
+            BigDecimal payableToVendor
+    ) {}
+
+    public static CounterCashMovement counterCashMovement(Result result) {
+        if (result == null) {
+            throw new IllegalArgumentException("Settlement result is required");
+        }
+        if (result.forcedPurchaseAmount().signum() > 0) {
+            return new CounterCashMovement(
+                    money(result.additionalAmountDue()),
+                    money(result.depositExcessRefundAmount()));
+        }
+
+        BigDecimal payable = result.commissionPayable()
+                .add(result.depositRefundAmount())
+                .add(result.depositExcessRefundAmount());
+        BigDecimal net = result.grossCashRemitted().subtract(payable);
+        return net.signum() >= 0
+                ? new CounterCashMovement(money(net), BigDecimal.ZERO)
+                : new CounterCashMovement(BigDecimal.ZERO, money(net.abs()));
+    }
+
     public static Result calculate(
             int allocatedQuantity,
             int returnedQuantity,

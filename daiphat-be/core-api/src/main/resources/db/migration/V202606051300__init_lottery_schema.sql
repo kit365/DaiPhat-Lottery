@@ -233,6 +233,8 @@ CREATE INDEX IF NOT EXISTS idx_lottery_tickets_numbers    ON lottery_tickets(num
 CREATE INDEX IF NOT EXISTS idx_lottery_tickets_draw_date  ON lottery_tickets(draw_date);
 CREATE INDEX IF NOT EXISTS idx_lottery_tickets_is_active  ON lottery_tickets(is_active);
 CREATE INDEX IF NOT EXISTS idx_lottery_tickets_batch_code ON lottery_tickets(batch_code);
+CREATE INDEX IF NOT EXISTS idx_lottery_tickets_station_draw_status
+    ON lottery_tickets(station_id, draw_date, status);
 CREATE UNIQUE INDEX IF NOT EXISTS uk_lottery_ticket_station_numbers_draw_date
     ON lottery_tickets (station_id, numbers, draw_date)
     WHERE deleted_at IS NULL;

@@ -14,13 +14,23 @@ import com.daiphat.coreapi.application.dto.response.streetagent.VendorSettlement
 import com.daiphat.coreapi.domain.model.enums.streetagent.AllocationBatchStatus;
 
 import java.time.LocalDate;
+import java.math.BigDecimal;
 import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
 
 public interface VendorAllocationServicePort {
     List<VendorAllocationCandidateResponse> getCandidates(Long profileId, LocalDate businessDate);
-    VendorAllocationSuggestionResponse getSuggestion(Long profileId, LocalDate businessDate, Integer requestedQuantity);
+    /**
+     * Builds a quote for one denomination only. The denomination belongs to the inbound
+     * use-case contract, so an implementation cannot silently ignore it.
+     */
+    VendorAllocationSuggestionResponse getSuggestion(
+            Long profileId, LocalDate businessDate, Integer requestedQuantity, BigDecimal faceValue);
+    default VendorAllocationSuggestionResponse getSuggestion(
+            Long profileId, LocalDate businessDate, Integer requestedQuantity) {
+        return getSuggestion(profileId, businessDate, requestedQuantity, null);
+    }
     default VendorAllocationSuggestionResponse getSuggestion(Long profileId, LocalDate businessDate) {
         return getSuggestion(profileId, businessDate, null);
     }
@@ -41,13 +51,10 @@ public interface VendorAllocationServicePort {
     VendorConfirmationQuoteResponse getConfirmationQuote(Long id);
     VendorAllocationBatchResponse openReturnSession(Long id);
     VendorAllocationBatchResponse recordReturns(Long id, ReturnVendorAllocationSerialsRequest request);
+    VendorAllocationBatchResponse removeReturn(Long id, Long serialId);
     VendorAllocationBatchResponse confirmReturnInspection(Long id, ConfirmVendorReturnInspectionRequest request, UUID operatorId);
     VendorSettlementPreviewResponse previewSettlement(Long id);
     VendorAllocationBatchResponse settle(Long id, SettleVendorAllocationRequest request, UUID operatorId);
-    @Deprecated
-    default VendorAllocationBatchResponse settle(Long id, UUID operatorId) {
-        throw new UnsupportedOperationException("Settlement requires counted cash amounts");
-    }
     void cancel(Long id);
     int expireDrafts();
 }

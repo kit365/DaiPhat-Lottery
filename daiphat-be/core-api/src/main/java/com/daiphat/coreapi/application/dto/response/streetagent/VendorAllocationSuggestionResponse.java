@@ -4,6 +4,8 @@ import java.math.BigDecimal;
 import java.util.List;
 
 public record VendorAllocationSuggestionResponse(
+        BigDecimal faceValue,
+        List<BigDecimal> availableFaceValues,
         int requestedQuantity,
         int remainingDailyCap,
         int capLimitedQuantity,

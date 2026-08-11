@@ -26,14 +26,10 @@ export interface StreetAgentProfile {
     contractDocumentUrl?: string;
     /** Trần ghi trong hợp đồng; chỉ đổi khi có phụ lục/hợp đồng mới. */
     contractMaxDailyCap?: number;
-    /** Hạn mức vận hành do quản lý duyệt, luôn không vượt trần hợp đồng. */
-    approvedDailyCap?: number;
-    /** Hạn mức áp dụng sau khi nhân hệ số tier tin cậy. */
+    /** Hạn mức áp dụng sau khi nhân hệ số tier tin cậy trên trần hợp đồng. */
     effectiveDailyCap?: number;
     /** Hạn mức còn lại của ngày kinh doanh đang được xem. */
     remainingDailyCap?: number;
-    dailyCapAdjustmentReason?: string;
-    dailyCapAdjustedAt?: string;
     confidenceScore?: number;
     confidenceTier?: VendorConfidenceTier;
     confidenceCalculatedAt?: string;
@@ -53,7 +49,7 @@ export interface StreetAgentQueryParams {
     status?: string;
 }
 
-/** Client-owned onboarding fields only. Commercial policy is resolved by BE. */
+/** Staff-entered contract terms; commission and other commercial policy remain system-owned. */
 export interface CreateStreetAgentProfilePayload {
     firstName: string;
     lastName: string;
@@ -66,6 +62,7 @@ export interface CreateStreetAgentProfilePayload {
     coverageArea?: string;
     contractStartDate?: string;
     contractEndDate?: string;
+    contractMaxDailyCap?: number;
 }
 
 export interface LuckyPatternConfig {
@@ -201,6 +198,28 @@ export interface VendorAllocationBatchDetailRow {
     soldQuantity: number;
 }
 
+export type VendorAllocationReturnWorkflowStage =
+    | "RETURN_ENTRY"
+    | "INSPECTION"
+    | "READY_FOR_SETTLEMENT"
+    | "SETTLED";
+
+/** Server-owned physical return workflow; never derive this from allocation status in UI. */
+export interface VendorAllocationReturnWorkflow {
+    returnBatchId?: number | null;
+    returnBatchStatus?: string | null;
+    stage: VendorAllocationReturnWorkflowStage | string;
+    handedOverQuantity: number;
+    pendingInspectionQuantity: number;
+    acceptedReturnQuantity: number;
+    rejectedReturnQuantity: number;
+    unreturnedQuantity: number;
+    canEditReturns: boolean;
+    canConfirmInspection: boolean;
+    canPreviewSettlement: boolean;
+    canSettle: boolean;
+}
+
 export interface VendorAllocationBatch {
     id: number;
     batchCode: string;
@@ -241,6 +260,7 @@ export interface VendorAllocationBatch {
     agentSettlementId?: number | null;
     dailySalesReportId?: number | null;
     returnBatchId?: number | null;
+    returnWorkflow?: VendorAllocationReturnWorkflow | null;
     details?: VendorAllocationBatchDetailRow[];
     serials: VendorAllocationAllocatedSerial[];
 }
@@ -260,7 +280,10 @@ export interface VendorConfirmationQuote {
 
 export interface ConfirmVendorReturnInspectionPayload {
     /** Staged serials not listed here are accepted into the inbound return batch. */
-    rejectedSerialIds?: number[];
+    rejectedSerials?: Array<{
+        serialId: number;
+        reason: string;
+    }>;
     note?: string;
 }
 
@@ -319,6 +342,7 @@ export interface VendorSettlementPreview {
     returnedQuantity: number;
     grossCashRemitted: number;
     commissionPayable: number;
+    commissionRateSnapshot?: number | null;
     agencyNetSalesAmount: number;
     depositRefundAmount: number;
     depositForfeitedAmount: number;
@@ -326,13 +350,20 @@ export interface VendorSettlementPreview {
     depositExcessRefundAmount?: number;
     forcedPurchaseAmount: number;
     additionalAmountDue: number;
+    /** Mutually exclusive, server-calculated counter cash movement. */
+    netCashDueFromVendor: number;
+    /** Mutually exclusive, server-calculated counter cash movement. */
+    netCashPayableToVendor: number;
     late: boolean;
     latePolicySnapshot?: string | null;
+    /** Server-issued snapshot token; settlement is rejected if the finalized outcome changed. */
+    settlementFingerprint: string;
 }
 
 export interface VendorAllocationBatchListParams {
     profileId?: number | string;
     status?: string | string[];
+    search?: string;
     businessDateFrom?: string;
     businessDateTo?: string;
     page?: number;
@@ -360,11 +391,6 @@ export interface ReturnVendorAllocationSerialsPayload {
 }
 
 export interface SettleVendorAllocationPayload {
-    cashReceivedFromVendor: number;
-    cashPaidToVendor: number;
-}
-
-export interface UpdateApprovedDailyCapPayload {
-    approvedDailyCap: number;
-    reason: string;
+    settlementFingerprint: string;
+    confirmed: true;
 }

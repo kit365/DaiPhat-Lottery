@@ -26,6 +26,9 @@ class VendorSettlementCalculatorTest {
         assertThat(result.depositRefundAmount()).isEqualByComparingTo("90000");
         assertThat(result.depositForfeitedAmount()).isZero();
         assertThat(result.agencyNetSalesAmount()).isEqualByComparingTo("720000");
+        var cash = VendorSettlementCalculator.counterCashMovement(result);
+        assertThat(cash.dueFromVendor()).isEqualByComparingTo("630000");
+        assertThat(cash.payableToVendor()).isZero();
     }
 
     @Test
@@ -44,6 +47,9 @@ class VendorSettlementCalculatorTest {
         assertThat(result.depositRefundAmount()).isZero();
         assertThat(result.depositForfeitedAmount()).isEqualByComparingTo("90000");
         assertThat(result.additionalAmountDue()).isZero();
+        var cash = VendorSettlementCalculator.counterCashMovement(result);
+        assertThat(cash.dueFromVendor()).isEqualByComparingTo("720000");
+        assertThat(cash.payableToVendor()).isZero();
     }
 
     @Test
@@ -63,5 +69,24 @@ class VendorSettlementCalculatorTest {
         assertThat(result.additionalAmountDue()).isEqualByComparingTo("810000");
         assertThat(result.commissionPayable()).isZero();
         assertThat(result.depositRefundAmount()).isZero();
+        var cash = VendorSettlementCalculator.counterCashMovement(result);
+        assertThat(cash.dueFromVendor()).isEqualByComparingTo("810000");
+        assertThat(cash.payableToVendor()).isZero();
+    }
+
+    @Test
+    void returns_a_net_payout_when_no_ticket_was_sold() {
+        var result = VendorSettlementCalculator.calculate(
+                10, 10,
+                new BigDecimal("10000"),
+                new BigDecimal("9000"),
+                new BigDecimal("9000"),
+                false,
+                VendorLateReturnPolicy.FORFEIT_DEPOSIT
+        );
+
+        var cash = VendorSettlementCalculator.counterCashMovement(result);
+        assertThat(cash.dueFromVendor()).isZero();
+        assertThat(cash.payableToVendor()).isEqualByComparingTo("9000");
     }
 }
