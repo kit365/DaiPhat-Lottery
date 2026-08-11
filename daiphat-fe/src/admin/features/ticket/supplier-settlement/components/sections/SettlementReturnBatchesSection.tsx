@@ -48,7 +48,7 @@ export const SettlementReturnBatchesSection = ({ batches }: Props) => {
                                     <Typography
                                         fontWeight={700}
                                         color="#FF3030"
-                                        onClick={() => navigate(ROUTES.ADMIN.RETURN_BATCH.DETAIL(batch.id))}
+                                        onClick={() => router.push(ROUTES.ADMIN.RETURN_BATCH.DETAIL(batch.id))}
                                         sx={{
                                             cursor: 'pointer',
                                             display: 'inline-block',

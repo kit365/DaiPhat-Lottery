@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
+import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
 import { useRouteParams } from "@/hooks/useRouteParams";
 import CalendarTodayOutlinedIcon from '@mui/icons-material/CalendarTodayOutlined';
 import FactCheckOutlinedIcon from '@mui/icons-material/FactCheckOutlined';
@@ -16,14 +17,14 @@ import {
 } from '../../utils/settlementLabels';
 import { ExpiredReturnSettlementBanner } from '../sections/ExpiredReturnSettlementBanner';
 import { SettlementConsolidatedDetails } from '../sections/SettlementConsolidatedDetails';
+import { SettlementKpiCards } from '../sections/SettlementKpiCards';
 import { SettlementOverviewSummary } from '../sections/SettlementOverviewSummary';
-import { SettlementInspectionDialog } from '../sections/SettlementInspectionDialog';
 
 export const SupplierSettlementDetailPage = () => {
+    const router = useAdminRouter();
     const { id } = useRouteParams();
-    const { data: overview, isLoading, isError, refetch } = useSupplierSettlementOverview(id);
+    const { data: overview, isLoading, isError } = useSupplierSettlementOverview(id);
     const { allSettlements } = useSupplierSettlementList();
-    const [isInspectionOpen, setIsInspectionOpen] = useState(false);
 
     const settlement = overview?.settlement;
     const isExpired = Boolean(settlement?.isReturnExpired);
@@ -170,7 +171,7 @@ export const SupplierSettlementDetailPage = () => {
                         variant="contained"
                         color="primary"
                         startIcon={<FactCheckOutlinedIcon />}
-                        onClick={() => setIsInspectionOpen(true)}
+                        onClick={() => router.push(ROUTES.ADMIN.SUPPLIER_SETTLEMENT.INSPECT(id || ''))}
                         sx={{
                             borderRadius: '10px',
                             textTransform: 'none',
@@ -193,6 +194,19 @@ export const SupplierSettlementDetailPage = () => {
                 <SettlementOverviewSummary settlement={settlement} />
             </Card>
 
+            {/* Inventory Quantity KPI Grid (100% Balanced 4-Card Row) */}
+            <Box sx={{ mb: 3, width: '100%' }}>
+                <Typography variant="subtitle1" fontWeight={700} color="#0f172a" sx={{ mb: 1.5 }}>
+                    Thống kê vé & Trạng thái tồn kho
+                </Typography>
+                <SettlementKpiCards 
+                    kpis={overview.kpis} 
+                    hasHandedOver={overview.returnBatches?.some(rb => rb.status === 'HANDED_OVER' || rb.status === 'COMPLETED')}
+                    isExpired={overview.kpis.isReturnExpired}
+                />
+            </Box>
+
+            {/* Consolidated Details Tabbed Table */}
             <Box sx={{ width: '100%' }}>
                 <SettlementConsolidatedDetails
                     inventoryRows={overview.inventoryByStation || []}
@@ -200,17 +214,6 @@ export const SupplierSettlementDetailPage = () => {
                     returnBatches={overview.returnBatches || []}
                 />
             </Box>
-
-            <SettlementInspectionDialog
-                open={isInspectionOpen}
-                onClose={() => setIsInspectionOpen(false)}
-                settlement={settlement}
-                kpis={overview.kpis}
-                importBatches={overview.importBatches || []}
-                returnBatches={overview.returnBatches || []}
-                inventoryByStation={overview.inventoryByStation || []}
-                onRefresh={() => void refetch()}
-            />
         </Box>
     );
 };
