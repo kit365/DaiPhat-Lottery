@@ -14,6 +14,8 @@ export const usePublicSystemConfigValues = <T extends string>(
         queryFn: () => getPublicSystemConfigsByKeys(keys),
         staleTime: 10 * 60 * 1000,
         gcTime: 30 * 60 * 1000,
+        retry: false,
+        throwOnError: false,
     });
 
     const values = {} as Record<T, string>;

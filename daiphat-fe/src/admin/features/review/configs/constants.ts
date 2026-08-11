@@ -1,0 +1,16 @@
+export const COLORS = {
+    primary: 'var(--palette-text-primary)',
+    secondary: 'var(--palette-text-secondary)',
+    background: 'var(--palette-background-paper)',
+    backgroundLight: 'rgba(var(--palette-text-primary-rgb), 0.02)',
+    border: 'var(--palette-divider)',
+    borderLight: 'rgba(var(--palette-text-primary-rgb), 0.12)',
+    borderMedium: 'rgba(var(--palette-text-primary-rgb), 0.24)',
+    borderHover: 'rgba(var(--palette-text-primary-rgb), 0.08)',
+    borderDisabled: 'rgba(var(--palette-text-primary-rgb), 0.14)',
+    success: 'var(--palette-success-main)',
+    error: 'var(--palette-error-main)',
+    warning: 'var(--palette-warning-main)',
+    disabled: 'rgba(var(--palette-text-primary-rgb), 0.32)',
+    shadow: 'var(--shadow-lg)',
+};

@@ -50,12 +50,10 @@ import { Icon } from '@/admin/components/ui/AdminIcon';
 import { UploadFiles } from '../../../../components/ui/UploadFiles';
 import dayjs from 'dayjs';
 import { resolveLotteryTicketSerialStatusBadge, resolveOrderDetailStatusBadge } from '../../../../../types/order.type';
-import {
-    resolveOrderDetailTicketDisplay,
-    IncidentTicketDisplay,
-} from '../../constants/incidentTicket.constants';
+import type { IncidentTicketDisplay } from '../../types/incidentTicket.type';
+import { resolveOrderDetailTicketDisplay } from '../../utils/resolveOrderDetailTicketDisplay';
 import { prefixAdmin, ROUTES } from '../../../../constants/routes';
-import { refundAdminApi } from '../../../../api/refund.api';
+import { refundAdminApi } from "@/admin/features/refund/services/refundService";
 import { QUERY_KEYS } from '../../../../../constants/queryKeys';
 import { RefundRequestResponse } from '../../../../../types/refund.type';
 

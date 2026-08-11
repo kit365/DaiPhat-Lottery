@@ -18,9 +18,9 @@ import {
 } from "../../schemas/street-agent.schema";
 import { ROUTES } from "../../../../constants/routes";
 import { toast } from "react-toastify";
-import { Box, Alert } from "@mui/material";
+import { Alert, Box } from "@mui/material";
+import { uploadAdminImage } from "@/admin/shared/services/upload.service";
 import Link from "@/admin/components/navigation/AdminLink";
-import { uploadAdminImage } from "../../../../api/upload.api";
 import { Button } from "../../../../components/ui/Button";
 import { StreetAgentProfileForm } from "../sections/StreetAgentProfileForm";
 import { getStreetAgentOnboardingResumePath } from "../../services/streetAgentService";

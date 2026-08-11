@@ -4,7 +4,7 @@ import { Box } from '@mui/material';
 import { Control, FieldPath } from 'react-hook-form';
 import { useCallback } from 'react';
 import { FormUploadSingleFile } from '../../../../../components/upload/FormUploadSingleFile';
-import { uploadAdminImage } from '../../../../../api/upload.api';
+import { uploadAdminImage } from '@/admin/shared/services/upload.service';
 
 interface TicketSerialImageFieldProps {
     control: Control<any>;

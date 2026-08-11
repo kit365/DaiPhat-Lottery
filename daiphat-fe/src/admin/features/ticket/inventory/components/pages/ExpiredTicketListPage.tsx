@@ -1,9 +1,9 @@
 "use client";
 
-import {
-    DataGrid,
+import type {
     GridColDef,
 } from '@mui/x-data-grid';
+import { LazyDataGrid } from '@/admin/shared/data-grid/LazyDataGrid';
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import CircularProgress from '@mui/material/CircularProgress';
@@ -120,7 +120,7 @@ export const ExpiredTicketListPage = () => {
 
             <Card elevation={0} className="admin-datagrid-card">
                 <Box sx={{ width: '100%', flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-                    <DataGrid
+                    <LazyDataGrid
                         rows={expiredTickets || []}
                         getRowId={(row) => row.id || row._id}
                         columns={expiredColumns}

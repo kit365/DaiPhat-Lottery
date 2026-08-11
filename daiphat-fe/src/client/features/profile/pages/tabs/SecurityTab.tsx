@@ -3,8 +3,8 @@
 import React, { useState, useEffect } from 'react';
 import { Eye, EyeOff, Lock, CheckCircle2 } from "lucide-react";
 import { AppToast as toast } from "../../../../../utils/toast.util";
-import { authService } from "../../../../../admin/pages/authen/services/auth.service";
-import { PasswordPolicy } from "../../../../../admin/pages/authen/types/auth.type";
+import { authService } from "@/shared/auth/services/auth.service";
+import { PasswordPolicy } from "@/shared/auth/types/auth.type";
 import { PasswordStrengthMeter } from "../../../../components/auth/PasswordStrengthMeter";
 
 export const SecurityTab = () => {

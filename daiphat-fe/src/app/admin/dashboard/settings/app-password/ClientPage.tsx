@@ -1,6 +1,6 @@
-"use client";
+﻿"use client";
 
-import { AppPasswordSettingsPage } from '@/admin/pages/settings/AppPasswordSettingsPage';
+import { AppPasswordSettingsPage } from '@/admin/features/settings/components/pages/AppPasswordSettingsPage';
 
 import { createAdminClientPage } from '@/admin/lib/createAdminClientPage';
 import { PERMISSIONS } from '@/admin/constants/permission.constants';

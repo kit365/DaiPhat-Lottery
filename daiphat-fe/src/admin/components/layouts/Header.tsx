@@ -21,7 +21,7 @@ import { useState } from "react";
 import { toast } from 'react-toastify';
 import { motion } from "framer-motion";
 import { useAuthStore } from "../../../stores/useAuthStore";
-import { authService } from "../../pages/authen/services/auth.service";
+import { authService } from "@/admin/features/auth/services/auth.service";
 import { ROUTES } from "../../constants/routes";
 import { NotificationPopover } from "./NotificationPopover";
 import { STORAGE_KEYS } from "../../../constants/storage.constants";
