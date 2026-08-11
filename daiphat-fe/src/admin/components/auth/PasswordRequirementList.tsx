@@ -1,7 +1,7 @@
 import React from "react";
 import { Typography, Stack, Box } from "@mui/material";
 import { Icon } from '@/admin/components/ui/AdminIcon';
-import { PasswordPolicy } from "../../pages/authen/types/auth.type";
+import { PasswordPolicy } from "@/admin/features/auth/types/auth.type";
 
 interface Props {
     password?: string;

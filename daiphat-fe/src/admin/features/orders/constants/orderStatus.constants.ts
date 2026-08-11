@@ -1,14 +1,8 @@
-import { OrderStatus } from '../../../../types/order.type';
+import { OrderStatus } from '@/types/order.type';
 
-export type OrderStatusBadge = {
-    label: string;
-    color: string;
-    bg: string;
-    activeColor: string;
-    activeBg: string;
-};
+import type { OrderStatusBadge, OrderStatusTab } from '../types/orderStatus.type';
 
-export type OrderStatusTab = OrderStatusBadge & { value: string };
+export type { OrderStatusBadge, OrderStatusTab };
 
 export const ORDER_STATUS_BADGE: Record<string, OrderStatusBadge> = {
     [OrderStatus.PENDING_PAYMENT]: {
@@ -53,19 +47,6 @@ export const ORDER_STATUS_BADGE: Record<string, OrderStatusBadge> = {
         activeColor: 'var(--palette-error-contrastText)',
         activeBg: 'var(--palette-error-main)',
     },
-};
-
-const FALLBACK: OrderStatusBadge = {
-    label: '—',
-    color: 'var(--palette-text-disabled)',
-    bg: 'var(--palette-background-neutral)',
-    activeColor: 'var(--palette-common-white)',
-    activeBg: 'var(--palette-grey-800)',
-};
-
-export const getOrderStatusBadge = (status?: string): OrderStatusBadge => {
-    if (!status) return FALLBACK;
-    return ORDER_STATUS_BADGE[status] || { ...FALLBACK, label: status };
 };
 
 export const ORDER_STATUS_TABS: OrderStatusTab[] = [

@@ -32,7 +32,7 @@ import {
 import { useRoles } from "../../../role/hooks/useRole";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { accountAdminSchema } from "../../../../schemas/account-admin.schema";
+import { accountAdminSchema } from "@/admin/features/users/schemas/account-admin.schema";
 import { toast } from "react-toastify";
 import { Button } from '../../../../components/ui/Button';
 

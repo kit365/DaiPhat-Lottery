@@ -7,7 +7,7 @@ import { SpinnerLoading } from '../../../../components/ui/SpinnerLoading';
 import { useUpdateUser, useUserDetail, useDeleteUser } from "../../hooks/useUsers";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm, Controller } from "react-hook-form";
-import { accountUserSchema } from "../../../../schemas/account-user.schema";
+import { accountUserSchema } from "@/admin/features/users/schemas/account-user.schema";
 import { prefixAdmin } from '../../../../constants/routes';
 import { toast } from "react-toastify";
 import { useEffect, useRef, useState } from "react";

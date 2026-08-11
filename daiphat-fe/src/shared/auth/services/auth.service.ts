@@ -1,5 +1,5 @@
-import { apiApp } from '@/api';
-import type { LoginFormValues } from '@/admin/schemas/login.schema';
+﻿import { apiApp } from '@/api';
+import type { LoginFormValues } from '@/admin/features/auth/schemas/login.schema';
 import type {
     LoginResponse,
     GetMeResponse,

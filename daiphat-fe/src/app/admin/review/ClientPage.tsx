@@ -1,6 +1,6 @@
-"use client";
+﻿"use client";
 
-import { ReviewListPage } from '@/admin/pages/review/ReviewListPage';
+import { ReviewListPage } from '@/admin/features/review/components/pages/ReviewListPage';
 
 import { createAdminClientPage } from '@/admin/lib/createAdminClientPage';
 import { PERMISSIONS } from '@/admin/constants/permission.constants';

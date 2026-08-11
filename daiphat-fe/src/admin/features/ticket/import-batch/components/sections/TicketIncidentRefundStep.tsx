@@ -21,7 +21,7 @@ import { SpinnerLoading } from '../../../../../components/ui/SpinnerLoading';
 import dayjs from 'dayjs';
 import { useQueries } from '@tanstack/react-query';
 import { getOrderDetail } from '../../../../orders/services/orderService';
-import { getOrderStatusBadge } from '../../../../orders/constants/orderStatus.constants';
+import { getOrderStatusBadge } from '@/admin/features/orders/utils/orderStatusBadge';
 import { prefixAdmin } from '../../../../../constants/routes';
 import { OrderDetailStatus } from '../../../../../../types/order.type';
 import {

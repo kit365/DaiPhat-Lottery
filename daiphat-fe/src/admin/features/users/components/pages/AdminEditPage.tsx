@@ -8,7 +8,7 @@ import { useUpdateUser, useUserDetail, useDeleteUser, useUploadUserAvatar } from
 import { useRoles } from "../../../role/hooks/useRole";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm, Controller } from "react-hook-form";
-import { accountAdminSchema } from "../../../../schemas/account-admin.schema";
+import { accountAdminSchema } from "@/admin/features/users/schemas/account-admin.schema";
 import { prefixAdmin } from '../../../../constants/routes';
 import { toast } from "react-toastify";
 import { useEffect, useRef, useState } from "react";

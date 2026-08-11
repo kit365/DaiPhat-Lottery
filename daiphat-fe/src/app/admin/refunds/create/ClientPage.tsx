@@ -1,6 +1,6 @@
-"use client";
+﻿"use client";
 
-import { RefundCreatePage } from '@/admin/pages/refund/RefundCreatePage';
+import { RefundCreatePage } from '@/admin/features/refund/components/pages/RefundCreatePage';
 
 import { createAdminClientPage } from '@/admin/lib/createAdminClientPage';
 import { PERMISSIONS } from '@/admin/constants/permission.constants';

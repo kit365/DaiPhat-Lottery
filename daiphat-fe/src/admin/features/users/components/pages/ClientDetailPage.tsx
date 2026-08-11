@@ -24,7 +24,7 @@ import { useUserDetail, useUpdateUser, useDeleteUser } from "../../hooks/useUser
 import { UserStatus } from "../../../../../types/user.type";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { accountUserSchema } from "../../../../schemas/account-user.schema";
+import { accountUserSchema } from "@/admin/features/users/schemas/account-user.schema";
 import { toast } from "react-toastify";
 import { uploadImagesToCloudinary } from "@/admin/shared/services/uploadCloudinary.service";
 import { Button } from "../../../../components/ui/Button";

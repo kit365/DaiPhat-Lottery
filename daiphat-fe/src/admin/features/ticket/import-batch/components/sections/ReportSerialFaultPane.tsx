@@ -60,7 +60,7 @@ import {
 } from './TicketIncidentRefundStep';
 import { createPartialRefund } from '../../../../orders/services/orderService';
 import { refundAdminApi } from '@/admin/features/refund/services/refundService';
-import { getOrderStatusBadge } from '../../../../orders/constants/orderStatus.constants';
+import { getOrderStatusBadge } from '@/admin/features/orders/utils/orderStatusBadge';
 import { OrderStatus } from '../../../../../../types/order.type';
 import {
     formatRefundCurrency,

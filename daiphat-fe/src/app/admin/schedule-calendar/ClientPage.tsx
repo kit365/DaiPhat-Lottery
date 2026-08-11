@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import dynamic from "next/dynamic";
 import { Box, CircularProgress } from "@mui/material";
@@ -6,7 +6,7 @@ import { createAdminClientPage } from "@/admin/lib/createAdminClientPage";
 
 const ScheduleCalendarPage = dynamic(
     () =>
-        import("@/admin/pages/hr/ScheduleCalendarPage").then(
+        import("@/admin/features/hr/components/pages/ScheduleCalendarPage").then(
             (mod) => mod.ScheduleCalendarPage,
         ),
     {

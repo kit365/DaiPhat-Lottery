@@ -1,6 +1,6 @@
-"use client";
+﻿"use client";
 
-import { OrderStatisticsPage } from '@/admin/pages/dashboard/statistics/OrderStatisticsPage';
+import { OrderStatisticsPage } from '@/admin/features/dashboard/components/statistics/OrderStatisticsPage';
 
 import { createAdminClientPage } from '@/admin/lib/createAdminClientPage';
 import { PERMISSIONS } from '@/admin/constants/permission.constants';

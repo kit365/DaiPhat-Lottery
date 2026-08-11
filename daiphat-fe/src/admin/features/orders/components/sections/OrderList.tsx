@@ -36,7 +36,8 @@ import { useOrderDrawCutoff } from '../../hooks/useOrder';
 import { OrderCutoffReminderBanner } from './OrderCutoffReminderBanner';
 import { OrderHandoverConfirmDialog } from './OrderHandoverConfirmDialog';
 import { OrderStatus } from '../../../../../types/order.type';
-import { ORDER_STATUS_TABS, getOrderStatusBadge } from '../../constants/orderStatus.constants';
+import { ORDER_STATUS_TABS } from '../../constants/orderStatus.constants';
+import { getOrderStatusBadge } from '../../utils/orderStatusBadge';
 import {
     AdminRowActionsMenu,
     type AdminRowActionsMenuItem,

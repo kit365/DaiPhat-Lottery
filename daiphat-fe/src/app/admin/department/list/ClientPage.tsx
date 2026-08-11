@@ -1,6 +1,6 @@
-"use client";
+﻿"use client";
 
-import { DepartmentListPage } from '@/admin/pages/hr/DepartmentListPage';
+import { DepartmentListPage } from '@/admin/features/hr/components/pages/DepartmentListPage';
 
 import { createAdminClientPage } from '@/admin/lib/createAdminClientPage';
 
