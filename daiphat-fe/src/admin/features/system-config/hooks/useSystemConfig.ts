@@ -1,7 +1,11 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { getSystemConfigs, updateSystemConfig } from '../services/systemConfigService';
+import {
+    bulkUpdateVendorConfidencePolicy,
+    getSystemConfigs,
+    updateSystemConfig,
+} from '../services/systemConfigService';
 import { ConfigType, UpdateSystemConfigRequest } from '../types/system-config';
 
 export const SYSTEM_CONFIG_KEYS = {
@@ -24,6 +28,17 @@ export const useUpdateSystemConfig = () => {
     return useMutation({
         mutationFn: ({ id, data }: { id: number; data: UpdateSystemConfigRequest }) =>
             updateSystemConfig(id, data),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: SYSTEM_CONFIG_KEYS.all });
+        },
+    });
+};
+
+export const useBulkUpdateVendorConfidencePolicy = () => {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: (values: Record<string, string>) => bulkUpdateVendorConfidencePolicy(values),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: SYSTEM_CONFIG_KEYS.all });
         },

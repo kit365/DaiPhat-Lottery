@@ -24,6 +24,7 @@ import com.daiphat.coreapi.domain.exception.ErrorCode;
 import com.daiphat.coreapi.domain.model.UserModel;
 import com.daiphat.coreapi.domain.model.auth.AuthToken;
 import com.daiphat.coreapi.domain.model.auth.OAuthUserInfo;
+import com.daiphat.coreapi.domain.model.enums.auth.RoleConstants;
 import com.daiphat.coreapi.domain.model.enums.user.UserStatus;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -61,11 +62,12 @@ public class LoginService implements LoginServicePort {
             throw new DomainException(ErrorCode.INVALID_CREDENTIALS);
         }
 
+        ensureStreetAgentCannotAuthenticate(user);
         if (!passwordHashPort.matches(request.password(), user.getPassword())) {
             throw new DomainException(ErrorCode.INVALID_CREDENTIALS);
         }
 
-        user.validateLoginEligibility();
+        validateInteractiveLoginEligibility(user);
         return issueTokensAndStoreRefreshToken(user);
     }
 
@@ -75,12 +77,15 @@ public class LoginService implements LoginServicePort {
         OAuthUserInfo googleUser = googleOAuthPort.verify(request);
 
         GoogleLoginResult loginResult = userRepositoryPort.findByEmail(googleUser.email())
-                .map(existing -> synchronizeGoogleUser(existing, googleUser))
+                .map(existing -> {
+                    ensureStreetAgentCannotAuthenticate(existing);
+                    return synchronizeGoogleUser(existing, googleUser);
+                })
                 .orElseGet(() -> provisionGoogleUser(googleUser));
 
         UserModel user = loginResult.user();
 
-        user.validateLoginEligibility();
+        validateInteractiveLoginEligibility(user);
         if (loginResult.shouldLinkGuestOrders()) {
             eventPublisher.publishEvent(UserGuestOrdersLinkRequestedEvent.builder()
                     .userId(user.getId())
@@ -110,10 +115,11 @@ public class LoginService implements LoginServicePort {
         UserModel user = userLookupService.findByUsername(username)
                 .orElseThrow(() -> new DomainException(ErrorCode.INVALID_CREDENTIALS));
 
+        ensureStreetAgentCannotAuthenticate(user);
         if (!tokenProviderPort.isRefreshTokenValidForUser(request.refreshToken(), user)) {
             throw new DomainException(ErrorCode.REFRESH_TOKEN_EXPIRED);
         }
-        user.validateLoginEligibility();
+        validateInteractiveLoginEligibility(user);
         AuthToken token = issueTokens(user);
         boolean rotated = refreshTokenStorePort.rotate(
                 user.getId(),
@@ -147,6 +153,18 @@ public class LoginService implements LoginServicePort {
         AuthToken token = issueTokens(user);
         refreshTokenStorePort.save(user.getId(), token.refreshToken(), Duration.ofSeconds(token.refreshExpiresIn()));
         return authApplicationMapper.toResponse(token);
+    }
+
+    private void validateInteractiveLoginEligibility(UserModel user) {
+        ensureStreetAgentCannotAuthenticate(user);
+        user.validateLoginEligibility();
+    }
+
+    private void ensureStreetAgentCannotAuthenticate(UserModel user) {
+        if (user.getRole() != null
+                && RoleConstants.ROLE_STREET_AGENT.equals(user.getRole().getCode())) {
+            throw new DomainException(ErrorCode.USER_INACTIVE);
+        }
     }
 
     private AuthToken issueTokens(UserModel user) {

@@ -7,6 +7,7 @@ import com.daiphat.coreapi.application.dto.request.lotteries.AttachReturnSerials
 import com.daiphat.coreapi.application.dto.request.lotteries.ConfirmReturnHandoverRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.ConfirmReturnInspectionRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.UpdateReturnBatchLineStatusRequest;
+import com.daiphat.coreapi.application.dto.request.lotteries.UpdateReturnEvidenceRequest;
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.InspectableReturnSerialResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.ReturnBatchResponse;
@@ -14,6 +15,7 @@ import com.daiphat.coreapi.application.port.in.lotteries.ReturnBatchServicePort;
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
 import com.daiphat.coreapi.domain.model.enums.lottery.ReturnBatchStatus;
+import com.daiphat.coreapi.domain.model.enums.lottery.ReturnBatchType;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -67,6 +69,7 @@ public class ReturnBatchController {
             @RequestParam(defaultValue = DEFAULT_LIMIT) int size,
             @RequestParam(required = false) Long lotterySupplierId,
             @RequestParam(required = false) Long supplierSettlementId,
+            @RequestParam(defaultValue = "SUPPLIER_RETURN") ReturnBatchType returnBatchType,
             @RequestParam(required = false) ReturnBatchStatus status,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate drawDateFrom,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate drawDateTo,
@@ -81,6 +84,7 @@ public class ReturnBatchController {
                         size,
                         lotterySupplierId,
                         supplierSettlementId,
+                        returnBatchType,
                         status,
                         drawDateFrom,
                         drawDateTo,
@@ -130,7 +134,7 @@ public class ReturnBatchController {
                 "Đã xác nhận bàn giao vé trả nhà cung cấp.",
                 returnBatchServicePort.confirmHandover(
                         id,
-                        request != null ? request : new ConfirmReturnHandoverRequest(null),
+                        request != null ? request : new ConfirmReturnHandoverRequest(null, null),
                         principal.getId()
                 )
         );
@@ -172,6 +176,21 @@ public class ReturnBatchController {
         return ApiResponse.success(
                 "Cập nhật trạng thái dòng trả vé thành công.",
                 returnBatchServicePort.updateLineStatus(batchId, lineId, request)
+        );
+    }
+
+    @PostMapping("/{id}/evidence")
+    @PreAuthorize("hasAnyAuthority('importBatch:create')")
+    public ApiResponse<ReturnBatchResponse> updateEvidenceUrl(
+            @PathVariable Long id,
+            @RequestBody UpdateReturnEvidenceRequest request
+    ) {
+        return ApiResponse.success(
+                "Đã cập nhật ảnh biên lai trả vé thành công.",
+                returnBatchServicePort.updateEvidenceUrl(
+                        id,
+                        request != null ? request.returnReceiptEvidenceUrl() : null
+                )
         );
     }
 }

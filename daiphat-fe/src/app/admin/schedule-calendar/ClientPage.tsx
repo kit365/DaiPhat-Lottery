@@ -1,10 +1,31 @@
-"use client";
+﻿"use client";
 
-import { ScheduleCalendarPage } from '@/admin/pages/hr/ScheduleCalendarPage';
+import dynamic from "next/dynamic";
+import { Box, CircularProgress } from "@mui/material";
+import { createAdminClientPage } from "@/admin/lib/createAdminClientPage";
 
-import { createAdminClientPage } from '@/admin/lib/createAdminClientPage';
+const ScheduleCalendarPage = dynamic(
+    () =>
+        import("@/admin/features/hr/components/pages/ScheduleCalendarPage").then(
+            (mod) => mod.ScheduleCalendarPage,
+        ),
+    {
+        ssr: false,
+        loading: () => (
+            <Box
+                sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    minHeight: 480,
+                }}
+            >
+                <CircularProgress />
+            </Box>
+        ),
+    },
+);
 
 export const ClientPage = createAdminClientPage({
-  component: ScheduleCalendarPage,
-  
+    component: ScheduleCalendarPage,
 });

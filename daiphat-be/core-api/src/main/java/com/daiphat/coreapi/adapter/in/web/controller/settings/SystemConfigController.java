@@ -2,6 +2,7 @@ package com.daiphat.coreapi.adapter.in.web.controller.settings;
 
 import com.daiphat.coreapi.adapter.in.web.constants.ApiConstants;
 import com.daiphat.coreapi.adapter.in.web.response.ApiResponse;
+import com.daiphat.coreapi.application.dto.request.settings.BulkUpdateVendorConfidencePolicyRequest;
 import com.daiphat.coreapi.application.dto.request.settings.UpdateSystemConfigRequest;
 import com.daiphat.coreapi.application.dto.response.settings.SystemConfigResponse;
 import com.daiphat.coreapi.application.port.in.settings.SystemConfigServicePort;
@@ -38,5 +39,14 @@ public class SystemConfigController {
             @PathVariable Long id,
             @Valid @RequestBody UpdateSystemConfigRequest request) {
         return ApiResponse.success("Cập nhật cấu hình thành công.", systemConfigServicePort.update(id, request));
+    }
+
+    @PutMapping("/vendor-confidence-policy")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'settings:edit')")
+    public ApiResponse<List<SystemConfigResponse>> bulkUpdateVendorConfidencePolicy(
+            @Valid @RequestBody BulkUpdateVendorConfidencePolicyRequest request) {
+        return ApiResponse.success(
+                "Cập nhật bộ cấu hình confidence thành công.",
+                systemConfigServicePort.bulkUpdateVendorConfidencePolicy(request));
     }
 }

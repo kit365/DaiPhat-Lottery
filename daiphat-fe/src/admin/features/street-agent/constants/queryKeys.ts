@@ -1,6 +1,9 @@
 export const QUERY_KEYS = {
     STREET_AGENT_PROFILES: 'street-agent-profiles',
     STREET_AGENT_PROFILE_DETAIL: 'street-agent-profile',
+    STREET_AGENT_CONFIDENCE: 'street-agent-confidence',
+    STREET_AGENT_DAILY_SALES_REPORTS: 'street-agent-daily-sales-reports',
+    DAILY_SALES_REPORT_DETAIL: 'daily-sales-report-detail',
     LUCKY_PATTERN_CONFIGS: 'lucky-pattern-configs',
     VENDOR_ALLOCATION_CANDIDATES: 'vendor-allocation-candidates',
     VENDOR_ALLOCATION_SUGGESTION: 'vendor-allocation-suggestion',
@@ -8,4 +11,5 @@ export const QUERY_KEYS = {
     VENDOR_ALLOCATION_OPEN: 'vendor-allocation-open',
     VENDOR_ALLOCATION_LIST: 'vendor-allocation-list',
     VENDOR_ALLOCATION_SETTLEMENT_PREVIEW: 'vendor-allocation-settlement-preview',
+    VENDOR_ALLOCATION_CONFIRMATION_QUOTE: 'vendor-allocation-confirmation-quote',
 } as const;

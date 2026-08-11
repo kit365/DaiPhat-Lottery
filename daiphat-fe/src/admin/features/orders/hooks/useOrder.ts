@@ -19,6 +19,8 @@ import { SYSTEM_CONFIG_KEYS } from '../../system-config/hooks/useSystemConfig';
 import { useAuthStore } from '../../../../stores/useAuthStore';
 import { hasPermission } from '../../../utils/permission.util';
 import { PERMISSIONS } from '../../../constants/permission.constants';
+import { ADMIN_BADGE_POLL_MS } from '../../../hooks/adminBadgePoll';
+import { useAdminDeferredQueries } from '../../../hooks/useAdminDeferredQueries';
 
 type AdminOrderListFilters = OrderFilterParams & { limit?: number };
 
@@ -176,19 +178,20 @@ export const useCreateOrder = () => {
 /** Polls statusCounts for the sidebar PREPARING badge. */
 export const usePreparingOrderCount = () => {
     const { user, token } = useAuthStore();
+    const deferred = useAdminDeferredQueries();
     const canView = Boolean(token) && Boolean(user) && hasPermission(user, PERMISSIONS.ORDER.VIEW);
 
     const query = useQuery({
         queryKey: [GLOBAL_QUERY_KEYS.ADMIN_ORDERS, 'preparing-count'],
         queryFn: () => getOrders({ page: 1, size: 1 }, { skipGlobalErrorToast: true }),
-        enabled: canView,
-        refetchOnWindowFocus: canView,
+        enabled: canView && deferred,
+        refetchOnWindowFocus: canView && deferred,
         refetchInterval: (q) => {
-            if (!canView) return false;
+            if (!canView || !deferred) return false;
             if (q.state.error) return false;
-            return 30_000;
+            return ADMIN_BADGE_POLL_MS;
         },
-        staleTime: 15_000,
+        staleTime: ADMIN_BADGE_POLL_MS / 2,
         retry: false,
     });
 

@@ -7,7 +7,7 @@
 | 1 | `StreetAgentProfile.user_id` | **nullable + unique** (0..1). Target `NOT NULL` sau wire create-flow | `@OneToOne` + `unique`; cột nullable |
 | 2 | Skeleton `agent_id` | **BIGINT → `street_agent_profiles.id`** (không trỏ `users`) | Settlement / deposit / report → `StreetAgentProfileEntity` |
 | 3 | `AgentSettlement` value fields | **Một** field `returnedValue` / `returned_value` (không thêm `returnValue`) | Entity + SQL khớp |
-| 4 | `DailySalesReportDetail.detailId` | **BIGINT nullable, không FK** | `@Column` Long; SQL không `REFERENCES` |
+| 4 | `DailySalesReportDetail.detailId` | **FK → `allocation_batch_details.id`** (Phase 4 chốt) | `@ManyToOne AllocationBatchDetailEntity`; unique `(report_id, detail_id)` |
 
 Operator `collected_by` / `confirmed_by` = UUID → `users.id` (UUID thuần, chưa map `UserEntity`).
 

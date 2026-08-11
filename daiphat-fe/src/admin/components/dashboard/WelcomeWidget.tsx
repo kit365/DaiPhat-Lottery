@@ -13,7 +13,9 @@ const WelcomeWidget = ({ title, description, img, bgImg, action }: WelcomeWidget
     return (
         <Box
             sx={{
-                backgroundImage: `linear-gradient(to right, rgba(var(--palette-grey-900Channel) / 88%) 0%, var(--palette-grey-900) 75%), url(${bgImg})`,
+                backgroundImage: bgImg
+                    ? `linear-gradient(to right, rgba(var(--palette-grey-900Channel) / 88%) 0%, var(--palette-grey-900) 75%), url(${bgImg})`
+                    : 'linear-gradient(to right, rgba(var(--palette-grey-900Channel) / 88%) 0%, var(--palette-grey-900) 75%)',
                 backgroundSize: 'cover',
                 backgroundRepeat: 'no-repeat',
                 backgroundPosition: 'center center',

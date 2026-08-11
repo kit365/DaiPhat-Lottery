@@ -1,12 +1,12 @@
 "use client";
 
+import Link from "next/link";
 import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { CheckCircle2 } from "lucide-react";
 import { useAuth } from "../../hooks/useAuth";
 import { useAuthStore } from "../../../stores/useAuthStore";
-import { useForgotPassword } from "../../../admin/pages/authen/hooks/use-forgot-password";
+import { useForgotPassword } from "@/shared/auth/hooks/useForgotPassword";
 import { PasswordStrengthMeter } from "./PasswordStrengthMeter";
 import { GoogleIcon, VisualPanelContent, AuthBranding } from "./SharedAuth";
 import { redirectToGoogleOAuth } from "../../utils/google-oauth.util";

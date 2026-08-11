@@ -1,63 +1,58 @@
 "use client";
 
-'use client';
-
+import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
+import { useRouteParams } from "@/hooks/useRouteParams";
 import React from 'react';
 import {
-    IconButton,
-    Typography,
     Box,
+    Button,
+    Card,
+    Checkbox,
+    CircularProgress,
+    Dialog,
+    DialogContent,
+    FormControl,
+    IconButton,
+    MenuItem,
+    Select,
+    Stack,
     Table,
     TableBody,
     TableCell,
     TableContainer,
     TableHead,
     TableRow,
-    Paper,
-    Chip,
-    Stack,
-    CircularProgress,
-    Grid,
-    LinearProgress,
-    Button,
-    Checkbox,
-    TextField,
-    InputAdornment,
-    Select,
-    MenuItem,
-    FormControl,
-    Tooltip,
-    Dialog,
-    DialogContent
+    Typography,
 } from '@mui/material';
-import { AppToast } from '../../../../../../utils/toast.util';
-import ArrowBackIcon from '@mui/icons-material/ArrowBack';
-import SearchIcon from '@mui/icons-material/Search';
-import { useQueryClient } from '@tanstack/react-query';
-import { useParams, useNavigate } from '@/components/router-compat';
-import { QUERY_KEYS } from '../../../inventory/constants/queryKeys';
-import { ReportSerialFaultPane } from '../sections/ReportSerialFaultPane';
-import ReportProblemIcon from '@mui/icons-material/ReportProblem';
-import ConfirmationNumberIcon from '@mui/icons-material/ConfirmationNumber';
-import StorefrontIcon from '@mui/icons-material/Storefront';
-import LabelIcon from '@mui/icons-material/Label';
-import CheckCircleIcon from '@mui/icons-material/CheckCircle';
-import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
-import CloudUploadIcon from '@mui/icons-material/CloudUpload';
-import ShowChartIcon from '@mui/icons-material/ShowChart';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
+import ReportProblemIcon from '@mui/icons-material/ReportProblem';
+import { useQueryClient } from '@tanstack/react-query';
 import dayjs from 'dayjs';
-import { useImportBatchDetail } from '../../hooks/useImportBatch';
-import { useStations } from '../../../../station/hooks/useStation';
-import { useTicketInventory } from '../../../inventory/hooks/useTicketInventory';
-import { getTicketStatusLabel, normalizeTicketStatus } from '../../../inventory/constants/ticket-status.config';
-import { displayImportBatchLineCodeRaw, formatImportBatchHeaderCode } from '../../utils/importBatchCode';
-import { formatImportCost } from '../../utils/importCostCalculator';
-import { getBatchTypeBadgeClass, getBatchTypeLabel, getImportBatchLineStatusChipColor, getImportBatchLineStatusLabel } from '../../utils/batchTypeLabels';
+import { PageHeader } from '../../../../../components/ui/PageHeader';
+import { SpinnerLoading } from '../../../../../components/ui/SpinnerLoading';
 import { AdminStatusBadge } from '../../../../../components/ui/AdminStatusBadge';
-import { ROUTES } from '../../../../../constants/routes';
-import { Breadcrumb } from '../../../../../components/ui/Breadcrumb';
+import { Search } from '../../../../../components/ui/Search';
+import { prefixAdmin, ROUTES } from '../../../../../constants/routes';
+import { QUERY_KEYS } from '../../../inventory/constants/queryKeys';
+import { getTicketStatusLabel, normalizeTicketStatus } from '../../../inventory/constants/ticket-status.config';
+import { useTicketInventory } from '../../../inventory/hooks/useTicketInventory';
+import { useStations } from '../../../../station/hooks/useStation';
+import { LazyReportSerialFaultPane } from '../sections/LazyReportSerialFaultPane';
+import { TicketImportProgressTrack } from '../sections/TicketImportProgressTrack';
+import { useImportBatchDetail } from '../../hooks/useImportBatch';
+import {
+    displayImportBatchLineCodeRaw,
+    formatImportBatchHeaderCode,
+    importBatchCodeMonospaceSx,
+} from '../../utils/importBatchCode';
+import { formatVnd } from '../../utils/importCostCalculator';
+import {
+    getBatchTypeBadgeClass,
+    getBatchTypeLabel,
+    getImportBatchLineStatusBadgeClass,
+    getImportBatchLineStatusLabel,
+} from '../../utils/batchTypeLabels';
 import {
     buildCancelFlowStatusFilterOptions,
     getCancelFlowTicketStatusLabel,
@@ -67,10 +62,41 @@ import {
 } from '../../utils/cancelTicketSelection';
 import { isSerialIncidentEligible } from '../../utils/serialIncidentWorkflow';
 
+const ticketNumberSx = {
+    fontWeight: 700,
+    fontSize: '0.875rem',
+    fontVariantNumeric: 'tabular-nums',
+    letterSpacing: '0.04em',
+    color: 'var(--palette-text-primary)',
+} as const;
+
+const LineDetailInfoItem = ({
+    label,
+    value,
+    monospace,
+}: {
+    label: string;
+    value: string;
+    monospace?: boolean;
+}) => (
+    <Box>
+        <Typography className="admin-form-label" display="block" sx={{ mb: 0.5 }}>
+            {label}
+        </Typography>
+        <Typography
+            variant="body1"
+            fontWeight={700}
+            color="text.primary"
+            sx={monospace ? importBatchCodeMonospaceSx : undefined}
+        >
+            {value}
+        </Typography>
+    </Box>
+);
+
 const getTicketStatusBadgeClass = (status?: string | null): string => {
     const normalized = normalizeTicketStatus(status);
     switch (normalized) {
-        // Ticket aggregate statuses
         case 'IN_STOCK':
             return 'admin-status-badge--active';
         case 'IMPORTING':
@@ -78,7 +104,6 @@ const getTicketStatusBadgeClass = (status?: string | null): string => {
         case 'SOLD_OUT':
         case 'EXPIRED':
             return 'admin-status-badge--inactive';
-        // Serial statuses (nested rows reuse this helper)
         case 'SOLD':
             return 'admin-status-badge--success';
         case 'RESERVED':
@@ -89,9 +114,25 @@ const getTicketStatusBadgeClass = (status?: string | null): string => {
         case 'VOIDED':
             return 'admin-status-badge--inactive';
         default:
-            // Unknown / legacy cached values
             return 'admin-status-badge--draft';
     }
+};
+
+const getTicketConditionBadge = (condition?: string | null) => {
+    const normalized = (condition || 'GOOD').toUpperCase();
+    if (normalized === 'GOOD') {
+        return { className: 'admin-status-badge--success', label: 'Tốt' };
+    }
+    if (normalized === 'DAMAGED') {
+        return { className: 'admin-status-badge--inactive', label: 'Hỏng' };
+    }
+    if (normalized === 'LOST') {
+        return { className: 'admin-status-badge--inactive', label: 'Thất lạc' };
+    }
+    if (normalized === 'VOIDED') {
+        return { className: 'admin-status-badge--inactive', label: 'Đã hủy' };
+    }
+    return { className: 'admin-status-badge--pending', label: condition || '—' };
 };
 
 const getSerialDisplayBadge = (serial: {
@@ -115,226 +156,192 @@ const getSerialDisplayBadge = (serial: {
     };
 };
 
-const CollapsibleRow = ({ 
-    ticket, 
-    index, 
-    stationName,
-    cancelMode,
-    selectedSerials,
-    onSelectTicket,
-    onSelectSerial
-}: { 
-    ticket: any; 
-    index: number; 
-    stationName: string;
+type CollapsibleRowProps = {
+    ticket: any;
+    index: number;
     cancelMode: 'NONE' | 'TICKET' | 'SERIAL';
     selectedSerials: any[];
     onSelectTicket: (ticket: any, checked: boolean) => void;
     onSelectSerial: (ticket: any, serial: any, checked: boolean) => void;
-}) => {
+};
+
+const CollapsibleRow = ({
+    ticket,
+    index,
+    cancelMode,
+    selectedSerials,
+    onSelectTicket,
+    onSelectSerial,
+}: CollapsibleRowProps) => {
     const [open, setOpen] = React.useState(false);
     const ticketSelectable = isTicketSelectableForCancel(ticket.status);
-    const statusLabel = getCancelFlowTicketStatusLabel(ticket.status, ticket.statusDisplayName || getTicketStatusLabel(ticket.status));
+    const statusLabel = getCancelFlowTicketStatusLabel(
+        ticket.status,
+        ticket.statusDisplayName || getTicketStatusLabel(ticket.status)
+    );
+    const conditionBadge = getTicketConditionBadge(ticket.ticketCondition);
 
     const cancelableSerials = React.useMemo(() => {
         if (!ticketSelectable) {
             return [];
         }
-        return (ticket.serials || []).filter((s: any) => isSerialIncidentEligible(s));
+        return (ticket.serials || []).filter((serial: any) => isSerialIncidentEligible(serial));
     }, [ticket.serials, ticketSelectable]);
 
     const cancelableCount = cancelableSerials.length;
-    const selectedCount = React.useMemo(() => {
-        return cancelableSerials.filter((s: any) => 
-            selectedSerials.some(x => String(x.id) === String(s.id))
-        ).length;
-    }, [cancelableSerials, selectedSerials]);
+    const selectedCount = React.useMemo(
+        () =>
+            cancelableSerials.filter((serial: any) =>
+                selectedSerials.some((item) => String(item.id) === String(serial.id))
+            ).length,
+        [cancelableSerials, selectedSerials]
+    );
 
     const isTicketChecked = cancelableCount > 0 && selectedCount === cancelableCount;
     const isTicketIndeterminate = selectedCount > 0 && selectedCount < cancelableCount;
 
+    const toggleOpen = () => setOpen((prev) => !prev);
+
     return (
         <React.Fragment>
-            <TableRow 
-                sx={{ 
-                    '& > *': { borderBottom: 'unset' },
-                    cursor: 'pointer',
-                    '&:hover': { bgcolor: '#f8fafc' }, 
-                    transition: 'background-color 0.15s ease'
-                }}
-            >
-                <TableCell sx={{ width: 40, py: 1.5 }}>
-                    <IconButton
-                        aria-label="expand row"
-                        size="small"
-                        onClick={() => setOpen(!open)}
-                    >
-                        {open ? <KeyboardArrowUpIcon /> : <KeyboardArrowDownIcon />}
+            <TableRow hover className={open ? 'admin-table-row-expanded' : undefined}>
+                <TableCell sx={{ width: 40 }}>
+                    <IconButton aria-label="Mở rộng dòng" size="small" onClick={toggleOpen}>
+                        {open ? <KeyboardArrowUpIcon fontSize="small" /> : <KeyboardArrowDownIcon fontSize="small" />}
                     </IconButton>
                 </TableCell>
-                <TableCell sx={{ width: 40, py: 1.5 }} align="center">
+                <TableCell align="center" sx={{ width: 48 }}>
                     <Checkbox
                         size="small"
                         disabled={!ticketSelectable || cancelableCount === 0}
                         checked={isTicketChecked}
                         indeterminate={isTicketIndeterminate}
-                        onChange={(e) => onSelectTicket(ticket, e.target.checked)}
+                        onChange={(event) => onSelectTicket(ticket, event.target.checked)}
+                        sx={{ color: 'var(--palette-text-disabled)', p: 0 }}
                     />
                 </TableCell>
-                <TableCell sx={{ py: 1.5 }} align="center" onClick={() => setOpen(!open)}>
-                    <Typography variant="body2" fontWeight={700} color="text.secondary">
-                        {index + 1}
-                    </Typography>
+                <TableCell align="center" onClick={toggleOpen}>
+                    <span className="admin-cell-text">{index + 1}</span>
                 </TableCell>
-                <TableCell sx={{ py: 1.5 }} onClick={() => setOpen(!open)}>
-                    <Typography variant="body2" fontWeight={600} color="text.primary">
-                        {stationName || '—'}
-                    </Typography>
-                </TableCell>
-                <TableCell component="th" scope="row" sx={{ py: 1.5 }} onClick={() => setOpen(!open)}>
-                    <Typography 
-                        variant="body1" 
-                        fontWeight={800} 
-                        color="primary.main" 
-                        sx={{ 
-                            letterSpacing: '1px', 
-                            fontSize: '1.05rem',
-                            fontFamily: 'monospace'
-                        }}
-                    >
+                <TableCell onClick={toggleOpen}>
+                    <Typography className="admin-cell-title" sx={ticketNumberSx}>
                         {ticket.numbers}
                     </Typography>
                 </TableCell>
-                <TableCell sx={{ py: 1.5 }} onClick={() => setOpen(!open)}>
-                    <Typography variant="caption" color="text.secondary" fontWeight={600}>
+                <TableCell onClick={toggleOpen}>
+                    <span className="admin-cell-text">
                         {ticket.serials?.length ? `${ticket.serials.length} sê-ri` : '—'}
-                    </Typography>
-                </TableCell>
-                <TableCell sx={{ py: 1.5 }} align="center" onClick={() => setOpen(!open)}>
-                    <span className={`admin-status-badge ${getTicketStatusBadgeClass(ticket.status)}`.trim()}>
-                        {statusLabel}
                     </span>
                 </TableCell>
-                <TableCell sx={{ py: 1.5 }} align="center" onClick={() => setOpen(!open)}>
-                    <Chip
-                        label="Tốt"
-                        size="small"
-                        variant="outlined"
-                        color="success"
-                        sx={{ height: 22, fontSize: '0.7rem', fontWeight: 600 }}
-                    />
+                <TableCell align="center" onClick={toggleOpen}>
+                    <AdminStatusBadge label={statusLabel} modifier={getTicketStatusBadgeClass(ticket.status)} />
                 </TableCell>
-                <TableCell sx={{ py: 1.5 }} align="right" onClick={() => setOpen(!open)}>
-                    <Typography variant="body2" color="text.secondary" fontWeight={500}>
-                        {formatImportCost(ticket.priceSnapshot || 10000)} VNĐ
-                    </Typography>
+                <TableCell align="center" onClick={toggleOpen}>
+                    <AdminStatusBadge label={conditionBadge.label} modifier={conditionBadge.className} />
                 </TableCell>
-                <TableCell sx={{ py: 1.5 }} align="right" onClick={() => setOpen(!open)}>
-                    <Typography variant="body2" fontWeight={600} color="#0F172A">
-                        {formatImportCost(ticket.importCostSnapshot || ticket.priceSnapshot || 10000)} VNĐ
-                    </Typography>
+                <TableCell align="center" onClick={toggleOpen}>
+                    <span className="admin-cell-text">
+                        {formatVnd(ticket.priceSnapshot || 10000)}
+                    </span>
+                </TableCell>
+                <TableCell align="center" onClick={toggleOpen}>
+                    <span className="admin-cell-title">
+                        {formatVnd(ticket.importCostSnapshot || ticket.priceSnapshot || 10000)}
+                    </span>
                 </TableCell>
             </TableRow>
-            {open && ticket.serials && ticket.serials.length > 0 ? (
-                ticket.serials.map((s: any, sIndex: number) => {
-                    const serialBadge = getSerialDisplayBadge(s);
-                    const isSerialChecked = selectedSerials.some(x => String(x.id) === String(s.id));
 
-                    return (
-                        <TableRow 
-                            key={s.id} 
-                            sx={{ 
-                                bgcolor: '#f8fafc',
-                                '&:hover': { bgcolor: '#f1f5f9' },
-                                transition: 'background-color 0.15s ease',
-                                cursor: 'pointer'
-                            }}
-                        >
-                            <TableCell sx={{ width: 40, py: 1 }} />
-                            <TableCell sx={{ width: 40, py: 1 }} align="center">
-                                <Checkbox
-                                    size="small"
-                                    checked={isSerialChecked}
-                                    disabled={!ticketSelectable || !isSerialIncidentEligible(s)}
-                                    onChange={(e) => onSelectSerial(ticket, s, e.target.checked)}
-                                />
-                            </TableCell>
-                            <TableCell align="center" sx={{ py: 1 }} onClick={() => onSelectSerial(ticket, s, !isSerialChecked)}>
-                                <Typography variant="caption" fontWeight={600} color="text.secondary">
-                                    {`${index + 1}.${sIndex + 1}`}
-                                </Typography>
-                            </TableCell>
-                            <TableCell sx={{ py: 1 }} onClick={() => onSelectSerial(ticket, s, !isSerialChecked)}>
-                                <Typography variant="body2" color="text.secondary">
-                                    {stationName || '—'}
-                                </Typography>
-                            </TableCell>
-                            <TableCell sx={{ py: 1 }} onClick={() => onSelectSerial(ticket, s, !isSerialChecked)}>
-                                <Typography variant="body2" fontWeight={600} color="text.secondary">
-                                    {ticket.numbers}
-                                </Typography>
-                            </TableCell>
-                            <TableCell sx={{ py: 1 }} onClick={() => cancelMode === 'SERIAL' && onSelectSerial(ticket, s, !isSerialChecked)}>
-                                <Typography 
-                                    variant="body2" 
-                                    sx={{ 
-                                        fontFamily: 'monospace', 
-                                        fontWeight: 600,
-                                        color: '#334155',
-                                        bgcolor: '#FFFFFF',
-                                        px: 1,
-                                        py: 0.25,
-                                        borderRadius: 1,
-                                        border: '1px solid #E2E8F0',
-                                        display: 'inline-block'
-                                    }}
-                                >
-                                    {s.serialNumber}
-                                </Typography>
-                            </TableCell>
-                            <TableCell align="center" sx={{ py: 1 }} onClick={() => cancelMode === 'SERIAL' && onSelectSerial(ticket, s, !isSerialChecked)}>
-                                <span className={`admin-status-badge ${serialBadge.className}`.trim()} style={{ fontSize: '0.7rem', height: '1.25rem' }}>
-                                    {serialBadge.label}
-                                </span>
-                            </TableCell>
-                            <TableCell align="center" sx={{ py: 1 }} onClick={() => cancelMode === 'SERIAL' && onSelectSerial(ticket, s, !isSerialChecked)}>
-                                <Chip
-                                    label={s.ticketCondition === 'GOOD' || !s.ticketCondition ? 'Tốt' : s.ticketCondition}
-                                    size="small"
-                                    variant="outlined"
-                                    color={s.ticketCondition === 'GOOD' || !s.ticketCondition ? 'success' : 'warning'}
-                                    sx={{ height: 22, fontSize: '0.7rem', fontWeight: 600 }}
-                                />
-                            </TableCell>
-                            <TableCell align="right" sx={{ py: 1 }} onClick={() => cancelMode === 'SERIAL' && onSelectSerial(ticket, s, !isSerialChecked)}>
-                                <Typography variant="body2" color="text.secondary" fontWeight={500}>
-                                    {formatImportCost(s.ticketPrice ?? ticket.priceSnapshot ?? 10000)} VNĐ
-                                </Typography>
-                            </TableCell>
-                            <TableCell align="right" sx={{ py: 1 }} onClick={() => cancelMode === 'SERIAL' && onSelectSerial(ticket, s, !isSerialChecked)}>
-                                <Typography variant="body2" fontWeight={600} color="#0F172A">
-                                    {formatImportCost(s.importCost ?? ticket.importCostSnapshot ?? ticket.priceSnapshot ?? 10000)} VNĐ
-                                </Typography>
-                            </TableCell>
-                        </TableRow>
-                    );
-                })
-            ) : open ? (
-                <TableRow sx={{ bgcolor: '#f8fafc' }}>
-                    <TableCell sx={{ width: 40, py: 1 }} />
-                    <TableCell sx={{ width: 40, py: 1 }} />
-                    <TableCell colSpan={8} sx={{ py: 2, px: 4, color: 'text.secondary', fontStyle: 'italic', fontSize: '0.825rem' }}>
-                        Không có số sê-ri nào được gán
-                    </TableCell>
-                </TableRow>
-            ) : null}
+            {open && ticket.serials && ticket.serials.length > 0
+                ? ticket.serials.map((serial: any, serialIndex: number) => {
+                      const serialBadge = getSerialDisplayBadge(serial);
+                      const serialCondition = getTicketConditionBadge(serial.ticketCondition);
+                      const isSerialChecked = selectedSerials.some(
+                          (item) => String(item.id) === String(serial.id)
+                      );
+
+                      const handleSerialToggle = () => {
+                          if (cancelMode === 'SERIAL') {
+                              onSelectSerial(ticket, serial, !isSerialChecked);
+                          }
+                      };
+
+                      return (
+                          <TableRow
+                              key={serial.id}
+                              hover
+                              sx={{ bgcolor: 'var(--palette-background-neutral)' }}
+                          >
+                              <TableCell sx={{ width: 40 }} />
+                              <TableCell align="center" sx={{ width: 48 }}>
+                                  <Checkbox
+                                      size="small"
+                                      checked={isSerialChecked}
+                                      disabled={!ticketSelectable || !isSerialIncidentEligible(serial)}
+                                      onChange={(event) =>
+                                          onSelectSerial(ticket, serial, event.target.checked)
+                                      }
+                                      sx={{ color: 'var(--palette-text-disabled)', p: 0 }}
+                                  />
+                              </TableCell>
+                              <TableCell align="center" onClick={handleSerialToggle}>
+                                  <span className="admin-cell-text">{`${index + 1}.${serialIndex + 1}`}</span>
+                              </TableCell>
+                              <TableCell onClick={handleSerialToggle}>
+                                  <Typography className="admin-cell-text" sx={ticketNumberSx}>
+                                      {ticket.numbers}
+                                  </Typography>
+                              </TableCell>
+                              <TableCell onClick={handleSerialToggle}>
+                                  <Typography className="admin-cell-title" sx={ticketNumberSx}>
+                                      {serial.serialNumber}
+                                  </Typography>
+                              </TableCell>
+                              <TableCell align="center" onClick={handleSerialToggle}>
+                                  <AdminStatusBadge
+                                      label={serialBadge.label}
+                                      modifier={serialBadge.className}
+                                  />
+                              </TableCell>
+                              <TableCell align="center" onClick={handleSerialToggle}>
+                                  <AdminStatusBadge
+                                      label={serialCondition.label}
+                                      modifier={serialCondition.className}
+                                  />
+                              </TableCell>
+                              <TableCell align="center" onClick={handleSerialToggle}>
+                                  <span className="admin-cell-text">
+                                      {formatVnd(serial.ticketPrice ?? ticket.priceSnapshot ?? 10000)}
+                                  </span>
+                              </TableCell>
+                              <TableCell align="center" onClick={handleSerialToggle}>
+                                  <span className="admin-cell-title">
+                                      {formatVnd(
+                                          serial.importCost ??
+                                              ticket.importCostSnapshot ??
+                                              ticket.priceSnapshot ??
+                                              10000
+                                      )}
+                                  </span>
+                              </TableCell>
+                          </TableRow>
+                      );
+                  })
+                : open ? (
+                      <TableRow sx={{ bgcolor: 'var(--palette-background-neutral)' }}>
+                          <TableCell sx={{ width: 40 }} />
+                          <TableCell sx={{ width: 48 }} />
+                          <TableCell colSpan={7}>
+                              <span className="admin-cell-text">Không có số sê-ri nào được gán</span>
+                          </TableCell>
+                      </TableRow>
+                  ) : null}
         </React.Fragment>
     );
 };
 
 export const ImportBatchLineDetailPage = () => {
-    const { id, lineId } = useParams();
-    const navigate = useNavigate();
+    const { id, lineId } = useRouteParams();
+    const router = useAdminRouter();
     const queryClient = useQueryClient();
 
     const { data: batch, isLoading: isBatchLoading } = useImportBatchDetail(id);
@@ -342,21 +349,22 @@ export const ImportBatchLineDetailPage = () => {
     const providers = (providersRes as any)?.data?.recordList || [];
 
     const resolveStationName = (stationId: number) =>
-        providers.find((p: any) => String(p.id || p._id) === String(stationId))?.name ||
+        providers.find((provider: any) => String(provider.id || provider._id) === String(stationId))?.name ||
         `Đài #${stationId}`;
 
-    const line = batch?.lines?.find((l) => String(l.id) === String(lineId));
+    const line = batch?.lines?.find((item) => String(item.id) === String(lineId));
 
-    const { tickets, isLoading: isTicketsLoading } = useTicketInventory({ 
-        limit: 1000, 
-        importBatchLineId: line?.id 
-    });
+    const { tickets, isLoading: isTicketsLoading } = useTicketInventory(
+        { importBatchLineId: line?.id },
+        1000
+    );
 
-    const [cancelMode, setCancelMode] = React.useState<'NONE' | 'TICKET' | 'SERIAL'>('NONE');
     const [selectedSerials, setSelectedSerials] = React.useState<any[]>([]);
     const [searchQuery, setSearchQuery] = React.useState('');
     const [statusFilter, setStatusFilter] = React.useState('ALL');
     const [quantityFilter, setQuantityFilter] = React.useState('ALL');
+    const [isReportDialogOpen, setIsReportDialogOpen] = React.useState(false);
+    const dialogCancelMode: 'TICKET' | 'SERIAL' = 'TICKET';
 
     const availableStatusFilterOptions = React.useMemo(
         () => buildCancelFlowStatusFilterOptions(tickets || []),
@@ -377,24 +385,28 @@ export const ImportBatchLineDetailPage = () => {
             if (searchQuery.trim()) {
                 const query = searchQuery.trim().toLowerCase();
                 const matchNumbers = (ticket.numbers || '').toLowerCase().includes(query);
-                const matchSerials = (ticket.serials || []).some((s: any) => 
-                    (s.serialNumber || '').toLowerCase().includes(query)
+                const matchSerials = (ticket.serials || []).some((serial: any) =>
+                    (serial.serialNumber || '').toLowerCase().includes(query)
                 );
-                if (!matchNumbers && !matchSerials) return false;
+                if (!matchNumbers && !matchSerials) {
+                    return false;
+                }
             }
 
             if (statusFilter !== 'ALL') {
                 const ticketStatusMatch = matchesCancelFlowStatusFilter(ticket.status, statusFilter);
-                const serialStatusMatch = (ticket.serials || []).some((s: any) =>
-                    matchesCancelFlowSerialFilter(s, statusFilter)
+                const serialStatusMatch = (ticket.serials || []).some((serial: any) =>
+                    matchesCancelFlowSerialFilter(serial, statusFilter)
                 );
-                if (!ticketStatusMatch && !serialStatusMatch) return false;
+                if (!ticketStatusMatch && !serialStatusMatch) {
+                    return false;
+                }
             }
 
-            const qty = ticket.quantity || ticket.serials?.length || 0;
-            if (quantityFilter === '10' && qty !== 10) return false;
-            if (quantityFilter === 'LESS_10' && (qty >= 10 || qty === 0)) return false;
-            if (quantityFilter === 'ZERO' && qty !== 0) return false;
+            const quantity = ticket.quantity || ticket.serials?.length || 0;
+            if (quantityFilter === '10' && quantity !== 10) return false;
+            if (quantityFilter === 'LESS_10' && (quantity >= 10 || quantity === 0)) return false;
+            if (quantityFilter === 'ZERO' && quantity !== 0) return false;
 
             return true;
         });
@@ -406,20 +418,20 @@ export const ImportBatchLineDetailPage = () => {
             if (!isTicketSelectableForCancel(ticket.status)) {
                 return;
             }
-            (ticket.serials || []).forEach((s: any) => {
-                if (!isSerialIncidentEligible(s)) {
+            (ticket.serials || []).forEach((serial: any) => {
+                if (!isSerialIncidentEligible(serial)) {
                     return;
                 }
                 list.push({
-                    id: s.id,
-                    serialNumber: s.serialNumber,
-                    status: s.status,
-                    ticketCondition: s.ticketCondition,
-                    returnBatchLineId: s.returnBatchLineId,
+                    id: serial.id,
+                    serialNumber: serial.serialNumber,
+                    status: serial.status,
+                    ticketCondition: serial.ticketCondition,
+                    returnBatchLineId: serial.returnBatchLineId,
                     ticketId: ticket.id,
                     ticketNumbers: ticket.numbers,
                     ticketStatus: ticket.status,
-                    reservedByOrderId: s.reservedByOrderId,
+                    reservedByOrderId: serial.reservedByOrderId,
                 });
             });
         });
@@ -427,15 +439,9 @@ export const ImportBatchLineDetailPage = () => {
     }, [filteredTickets]);
 
     const totalCancelableSerialsCount = cancelableSerials.length;
-    const [isReportDialogOpen, setIsReportDialogOpen] = React.useState(false);
-    const [dialogCancelMode, setDialogCancelMode] = React.useState<'TICKET' | 'SERIAL'>('TICKET');
 
     const handleSelectAll = (checked: boolean) => {
-        if (checked) {
-            setSelectedSerials(cancelableSerials);
-        } else {
-            setSelectedSerials([]);
-        }
+        setSelectedSerials(checked ? cancelableSerials : []);
     };
 
     const handleSelectTicket = (ticket: any, checked: boolean) => {
@@ -443,39 +449,13 @@ export const ImportBatchLineDetailPage = () => {
             return;
         }
         const ticketSerialIds = (ticket.serials || [])
-            .filter((s: any) => isSerialIncidentEligible(s))
-            .map((s: any) => String(s.id));
+            .filter((serial: any) => isSerialIncidentEligible(serial))
+            .map((serial: any) => String(serial.id));
+
         if (checked) {
             const cancelableOfTicket = (ticket.serials || [])
-                .filter((s: any) => isSerialIncidentEligible(s))
-                .map((s: any) => ({
-                id: s.id,
-                serialNumber: s.serialNumber,
-                status: s.status,
-                ticketCondition: s.ticketCondition,
-                returnBatchLineId: s.returnBatchLineId,
-                ticketId: ticket.id,
-                ticketNumbers: ticket.numbers,
-                reservedByOrderId: s.reservedByOrderId,
-            }));
-            
-            setSelectedSerials(prev => {
-                const filtered = prev.filter(x => !ticketSerialIds.includes(String(x.id)));
-                return [...filtered, ...cancelableOfTicket];
-            });
-        } else {
-            setSelectedSerials(prev => prev.filter(x => !ticketSerialIds.includes(String(x.id))));
-        }
-    };
-
-    const handleSelectSerial = (ticket: any, serial: any, checked: boolean) => {
-        if (!isTicketSelectableForCancel(ticket.status) || !isSerialIncidentEligible(serial)) {
-            return;
-        }
-        if (checked) {
-            setSelectedSerials(prev => {
-                if (prev.some(x => String(x.id) === String(serial.id))) return prev;
-                return [...prev, {
+                .filter((serial: any) => isSerialIncidentEligible(serial))
+                .map((serial: any) => ({
                     id: serial.id,
                     serialNumber: serial.serialNumber,
                     status: serial.status,
@@ -484,15 +464,44 @@ export const ImportBatchLineDetailPage = () => {
                     ticketId: ticket.id,
                     ticketNumbers: ticket.numbers,
                     reservedByOrderId: serial.reservedByOrderId,
-                }];
+                }));
+
+            setSelectedSerials((prev) => {
+                const filtered = prev.filter((item) => !ticketSerialIds.includes(String(item.id)));
+                return [...filtered, ...cancelableOfTicket];
             });
-        } else {
-            setSelectedSerials(prev => prev.filter(x => String(x.id) !== String(serial.id)));
+            return;
         }
+
+        setSelectedSerials((prev) => prev.filter((item) => !ticketSerialIds.includes(String(item.id))));
     };
 
-    const handleCancelReport = () => {
-        setIsReportDialogOpen(false);
+    const handleSelectSerial = (ticket: any, serial: any, checked: boolean) => {
+        if (!isTicketSelectableForCancel(ticket.status) || !isSerialIncidentEligible(serial)) {
+            return;
+        }
+        if (checked) {
+            setSelectedSerials((prev) => {
+                if (prev.some((item) => String(item.id) === String(serial.id))) {
+                    return prev;
+                }
+                return [
+                    ...prev,
+                    {
+                        id: serial.id,
+                        serialNumber: serial.serialNumber,
+                        status: serial.status,
+                        ticketCondition: serial.ticketCondition,
+                        returnBatchLineId: serial.returnBatchLineId,
+                        ticketId: ticket.id,
+                        ticketNumbers: ticket.numbers,
+                        reservedByOrderId: serial.reservedByOrderId,
+                    },
+                ];
+            });
+            return;
+        }
+        setSelectedSerials((prev) => prev.filter((item) => String(item.id) !== String(serial.id)));
     };
 
     const handleReportSuccess = () => {
@@ -503,192 +512,129 @@ export const ImportBatchLineDetailPage = () => {
 
     if (isBatchLoading || !line || !batch) {
         return (
-            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', p: 8 }}>
-                <CircularProgress />
+            <Box className="admin-page">
+                <PageHeader
+                    title="Chi tiết lô nhập"
+                    breadcrumbItems={[
+                        { label: 'Vé số', to: `/${prefixAdmin}/ticket/list` },
+                        { label: 'Nhập lô vé', to: ROUTES.ADMIN.IMPORT_BATCH.LIST },
+                        { label: id ? `Phiếu #${id}` : 'Chi tiết' },
+                    ]}
+                />
+                <SpinnerLoading />
             </Box>
         );
     }
 
     const stationName = resolveStationName(line.lotteryStationId);
-    const completionRate = line.declareQuantity > 0 
-        ? Math.round((line.totalQuantity / line.declareQuantity) * 100) 
-        : 0;
-
+    const batchCodeLabel = formatImportBatchHeaderCode(batch.batchCode, batch.id);
+    const lineCodeRaw = displayImportBatchLineCodeRaw(line.batchCode);
     const firstSelected = selectedSerials[0];
-    const reportTicketNumbers = firstSelected ? firstSelected.ticketNumbers : '';
-    const reportTicketId = firstSelected ? firstSelected.ticketId : undefined;
 
     return (
-        <Box sx={{ p: 3, bgcolor: '#faf9f5', minHeight: '100vh' }}>
-            <Stack direction="row" alignItems="center" spacing={1.5} sx={{ mb: 2 }}>
-                <IconButton 
-                    onClick={() => id && navigate(ROUTES.ADMIN.IMPORT_BATCH.DETAIL(id))} 
-                    size="small" 
-                    sx={{ color: '#475569', bgcolor: '#fff', border: '1px solid #e2e8f0', '&:hover': { bgcolor: '#f1f5f9' } }}
+        <Box className="admin-page">
+            <PageHeader
+                title="Chi tiết lô nhập"
+                breadcrumbItems={[
+                    { label: 'Vé số', to: `/${prefixAdmin}/ticket/list` },
+                    { label: 'Nhập lô vé', to: ROUTES.ADMIN.IMPORT_BATCH.LIST },
+                    {
+                        label: batchCodeLabel,
+                        to: id ? ROUTES.ADMIN.IMPORT_BATCH.DETAIL(id) : undefined,
+                    },
+                    { label: stationName },
+                ]}
+                titleExtra={
+                    <>
+                        <AdminStatusBadge
+                            label={getImportBatchLineStatusLabel(line.status)}
+                            modifier={getImportBatchLineStatusBadgeClass(line.status)}
+                        />
+                        <AdminStatusBadge
+                            label={getBatchTypeLabel(line.batchType)}
+                            modifier={getBatchTypeBadgeClass(line.batchType)}
+                        />
+                    </>
+                }
+                description={
+                    <>
+                        <Box
+                            className="admin-ticket-create-meta"
+                            sx={{
+                                gridTemplateColumns: {
+                                    xs: '1fr',
+                                    sm: 'repeat(2, minmax(0, 1fr))',
+                                    md: 'repeat(4, minmax(0, 1fr))',
+                                },
+                                mb: 1.5,
+                            }}
+                        >
+                            <LineDetailInfoItem label="Mã lô" value={lineCodeRaw || '—'} monospace />
+                            <LineDetailInfoItem
+                                label="Ngày quay"
+                                value={batch.drawDate ? dayjs(batch.drawDate).format('DD/MM/YYYY') : '—'}
+                            />
+                            <LineDetailInfoItem
+                                label="SL đã nhập / khai báo"
+                                value={`${(line.totalQuantity ?? 0).toLocaleString('vi-VN')} / ${(line.declareQuantity ?? 0).toLocaleString('vi-VN')} vé`}
+                            />
+                            <LineDetailInfoItem
+                                label="Giá vốn"
+                                value={formatVnd(line.importCost)}
+                            />
+                        </Box>
+
+                        <Box sx={{ maxWidth: 360 }}>
+                            <TicketImportProgressTrack
+                                imported={line.totalQuantity ?? 0}
+                                declared={line.declareQuantity ?? 0}
+                                ariaLabel={`Tiến độ nhập vé ${stationName}`}
+                            />
+                        </Box>
+                    </>
+                }
+                action={
+                    <Button
+                        variant="outlined"
+                        className="btn-outlined-admin"
+                        onClick={() => id && router.push(ROUTES.ADMIN.IMPORT_BATCH.DETAIL(id))}
+                    >
+                        Quay lại phiếu
+                    </Button>
+                }
+            />
+
+            <Card elevation={0} className="admin-datagrid-card">
+                <Box
+                    sx={{
+                        px: 2.5,
+                        py: 1.5,
+                        borderBottom: '1px dashed var(--palette-background-neutral)',
+                    }}
                 >
-                    <ArrowBackIcon fontSize="small" />
-                </IconButton>
-                <Breadcrumb 
-                    items={[
-                        { label: 'Quản lý vé số' },
-                        { label: 'Nhập lô vé', to: ROUTES.ADMIN.IMPORT_BATCH.LIST },
-                        { label: formatImportBatchHeaderCode((batch as any).importCode), to: id ? ROUTES.ADMIN.IMPORT_BATCH.DETAIL(id) : undefined },
-                        { label: `Dòng lô ${displayImportBatchLineCodeRaw(line?.batchCode)}` }
-                    ]} 
-                />
-            </Stack>
-
-            <Paper 
-                variant="outlined" 
-                sx={{ 
-                    p: 2.5, 
-                    borderRadius: 3, 
-                    borderColor: '#e2e8f0', 
-                    bgcolor: '#fff',
-                    mb: 2.5,
-                    boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.02)',
-                    width: '100%'
-                }}
-            >
-                <Grid container spacing={3}>
-                    <Grid size={{ xs: 12, sm: 6, md: 2 }}>
-                        <Stack spacing={0.75}>
-                            <Stack direction="row" alignItems="center" spacing={1} color="text.secondary">
-                                <StorefrontIcon fontSize="small" sx={{ fontSize: '1rem', opacity: 0.8 }} />
-                                <Typography variant="caption" fontWeight={600} sx={{ textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                                    Nhà đài
-                                </Typography>
-                            </Stack>
-                            <Typography variant="body2" fontWeight={700} color="text.primary" sx={{ pl: 3 }}>
-                                {stationName}
-                            </Typography>
-                        </Stack>
-                    </Grid>
-                    
-                    <Grid size={{ xs: 12, sm: 6, md: 2 }}>
-                        <Stack spacing={0.75}>
-                            <Stack direction="row" alignItems="center" spacing={1} color="text.secondary">
-                                <LabelIcon fontSize="small" sx={{ fontSize: '1rem', opacity: 0.8 }} />
-                                <Typography variant="caption" fontWeight={600} sx={{ textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                                    Loại lô
-                                </Typography>
-                            </Stack>
-                            <Box sx={{ pl: 3 }}>
-                                <AdminStatusBadge
-                                    label={getBatchTypeLabel(line.batchType)}
-                                    modifier={getBatchTypeBadgeClass(line.batchType)}
-                                />
-                            </Box>
-                        </Stack>
-                    </Grid>
-
-                    <Grid size={{ xs: 12, sm: 6, md: 2 }}>
-                        <Stack spacing={0.75}>
-                            <Stack direction="row" alignItems="center" spacing={1} color="text.secondary">
-                                <CheckCircleIcon fontSize="small" sx={{ fontSize: '1rem', opacity: 0.8 }} />
-                                <Typography variant="caption" fontWeight={600} sx={{ textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                                    Trạng thái dòng
-                                </Typography>
-                            </Stack>
-                            <Box sx={{ pl: 3 }}>
-                                <Chip 
-                                    label={getImportBatchLineStatusLabel(line.status)} 
-                                    size="small" 
-                                    color={getImportBatchLineStatusChipColor(line.status)}
-                                    sx={{ fontWeight: 600, fontSize: '0.75rem', height: 22 }} 
-                                />
-                            </Box>
-                        </Stack>
-                    </Grid>
-
-                    <Grid size={{ xs: 12, sm: 6, md: 2 }}>
-                        <Stack spacing={0.75}>
-                            <Stack direction="row" alignItems="center" spacing={1} color="text.secondary">
-                                <CalendarMonthIcon fontSize="small" sx={{ fontSize: '1rem', opacity: 0.8 }} />
-                                <Typography variant="caption" fontWeight={600} sx={{ textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                                    Lịch quay
-                                </Typography>
-                            </Stack>
-                            <Typography variant="body2" fontWeight={700} color="text.primary" sx={{ pl: 3 }}>
-                                {batch.drawDate ? dayjs(batch.drawDate).format('DD/MM/YYYY') : '—'}
-                            </Typography>
-                        </Stack>
-                    </Grid>
-
-                    <Grid size={{ xs: 12, sm: 6, md: 2 }}>
-                        <Stack spacing={0.75}>
-                            <Stack direction="row" alignItems="center" spacing={1} color="text.secondary">
-                                <CloudUploadIcon fontSize="small" sx={{ fontSize: '1rem', opacity: 0.8 }} />
-                                <Typography variant="caption" fontWeight={600} sx={{ textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                                    Ngày nhập
-                                </Typography>
-                            </Stack>
-                            <Typography variant="body2" fontWeight={700} color="text.primary" sx={{ pl: 3 }}>
-                                {line.importedAt ? dayjs(line.importedAt).format('DD/MM/YYYY HH:mm') : '—'}
-                            </Typography>
-                        </Stack>
-                    </Grid>
-
-                    <Grid size={{ xs: 12, sm: 6, md: 2 }}>
-                        <Stack spacing={0.75}>
-                            <Stack direction="row" alignItems="center" spacing={1} color="text.secondary">
-                                <ShowChartIcon fontSize="small" sx={{ fontSize: '1rem', opacity: 0.8 }} />
-                                <Typography variant="caption" fontWeight={600} sx={{ textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                                    Tiến độ nhập
-                                </Typography>
-                            </Stack>
-                            <Stack direction="row" alignItems="center" spacing={1.5} sx={{ pl: 3 }}>
-                                <Typography variant="body2" fontWeight={700} color="text.primary">
-                                    {line.totalQuantity}/{line.declareQuantity} vé
-                                </Typography>
-                                <Box sx={{ width: 80, display: 'flex', alignItems: 'center', gap: 1 }}>
-                                    <Box sx={{ width: '100%' }}>
-                                        <LinearProgress 
-                                            variant="determinate" 
-                                            value={completionRate} 
-                                            color={completionRate === 100 ? 'success' : 'warning'} 
-                                            sx={{ height: 6, borderRadius: 3, bgcolor: '#f1f5f9' }}
-                                        />
-                                    </Box>
-                                    <Typography variant="caption" fontWeight={700} color={completionRate === 100 ? 'success.main' : 'warning.main'}>
-                                        {completionRate}%
-                                    </Typography>
-                                </Box>
-                            </Stack>
-                        </Stack>
-                    </Grid>
-                </Grid>
-            </Paper>
-
-            <Box sx={{ 
-                display: 'flex', 
-                flexDirection: { xs: 'column', md: 'row' }, 
-                gap: 3.5, 
-                width: '100%', 
-                alignItems: 'stretch' 
-            }}>
-                <Box sx={{ display: 'flex', flexDirection: 'column', width: '100%', height: 'calc(100vh - 280px)', maxHeight: 'calc(100vh - 280px)' }}>
-                    <Stack direction={{ xs: 'column', md: 'row' }} alignItems={{ xs: 'stretch', md: 'center' }} justifyContent="space-between" spacing={2} sx={{ mb: 2 }}>
-                        <Stack direction="row" alignItems="center" spacing={1.5} sx={{ flexWrap: 'wrap', gap: 1.25 }}>
-                            <TextField
-                                size="small"
+                    <Stack
+                        direction={{ xs: 'column', lg: 'row' }}
+                        alignItems={{ xs: 'stretch', lg: 'center' }}
+                        justifyContent="space-between"
+                        spacing={1.5}
+                    >
+                        <Stack
+                            direction={{ xs: 'column', sm: 'row' }}
+                            spacing={1.25}
+                            alignItems={{ xs: 'stretch', sm: 'center' }}
+                            sx={{ flex: 1, minWidth: 0 }}
+                        >
+                            <Search
+                                maxWidth={360}
                                 placeholder="Tìm theo dãy số hoặc số sê-ri..."
                                 value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                InputProps={{ startAdornment: <InputAdornment position="start"><SearchIcon fontSize="small" sx={{ color: '#94a3b8' }} /></InputAdornment> }}
-                                sx={{ 
-                                    minWidth: 320, 
-                                    width: { xs: '100%', sm: 340, md: 360 }, 
-                                    bgcolor: '#fff',
-                                    '& .MuiOutlinedInput-root': { borderRadius: '8px' }
-                                }}
+                                onChange={setSearchQuery}
                             />
-                            <FormControl size="small" sx={{ width: 175, bgcolor: '#fff' }}>
-                                <Select 
-                                    value={statusFilter} 
-                                    onChange={(e) => setStatusFilter(e.target.value)} 
+                            <FormControl size="small" sx={{ minWidth: 175 }}>
+                                <Select
+                                    value={statusFilter}
+                                    onChange={(event) => setStatusFilter(event.target.value)}
                                     displayEmpty
-                                    sx={{ borderRadius: '8px', fontSize: '0.85rem' }}
                                 >
                                     <MenuItem value="ALL">Tất cả trạng thái</MenuItem>
                                     {availableStatusFilterOptions.map((option) => (
@@ -698,12 +644,11 @@ export const ImportBatchLineDetailPage = () => {
                                     ))}
                                 </Select>
                             </FormControl>
-                            <FormControl size="small" sx={{ width: 155, bgcolor: '#fff' }}>
-                                <Select 
-                                    value={quantityFilter} 
-                                    onChange={(e) => setQuantityFilter(e.target.value)} 
+                            <FormControl size="small" sx={{ minWidth: 155 }}>
+                                <Select
+                                    value={quantityFilter}
+                                    onChange={(event) => setQuantityFilter(event.target.value)}
                                     displayEmpty
-                                    sx={{ borderRadius: '8px', fontSize: '0.85rem' }}
                                 >
                                     <MenuItem value="ALL">Tất cả số lượng</MenuItem>
                                     <MenuItem value="10">Đủ 10 vé</MenuItem>
@@ -713,137 +658,117 @@ export const ImportBatchLineDetailPage = () => {
                             </FormControl>
                         </Stack>
 
-                        <Stack direction="row" alignItems="center" spacing={1.5}>
-                            <Button 
-                                variant="contained" 
-                                color="error" 
-                                size="small" 
-                                startIcon={<ReportProblemIcon />} 
-                                disabled={selectedSerials.length === 0}
-                                onClick={() => {
-                                    setIsReportDialogOpen(true);
-                                }}
-                                sx={{
-                                    textTransform: 'none',
-                                    fontWeight: 700,
-                                    borderRadius: '8px',
-                                    boxShadow: 'none',
-                                    py: 0.8,
-                                    px: 2,
-                                    '&.Mui-disabled': {
-                                        bgcolor: '#f1f5f9',
-                                        color: '#94a3b8',
-                                        borderColor: '#cbd5e1'
-                                    }
-                                }}
-                            >
-                                Tiến hành hủy vé {selectedSerials.length > 0 && `(${selectedSerials.length})`}
-                            </Button>
-                        </Stack>
-                    </Stack>
-
-                    {isTicketsLoading ? (
-                        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', p: 8 }}>
-                            <CircularProgress size={36} thickness={4} />
-                        </Box>
-                    ) : filteredTickets.length === 0 ? (
-                        <Paper variant="outlined" sx={{ p: 6, textAlign: 'center', borderRadius: 2, borderColor: '#e2e8f0', bgcolor: '#fff' }}>
-                            <Typography variant="body2" color="text.secondary" fontWeight={500}>
-                                Không có vé số nào phù hợp với bộ lọc tìm kiếm.
-                            </Typography>
-                        </Paper>
-                    ) : (
-                        <TableContainer 
-                            component={Paper} 
-                            variant="outlined" 
-                            sx={{ 
-                                borderRadius: 2, 
-                                borderColor: '#e2e8f0', 
-                                boxShadow: 'none', 
-                                bgcolor: '#fff', 
-                                overflowY: 'auto',
-                                flexGrow: 1,
-                                height: '100%'
+                        <Button
+                            variant="outlined"
+                            color="error"
+                            size="small"
+                            startIcon={<ReportProblemIcon />}
+                            disabled={selectedSerials.length === 0}
+                            onClick={() => setIsReportDialogOpen(true)}
+                            sx={{
+                                textTransform: 'none',
+                                fontWeight: 700,
+                                borderRadius: '8px',
+                                whiteSpace: 'nowrap',
+                                alignSelf: { xs: 'stretch', lg: 'center' },
                             }}
                         >
-                            <Table size="medium">
-                                <TableHead sx={{ bgcolor: '#f1f5f9' }}>
-                                    <TableRow>
-                                        <TableCell sx={{ width: 40, py: 2 }} />
-                                        <TableCell sx={{ width: 40, py: 2 }} align="center">
-                                            <Checkbox
-                                                indeterminate={
-                                                    selectedSerials.length > 0 && 
-                                                    selectedSerials.length < totalCancelableSerialsCount
-                                                }
-                                                checked={
-                                                    totalCancelableSerialsCount > 0 && 
-                                                    selectedSerials.length === totalCancelableSerialsCount
-                                                }
-                                                onChange={(e) => handleSelectAll(e.target.checked)}
-                                                size="small"
-                                            />
-                                        </TableCell>
-                                        <TableCell sx={{ fontWeight: 700, py: 2, color: '#475569', width: 50 }} align="center">STT</TableCell>
-                                        <TableCell sx={{ fontWeight: 700, py: 2, color: '#475569' }}>Nhà đài</TableCell>
-                                        <TableCell sx={{ fontWeight: 700, py: 2, color: '#475569' }}>Số vé</TableCell>
-                                        <TableCell sx={{ fontWeight: 700, py: 2, color: '#475569' }}>Sê-ri</TableCell>
-                                        <TableCell sx={{ fontWeight: 700, py: 2, color: '#475569' }} align="center">Trạng thái</TableCell>
-                                        <TableCell sx={{ fontWeight: 700, py: 2, color: '#475569' }} align="center">Tình trạng vé</TableCell>
-                                        <TableCell sx={{ fontWeight: 700, py: 2, color: '#475569' }} align="right">Giá bán</TableCell>
-                                        <TableCell sx={{ fontWeight: 700, py: 2, color: '#475569' }} align="right">Giá vốn</TableCell>
-                                    </TableRow>
-                                </TableHead>
-                                <TableBody>
-                                    {filteredTickets.map((ticket: any, index: number) => (
-                                        <CollapsibleRow 
-                                            key={ticket.id} 
-                                            ticket={ticket} 
-                                            index={index} 
-                                            stationName={stationName}
-                                            cancelMode={dialogCancelMode}
-                                            selectedSerials={selectedSerials}
-                                            onSelectTicket={handleSelectTicket}
-                                            onSelectSerial={handleSelectSerial}
-                                        />
-                                    ))}
-                                </TableBody>
-                            </Table>
-                        </TableContainer>
-                    )}
+                            Tiến hành hủy vé
+                            {selectedSerials.length > 0 ? ` (${selectedSerials.length})` : ''}
+                        </Button>
+                    </Stack>
                 </Box>
-            </Box>
 
-            {/* Modal Dialog Pop-up for Fault Reporting */}
+                <TableContainer className="admin-table-container">
+                    <Table className="admin-table" sx={{ minWidth: 960 }}>
+                        <TableHead>
+                            <TableRow>
+                                <TableCell sx={{ width: 40 }} />
+                                <TableCell align="center" sx={{ width: 48 }}>
+                                    <Checkbox
+                                        indeterminate={
+                                            selectedSerials.length > 0 &&
+                                            selectedSerials.length < totalCancelableSerialsCount
+                                        }
+                                        checked={
+                                            totalCancelableSerialsCount > 0 &&
+                                            selectedSerials.length === totalCancelableSerialsCount
+                                        }
+                                        onChange={(event) => handleSelectAll(event.target.checked)}
+                                        size="small"
+                                        sx={{ color: 'var(--palette-text-disabled)', p: 0 }}
+                                    />
+                                </TableCell>
+                                <TableCell align="center" sx={{ width: 56 }}>
+                                    STT
+                                </TableCell>
+                                <TableCell>Dãy số</TableCell>
+                                <TableCell>Sê-ri</TableCell>
+                                <TableCell align="center">Trạng thái</TableCell>
+                                <TableCell align="center">Tình trạng vé</TableCell>
+                                <TableCell align="center">Giá bán</TableCell>
+                                <TableCell align="center">Giá vốn</TableCell>
+                            </TableRow>
+                        </TableHead>
+                        <TableBody>
+                            {isTicketsLoading ? (
+                                <TableRow>
+                                    <TableCell colSpan={9} align="center" sx={{ py: 10 }}>
+                                        <CircularProgress size={32} />
+                                    </TableCell>
+                                </TableRow>
+                            ) : filteredTickets.length === 0 ? (
+                                <TableRow>
+                                    <TableCell colSpan={9} align="center" sx={{ py: 10 }}>
+                                        <span className="admin-datagrid-empty">
+                                            Không có vé số nào phù hợp với bộ lọc tìm kiếm.
+                                        </span>
+                                    </TableCell>
+                                </TableRow>
+                            ) : (
+                                filteredTickets.map((ticket: any, index: number) => (
+                                    <CollapsibleRow
+                                        key={ticket.id}
+                                        ticket={ticket}
+                                        index={index}
+                                        cancelMode={dialogCancelMode}
+                                        selectedSerials={selectedSerials}
+                                        onSelectTicket={handleSelectTicket}
+                                        onSelectSerial={handleSelectSerial}
+                                    />
+                                ))
+                            )}
+                        </TableBody>
+                    </Table>
+                </TableContainer>
+            </Card>
+
             <Dialog
                 open={isReportDialogOpen}
-                onClose={handleCancelReport}
+                onClose={() => setIsReportDialogOpen(false)}
                 maxWidth="lg"
                 fullWidth
                 PaperProps={{
+                    className: 'admin-theme',
                     sx: {
-                        borderRadius: '20px',
-                        p: 3,
+                        borderRadius: '16px',
                         maxHeight: '90vh',
-                        height: '90vh',
-                        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
-                        bgcolor: '#fff',
                         display: 'flex',
                         flexDirection: 'column',
-                        overflow: 'hidden'
-                    }
+                        overflow: 'hidden',
+                    },
                 }}
             >
-                <DialogContent sx={{ p: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', height: '100%' }}>
-                    <ReportSerialFaultPane
+                <DialogContent sx={{ p: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+                    <LazyReportSerialFaultPane
                         serials={selectedSerials}
-                        ticketNumbers={reportTicketNumbers}
-                        ticketId={reportTicketId}
+                        ticketNumbers={firstSelected ? firstSelected.ticketNumbers : ''}
+                        ticketId={firstSelected ? firstSelected.ticketId : undefined}
                         importBatchLineId={line.id}
                         stationId={line.lotteryStationId}
                         drawDate={batch.drawDate}
                         defaultCancelMode={dialogCancelMode}
-                        onCancel={handleCancelReport}
+                        onCancel={() => setIsReportDialogOpen(false)}
                         onSuccess={handleReportSuccess}
                     />
                 </DialogContent>

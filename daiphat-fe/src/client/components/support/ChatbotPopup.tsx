@@ -1,9 +1,9 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { InfiniteData, useQueryClient } from '@tanstack/react-query';
-import { useNavigate } from 'react-router-dom';
 import { MessageCircle, X, Minus, Maximize2, Send, Headphones, PhoneOff, Sparkles } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useAuthStore } from '../../../stores/useAuthStore';
@@ -628,7 +628,7 @@ const ChatBrandImg = ({ className, alt }: { className?: string; alt?: string }) 
 };
 
 export const ChatbotPopup = () => {
-  const navigate = useNavigate();
+  const router = useRouter();
   const token = useAuthStore((state) => state.token);
   const { user } = useAuth();
   const userId = user?.id ?? null;
@@ -836,7 +836,7 @@ export const ChatbotPopup = () => {
     (options: Parameters<typeof buildLotteryResultsPath>[0]) => {
       const path = buildLotteryResultsPath(options);
       setIsMinimized(true);
-      navigate(path);
+      router.push(path);
       const scrollTop = () => {
         window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
         document.documentElement.scrollTop = 0;
@@ -848,7 +848,7 @@ export const ChatbotPopup = () => {
       window.setTimeout(scrollTop, 200);
       window.setTimeout(scrollTop, 500);
     },
-    [navigate]
+    [router]
   );
 
   const appendSystemMessage = (id: string, text: string) => {
@@ -2012,7 +2012,7 @@ export const ChatbotPopup = () => {
       highlightDate: ticket.drawDate,
       search: ticket.numbers,
     });
-    navigate(path);
+    router.push(path);
     setIsOpen(false);
     setIsMinimized(false);
   };
@@ -2034,7 +2034,7 @@ export const ChatbotPopup = () => {
   if (!isOpen) {
     return (
       <button
-        onClick={() => navigate('/profile/complaints')}
+        onClick={() => router.push('/profile/complaints')}
         className="fixed bottom-6 right-6 w-14 h-14 bg-gradient-to-r from-[#df1b1c] to-[#ff4b4b] rounded-full flex items-center justify-center shadow-2xl hover:shadow-[#df1b1c]/50 hover:scale-110 transition-all duration-300 z-50 group"
         aria-label="Mở trang khiếu nại"
       >

@@ -1,10 +1,11 @@
 "use client";
 
+import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
+import { useRouteParams } from "@/hooks/useRouteParams";
 import {
     Alert,
     Box,
-    Button,
-    Chip,
+Chip,
     FormControl,
     InputLabel,
     MenuItem,
@@ -25,10 +26,10 @@ import {
     InputAdornment,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
-import { Breadcrumb } from '../../../../../components/ui/Breadcrumb';
-import { Title } from '../../../../../components/ui/Title';
+import { PageHeader } from '../../../../../components/ui/PageHeader';
+import { SpinnerLoading } from '../../../../../components/ui/SpinnerLoading';
 import { CollapsibleCard } from '../../../../../components/ui/CollapsibleCard';
-import { LoadingButton } from '../../../../../components/ui/LoadingButton';
+import { Button } from '../../../../../components/ui/Button';
 import { ImagePreview } from '../../../../../components/ui/ImagePreview';
 import { prefixAdmin, ROUTES } from '../../../../../constants/routes';
 import {
@@ -88,7 +89,7 @@ import {
 } from '../../utils/importBatchDeclareQuantityAdjustment';
 import { formatViInteger, parseNonNegativeIntegerInput } from '../../../../supplier';
 import { computeImportBatchTotals } from '../../utils/importBatchTotals';
-import { formatImportCost } from '../../utils/importCostCalculator';
+import { formatVnd } from '../../utils/importCostCalculator';
 import { computeImportBatchRowLimit, IMPORT_BATCH_ROW_LIMIT_MESSAGE } from '../../utils/importBatchRowLimit';
 import {
     buildFormValuesFromBatch,
@@ -107,12 +108,10 @@ import {
 } from '../../utils/importBatchEditChanges';
 import { isImportBatchEditable } from '../../utils/importBatchProgress';
 import { hasInvoiceEvidence } from '../../utils/invoiceEvidence';
-import LoadingScreen from '../../../../../components/ui/LoadingScreen';
 import type { ImportBatch, ImportBatchEligibleStation, UpdateImportBatchPayload } from '../../types/importBatch.type';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Controller, useFieldArray, useForm, useWatch, type Resolver } from 'react-hook-form';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate, useParams } from '@/components/router-compat';
 import { toast } from 'react-toastify';
 import dayjs from 'dayjs';
 import { confirmAction, confirmDelete } from '../../../../../utils/swal';
@@ -126,8 +125,8 @@ const emptyLine = (): UpdateImportBatchLineFormValues => ({
 });
 
 export const ImportBatchEditPage = () => {
-    const { id } = useParams<{ id: string }>();
-    const navigate = useNavigate();
+    const { id } = useRouteParams();
+    const router = useAdminRouter();
     const outerTheme = useTheme();
     const [confirmOpen, setConfirmOpen] = useState(false);
     const [pendingValues, setPendingValues] = useState<UpdateImportBatchFormValues | null>(null);
@@ -852,7 +851,7 @@ export const ImportBatchEditPage = () => {
                 clearDraft();
                 setRemovedTicketIds([]);
                 toast.success(res.message || 'Cập nhật phiếu nhập lô thành công.');
-                navigate(ROUTES.ADMIN.IMPORT_BATCH.DETAIL(batch.id));
+                router.push(ROUTES.ADMIN.IMPORT_BATCH.DETAIL(batch.id));
             } else {
                 toast.error(res.message || 'Cập nhật phiếu nhập lô thất bại.');
             }
@@ -906,7 +905,7 @@ export const ImportBatchEditPage = () => {
 
     const handleCancel = () => {
         clearDraft();
-        navigate(ROUTES.ADMIN.IMPORT_BATCH.DETAIL(batch!.id));
+        router.push(ROUTES.ADMIN.IMPORT_BATCH.DETAIL(batch!.id));
     };
 
     const handleRemoveLine = (index: number) => {
@@ -986,7 +985,22 @@ export const ImportBatchEditPage = () => {
     };
 
     if (isBatchLoading || isLoadingSuppliers) {
-        return <LoadingScreen />;
+        return (
+            <ThemeProvider theme={localTheme}>
+                <Box className="admin-page">
+                    <PageHeader
+                        title={`Chỉnh sửa phiếu #${id}`}
+                        breadcrumbItems={[
+                            { label: 'Vé số', to: `/${prefixAdmin}/ticket/list` },
+                            { label: 'Nhập lô vé', to: ROUTES.ADMIN.IMPORT_BATCH.LIST },
+                            { label: `#${id}` },
+                            { label: 'Chỉnh sửa' },
+                        ]}
+                    />
+                    <SpinnerLoading />
+                </Box>
+            </ThemeProvider>
+        );
     }
 
     if (!batch && isBatchError) {
@@ -1019,7 +1033,7 @@ export const ImportBatchEditPage = () => {
                 <Button
                     variant="contained"
                     className="btn-primary-admin"
-                    onClick={() => navigate(ROUTES.ADMIN.IMPORT_BATCH.DETAIL(batch.id))}
+                    onClick={() => router.push(ROUTES.ADMIN.IMPORT_BATCH.DETAIL(batch.id))}
                 >
                     Xem chi tiết phiếu
                 </Button>
@@ -1029,9 +1043,10 @@ export const ImportBatchEditPage = () => {
 
     return (
         <ThemeProvider theme={localTheme}>
-            <Box sx={{ maxWidth: 1200, mx: 'auto' }}>
-                <Breadcrumb
-                    items={[
+            <Box className="admin-page">
+                <PageHeader
+                    title={`Chỉnh sửa phiếu ${formatImportBatchHeaderCode(batch.batchCode, batch.id)}`}
+                    breadcrumbItems={[
                         { label: 'Vé số', to: `/${prefixAdmin}/ticket/list` },
                         { label: 'Nhập lô vé', to: ROUTES.ADMIN.IMPORT_BATCH.LIST },
                         {
@@ -1040,13 +1055,8 @@ export const ImportBatchEditPage = () => {
                         },
                         { label: 'Chỉnh sửa' },
                     ]}
+                    titleExtra={<Chip label={getImportBatchStatusLabel(batch.status)} size="small" />}
                 />
-                <Stack direction="row" alignItems="center" spacing={1.5} sx={{ mb: 2 }}>
-                    <Title
-                        title={`Chỉnh sửa phiếu ${formatImportBatchHeaderCode(batch.batchCode, batch.id)}`}
-                    />
-                    <Chip label={getImportBatchStatusLabel(batch.status)} size="small" />
-                </Stack>
 
                 {id && hasUnsavedImportBatchEditDraft(id) && (
                     <Alert severity="info" sx={{ mb: 2 }}>
@@ -1325,7 +1335,7 @@ export const ImportBatchEditPage = () => {
                             >
                                 <Typography variant="body2">
                                     <strong>Tổng giá trị lô vé nhập:</strong>{' '}
-                                    {formatImportCost(totals.totalCost)} VNĐ
+                                    {formatVnd(totals.totalCost)}
                                 </Typography>
                             </Box>
 
@@ -1404,7 +1414,7 @@ export const ImportBatchEditPage = () => {
                             )}
 
                             <Stack direction="row" spacing={2}>
-                                <LoadingButton
+                                <Button
                                     type="submit"
                                     variant="contained"
                                     loading={isPending || isSaving}

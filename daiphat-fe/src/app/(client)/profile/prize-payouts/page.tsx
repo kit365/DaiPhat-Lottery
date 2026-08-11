@@ -1,5 +1,6 @@
+import { ProfileTabWrapper } from '../ProfileTabWrapper';
 import { PrizePayoutsTab } from '@/client/features/profile/pages/tabs/PrizePayoutsTab';
 
 export default function ProfilePrizePayoutsPage() {
-  return <PrizePayoutsTab />;
+  return <ProfileTabWrapper content={<PrizePayoutsTab />} />;
 }

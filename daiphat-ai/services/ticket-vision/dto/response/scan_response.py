@@ -25,6 +25,9 @@ class ExtractedTicketFields(BaseModel):
     serialNumber: str | None = None
     numbers: str | None = None
     drawDate: str | None = None
+    # Ticket price/denomination (e.g. "10.000đ"), not a required field --
+    # optional supplementary info, never affects status/validation.
+    ticketType: str | None = None
 
 
 class TicketScanResult(BaseModel):

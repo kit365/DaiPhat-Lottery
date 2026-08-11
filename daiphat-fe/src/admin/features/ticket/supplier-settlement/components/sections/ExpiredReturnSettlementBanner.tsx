@@ -1,12 +1,12 @@
 "use client";
 
+import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import ReportProblemOutlinedIcon from '@mui/icons-material/ReportProblemOutlined';
-import ArrowForwardOutlinedIcon from '@mui/icons-material/ArrowForwardOutlined';
-import CloseIcon from '@mui/icons-material/Close';
 import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
+import CloseIcon from '@mui/icons-material/Close';
 import {
+    Alert,
     Box,
     Button,
     Chip,
@@ -46,14 +46,14 @@ export const ExpiredReturnSettlementBanner = ({
     totalExpiredValue,
     expiredItems = [],
 }: ExpiredReturnSettlementBannerProps) => {
-    const navigate = useNavigate();
+    const router = useAdminRouter();
     const [openModal, setOpenModal] = useState(false);
 
     if (expiredCount <= 0) return null;
 
     const handleActionClick = () => {
         if (expiredCount === 1 && expiredItems.length === 1) {
-            navigate(ROUTES.ADMIN.SUPPLIER_SETTLEMENT.DETAIL(expiredItems[0].id));
+            router.push(ROUTES.ADMIN.SUPPLIER_SETTLEMENT.DETAIL(expiredItems[0].id));
         } else {
             setOpenModal(true);
         }
@@ -61,99 +61,38 @@ export const ExpiredReturnSettlementBanner = ({
 
     const handleNavigateDetail = (id: number) => {
         setOpenModal(false);
-        navigate(ROUTES.ADMIN.SUPPLIER_SETTLEMENT.DETAIL(id));
+        router.push(ROUTES.ADMIN.SUPPLIER_SETTLEMENT.DETAIL(id));
     };
 
     return (
         <>
-            <Box
-                sx={{
-                    width: '100%',
-                    p: { xs: 2, sm: 2.5 },
-                    borderRadius: '16px',
-                    bgcolor: '#fef2f2',
-                    border: '1.5px solid #fecaca',
-                    boxShadow: '0 4px 12px 0 rgba(239, 68, 68, 0.08)',
-                    display: 'flex',
-                    flexDirection: { xs: 'column', sm: 'row' },
-                    alignItems: { xs: 'flex-start', sm: 'center' },
-                    justifyContent: 'space-between',
-                    gap: 2,
-                    position: 'relative',
-                    overflow: 'hidden',
-                    '&::before': {
-                        content: '""',
-                        position: 'absolute',
-                        top: 0,
-                        left: 0,
-                        bottom: 0,
-                        width: '6px',
-                        bgcolor: '#ef4444',
-                    },
-                }}
-            >
-                <Stack direction="row" spacing={2} alignItems="flex-start" sx={{ minWidth: 0, pl: 1 }}>
-                    <Box
-                        sx={{
-                            width: 42,
-                            height: 42,
-                            borderRadius: '12px',
-                            bgcolor: '#fee2e2',
-                            color: '#dc2626',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            flexShrink: 0,
-                            border: '1px solid #fca5a5',
-                        }}
+            <Alert
+                severity="error"
+                icon={<ReportProblemOutlinedIcon fontSize="inherit" />}
+                sx={{ py: 0.75, alignItems: 'center' }}
+                action={
+                    <Button
+                        color="inherit"
+                        size="small"
+                        onClick={handleActionClick}
+                        sx={{ fontWeight: 700, whiteSpace: 'nowrap', flexShrink: 0 }}
                     >
-                        <ReportProblemOutlinedIcon sx={{ fontSize: '1.5rem' }} />
-                    </Box>
-
-                    <Box sx={{ minWidth: 0 }}>
-                        <Typography
-                            variant="subtitle1"
-                            fontWeight={800}
-                            color="#991b1b"
-                            sx={{ fontSize: { xs: '0.95rem', sm: '1rem' }, display: 'flex', alignItems: 'center', gap: 1 }}
-                        >
-                            <span>Cảnh báo: Có {expiredCount} kỳ đối soát quá hạn trả vé chưa xử lý</span>
-                        </Typography>
-                        <Typography variant="body2" color="#7f1d1d" sx={{ mt: 0.25, fontSize: '0.875rem' }}>
-                            Các kỳ đối soát này đã vượt mốc thời gian hạn trả vé với tổng giá trị trả vé bị đọng là{' '}
-                            <Box component="span" sx={{ fontWeight: 800, color: '#dc2626' }}>
-                                {formatImportCost(totalExpiredValue)} VNĐ
-                            </Box>
-                            . Vui lòng kiểm tra và tiến hành xử lý ngay.
-                        </Typography>
-                    </Box>
-                </Stack>
-
-                <Button
-                    variant="contained"
-                    size="small"
-                    onClick={handleActionClick}
-                    endIcon={<ArrowForwardOutlinedIcon fontSize="small" />}
-                    sx={{
-                        bgcolor: '#dc2626',
-                        color: '#ffffff',
-                        fontWeight: 700,
-                        px: 2.5,
-                        py: 0.85,
-                        borderRadius: '10px',
-                        textTransform: 'none',
-                        boxShadow: '0 2px 8px 0 rgba(220, 38, 38, 0.25)',
-                        flexShrink: 0,
-                        alignSelf: { xs: 'stretch', sm: 'center' },
-                        '&:hover': {
-                            bgcolor: '#b91c1c',
-                            boxShadow: '0 4px 12px 0 rgba(220, 38, 38, 0.35)',
-                        },
-                    }}
-                >
-                    Xem chi tiết
-                </Button>
-            </Box>
+                        Xem chi tiết
+                    </Button>
+                }
+            >
+                <Typography variant="body2" component="span">
+                    Có <strong>{expiredCount}</strong> kỳ đối soát <strong>quá hạn trả vé</strong>
+                    {totalExpiredValue > 0 ? (
+                        <>
+                            {' '}
+                            — giá trị đọng{' '}
+                            <strong>{formatImportCost(totalExpiredValue)} VNĐ</strong>
+                        </>
+                    ) : null}
+                    . Vui lòng kiểm tra và xử lý sớm.
+                </Typography>
+            </Alert>
 
             {/* Modal danh sách các kỳ quá hạn trả vé (khi có > 1 bản ghi) */}
             <Dialog

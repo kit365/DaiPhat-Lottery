@@ -8,6 +8,8 @@ import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.response.streetagent.StreetAgentProfileResponse;
 import com.daiphat.coreapi.application.port.in.streetagent.StreetAgentProfileServicePort;
 import com.daiphat.coreapi.application.port.in.streetagent.StreetAgentContractServicePort;
+import com.daiphat.coreapi.application.port.in.streetagent.VendorConfidenceServicePort;
+import com.daiphat.coreapi.application.port.in.streetagent.VendorDailySalesReportServicePort;
 import com.daiphat.coreapi.shared.util.StatusCountKeys;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -44,13 +46,21 @@ class StreetAgentProfileControllerTest {
     @Mock
     private StreetAgentContractServicePort streetAgentContractServicePort;
 
+    @Mock
+    private VendorConfidenceServicePort vendorConfidenceServicePort;
+
+    @Mock
+    private VendorDailySalesReportServicePort vendorDailySalesReportServicePort;
+
     private StreetAgentProfileController streetAgentProfileController;
 
     @BeforeEach
     void setUp() {
         streetAgentProfileController = new StreetAgentProfileController(
                 streetAgentProfileServicePort,
-                streetAgentContractServicePort);
+                streetAgentContractServicePort,
+                vendorConfidenceServicePort,
+                vendorDailySalesReportServicePort);
     }
 
     @Nested
@@ -274,7 +284,7 @@ class StreetAgentProfileControllerTest {
                     .getAnnotation(PreAuthorize.class);
 
             assertThat(authorization).isNotNull();
-            assertThat(authorization.value()).isEqualTo("hasAnyAuthority('streetAgent:view', 'member:view')");
+            assertThat(authorization.value()).isEqualTo("hasAuthority('streetAgent:view')");
         }
 
         @Test

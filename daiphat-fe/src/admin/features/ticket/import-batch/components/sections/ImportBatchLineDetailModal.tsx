@@ -28,7 +28,7 @@ import {
 import CloseIcon from '@mui/icons-material/Close';
 import { useQueryClient } from '@tanstack/react-query';
 import { QUERY_KEYS } from '../../../inventory/constants/queryKeys';
-import { ReportSerialFaultPane } from './ReportSerialFaultPane';
+import { LazyReportSerialFaultPane } from './LazyReportSerialFaultPane';
 import ReportProblemIcon from '@mui/icons-material/ReportProblem';
 import ConfirmationNumberIcon from '@mui/icons-material/ConfirmationNumber';
 import StorefrontIcon from '@mui/icons-material/Storefront';
@@ -310,7 +310,7 @@ const CollapsibleRow = ({
 export const ImportBatchLineDetailModal = ({ line, batch, stationName, onClose }: Props) => {
     const queryClient = useQueryClient();
     // Destructure tickets directly instead of data (since hook returns tickets mapped array)
-    const { tickets, isLoading } = useTicketInventory({ limit: 1000, importBatchLineId: line.id });
+    const { tickets, isLoading } = useTicketInventory({ importBatchLineId: line.id }, 1000);
 
     // States for report fault pane
     const [reportSerials, setReportSerials] = React.useState<any[]>([]);
@@ -610,7 +610,7 @@ export const ImportBatchLineDetailModal = ({ line, batch, stationName, onClose }
                     {/* Right Pane (Fault Reporting) */}
                     <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0, width: '40%' }}>
                         {reportSerials.length > 0 ? (
-                            <ReportSerialFaultPane
+                            <LazyReportSerialFaultPane
                                 serials={reportSerials}
                                 ticketNumbers={reportTicketNumbers}
                                 ticketId={reportTicketId}

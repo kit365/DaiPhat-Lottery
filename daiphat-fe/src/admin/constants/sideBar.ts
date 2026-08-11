@@ -1,9 +1,6 @@
 import { ROUTES } from "./routes";
-import DataExplorationIcon from "@mui/icons-material/DataExploration";
-import ScheduleSendIcon from "@mui/icons-material/ScheduleSend";
 import ExtensionIcon from "@mui/icons-material/Extension";
 import ArticleIcon from "@mui/icons-material/Article";
-import DiscountIcon from "@mui/icons-material/Discount";
 import PeopleIcon from "@mui/icons-material/People";
 import SecurityIcon from "@mui/icons-material/Security";
 import SettingsIcon from "@mui/icons-material/Settings";
@@ -16,6 +13,8 @@ import SupportAgentIcon from "@mui/icons-material/SupportAgent";
 import PaymentsIcon from "@mui/icons-material/Payments";
 import EmojiEventsIcon from "@mui/icons-material/EmojiEvents";
 import FactCheckIcon from "@mui/icons-material/FactCheck";
+import LocalShippingIcon from "@mui/icons-material/LocalShipping";
+import StorefrontIcon from "@mui/icons-material/Storefront";
 
 import { PERMISSIONS } from "./permission.constants";
 
@@ -68,11 +67,30 @@ export const menuManagementData = [
         children: [
             { id: "staff-management", label: "Quản lý nhân viên", path: ROUTES.ADMIN.ACCOUNTS.ADMIN.LIST, permission: PERMISSIONS.ACCOUNT.VIEW },
             { id: "customer-management", label: "Quản lý khách hàng", path: ROUTES.ADMIN.ACCOUNTS.USER.LIST, permission: PERMISSIONS.USER.VIEW },
-            { id: "street-agents", label: "Đại lý bán dạo", path: ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.LIST, permission: PERMISSIONS.STREET_AGENT.VIEW },
-            { id: "street-agent-allocation", label: "Bàn giao vé bán dạo", path: ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.ALLOCATION, permission: PERMISSIONS.STREET_AGENT.VIEW },
-            { id: "street-agent-allocation-batches", label: "Phiếu bàn giao vé", path: ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.ALLOCATION_BATCHES, permission: PERMISSIONS.STREET_AGENT.VIEW },
-            { id: "street-agent-lucky-patterns", label: "Cấu hình số đẹp", path: ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.LUCKY_PATTERNS, permission: PERMISSIONS.STREET_AGENT.VIEW },
         ]
+    },
+    {
+        id: "street-agent-management",
+        label: "Người bán vé số",
+        Icon: StorefrontIcon,
+        permission: PERMISSIONS.STREET_AGENT.VIEW,
+        children: [
+            { id: "street-agents", label: "Hồ sơ người bán vé số", path: ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.LIST, permission: PERMISSIONS.STREET_AGENT.VIEW },
+            { id: "street-agent-allocation", label: "Bàn giao vé cho người bán vé số", path: ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.ALLOCATION, permission: PERMISSIONS.STREET_AGENT.VIEW },
+            { id: "street-agent-allocation-batches", label: "Phiếu bàn giao vé", path: ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.ALLOCATION_BATCHES, permission: PERMISSIONS.STREET_AGENT.VIEW },
+        ]
+    },
+    {
+        id: "supplier-management",
+        label: "Nhà cung cấp",
+        tKey: "admin.sidebar.supplier_management",
+        Icon: LocalShippingIcon,
+        permission: PERMISSIONS.SUPPLIER.VIEW,
+        children: [
+            { id: "supplier", label: "Danh sách", path: ROUTES.ADMIN.SUPPLIER.LIST, permission: PERMISSIONS.SUPPLIER.VIEW },
+            { id: "supplier-settlement", label: "Đối soát", path: ROUTES.ADMIN.SUPPLIER_SETTLEMENT.LIST, permission: PERMISSIONS.IMPORT_BATCH.VIEW },
+            { id: "return-batch", label: "Trả vé", path: ROUTES.ADMIN.RETURN_BATCH.LIST, permission: PERMISSIONS.IMPORT_BATCH.VIEW, badge: 'return-batch-pending' },
+        ],
     },
     {
         id: "tickets",
@@ -83,11 +101,9 @@ export const menuManagementData = [
         children: [
             { id: "list", label: "Kho vé số", tKey: "admin.sidebar.list", path: ROUTES.ADMIN.TICKETS.LIST, permission: PERMISSIONS.TICKET.VIEW },
             { id: "import-batch", label: "Nhập lô vé", path: ROUTES.ADMIN.IMPORT_BATCH.LIST, permission: PERMISSIONS.IMPORT_BATCH.VIEW },
-            { id: "return-batch", label: "Trả vé NCC", path: ROUTES.ADMIN.RETURN_BATCH.LIST, permission: PERMISSIONS.IMPORT_BATCH.VIEW, badge: 'return-batch-pending' },
-            { id: "supplier-settlement", label: "Đối soát NCC", path: ROUTES.ADMIN.SUPPLIER_SETTLEMENT.LIST, permission: PERMISSIONS.IMPORT_BATCH.VIEW },
-            { id: "supplier", label: "Nhà cung cấp", path: ROUTES.ADMIN.SUPPLIER.LIST, permission: PERMISSIONS.SUPPLIER.VIEW },
             { id: "provider", label: "Nhà đài", tKey: "admin.sidebar.provider", path: ROUTES.ADMIN.TICKETS.PROVIDER, permission: PERMISSIONS.PROVIDER.VIEW },
             { id: "region", label: "Vùng miền", path: ROUTES.ADMIN.TICKETS.REGION, permission: PERMISSIONS.REGION.VIEW },
+            { id: "street-agent-lucky-patterns", label: "Cấu hình số đẹp", path: ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.LUCKY_PATTERNS, permission: PERMISSIONS.STREET_AGENT.VIEW },
         ]
     },
     {

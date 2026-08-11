@@ -1,8 +1,8 @@
 "use client";
 
+import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
 import React, { useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { DataGrid } from "@mui/x-data-grid";
+import { LazyDataGrid } from "@/admin/shared/data-grid/LazyDataGrid";
 import {
     Box,
     Card,
@@ -13,7 +13,7 @@ import {
 } from "@mui/material";
 import { getColumnsConfig, columnsInitialState } from "../configs/column.config";
 import { DATA_GRID_LOCALE_VN } from "../../../../../shared/components/DataTable/localeText.config";
-import { useStreetAgentProfiles } from "../../hooks/useStreetAgent";
+import { useStreetAgentProfileStatusCounts, useStreetAgentProfiles } from "../../hooks/useStreetAgent";
 import { ROUTES } from "../../../../constants/routes";
 import { STATUS_OPTIONS } from "../configs/constants";
 import { Search } from "../../../../components/ui/Search";
@@ -37,7 +37,7 @@ const TabBadge = styled("span")(() => ({
 }));
 
 export const StreetAgentList = () => {
-    const navigate = useNavigate();
+    const router = useAdminRouter();
     const [status, setStatus] = useState("all");
     const [search, setSearch] = useState("");
     const [page, setPage] = useState(0);
@@ -54,16 +54,17 @@ export const StreetAgentList = () => {
     );
 
     const { data: res, isLoading } = useStreetAgentProfiles(params);
+    const { counts: statusCounts, isLoading: isLoadingStatusCounts } = useStreetAgentProfileStatusCounts();
 
     const profiles = res?.data?.recordList || [];
     const pagination = res?.data?.pagination || { totalRecords: 0 };
 
     const handleEdit = (id: number) => {
-        navigate(`${ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.EDIT}/${id}`);
+        router.push(`${ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.EDIT}/${id}`);
     };
 
     const handleResumeOnboarding = (id: number) => {
-        navigate(getStreetAgentOnboardingResumePath(id));
+        router.push(getStreetAgentOnboardingResumePath(id));
     };
 
     const handleStatusChange = (_event: React.SyntheticEvent, newValue: string) => {
@@ -99,7 +100,7 @@ export const StreetAgentList = () => {
                         label={option.label}
                         icon={
                             <TabBadge sx={getTabBadgeStyles(option.value, status === option.value)}>
-                                {option.value === "all" ? pagination.totalRecords || 0 : 0}
+                                {isLoadingStatusCounts ? "—" : statusCounts[option.value as keyof typeof statusCounts]}
                             </TabBadge>
                         }
                         iconPosition="end"
@@ -134,7 +135,7 @@ export const StreetAgentList = () => {
             >
                 <Box sx={{ flex: 1, minWidth: 240 }}>
                     <Search
-                        placeholder="Tìm kiếm đại lý bán dạo..."
+                        placeholder="Tìm kiếm người bán vé số..."
                         value={search}
                         onChange={(val) => {
                             setSearch(val);
@@ -150,7 +151,7 @@ export const StreetAgentList = () => {
             </Box>
 
             <Box sx={{ width: "100%", flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minHeight: 640 }}>
-                <DataGrid
+                <LazyDataGrid
                     className="admin-datagrid"
                     rows={profiles}
                     getRowId={(row) => row.id}

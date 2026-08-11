@@ -2,7 +2,8 @@ import cv2
 import numpy as np
 import pytest
 
-from domain.detection.contour_detector import ContourTicketDetector
+from domain.detection.base import DetectedRegion
+from domain.detection.contour_detector import ContourTicketDetector, _suppress_contained_regions
 
 # Requires opencv-python-headless + numpy to be installed -- see README.md
 # "Local setup" for why they aren't available in every environment.
@@ -62,10 +63,52 @@ def test_detects_multiple_tickets_in_reading_order():
     assert result.regions[0].bbox[0] < result.regions[1].bbox[0]
 
 
+def test_detects_a_ticket_photographed_at_an_angle():
+    # A ticket-shaped rectangle (aspect ratio 0.4, in-band) rotated 45deg --
+    # its axis-aligned bounding box is near-square and would wrongly fail an
+    # AABB-based aspect ratio check, even though the ticket itself is fine.
+    canvas = _canvas()
+    rect = ((600, 450), (250, 620), 45)
+    box = cv2.boxPoints(rect).astype(np.int32)
+    cv2.fillConvexPoly(canvas, box, (255, 255, 255))
+
+    result = _detector().detect(canvas)
+
+    assert len(result.regions) == 1
+
+
+def test_suppress_contained_regions_drops_a_sub_feature_nested_in_a_ticket():
+    # A ticket-shaped region with a smaller region (e.g. a QR code) almost
+    # fully nested inside it -- the small one is a sub-feature of the
+    # ticket, not a second ticket, and should be dropped.
+    ticket = DetectedRegion(bbox=(100, 80, 300, 600), corners=[])
+    qr_code = DetectedRegion(bbox=(120, 500, 80, 100), corners=[])
+
+    kept = _suppress_contained_regions([ticket, qr_code])
+
+    assert kept == [ticket]
+
+
+def test_suppress_contained_regions_keeps_two_separate_adjacent_tickets():
+    # Two same-size tickets sitting side by side with no overlap must both
+    # survive -- containment suppression must not merge legitimately
+    # separate tickets.
+    left = DetectedRegion(bbox=(100, 100, 250, 500), corners=[])
+    right = DetectedRegion(bbox=(900, 100, 250, 500), corners=[])
+
+    kept = _suppress_contained_regions([right, left])
+
+    assert set(id(r) for r in kept) == {id(left), id(right)}
+
+
 def test_caps_detections_at_max_tickets_and_warns():
-    canvas = _canvas(width=2400, height=1600)
+    # Extra vertical padding so the bottom row does not sit on the canvas
+    # edge — OpenCV external contours often fail for shapes that touch the
+    # image border, which would under-detect and skip the cap warning.
+    canvas = _canvas(width=2400, height=1700)
     for i in range(20):
         row, col = divmod(i, 5)
+        # aspect 180/350 ≈ 0.51 — inside the configured 0.28–0.62 band
         _draw_ticket(canvas, x=50 + col * 460, y=50 + row * 400, w=180, h=350)
 
     result = _detector(max_tickets=15).detect(canvas)

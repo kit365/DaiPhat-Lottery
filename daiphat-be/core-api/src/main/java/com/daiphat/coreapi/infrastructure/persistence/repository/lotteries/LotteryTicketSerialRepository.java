@@ -194,8 +194,22 @@ public interface LotteryTicketSerialRepository extends JpaRepository<LotteryTick
     List<LotteryTicketSerialEntity> findVendorAllocationCandidates(@Param("drawDate") java.time.LocalDate drawDate);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("select s from LotteryTicketSerialEntity s join fetch s.ticket t join fetch t.station where s.id in :ids and s.deletedAt is null")
+    @Query("select s from LotteryTicketSerialEntity s join fetch s.ticket t join fetch t.station where s.id in :ids and s.deletedAt is null order by s.id asc")
     List<LotteryTicketSerialEntity> findAllByIdForAllocationUpdate(@Param("ids") Collection<Long> ids);
+
+    /** Locks every currently sellable serial of affected stations while counter reserve is evaluated. */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("""
+            select s from LotteryTicketSerialEntity s join fetch s.ticket t join fetch t.station st
+            where s.deletedAt is null and s.status = com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus.IN_STOCK
+              and s.ticketCondition = com.daiphat.coreapi.domain.model.enums.lottery.TicketCondition.GOOD
+              and s.returnBatchLineId is null and t.drawDate = :drawDate and t.deletedAt is null
+              and t.active = true and t.status <> com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketStatus.EXPIRED
+              and st.deletedAt is null and st.isActive = true and st.id in :stationIds
+            order by st.id asc, t.numbers asc, s.id asc
+            """)
+    List<LotteryTicketSerialEntity> lockVendorAllocationCandidatesForStations(
+            @Param("drawDate") java.time.LocalDate drawDate, @Param("stationIds") Collection<Long> stationIds);
 
     List<LotteryTicketSerialEntity> findByReturnBatchLineIdAndDeletedAtIsNull(Long returnBatchLineId);
 

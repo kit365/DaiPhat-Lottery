@@ -11,4 +11,7 @@ public class VendorAllocationBatchDetailModel {
     private int allocatedQuantity;
     private int returnedQuantity;
     private int soldQuantity;
+    private Integer eligibleQuantitySnapshot;
+    private Integer agencyReserveQuantitySnapshot;
+    private Integer vendorCapacitySnapshot;
 }

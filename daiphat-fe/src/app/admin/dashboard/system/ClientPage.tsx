@@ -1,11 +1,10 @@
-"use client";
-
-import { SystemPage } from '@/admin/pages/dashboard/SystemPage';
+﻿"use client";
 
 import { createAdminClientPage } from '@/admin/lib/createAdminClientPage';
 import { PERMISSIONS } from '@/admin/constants/permission.constants';
 
 export const ClientPage = createAdminClientPage({
-  component: SystemPage,
+  loader: () => import('@/admin/features/dashboard/components/pages/SystemPage'),
+  exportName: 'SystemPage',
   permission: PERMISSIONS.DASHBOARD.SYSTEM,
 });

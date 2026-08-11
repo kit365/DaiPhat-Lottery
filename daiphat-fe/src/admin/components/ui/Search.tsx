@@ -3,8 +3,7 @@
 import Box from '@mui/material/Box';
 import TextField from '@mui/material/TextField';
 import InputAdornment from '@mui/material/InputAdornment';
-import { Icon } from '@iconify/react';
-import { useTranslation } from 'react-i18next';
+import { Icon } from '@/admin/components/ui/AdminIcon';
 import { useState, useEffect, useCallback, useRef } from 'react';
 
 interface SearchProps {
@@ -15,9 +14,8 @@ interface SearchProps {
 }
 
 export const Search = ({ maxWidth = 260, placeholder, value, onChange }: SearchProps) => {
-    const { t } = useTranslation();
     const [internalValue, setInternalValue] = useState(value || '');
-    const displayPlaceholder = placeholder || t("admin.common.search");
+    const displayPlaceholder = placeholder || 'Tìm kiếm...';
 
     // Sync internal value with prop value (e.g. when cleared from outside)
     useEffect(() => {

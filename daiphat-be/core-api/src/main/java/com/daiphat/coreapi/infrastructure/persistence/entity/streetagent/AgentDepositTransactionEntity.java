@@ -59,4 +59,16 @@ public class AgentDepositTransactionEntity extends BaseEntity {
 
     @Column(name = "payment_method", length = 50)
     private String paymentMethod;
+
+    @Column(name = "transaction_type", length = 30)
+    private String transactionType;
+
+    @Column(name = "balance_before", precision = 18, scale = 0)
+    private BigDecimal balanceBefore;
+
+    @Column(name = "balance_after", precision = 18, scale = 0)
+    private BigDecimal balanceAfter;
+
+    @Column(length = 500)
+    private String reason;
 }

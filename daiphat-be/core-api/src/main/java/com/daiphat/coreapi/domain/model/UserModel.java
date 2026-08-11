@@ -201,6 +201,22 @@ public class UserModel {
         this.agreedToTerms = false;
     }
 
+    /**
+     * Creates an internal identity record for an offline street agent. This is
+     * deliberately not an interactive account and cannot receive credentials.
+     */
+    public void onboardInternalStreetAgentUser() {
+        this.status = UserStatus.INTERNAL;
+        this.hasPassword = false;
+        this.password = null;
+        this.emailVerified = false;
+        this.twoFactorEnabled = false;
+        this.agreedToTerms = false;
+        this.failedLoginAttempts = 0;
+        this.lockedUntil = null;
+        this.lastFailedLoginAt = null;
+    }
+
     public void updateFcmToken(String token) {
         this.fcmToken = token;
     }

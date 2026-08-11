@@ -18,13 +18,6 @@ export const CONFIDENCE_TIER_LABELS: Record<string, string> = {
     TRUSTED: 'Tin cậy',
 };
 
-export const CONFIDENCE_TIER_CAP_PERCENT: Record<string, number> = {
-    NEW: 0.25,
-    DEVELOPING: 0.5,
-    ESTABLISHED: 0.75,
-    TRUSTED: 1,
-};
-
 export const LUCKY_PATTERN_TYPE_LABELS: Record<string, string> = {
     EXACT: 'Số khớp chính xác',
     DIGIT_MATCH: 'Khớp theo cụm số',

@@ -1,5 +1,6 @@
 "use client";
 
+import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
 import { useState, SyntheticEvent } from "react";
 import React from 'react';
 import {
@@ -16,21 +17,17 @@ import {
     TableContainer,
     TableHead,
     TableRow,
-    IconButton,
     Checkbox,
     TablePagination,
     Stack,
     Avatar,
     Chip,
-    Menu,
-    MenuItem
 } from "@mui/material";
-import { Icon } from "@iconify/react";
+import { Icon } from '@/admin/components/ui/AdminIcon';
 import dayjs from "dayjs";
-import { useTranslation } from "react-i18next";
-import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import { confirmAction } from "../../../../utils/swal";
+import { formatVnd } from '../../../../utils/currency';
 import { prefixAdmin } from "../../../../constants/routes";
 import { useAdminOrderList, useUpdateOrderStatus } from "../../hooks/useOrder";
 import { OrderToolbar } from './OrderToolbar';
@@ -39,7 +36,12 @@ import { useOrderDrawCutoff } from '../../hooks/useOrder';
 import { OrderCutoffReminderBanner } from './OrderCutoffReminderBanner';
 import { OrderHandoverConfirmDialog } from './OrderHandoverConfirmDialog';
 import { OrderStatus } from '../../../../../types/order.type';
-import { ORDER_STATUS_TABS, getOrderStatusBadge } from '../../constants/orderStatus.constants';
+import { ORDER_STATUS_TABS } from '../../constants/orderStatus.constants';
+import { getOrderStatusBadge } from '../../utils/orderStatusBadge';
+import {
+    AdminRowActionsMenu,
+    type AdminRowActionsMenuItem,
+} from '../../../../components/ui/AdminRowActionsMenu';
 
 const TabBadge = styled('span')(() => ({
     height: "24px",
@@ -56,23 +58,13 @@ const TabBadge = styled('span')(() => ({
 }));
 
 export const OrderList = () => {
-    const { t } = useTranslation();
-    const navigate = useNavigate();
+    const router = useAdminRouter();
     const { settings, setSettings } = useSettings();
     
     const [tabStatus, setTabStatus] = useState('all');
     const [selected, setSelected] = useState<string[]>([]);
     const [openRows, setOpenRows] = useState<string[]>([]);
-    const [anchorEl, setAnchorEl] = useState<{ [key: string]: HTMLElement | null }>({});
     const [handoverOrderId, setHandoverOrderId] = useState<string | null>(null);
-
-    const handleOpenMenu = (event: React.MouseEvent<HTMLElement>, id: string) => {
-        setAnchorEl({ ...anchorEl, [id]: event.currentTarget });
-    };
-
-    const handleCloseMenu = (id: string) => {
-        setAnchorEl({ ...anchorEl, [id]: null });
-    };
 
     const {
         orders,
@@ -128,7 +120,60 @@ export const OrderList = () => {
     };
 
     const handleViewDetail = (id: string) => {
-        navigate(`/${prefixAdmin}/order/detail/${id}`);
+        router.push(`/${prefixAdmin}/order/detail/${id}`);
+    };
+
+    const getOrderRowMenuItems = (row: { id: string; status: string }): AdminRowActionsMenuItem[] => {
+        const items: AdminRowActionsMenuItem[] = [
+            {
+                id: 'view',
+                label: 'Xem chi tiết',
+                icon: 'view',
+                onClick: () => handleViewDetail(row.id),
+            },
+        ];
+
+        if (row.status === 'PENDING_PAYMENT') {
+            items.push({
+                id: 'paid',
+                label: 'Đã thu tiền',
+                icon: <Icon icon="solar:wallet-money-bold" width={18} />,
+                onClick: () => handleStatusUpdate(row.id, 'PAID'),
+                sx: { color: 'var(--palette-success-main)' },
+            });
+        }
+
+        if (row.status === 'PAID') {
+            items.push({
+                id: 'preparing',
+                label: 'Đang chuẩn bị',
+                icon: <Icon icon="solar:box-bold" width={18} />,
+                onClick: () => handleStatusUpdate(row.id, 'PREPARING'),
+                sx: { color: 'var(--palette-info-main)' },
+            });
+        }
+
+        if (row.status === 'PREPARING') {
+            items.push({
+                id: 'pending-pickup',
+                label: 'Chờ nhận vé',
+                icon: <Icon icon="solar:shop-2-bold" width={18} />,
+                onClick: () => handleStatusUpdate(row.id, 'PENDING_PICKUP'),
+                sx: { color: 'var(--palette-primary-main)' },
+            });
+        }
+
+        if (row.status === 'PENDING_PICKUP') {
+            items.push({
+                id: 'completed',
+                label: 'Hoàn thành',
+                icon: <Icon icon="eva:checkmark-circle-2-fill" width={18} />,
+                onClick: () => handleStatusUpdate(row.id, 'COMPLETED'),
+                sx: { color: 'var(--palette-success-main)' },
+            });
+        }
+
+        return items;
     };
 
 
@@ -435,7 +480,7 @@ export const OrderList = () => {
 
                                             <TableCell sx={{ borderBottom: '1px dashed var(--palette-background-neutral)' }}>
                                                 <Typography sx={{ fontWeight: 600, fontSize: '0.875rem', color: 'var(--palette-text-primary)' }}>
-                                                    {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(row.totalAmount || 0)}
+                                                    {formatVnd(row.totalAmount || 0)}
                                                 </Typography>
                                             </TableCell>
 
@@ -463,82 +508,11 @@ export const OrderList = () => {
 
                                             <TableCell align="right" sx={{ borderBottom: '1px dashed var(--palette-background-neutral)', width: 80 }}>
                                                 <Stack direction="row" spacing={0} justifyContent="flex-end">
-                                                    <IconButton
-                                                        onClick={(e) => handleOpenMenu(e, row.id)}
-                                                        sx={{
-                                                            color: 'var(--palette-text-primary)',
-                                                            bgcolor: anchorEl[row.id] ? 'var(--palette-action-hover)' : 'transparent',
-                                                            '&:hover': {
-                                                                bgcolor: 'rgba(var(--palette-action-activeChannel) / var(--palette-action-hoverOpacity))',
-                                                            }
-                                                        }}
-                                                    >
-                                                        <Icon icon="eva:more-vertical-fill" width={20} />
-                                                    </IconButton>
+                                                    <AdminRowActionsMenu
+                                                        items={getOrderRowMenuItems(row)}
+                                                        minWidth={160}
+                                                    />
                                                 </Stack>
-
-                                                <Menu
-                                                    anchorEl={anchorEl[row.id]}
-                                                    open={Boolean(anchorEl[row.id])}
-                                                    onClose={() => handleCloseMenu(row.id)}
-                                                    anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-                                                    transformOrigin={{ vertical: 'top', horizontal: 'right' }}
-                                                    slotProps={{
-                                                        paper: {
-                                                            sx: {
-                                                                width: 160,
-                                                                boxShadow: 'var(--customShadows-z20)',
-                                                                borderRadius: 'var(--shape-borderRadius-md)',
-                                                                p: 0.5
-                                                            }
-                                                        }
-                                                    }}
-                                                >
-                                                    <MenuItem onClick={() => { handleCloseMenu(row.id); handleViewDetail(row.id); }}>
-                                                        <Icon icon="solar:eye-bold" width={18} style={{ marginRight: 8 }} />
-                                                        Xem chi tiết
-                                                    </MenuItem>
-
-                                                    {['PENDING_PAYMENT'].includes(row.status) && (
-                                                        <MenuItem
-                                                            onClick={() => { handleCloseMenu(row.id); handleStatusUpdate(row.id, 'PAID'); }}
-                                                            sx={{ color: 'var(--palette-success-main)' }}
-                                                        >
-                                                            <Icon icon="solar:wallet-money-bold" width={18} style={{ marginRight: 8 }} />
-                                                            Đã thu tiền
-                                                        </MenuItem>
-                                                    )}
-
-                                                    {['PAID'].includes(row.status) && (
-                                                        <MenuItem
-                                                            onClick={() => { handleCloseMenu(row.id); handleStatusUpdate(row.id, 'PREPARING'); }}
-                                                            sx={{ color: 'var(--palette-info-main)' }}
-                                                        >
-                                                            <Icon icon="solar:box-bold" width={18} style={{ marginRight: 8 }} />
-                                                            Đang chuẩn bị
-                                                        </MenuItem>
-                                                    )}
-
-                                                    {['PREPARING'].includes(row.status) && (
-                                                        <MenuItem
-                                                            onClick={() => { handleCloseMenu(row.id); handleStatusUpdate(row.id, 'PENDING_PICKUP'); }}
-                                                            sx={{ color: 'var(--palette-primary-main)' }}
-                                                        >
-                                                            <Icon icon="solar:shop-2-bold" width={18} style={{ marginRight: 8 }} />
-                                                            Chờ nhận vé
-                                                        </MenuItem>
-                                                    )}
-
-                                                    {['PENDING_PICKUP'].includes(row.status) && (
-                                                        <MenuItem
-                                                            onClick={() => { handleCloseMenu(row.id); handleStatusUpdate(row.id, 'COMPLETED'); }}
-                                                            sx={{ color: 'var(--palette-success-main)' }}
-                                                        >
-                                                            <Icon icon="eva:checkmark-circle-2-fill" width={18} style={{ marginRight: 8 }} />
-                                                            Hoàn thành
-                                                        </MenuItem>
-                                                    )}
-                                                </Menu>
                                             </TableCell>
                                         </TableRow>
                                     </React.Fragment>

@@ -1,14 +1,13 @@
 import Box from "@mui/material/Box";
 import {
-    GridActionsCellItem,
     GridColDef,
     GridRenderCellParams,
 } from "@mui/x-data-grid";
 import Avatar from "@mui/material/Avatar";
-import EditIcon from "@mui/icons-material/Edit";
 import AssignmentTurnedInIcon from "@mui/icons-material/AssignmentTurnedIn";
 import Typography from "@mui/material/Typography";
 import Stack from "@mui/material/Stack";
+import { AdminRowActionsMenu } from "../../../../components/ui/AdminRowActionsMenu";
 import { STATUS_LABELS } from "./constants";
 import { formatCoverageAreaDisplay } from "../../constants/coverageAreas";
 
@@ -20,7 +19,7 @@ export const getColumnsConfig = (
 ): GridColDef[] => [
     {
         field: "fullName",
-        headerName: "Đại lý bán dạo",
+        headerName: "Người bán vé số",
         minWidth: 280,
         flex: 1.5,
         valueGetter: (_value, row) => `${row.lastName || ""} ${row.firstName || ""}`.trim(),
@@ -82,8 +81,8 @@ export const getColumnsConfig = (
         valueFormatter: (value) => formatCoverageAreaDisplay(value),
     },
     {
-        field: "dailyTicketCap",
-        headerName: "Hạn mức/ngày",
+        field: "effectiveDailyCap",
+        headerName: "Hạn mức hiện hành",
         width: 120,
         valueFormatter: (value) => value ?? "—",
     },
@@ -131,40 +130,38 @@ export const getColumnsConfig = (
     },
     {
         field: "actions",
-        type: "actions",
         headerName: "",
-        width: 120,
+        width: 80,
+        sortable: false,
         align: "right",
-        getActions: (params) => {
-            const actions = [
-                <GridActionsCellItem
-                    key="edit"
-                    icon={<EditIcon sx={{ fontSize: 20 }} />}
-                    label="Chỉnh sửa"
-                    onClick={() => onEdit(Number(params.id))}
-                />,
-            ];
+        renderCell: (params: GridRenderCellParams) => {
             const needsOnboarding =
                 params.row.status === "PENDING" && !params.row.contractDocumentUrl;
-            if (needsOnboarding) {
-                actions.unshift(
-                    <GridActionsCellItem
-                        key="resume"
-                        icon={<AssignmentTurnedInIcon sx={{ fontSize: 20 }} />}
-                        label="Hoàn thiện HĐ"
-                        onClick={() => onResumeOnboarding(Number(params.id))}
-                    />
-                );
-            }
-            return actions;
+
+            return (
+                <AdminRowActionsMenu
+                    items={[
+                        ...(needsOnboarding
+                            ? [
+                                  {
+                                      id: "resume",
+                                      label: "Hoàn thiện HĐ",
+                                      icon: <AssignmentTurnedInIcon sx={{ fontSize: 20 }} />,
+                                      onClick: () => onResumeOnboarding(Number(params.id)),
+                                  },
+                              ]
+                            : []),
+                        {
+                            id: "edit",
+                            label: "Chỉnh sửa",
+                            icon: 'edit',
+                            onClick: () => onEdit(Number(params.id)),
+                        },
+                    ]}
+                />
+            );
         },
     },
 ];
 
-export const columnsInitialState = {
-    pagination: {
-        paginationModel: {
-            pageSize: 10,
-        },
-    },
-};
+export const columnsInitialState = {};

@@ -1,5 +1,7 @@
 package com.daiphat.coreapi.infrastructure.persistence.entity.streetagent;
 
+import com.daiphat.coreapi.domain.model.enums.streetagent.DailySalesReportStatus;
+import com.daiphat.coreapi.domain.model.enums.streetagent.DailySalesReportOwnerType;
 import com.daiphat.coreapi.infrastructure.persistence.entity.BaseEntity;
 import jakarta.persistence.*;
 import lombok.*;
@@ -12,7 +14,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
-/** Draw.io {@code Daily_Sales_Report} skeleton — Phase 1 no service. */
 @Entity
 @Table(name = "daily_sales_reports")
 @Getter
@@ -27,8 +28,13 @@ public class DailySalesReportEntity extends BaseEntity {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "agent_id", nullable = false)
+    @JoinColumn(name = "agent_id")
     private StreetAgentProfileEntity agent;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "owner_type", nullable = false, length = 30)
+    @Builder.Default
+    private DailySalesReportOwnerType ownerType = DailySalesReportOwnerType.STREET_AGENT;
 
     @Column(name = "report_date", nullable = false)
     private LocalDate reportDate;
@@ -45,9 +51,10 @@ public class DailySalesReportEntity extends BaseEntity {
     @Builder.Default
     private BigDecimal totalCashCollected = BigDecimal.ZERO;
 
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 30)
     @Builder.Default
-    private String status = "pending";
+    private DailySalesReportStatus status = DailySalesReportStatus.OPEN;
 
     @Column(name = "confirmed_by")
     private UUID confirmedBy;

@@ -103,10 +103,73 @@ class VendorAllocationBatchModelTest {
         var settlement = batch.settle(now.plusHours(2), BigDecimal.valueOf(1_000), UUID.randomUUID());
 
         assertThat(batch.getStatus()).isEqualTo(AllocationBatchStatus.SETTLED);
-        assertThat(serial.getTicketStatus()).isEqualTo(LotteryTicketSerialStatus.IN_STOCK);
+        // Physical stock is restored by the application service after inspection confirmation.
+        assertThat(serial.getTicketStatus()).isEqualTo(LotteryTicketSerialStatus.WITH_STREET_AGENT);
         assertThat(settlement.soldQuantity()).isZero();
         assertThat(settlement.depositRefundAmount()).isEqualByComparingTo("1000");
         assertThat(batch.getDepositBalanceAfter()).isZero();
+    }
+
+    @Test
+    void only_confirmed_inspection_counts_as_returned() {
+        LocalDateTime now = LocalDateTime.of(2026, 8, 5, 9, 0);
+        VendorAllocationSerialModel serial = serial();
+        VendorAllocationBatchModel batch = VendorAllocationBatchModel.createDraft("VND-1", 7L,
+                LocalDate.of(2026, 8, 5), now.plusMinutes(15), List.of(serial), null);
+        serial.markReservedByBatch(99L);
+        batch.confirmHandover(now, BigDecimal.valueOf(9_000), new BigDecimal("0.10"),
+                VendorLateReturnPolicy.FORFEIT_DEPOSIT, LocalTime.of(15, 0),
+                BigDecimal.valueOf(1_000), BigDecimal.ZERO, UUID.randomUUID());
+
+        batch.openReturnSession();
+        batch.stageReturnedSerials(List.of(1L));
+        assertThat(serial.getStatus()).isEqualTo(AllocationSerialStatus.RETURN_PENDING_INSPECTION);
+        assertThat(batch.getReturnedQuantity()).isZero();
+        assertThat(serial.getTicketStatus()).isEqualTo(LotteryTicketSerialStatus.WITH_STREET_AGENT);
+
+        batch.confirmReturnedSerials(List.of(), now.plusMinutes(30));
+        assertThat(serial.getStatus()).isEqualTo(AllocationSerialStatus.RETURNED);
+        assertThat(batch.getReturnedQuantity()).isOne();
+        assertThat(serial.getTicketStatus()).isEqualTo(LotteryTicketSerialStatus.WITH_STREET_AGENT);
+    }
+
+    @Test
+    void allows_a_staged_serial_to_be_removed_before_inspection_is_finalized() {
+        LocalDateTime now = LocalDateTime.of(2026, 8, 5, 9, 0);
+        VendorAllocationSerialModel serial = serial();
+        VendorAllocationBatchModel batch = VendorAllocationBatchModel.createDraft("VND-1", 7L,
+                LocalDate.of(2026, 8, 5), now.plusMinutes(15), List.of(serial), null);
+        serial.markReservedByBatch(99L);
+        batch.confirmHandover(now, BigDecimal.valueOf(9_000), new BigDecimal("0.10"),
+                VendorLateReturnPolicy.FORFEIT_DEPOSIT, LocalTime.of(15, 0),
+                BigDecimal.valueOf(1_000), BigDecimal.ZERO, UUID.randomUUID());
+        batch.openReturnSession();
+        batch.stageReturnedSerials(List.of(1L));
+
+        batch.removeStagedReturn(1L);
+
+        assertThat(serial.getStatus()).isEqualTo(AllocationSerialStatus.HANDED_OVER);
+        assertThat(serial.getTicketStatus()).isEqualTo(LotteryTicketSerialStatus.WITH_STREET_AGENT);
+        assertThat(serial.getVendorReturnBatchLineId()).isNull();
+    }
+
+    @Test
+    void requires_a_reason_for_every_rejected_serial() {
+        LocalDateTime now = LocalDateTime.of(2026, 8, 5, 9, 0);
+        VendorAllocationSerialModel serial = serial();
+        VendorAllocationBatchModel batch = VendorAllocationBatchModel.createDraft("VND-1", 7L,
+                LocalDate.of(2026, 8, 5), now.plusMinutes(15), List.of(serial), null);
+        serial.markReservedByBatch(99L);
+        batch.confirmHandover(now, BigDecimal.valueOf(9_000), new BigDecimal("0.10"),
+                VendorLateReturnPolicy.FORFEIT_DEPOSIT, LocalTime.of(15, 0),
+                BigDecimal.valueOf(1_000), BigDecimal.ZERO, UUID.randomUUID());
+        batch.openReturnSession();
+        batch.stageReturnedSerials(List.of(1L));
+
+        assertThatThrownBy(() -> batch.confirmReturnedSerials(java.util.Map.of(1L, " "), now.plusMinutes(30)))
+                .isInstanceOf(DomainException.class)
+                .extracting(ex -> ((DomainException) ex).getErrorCode())
+                .isEqualTo(ErrorCode.VENDOR_ALLOCATION_RETURN_SERIAL_INVALID);
     }
 
     @Test

@@ -1,5 +1,7 @@
 "use client";
 
+import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
+import { useAppSearchParams } from "@/hooks/useAppSearchParams";
 import { useEffect, useMemo, useState } from 'react';
 import {
     Box,
@@ -24,9 +26,8 @@ import {
     Tab,
     Tooltip,
 } from '@mui/material';
-import { Icon } from '@iconify/react';
+import { Icon } from '@/admin/components/ui/AdminIcon';
 import dayjs from 'dayjs';
-import { useNavigate, useSearchParams } from '@/components/router-compat';
 import { Search } from '../../../../components/ui/Search';
 import { CanAccess } from '../../../../components/auth/CanAccess';
 import { PERMISSIONS } from '../../../../constants/permission.constants';
@@ -67,8 +68,8 @@ const REFUND_CATEGORY_CODES = 'REFUND_SLOW_PROCESSING,REFUND_PAID_ISSUE';
 const PRIZE_PAYOUT_CATEGORY_CODES = 'PRIZE_PAYOUT_SLOW_PROCESSING,PRIZE_PAYOUT_PAID_ISSUE';
 
 export const SupportTicketList = () => {
-    const navigate = useNavigate();
-    const [searchParams, setSearchParams] = useSearchParams();
+    const router = useAdminRouter();
+    const [searchParams, setSearchParams] = useAppSearchParams();
     const filterParam = searchParams.get('filter');
     const [page, setPage] = useState(0);
     const [rowsPerPage, setRowsPerPage] = useState(10);
@@ -171,7 +172,7 @@ export const SupportTicketList = () => {
         assignMutation.mutate(id, {
             onSuccess: (res) => {
                 if (res.success) {
-                    navigate(`/${prefixAdmin}/support-tickets/detail/${id}`);
+                    router.push(`/${prefixAdmin}/support-tickets/detail/${id}`);
                 }
             },
         });
@@ -327,7 +328,7 @@ export const SupportTicketList = () => {
                                     key={ticket.id}
                                     hover
                                     sx={{ cursor: 'pointer' }}
-                                    onClick={() => navigate(`/${prefixAdmin}/support-tickets/detail/${ticket.id}`)}
+                                    onClick={() => router.push(`/${prefixAdmin}/support-tickets/detail/${ticket.id}`)}
                                 >
                                     <TableCell>#{ticket.id}</TableCell>
                                     <TableCell>{categoryMap.get(ticket.ticketCategoryId) || '—'}</TableCell>
@@ -388,7 +389,7 @@ export const SupportTicketList = () => {
                                                 <IconButton
                                                     size="small"
                                                     onClick={() =>
-                                                        navigate(`/${prefixAdmin}/support-tickets/detail/${ticket.id}`)
+                                                        router.push(`/${prefixAdmin}/support-tickets/detail/${ticket.id}`)
                                                     }
                                                 >
                                                     <Icon icon="mdi:eye-outline" />

@@ -1,10 +1,10 @@
 "use client";
 
 import { useMemo, useState } from 'react';
-import {
-    DataGrid,
+import type {
     GridColDef,
 } from '@mui/x-data-grid';
+import { LazyDataGrid } from '@/admin/shared/data-grid/LazyDataGrid';
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import CircularProgress from '@mui/material/CircularProgress';
@@ -41,6 +41,9 @@ export const StationList = () => {
     const { settings, setSettings } = useSettings();
     const [filters, setFilters] = useState<StationListFilters>(initialFilters);
 
+    const [page, setPage] = useState(0);
+    const [pageSize, setPageSize] = useState(initialFilters.limit);
+
     const queryParams = useMemo(
         () => ({
             search: filters.search || undefined,
@@ -58,10 +61,10 @@ export const StationList = () => {
                     : undefined,
             sortBy: filters.sortBy,
             direction: filters.direction,
-            page: filters.page,
-            limit: filters.limit,
+            page: page + 1,
+            limit: pageSize,
         }),
-        [filters]
+        [filters, page, pageSize]
     );
 
     const { data, isLoading, isFetching, error } = useStations(queryParams);
@@ -75,35 +78,30 @@ export const StationList = () => {
     };
 
     const setFilter = (fieldId: string, values: string[]) => {
-        setFilters((prev) => ({ ...prev, [fieldId]: values, page: 1 }));
+        setFilters((prev) => ({ ...prev, [fieldId]: values }));
+        setPage(0);
     };
 
     const setSearchFilter = (search: string) => {
         setFilters((prev) =>
-            prev.search === search ? prev : { ...prev, search, page: 1 }
+            prev.search === search ? prev : { ...prev, search }
         );
-    };
-
-    const setPage = (page: number) => {
-        setFilters((prev) => (prev.page === page ? prev : { ...prev, page }));
-    };
-
-    const setLimit = (limit: number) => {
-        setFilters((prev) =>
-            prev.limit === limit ? prev : { ...prev, limit, page: 1 }
-        );
+        setPage(0);
     };
 
     const setSort = (sortBy?: string, direction?: string) => {
         setFilters((prev) =>
             prev.sortBy === sortBy && prev.direction === direction
                 ? prev
-                : { ...prev, sortBy, direction, page: 1 }
+                : { ...prev, sortBy, direction }
         );
+        setPage(0);
     };
 
     const clearFilters = () => {
         setFilters(initialFilters);
+        setPage(0);
+        setPageSize(initialFilters.limit);
     };
 
     if (error) {
@@ -117,7 +115,7 @@ export const StationList = () => {
     return (
         <Card elevation={0} className="admin-datagrid-card">
             <Box sx={{ width: '100%', flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-                <DataGrid
+                <LazyDataGrid
                     rows={stations}
                     getRowId={(row) => row._id || row.id}
                     columns={columnsConfig}
@@ -183,17 +181,10 @@ export const StationList = () => {
                     }}
                     loading={isFetching}
                     rowCount={Number(pagination?.totalRecords) || 0}
-                    paginationModel={{
-                        page: filters.page - 1,
-                        pageSize: filters.limit,
-                    }}
+                    paginationModel={{ page, pageSize }}
                     onPaginationModelChange={(model) => {
-                        if (model.page + 1 !== filters.page) {
-                            setPage(model.page + 1);
-                        }
-                        if (model.pageSize !== filters.limit) {
-                            setLimit(model.pageSize);
-                        }
+                        setPage(model.page);
+                        setPageSize(model.pageSize);
                     }}
                     pageSizeOptions={[5, 10, 20]}
                     initialState={columnsInitialState}

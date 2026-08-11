@@ -1,339 +1,673 @@
+import { useAdminRouter } from '@/admin/hooks/useAdminRouter';
+
 import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
-import Inventory2OutlinedIcon from '@mui/icons-material/Inventory2Outlined';
-import MoveToInboxOutlinedIcon from '@mui/icons-material/MoveToInboxOutlined';
-import AssignmentReturnOutlinedIcon from '@mui/icons-material/AssignmentReturnOutlined';
+
 import {
-    Box,
+
     Card,
-    Chip,
+
     IconButton,
-    Stack,
+
     Tab,
+
     Table,
+
     TableBody,
+
     TableCell,
+
     TableContainer,
+
     TableHead,
+
     TableRow,
+
     Tabs,
+
     Tooltip,
-    Typography,
+
 } from '@mui/material';
+
 import dayjs from 'dayjs';
+
 import { useState } from 'react';
-import { useNavigate } from '@/components/router-compat';
+
+import { getTabBadgeStyles } from '../../../../../utils/badge';
+
 import { ROUTES } from '../../../../../constants/routes';
+
 import { formatImportCost } from '../../../import-batch/utils/importCostCalculator';
-import { getImportBatchStatusBadgeClass, getImportBatchStatusLabel } from '../../../import-batch/utils/batchTypeLabels';
-import { getReturnBatchStatusBadgeClass, getReturnBatchStatusLabel } from '../../../return-batch/utils/returnBatchLabels';
+
+import {
+
+    getImportBatchStatusBadgeClass,
+
+    getImportBatchStatusLabel,
+
+} from '../../../import-batch/utils/batchTypeLabels';
+
+import {
+
+    getReturnBatchStatusBadgeClass,
+
+    getReturnBatchStatusLabel,
+
+} from '../../../return-batch/utils/returnBatchLabels';
+
 import type {
+
     SettlementOverviewImportBatch,
+
     SettlementOverviewReturnBatch,
+
     SettlementStationInventory,
+
 } from '../../types/supplierSettlement.type';
 
+
+
 interface Props {
+
     inventoryRows: SettlementStationInventory[];
+
     importBatches: SettlementOverviewImportBatch[];
+
     returnBatches: SettlementOverviewReturnBatch[];
+
 }
 
+
+
+const emptyStateCellSx = { borderBottom: 'none', py: 10 };
+
+
+
 export const SettlementConsolidatedDetails = ({
+
     inventoryRows = [],
+
     importBatches = [],
+
     returnBatches = [],
+
 }: Props) => {
-    const navigate = useNavigate();
+
+    const router = useAdminRouter();
+
     const [activeTab, setActiveTab] = useState(0);
 
+
+
     return (
+
         <Card
+
             elevation={0}
+
+            className="admin-datagrid-card"
+
             sx={{
+
                 borderRadius: '16px',
+
                 border: '1px solid #e2e8f0',
+
                 bgcolor: '#fff',
+
                 boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.04)',
+
                 overflow: 'hidden',
+
             }}
+
         >
-            {/* Header with Tabs Navigation */}
-            <Box
-                sx={{
-                    borderBottom: '1px solid #e2e8f0',
-                    px: 3,
-                    pt: 0.5,
-                    bgcolor: '#fafafa',
-                }}
+
+            <Tabs
+
+                value={activeTab}
+
+                onChange={(_, newValue) => setActiveTab(newValue)}
+
+                variant="scrollable"
+
+                scrollButtons={false}
+
+                className="admin-tabs"
+
             >
-                <Tabs
-                    value={activeTab}
-                    onChange={(_, newValue) => setActiveTab(newValue)}
-                    textColor="primary"
-                    indicatorColor="primary"
-                    sx={{
-                        minHeight: 42,
-                        '& .MuiTab-root': {
-                            minHeight: 42,
-                            fontWeight: 700,
-                            fontSize: '0.85rem',
-                            textTransform: 'none',
-                            px: 2,
-                            mr: 1,
-                        },
-                    }}
-                >
-                    <Tab
-                        icon={<Inventory2OutlinedIcon sx={{ fontSize: '1.05rem' }} />}
-                        iconPosition="start"
-                        label={
-                            <Stack direction="row" spacing={1} alignItems="center">
-                                <span>Tồn kho theo nhà đài</span>
-                                <Chip
-                                    label={inventoryRows.length}
-                                    size="small"
-                                    sx={{
-                                        height: 20,
-                                        fontSize: '0.7rem',
-                                        fontWeight: 700,
-                                        bgcolor: activeTab === 0 ? '#eff6ff' : '#f1f5f9',
-                                        color: activeTab === 0 ? '#2563eb' : '#64748b',
-                                    }}
-                                />
-                            </Stack>
-                        }
-                    />
-                    <Tab
-                        icon={<MoveToInboxOutlinedIcon sx={{ fontSize: '1.05rem' }} />}
-                        iconPosition="start"
-                        label={
-                            <Stack direction="row" spacing={1} alignItems="center">
-                                <span>Phiếu nhập lô</span>
-                                <Chip
-                                    label={importBatches.length}
-                                    size="small"
-                                    sx={{
-                                        height: 20,
-                                        fontSize: '0.7rem',
-                                        fontWeight: 700,
-                                        bgcolor: activeTab === 1 ? '#eff6ff' : '#f1f5f9',
-                                        color: activeTab === 1 ? '#2563eb' : '#64748b',
-                                    }}
-                                />
-                            </Stack>
-                        }
-                    />
-                    <Tab
-                        icon={<AssignmentReturnOutlinedIcon sx={{ fontSize: '1.05rem' }} />}
-                        iconPosition="start"
-                        label={
-                            <Stack direction="row" spacing={1} alignItems="center">
-                                <span>Phiếu trả vé</span>
-                                <Chip
-                                    label={returnBatches.length}
-                                    size="small"
-                                    sx={{
-                                        height: 20,
-                                        fontSize: '0.7rem',
-                                        fontWeight: 700,
-                                        bgcolor: activeTab === 2 ? '#eff6ff' : '#f1f5f9',
-                                        color: activeTab === 2 ? '#2563eb' : '#64748b',
-                                    }}
-                                />
-                            </Stack>
-                        }
-                    />
-                </Tabs>
-            </Box>
 
-            {/* Tab 0: Tồn kho theo nhà đài */}
+                <Tab
+
+                    disableRipple
+
+                    label="Tồn kho theo nhà đài"
+
+                    icon={
+
+                        <span className="admin-tab-badge" style={getTabBadgeStyles('all', activeTab === 0)}>
+
+                            {inventoryRows.length}
+
+                        </span>
+
+                    }
+
+                    iconPosition="end"
+
+                    className="admin-tab"
+
+                />
+
+                <Tab
+
+                    disableRipple
+
+                    label="Phiếu nhập lô"
+
+                    icon={
+
+                        <span className="admin-tab-badge" style={getTabBadgeStyles('info', activeTab === 1)}>
+
+                            {importBatches.length}
+
+                        </span>
+
+                    }
+
+                    iconPosition="end"
+
+                    className="admin-tab"
+
+                />
+
+                <Tab
+
+                    disableRipple
+
+                    label="Phiếu trả vé"
+
+                    icon={
+
+                        <span className="admin-tab-badge" style={getTabBadgeStyles('warning', activeTab === 2)}>
+
+                            {returnBatches.length}
+
+                        </span>
+
+                    }
+
+                    iconPosition="end"
+
+                    className="admin-tab"
+
+                />
+
+            </Tabs>
+
+
+
             {activeTab === 0 && (
-                <TableContainer sx={{ overflowX: 'auto' }}>
-                    <Table size="medium">
-                        <TableHead sx={{ bgcolor: '#f8fafc' }}>
+
+                <TableContainer className="admin-table-container">
+
+                    <Table className="admin-table" size="medium">
+
+                        <TableHead>
+
                             <TableRow>
-                                <TableCell sx={{ fontWeight: 700, color: '#334155' }}>Nhà đài</TableCell>
-                                <TableCell align="right" sx={{ fontWeight: 700, color: '#334155' }}>Nhập</TableCell>
-                                <TableCell align="right" sx={{ fontWeight: 700, color: '#334155' }}>Đã bán</TableCell>
-                                <TableCell align="right" sx={{ fontWeight: 700, color: '#334155' }}>Còn lại</TableCell>
-                                <TableCell align="right" sx={{ fontWeight: 700, color: '#334155' }}>Hỏng</TableCell>
-                                <TableCell align="right" sx={{ fontWeight: 700, color: '#334155' }}>Thất lạc</TableCell>
-                                <TableCell align="right" sx={{ fontWeight: 700, color: '#334155' }}>Hủy số</TableCell>
-                                <TableCell align="right" sx={{ fontWeight: 700, color: '#334155' }}>Trả</TableCell>
-                                <TableCell align="right" sx={{ fontWeight: 700, color: '#166534' }}>Giá trị trả</TableCell>
+
+                                <TableCell align="center">Nhà đài</TableCell>
+
+                                <TableCell align="center">Nhập</TableCell>
+
+                                <TableCell align="center">Đã bán</TableCell>
+
+                                <TableCell align="center">Còn lại</TableCell>
+
+                                <TableCell align="center">Hỏng</TableCell>
+
+                                <TableCell align="center">Thất lạc</TableCell>
+
+                                <TableCell align="center">Hủy số</TableCell>
+
+                                <TableCell align="center">Trả</TableCell>
+
+                                <TableCell align="center">Giá trị trả</TableCell>
+
                             </TableRow>
+
                         </TableHead>
+
                         <TableBody>
+
                             {inventoryRows.map((row) => (
+
                                 <TableRow key={row.lotteryStationId} hover>
-                                    <TableCell>
-                                        <Typography fontWeight={700} color="#0f172a">
+
+                                    <TableCell align="center">
+
+                                        <span className="admin-cell-title">
+
                                             {row.lotteryStationName || `#${row.lotteryStationId}`}
-                                        </Typography>
+
+                                        </span>
+
                                     </TableCell>
-                                    <TableCell align="right" sx={{ fontWeight: 600, color: '#334155' }}>
-                                        {row.importedQuantity.toLocaleString('vi-VN')}
+
+                                    <TableCell align="center">
+
+                                        <span className="admin-cell-text">
+
+                                            {row.importedQuantity.toLocaleString('vi-VN')}
+
+                                        </span>
+
                                     </TableCell>
-                                    <TableCell align="right" sx={{ fontWeight: 600, color: '#334155' }}>
-                                        {row.soldQuantity.toLocaleString('vi-VN')}
+
+                                    <TableCell align="center">
+
+                                        <span className="admin-cell-text">
+
+                                            {row.soldQuantity.toLocaleString('vi-VN')}
+
+                                        </span>
+
                                     </TableCell>
-                                    <TableCell align="right" sx={{ fontWeight: 700, color: '#15803d' }}>
-                                        {row.remainingQuantity.toLocaleString('vi-VN')}
+
+                                    <TableCell align="center">
+
+                                        <span className="admin-cell-title">
+
+                                            {row.remainingQuantity.toLocaleString('vi-VN')}
+
+                                        </span>
+
                                     </TableCell>
-                                    <TableCell align="right" sx={{ fontWeight: 600, color: row.damagedQuantity > 0 ? '#334155' : '#94a3b8' }}>
-                                        {row.damagedQuantity.toLocaleString('vi-VN')}
+
+                                    <TableCell align="center">
+
+                                        <span className="admin-cell-text">
+
+                                            {row.damagedQuantity.toLocaleString('vi-VN')}
+
+                                        </span>
+
                                     </TableCell>
-                                    <TableCell align="right" sx={{ fontWeight: 600, color: row.lostQuantity > 0 ? '#334155' : '#94a3b8' }}>
-                                        {row.lostQuantity.toLocaleString('vi-VN')}
+
+                                    <TableCell align="center">
+
+                                        <span className="admin-cell-text">
+
+                                            {row.lostQuantity.toLocaleString('vi-VN')}
+
+                                        </span>
+
                                     </TableCell>
-                                    <TableCell align="right" sx={{ fontWeight: 600, color: row.voidedQuantity > 0 ? '#334155' : '#94a3b8' }}>
-                                        {row.voidedQuantity.toLocaleString('vi-VN')}
+
+                                    <TableCell align="center">
+
+                                        <span className="admin-cell-text">
+
+                                            {row.voidedQuantity.toLocaleString('vi-VN')}
+
+                                        </span>
+
                                     </TableCell>
-                                    <TableCell align="right" sx={{ fontWeight: 600, color: '#334155' }}>
-                                        {row.returnQuantity.toLocaleString('vi-VN')}
+
+                                    <TableCell align="center">
+
+                                        <span className="admin-cell-text">
+
+                                            {row.returnQuantity.toLocaleString('vi-VN')}
+
+                                        </span>
+
                                     </TableCell>
-                                    <TableCell align="right" sx={{ fontWeight: 700, color: '#166534' }}>
-                                        {formatImportCost(row.returnValue)} VNĐ
+
+                                    <TableCell align="center">
+
+                                        <span className="admin-cell-title" style={{ color: 'var(--palette-success-main)' }}>
+
+                                            {formatImportCost(row.returnValue)} VNĐ
+
+                                        </span>
+
                                     </TableCell>
+
                                 </TableRow>
+
                             ))}
+
                             {inventoryRows.length === 0 && (
+
                                 <TableRow>
-                                    <TableCell colSpan={9} align="center">
-                                        <Typography color="text.secondary" sx={{ py: 4 }}>
+
+                                    <TableCell colSpan={9} align="center" sx={emptyStateCellSx}>
+
+                                        <span className="admin-datagrid-empty">
+
                                             Chưa có dữ liệu tồn kho theo nhà đài cho kỳ đối soát này.
-                                        </Typography>
+
+                                        </span>
+
                                     </TableCell>
+
                                 </TableRow>
+
                             )}
+
                         </TableBody>
+
                     </Table>
+
                 </TableContainer>
+
             )}
 
-            {/* Tab 1: Phiếu nhập lô */}
+
+
             {activeTab === 1 && (
-                <TableContainer>
-                    <Table size="medium">
-                        <TableHead sx={{ bgcolor: '#f8fafc' }}>
+
+                <TableContainer className="admin-table-container">
+
+                    <Table className="admin-table" size="medium">
+
+                        <TableHead>
+
                             <TableRow>
-                                <TableCell sx={{ fontWeight: 700, color: '#334155' }}>Mã phiếu</TableCell>
-                                <TableCell sx={{ fontWeight: 700, color: '#334155' }}>Ngày quay</TableCell>
-                                <TableCell sx={{ fontWeight: 700, color: '#334155' }}>Trạng thái</TableCell>
-                                <TableCell align="right" sx={{ fontWeight: 700, color: '#334155' }}>Số lượng nhập</TableCell>
-                                <TableCell align="right" sx={{ fontWeight: 700, color: '#166534' }}>Giá trị nhập</TableCell>
-                                <TableCell align="center" width={80} sx={{ fontWeight: 700, color: '#334155' }}>Thao tác</TableCell>
+
+                                <TableCell align="center">Mã phiếu</TableCell>
+
+                                <TableCell align="center">Ngày quay</TableCell>
+
+                                <TableCell align="center">Trạng thái</TableCell>
+
+                                <TableCell align="center">Số lượng nhập</TableCell>
+
+                                <TableCell align="center">Giá trị nhập</TableCell>
+
+                                <TableCell align="center" width={80}>
+
+                                    Thao tác
+
+                                </TableCell>
+
                             </TableRow>
+
                         </TableHead>
+
                         <TableBody>
+
                             {importBatches.map((batch) => (
+
                                 <TableRow key={batch.id} hover>
-                                    <TableCell>
-                                        <Typography fontWeight={700} color="#0f172a">
-                                            {batch.batchCode || `#${batch.id}`}
-                                        </Typography>
-                                    </TableCell>
-                                    <TableCell sx={{ fontWeight: 500, color: '#334155' }}>
-                                        {batch.drawDate ? dayjs(batch.drawDate).format('DD/MM/YYYY') : '—'}
-                                    </TableCell>
-                                    <TableCell>
-                                        <span className={`admin-status-badge ${getImportBatchStatusBadgeClass(batch.status || undefined)}`}>
-                                            {getImportBatchStatusLabel(batch.status || undefined)}
-                                        </span>
-                                    </TableCell>
-                                    <TableCell align="right" sx={{ fontWeight: 600, color: '#0f172a' }}>
-                                        {(batch.totalImportedQuantity ?? batch.totalDeclareQuantity ?? 0).toLocaleString('vi-VN')} vé
-                                    </TableCell>
-                                    <TableCell align="right" sx={{ fontWeight: 700, color: '#166534' }}>
-                                        {formatImportCost(batch.totalImportedCostValue ?? batch.totalDeclaredCostValue)} VNĐ
-                                    </TableCell>
+
                                     <TableCell align="center">
+
+                                        <span className="admin-cell-title">
+
+                                            {batch.batchCode || `#${batch.id}`}
+
+                                        </span>
+
+                                    </TableCell>
+
+                                    <TableCell align="center">
+
+                                        <span className="admin-cell-date">
+
+                                            {batch.drawDate ? dayjs(batch.drawDate).format('DD/MM/YYYY') : '—'}
+
+                                        </span>
+
+                                    </TableCell>
+
+                                    <TableCell align="center">
+
+                                        <span className={`admin-status-badge ${getImportBatchStatusBadgeClass(batch.status || undefined)}`}>
+
+                                            {getImportBatchStatusLabel(batch.status || undefined)}
+
+                                        </span>
+
+                                    </TableCell>
+
+                                    <TableCell align="center">
+
+                                        <span className="admin-cell-text">
+
+                                            {(batch.totalImportedQuantity ?? batch.totalDeclareQuantity ?? 0).toLocaleString('vi-VN')} vé
+
+                                        </span>
+
+                                    </TableCell>
+
+                                    <TableCell align="center">
+
+                                        <span className="admin-cell-title" style={{ color: 'var(--palette-success-main)' }}>
+
+                                            {formatImportCost(batch.totalImportedCostValue ?? batch.totalDeclaredCostValue)} VNĐ
+
+                                        </span>
+
+                                    </TableCell>
+
+                                    <TableCell align="center">
+
                                         <Tooltip title="Xem chi tiết phiếu nhập">
+
                                             <IconButton
+
                                                 size="small"
-                                                color="primary"
-                                                onClick={() => navigate(ROUTES.ADMIN.IMPORT_BATCH.DETAIL(batch.id))}
+
+                                                className="admin-table-action"
+
+                                                onClick={() => router.push(ROUTES.ADMIN.IMPORT_BATCH.DETAIL(batch.id))}
+
                                             >
+
                                                 <VisibilityOutlinedIcon fontSize="small" />
+
                                             </IconButton>
+
                                         </Tooltip>
+
                                     </TableCell>
+
                                 </TableRow>
+
                             ))}
+
                             {importBatches.length === 0 && (
+
                                 <TableRow>
-                                    <TableCell colSpan={6} align="center">
-                                        <Typography color="text.secondary" sx={{ py: 4 }}>
+
+                                    <TableCell colSpan={6} align="center" sx={emptyStateCellSx}>
+
+                                        <span className="admin-datagrid-empty">
+
                                             Chưa có phiếu nhập lô liên kết kỳ đối soát này.
-                                        </Typography>
+
+                                        </span>
+
                                     </TableCell>
+
                                 </TableRow>
+
                             )}
+
                         </TableBody>
+
                     </Table>
+
                 </TableContainer>
+
             )}
 
-            {/* Tab 2: Phiếu trả vé */}
+
+
             {activeTab === 2 && (
-                <TableContainer>
-                    <Table size="medium">
-                        <TableHead sx={{ bgcolor: '#f8fafc' }}>
+
+                <TableContainer className="admin-table-container">
+
+                    <Table className="admin-table" size="medium">
+
+                        <TableHead>
+
                             <TableRow>
-                                <TableCell sx={{ fontWeight: 700, color: '#334155' }}>Mã phiếu</TableCell>
-                                <TableCell sx={{ fontWeight: 700, color: '#334155' }}>Ngày quay</TableCell>
-                                <TableCell sx={{ fontWeight: 700, color: '#334155' }}>Trạng thái</TableCell>
-                                <TableCell align="right" sx={{ fontWeight: 700, color: '#334155' }}>Số lượng</TableCell>
-                                <TableCell align="right" sx={{ fontWeight: 700, color: '#166534' }}>Giá trị trả</TableCell>
-                                <TableCell align="center" width={80} sx={{ fontWeight: 700, color: '#334155' }}>Thao tác</TableCell>
+
+                                <TableCell align="center">Mã phiếu</TableCell>
+
+                                <TableCell align="center">Ngày quay</TableCell>
+
+                                <TableCell align="center">Trạng thái</TableCell>
+
+                                <TableCell align="center">Số lượng</TableCell>
+
+                                <TableCell align="center">Giá trị trả</TableCell>
+
+                                <TableCell align="center">Biên lai trả</TableCell>
+
+                                <TableCell align="center" width={80}>
+
+                                    Thao tác
+
+                                </TableCell>
+
                             </TableRow>
+
                         </TableHead>
+
                         <TableBody>
-                            {returnBatches.map((batch) => (
-                                <TableRow key={batch.id} hover>
-                                    <TableCell>
-                                        <Typography fontWeight={700} color="#0f172a">#{batch.id}</Typography>
-                                    </TableCell>
-                                    <TableCell sx={{ fontWeight: 500, color: '#334155' }}>
-                                        {batch.drawDate ? dayjs(batch.drawDate).format('DD/MM/YYYY') : '—'}
-                                    </TableCell>
-                                    <TableCell>
-                                        <span className={`admin-status-badge ${getReturnBatchStatusBadgeClass(batch.status as any)}`}>
-                                            {getReturnBatchStatusLabel(batch.status as any, batch.statusLabel)}
-                                        </span>
-                                    </TableCell>
-                                    <TableCell align="right" sx={{ fontWeight: 600, color: '#0f172a' }}>
-                                        {(batch.totalQuantity ?? 0).toLocaleString('vi-VN')} vé
-                                    </TableCell>
-                                    <TableCell align="right" sx={{ fontWeight: 700, color: '#166534' }}>
-                                        {formatImportCost(batch.totalReturnValue)} VNĐ
-                                    </TableCell>
-                                    <TableCell align="center">
-                                        <Tooltip title="Xem chi tiết phiếu trả">
-                                            <IconButton
-                                                size="small"
-                                                color="primary"
-                                                onClick={() => navigate(ROUTES.ADMIN.RETURN_BATCH.DETAIL(batch.id))}
+
+                            {returnBatches.map((batch) => {
+
+                                const hasReceipt = Boolean(batch.returnReceiptEvidenceUrl || batch.returnReceiptUrl);
+
+
+
+                                return (
+
+                                    <TableRow key={batch.id} hover>
+
+                                        <TableCell align="center">
+
+                                            <span className="admin-cell-title">#{batch.id}</span>
+
+                                        </TableCell>
+
+                                        <TableCell align="center">
+
+                                            <span className="admin-cell-date">
+
+                                                {batch.drawDate ? dayjs(batch.drawDate).format('DD/MM/YYYY') : '—'}
+
+                                            </span>
+
+                                        </TableCell>
+
+                                        <TableCell align="center">
+
+                                            <span className={`admin-status-badge ${getReturnBatchStatusBadgeClass(batch.status as any)}`}>
+
+                                                {getReturnBatchStatusLabel(batch.status as any, batch.statusLabel)}
+
+                                            </span>
+
+                                        </TableCell>
+
+                                        <TableCell align="center">
+
+                                            <span className="admin-cell-text">
+
+                                                {(batch.totalQuantity ?? 0).toLocaleString('vi-VN')} vé
+
+                                            </span>
+
+                                        </TableCell>
+
+                                        <TableCell align="center">
+
+                                            <span className="admin-cell-title" style={{ color: 'var(--palette-success-main)' }}>
+
+                                                {formatImportCost(batch.totalReturnValue)} VNĐ
+
+                                            </span>
+
+                                        </TableCell>
+
+                                        <TableCell align="center">
+
+                                            <span
+
+                                                className={`admin-status-badge admin-status-badge--compact ${
+                                                    hasReceipt ? 'admin-status-badge--success' : 'admin-status-badge--pending'
+                                                }`}
                                             >
-                                                <VisibilityOutlinedIcon fontSize="small" />
-                                            </IconButton>
-                                        </Tooltip>
-                                    </TableCell>
-                                </TableRow>
-                            ))}
+                                                {hasReceipt ? 'Có biên lai' : 'Chưa có biên lai'}
+
+                                            </span>
+
+                                        </TableCell>
+
+                                        <TableCell align="center">
+
+                                            <Tooltip title="Xem chi tiết phiếu trả">
+
+                                                <IconButton
+
+                                                    size="small"
+
+                                                    className="admin-table-action"
+
+                                                    onClick={() => router.push(ROUTES.ADMIN.RETURN_BATCH.DETAIL(batch.id))}
+
+                                                >
+
+                                                    <VisibilityOutlinedIcon fontSize="small" />
+
+                                                </IconButton>
+
+                                            </Tooltip>
+
+                                        </TableCell>
+
+                                    </TableRow>
+
+                                );
+
+                            })}
+
                             {returnBatches.length === 0 && (
+
                                 <TableRow>
-                                    <TableCell colSpan={6} align="center">
-                                        <Typography color="text.secondary" sx={{ py: 4 }}>
+
+                                    <TableCell colSpan={7} align="center" sx={emptyStateCellSx}>
+
+                                        <span className="admin-datagrid-empty">
+
                                             Chưa có phiếu trả vé liên kết kỳ đối soát này.
-                                        </Typography>
+
+                                        </span>
+
                                     </TableCell>
+
                                 </TableRow>
+
                             )}
+
                         </TableBody>
+
                     </Table>
+
                 </TableContainer>
+
             )}
+
         </Card>
+
     );
+
 };
+
+

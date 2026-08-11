@@ -1,6 +1,8 @@
 "use client";
 
-import { Menu, MenuItem, Tooltip, Button, SvgIcon } from "@mui/material";
+import { Button } from '@/admin/components/ui/Button';
+
+import { Menu, MenuItem, Tooltip, SvgIcon } from '@mui/material';
 import { ExportCsv, ExportPrint } from "@mui/x-data-grid";
 import { useRef, useState } from "react";
 

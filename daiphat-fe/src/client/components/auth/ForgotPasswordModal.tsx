@@ -3,13 +3,13 @@
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuthStore } from "../../../stores/useAuthStore";
-import { useForgotPassword } from "../../../admin/pages/authen/hooks/use-forgot-password";
+import { useForgotPassword } from "@/shared/auth/hooks/useForgotPassword";
 import { AppToast as toast } from "../../../utils/toast.util";
 import { PasswordStrengthMeter } from "./PasswordStrengthMeter";
 import Cookies from "js-cookie";
 import { STORAGE_KEYS } from "../../../constants/storage.constants";
 import { useQueryClient } from "@tanstack/react-query";
-import { authService } from "../../../admin/pages/authen/services/auth.service";
+import { authService } from "@/shared/auth/services/auth.service";
 
 const STEPS = {
     EMAIL: "EMAIL",

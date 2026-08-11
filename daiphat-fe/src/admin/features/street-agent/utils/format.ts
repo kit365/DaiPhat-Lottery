@@ -1,11 +1,11 @@
 export const formatCurrency = (value?: number | null) => {
     if (value == null) return "—";
-    return new Intl.NumberFormat("vi-VN").format(value) + " VNĐ";
+    return `${new Intl.NumberFormat("vi-VN").format(value)}đ`;
 };
 
 export const formatVnd = (value?: number | null) => {
     if (value == null) return "—";
-    return `${new Intl.NumberFormat("vi-VN").format(value)} ₫`;
+    return `${new Intl.NumberFormat("vi-VN").format(value)}đ`;
 };
 
 export const formatConfidencePoints = (score?: number | null, tier?: string | null) => {

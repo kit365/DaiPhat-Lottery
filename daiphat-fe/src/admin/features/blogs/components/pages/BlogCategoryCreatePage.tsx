@@ -1,10 +1,9 @@
 "use client";
 
 import { Box, MenuItem, Stack, TextField, ThemeProvider, useTheme } from "@mui/material"
-import { LoadingButton } from "../../../../components/ui/LoadingButton";
-import { Breadcrumb } from "../../../../components/ui/Breadcrumb"
-import { Title } from "../../../../components/ui/Title"
-import { Tiptap } from "../../../../components/layouts/titap/Tiptap"
+import { Button } from "../../../../components/ui/Button";
+import { PageHeader } from "../../../../components/ui/PageHeader"
+import { LazyTiptap } from "../../../../components/layouts/titap/LazyTiptap"
 import { useState, type Dispatch, type SetStateAction } from "react";
 import { CollapsibleCard } from "../../../../components/ui/CollapsibleCard";
 import { useCreateBlogCategory, useNestedBlogCategories, useBlogCategoryStatuses } from "../../hooks/useBlogCategory";
@@ -102,18 +101,14 @@ export const BlogCategoryCreatePage = () => {
 
     return (
         <>
-            <div className="mb-[calc(5*var(--spacing))] gap-[calc(2*var(--spacing))] flex items-start justify-end">
-                <div className="mr-auto">
-                    <Title title="Tạo mới danh mục bài viết" />
-                    <Breadcrumb
-                        items={[
+            <PageHeader
+                title="Tạo mới danh mục bài viết"
+                breadcrumbItems={[
                             { label: "Dashboard", to: "/" },
                             { label: "Danh mục bài viết", to: `/${prefixAdmin}/blog-category/list` },
                             { label: "Tạo mới" }
                         ]}
-                    />
-                </div>
-            </div>
+            />
             <>
                 <form onSubmit={handleSubmit(onSubmit)}>
                     <Stack sx={{
@@ -156,7 +151,7 @@ export const BlogCategoryCreatePage = () => {
                                     name="description"
                                     control={control}
                                     render={({ field }) => (
-                                        <Tiptap
+                                        <LazyTiptap
                                             value={field.value ?? ""}
                                             onChange={field.onChange}
                                         />
@@ -190,7 +185,7 @@ export const BlogCategoryCreatePage = () => {
                                     </TextField>
                                 )}
                             />
-                            <LoadingButton
+                            <Button
                                 type="submit"
                                 loading={isPending || isUploading}
                                 label="Tạo danh mục"

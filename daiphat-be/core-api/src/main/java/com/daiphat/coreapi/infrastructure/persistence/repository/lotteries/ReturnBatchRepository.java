@@ -26,6 +26,8 @@ public interface ReturnBatchRepository
             LocalDate drawDate
     );
 
+    Optional<ReturnBatchEntity> findBySourceAllocationBatch_IdAndDeletedAtIsNull(Long allocationBatchId);
+
     List<ReturnBatchEntity> findByNoteStartingWithAndDeletedAtIsNull(String notePrefix);
 
     List<ReturnBatchEntity> findByStatusInAndDeletedAtIsNull(Collection<ReturnBatchStatus> statuses);

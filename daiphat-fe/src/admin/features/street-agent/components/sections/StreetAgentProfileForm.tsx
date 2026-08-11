@@ -1,8 +1,10 @@
 "use client";
 
-import { Control, Controller } from "react-hook-form";
+import { Control, Controller, UseFormSetValue, useWatch } from "react-hook-form";
+import { useMemo } from "react";
 import {
     Autocomplete,
+    Alert,
     Box,
     Button,
     Card,
@@ -13,24 +15,21 @@ import {
     Typography,
 } from "@mui/material";
 import Grid from "@mui/material/Grid";
-import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
-import { REGION_DATA } from "../../../../constants/region.constants";
+import CheckCircleIcon from "@mui/icons-material/CheckCircle";
+import CloudUploadIcon from "@mui/icons-material/CloudUpload";
+import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
 import { STATUS_LABELS } from "../configs/constants";
 import { CreateStreetAgentProfileFormValues } from "../../schemas/street-agent.schema";
 import {
     COVERAGE_AREA_OPTIONS,
     CoverageAreaOption,
 } from "../../constants/coverageAreas";
-import { STREET_AGENT_PHASE_UI } from "../../constants/featureFlags";
 import {
     VendorSettingsDefaults,
     VENDOR_LATE_RETURN_POLICY_LABELS,
 } from "../../hooks/useVendorSettingsDefaults";
 import { formatConfidencePoints, formatCurrency, formatVnd } from "../../utils/format";
-
-const PROVINCE_OPTIONS = Array.from(new Set(Object.values(REGION_DATA).flat())).sort((a, b) =>
-    a.localeCompare(b, "vi")
-);
+import { useVietnamLocation } from "../../hooks/useVietnamLocation";
 
 const fieldSx = {
     "& .MuiOutlinedInput-root": {
@@ -43,6 +42,7 @@ type StreetAgentFormValues = CreateStreetAgentProfileFormValues;
 
 interface StreetAgentProfileFormProps {
     control: Control<StreetAgentFormValues> | Control<any>;
+    setValue?: UseFormSetValue<StreetAgentFormValues>;
     imageUrl?: string | null;
     isUploading: boolean;
     fileInputRef: React.RefObject<HTMLInputElement | null>;
@@ -51,16 +51,16 @@ interface StreetAgentProfileFormProps {
     mode?: "create" | "edit";
     contractCode?: string | null;
     contractDocumentUrl?: string | null;
+    contractMaxDailyCap?: number | null;
+    effectiveDailyCap?: number | null;
     depositBalance?: number | null;
     statusChip?: string;
     confidenceScore?: number | null;
     confidenceTier?: string | null;
-    onPrintContract?: () => void;
     onUploadSignedDocument?: (file: File) => void;
     onViewSignedDocument?: () => void;
     isUploadingSignedDocument?: boolean;
     signedFileInputRef?: React.RefObject<HTMLInputElement | null>;
-    onAdjustDeposit?: () => void;
     onLockProfile?: () => void;
     onReactivateProfile?: () => void;
     isStatusActionPending?: boolean;
@@ -68,41 +68,20 @@ interface StreetAgentProfileFormProps {
     footer: React.ReactNode;
 }
 
-const PhaseBadge = ({ label, tone = "phase" }: { label: string; tone?: "phase" | "readonly" }) => {
-    if (tone === "phase" && !STREET_AGENT_PHASE_UI.enabled) return null;
-    return (
-        <Chip
-            label={label}
-            size="small"
-            sx={{
-                height: 22,
-                fontWeight: 700,
-                fontSize: "0.7rem",
-                bgcolor: tone === "readonly" ? "rgba(145, 158, 171, 0.16)" : "rgba(0, 167, 111, 0.12)",
-                color: tone === "readonly" ? "var(--palette-text-secondary)" : "rgb(0, 120, 80)",
-            }}
-        />
-    );
-};
-
-const SectionTitle = ({
-    title,
-    badge,
-    badgeTone = "phase",
-}: {
-    title: string;
-    badge?: string;
-    badgeTone?: "phase" | "readonly";
-}) => (
-    <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 3 }}>
-        <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+const SectionTitle = ({ title, helperText }: { title: string; helperText?: string }) => (
+    <Box sx={{ mb: 3 }}>
+        <Typography variant="subtitle1" component="h2" sx={{ fontWeight: 600, mb: helperText ? 0.5 : 0 }}>
             {title}
         </Typography>
-        {badge ? <PhaseBadge label={badge} tone={badgeTone} /> : null}
-    </Stack>
+        {helperText && (
+            <Typography variant="body2" sx={{ color: "var(--palette-text-secondary)" }}>
+                {helperText}
+            </Typography>
+        )}
+    </Box>
 );
 
-const ReadOnlyRow = ({ label, value }: { label: string; value: React.ReactNode }) => (
+const ReadOnlyRow = ({ label, value, helperText }: { label: string; value: React.ReactNode; helperText?: React.ReactNode }) => (
     <Stack spacing={0.5}>
         <Typography variant="caption" sx={{ color: "var(--palette-text-secondary)", fontWeight: 600 }}>
             {label}
@@ -110,30 +89,12 @@ const ReadOnlyRow = ({ label, value }: { label: string; value: React.ReactNode }
         <Typography variant="body2" sx={{ color: "var(--palette-text-primary)", fontWeight: 600 }}>
             {value}
         </Typography>
-    </Stack>
-);
-
-const LockedOverlay = ({ phaseLabel }: { phaseLabel: string }) => (
-    <Box
-        sx={{
-            mt: 2,
-            p: 2,
-            borderRadius: "var(--shape-borderRadius)",
-            bgcolor: "rgba(145, 158, 171, 0.08)",
-            border: "1px dashed rgba(145, 158, 171, 0.32)",
-            opacity: 0.9,
-        }}
-    >
-        <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 0.5 }}>
-            <LockOutlinedIcon sx={{ fontSize: 18, color: "var(--palette-text-secondary)" }} />
-            <Typography variant="body2" sx={{ fontWeight: 700, color: "var(--palette-text-secondary)" }}>
-                Đang khóa
+        {helperText && (
+            <Typography variant="caption" sx={{ color: "var(--palette-text-secondary)", mt: 0.5, lineHeight: 1.3 }}>
+                {helperText}
             </Typography>
-        </Stack>
-        <Typography variant="caption" sx={{ color: "var(--palette-text-secondary)" }}>
-            Tính năng đang được hoàn thiện trong {phaseLabel}.
-        </Typography>
-    </Box>
+        )}
+    </Stack>
 );
 
 const getStatusChipStyle = (status?: string) => {
@@ -148,6 +109,7 @@ const getStatusChipStyle = (status?: string) => {
 
 export const StreetAgentProfileForm = ({
     control,
+    setValue,
     imageUrl,
     isUploading,
     fileInputRef,
@@ -156,16 +118,16 @@ export const StreetAgentProfileForm = ({
     mode = "create",
     contractCode,
     contractDocumentUrl,
+    contractMaxDailyCap,
+    effectiveDailyCap,
     depositBalance,
     statusChip,
     confidenceScore,
     confidenceTier,
-    onPrintContract,
     onUploadSignedDocument,
     onViewSignedDocument,
     isUploadingSignedDocument = false,
     signedFileInputRef,
-    onAdjustDeposit,
     onLockProfile,
     onReactivateProfile,
     isStatusActionPending = false,
@@ -173,10 +135,23 @@ export const StreetAgentProfileForm = ({
     footer,
 }: StreetAgentProfileFormProps) => {
     const isEdit = mode === "edit";
-    const showPhase3Settlement =
-        STREET_AGENT_PHASE_UI.enabled && !STREET_AGENT_PHASE_UI.phase3Released;
-    const showPhase4Lock =
-        STREET_AGENT_PHASE_UI.enabled && !STREET_AGENT_PHASE_UI.phase4Released;
+    const { data: vietnamLocations, isLoading: isLoadingLocations } = useVietnamLocation();
+    const contactProvince = useWatch({
+        control: control as Control<StreetAgentFormValues>,
+        name: "contactProvince",
+    });
+    const selectedProvince = useMemo(
+        () => vietnamLocations?.find((province) => province.name === contactProvince),
+        [contactProvince, vietnamLocations]
+    );
+    const wardOptions = selectedProvince?.wards || [];
+
+    const handleAvatarKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+        if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            onOpenFile();
+        }
+    };
 
     const handleSignedFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
@@ -185,208 +160,341 @@ export const StreetAgentProfileForm = ({
         event.target.value = "";
     };
 
-    return (
-        <Grid container spacing={3}>
-            <Grid size={{ xs: 12, md: 4 }}>
-                <Card
-                    sx={{
-                        px: "calc(3 * var(--spacing))",
-                        py: "80px",
-                        textAlign: "center",
-                        borderRadius: "var(--shape-borderRadius-lg)",
-                        position: "relative",
-                        boxShadow: "var(--customShadows-card)",
-                    }}
-                >
-                    {statusChip && (
-                        <Box sx={{ position: "absolute", top: 24, right: 24 }}>
+    const signedContractCard = (
+        <Card sx={{ p: 3, borderRadius: "var(--shape-borderRadius-lg)", boxShadow: "var(--customShadows-card)" }}>
+            {isEdit && contractDocumentUrl ? (
+                <Stack direction={{ xs: "column", sm: "row" }} alignItems={{ xs: "flex-start", sm: "center" }} justifyContent="space-between" spacing={2} useFlexGap flexWrap="wrap">
+                    <Stack spacing={0.5}>
+                        <Stack direction="row" alignItems="center" spacing={1.5}>
+                            <Typography variant="subtitle1" component="h2" sx={{ fontWeight: 600, m: 0 }}>
+                                Hợp đồng đã ký
+                            </Typography>
                             <Chip
-                                label={STATUS_LABELS[statusChip] || statusChip}
-                                sx={{
-                                    ...getStatusChipStyle(statusChip),
-                                    borderRadius: "var(--shape-borderRadius-sm)",
-                                    fontWeight: 700,
-                                    fontSize: "0.75rem",
-                                    height: "24px",
-                                }}
+                                size="small"
+                                label="Đã tải lên"
+                                color="success"
+                                sx={{ height: 24, fontWeight: 600, fontSize: "0.75rem" }}
                             />
-                        </Box>
-                    )}
-
-                    <div
-                        onClick={onOpenFile}
-                        className="w-[144px] h-[144px] m-auto cursor-pointer rounded-full p-[8px] border border-dashed border-[var(--palette-text-disabled)33] hover:opacity-75 transition-opacity"
-                    >
-                        <div className="w-full h-full rounded-full relative overflow-hidden bg-[var(--palette-text-disabled)14]">
+                        </Stack>
+                        <Typography variant="body2" sx={{ color: "var(--palette-text-secondary)" }}>
+                            {contractCode ? `Mã HĐ: ${contractCode} · ` : ""}Bản ký đang được lưu trên hệ thống.
+                        </Typography>
+                    </Stack>
+                    <Stack direction={{ xs: "column", sm: "row" }} spacing={1} alignSelf={{ xs: "stretch", sm: "auto" }}>
+                        <Button
+                            variant="contained"
+                            color="primary"
+                            onClick={onViewSignedDocument}
+                            sx={{ width: { xs: "100%", sm: "auto" }, minWidth: { sm: 140 }, fontWeight: 600, borderRadius: "8px", boxShadow: "none" }}
+                        >
+                            Mở bản đã ký
+                        </Button>
+                        <Button
+                            variant="outlined"
+                            color="inherit"
+                            startIcon={<CloudUploadIcon aria-hidden="true" />}
+                            onClick={() => signedFileInputRef?.current?.click()}
+                            disabled={isUploadingSignedDocument}
+                            sx={{ width: { xs: "100%", sm: "auto" }, fontWeight: 600, borderRadius: "8px" }}
+                        >
+                            {isUploadingSignedDocument ? "Đang tải…" : "Thay bản đã ký"}
+                        </Button>
+                    </Stack>
+                    <input
+                        type="file"
+                        ref={signedFileInputRef}
+                        onChange={handleSignedFileChange}
+                        className="hidden"
+                        accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
+                    />
+                </Stack>
+            ) : (
+                <>
+                    <SectionTitle
+                        title={isEdit ? "Hợp đồng đã ký" : "Hợp đồng"}
+                        helperText={isEdit ? "Chưa có bản đã ký. Tải file lên sau khi người bán vé số ký xác nhận." : "Hợp đồng sẽ được tạo sau khi lưu hồ sơ."}
+                    />
+                    {isEdit ? (
+                        <Stack spacing={2}>
+                            <Button
+                                variant="contained"
+                                startIcon={<CloudUploadIcon aria-hidden="true" />}
+                                onClick={() => signedFileInputRef?.current?.click()}
+                                disabled={isUploadingSignedDocument}
+                                sx={{ fontWeight: 700, borderRadius: "8px", boxShadow: "none", alignSelf: "flex-start" }}
+                            >
+                                {isUploadingSignedDocument ? "Đang tải lên…" : "Tải bản đã ký lên"}
+                            </Button>
                             <input
                                 type="file"
-                                ref={fileInputRef}
-                                onChange={onFileChange}
+                                ref={signedFileInputRef}
+                                onChange={handleSignedFileChange}
                                 className="hidden"
-                                accept="image/*"
+                                accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
                             />
-                            {imageUrl ? (
-                                <img src={imageUrl} alt="avatar" className="w-full h-full object-cover" />
-                            ) : (
-                                <div className="absolute top-0 left-0 w-full h-full flex items-center justify-center text-[var(--palette-text-disabled)] flex-col gap-[8px]">
-                                    <span className="text-[0.75rem]">{isUploading ? "Đang tải..." : "Tải ảnh lên"}</span>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                    <div className="text-[0.75rem] text-[var(--palette-text-disabled)] mt-[24px]">
-                        Allowed *.jpeg, *.jpg, *.png, *.gif
-                        <br />
-                        max size of 3 Mb
-                    </div>
-                </Card>
-            </Grid>
+                        </Stack>
+                    ) : (
+                        <Alert severity="info" icon={<PictureAsPdfIcon fontSize="small" aria-hidden="true" />}>
+                            Lưu hồ sơ trước. Sau đó hệ thống sẽ tạo bản dự thảo để bạn in, ký và tải bản đã ký lên ở bước tiếp theo.
+                        </Alert>
+                    )}
+                </>
+            )}
+        </Card>
+    );
 
-            <Grid size={{ xs: 12, md: 8 }}>
-                <Stack spacing={3}>
-                    <Card sx={{ p: 4, borderRadius: "var(--shape-borderRadius-lg)", boxShadow: "var(--customShadows-card)" }}>
-                        <SectionTitle title="Thông tin cá nhân" />
+    return (
+        <Box>
+            <Stack spacing={3}>
+                <Card sx={{ p: 3, borderRadius: "var(--shape-borderRadius-lg)", boxShadow: "var(--customShadows-card)" }}>
+                        <SectionTitle title="Thông tin cá nhân" helperText="Thông tin cơ bản của người bán vé số." />
                         <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)" }, gap: 3 }}>
-                            <Controller
-                                name="lastName"
-                                control={control}
-                                render={({ field, fieldState }) => (
-                                    <TextField {...field} label="Họ" fullWidth error={!!fieldState.error} helperText={fieldState.error?.message} sx={fieldSx} />
+                            <Box sx={{ gridColumn: { sm: "1 / -1" }, display: "flex", justifyContent: "center", mb: 2, position: "relative" }}>
+                                {statusChip && (
+                                    <Box sx={{ position: "absolute", top: 0, right: 0 }}>
+                                        <Chip
+                                            label={STATUS_LABELS[statusChip] || statusChip}
+                                            sx={{
+                                                ...getStatusChipStyle(statusChip),
+                                                borderRadius: "var(--shape-borderRadius-sm)",
+                                                fontWeight: 700,
+                                                fontSize: "0.75rem",
+                                                height: "24px",
+                                            }}
+                                        />
+                                    </Box>
                                 )}
-                            />
-                            <Controller
-                                name="firstName"
+                                <Stack alignItems="center" spacing={2}>
+                                <div
+                                    role="button"
+                                    tabIndex={0}
+                                    aria-label="Tải ảnh đại diện"
+                                    onClick={onOpenFile}
+                                    onKeyDown={handleAvatarKeyDown}
+                                    className="w-[144px] h-[144px] m-auto cursor-pointer rounded-full p-[8px] border border-dashed border-[var(--palette-text-disabled)33] hover:opacity-75 transition-opacity focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--palette-primary-main)]"
+                                >
+                                    <div className="w-full h-full rounded-full relative overflow-hidden bg-[var(--palette-text-disabled)14]">
+                                        <input
+                                            type="file"
+                                            ref={fileInputRef}
+                                            onChange={onFileChange}
+                                            className="hidden"
+                                            accept="image/*"
+                                            aria-hidden="true"
+                                            tabIndex={-1}
+                                        />
+                                        {imageUrl ? (
+                                            <img src={imageUrl} alt="Ảnh đại diện" className="w-full h-full object-cover" />
+                                        ) : (
+                                            <div className="absolute top-0 left-0 w-full h-full flex items-center justify-center text-[var(--palette-text-disabled)] flex-col gap-[8px]">
+                                                <span className="text-[0.75rem]">{isUploading ? "Đang tải..." : "Tải ảnh lên"}</span>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                                <Typography variant="caption" sx={{ color: "var(--palette-text-disabled)", textAlign: "center" }}>
+                                    Allowed *.jpeg, *.jpg, *.png, *.gif<br />max size of 3 Mb
+                                </Typography>
+                            </Stack>
+                        </Box>
+                        <Controller
+                            name="lastName"
+                            control={control}
+                            render={({ field, fieldState }) => (
+                                <TextField {...field} required label="Họ" autoComplete="family-name" fullWidth error={!!fieldState.error} helperText={fieldState.error?.message} sx={fieldSx} />
+                            )}
+                        />
+                        <Controller
+                            name="firstName"
                                 control={control}
                                 render={({ field, fieldState }) => (
-                                    <TextField {...field} label="Tên" fullWidth error={!!fieldState.error} helperText={fieldState.error?.message} sx={fieldSx} />
+                                    <TextField {...field} required label="Tên" autoComplete="given-name" fullWidth error={!!fieldState.error} helperText={fieldState.error?.message} sx={fieldSx} />
                                 )}
                             />
                             <Controller
                                 name="phone"
                                 control={control}
                                 render={({ field, fieldState }) => (
-                                    <TextField {...field} label="Số điện thoại" fullWidth error={!!fieldState.error} helperText={fieldState.error?.message} sx={fieldSx} />
+                                    <TextField {...field} required label="Số điện thoại" type="tel" autoComplete="tel" slotProps={{ htmlInput: { inputMode: "numeric" } }} fullWidth error={!!fieldState.error} helperText={fieldState.error?.message} sx={fieldSx} />
                                 )}
                             />
                             <Controller
                                 name="cccd"
                                 control={control}
                                 render={({ field, fieldState }) => (
-                                    <TextField {...field} label="Số CCCD" fullWidth error={!!fieldState.error} helperText={fieldState.error?.message} sx={fieldSx} />
+                                    <TextField {...field} required label="Số CCCD" type="text" slotProps={{ htmlInput: { inputMode: "numeric" } }} fullWidth error={!!fieldState.error} helperText={fieldState.error?.message} sx={fieldSx} />
                                 )}
                             />
                         </Box>
                     </Card>
 
-                    <Card sx={{ p: 4, borderRadius: "var(--shape-borderRadius-lg)", boxShadow: "var(--customShadows-card)" }}>
-                        <SectionTitle title="Thông tin liên hệ" />
-                        <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)" }, gap: 3 }}>
-                            <Controller
-                                name="contactAddress"
-                                control={control}
-                                render={({ field, fieldState }) => (
-                                    <TextField
-                                        {...field}
-                                        label="Địa chỉ hoạt động"
-                                        fullWidth
-                                        error={!!fieldState.error}
-                                        helperText={fieldState.error?.message}
-                                        sx={{ ...fieldSx, gridColumn: { sm: "1 / -1" } }}
-                                    />
-                                )}
-                            />
-                            <Controller
-                                name="contactProvince"
-                                control={control}
-                                render={({ field, fieldState }) => (
-                                    <TextField {...field} select label="Tỉnh/thành" fullWidth error={!!fieldState.error} helperText={fieldState.error?.message} sx={fieldSx}>
-                                        <MenuItem value="">Chọn tỉnh/thành</MenuItem>
-                                        {PROVINCE_OPTIONS.map((province) => (
-                                            <MenuItem key={province} value={province}>
-                                                {province}
-                                            </MenuItem>
-                                        ))}
-                                    </TextField>
-                                )}
-                            />
-                        </Box>
-                    </Card>
+                    {isEdit && signedContractCard}
 
-                    <Card sx={{ p: 4, borderRadius: "var(--shape-borderRadius-lg)", boxShadow: "var(--customShadows-card)" }}>
-                        <SectionTitle title="Điều kiện nhận vé" badge="Phase 2 · Allocation" />
+                    <Card sx={{ p: 3, borderRadius: "var(--shape-borderRadius-lg)", boxShadow: "var(--customShadows-card)" }}>
+                        <SectionTitle title="Điều kiện nhận vé" helperText="Hạn mức giao theo hợp đồng và chính sách vận hành." />
                         <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)" }, gap: 3 }}>
                             <Controller
                                 name="contractStartDate"
                                 control={control}
                                 render={({ field, fieldState }) => (
-                                    <TextField
-                                        {...field}
-                                        value={field.value ?? ""}
-                                        type="date"
-                                        label="Ngày bắt đầu hợp đồng"
-                                        InputLabelProps={{ shrink: true }}
-                                        fullWidth
-                                        error={!!fieldState.error}
-                                        helperText={fieldState.error?.message}
-                                        sx={fieldSx}
-                                    />
+                                    isEdit && contractDocumentUrl ? (
+                                        <ReadOnlyRow label="Ngày bắt đầu hợp đồng" value={field.value ? field.value.split("-").reverse().join("/") : "—"} />
+                                    ) : (
+                                        <TextField
+                                            {...field}
+                                            required
+                                            value={field.value ?? ""}
+                                            type="date"
+                                            label="Ngày bắt đầu hợp đồng"
+                                            slotProps={{ inputLabel: { shrink: true } }}
+                                            fullWidth
+                                            error={!!fieldState.error}
+                                            helperText={fieldState.error?.message}
+                                            sx={fieldSx}
+                                        />
+                                    )
                                 )}
                             />
                             <Controller
                                 name="contractEndDate"
                                 control={control}
                                 render={({ field, fieldState }) => (
-                                    <TextField
-                                        {...field}
-                                        value={field.value ?? ""}
-                                        type="date"
-                                        label="Ngày kết thúc hợp đồng"
-                                        InputLabelProps={{ shrink: true }}
-                                        fullWidth
-                                        error={!!fieldState.error}
-                                        helperText={fieldState.error?.message}
-                                        sx={fieldSx}
-                                    />
+                                    isEdit && contractDocumentUrl ? (
+                                        <ReadOnlyRow label="Ngày kết thúc hợp đồng" value={field.value ? field.value.split("-").reverse().join("/") : "—"} />
+                                    ) : (
+                                        <TextField
+                                            {...field}
+                                            required
+                                            value={field.value ?? ""}
+                                            type="date"
+                                            label="Ngày kết thúc hợp đồng"
+                                            slotProps={{ inputLabel: { shrink: true } }}
+                                            fullWidth
+                                            error={!!fieldState.error}
+                                            helperText={fieldState.error?.message}
+                                            sx={fieldSx}
+                                        />
+                                    )
                                 )}
                             />
                             <Controller
-                                name="dailyTicketCap"
+                                name="contractMaxDailyCap"
                                 control={control}
                                 render={({ field, fieldState }) => (
                                     <TextField
                                         {...field}
-                                        value={field.value ?? ""}
-                                        onChange={(e) => field.onChange(e.target.value === "" ? null : Number(e.target.value))}
+                                        required
                                         type="number"
-                                        inputProps={{ min: 1 }}
-                                        label="Hạn mức vé / ngày"
+                                        label="Hạn mức tối đa theo hợp đồng (vé/ngày)"
+                                        placeholder={vendorDefaults?.defaultContractMaxDailyCap?.toString() || "200"}
+                                        slotProps={{ htmlInput: { min: 1, step: 1, inputMode: "numeric" } }}
+                                        value={field.value ?? ""}
+                                        onChange={(e) => {
+                                            const val = e.target.value;
+                                            field.onChange(val === "" ? null : Number(val));
+                                        }}
                                         fullWidth
                                         error={!!fieldState.error}
-                                        helperText={fieldState.error?.message}
-                                        sx={fieldSx}
-                                    />
-                                )}
-                            />
-                            <Controller
-                                name="commissionRate"
-                                control={control}
-                                render={({ field, fieldState }) => (
-                                    <TextField
-                                        {...field}
-                                        value={field.value ?? ""}
-                                        onChange={(e) => field.onChange(e.target.value === "" ? null : Number(e.target.value))}
-                                        type="number"
-                                        inputProps={{ min: 0, max: 1, step: 0.01 }}
-                                        label="Tỷ lệ hoa hồng"
                                         helperText={
-                                            fieldState.error?.message
-                                            || (vendorDefaults?.depositRate != null
-                                                ? `VD: 0.05 = 5%. Tỷ lệ cọc vendor từ settings: ${vendorDefaults.depositRate}`
-                                                : "VD: 0.05 = 5%")
+                                            fieldState.error?.message ||
+                                            (isEdit
+                                                ? (contractDocumentUrl
+                                                    ? "Hạn mức ghi trong hợp đồng hiện tại. Thay đổi hạn mức sẽ yêu cầu ký lại hợp đồng."
+                                                    : "Hạn mức ghi trong hợp đồng hiện tại. Sau khi lưu thay đổi, cần tải lại bản ký.")
+                                                : `Mặc định ${vendorDefaults?.defaultContractMaxDailyCap ?? 200} vé/ngày; nhân viên có thể điều chỉnh theo hợp đồng.`)
                                         }
+                                        sx={fieldSx}
+                                    />
+                                )}
+                            />
+                            {isEdit && effectiveDailyCap != null && (
+                                <ReadOnlyRow
+                                    label="Hạn mức giao thực tế"
+                                    value={`${effectiveDailyCap} vé/ngày`}
+                                    helperText="Hạn mức áp dụng sau khi tính điểm tin cậy."
+                                />
+                            )}
+                        </Box>
+                    </Card>
+
+                    <Card sx={{ p: 3, borderRadius: "var(--shape-borderRadius-lg)", boxShadow: "var(--customShadows-card)" }}>
+                        <SectionTitle title="Thông tin liên hệ" helperText="Địa chỉ và khu vực hoạt động bán vé." />
+                        <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)" }, gap: 3 }}>
+                            <Controller
+                                name="contactProvince"
+                                control={control}
+                                render={({ field, fieldState }) => {
+                                    const selectedOption = vietnamLocations?.find(p => p.name === field.value) || null;
+                                    return (
+                                        <Autocomplete
+                                            options={vietnamLocations || []}
+                                            getOptionLabel={(option) => option.name}
+                                            value={selectedOption}
+                                            onChange={(_, newValue) => {
+                                                field.onChange(newValue ? newValue.name : "");
+                                                setValue?.("contactWard", "");
+                                            }}
+                                            disabled={isLoadingLocations}
+                                            loading={isLoadingLocations}
+                                            loadingText="Đang tải danh sách địa phương…"
+                                            noOptionsText="Không tìm thấy tỉnh/thành"
+                                            renderInput={(params) => (
+                                                <TextField
+                                                    {...params}
+                                                    label="Tỉnh/thành"
+                                                    error={!!fieldState.error}
+                                                    helperText={fieldState.error?.message || (isLoadingLocations ? "Đang tải danh sách địa phương…" : undefined)}
+                                                    sx={fieldSx}
+                                                />
+                                            )}
+                                        />
+                                    );
+                                }}
+                            />
+                            <Controller
+                                name="contactWard"
+                                control={control}
+                                render={({ field, fieldState }) => {
+                                    const selectedWard = wardOptions.find(w => w.name === field.value) || null;
+                                    return (
+                                        <Autocomplete
+                                            options={wardOptions}
+                                            getOptionLabel={(option) => option.name}
+                                            value={selectedWard}
+                                            onChange={(_, newValue) => {
+                                                field.onChange(newValue ? newValue.name : "");
+                                            }}
+                                            disabled={isLoadingLocations || !contactProvince}
+                                            loading={isLoadingLocations}
+                                            loadingText="Đang tải danh sách địa phương…"
+                                            noOptionsText={!contactProvince ? "Vui lòng chọn tỉnh/thành trước" : "Không tìm thấy phường/xã"}
+                                            renderInput={(params) => (
+                                                <TextField
+                                                    {...params}
+                                                    label="Phường/xã"
+                                                    error={!!fieldState.error}
+                                                    helperText={fieldState.error?.message || (!contactProvince ? "Chọn tỉnh/thành trước" : undefined)}
+                                                    sx={fieldSx}
+                                                />
+                                            )}
+                                        />
+                                    );
+                                }}
+                            />
+                            <Controller
+                                name="contactAddress"
+                                control={control}
+                                render={({ field, fieldState }) => (
+                                    <TextField
+                                        {...field}
+                                        value={field.value ?? ""}
+                                        label="Địa chỉ chi tiết"
+                                        placeholder="Số nhà, tên đường..."
+                                        autoComplete="street-address"
                                         fullWidth
                                         error={!!fieldState.error}
-                                        sx={fieldSx}
+                                        helperText={fieldState.error?.message}
+                                        sx={{ ...fieldSx, gridColumn: { sm: "1 / -1" } }}
                                     />
                                 )}
                             />
@@ -405,6 +513,9 @@ export const StreetAgentProfileForm = ({
                                             getOptionLabel={(option: CoverageAreaOption) => option.label}
                                             isOptionEqualToValue={(a, b) => a.code === b.code}
                                             onChange={(_e, next) => field.onChange(next.map((item) => item.code))}
+                                            openText="Mở danh sách"
+                                            closeText="Đóng"
+                                            clearText="Xóa"
                                             renderTags={(value, getTagProps) =>
                                                 value.map((option, index) => {
                                                     const { key, ...tagProps } = getTagProps({ index });
@@ -438,15 +549,21 @@ export const StreetAgentProfileForm = ({
                     </Card>
 
                     {vendorDefaults && (
-                        <Card sx={{ p: 4, borderRadius: "var(--shape-borderRadius-lg)", boxShadow: "var(--customShadows-card)" }}>
-                            <SectionTitle title="Cấu hình vendor từ hệ thống" badge="Settings" badgeTone="readonly" />
-                            <Typography variant="body2" sx={{ color: "var(--palette-text-secondary)", mb: 2.5 }}>
-                                Giá trị mặc định lấy từ tab Cấu hình người bán dạo; áp dụng khi bàn giao vé (không lưu theo từng hồ sơ).
-                            </Typography>
+                        <Card sx={{ p: 3, borderRadius: "var(--shape-borderRadius-lg)", boxShadow: "var(--customShadows-card)" }}>
+                            <SectionTitle title="Chính sách áp dụng" helperText="Các giá trị này được cấu hình chung từ hệ thống và áp dụng tự động cho người bán vé số." />
                             <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)" }, gap: 3 }}>
                                 <ReadOnlyRow
-                                    label="Giá vendor mặc định"
-                                    value={formatCurrency(vendorDefaults.defaultUnitPrice)}
+                                    label="Tỷ lệ hoa hồng theo mệnh giá"
+                                    value={
+                                        vendorDefaults.commissionRate == null
+                                            ? "—"
+                                            : `${(vendorDefaults.commissionRate * 100).toLocaleString("vi-VN", { maximumFractionDigits: 2 })}%`
+                                    }
+                                    helperText={
+                                        vendorDefaults.commissionRate == null
+                                            ? "Giá người bán vé số = mệnh giá - hoa hồng"
+                                            : `Tham khảo (giá bán khách 10.000đ/vé): Hoa hồng ${formatCurrency(10000 * vendorDefaults.commissionRate)}/vé · Giá người bán vé số ${formatCurrency(10000 * (1 - vendorDefaults.commissionRate))}/vé. Bảng kê thực tế là gốc.`
+                                    }
                                 />
                                 <ReadOnlyRow
                                     label="Tỷ lệ cọc"
@@ -468,152 +585,47 @@ export const StreetAgentProfileForm = ({
                                     label="Giờ chốt trả vé"
                                     value={vendorDefaults.returnCutoff || "—"}
                                 />
-                                <ReadOnlyRow
-                                    label="TTL giữ vé nháp"
-                                    value={
-                                        vendorDefaults.draftReservationTtlMinutes == null
-                                            ? "—"
-                                            : `${vendorDefaults.draftReservationTtlMinutes} phút`
-                                    }
-                                />
-                                <ReadOnlyRow
-                                    label="Tồn tối thiểu chừa quầy"
-                                    value={
-                                        vendorDefaults.counterReservePerStation == null
-                                            ? "—"
-                                            : `${vendorDefaults.counterReservePerStation} vé/đài`
-                                    }
-                                />
                             </Box>
                         </Card>
                     )}
 
-                    <Card sx={{ p: 4, borderRadius: "var(--shape-borderRadius-lg)", boxShadow: "var(--customShadows-card)" }}>
-                        <SectionTitle title="Thông tin hệ thống" badge="Read-only" badgeTone="readonly" />
-                        <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)" }, gap: 3 }}>
-                            <ReadOnlyRow
-                                label="Mã hợp đồng"
-                                value={
-                                    isEdit
-                                        ? contractCode || "—"
-                                        : "Hệ thống sẽ tự sinh sau khi lưu."
-                                }
-                            />
-                            <ReadOnlyRow label="Cọc đang giữ" value={formatVnd(depositBalance ?? 0)} />
-                            <Box>
+                    {!isEdit && signedContractCard}
+
+                    {isEdit && (
+                        <Card sx={{ p: 2.5, borderRadius: "var(--shape-borderRadius-lg)", bgcolor: "var(--palette-background-neutral)", border: "1px solid var(--palette-divider)", boxShadow: "none" }}>
+                            <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)" }, gap: 3 }}>
+                                <ReadOnlyRow label="Cọc đang giữ" value={formatVnd(depositBalance ?? 0)} />
                                 <ReadOnlyRow
                                     label="Điểm tin cậy"
                                     value={formatConfidencePoints(confidenceScore, confidenceTier)}
                                 />
-                                {showPhase4Lock && <LockedOverlay phaseLabel="Phase 4" />}
                             </Box>
-                            <Stack spacing={1}>
-                                <Typography variant="caption" sx={{ color: "var(--palette-text-secondary)", fontWeight: 600 }}>
-                                    Trạng thái
-                                </Typography>
-                                <Box>
-                                    <Chip
-                                        label={STATUS_LABELS[statusChip || "PENDING"] || statusChip || "PENDING"}
-                                        sx={{
-                                            ...getStatusChipStyle(statusChip || "PENDING"),
-                                            fontWeight: 700,
-                                        }}
-                                    />
-                                </Box>
-                            </Stack>
-                        </Box>
 
-                        {isEdit && (
-                            <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} sx={{ mt: 3 }} useFlexGap flexWrap="wrap">
-                                <Button
-                                    variant="outlined"
-                                    onClick={onAdjustDeposit}
-                                    sx={{ fontWeight: 700, borderRadius: "8px" }}
-                                >
-                                    Điều chỉnh cọc
-                                </Button>
+                            <Box sx={{ mt: 3, pt: 2, borderTop: "1px dashed var(--palette-divider)", display: "flex", justifyContent: "flex-end" }}>
                                 {statusChip === "INACTIVE" ? (
                                     <Button
                                         variant="outlined"
-                                        color="success"
+                                        color="primary"
+                                        size="small"
                                         onClick={onReactivateProfile}
                                         disabled={isStatusActionPending}
-                                        sx={{ fontWeight: 700, borderRadius: "8px" }}
+                                        sx={{ fontWeight: 600, borderRadius: "6px" }}
                                     >
-                                        Kích hoạt lại
+                                        {isStatusActionPending ? "Đang xử lý..." : "Kích hoạt lại"}
                                     </Button>
                                 ) : (
                                     <Button
-                                        variant="outlined"
-                                        color="warning"
+                                        variant="text"
+                                        color="error"
+                                        size="small"
                                         onClick={onLockProfile}
                                         disabled={isStatusActionPending}
-                                        sx={{ fontWeight: 700, borderRadius: "8px" }}
+                                        sx={{ fontWeight: 600, borderRadius: "6px" }}
                                     >
-                                        Khóa hồ sơ
+                                        {isStatusActionPending ? "Đang xử lý..." : "Khóa hồ sơ"}
                                     </Button>
                                 )}
-                            </Stack>
-                        )}
-                    </Card>
-
-                    {(isEdit || STREET_AGENT_PHASE_UI.enabled) && (
-                        <Card sx={{ p: 4, borderRadius: "var(--shape-borderRadius-lg)", boxShadow: "var(--customShadows-card)" }}>
-                            <SectionTitle title="Hợp đồng" badge="Phase 3 · Settlement" />
-                            {isEdit ? (
-                                <>
-                                    <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} alignItems={{ xs: "stretch", sm: "center" }} useFlexGap flexWrap="wrap">
-                                        <Button
-                                            variant="outlined"
-                                            onClick={onPrintContract}
-                                            disabled={!contractCode}
-                                            sx={{ fontWeight: 700, borderRadius: "8px" }}
-                                        >
-                                            Xem/In hợp đồng (PDF)
-                                        </Button>
-                                        <Button
-                                            variant="outlined"
-                                            onClick={() => signedFileInputRef?.current?.click()}
-                                            disabled={isUploadingSignedDocument}
-                                            sx={{ fontWeight: 700, borderRadius: "8px" }}
-                                        >
-                                            {isUploadingSignedDocument ? "Đang tải..." : "Đính kèm bản đã ký"}
-                                        </Button>
-                                        <input
-                                            type="file"
-                                            ref={signedFileInputRef}
-                                            onChange={handleSignedFileChange}
-                                            className="hidden"
-                                            accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
-                                        />
-                                        {contractDocumentUrl ? (
-                                            <Button
-                                                variant="text"
-                                                onClick={onViewSignedDocument}
-                                                sx={{ fontWeight: 600, fontSize: "0.875rem", alignSelf: "center" }}
-                                            >
-                                                Xem bản đã ký
-                                            </Button>
-                                        ) : (
-                                            <Typography variant="body2" sx={{ color: "var(--palette-text-secondary)", alignSelf: "center" }}>
-                                                Chưa đính kèm
-                                            </Typography>
-                                        )}
-                                    </Stack>
-                                    {showPhase3Settlement && (
-                                        <Box sx={{ mt: 2, pointerEvents: "none", opacity: 0.7 }}>
-                                            <Button variant="outlined" disabled sx={{ fontWeight: 700, borderRadius: "8px" }}>
-                                                Quyết toán cọc
-                                            </Button>
-                                            <LockedOverlay phaseLabel="Phase 3" />
-                                        </Box>
-                                    )}
-                                </>
-                            ) : (
-                                <Typography variant="body2" sx={{ color: "var(--palette-text-secondary)" }}>
-                                    Sau khi tạo hồ sơ, bạn có thể xem/in hợp đồng và đính kèm bản đã ký tại trang chỉnh sửa.
-                                </Typography>
-                            )}
+                            </Box>
                         </Card>
                     )}
 
@@ -621,7 +633,6 @@ export const StreetAgentProfileForm = ({
                         {footer}
                     </Stack>
                 </Stack>
-            </Grid>
-        </Grid>
+            </Box>
     );
 };

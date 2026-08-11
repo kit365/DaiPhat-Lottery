@@ -441,6 +441,8 @@ public enum ErrorCode {
     VENDOR_ALLOCATION_OPEN_BATCH_EXISTS("SAG_010", "Vendor vẫn còn phiếu bàn giao chưa quyết toán.", HttpStatus.CONFLICT),
     VENDOR_ALLOCATION_SERIAL_INVALID("SAG_011", "Có vé không hợp lệ để bàn giao.", HttpStatus.CONFLICT),
     VENDOR_ALLOCATION_COUNTER_RESERVE_VIOLATED("SAG_012", "Phải chừa đủ vé thường cho quầy tại mỗi đài.", HttpStatus.BAD_REQUEST),
+    VENDOR_ALLOCATION_SHORTFALL_CONFIRMATION_REQUIRED("SAG_022", "Số vé được phép giao ít hơn nhu cầu. Cần xác nhận bàn giao thiếu.", HttpStatus.CONFLICT),
+    VENDOR_ALLOCATION_SUGGESTION_STALE("SAG_023", "Dữ liệu tồn kho đã thay đổi. Vui lòng tải lại gợi ý bàn giao.", HttpStatus.CONFLICT),
     VENDOR_ALLOCATION_LUCKY_OVERRIDE_REQUIRED("SAG_013", "Vé số đẹp chỉ được bàn giao khi có quyền và nêu rõ lý do.", HttpStatus.FORBIDDEN),
     STREET_AGENT_CONTRACT_DOCUMENT_INVALID_TYPE("SAG_014", "Chỉ chấp nhận file PDF, JPG hoặc PNG cho bản hợp đồng đã ký.", HttpStatus.BAD_REQUEST),
     STREET_AGENT_CONTRACT_DOCUMENT_REQUIRED("SAG_015", "Vui lòng chọn file bản hợp đồng đã ký.", HttpStatus.BAD_REQUEST),
@@ -455,7 +457,7 @@ public enum ErrorCode {
             HttpStatus.BAD_REQUEST),
     VENDOR_ALLOCATION_DAILY_CAP_MISSING(
             "SAG_019",
-            "Hạn mức vé ngày (dailyTicketCap) chưa được cấu hình hoặc phải lớn hơn 0.",
+            "Hạn mức vé/ngày theo hợp đồng chưa được cấu hình hoặc phải lớn hơn 0.",
             HttpStatus.BAD_REQUEST),
     VENDOR_ALLOCATION_PROFILE_INACTIVE(
             "SAG_020",
@@ -477,6 +479,22 @@ public enum ErrorCode {
             "SAG_024",
             "Chưa đính kèm bản hợp đồng đã ký. Vendor chưa được nhận vé.",
             HttpStatus.BAD_REQUEST),
+    DAILY_SALES_REPORT_NOT_FOUND(
+            "SAG_025",
+            "Báo cáo bán hàng ngày không tồn tại.",
+            HttpStatus.NOT_FOUND),
+    VENDOR_SETTLEMENT_CASH_MISMATCH(
+            "SAG_027",
+            "Số tiền xác nhận không khớp với số tiền quyết toán hệ thống.",
+            HttpStatus.BAD_REQUEST),
+    VENDOR_ALLOCATION_QUOTE_STALE(
+            "SAG_028",
+            "Báo giá cọc đã thay đổi. Vui lòng tải lại trước khi xác nhận bàn giao.",
+            HttpStatus.CONFLICT),
+    VENDOR_SETTLEMENT_PREVIEW_STALE(
+            "SAG_029",
+            "Bản tính quyết toán đã thay đổi. Vui lòng tải lại trước khi xác nhận.",
+            HttpStatus.CONFLICT),
 
     // Support Ticket Errors
     TICKET_NOT_FOUND("TKT_001", "Yêu cầu hỗ trợ không tồn tại.", HttpStatus.NOT_FOUND),
@@ -610,7 +628,22 @@ public enum ErrorCode {
     FORTUNE_NO_INVENTORY(
             "FRT_003",
             "No sellable ticket endings are available for today's draw.",
-            HttpStatus.CONFLICT);
+            HttpStatus.CONFLICT),
+
+    // Ticket scan (camera OCR import, DP-269)
+    TICKET_SCAN_IMAGE_REQUIRED("LT_121", "Ảnh quét vé không được để trống.", HttpStatus.BAD_REQUEST),
+    TICKET_SCAN_SERVICE_UNAVAILABLE(
+            "LT_122",
+            "Dịch vụ quét vé số hiện không khả dụng, vui lòng thử lại sau.",
+            HttpStatus.SERVICE_UNAVAILABLE),
+    TICKET_SCAN_BATCH_CODE_MISMATCH(
+            "LT_123",
+            "Mã lô nhập không khớp với phiếu nhập lô đã chọn.",
+            HttpStatus.BAD_REQUEST),
+    TICKET_SCAN_NO_TICKETS_TO_IMPORT(
+            "LT_124",
+            "Không có vé nào được xác nhận để nhập kho.",
+            HttpStatus.BAD_REQUEST);
 
     private final String code;
     private final String message;

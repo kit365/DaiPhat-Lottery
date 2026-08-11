@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import Link from "next/link";
 
 type UnavailableReferenceStateProps = {
     title?: string;
@@ -46,7 +46,7 @@ export const UnavailableReferenceState = ({
                             {primaryLabel}
                         </button>
                     ) : (
-                        <Link to={primaryTo} className={primaryClassName}>
+                        <Link href={primaryTo} className={primaryClassName}>
                             {primaryLabel}
                         </Link>
                     )}
@@ -56,7 +56,7 @@ export const UnavailableReferenceState = ({
                                 {secondaryLabel}
                             </button>
                         ) : secondaryTo ? (
-                            <Link to={secondaryTo} className={secondaryClassName}>
+                            <Link href={secondaryTo} className={secondaryClassName}>
                                 {secondaryLabel}
                             </Link>
                         ) : null)}

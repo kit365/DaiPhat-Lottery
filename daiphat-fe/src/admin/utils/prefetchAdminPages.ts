@@ -1,75 +1,120 @@
-import { ADMIN_PREFETCH_ROUTE_PRIORITY } from '../constants/adminPrefetchRoutes';
-import { prefetchAdminPageChunk } from '../lib/adminPagePrefetchRegistry';
 import {
-  shouldSkipClientPrefetch,
-  waitForPrefetchIdle,
-} from '@/client/utils/prefetchImagesWhenIdle';
+    ADMIN_PREFETCH_ALL_ROUTES,
+    ADMIN_PREFETCH_ROUTE_PRIORITY,
+} from '../constants/adminPrefetchRoutes';
+import { prefetchAdminPageChunk } from '../lib/adminPagePrefetchRegistry';
+import { shouldSkipClientPrefetch } from '@/client/utils/prefetchImagesWhenIdle';
 
 export type PrefetchAdminRouteFn = (path: string) => void;
 
 const prefetchedRoutes = new Set<string>();
 
-export const prefetchAdminRoute = (
-  path: string,
-  prefetchRoute: PrefetchAdminRouteFn,
-): void => {
-  const [pathname] = String(path || '').split('?');
-  if (!pathname || prefetchedRoutes.has(pathname)) {
-    return;
-  }
+// `router.prefetch()` also asks the Turbopack dev server to compile the
+// route's RSC payload on demand — same contention problem as chunk warming.
+// Skip all speculative route prefetching in dev; only real navigations
+// should occupy the compiler queue there.
+const isDevRuntime = process.env.NODE_ENV !== 'production';
 
-  prefetchedRoutes.add(pathname);
-  prefetchRoute(pathname);
-  prefetchAdminPageChunk(pathname);
+export const prefetchAdminRoute = (
+    path: string,
+    prefetchRoute: PrefetchAdminRouteFn,
+    options?: { loadChunk?: boolean },
+): void => {
+    if (isDevRuntime) {
+        return;
+    }
+
+    const [pathname] = String(path || '').split('?');
+    if (!pathname || prefetchedRoutes.has(pathname)) {
+        return;
+    }
+
+    prefetchedRoutes.add(pathname);
+    prefetchRoute(pathname);
+    if (options?.loadChunk !== false) {
+        prefetchAdminPageChunk(pathname);
+    }
+};
+
+/** Warm route + JS chunk before navigating (e.g. right after login). */
+export const prefetchAdminDestination = (
+    path: string,
+    prefetchRoute: PrefetchAdminRouteFn,
+): void => {
+    prefetchAdminRoute(path, prefetchRoute, { loadChunk: true });
+};
+
+const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const prefetchRoutesInBatches = async (
+    routes: readonly string[],
+    prefetchRoute: PrefetchAdminRouteFn,
+    batchSize: number,
+    batchDelayMs: number,
+    isCancelled: () => boolean,
+) => {
+    for (let index = 0; index < routes.length; index += batchSize) {
+        if (isCancelled()) {
+            return;
+        }
+
+        const batch = routes.slice(index, index + batchSize);
+        batch.forEach((path) => prefetchAdminRoute(path, prefetchRoute));
+
+        if (index + batchSize < routes.length) {
+            await delay(batchDelayMs);
+        }
+    }
 };
 
 /**
- * Sau khi admin shell sẵn sàng: prefetch route Next.js + JS chunk của từng trang ưu tiên.
+ * Sau khi admin shell sẵn sàng:
+ * - Prefetch ngay các route ưu tiên
+ * - Sau đó prefetch toàn bộ route sidebar theo batch (không chờ idle từng route)
  */
 export const prefetchAdminPagesWhenIdle = (
-  prefetchRoute: PrefetchAdminRouteFn,
-  delay = 300,
+    prefetchRoute: PrefetchAdminRouteFn,
+    delayMs = 200,
 ): (() => void) => {
-  if (shouldSkipClientPrefetch()) {
-    return () => {};
-  }
-
-  let cancelled = false;
-  let startHandle: ReturnType<typeof setTimeout> | null = null;
-
-  const run = async () => {
-    const [firstRoute, secondRoute, thirdRoute, ...remainingRoutes] = ADMIN_PREFETCH_ROUTE_PRIORITY;
-
-    for (const path of [firstRoute, secondRoute, thirdRoute].filter(Boolean)) {
-      if (cancelled) return;
-      prefetchAdminRoute(path, prefetchRoute);
+    if (shouldSkipClientPrefetch()) {
+        return () => {};
     }
 
-    for (const path of remainingRoutes) {
-      if (cancelled) {
-        return;
-      }
+    let cancelled = false;
+    let startHandle: ReturnType<typeof setTimeout> | null = null;
 
-      await waitForPrefetchIdle();
-      if (cancelled) {
-        return;
-      }
+    const run = async () => {
+        const prioritySet = new Set<string>(ADMIN_PREFETCH_ROUTE_PRIORITY);
+        const remainingRoutes = ADMIN_PREFETCH_ALL_ROUTES.filter((path) => !prioritySet.has(path));
 
-      prefetchAdminRoute(path, prefetchRoute);
-    }
-  };
+        await prefetchRoutesInBatches(
+            ADMIN_PREFETCH_ROUTE_PRIORITY,
+            prefetchRoute,
+            ADMIN_PREFETCH_ROUTE_PRIORITY.length,
+            0,
+            () => cancelled,
+        );
 
-  startHandle = setTimeout(() => {
-    startHandle = null;
-    void run();
-  }, delay);
+        await prefetchRoutesInBatches(
+            remainingRoutes,
+            prefetchRoute,
+            4,
+            120,
+            () => cancelled,
+        );
+    };
 
-  return () => {
-    cancelled = true;
+    startHandle = setTimeout(() => {
+        startHandle = null;
+        void run();
+    }, delayMs);
 
-    if (startHandle) {
-      clearTimeout(startHandle);
-      startHandle = null;
-    }
-  };
+    return () => {
+        cancelled = true;
+
+        if (startHandle) {
+            clearTimeout(startHandle);
+            startHandle = null;
+        }
+    };
 };

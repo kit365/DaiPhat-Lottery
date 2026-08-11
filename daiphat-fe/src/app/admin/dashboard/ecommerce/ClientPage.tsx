@@ -1,6 +1,6 @@
-"use client";
+﻿"use client";
 
-import EcommercePage from '@/admin/pages/dashboard/EcommercePage';
+import EcommercePage from '@/admin/features/dashboard/components/pages/EcommercePage';
 import { createAdminClientPage } from '@/admin/lib/createAdminClientPage';
 import { PERMISSIONS } from '@/admin/constants/permission.constants';
 

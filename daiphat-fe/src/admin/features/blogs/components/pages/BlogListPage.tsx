@@ -1,18 +1,18 @@
 "use client";
 
-import Button from "@mui/material/Button";
+import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
+import { Button } from '@/admin/components/ui/Button';
+
+
 import AddIcon from '@mui/icons-material/Add';
-import { Breadcrumb } from "../../../../components/ui/Breadcrumb";
-import { Title } from "../../../../components/ui/Title";
+import { PageHeader } from "../../../../components/ui/PageHeader";
 import { prefixAdmin } from "../../../../constants/routes";
-import { useNavigate } from "react-router-dom";
-import { Card, Tabs, Tab } from "@mui/material";
+import { Card, Tabs, Tab } from '@mui/material';
 import { BlogList } from "../sections/BlogList";
 import { BlogToolbar } from "../sections/BlogToolbar";
 import { useBlogs, useBlogTypes } from "../../hooks/useBlog";
 import { useNestedBlogCategories } from "../../hooks/useBlogCategory";
 import { useState, useMemo } from "react";
-import { useTranslation } from "react-i18next";
 import { CanAccess } from "../../../../components/auth/CanAccess";
 import { PERMISSIONS } from "../../../../constants/permission.constants";
 
@@ -20,8 +20,7 @@ import { getTabBadgeStyles } from "../../../../utils/badge";
 import { BLOG_STATUS } from '../../types/blog.type';
 
 export const BlogListPage = () => {
-    const { t } = useTranslation();
-    const navigate = useNavigate();
+    const router = useAdminRouter();
     const [sortBy, setSortBy] = useState("latest");
 
     const [tabStatus, setTabStatus] = useState(0); // 0: All, 1: Published, 2: Draft, 3: Scheduled, 4: Unpublished
@@ -91,30 +90,28 @@ export const BlogListPage = () => {
 
     return (
         <>
-            <div className="mb-[calc(5*var(--spacing))] gap-[calc(2*var(--spacing))] flex items-start justify-end">
-                <div className="mr-auto">
-                    <Title title={t("admin.blog.title.list")} />
-                    <Breadcrumb
-                        items={[
-                            { label: t("admin.dashboard.title"), to: "/" },
-                            { label: t("admin.blog.title.list"), to: `/${prefixAdmin}/blog/list` },
-                            { label: t("admin.common.list") }
+            <PageHeader
+                title="Danh sách bài viết"
+                breadcrumbItems={[
+                            { label: "Bảng điều khiển", to: "/" },
+                            { label: "Danh sách bài viết", to: `/${prefixAdmin}/blog/list` },
+                            { label: "Danh sách" }
                         ]}
-                    />
-                </div>
-                <div style={{ display: 'flex', gap: '16px' }}>
+                action={
+                    <div style={{ display: 'flex', gap: '16px' }}>
                     <CanAccess permission={PERMISSIONS.ARTICLE.CREATE}>
                         <Button
-                            onClick={() => navigate(`/${prefixAdmin}/blog/create`)}
+                            onClick={() => router.push(`/${prefixAdmin}/blog/create`)}
                             className="btn-primary-admin"
                             variant="contained"
                             startIcon={<AddIcon />}
                         >
-                            {t("admin.blog.title.create")}
+                            Tạo mới bài viết
                         </Button>
                     </CanAccess>
                 </div>
-            </div>
+                }
+            />
 
             <Card elevation={0} sx={{
                 borderRadius: 'var(--shape-borderRadius-lg)',

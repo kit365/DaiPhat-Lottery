@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useMemo } from 'react';
-import { useTranslation } from 'react-i18next';
 import { Button, Menu, MenuItem, Box } from '@mui/material';
 import { ArrowIcon } from '../../assets/icons';
 
@@ -12,14 +11,13 @@ interface SortButtonProps {
 }
 
 export const SortButton = ({ value = 'latest', onChange, options }: SortButtonProps) => {
-    const { t } = useTranslation();
     const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
 
     const defaultOptions = useMemo(() => [
-        { value: 'latest', label: t("admin.common.sort_options.latest") },
-        { value: 'oldest', label: t("admin.common.sort_options.oldest") },
-        { value: 'popular', label: t("admin.common.sort_options.popular") },
-    ], [t]);
+        { value: 'latest', label: 'Mới nhất' },
+        { value: 'oldest', label: 'Cũ nhất' },
+        { value: 'popular', label: 'Phổ biến' },
+    ], []);
 
     const activeOptions = options || defaultOptions;
 
@@ -57,7 +55,7 @@ export const SortButton = ({ value = 'latest', onChange, options }: SortButtonPr
                     }
                 }}
             >
-                {t("admin.common.sort_by")}
+                Sắp xếp theo:
                 <Box component="span" sx={{ fontWeight: 700, ml: "4px" }}>
                     {activeOptions.find(opt => opt.value === value)?.label}
                 </Box>

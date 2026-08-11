@@ -4,6 +4,53 @@ import numpy as np
 from domain.detection.base import DetectedRegion, DetectionResult, TicketDetectorStrategy
 
 
+# A candidate whose bbox is this fraction (or more) contained within a
+# larger candidate's bbox is treated as a sub-feature of that ticket (QR
+# code, decorative border) rather than a separate ticket. Chosen to sit
+# well above the overlap two genuinely separate, adjacent tickets would
+# ever produce (~0.0) while tolerating the bbox jitter approxPolyDP/
+# minAreaRect can introduce around a fully-nested blob (~1.0).
+CONTAINMENT_SUPPRESSION_THRESHOLD = 0.75
+
+
+def _containment_ratio(inner_bbox: tuple[int, int, int, int], outer_bbox: tuple[int, int, int, int]) -> float:
+    """Fraction of inner_bbox's area that overlaps outer_bbox."""
+    ix, iy, iw, ih = inner_bbox
+    ox, oy, ow, oh = outer_bbox
+
+    inner_area = iw * ih
+    if inner_area <= 0:
+        return 0.0
+
+    overlap_x = max(0, min(ix + iw, ox + ow) - max(ix, ox))
+    overlap_y = max(0, min(iy + ih, oy + oh) - max(iy, oy))
+    intersection_area = overlap_x * overlap_y
+
+    return intersection_area / inner_area
+
+
+def _suppress_contained_regions(candidates: list[DetectedRegion]) -> list[DetectedRegion]:
+    """Drop candidates that are mostly nested inside a larger candidate.
+
+    Contour detection scores each disjoint blob independently (see class
+    docstring), so a ticket's own QR code or decorative border can pass the
+    same aspect-ratio/area filters as the ticket itself and show up as a
+    bogus extra "ticket". Greedily keep the larger regions first and drop
+    anything substantially contained within one already kept.
+    """
+    by_area_desc = sorted(candidates, key=lambda r: r.bbox[2] * r.bbox[3], reverse=True)
+
+    kept: list[DetectedRegion] = []
+    for candidate in by_area_desc:
+        if any(
+            _containment_ratio(candidate.bbox, larger.bbox) >= CONTAINMENT_SUPPRESSION_THRESHOLD
+            for larger in kept
+        ):
+            continue
+        kept.append(candidate)
+
+    return kept
+
 def _order_corners(points: np.ndarray) -> list[tuple[int, int]]:
     """Order 4 points as (top-left, top-right, bottom-right, bottom-left).
 
@@ -95,13 +142,30 @@ class ContourTicketDetector(TicketDetectorStrategy):
             if w == 0 or h == 0:
                 continue
 
-            aspect_ratio = min(w, h) / max(w, h)
+            # Use the quad's own (possibly rotated) side lengths, not the
+            # axis-aligned bounding box -- a diagonally-photographed ticket's
+            # AABB is much closer to square than the ticket itself, which
+            # would push it outside the aspect-ratio band and drop it.
+            corners = _order_corners(quad)
+            top_left, top_right, bottom_right, bottom_left = (
+                np.array(p, dtype="float32") for p in corners
+            )
+            quad_width = (
+                np.linalg.norm(top_right - top_left) + np.linalg.norm(bottom_right - bottom_left)
+            ) / 2.0
+            quad_height = (
+                np.linalg.norm(bottom_left - top_left) + np.linalg.norm(bottom_right - top_right)
+            ) / 2.0
+            if quad_width == 0 or quad_height == 0:
+                continue
+
+            aspect_ratio = min(quad_width, quad_height) / max(quad_width, quad_height)
             if not (self.min_aspect_ratio <= aspect_ratio <= self.max_aspect_ratio):
                 continue
 
-            candidates.append(
-                DetectedRegion(bbox=(x, y, w, h), corners=_order_corners(quad))
-            )
+            candidates.append(DetectedRegion(bbox=(x, y, w, h), corners=corners))
+
+        candidates = _suppress_contained_regions(candidates)
 
         # Reading order: top-to-bottom, then left-to-right within a "row".
         # Tickets fanned out at roughly the same height are grouped using

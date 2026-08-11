@@ -148,6 +148,7 @@ CREATE TABLE IF NOT EXISTS refund_requests (
     fund_source VARCHAR(30) NOT NULL DEFAULT 'COMPANY_FUND',
     reimburse_status VARCHAR(20) NOT NULL DEFAULT 'NONE',
     attempt_number INT NOT NULL DEFAULT 1,
+    transfer_note VARCHAR(500),
     bank_account_id BIGINT,
     status VARCHAR(20) NOT NULL,
     reviewed_by UUID,

@@ -3,6 +3,7 @@ package com.daiphat.coreapi.application.service.settings;
 import com.daiphat.coreapi.application.dto.request.settings.UpdateSystemConfigRequest;
 import com.daiphat.coreapi.application.dto.response.settings.SystemConfigResponse;
 import com.daiphat.coreapi.application.mapper.settings.SystemConfigApplicationMapper;
+import com.daiphat.coreapi.application.port.in.streetagent.VendorConfidenceServicePort;
 import com.daiphat.coreapi.application.port.out.settings.SystemConfigCachePort;
 import com.daiphat.coreapi.application.port.out.settings.SystemConfigRepositoryPort;
 import com.daiphat.coreapi.domain.exception.DomainException;
@@ -40,6 +41,9 @@ class SystemConfigServiceTest {
 
     @Mock
     private SystemConfigCachePort systemConfigCachePort;
+
+    @Mock
+    private VendorConfidenceServicePort vendorConfidenceServicePort;
 
     @Spy
     private SystemConfigApplicationMapper systemConfigApplicationMapper = new SystemConfigApplicationMapper();

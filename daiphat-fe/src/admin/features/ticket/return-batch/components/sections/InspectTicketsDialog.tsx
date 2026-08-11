@@ -5,41 +5,12 @@ import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
 import ReportProblemIcon from '@mui/icons-material/ReportProblem';
 import SearchIcon from '@mui/icons-material/Search';
-import {
-    Alert,
-    Box,
-    Button,
-    Card,
-    Checkbox,
-    Chip,
-    CircularProgress,
-    Collapse,
-    Dialog,
-    DialogActions,
-    DialogContent,
-    DialogTitle,
-    IconButton,
-    InputAdornment,
-    Paper,
-    Radio,
-    RadioGroup,
-    Stack,
-    Tab,
-    Table,
-    TableBody,
-    TableCell,
-    TableContainer,
-    TableHead,
-    TableRow,
-    Tabs,
-    TextField,
-    Typography,
-} from '@mui/material';
+import { Alert, Box, Card, Checkbox, Chip, CircularProgress, Collapse, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, InputAdornment, Paper, Radio, RadioGroup, Stack, Tab, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Tabs, TextField, Typography } from '@mui/material';
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'react-toastify';
 import Swal from 'sweetalert2';
-import { LoadingButton } from '../../../../../components/ui/LoadingButton';
-import { ReportSerialFaultPane } from '../../../import-batch/components/sections/ReportSerialFaultPane';
+import { Button } from '../../../../../components/ui/Button';
+import { LazyReportSerialFaultPane } from '../../../import-batch/components/sections/LazyReportSerialFaultPane';
 import type { CancelSelectedSerial } from '../../../import-batch/hooks/useCancelTicketSelection';
 import { formatImportCost } from '../../../import-batch/utils/importCostCalculator';
 import { isFaultyTicketCondition, normalizeSerialStatus } from '../../../import-batch/utils/serialIncidentWorkflow';
@@ -426,7 +397,7 @@ export const InspectTicketsDialog = ({
                         </Alert>
                     )}
                     {activeStep === 'REPORT' && (
-                        <ReportSerialFaultPane
+                        <LazyReportSerialFaultPane
                             serials={selectedSerialsForReport}
                             ticketNumbers={reportDialogProps.ticketNumbers}
                             ticketId={reportDialogProps.ticketId}
@@ -994,7 +965,7 @@ export const InspectTicketsDialog = ({
                                 Báo tình trạng ({selectedSerialIds.size})
                             </Button>
                         ) : (
-                            <LoadingButton
+                            <Button
                                 label="Xác nhận kiểm tra"
                                 className="btn-primary-admin"
                                 loading={confirmInspection.isPending}

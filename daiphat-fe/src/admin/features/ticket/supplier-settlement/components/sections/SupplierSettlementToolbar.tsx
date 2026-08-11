@@ -1,10 +1,12 @@
-import { Toolbar, Box, Chip } from '@mui/material';
-import type { Dispatch, SetStateAction } from 'react';
+"use client";
+
+import { Toolbar, Box, Button, Badge, SvgIcon } from '@mui/material';
+import { useMemo, type Dispatch, type SetStateAction } from 'react';
+import { IGridSettings, JiraFilter } from '../../../../../shared/data-grid';
 import { Search } from '../../../../../components/ui/Search';
 import { Columns } from '../../../../../components/ui/Columns';
 import { SettingsList } from '../../../../../components/ui/SettingsList';
-import { IGridSettings, toolbarStyles } from '../../../../../shared/data-grid';
-import { SupplierSettlementStatus } from '../../types/supplierSettlement.type';
+import type { SupplierSettlementStatus } from '../../types/supplierSettlement.type';
 
 interface SupplierSettlementToolbarProps {
     settings: IGridSettings;
@@ -12,70 +14,46 @@ interface SupplierSettlementToolbarProps {
     filters: {
         search?: string;
         status?: SupplierSettlementStatus;
-        expiredOnly?: boolean;
     };
-    expiredCount?: number;
+    onFilterChange: (fieldId: string, values: string[]) => void;
+    onClearFilters: () => void;
     onSearchChange: (search: string) => void;
-    onStatusChange?: (status?: SupplierSettlementStatus) => void;
-    onExpiredOnlyToggle?: () => void;
 }
+
+const SETTLEMENT_STATUS_OPTIONS = [
+    { value: 'OPEN', label: 'Đang mở' },
+    { value: 'CLOSED', label: 'Đã đóng' },
+];
 
 export const SupplierSettlementToolbar = ({
     settings,
     onSettingsChange,
     filters,
-    expiredCount = 0,
+    onFilterChange,
+    onClearFilters,
     onSearchChange,
-    onStatusChange,
-    onExpiredOnlyToggle,
 }: SupplierSettlementToolbarProps) => {
-    const statusOptions: { label: string; value?: SupplierSettlementStatus }[] = [
-        { label: 'Tất cả', value: undefined },
-        { label: 'Đang mở', value: 'OPEN' as SupplierSettlementStatus },
-        { label: 'Đã đóng', value: 'CLOSED' as SupplierSettlementStatus },
-    ];
+    const filterFields = useMemo(
+        () => [
+            {
+                id: 'status',
+                label: 'Trạng thái',
+                options: SETTLEMENT_STATUS_OPTIONS,
+            },
+        ],
+        [],
+    );
+
+    const selectedFilters = useMemo(
+        () => ({
+            status: filters.status ? [filters.status] : [],
+        }),
+        [filters.status],
+    );
 
     return (
-        <Toolbar
-            style={toolbarStyles.root}
-            sx={{
-                p: 2,
-                display: 'flex',
-                flexDirection: { xs: 'column', md: 'row' },
-                alignItems: { xs: 'stretch', md: 'center' },
-                gap: 2,
-            }}
-        >
-            {/* Quick Status Pills */}
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
-                {statusOptions.map((opt) => {
-                    const isSelected = !filters.expiredOnly && filters.status === opt.value;
-                    return (
-                        <Chip
-                            key={opt.label}
-                            label={opt.label}
-                            onClick={() => onStatusChange?.(opt.value)}
-                            sx={{
-                                fontWeight: isSelected ? 700 : 500,
-                                fontSize: '0.8125rem',
-                                bgcolor: isSelected ? '#0f172a' : '#f1f5f9',
-                                color: isSelected ? '#ffffff' : '#475569',
-                                border: '1px solid',
-                                borderColor: isSelected ? '#0f172a' : '#e2e8f0',
-                                '&:hover': {
-                                    bgcolor: isSelected ? '#1e293b' : '#e2e8f0',
-                                },
-                                cursor: 'pointer',
-                                transition: 'all 0.15s ease',
-                            }}
-                            size="small"
-                        />
-                    );
-                })}
-            </Box>
-
-            {/* Search Input */}
-            <Box sx={{ flex: 1, minWidth: { xs: '100%', md: '280px' } }}>
+        <Toolbar className="admin-list-toolbar">
+            <Box className="admin-list-toolbar__search">
                 <Search
                     maxWidth="100%"
                     placeholder="Tìm theo tên hoặc mã nhà cung cấp..."
@@ -83,9 +61,37 @@ export const SupplierSettlementToolbar = ({
                     onChange={onSearchChange}
                 />
             </Box>
-
-            {/* Column & Settings Controls */}
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, justifyContent: 'flex-end' }}>
+            <Box className="admin-list-toolbar__actions">
+                <JiraFilter
+                    fields={filterFields}
+                    selectedFilters={selectedFilters}
+                    onFilterChange={onFilterChange}
+                    onClearAll={onClearFilters}
+                    trigger={({ onClick, totalFilterCount }) => (
+                        <Button
+                            variant="text"
+                            size="small"
+                            disableElevation
+                            className="admin-list-action-button"
+                            onClick={onClick}
+                            startIcon={
+                                <Badge badgeContent={totalFilterCount} color="primary" variant="dot">
+                                    <SvgIcon viewBox="0 0 24 24">
+                                        <g fill="none" fillRule="evenodd">
+                                            <path d="m12.593 23.258l-.011.002l-.071.035l-.02.004l-.014-.004l-.071-.035q-.016-.005-.024.005l-.004.01l-.017.428l.005.02l.01.013l.104.074l.015.004l.012-.004l.104-.074l.012-.016l.004-.017l-.017-.427q-.004-.016-.017-.018m.265-.113l-.013.002l-.185.093l-.01.01l-.003.011l.018.43l.005.012l.008.007l.201.093q.019.005.029-.008l.004-.014l-.034-.614q-.005-.018-.02-.022m-.715.002a.02.02 0 0 0-.027.006l-.006.014l-.034.614q.001.018.017.024l.015-.002l.201-.093l.01-.008l.004-.011l.017-.43l-.003-.012l-.01-.01z" />
+                                            <path
+                                                fill="currentColor"
+                                                d="M3 4.5A1.5 1.5 0 0 1 4.5 3h15A1.5 1.5 0 0 1 21 4.5v2.086A2 2 0 0 1 20.414 8L15 13.414v7.424a1.1 1.1 0 0 1-1.592.984l-3.717-1.858A1.25 1.25 0 0 1 9 18.846v-5.432L3.586 8A2 2 0 0 1 3 6.586z"
+                                            />
+                                        </g>
+                                    </SvgIcon>
+                                </Badge>
+                            }
+                        >
+                            Bộ lọc
+                        </Button>
+                    )}
+                />
                 <Columns />
                 <SettingsList settings={settings} onSettingsChange={onSettingsChange} />
             </Box>

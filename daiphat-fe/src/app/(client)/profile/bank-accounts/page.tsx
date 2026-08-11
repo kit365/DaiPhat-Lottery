@@ -1,5 +1,6 @@
+import { ProfileTabWrapper } from '../ProfileTabWrapper';
 import { BankAccountsTab } from '@/client/features/profile/pages/tabs/BankAccountsTab';
 
 export default function ProfileBankAccountsPage() {
-  return <BankAccountsTab />;
+  return <ProfileTabWrapper content={<BankAccountsTab />} />;
 }

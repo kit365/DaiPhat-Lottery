@@ -8,21 +8,27 @@ import com.daiphat.coreapi.application.dto.storage.StorageResult;
 import com.daiphat.coreapi.application.dto.storage.UploadRequest;
 import com.daiphat.coreapi.application.mapper.streetagent.StreetAgentProfileApplicationMapper;
 import com.daiphat.coreapi.application.port.in.streetagent.StreetAgentProfileServicePort;
+import com.daiphat.coreapi.application.port.in.user.UserServicePort;
+import com.daiphat.coreapi.application.dto.request.user.CreateUserRequest;
+import com.daiphat.coreapi.application.dto.response.user.UserResponse;
+import com.daiphat.coreapi.application.port.out.settings.SystemConfigRepositoryPort;
 import com.daiphat.coreapi.application.port.out.file.StoragePort;
 import com.daiphat.coreapi.application.port.out.streetagent.StreetAgentProfileRepositoryPort;
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
 import com.daiphat.coreapi.domain.model.enums.streetagent.StreetAgentProfileStatus;
+import com.daiphat.coreapi.domain.model.enums.settings.SystemConfigEnum;
 import com.daiphat.coreapi.domain.model.streetagent.StreetAgentProfileModel;
+import com.daiphat.coreapi.domain.service.streetagent.VendorDailyCapCalculator;
 import com.daiphat.coreapi.shared.util.PageableUtils;
 import com.daiphat.coreapi.shared.util.SortUtils;
 import com.daiphat.coreapi.shared.util.StatusCountKeys;
 import com.daiphat.coreapi.shared.util.StorageFolderConstants;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -37,7 +43,6 @@ import java.util.Locale;
 import java.util.UUID;
 
 @Service
-@RequiredArgsConstructor
 @Slf4j
 public class StreetAgentProfileService implements StreetAgentProfileServicePort {
 
@@ -51,6 +56,38 @@ public class StreetAgentProfileService implements StreetAgentProfileServicePort 
     private final StreetAgentProfileRepositoryPort streetAgentProfileRepositoryPort;
     private final StreetAgentProfileApplicationMapper streetAgentProfileApplicationMapper;
     private final StoragePort storagePort;
+    private final VendorConfidencePolicyResolver vendorConfidencePolicyResolver;
+    private final UserServicePort userServicePort;
+    private final SystemConfigRepositoryPort systemConfigRepositoryPort;
+
+    @Autowired
+    public StreetAgentProfileService(
+            StreetAgentProfileRepositoryPort streetAgentProfileRepositoryPort,
+            StreetAgentProfileApplicationMapper streetAgentProfileApplicationMapper,
+            StoragePort storagePort,
+            VendorConfidencePolicyResolver vendorConfidencePolicyResolver,
+            UserServicePort userServicePort,
+            SystemConfigRepositoryPort systemConfigRepositoryPort) {
+        this.streetAgentProfileRepositoryPort = streetAgentProfileRepositoryPort;
+        this.streetAgentProfileApplicationMapper = streetAgentProfileApplicationMapper;
+        this.storagePort = storagePort;
+        this.vendorConfidencePolicyResolver = vendorConfidencePolicyResolver;
+        this.userServicePort = userServicePort;
+        this.systemConfigRepositoryPort = systemConfigRepositoryPort;
+    }
+
+    /** Compatibility constructor for focused unit tests that do not exercise cap projection. */
+    public StreetAgentProfileService(
+            StreetAgentProfileRepositoryPort streetAgentProfileRepositoryPort,
+            StreetAgentProfileApplicationMapper streetAgentProfileApplicationMapper,
+            StoragePort storagePort) {
+        this.streetAgentProfileRepositoryPort = streetAgentProfileRepositoryPort;
+        this.streetAgentProfileApplicationMapper = streetAgentProfileApplicationMapper;
+        this.storagePort = storagePort;
+        this.vendorConfidencePolicyResolver = null;
+        this.userServicePort = null;
+        this.systemConfigRepositoryPort = null;
+    }
 
     @Override
     @Transactional(readOnly = true)
@@ -64,7 +101,7 @@ public class StreetAgentProfileService implements StreetAgentProfileServicePort 
                 streetAgentProfileRepositoryPort.findAll(pageable, search, statusFilters, provinceFilters);
 
         return PageResponse.from(
-                resultPage.map(streetAgentProfileApplicationMapper::toResponse),
+                resultPage.map(this::toResponse),
                 page,
                 limit,
                 buildStatusCounts(search, provinceFilters));
@@ -86,7 +123,7 @@ public class StreetAgentProfileService implements StreetAgentProfileServicePort 
     public StreetAgentProfileResponse getById(Long id) {
         StreetAgentProfileModel profile = streetAgentProfileRepositoryPort.findById(id)
                 .orElseThrow(() -> new DomainException(ErrorCode.STREET_AGENT_PROFILE_NOT_FOUND));
-        return streetAgentProfileApplicationMapper.toResponse(profile);
+        return toResponse(profile);
     }
 
     @Override
@@ -103,15 +140,32 @@ public class StreetAgentProfileService implements StreetAgentProfileServicePort 
         validateContractDates(request);
 
         StreetAgentProfileModel model = streetAgentProfileApplicationMapper.toModel(request);
-        if (model.getDepositBalance() == null) {
-            model.setDepositBalance(BigDecimal.ZERO);
+        if (userServicePort != null && systemConfigRepositoryPort != null) {
+            // Street agents are managed offline. Keep a 1:1 User only as an
+            // identity record, without credentials or access to the system.
+            UserResponse vendorUser = userServicePort.createInternalStreetAgent(CreateUserRequest.builder()
+                    .email(request.email())
+                    .firstName(request.firstName())
+                    .lastName(request.lastName())
+                    .phone(request.phone())
+                    .build());
+            model.setUserId(vendorUser.id());
+            model.setEmail(vendorUser.email());
+            // Commission remains system-owned. The contract ceiling defaults from settings,
+            // while staff may override it for this signed contract.
+            model.setCommissionRate(decimalConfig(SystemConfigEnum.VENDOR_COMMISSION_RATE));
+            Integer configuredContractCap = integerConfig(SystemConfigEnum.VENDOR_DEFAULT_CONTRACT_MAX_DAILY_CAP);
+            model.setContractMaxDailyCap(request.contractMaxDailyCap() != null
+                    ? request.contractMaxDailyCap()
+                    : configuredContractCap);
         }
+        model.setDepositBalance(BigDecimal.ZERO);
         generateContractCodeIfNeeded(model);
         synchronizeOperationalStatus(model, false);
 
         StreetAgentProfileModel saved = streetAgentProfileRepositoryPort.save(model);
         log.info("Street agent profile created with id: {}", saved.getId());
-        return streetAgentProfileApplicationMapper.toResponse(saved);
+        return toResponse(saved);
     }
 
     @Override
@@ -130,16 +184,24 @@ public class StreetAgentProfileService implements StreetAgentProfileServicePort 
         }
         validateContractDates(request.contractStartDate(), request.contractEndDate());
 
+        boolean contractTermsChanged = profile.hasSignedContractTermsChanged(
+                request.contractStartDate(),
+                request.contractEndDate(),
+                request.contractMaxDailyCap());
         streetAgentProfileApplicationMapper.updateModel(profile, request);
-        if (request.depositBalance() != null) {
-            profile.setDepositBalance(request.depositBalance());
+        if (contractTermsChanged) {
+            // A signature is valid only for the exact terms that were signed.  Clear it
+            // atomically, issue a fresh contract reference, and let status synchronization
+            // keep the profile out of vendor allocation until the new file is uploaded.
+            profile.requireContractResign();
+            regenerateContractCode(profile);
         }
         generateContractCodeIfNeeded(profile);
         synchronizeOperationalStatus(profile, true);
 
         StreetAgentProfileModel saved = streetAgentProfileRepositoryPort.save(profile);
         log.info("Street agent profile updated with id: {}", saved.getId());
-        return streetAgentProfileApplicationMapper.toResponse(saved);
+        return toResponse(saved);
     }
 
     @Override
@@ -173,7 +235,21 @@ public class StreetAgentProfileService implements StreetAgentProfileServicePort 
         synchronizeOperationalStatus(profile, true);
         StreetAgentProfileModel saved = streetAgentProfileRepositoryPort.save(profile);
         log.info("Uploaded signed contract document for street agent profile id: {}", id);
-        return streetAgentProfileApplicationMapper.toResponse(saved);
+        return toResponse(saved);
+    }
+
+    private StreetAgentProfileResponse toResponse(StreetAgentProfileModel profile) {
+        if (profile.hasValidContractDailyCap() && vendorConfidencePolicyResolver != null) {
+            profile.setEffectiveDailyCap(VendorDailyCapCalculator.effective(
+                    profile.getContractMaxDailyCap(),
+                    vendorConfidencePolicyResolver.capPercentage(profile.getConfidenceTier())
+            ));
+        } else {
+            profile.setEffectiveDailyCap(null);
+        }
+        // Remaining cap is business-date-specific and comes from the allocation suggestion API.
+        profile.setRemainingDailyCap(null);
+        return streetAgentProfileApplicationMapper.toResponse(profile);
     }
 
     private void validateSignedContractUpload(UploadRequest request) {
@@ -192,11 +268,16 @@ public class StreetAgentProfileService implements StreetAgentProfileServicePort 
         boolean hasNoContractCode = profile.getContractCode() == null || profile.getContractCode().isBlank();
         boolean hasContractTerms = profile.getContractStartDate() != null
                 && profile.getContractEndDate() != null
-                && profile.getDailyTicketCap() != null
-                && profile.getDailyTicketCap() > 0;
+                && profile.hasValidContractDailyCap();
         if (!hasNoContractCode || !hasContractTerms) {
             return;
         }
+        String datePart = LocalDate.now().format(DateTimeFormatter.BASIC_ISO_DATE);
+        String reference = UUID.randomUUID().toString().substring(0, 8).toUpperCase(Locale.ROOT);
+        profile.setContractCode("HD-CTV-" + datePart + "-" + reference);
+    }
+
+    private void regenerateContractCode(StreetAgentProfileModel profile) {
         String datePart = LocalDate.now().format(DateTimeFormatter.BASIC_ISO_DATE);
         String reference = UUID.randomUUID().toString().substring(0, 8).toUpperCase(Locale.ROOT);
         profile.setContractCode("HD-CTV-" + datePart + "-" + reference);
@@ -225,6 +306,31 @@ public class StreetAgentProfileService implements StreetAgentProfileServicePort 
                 && contractEndDate != null
                 && contractEndDate.isBefore(contractStartDate)) {
             throw new DomainException(ErrorCode.STREET_AGENT_PROFILE_INVALID_CONTRACT_DATE);
+        }
+        if (contractEndDate != null && contractEndDate.isBefore(LocalDate.now())) {
+            throw new DomainException(ErrorCode.STREET_AGENT_PROFILE_INVALID_CONTRACT_DATE);
+        }
+    }
+
+    private String config(SystemConfigEnum key) {
+        return systemConfigRepositoryPort.findActiveByConfigKey(key.name())
+                .map(value -> value.getConfigValue())
+                .orElse(key.getDefaultValue());
+    }
+
+    private BigDecimal decimalConfig(SystemConfigEnum key) {
+        try {
+            return new BigDecimal(config(key).trim());
+        } catch (RuntimeException ex) {
+            throw new DomainException(ErrorCode.SYSTEM_CONFIG_VALUE_INVALID);
+        }
+    }
+
+    private int integerConfig(SystemConfigEnum key) {
+        try {
+            return Integer.parseInt(config(key).trim());
+        } catch (RuntimeException ex) {
+            throw new DomainException(ErrorCode.SYSTEM_CONFIG_VALUE_INVALID);
         }
     }
 

@@ -7,7 +7,7 @@ public final class UrlUtils {
 
     public static String normalizeBaseUrl(String baseUrl, String configKey) {
         if (baseUrl == null || baseUrl.isBlank()) {
-            throw new IllegalArgumentException(configKey + " must not be blank");
+            return "";
         }
         String trimmed = baseUrl.trim();
         return trimmed.endsWith("/") ? trimmed.substring(0, trimmed.length() - 1) : trimmed;

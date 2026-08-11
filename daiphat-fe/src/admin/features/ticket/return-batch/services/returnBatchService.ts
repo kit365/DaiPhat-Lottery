@@ -97,3 +97,15 @@ export const updateReturnBatchLineStatus = async (
     );
     return response.data;
 };
+
+export const updateReturnEvidenceUrl = async (
+    id: number | string,
+    returnReceiptEvidenceUrl: string
+): Promise<ApiResponse<ReturnBatch>> => {
+    const response = await apiApp.post(
+        `${BASE_URL}/${id}/evidence`,
+        { returnReceiptEvidenceUrl },
+        withAuthHeaders()
+    );
+    return response.data;
+};

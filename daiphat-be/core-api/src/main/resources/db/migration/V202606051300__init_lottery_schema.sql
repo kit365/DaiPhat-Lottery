@@ -6,6 +6,7 @@ CREATE TABLE IF NOT EXISTS lottery_regions (
     min_number          INTEGER NOT NULL DEFAULT 0,
     max_number          INTEGER NOT NULL,
     station_count       INTEGER NOT NULL DEFAULT 0,
+    default_draw_time   TIME NOT NULL DEFAULT '16:15:00',
 
     created_at          TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at          TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -102,6 +103,9 @@ CREATE TABLE IF NOT EXISTS lottery_suppliers (
     tax_code              VARCHAR(50),
     payment_term_days     INTEGER,
     default_import_cost   NUMERIC(15, 0),
+    import_allow_from     TIME NOT NULL DEFAULT '08:00:00',
+    return_cut_off_time   TIME NOT NULL DEFAULT '14:30:00',
+    payment_cut_off_time  TIME DEFAULT '17:00:00',
     is_active             BOOLEAN NOT NULL DEFAULT FALSE,
     created_at            TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at            TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -132,9 +136,9 @@ CREATE TABLE IF NOT EXISTS import_batches (
     status                      VARCHAR(30) NOT NULL DEFAULT 'DRAFT',
     line_count                  INTEGER NOT NULL DEFAULT 0,
     total_declare_quantity      INTEGER NOT NULL DEFAULT 0,
-    total_declared_cost_value   NUMERIC(15, 0) NOT NULL DEFAULT 0,
+    total_declared_cost_value   NUMERIC(18, 3) NOT NULL DEFAULT 0,
     total_imported_quantity     INTEGER NOT NULL DEFAULT 0,
-    total_imported_cost_value   NUMERIC(15, 0) NOT NULL DEFAULT 0,
+    total_imported_cost_value   NUMERIC(18, 3) NOT NULL DEFAULT 0,
     submitted_at                TIMESTAMP,
     completed_at                TIMESTAMP,
     ledger_at                   TIMESTAMP,
@@ -170,10 +174,10 @@ CREATE TABLE IF NOT EXISTS import_batch_lines (
     batch_type            VARCHAR(30) NOT NULL,
     batch_code            VARCHAR(100) NOT NULL,
     declare_quantity      INTEGER NOT NULL,
-    declared_cost_value   NUMERIC(15, 0) NOT NULL DEFAULT 0,
+    declared_cost_value   NUMERIC(18, 3) NOT NULL DEFAULT 0,
     total_quantity        INTEGER NOT NULL DEFAULT 0,
-    import_cost           NUMERIC(15, 0) NOT NULL,
-    total_cost_value      NUMERIC(15, 0) NOT NULL DEFAULT 0,
+    import_cost           NUMERIC(18, 3) NOT NULL,
+    total_cost_value      NUMERIC(18, 3) NOT NULL DEFAULT 0,
     status                VARCHAR(30) NOT NULL DEFAULT 'OPEN',
     imported_at           TIMESTAMP,
     cancel_reason         TEXT,
@@ -208,6 +212,7 @@ CREATE TABLE IF NOT EXISTS lottery_tickets (
     status              VARCHAR(50) NOT NULL DEFAULT 'IN_STOCK',
     is_active           BOOLEAN NOT NULL DEFAULT TRUE,
     status_reason       VARCHAR(500),
+    batch_code          VARCHAR(100) NOT NULL,
 
     -- Audit
     created_at          TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -218,8 +223,8 @@ CREATE TABLE IF NOT EXISTS lottery_tickets (
 
     CONSTRAINT fk_lottery_tickets_station_id
         FOREIGN KEY (station_id) REFERENCES lottery_stations(id) ON DELETE CASCADE,
-    CONSTRAINT uk_lottery_ticket_station_numbers_draw_date
-        UNIQUE (station_id, numbers, draw_date)
+    CONSTRAINT chk_lottery_tickets_status
+        CHECK (status IN ('IMPORTING', 'IN_STOCK', 'SOLD_OUT', 'EXPIRED'))
 );
 
 CREATE INDEX IF NOT EXISTS idx_lottery_tickets_station_id ON lottery_tickets(station_id);
@@ -227,6 +232,12 @@ CREATE INDEX IF NOT EXISTS idx_lottery_tickets_status     ON lottery_tickets(sta
 CREATE INDEX IF NOT EXISTS idx_lottery_tickets_numbers    ON lottery_tickets(numbers);
 CREATE INDEX IF NOT EXISTS idx_lottery_tickets_draw_date  ON lottery_tickets(draw_date);
 CREATE INDEX IF NOT EXISTS idx_lottery_tickets_is_active  ON lottery_tickets(is_active);
+CREATE INDEX IF NOT EXISTS idx_lottery_tickets_batch_code ON lottery_tickets(batch_code);
+CREATE INDEX IF NOT EXISTS idx_lottery_tickets_station_draw_status
+    ON lottery_tickets(station_id, draw_date, status);
+CREATE UNIQUE INDEX IF NOT EXISTS uk_lottery_ticket_station_numbers_draw_date
+    ON lottery_tickets (station_id, numbers, draw_date)
+    WHERE deleted_at IS NULL;
 
 -- lottery_ticket_serials
 CREATE TABLE IF NOT EXISTS lottery_ticket_serials (
@@ -237,7 +248,12 @@ CREATE TABLE IF NOT EXISTS lottery_ticket_serials (
     ticket_img              VARCHAR(500),
     serial_number           VARCHAR(100) NOT NULL,
     status                  VARCHAR(50) NOT NULL DEFAULT 'IN_STOCK',
+    ticket_condition        VARCHAR(20) NOT NULL DEFAULT 'GOOD',
+    payout_state            VARCHAR(30) NOT NULL DEFAULT 'NONE',
     input_source            VARCHAR(20) NOT NULL DEFAULT 'MANUAL',
+    station_id              BIGINT NOT NULL,
+    draw_date               DATE NOT NULL,
+    replaced_for_ticket_id  BIGINT,
     reserved_at             TIMESTAMP,
     reservation_expires_at  TIMESTAMP,
     reserved_by_order_id    UUID,
@@ -260,6 +276,10 @@ CREATE TABLE IF NOT EXISTS lottery_ticket_serials (
 
     CONSTRAINT fk_lottery_ticket_serials_ticket_id
         FOREIGN KEY (ticket_id) REFERENCES lottery_tickets(id) ON DELETE CASCADE,
+    CONSTRAINT fk_lts_station_denorm
+        FOREIGN KEY (station_id) REFERENCES lottery_stations(id),
+    CONSTRAINT fk_lottery_ticket_serials_replaced_for_ticket_id
+        FOREIGN KEY (replaced_for_ticket_id) REFERENCES lottery_ticket_serials(id),
     CONSTRAINT fk_lottery_ticket_serials_import_batch_id
         FOREIGN KEY (import_batch_id) REFERENCES import_batches(id),
     CONSTRAINT fk_lottery_ticket_serials_import_batch_line_id
@@ -280,6 +300,12 @@ CREATE INDEX IF NOT EXISTS idx_lottery_ticket_serials_reserved_by_order_id ON lo
 CREATE INDEX IF NOT EXISTS idx_lottery_ticket_serials_input_source ON lottery_ticket_serials(input_source);
 CREATE INDEX IF NOT EXISTS idx_lottery_ticket_serials_import_batch_id ON lottery_ticket_serials(import_batch_id);
 CREATE INDEX IF NOT EXISTS idx_lottery_ticket_serials_import_batch_line_id ON lottery_ticket_serials(import_batch_line_id);
+CREATE UNIQUE INDEX IF NOT EXISTS uk_lts_station_draw_serial
+    ON lottery_ticket_serials (station_id, draw_date, serial_number)
+    WHERE deleted_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_lts_station_draw
+    ON lottery_ticket_serials (station_id, draw_date)
+    WHERE deleted_at IS NULL;
 
 CREATE TABLE IF NOT EXISTS lottery_results (
     id                  BIGSERIAL PRIMARY KEY,

@@ -1,22 +1,20 @@
 "use client";
 
-import {
-    DataGrid,
+import type {
     GridColDef,
 } from '@mui/x-data-grid';
+import { LazyDataGrid } from '@/admin/shared/data-grid/LazyDataGrid';
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import CircularProgress from '@mui/material/CircularProgress';
-import { Breadcrumb } from '../../../../../components/ui/Breadcrumb';
-import { Title } from '../../../../../components/ui/Title';
+import { PageHeader } from '../../../../../components/ui/PageHeader';
 import { prefixAdmin } from '../../../../../constants/routes';
-import { useTranslation } from 'react-i18next';
 import { useExpiredTickets } from '../../hooks/useExpiredTickets';
 import { dataGridStyles } from '../../../../../shared/data-grid';
 import { DATA_GRID_LOCALE_VN } from '../../../../../../shared/components/DataTable/localeText.config';
 import { useScanExpiredTickets } from '../../hooks/useTicket';
 import { toast } from 'react-toastify';
-import { LoadingButton } from '../../../../../components/ui/LoadingButton';
+import { Button } from '../../../../../components/ui/Button';
 import SyncIcon from '@mui/icons-material/Sync';
 import dayjs from 'dayjs';
 
@@ -64,14 +62,13 @@ const expiredColumns: GridColDef[] = [
 ];
 
 export const ExpiredTicketListPage = () => {
-    const { t } = useTranslation();
     const {
         expiredTickets,
         pagination,
         isLoading,
         error,
-        setPage,
-        setLimit,
+        paginationModel,
+        onPaginationModelChange,
         refetch,
     } = useExpiredTickets();
     const { mutate: scan, isPending: isScanning } = useScanExpiredTickets();
@@ -98,18 +95,15 @@ export const ExpiredTicketListPage = () => {
 
     return (
         <>
-            <div className="mb-[calc(5*var(--spacing))] gap-[calc(2*var(--spacing))] flex items-start justify-end">
-                <div className="mr-auto">
-                    <Title title="Vé số hết hạn (Đã hủy)" />
-                    <Breadcrumb
-                        items={[
-                            { label: t('admin.dashboard.title'), to: '/' },
-                            { label: t('admin.ticket.title.list'), to: `/${prefixAdmin}/ticket/list` },
+            <PageHeader
+                title="Vé số hết hạn (Đã hủy)"
+                breadcrumbItems={[
+                            { label: 'Bảng điều khiển', to: '/' },
+                            { label: 'Danh sách vé số', to: `/${prefixAdmin}/ticket/list` },
                             { label: 'Vé số hết hạn' },
                         ]}
-                    />
-                </div>
-                <LoadingButton
+                action={
+                    <Button
                     variant="contained"
                     startIcon={<SyncIcon />}
                     onClick={handleScan}
@@ -121,11 +115,12 @@ export const ExpiredTicketListPage = () => {
                         padding: 'var(--shape-borderRadius-sm) calc(2 * var(--spacing))',
                     }}
                 />
-            </div>
+                }
+            />
 
             <Card elevation={0} className="admin-datagrid-card">
                 <Box sx={{ width: '100%', flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-                    <DataGrid
+                    <LazyDataGrid
                         rows={expiredTickets || []}
                         getRowId={(row) => row.id || row._id}
                         columns={expiredColumns}
@@ -147,14 +142,8 @@ export const ExpiredTicketListPage = () => {
                         paginationMode="server"
                         loading={isLoading}
                         rowCount={pagination.totalRecords}
-                        paginationModel={{
-                            page: pagination.currentPage - 1,
-                            pageSize: pagination.limit,
-                        }}
-                        onPaginationModelChange={(model) => {
-                            setPage(model.page + 1);
-                            setLimit(model.pageSize);
-                        }}
+                        paginationModel={paginationModel}
+                        onPaginationModelChange={onPaginationModelChange}
                         pageSizeOptions={[5, 10, 20, 50]}
                         getRowHeight={() => 'auto'}
                         checkboxSelection

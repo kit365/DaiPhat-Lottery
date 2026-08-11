@@ -9,6 +9,7 @@ class User {
   final String? dob;
   final String? gender;
   final String? address;
+  final String? roleCode;
 
   const User({
     required this.id,
@@ -21,9 +22,24 @@ class User {
     this.dob,
     this.gender,
     this.address,
+    this.roleCode,
   });
 
+  bool get isAdmin =>
+      roleCode == 'ADMIN' ||
+      username.toLowerCase().contains('admin') ||
+      username.toLowerCase().contains('operator');
+
   factory User.fromJson(Map<String, dynamic> json) {
+    String? role;
+    if (json['role'] != null) {
+      if (json['role'] is Map) {
+        role = json['role']['code'] as String?;
+      } else if (json['role'] is String) {
+        role = json['role'] as String;
+      }
+    }
+
     return User(
       id: (json['id'] ?? '').toString(),
       username: json['username'] as String? ?? '',
@@ -35,6 +51,7 @@ class User {
       dob: json['dob'] as String?,
       gender: json['gender'] as String?,
       address: json['address'] as String?,
+      roleCode: role,
     );
   }
 

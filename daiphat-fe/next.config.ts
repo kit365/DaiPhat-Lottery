@@ -1,10 +1,16 @@
 import type { NextConfig } from 'next';
-import path from 'path';
-import bundleAnalyzer from '@next/bundle-analyzer';
 
-const withBundleAnalyzer = bundleAnalyzer({
-  enabled: process.env.ANALYZE === 'true',
-});
+const withBundleAnalyzer = (config: NextConfig): NextConfig => {  if (process.env.ANALYZE === 'true') {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const bundleAnalyzer = require('@next/bundle-analyzer');
+      return bundleAnalyzer({ enabled: true })(config);
+    } catch {
+      console.warn('Warning: @next/bundle-analyzer is not installed. Skipping bundle analysis.');
+    }
+  }
+  return config;
+};
 
 // Dev API calls use a relative base URL (same-origin) so HttpOnly cookies work.
 // Proxy /api/* to the Spring backend (defaults to local core-api).
@@ -20,13 +26,7 @@ const normalizedBackendProxyTarget = backendProxyTarget.startsWith('http')
 const nextConfig: NextConfig = {
   output: 'standalone',
   compress: true,
-  turbopack: {
-    resolveAlias: {
-      'react-router-dom': './src/components/router-compat.tsx',
-    },
-  },
-  experimental: {
-    // Keep visited pages' RSC payload in the router cache so back-navigation is instant.
+  experimental: {    // Keep visited pages' RSC payload in the router cache so back-navigation is instant.
     staleTimes: {
       dynamic: 30,
       static: 180,
@@ -34,10 +34,12 @@ const nextConfig: NextConfig = {
     optimizePackageImports: [
       '@mui/material',
       '@mui/icons-material',
+      '@mui/x-data-grid',
+      '@mui/x-date-pickers',
+      '@fullcalendar/react',
       'lucide-react',
       'framer-motion',
       'dayjs',
-      '@iconify/react',
       'react-day-picker',
       'date-fns',
     ],
@@ -112,22 +114,67 @@ const nextConfig: NextConfig = {
         destination: '/admin/dashboard',
         permanent: false,
       },
+      {
+        source: '/admin/dashboard/settings/content',
+        destination: '/admin/dashboard/settings/pages',
+        permanent: true,
+      },
+      {
+        source: '/admin/dashboard/settings/page-privacy',
+        destination: '/admin/dashboard/settings/policies',
+        permanent: true,
+      },
+      {
+        source: '/admin/dashboard/settings/page-terms',
+        destination: '/admin/dashboard/settings/policies',
+        permanent: true,
+      },
+      {
+        source: '/admin/dashboard/settings/page-shipping',
+        destination: '/admin/dashboard/settings/policies',
+        permanent: true,
+      },
+      {
+        source: '/admin/dashboard/settings/page-returns',
+        destination: '/admin/dashboard/settings/policies',
+        permanent: true,
+      },
+      {
+        source: '/admin/dashboard/settings/page-about',
+        destination: '/admin/dashboard/settings/pages',
+        permanent: true,
+      },
+      {
+        source: '/admin/dashboard/settings/page-faq',
+        destination: '/admin/dashboard/settings/pages',
+        permanent: true,
+      },
+      {
+        source: '/admin/dashboard/settings/map',
+        destination: '/admin/dashboard/settings/general',
+        permanent: true,
+      },
+      {
+        source: '/admin/dashboard/settings/point',
+        destination: '/admin/dashboard/settings/general',
+        permanent: true,
+      },
+      {
+        source: '/admin/dashboard/settings/shipping',
+        destination: '/admin/dashboard/settings/general',
+        permanent: true,
+      },
+      {
+        source: '/admin/dashboard/settings/payment',
+        destination: '/admin/dashboard/settings/general',
+        permanent: true,
+      },
+      {
+        source: '/admin/dashboard/settings/social',
+        destination: '/admin/dashboard/settings/general',
+        permanent: true,
+      },
     ];
   },
-  webpack: (config) => {
-    config.externals = [...(config.externals || []), { canvas: 'canvas' }];
-    config.resolve.alias = {
-      ...config.resolve.alias,
-      'react-router-dom': path.resolve(__dirname, 'src/components/router-compat.tsx'),
-    };
-
-    // NOTE: no custom splitChunks here on purpose. Forcing single "admin" /
-    // "client-public" / "mui" chunks made every page download code for the
-    // whole section (e.g. Home pulled all of MUI for one icon). Next.js's
-    // default granular chunking splits per-route far better.
-
-    return config;
-  },
 };
-
 export default withBundleAnalyzer(nextConfig);

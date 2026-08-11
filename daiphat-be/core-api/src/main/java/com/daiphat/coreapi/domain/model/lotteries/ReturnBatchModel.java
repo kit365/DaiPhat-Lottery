@@ -1,6 +1,7 @@
 package com.daiphat.coreapi.domain.model.lotteries;
 
 import com.daiphat.coreapi.domain.model.enums.lottery.ReturnBatchStatus;
+import com.daiphat.coreapi.domain.model.enums.lottery.ReturnBatchType;
 import com.daiphat.coreapi.shared.util.ImportCostCalculator;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -27,9 +28,13 @@ public class ReturnBatchModel {
     private Long lotterySupplierId;
     private String supplierName;
     private String supplierCode;
+    @Builder.Default
+    private ReturnBatchType returnBatchType = ReturnBatchType.SUPPLIER_RETURN;
+    private Long sourceAllocationBatchId;
     private LocalDate drawDate;
     private Long supplierSettlementId;
     private String returnReceiptUrl;
+    private String returnReceiptEvidenceUrl;
     private com.daiphat.coreapi.domain.model.enums.lottery.ReturnDeliveryMode deliveryMode;
     @Builder.Default
     private Integer totalQuantity = 0;

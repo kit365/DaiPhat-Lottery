@@ -75,8 +75,6 @@ class StreetAgentContractServiceTest {
                 .thenReturn(Optional.of(config(SystemConfigEnum.SITE_LEGAL_REPRESENTATIVE_TITLE, "Giám đốc")));
         when(systemConfigRepositoryPort.findActiveByConfigKey(SystemConfigEnum.SITE_CONTRACT_SIGNING_PLACE.name()))
                 .thenReturn(Optional.of(config(SystemConfigEnum.SITE_CONTRACT_SIGNING_PLACE, "TP. Hồ Chí Minh")));
-        when(systemConfigRepositoryPort.findActiveByConfigKey(SystemConfigEnum.VENDOR_DEFAULT_UNIT_PRICE.name()))
-                .thenReturn(Optional.of(config(SystemConfigEnum.VENDOR_DEFAULT_UNIT_PRICE, "9000")));
         when(systemConfigRepositoryPort.findActiveByConfigKey(SystemConfigEnum.VENDOR_DEPOSIT_RATE.name()))
                 .thenReturn(Optional.of(config(SystemConfigEnum.VENDOR_DEPOSIT_RATE, "0.10")));
         when(systemConfigRepositoryPort.findActiveByConfigKey(SystemConfigEnum.VENDOR_RETURN_CUTOFF.name()))
@@ -108,7 +106,7 @@ class StreetAgentContractServiceTest {
     @DisplayName("từ chối sinh PDF khi thiếu điều khoản bắt buộc")
     void generatePdf_rejectsIncompleteContract() {
         StreetAgentProfileModel incomplete = completeProfile();
-        incomplete.setDailyTicketCap(null);
+        incomplete.setContractMaxDailyCap(null);
         when(profileRepositoryPort.findById(PROFILE_ID)).thenReturn(Optional.of(incomplete));
 
         assertThatThrownBy(() -> service.generatePdf(PROFILE_ID))
@@ -162,7 +160,7 @@ class StreetAgentContractServiceTest {
                 .contractCode("HD-NBD-2026-001")
                 .contractStartDate(LocalDate.of(2026, 1, 1))
                 .contractEndDate(LocalDate.of(2026, 12, 31))
-                .dailyTicketCap(100)
+                .contractMaxDailyCap(100)
                 .build();
     }
 

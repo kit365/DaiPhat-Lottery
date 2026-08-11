@@ -3,11 +3,10 @@
 import { Box, Stack, TextField, ThemeProvider, useTheme, createTheme, MenuItem, Typography } from "@mui/material"
 import { REGION_DATA } from "../../../../constants/region.constants";
 import { DAYS_OF_WEEK } from "../../../../constants/schedule.constants";
-import { Breadcrumb } from "../../../../components/ui/Breadcrumb"
-import { Title } from "../../../../components/ui/Title"
+import { PageHeader } from "../../../../components/ui/PageHeader"
 import { TimePicker } from "@mui/x-date-pickers";
 import dayjs from "dayjs";
-import { Tiptap } from "../../../../components/layouts/titap/Tiptap"
+import { LazyTiptap } from "../../../../components/layouts/titap/LazyTiptap"
 import { useState, useMemo, type Dispatch, type SetStateAction } from "react";
 import { CollapsibleCard } from "../../../../components/ui/CollapsibleCard";
 import { useCreateStation, useUploadStationImage } from "../../hooks/useStation";
@@ -19,7 +18,7 @@ import { CreateStationFormValues, createStationSchema } from "../../schemas/stat
 
 import { prefixAdmin } from "../../../../constants/routes";
 import { toast } from "react-toastify";
-import { LoadingButton } from "../../../../components/ui/LoadingButton";
+import { Button } from "../../../../components/ui/Button";
 import { FormUploadSingleFile } from "../../../../components/upload/FormUploadSingleFile";
 
 export const StationCreatePage = () => {
@@ -164,18 +163,14 @@ export const StationCreatePage = () => {
 
     return (
         <>
-            <div className="mb-[calc(5*var(--spacing))] gap-[calc(2*var(--spacing))] flex items-start justify-end">
-                <div className="mr-auto">
-                    <Title title="Tạo mới nhà đài" />
-                    <Breadcrumb
-                        items={[
+            <PageHeader
+                title="Tạo mới nhà đài"
+                breadcrumbItems={[
                             { label: "Dashboard", to: "/" },
                             { label: "Nhà đài", to: `/${prefixAdmin}/provider/list` },
                             { label: "Tạo mới" }
                         ]}
-                    />
-                </div>
-            </div>
+            />
             <ThemeProvider theme={localTheme}>
                 <form onSubmit={handleSubmit(onSubmit)}>
                     <Stack sx={{
@@ -449,7 +444,7 @@ export const StationCreatePage = () => {
                                         name="description"
                                         control={control}
                                         render={({ field }) => (
-                                            <Tiptap
+                                            <LazyTiptap
                                                 value={field.value ?? ""}
                                                 onChange={field.onChange}
                                             />
@@ -459,7 +454,7 @@ export const StationCreatePage = () => {
                             </Stack>
                         </CollapsibleCard>
                         <Box gap="calc(3 * var(--spacing))" sx={{ display: "flex", alignItems: "center", justifyContent: "flex-end" }}>
-                            <LoadingButton
+                            <Button
                                 type="submit"
                                 className="btn-primary-admin"
                                 loading={isPending || isUploadingImage}

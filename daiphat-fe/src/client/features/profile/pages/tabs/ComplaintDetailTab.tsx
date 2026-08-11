@@ -1,7 +1,9 @@
 "use client";
 
+import { useRouter } from "next/navigation";
+import { useRouteParams } from "@/hooks/useRouteParams";
+import Link from "next/link";
 import { useMemo, useState } from 'react';
-import { Link, useNavigate, useParams } from '@/components/router-compat';
 import { format } from 'date-fns';
 import { ComplaintFormModal } from '../../../../components/support/ComplaintFormModal';
 import { ComplaintStatusBadge } from '../../../../components/support/ComplaintStatusBadge';
@@ -17,8 +19,8 @@ import { AppToast } from '../../../../../utils/toast.util';
 import { UnavailableReferenceState, UNAVAILABLE_REFERENCE_MESSAGE } from '../../../../components/notification/UnavailableReferenceState';
 
 export const ComplaintDetailTab = () => {
-    const { id } = useParams<{ id: string }>();
-    const navigate = useNavigate();
+    const { id } = useRouteParams();
+    const router = useRouter();
     const ticketId = Number(id);
 
     const [showEditModal, setShowEditModal] = useState(false);
@@ -84,7 +86,7 @@ export const ComplaintDetailTab = () => {
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
                     <button
-                        onClick={() => navigate('/profile/complaints')}
+                        onClick={() => router.push('/profile/complaints')}
                         className="text-[13px] text-[#637381] hover:text-[#ee1314] font-medium flex items-center gap-1.5 mb-2 cursor-pointer"
                     >
                         <i className="fa-solid fa-arrow-left text-[11px]"></i> Quay lại danh sách
@@ -169,7 +171,7 @@ export const ComplaintDetailTab = () => {
                                 <div className="sm:w-2/3">
                                     {ticket.refType === TicketRefType.ORDER ? (
                                         <Link
-                                            to={`/profile/orders/${ticket.refId}`}
+                                            href={`/profile/orders/${ticket.refId}`}
                                             className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#F0F5FF] text-[#2065D1] rounded-lg text-[14px] font-bold hover:bg-[#D0E2FF] transition-colors"
                                         >
                                             <i className="fa-solid fa-up-right-from-square text-[12px]"></i>
@@ -177,7 +179,7 @@ export const ComplaintDetailTab = () => {
                                         </Link>
                                     ) : ticket.refType === TicketRefType.REFUND_REQUEST ? (
                                         <Link
-                                            to={`/profile/refunds/${ticket.refId}`}
+                                            href={`/profile/refunds/${ticket.refId}`}
                                             className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#FFF4F4] text-[#ee1314] rounded-lg text-[14px] font-bold hover:bg-[#FFE4E4] transition-colors"
                                         >
                                             <i className="fa-solid fa-up-right-from-square text-[12px]"></i>
@@ -193,7 +195,7 @@ export const ComplaintDetailTab = () => {
                                                         String(ticket.id)
                                                     );
                                                 }
-                                                navigate(`/profile/prize-payouts/${ticket.refId}?fromComplaintId=${ticket.id}`);
+                                                router.push(`/profile/prize-payouts/${ticket.refId}?fromComplaintId=${ticket.id}`);
                                             }}
                                             className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#FFF9F3] text-[#B76E00] rounded-lg text-[14px] font-bold hover:bg-[#FFEFD6] transition-colors cursor-pointer"
                                         >

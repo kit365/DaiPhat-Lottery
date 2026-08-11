@@ -11,6 +11,7 @@ import com.daiphat.coreapi.domain.model.lotteries.ReturnBatchLineModel;
 import com.daiphat.coreapi.domain.model.lotteries.ReturnBatchModel;
 import com.daiphat.coreapi.domain.model.lotteries.SupplierSettlementModel;
 import com.daiphat.coreapi.shared.util.ImportBatchConfigResolver;
+import com.daiphat.coreapi.shared.util.ReturnBatchCodeGenerator;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -65,6 +66,8 @@ class ReturnBatchAutoGenerationServiceTest {
     @Mock
     private ReturnBatchSummaryCalculator returnBatchSummaryCalculator;
     @Mock
+    private ReturnBatchCodeGenerator returnBatchCodeGenerator;
+    @Mock
     private Clock clock;
     @Mock
     private PlatformTransactionManager transactionManager;
@@ -80,8 +83,12 @@ class ReturnBatchAutoGenerationServiceTest {
                 .thenReturn(new SimpleTransactionStatus());
         org.mockito.Mockito.doNothing().when(transactionManager).commit(any());
         org.mockito.Mockito.doNothing().when(transactionManager).rollback(any());
+        when(returnBatchCodeGenerator.generateHeaderCode(any())).thenAnswer(invocation -> {
+            LocalDate drawDate = invocation.getArgument(0);
+            return "PT-" + drawDate.format(java.time.format.DateTimeFormatter.BASIC_ISO_DATE) + "-0001";
+        });
 
-        service =   new ReturnBatchAutoGenerationService(
+        service = new ReturnBatchAutoGenerationService(
                 lotterySupplierRepositoryPort,
                 importBatchRepositoryPort,
                 importBatchLineRepositoryPort,
@@ -89,6 +96,7 @@ class ReturnBatchAutoGenerationServiceTest {
                 supplierSettlementServicePort,
                 importBatchConfigResolver,
                 returnBatchSummaryCalculator,
+                returnBatchCodeGenerator,
                 clock,
                 transactionManager
         );

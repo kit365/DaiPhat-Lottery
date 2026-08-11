@@ -32,6 +32,7 @@ public class VendorAllocationSerialModel {
     private String serialNumber;
     private LocalDate drawDate;
     private LocalTime drawTime;
+    private LocalTime supplierReturnCutoffTime;
     private List<DayOfWeek> drawDays;
     @Builder.Default
     private boolean stationActive = true;
@@ -42,6 +43,8 @@ public class VendorAllocationSerialModel {
     private LotteryTicketSerialStatus ticketStatus;
     private TicketCondition ticketCondition;
     private Long returnBatchLineId;
+    private Long vendorReturnBatchLineId;
+    private String returnRejectionReason;
     private boolean lucky;
     private String luckyBadges;
     private AllocationSerialStatus status;
@@ -68,6 +71,20 @@ public class VendorAllocationSerialModel {
         return VendorTicketSellabilityPolicy.isPastDraw(drawDate, drawTime);
     }
 
+    /** Evaluates expiry at the command timestamp, rather than reading the clock again. */
+    public boolean isPastDrawAt(LocalDateTime at) {
+        if (at == null || drawDate == null) {
+            return true;
+        }
+        if (drawDate.isBefore(at.toLocalDate())) {
+            return true;
+        }
+        if (drawDate.isAfter(at.toLocalDate()) || drawTime == null) {
+            return false;
+        }
+        return !at.toLocalTime().isBefore(drawTime);
+    }
+
     /**
      * Ensures stock.lotteryTicketId matches the physical serial's ticket (DomainException, not assert).
      */
@@ -80,15 +97,21 @@ public class VendorAllocationSerialModel {
         }
     }
 
-    public void reserveForDraft(LocalDateTime expiresAt) {
+    public void reserveForDraft(LocalDateTime reservedAt, LocalDateTime expiresAt) {
         if (expiresAt == null || !isInventoryAvailable()) {
             throw new DomainException(ErrorCode.VENDOR_ALLOCATION_SERIAL_INVALID);
         }
         status = AllocationSerialStatus.DRAFT_RESERVED;
-        reservedAt = LocalDateTime.now();
+        this.reservedAt = reservedAt;
         reservedExpiresAt = expiresAt;
         luckyOverride = lucky;
         soldAt = null;
+    }
+
+    /** @deprecated Application commands must provide their single command timestamp. */
+    @Deprecated
+    public void reserveForDraft(LocalDateTime expiresAt) {
+        reserveForDraft(LocalDateTime.now(), expiresAt);
     }
 
     public void markReservedByBatch(Long batchId) {
@@ -123,23 +146,66 @@ public class VendorAllocationSerialModel {
         allocationBatchId = null;
     }
 
-    public void returnFromStreetAgent(LocalDateTime returnedAt) {
+    public void stageStreetAgentReturn() {
         if (status != AllocationSerialStatus.HANDED_OVER || ticketStatus != LotteryTicketSerialStatus.WITH_STREET_AGENT) {
             throw new DomainException(ErrorCode.VENDOR_ALLOCATION_RETURN_SERIAL_INVALID);
         }
+        status = AllocationSerialStatus.RETURN_PENDING_INSPECTION;
+    }
+
+    /** Undo a staged physical return before its receipt has been finalized. */
+    public void removeFromStreetAgentReturnInspection() {
+        if (status != AllocationSerialStatus.RETURN_PENDING_INSPECTION
+                || ticketStatus != LotteryTicketSerialStatus.WITH_STREET_AGENT) {
+            throw new DomainException(ErrorCode.VENDOR_ALLOCATION_RETURN_SERIAL_INVALID);
+        }
+        status = AllocationSerialStatus.HANDED_OVER;
+        vendorReturnBatchLineId = null;
+        returnRejectionReason = null;
+        returnedAt = null;
+    }
+
+    public void returnFromStreetAgent(LocalDateTime returnedAt) {
+        if (status != AllocationSerialStatus.RETURN_PENDING_INSPECTION
+                || ticketStatus != LotteryTicketSerialStatus.WITH_STREET_AGENT) {
+            throw new DomainException(ErrorCode.VENDOR_ALLOCATION_RETURN_SERIAL_INVALID);
+        }
         status = AllocationSerialStatus.RETURNED;
-        ticketStatus = LotteryTicketSerialStatus.IN_STOCK;
         reservedExpiresAt = null;
         this.returnedAt = returnedAt;
     }
 
-    public void markSoldAtSettlement() {
-        if (status != AllocationSerialStatus.HANDED_OVER || ticketStatus != LotteryTicketSerialStatus.WITH_STREET_AGENT) {
+    public void rejectStreetAgentReturn(String reason) {
+        if (status != AllocationSerialStatus.RETURN_PENDING_INSPECTION
+                || ticketStatus != LotteryTicketSerialStatus.WITH_STREET_AGENT) {
+            throw new DomainException(ErrorCode.VENDOR_ALLOCATION_RETURN_SERIAL_INVALID);
+        }
+        status = AllocationSerialStatus.RETURN_REJECTED;
+        returnRejectionReason = reason;
+    }
+
+    public void restoreAcceptedReturnToStock(boolean sellable) {
+        if (status != AllocationSerialStatus.RETURNED) {
+            throw new DomainException(ErrorCode.VENDOR_ALLOCATION_INVALID_STATE);
+        }
+        ticketStatus = sellable ? LotteryTicketSerialStatus.IN_STOCK : LotteryTicketSerialStatus.EXPIRED;
+        reservedExpiresAt = null;
+    }
+
+    public void markSoldAtSettlement(LocalDateTime soldAt) {
+        if ((status != AllocationSerialStatus.HANDED_OVER && status != AllocationSerialStatus.RETURN_REJECTED)
+                || ticketStatus != LotteryTicketSerialStatus.WITH_STREET_AGENT) {
             throw new DomainException(ErrorCode.VENDOR_ALLOCATION_INVALID_STATE);
         }
         status = AllocationSerialStatus.SOLD;
         ticketStatus = LotteryTicketSerialStatus.SOLD;
         reservedExpiresAt = null;
-        soldAt = LocalDateTime.now();
+        this.soldAt = soldAt;
+    }
+
+    /** @deprecated Application commands must provide their single command timestamp. */
+    @Deprecated
+    public void markSoldAtSettlement() {
+        markSoldAtSettlement(LocalDateTime.now());
     }
 }

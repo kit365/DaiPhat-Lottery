@@ -1,6 +1,4 @@
-ALTER TABLE lottery_regions
-    ADD COLUMN IF NOT EXISTS default_draw_time TIME NOT NULL DEFAULT '16:15:00';
-
+-- default_draw_time is part of the lottery_regions CREATE TABLE.
 UPDATE lottery_regions
 SET default_draw_time = '16:15:00'
 WHERE code = 'MIEN_NAM';

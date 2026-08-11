@@ -1,6 +1,8 @@
 package com.daiphat.coreapi.infrastructure.persistence.entity.streetagent;
 
+import com.daiphat.coreapi.domain.model.enums.streetagent.AgentSettlementStatus;
 import com.daiphat.coreapi.infrastructure.persistence.entity.BaseEntity;
+import com.daiphat.coreapi.infrastructure.persistence.entity.lotteries.ReturnBatchEntity;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
@@ -10,7 +12,6 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
-/** Draw.io {@code Agent_Settlement} skeleton — Phase 1 no service. */
 @Entity
 @Table(name = "agent_settlements")
 @Getter
@@ -35,6 +36,11 @@ public class AgentSettlementEntity extends BaseEntity {
     @JoinColumn(name = "allocation_batch_id", nullable = false)
     private AllocationBatchEntity allocationBatch;
 
+    /** Vendor receipt batch used to validate physical returns before settlement. */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "return_batch_id")
+    private ReturnBatchEntity returnBatch;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "report_id")
     private DailySalesReportEntity report;
@@ -57,9 +63,10 @@ public class AgentSettlementEntity extends BaseEntity {
     @Column(name = "agent_pays", precision = 18, scale = 0)
     private BigDecimal agentPays;
 
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 30)
     @Builder.Default
-    private String status = "pending";
+    private AgentSettlementStatus status = AgentSettlementStatus.COMPLETED;
 
     @Column(name = "paid_at")
     private LocalDateTime paidAt;

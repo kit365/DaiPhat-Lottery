@@ -377,14 +377,24 @@ public enum SystemConfigEnum {
             "{\"min\":\"00:00\",\"max\":\"23:59\"}",
             true
     ),
-    VENDOR_DEFAULT_UNIT_PRICE(
+    VENDOR_COMMISSION_RATE(
+            ConfigType.VENDOR_SETTING,
+            DataType.DECIMAL,
+            "0.10",
+            "Tỷ lệ hoa hồng chung trả cho người bán dạo trên mỗi vé bán thành công. Giá vendor được tính từ mệnh giá trừ tỷ lệ này.",
+            "Tỷ lệ hoa hồng vendor",
+            "%",
+            "{\"min\":0,\"max\":1}",
+            true
+    ),
+    VENDOR_DEFAULT_CONTRACT_MAX_DAILY_CAP(
             ConfigType.VENDOR_SETTING,
             DataType.INT,
-            "9000",
-            "Giá bán mặc định cho người bán dạo trên mỗi vé",
-            "Giá vé vendor mặc định",
-            "VND/vé",
-            "{\"min\":0}",
+            "200",
+            "Hạn mức vé/ngày mặc định được ghi trong hợp đồng khi tạo vendor mới.",
+            "Hạn mức hợp đồng mặc định",
+            "vé/ngày",
+            "{\"min\":1,\"max\":100000}",
             true
     ),
     VENDOR_DEPOSIT_RATE(
@@ -418,6 +428,146 @@ public enum SystemConfigEnum {
             "{\"min\":1,\"max\":120}",
             true
     ),
+    VENDOR_CONFIDENCE_DEVELOPING_MIN_SCORE(
+            ConfigType.VENDOR_SETTING,
+            DataType.DECIMAL,
+            "40",
+            "Điểm tối thiểu để đạt tier DEVELOPING",
+            "Ngưỡng điểm DEVELOPING",
+            "điểm",
+            "{\"min\":0,\"max\":100}",
+            true
+    ),
+    VENDOR_CONFIDENCE_ESTABLISHED_MIN_SCORE(
+            ConfigType.VENDOR_SETTING,
+            DataType.DECIMAL,
+            "60",
+            "Điểm tối thiểu để đạt tier ESTABLISHED",
+            "Ngưỡng điểm ESTABLISHED",
+            "điểm",
+            "{\"min\":0,\"max\":100}",
+            true
+    ),
+    VENDOR_CONFIDENCE_TRUSTED_MIN_SCORE(
+            ConfigType.VENDOR_SETTING,
+            DataType.DECIMAL,
+            "80",
+            "Điểm tối thiểu để đạt tier TRUSTED",
+            "Ngưỡng điểm TRUSTED",
+            "điểm",
+            "{\"min\":0,\"max\":100}",
+            true
+    ),
+    VENDOR_CONFIDENCE_DEVELOPING_MIN_BATCHES(
+            ConfigType.VENDOR_SETTING,
+            DataType.INT,
+            "5",
+            "Số batch settle tối thiểu để mở trần DEVELOPING",
+            "Ngưỡng batch DEVELOPING",
+            "batch",
+            "{\"min\":1,\"max\":1000}",
+            true
+    ),
+    VENDOR_CONFIDENCE_ESTABLISHED_MIN_BATCHES(
+            ConfigType.VENDOR_SETTING,
+            DataType.INT,
+            "10",
+            "Số batch settle tối thiểu để mở trần ESTABLISHED",
+            "Ngưỡng batch ESTABLISHED",
+            "batch",
+            "{\"min\":1,\"max\":1000}",
+            true
+    ),
+    VENDOR_CONFIDENCE_TRUSTED_MIN_BATCHES(
+            ConfigType.VENDOR_SETTING,
+            DataType.INT,
+            "20",
+            "Số batch settle tối thiểu để mở trần TRUSTED",
+            "Ngưỡng batch TRUSTED",
+            "batch",
+            "{\"min\":1,\"max\":1000}",
+            true
+    ),
+    VENDOR_CONFIDENCE_NEW_CAP_PERCENT(
+            ConfigType.VENDOR_SETTING,
+            DataType.DECIMAL,
+            "0.25",
+            "Tỷ lệ daily cap cho tier NEW",
+            "Cap % NEW",
+            "%",
+            "{\"min\":0,\"max\":1}",
+            true
+    ),
+    VENDOR_CONFIDENCE_DEVELOPING_CAP_PERCENT(
+            ConfigType.VENDOR_SETTING,
+            DataType.DECIMAL,
+            "0.50",
+            "Tỷ lệ daily cap cho tier DEVELOPING",
+            "Cap % DEVELOPING",
+            "%",
+            "{\"min\":0,\"max\":1}",
+            true
+    ),
+    VENDOR_CONFIDENCE_ESTABLISHED_CAP_PERCENT(
+            ConfigType.VENDOR_SETTING,
+            DataType.DECIMAL,
+            "0.75",
+            "Tỷ lệ daily cap cho tier ESTABLISHED",
+            "Cap % ESTABLISHED",
+            "%",
+            "{\"min\":0,\"max\":1}",
+            true
+    ),
+    VENDOR_CONFIDENCE_TRUSTED_CAP_PERCENT(
+            ConfigType.VENDOR_SETTING,
+            DataType.DECIMAL,
+            "1.00",
+            "Tỷ lệ daily cap cho tier TRUSTED",
+            "Cap % TRUSTED",
+            "%",
+            "{\"min\":0,\"max\":1}",
+            true
+    ),
+    VENDOR_CONFIDENCE_ON_TIME_WEIGHT(
+            ConfigType.VENDOR_SETTING,
+            DataType.DECIMAL,
+            "0.50",
+            "Trọng số on-time trong công thức confidence (tổng 3 trọng số = 1)",
+            "Trọng số đúng hạn",
+            null,
+            "{\"min\":0,\"max\":1}",
+            true
+    ),
+    VENDOR_CONFIDENCE_SELL_THROUGH_WEIGHT(
+            ConfigType.VENDOR_SETTING,
+            DataType.DECIMAL,
+            "0.40",
+            "Trọng số sell-through trong công thức confidence (tổng 3 trọng số = 1)",
+            "Trọng số bán ra",
+            null,
+            "{\"min\":0,\"max\":1}",
+            true
+    ),
+    VENDOR_CONFIDENCE_EXPERIENCE_WEIGHT(
+            ConfigType.VENDOR_SETTING,
+            DataType.DECIMAL,
+            "0.10",
+            "Trọng số experience trong công thức confidence (tổng 3 trọng số = 1)",
+            "Trọng số kinh nghiệm",
+            null,
+            "{\"min\":0,\"max\":1}",
+            true
+    ),
+    VENDOR_CONFIDENCE_EXPERIENCE_WINDOW(
+            ConfigType.VENDOR_SETTING,
+            DataType.INT,
+            "30",
+            "Số batch settle gần nhất dùng để tính confidence",
+            "Cửa sổ kinh nghiệm",
+            "batch",
+            "{\"min\":1,\"max\":500}",
+            true
+    ),
     STREET_AGENT_COUNTER_RESERVE_PER_STATION(
             ConfigType.VENDOR_SETTING,
             DataType.INT,
@@ -426,6 +576,16 @@ public enum SystemConfigEnum {
             "Tồn tối thiểu chừa quầy",
             "vé/đài",
             "{\"min\":0,\"max\":100000}",
+            true
+    ),
+    STREET_AGENT_COUNTER_RESERVE_PERCENT_PER_STATION(
+            ConfigType.VENDOR_SETTING,
+            DataType.DECIMAL,
+            "0.20",
+            "Tỷ lệ vé thường hợp lệ phải chừa cho quầy tại mỗi đài. Mức giữ thực tế lấy giá trị lớn hơn giữa tỷ lệ này và tồn tối thiểu chừa quầy.",
+            "Tỷ lệ tồn chừa quầy",
+            "%",
+            "{\"min\":0,\"max\":1}",
             true
     ),
     RETURN_BUFFER_TIME(
