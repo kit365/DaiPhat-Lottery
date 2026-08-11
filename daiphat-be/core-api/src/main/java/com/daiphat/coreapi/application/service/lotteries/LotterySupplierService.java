@@ -28,6 +28,7 @@ public class LotterySupplierService implements LotterySupplierServicePort {
 
     private final LotterySupplierRepositoryPort lotterySupplierRepositoryPort;
     private final LotterySupplierApplicationMapper lotterySupplierApplicationMapper;
+    private final SupplierPaymentCutOffSyncService supplierPaymentCutOffSyncService;
 
     @Override
     @Transactional
@@ -38,9 +39,11 @@ public class LotterySupplierService implements LotterySupplierServicePort {
         }
 
         validateNonNegativeAmounts(request.paymentTermDays(), request.defaultImportCost());
-        validateCutOffTimes(request.returnCutOffTime(), request.paymentCutOffTime());
+        LocalTime paymentCutOffTime = supplierPaymentCutOffSyncService
+                .requirePaymentCutOffForReturn(request.returnCutOffTime());
 
         LotterySupplierModel model = lotterySupplierApplicationMapper.toModel(request);
+        model.setPaymentCutOffTime(paymentCutOffTime);
         if (Boolean.TRUE.equals(request.isActive())) {
             model.requireActivationReady();
         }
@@ -59,9 +62,11 @@ public class LotterySupplierService implements LotterySupplierServicePort {
         }
 
         validateNonNegativeAmounts(request.paymentTermDays(), request.defaultImportCost());
-        validateCutOffTimes(request.returnCutOffTime(), request.paymentCutOffTime());
+        LocalTime paymentCutOffTime = supplierPaymentCutOffSyncService
+                .requirePaymentCutOffForReturn(request.returnCutOffTime());
 
         lotterySupplierApplicationMapper.updateModel(model, request);
+        model.setPaymentCutOffTime(paymentCutOffTime);
         if (Boolean.TRUE.equals(request.isActive())) {
             model.requireActivationReady();
         }
@@ -125,17 +130,6 @@ public class LotterySupplierService implements LotterySupplierServicePort {
         }
         if (defaultImportCost != null && defaultImportCost.compareTo(BigDecimal.ZERO) < 0) {
             throw new DomainException(ErrorCode.LOTTERY_SUPPLIER_IMPORT_COST_INVALID);
-        }
-    }
-
-    private void validateCutOffTimes(LocalTime returnCutOffTime, LocalTime paymentCutOffTime) {
-        if (returnCutOffTime != null && paymentCutOffTime != null) {
-            if (!paymentCutOffTime.isAfter(returnCutOffTime)) {
-                throw new DomainException(
-                        ErrorCode.INVALID_INPUT,
-                        "Giờ thanh toán (" + paymentCutOffTime + ") phải sau Hạn trả vé (" + returnCutOffTime + ")"
-                );
-            }
         }
     }
 

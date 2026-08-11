@@ -8,6 +8,7 @@ import com.daiphat.coreapi.application.port.in.settings.SystemConfigServicePort;
 import com.daiphat.coreapi.application.port.in.streetagent.VendorConfidenceServicePort;
 import com.daiphat.coreapi.application.port.out.settings.SystemConfigCachePort;
 import com.daiphat.coreapi.application.port.out.settings.SystemConfigRepositoryPort;
+import com.daiphat.coreapi.application.service.lotteries.SupplierPaymentCutOffSyncService;
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
 import com.daiphat.coreapi.domain.model.enums.settings.ConfigType;
@@ -27,6 +28,7 @@ import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -36,10 +38,16 @@ public class SystemConfigService implements SystemConfigServicePort {
     /** Safety-net TTL; successful updates always evict immediately. */
     static final Duration CACHE_TTL = Duration.ofMinutes(15);
 
+    private static final Set<String> PAYMENT_CUTOFF_CONFIG_KEYS = Set.of(
+            SystemConfigEnum.VERIFICATION_DEADLINE.name(),
+            SystemConfigEnum.SETTLEMENT_BUFFER_TIME.name()
+    );
+
     private final SystemConfigRepositoryPort systemConfigRepositoryPort;
     private final SystemConfigCachePort systemConfigCachePort;
     private final SystemConfigApplicationMapper systemConfigApplicationMapper;
     private final VendorConfidenceServicePort vendorConfidenceServicePort;
+    private final SupplierPaymentCutOffSyncService supplierPaymentCutOffSyncService;
 
     @Override
     @Transactional(readOnly = true)
@@ -91,6 +99,10 @@ public class SystemConfigService implements SystemConfigServicePort {
         systemConfigCachePort.evict(saved.getConfigKey());
         if (confidenceKey) {
             vendorConfidenceServicePort.recalculateAllProfiles();
+        }
+
+        if (PAYMENT_CUTOFF_CONFIG_KEYS.contains(saved.getConfigKey())) {
+            supplierPaymentCutOffSyncService.syncAllSuppliers();
         }
 
         log.info("Updated system config id={} key={}", saved.getId(), saved.getConfigKey());

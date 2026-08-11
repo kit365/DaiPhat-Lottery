@@ -64,6 +64,13 @@ public class LotterySupplierRepositoryAdapter implements LotterySupplierReposito
     }
 
     @Override
+    public List<LotterySupplierModel> findAllNotDeleted() {
+        return lotterySupplierRepository.findByDeletedAtIsNull().stream()
+                .map(lotterySupplierPersistenceMapper::toDomain)
+                .toList();
+    }
+
+    @Override
     public boolean existsActive() {
         return lotterySupplierRepository.existsByIsActiveTrueAndDeletedAtIsNull();
     }
