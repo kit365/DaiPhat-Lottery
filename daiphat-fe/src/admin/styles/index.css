@@ -334,14 +334,18 @@ input:-webkit-autofill:active {
     box-shadow: var(--customShadows-z8) !important;
 }
 
-.btn-primary-admin.Mui-disabled {
+.btn-primary-admin.Mui-disabled,
+.MuiButton-contained.btn-primary-admin.Mui-disabled,
+.MuiDialogActions-root .MuiButton-contained.btn-primary-admin.Mui-disabled {
     background-color: rgba(145, 158, 171, 0.24) !important;
     color: rgba(145, 158, 171, 0.8) !important;
     box-shadow: none !important;
+    cursor: not-allowed !important;
+    opacity: 0.6 !important;
 }
 
-.MuiButton-contained.btn-primary-admin,
-.MuiDialogActions-root .MuiButton-contained.btn-primary-admin {
+.MuiButton-contained.btn-primary-admin:not(.Mui-disabled),
+.MuiDialogActions-root .MuiButton-contained.btn-primary-admin:not(.Mui-disabled) {
     background-color: var(--palette-text-primary) !important;
     color: var(--palette-common-white) !important;
 }
