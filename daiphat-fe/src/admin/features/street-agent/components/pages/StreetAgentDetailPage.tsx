@@ -3,6 +3,7 @@
 import { useRouteParams } from "@/hooks/useRouteParams";
 import {
     Avatar,
+    Alert,
     Box,
     Card,
     Chip,
@@ -29,6 +30,7 @@ import {
 } from "../../hooks/useStreetAgent";
 import { openStreetAgentContractPrint } from "../../services/streetAgentService";
 import { SignedContractUploadDialog } from "../SignedContractUploadDialog";
+import { SignedContractSaveDialog } from "../SignedContractSaveDialog";
 import { ContractDocumentViewerDialog } from "../ContractDocumentViewerDialog";
 import {
     StreetAgentConfidencePanel,
@@ -92,6 +94,8 @@ export const StreetAgentDetailPage = () => {
     const { mutate: uploadSigned, isPending: isUploadingSigned } = useUploadStreetAgentSignedContract();
     const signedFileInputRef = useRef<HTMLInputElement>(null);
     const [pendingSignedFile, setPendingSignedFile] = useState<File | null>(null);
+    const [previewSignedFile, setPreviewSignedFile] = useState<File | null>(null);
+    const [saveSignedConfirmOpen, setSaveSignedConfirmOpen] = useState(false);
     const [viewSignedOpen, setViewSignedOpen] = useState(false);
     const [detailTab, setDetailTab] = useState(0);
 
@@ -109,7 +113,12 @@ export const StreetAgentDetailPage = () => {
             return;
         }
 
+        setPreviewSignedFile(file);
+    };
+
+    const handleStageSignedFile = (file: File) => {
         setPendingSignedFile(file);
+        setPreviewSignedFile(null);
     };
 
     const handleConfirmSignedUpload = (file: File) => {
@@ -121,6 +130,7 @@ export const StreetAgentDetailPage = () => {
                     if (response.success) {
                         toast.success(response.message || "Đính kèm bản đã ký thành công!");
                         setPendingSignedFile(null);
+                        setSaveSignedConfirmOpen(false);
                         void refetch();
                     } else {
                         toast.error(response.message || "Đính kèm bản đã ký thất bại");
@@ -258,7 +268,7 @@ export const StreetAgentDetailPage = () => {
                                 <InfoItem label="Hạn mức theo hợp đồng" value={profile.contractMaxDailyCap != null ? `${profile.contractMaxDailyCap} vé/ngày` : "—"} />
                                 <InfoItem label="Hạn mức giao thực tế" value={profile.effectiveDailyCap != null ? `${profile.effectiveDailyCap} vé/ngày` : "—"} />
                                 <Box sx={{ gridColumn: { sm: "1 / -1" } }}>
-                                    <InfoItem label="Địa bàn bán" value={formatCoverageAreaDisplay(profile.coverageArea)} />
+                                    <InfoItem label="Khu vực bán" value={formatCoverageAreaDisplay(profile.coverageArea)} />
                                 </Box>
                             </Box>
                         </Card>
@@ -440,6 +450,31 @@ export const StreetAgentDetailPage = () => {
                                                     className="hidden"
                                                     accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
                                                 />
+                                                {pendingSignedFile ? (
+                                                    <Alert
+                                                        severity="info"
+                                                        sx={{ mt: 2 }}
+                                                        action={
+                                                            <Stack direction="row" spacing={1}>
+                                                                <Button
+                                                                    variant="outlined"
+                                                                    color="inherit"
+                                                                    size="small"
+                                                                    onClick={() => setPendingSignedFile(null)}
+                                                                    label="Đổi file"
+                                                                />
+                                                                <Button
+                                                                    variant="contained"
+                                                                    size="small"
+                                                                    onClick={() => setSaveSignedConfirmOpen(true)}
+                                                                    label="Lưu bản ký vào hồ sơ"
+                                                                />
+                                                            </Stack>
+                                                        }
+                                                    >
+                                                        Đã chọn <strong>{pendingSignedFile.name}</strong>. File mới chỉ đang chờ xác nhận cuối.
+                                                    </Alert>
+                                                ) : null}
                                             </Box>
                                         </Stack>
                                     </Box>
@@ -451,13 +486,23 @@ export const StreetAgentDetailPage = () => {
             </Grid>
 
             <SignedContractUploadDialog
-                open={!!pendingSignedFile}
-                file={pendingSignedFile}
-                uploading={isUploadingSigned}
+                open={!!previewSignedFile}
+                file={previewSignedFile}
+                uploading={false}
                 onClose={() => {
-                    if (!isUploadingSigned) setPendingSignedFile(null);
+                    setPreviewSignedFile(null);
                 }}
-                onConfirm={handleConfirmSignedUpload}
+                onConfirm={handleStageSignedFile}
+            />
+
+            <SignedContractSaveDialog
+                open={saveSignedConfirmOpen}
+                file={pendingSignedFile}
+                saving={isUploadingSigned}
+                onClose={() => setSaveSignedConfirmOpen(false)}
+                onConfirm={() => {
+                    if (pendingSignedFile) handleConfirmSignedUpload(pendingSignedFile);
+                }}
             />
 
             <ContractDocumentViewerDialog

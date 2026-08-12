@@ -1,6 +1,7 @@
 "use client";
 
 import { Box, Button, ButtonBase, FormHelperText, Stack, Typography } from "@mui/material";
+import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
 import { UploadFileIcon, UploadIcon } from "../../assets/icons";
 import { useDropzone, type Accept } from "react-dropzone";
 import { memo, useCallback, useEffect, useRef, useState } from "react";
@@ -27,6 +28,7 @@ interface UploadSingleFileProps {
     required?: boolean;
     maxFileSizeMb?: number;
     accept?: Accept;
+    onPreview?: () => void;
 }
 
 export const UploadSingleFile = memo(
@@ -45,6 +47,7 @@ export const UploadSingleFile = memo(
         required,
         maxFileSizeMb = 10,
         accept = { "image/*": [] },
+        onPreview,
     }: UploadSingleFileProps) => {
         const [localFile, setLocalFile] = useState<CustomFile | null>(null);
         const [isUploading, setIsUploading] = useState(false);
@@ -150,6 +153,9 @@ export const UploadSingleFile = memo(
         const renderThumb = (thumbSize = 80) => {
             let src = "";
             let isUploaded = false;
+            const rawFile = useRawFile && value instanceof File ? value : null;
+            const isImageFile = !rawFile || rawFile.type.startsWith("image/");
+            const isPdfFile = Boolean(rawFile && (rawFile.type === "application/pdf" || rawFile.name.toLowerCase().endsWith(".pdf")));
 
             if (useRawFile) {
                 if (value instanceof File) {
@@ -177,11 +183,66 @@ export const UploadSingleFile = memo(
                         flexShrink: 0,
                     }}
                 >
-                    <Box
-                        component="img"
-                        src={src}
-                        sx={{ width: 1, height: 1, objectFit: 'cover', display: 'block' }}
-                    />
+                    {isImageFile ? (
+                        <Box
+                            component="img"
+                            src={src}
+                            alt={rawFile?.name || "Tệp đã chọn"}
+                            sx={{ width: 1, height: 1, objectFit: 'cover', display: 'block' }}
+                        />
+                    ) : isPdfFile ? (
+                        <Box
+                            component="iframe"
+                            src={`${src}#page=1&toolbar=0&navpanes=0&scrollbar=0`}
+                            title={rawFile?.name || "Xem trước PDF"}
+                            sx={{
+                                width: "calc(100% + 6px)",
+                                height: "calc(100% + 6px)",
+                                ml: "-3px",
+                                mt: "-3px",
+                                border: 0,
+                                pointerEvents: "none",
+                                bgcolor: "#fff",
+                            }}
+                        />
+                    ) : (
+                        <Stack
+                            alignItems="center"
+                            justifyContent="center"
+                            spacing={0.25}
+                            sx={{ width: 1, height: 1, bgcolor: "rgba(255, 48, 48, 0.06)" }}
+                        >
+                            <PictureAsPdfIcon sx={{ color: "error.main", fontSize: 30 }} />
+                            <Typography variant="caption" sx={{ fontWeight: 700, color: "error.main" }}>
+                                PDF
+                            </Typography>
+                        </Stack>
+                    )}
+
+                    {onPreview && rawFile ? (
+                        <ButtonBase
+                            onClick={(event) => {
+                                event.stopPropagation();
+                                onPreview();
+                            }}
+                            sx={{
+                                position: "absolute",
+                                inset: 0,
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                bgcolor: "rgba(15, 23, 42, 0.38)",
+                                color: "#fff",
+                                opacity: 1,
+                                transition: "opacity 0.15s ease",
+                                "&:hover": { bgcolor: "rgba(15, 23, 42, 0.52)" },
+                            }}
+                        >
+                            <Typography variant="caption" sx={{ fontWeight: 700 }}>
+                                Xem trước
+                            </Typography>
+                        </ButtonBase>
+                    ) : null}
 
                     <ButtonBase
                         onClick={(e) => {

@@ -46,6 +46,9 @@ CREATE TABLE IF NOT EXISTS allocation_batches (
     commission_rate_snapshot NUMERIC(6,5), deposit_rate_snapshot NUMERIC(6,5),
     late_policy_snapshot VARCHAR(30), return_cutoff_snapshot TIME,
     supplier_return_cutoff_snapshot TIME, return_buffer_minutes_snapshot INT,
+    -- Absolute deadline is necessary because supplier cut-off minus buffer can
+    -- fall on the previous calendar day. The TIME snapshots remain the audit trail.
+    effective_handover_deadline_at TIMESTAMP,
     allocated_quantity INTEGER NOT NULL DEFAULT 0, returned_quantity INTEGER NOT NULL DEFAULT 0,
     sold_quantity INTEGER NOT NULL DEFAULT 0,
     deposit_required_amount NUMERIC(18,0), deposit_received_amount NUMERIC(18,0),

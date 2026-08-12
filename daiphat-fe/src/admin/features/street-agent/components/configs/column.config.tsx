@@ -75,7 +75,7 @@ export const getColumnsConfig = (
     },
     {
         field: "coverageArea",
-        headerName: "Địa bàn bán",
+        headerName: "Khu vực bán",
         minWidth: 120,
         flex: 0.8,
         valueFormatter: (value) => formatCoverageAreaDisplay(value),

@@ -42,6 +42,8 @@ const fieldSx = {
 type StreetAgentFormValues = CreateStreetAgentProfileFormValues;
 
 interface StreetAgentProfileFormProps {
+    id?: string;
+    contractSectionId?: string;
     control: Control<StreetAgentFormValues> | Control<any>;
     setValue?: UseFormSetValue<StreetAgentFormValues>;
     imageUrl?: string | null;
@@ -157,6 +159,8 @@ const ACTION_CHIP_SX = {
 };
 
 export const StreetAgentProfileForm = ({
+    id,
+    contractSectionId,
     control,
     setValue,
     imageUrl,
@@ -384,7 +388,7 @@ export const StreetAgentProfileForm = ({
     } as const;
 
     return (
-        <Box>
+        <Box id={id}>
             <Stack spacing={3}>
                 {sections.personal ? (
                 <Card sx={{ p: 3, borderRadius: "var(--shape-borderRadius-lg)", boxShadow: "var(--customShadows-card)" }}>
@@ -462,42 +466,36 @@ export const StreetAgentProfileForm = ({
                 ) : null}
 
                     {sections.contract ? (
-                    <Card sx={{ p: 3, borderRadius: "var(--shape-borderRadius-lg)", boxShadow: "var(--customShadows-card)" }}>
+                    <Card id={contractSectionId} sx={{ p: 3, borderRadius: "var(--shape-borderRadius-lg)", boxShadow: "var(--customShadows-card)" }}>
                         <SectionTitle title="Thông tin hợp đồng" helperText="Hạn mức giao theo hợp đồng và chính sách vận hành." />
                         <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)" }, gap: 3 }}>
                             <Controller
                                 name="contractStartDate"
                                 control={control}
                                 render={({ field, fieldState }) => (
-                                    isEdit && contractDocumentUrl ? (
-                                        <ReadOnlyRow label="Ngày bắt đầu hợp đồng" value={field.value ? field.value.split("-").reverse().join("/") : "—"} />
-                                    ) : (
-                                        <AdminDatePicker
-                                            label="Ngày bắt đầu hợp đồng"
-                                            value={field.value ?? ""}
-                                            onChange={field.onChange}
-                                            error={!!fieldState.error}
-                                            helperText={fieldState.error?.message}
-                                        />
-                                    )
+                                    <AdminDatePicker
+                                        label="Ngày bắt đầu hợp đồng"
+                                        value={field.value ?? ""}
+                                        onChange={field.onChange}
+                                        allowInput
+                                        error={!!fieldState.error}
+                                        helperText={fieldState.error?.message}
+                                    />
                                 )}
                             />
                             <Controller
                                 name="contractEndDate"
                                 control={control}
                                 render={({ field, fieldState }) => (
-                                    isEdit && contractDocumentUrl ? (
-                                        <ReadOnlyRow label="Ngày kết thúc hợp đồng" value={field.value ? field.value.split("-").reverse().join("/") : "—"} />
-                                    ) : (
-                                        <AdminDatePicker
-                                            label="Ngày kết thúc hợp đồng"
-                                            value={field.value ?? ""}
-                                            onChange={field.onChange}
-                                            min={contractStartDate || undefined}
-                                            error={!!fieldState.error}
-                                            helperText={fieldState.error?.message}
-                                        />
-                                    )
+                                    <AdminDatePicker
+                                        label="Ngày kết thúc hợp đồng"
+                                        value={field.value ?? ""}
+                                        onChange={field.onChange}
+                                        min={contractStartDate || undefined}
+                                        allowInput
+                                        error={!!fieldState.error}
+                                        helperText={fieldState.error?.message}
+                                    />
                                 )}
                             />
                             <Controller
@@ -662,7 +660,7 @@ export const StreetAgentProfileForm = ({
                                             renderInput={(params) => (
                                                 <TextField
                                                     {...params}
-                                                    label="Địa bàn bán"
+                                                    label="Khu vực bán"
                                                     placeholder="+ Thêm khu vực"
                                                     error={!!fieldState.error}
                                                     helperText={fieldState.error?.message || "Chọn khu vực chuẩn; hệ thống gửi mã (vd. HCM-D1)"}

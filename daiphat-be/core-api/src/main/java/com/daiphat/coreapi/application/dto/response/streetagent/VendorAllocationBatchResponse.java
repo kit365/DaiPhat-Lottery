@@ -26,6 +26,7 @@ public record VendorAllocationBatchResponse(
         LocalTime returnCutoffSnapshot,
         LocalTime supplierReturnCutoffSnapshot,
         Integer returnBufferMinutesSnapshot,
+        LocalDateTime effectiveHandoverDeadlineAt,
         BigDecimal depositRequiredAmount,
         BigDecimal depositReceivedAmount,
         BigDecimal depositBalanceBefore,

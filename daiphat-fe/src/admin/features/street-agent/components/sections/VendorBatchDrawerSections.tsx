@@ -102,11 +102,11 @@ export const VendorBatchInfoSection = ({
             {showCutoffSummary && batch.returnCutoffSnapshot && (
                 <Alert severity="info" sx={{ mb: 1, py: 0.5, px: 1.5 }} icon={false}>
                     <Typography variant="subtitle2" sx={{ color: "info.dark" }}>
-                        Hạn trả vendor: {batch.returnCutoffSnapshot}
+                        Hạn cuối có thể giao vé: {batch.effectiveHandoverDeadlineAt ? formatDateTime(batch.effectiveHandoverDeadlineAt) : batch.returnCutoffSnapshot}
                     </Typography>
-                    {(batch.supplierReturnCutoffSnapshot || batch.returnBufferMinutesSnapshot != null) && (
+                    {batch.effectiveHandoverDeadlineAt && (
                         <Typography variant="caption" sx={{ color: "info.main", display: "block", mt: 0.25 }}>
-                            Giờ chót gốc: {batch.supplierReturnCutoffSnapshot || "—"} · Buffer chuẩn bị: {batch.returnBufferMinutesSnapshot ?? 0} phút
+                            Giờ chốt trả vé của người bán vé số: {batch.returnCutoffSnapshot}
                         </Typography>
                     )}
                 </Alert>
@@ -191,10 +191,11 @@ export const VendorBatchDepositSnapshotSection = ({
                     <DetailRow label="Số dư cọc trước" value={formatCurrency(batch.depositBalanceBefore)} />
                     <DetailRow label="Số dư cọc sau" value={formatCurrency(batch.depositBalanceAfter)} />
                     <DetailRow
-                        label="Hạn trả người bán vé số"
-                        value={batch.returnCutoffSnapshot || "—"}
-                        description="(Hạn chót người bán vé số cần trả vé sau khi trừ thời gian đệm chuẩn bị)"
+                        label="Hạn cuối có thể giao vé"
+                        value={batch.effectiveHandoverDeadlineAt ? formatDateTime(batch.effectiveHandoverDeadlineAt) : "—"}
+                        description="Mốc này do hệ thống tính và đã chừa thời gian để Đại Phát nhận lại vé."
                     />
+                    <DetailRow label="Giờ chốt trả vé của người bán vé số" value={batch.returnCutoffSnapshot || "—"} />
                     <DetailRow label="Policy trả trễ" value={latePolicyLabel(batch.latePolicySnapshot)} />
                     {batch.reservationExpiresAt && batch.status === "DRAFT" && (
                         <DetailRow

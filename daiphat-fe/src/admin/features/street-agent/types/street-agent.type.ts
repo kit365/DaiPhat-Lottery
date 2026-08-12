@@ -144,6 +144,25 @@ export interface VendorAllocationStationGroup {
     tickets: VendorAllocationTicketGroup[];
 }
 
+/**
+ * Server-provided context for a suggestion that is limited or blocked.
+ * Keep the codes internal and let the page translate them into operator-facing
+ * Vietnamese copy while preserving the concrete times/quantities from BE.
+ */
+export interface VendorAllocationReasonDetail {
+    code: string;
+    cutoffTime?: string | null;
+    /** Absolute server-calculated deadline; FE must display it, never recompute it. */
+    effectiveDeadlineAt?: string | null;
+    stationName?: string | null;
+    drawTime?: string | null;
+    eligibleQuantity?: number | null;
+    reserveQuantity?: number | null;
+    vendorCapacity?: number | null;
+    remainingDailyCap?: number | null;
+    requestedQuantity?: number | null;
+}
+
 export interface VendorAllocationSuggestion {
     /** Selected denomination. Null means the caller must choose one from availableFaceValues. */
     faceValue?: number | null;
@@ -162,6 +181,7 @@ export interface VendorAllocationSuggestion {
     inventoryShortfallQuantity: number;
     shortageReasons: string[];
     blockedReason?: string | null;
+    reasonDetails?: VendorAllocationReasonDetail[];
     stations: VendorAllocationStationGroup[];
 }
 
@@ -240,6 +260,8 @@ export interface VendorAllocationBatch {
     returnCutoffSnapshot?: string | null;
     supplierReturnCutoffSnapshot?: string | null;
     returnBufferMinutesSnapshot?: number | null;
+    /** Absolute deadline snapshot from BE; FE must display it and never recompute it. */
+    effectiveHandoverDeadlineAt?: string | null;
     depositRequiredAmount?: number | null;
     depositReceivedAmount?: number | null;
     depositBalanceBefore?: number | null;
@@ -273,6 +295,7 @@ export interface VendorConfirmationQuote {
     depositRequiredAmount: number;
     returnCutoff?: string | null;
     latePolicy?: string | null;
+    effectiveHandoverDeadlineAt?: string | null;
     /** Opaque server value that must be echoed on confirm; stale quote returns HTTP 409. */
     quoteFingerprint: string;
     quotedAt?: string | null;

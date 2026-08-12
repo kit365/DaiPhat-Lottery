@@ -38,6 +38,7 @@ public class AllocationBatchEntity extends BaseEntity {
     @Column(name = "return_cutoff_snapshot") private LocalTime returnCutoffSnapshot;
     @Column(name = "supplier_return_cutoff_snapshot") private LocalTime supplierReturnCutoffSnapshot;
     @Column(name = "return_buffer_minutes_snapshot") private Integer returnBufferMinutesSnapshot;
+    @Column(name = "effective_handover_deadline_at") private LocalDateTime effectiveHandoverDeadlineAt;
     @Column(name = "allocated_quantity", nullable = false) @Builder.Default private Integer allocatedQuantity = 0;
     @Column(name = "returned_quantity", nullable = false) @Builder.Default private Integer returnedQuantity = 0;
     @Column(name = "sold_quantity", nullable = false) @Builder.Default private Integer soldQuantity = 0;
