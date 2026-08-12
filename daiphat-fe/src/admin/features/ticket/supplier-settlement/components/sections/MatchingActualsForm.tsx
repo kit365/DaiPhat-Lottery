@@ -46,6 +46,7 @@ import TrendingDownOutlinedIcon from '@mui/icons-material/TrendingDownOutlined';
 import TrendingFlatOutlinedIcon from '@mui/icons-material/TrendingFlatOutlined';
 import PaymentsOutlinedIcon from '@mui/icons-material/PaymentsOutlined';
 import AutoFixHighOutlinedIcon from '@mui/icons-material/AutoFixHighOutlined';
+import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
 import dayjs from 'dayjs';
 import { uploadAdminImage } from '@/admin/shared/services/upload.service';
 import { AppToast } from '../../../../../../utils/toast.util';
@@ -55,11 +56,12 @@ import type {
     SettlementAdjustmentReasonCode,
     SettlementMatchingAdditionalCost,
     SettlementOverviewImportBatch,
+    SettlementOverviewReturnBatch,
     SupplierSettlement,
     SupplierSettlementAdjustment,
 } from '../../types/supplierSettlement.type';
 import { formatImportCost } from '../../../import-batch/utils/importCostCalculator';
-import { getDiscrepancyTypeLabel } from '../../utils/settlementLabels';
+import { getDiscrepancyTypeLabel, isReturnReconciliationLocked } from '../../utils/settlementLabels';
 
 const MONETARY_COST_TYPES: Array<{ value: SettlementAdjustmentReasonCode; label: string }> = [
     { value: 'SHIPPING_FEE', label: 'Phí vận chuyển (+)' },
@@ -84,6 +86,7 @@ interface AdditionalCostRow {
 interface MatchingActualsFormProps {
     settlement: SupplierSettlement;
     importBatches?: SettlementOverviewImportBatch[];
+    returnBatches?: SettlementOverviewReturnBatch[];
     adjustments?: SupplierSettlementAdjustment[];
     isSubmitting?: boolean;
     onZoomImage?: (payload: { url: string; title: string }) => void;
@@ -155,6 +158,7 @@ const createAdditionalCostRow = (): AdditionalCostRow => ({
 export const MatchingActualsForm = ({
     settlement,
     importBatches = [],
+    returnBatches = [],
     adjustments = [],
     isSubmitting,
     onZoomImage,
@@ -208,6 +212,11 @@ export const MatchingActualsForm = ({
     );
     const [additionalCostRows, setAdditionalCostRows] = useState<AdditionalCostRow[]>(() =>
         mapSettlementAdjustmentsToRows(adjustments)
+    );
+
+    const isReturnLocked = useMemo(
+        () => isReturnReconciliationLocked(returnBatches),
+        [returnBatches]
     );
 
     useEffect(() => {
@@ -452,7 +461,8 @@ export const MatchingActualsForm = ({
         && !hasIncompleteAdditionalCost
         && !isUploadingReceipt
         && !isUploadingImportReceipt
-        && !isSubmitting;
+        && !isSubmitting
+        && !isReturnLocked;
 
     const handleUploadFile = async (file: File) => {
         if (!settlement?.id) {
@@ -961,17 +971,33 @@ export const MatchingActualsForm = ({
 
                 {/* Column 2: Trả vé */}
                 <Grid size={{ xs: 12, md: 6 }}>
+                    <Stack spacing={1.25} sx={{ height: '100%' }}>
                     <Paper
                         variant="outlined"
                         sx={{
                             p: 2.5,
                             borderRadius: '14px',
-                            borderColor: isReturnMatching ? '#e2e8f0' : returnQtyDiff > 0 ? '#fecdd3' : '#fde68a',
-                            bgcolor: isReturnMatching ? '#ffffff' : returnQtyDiff > 0 ? '#fffbfc' : '#fffdfa',
+                            borderColor: isReturnLocked
+                                ? '#e2e8f0'
+                                : isReturnMatching
+                                  ? '#e2e8f0'
+                                  : returnQtyDiff > 0
+                                    ? '#fecdd3'
+                                    : '#fde68a',
+                            bgcolor: isReturnLocked
+                                ? '#f8fafc'
+                                : isReturnMatching
+                                  ? '#ffffff'
+                                  : returnQtyDiff > 0
+                                    ? '#fffbfc'
+                                    : '#fffdfa',
                             transition: 'all 0.2s ease',
                             height: '100%',
                             display: 'flex',
                             flexDirection: 'column',
+                            opacity: isReturnLocked ? 0.62 : 1,
+                            pointerEvents: isReturnLocked ? 'none' : 'auto',
+                            userSelect: isReturnLocked ? 'none' : 'auto',
                         }}
                     >
                         <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
@@ -981,20 +1007,37 @@ export const MatchingActualsForm = ({
                                         width: 32,
                                         height: 32,
                                         borderRadius: '8px',
-                                        bgcolor: '#fff7ed',
-                                        color: '#ea580c',
+                                        bgcolor: isReturnLocked ? '#f1f5f9' : '#fff7ed',
+                                        color: isReturnLocked ? '#64748b' : '#ea580c',
                                         display: 'flex',
                                         alignItems: 'center',
                                         justifyContent: 'center',
                                     }}
                                 >
-                                    <AssignmentReturnOutlinedIcon sx={{ fontSize: '1.15rem' }} />
+                                    {isReturnLocked ? (
+                                        <LockOutlinedIcon sx={{ fontSize: '1.15rem' }} />
+                                    ) : (
+                                        <AssignmentReturnOutlinedIcon sx={{ fontSize: '1.15rem' }} />
+                                    )}
                                 </Box>
                                 <Typography variant="subtitle2" fontWeight={800} color="#0f172a" sx={{ fontSize: '0.95rem' }}>
                                     Số liệu Trả vé
                                 </Typography>
                             </Stack>
-                            {isReturnMatching ? (
+                            {isReturnLocked ? (
+                                <Chip
+                                    size="small"
+                                    icon={<LockOutlinedIcon style={{ fontSize: '0.95rem', color: '#64748b' }} />}
+                                    label="Chưa bàn giao"
+                                    sx={{
+                                        bgcolor: '#f1f5f9',
+                                        color: '#475569',
+                                        fontWeight: 700,
+                                        fontSize: '0.725rem',
+                                        border: '1px solid #e2e8f0',
+                                    }}
+                                />
+                            ) : isReturnMatching ? (
                                 <Chip
                                     size="small"
                                     icon={<CheckCircleOutlinedIcon style={{ fontSize: '0.95rem', color: '#16a34a' }} />}
@@ -1168,11 +1211,13 @@ export const MatchingActualsForm = ({
                                     fullWidth
                                     size="small"
                                     type="text"
+                                    disabled={isReturnLocked}
                                     slotProps={{ htmlInput: { inputMode: 'numeric' } }}
                                     value={returnQty}
-                                    error={isReturnQtyEmpty}
-                                    helperText={isReturnQtyEmpty ? 'Bắt buộc nhập số lượng' : undefined}
+                                    error={!isReturnLocked && isReturnQtyEmpty}
+                                    helperText={isReturnLocked ? 'Không thể nhập khi chưa bàn giao phiếu trả' : isReturnQtyEmpty ? 'Bắt buộc nhập số lượng' : undefined}
                                     onChange={(e) => {
+                                        if (isReturnLocked) return;
                                         const raw = e.target.value.replace(/\D/g, '');
                                         setReturnQty(raw ? parseInt(raw, 10).toLocaleString('vi-VN') : '');
                                     }}
@@ -1193,6 +1238,7 @@ export const MatchingActualsForm = ({
                                     fullWidth
                                     size="small"
                                     type="text"
+                                    disabled={isReturnLocked}
                                     value={formatNumberWithDots(calculatedReturnVal)}
                                     helperText="Tự động tính (= SL trả × Giá vé)"
                                     InputProps={{
@@ -1222,6 +1268,25 @@ export const MatchingActualsForm = ({
                             </Grid>
                         </Grid>
                     </Paper>
+                    {isReturnLocked && (
+                        <Alert
+                            icon={<LockOutlinedIcon sx={{ color: '#64748b' }} />}
+                            severity="warning"
+                            sx={{
+                                borderRadius: '10px',
+                                bgcolor: '#fffbeb',
+                                border: '1px solid #fde68a',
+                                color: '#92400e',
+                                '& .MuiAlert-message': {
+                                    fontWeight: 600,
+                                    fontSize: '0.8125rem',
+                                },
+                            }}
+                        >
+                            Số liệu trả vé chưa thể đối chiếu vì phiếu trả vé chưa hoàn tất bàn giao. Vui lòng hoàn tất bàn giao phiếu trả trước khi tiến hành đối chiếu.
+                        </Alert>
+                    )}
+                    </Stack>
                 </Grid>
             </Grid>
 
@@ -2964,7 +3029,7 @@ export const MatchingActualsForm = ({
             </Grid>
 
             {/* Block 4: Validation Warning & Guidance */}
-            {!hasAllRequiredInputs || isActualPaidEmpty || !hasReceipt || !hasAllImportReceipts || hasIncompleteAdditionalCost ? (
+            {!hasAllRequiredInputs || isActualPaidEmpty || !hasReceipt || !hasAllImportReceipts || hasIncompleteAdditionalCost || isReturnLocked ? (
                 <Alert
                     icon={<WarningAmberOutlinedIcon sx={{ color: '#dc2626' }} />}
                     severity="error"
@@ -2980,7 +3045,9 @@ export const MatchingActualsForm = ({
                         },
                     }}
                 >
-                    {hasIncompleteAdditionalCost ? (
+                    {isReturnLocked ? (
+                        <>Số liệu trả vé chưa thể đối chiếu vì phiếu trả vé chưa hoàn tất bàn giao. Vui lòng hoàn tất bàn giao phiếu trả trước khi xác nhận đối chiếu.</>
+                    ) : hasIncompleteAdditionalCost ? (
                         <>Vui lòng nhập đủ số tiền, loại và lý do cho mỗi chi phí phát sinh, hoặc xóa dòng chưa dùng.</>
                     ) : isActualPaidEmpty ? (
                         <>Vui lòng nhập Giá trị thực trả từ biên lai (tổng tiền trên biên lai đối soát NCC).</>
@@ -3025,7 +3092,9 @@ export const MatchingActualsForm = ({
             <Stack direction="row" justifyContent="flex-end" alignItems="center">
                 <Tooltip
                     title={
-                        !hasAllRequiredInputs
+                        isReturnLocked
+                            ? 'Vui lòng hoàn tất bàn giao phiếu trả vé trước khi đối chiếu số liệu trả'
+                            : !hasAllRequiredInputs
                             ? 'Vui lòng nhập đầy đủ các ô số liệu thực tế'
                             : isActualPaidEmpty
                             ? 'Vui lòng nhập Giá trị thực trả từ biên lai'

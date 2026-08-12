@@ -222,6 +222,7 @@ export const SupplierSettlementInspectPage = () => {
                         <MatchingActualsForm
                             settlement={settlement}
                             importBatches={importBatches}
+                            returnBatches={returnBatches}
                             adjustments={overview?.adjustments || []}
                             isSubmitting={confirmMatching.isPending}
                             onReceiptUploaded={() => {

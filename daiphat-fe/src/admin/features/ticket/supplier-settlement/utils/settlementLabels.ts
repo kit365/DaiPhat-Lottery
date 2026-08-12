@@ -142,6 +142,26 @@ export const getDetectedDiscrepancyTypes = (
     return [];
 };
 
+/** Return-batch has completed handover (Đã bàn giao) or a later terminal receive status. */
+export const isReturnBatchHandedOver = (status?: string | null): boolean =>
+    status === 'HANDED_OVER' || status === 'RECEIVED';
+
+/**
+ * Lock return matching until every non-cancelled related return-batch from BE
+ * has reached Đã bàn giao (or later). No open return-batch → not locked.
+ */
+export const isReturnReconciliationLocked = (
+    returnBatches?: Array<{ status?: string | null }> | null
+): boolean => {
+    const activeBatches = (returnBatches || []).filter(
+        (batch) => batch.status && batch.status !== 'CANCELLED'
+    );
+    if (activeBatches.length === 0) {
+        return false;
+    }
+    return activeBatches.some((batch) => !isReturnBatchHandedOver(batch.status));
+};
+
 export const getDiscrepancyItemLabel = (item: SettlementDiscrepancyItem): string => {
     const diff = Number(item.difference ?? 0);
     const signed = `${diff > 0 ? '+' : ''}${item.unit === 'VND' ? diff.toLocaleString('vi-VN') : diff.toLocaleString('vi-VN')}`;
