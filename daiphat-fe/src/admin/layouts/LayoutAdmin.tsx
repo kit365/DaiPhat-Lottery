@@ -9,8 +9,6 @@ import { adminTheme } from "../config/theme";
 import '../styles/index.css';
 import { useSidebar } from "../context/sidebar/useSidebar";
 import { SidebarProvider } from "../context/sidebar/SidebarProvider";
-import { useAuthStore } from "../../stores/useAuthStore";
-import { usePrefetchAdminPagesWhenIdle } from "../hooks/usePrefetchAdminPagesWhenIdle";
 import { SocketProvider } from "../context/SocketContext";
 import { AdminProviders } from "../providers/AdminProviders";
 import { NavigationProgressBar } from "../components/ui/NavigationProgressBar";
@@ -20,11 +18,8 @@ import { SpinnerLoading } from "../components/ui/SpinnerLoading";
 import { useAdminLoginSuccessToast } from "../features/auth/hooks/useAdminLoginSuccessToast";
 
 const LayoutAdminContent = ({ children }: { children?: React.ReactNode }) => {
-    const { user, token } = useAuthStore();
     const { isOpen } = useSidebar();
     useAdminLoginSuccessToast();
-
-    usePrefetchAdminPagesWhenIdle(!!user && !!token);
 
     return (
         <div className="flex min-h-screen bg-white overflow-x-hidden w-full max-w-full">

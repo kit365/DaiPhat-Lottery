@@ -3,6 +3,7 @@
 import { ROUTES } from './routes';
 import { registerAdminPageChunkLoader } from '../lib/adminPagePrefetchRegistry';
 
+<<<<<<< HEAD
 /**
  * Small, stable set of high-traffic destinations warmed after the admin shell
  * becomes idle. Keep this list intentionally short; sidebar hover handles the
@@ -15,6 +16,8 @@ export const ADMIN_PREFETCH_ROUTE_PRIORITY = [
     ROUTES.ADMIN.IMPORT_BATCH.LIST,
 ] as const;
 
+=======
+>>>>>>> 7736d5a3 ([DP-8] fix: remove idle admin prefetch hook.)
 /** Map route → dynamic import chunk, dùng khi hover sidebar / sau login. */
 const registerAdminPageChunkLoaders = () => {
     const loaders: Array<[string, () => Promise<unknown>]> = [
