@@ -228,10 +228,9 @@ export const ProfilePage = () => {
     };
 
     const onSubmit = (data: zod.infer<typeof accountAdminSchema>) => {
-        const payload = {
-            ...data,
-        };
-        delete payload.avatar;
+        // Avatar is uploaded separately; omit the nullable form field from the
+        // profile update payload instead of passing `null` to the API contract.
+        const { avatar: _avatar, ...payload } = data;
 
         update({ id: id!, data: payload }, {
             onSuccess: () => {
