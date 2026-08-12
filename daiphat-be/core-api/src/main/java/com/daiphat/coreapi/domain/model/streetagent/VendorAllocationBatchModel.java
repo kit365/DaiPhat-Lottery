@@ -201,8 +201,14 @@ public class VendorAllocationBatchModel {
     }
 
     public void confirmReturnedSerials(Collection<Long> rejectedSerialIds, LocalDateTime returnedAt) {
-        Map<Long, String> reasons = rejectedSerialIds == null ? Map.of() : rejectedSerialIds.stream()
-                .collect(java.util.stream.Collectors.toMap(id -> id, ignored -> "Từ chối khi kiểm nhận"));
+        Map<Long, String> reasons = new LinkedHashMap<>();
+        if (rejectedSerialIds != null) {
+            for (Long id : rejectedSerialIds) {
+                if (id == null || reasons.putIfAbsent(id, "Từ chối khi kiểm nhận") != null) {
+                    throw new DomainException(ErrorCode.VENDOR_ALLOCATION_RETURN_SERIAL_INVALID);
+                }
+            }
+        }
         confirmReturnedSerials(reasons, returnedAt);
     }
 
@@ -230,6 +236,20 @@ public class VendorAllocationBatchModel {
                         serial.returnFromStreetAgent(returnedAt);
                     }
                 });
+        recalculateQuantities();
+    }
+
+    /**
+     * Closes an inspection when the vendor explicitly confirms that no ticket was returned.
+     * Keeping this separate from normal inspection prevents an empty request from being
+     * mistaken for a successful physical receipt.
+     */
+    public void confirmNoReturnedTickets() {
+        if (status != AllocationBatchStatus.RETURN_OPEN
+                || serials == null || serials.isEmpty()
+                || serials.stream().anyMatch(serial -> serial.getStatus() != AllocationSerialStatus.HANDED_OVER)) {
+            throw new DomainException(ErrorCode.VENDOR_ALLOCATION_INVALID_STATE);
+        }
         recalculateQuantities();
     }
 

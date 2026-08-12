@@ -7,7 +7,11 @@ import { SortAscendingIcon, SortDescendingIcon, UnsortedIcon } from '../../../..
 import { useDataGridLocale } from '../../../../hooks/useDataGridLocale';
 import { useSettings } from '../../../../shared/data-grid';
 import { columnsConfig, columnsInitialState } from '../configs/column.config';
-import { dataGridStyles } from '../../../../shared/data-grid';
+import {
+    adminDataGridRowHeightProps,
+    adminDataGridRowHeightSx,
+    dataGridStyles,
+} from '../../../../shared/data-grid';
 import { DrawResultToolbar } from './DrawResultToolbar';
 
 export const DrawResultList = ({
@@ -72,7 +76,10 @@ export const DrawResultList = ({
                         disableColumnMenu
                         disableColumnSorting
                         className="admin-datagrid"
-                        sx={dataGridStyles}
+                        sx={{
+                            ...dataGridStyles,
+                            ...adminDataGridRowHeightSx,
+                        } as import('@mui/material/styles').SxProps<import('@mui/material/styles').Theme>}
                         slots={{
                             toolbar: DrawResultToolbar as any,
                             noRowsOverlay: () => (
@@ -114,7 +121,7 @@ export const DrawResultList = ({
                         sortingMode="client"
                         loading={isLoading}
                         initialState={columnsInitialState}
-                        getRowHeight={() => 'auto'}
+                        {...adminDataGridRowHeightProps}
                         disableRowSelectionOnClick
                     />
                 )}

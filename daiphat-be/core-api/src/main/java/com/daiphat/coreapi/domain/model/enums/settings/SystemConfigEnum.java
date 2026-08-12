@@ -377,6 +377,16 @@ public enum SystemConfigEnum {
             "{\"min\":\"00:00\",\"max\":\"23:59\"}",
             true
     ),
+    VENDOR_EFFECTIVE_HANDOVER_DEADLINE_RULE(
+            ConfigType.VENDOR_SETTING,
+            DataType.STRING,
+            "Tự tính theo từng phiếu",
+            "Hạn giao thực tế không phải setting cố định. Hệ thống lấy mốc sớm hơn giữa giờ chốt người bán và giờ trả nhà cung cấp sớm nhất trừ thời gian đệm.",
+            "Cách tính hạn giao thực tế",
+            null,
+            "{\"allowEmpty\":false,\"maxLength\":255}",
+            false
+    ),
     VENDOR_COMMISSION_RATE(
             ConfigType.VENDOR_SETTING,
             DataType.DECIMAL,

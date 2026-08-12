@@ -21,6 +21,7 @@ import com.daiphat.coreapi.application.port.in.payout.PrizePayoutStaffServicePor
 import com.daiphat.coreapi.application.port.out.file.StoragePort;
 import com.daiphat.coreapi.application.port.out.lotteries.LotteryTicketSerialRepositoryPort;
 import com.daiphat.coreapi.application.port.out.payout.PrizePayoutRequestRepositoryPort;
+import com.daiphat.coreapi.application.port.out.order.TransactionRepositoryPort;
 import com.daiphat.coreapi.application.port.out.refund.UserBankAccountRepositoryPort;
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
@@ -29,8 +30,12 @@ import com.daiphat.coreapi.domain.model.enums.order.TicketDrawResultStatus;
 import com.daiphat.coreapi.domain.model.enums.payout.PrizePayoutChannel;
 import com.daiphat.coreapi.domain.model.enums.payout.PrizePayoutPaymentMethod;
 import com.daiphat.coreapi.domain.model.enums.payout.PrizePayoutRequestStatus;
+import com.daiphat.coreapi.domain.model.enums.transaction.TransactionBusinessType;
+import com.daiphat.coreapi.domain.model.enums.transaction.TransactionStatus;
+import com.daiphat.coreapi.domain.model.enums.transaction.TransactionType;
 import com.daiphat.coreapi.domain.model.lotteries.LotteryTicketSerialModel;
 import com.daiphat.coreapi.domain.model.payout.PrizePayoutRequestModel;
+import com.daiphat.coreapi.domain.model.orders.TransactionModel;
 import com.daiphat.coreapi.domain.model.refund.UserBankAccountModel;
 import com.daiphat.coreapi.infrastructure.persistence.entity.lotteries.LotteryTicketSerialEntity;
 import com.daiphat.coreapi.infrastructure.persistence.entity.order.OrderDetailEntity;
@@ -65,6 +70,7 @@ import java.util.UUID;
 public class PrizePayoutStaffService implements PrizePayoutStaffServicePort {
 
     private final PrizePayoutRequestRepositoryPort prizePayoutRequestRepositoryPort;
+    private final TransactionRepositoryPort transactionRepositoryPort;
     private final PrizePayoutEligibilityService prizePayoutEligibilityService;
     private final PrizePayoutCalculationService prizePayoutCalculationService;
     private final PrizePayoutSerialLockService prizePayoutSerialLockService;
@@ -601,9 +607,37 @@ public class PrizePayoutStaffService implements PrizePayoutStaffServicePort {
 
         model.markCompleted(staffId, method, request.transferEvidenceUrl());
         PrizePayoutRequestModel saved = prizePayoutRequestRepositoryPort.save(model);
+        recordPrizePayoutTransactions(saved, staffId);
         prizePayoutSerialLockService.markPaidOut(saved.getSerialId());
         publishStatusChanged(saved);
         return toResponse(saved.getId(), staffId);
+    }
+
+    private void recordPrizePayoutTransactions(PrizePayoutRequestModel payout, UUID staffId) {
+        recordPrizePayoutTransaction(payout, payout.getCashAmount(), TransactionType.OFFLINE, staffId);
+        recordPrizePayoutTransaction(payout, payout.getTransferAmount(), TransactionType.ONLINE, staffId);
+    }
+
+    private void recordPrizePayoutTransaction(
+            PrizePayoutRequestModel payout,
+            BigDecimal amount,
+            TransactionType type,
+            UUID staffId
+    ) {
+        if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
+            return;
+        }
+        transactionRepositoryPort.save(TransactionModel.builder()
+                .prizePayoutRequestId(payout.getId())
+                .amount(amount)
+                .type(type)
+                .transactionType(TransactionBusinessType.PRIZE_PAYOUT)
+                .status(TransactionStatus.COMPLETED)
+                .paidAt(payout.getCompletedAt())
+                .paymentBy(staffId)
+                .paymentEvidenceUrl(type == TransactionType.ONLINE ? payout.getTransferEvidenceUrl() : null)
+                .note("Trả thưởng " + payout.getRequestCode())
+                .build());
     }
 
     @Override

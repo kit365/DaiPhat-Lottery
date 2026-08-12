@@ -104,3 +104,31 @@ export const getTabBadgeStyles = (statusOrVariant: string, isSelected: boolean) 
         transition: 'all 0.2s'
     };
 };
+
+/** Badge đếm trên icon (Header thông báo, số lượng vé, v.v.). */
+export const adminCountBadgeSx = {
+    '& .MuiBadge-badge': {
+        backgroundColor: '#FF5630',
+        color: '#FFFFFF',
+        fontWeight: 700,
+        fontSize: '0.65rem',
+        minWidth: 18,
+        height: 18,
+        padding: '0 5px',
+        borderRadius: '9px',
+        boxShadow: '0 2px 6px rgba(255, 86, 48, 0.35)',
+    },
+} as const;
+
+export const getMetricChipSx = (variant: Extract<BadgeColorVariant, 'success' | 'info'>) => {
+    const colors = BADGE_COLOR_PALETTE[variant].unselected;
+
+    return {
+        height: 26,
+        fontWeight: 700,
+        fontSize: '0.75rem',
+        bgcolor: colors.bg,
+        color: colors.text,
+        border: 'none',
+    };
+};

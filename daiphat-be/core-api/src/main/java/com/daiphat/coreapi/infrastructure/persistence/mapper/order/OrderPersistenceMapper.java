@@ -3,6 +3,8 @@ package com.daiphat.coreapi.infrastructure.persistence.mapper.order;
 import com.daiphat.coreapi.domain.model.orders.OrderDetailModel;
 import com.daiphat.coreapi.domain.model.orders.OrderModel;
 import com.daiphat.coreapi.domain.model.orders.TransactionModel;
+import com.daiphat.coreapi.domain.model.enums.transaction.TransactionBusinessType;
+import com.daiphat.coreapi.domain.model.enums.transaction.TransactionType;
 import com.daiphat.coreapi.infrastructure.persistence.entity.lotteries.LotteryTicketEntity;
 import com.daiphat.coreapi.infrastructure.persistence.entity.lotteries.LotteryTicketSerialEntity;
 import com.daiphat.coreapi.infrastructure.persistence.entity.order.OrderDetailEntity;
@@ -167,6 +169,9 @@ public class OrderPersistenceMapper {
         entity.setPaymentEvidenceUrl(model.getPaymentEvidenceUrl());
         entity.setPaymentBy(userRef(model.getPaymentBy()));
         entity.setNote(model.getNote());
+        entity.setTransactionType(model.getTransactionType() != null
+                ? model.getTransactionType()
+                : inferredBusinessType(model.getType()));
         entity.setType(model.getType());
         entity.setCreatedAt(model.getCreatedAt());
         entity.setUpdatedAt(model.getUpdatedAt());
@@ -193,12 +198,21 @@ public class OrderPersistenceMapper {
                 .paymentEvidenceUrl(entity.getPaymentEvidenceUrl())
                 .paymentBy(userId(entity.getPaymentBy()))
                 .note(entity.getNote())
+                .transactionType(entity.getTransactionType() != null
+                        ? entity.getTransactionType()
+                        : inferredBusinessType(entity.getType()))
                 .type(entity.getType())
                 .createdAt(entity.getCreatedAt())
                 .updatedAt(entity.getUpdatedAt())
                 .createdBy(entity.getCreatedBy())
                 .lastModifiedBy(entity.getLastModifiedBy())
                 .build();
+    }
+
+    private TransactionBusinessType inferredBusinessType(TransactionType paymentType) {
+        return paymentType == TransactionType.REFUND
+                ? TransactionBusinessType.ORDER_REFUND
+                : TransactionBusinessType.ORDER_PAYMENT;
     }
 
     private UserEntity userRef(UUID userId) {

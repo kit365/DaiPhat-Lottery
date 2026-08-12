@@ -63,6 +63,7 @@ export const Header = () => {
     const { user, logout: logoutStore } = useAuthStore();
     const [anchorElUser, setAnchorElUser] = useState<HTMLButtonElement | null>(null);
     const [hoveredItem, setHoveredItem] = useState<string | null>(null);
+    const [isLoggingOut, setIsLoggingOut] = useState(false);
 
     const handleOpenUser = (event: React.MouseEvent<HTMLButtonElement>) => {
         setAnchorElUser(event.currentTarget);
@@ -73,19 +74,24 @@ export const Header = () => {
     };
 
     const handleLogout = async () => {
+        if (isLoggingOut) {
+            return;
+        }
+
+        setIsLoggingOut(true);
+
         try {
-            // Clear local state immediately for better UX
+            await authService.logout();
+        } catch (error) {
+            console.error("Logout error:", error);
+        } finally {
             logoutStore();
             Cookies.remove(STORAGE_KEYS.TOKEN, { path: '/' });
             Cookies.remove(STORAGE_KEYS.REFRESH_TOKEN, { path: '/' });
+            handleCloseUser();
             toast.success("Đăng xuất thành công!");
-            router.push(ROUTES.ADMIN.AUTH.LOGIN);
-
-            // Attempt server-side logout (browser sends HttpOnly cookie automatically)
-            await authService.logout();
-        } catch (error) {
-            console.error("Logout error (non-blocking):", error);
-            // We don't block the UI here since local state is already cleared
+            router.replace(ROUTES.ADMIN.AUTH.LOGIN);
+            setIsLoggingOut(false);
         }
     };
 
@@ -306,19 +312,26 @@ export const Header = () => {
                                         whileHover={{ x: 4, filter: 'brightness(1.05)' }}
                                         transition={{ type: "spring", stiffness: 400, damping: 20 }}
                                     >
-                                        <MenuItem 
-                                            onClick={handleLogout} 
-                                            sx={{ 
+                                        <Button
+                                            fullWidth
+                                            variant="text"
+                                            color="error"
+                                            loading={isLoggingOut}
+                                            loadingLabel="Đang đăng xuất..."
+                                            onClick={handleLogout}
+                                            startIcon={<Icon icon="solar:logout-3-bold-duotone" width={20} />}
+                                            sx={{
+                                                justifyContent: 'flex-start',
                                                 borderRadius: '8px',
-                                                typography: 'body2',
                                                 fontWeight: 700,
                                                 color: 'var(--palette-error-main)',
-                                                '&:hover': { bgcolor: 'var(--palette-error-lighter)' }
+                                                px: 1.5,
+                                                py: 1,
+                                                '&:hover': { bgcolor: 'var(--palette-error-lighter)' },
                                             }}
                                         >
-                                            <Icon icon="solar:logout-3-bold-duotone" width={20} style={{ marginRight: '12px' }} />
                                             Đăng xuất
-                                        </MenuItem>
+                                        </Button>
                                     </motion.div>
                                 </Box>
                             </motion.div>

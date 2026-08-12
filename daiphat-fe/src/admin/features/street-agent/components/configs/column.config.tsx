@@ -10,6 +10,7 @@ import Stack from "@mui/material/Stack";
 import { AdminRowActionsMenu } from "../../../../components/ui/AdminRowActionsMenu";
 import { STATUS_LABELS } from "./constants";
 import { formatCoverageAreaDisplay } from "../../constants/coverageAreas";
+import { formatVendorHandoverLimit } from "../../utils/format";
 
 export const getColumnsConfig = (
     onEdit: (id: number) => void,
@@ -82,12 +83,12 @@ export const getColumnsConfig = (
     },
     {
         field: "effectiveDailyCap",
-        headerName: "Hạn mức hiện hành",
+        headerName: "Giới hạn giao hiện tại",
         minWidth: 160,
         width: 160,
         headerAlign: "center",
         align: "center",
-        valueFormatter: (value) => value ?? "—",
+        valueFormatter: (value) => formatVendorHandoverLimit(value),
     },
     {
         field: "contractCode",

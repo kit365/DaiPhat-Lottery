@@ -4,9 +4,9 @@ import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
 import { useAppSearchParams } from "@/hooks/useAppSearchParams";
 import { useEffect, useMemo, useState } from "react";
 import {
-    Alert, Autocomplete, Box, Card, Dialog, DialogActions, DialogContent,
-    DialogTitle, Drawer, FormControl, IconButton, InputLabel, MenuItem, Paper,
-    Select, Stack, TextField, Typography,
+    Alert, Box, Card, Dialog, DialogActions, DialogContent,
+    DialogTitle, Drawer, IconButton, Paper,
+    Stack, TextField, Typography,
 } from "@mui/material";
 import { DataGrid } from "@mui/x-data-grid";
 import { SortAscendingIcon, SortDescendingIcon, UnsortedIcon } from "../../../../assets/icons";
@@ -45,9 +45,6 @@ import {
     VendorAllocationBatch,
 } from "../../types/street-agent.type";
 import {
-    ALLOCATION_BATCH_STATUS_FILTER_OPTIONS,
-} from "../configs/constants";
-import {
     getVendorAllocationBatchColumns,
     vendorAllocationBatchColumnsInitialState,
 } from "../configs/vendorAllocationBatchColumns";
@@ -56,23 +53,22 @@ import {
     formatCurrency,
 } from "../../utils/format";
 import { ConfirmVendorDepositDialog } from "../ConfirmVendorDepositDialog";
-import { AdminDatePicker } from "../../../../components/ui/AdminDatePicker";
 import {
     VendorBatchInfoSection,
     VendorBatchDepositSnapshotSection,
     VendorSettlementBreakdown,
     VendorSettlementConfirmationSummary,
 } from "../sections/VendorBatchDrawerSections";
-
-const fieldSx = {
-    "& .MuiOutlinedInput-root": {
-        borderRadius: "var(--shape-borderRadius)",
-        fontSize: "0.875rem",
-    },
-};
+import dayjs from "dayjs";
 
 const getApiErrorMessage = (error: any, fallback: string) =>
     error?.response?.data?.message || fallback;
+
+const parseDisplayDateToIso = (dateStr: string) => {
+    if (!dateStr) return undefined;
+    const parsed = dayjs(dateStr, "DD/MM/YYYY", true);
+    return parsed.isValid() ? parsed.format("YYYY-MM-DD") : undefined;
+};
 
 const profileLabel = (p?: StreetAgentProfile | null) => {
     if (!p) return "—";
@@ -154,8 +150,8 @@ export const VendorAllocationBatchListPage = () => {
         search: search || undefined,
         profileId: profile?.id,
         status: status || undefined,
-        businessDateFrom: businessDateFrom || undefined,
-        businessDateTo: businessDateTo || undefined,
+        businessDateFrom: parseDisplayDateToIso(businessDateFrom),
+        businessDateTo: parseDisplayDateToIso(businessDateTo),
     };
 
     const { data: listData, isLoading, error: listError, refetch } = useVendorAllocationBatches(listParams);
@@ -393,76 +389,6 @@ export const VendorAllocationBatchListPage = () => {
                 </Button>
             </div>
 
-            <Card
-                sx={{
-                    p: 3,
-                    mb: 3,
-                    borderRadius: "var(--shape-borderRadius-lg)",
-                    boxShadow: "var(--customShadows-card)",
-                }}
-            >
-                <Box
-                    sx={{
-                        display: "grid",
-                        gridTemplateColumns: { xs: "1fr", md: "2fr 1fr 1fr 1fr" },
-                        gap: 2,
-                    }}
-                >
-                    <Autocomplete
-                        options={profiles}
-                        loading={isLoadingProfiles}
-                        value={profile}
-                        onChange={(_e, value) => {
-                            setProfile(value);
-                            setPage(1);
-                        }}
-                        getOptionLabel={profileLabel}
-                        isOptionEqualToValue={(a, b) => a.id === b.id}
-                        loadingText="Đang tải danh sách…"
-                        noOptionsText="Không tìm thấy người bán vé số"
-                        renderInput={(params) => (
-                            <TextField {...params} label="Người bán vé số" sx={fieldSx} />
-                        )}
-                    />
-                    <FormControl fullWidth size="small">
-                        <InputLabel>Trạng thái</InputLabel>
-                        <Select
-                            label="Trạng thái"
-                            value={status}
-                            onChange={(e) => {
-                                setStatus(e.target.value);
-                                setPage(1);
-                            }}
-                        >
-                            <MenuItem value="">Tất cả</MenuItem>
-                            {ALLOCATION_BATCH_STATUS_FILTER_OPTIONS.map((opt) => (
-                                <MenuItem key={opt.value} value={opt.value}>
-                                    {opt.label}
-                                </MenuItem>
-                            ))}
-                        </Select>
-                    </FormControl>
-                    <AdminDatePicker
-                        label="Từ ngày"
-                        value={businessDateFrom}
-                        onChange={(value) => {
-                            setBusinessDateFrom(value);
-                            setPage(1);
-                        }}
-                        max={businessDateTo || undefined}
-                    />
-                    <AdminDatePicker
-                        label="Đến ngày"
-                        value={businessDateTo}
-                        onChange={(value) => {
-                            setBusinessDateTo(value);
-                            setPage(1);
-                        }}
-                        min={businessDateFrom || undefined}
-                    />
-                </Box>
-            </Card>
-
             {listError && (
                 <Alert
                     severity="error"
@@ -513,6 +439,26 @@ export const VendorAllocationBatchListPage = () => {
                                 search,
                                 onSearchChange: (value: string) => {
                                     setSearch(value);
+                                    setPage(1);
+                                },
+                                profiles,
+                                isLoadingProfiles,
+                                profile,
+                                onProfileChange: (value: StreetAgentProfile | null) => {
+                                    setProfile(value);
+                                    setPage(1);
+                                },
+                                getProfileLabel: profileLabel,
+                                status,
+                                onStatusChange: (value: string) => {
+                                    setStatus(value);
+                                    setPage(1);
+                                },
+                                businessDateFrom,
+                                businessDateTo,
+                                onBusinessDateRangeChange: ({ startDate, endDate }: { startDate: string; endDate: string }) => {
+                                    setBusinessDateFrom(startDate);
+                                    setBusinessDateTo(endDate);
                                     setPage(1);
                                 },
                             } as any,

@@ -3,6 +3,7 @@ import { ApiResponse, PageResponse } from '../../../../types/api.type';
 import {
     ConfirmVendorAllocationPayload,
     ConfirmVendorReturnInspectionPayload,
+    ConfirmVendorNoReturnPayload,
     CreateVendorAllocationDraftPayload,
     ReturnVendorAllocationSerialsPayload,
     VendorAllocationBatch,
@@ -143,6 +144,14 @@ export const confirmVendorReturnInspection = async (
     data: ConfirmVendorReturnInspectionPayload
 ): Promise<ApiResponse<VendorAllocationBatch>> => {
     const response = await apiApp.post(`${BASE_URL}/${id}/return-inspection/confirm`, data);
+    return response.data;
+};
+
+export const confirmVendorNoReturn = async (
+    id: number | string,
+    data: ConfirmVendorNoReturnPayload = {}
+): Promise<ApiResponse<VendorAllocationBatch>> => {
+    const response = await apiApp.post(`${BASE_URL}/${id}/return-inspection/confirm-no-return`, data);
     return response.data;
 };
 

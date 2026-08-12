@@ -69,27 +69,7 @@ CREATE TABLE IF NOT EXISTS users (
     CONSTRAINT fk_users_role FOREIGN KEY (role_id) REFERENCES roles(id)
 );
 
-CREATE TABLE IF NOT EXISTS staff_invites (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    email VARCHAR(100) NOT NULL UNIQUE,
-    role_id UUID NOT NULL,
-    status VARCHAR(20) NOT NULL,
-    token VARCHAR(255) NOT NULL UNIQUE,
-    invited_by_id UUID,
-    invited_at TIMESTAMP,
-    approved_at TIMESTAMP,
-    expires_at TIMESTAMP NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    created_by VARCHAR(100) DEFAULT 'SYSTEM',
-    last_modified_by VARCHAR(100) DEFAULT 'SYSTEM',
-    deleted_at TIMESTAMP,
-    CONSTRAINT fk_staff_invites_role FOREIGN KEY (role_id) REFERENCES roles(id) ON DELETE CASCADE
-);
-
 CREATE INDEX IF NOT EXISTS idx_users_role_id ON users(role_id);
-CREATE INDEX IF NOT EXISTS idx_staff_invites_email_status ON staff_invites(email, status);
-CREATE INDEX IF NOT EXISTS idx_staff_invites_token ON staff_invites(token);
 
 -- Seed static auth roles.
 -- Do not put secret-bearing records here. User/admin credentials must be seeded by application code from env.

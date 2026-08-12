@@ -4,12 +4,13 @@ import com.daiphat.coreapi.application.dto.request.streetagent.CreateVendorAlloc
 import com.daiphat.coreapi.application.dto.request.streetagent.ConfirmVendorAllocationRequest;
 import com.daiphat.coreapi.application.dto.request.streetagent.ReturnVendorAllocationSerialsRequest;
 import com.daiphat.coreapi.application.dto.request.streetagent.ConfirmVendorReturnInspectionRequest;
+import com.daiphat.coreapi.application.dto.request.streetagent.ConfirmVendorNoReturnRequest;
 import com.daiphat.coreapi.application.dto.request.streetagent.RejectedVendorReturnSerialRequest;
 import com.daiphat.coreapi.application.port.in.streetagent.VendorSettlementProjectionServicePort;
 import com.daiphat.coreapi.application.port.in.lotteries.LotteryTicketAggregateSyncUseCase;
 import com.daiphat.coreapi.application.port.out.lotteries.ReturnBatchRepositoryPort;
 import com.daiphat.coreapi.application.port.out.settings.SystemConfigRepositoryPort;
-import com.daiphat.coreapi.application.port.out.streetagent.AgentDepositTransactionRepositoryPort;
+import com.daiphat.coreapi.application.port.out.streetagent.VendorDepositTransactionRepositoryPort;
 import com.daiphat.coreapi.application.port.out.streetagent.StreetAgentProfileRepositoryPort;
 import com.daiphat.coreapi.application.port.out.streetagent.VendorAllocationRepositoryPort;
 import com.daiphat.coreapi.domain.exception.DomainException;
@@ -20,6 +21,7 @@ import com.daiphat.coreapi.domain.model.enums.streetagent.AllocationBatchStatus;
 import com.daiphat.coreapi.domain.model.enums.streetagent.StreetAgentProfileStatus;
 import com.daiphat.coreapi.domain.model.enums.streetagent.VendorConfidenceTier;
 import com.daiphat.coreapi.domain.model.enums.streetagent.VendorLateReturnPolicy;
+import com.daiphat.coreapi.domain.model.enums.transaction.TransactionBusinessType;
 import com.daiphat.coreapi.domain.model.enums.settings.SystemConfigEnum;
 import com.daiphat.coreapi.domain.model.enums.lottery.TicketCondition;
 import com.daiphat.coreapi.domain.model.settings.SystemConfigModel;
@@ -53,7 +55,7 @@ class VendorAllocationServiceTest {
     private SystemConfigRepositoryPort systemConfigRepositoryPort;
     private VendorSettlementProjectionServicePort projectionServicePort;
     private LotteryTicketAggregateSyncUseCase ticketAggregateSyncUseCase;
-    private AgentDepositTransactionRepositoryPort depositTransactionRepositoryPort;
+    private VendorDepositTransactionRepositoryPort depositTransactionRepositoryPort;
     private ReturnBatchRepositoryPort returnBatchRepositoryPort;
     private VendorAllocationService service;
 
@@ -66,7 +68,7 @@ class VendorAllocationServiceTest {
         systemConfigRepositoryPort = mock(SystemConfigRepositoryPort.class);
         projectionServicePort = mock(VendorSettlementProjectionServicePort.class);
         ticketAggregateSyncUseCase = mock(LotteryTicketAggregateSyncUseCase.class);
-        depositTransactionRepositoryPort = mock(AgentDepositTransactionRepositoryPort.class);
+        depositTransactionRepositoryPort = mock(VendorDepositTransactionRepositoryPort.class);
         returnBatchRepositoryPort = mock(ReturnBatchRepositoryPort.class);
         when(projectionServicePort.projectOnSettle(any(), any(), any(), any(), any()))
                 .thenReturn(new VendorSettlementProjectionServicePort.ProjectionLinks(1L, 2L));
@@ -166,6 +168,12 @@ class VendorAllocationServiceTest {
         assertThat(response.status()).isEqualTo(AllocationBatchStatus.CONFIRMED.name());
         assertThat(response.depositReceivedAmount()).isEqualByComparingTo("90000");
         assertThat(response.depositBalanceAfter()).isEqualByComparingTo("90000");
+        var transactionCaptor = org.mockito.ArgumentCaptor.forClass(
+                VendorDepositTransactionRepositoryPort.DepositTransaction.class);
+        verify(depositTransactionRepositoryPort).record(transactionCaptor.capture());
+        assertThat(transactionCaptor.getValue().transactionType())
+                .isEqualTo(TransactionBusinessType.VENDOR_DEPOSIT);
+        assertThat(transactionCaptor.getValue().amount()).isEqualByComparingTo("90000");
         // Held balance while batch is open must not be treated as legacy on next gate:
         when(profileRepositoryPort.findById(7L)).thenReturn(Optional.of(
                 eligibleProfileBuilder().depositBalance(new BigDecimal("90000")).build()));
@@ -595,8 +603,35 @@ class VendorAllocationServiceTest {
         assertThat(rejected.getStatus().name()).isEqualTo("RETURN_REJECTED");
         assertThat(rejected.getReturnRejectionReason()).isEqualTo("Rách vé");
         assertThat(response.returnWorkflow()).extracting(
-                workflow -> workflow.stage(), workflow -> workflow.acceptedReturnQuantity(), workflow -> workflow.rejectedReturnQuantity())
-                .containsExactly("READY_FOR_SETTLEMENT", 1, 1);
+                workflow -> workflow.stage(), workflow -> workflow.acceptedReturnQuantity(),
+                workflow -> workflow.rejectedReturnQuantity(), workflow -> workflow.unreturnedQuantity())
+                .containsExactly("READY_FOR_SETTLEMENT", 1, 1, 1);
+    }
+
+    @Test
+    void explicit_no_return_confirmation_allows_vendor_who_sold_everything_to_settle() {
+        VendorAllocationBatchModel batch = draftBatch(99L);
+        batch.confirmHandover(LocalDateTime.now(), BigDecimal.valueOf(9000), new BigDecimal("0.10"),
+                VendorLateReturnPolicy.FORFEIT_DEPOSIT, LocalTime.of(15, 0), BigDecimal.valueOf(900), BigDecimal.ZERO,
+                UUID.randomUUID());
+        batch.openReturnSession();
+
+        ReturnBatchModel receipt = returnReceipt(1L, ReturnBatchStatus.PENDING_INSPECTION);
+        when(allocationRepositoryPort.findByIdForUpdate(99L)).thenReturn(Optional.of(batch));
+        when(allocationRepositoryPort.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(returnBatchRepositoryPort.findStreetAgentByAllocationBatchId(99L)).thenReturn(Optional.of(receipt));
+        when(returnBatchRepositoryPort.findLinesByBatchId(1L)).thenReturn(List.of(
+                ReturnBatchLineModel.builder().id(11L).lotteryStationId(1L).build()));
+
+        var response = service.confirmNoReturnedTickets(99L,
+                new ConfirmVendorNoReturnRequest(null), UUID.randomUUID());
+
+        assertThat(receipt.getStatus()).isEqualTo(ReturnBatchStatus.RECEIVED);
+        assertThat(batch.getSerials()).allMatch(serial -> serial.getStatus().name().equals("HANDED_OVER"));
+        assertThat(response.returnWorkflow()).extracting(
+                workflow -> workflow.stage(), workflow -> workflow.unreturnedQuantity(),
+                workflow -> workflow.canPreviewSettlement(), workflow -> workflow.canSettle())
+                .containsExactly("READY_FOR_SETTLEMENT", 1, true, true);
     }
 
     @Test

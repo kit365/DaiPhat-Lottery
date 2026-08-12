@@ -2,7 +2,7 @@
 
 import { useAppSearchParams } from "@/hooks/useAppSearchParams";
 import Link from "@/admin/components/navigation/AdminLink";
-import { useEffect, useMemo, useState } from "react";
+import { ReactNode, useEffect, useMemo, useState } from "react";
 import { useSidebar } from "../../../../context/sidebar/useSidebar";
 import {
     Alert,
@@ -26,6 +26,7 @@ import {
     TextField,
     ToggleButton,
     ToggleButtonGroup,
+    Tooltip,
     Typography,
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
@@ -59,9 +60,11 @@ import {
     CONFIDENCE_TIER_LABELS,
 } from "../configs/constants";
 import { formatCountdown, formatCurrency, formatDate } from "../../utils/format";
+import { getMetricChipSx } from "@/admin/utils/badge";
 import { useVendorSettingsDefaults } from "../../hooks/useVendorSettingsDefaults";
 import { ConfirmVendorDepositDialog } from "../ConfirmVendorDepositDialog";
 import { AdminTicketCard } from "../../../../components/ui/AdminTicketCard";
+import { StationCapacityBadges } from "../sections/StationCapacityBadges";
 import { AdminDatePicker } from "../../../../components/ui/AdminDatePicker";
 import { VendorAllocationStationDrawer } from "../sections/VendorAllocationStationDrawer";
 
@@ -74,6 +77,11 @@ const fieldSx = {
 
 type TicketKey = string;
 type AllocationSelectionMode = "SYSTEM" | "MANUAL";
+
+const ALLOCATION_SELECTION_MODE_OPTIONS: { value: AllocationSelectionMode; label: string }[] = [
+    { value: "SYSTEM", label: "Tự động" },
+    { value: "MANUAL", label: "Thủ công" },
+];
 
 const ticketKey = (stationId: number, ticketNumbers: string): TicketKey =>
     `${stationId}::${ticketNumbers}`;
@@ -95,8 +103,8 @@ const getApiErrorMessage = (error: any, fallback: string) => {
 };
 
 const SHORTAGE_REASON_LABELS: Record<string, string> = {
-    DAILY_CAP_LIMIT: "Đã dùng hết số vé được phép giao trong ngày.",
-    DAILY_CAP_EXHAUSTED: "Đã dùng hết số vé được phép giao trong ngày.",
+    DAILY_CAP_LIMIT: "Phiếu đang mở đã đạt giới hạn giao vé.",
+    DAILY_CAP_EXHAUSTED: "Phiếu đang mở đã đạt giới hạn giao vé.",
     INSUFFICIENT_STATION_CAPACITY: "Kho không đủ vé thường sau khi chừa phần bán tại quầy.",
     NO_DRAWING_STATION: "Ngày này không có đài xổ phù hợp.",
     NO_ELIGIBLE_TICKET: "Không còn vé hợp lệ để giao.",
@@ -163,8 +171,8 @@ const mapReasonDetail = (detail: NonNullable<VendorAllocationSuggestion["reasonD
         case "DAILY_CAP_LIMIT":
         case "DAILY_CAP_EXHAUSTED":
             return detail.remainingDailyCap == null || detail.remainingDailyCap <= 0
-                ? "Đã dùng hết số vé được phép giao trong ngày. Hôm nay không thể giao thêm vé."
-                : `Hôm nay người bán vé số chỉ còn được giao ${detail.remainingDailyCap} vé.`;
+                ? "Phiếu đang mở đã đạt giới hạn giao vé. Hoàn tất hoặc hủy phiếu này trước khi tạo phiếu mới."
+                : `Phiếu đang mở chỉ còn có thể thêm ${detail.remainingDailyCap} vé.`;
         case "INSUFFICIENT_STATION_CAPACITY":
             if (detail.requestedQuantity != null && detail.vendorCapacity != null) {
                 return `Kho chỉ có thể giao ${detail.vendorCapacity}/${detail.requestedQuantity} vé sau khi chừa vé cho quầy.`;
@@ -182,6 +190,40 @@ const getSuggestionReasonMessages = (suggestion?: VendorAllocationSuggestion | n
     if (detailMessages.length > 0) return Array.from(new Set(detailMessages));
     return [mapShortageReasons(suggestion?.shortageReasons, suggestion?.blockedReason)];
 };
+
+const DisabledWithTooltip = ({
+    title,
+    disabled,
+    children,
+    fullWidth = false,
+}: {
+    title: string | null;
+    disabled: boolean;
+    children: ReactNode;
+    fullWidth?: boolean;
+}) => {
+    if (!disabled || !title) {
+        return <>{children}</>;
+    }
+
+    return (
+        <Tooltip title={title} arrow>
+            <span
+                style={{
+                    display: fullWidth ? "block" : "inline-flex",
+                    width: fullWidth ? "100%" : undefined,
+                }}
+            >
+                {children}
+            </span>
+        </Tooltip>
+    );
+};
+
+const isVendorOpenBatchBlockedMessage = (message?: string | null) =>
+    !!message &&
+    /phiếu bàn giao/i.test(message) &&
+    /quyết toán|chưa đóng|chưa quyết/i.test(message);
 
 const mapShortageReasons = (reasons?: string[] | null, blockedReason?: string | null) => {
     if (blockedReason === "DRAW_TIME_PASSED" || reasons?.includes("DRAW_TIME_PASSED")) {
@@ -245,8 +287,14 @@ export const VendorAllocationPage = () => {
         isFetching: isFetchingOpen,
     } = useVendorAllocationOpenBatch(profile?.id);
 
+    // A DRAFT batch only holds serials temporarily. It is rendered by the
+    // draft banner below and must not be presented as an unsettled handover.
+    // Only a confirmed/return-open batch blocks a new allocation and produces
+    // the "chưa quyết toán" warning.
     const blockingOpenBatch =
-        openBatch && openBatch.status !== "DRAFT" ? openBatch : null;
+        openBatch && (openBatch.status === "CONFIRMED" || openBatch.status === "RETURN_OPEN")
+            ? openBatch
+            : null;
 
     const {
         data: suggestion,
@@ -259,13 +307,24 @@ export const VendorAllocationPage = () => {
         businessDate,
         requestedQuantity,
         faceValue,
-        !blockingOpenBatch && profile?.status === "ACTIVE"
+        !blockingOpenBatch &&
+        !draftId &&
+        openBatch?.status !== "DRAFT" &&
+        !isLoadingOpen &&
+        !isFetchingOpen &&
+        profile?.status === "ACTIVE"
     );
 
     const { data: draftBatch } = useVendorAllocationBatch(draftId);
     const { mutate: createDraft, isPending: isCreatingDraft } = useCreateVendorAllocationDraft();
     const { mutate: cancelDraft, isPending: isCancelling } = useCancelVendorAllocation();
     const { defaults: vendorDefaults } = useVendorSettingsDefaults();
+
+    const hasActiveDraft = Boolean(
+        draftId ||
+        openBatch?.status === "DRAFT" ||
+        draftBatch?.status === "DRAFT"
+    );
 
     useEffect(() => {
         const timer = window.setInterval(() => setNowMs(Date.now()), 1000);
@@ -396,6 +455,8 @@ export const VendorAllocationPage = () => {
     const totalSelected = selectedSerialIds.length;
     const remainingCap =
         suggestion?.remainingDailyCap != null ? suggestion.remainingDailyCap : null;
+    const availableForCurrentBatch =
+        remainingCap ?? profile?.remainingDailyCap ?? profile?.effectiveDailyCap ?? null;
     const allowedQuantity = suggestion?.allowedQuantity ?? 0;
 
     const hasSelectableInventory = useMemo(() => {
@@ -469,7 +530,7 @@ export const VendorAllocationPage = () => {
             return;
         }
         if (remainingCap != null && selectedSerialIds.length > remainingCap) {
-            toast.error(`Số vé chọn vượt hạn mức còn lại (${remainingCap})`);
+            toast.error(`Số vé chọn vượt số lượng còn có thể thêm vào phiếu (${remainingCap})`);
             return;
         }
         if (selectedSerialIds.length !== allowedQuantity) {
@@ -530,6 +591,46 @@ export const VendorAllocationPage = () => {
         (suggestionError as any)?.response?.data?.message ||
         (suggestionError ? "Không tải được gợi ý bàn giao." : null);
 
+    const vendorOpenBatchAlertMessage = useMemo(() => {
+        // A draft is already explained by the reservation banner. In
+        // particular, ignore a stale SAG_010 suggestion error caused by the
+        // draft itself being part of the backend's open-batch guard.
+        if (hasActiveDraft) {
+            return null;
+        }
+        if (blockingOpenBatch) {
+            return (
+                <>
+                    Vendor vẫn còn phiếu bàn giao <strong>{blockingOpenBatch.batchCode}</strong> chưa quyết toán (
+                    {ALLOCATION_BATCH_STATUS_LABELS[blockingOpenBatch.status] || blockingOpenBatch.status}
+                    ). Không thể tạo phiếu nháp mới cho đến khi phiếu này được quyết toán / đóng.
+                </>
+            );
+        }
+        if (isVendorOpenBatchBlockedMessage(suggestionErrorMessage)) {
+            return suggestionErrorMessage;
+        }
+        return null;
+    }, [blockingOpenBatch, hasActiveDraft, suggestionErrorMessage]);
+
+    const businessDateDisabledReason = draftId
+        ? `Đang có phiếu nháp${draftBatch?.batchCode ? ` ${draftBatch.batchCode}` : ""} — không thể đổi ngày kinh doanh.`
+        : null;
+
+    const selectionModeDisabledReason = draftId
+        ? "Đang có phiếu nháp — không thể đổi cách chọn vé."
+        : isFetchingSuggestion
+          ? "Đang cập nhật gợi ý bàn giao…"
+          : null;
+
+    const manualPickDisabledReason = draftId
+        ? "Đang có phiếu nháp — không thể chọn vé thủ công."
+        : blockingOpenBatch
+          ? `Còn phiếu mở ${blockingOpenBatch.batchCode} — không thể chọn vé mới.`
+          : profile?.status !== "ACTIVE"
+            ? "Người bán vé số chưa kích hoạt — không thể chọn vé."
+            : null;
+
     return (
         <Box sx={{ maxWidth: 1200, mx: "auto", pb: (!draftId && !blockingOpenBatch && profile) ? 12 : 5 }}>
             <PageHeader
@@ -542,6 +643,65 @@ export const VendorAllocationPage = () => {
             />
 
             <Stack spacing={3}>
+                {draftBatch?.status === "DRAFT" && (
+                    <Alert
+                        severity={isExpired ? "error" : "warning"}
+                        action={
+                            canEdit ? (
+                                <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                                    <Button
+                                        color="inherit"
+                                        size="small"
+                                        disabled={isCancelling}
+                                        onClick={handleCancel}
+                                    >
+                                        Hủy nháp
+                                    </Button>
+                                    {isExpired ? (
+                                        <Button
+                                            color="inherit"
+                                            size="small"
+                                            disabled={isCancelling}
+                                            onClick={handleCancel}
+                                        >
+                                            Làm mới báo giá
+                                        </Button>
+                                    ) : null}
+                                    <Button
+                                        color="inherit"
+                                        size="small"
+                                        disabled={isExpired}
+                                        onClick={() => setConfirmOpen(true)}
+                                    >
+                                        Xác nhận bàn giao
+                                    </Button>
+                                </Stack>
+                            ) : undefined
+                        }
+                    >
+                        Phiếu {draftBatch.batchCode} đang giữ {draftBatch.allocatedQuantity} vé. Hết hạn giữ chỗ sau <strong>{countdown}</strong>
+                        {isExpired ? " (đã hết hạn)." : "."}
+                    </Alert>
+                )}
+
+                {vendorOpenBatchAlertMessage && (
+                    <Alert
+                        severity="warning"
+                        action={
+                            <Button
+                                color="inherit"
+                                size="small"
+                                component={Link}
+                                href={ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.ALLOCATION_BATCHES}
+                            >
+                                Xem phiếu
+                            </Button>
+                        }
+                    >
+                        {vendorOpenBatchAlertMessage}
+                    </Alert>
+                )}
+
                 <Card sx={{ p: 3, borderRadius: "var(--shape-borderRadius-lg)", boxShadow: "var(--customShadows-card)" }}>
                     <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 2 }}>
                         Chọn đại lý & ngày kinh doanh
@@ -563,12 +723,18 @@ export const VendorAllocationPage = () => {
                                 <TextField {...params} label="Người bán vé số *" sx={fieldSx} />
                             )}
                         />
-                        <AdminDatePicker
-                            label="Ngày kinh doanh"
-                            value={businessDate}
-                            onChange={setBusinessDate}
-                            disabled={!!draftId}
-                        />
+                        <DisabledWithTooltip
+                            title={businessDateDisabledReason}
+                            disabled={!!businessDateDisabledReason}
+                            fullWidth
+                        >
+                            <AdminDatePicker
+                                label="Ngày kinh doanh"
+                                value={businessDate}
+                                onChange={setBusinessDate}
+                                disabled={!!businessDateDisabledReason}
+                            />
+                        </DisabledWithTooltip>
                     </Box>
 
                     {profile && (
@@ -576,12 +742,12 @@ export const VendorAllocationPage = () => {
                             <Chip
                                 size="small"
                                 label={`Tin cậy: ${CONFIDENCE_TIER_LABELS[profile.confidenceTier || ""] || profile.confidenceTier || "—"}`}
-                                sx={{ fontWeight: 600 }}
+                                sx={getMetricChipSx("success")}
                             />
                             <Chip
                                 size="small"
-                                label={`Hạn mức còn lại: ${remainingCap ?? profile.remainingDailyCap ?? profile.effectiveDailyCap ?? "—"}`}
-                                sx={{ fontWeight: 600 }}
+                                label={`Có thể giao trong phiếu này: ${availableForCurrentBatch == null ? "—" : `${availableForCurrentBatch} vé`}`}
+                                sx={getMetricChipSx("info")}
                             />
                             {Number(profile.depositBalance ?? 0) > 0 && (
                                 <Chip
@@ -593,73 +759,6 @@ export const VendorAllocationPage = () => {
                         </Stack>
                     )}
                 </Card>
-
-                {blockingOpenBatch && (
-                    <Alert
-                        severity="warning"
-                        action={
-                            <Button
-                                color="inherit"
-                                size="small"
-                                component={Link}
-                                href={ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.ALLOCATION_BATCHES}
-                            >
-                                Xem phiếu
-                            </Button>
-                        }
-                    >
-                        Vendor còn phiếu mở <strong>{blockingOpenBatch.batchCode}</strong> (
-                        {ALLOCATION_BATCH_STATUS_LABELS[blockingOpenBatch.status] ||
-                            blockingOpenBatch.status}
-                        ). Không thể tạo phiếu nháp mới cho đến khi phiếu này được quyết toán / đóng.
-                    </Alert>
-                )}
-
-                {draftBatch?.status === "DRAFT" && (
-                    <Alert
-                        severity={isExpired ? "error" : "warning"}
-                        action={
-                            canEdit ? (
-                                <Stack direction="row" spacing={1}>
-                                    <Button
-                                        color="inherit"
-                                        size="small"
-                                        disabled={isCancelling}
-                                        onClick={handleCancel}
-                                    >
-                                        Hủy nháp
-                                    </Button>
-                                    {isExpired && (
-                                        <Button
-                                            color="inherit"
-                                            size="small"
-                                            disabled={isCancelling}
-                                            onClick={handleCancel}
-                                        >
-                                            Làm mới báo giá
-                                        </Button>
-                                    )}
-                                    <Button
-                                        color="inherit"
-                                        size="small"
-                                        disabled={isExpired}
-                                        onClick={() => setConfirmOpen(true)}
-                                    >
-                                        Xác nhận bàn giao
-                                    </Button>
-                                </Stack>
-                            ) : undefined
-                        }
-                    >
-                        Phiếu {draftBatch.batchCode} đang giữ {draftBatch.allocatedQuantity} vé.
-                        {" "}
-                        Còn lại theo hạn mức: {draftBatch.remainingDailyCap}.
-                        {" "}
-                        Hết hạn giữ chỗ sau <strong>{countdown}</strong>
-                        {isExpired ? " (đã hết hạn)" : ""}.
-                    </Alert>
-                )}
-
 
                 {profile && profile.status !== "ACTIVE" && (
                     <Alert
@@ -678,7 +777,7 @@ export const VendorAllocationPage = () => {
                         Người bán vé số này chưa hoàn tất hồ sơ (Trạng thái: {profile.status}). Vui lòng hoàn tất hồ sơ trước khi giao vé.
                     </Alert>
                 )}
-{suggestionErrorMessage && !blockingOpenBatch && (
+                {suggestionErrorMessage && !hasActiveDraft && !vendorOpenBatchAlertMessage && (
                     <Alert
                         severity="error"
                         action={
@@ -691,31 +790,80 @@ export const VendorAllocationPage = () => {
                     </Alert>
                 )}
 
-                {!blockingOpenBatch ? (
-                    <Card sx={{ p: 3, borderRadius: "var(--shape-borderRadius-lg)", boxShadow: "var(--customShadows-card)" }}>
+                <Card sx={{ p: 3, borderRadius: "var(--shape-borderRadius-lg)", boxShadow: "var(--customShadows-card)" }}>
                     <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }} flexWrap="wrap" gap={1}>
                         <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
                             Gợi ý bàn giao {businessDate ? `— ${formatDate(businessDate)}` : ""}
                         </Typography>
                         <Stack direction={{ xs: "column", sm: "row" }} spacing={1.25} alignItems={{ xs: "stretch", sm: "center" }} flexWrap="wrap" useFlexGap>
                             {hasSelectableInventory && (suggestion?.allowedQuantity ?? 0) > 0 && (
-                                <>
-                                    <Typography variant="body2" sx={{ color: "var(--palette-text-secondary)", fontWeight: 600, whiteSpace: "nowrap" }}>
-                                        Đã chọn {totalSelected}/{suggestion?.allowedQuantity ?? 0}
-                                    </Typography>
-                                    <ToggleButtonGroup
-                                        exclusive
-                                        size="small"
-                                        color="primary"
-                                        value={selectionMode}
-                                        onChange={(_, value: AllocationSelectionMode | null) => changeSelectionMode(value)}
-                                        disabled={!!draftId || isFetchingSuggestion}
-                                        aria-label="Cách chọn vé"
+                                <Stack direction="row" alignItems="center" spacing={1.5} flexWrap="wrap" useFlexGap>
+                                    <Typography
+                                        variant="body2"
+                                        sx={{
+                                            fontWeight: 700,
+                                            color: "var(--palette-text-primary)",
+                                            whiteSpace: "nowrap",
+                                        }}
                                     >
-                                        <ToggleButton value="SYSTEM">Chọn theo hệ thống</ToggleButton>
-                                        <ToggleButton value="MANUAL">Chọn thủ công</ToggleButton>
-                                    </ToggleButtonGroup>
-                                </>
+                                        Đã chọn {totalSelected}/{suggestion?.allowedQuantity ?? 0}:
+                                    </Typography>
+                                    <DisabledWithTooltip
+                                        title={selectionModeDisabledReason}
+                                        disabled={!!selectionModeDisabledReason}
+                                    >
+                                        <Box
+                                            role="group"
+                                            aria-label="Cách chọn vé"
+                                            sx={{
+                                                display: "inline-flex",
+                                                width: { xs: "100%", sm: 200 },
+                                                minWidth: { sm: 200 },
+                                                p: "3px",
+                                                borderRadius: "10px",
+                                                border: "1px solid",
+                                                borderColor: "divider",
+                                                bgcolor: "background.paper",
+                                                opacity: selectionModeDisabledReason ? 0.6 : 1,
+                                            }}
+                                        >
+                                            {ALLOCATION_SELECTION_MODE_OPTIONS.map((option) => {
+                                                const selected = selectionMode === option.value;
+                                                return (
+                                                    <Box
+                                                        key={option.value}
+                                                        component="button"
+                                                        type="button"
+                                                        disabled={!!selectionModeDisabledReason}
+                                                        onClick={() => changeSelectionMode(option.value)}
+                                                        sx={{
+                                                            flex: 1,
+                                                            width: "50%",
+                                                            border: 0,
+                                                            borderRadius: "8px",
+                                                            py: 0.75,
+                                                            px: 1,
+                                                            fontSize: "0.8125rem",
+                                                            fontWeight: selected ? 600 : 500,
+                                                            lineHeight: 1.2,
+                                                            cursor: selectionModeDisabledReason ? "not-allowed" : "pointer",
+                                                            bgcolor: selected ? "action.selected" : "transparent",
+                                                            color: "text.primary",
+                                                            transition: "background-color 0.15s ease",
+                                                            "&:hover": selectionModeDisabledReason
+                                                                ? undefined
+                                                                : {
+                                                                      bgcolor: selected ? "action.selected" : "action.hover",
+                                                                  },
+                                                        }}
+                                                    >
+                                                        {option.label}
+                                                    </Box>
+                                                );
+                                            })}
+                                        </Box>
+                                    </DisabledWithTooltip>
+                                </Stack>
                             )}
                             {isFetchingSuggestion && (
                                 <Stack direction="row" spacing={0.75} alignItems="center" sx={{ color: "text.secondary" }}>
@@ -824,54 +972,78 @@ export const VendorAllocationPage = () => {
 
                                 return (
                                     <Box key={station.stationId}>
-                                        <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>
-                                            {station.stationName}
+                                        <Stack
+                                            direction="row"
+                                            alignItems="center"
+                                            spacing={1}
+                                            flexWrap="wrap"
+                                            useFlexGap
+                                            sx={{ mb: 1.5 }}
+                                        >
                                             <Typography
-                                                component="span"
-                                                variant="caption"
-                                                sx={{ ml: 1, color: "var(--palette-text-secondary)" }}
+                                                sx={{
+                                                    fontWeight: 700,
+                                                    fontSize: { xs: "1.0625rem", sm: "1.25rem" },
+                                                    lineHeight: 1.2,
+                                                    color: "var(--palette-text-primary)",
+                                                }}
                                             >
-                                                (Có thể giao: {station.vendorCapacity} · Chừa quầy: {station.effectiveAgencyReserveQuantity})
+                                                {station.stationName}
                                             </Typography>
-                                        </Typography>
+                                            <StationCapacityBadges
+                                                vendorCapacity={station.vendorCapacity}
+                                                agencyReserve={station.effectiveAgencyReserveQuantity}
+                                            />
+                                        </Stack>
 
                                         {station.vendorCapacity === 0 ? (
                                             <Typography variant="body2" color="text.disabled" sx={{ fontStyle: "italic" }}>
                                                 Hết vé (Đã chừa quầy)
                                             </Typography>
                                         ) : !hasPicked ? (
-                                            <Box
-                                                sx={{
-                                                    border: "1px dashed",
-                                                    borderColor: "divider",
-                                                    borderRadius: 2,
-                                                    p: 2,
-                                                    display: "inline-flex",
-                                                    flexDirection: "column",
-                                                    alignItems: "center",
-                                                    justifyContent: "center",
-                                                    minWidth: 156,
-                                                    bgcolor: "action.hover",
-                                                    cursor: "pointer",
-                                                    transition: "border-color 0.2s",
-                                                    "&:hover": { borderColor: "primary.main" }
-                                                }}
-                                                onClick={() => {
-                                                    if (!draftId) {
+                                            <DisabledWithTooltip
+                                                title={manualPickDisabledReason}
+                                                disabled={!!manualPickDisabledReason}
+                                            >
+                                                <Box
+                                                    sx={{
+                                                        border: "1px dashed",
+                                                        borderColor: "divider",
+                                                        borderRadius: 2,
+                                                        p: 2,
+                                                        display: "inline-flex",
+                                                        flexDirection: "column",
+                                                        alignItems: "center",
+                                                        justifyContent: "center",
+                                                        minWidth: 156,
+                                                        bgcolor: "action.hover",
+                                                        cursor: manualPickDisabledReason ? "not-allowed" : "pointer",
+                                                        opacity: manualPickDisabledReason ? 0.6 : 1,
+                                                        transition: "border-color 0.2s",
+                                                        "&:hover": manualPickDisabledReason
+                                                            ? undefined
+                                                            : { borderColor: "primary.main" },
+                                                    }}
+                                                    onClick={() => {
+                                                        if (manualPickDisabledReason) return;
                                                         setSelectionMode("MANUAL");
                                                         setSelectedSerialIds([]);
                                                         setDrawerStation(station);
                                                         setDrawerTicketNumber(null);
-                                                    }
-                                                }}
-                                            >
-                                                <Typography variant="caption" color="text.secondary" mb={1}>
-                                                    Chưa chọn vé
-                                                </Typography>
-                                                <Button size="small" variant="outlined" disabled={!!draftId}>
-                                                    Chọn thủ công
-                                                </Button>
-                                            </Box>
+                                                    }}
+                                                >
+                                                    <Typography variant="caption" color="text.secondary" mb={1}>
+                                                        Chưa chọn vé
+                                                    </Typography>
+                                                    <Button
+                                                        size="small"
+                                                        variant="outlined"
+                                                        disabled={!!manualPickDisabledReason}
+                                                    >
+                                                        Chọn thủ công
+                                                    </Button>
+                                                </Box>
+                                            </DisabledWithTooltip>
                                         ) : (
                                             <Stack direction="row" flexWrap="wrap" gap={2}>
                                                 {pickedTickets.map((ticket) => {
@@ -926,25 +1098,7 @@ export const VendorAllocationPage = () => {
                             Phiếu {draftBatch.batchCode}: {ALLOCATION_BATCH_STATUS_LABELS[draftBatch.status] || draftBatch.status}
                         </Alert>
                     )}
-                    </Card>
-                ) : (
-                    <Card sx={{ p: 4, borderRadius: "var(--shape-borderRadius-lg)", boxShadow: "var(--customShadows-card)", textAlign: "center" }}>
-                        <Typography variant="h6" gutterBottom>
-                            Người bán vé số đang có phiếu bàn giao mở
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-                            Không thể tạo thêm phiếu mới do đại lý này còn phiếu <strong>{blockingOpenBatch.batchCode}</strong> đang ở trạng thái {ALLOCATION_BATCH_STATUS_LABELS[blockingOpenBatch.status] || blockingOpenBatch.status}.
-                            Vui lòng quyết toán hoặc nhận trả vé cho phiếu này trước.
-                        </Typography>
-                        <Button
-                            variant="contained"
-                            component={Link}
-                            href={ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.ALLOCATION_BATCHES}
-                        >
-                            Đến danh sách Phiếu bàn giao
-                        </Button>
-                    </Card>
-                )}
+                </Card>
             </Stack>
 
             {!draftId && !blockingOpenBatch && profile && hasSelectableInventory && suggestion && suggestion.allowedQuantity > 0 && totalSelected > 0 && (

@@ -247,32 +247,31 @@ CREATE INDEX IF NOT EXISTS idx_agent_settlements_batch
 CREATE INDEX IF NOT EXISTS idx_agent_settlements_return_batch
     ON agent_settlements(return_batch_id);
 
--- Skeleton: Agent_Deposit_Transaction
-CREATE TABLE IF NOT EXISTS agent_deposit_transactions (
-    id BIGSERIAL PRIMARY KEY,
-    agent_id BIGINT NOT NULL REFERENCES street_agent_profiles(id),
-    debt_date DATE NOT NULL,
-    allocation_id BIGINT REFERENCES allocation_batches(id),
-    required_amount NUMERIC(18,0),
-    paid_amount NUMERIC(18,0),
-    remaining_amount NUMERIC(18,0),
-    returned_amount NUMERIC(18,0),
-    status VARCHAR(30) NOT NULL DEFAULT 'pending',
-    paid_at TIMESTAMP,
-    collected_by UUID REFERENCES users(id),
-    payment_method VARCHAR(50),
-    transaction_type VARCHAR(30),
-    balance_before NUMERIC(18,0),
-    balance_after NUMERIC(18,0),
-    reason VARCHAR(500),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    created_by VARCHAR(100) DEFAULT 'SYSTEM',
-    last_modified_by VARCHAR(100) DEFAULT 'SYSTEM',
-    deleted_at TIMESTAMP
-);
+-- Vendor cash movements belong in the shared transaction ledger. `amount` is
+-- the sole monetary value on a ledger row; deposit and settlement breakdowns
+-- remain snapshots on allocation_batches / agent_settlements.
+ALTER TABLE transactions
+    ADD COLUMN IF NOT EXISTS street_agent_profile_id BIGINT REFERENCES street_agent_profiles(id),
+    ADD COLUMN IF NOT EXISTS allocation_batch_id BIGINT REFERENCES allocation_batches(id),
+    ADD COLUMN IF NOT EXISTS prize_payout_request_id BIGINT REFERENCES prize_payout_requests(id),
+    ADD COLUMN IF NOT EXISTS business_date DATE,
+    ADD COLUMN IF NOT EXISTS transaction_type VARCHAR(30);
 
-CREATE INDEX IF NOT EXISTS idx_agent_deposit_tx_agent
-    ON agent_deposit_transactions(agent_id);
-CREATE INDEX IF NOT EXISTS idx_agent_deposit_tx_allocation
-    ON agent_deposit_transactions(allocation_id);
+-- Existing transactions predate the business-purpose column. They are all
+-- order payments except the legacy REFUND payment channel.
+UPDATE transactions
+SET transaction_type = CASE
+    WHEN type = 'REFUND' THEN 'ORDER_REFUND'
+    ELSE 'ORDER_PAYMENT'
+END
+WHERE transaction_type IS NULL;
+
+CREATE INDEX IF NOT EXISTS idx_transactions_street_agent_profile
+    ON transactions(street_agent_profile_id)
+    WHERE street_agent_profile_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_transactions_allocation_batch
+    ON transactions(allocation_batch_id)
+    WHERE allocation_batch_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_transactions_prize_payout_request
+    ON transactions(prize_payout_request_id)
+    WHERE prize_payout_request_id IS NOT NULL;
