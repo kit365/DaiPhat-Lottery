@@ -69,7 +69,7 @@ public class ReturnBatchApplicationMapper {
                 .drawDate(model.getDrawDate())
                 .supplierSettlementId(model.getSupplierSettlementId())
                 .returnReceiptUrl(model.getReturnReceiptUrl())
-                .returnReceiptEvidenceUrl(model.getReturnReceiptEvidenceUrl())
+                .returnEvidenceUrl(model.getReturnEvidenceUrl())
                 .deliveryMode(model.getDeliveryMode())
                 .deliveryModeLabel(model.getDeliveryMode() != null ? model.getDeliveryMode().getLabel() : null)
                 .totalQuantity(model.getTotalQuantity())

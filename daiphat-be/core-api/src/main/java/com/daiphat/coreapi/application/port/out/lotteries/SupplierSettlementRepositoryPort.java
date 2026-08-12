@@ -7,6 +7,7 @@ import org.springframework.data.domain.Pageable;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Optional;
 
 public interface SupplierSettlementRepositoryPort {
@@ -16,6 +17,10 @@ public interface SupplierSettlementRepositoryPort {
     Optional<SupplierSettlementModel> findById(Long id);
 
     Optional<SupplierSettlementModel> findBySupplierIdAndPeriodFrom(Long supplierId, LocalDate periodFrom);
+
+    java.util.List<SupplierSettlementModel> findByStatus(SupplierSettlementStatus status);
+
+    java.util.List<SupplierSettlementModel> findByStatuses(java.util.Collection<SupplierSettlementStatus> statuses);
 
     Page<SupplierSettlementModel> findAll(
             Pageable pageable,
@@ -45,5 +50,26 @@ public interface SupplierSettlementRepositoryPort {
      */
     BigDecimal sumInStockGoodImportCostBySettlementId(Long settlementId);
 
+    /**
+     * Sum import cost of settlement-scoped serials that are {@code EXPIRED}
+     * and not referenced by any {@code order_details} row.
+     */
     BigDecimal sumExpiredReturnValueBySettlementId(Long settlementId);
+
+    /**
+     * Count settlement-scoped serials that are {@code EXPIRED}
+     * and not referenced by any {@code order_details} row.
+     */
+    long countExpiredReturnTicketsBySettlementId(Long settlementId);
+
+    long countImportedTicketsBySettlementId(Long settlementId);
+
+    long countPreparedReturnTicketsBySettlementId(Long settlementId);
+
+    List<SettlementResolvableSerialRow> findPreparedReturnSerialsBySettlementId(Long settlementId);
+
+    List<SettlementResolvableSerialRow> findImportResolvableSerialsBySettlementId(Long settlementId);
+
+    /** Next value from {@code supplier_settlement_code_seq} for unique DS- codes. */
+    long nextSettlementCodeSequence();
 }

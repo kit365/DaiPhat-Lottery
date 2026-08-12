@@ -39,7 +39,7 @@ public class ReturnBatchPersistenceMapper {
                 .drawDate(entity.getDrawDate())
                 .supplierSettlementId(entity.getSupplierSettlementId())
                 .returnReceiptUrl(entity.getReturnReceiptUrl())
-                .returnReceiptEvidenceUrl(entity.getReturnReceiptEvidenceUrl())
+                .returnEvidenceUrl(entity.getReturnEvidenceUrl())
                 .deliveryMode(entity.getDeliveryMode())
                 .totalQuantity(entity.getTotalQuantity())
                 .totalReturnValue(entity.getTotalReturnValue())
@@ -104,7 +104,7 @@ public class ReturnBatchPersistenceMapper {
                 .drawDate(model.getDrawDate())
                 .supplierSettlementId(model.getSupplierSettlementId())
                 .returnReceiptUrl(model.getReturnReceiptUrl())
-                .returnReceiptEvidenceUrl(model.getReturnReceiptEvidenceUrl())
+                .returnEvidenceUrl(model.getReturnEvidenceUrl())
                 .deliveryMode(model.getDeliveryMode())
                 .totalQuantity(model.getTotalQuantity())
                 .totalReturnValue(model.getTotalReturnValue())
@@ -158,6 +158,7 @@ public class ReturnBatchPersistenceMapper {
         entity.setDrawDate(model.getDrawDate());
         entity.setSupplierSettlementId(model.getSupplierSettlementId());
         entity.setReturnReceiptUrl(model.getReturnReceiptUrl());
+        entity.setReturnEvidenceUrl(model.getReturnEvidenceUrl());
         entity.setDeliveryMode(model.getDeliveryMode());
         entity.setTotalQuantity(model.getTotalQuantity());
         entity.setTotalReturnValue(model.getTotalReturnValue());

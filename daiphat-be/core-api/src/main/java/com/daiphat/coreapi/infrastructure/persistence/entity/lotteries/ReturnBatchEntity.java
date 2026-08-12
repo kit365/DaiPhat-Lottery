@@ -69,8 +69,8 @@ public class ReturnBatchEntity extends BaseEntity {
     @Column(name = "return_receipt_url", length = 500)
     private String returnReceiptUrl;
 
-    @Column(name = "return_receipt_evidence_url", length = 500)
-    private String returnReceiptEvidenceUrl;
+    @Column(name = "return_evidence_url", length = 500)
+    private String returnEvidenceUrl;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "delivery_mode", length = 40)

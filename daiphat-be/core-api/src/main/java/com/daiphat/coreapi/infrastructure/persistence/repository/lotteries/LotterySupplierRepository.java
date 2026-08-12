@@ -21,4 +21,6 @@ public interface LotterySupplierRepository
     boolean existsByIsActiveTrueAndDeletedAtIsNull();
 
     List<LotterySupplierEntity> findByIsActiveTrueAndDeletedAtIsNull();
+
+    List<LotterySupplierEntity> findByDeletedAtIsNull();
 }

@@ -1,20 +1,16 @@
 "use client";
 
-import React, { Suspense } from "react";
-import { PrivateRoute } from "@/client/features/auth/PrivateRoute";
-import { ProfilePage as ClientProfilePage } from "@/client/features/profile/pages/ProfilePage";
-import { LoadingSpinner } from "@/client/components/ui/LoadingSpinner";
+import React from 'react';
 
 interface ProfileTabWrapperProps {
   content: React.ReactNode;
+  params?: Record<string, string>;
 }
 
+/**
+ * Profile shell (sidebar + PrivateRoute) lives in profile/layout → ProfileLayout.
+ * This wrapper only injects tab content (route params come from Next.js App Router).
+ */
 export function ProfileTabWrapper({ content }: ProfileTabWrapperProps) {
-  return (
-    <PrivateRoute>
-      <Suspense fallback={<LoadingSpinner />}>
-        <ClientProfilePage>{content}</ClientProfilePage>
-      </Suspense>
-    </PrivateRoute>
-  );
+  return <>{content}</>;
 }

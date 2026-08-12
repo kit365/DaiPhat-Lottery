@@ -212,7 +212,7 @@ public class LotteryTicketController {
     }
 
     @PostMapping(value = "/images/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @PreAuthorize("hasAnyAuthority('ticket:create', 'ticket:edit')")
+    @PreAuthorize("hasAnyAuthority('ticket:create', 'ticket:edit', 'importBatch:create')")
     public ApiResponse<StorageResult> uploadAsset(@RequestPart("file") MultipartFile file) {
         log.info("REST request to upload lottery ticket asset image");
         return ApiResponse.success(

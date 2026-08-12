@@ -43,7 +43,8 @@ public final class SupplierSettlementSpecification {
                 String likePattern = "%" + search.trim().toLowerCase() + "%";
                 predicates.add(cb.or(
                         cb.like(cb.lower(supplier.get("name")), likePattern),
-                        cb.like(cb.lower(supplier.get("code")), likePattern)
+                        cb.like(cb.lower(supplier.get("code")), likePattern),
+                        cb.like(cb.lower(root.get("supplierSettlementCode")), likePattern)
                 ));
                 if (query != null) {
                     query.distinct(true);

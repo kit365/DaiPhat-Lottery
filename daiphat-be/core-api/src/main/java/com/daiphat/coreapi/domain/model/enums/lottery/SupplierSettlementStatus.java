@@ -7,6 +7,7 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public enum SupplierSettlementStatus {
     OPEN("Đang mở"),
+    RECEIPT_OVERDUE("Quá hạn biên lai"),
     CLOSED("Đã chốt");
 
     private final String label;

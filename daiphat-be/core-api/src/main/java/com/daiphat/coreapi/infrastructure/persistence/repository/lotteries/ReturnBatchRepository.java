@@ -28,6 +28,11 @@ public interface ReturnBatchRepository
 
     Optional<ReturnBatchEntity> findBySourceAllocationBatch_IdAndDeletedAtIsNull(Long allocationBatchId);
 
+    List<ReturnBatchEntity> findAllByLotterySupplier_IdAndDrawDateAndDeletedAtIsNull(
+            Long lotterySupplierId,
+            LocalDate drawDate
+    );
+
     List<ReturnBatchEntity> findByNoteStartingWithAndDeletedAtIsNull(String notePrefix);
 
     List<ReturnBatchEntity> findByStatusInAndDeletedAtIsNull(Collection<ReturnBatchStatus> statuses);

@@ -11,6 +11,9 @@ import { useAuthStore } from "../../../../stores/useAuthStore";
 import { hasPermission, resolveRoleCode } from "../../../utils/permission.util";
 import { prefetchAdminRoute } from "../../../utils/prefetchAdminPages";
 import { useAdminBadgeCounts } from "../../../context/AdminBadgeCountsProvider";
+import { usePreparingOrderCount } from "../../../features/orders/hooks/useOrder";
+import { useReturnBatchPendingCount } from "../../../features/ticket/return-batch/hooks/useReturnBatchPendingCount";
+import { useSupplierSettlementAttentionCount } from "../../../features/ticket/supplier-settlement";
 
 function parseNavPath(rawPath: string): { pathname: string; search: string } {
     const [pathname, query = ''] = String(rawPath || '').split('?');
@@ -58,6 +61,9 @@ const SubNavItem = ({
 }) => {
     const showSupportOpenBadge = child.badge === 'support-open';
     const showReturnBatchBadge = child.badge === 'return-batch-pending';
+    const showSupplierSettlementBadge = child.badge === 'supplier-settlement-attention';
+    const showOnlinePreparingBadge = child.badge === 'orders-online-preparing';
+    const showDirectPreparingBadge = child.badge === 'orders-direct-preparing';
 
     return (
         <li key={child.id} className="relative list-none">
@@ -80,6 +86,21 @@ const SubNavItem = ({
                 {showReturnBatchBadge && (
                     <span className="ml-2 shrink-0 inline-flex items-center">
                         <ReturnBatchPendingBadgeLabel />
+                    </span>
+                )}
+                {showSupplierSettlementBadge && (
+                    <span className="ml-2 shrink-0 inline-flex items-center">
+                        <SupplierSettlementAttentionBadgeLabel />
+                    </span>
+                )}
+                {showOnlinePreparingBadge && (
+                    <span className="ml-2 shrink-0 inline-flex items-center">
+                        <OnlinePreparingOrderBadgeLabel />
+                    </span>
+                )}
+                {showDirectPreparingBadge && (
+                    <span className="ml-2 shrink-0 inline-flex items-center">
+                        <DirectPreparingOrderBadgeLabel />
                     </span>
                 )}
             </Link>
@@ -193,7 +214,7 @@ const SupportTicketOpenBadgeIcon = ({ children }: { children: ReactNode }) => {
 };
 
 const ReturnBatchPendingBadgeLabel = () => {
-    const pendingCount = useSidebarBadgeCount((counts) => counts.returnBatchPending);
+    const { pendingCount } = useReturnBatchPendingCount();
     if (pendingCount <= 0) return null;
     return (
         <Badge
@@ -204,7 +225,7 @@ const ReturnBatchPendingBadgeLabel = () => {
 };
 
 const ReturnBatchPendingBadgeIcon = ({ children }: { children: ReactNode }) => {
-    const pendingCount = useSidebarBadgeCount((counts) => counts.returnBatchPending);
+    const { pendingCount } = useReturnBatchPendingCount();
     return (
         <Badge
             badgeContent={pendingCount > 99 ? '99+' : pendingCount}
@@ -216,6 +237,61 @@ const ReturnBatchPendingBadgeIcon = ({ children }: { children: ReactNode }) => {
     );
 };
 
+/** Isolated badge for supplier settlements with attention status (neither OPEN nor CLOSED). */
+const SupplierSettlementAttentionBadgeLabel = () => {
+    const { attentionCount } = useSupplierSettlementAttentionCount();
+    if (attentionCount <= 0) return null;
+    return (
+        <Badge
+            badgeContent={attentionCount > 99 ? '99+' : attentionCount}
+            sx={{ '& .MuiBadge-badge': sidebarBadgeSx }}
+        />
+    );
+};
+
+const SupplierSettlementAttentionBadgeIcon = ({ children }: { children: ReactNode }) => {
+    const { attentionCount } = useSupplierSettlementAttentionCount();
+    return (
+        <Badge
+            badgeContent={attentionCount > 99 ? '99+' : attentionCount}
+            invisible={attentionCount <= 0}
+            sx={{ '& .MuiBadge-badge': sidebarIconBadgeSx }}
+        >
+            {children}
+        </Badge>
+    );
+};
+
+/** Combined badge for parent Nhà cung cấp group (return batches + supplier settlements). */
+const SupplierManagementGroupBadgeLabel = () => {
+    const { pendingCount } = useReturnBatchPendingCount();
+    const { attentionCount } = useSupplierSettlementAttentionCount();
+    const total = (pendingCount || 0) + (attentionCount || 0);
+    if (total <= 0) return null;
+    return (
+        <Badge
+            badgeContent={total > 99 ? '99+' : total}
+            sx={{ '& .MuiBadge-badge': sidebarBadgeSx }}
+        />
+    );
+};
+
+const SupplierManagementGroupBadgeIcon = ({ children }: { children: ReactNode }) => {
+    const { pendingCount } = useReturnBatchPendingCount();
+    const { attentionCount } = useSupplierSettlementAttentionCount();
+    const total = (pendingCount || 0) + (attentionCount || 0);
+    return (
+        <Badge
+            badgeContent={total > 99 ? '99+' : total}
+            invisible={total <= 0}
+            sx={{ '& .MuiBadge-badge': sidebarIconBadgeSx }}
+        >
+            {children}
+        </Badge>
+    );
+};
+
+/** Isolated so only the Orders menu item polls PREPARING counts. */
 const PreparingOrderBadgeLabel = () => {
     const preparingCount = useSidebarBadgeCount((counts) => counts.ordersPreparing);
     if (preparingCount <= 0) return null;
@@ -240,6 +316,29 @@ const PreparingOrderBadgeIcon = ({ children }: { children: ReactNode }) => {
     );
 };
 
+const OnlinePreparingOrderBadgeLabel = () => {
+    const { onlinePreparingCount } = usePreparingOrderCount();
+    if (onlinePreparingCount <= 0) return null;
+    return (
+        <Badge
+            badgeContent={onlinePreparingCount > 99 ? '99+' : onlinePreparingCount}
+            sx={{ '& .MuiBadge-badge': sidebarBadgeSx }}
+        />
+    );
+};
+
+const DirectPreparingOrderBadgeLabel = () => {
+    const { directPreparingCount } = usePreparingOrderCount();
+    if (directPreparingCount <= 0) return null;
+    return (
+        <Badge
+            badgeContent={directPreparingCount > 99 ? '99+' : directPreparingCount}
+            sx={{ '& .MuiBadge-badge': sidebarBadgeSx }}
+        />
+    );
+};
+
+/** Isolated so only the Chat / online-support menu item polls waiting/unread counts. */
 const ChatAttentionBadgeLabel = () => {
     const badgeCount = useSidebarBadgeCount((counts) => counts.chatAttention);
     if (badgeCount <= 0) return null;
@@ -280,6 +379,7 @@ export const NavItem = memo(({ item }: { item: any }) => {
     const showPreparingBadge = item.id === 'orders';
     const showSupportBadge = item.id === 'support-tickets';
     const showChatBadge = item.id === 'chat';
+    const showSupplierManagementBadge = item.id === 'supplier-management';
 
     const normalizedRole = resolveRoleCode(user);
     const isStaff = normalizedRole.includes('STAFF');
@@ -398,6 +498,10 @@ export const NavItem = memo(({ item }: { item: any }) => {
                             <PreparingOrderBadgeIcon>
                                 <Icon />
                             </PreparingOrderBadgeIcon>
+                        ) : !isOpen && showSupplierManagementBadge ? (
+                            <SupplierManagementGroupBadgeIcon>
+                                <Icon />
+                            </SupplierManagementGroupBadgeIcon>
                         ) : (
                             <Icon />
                         )}
@@ -430,6 +534,11 @@ export const NavItem = memo(({ item }: { item: any }) => {
                         {showPreparingBadge && (
                             <span className="ml-auto pl-2 shrink-0 inline-flex items-center">
                                 <PreparingOrderBadgeLabel />
+                            </span>
+                        )}
+                        {showSupplierManagementBadge && (
+                            <span className="ml-auto pl-2 shrink-0 inline-flex items-center">
+                                <SupplierManagementGroupBadgeLabel />
                             </span>
                         )}
                     </span>

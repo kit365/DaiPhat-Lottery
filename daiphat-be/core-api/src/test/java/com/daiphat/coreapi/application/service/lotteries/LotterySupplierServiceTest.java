@@ -34,6 +34,8 @@ class LotterySupplierServiceTest {
     private LotterySupplierRepositoryPort lotterySupplierRepositoryPort;
     @Mock
     private LotterySupplierApplicationMapper lotterySupplierApplicationMapper;
+    @Mock
+    private SupplierPaymentCutOffSyncService supplierPaymentCutOffSyncService;
 
     @InjectMocks
     private LotterySupplierService lotterySupplierService;
@@ -91,6 +93,8 @@ class LotterySupplierServiceTest {
                 .build();
 
         when(lotterySupplierRepositoryPort.existsByCode("MINH_CHINH")).thenReturn(false);
+        when(supplierPaymentCutOffSyncService.requirePaymentCutOffForReturn(LocalTime.of(14, 30)))
+                .thenReturn(LocalTime.of(19, 0));
         when(lotterySupplierApplicationMapper.toModel(request)).thenReturn(model);
         when(lotterySupplierRepositoryPort.save(model)).thenReturn(saved);
         when(lotterySupplierApplicationMapper.toResponse(saved)).thenReturn(response);
@@ -98,6 +102,7 @@ class LotterySupplierServiceTest {
         LotterySupplierResponse result = lotterySupplierService.create(request);
 
         assertThat(result.id()).isEqualTo(1L);
+        assertThat(model.getPaymentCutOffTime()).isEqualTo(LocalTime.of(19, 0));
         verify(lotterySupplierRepositoryPort).save(model);
     }
 
@@ -121,6 +126,8 @@ class LotterySupplierServiceTest {
                 .build();
 
         when(lotterySupplierRepositoryPort.existsByCode("MINH_CHINH")).thenReturn(false);
+        when(supplierPaymentCutOffSyncService.requirePaymentCutOffForReturn(LocalTime.of(14, 30)))
+                .thenReturn(LocalTime.of(19, 0));
         when(lotterySupplierApplicationMapper.toModel(request)).thenReturn(model);
 
         assertThatThrownBy(() -> lotterySupplierService.create(request))

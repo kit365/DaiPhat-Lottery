@@ -85,12 +85,6 @@ public class PrizePayoutRequestService implements PrizePayoutRequestServicePort 
             throw new DomainException(ErrorCode.PRIZE_PAYOUT_BANK_ACCOUNT_MISMATCH);
         }
 
-        UserEntity customer = userRepository.findById(customerId)
-                .orElseThrow(() -> new DomainException(ErrorCode.USER_NOT_FOUND));
-        prizePayoutEligibilityService.validateBankAccountHolderName(
-                resolveCustomerName(customer),
-                bankAccount.getBankAccountName());
-
         PrizePayoutCalculationService.PrizePayoutBreakdown breakdown =
                 prizePayoutCalculationService.calculate(match.prizeAmount());
 

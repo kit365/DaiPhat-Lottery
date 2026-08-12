@@ -124,8 +124,8 @@ export const CheckoutPage = () => {
 
     React.useEffect(() => {
         if (paymentDialogOpen || checkoutFinalizedRef.current) return;
-        const hasCheckoutItems = checkoutItems.some((item) => item.quantity > 0);
-        if (!hasCheckoutItems) {
+        // Only leave checkout when every line was removed — qty 0 still stays until Delete.
+        if (checkoutItems.length === 0) {
             if (isBuyNow) clearBuyNow();
             router.replace('/cart');
         }
@@ -148,6 +148,7 @@ export const CheckoutPage = () => {
     };
 
     const handleDecreaseQty = (item: CartItem) => {
+        if (item.quantity <= 0) return;
         if (isBuyNow) {
             updateBuyNowQuantity(item.id, -1);
             return;
@@ -155,12 +156,18 @@ export const CheckoutPage = () => {
         updateQuantity(item.id, -1);
     };
 
-    const handleRemoveItem = (id: string) => {
+    const handleRemoveItem = async (item: CartItem) => {
+        const confirmed = await toast.confirm(
+            `Bạn có chắc muốn xóa vé số ${item.numbers} (${item.province}) khỏi đơn hàng?`,
+            'Xóa vé'
+        );
+        if (!confirmed) return;
+
         if (isBuyNow) {
-            removeBuyNowItem(id);
+            removeBuyNowItem(item.id);
             return;
         }
-        removeItem(id);
+        removeItem(item.id);
     };
 
     const finalizeSuccessfulCheckout = useCallback(() => {
@@ -407,7 +414,7 @@ export const CheckoutPage = () => {
                                                 item={item}
                                                 onDecrease={() => handleDecreaseQty(item)}
                                                 onIncrease={() => handleIncreaseQty(item)}
-                                                onRemove={() => handleRemoveItem(item.id)}
+                                                onRemove={() => handleRemoveItem(item)}
                                             />
                                         </div>
 
@@ -423,7 +430,12 @@ export const CheckoutPage = () => {
 
                                         {/* Thao tác */}
                                         <div className="flex justify-center">
-                                            <button onClick={() => handleRemoveItem(item.id)} className="text-[#ee1314] hover:text-[#d00f10] transition-colors w-8 h-8 rounded-full hover:bg-[#FFF4F4] flex items-center justify-center">
+                                            <button
+                                                type="button"
+                                                onClick={() => handleRemoveItem(item)}
+                                                aria-label={`Xóa vé số ${item.numbers}`}
+                                                className="text-[#ee1314] hover:text-[#d00f10] transition-colors w-8 h-8 rounded-full hover:bg-[#FFF4F4] flex items-center justify-center"
+                                            >
                                                 <Trash2 size={16} />
                                             </button>
                                         </div>

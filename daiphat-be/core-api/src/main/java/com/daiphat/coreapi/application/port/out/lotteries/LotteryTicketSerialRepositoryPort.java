@@ -62,6 +62,8 @@ public interface LotteryTicketSerialRepositoryPort {
 
     List<LotteryTicketSerialModel> findAllByReturnBatchLineId(Long returnBatchLineId);
 
+    Optional<LotteryTicketSerialModel> findFirstBySerialNumber(String serialNumber);
+
     long countByReturnBatchLineId(Long returnBatchLineId);
 
     List<ReturnInspectableSerialData> findInStockForSupplierAndDrawDate(

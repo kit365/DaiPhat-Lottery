@@ -118,6 +118,11 @@ class ReturnBatchAutoGenerationServiceTest {
         when(clock.instant()).thenReturn(Instant.parse("2026-07-31T08:20:00Z"));
         when(clock.getZone()).thenReturn(ZONE);
         when(importBatchConfigResolver.resolveReturnBufferMinutes()).thenReturn(45);
+        when(returnBatchCodeGenerator.generateHeaderCode(any(LocalDate.class)))
+                .thenAnswer(invocation -> {
+                    LocalDate drawDate = invocation.getArgument(0);
+                    return "PT-" + drawDate.format(java.time.format.DateTimeFormatter.BASIC_ISO_DATE) + "-0001";
+                });
     }
 
     @Test

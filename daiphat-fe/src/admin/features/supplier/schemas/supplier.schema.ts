@@ -46,16 +46,6 @@ export const supplierFormSchema = z.object({
         .string()
         .optional(),
     isActive: z.boolean(),
-}).superRefine((data, ctx) => {
-    if (data.returnCutOffTime && data.paymentCutOffTime) {
-        if (data.paymentCutOffTime <= data.returnCutOffTime) {
-            ctx.addIssue({
-                code: z.ZodIssueCode.custom,
-                message: `Giờ thanh toán phải sau Hạn trả vé (${data.returnCutOffTime})`,
-                path: ['paymentCutOffTime'],
-            });
-        }
-    }
 });
 
 export type SupplierFormValues = z.infer<typeof supplierFormSchema>;
@@ -73,6 +63,6 @@ export const supplierFormDefaultValues: SupplierFormValues = {
     defaultImportCost: 10000,
     importAllowFrom: '08:00',
     returnCutOffTime: '14:30',
-    paymentCutOffTime: '17:00',
+    paymentCutOffTime: '19:00',
     isActive: true,
 };

@@ -8,8 +8,13 @@ pydantic>=2.3.0
 pydantic-settings>=2.0.3
 python-multipart>=0.0.9
 
-# Image processing
-opencv-python-headless>=4.9.0.80
+# Image processing.
+# Upper-bounded: OpenCV 5.0 is a breaking major (HoughLinesP dropped an axis
+# from its return shape, which silently broke dominant_text_axis) and the
+# rest of this pipeline hasn't been validated against it. ultralytics only
+# requires opencv>=4.6, so <5 satisfies it -- keep the bound until the
+# pipeline is tested on 5.x.
+opencv-python-headless>=4.9.0.80,<5
 numpy>=1.26.4
 
 # Station name fuzzy matching (doc section 6: "OCR may recognize aliases")
@@ -24,3 +29,9 @@ rapidfuzz>=3.6.1
 easyocr>=1.7.1
 paddleocr>=2.7.3
 paddlepaddle>=2.6.1
+
+# YOLOv8-OBB ticket detection (domain/detection/yolo_obb_detector.py). Pulls
+# torch, which easyocr already installs, so the marginal cost is small. The
+# weights themselves are NOT installed here -- see the service README for how
+# best.pt reaches the container.
+ultralytics>=8.3.0

@@ -129,7 +129,11 @@ def dominant_text_axis(image: np.ndarray) -> int:
 
     horizontal_length = 0.0
     vertical_length = 0.0
-    for x1, y1, x2, y2 in lines[:, 0, :]:
+    # OpenCV 4.x returns (N, 1, 4); 5.x dropped the middle axis and returns
+    # (N, 4). Reshape rather than index a fixed rank so this reads the same
+    # segments under either -- requirements.txt pins <5, but a transitive
+    # dependency (ultralytics) has pulled 5.x in before.
+    for x1, y1, x2, y2 in np.asarray(lines).reshape(-1, 4):
         length = float(np.hypot(x2 - x1, y2 - y1))
         angle = abs(np.degrees(np.arctan2(y2 - y1, x2 - x1)))
         angle = min(angle, 180 - angle)  # fold into 0..90

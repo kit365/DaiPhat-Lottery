@@ -1,4 +1,5 @@
 import uuid
+from typing import Callable
 
 import numpy as np
 
@@ -43,6 +44,11 @@ _ROI_UPSCALE_MIN_DIMENSION = 200
 # doubt.
 _ROI_REFINEMENT_CONFIDENCE_CEILING = 0.85
 
+# (strategy name, max tickets) -> detector. Injected rather than calling
+# TicketDetectorFactory directly so this service stays independent of the
+# factory (and tests can hand it a stub without touching OpenCV/YOLO).
+DetectorProvider = Callable[[str | None, int | None], TicketDetectorStrategy]
+
 
 class TicketScanService:
     """Orchestrates one POST /v1/scan request end-to-end (doc section 4,
@@ -56,7 +62,7 @@ class TicketScanService:
 
     def __init__(
         self,
-        detector: TicketDetectorStrategy,
+        detector_provider: DetectorProvider,
         ocr_strategy: OcrStrategy,
         validator: FormatValidator,
         max_file_size_mb: int,
@@ -66,7 +72,7 @@ class TicketScanService:
         low_confidence_threshold: float,
         include_cropped_image: bool = True,
     ) -> None:
-        self._detector = detector
+        self._detector_provider = detector_provider
         self._ocr_strategy = ocr_strategy
         self._validator = validator
         self._max_file_size_mb = max_file_size_mb
@@ -94,7 +100,11 @@ class TicketScanService:
             if s.code and s.expectedNumberLength
         }
 
-        detection_result = self._detector.detect(image)
+        # Detector is resolved per request, not per process: ScanMetadata lets
+        # Java pick the strategy (and cap ticket count) per call, e.g. to A/B
+        # the YOLO detector against the contour MVP without a redeploy.
+        detector = self._detector_provider(metadata.detectorStrategy, metadata.maxTickets)
+        detection_result = detector.detect(image)
         warnings = list(detection_result.warnings)
 
         tickets: list[TicketScanResult] = []

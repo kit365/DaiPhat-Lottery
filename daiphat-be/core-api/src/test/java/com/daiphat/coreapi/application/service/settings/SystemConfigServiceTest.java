@@ -6,6 +6,7 @@ import com.daiphat.coreapi.application.mapper.settings.SystemConfigApplicationMa
 import com.daiphat.coreapi.application.port.in.streetagent.VendorConfidenceServicePort;
 import com.daiphat.coreapi.application.port.out.settings.SystemConfigCachePort;
 import com.daiphat.coreapi.application.port.out.settings.SystemConfigRepositoryPort;
+import com.daiphat.coreapi.application.service.lotteries.SupplierPaymentCutOffSyncService;
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
 import com.daiphat.coreapi.domain.model.enums.settings.ConfigType;
@@ -47,6 +48,9 @@ class SystemConfigServiceTest {
 
     @Spy
     private SystemConfigApplicationMapper systemConfigApplicationMapper = new SystemConfigApplicationMapper();
+
+    @Mock
+    private SupplierPaymentCutOffSyncService supplierPaymentCutOffSyncService;
 
     @InjectMocks
     private SystemConfigService systemConfigService;
@@ -169,6 +173,33 @@ class SystemConfigServiceTest {
             assertThat(response.configValue()).isEqualTo("45");
             assertThat(response.description()).isEqualTo("Updated grace");
             verify(systemConfigCachePort).evict("ORDER_CANCEL_GRACE_MIN");
+            verify(supplierPaymentCutOffSyncService, never()).syncAllSuppliers();
+        }
+
+        @Test
+        void syncsSupplierPaymentCutoff_whenVerificationDeadlineUpdated() {
+            SystemConfigModel existing = SystemConfigModel.builder()
+                    .id(3L)
+                    .configKey("VERIFICATION_DEADLINE")
+                    .configValue("17:00")
+                    .configType(ConfigType.TICKET_RETURN)
+                    .dataType(DataType.TIME)
+                    .description("Hạn chót đối chiếu")
+                    .configName("Hạn chót đối chiếu")
+                    .unit("HH:mm")
+                    .validationRules("{\"min\":\"00:00\",\"max\":\"23:59\"}")
+                    .isEditable(true)
+                    .isActive(true)
+                    .build();
+            when(systemConfigRepositoryPort.findById(3L)).thenReturn(Optional.of(existing));
+            when(systemConfigRepositoryPort.save(any(SystemConfigModel.class))).thenAnswer(inv -> inv.getArgument(0));
+
+            systemConfigService.update(
+                    3L,
+                    new UpdateSystemConfigRequest("Hạn chót đối chiếu", "17:30", "Updated"));
+
+            verify(systemConfigCachePort).evict("VERIFICATION_DEADLINE");
+            verify(supplierPaymentCutOffSyncService).syncAllSuppliers();
         }
 
         @Test

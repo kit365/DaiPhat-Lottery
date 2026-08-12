@@ -257,8 +257,21 @@ public interface LotteryTicketSerialRepository extends JpaRepository<LotteryTick
                 SUM(CASE WHEN s.ticketCondition IS NULL
                            OR s.ticketCondition <> com.daiphat.coreapi.domain.model.enums.lottery.TicketCondition.VOIDED
                          THEN 1 ELSE 0 END),
-                SUM(CASE WHEN s.status = com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus.SOLD
-                         THEN 1 ELSE 0 END),
+                SUM(CASE WHEN EXISTS (
+                    SELECT 1 FROM OrderEntity o
+                    JOIN o.orderDetails od
+                    WHERE (
+                           od.lotteryTicketSerial = s 
+                        OR od.replacedByTicketSerial = s 
+                    )
+                    AND od.status = :#{T(com.daiphat.coreapi.domain.model.enums.order.detail.OrderDetailStatus).ACTIVE}
+                    AND o.status IN (
+                          :#{T(com.daiphat.coreapi.domain.model.enums.order.OrderStatus).PAID},
+                          :#{T(com.daiphat.coreapi.domain.model.enums.order.OrderStatus).PREPARING},
+                          :#{T(com.daiphat.coreapi.domain.model.enums.order.OrderStatus).PENDING_PICKUP},
+                          :#{T(com.daiphat.coreapi.domain.model.enums.order.OrderStatus).COMPLETED}
+                    )
+                ) THEN 1 ELSE 0 END),
                 SUM(CASE WHEN s.status = com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus.IN_STOCK
                            AND s.ticketCondition = com.daiphat.coreapi.domain.model.enums.lottery.TicketCondition.GOOD
                            AND s.returnBatchLineId IS NULL

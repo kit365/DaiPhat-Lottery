@@ -1,5 +1,6 @@
 package com.daiphat.coreapi.application.service.lotteries;
 
+import com.daiphat.coreapi.application.port.in.lotteries.SupplierSettlementServicePort;
 import com.daiphat.coreapi.application.port.out.lotteries.LotterySupplierRepositoryPort;
 import com.daiphat.coreapi.application.port.out.lotteries.ReturnBatchRepositoryPort;
 import com.daiphat.coreapi.domain.model.enums.lottery.ReturnBatchStatus;
@@ -22,6 +23,8 @@ import java.util.List;
 @Slf4j
 public class ReturnBatchAutoCancelService {
 
+    private static final String SEED_NOTE_PREFIX = "SEED-RETURN-";
+
     private static final List<ReturnBatchStatus> OPEN_INSPECTION_STATUSES = List.of(
             ReturnBatchStatus.PENDING_INSPECTION,
             ReturnBatchStatus.INSPECTING
@@ -29,6 +32,7 @@ public class ReturnBatchAutoCancelService {
 
     private final ReturnBatchRepositoryPort returnBatchRepositoryPort;
     private final LotterySupplierRepositoryPort lotterySupplierRepositoryPort;
+    private final SupplierSettlementServicePort supplierSettlementServicePort;
     private final Clock clock;
 
     @Transactional
@@ -38,6 +42,9 @@ public class ReturnBatchAutoCancelService {
         for (ReturnBatchModel batch : returnBatchRepositoryPort.findByStatuses(OPEN_INSPECTION_STATUSES)) {
             if (cancelIfPastCutoff(batch, now)) {
                 cancelled++;
+                if (batch.getSupplierSettlementId() != null) {
+                    supplierSettlementServicePort.recalculateAmounts(batch.getSupplierSettlementId());
+                }
             }
         }
         return cancelled;
@@ -53,6 +60,10 @@ public class ReturnBatchAutoCancelService {
 
     private boolean cancelIfPastCutoff(ReturnBatchModel batch, LocalDateTime now) {
         if (batch == null || batch.getStatus() == null || !batch.getStatus().isOpenForInspection()) {
+            return false;
+        }
+        // Seeded demo batches must remain PENDING_INSPECTION even after cutoff.
+        if (isSeedReturnBatch(batch)) {
             return false;
         }
         LocalTime cutOff = batch.getReturnCutOffTime();
@@ -77,5 +88,10 @@ public class ReturnBatchAutoCancelService {
                 ReturnBatchCancelReason.CUTOFF_EXCEEDED
         );
         return true;
+    }
+
+    private static boolean isSeedReturnBatch(ReturnBatchModel batch) {
+        String note = batch.getNote();
+        return note != null && note.startsWith(SEED_NOTE_PREFIX);
     }
 }

@@ -50,6 +50,21 @@ export const CartPage = () => {
         updateQuantity(item.id, 1);
     };
 
+    const handleDecreaseQty = (item: CartItem) => {
+        if (item.quantity <= 0) return;
+        updateQuantity(item.id, -1);
+    };
+
+    const handleRemoveItem = async (item: CartItem) => {
+        const confirmed = await toast.confirm(
+            `Bạn có chắc muốn xóa vé số ${item.numbers} (${item.province}) khỏi giỏ hàng?`,
+            'Xóa vé khỏi giỏ'
+        );
+        if (!confirmed) return;
+        removeItem(item.id);
+        setSelectedIds((prev) => prev.filter((id) => id !== item.id));
+    };
+
     const toggleSelectAll = () => {
         if (selectedIds.length === items.length) {
             setSelectedIds([]);
@@ -64,10 +79,15 @@ export const CartPage = () => {
         );
     };
 
-    const handleClearCart = () => {
-        const remainingIds = selectedIds.filter(id => !selectedIds.includes(id));
-        selectedIds.forEach(id => removeItem(id));
-        setSelectedIds(remainingIds);
+    const handleClearCart = async () => {
+        if (selectedIds.length === 0) return;
+        const confirmed = await toast.confirm(
+            `Bạn có chắc muốn xóa ${selectedIds.length} vé đã chọn khỏi giỏ hàng?`,
+            'Xóa tất cả'
+        );
+        if (!confirmed) return;
+        selectedIds.forEach((id) => removeItem(id));
+        setSelectedIds([]);
     };
 
     const selectedItems = items.filter(i => selectedIds.includes(i.id) && i.quantity > 0);
@@ -169,9 +189,9 @@ export const CartPage = () => {
                                             <div className="flex flex-col items-center">
                                                 <CartQuantityControl
                                                     item={item}
-                                                    onDecrease={() => updateQuantity(item.id, -1)}
+                                                    onDecrease={() => handleDecreaseQty(item)}
                                                     onIncrease={() => handleIncreaseQty(item)}
-                                                    onRemove={() => removeItem(item.id)}
+                                                    onRemove={() => handleRemoveItem(item)}
                                                 />
                                             </div>
 
@@ -187,7 +207,12 @@ export const CartPage = () => {
 
                                             {/* Thao tác */}
                                             <div className="flex justify-center">
-                                                <button onClick={() => removeItem(item.id)} className="text-[#ee1314] hover:text-[#d00f10] transition-colors w-8 h-8 rounded-full hover:bg-[#FFF4F4] flex items-center justify-center">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleRemoveItem(item)}
+                                                    aria-label={`Xóa vé số ${item.numbers}`}
+                                                    className="text-[#ee1314] hover:text-[#d00f10] transition-colors w-8 h-8 rounded-full hover:bg-[#FFF4F4] flex items-center justify-center"
+                                                >
                                                     <Trash2 size={16} />
                                                 </button>
                                             </div>
