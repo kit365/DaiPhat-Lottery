@@ -114,7 +114,11 @@ export const ImportBatchList = ({ listHook }: ImportBatchListProps) => {
     const handleAddTicket = useCallback(
         (batch: ImportBatch) => {
             const firstLine = findFirstIncompleteLine(batch);
-            router.push(ROUTES.ADMIN.TICKETS.CREATE_FOR_BATCH(batch.id, firstLine?.id));
+            if (firstLine?.id != null) {
+                router.push(ROUTES.ADMIN.IMPORT_BATCH.LINE_DETAIL(batch.id, firstLine.id));
+                return;
+            }
+            router.push(ROUTES.ADMIN.IMPORT_BATCH.DETAIL(batch.id));
         },
         [router]
     );

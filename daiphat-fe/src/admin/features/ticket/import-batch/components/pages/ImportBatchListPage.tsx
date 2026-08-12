@@ -83,7 +83,7 @@ export const ImportBatchListPage = () => {
             {/* Incomplete / Missing Station Notifications */}
             <Stack spacing={2} sx={{ mb: 2.5 }}>
                 <CanAccess anyOf={[PERMISSIONS.IMPORT_BATCH.VIEW, PERMISSIONS.TICKET.CREATE]}>
-                    <IncompleteImportBatchNotification variant="compact" />
+                    <IncompleteImportBatchNotification />
                     <MissingStationImportBatchNotification pageBatches={listHook.batches} />
                 </CanAccess>
             </Stack>

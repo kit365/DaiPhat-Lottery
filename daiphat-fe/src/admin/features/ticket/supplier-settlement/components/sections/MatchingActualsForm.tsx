@@ -387,6 +387,8 @@ export const MatchingActualsForm = ({
     const isActualPaidEmpty = actualPaidAmount.trim() === '';
     const paymentRemainingDiff =
         !isActualPaidEmpty && finalVal != null ? parsedActualPaidAmount - finalVal : null;
+    const showPaymentDiff = paymentRemainingDiff != null;
+    const paymentDiff = paymentRemainingDiff ?? 0;
     const shouldAutoCreatePaymentDiffAdjustment =
         hasAllRequiredInputs
         && !isActualPaidEmpty
@@ -1933,18 +1935,18 @@ export const MatchingActualsForm = ({
                                     p: 1.75,
                                     borderRadius: '12px',
                                     border: '1px solid',
-                                    borderColor: isActualPaidEmpty
+                                    borderColor: !showPaymentDiff
                                         ? '#e2e8f0'
-                                        : paymentRemainingDiff === 0
+                                        : paymentDiff === 0
                                         ? '#bbf7d0'
-                                        : paymentRemainingDiff > 0
+                                        : paymentDiff > 0
                                         ? '#fecdd3'
                                         : '#fde68a',
-                                    bgcolor: isActualPaidEmpty
+                                    bgcolor: !showPaymentDiff
                                         ? '#ffffff'
-                                        : paymentRemainingDiff === 0
+                                        : paymentDiff === 0
                                         ? '#f0fdf4'
-                                        : paymentRemainingDiff > 0
+                                        : paymentDiff > 0
                                         ? '#fff1f2'
                                         : '#fffbeb',
                                     height: '100%',
@@ -1957,20 +1959,20 @@ export const MatchingActualsForm = ({
                                     <Typography variant="caption" fontWeight={700} color="#475569" sx={{ textTransform: 'uppercase', fontSize: '0.725rem' }}>
                                         Chênh lệch thanh toán:
                                     </Typography>
-                                    {isActualPaidEmpty ? (
+                                    {!showPaymentDiff ? (
                                         <Chip
                                             size="small"
                                             label="Chưa nhập tiền"
                                             sx={{ height: 20, fontSize: '0.675rem', fontWeight: 700, bgcolor: '#f1f5f9', color: '#64748b' }}
                                         />
-                                    ) : paymentRemainingDiff === 0 ? (
+                                    ) : paymentDiff === 0 ? (
                                         <Chip
                                             size="small"
                                             icon={<CheckCircleOutlinedIcon style={{ fontSize: '0.85rem', color: '#15803d' }} />}
                                             label="Khớp hoàn toàn"
                                             sx={{ height: 20, fontSize: '0.675rem', fontWeight: 800, bgcolor: '#ffffff', color: '#15803d', border: '1px solid #bbf7d0' }}
                                         />
-                                    ) : paymentRemainingDiff > 0 ? (
+                                    ) : paymentDiff > 0 ? (
                                         <Chip
                                             size="small"
                                             icon={<TrendingUpOutlinedIcon style={{ fontSize: '0.85rem', color: '#be123c' }} />}
@@ -1993,20 +1995,20 @@ export const MatchingActualsForm = ({
                                         fontWeight={800}
                                         sx={{
                                             fontSize: '1.2rem',
-                                            color: isActualPaidEmpty
+                                            color: !showPaymentDiff
                                                 ? '#94a3b8'
-                                                : paymentRemainingDiff === 0
+                                                : paymentDiff === 0
                                                 ? '#15803d'
-                                                : paymentRemainingDiff > 0
+                                                : paymentDiff > 0
                                                 ? '#be123c'
                                                 : '#b45309',
                                         }}
                                     >
-                                        {isActualPaidEmpty ? (
+                                        {!showPaymentDiff ? (
                                             '—'
                                         ) : (
                                             <>
-                                                {paymentRemainingDiff > 0 ? `+${formatImportCost(paymentRemainingDiff)}` : formatImportCost(paymentRemainingDiff)}{' '}
+                                                {paymentDiff > 0 ? `+${formatImportCost(paymentDiff)}` : formatImportCost(paymentDiff)}{' '}
                                                 <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>VNĐ</span>
                                             </>
                                         )}
@@ -2014,13 +2016,13 @@ export const MatchingActualsForm = ({
                                 </Box>
 
                                 <Typography variant="caption" color="#64748b" sx={{ fontSize: '0.725rem' }}>
-                                    {isActualPaidEmpty
+                                    {!showPaymentDiff
                                         ? '= Giá trị thực trả từ biên lai − Sau chênh lệch'
-                                        : paymentRemainingDiff === 0
+                                        : paymentDiff === 0
                                         ? '✓ Số tiền trên biên lai trùng khớp 100% với số tiền sau đối soát'
-                                        : paymentRemainingDiff > 0
-                                        ? `Biên lai trả thừa +${formatImportCost(paymentRemainingDiff)} VNĐ so với số tiền cần trả`
-                                        : `Biên lai trả thiếu ${formatImportCost(paymentRemainingDiff)} VNĐ so với số tiền cần trả`}
+                                        : paymentDiff > 0
+                                        ? `Biên lai trả thừa +${formatImportCost(paymentDiff)} VNĐ so với số tiền cần trả`
+                                        : `Biên lai trả thiếu ${formatImportCost(paymentDiff)} VNĐ so với số tiền cần trả`}
                                 </Typography>
                             </Paper>
                         </Grid>

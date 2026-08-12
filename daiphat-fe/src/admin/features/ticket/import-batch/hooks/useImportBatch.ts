@@ -21,6 +21,8 @@ import {
 import type {
     CreateImportBatchPayload,
     ImportBatchListParams,
+    ImportBatchStatus,
+    ImportBatchType,
     UpdateImportBatchPayload,
 } from '../types/importBatch.type';
 import { QUERY_KEYS } from '../constants/queryKeys';
