@@ -38,7 +38,7 @@ export const LoginPage = () => {
         },
     })
 
-    const { login: loginMutate, isLoading: isPending, isRedirecting } = useAuth()
+    const { login: loginMutate, isLoginPending, isRedirecting } = useAuth()
 
     usePrefetchAdminLoginDestinations();
 
@@ -146,7 +146,7 @@ export const LoginPage = () => {
                                                 {...field}
                                                 label="Tên đăng nhập hoặc Email"
                                                 fullWidth
-                                                disabled={isPending}
+                                                disabled={isLoginPending || isRedirecting}
                                                 error={!!fieldState.error}
                                                 helperText={fieldState.error?.message}
                                                 slotProps={{
@@ -171,7 +171,7 @@ export const LoginPage = () => {
                                                     label="Mật khẩu"
                                                     type={showPassword ? "text" : "password"}
                                                     fullWidth
-                                                    disabled={isPending}
+                                                    disabled={isLoginPending || isRedirecting}
                                                     error={!!fieldState.error}
                                                     helperText={fieldState.error?.message}
                                                     slotProps={{
@@ -182,7 +182,7 @@ export const LoginPage = () => {
                                                                     <IconButton
                                                                         onClick={handleTogglePasswordVisibility}
                                                                         edge="end"
-                                                                        disabled={isPending}
+                                                                        disabled={isLoginPending || isRedirecting}
                                                                     >
                                                                         {showPassword ? <NoEyeIcon /> : <EyeIcon />}
                                                                     </IconButton>
@@ -207,7 +207,7 @@ export const LoginPage = () => {
                                         type="submit"
                                         variant="contained"
                                         color="inherit"
-                                        loading={isPending}
+                                        loading={isLoginPending || isRedirecting}
                                         loadingLabel={isRedirecting ? "Đang vào hệ thống..." : "Đang xử lý..."}
                                         fullWidth
                                         sx={{

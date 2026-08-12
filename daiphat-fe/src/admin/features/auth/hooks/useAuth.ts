@@ -22,7 +22,7 @@ import { LoginResponse } from "../types/auth.type";
 import { LoginFormValues } from "@/admin/features/auth/schemas/login.schema";
 import { STORAGE_KEYS } from "@/constants/storage.constants";
 import { QUERY_KEYS } from "@/constants/queryKeys";
-import { prefetchAdminLoginDestinations } from "@/admin/utils/prefetchAdminPages";
+import { prefetchAdminDestination, prefetchAdminLoginDestinations } from "@/admin/utils/prefetchAdminPages";
 import { queueAdminLoginToast } from "@/admin/lib/adminLoginToast.utils";
 
 export const useAuth = () => {
@@ -42,9 +42,11 @@ export const useAuth = () => {
             queueAdminLoginToast(toast);
         }
 
-        requestAnimationFrame(() => {
-            router.replace(destination);
-        });
+        prefetchAdminDestination(destination, router.prefetch);
+
+        // Full navigation so middleware sees the fresh auth cookie. Client-side
+        // router.replace() was stalling after login in production builds.
+        window.location.replace(destination);
     };
 
     const loginMutation = useMutation({
