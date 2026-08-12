@@ -27,6 +27,3 @@ export const getDrawResultStatusBadgeClass = (status?: string) => {
             return 'admin-status-badge--draft';
     }
 };
-
-export const getDrawResultOfficialBadgeClass = (isOfficial: boolean) =>
-    isOfficial ? 'admin-status-badge--success' : 'admin-status-badge--draft';

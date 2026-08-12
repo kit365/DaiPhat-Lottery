@@ -5,7 +5,6 @@ import dayjs from 'dayjs';
 import { AdminStatusBadge } from '../../../../components/ui/AdminStatusBadge';
 import { AdminRowActionsMenu } from '../../../../components/ui/AdminRowActionsMenu';
 import {
-    getDrawResultOfficialBadgeClass,
     getDrawResultStatusBadgeClass,
     getDrawResultStatusLabel,
 } from '../../utils/drawResultLabels';
@@ -39,22 +38,6 @@ export const columnsConfig = (onViewDetails: (id: number) => void): GridColDef[]
                 <AdminStatusBadge
                     label={getDrawResultStatusLabel(params.value)}
                     modifier={getDrawResultStatusBadgeClass(params.value)}
-                    className="admin-status-badge--compact"
-                />
-            </BadgeCell>
-        )
-    },
-    { 
-        field: 'isOfficial', 
-        headerName: 'Chính Thức', 
-        width: 120,
-        align: 'center',
-        headerAlign: 'center',
-        renderCell: (params) => (
-            <BadgeCell>
-                <AdminStatusBadge
-                    label={params.value ? 'Chính thức' : 'Chưa chuẩn'}
-                    modifier={getDrawResultOfficialBadgeClass(Boolean(params.value))}
                     className="admin-status-badge--compact"
                 />
             </BadgeCell>
