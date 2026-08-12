@@ -65,6 +65,23 @@ public final class VendorAllocationSuggestionBuilder {
         return build(serials, remainingDailyCap, remainingDailyCap, new ReservePolicy(fixedReserve, BigDecimal.ZERO), blockedReason);
     }
 
+    /**
+     * A business-window block is decisive: do not add artificial inventory or
+     * cap shortfalls when no allocation may be attempted at all.
+     */
+    public static Suggestion blocked(
+            int requestedQuantity,
+            int remainingDailyCap,
+            ReservePolicy policy,
+            String blockedReason) {
+        int requested = Math.max(0, requestedQuantity);
+        int remaining = Math.max(0, remainingDailyCap);
+        return new Suggestion(
+                requested, remaining, 0, 0, 0, 0,
+                policy.fixedReserve(), policy.reservePercent(), requested, 0, 0,
+                List.of(blockedReason), blockedReason, List.of());
+    }
+
     public static Suggestion build(List<VendorAllocationSerialModel> serials, int remainingDailyCap, int requestedQuantity,
                                    ReservePolicy policy, String blockedReason) {
         int requested = Math.max(0, requestedQuantity);

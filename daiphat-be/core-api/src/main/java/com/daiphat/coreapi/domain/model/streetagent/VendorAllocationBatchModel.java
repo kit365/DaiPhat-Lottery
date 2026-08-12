@@ -31,6 +31,8 @@ public class VendorAllocationBatchModel {
     private LocalTime returnCutoffSnapshot;
     private LocalTime supplierReturnCutoffSnapshot;
     private Integer returnBufferMinutesSnapshot;
+    /** Exact handover/return deadline snapshot. May be on the previous calendar day. */
+    private LocalDateTime effectiveHandoverDeadlineAt;
     private int allocatedQuantity;
     private int returnedQuantity;
     private int soldQuantity;
@@ -106,7 +108,7 @@ public class VendorAllocationBatchModel {
     public void confirmHandover(
             LocalDateTime now, BigDecimal vendorUnitPrice, BigDecimal depositRate,
             VendorLateReturnPolicy latePolicy, LocalTime returnCutoff,
-            LocalTime supplierReturnCutoff, Integer returnBufferMinutes,
+            LocalTime supplierReturnCutoff, Integer returnBufferMinutes, LocalDateTime effectiveHandoverDeadlineAt,
             BigDecimal depositReceivedAmount, BigDecimal depositBalanceBefore, UUID operatorId
     ) {
         if (status != AllocationBatchStatus.DRAFT || isDraftExpired(now) || serials.isEmpty()) {
@@ -126,6 +128,7 @@ public class VendorAllocationBatchModel {
         returnCutoffSnapshot = returnCutoff;
         supplierReturnCutoffSnapshot = supplierReturnCutoff;
         returnBufferMinutesSnapshot = returnBufferMinutes;
+        this.effectiveHandoverDeadlineAt = effectiveHandoverDeadlineAt;
         BigDecimal required = VendorDepositCalculator.calculate(allocatedQuantity, vendorUnitPrice, depositRate);
         if (depositReceivedAmount == null || depositReceivedAmount.compareTo(required) < 0) {
             throw new DomainException(ErrorCode.VENDOR_ALLOCATION_DEPOSIT_INSUFFICIENT);
@@ -146,6 +149,7 @@ public class VendorAllocationBatchModel {
             VendorLateReturnPolicy latePolicy, LocalTime returnCutoff,
             BigDecimal depositReceivedAmount, BigDecimal depositBalanceBefore, UUID operatorId) {
         confirmHandover(now, vendorUnitPrice, depositRate, latePolicy, returnCutoff, null, null,
+                businessDate == null || returnCutoff == null ? null : businessDate.atTime(returnCutoff),
                 depositReceivedAmount, depositBalanceBefore, operatorId);
     }
 
@@ -274,8 +278,12 @@ public class VendorAllocationBatchModel {
     }
 
     private boolean isLate(LocalDateTime now) {
-        return now != null && returnCutoffSnapshot != null
-                && !now.isBefore(businessDate.atTime(returnCutoffSnapshot));
+        LocalDateTime deadline = effectiveHandoverDeadlineAt != null
+                ? effectiveHandoverDeadlineAt
+                : businessDate == null || returnCutoffSnapshot == null
+                        ? null
+                        : businessDate.atTime(returnCutoffSnapshot);
+        return now != null && deadline != null && !now.isBefore(deadline);
     }
 
     private void recalculateQuantities() {

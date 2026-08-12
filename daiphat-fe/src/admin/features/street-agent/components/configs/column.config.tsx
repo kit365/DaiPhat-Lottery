@@ -20,8 +20,8 @@ export const getColumnsConfig = (
     {
         field: "fullName",
         headerName: "Người bán vé số",
-        minWidth: 280,
-        flex: 1.5,
+        minWidth: 200,
+        flex: 0.9,
         valueGetter: (_value, row) => `${row.lastName || ""} ${row.firstName || ""}`.trim(),
         renderCell: (params: GridRenderCellParams) => (
             <Stack direction="row" alignItems="center" spacing={2} sx={{ py: 2 }}>
@@ -59,8 +59,8 @@ export const getColumnsConfig = (
     {
         field: "contact",
         headerName: "Liên hệ",
-        minWidth: 220,
-        flex: 1,
+        minWidth: 200,
+        flex: 0.9,
         valueGetter: (_value, row) => row.phone,
         renderCell: (params: GridRenderCellParams) => (
             <Stack spacing={0.5} sx={{ py: 2, justifyContent: "center", height: "100%" }}>
@@ -75,27 +75,31 @@ export const getColumnsConfig = (
     },
     {
         field: "coverageArea",
-        headerName: "Địa bàn bán",
-        minWidth: 140,
-        flex: 1,
+        headerName: "Khu vực bán",
+        minWidth: 120,
+        flex: 0.8,
         valueFormatter: (value) => formatCoverageAreaDisplay(value),
     },
     {
         field: "effectiveDailyCap",
         headerName: "Hạn mức hiện hành",
-        width: 120,
+        minWidth: 160,
+        width: 160,
+        headerAlign: "center",
+        align: "center",
         valueFormatter: (value) => value ?? "—",
     },
     {
         field: "contractCode",
         headerName: "Hợp đồng",
-        width: 140,
+        minWidth: 200,
+        width: 200,
         valueFormatter: (value) => value || "—",
     },
     {
         field: "status",
         headerName: "Trạng thái",
-        width: 140,
+        width: 120,
         headerAlign: "center",
         align: "center",
         renderCell: (params: GridRenderCellParams) => {

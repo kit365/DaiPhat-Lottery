@@ -4,7 +4,7 @@ import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
 import { useRouteParams } from "@/hooks/useRouteParams";
 import { PageHeader } from '../../../../components/ui/PageHeader';
 import { SpinnerLoading } from '../../../../components/ui/SpinnerLoading';
-import { useUpdateUser, useUserDetail, useDeleteUser } from "../../hooks/useUsers";
+import { useUpdateUser, useUserDetail, useDeleteUser, useUploadUserAvatar } from "../../hooks/useUsers";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm, Controller } from "react-hook-form";
 import { accountUserSchema } from "@/admin/features/users/schemas/account-user.schema";
@@ -23,7 +23,6 @@ Typography,
 } from '@mui/material';
 import { UserStatus } from "../../../../../types/user.type";
 import Grid from "@mui/material/Grid";
-import { uploadImagesToCloudinary } from "@/admin/shared/services/uploadCloudinary.service";
 import { Button } from '../../../../components/ui/Button';
 
 export const ClientEditPage = () => {
@@ -32,6 +31,7 @@ export const ClientEditPage = () => {
     const { data: user, isLoading } = useUserDetail(id);
     const { mutate: update, isPending } = useUpdateUser();
     const { mutate: removeUser } = useDeleteUser();
+    const { mutateAsync: uploadAvatar } = useUploadUserAvatar();
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [isUploading, setIsUploading] = useState(false);
 
@@ -90,9 +90,9 @@ export const ClientEditPage = () => {
 
         try {
             setIsUploading(true);
-            const [url] = await uploadImagesToCloudinary([file]);
+            const response = await uploadAvatar({ id: id!, file });
+            const url = response.data?.avatarUrl || response.data?.avatar || "";
             setValue("avatar", url, { shouldValidate: true });
-            toast.success("Tải ảnh đại diện thành công!");
         } catch (error) {
             toast.error("Tải ảnh đại diện thất bại!");
         } finally {
@@ -115,7 +115,9 @@ export const ClientEditPage = () => {
     };
 
     const onSubmit = (data: any) => {
-        update({ id: id!, data }, {
+        const payload = { ...data };
+        delete payload.avatar;
+        update({ id: id!, data: payload }, {
             onSuccess: () => {
                 toast.success("Cập nhật tài khoản khách hàng thành công!");
                 router.push(`/${prefixAdmin}/account-user/list`);

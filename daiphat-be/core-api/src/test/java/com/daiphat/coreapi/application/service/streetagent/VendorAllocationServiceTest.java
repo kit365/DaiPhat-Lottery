@@ -76,7 +76,8 @@ class VendorAllocationServiceTest {
         });
         service = new VendorAllocationService(
                 allocationRepositoryPort, profileRepositoryPort, systemConfigRepositoryPort, projectionServicePort,
-                new VendorConfidencePolicyResolver(systemConfigRepositoryPort), ticketAggregateSyncUseCase,
+                new VendorConfidencePolicyResolver(systemConfigRepositoryPort),
+                new VendorOperationalTimingResolver(systemConfigRepositoryPort), ticketAggregateSyncUseCase,
                 depositTransactionRepositoryPort, returnBatchRepositoryPort);
     }
 
@@ -85,7 +86,7 @@ class VendorAllocationServiceTest {
             StreetAgentProfileRepositoryPort profiles,
             SystemConfigRepositoryPort configs) {
         return new VendorAllocationService(allocations, profiles, configs, projectionServicePort,
-                new VendorConfidencePolicyResolver(configs), ticketAggregateSyncUseCase,
+                new VendorConfidencePolicyResolver(configs), new VendorOperationalTimingResolver(configs), ticketAggregateSyncUseCase,
                 depositTransactionRepositoryPort, returnBatchRepositoryPort);
     }
 
@@ -217,6 +218,11 @@ class VendorAllocationServiceTest {
     @Test
     void suggestion_returnsDrawTimePassed_whenInventoryPastDrawToday() {
         LocalDate today = DrawScheduleUtils.today();
+        when(systemConfigRepositoryPort.findActiveByConfigKey(SystemConfigEnum.VENDOR_RETURN_CUTOFF.name()))
+                .thenReturn(Optional.of(SystemConfigModel.builder()
+                        .configKey(SystemConfigEnum.VENDOR_RETURN_CUTOFF.name())
+                        .configValue("23:59")
+                        .build()));
         when(profileRepositoryPort.findById(7L)).thenReturn(Optional.of(
                 eligibleProfileBuilder()
                         .contractStartDate(today.minusDays(1))
@@ -231,11 +237,70 @@ class VendorAllocationServiceTest {
 
         assertThat(suggestion.stations()).isEmpty();
         assertThat(suggestion.blockedReason()).isEqualTo(VendorTicketSellabilityPolicy.BLOCKED_DRAW_TIME_PASSED);
+        assertThat(suggestion.reasonDetails())
+                .anySatisfy(detail -> {
+                    assertThat(detail.code()).isEqualTo(VendorTicketSellabilityPolicy.BLOCKED_DRAW_TIME_PASSED);
+                    assertThat(detail.stationName()).isEqualTo("Đài HCM");
+                });
+    }
+
+    @Test
+    void suggestion_explains_configured_cutoff_before_loading_inventory() {
+        LocalDate today = DrawScheduleUtils.today();
+        when(profileRepositoryPort.findById(7L)).thenReturn(Optional.of(
+                eligibleProfileBuilder()
+                        .contractStartDate(today.minusDays(1))
+                        .contractEndDate(today.plusDays(1))
+                        .build()));
+        when(systemConfigRepositoryPort.findActiveByConfigKey(SystemConfigEnum.VENDOR_RETURN_CUTOFF.name()))
+                .thenReturn(Optional.of(SystemConfigModel.builder()
+                        .configKey(SystemConfigEnum.VENDOR_RETURN_CUTOFF.name())
+                        .configValue("00:00")
+                        .build()));
+
+        var suggestion = service.getSuggestion(7L, today, 12, null);
+
+        assertThat(suggestion.allowedQuantity()).isZero();
+        assertThat(suggestion.blockedReason())
+                .isEqualTo(VendorTicketSellabilityPolicy.BLOCKED_RETURN_CUTOFF_REACHED);
+        assertThat(suggestion.reasonDetails()).singleElement().satisfies(detail -> {
+            assertThat(detail.code()).isEqualTo(VendorTicketSellabilityPolicy.BLOCKED_RETURN_CUTOFF_REACHED);
+            assertThat(detail.cutoffTime()).isEqualTo(LocalTime.MIDNIGHT);
+            assertThat(detail.requestedQuantity()).isEqualTo(12);
+        });
+        verify(allocationRepositoryPort, never()).findCandidates(today);
+    }
+
+    @Test
+    void createDraft_rejects_same_day_when_configured_cutoff_has_passed() {
+        LocalDate today = DrawScheduleUtils.today();
+        StreetAgentProfileModel profile = eligibleProfileBuilder()
+                .contractStartDate(today.minusDays(1))
+                .contractEndDate(today.plusDays(1))
+                .build();
+        when(profileRepositoryPort.findByIdForUpdate(7L)).thenReturn(Optional.of(profile));
+        when(systemConfigRepositoryPort.findActiveByConfigKey(SystemConfigEnum.VENDOR_RETURN_CUTOFF.name()))
+                .thenReturn(Optional.of(SystemConfigModel.builder()
+                        .configKey(SystemConfigEnum.VENDOR_RETURN_CUTOFF.name())
+                        .configValue("00:00")
+                        .build()));
+
+        assertThatThrownBy(() -> service.createDraft(
+                new CreateVendorAllocationDraftRequest(7L, today, List.of(101L), null)))
+                .isInstanceOf(DomainException.class)
+                .extracting(error -> ((DomainException) error).getErrorCode().name())
+                .isEqualTo("VENDOR_ALLOCATION_RETURN_CUTOFF_REACHED");
+        verify(allocationRepositoryPort, never()).findCandidates(today);
     }
 
     @Test
     void createDraft_rejects_serial_past_draw_time() {
         LocalDate today = DrawScheduleUtils.today();
+        when(systemConfigRepositoryPort.findActiveByConfigKey(SystemConfigEnum.VENDOR_RETURN_CUTOFF.name()))
+                .thenReturn(Optional.of(SystemConfigModel.builder()
+                        .configKey(SystemConfigEnum.VENDOR_RETURN_CUTOFF.name())
+                        .configValue("23:59")
+                        .build()));
         StreetAgentProfileModel profile = eligibleProfileBuilder()
                 .contractStartDate(today.minusDays(1))
                 .contractEndDate(today.plusDays(1))
@@ -378,13 +443,25 @@ class VendorAllocationServiceTest {
     @Test
     void confirmation_quote_derives_vendor_price_from_commission_rate() {
         VendorAllocationBatchModel batch = draftBatch(99L);
-        when(allocationRepositoryPort.findById(99L)).thenReturn(Optional.of(batch));
+        when(allocationRepositoryPort.findByIdForUpdate(99L)).thenReturn(Optional.of(batch));
 
         var quote = service.getConfirmationQuote(99L);
 
         assertThat(quote.vendorUnitPrice()).isEqualByComparingTo("9000");
         assertThat(quote.depositRate()).isEqualByComparingTo("0.10");
         assertThat(quote.depositRequiredAmount()).isEqualByComparingTo("900");
+    }
+
+    @Test
+    void confirmation_quote_requires_a_return_deadline_for_every_selected_serial() {
+        VendorAllocationBatchModel batch = draftBatch(99L);
+        batch.getSerials().getFirst().setSupplierReturnCutoffTime(null);
+        when(allocationRepositoryPort.findByIdForUpdate(99L)).thenReturn(Optional.of(batch));
+
+        assertThatThrownBy(() -> service.getConfirmationQuote(99L))
+                .isInstanceOf(DomainException.class)
+                .extracting(error -> ((DomainException) error).getErrorCode())
+                .isEqualTo(com.daiphat.coreapi.domain.exception.ErrorCode.VENDOR_ALLOCATION_SUPPLIER_RETURN_CUTOFF_MISSING);
     }
 
     @Test
@@ -637,6 +714,8 @@ class VendorAllocationServiceTest {
                 .ticketNumbers(ticketNumbers)
                 .serialNumber(serialNumber)
                 .drawDate(businessDate)
+                .drawTime(LocalTime.of(16, 15))
+                .drawDays(List.of(businessDate.getDayOfWeek()))
                 .supplierReturnCutoffTime(LocalTime.of(17, 0))
                 .faceValue(BigDecimal.valueOf(10_000))
                 .ticketStatus(LotteryTicketSerialStatus.IN_STOCK)

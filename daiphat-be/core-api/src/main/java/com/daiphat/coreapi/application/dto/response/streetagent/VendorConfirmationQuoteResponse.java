@@ -13,6 +13,7 @@ public record VendorConfirmationQuoteResponse(
         LocalTime returnCutoff,
         String latePolicy,
         String quoteFingerprint,
-        LocalDateTime quotedAt
+        LocalDateTime quotedAt,
+        LocalDateTime effectiveHandoverDeadlineAt
 ) {
 }

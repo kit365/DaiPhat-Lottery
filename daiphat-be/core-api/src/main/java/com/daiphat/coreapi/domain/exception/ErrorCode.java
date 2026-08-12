@@ -494,6 +494,22 @@ public enum ErrorCode {
             "SAG_029",
             "Bản tính quyết toán đã thay đổi. Vui lòng tải lại trước khi xác nhận.",
             HttpStatus.CONFLICT),
+    VENDOR_ALLOCATION_RETURN_CUTOFF_REACHED(
+            "SAG_030",
+            "Đã qua giờ chốt bàn giao vé trong ngày.",
+            HttpStatus.CONFLICT),
+    VENDOR_ALLOCATION_BUSINESS_DATE_PASSED(
+            "SAG_031",
+            "Ngày kinh doanh đã qua, không thể tạo hoặc xác nhận bàn giao vé.",
+            HttpStatus.CONFLICT),
+    VENDOR_ALLOCATION_OPERATIONAL_DEADLINE_REACHED(
+            "SAG_032",
+            "Đã qua thời điểm cuối có thể bàn giao vé sau khi tính giờ chốt và thời gian chuẩn bị trả vé.",
+            HttpStatus.CONFLICT),
+    VENDOR_ALLOCATION_SUPPLIER_RETURN_CUTOFF_MISSING(
+            "SAG_033",
+            "Chưa cấu hình giờ Đại Phát cần nhận lại vé cho một hoặc nhiều vé đã chọn, nên không thể xác nhận bàn giao.",
+            HttpStatus.CONFLICT),
 
     // Support Ticket Errors
     TICKET_NOT_FOUND("TKT_001", "Yêu cầu hỗ trợ không tồn tại.", HttpStatus.NOT_FOUND),

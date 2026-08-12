@@ -376,7 +376,7 @@ export const StreetAgentQuickUpdateModal = ({ open, onClose, id }: StreetAgentQu
                                         renderInput={(params) => (
                                             <TextField
                                                 {...params}
-                                                label="Địa bàn bán"
+                                                label="Khu vực bán"
                                                 placeholder="+ Thêm khu vực"
                                                 sx={{ ...fieldSx, gridColumn: { sm: "1 / -1" } }}
                                             />

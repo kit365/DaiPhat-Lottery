@@ -184,7 +184,7 @@ export const ConfirmVendorDepositDialog = ({
 
                             <Stack direction="row" spacing={2} flexWrap="wrap" useFlexGap>
                                 <Typography variant="caption" color="text.secondary">
-                                    Giờ chốt: {quote?.returnCutoff || "—"}
+                                    Hạn cuối có thể giao vé: {quote?.effectiveHandoverDeadlineAt ? formatDateTime(quote.effectiveHandoverDeadlineAt) : "—"}
                                 </Typography>
                                 <Typography variant="caption" color="text.secondary">
                                     Policy trễ: {latePolicyLabel(quote?.latePolicy)}

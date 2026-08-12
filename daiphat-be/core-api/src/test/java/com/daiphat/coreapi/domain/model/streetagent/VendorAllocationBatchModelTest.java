@@ -219,6 +219,28 @@ class VendorAllocationBatchModelTest {
                 .isEqualTo(ErrorCode.VENDOR_ALLOCATION_INVALID_STATE);
     }
 
+    @Test
+    void classifies_late_against_absolute_deadline_when_supplier_buffer_crosses_midnight() {
+        LocalDate businessDate = LocalDate.of(2026, 8, 12);
+        LocalDateTime handedOverAt = LocalDateTime.of(2026, 8, 11, 20, 0);
+        VendorAllocationSerialModel serial = serial();
+        VendorAllocationBatchModel batch = VendorAllocationBatchModel.createDraft("VND-1", 7L, businessDate,
+                handedOverAt.plusMinutes(15), List.of(serial), null);
+        serial.markReservedByBatch(99L);
+
+        // Supplier accepts at 00:30 on the draw date; a two-hour preparation buffer
+        // makes the real deadline 22:30 on the previous date.
+        batch.confirmHandover(handedOverAt, BigDecimal.valueOf(9_000), new BigDecimal("0.10"),
+                VendorLateReturnPolicy.FORFEIT_DEPOSIT, LocalTime.of(15, 0), LocalTime.of(0, 30), 120,
+                LocalDateTime.of(2026, 8, 11, 22, 30), BigDecimal.valueOf(900), BigDecimal.ZERO, UUID.randomUUID());
+        batch.openReturnSession();
+
+        batch.settle(LocalDateTime.of(2026, 8, 12, 0, 15),
+                LocalDateTime.of(2026, 8, 12, 0, 15), BigDecimal.valueOf(900), UUID.randomUUID());
+
+        assertThat(batch.getStatus()).isEqualTo(AllocationBatchStatus.LATE_SETTLED);
+    }
+
     private VendorAllocationSerialModel serial() {
         return VendorAllocationSerialModel.builder().serialId(1L).stationId(2L).drawDate(LocalDate.of(2026, 8, 5))
                 .faceValue(BigDecimal.valueOf(10_000)).ticketStatus(LotteryTicketSerialStatus.IN_STOCK)
