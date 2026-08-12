@@ -79,7 +79,7 @@ export const DrawResultList = ({
                         sx={{
                             ...dataGridStyles,
                             ...adminDataGridRowHeightSx,
-                        }}
+                        } as import('@mui/material/styles').SxProps<import('@mui/material/styles').Theme>}
                         slots={{
                             toolbar: DrawResultToolbar as any,
                             noRowsOverlay: () => (
