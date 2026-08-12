@@ -103,8 +103,8 @@ const getApiErrorMessage = (error: any, fallback: string) => {
 };
 
 const SHORTAGE_REASON_LABELS: Record<string, string> = {
-    DAILY_CAP_LIMIT: "Đã dùng hết số vé được phép giao trong ngày.",
-    DAILY_CAP_EXHAUSTED: "Đã dùng hết số vé được phép giao trong ngày.",
+    DAILY_CAP_LIMIT: "Phiếu đang mở đã đạt giới hạn giao vé.",
+    DAILY_CAP_EXHAUSTED: "Phiếu đang mở đã đạt giới hạn giao vé.",
     INSUFFICIENT_STATION_CAPACITY: "Kho không đủ vé thường sau khi chừa phần bán tại quầy.",
     NO_DRAWING_STATION: "Ngày này không có đài xổ phù hợp.",
     NO_ELIGIBLE_TICKET: "Không còn vé hợp lệ để giao.",
@@ -171,8 +171,8 @@ const mapReasonDetail = (detail: NonNullable<VendorAllocationSuggestion["reasonD
         case "DAILY_CAP_LIMIT":
         case "DAILY_CAP_EXHAUSTED":
             return detail.remainingDailyCap == null || detail.remainingDailyCap <= 0
-                ? "Đã dùng hết số vé được phép giao trong ngày. Hôm nay không thể giao thêm vé."
-                : `Hôm nay người bán vé số chỉ còn được giao ${detail.remainingDailyCap} vé.`;
+                ? "Phiếu đang mở đã đạt giới hạn giao vé. Hoàn tất hoặc hủy phiếu này trước khi tạo phiếu mới."
+                : `Phiếu đang mở chỉ còn có thể thêm ${detail.remainingDailyCap} vé.`;
         case "INSUFFICIENT_STATION_CAPACITY":
             if (detail.requestedQuantity != null && detail.vendorCapacity != null) {
                 return `Kho chỉ có thể giao ${detail.vendorCapacity}/${detail.requestedQuantity} vé sau khi chừa vé cho quầy.`;
@@ -455,6 +455,8 @@ export const VendorAllocationPage = () => {
     const totalSelected = selectedSerialIds.length;
     const remainingCap =
         suggestion?.remainingDailyCap != null ? suggestion.remainingDailyCap : null;
+    const availableForCurrentBatch =
+        remainingCap ?? profile?.remainingDailyCap ?? profile?.effectiveDailyCap ?? null;
     const allowedQuantity = suggestion?.allowedQuantity ?? 0;
 
     const hasSelectableInventory = useMemo(() => {
@@ -528,7 +530,7 @@ export const VendorAllocationPage = () => {
             return;
         }
         if (remainingCap != null && selectedSerialIds.length > remainingCap) {
-            toast.error(`Số vé chọn vượt hạn mức còn lại (${remainingCap})`);
+            toast.error(`Số vé chọn vượt số lượng còn có thể thêm vào phiếu (${remainingCap})`);
             return;
         }
         if (selectedSerialIds.length !== allowedQuantity) {
@@ -677,8 +679,7 @@ export const VendorAllocationPage = () => {
                             ) : undefined
                         }
                     >
-                        Phiếu {draftBatch.batchCode} đang giữ {draftBatch.allocatedQuantity} vé. Còn lại theo hạn mức:{" "}
-                        {draftBatch.remainingDailyCap}. Hết hạn giữ chỗ sau <strong>{countdown}</strong>
+                        Phiếu {draftBatch.batchCode} đang giữ {draftBatch.allocatedQuantity} vé. Hết hạn giữ chỗ sau <strong>{countdown}</strong>
                         {isExpired ? " (đã hết hạn)." : "."}
                     </Alert>
                 )}
@@ -745,7 +746,7 @@ export const VendorAllocationPage = () => {
                             />
                             <Chip
                                 size="small"
-                                label={`Hạn mức còn lại: ${remainingCap ?? profile.remainingDailyCap ?? profile.effectiveDailyCap ?? "—"}`}
+                                label={`Có thể giao trong phiếu này: ${availableForCurrentBatch == null ? "—" : `${availableForCurrentBatch} vé`}`}
                                 sx={getMetricChipSx("info")}
                             />
                             {Number(profile.depositBalance ?? 0) > 0 && (

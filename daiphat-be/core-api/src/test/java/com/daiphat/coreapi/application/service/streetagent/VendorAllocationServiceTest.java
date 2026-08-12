@@ -4,6 +4,7 @@ import com.daiphat.coreapi.application.dto.request.streetagent.CreateVendorAlloc
 import com.daiphat.coreapi.application.dto.request.streetagent.ConfirmVendorAllocationRequest;
 import com.daiphat.coreapi.application.dto.request.streetagent.ReturnVendorAllocationSerialsRequest;
 import com.daiphat.coreapi.application.dto.request.streetagent.ConfirmVendorReturnInspectionRequest;
+import com.daiphat.coreapi.application.dto.request.streetagent.ConfirmVendorNoReturnRequest;
 import com.daiphat.coreapi.application.dto.request.streetagent.RejectedVendorReturnSerialRequest;
 import com.daiphat.coreapi.application.port.in.streetagent.VendorSettlementProjectionServicePort;
 import com.daiphat.coreapi.application.port.in.lotteries.LotteryTicketAggregateSyncUseCase;
@@ -602,8 +603,35 @@ class VendorAllocationServiceTest {
         assertThat(rejected.getStatus().name()).isEqualTo("RETURN_REJECTED");
         assertThat(rejected.getReturnRejectionReason()).isEqualTo("Rách vé");
         assertThat(response.returnWorkflow()).extracting(
-                workflow -> workflow.stage(), workflow -> workflow.acceptedReturnQuantity(), workflow -> workflow.rejectedReturnQuantity())
-                .containsExactly("READY_FOR_SETTLEMENT", 1, 1);
+                workflow -> workflow.stage(), workflow -> workflow.acceptedReturnQuantity(),
+                workflow -> workflow.rejectedReturnQuantity(), workflow -> workflow.unreturnedQuantity())
+                .containsExactly("READY_FOR_SETTLEMENT", 1, 1, 1);
+    }
+
+    @Test
+    void explicit_no_return_confirmation_allows_vendor_who_sold_everything_to_settle() {
+        VendorAllocationBatchModel batch = draftBatch(99L);
+        batch.confirmHandover(LocalDateTime.now(), BigDecimal.valueOf(9000), new BigDecimal("0.10"),
+                VendorLateReturnPolicy.FORFEIT_DEPOSIT, LocalTime.of(15, 0), BigDecimal.valueOf(900), BigDecimal.ZERO,
+                UUID.randomUUID());
+        batch.openReturnSession();
+
+        ReturnBatchModel receipt = returnReceipt(1L, ReturnBatchStatus.PENDING_INSPECTION);
+        when(allocationRepositoryPort.findByIdForUpdate(99L)).thenReturn(Optional.of(batch));
+        when(allocationRepositoryPort.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(returnBatchRepositoryPort.findStreetAgentByAllocationBatchId(99L)).thenReturn(Optional.of(receipt));
+        when(returnBatchRepositoryPort.findLinesByBatchId(1L)).thenReturn(List.of(
+                ReturnBatchLineModel.builder().id(11L).lotteryStationId(1L).build()));
+
+        var response = service.confirmNoReturnedTickets(99L,
+                new ConfirmVendorNoReturnRequest(null), UUID.randomUUID());
+
+        assertThat(receipt.getStatus()).isEqualTo(ReturnBatchStatus.RECEIVED);
+        assertThat(batch.getSerials()).allMatch(serial -> serial.getStatus().name().equals("HANDED_OVER"));
+        assertThat(response.returnWorkflow()).extracting(
+                workflow -> workflow.stage(), workflow -> workflow.unreturnedQuantity(),
+                workflow -> workflow.canPreviewSettlement(), workflow -> workflow.canSettle())
+                .containsExactly("READY_FOR_SETTLEMENT", 1, true, true);
     }
 
     @Test

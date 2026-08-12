@@ -468,7 +468,7 @@ export const StreetAgentEditPage = () => {
                 <DialogTitle>Cập nhật điều khoản hợp đồng?</DialogTitle>
                 <DialogContent>
                     <Typography variant="body1" sx={{ mb: 1.5 }}>
-                        Bạn đang thay đổi ngày hiệu lực hoặc hạn mức ghi trên hợp đồng đã ký.
+                        Bạn đang thay đổi ngày hiệu lực hoặc giới hạn ghi trên hợp đồng đã ký.
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
                         Sau khi lưu, bản ký hiện tại sẽ không còn khớp, hồ sơ chuyển về trạng thái chờ xử lý và bạn sẽ được đưa về bước tải bản ký mới.
