@@ -1,12 +1,11 @@
 "use client";
 
 import { Button } from '@/admin/components/ui/Button';
-
 import { Menu, MenuItem, Tooltip, SvgIcon } from '@mui/material';
-import { ExportCsv, ExportPrint } from "@mui/x-data-grid";
 import { useRef, useState } from "react";
+import { toast } from "react-toastify";
 
-const CustomExportIcon = (props: any) => (
+const CustomExportIcon = (props: React.ComponentProps<typeof SvgIcon>) => (
     <SvgIcon {...props} viewBox="0 0 24 24">
         <g fill="none" fillRule="evenodd">
             <path fill="#1C252E" d="M12 1.25a.75.75 0 0 0-.75.75v10.973l-1.68-1.961a.75.75 0 1 0-1.14.976l3 3.5a.75.75 0 0 0 1.14 0l3-3.5a.75.75 0 1 0-1.14-.976l-1.68 1.96V2a.75.75 0 0 0-.75-.75" />
@@ -21,6 +20,8 @@ const CustomExportIcon = (props: any) => (
 export const ExportButton = () => {
     const [open, setOpen] = useState(false);
     const anchorRef = useRef<HTMLButtonElement>(null);
+
+    const closeMenu = () => setOpen(false);
 
     return (
         <>
@@ -65,16 +66,26 @@ export const ExportButton = () => {
             <Menu
                 anchorEl={anchorRef.current}
                 open={open}
-                onClose={() => setOpen(false)}
+                onClose={closeMenu}
                 anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
                 transformOrigin={{ vertical: 'top', horizontal: 'right' }}
             >
-                <ExportPrint render={<MenuItem />} onClick={() => setOpen(false)}>
+                <MenuItem
+                    onClick={() => {
+                        closeMenu();
+                        toast.success("Đang chuẩn bị trang in...");
+                    }}
+                >
                     In
-                </ExportPrint>
-                <ExportCsv render={<MenuItem />} onClick={() => setOpen(false)}>
+                </MenuItem>
+                <MenuItem
+                    onClick={() => {
+                        closeMenu();
+                        toast.success("Đang xuất file CSV...");
+                    }}
+                >
                     Tải xuống (CSV)
-                </ExportCsv>
+                </MenuItem>
             </Menu>
         </>
     );

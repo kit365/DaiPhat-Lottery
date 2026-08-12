@@ -7,13 +7,12 @@ import {
 import Grid from "@mui/material/Grid";
 import { Icon } from '@/admin/components/ui/AdminIcon';
 import { PageHeader } from '../../../../components/ui/PageHeader';
-import { useUpdateUser } from "../../hooks/useUsers";
+import { useUpdateUser, useUploadUserAvatar } from "../../hooks/useUsers";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { accountAdminSchema } from "@/admin/features/users/schemas/account-admin.schema";
 import { toast } from "react-toastify";
 import { AxiosError } from "axios";
-import { uploadImagesToCloudinary } from "@/admin/shared/services/uploadCloudinary.service";
 import { Button } from '../../../../components/ui/Button';
 import * as zod from "zod";
 import { useAuthStore } from "../../../../../stores/useAuthStore";
@@ -115,6 +114,7 @@ export const ProfilePage = () => {
     const account = user;
 
     const { mutate: update, isPending: isUpdating } = useUpdateUser();
+    const { mutateAsync: uploadAvatar } = useUploadUserAvatar();
     const { mutate: changePassword, isPending: isChangingPassword } = useMutation({
         mutationFn: authService.changePassword,
     });
@@ -214,9 +214,12 @@ export const ProfilePage = () => {
         if (!file) return;
         try {
             setIsUploading(true);
-            const [url] = await uploadImagesToCloudinary([file]);
+            if (!id) {
+                throw new Error("Không xác định được tài khoản.");
+            }
+            const response = await uploadAvatar({ id: String(id), file });
+            const url = response.data?.avatarUrl || response.data?.avatar || "";
             setValue("avatar", url, { shouldValidate: true });
-            toast.success("Tải ảnh đại diện thành công!");
         } catch (error) {
             toast.error("Tải ảnh đại diện thất bại!");
         } finally {
@@ -225,10 +228,9 @@ export const ProfilePage = () => {
     };
 
     const onSubmit = (data: zod.infer<typeof accountAdminSchema>) => {
-        const payload = {
-            ...data,
-            avatar: data.avatar ?? undefined,
-        };
+        // Avatar is uploaded separately; omit the nullable form field from the
+        // profile update payload instead of passing `null` to the API contract.
+        const { avatar: _avatar, ...payload } = data;
 
         update({ id: id!, data: payload }, {
             onSuccess: () => {

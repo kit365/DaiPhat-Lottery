@@ -62,6 +62,7 @@ import { formatCountdown, formatCurrency, formatDate } from "../../utils/format"
 import { useVendorSettingsDefaults } from "../../hooks/useVendorSettingsDefaults";
 import { ConfirmVendorDepositDialog } from "../ConfirmVendorDepositDialog";
 import { AdminTicketCard } from "../../../../components/ui/AdminTicketCard";
+import { AdminDatePicker } from "../../../../components/ui/AdminDatePicker";
 import { VendorAllocationStationDrawer } from "../sections/VendorAllocationStationDrawer";
 
 const fieldSx = {
@@ -94,18 +95,92 @@ const getApiErrorMessage = (error: any, fallback: string) => {
 };
 
 const SHORTAGE_REASON_LABELS: Record<string, string> = {
-    DAILY_CAP_LIMIT: "Đã đạt hạn mức giao trong ngày.",
+    DAILY_CAP_LIMIT: "Đã dùng hết số vé được phép giao trong ngày.",
+    DAILY_CAP_EXHAUSTED: "Đã dùng hết số vé được phép giao trong ngày.",
     INSUFFICIENT_STATION_CAPACITY: "Kho không đủ vé thường sau khi chừa phần bán tại quầy.",
     NO_DRAWING_STATION: "Ngày này không có đài xổ phù hợp.",
     NO_ELIGIBLE_TICKET: "Không còn vé hợp lệ để giao.",
+    NO_ELIGIBLE_INVENTORY: "Kho hiện không còn vé phù hợp để giao.",
+    DRAW_SCHEDULE_MISSING: "Chưa có lịch xổ của đài nên hệ thống chưa thể xác định vé được giao.",
+    DATE_NOT_SCHEDULED: "Đài không xổ vào ngày đã chọn.",
     RETURN_CUTOFF_REACHED: "Đã qua giờ nhận trả vé của ngày kinh doanh.",
-    INSUFFICIENT_INVENTORY: "Kho không đủ vé",
-    VENDOR_CAP_REACHED: "Vượt hạn mức người bán vé số",
+    INSUFFICIENT_INVENTORY: "Kho hiện không đủ vé phù hợp để giao.",
+    VENDOR_CAP_REACHED: "Đã đạt hạn mức giao vé của người bán vé số.",
     AGENCY_RESERVE_CAP: "Không đủ vé sau khi chừa quầy",
     DRAW_TIME_PASSED: "Đã qua giờ xổ",
     INSUFFICIENT_FUNDS: "Không đủ số dư cọc",
     LUCKY_TICKET_RESERVED: "Vé số đẹp đang giữ",
     STATION_BLOCKED: "Đài bị chặn",
+    BUSINESS_DATE_PASSED: "Ngày kinh doanh đã qua, không thể tạo hoặc xác nhận bàn giao.",
+    OPERATIONAL_DEADLINE_REACHED: "Đã qua thời điểm cuối có thể bàn giao trong ngày.",
+    SUPPLIER_RETURN_CUTOFF_MISSING: "Chưa đủ giờ nhận lại vé để xác định thời điểm bàn giao.",
+};
+
+const formatTime = (value?: string | null) => {
+    if (!value) return null;
+    const match = value.match(/^(\d{1,2}:\d{2})/);
+    return match?.[1] || value;
+};
+
+const formatDeadline = (value?: string | null, fallback?: string | null) => {
+    if (value) {
+        const date = new Date(value);
+        if (!Number.isNaN(date.getTime())) {
+            return `${date.toLocaleDateString("vi-VN")} lúc ${date.toLocaleTimeString("vi-VN", {
+                hour: "2-digit",
+                minute: "2-digit",
+                hour12: false,
+            })}`;
+        }
+    }
+    return fallback ? formatTime(fallback) : null;
+};
+
+const mapReasonDetail = (detail: NonNullable<VendorAllocationSuggestion["reasonDetails"]>[number]) => {
+    const cutoff = formatTime(detail.cutoffTime);
+    const drawTime = formatTime(detail.drawTime);
+    const deadline = formatDeadline(detail.effectiveDeadlineAt, cutoff);
+
+    switch (detail.code) {
+        case "OPERATIONAL_DEADLINE_REACHED":
+            return deadline
+                ? `Đã qua thời điểm cuối có thể bàn giao (${deadline}). Mốc này đã chừa thời gian để Đại Phát nhận lại vé.`
+                : SHORTAGE_REASON_LABELS.OPERATIONAL_DEADLINE_REACHED;
+        case "RETURN_CUTOFF_REACHED":
+            return deadline
+                ? `Đã qua giờ chốt trả vé trong ngày (${deadline}), không thể bàn giao thêm.`
+                : "Đã qua giờ chốt trả vé trong ngày, không thể bàn giao thêm.";
+        case "BUSINESS_DATE_PASSED":
+            return SHORTAGE_REASON_LABELS.BUSINESS_DATE_PASSED;
+        case "SUPPLIER_RETURN_CUTOFF_MISSING":
+            return detail.stationName
+                ? `Đài ${detail.stationName} chưa có giờ Đại Phát nhận lại vé; chưa thể tính giờ bàn giao.`
+                : SHORTAGE_REASON_LABELS.SUPPLIER_RETURN_CUTOFF_MISSING;
+        case "DRAW_TIME_PASSED":
+            return detail.stationName && drawTime
+                ? `Đài ${detail.stationName} đã qua giờ xổ (${drawTime}), không còn vé được giao.`
+                : SHORTAGE_REASON_LABELS.DRAW_TIME_PASSED;
+        case "DAILY_CAP_LIMIT":
+        case "DAILY_CAP_EXHAUSTED":
+            return detail.remainingDailyCap == null || detail.remainingDailyCap <= 0
+                ? "Đã dùng hết số vé được phép giao trong ngày. Hôm nay không thể giao thêm vé."
+                : `Hôm nay người bán vé số chỉ còn được giao ${detail.remainingDailyCap} vé.`;
+        case "INSUFFICIENT_STATION_CAPACITY":
+            if (detail.requestedQuantity != null && detail.vendorCapacity != null) {
+                return `Kho chỉ có thể giao ${detail.vendorCapacity}/${detail.requestedQuantity} vé sau khi chừa vé cho quầy.`;
+            }
+            return SHORTAGE_REASON_LABELS.INSUFFICIENT_STATION_CAPACITY;
+        default:
+            return SHORTAGE_REASON_LABELS[detail.code] || null;
+    }
+};
+
+const getSuggestionReasonMessages = (suggestion?: VendorAllocationSuggestion | null) => {
+    const detailMessages = (suggestion?.reasonDetails || [])
+        .map(mapReasonDetail)
+        .filter((message): message is string => Boolean(message));
+    if (detailMessages.length > 0) return Array.from(new Set(detailMessages));
+    return [mapShortageReasons(suggestion?.shortageReasons, suggestion?.blockedReason)];
 };
 
 const mapShortageReasons = (reasons?: string[] | null, blockedReason?: string | null) => {
@@ -116,7 +191,7 @@ const mapShortageReasons = (reasons?: string[] | null, blockedReason?: string | 
         return SHORTAGE_REASON_LABELS[blockedReason];
     }
     if (!reasons || reasons.length === 0) {
-        return "Kho hiện không đủ vé thường sau khi chừa phân bổ tại quầy.";
+        return "Kho hiện không còn vé phù hợp để giao.";
     }
     if (reasons.length > 1) {
         return "Kho không đủ vé do các giới hạn hệ thống (hạn mức, chừa quầy...).";
@@ -335,6 +410,7 @@ export const VendorAllocationPage = () => {
           SHORTAGE_REASON_LABELS[suggestion.blockedReason] ||
           "Không thể giao vé."
         : null;
+    const suggestionReasonMessages = getSuggestionReasonMessages(suggestion);
 
     const canCreateDraft =
         canCreate &&
@@ -481,17 +557,17 @@ export const VendorAllocationPage = () => {
                                 (option.phone ? ` — ${option.phone}` : "")
                             }
                             isOptionEqualToValue={(a, b) => a.id === b.id}
+                            loadingText="Đang tải danh sách…"
+                            noOptionsText="Không tìm thấy người bán vé số"
                             renderInput={(params) => (
                                 <TextField {...params} label="Người bán vé số *" sx={fieldSx} />
                             )}
                         />
-                        <TextField
-                            type="date"
+                        <AdminDatePicker
                             label="Ngày kinh doanh"
                             value={businessDate}
-                            onChange={(e) => setBusinessDate(e.target.value)}
-                            InputLabelProps={{ shrink: true }}
-                            sx={fieldSx}
+                            onChange={setBusinessDate}
+                            disabled={!!draftId}
                         />
                     </Box>
 
@@ -703,7 +779,14 @@ export const VendorAllocationPage = () => {
                             </Stack>
                             {suggestion.shortfallQuantity > 0 && (
                                 <Alert severity="warning">
-                                    Chỉ có thể bàn giao {suggestion.allowedQuantity}/{suggestion.requestedQuantity} vé. Lý do: {mapShortageReasons(suggestion.shortageReasons, suggestion.blockedReason)}.
+                                    <Stack spacing={0.25}>
+                                        <Typography variant="body2">
+                                            Chỉ có thể bàn giao {suggestion.allowedQuantity}/{suggestion.requestedQuantity} vé.
+                                        </Typography>
+                                        {suggestionReasonMessages.map((message) => (
+                                            <Typography key={message} variant="body2">{message}</Typography>
+                                        ))}
+                                    </Stack>
                                     <FormControlLabel sx={{ display: "block", mt: 0.5 }} control={<Checkbox checked={acceptShortfall} onChange={(_, checked) => setAcceptShortfall(checked)} />} label={`Đồng ý bàn giao ${suggestion.allowedQuantity}/${suggestion.requestedQuantity} vé`} />
                                 </Alert>
                             )}
@@ -724,7 +807,11 @@ export const VendorAllocationPage = () => {
                         </Box>
                     ) : !hasSelectableInventory || suggestion?.allowedQuantity === 0 ? (
                         <Alert severity={suggestionBlockedMessage ? "warning" : "info"}>
-                            {mapShortageReasons(suggestion?.shortageReasons, suggestion?.blockedReason)}
+                            <Stack spacing={0.25}>
+                                {suggestionReasonMessages.map((message) => (
+                                    <Typography key={message} variant="body2">{message}</Typography>
+                                ))}
+                            </Stack>
                         </Alert>
                     ) : (
                         <Stack spacing={3}>

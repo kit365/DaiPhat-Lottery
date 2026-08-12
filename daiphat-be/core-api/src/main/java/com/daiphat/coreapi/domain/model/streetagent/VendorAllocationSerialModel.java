@@ -61,6 +61,10 @@ public class VendorAllocationSerialModel {
         return VendorTicketSellabilityPolicy.isSellableForVendor(this, businessDate);
     }
 
+    public boolean isEligibleForDraft(LocalDate businessDate, LocalDateTime commandNow) {
+        return VendorTicketSellabilityPolicy.isSellableForVendor(this, businessDate, commandNow);
+    }
+
     public boolean isInventoryAvailable() {
         return ticketStatus == LotteryTicketSerialStatus.IN_STOCK
                 && ticketCondition == TicketCondition.GOOD

@@ -16,6 +16,7 @@ interface SignedContractUploadDialogProps {
     file: File | null;
     uploading?: boolean;
     onClose: () => void;
+    /** Stage the file locally. This callback must not persist anything. */
     onConfirm: (file: File) => void;
 }
 
@@ -80,8 +81,11 @@ export const SignedContractUploadDialog = ({
             >
                 <Typography variant="body2" color="text.secondary" sx={{ flexShrink: 0 }}>
                     {file
-                        ? `${file.name} · ${sizeLabel} · kiểm tra nội dung trước khi đính kèm.`
+                        ? `${file.name} · ${sizeLabel} · kiểm tra nội dung trước khi chọn.`
                         : "Chưa chọn file."}
+                </Typography>
+                <Typography variant="body2" color="info.main" sx={{ flexShrink: 0 }}>
+                    File mới chỉ được giữ tạm trên trang. Bạn sẽ xác nhận lưu chính thức ở bước tiếp theo.
                 </Typography>
 
                 <Box
@@ -132,8 +136,8 @@ export const SignedContractUploadDialog = ({
                     variant="contained"
                     disabled={!file}
                     onClick={() => file && onConfirm(file)}
-                    label="Xác nhận đính kèm"
-                    loadingLabel="Đang tải lên..."
+                    label="Dùng bản này"
+                    loadingLabel="Đang chuẩn bị..."
                 />
             </DialogActions>
         </Dialog>

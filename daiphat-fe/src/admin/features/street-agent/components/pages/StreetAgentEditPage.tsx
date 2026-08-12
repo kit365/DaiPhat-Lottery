@@ -18,7 +18,7 @@ import {
 } from "../../schemas/street-agent.schema";
 import { ROUTES } from "../../../../constants/routes";
 import { toast } from "react-toastify";
-import { Alert, Box } from "@mui/material";
+import { Alert, Box, Dialog, DialogActions, DialogContent, DialogTitle, Stack, Typography } from "@mui/material";
 import { uploadAdminImage } from "@/admin/shared/services/upload.service";
 import Link from "@/admin/components/navigation/AdminLink";
 import { Button } from "../../../../components/ui/Button";
@@ -31,7 +31,9 @@ import {
 import { StreetAgentProfile } from "../../types/street-agent.type";
 import { useVendorSettingsDefaults } from "../../hooks/useVendorSettingsDefaults";
 import { SignedContractUploadDialog } from "../SignedContractUploadDialog";
+import { SignedContractSaveDialog } from "../SignedContractSaveDialog";
 import { ContractDocumentViewerDialog } from "../ContractDocumentViewerDialog";
+import { getStreetAgentPendingNotice } from "../../utils/format";
 
 const SIGNED_DOC_TYPES = ["application/pdf", "image/jpeg", "image/jpg", "image/png"];
 const SIGNED_DOC_MAX_SIZE = 10 * 1024 * 1024;
@@ -93,6 +95,10 @@ export const StreetAgentEditPage = () => {
     const [isUploading, setIsUploading] = useState(false);
     const [isStatusActionPending, setIsStatusActionPending] = useState(false);
     const [pendingSignedFile, setPendingSignedFile] = useState<File | null>(null);
+    const [previewSignedFile, setPreviewSignedFile] = useState<File | null>(null);
+    const [saveSignedConfirmOpen, setSaveSignedConfirmOpen] = useState(false);
+    const [contractChangeConfirmOpen, setContractChangeConfirmOpen] = useState(false);
+    const [pendingContractUpdate, setPendingContractUpdate] = useState<UpdateStreetAgentProfileFormValues | null>(null);
     const [viewSignedOpen, setViewSignedOpen] = useState(false);
 
     const { control, handleSubmit, setValue, watch, reset, getValues } = useForm<UpdateStreetAgentProfileFormValues>({
@@ -106,6 +112,9 @@ export const StreetAgentEditPage = () => {
     const watchStartDate = watch("contractStartDate");
     const watchEndDate = watch("contractEndDate");
     const watchCap = watch("contractMaxDailyCap");
+    const pendingNotice = profile?.status === "PENDING"
+        ? getStreetAgentPendingNotice(profile)
+        : null;
 
     const isContractChanged = Boolean(profile?.contractDocumentUrl && (
         (profile.contractStartDate || "") !== (watchStartDate || "") ||
@@ -158,7 +167,6 @@ export const StreetAgentEditPage = () => {
             setIsUploading(true);
             const url = await uploadAdminImage(file);
             setValue("imageUrl", url, { shouldValidate: true });
-            toast.success("Tải ảnh lên thành công!");
         } catch {
             toast.error("Tải ảnh lên thất bại!");
         } finally {
@@ -178,7 +186,12 @@ export const StreetAgentEditPage = () => {
             toast.error("Dung lượng file quá lớn. Tối đa là 10 Mb");
             return;
         }
+        setPreviewSignedFile(file);
+    };
+
+    const handleStageSignedFile = (file: File) => {
         setPendingSignedFile(file);
+        setPreviewSignedFile(null);
     };
 
     const handleConfirmSignedUpload = (file: File) => {
@@ -191,6 +204,7 @@ export const StreetAgentEditPage = () => {
                     if (response.success) {
                         toast.success(response.message || "Đính kèm bản đã ký thành công!");
                         setPendingSignedFile(null);
+                        setSaveSignedConfirmOpen(false);
                         void refetch();
                     } else {
                         toast.error(response.message || "Đính kèm bản đã ký thất bại");
@@ -247,12 +261,13 @@ export const StreetAgentEditPage = () => {
                     if (response.success) {
                         const updatedProfile = response.data;
                         if (contractTermsChanged || (updatedProfile?.status === "PENDING" && !updatedProfile.contractDocumentUrl)) {
-                            toast.info(
-                                contractTermsChanged
-                                    ? "Đã lưu thay đổi. Bản ký cũ không còn hiệu lực; hãy in hợp đồng mới và tải bản đã ký lên."
-                                    : "Đã lưu hồ sơ. Vui lòng hoàn thiện và tải bản hợp đồng đã ký lên."
-                            );
-                            void refetch();
+                            if (contractTermsChanged) {
+                                toast.info("Đã lưu thời hạn mới. Bản ký cũ không còn hiệu lực; hãy hoàn thiện và tải bản ký mới.");
+                                router.push(getStreetAgentOnboardingResumePath(id!));
+                            } else {
+                                toast.info("Đã lưu hồ sơ. Vui lòng hoàn thiện và tải bản hợp đồng đã ký lên.");
+                                void refetch();
+                            }
                         } else {
                             toast.success(response.message || "Cập nhật hồ sơ người bán vé số thành công!");
                             router.push(ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.LIST);
@@ -269,6 +284,19 @@ export const StreetAgentEditPage = () => {
     };
 
     const onSubmit = (data: UpdateStreetAgentProfileFormValues) => {
+        const hadSignedContract = Boolean(profile?.contractDocumentUrl);
+        const contractTermsChanged = hadSignedContract && (
+            (profile?.contractStartDate || "") !== (data.contractStartDate || "") ||
+            (profile?.contractEndDate || "") !== (data.contractEndDate || "") ||
+            (profile?.contractMaxDailyCap ?? null) !== (data.contractMaxDailyCap ?? null)
+        );
+
+        if (contractTermsChanged) {
+            setPendingContractUpdate(data);
+            setContractChangeConfirmOpen(true);
+            return;
+        }
+
         submitProfileUpdate(data);
     };
 
@@ -318,6 +346,24 @@ export const StreetAgentEditPage = () => {
                 </Alert>
             )}
 
+            {profile?.status === "PENDING" && profile.contractDocumentUrl && id && (
+                <Alert
+                    severity="warning"
+                    sx={{ mb: 3 }}
+                    action={
+                        <Button
+                            color="inherit"
+                            size="small"
+                            onClick={() => document.getElementById("street-agent-contract")?.scrollIntoView({ behavior: "smooth" })}
+                        >
+                            {pendingNotice?.actionLabel || "Xem / điều chỉnh hồ sơ"}
+                        </Button>
+                    }
+                >
+                    {pendingNotice?.message || "Hồ sơ chưa đủ điều kiện nhận vé. Hãy kiểm tra lại thông tin hợp đồng."}
+                </Alert>
+            )}
+
             {isContractChanged && (
                 <Alert severity="error" sx={{ mb: 3 }}>
                     Cảnh báo: Bạn đang thay đổi thông tin hợp đồng. Lưu thay đổi sẽ làm mất hiệu lực bản hợp đồng đã ký hiện tại và hồ sơ sẽ chuyển về trạng thái chờ xử lý (PENDING). Bạn sẽ cần in và tải lại bản ký mới.
@@ -326,6 +372,7 @@ export const StreetAgentEditPage = () => {
 
             <form onSubmit={handleSubmit(onSubmit)}>
                 <StreetAgentProfileForm
+                    contractSectionId="street-agent-contract"
                     mode="edit"
                     control={control}
                     setValue={setValue}
@@ -361,15 +408,97 @@ export const StreetAgentEditPage = () => {
                 />
             </form>
 
+            {pendingSignedFile ? (
+                <Alert
+                    severity="info"
+                    sx={{ mt: 2 }}
+                    action={
+                        <Stack direction="row" spacing={1}>
+                            <Button
+                                variant="outlined"
+                                color="inherit"
+                                size="small"
+                                onClick={() => setPendingSignedFile(null)}
+                                label="Đổi file"
+                            />
+                            <Button
+                                variant="contained"
+                                size="small"
+                                onClick={() => setSaveSignedConfirmOpen(true)}
+                                label="Lưu bản ký vào hồ sơ"
+                            />
+                        </Stack>
+                    }
+                >
+                    Đã chọn <strong>{pendingSignedFile.name}</strong>. File mới chỉ đang chờ xác nhận cuối.
+                </Alert>
+            ) : null}
+
             <SignedContractUploadDialog
-                open={!!pendingSignedFile}
-                file={pendingSignedFile}
-                uploading={isUploadingSigned}
+                open={!!previewSignedFile}
+                file={previewSignedFile}
+                uploading={false}
                 onClose={() => {
-                    if (!isUploadingSigned) setPendingSignedFile(null);
+                    setPreviewSignedFile(null);
                 }}
-                onConfirm={handleConfirmSignedUpload}
+                onConfirm={handleStageSignedFile}
             />
+
+            <SignedContractSaveDialog
+                open={saveSignedConfirmOpen}
+                file={pendingSignedFile}
+                saving={isUploadingSigned}
+                onClose={() => setSaveSignedConfirmOpen(false)}
+                onConfirm={() => {
+                    if (pendingSignedFile) handleConfirmSignedUpload(pendingSignedFile);
+                }}
+            />
+
+            <Dialog
+                open={contractChangeConfirmOpen}
+                onClose={() => {
+                    if (!isPending) {
+                        setContractChangeConfirmOpen(false);
+                        setPendingContractUpdate(null);
+                    }
+                }}
+                fullWidth
+                maxWidth="sm"
+            >
+                <DialogTitle>Cập nhật điều khoản hợp đồng?</DialogTitle>
+                <DialogContent>
+                    <Typography variant="body1" sx={{ mb: 1.5 }}>
+                        Bạn đang thay đổi ngày hiệu lực hoặc hạn mức ghi trên hợp đồng đã ký.
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                        Sau khi lưu, bản ký hiện tại sẽ không còn khớp, hồ sơ chuyển về trạng thái chờ xử lý và bạn sẽ được đưa về bước tải bản ký mới.
+                    </Typography>
+                </DialogContent>
+                <DialogActions sx={{ px: 3, pb: 2.5 }}>
+                    <Button
+                        variant="outlined"
+                        color="inherit"
+                        label="Hủy"
+                        onClick={() => {
+                            setContractChangeConfirmOpen(false);
+                            setPendingContractUpdate(null);
+                        }}
+                        disabled={isPending}
+                    />
+                    <Button
+                        variant="contained"
+                        label="Lưu và cập nhật bản ký"
+                        loading={isPending}
+                        loadingLabel="Đang lưu..."
+                        onClick={() => {
+                            if (!pendingContractUpdate) return;
+                            setContractChangeConfirmOpen(false);
+                            submitProfileUpdate(pendingContractUpdate);
+                            setPendingContractUpdate(null);
+                        }}
+                    />
+                </DialogActions>
+            </Dialog>
 
             <ContractDocumentViewerDialog
                 open={viewSignedOpen}

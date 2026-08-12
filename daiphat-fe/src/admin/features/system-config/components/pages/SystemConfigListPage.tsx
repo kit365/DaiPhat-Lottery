@@ -1,7 +1,7 @@
-import { useMemo, useState, type ReactElement } from 'react';
+import { useMemo, useState, useEffect, type ReactElement } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import {
     Box,
-    Button,
     Card,
     Stack,
     Tab,
@@ -26,6 +26,7 @@ import { useBulkUpdateVendorConfidencePolicy, useSystemConfigs, useUpdateSystemC
 import { SystemConfigEditDialog } from '../sections/SystemConfigEditDialog';
 import { SystemConfigTableRow } from '../sections/SystemConfigTableRow';
 import { VendorConfidencePolicyDialog } from '../sections/VendorConfidencePolicyDialog';
+import { VendorSettingsView } from '../sections/VendorSettingsView';
 import {
     CONFIG_TYPE_LABELS,
     ConfigType,
@@ -123,6 +124,7 @@ const renderTypeFilterTab = (
     count: number
 ) => (
     <Tab
+        key={tab.value}
         value={tab.value}
         icon={tab.icon}
         iconPosition="start"
@@ -157,8 +159,27 @@ export const SystemConfigListPage = () => {
         user?.permissions?.includes(PERMISSIONS.SETTINGS.EDIT) ||
         user?.rolesName?.includes('ROLE_ADMIN');
 
+    const router = useRouter();
+    const searchParams = useSearchParams();
+
     const [search, setSearch] = useState('');
     const [typeFilter, setTypeFilter] = useState<TypeFilter>('all');
+
+    useEffect(() => {
+        const tab = searchParams.get('tab') as TypeFilter;
+        if (tab && TYPE_TABS.some((t) => t.value === tab)) {
+            setTypeFilter(tab);
+        } else if (!tab) {
+            setTypeFilter('all');
+        }
+    }, [searchParams]);
+
+    const handleTabChange = (value: TypeFilter) => {
+        setTypeFilter(value);
+        const params = new URLSearchParams(searchParams.toString());
+        params.set('tab', value);
+        router.replace(`?${params.toString()}`, { scroll: false });
+    };
     const [selectedConfig, setSelectedConfig] = useState<SystemConfigResponse | null>(null);
     const [confidencePolicyOpen, setConfidencePolicyOpen] = useState(false);
 
@@ -168,8 +189,6 @@ export const SystemConfigListPage = () => {
         useBulkUpdateVendorConfidencePolicy();
 
     const allConfigs = configsRes?.data || [];
-    const hasConfidenceConfigs = allConfigs.some((c) => c.configKey.startsWith('VENDOR_CONFIDENCE_'));
-
     const typeCounts = useMemo(() => {
         const counts: Record<TypeFilter, number> = {
             all: allConfigs.length,
@@ -211,18 +230,6 @@ export const SystemConfigListPage = () => {
                 c.configValue.toLowerCase().includes(q)
         );
     }, [allConfigs, search, typeFilter]);
-
-    const [
-        allTab,
-        orderTab,
-        paymentTab,
-        ticketImportTab,
-        ticketReturnTab,
-        refundTab,
-        complaintTab,
-        payoutTab,
-        fortuneTab,
-    ] = TYPE_TABS;
 
     const handleEdit = (config: SystemConfigResponse) => {
         if (config.configKey.startsWith('VENDOR_CONFIDENCE_')) {
@@ -267,17 +274,17 @@ export const SystemConfigListPage = () => {
         bulkUpdateConfidence(values, {
             onSuccess: (res) => {
                 if (res.success) {
-                    toast.success(res.message || 'Cập nhật bộ cấu hình confidence thành công!');
+                    toast.success(res.message || 'Cập nhật chính sách điểm tin cậy thành công!');
                     setConfidencePolicyOpen(false);
                 } else {
-                    toast.error(res.message || 'Cập nhật bộ cấu hình confidence thất bại!');
+                    toast.error(res.message || 'Cập nhật chính sách điểm tin cậy thất bại!');
                 }
             },
             onError: (err: any) => {
                 toast.error(
                     err?.response?.data?.message ||
                         err.message ||
-                        'Cập nhật bộ cấu hình confidence thất bại!'
+                        'Cập nhật chính sách điểm tin cậy thất bại!'
                 );
             },
         });
@@ -311,21 +318,16 @@ export const SystemConfigListPage = () => {
                         sx={{ mb: 2 }}
                     >
                         <Search
-                            placeholder="Tìm theo tên, khóa, mô tả hoặc giá trị..."
+                            placeholder={
+                                typeFilter === ConfigType.VENDOR_SETTING
+                                    ? 'Tìm chính sách người bán vé số...'
+                                    : 'Tìm theo tên, mô tả hoặc giá trị...'
+                            }
                             value={search}
                             onChange={setSearch}
                             maxWidth="100%"
                         />
                         <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
-                            {canEdit && hasConfidenceConfigs && (
-                                <Button
-                                    variant="outlined"
-                                    size="small"
-                                    onClick={() => setConfidencePolicyOpen(true)}
-                                >
-                                    Chỉnh policy confidence
-                                </Button>
-                            )}
                             <Typography variant="body2" color="text.secondary" sx={{ whiteSpace: 'nowrap' }}>
                                 {filteredConfigs.length} cấu hình
                             </Typography>
@@ -334,7 +336,7 @@ export const SystemConfigListPage = () => {
 
                     <Tabs
                         value={typeFilter}
-                        onChange={(_, value: TypeFilter) => setTypeFilter(value)}
+                        onChange={(_, value: TypeFilter) => handleTabChange(value)}
                         variant="scrollable"
                         scrollButtons="auto"
                         allowScrollButtonsMobile
@@ -354,34 +356,27 @@ export const SystemConfigListPage = () => {
                             },
                         }}
                     >
-                        {renderTypeFilterTab(allTab, typeFilter === allTab.value, typeCounts[allTab.value])}
-                        {renderTypeFilterTab(orderTab, typeFilter === orderTab.value, typeCounts[orderTab.value])}
-                        {renderTypeFilterTab(paymentTab, typeFilter === paymentTab.value, typeCounts[paymentTab.value])}
-                        {renderTypeFilterTab(
-                            ticketImportTab,
-                            typeFilter === ticketImportTab.value,
-                            typeCounts[ticketImportTab.value]
+                        {TYPE_TABS.map((tab) =>
+                            renderTypeFilterTab(tab, typeFilter === tab.value, typeCounts[tab.value])
                         )}
-                        {renderTypeFilterTab(
-                            ticketReturnTab,
-                            typeFilter === ticketReturnTab.value,
-                            typeCounts[ticketReturnTab.value]
-                        )}
-                        {renderTypeFilterTab(refundTab, typeFilter === refundTab.value, typeCounts[refundTab.value])}
-                        {renderTypeFilterTab(
-                            complaintTab,
-                            typeFilter === complaintTab.value,
-                            typeCounts[complaintTab.value]
-                        )}
-                        {renderTypeFilterTab(payoutTab, typeFilter === payoutTab.value, typeCounts[payoutTab.value])}
-                        {renderTypeFilterTab(fortuneTab, typeFilter === fortuneTab.value, typeCounts[fortuneTab.value])}
                     </Tabs>
                 </Box>
 
-                <TableContainer>
-                    <Table>
-                        <TableHead>
-                            <TableRow
+                {typeFilter === ConfigType.VENDOR_SETTING ? (
+                    <Box pt={2}>
+                        <VendorSettingsView
+                            configs={filteredConfigs}
+                            allConfigs={allConfigs}
+                            canEdit={Boolean(canEdit)}
+                            onEdit={handleEdit}
+                            onBulkConfidenceEdit={() => setConfidencePolicyOpen(true)}
+                        />
+                    </Box>
+                ) : (
+                    <TableContainer>
+                        <Table>
+                            <TableHead>
+                                <TableRow
                                 sx={{
                                     '& th': {
                                         color: 'var(--palette-text-secondary)',
@@ -426,6 +421,7 @@ export const SystemConfigListPage = () => {
                         </TableBody>
                     </Table>
                 </TableContainer>
+                )}
             </Card>
 
             <SystemConfigEditDialog
