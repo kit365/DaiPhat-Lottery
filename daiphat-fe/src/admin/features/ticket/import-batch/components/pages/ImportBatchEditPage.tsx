@@ -31,6 +31,7 @@ import { SpinnerLoading } from '../../../../../components/ui/SpinnerLoading';
 import { CollapsibleCard } from '../../../../../components/ui/CollapsibleCard';
 import { Button } from '../../../../../components/ui/Button';
 import { ImagePreview } from '../../../../../components/ui/ImagePreview';
+import { AdminDatePicker } from '../../../../../components/ui/AdminDatePicker';
 import { prefixAdmin, ROUTES } from '../../../../../constants/routes';
 import {
     useEligibleImportBatchStations,
@@ -1079,16 +1080,15 @@ export const ImportBatchEditPage = () => {
                                     name="drawDate"
                                     control={control}
                                     render={({ field }) => (
-                                        <TextField
-                                            {...field}
-                                            label="Ngày quay"
-                                            type="date"
-                                            fullWidth
-                                            disabled
-                                            InputLabelProps={{ shrink: true }}
-                                            helperText="Ngày quay không thể thay đổi sau khi tạo phiếu nhập lô."
-                                            sx={{ maxWidth: { sm: 280 } }}
-                                        />
+                                        <Box sx={{ maxWidth: { sm: 280 }, flex: 1 }}>
+                                            <AdminDatePicker
+                                                label="Ngày quay"
+                                                value={field.value || ''}
+                                                onChange={field.onChange}
+                                                disabled
+                                                helperText="Ngày quay không thể thay đổi sau khi tạo phiếu nhập lô."
+                                            />
+                                        </Box>
                                     )}
                                 />
 

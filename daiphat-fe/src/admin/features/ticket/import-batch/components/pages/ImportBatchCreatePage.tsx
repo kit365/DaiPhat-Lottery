@@ -4,7 +4,6 @@ import {
     Alert,
     Box,
     FormControl,
-    Grid,
     InputLabel,
     MenuItem,
     Select,
@@ -15,27 +14,27 @@ import {
     TableContainer,
     TableHead,
     TableRow,
-    TextField,
     ThemeProvider,
     Typography,
     useTheme,
     createTheme,
     Paper,
-    InputAdornment,
     Dialog,
     DialogTitle,
     DialogContent,
     DialogActions,
+    Divider,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import PhoneIphoneIcon from '@mui/icons-material/PhoneIphone';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import { Breadcrumb } from '../../../../../components/ui/Breadcrumb';
 import { Title } from '../../../../../components/ui/Title';
+import { AdminDatePicker } from '../../../../../components/ui/AdminDatePicker';
 import { Button as LoadingButton } from '../../../../../components/ui/Button';
 import { Button } from '../../../../../components/ui/Button';
-import { UploadSingleFile } from '../../../../../components/upload/UploadSingleFile';
 import { uploadAdminImage } from '@/admin/shared/services/upload.service';
+import { ImportBatchReceiptUpload } from '../sections/ImportBatchReceiptUpload';
 import { prefixAdmin, ROUTES } from '../../../../../constants/routes';
 import { useCreateImportBatch, useEligibleImportBatchStations, useImportBatchTimePolicy } from '../../hooks/useImportBatch';
 import { useActiveSuppliers } from '../../../../supplier';
@@ -53,12 +52,10 @@ import {
     isReturnCutOffPassed,
     resolveImportModeLock,
 } from '../../utils/importBatchDrawDate';
-import { ImportBatchDeclaredQuantityProgress } from '../sections/ImportBatchDeclaredQuantityProgress';
 import {
     declaredQuantitiesMatch,
     sumImportBatchLineDeclaredQuantity,
 } from '../../utils/importBatchDeclaredQuantity';
-import { formatViInteger, parseNonNegativeIntegerInput } from '../../../../supplier';
 import { computeImportBatchTotals } from '../../utils/importBatchTotals';
 import { formatImportCost } from '../../utils/importCostCalculator';
 import { computeImportBatchRowLimit, IMPORT_BATCH_ROW_LIMIT_MESSAGE } from '../../utils/importBatchRowLimit';
@@ -66,7 +63,10 @@ import type { ImportBatch, ImportBatchEligibleStation } from '../../types/import
 import { useImportBatchCreateDraft } from '../../hooks/useImportBatchCreateDraft';
 import { readLocalImportBatchCreateDraft } from '../../utils/importBatchCreateDraft';
 import { transferCreateFormToEditDraft } from '../../utils/importBatchEditDraft';
-import { isPersistableInvoiceEvidenceUrl } from '../../utils/invoiceEvidence';
+import {
+    hasInvoiceEvidence,
+    resolveInvoiceEvidenceUrl,
+} from '../../utils/invoiceEvidence';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Controller, useFieldArray, useForm, useWatch, type Resolver } from 'react-hook-form';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -138,34 +138,27 @@ export const ImportBatchCreatePage = () => {
     const returnBufferMinutes = timePolicy?.returnBufferMinutes ?? 45;
     const { mutateAsync: createAsync, isPending } = useCreateImportBatch();
     const [isSaving, setIsSaving] = useState(false);
-    const [isReceiptUploading, setIsReceiptUploading] = useState(false);
-    const [receiptUploadError, setReceiptUploadError] = useState<string | null>(null);
 
-    const uploadReceipt = useCallback(async (file: File) => {
+    const uploadReceipt = useCallback((file: File) => uploadAdminImage(file), []);
+
+    const buildCreatePayload = async (formData: CreateImportBatchFormValues, forceCreate?: boolean) => {
+        let invoiceEvidenceUrl: string | undefined;
         try {
-            const url = await uploadAdminImage(file);
-            setReceiptUploadError(null);
-            return url;
+            invoiceEvidenceUrl =
+                formData.importMode === 'IN_DAY'
+                    ? await resolveInvoiceEvidenceUrl(formData.invoiceEvidenceUrl, uploadReceipt)
+                    : undefined;
         } catch (err: unknown) {
             const message =
                 (err as { response?: { data?: { message?: string } }; message?: string })?.response?.data
                     ?.message ||
                 (err as { message?: string })?.message ||
                 'Tải ảnh biên lai thất bại.';
-            setReceiptUploadError(message);
             throw err instanceof Error ? err : new Error(message);
         }
-    }, []);
-
-    const buildCreatePayload = async (formData: CreateImportBatchFormValues, forceCreate?: boolean) => {
-        const invoiceEvidenceUrl =
-            formData.importMode === 'IN_DAY' &&
-            isPersistableInvoiceEvidenceUrl(formData.invoiceEvidenceUrl)
-                ? String(formData.invoiceEvidenceUrl).trim()
-                : undefined;
 
         if (formData.importMode === 'IN_DAY' && !invoiceEvidenceUrl) {
-            throw new Error('Vui lòng tải ảnh biên lai thành công trước khi xác nhận.');
+            throw new Error('Vui lòng chọn ảnh biên lai.');
         }
 
         return {
@@ -409,10 +402,7 @@ export const ImportBatchCreatePage = () => {
         eligibleStations.length > 0 &&
         lines.some((line) => line.lotteryStationId && eligibleStationIds.has(line.lotteryStationId)) &&
         declaredQuantitiesMatch(totalDeclareQuantity ?? 0, lines) &&
-        (!showSharedReceipt ||
-            (isPersistableInvoiceEvidenceUrl(invoiceEvidenceUrl) &&
-                !isReceiptUploading &&
-                !receiptUploadError));
+        (!showSharedReceipt || hasInvoiceEvidence(invoiceEvidenceUrl));
 
     const totals = computeImportBatchTotals(lines);
     const linesDeclaredQuantity = sumImportBatchLineDeclaredQuantity(lines);
@@ -481,16 +471,8 @@ export const ImportBatchCreatePage = () => {
             return;
         }
         if (!canSubmit) {
-            if (
-                showSharedReceipt &&
-                (!isPersistableInvoiceEvidenceUrl(invoiceEvidenceUrl) ||
-                    isReceiptUploading ||
-                    !!receiptUploadError)
-            ) {
-                toast.error(
-                    receiptUploadError ||
-                        'Vui lòng tải ảnh biên lai thành công trước khi xác nhận.'
-                );
+            if (showSharedReceipt && !hasInvoiceEvidence(invoiceEvidenceUrl)) {
+                toast.error('Vui lòng chọn ảnh biên lai.');
                 return;
             }
             toast.error('Vui lòng chọn nhà đài hợp lệ cho ngày quay đã chọn.');
@@ -656,74 +638,47 @@ export const ImportBatchCreatePage = () => {
                         { label: 'Khai báo phiếu nhập' },
                     ]}
                 />
-                <Box
-                    sx={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        mb: 3,
-                        flexWrap: 'wrap',
-                        gap: 2,
-                    }}
-                >
+                <Box sx={{ mb: 3 }}>
                     <Title title="Khai báo phiếu nhập lô vé" />
-                    <Stack direction="row" spacing={1.5}>
-                        <LoadingButton
-                            type="submit"
-                            form="import-batch-create-form"
-                            variant="contained"
-                            loading={isPending || isSaving}
-                            disabled={
-                                !canSubmit ||
-                                isLoadingStations ||
-                                isLoadingSuppliers ||
-                                !supplierId ||
-                                isSaving ||
-                                isFormBlocked ||
-                                isReceiptUploading
-                            }
-                            label="Xác nhận & Lưu"
-                            loadingLabel="Đang xử lý..."
-                        />
-                        <Button variant="outlined" onClick={handleCancel}>
-                            Hủy
-                        </Button>
-                    </Stack>
                 </Box>
 
                 <form id="import-batch-create-form" onSubmit={handleSubmit(onSubmit)}>
-                    <Stack spacing={3}>
-
-                        {/* ── Card 1: Thông tin phiếu nhập lô ── */}
-                        <Paper
-                            variant="outlined"
+                    <Paper
+                        variant="outlined"
+                        sx={{
+                            p: 0,
+                            borderRadius: '16px',
+                            overflow: 'hidden',
+                            boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
+                            border: '1px solid #e2e8f0',
+                            bgcolor: '#ffffff',
+                        }}
+                    >
+                        <Box
                             sx={{
-                                borderRadius: '16px',
-                                overflow: 'hidden',
-                                boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
-                                border: '1px solid #e2e8f0',
-                                bgcolor: '#ffffff',
+                                px: 2.5,
+                                py: 1.5,
+                                borderBottom: '1px solid #f1f5f9',
+                                bgcolor: '#f8fafc',
                             }}
                         >
-                            {/* Card header */}
-                            <Box
-                                sx={{
-                                    px: 3,
-                                    py: 2,
-                                    borderBottom: '1px solid #f1f5f9',
-                                    bgcolor: '#f8fafc',
-                                }}
-                            >
-                                <Typography variant="subtitle1" fontWeight={800} color="#0f172a">
-                                    Thông tin phiếu nhập lô
-                                </Typography>
-                            </Box>
+                            <Typography variant="subtitle1" fontWeight={800} color="#0f172a">
+                                Thông tin phiếu nhập lô
+                            </Typography>
+                        </Box>
 
-                            {/* Card body */}
-                            <Box sx={{ p: { xs: 2.5, md: 3 } }}>
-                                <Grid container spacing={2.5}>
-                                    {/* Input 1: Nhà cung cấp */}
-                                    <Grid size={{ xs: 12, md: 7 }}>
+                        <Box sx={{ px: 2.5, py: 2.5 }}>
+                            <Stack spacing={2}>
+                                <Box
+                                    sx={{
+                                        display: 'flex',
+                                        flexWrap: 'wrap',
+                                        gap: 2,
+                                        alignItems: 'flex-start',
+                                        ...(isFormBlocked && { opacity: 0.5, pointerEvents: 'none' }),
+                                    }}
+                                >
+                                    <Box sx={{ flex: '1 1 260px', minWidth: 0 }}>
                                         <Controller
                                             name="supplierId"
                                             control={control}
@@ -738,7 +693,9 @@ export const ImportBatchCreatePage = () => {
                                                         {...field}
                                                         label="Nhà cung cấp *"
                                                         value={field.value || ''}
-                                                        disabled={isLoadingSuppliers || activeSuppliers.length === 0}
+                                                        disabled={
+                                                            isLoadingSuppliers || activeSuppliers.length === 0
+                                                        }
                                                         sx={{ borderRadius: '10px', bgcolor: '#ffffff' }}
                                                     >
                                                         {activeSuppliers.map((supplier) => (
@@ -755,421 +712,293 @@ export const ImportBatchCreatePage = () => {
                                                 </FormControl>
                                             )}
                                         />
-                                    </Grid>
+                                    </Box>
 
-                                    {/* Input 2: Ngày quay */}
-                                    <Grid size={{ xs: 12, md: 5 }}>
+                                    <Box sx={{ flex: '0 1 220px', minWidth: 190 }}>
                                         <Controller
                                             name="drawDate"
                                             control={control}
                                             render={({ field }) => (
-                                                <TextField
-                                                    {...field}
-                                                    size="small"
+                                                <AdminDatePicker
                                                     label="Ngày quay *"
-                                                    type="date"
-                                                    fullWidth
-                                                    InputLabelProps={{ shrink: true }}
-                                                    inputProps={{
-                                                        min: drawDateBounds.min,
-                                                        max: drawDateBounds.max,
-                                                    }}
+                                                    value={field.value || ''}
+                                                    onChange={field.onChange}
+                                                    min={drawDateBounds.min}
+                                                    max={drawDateBounds.max}
                                                     error={isSubmitted && !!errors.drawDate}
                                                     helperText={
                                                         (isSubmitted && errors.drawDate?.message) ||
-                                                        drawDateHelperText
+                                                        drawDateHelperText ||
+                                                        undefined
                                                     }
-                                                    FormHelperTextProps={
-                                                        (noEligibleStations || allStationsDraftBlocked) &&
-                                                        !errors.drawDate
-                                                            ? { sx: { color: 'warning.main' } }
-                                                            : undefined
+                                                    helperTextColor={
+                                                        errors.drawDate
+                                                            ? 'error'
+                                                            : noEligibleStations || allStationsDraftBlocked
+                                                              ? 'warning'
+                                                              : 'default'
                                                     }
-                                                    sx={{
-                                                        '& .MuiOutlinedInput-root': {
-                                                            borderRadius: '10px',
-                                                            bgcolor: '#ffffff',
-                                                        },
-                                                    }}
+                                                    disabled={isFormBlocked}
                                                 />
                                             )}
                                         />
-                                    </Grid>
-
-                                    {/* Supplier import-blocked alert */}
-                                    {isImportAllowBlocked && (
-                                        <Grid size={{ xs: 12 }}>
-                                            <Alert severity="warning" sx={{ borderRadius: '10px' }}>
-                                                Chưa đến giờ cho phép nhập vé của nhà cung cấp này
-                                                ({formatSupplierTime(selectedSupplier?.importAllowFrom)}).
-                                                Vui lòng đợi đến giờ mở cửa hoặc chọn nhà cung cấp khác.
-                                            </Alert>
-                                        </Grid>
-                                    )}
-
-                                    {/* Return cut-off alerts */}
-                                    {isReturnCutOffBlocked && (
-                                        <Grid size={{ xs: 12 }}>
-                                            <Alert severity="error" sx={{ borderRadius: '10px' }}>
-                                                Đã qua giờ chốt trả vé của nhà cung cấp này (
-                                                {formatSupplierTime(selectedSupplier?.returnCutOffTime)}).
-                                                Không thể tạo phiếu nhập lô mới cho kỳ quay hôm nay.
-                                                Vui lòng chọn ngày quay ngày mai hoặc đợi kỳ quay khác.
-                                            </Alert>
-                                        </Grid>
-                                    )}
-
-                                    {isReturnCutOffWarning && (
-                                        <Grid size={{ xs: 12 }}>
-                                            <Alert severity="warning" sx={{ borderRadius: '10px' }}>
-                                                Sắp đến giờ chốt trả vé (
-                                                {formatSupplierTime(selectedSupplier?.returnCutOffTime)}).
-                                                Vui lòng cân nhắc trước khi tiếp tục tạo phiếu nhập lô.
-                                            </Alert>
-                                        </Grid>
-                                    )}
-
-                                    {/* Total declare quantity */}
-                                    <Grid size={{ xs: 12 }} sx={{ ...(isFormBlocked && { opacity: 0.5, pointerEvents: 'none' }) }}>
-                                        <Controller
-                                            name="totalDeclareQuantity"
-                                            control={control}
-                                            render={({ field, fieldState }) => (
-                                                <TextField
-                                                    name={field.name}
-                                                    size="small"
-                                                    value={formatViInteger(field.value)}
-                                                    label="Tổng số lượng khai báo (Tự động tính từ danh sách đài)"
-                                                    fullWidth
-                                                    disabled
-                                                    error={isSubmitted && !isFormBlocked && !!fieldState.error}
-                                                    helperText={
-                                                        isSubmitted && !isFormBlocked && fieldState.error?.message
-                                                            ? fieldState.error.message
-                                                            : 'Tự động tổng hợp từ số lượng khai báo của các nhà đài trong danh sách bên dưới.'
-                                                    }
-                                                    sx={{
-                                                        '& .MuiOutlinedInput-root': {
-                                                            borderRadius: '10px',
-                                                            bgcolor: '#f8fafc',
-                                                        },
-                                                    }}
-                                                    InputProps={{
-                                                        readOnly: true,
-                                                        endAdornment: (
-                                                            <InputAdornment position="end">
-                                                                <Typography variant="body2" color="text.secondary">
-                                                                    vé
-                                                                </Typography>
-                                                            </InputAdornment>
-                                                        ),
-                                                    }}
-                                                />
-                                            )}
-                                        />
-                                    </Grid>
-
-                                    {/* Declared quantity progress bar */}
-                                    <Grid size={{ xs: 12 }} sx={{ ...(isFormBlocked && { opacity: 0.5, pointerEvents: 'none' }) }}>
-                                        <ImportBatchDeclaredQuantityProgress
-                                            totalDeclareQuantity={totalDeclareQuantity ?? 0}
-                                            linesSum={linesDeclaredQuantity}
-                                            showError={isSubmitted && !isFormBlocked}
-                                        />
-                                    </Grid>
-                                </Grid>
-                            </Box>
-                        </Paper>
-
-                        {/* ── Card 2: Danh sách nhà đài ── */}
-                        <Paper
-                            variant="outlined"
-                            sx={{
-                                borderRadius: '16px',
-                                overflow: 'hidden',
-                                boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
-                                border: '1px solid #e2e8f0',
-                                bgcolor: '#ffffff',
-                                ...(isFormBlocked && {
-                                    opacity: 0.5,
-                                    pointerEvents: 'none',
-                                    filter: 'grayscale(0.2)',
-                                    userSelect: 'none',
-                                }),
-                            }}
-                        >
-                            {/* Card header */}
-                            <Box
-                                sx={{
-                                    px: 3,
-                                    py: 1.75,
-                                    borderBottom: '1px solid #f1f5f9',
-                                    bgcolor: '#f8fafc',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'space-between',
-                                    gap: 2,
-                                    flexWrap: 'wrap',
-                                }}
-                            >
-                                <Typography variant="subtitle1" fontWeight={800} color="#0f172a">
-                                    Danh sách nhà đài
-                                </Typography>
-                                <Button
-                                    variant="outlined"
-                                    size="small"
-                                    startIcon={<AddIcon />}
-                                    onClick={() => {
-                                        if (canAddRow) {
-                                            append(emptyLine());
-                                        }
-                                    }}
-                                    disabled={!canAddRow || isLoadingStations || isFormBlocked}
-                                    sx={{ borderRadius: '8px' }}
-                                >
-                                    Thêm dòng
-                                </Button>
-                            </Box>
-
-                            {/* Blocked stations info */}
-                            {blockedStations.length > 0 && !isFormBlocked && (
-                                <Box sx={{ px: 3, pt: 2 }}>
-                                    <Alert severity="info" sx={{ borderRadius: '10px' }}>
-                                        <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.5 }}>
-                                            Một số nhà đài đã có phiếu nhập nháp:
-                                        </Typography>
-                                        {blockedStations.map((station) => (
-                                            <Typography key={station.lotteryStationId} variant="body2">
-                                                {station.name}
-                                                {station.existingDraftBatchId
-                                                    ? ` — phiếu #${station.existingDraftBatchId}`
-                                                    : ''}
-                                                {station.existingDraftBatchId && (
-                                                    <>
-                                                        {' '}
-                                                        <Button
-                                                            size="small"
-                                                            variant="text"
-                                                            sx={{ p: 0, minWidth: 0, verticalAlign: 'baseline' }}
-                                                            onClick={() =>
-                                                                router.push(
-                                                                    ROUTES.ADMIN.IMPORT_BATCH.DETAIL(
-                                                                        station.existingDraftBatchId!
-                                                                    )
-                                                                )
-                                                            }
-                                                        >
-                                                            Xem phiếu
-                                                        </Button>
-                                                    </>
-                                                )}
-                                            </Typography>
-                                        ))}
-                                    </Alert>
-                                </Box>
-                            )}
-
-                            {/* Table */}
-                            <Box sx={{ px: 0 }}>
-                                <TableContainer>
-                                    <Table size="small" sx={{ tableLayout: 'fixed', width: '100%' }}>
-                                        <TableHead>
-                                            <TableRow
-                                                sx={{
-                                                    '& .MuiTableCell-head': {
-                                                        fontWeight: 700,
-                                                        fontSize: '0.8125rem',
-                                                        color: '#64748b',
-                                                        bgcolor: '#f8fafc',
-                                                        borderBottom: '1px solid #e2e8f0',
-                                                        py: 1.25,
-                                                        px: 2,
-                                                    },
-                                                }}
-                                            >
-                                                <TableCell sx={{ width: '24%' }}>Nhà đài</TableCell>
-                                                <TableCell sx={{ width: 96, whiteSpace: 'nowrap' }}>
-                                                    Ngày quay
-                                                </TableCell>
-                                                <TableCell sx={{ width: 140 }}>Loại lô</TableCell>
-                                                <TableCell sx={{ width: 110 }}>SL khai báo</TableCell>
-                                                <TableCell sx={{ width: 140 }}>Giá vốn</TableCell>
-                                                <TableCell align="right" sx={{ width: 110 }}>
-                                                    Tổng giá vốn
-                                                </TableCell>
-                                                <TableCell align="center" width={48} />
-                                            </TableRow>
-                                        </TableHead>
-                                        <TableBody>
-                                            {fields.map((field, index) => (
-                                                <ImportBatchLineRow
-                                                    key={field.id}
-                                                    index={index}
-                                                    control={control}
-                                                    setValue={setValue}
-                                                    drawDate={drawDate}
-                                                    eligibleStations={displayEligibleStations}
-                                                    declareQuantity={lines[index]?.declareQuantity ?? 0}
-                                                    importCost={lines[index]?.importCost ?? 0}
-                                                    lotteryStationId={lines[index]?.lotteryStationId ?? 0}
-                                                    resolvedBatchType={lines[index]?.resolvedBatchType}
-                                                    stationName={lines[index]?.stationName}
-                                                    selectedStationIdsInOtherRows={
-                                                        selectedStationIdsByRow[index] ?? []
-                                                    }
-                                                    canRemove
-                                                    onRemove={() => {
-                                                        confirmDelete(
-                                                            'Dòng phiếu này sẽ bị xóa khỏi phiếu nhập lô đang tạo.',
-                                                            () => remove(index)
-                                                        );
-                                                    }}
-                                                    showErrors={isSubmitted && !isFormBlocked}
-                                                />
-                                            ))}
-                                        </TableBody>
-                                    </Table>
-                                </TableContainer>
-                            </Box>
-
-                            {/* Row limit warning */}
-                            {isAtRowLimit && !isFormBlocked && (
-                                <Box sx={{ px: 3, pb: 2 }}>
-                                    <Alert severity="warning" sx={{ borderRadius: '10px' }}>{IMPORT_BATCH_ROW_LIMIT_MESSAGE}</Alert>
-                                </Box>
-                            )}
-
-                            {errors.lines?.message && !isFormBlocked && (
-                                <Box sx={{ px: 3, pb: 1 }}>
-                                    <Typography variant="caption" color="error">
-                                        {errors.lines.message}
-                                    </Typography>
-                                </Box>
-                            )}
-
-                            {/* Summary footer */}
-                            <Box
-                                sx={{
-                                    px: 3,
-                                    py: 1.75,
-                                    borderTop: '1px solid #f1f5f9',
-                                    bgcolor: '#f8fafc',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'flex-end',
-                                    gap: 4,
-                                    flexWrap: 'wrap',
-                                }}
-                            >
-                                <Typography variant="body2" color="text.secondary">
-                                    Tổng giá trị lô vé nhập:{' '}
-                                    <Box component="span" fontWeight={800} color="#0f172a">
-                                        {formatImportCost(totals.totalCost)} VNĐ
                                     </Box>
-                                </Typography>
-                            </Box>
-                        </Paper>
-
-                        {/* ── Card 3: Ảnh biên lai (in-day only) ── */}
-                        {showSharedReceipt && (
-                            <Paper
-                                variant="outlined"
-                                sx={{
-                                    borderRadius: '16px',
-                                    overflow: 'hidden',
-                                    boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
-                                    border: '1px solid #e2e8f0',
-                                    bgcolor: '#ffffff',
-                                    ...(isFormBlocked && {
-                                        opacity: 0.5,
-                                        pointerEvents: 'none',
-                                        filter: 'grayscale(0.2)',
-                                        userSelect: 'none',
-                                    }),
-                                }}
-                            >
-                                <Box
-                                    sx={{
-                                        px: 3,
-                                        py: 2,
-                                        borderBottom: '1px solid #f1f5f9',
-                                        bgcolor: '#f8fafc',
-                                    }}
-                                >
-                                    <Typography variant="subtitle1" fontWeight={800} color="#0f172a">
-                                        Ảnh biên lai
-                                    </Typography>
                                 </Box>
-                                <Box sx={{ px: 3, py: 3 }}>
-                                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                                        Ảnh biên lai dùng chung cho tất cả nhà đài. Bắt buộc tải ảnh lên thành công
-                                        trước khi xác nhận lưu phiếu.
-                                    </Typography>
-                                    <Controller
-                                        name="invoiceEvidenceUrl"
-                                        control={control}
-                                        render={({ field }) => (
-                                            <UploadSingleFile
-                                                label="Tải lên ảnh biên lai"
-                                                value={
-                                                    typeof field.value === 'string' ? field.value : ''
-                                                }
-                                                onChange={(url) => {
-                                                    const next = typeof url === 'string' ? url : '';
-                                                    field.onChange(next);
-                                                    if (!next || isPersistableInvoiceEvidenceUrl(next)) {
-                                                        setReceiptUploadError(null);
-                                                    }
-                                                }}
-                                                autoUpload
-                                                required
-                                                customUpload={uploadReceipt}
-                                                onUploadingChange={setIsReceiptUploading}
-                                                error={
-                                                    receiptUploadError ||
-                                                    (isSubmitted && !isFormBlocked
-                                                        ? errors.invoiceEvidenceUrl?.message
-                                                        : undefined)
-                                                }
-                                            />
+
+                                {isImportAllowBlocked && (
+                                    <Alert severity="warning" sx={{ borderRadius: '10px' }}>
+                                        Chưa đến giờ cho phép nhập vé của nhà cung cấp này (
+                                        {formatSupplierTime(selectedSupplier?.importAllowFrom)}). Vui lòng đợi đến giờ
+                                        mở cửa hoặc chọn nhà cung cấp khác.
+                                    </Alert>
+                                )}
+
+                                {isReturnCutOffBlocked && (
+                                    <Alert severity="error" sx={{ borderRadius: '10px' }}>
+                                        Đã qua giờ chốt trả vé của nhà cung cấp này (
+                                        {formatSupplierTime(selectedSupplier?.returnCutOffTime)}). Không thể tạo phiếu
+                                        nhập lô mới cho kỳ quay hôm nay. Vui lòng chọn ngày quay ngày mai hoặc đợi kỳ
+                                        quay khác.
+                                    </Alert>
+                                )}
+
+                                {isReturnCutOffWarning && (
+                                    <Alert severity="warning" sx={{ borderRadius: '10px' }}>
+                                        Sắp đến giờ chốt trả vé (
+                                        {formatSupplierTime(selectedSupplier?.returnCutOffTime)}). Vui lòng cân nhắc
+                                        trước khi tiếp tục tạo phiếu nhập lô.
+                                    </Alert>
+                                )}
+
+                                {canShowBatchFields && (
+                                    <>
+                                        <Divider />
+
+                                        <Box
+                                            sx={{
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'space-between',
+                                                gap: 2,
+                                                flexWrap: 'wrap',
+                                            }}
+                                        >
+                                            <Typography variant="subtitle2" fontWeight={700} color="#0f172a">
+                                                Danh sách nhà đài
+                                            </Typography>
+                                        </Box>
+
+                                        {blockedStations.length > 0 && (
+                                            <Alert severity="info" sx={{ borderRadius: '10px' }}>
+                                                <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.5 }}>
+                                                    Một số nhà đài đã có phiếu nhập nháp:
+                                                </Typography>
+                                                {blockedStations.map((station) => (
+                                                    <Typography key={station.lotteryStationId} variant="body2">
+                                                        {station.name}
+                                                        {station.existingDraftBatchId
+                                                            ? ` — phiếu #${station.existingDraftBatchId}`
+                                                            : ''}
+                                                        {station.existingDraftBatchId && (
+                                                            <>
+                                                                {' '}
+                                                                <Button
+                                                                    size="small"
+                                                                    variant="text"
+                                                                    sx={{
+                                                                        p: 0,
+                                                                        minWidth: 0,
+                                                                        verticalAlign: 'baseline',
+                                                                    }}
+                                                                    onClick={() =>
+                                                                        router.push(
+                                                                            ROUTES.ADMIN.IMPORT_BATCH.DETAIL(
+                                                                                station.existingDraftBatchId!
+                                                                            )
+                                                                        )
+                                                                    }
+                                                                >
+                                                                    Xem phiếu
+                                                                </Button>
+                                                            </>
+                                                        )}
+                                                    </Typography>
+                                                ))}
+                                            </Alert>
                                         )}
-                                    />
-                                    {!isPersistableInvoiceEvidenceUrl(invoiceEvidenceUrl) &&
-                                        !isReceiptUploading &&
-                                        !receiptUploadError && (
-                                            <Typography
-                                                variant="caption"
-                                                color="text.secondary"
-                                                sx={{ mt: 0.75, display: 'block' }}
-                                            >
-                                                Chọn ảnh biên lai và đợi tải lên thành công để bật nút Xác nhận &amp;
-                                                Lưu.
+
+                                        <Box sx={{ mx: -2.5 }}>
+                                            <TableContainer>
+                                                <Table size="small" sx={{ tableLayout: 'fixed', width: '100%' }}>
+                                                    <TableHead>
+                                                        <TableRow
+                                                            sx={{
+                                                                '& .MuiTableCell-head': {
+                                                                    fontWeight: 700,
+                                                                    fontSize: '0.8125rem',
+                                                                    color: '#64748b',
+                                                                    bgcolor: '#f8fafc',
+                                                                    borderBottom: '1px solid #e2e8f0',
+                                                                    py: 1.25,
+                                                                    px: 2,
+                                                                },
+                                                            }}
+                                                        >
+                                                            <TableCell sx={{ width: '24%' }}>Nhà đài</TableCell>
+                                                            <TableCell sx={{ width: 96, whiteSpace: 'nowrap' }}>
+                                                                Ngày quay
+                                                            </TableCell>
+                                                            <TableCell sx={{ width: 140 }}>Loại lô</TableCell>
+                                                            <TableCell sx={{ width: 110 }}>SL khai báo</TableCell>
+                                                            <TableCell sx={{ width: 140 }}>Giá vốn</TableCell>
+                                                            <TableCell align="right" sx={{ width: 110 }}>
+                                                                Tổng giá vốn
+                                                            </TableCell>
+                                                            <TableCell align="center" width={48} />
+                                                        </TableRow>
+                                                    </TableHead>
+                                                    <TableBody>
+                                                        {fields.map((field, index) => (
+                                                            <ImportBatchLineRow
+                                                                key={field.id}
+                                                                index={index}
+                                                                control={control}
+                                                                setValue={setValue}
+                                                                drawDate={drawDate}
+                                                                eligibleStations={displayEligibleStations}
+                                                                declareQuantity={lines[index]?.declareQuantity ?? 0}
+                                                                importCost={lines[index]?.importCost ?? 0}
+                                                                lotteryStationId={lines[index]?.lotteryStationId ?? 0}
+                                                                resolvedBatchType={lines[index]?.resolvedBatchType}
+                                                                stationName={lines[index]?.stationName}
+                                                                selectedStationIdsInOtherRows={
+                                                                    selectedStationIdsByRow[index] ?? []
+                                                                }
+                                                                canRemove
+                                                                onRemove={() => {
+                                                                    confirmDelete(
+                                                                        'Dòng phiếu này sẽ bị xóa khỏi phiếu nhập lô đang tạo.',
+                                                                        () => remove(index)
+                                                                    );
+                                                                }}
+                                                                showErrors={isSubmitted && !isFormBlocked}
+                                                            />
+                                                        ))}
+                                                    </TableBody>
+                                                </Table>
+                                            </TableContainer>
+                                        </Box>
+
+                                        {isAtRowLimit && (
+                                            <Alert severity="warning" sx={{ borderRadius: '10px' }}>
+                                                {IMPORT_BATCH_ROW_LIMIT_MESSAGE}
+                                            </Alert>
+                                        )}
+
+                                        {errors.lines?.message && !isFormBlocked && (
+                                            <Typography variant="caption" color="error">
+                                                {errors.lines.message}
                                             </Typography>
                                         )}
-                                    {isReceiptUploading && (
-                                        <Typography
-                                            variant="caption"
-                                            color="text.secondary"
-                                            sx={{ mt: 0.75, display: 'block' }}
-                                        >
-                                            Đang tải ảnh biên lai lên…
-                                        </Typography>
-                                    )}
-                                    {receiptUploadError && (
-                                        <Typography
-                                            variant="caption"
-                                            color="error"
-                                            sx={{ mt: 0.75, display: 'block' }}
-                                        >
-                                            Tải ảnh thất bại. Vui lòng chọn lại ảnh để thử lại.
-                                        </Typography>
-                                    )}
-                                </Box>
-                            </Paper>
-                        )}
 
-                    </Stack>
+                                        <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+                                            <Button
+                                                variant="outlined"
+                                                size="small"
+                                                startIcon={<AddIcon />}
+                                                onClick={() => {
+                                                    if (canAddRow) {
+                                                        append(emptyLine());
+                                                    }
+                                                }}
+                                                disabled={!canAddRow || isLoadingStations || isFormBlocked}
+                                                sx={{ borderRadius: '8px' }}
+                                            >
+                                                Thêm dòng
+                                            </Button>
+                                        </Box>
+
+                                        <Box
+                                            sx={{
+                                                display: 'flex',
+                                                flexDirection: 'column',
+                                                alignItems: 'flex-end',
+                                                gap: 1.5,
+                                                pt: 1.5,
+                                                borderTop: '1px solid #f1f5f9',
+                                            }}
+                                        >
+                                            {showSharedReceipt && (
+                                                <Box sx={{ width: 220 }}>
+                                                    <Controller
+                                                        name="invoiceEvidenceUrl"
+                                                        control={control}
+                                                        render={({ field }) => (
+                                                            <ImportBatchReceiptUpload
+                                                                value={field.value}
+                                                                onChange={field.onChange}
+                                                                error={
+                                                                    isSubmitted && !isFormBlocked
+                                                                        ? errors.invoiceEvidenceUrl?.message
+                                                                        : undefined
+                                                                }
+                                                            />
+                                                        )}
+                                                    />
+                                                </Box>
+                                            )}
+
+                                            <Typography
+                                                variant="body1"
+                                                color="text.secondary"
+                                                sx={{ whiteSpace: 'nowrap', fontSize: '0.9375rem' }}
+                                            >
+                                                Tổng giá trị:{' '}
+                                                <Box
+                                                    component="span"
+                                                    fontWeight={700}
+                                                    color="text.primary"
+                                                    sx={{ fontSize: '1.0625rem' }}
+                                                >
+                                                    {formatImportCost(totals.totalCost)} VNĐ
+                                                </Box>
+                                            </Typography>
+                                        </Box>
+                                    </>
+                                )}
+                            </Stack>
+                        </Box>
+                    </Paper>
                 </form>
+
+                <Box
+                    sx={{
+                        display: 'flex',
+                        justifyContent: 'flex-end',
+                        gap: 1.5,
+                        mt: 3,
+                    }}
+                >
+                    <LoadingButton
+                        type="submit"
+                        form="import-batch-create-form"
+                        variant="contained"
+                        loading={isPending || isSaving}
+                        disabled={
+                            !canSubmit ||
+                            isLoadingStations ||
+                            isLoadingSuppliers ||
+                            !supplierId ||
+                            isSaving ||
+                            isFormBlocked
+                        }
+                        label="Xác nhận & Lưu"
+                        loadingLabel="Đang xử lý..."
+                    />
+                    <Button variant="outlined" onClick={handleCancel}>
+                        Hủy
+                    </Button>
+                </Box>
 
                 <ImportBatchConfirmDialog
                     open={confirmOpen}

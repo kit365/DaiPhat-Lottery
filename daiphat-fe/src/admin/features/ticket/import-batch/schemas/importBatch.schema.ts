@@ -5,7 +5,7 @@ import {
     IMPORT_BATCH_DECLARE_QUANTITY_MISMATCH_MESSAGE,
     sumImportBatchLineDeclaredQuantity,
 } from '../utils/importBatchDeclaredQuantity';
-import { hasInvoiceEvidence, isPersistableInvoiceEvidenceUrl } from '../utils/invoiceEvidence';
+import { hasInvoiceEvidence } from '../utils/invoiceEvidence';
 import { isDrawDateWithinAllowedRange } from '../utils/importBatchDrawDate';
 
 /** Prefer uploaded URL; File still allowed on update forms that upload at save time. */
@@ -72,11 +72,10 @@ export const createImportBatchSchema = z
             stationIds.add(line.lotteryStationId);
         });
 
-        // IN_DAY create: receipt card is shown — require a completed upload URL (not File-only).
-        if (data.importMode === 'IN_DAY' && !isPersistableInvoiceEvidenceUrl(data.invoiceEvidenceUrl)) {
+        if (data.importMode === 'IN_DAY' && !hasInvoiceEvidence(data.invoiceEvidenceUrl)) {
             ctx.addIssue({
                 code: z.ZodIssueCode.custom,
-                message: 'Vui lòng tải ảnh biên lai thành công trước khi xác nhận.',
+                message: 'Vui lòng chọn ảnh biên lai.',
                 path: ['invoiceEvidenceUrl'],
             });
         }
