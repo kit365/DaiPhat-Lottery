@@ -1,9 +1,13 @@
 package com.daiphat.coreapi.infrastructure.persistence.entity.order;
 
 import com.daiphat.coreapi.domain.model.enums.transaction.TransactionStatus;
+import com.daiphat.coreapi.domain.model.enums.transaction.TransactionBusinessType;
 import com.daiphat.coreapi.domain.model.enums.transaction.TransactionType;
 import com.daiphat.coreapi.domain.model.enums.payment.PaymentGateway;
 import com.daiphat.coreapi.infrastructure.persistence.entity.refund.RefundRequestEntity;
+import com.daiphat.coreapi.infrastructure.persistence.entity.payout.PrizePayoutRequestEntity;
+import com.daiphat.coreapi.infrastructure.persistence.entity.streetagent.AllocationBatchEntity;
+import com.daiphat.coreapi.infrastructure.persistence.entity.streetagent.StreetAgentProfileEntity;
 import com.daiphat.coreapi.infrastructure.persistence.entity.user.UserEntity;
 import jakarta.persistence.*;
 import lombok.*;
@@ -15,6 +19,7 @@ import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Entity
@@ -44,6 +49,29 @@ public class TransactionEntity {
     @JoinColumn(name = "refund_request_id")
     private RefundRequestEntity refundRequest;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "prize_payout_request_id")
+    private PrizePayoutRequestEntity prizePayoutRequest;
+
+    /** Optional vendor profile when this shared transaction records vendor deposit activity. */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "street_agent_profile_id")
+    private StreetAgentProfileEntity streetAgentProfile;
+
+    /** Optional handover batch associated with a vendor deposit transaction. */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "allocation_batch_id")
+    private AllocationBatchEntity allocationBatch;
+
+    @Column(name = "business_date")
+    private LocalDate businessDate;
+
+    /** Business purpose of the ledger row. The existing {@code type} remains the payment channel. */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "transaction_type", length = 30)
+    private TransactionBusinessType transactionType;
+
+    /** Only set for INTERNAL_ADJUSTMENT; all other directions derive from transactionType. */
     @Column(nullable = false, precision = 15)
     private BigDecimal amount;
 

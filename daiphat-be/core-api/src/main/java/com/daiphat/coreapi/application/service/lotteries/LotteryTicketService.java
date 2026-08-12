@@ -1339,6 +1339,9 @@ public class LotteryTicketService implements LotteryTicketServicePort {
     @Override
     @Transactional(readOnly = true)
     public java.util.List<com.daiphat.coreapi.application.dto.response.lotteries.LotteryTicketSerialResponse> getReplacementCandidates(Long stationId, String numbers, LocalDate drawDate) {
+        if (stationId == null || numbers == null || numbers.isBlank() || drawDate == null) {
+            return java.util.List.of();
+        }
         return lotteryTicketSerialService.findAllReplacementCandidates(stationId, numbers, drawDate, com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus.IN_STOCK)
                 .stream()
                 .map(lotteryTicketApplicationMapper::toSerialResponse)

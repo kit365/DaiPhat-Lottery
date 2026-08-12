@@ -71,9 +71,9 @@ AllocationBatchEntity
 | `agent_settlements` | `report_id` | BIGINT FK → `daily_sales_reports.id` (nullable) |
 | `agent_settlements` | `collected_by` | UUID FK → `users.id` (nullable) |
 | `agent_settlements` | `allocation_batch_id` | BIGINT FK → `allocation_batches.id` |
-| `agent_deposit_transactions` | `agent_id` | BIGINT FK → profile |
-| `agent_deposit_transactions` | `allocation_id` | BIGINT FK → `allocation_batches.id` |
-| `agent_deposit_transactions` | `collected_by` | UUID FK → users |
+| `transactions` (shared ledger) | `street_agent_profile_id` | BIGINT FK → profile; source link for vendor cash movement |
+| `transactions` (shared ledger) | `allocation_batch_id` | BIGINT FK → `allocation_batches.id`; source link for vendor cash movement |
+| `transactions` (shared ledger) | `transaction_type` | `VENDOR_DEPOSIT`, `VENDOR_SETTLEMENT_COLLECTION`, `VENDOR_PAYOUT`; cash direction derived from type |
 | `daily_sales_reports` | `agent_id` | BIGINT FK → profile |
 | `daily_sales_reports` | `batch_id` | **Không thêm** |
 | `daily_sales_reports` | `confirmed_by` | UUID FK → users (nullable) |

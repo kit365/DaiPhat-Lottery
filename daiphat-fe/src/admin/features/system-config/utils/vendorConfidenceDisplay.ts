@@ -35,6 +35,10 @@ export const VENDOR_SETTING_DISPLAY: Record<string, VendorConfidenceDisplay> = {
         label: 'Cách xử lý khi trả vé trễ',
         description: 'Quy tắc áp dụng khi người bán vé số trả vé sau giờ chốt.',
     },
+    VENDOR_EFFECTIVE_HANDOVER_DEADLINE_RULE: {
+        label: 'Cách tính hạn giao vé thực tế',
+        description: 'Hạn giao được hệ thống tính riêng cho từng phiếu; không phải một giờ cố định để chỉnh tại đây.',
+    },
 };
 
 /**

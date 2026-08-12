@@ -1,11 +1,12 @@
 "use client";
 
 import Link from "@/admin/components/navigation/AdminLink";
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import {
-    Box, Button, TextField, ThemeProvider, Typography, InputAdornment,
-    IconButton, Paper, useMediaQuery, useTheme, CircularProgress
+    Box, TextField, ThemeProvider, Typography, InputAdornment,
+    IconButton, Paper, useMediaQuery, useTheme
 } from "@mui/material"
+import { Button } from "@/admin/components/ui/Button"
 import { useForm, Controller } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { SiteLogo } from "@/client/components/layout/SiteLogo"
@@ -13,9 +14,9 @@ import { SettingsIcon, EyeIcon, NoEyeIcon } from "@/admin/assets/icons"
 import { adminTheme } from "@/admin/config/theme"
 import { loginSchema, LoginFormValues } from "@/admin/features/auth/schemas/login.schema"
 import { useAuth } from "@/admin/features/auth/hooks/useAuth"
+import { usePrefetchAdminLoginDestinations } from "@/admin/features/auth/hooks/usePrefetchAdminLoginDestinations"
 import { motion } from "framer-motion"
 import { ROUTES } from "@/admin/constants/routes"
-import { prefetchAdminPageChunk } from "@/admin/lib/adminPagePrefetchRegistry";
 
 export const LoginPage = () => {
     const theme = useTheme();
@@ -39,9 +40,7 @@ export const LoginPage = () => {
 
     const { login: loginMutate, isLoading: isPending, isRedirecting } = useAuth()
 
-    useEffect(() => {
-        prefetchAdminPageChunk(ROUTES.ADMIN.DASHBOARD.SYSTEM);
-    }, []);
+    usePrefetchAdminLoginDestinations();
 
     const onSubmit = (data: LoginFormValues) => {
         loginMutate(data)
@@ -51,26 +50,6 @@ export const LoginPage = () => {
         <>
             <ThemeProvider theme={adminTheme}>
                 <div className="min-h-screen flex items-center justify-center bg-[#F4F6F8] relative overflow-hidden">
-                    {isRedirecting && (
-                        <Box
-                            sx={{
-                                position: "fixed",
-                                inset: 0,
-                                zIndex: 2000,
-                                display: "flex",
-                                flexDirection: "column",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                gap: 2,
-                                bgcolor: "rgba(244, 246, 248, 0.92)",
-                            }}
-                        >
-                            <CircularProgress size={36} thickness={4} sx={{ color: "#B71833" }} />
-                            <Typography sx={{ color: "#637381", fontWeight: 600 }}>
-                                Đang vào hệ thống...
-                            </Typography>
-                        </Box>
-                    )}
                     {/* Decorative Background Elements */}
                     <Box sx={{
                         position: "absolute",
@@ -227,7 +206,9 @@ export const LoginPage = () => {
                                      <Button
                                         type="submit"
                                         variant="contained"
-                                        disabled={isPending}
+                                        color="inherit"
+                                        loading={isPending}
+                                        loadingLabel={isRedirecting ? "Đang vào hệ thống..." : "Đang xử lý..."}
                                         fullWidth
                                         sx={{
                                             py: "14px",
@@ -238,23 +219,17 @@ export const LoginPage = () => {
                                             fontSize: "1rem",
                                             fontWeight: 700,
                                             boxShadow: "0 8px 16px 0 rgba(28, 37, 46, 0.24)",
-                                            display: "flex",
-                                            alignItems: "center",
-                                            justifyContent: "center",
-                                            gap: "12px",
                                             "&:hover": {
                                                 backgroundColor: "#454F5B",
-                                            }
+                                            },
+                                            "&.Mui-disabled": {
+                                                backgroundColor: "var(--palette-text-primary)",
+                                                color: "#FFFFFF",
+                                                opacity: 0.92,
+                                            },
                                         }}
                                     >
-                                        {isPending ? (
-                                            <>
-                                                <CircularProgress size={20} color="inherit" thickness={5} />
-                                                <span>Đang xử lý...</span>
-                                            </>
-                                        ) : (
-                                            "Đăng nhập"
-                                        )}
+                                        Đăng nhập
                                     </Button>
                                 </Box>
                             </form>

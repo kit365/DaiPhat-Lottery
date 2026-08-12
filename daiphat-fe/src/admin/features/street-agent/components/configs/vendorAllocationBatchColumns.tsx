@@ -1,14 +1,15 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { Box, Chip, Stack, Typography } from "@mui/material";
+import { Stack, Typography } from "@mui/material";
 import type { GridColDef, GridRenderCellParams } from "@mui/x-data-grid";
 import { AdminRowActionsMenu } from "../../../../components/ui/AdminRowActionsMenu";
+import { AdminStatusBadge } from "../../../../components/ui/AdminStatusBadge";
 import type {
     StreetAgentProfile,
     VendorAllocationBatch,
 } from "../../types/street-agent.type";
-import { ALLOCATION_BATCH_STATUS_LABELS } from "./constants";
+import { ALLOCATION_BATCH_STATUS_LABELS, getVendorAllocationBatchStatusBadgeClass } from "./constants";
 import { formatDate, formatDateTime } from "../../utils/format";
 
 const CellText = ({ children, className = "admin-cell-text" }: { children: ReactNode; className?: string }) => (
@@ -27,13 +28,6 @@ const getProfileLabel = (profile?: StreetAgentProfile | null) => {
     if (!profile) return "—";
     const fullName = `${profile.lastName || ""} ${profile.firstName || ""}`.trim() || "Chưa có tên";
     return profile.phone ? `${fullName} — ${profile.phone}` : fullName;
-};
-
-const statusColor = (status: string): "success" | "warning" | "error" | "default" => {
-    if (status === "SETTLED") return "success";
-    if (status === "LATE_SETTLED" || status === "RETURN_OPEN") return "warning";
-    if (status === "CANCELLED" || status === "EXPIRED") return "error";
-    return "default";
 };
 
 const workflowStageLabel = (stage: string) => {
@@ -197,20 +191,22 @@ export const getVendorAllocationBatchColumns = (
         headerName: "Trạng thái",
         flex: 1.15,
         minWidth: 150,
+        align: "center",
+        headerAlign: "center",
         renderCell: (params: GridRenderCellParams<VendorAllocationBatch>) => {
             const isReturnOpen = params.row.status === "RETURN_OPEN";
             const label = isReturnOpen && params.row.returnWorkflow?.stage
                 ? workflowStageLabel(params.row.returnWorkflow.stage)
                 : (ALLOCATION_BATCH_STATUS_LABELS[params.row.status] || params.row.status);
-            
+
             return (
-                <Box sx={{ width: "100%", display: "flex", alignItems: "center" }}>
-                    <Chip
-                        size="small"
-                        color={statusColor(params.row.status)}
+                <CellTextCenter>
+                    <AdminStatusBadge
                         label={label}
+                        modifier={getVendorAllocationBatchStatusBadgeClass(params.row.status)}
+                        className="admin-status-badge--compact"
                     />
-                </Box>
+                </CellTextCenter>
             );
         },
     },

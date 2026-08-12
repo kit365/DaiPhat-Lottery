@@ -173,7 +173,7 @@ export const DateRangePicker = ({
                             --rdp-accent-color: #FF3030 !important;
                             --rdp-accent-background-color: rgba(255, 48, 48, 0.14) !important;
                             --rdp-range_middle-background-color: rgba(255, 48, 48, 0.14) !important;
-                            --rdp-range_middle-color: #006C45 !important;
+                            --rdp-range_middle-color: #C62828 !important;
                             --rdp-day-height: 36px !important;
                             --rdp-day-width: 36px !important;
                             margin: 0 !important;
@@ -229,7 +229,7 @@ export const DateRangePicker = ({
                         }
                         .custom-date-range .rdp-range_middle .rdp-day_button {
                             background-color: transparent !important;
-                            color: #006C45 !important;
+                            color: #C62828 !important;
                             font-weight: 600 !important;
                             border-radius: 0 !important;
                         }
@@ -297,7 +297,7 @@ export const DateRangePicker = ({
                                 textTransform: 'none',
                                 px: 2.5,
                                 '&:hover': {
-                                    bgcolor: '#00875A',
+                                    bgcolor: '#E02828',
                                 },
                             }}
                         >

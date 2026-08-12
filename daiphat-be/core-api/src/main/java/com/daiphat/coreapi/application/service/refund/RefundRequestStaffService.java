@@ -39,6 +39,7 @@ import com.daiphat.coreapi.domain.model.enums.order.refund.RefundRequestStatus;
 import com.daiphat.coreapi.domain.model.enums.order.refund.RefundType;
 import com.daiphat.coreapi.domain.model.enums.settings.SystemConfigEnum;
 import com.daiphat.coreapi.domain.model.enums.transaction.TransactionType;
+import com.daiphat.coreapi.domain.model.enums.transaction.TransactionBusinessType;
 import com.daiphat.coreapi.domain.model.orders.OrderCancelReasonDefaults;
 import com.daiphat.coreapi.domain.model.orders.OrderDetailModel;
 import com.daiphat.coreapi.domain.model.orders.OrderModel;
@@ -198,6 +199,7 @@ public class RefundRequestStaffService implements RefundRequestStaffServicePort 
                 .refundRequestId(saved.getId())
                 .amount(saved.getRefundAmount())
                 .type(TransactionType.REFUND)
+                .transactionType(TransactionBusinessType.ORDER_REFUND)
                 .build();
         payout.initializeForCreate();
         payout.markRefundPayoutCompleted(staffId, request.paymentEvidenceUrl(), payoutNote);

@@ -17,10 +17,12 @@ import { NavigationProgressBar } from "../components/ui/NavigationProgressBar";
 import { PageNavigationProvider } from "../context/PageNavigationContext";
 import { AdminBadgeCountsProvider } from "../context/AdminBadgeCountsProvider";
 import { SpinnerLoading } from "../components/ui/SpinnerLoading";
+import { useAdminLoginSuccessToast } from "../features/auth/hooks/useAdminLoginSuccessToast";
 
 const LayoutAdminContent = ({ children }: { children?: React.ReactNode }) => {
     const { user, token } = useAuthStore();
     const { isOpen } = useSidebar();
+    useAdminLoginSuccessToast();
 
     usePrefetchAdminPagesWhenIdle(!!user && !!token);
 

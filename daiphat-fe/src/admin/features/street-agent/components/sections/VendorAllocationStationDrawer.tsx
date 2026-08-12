@@ -13,6 +13,7 @@ import {
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 import { VendorAllocationStationGroup } from "../../types/street-agent.type";
+import { StationCapacityBadges } from "./StationCapacityBadges";
 
 export interface VendorAllocationStationDrawerProps {
     open: boolean;
@@ -160,9 +161,12 @@ export const VendorAllocationStationDrawer: React.FC<VendorAllocationStationDraw
                             <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
                                 {focusedTicketNumber ? `Đổi vé - ${station.stationName}` : `Chọn vé - ${station.stationName}`}
                             </Typography>
-                            <Typography variant="body2" sx={{ color: "var(--palette-text-secondary)" }}>
-                                Có thể giao: {station.vendorCapacity} · Chừa quầy: {station.effectiveAgencyReserveQuantity}
-                            </Typography>
+                            <Box sx={{ mt: 1 }}>
+                                <StationCapacityBadges
+                                    vendorCapacity={station.vendorCapacity}
+                                    agencyReserve={station.effectiveAgencyReserveQuantity}
+                                />
+                            </Box>
                         </Box>
                         <IconButton onClick={onClose} aria-label="Đóng">
                             <CloseIcon />

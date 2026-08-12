@@ -14,10 +14,11 @@ import com.daiphat.coreapi.application.port.in.lotteries.LotteryTicketAggregateS
 import com.daiphat.coreapi.application.port.out.settings.SystemConfigRepositoryPort;
 import com.daiphat.coreapi.application.port.out.streetagent.StreetAgentProfileRepositoryPort;
 import com.daiphat.coreapi.application.port.out.streetagent.VendorAllocationRepositoryPort;
-import com.daiphat.coreapi.application.port.out.streetagent.AgentDepositTransactionRepositoryPort;
+import com.daiphat.coreapi.application.port.out.streetagent.VendorDepositTransactionRepositoryPort;
 import com.daiphat.coreapi.application.port.out.lotteries.ReturnBatchRepositoryPort;
 import com.daiphat.coreapi.domain.exception.*;
 import com.daiphat.coreapi.domain.model.enums.settings.SystemConfigEnum;
+import com.daiphat.coreapi.domain.model.enums.transaction.TransactionBusinessType;
 import com.daiphat.coreapi.domain.model.enums.lottery.ReturnBatchLineStatus;
 import com.daiphat.coreapi.domain.model.enums.lottery.ReturnBatchStatus;
 import com.daiphat.coreapi.domain.model.enums.lottery.ReturnBatchType;
@@ -59,7 +60,7 @@ public class VendorAllocationService implements VendorAllocationServicePort {
     private final VendorConfidencePolicyResolver vendorConfidencePolicyResolver;
     private final VendorOperationalTimingResolver vendorOperationalTimingResolver;
     private final LotteryTicketAggregateSyncUseCase lotteryTicketAggregateSyncUseCase;
-    private final AgentDepositTransactionRepositoryPort agentDepositTransactionRepositoryPort;
+    private final VendorDepositTransactionRepositoryPort vendorDepositTransactionRepositoryPort;
     private final ReturnBatchRepositoryPort returnBatchRepositoryPort;
 
     @Autowired
@@ -71,7 +72,7 @@ public class VendorAllocationService implements VendorAllocationServicePort {
             VendorConfidencePolicyResolver vendorConfidencePolicyResolver,
             VendorOperationalTimingResolver vendorOperationalTimingResolver,
             LotteryTicketAggregateSyncUseCase lotteryTicketAggregateSyncUseCase,
-            AgentDepositTransactionRepositoryPort agentDepositTransactionRepositoryPort,
+            VendorDepositTransactionRepositoryPort vendorDepositTransactionRepositoryPort,
             ReturnBatchRepositoryPort returnBatchRepositoryPort) {
         this.vendorAllocationRepositoryPort = vendorAllocationRepositoryPort;
         this.streetAgentProfileRepositoryPort = streetAgentProfileRepositoryPort;
@@ -80,7 +81,7 @@ public class VendorAllocationService implements VendorAllocationServicePort {
         this.vendorConfidencePolicyResolver = vendorConfidencePolicyResolver;
         this.vendorOperationalTimingResolver = vendorOperationalTimingResolver;
         this.lotteryTicketAggregateSyncUseCase = lotteryTicketAggregateSyncUseCase;
-        this.agentDepositTransactionRepositoryPort = agentDepositTransactionRepositoryPort;
+        this.vendorDepositTransactionRepositoryPort = vendorDepositTransactionRepositoryPort;
         this.returnBatchRepositoryPort = returnBatchRepositoryPort;
     }
 
@@ -395,10 +396,9 @@ public class VendorAllocationService implements VendorAllocationServicePort {
                 operatorId);
         profile.setDepositBalance(batch.getDepositBalanceAfter());
         streetAgentProfileRepositoryPort.save(profile);
-        agentDepositTransactionRepositoryPort.record(new AgentDepositTransactionRepositoryPort.DepositTransaction(
-                profile.getId(), batch.getId(), "RECEIVED", batch.getBusinessDate(),
-                batch.getDepositRequiredAmount(), batch.getDepositReceivedAmount(), BigDecimal.ZERO, BigDecimal.ZERO,
-                batch.getDepositBalanceBefore(), batch.getDepositBalanceAfter(), now, operatorId,
+        vendorDepositTransactionRepositoryPort.record(new VendorDepositTransactionRepositoryPort.DepositTransaction(
+                profile.getId(), batch.getId(), TransactionBusinessType.VENDOR_DEPOSIT, batch.getBusinessDate(),
+                batch.getDepositReceivedAmount(), now, operatorId,
                 "Nhận cọc khi xác nhận bàn giao"));
         saveSerialsAndSync(batch.getSerials());
         return batchResponse(vendorAllocationRepositoryPort.save(batch), remaining(batch), null, null);
@@ -520,15 +520,12 @@ public class VendorAllocationService implements VendorAllocationServicePort {
                 || !request.settlementFingerprint().equals(expectedFingerprint)) {
             throw new DomainException(ErrorCode.VENDOR_SETTLEMENT_PREVIEW_STALE);
         }
+        VendorSettlementCalculator.CounterCashMovement cashMovement =
+                VendorSettlementCalculator.counterCashMovement(expected);
         batch.settle(settledAt, returnConfirmedAt, profile.getDepositBalance(), operatorId);
         profile.setDepositBalance(batch.getDepositBalanceAfter());
         streetAgentProfileRepositoryPort.save(profile);
-        agentDepositTransactionRepositoryPort.record(new AgentDepositTransactionRepositoryPort.DepositTransaction(
-                profile.getId(), batch.getId(), "SETTLED", batch.getBusinessDate(),
-                batch.getDepositRequiredAmount(), batch.getDepositReceivedAmount(), BigDecimal.ZERO,
-                batch.getDepositRefundAmount().add(batch.getDepositExcessRefundAmount()),
-                batch.getDepositBalanceBefore(), batch.getDepositBalanceAfter(), settledAt, operatorId,
-                batch.getDepositForfeitedAmount().signum() > 0 ? "Giữ cọc do trả trễ" : "Quyết toán cọc"));
+        recordSettlementCashMovement(batch, cashMovement, settledAt, operatorId);
         saveSerialsAndSync(batch.getSerials());
         VendorAllocationBatchModel saved = vendorAllocationRepositoryPort.save(batch);
         VendorSettlementProjectionServicePort.ProjectionLinks links =
@@ -541,6 +538,26 @@ public class VendorAllocationService implements VendorAllocationServicePort {
         }
         streetAgentProfileRepositoryPort.save(profile);
         return batchResponse(saved, remaining(saved), links.agentSettlementId(), links.dailySalesReportId());
+    }
+
+    private void recordSettlementCashMovement(
+            VendorAllocationBatchModel batch,
+            VendorSettlementCalculator.CounterCashMovement cashMovement,
+            LocalDateTime settledAt,
+            UUID operatorId) {
+        if (cashMovement.dueFromVendor().signum() > 0) {
+            vendorDepositTransactionRepositoryPort.record(new VendorDepositTransactionRepositoryPort.DepositTransaction(
+                    batch.getStreetAgentProfileId(), batch.getId(),
+                    TransactionBusinessType.VENDOR_SETTLEMENT_COLLECTION, batch.getBusinessDate(),
+                    cashMovement.dueFromVendor(), settledAt, operatorId,
+                    "Thu tiền quyết toán từ người bán vé số"));
+        }
+        if (cashMovement.payableToVendor().signum() > 0) {
+            vendorDepositTransactionRepositoryPort.record(new VendorDepositTransactionRepositoryPort.DepositTransaction(
+                    batch.getStreetAgentProfileId(), batch.getId(), TransactionBusinessType.VENDOR_PAYOUT,
+                    batch.getBusinessDate(), cashMovement.payableToVendor(), settledAt, operatorId,
+                    "Chi tiền quyết toán cho người bán vé số"));
+        }
     }
 
     @Override @Transactional

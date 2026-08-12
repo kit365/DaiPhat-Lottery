@@ -57,3 +57,23 @@ export const ALLOCATION_BATCH_STATUS_FILTER_OPTIONS = [
     { value: 'CANCELLED', label: ALLOCATION_BATCH_STATUS_LABELS.CANCELLED },
     { value: 'LATE_SETTLED', label: ALLOCATION_BATCH_STATUS_LABELS.LATE_SETTLED },
 ];
+
+export const getVendorAllocationBatchStatusBadgeClass = (status?: string) => {
+    switch (status) {
+        case 'DRAFT':
+            return 'admin-status-badge--draft';
+        case 'CONFIRMED':
+            return 'admin-status-badge--active';
+        case 'RETURN_OPEN':
+            return 'admin-status-badge--pending';
+        case 'SETTLED':
+            return 'admin-status-badge--success';
+        case 'LATE_SETTLED':
+            return 'admin-status-badge--pending';
+        case 'EXPIRED':
+        case 'CANCELLED':
+            return 'admin-status-badge--inactive';
+        default:
+            return 'admin-status-badge--draft';
+    }
+};
