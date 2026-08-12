@@ -1,4 +1,4 @@
-import { PasswordPolicy } from "../admin/pages/authen/types/auth.type";
+import { PasswordPolicy } from "@/shared/auth/types/auth.type";
 
 export type PasswordStrength = 'weak' | 'fair' | 'good' | 'strong' | 'amazing';
 

@@ -1,26 +1,11 @@
 "use client";
 
-import dynamic from 'next/dynamic';
-import { PermissionGuard } from '@/admin/components/auth/PermissionGuard';
+import { ImportBatchEditPage } from '@/admin/features/ticket/import-batch/components/pages/ImportBatchEditPage';
+
+import { createAdminClientPage } from '@/admin/lib/createAdminClientPage';
 import { PERMISSIONS } from '@/admin/constants/permission.constants';
-import { LoadingSpinner } from '@/client/components/ui/LoadingSpinner';
 
-const FeaturePage = dynamic(
-  () => import('@/admin/features/ticket/import-batch/components/pages/ImportBatchEditPage').then((m) => m.ImportBatchEditPage),
-  {
-    ssr: false,
-    loading: () => (
-      <div className="flex items-center justify-center p-12 min-h-[300px]">
-        <LoadingSpinner />
-      </div>
-    ),
-  }
-);
-
-export function ClientPage() {
-  return (
-    <PermissionGuard permission={PERMISSIONS.IMPORT_BATCH.CREATE}>
-      <FeaturePage />
-    </PermissionGuard>
-  );
-}
+export const ClientPage = createAdminClientPage({
+  component: ImportBatchEditPage,
+  permission: PERMISSIONS.IMPORT_BATCH.CREATE,
+});

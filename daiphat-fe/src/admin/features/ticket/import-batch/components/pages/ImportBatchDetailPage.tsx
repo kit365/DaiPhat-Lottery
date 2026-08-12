@@ -1,10 +1,11 @@
 "use client";
 
+import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
+import { useRouteParams } from "@/hooks/useRouteParams";
 import {
     Alert,
     Box,
     Button,
-    Chip,
     Stack,
     Table,
     TableBody,
@@ -16,9 +17,9 @@ import {
     Typography,
     Paper,
 } from '@mui/material';
-import { useNavigate, useParams } from '@/components/router-compat';
-import { Breadcrumb } from '../../../../../components/ui/Breadcrumb';
-import { Title } from '../../../../../components/ui/Title';
+import { PageHeader } from '../../../../../components/ui/PageHeader';
+import { SpinnerLoading } from '../../../../../components/ui/SpinnerLoading';
+import { AdminStatusBadge } from '../../../../../components/ui/AdminStatusBadge';
 import { CollapsibleCard } from '../../../../../components/ui/CollapsibleCard';
 import { useState } from 'react';
 import { IconButton } from '@mui/material';
@@ -28,19 +29,18 @@ import { PERMISSIONS } from '../../../../../constants/permission.constants';
 import { prefixAdmin, ROUTES } from '../../../../../constants/routes';
 import { useImportBatchDetail } from '../../hooks/useImportBatch';
 import { useStations } from '../../../../station/hooks/useStation';
-import { formatImportCost } from '../../utils/importCostCalculator';
+import { formatVnd } from '../../utils/importCostCalculator';
 import {
+    getBatchTypeBadgeClass,
     getBatchTypeLabel,
     getImportBatchCancelledAlertMessage,
+    getImportBatchLineStatusBadgeClass,
     getImportBatchLineStatusLabel,
-    getImportBatchLineStatusChipColor,
-    formatImportBatchLineCancelReason,
-    getImportBatchStatusChipColor,
+    getImportBatchStatusBadgeClass,
     getImportBatchStatusLabel,
     getImportModeLabel,
     formatImportBatchCancelReason,
-    importBatchStatusChipSx,
-    getBatchTypeColor,
+    formatImportBatchLineCancelReason,
 } from '../../utils/batchTypeLabels';
 import {
     displayImportBatchLineCodeRaw,
@@ -49,7 +49,6 @@ import {
     importBatchCodeMonospaceSx,
 } from '../../utils/importBatchCode';
 import {
-    findFirstIncompleteLine,
     hasTicketImportEligibleLines,
     isImportBatchEditable,
 } from '../../utils/importBatchProgress';
@@ -59,8 +58,8 @@ import { ImagePreview } from '../../../../../components/ui/ImagePreview';
 import dayjs from 'dayjs';
 
 export const ImportBatchDetailPage = () => {
-    const { id } = useParams<{ id: string }>();
-    const navigate = useNavigate();
+    const { id } = useRouteParams();
+    const router = useAdminRouter();
     const { data: batch, isLoading } = useImportBatchDetail(id);
     const { data: providersRes } = useStations({ limit: 1000 });
     const providers = (providersRes as any)?.data?.recordList || [];
@@ -81,87 +80,68 @@ export const ImportBatchDetailPage = () => {
     const cancelledReasonText =
         batch?.status === 'CANCELLED' ? formatImportBatchCancelReason(batch.cancelReason) : undefined;
 
-    if (isLoading) {
-        return null;
-    }
-
-    if (!batch) {
-        return (
-            <Box sx={{ p: 3 }}>
-                <Typography>Không tìm thấy phiếu nhập lô.</Typography>
-            </Box>
-        );
-    }
-
-    const firstIncompleteLine = findFirstIncompleteLine(batch);
-
     return (
-        <Box sx={{ maxWidth: 1200, mx: 'auto' }}>
-            <Breadcrumb
-                items={[
+        <Box className="admin-page">
+            <PageHeader
+                title={`Phiếu nhập lô ${batch ? formatImportBatchHeaderCode(batch.batchCode, batch.id) : `#${id}`}`}
+                breadcrumbItems={[
                     { label: 'Vé số', to: `/${prefixAdmin}/ticket/list` },
                     { label: 'Nhập lô vé', to: ROUTES.ADMIN.IMPORT_BATCH.LIST },
-                    { label: formatImportBatchHeaderCode(batch.batchCode, batch.id) },
+                    { label: batch ? formatImportBatchHeaderCode(batch.batchCode, batch.id) : `#${id}` },
                 ]}
-            />
-            <Stack
-                direction={{ xs: 'column', sm: 'row' }}
-                alignItems={{ xs: 'flex-start', sm: 'flex-start' }}
-                justifyContent="space-between"
-                spacing={2}
-                sx={{ mb: 2 }}
-            >
-                <Box sx={{ minWidth: 0, flex: 1 }}>
-                    <Stack direction="row" alignItems="center" spacing={1.5} flexWrap="wrap" useFlexGap>
-                        <Title title={`Phiếu nhập lô ${formatImportBatchHeaderCode(batch.batchCode, batch.id)}`} />
-                        <Chip
+                titleExtra={
+                    batch ? (
+                        <AdminStatusBadge
                             label={getImportBatchStatusLabel(batch.status)}
-                            color={getImportBatchStatusChipColor(batch.status)}
-                            size="small"
-                            sx={importBatchStatusChipSx}
+                            modifier={getImportBatchStatusBadgeClass(batch.status)}
                         />
-                    </Stack>
-                    {cancelledReasonText && (
+                    ) : undefined
+                }
+                description={
+                    cancelledReasonText ? (
                         <Typography
                             variant="body2"
                             color="text.secondary"
-                            sx={{ mt: 0.75, maxWidth: 720 }}
+                            sx={{ maxWidth: 720 }}
                         >
                             {cancelledReasonText}
                         </Typography>
-                    )}
-                </Box>
-                {canEditBatch && (
-                    <CanAccess permission={PERMISSIONS.IMPORT_BATCH.CREATE}>
-                        <Stack direction="row" spacing={1}>
-                            <Button
-                                variant="outlined"
-                                onClick={() => navigate(ROUTES.ADMIN.IMPORT_BATCH.EDIT(batch.id))}
-                            >
-                                Chỉnh sửa phiếu
-                            </Button>
-                            {canImportTickets && (
-                                <CanAccess permission={PERMISSIONS.TICKET.CREATE}>
-                                    <Button
-                                        variant="contained"
-                                        onClick={() =>
-                                            navigate(
-                                                ROUTES.ADMIN.TICKETS.CREATE_FOR_BATCH(
-                                                    batch.id,
-                                                    firstIncompleteLine?.id
-                                                )
-                                            )
-                                        }
-                                    >
-                                        Nhập vé vào phiếu
-                                    </Button>
-                                </CanAccess>
-                            )}
-                        </Stack>
-                    </CanAccess>
-                )}
-            </Stack>
+                    ) : undefined
+                }
+                action={
+                    batch && canEditBatch ? (
+                        <CanAccess permission={PERMISSIONS.IMPORT_BATCH.CREATE}>
+                            <Stack direction="row" spacing={1}>
+                                <Button
+                                    variant="outlined"
+                                    onClick={() => router.push(ROUTES.ADMIN.IMPORT_BATCH.EDIT(batch.id))}
+                                >
+                                    Chỉnh sửa phiếu
+                                </Button>
+                                {canImportTickets && (
+                                    <CanAccess permission={PERMISSIONS.TICKET.CREATE}>
+                                        <Button
+                                            variant="contained"
+                                            onClick={() => router.push(ROUTES.ADMIN.IMPORT_BATCH.LIST)}
+                                        >
+                                            Nhập vé vào phiếu
+                                        </Button>
+                                    </CanAccess>
+                                )}
+                            </Stack>
+                        </CanAccess>
+                    ) : undefined
+                }
+            />
 
+            {isLoading ? (
+                <SpinnerLoading />
+            ) : !batch ? (
+                <Box sx={{ p: 3 }}>
+                    <Typography>Không tìm thấy phiếu nhập lô.</Typography>
+                </Box>
+            ) : (
+                <>
             {hasUnsavedDraft && (
                 <Alert severity="info" sx={{ mb: 2 }}>
                     Phiếu nhập lô đang được chỉnh sửa và chưa được lưu. Nội dung nháp cục bộ sẽ được
@@ -191,7 +171,7 @@ export const ImportBatchDetailPage = () => {
                             InputProps={{ readOnly: true }}
                         />
                         <TextField
-                            label="Số dòng"
+                            label="Số nhà đài"
                             value={batch.lineCount ?? batchLines.length}
                             fullWidth
                             InputProps={{ readOnly: true }}
@@ -206,8 +186,8 @@ export const ImportBatchDetailPage = () => {
                             InputProps={{ readOnly: true }}
                         />
                         <TextField
-                            label="Tổng giá trị khai báo (VNĐ)"
-                            value={formatImportCost(Number(totalDeclaredCostValue))}
+                            label="Tổng giá trị khai báo"
+                            value={formatVnd(Number(totalDeclaredCostValue))}
                             fullWidth
                             InputProps={{ readOnly: true }}
                         />
@@ -218,8 +198,8 @@ export const ImportBatchDetailPage = () => {
                             InputProps={{ readOnly: true }}
                         />
                         <TextField
-                            label="Tổng giá trị đã nhập (VNĐ)"
-                            value={formatImportCost(Number(totalImportedCostValue))}
+                            label="Tổng giá trị đã nhập"
+                            value={formatVnd(Number(totalImportedCostValue))}
                             fullWidth
                             InputProps={{ readOnly: true }}
                         />
@@ -282,17 +262,17 @@ export const ImportBatchDetailPage = () => {
                         </Box>
                     )}
 
-                    <TableContainer component={Paper} variant="outlined">
-                        <Table size="small">
+                    <TableContainer component={Paper} variant="outlined" className="admin-table-container">
+                        <Table size="small" className="admin-table">
                             <TableHead>
                                 <TableRow>
                                     <TableCell>Nhà đài</TableCell>
-                                    <TableCell>Loại lô</TableCell>
+                                    <TableCell align="center">Loại lô</TableCell>
                                     <TableCell>Mã lô nhập</TableCell>
-                                    <TableCell>Trạng thái dòng</TableCell>
+                                    <TableCell align="center">Trạng thái</TableCell>
                                     <TableCell align="center">Đã nhập</TableCell>
-                                    <TableCell align="right">Giá vốn</TableCell>
-                                    <TableCell align="right">GT đã nhập</TableCell>
+                                    <TableCell align="center">Giá vốn</TableCell>
+                                    <TableCell align="center">GT đã nhập</TableCell>
                                     <TableCell align="center">Thao tác</TableCell>
                                 </TableRow>
                             </TableHead>
@@ -303,11 +283,10 @@ export const ImportBatchDetailPage = () => {
                                     return (
                                         <TableRow key={line.id}>
                                             <TableCell>{stationName}</TableCell>
-                                            <TableCell>
-                                                <Chip
+                                            <TableCell align="center">
+                                                <AdminStatusBadge
                                                     label={getBatchTypeLabel(line.batchType)}
-                                                    size="small"
-                                                    color={getBatchTypeColor(line.batchType)}
+                                                    modifier={getBatchTypeBadgeClass(line.batchType)}
                                                 />
                                             </TableCell>
                                             <TableCell>
@@ -319,11 +298,10 @@ export const ImportBatchDetailPage = () => {
                                                     {displayImportBatchLineCodeRaw(line.batchCode)}
                                                 </Typography>
                                             </TableCell>
-                                            <TableCell>
-                                                <Chip
+                                            <TableCell align="center">
+                                                <AdminStatusBadge
                                                     label={getImportBatchLineStatusLabel(line.status)}
-                                                    size="small"
-                                                    color={getImportBatchLineStatusChipColor(line.status)}
+                                                    modifier={getImportBatchLineStatusBadgeClass(line.status)}
                                                 />
                                                 {line.status === 'CANCELLED' && line.cancelReason && (
                                                     <Typography
@@ -348,14 +326,27 @@ export const ImportBatchDetailPage = () => {
                                                     {line.totalQuantity}/{line.declareQuantity}
                                                 </Typography>
                                             </TableCell>
-                                            <TableCell align="right">
-                                                {formatImportCost(line.importCost)}
-                                            </TableCell>
-                                            <TableCell align="right">
-                                                {formatImportCost(line.totalCostValue)}
+                                            <TableCell align="center">
+                                                {formatVnd(line.importCost)}
                                             </TableCell>
                                             <TableCell align="center">
-                                                <IconButton size="small" color="primary" onClick={() => navigate(ROUTES.ADMIN.IMPORT_BATCH.LINE_DETAIL(batch.id, line.id))}>
+                                                {formatVnd(line.totalCostValue)}
+                                            </TableCell>
+                                            <TableCell align="center">
+                                                <IconButton
+                                                    size="small"
+                                                    className="admin-table-action"
+                                                    aria-label="Xem chi tiết"
+                                                    onClick={() =>
+                                                        router.push(
+                                                            ROUTES.ADMIN.IMPORT_BATCH.LINE_DETAIL(
+                                                                batch.id,
+                                                                line.id
+                                                            )
+                                                        )
+                                                    }
+                                                    sx={{ color: 'text.primary' }}
+                                                >
                                                     <VisibilityIcon fontSize="small" />
                                                 </IconButton>
                                             </TableCell>
@@ -384,6 +375,8 @@ export const ImportBatchDetailPage = () => {
                 <Alert severity="info" sx={{ mt: 2 }}>
                     Phiếu đã nhập kho. Không thể chỉnh sửa hoặc xóa dòng.
                 </Alert>
+            )}
+                </>
             )}
         </Box>
     );

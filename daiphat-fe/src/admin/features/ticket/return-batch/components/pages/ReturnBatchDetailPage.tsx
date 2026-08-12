@@ -1,11 +1,16 @@
 "use client";
 
+import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
+import { useRouteParams } from "@/hooks/useRouteParams";
 import {
     Alert,
     Box,
-    Button,
     Chip,
-    CircularProgress,
+    Dialog,
+    DialogActions,
+    DialogContent,
+    DialogTitle,
+    IconButton,
     Stack,
     Table,
     TableBody,
@@ -13,19 +18,21 @@ import {
     TableContainer,
     TableHead,
     TableRow,
+    TextField,
     Typography,
 } from '@mui/material';
+import CloseIcon from '@mui/icons-material/Close';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import dayjs from 'dayjs';
-import { useState } from 'react';
-import Swal from 'sweetalert2';
-import { useParams } from '@/components/router-compat';
+import { useEffect, useState } from 'react';
 import { toast } from 'react-toastify';
-import { Breadcrumb } from '../../../../../components/ui/Breadcrumb';
-import { Title } from '../../../../../components/ui/Title';
+import { PageHeader } from '../../../../../components/ui/PageHeader';
+import { SpinnerLoading } from '../../../../../components/ui/SpinnerLoading';
 import { CollapsibleCard } from '../../../../../components/ui/CollapsibleCard';
-import { LoadingButton } from '../../../../../components/ui/LoadingButton';
+import { Button } from '../../../../../components/ui/Button';
 import { CanAccess } from '../../../../../components/auth/CanAccess';
+import { UploadSingleFile } from '../../../../../components/upload/UploadSingleFile';
+import { uploadAdminImage } from '@/admin/shared/services/upload.service';
 import { PERMISSIONS } from '../../../../../constants/permission.constants';
 import { ROUTES } from '../../../../../constants/routes';
 import { formatImportCost } from '../../../import-batch/utils/importCostCalculator';
@@ -43,22 +50,64 @@ import {
     getReturnBatchStatusLabel,
 } from '../../utils/returnBatchLabels';
 import { RETURN_BATCH_INSPECTION_EXPIRED_MESSAGE } from '../../types/returnBatch.type';
-import { InspectTicketsDialog } from '../sections/InspectTicketsDialog';
 import { ReturnBatchTicketsModal } from '../sections/ReturnBatchTicketsModal';
 
+const isPersistableEvidenceUrl = (url?: string | null): boolean => {
+    const trimmed = (url || '').trim();
+    if (!trimmed) return false;
+    if (trimmed.startsWith('blob:') || trimmed.startsWith('data:')) return false;
+    return /^https?:\/\//i.test(trimmed) || trimmed.startsWith('/');
+};
+
 export const ReturnBatchDetailPage = () => {
-    const { id } = useParams<{ id: string }>();
+    const router = useAdminRouter();
+    const { id } = useRouteParams();
     const { data: batch, isLoading, isError, refetch } = useReturnBatchDetail(id);
     const confirmHandover = useConfirmReturnHandover();
     const startInspection = useStartReturnInspection();
-    const [inspectOpen, setInspectOpen] = useState(false);
     const [ticketsModalOpen, setTicketsModalOpen] = useState(false);
     const [selectedStationName, setSelectedStationName] = useState<string | null>(null);
+    const [handoverDialogOpen, setHandoverDialogOpen] = useState(false);
+    const [handoverNote, setHandoverNote] = useState('');
+    const [returnEvidenceUrl, setReturnEvidenceUrl] = useState('');
+    const [isEvidenceUploading, setIsEvidenceUploading] = useState(false);
+    const [evidenceUploadError, setEvidenceUploadError] = useState<string | null>(null);
+
+    const clearHandoverForm = () => {
+        setHandoverNote('');
+        setReturnEvidenceUrl('');
+        setIsEvidenceUploading(false);
+        setEvidenceUploadError(null);
+    };
+
+    const closeHandoverDialog = () => {
+        setHandoverDialogOpen(false);
+        clearHandoverForm();
+    };
+
+    useEffect(() => {
+        // Evidence/note are only for HANDED_OVER confirmation — clear if batch leaves PENDING_HANDOVER.
+        if (batch?.status && batch.status !== 'PENDING_HANDOVER') {
+            setHandoverDialogOpen(false);
+            setHandoverNote('');
+            setReturnEvidenceUrl('');
+            setIsEvidenceUploading(false);
+            setEvidenceUploadError(null);
+        }
+    }, [batch?.status]);
 
     if (isLoading) {
         return (
-            <Box display="flex" justifyContent="center" alignItems="center" minHeight={320}>
-                <CircularProgress />
+            <Box sx={{ width: '100%', pb: 5 }}>
+                <PageHeader
+                    title={`Phiếu trả vé #${id}`}
+                    breadcrumbItems={[
+                        { label: 'Vé số', to: ROUTES.ADMIN.TICKETS.LIST },
+                        { label: 'Trả vé NCC', to: ROUTES.ADMIN.RETURN_BATCH.LIST },
+                        { label: `#${id}` },
+                    ]}
+                />
+                <SpinnerLoading />
             </Box>
         );
     }
@@ -71,124 +120,68 @@ export const ReturnBatchDetailPage = () => {
         );
     }
 
-    const handleConfirmHandover = () => {
-        const linesRows = (batch.lines || [])
-            .map(
-                (line, index) => `
-                <tr style="border-bottom: 1px solid #F1F5F9;">
-                    <td style="padding: 8px 0; text-align: center; color: #64748B; font-weight: 600;">${index + 1}</td>
-                    <td style="padding: 8px 0; font-weight: 600; color: #334155;">${line.lotteryStationName || `#${line.lotteryStationId}`}</td>
-                    <td style="padding: 8px 0; text-align: right; color: #0284C7; font-weight: 700;">${line.totalQuantity ?? 0} vé</td>
-                    <td style="padding: 8px 0; text-align: right; font-weight: 700; color: #15803D;">${formatImportCost(line.totalReturnValue)} VNĐ</td>
-                </tr>
-            `
-            )
-            .join('');
+    const canConfirmHandover =
+        isPersistableEvidenceUrl(returnEvidenceUrl) && !isEvidenceUploading && !confirmHandover.isPending;
 
-        Swal.fire({
-            title: `Xác nhận bàn giao phiếu trả vé #${batch.id}?`,
-            html: `
-                <div style="text-align: left; font-size: 0.875rem; color: #334155; line-height: 1.6;">
-                    <p style="margin-bottom: 14px; color: #475569;">
-                        Bạn có chắc chắn muốn xác nhận bàn giao <strong>${batch.totalQuantity ?? 0} vé</strong> trả cho nhà cung cấp <strong>${batch.supplierName || ''}</strong> không?
-                    </p>
+    const handleOpenHandoverDialog = () => {
+        if (batch.status !== 'PENDING_HANDOVER') {
+            toast.error('Chỉ có thể bàn giao khi phiếu đang ở trạng thái chờ bàn giao.');
+            return;
+        }
+        // Note is optional and starts empty — do not prefill seed/existing batch.note.
+        clearHandoverForm();
+        setHandoverDialogOpen(true);
+    };
 
-                    <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 14px; margin-bottom: 14px;">
-                        <div style="display: flex; justify-content: space-between; padding-bottom: 8px; margin-bottom: 8px; border-bottom: 1px solid #E2E8F0;">
-                            <span style="color: #64748B;">Nhà cung cấp:</span>
-                            <span style="font-weight: 600; color: #0F172A;">${batch.supplierName || '—'} (${batch.supplierCode || ''})</span>
-                        </div>
-                        <div style="display: flex; justify-content: space-between; padding-bottom: 8px; margin-bottom: 8px; border-bottom: 1px solid #E2E8F0;">
-                            <span style="color: #64748B;">Ngày quay:</span>
-                            <span style="font-weight: 600; color: #0F172A;">${batch.drawDate ? dayjs(batch.drawDate).format('DD/MM/YYYY') : '—'}</span>
-                        </div>
-                        <div style="display: flex; justify-content: space-between; padding-bottom: 8px; margin-bottom: 8px; border-bottom: 1px solid #E2E8F0;">
-                            <span style="color: #64748B;">Tổng số lượng vé:</span>
-                            <span style="font-weight: 700; color: #0284C7;">${batch.totalQuantity ?? 0} vé</span>
-                        </div>
-                        <div style="display: flex; justify-content: space-between;">
-                            <span style="color: #64748B;">Tổng giá trị vé trả:</span>
-                            <span style="font-weight: 700; color: #15803D; font-size: 0.95rem;">${formatImportCost(batch.totalReturnValue)} VNĐ</span>
-                        </div>
-                    </div>
-
-                    ${
-                        linesRows
-                            ? `
-                    <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 10px; padding: 14px; margin-bottom: 14px;">
-                        <div style="font-weight: 700; color: #1E293B; margin-bottom: 8px; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px;">
-                            Chi tiết bàn giao theo nhà đài
-                        </div>
-                        <table style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">
-                            <thead>
-                                <tr style="border-bottom: 1px solid #E2E8F0; color: #64748B; text-align: left;">
-                                    <th style="padding: 6px 0; text-align: center; font-weight: 600; width: 40px;">STT</th>
-                                    <th style="padding: 6px 0; font-weight: 600;">Tên nhà đài</th>
-                                    <th style="padding: 6px 0; text-align: right; font-weight: 600;">Số lượng</th>
-                                    <th style="padding: 6px 0; text-align: right; font-weight: 600;">Giá trị trả</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                ${linesRows}
-                            </tbody>
-                        </table>
-                    </div>
-                    `
-                            : ''
-                    }
-
-                    <div style="margin-top: 14px; text-align: left;">
-                        <label style="display: block; font-size: 0.8rem; font-weight: 700; color: #475569; margin-bottom: 6px;">
-                            Ghi chú bàn giao <span style="font-weight: 400; color: #94a3b8;">(không bắt buộc)</span>:
-                        </label>
-                        <textarea
-                            id="swal-handover-note"
-                            rows="3"
-                            placeholder="Nhập ghi chú bàn giao (nếu có)..."
-                            style="width: 100%; border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px; font-size: 0.85rem; outline: none; box-sizing: border-box; resize: vertical; font-family: inherit; color: #1e293b;"
-                        >${batch.note || ''}</textarea>
-                    </div>
-
-                    <div style="color: #64748B; font-style: italic; font-size: 0.8rem; background: #FFFBEB; border: 1px solid #FDE68A; border-radius: 6px; padding: 8px 12px; margin-top: 12px;">
-                        ⚠️ <strong>Lưu ý:</strong> Sau khi bàn giao, toàn bộ vé trong phiếu sẽ chuyển sang trạng thái <strong>Đã trả</strong>.
-                    </div>
-                </div>
-            `,
-            icon: 'question',
-            showCancelButton: true,
-            confirmButtonColor: '#1C252E',
-            cancelButtonColor: '#919EAB',
-            confirmButtonText: 'Xác nhận bàn giao',
-            cancelButtonText: 'Hủy',
-            focusCancel: true,
-            preConfirm: () => {
-                const noteInput = (document.getElementById('swal-handover-note') as HTMLTextAreaElement)?.value;
-                return {
-                    note: noteInput?.trim() || undefined,
-                };
-            },
-        }).then(async (result) => {
-            if (result.isConfirmed) {
-                const note = result.value?.note;
-                try {
-                    await confirmHandover.mutateAsync({
-                        id: batch.id,
-                        payload: {
-                            returnReceiptUrl: batch.returnReceiptUrl,
-                            note: note || undefined,
-                        },
-                    });
-                    toast.success('Đã xác nhận bàn giao — sê-ri chuyển sang Đã trả.');
-                } catch {
-                    toast.error('Không thể xác nhận bàn giao.');
-                }
+    const uploadHandoverEvidence = async (file: File): Promise<string> => {
+        setEvidenceUploadError(null);
+        try {
+            // Prefer backend upload (Cloudinary server-side / local storage) — more reliable than
+            // browser-direct Cloudinary when NEXT_PUBLIC_* presets are missing.
+            const url = await uploadAdminImage(file);
+            if (!isPersistableEvidenceUrl(url)) {
+                throw new Error('Không nhận được URL ảnh hợp lệ từ Cloudinary.');
             }
-        });
+            return url;
+        } catch (err: any) {
+            const message =
+                err?.response?.data?.message ||
+                err?.message ||
+                'Tải ảnh bằng chứng thất bại. Vui lòng thử lại.';
+            setEvidenceUploadError(message);
+            setReturnEvidenceUrl('');
+            throw new Error(message);
+        }
+    };
+
+    const handleExecuteHandover = async () => {
+        if (!isPersistableEvidenceUrl(returnEvidenceUrl)) {
+            toast.error('Vui lòng tải lên ảnh bằng chứng trả vé trước khi xác nhận bàn giao.');
+            return;
+        }
+        if (isEvidenceUploading) {
+            toast.warning('Ảnh đang được tải lên. Vui lòng đợi hoàn tất.');
+            return;
+        }
+        try {
+            await confirmHandover.mutateAsync({
+                id: batch.id,
+                payload: {
+                    returnReceiptUrl: batch.returnReceiptUrl || undefined,
+                    returnEvidenceUrl: returnEvidenceUrl.trim(),
+                    note: handoverNote.trim() || undefined,
+                },
+            });
+            toast.success('Đã xác nhận bàn giao — sê-ri chuyển sang Đã trả.');
+            closeHandoverDialog();
+        } catch (err: any) {
+            toast.error(err?.response?.data?.message || 'Không thể xác nhận bàn giao.');
+        }
     };
 
     const handleInspectTickets = async () => {
         if (batch.inspectionExpired || batch.status === 'CANCELLED') {
-            setInspectOpen(true);
+            router.push(ROUTES.ADMIN.RETURN_BATCH.INSPECT(batch.id));
             return;
         }
         if (canStartInspection(batch.status)) {
@@ -200,6 +193,7 @@ export const ReturnBatchDetailPage = () => {
                     message === RETURN_BATCH_INSPECTION_EXPIRED_MESSAGE ||
                     err?.response?.data?.errorCode === 'LT_120'
                 ) {
+                    const { default: Swal } = await import('sweetalert2');
                     await Swal.fire({
                         icon: 'warning',
                         title: 'Inspection period expired',
@@ -213,37 +207,34 @@ export const ReturnBatchDetailPage = () => {
                 return;
             }
         }
-        setInspectOpen(true);
+        router.push(ROUTES.ADMIN.RETURN_BATCH.INSPECT(batch.id));
     };
 
     return (
         <Box sx={{ width: '100%', pb: 5 }}>
             {/* Page Header */}
-            <div className="mb-[calc(3*var(--spacing))] flex items-start justify-end gap-[calc(2*var(--spacing))] flex-wrap">
-                <div className="mr-auto">
-                    <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 0.5 }}>
-                        <Title title={`Phiếu trả vé #${batch.id}`} />
-                        <Chip
-                            size="small"
-                            label={getReturnBatchStatusLabel(batch.status, batch.statusLabel)}
-                            color={getReturnBatchStatusChipColor(batch.status)}
-                            variant="outlined"
-                            sx={{ fontWeight: 700 }}
-                        />
-                    </Stack>
-                    <Breadcrumb
-                        items={[
-                            { label: 'Vé số', to: ROUTES.ADMIN.TICKETS.LIST },
-                            { label: 'Trả vé NCC', to: ROUTES.ADMIN.RETURN_BATCH.LIST },
-                            { label: `#${batch.id}` },
-                        ]}
+            <PageHeader
+                title={`Phiếu trả vé ${batch.batchCode?.trim() || `#${batch.id}`}`}
+                breadcrumbItems={[
+                    { label: 'Vé số', to: ROUTES.ADMIN.TICKETS.LIST },
+                    { label: 'Trả vé NCC', to: ROUTES.ADMIN.RETURN_BATCH.LIST },
+                    { label: batch.batchCode?.trim() || `#${batch.id}` },
+                ]}
+                titleExtra={
+                    <Chip
+                        size="small"
+                        label={getReturnBatchStatusLabel(batch.status, batch.statusLabel)}
+                        color={getReturnBatchStatusChipColor(batch.status)}
+                        variant="outlined"
+                        sx={{ fontWeight: 700 }}
                     />
-                </div>
+                }
+                action={
                 <Stack direction="row" spacing={1} flexWrap="wrap">
-                    {batch.status === 'PENDING_INSPECTION' && !batch.inspectionExpired && (
+                    {(batch.status === 'PENDING_INSPECTION' || batch.status === 'INSPECTING') && !batch.inspectionExpired && (
                         <CanAccess permission={PERMISSIONS.IMPORT_BATCH.CREATE}>
-                            <LoadingButton
-                                label="Kiểm tra vé"
+                            <Button
+                                label={batch.status === 'INSPECTING' ? 'Kiểm tra vé (Tiếp tục)' : 'Kiểm tra vé'}
                                 className="btn-primary-admin"
                                 loading={startInspection.isPending}
                                 onClick={handleInspectTickets}
@@ -252,16 +243,17 @@ export const ReturnBatchDetailPage = () => {
                     )}
                     {batch.status === 'PENDING_HANDOVER' && (
                         <CanAccess permission={PERMISSIONS.IMPORT_BATCH.CREATE}>
-                            <LoadingButton
+                            <Button
                                 label="Xác nhận bàn giao"
                                 className="btn-primary-admin"
                                 loading={confirmHandover.isPending}
-                                onClick={handleConfirmHandover}
+                                onClick={handleOpenHandoverDialog}
                             />
                         </CanAccess>
                     )}
                 </Stack>
-            </div>
+                }
+            />
 
             {/* System Status Alerts */}
             {batch.status === 'CANCELLED' && (
@@ -502,20 +494,173 @@ export const ReturnBatchDetailPage = () => {
                 </CollapsibleCard>
             </Stack>
 
-            <InspectTicketsDialog
-                open={inspectOpen}
-                batchId={batch.id}
-                inspectionExpired={Boolean(batch.inspectionExpired || batch.status === 'CANCELLED')}
-                onClose={() => setInspectOpen(false)}
-                onCompleted={() => refetch()}
-            />
-
             <ReturnBatchTicketsModal
                 open={ticketsModalOpen}
                 batchId={batch.id}
                 initialStationName={selectedStationName}
                 onClose={() => setTicketsModalOpen(false)}
             />
+
+            {/* returnEvidenceUrl + note only for confirming Đã bàn giao vé */}
+            <Dialog
+                open={handoverDialogOpen && batch.status === 'PENDING_HANDOVER'}
+                onClose={closeHandoverDialog}
+                maxWidth="sm"
+                fullWidth
+                PaperProps={{ sx: { borderRadius: '16px' } }}
+            >
+                <DialogTitle sx={{ fontWeight: 800, pr: 6 }}>
+                    Xác nhận bàn giao phiếu trả vé #{batch.id}
+                    <IconButton
+                        onClick={closeHandoverDialog}
+                        sx={{ position: 'absolute', right: 12, top: 12 }}
+                        size="small"
+                    >
+                        <CloseIcon fontSize="small" />
+                    </IconButton>
+                </DialogTitle>
+                <DialogContent dividers>
+                    <Stack spacing={2.5}>
+                        <Typography variant="body2" color="text.secondary">
+                            Bạn có chắc chắn muốn xác nhận bàn giao{' '}
+                            <strong>{batch.totalQuantity ?? 0} vé</strong> trả cho nhà cung cấp{' '}
+                            <strong>{batch.supplierName || ''}</strong> không?
+                        </Typography>
+
+                        <Box
+                            sx={{
+                                p: 2,
+                                borderRadius: '12px',
+                                bgcolor: '#F8FAFC',
+                                border: '1px solid #E2E8F0',
+                            }}
+                        >
+                            <Stack spacing={1}>
+                                <Box display="flex" justifyContent="space-between">
+                                    <Typography variant="body2" color="text.secondary">Nhà cung cấp</Typography>
+                                    <Typography variant="body2" fontWeight={600}>
+                                        {batch.supplierName || '—'}
+                                        {batch.supplierCode ? ` (${batch.supplierCode})` : ''}
+                                    </Typography>
+                                </Box>
+                                <Box display="flex" justifyContent="space-between">
+                                    <Typography variant="body2" color="text.secondary">Ngày quay</Typography>
+                                    <Typography variant="body2" fontWeight={600}>
+                                        {batch.drawDate ? dayjs(batch.drawDate).format('DD/MM/YYYY') : '—'}
+                                    </Typography>
+                                </Box>
+                                <Box display="flex" justifyContent="space-between">
+                                    <Typography variant="body2" color="text.secondary">Tổng số lượng</Typography>
+                                    <Typography variant="body2" fontWeight={700} color="#0284C7">
+                                        {batch.totalQuantity ?? 0} vé
+                                    </Typography>
+                                </Box>
+                                <Box display="flex" justifyContent="space-between">
+                                    <Typography variant="body2" color="text.secondary">Tổng giá trị trả</Typography>
+                                    <Typography variant="body2" fontWeight={700} color="#15803D">
+                                        {formatImportCost(batch.totalReturnValue)} VNĐ
+                                    </Typography>
+                                </Box>
+                            </Stack>
+                        </Box>
+
+                        {(batch.lines || []).length > 0 && (
+                            <TableContainer sx={{ border: '1px solid #E2E8F0', borderRadius: '12px' }}>
+                                <Table size="small">
+                                    <TableHead>
+                                        <TableRow sx={{ bgcolor: '#F8FAFC' }}>
+                                            <TableCell sx={{ fontWeight: 700 }}>Nhà đài</TableCell>
+                                            <TableCell align="right" sx={{ fontWeight: 700 }}>Số lượng</TableCell>
+                                            <TableCell align="right" sx={{ fontWeight: 700 }}>Giá trị trả</TableCell>
+                                        </TableRow>
+                                    </TableHead>
+                                    <TableBody>
+                                        {(batch.lines || []).map((line) => (
+                                            <TableRow key={line.id}>
+                                                <TableCell sx={{ fontWeight: 600 }}>
+                                                    {line.lotteryStationName || `#${line.lotteryStationId}`}
+                                                </TableCell>
+                                                <TableCell align="right" sx={{ color: '#0284C7', fontWeight: 700 }}>
+                                                    {line.totalQuantity ?? 0} vé
+                                                </TableCell>
+                                                <TableCell align="right" sx={{ color: '#15803D', fontWeight: 700 }}>
+                                                    {formatImportCost(line.totalReturnValue)} VNĐ
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            </TableContainer>
+                        )}
+
+                        <TextField
+                            label="Ghi chú bàn giao (không bắt buộc)"
+                            placeholder="Nhập ghi chú bàn giao (nếu có)..."
+                            value={handoverNote}
+                            onChange={(e) => setHandoverNote(e.target.value)}
+                            multiline
+                            rows={2}
+                            fullWidth
+                            size="small"
+                        />
+
+                        <Box>
+                            <Typography variant="body2" fontWeight={600} color="#334155" sx={{ mb: 1 }}>
+                                Bằng chứng trả vé (Hình ảnh / Biên nhận){' '}
+                                <Box component="span" sx={{ color: 'error.main' }}>*</Box>
+                            </Typography>
+                            <UploadSingleFile
+                                value={returnEvidenceUrl}
+                                onChange={(url) => {
+                                    const next = typeof url === 'string' ? url : '';
+                                    setReturnEvidenceUrl(next);
+                                    if (isPersistableEvidenceUrl(next)) {
+                                        setEvidenceUploadError(null);
+                                    }
+                                }}
+                                label="Tải lên ảnh bằng chứng trả vé"
+                                autoUpload
+                                required
+                                customUpload={uploadHandoverEvidence}
+                                onUploadingChange={setIsEvidenceUploading}
+                                error={evidenceUploadError || undefined}
+                            />
+                            {!returnEvidenceUrl && !isEvidenceUploading && !evidenceUploadError && (
+                                <Typography variant="caption" color="text.secondary" sx={{ mt: 0.75, display: 'block' }}>
+                                    Bắt buộc tải ảnh bằng chứng thành công trước khi xác nhận bàn giao.
+                                </Typography>
+                            )}
+                            {evidenceUploadError && (
+                                <Typography variant="caption" color="error" sx={{ mt: 0.75, display: 'block' }}>
+                                    Tải ảnh thất bại. Vui lòng chọn lại ảnh để thử lại.
+                                </Typography>
+                            )}
+                        </Box>
+
+                        <Alert severity="warning" sx={{ borderRadius: '10px' }}>
+                            <strong>Lưu ý:</strong> Sau khi bàn giao, toàn bộ vé trong phiếu sẽ chuyển sang trạng thái{' '}
+                            <strong>Đã trả</strong>.
+                        </Alert>
+                    </Stack>
+                </DialogContent>
+                <DialogActions sx={{ px: 2.5, py: 2 }}>
+                    <Button
+                        variant="outlined"
+                        onClick={closeHandoverDialog}
+                        sx={{ textTransform: 'none', fontWeight: 600 }}
+                    >
+                        Hủy bỏ
+                    </Button>
+                    <Button
+                        variant="contained"
+                        loading={confirmHandover.isPending || isEvidenceUploading}
+                        disabled={!canConfirmHandover}
+                        onClick={() => void handleExecuteHandover()}
+                        label="Xác nhận bàn giao"
+                        sx={{ textTransform: 'none', fontWeight: 700, bgcolor: '#0F172A' }}
+                    />
+                </DialogActions>
+            </Dialog>
         </Box>
     );
 };

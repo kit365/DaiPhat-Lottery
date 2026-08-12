@@ -19,6 +19,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalTime;
 
 @Service
 @RequiredArgsConstructor
@@ -27,6 +28,7 @@ public class LotterySupplierService implements LotterySupplierServicePort {
 
     private final LotterySupplierRepositoryPort lotterySupplierRepositoryPort;
     private final LotterySupplierApplicationMapper lotterySupplierApplicationMapper;
+    private final SupplierPaymentCutOffSyncService supplierPaymentCutOffSyncService;
 
     @Override
     @Transactional
@@ -37,8 +39,11 @@ public class LotterySupplierService implements LotterySupplierServicePort {
         }
 
         validateNonNegativeAmounts(request.paymentTermDays(), request.defaultImportCost());
+        LocalTime paymentCutOffTime = supplierPaymentCutOffSyncService
+                .requirePaymentCutOffForReturn(request.returnCutOffTime());
 
         LotterySupplierModel model = lotterySupplierApplicationMapper.toModel(request);
+        model.setPaymentCutOffTime(paymentCutOffTime);
         if (Boolean.TRUE.equals(request.isActive())) {
             model.requireActivationReady();
         }
@@ -57,8 +62,11 @@ public class LotterySupplierService implements LotterySupplierServicePort {
         }
 
         validateNonNegativeAmounts(request.paymentTermDays(), request.defaultImportCost());
+        LocalTime paymentCutOffTime = supplierPaymentCutOffSyncService
+                .requirePaymentCutOffForReturn(request.returnCutOffTime());
 
         lotterySupplierApplicationMapper.updateModel(model, request);
+        model.setPaymentCutOffTime(paymentCutOffTime);
         if (Boolean.TRUE.equals(request.isActive())) {
             model.requireActivationReady();
         }

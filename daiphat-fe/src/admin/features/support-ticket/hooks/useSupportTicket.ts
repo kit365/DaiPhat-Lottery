@@ -8,6 +8,7 @@ import {
     GetStaffTicketsParams,
     StaffSupportTicketResponseRequest,
 } from '../../../../types/support.type';
+import { invalidateAdminBadgeCounts } from '../../../utils/invalidateAdminBadgeCounts';
 
 const getErrorMessage = (error: any, fallback: string) =>
     error?.response?.data?.message || error.message || fallback;
@@ -16,6 +17,7 @@ const SUPPORT_TICKET_LIVE_REFETCH_MS = 3000;
 
 const invalidateTicketQueries = (queryClient: ReturnType<typeof useQueryClient>, ticketId?: number) => {
     queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.ADMIN_SUPPORT_TICKETS] });
+    invalidateAdminBadgeCounts(queryClient);
     if (ticketId) {
         queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.ADMIN_SUPPORT_TICKET_DETAIL, ticketId] });
         queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.ADMIN_SUPPORT_TICKET_COMMENTS, ticketId] });

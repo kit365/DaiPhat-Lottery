@@ -4,6 +4,7 @@ import com.daiphat.coreapi.application.dto.request.streetagent.CreateStreetAgent
 import com.daiphat.coreapi.application.dto.request.streetagent.UpdateStreetAgentProfileRequest;
 import com.daiphat.coreapi.application.dto.response.streetagent.StreetAgentProfileResponse;
 import com.daiphat.coreapi.application.mapper.streetagent.StreetAgentProfileApplicationMapper;
+import com.daiphat.coreapi.application.port.out.file.StoragePort;
 import com.daiphat.coreapi.application.port.out.streetagent.StreetAgentProfileRepositoryPort;
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
@@ -59,13 +60,17 @@ class StreetAgentProfileServiceTest {
     @Mock
     private StreetAgentProfileApplicationMapper streetAgentProfileApplicationMapper;
 
+    @Mock
+    private StoragePort storagePort;
+
     private StreetAgentProfileServicePort streetAgentProfileService;
 
     @BeforeEach
     void setUp() {
         streetAgentProfileService = new StreetAgentProfileService(
                 streetAgentProfileRepositoryPort,
-                streetAgentProfileApplicationMapper
+                streetAgentProfileApplicationMapper,
+                storagePort
         );
     }
 
@@ -80,17 +85,21 @@ class StreetAgentProfileServiceTest {
             StreetAgentProfileResponse response = buildResponse();
             Page<StreetAgentProfileModel> profilePage = new PageImpl<>(List.of(saved));
 
-            when(streetAgentProfileRepositoryPort.findAll(any(Pageable.class), isNull(), isNull()))
+            when(streetAgentProfileRepositoryPort.findAll(any(Pageable.class), isNull(), eq(List.of()), eq(List.of())))
                     .thenReturn(profilePage);
-            when(streetAgentProfileRepositoryPort.countAll(isNull())).thenReturn(2L);
-            when(streetAgentProfileRepositoryPort.countByStatus(StreetAgentProfileStatus.ACTIVE, null))
+            when(streetAgentProfileRepositoryPort.countAll(isNull(), eq(List.of()))).thenReturn(2L);
+            when(streetAgentProfileRepositoryPort.countByStatus(
+                    StreetAgentProfileStatus.ACTIVE, null, List.of()))
                     .thenReturn(1L);
-            when(streetAgentProfileRepositoryPort.countByStatus(StreetAgentProfileStatus.INACTIVE, null))
+            when(streetAgentProfileRepositoryPort.countByStatus(
+                    StreetAgentProfileStatus.INACTIVE, null, List.of()))
                     .thenReturn(1L);
+            when(streetAgentProfileRepositoryPort.countByStatus(StreetAgentProfileStatus.PENDING, null, List.of()))
+                    .thenReturn(0L);
             when(streetAgentProfileApplicationMapper.toResponse(saved)).thenReturn(response);
 
             PageResponse<StreetAgentProfileResponse> result =
-                    streetAgentProfileService.getAll(1, 10, null, null);
+                    streetAgentProfileService.getAll(1, 10, null, null, null);
 
             assertThat(result.getRecordList()).hasSize(1);
             assertThat(result.getRecordList().getFirst().id()).isEqualTo(PROFILE_ID);
@@ -103,7 +112,7 @@ class StreetAgentProfileServiceTest {
                     .containsEntry(StreetAgentProfileStatus.ACTIVE.getCode(), 1L)
                     .containsEntry(StreetAgentProfileStatus.INACTIVE.getCode(), 1L);
 
-            verify(streetAgentProfileRepositoryPort).findAll(any(Pageable.class), isNull(), isNull());
+            verify(streetAgentProfileRepositoryPort).findAll(any(Pageable.class), isNull(), eq(List.of()), eq(List.of()));
             verify(streetAgentProfileApplicationMapper).toResponse(saved);
         }
 
@@ -113,20 +122,24 @@ class StreetAgentProfileServiceTest {
             String search = "Van A";
             Page<StreetAgentProfileModel> emptyPage = new PageImpl<>(List.of());
 
-            when(streetAgentProfileRepositoryPort.findAll(any(Pageable.class), eq(search), isNull()))
+            when(streetAgentProfileRepositoryPort.findAll(any(Pageable.class), eq(search), eq(List.of()), eq(List.of())))
                     .thenReturn(emptyPage);
-            when(streetAgentProfileRepositoryPort.countAll(search)).thenReturn(0L);
-            when(streetAgentProfileRepositoryPort.countByStatus(StreetAgentProfileStatus.ACTIVE, search))
+            when(streetAgentProfileRepositoryPort.countAll(search, List.of())).thenReturn(0L);
+            when(streetAgentProfileRepositoryPort.countByStatus(
+                    StreetAgentProfileStatus.ACTIVE, search, List.of()))
                     .thenReturn(0L);
-            when(streetAgentProfileRepositoryPort.countByStatus(StreetAgentProfileStatus.INACTIVE, search))
+            when(streetAgentProfileRepositoryPort.countByStatus(
+                    StreetAgentProfileStatus.INACTIVE, search, List.of()))
+                    .thenReturn(0L);
+            when(streetAgentProfileRepositoryPort.countByStatus(StreetAgentProfileStatus.PENDING, search, List.of()))
                     .thenReturn(0L);
 
             PageResponse<StreetAgentProfileResponse> result =
-                    streetAgentProfileService.getAll(1, 10, search, null);
+                    streetAgentProfileService.getAll(1, 10, search, null, null);
 
             assertThat(result.getRecordList()).isEmpty();
             assertThat(result.getStatusCounts()).containsEntry(StatusCountKeys.ALL, 0L);
-            verify(streetAgentProfileRepositoryPort).findAll(any(Pageable.class), eq(search), isNull());
+            verify(streetAgentProfileRepositoryPort).findAll(any(Pageable.class), eq(search), eq(List.of()), eq(List.of()));
         }
 
         @Test
@@ -137,23 +150,29 @@ class StreetAgentProfileServiceTest {
             when(streetAgentProfileRepositoryPort.findAll(
                     any(Pageable.class),
                     isNull(),
-                    eq(StreetAgentProfileStatus.ACTIVE)))
+                    eq(List.of(StreetAgentProfileStatus.ACTIVE)),
+                    eq(List.of())))
                     .thenReturn(profilePage);
-            when(streetAgentProfileRepositoryPort.countAll(isNull())).thenReturn(1L);
-            when(streetAgentProfileRepositoryPort.countByStatus(StreetAgentProfileStatus.ACTIVE, null))
+            when(streetAgentProfileRepositoryPort.countAll(isNull(), eq(List.of()))).thenReturn(1L);
+            when(streetAgentProfileRepositoryPort.countByStatus(
+                    StreetAgentProfileStatus.ACTIVE, null, List.of()))
                     .thenReturn(1L);
-            when(streetAgentProfileRepositoryPort.countByStatus(StreetAgentProfileStatus.INACTIVE, null))
+            when(streetAgentProfileRepositoryPort.countByStatus(
+                    StreetAgentProfileStatus.INACTIVE, null, List.of()))
+                    .thenReturn(0L);
+            when(streetAgentProfileRepositoryPort.countByStatus(StreetAgentProfileStatus.PENDING, null, List.of()))
                     .thenReturn(0L);
             when(streetAgentProfileApplicationMapper.toResponse(any())).thenReturn(buildResponse());
 
             PageResponse<StreetAgentProfileResponse> result =
-                    streetAgentProfileService.getAll(1, 10, null, "ACTIVE");
+                    streetAgentProfileService.getAll(1, 10, null, "ACTIVE", null);
 
             assertThat(result.getRecordList()).hasSize(1);
             verify(streetAgentProfileRepositoryPort).findAll(
                     any(Pageable.class),
                     isNull(),
-                    eq(StreetAgentProfileStatus.ACTIVE));
+                    eq(List.of(StreetAgentProfileStatus.ACTIVE)),
+                    eq(List.of()));
         }
 
         @Test
@@ -166,13 +185,18 @@ class StreetAgentProfileServiceTest {
             when(streetAgentProfileRepositoryPort.findAll(
                     any(Pageable.class),
                     isNull(),
-                    eq(StreetAgentProfileStatus.INACTIVE)))
+                    eq(List.of(StreetAgentProfileStatus.INACTIVE)),
+                    eq(List.of())))
                     .thenReturn(profilePage);
-            when(streetAgentProfileRepositoryPort.countAll(isNull())).thenReturn(1L);
-            when(streetAgentProfileRepositoryPort.countByStatus(StreetAgentProfileStatus.ACTIVE, null))
+            when(streetAgentProfileRepositoryPort.countAll(isNull(), eq(List.of()))).thenReturn(1L);
+            when(streetAgentProfileRepositoryPort.countByStatus(
+                    StreetAgentProfileStatus.ACTIVE, null, List.of()))
                     .thenReturn(0L);
-            when(streetAgentProfileRepositoryPort.countByStatus(StreetAgentProfileStatus.INACTIVE, null))
+            when(streetAgentProfileRepositoryPort.countByStatus(
+                    StreetAgentProfileStatus.INACTIVE, null, List.of()))
                     .thenReturn(1L);
+            when(streetAgentProfileRepositoryPort.countByStatus(StreetAgentProfileStatus.PENDING, null, List.of()))
+                    .thenReturn(0L);
             when(streetAgentProfileApplicationMapper.toResponse(inactive)).thenReturn(
                     StreetAgentProfileResponse.builder()
                             .id(PROFILE_ID)
@@ -181,7 +205,7 @@ class StreetAgentProfileServiceTest {
             );
 
             PageResponse<StreetAgentProfileResponse> result =
-                    streetAgentProfileService.getAll(1, 10, null, "INACTIVE");
+                    streetAgentProfileService.getAll(1, 10, null, "INACTIVE", null);
 
             assertThat(result.getRecordList()).hasSize(1);
             assertThat(result.getRecordList().getFirst().status()).isEqualTo("INACTIVE");
@@ -192,19 +216,59 @@ class StreetAgentProfileServiceTest {
         void getAll_ignoresAllOrInvalidStatusFilter() {
             Page<StreetAgentProfileModel> emptyPage = new PageImpl<>(List.of());
 
-            when(streetAgentProfileRepositoryPort.findAll(any(Pageable.class), isNull(), isNull()))
+            when(streetAgentProfileRepositoryPort.findAll(any(Pageable.class), isNull(), eq(List.of()), eq(List.of())))
                     .thenReturn(emptyPage);
-            when(streetAgentProfileRepositoryPort.countAll(isNull())).thenReturn(0L);
-            when(streetAgentProfileRepositoryPort.countByStatus(StreetAgentProfileStatus.ACTIVE, null))
+            when(streetAgentProfileRepositoryPort.countAll(isNull(), eq(List.of()))).thenReturn(0L);
+            when(streetAgentProfileRepositoryPort.countByStatus(
+                    StreetAgentProfileStatus.ACTIVE, null, List.of()))
                     .thenReturn(0L);
-            when(streetAgentProfileRepositoryPort.countByStatus(StreetAgentProfileStatus.INACTIVE, null))
+            when(streetAgentProfileRepositoryPort.countByStatus(
+                    StreetAgentProfileStatus.INACTIVE, null, List.of()))
+                    .thenReturn(0L);
+            when(streetAgentProfileRepositoryPort.countByStatus(StreetAgentProfileStatus.PENDING, null, List.of()))
                     .thenReturn(0L);
 
-            streetAgentProfileService.getAll(1, 10, null, "ALL");
-            streetAgentProfileService.getAll(1, 10, null, "UNKNOWN");
+            streetAgentProfileService.getAll(1, 10, null, "ALL", null);
+            streetAgentProfileService.getAll(1, 10, null, "UNKNOWN", null);
 
             verify(streetAgentProfileRepositoryPort, org.mockito.Mockito.times(2))
-                    .findAll(any(Pageable.class), isNull(), isNull());
+                    .findAll(any(Pageable.class), isNull(), eq(List.of()), eq(List.of()));
+        }
+
+        @Test
+        @DisplayName("lọc theo tỉnh/thành liên hệ")
+        void getAll_withContactProvinceFilter() {
+            StreetAgentProfileModel profile = buildSavedModel();
+            profile.setContactProvince("Đắk Lắk");
+            Page<StreetAgentProfileModel> profilePage = new PageImpl<>(List.of(profile));
+
+            when(streetAgentProfileRepositoryPort.findAll(
+                    any(Pageable.class),
+                    isNull(),
+                    eq(List.of()),
+                    eq(List.of("Đắk Lắk"))))
+                    .thenReturn(profilePage);
+            when(streetAgentProfileRepositoryPort.countAll(isNull(), eq(List.of("Đắk Lắk")))).thenReturn(1L);
+            when(streetAgentProfileRepositoryPort.countByStatus(
+                    StreetAgentProfileStatus.ACTIVE, null, List.of("Đắk Lắk")))
+                    .thenReturn(1L);
+            when(streetAgentProfileRepositoryPort.countByStatus(
+                    StreetAgentProfileStatus.INACTIVE, null, List.of("Đắk Lắk")))
+                    .thenReturn(0L);
+            when(streetAgentProfileRepositoryPort.countByStatus(
+                    StreetAgentProfileStatus.PENDING, null, List.of("Đắk Lắk")))
+                    .thenReturn(0L);
+            when(streetAgentProfileApplicationMapper.toResponse(profile)).thenReturn(buildResponse());
+
+            PageResponse<StreetAgentProfileResponse> result =
+                    streetAgentProfileService.getAll(1, 10, null, null, "Đắk Lắk");
+
+            assertThat(result.getRecordList()).hasSize(1);
+            verify(streetAgentProfileRepositoryPort).findAll(
+                    any(Pageable.class),
+                    isNull(),
+                    eq(List.of()),
+                    eq(List.of("Đắk Lắk")));
         }
     }
 
@@ -323,8 +387,8 @@ class StreetAgentProfileServiceTest {
         }
 
         @Test
-        @DisplayName("luôn tạo với trạng thái ACTIVE")
-        void create_alwaysActive() {
+        @DisplayName("chưa đủ hợp đồng thì tạo với trạng thái PENDING")
+        void create_pendingWithoutCompleteContract() {
             CreateStreetAgentProfileRequest request = buildRequest(
                     LocalDate.of(2026, 3, 1),
                     null,
@@ -345,13 +409,79 @@ class StreetAgentProfileServiceTest {
             ArgumentCaptor<StreetAgentProfileModel> captor =
                     ArgumentCaptor.forClass(StreetAgentProfileModel.class);
             verify(streetAgentProfileRepositoryPort).save(captor.capture());
+            assertThat(captor.getValue().getStatus()).isEqualTo(StreetAgentProfileStatus.PENDING);
+        }
+
+        @Test
+        @DisplayName("hồ sơ có cọc legacy chưa đối soát phải PENDING dù hợp đồng còn hiệu lực")
+        void create_pendingWhenLegacyDepositIsStillHeld() {
+            CreateStreetAgentProfileRequest request = buildCompleteContractRequest(new BigDecimal("1"));
+            StreetAgentProfileModel model = buildEligibleModel(BigDecimal.ONE);
+
+            stubUniqueConstraintsPass();
+            when(streetAgentProfileApplicationMapper.toModel(request)).thenReturn(model);
+            when(streetAgentProfileRepositoryPort.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+            when(streetAgentProfileApplicationMapper.toResponse(any())).thenReturn(buildResponse());
+
+            streetAgentProfileService.create(request);
+
+            ArgumentCaptor<StreetAgentProfileModel> captor =
+                    ArgumentCaptor.forClass(StreetAgentProfileModel.class);
+            verify(streetAgentProfileRepositoryPort).save(captor.capture());
             assertThat(captor.getValue().getStatus()).isEqualTo(StreetAgentProfileStatus.ACTIVE);
+        }
+
+        @Test
+        @DisplayName("đủ điều kiện HĐ nhưng chưa có bản ký thì vẫn PENDING")
+        void create_pendingWhenSignedContractDocumentIsMissing() {
+            CreateStreetAgentProfileRequest request = buildCompleteContractRequest(BigDecimal.ZERO);
+            StreetAgentProfileModel model = buildEligibleModel(BigDecimal.ZERO);
+            model.setContractDocumentUrl(null);
+
+            stubUniqueConstraintsPass();
+            when(streetAgentProfileApplicationMapper.toModel(request)).thenReturn(model);
+            when(streetAgentProfileRepositoryPort.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+            when(streetAgentProfileApplicationMapper.toResponse(any())).thenReturn(buildResponse());
+
+            streetAgentProfileService.create(request);
+
+            ArgumentCaptor<StreetAgentProfileModel> captor =
+                    ArgumentCaptor.forClass(StreetAgentProfileModel.class);
+            verify(streetAgentProfileRepositoryPort).save(captor.capture());
+            assertThat(captor.getValue().getStatus()).isEqualTo(StreetAgentProfileStatus.PENDING);
+        }
+
+        @Test
+        @DisplayName("tự sinh mã hợp đồng khi nhân viên chỉ nhập điều kiện nhận vé")
+        void create_generatesContractCodeWhenContractTermsAreComplete() {
+            CreateStreetAgentProfileRequest request = new CreateStreetAgentProfileRequest(
+                    FIRST_NAME, LAST_NAME, PHONE, CCCD, IMAGE_URL,
+                    "123 Nguyen Hue", "Ho Chi Minh", "Quan 1, Quan 3",
+                    new BigDecimal("0.05"), LocalDate.of(2026, 1, 1), LocalDate.of(2026, 12, 31),
+                    BigDecimal.ZERO, null, null, 100
+            );
+            StreetAgentProfileModel model = buildEligibleModel(BigDecimal.ZERO);
+            model.setContractCode(null);
+            model.setContractDocumentUrl(null);
+
+            stubUniqueConstraintsPass();
+            when(streetAgentProfileApplicationMapper.toModel(request)).thenReturn(model);
+            when(streetAgentProfileRepositoryPort.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+            when(streetAgentProfileApplicationMapper.toResponse(any())).thenReturn(buildResponse());
+
+            streetAgentProfileService.create(request);
+
+            ArgumentCaptor<StreetAgentProfileModel> captor =
+                    ArgumentCaptor.forClass(StreetAgentProfileModel.class);
+            verify(streetAgentProfileRepositoryPort).save(captor.capture());
+            assertThat(captor.getValue().getContractCode()).startsWith("HD-CTV-");
+            assertThat(captor.getValue().getStatus()).isEqualTo(StreetAgentProfileStatus.PENDING);
         }
 
         @Test
         @DisplayName("ngày bắt đầu và kết thúc trùng nhau")
         void create_withSameContractDates() {
-            LocalDate sameDate = LocalDate.of(2026, 6, 1);
+            LocalDate sameDate = LocalDate.of(2026, 12, 1);
             CreateStreetAgentProfileRequest request = buildRequest(sameDate, sameDate, BigDecimal.ZERO);
 
             stubUniqueConstraintsPass();
@@ -434,6 +564,39 @@ class StreetAgentProfileServiceTest {
     }
 
     @Nested
+    @DisplayName("Upload bản hợp đồng đã ký")
+    class UploadSignedContract {
+        @Test
+        @DisplayName("sau khi upload bản ký sẽ đồng bộ status sang ACTIVE nếu đủ điều kiện")
+        void upload_syncsStatusToActiveWhenEligible() {
+            StreetAgentProfileModel existing = buildEligibleModel(BigDecimal.ZERO);
+            existing.setId(PROFILE_ID);
+            existing.setContractDocumentUrl(null);
+            existing.setStatus(StreetAgentProfileStatus.PENDING);
+
+            when(streetAgentProfileRepositoryPort.findById(PROFILE_ID)).thenReturn(Optional.of(existing));
+            when(storagePort.upload(any())).thenReturn(
+                    new com.daiphat.coreapi.application.dto.storage.StorageResult(
+                            "signed/1", "https://cdn.example.com/contracts/signed.pdf"));
+            when(streetAgentProfileRepositoryPort.save(existing)).thenReturn(existing);
+            when(streetAgentProfileApplicationMapper.toResponse(existing)).thenReturn(buildResponse());
+
+            streetAgentProfileService.uploadSignedContractDocument(
+                    PROFILE_ID,
+                    new com.daiphat.coreapi.application.dto.storage.UploadRequest(
+                            new byte[] {1, 2, 3},
+                            "signed.pdf",
+                            "application/pdf",
+                            "street-agent-contracts"));
+
+            assertThat(existing.getContractDocumentUrl())
+                    .isEqualTo("https://cdn.example.com/contracts/signed.pdf");
+            assertThat(existing.getStatus()).isEqualTo(StreetAgentProfileStatus.ACTIVE);
+            verify(streetAgentProfileRepositoryPort).save(existing);
+        }
+    }
+
+    @Nested
     @DisplayName("Cập nhật hồ sơ thành công")
     class UpdateSuccess {
 
@@ -504,8 +667,8 @@ class StreetAgentProfileServiceTest {
         }
 
         @Test
-        @DisplayName("cập nhật số dư ký quỹ khi có giá trị mới")
-        void update_setsDepositBalanceWhenProvided() {
+        @DisplayName("không cho form hồ sơ chỉnh trực tiếp số dư ký quỹ")
+        void update_doesNotAllowDepositBalanceMutationThroughProfileForm() {
             UpdateStreetAgentProfileRequest request = buildUpdateRequest(
                     null,
                     null,
@@ -521,9 +684,36 @@ class StreetAgentProfileServiceTest {
 
             streetAgentProfileService.update(PROFILE_ID, request);
 
-            assertThat(existing.getDepositBalance()).isEqualByComparingTo("8000000");
+            assertThat(existing.getDepositBalance()).isEqualByComparingTo("5000000");
             verify(streetAgentProfileApplicationMapper).updateModel(existing, request);
             verify(streetAgentProfileRepositoryPort).save(existing);
+        }
+
+        @Test
+        @DisplayName("form hồ sơ không đối soát cọc legacy")
+        void update_doesNotReconcileLegacyDepositThroughProfileForm() {
+            UpdateStreetAgentProfileRequest request = buildCompleteContractUpdateRequest(BigDecimal.ZERO, "ACTIVE");
+            StreetAgentProfileModel existing = buildEligibleModel(new BigDecimal("500000"));
+            existing.setStatus(StreetAgentProfileStatus.PENDING);
+
+            stubUpdateUniqueConstraintsPass(existing);
+            doAnswer(invocation -> {
+                StreetAgentProfileModel target = invocation.getArgument(0);
+                UpdateStreetAgentProfileRequest source = invocation.getArgument(1);
+                target.setContractCode(source.contractCode());
+                target.setContractStartDate(source.contractStartDate());
+                target.setContractEndDate(source.contractEndDate());
+                target.setContractMaxDailyCap(source.contractMaxDailyCap());
+                target.setStatus(StreetAgentProfileStatus.fromCode(source.status()));
+                return null;
+            }).when(streetAgentProfileApplicationMapper).updateModel(eq(existing), eq(request));
+            when(streetAgentProfileRepositoryPort.save(existing)).thenReturn(existing);
+            when(streetAgentProfileApplicationMapper.toResponse(existing)).thenReturn(buildResponse());
+
+            streetAgentProfileService.update(PROFILE_ID, request);
+
+            assertThat(existing.getDepositBalance()).isEqualByComparingTo("500000");
+            assertThat(existing.getStatus()).isEqualTo(StreetAgentProfileStatus.PENDING);
         }
 
         @Test
@@ -567,7 +757,7 @@ class StreetAgentProfileServiceTest {
         @Test
         @DisplayName("ngày bắt đầu và kết thúc trùng nhau")
         void update_withSameContractDates() {
-            LocalDate sameDate = LocalDate.of(2026, 6, 1);
+            LocalDate sameDate = LocalDate.of(2026, 12, 1);
             UpdateStreetAgentProfileRequest request = buildUpdateRequest(
                     sameDate,
                     sameDate,
@@ -595,6 +785,35 @@ class StreetAgentProfileServiceTest {
             when(streetAgentProfileApplicationMapper.toResponse(existing)).thenReturn(buildResponse());
 
             assertThat(streetAgentProfileService.update(PROFILE_ID, request).id()).isEqualTo(PROFILE_ID);
+        }
+
+        @Test
+        @DisplayName("đổi trần hợp đồng sẽ yêu cầu ký lại và chuyển hồ sơ về PENDING")
+        void update_contractTermChangeInvalidatesSignedDocument() {
+            UpdateStreetAgentProfileRequest request = buildCompleteContractUpdateRequest(BigDecimal.ZERO, "ACTIVE");
+            StreetAgentProfileModel existing = buildEligibleModel(BigDecimal.ZERO);
+            existing.setId(PROFILE_ID);
+            existing.setContractMaxDailyCap(50);
+            String oldContractCode = existing.getContractCode();
+
+            stubUpdateUniqueConstraintsPass(existing);
+            doAnswer(invocation -> {
+                StreetAgentProfileModel target = invocation.getArgument(0);
+                UpdateStreetAgentProfileRequest source = invocation.getArgument(1);
+                target.setContractStartDate(source.contractStartDate());
+                target.setContractEndDate(source.contractEndDate());
+                target.setContractMaxDailyCap(source.contractMaxDailyCap());
+                return null;
+            }).when(streetAgentProfileApplicationMapper).updateModel(eq(existing), eq(request));
+            when(streetAgentProfileRepositoryPort.save(existing)).thenReturn(existing);
+            when(streetAgentProfileApplicationMapper.toResponse(existing)).thenReturn(buildResponse());
+
+            streetAgentProfileService.update(PROFILE_ID, request);
+
+            assertThat(existing.getContractDocumentUrl()).isNull();
+            assertThat(existing.getStatus()).isEqualTo(StreetAgentProfileStatus.PENDING);
+            assertThat(existing.getContractCode()).isNotBlank().isNotEqualTo(oldContractCode);
+            verify(streetAgentProfileRepositoryPort).save(existing);
         }
 
         @Test
@@ -780,6 +999,34 @@ class StreetAgentProfileServiceTest {
                 endDate,
                 depositBalance
         );
+    }
+
+    private CreateStreetAgentProfileRequest buildCompleteContractRequest(BigDecimal depositBalance) {
+        return new CreateStreetAgentProfileRequest(
+                FIRST_NAME, LAST_NAME, PHONE, CCCD, IMAGE_URL,
+                "123 Nguyen Hue", "Ho Chi Minh", "Quan 1, Quan 3",
+                new BigDecimal("0.05"), LocalDate.of(2026, 1, 1), LocalDate.of(2026, 12, 31),
+                depositBalance, "HD-VENDOR-001", null, 100
+        );
+    }
+
+    private UpdateStreetAgentProfileRequest buildCompleteContractUpdateRequest(
+            BigDecimal depositBalance, String status) {
+        return new UpdateStreetAgentProfileRequest(
+                FIRST_NAME, LAST_NAME, PHONE, CCCD, IMAGE_URL,
+                "123 Nguyen Hue", "Ho Chi Minh", "Quan 1, Quan 3",
+                new BigDecimal("0.05"), LocalDate.of(2026, 1, 1), LocalDate.of(2026, 12, 31),
+                depositBalance, "Đối soát cọc legacy", status, "HD-VENDOR-001", null, 100
+        );
+    }
+
+    private StreetAgentProfileModel buildEligibleModel(BigDecimal depositBalance) {
+        StreetAgentProfileModel model = buildModel();
+        model.setContractCode("HD-VENDOR-001");
+        model.setContractDocumentUrl("https://cdn.example.com/contracts/signed.pdf");
+        model.setContractMaxDailyCap(100);
+        model.setDepositBalance(depositBalance);
+        return model;
     }
 
     private StreetAgentProfileModel buildModel() {

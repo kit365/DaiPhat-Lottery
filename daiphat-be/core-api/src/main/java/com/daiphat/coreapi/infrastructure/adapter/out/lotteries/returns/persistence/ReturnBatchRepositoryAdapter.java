@@ -2,6 +2,7 @@ package com.daiphat.coreapi.infrastructure.adapter.out.lotteries.returns.persist
 
 import com.daiphat.coreapi.application.port.out.lotteries.ReturnBatchRepositoryPort;
 import com.daiphat.coreapi.domain.model.enums.lottery.ReturnBatchStatus;
+import com.daiphat.coreapi.domain.model.enums.lottery.ReturnBatchType;
 import com.daiphat.coreapi.domain.model.lotteries.ReturnBatchLineModel;
 import com.daiphat.coreapi.domain.model.lotteries.ReturnBatchModel;
 import com.daiphat.coreapi.infrastructure.persistence.entity.lotteries.ReturnBatchEntity;
@@ -11,6 +12,7 @@ import com.daiphat.coreapi.infrastructure.persistence.repository.lotteries.Lotte
 import com.daiphat.coreapi.infrastructure.persistence.repository.lotteries.LotterySupplierRepository;
 import com.daiphat.coreapi.infrastructure.persistence.repository.lotteries.ReturnBatchLineRepository;
 import com.daiphat.coreapi.infrastructure.persistence.repository.lotteries.ReturnBatchRepository;
+import com.daiphat.coreapi.infrastructure.persistence.repository.streetagent.AllocationBatchRepository;
 import com.daiphat.coreapi.infrastructure.persistence.specification.lotteries.ReturnBatchSpecification;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -29,6 +31,7 @@ public class ReturnBatchRepositoryAdapter implements ReturnBatchRepositoryPort {
     private final ReturnBatchLineRepository returnBatchLineRepository;
     private final LotterySupplierRepository lotterySupplierRepository;
     private final LotteryStationRepository lotteryStationRepository;
+    private final AllocationBatchRepository allocationBatchRepository;
     private final ReturnBatchPersistenceMapper returnBatchPersistenceMapper;
 
     @Override
@@ -43,6 +46,10 @@ public class ReturnBatchRepositoryAdapter implements ReturnBatchRepositoryPort {
         if (model.getLotterySupplierId() != null) {
             lotterySupplierRepository.findById(model.getLotterySupplierId())
                     .ifPresent(entity::setLotterySupplier);
+        }
+        if (model.getSourceAllocationBatchId() != null) {
+            allocationBatchRepository.findById(model.getSourceAllocationBatchId())
+                    .ifPresent(entity::setSourceAllocationBatch);
         }
         ReturnBatchEntity saved = returnBatchRepository.save(entity);
         // Reload with lines for consistent domain mapping.
@@ -104,10 +111,23 @@ public class ReturnBatchRepositoryAdapter implements ReturnBatchRepositoryPort {
     }
 
     @Override
+    public Optional<ReturnBatchModel> findStreetAgentByAllocationBatchId(Long allocationBatchId) {
+        if (allocationBatchId == null) {
+            return Optional.empty();
+        }
+        return returnBatchRepository.findBySourceAllocationBatch_IdAndDeletedAtIsNull(allocationBatchId)
+                .map(entity -> {
+                    entity.getLines().size();
+                    return returnBatchPersistenceMapper.toDomain(entity);
+                });
+    }
+
+    @Override
     public Page<ReturnBatchModel> findAll(
             Pageable pageable,
             Long lotterySupplierId,
             Long supplierSettlementId,
+            ReturnBatchType returnBatchType,
             ReturnBatchStatus status,
             LocalDate drawDateFrom,
             LocalDate drawDateTo,
@@ -118,6 +138,7 @@ public class ReturnBatchRepositoryAdapter implements ReturnBatchRepositoryPort {
                         ReturnBatchSpecification.filter(
                                 lotterySupplierId,
                                 supplierSettlementId,
+                                returnBatchType,
                                 status,
                                 drawDateFrom,
                                 drawDateTo,
@@ -161,5 +182,10 @@ public class ReturnBatchRepositoryAdapter implements ReturnBatchRepositoryPort {
                     return returnBatchPersistenceMapper.toDomain(entity);
                 })
                 .toList();
+    }
+
+    @Override
+    public long nextHeaderBatchCodeSequence() {
+        return returnBatchRepository.nextHeaderBatchCodeSequence();
     }
 }

@@ -1,5 +1,4 @@
 import { toast as reactToast, ToastOptions } from 'react-toastify';
-import Swal from 'sweetalert2';
 
 const defaultOptions: ToastOptions = {
     position: "top-right",
@@ -24,6 +23,7 @@ export const AppToast = {
         reactToast.warning(message, { ...defaultOptions, ...options });
     },
     confirm: async (message: string, title: string = "Xác nhận"): Promise<boolean> => {
+        const { default: Swal } = await import('sweetalert2');
         const result = await Swal.fire({
             title,
             text: message,

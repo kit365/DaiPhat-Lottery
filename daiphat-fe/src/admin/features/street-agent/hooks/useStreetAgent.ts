@@ -1,13 +1,21 @@
 "use client";
 
-import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
     createStreetAgentProfile,
+    getDailySalesReportById,
+    getStreetAgentConfidence,
     getStreetAgentProfileById,
     getStreetAgentProfiles,
+    listStreetAgentDailySalesReports,
     updateStreetAgentProfile,
+    uploadStreetAgentSignedContract,
 } from "../services/streetAgentService";
-import { StreetAgentQueryParams } from "../types/street-agent.type";
+import {
+    DailySalesReportListParams,
+    CreateStreetAgentProfilePayload,
+    StreetAgentQueryParams,
+} from "../types/street-agent.type";
 import { QUERY_KEYS } from "../constants/queryKeys";
 
 export const useStreetAgentProfiles = (params?: StreetAgentQueryParams) => {
@@ -16,6 +24,38 @@ export const useStreetAgentProfiles = (params?: StreetAgentQueryParams) => {
         queryFn: () => getStreetAgentProfiles(params),
         placeholderData: keepPreviousData,
     });
+};
+
+const STREET_AGENT_STATUS_FILTERS = ["all", "ACTIVE", "INACTIVE", "PENDING"] as const;
+
+/**
+ * The list endpoint is paginated, so the selected tab response cannot provide
+ * counts for the other tabs. Fetch a one-row page for each status and use its
+ * server-side totalRecords value for the badges.
+ */
+export const useStreetAgentProfileStatusCounts = () => {
+    const queries = useQueries({
+        queries: STREET_AGENT_STATUS_FILTERS.map((status) => ({
+            queryKey: [QUERY_KEYS.STREET_AGENT_PROFILES, "status-count", status],
+            queryFn: () =>
+                getStreetAgentProfiles({
+                    page: 1,
+                    limit: 1,
+                    status: status === "all" ? undefined : status,
+                }),
+            staleTime: 30_000,
+        })),
+    });
+
+    return {
+        counts: Object.fromEntries(
+            STREET_AGENT_STATUS_FILTERS.map((status, index) => [
+                status,
+                queries[index]?.data?.data?.pagination?.totalRecords ?? 0,
+            ])
+        ) as Record<(typeof STREET_AGENT_STATUS_FILTERS)[number], number>,
+        isLoading: queries.some((query) => query.isLoading),
+    };
 };
 
 export const useStreetAgentProfileDetail = (id?: string | number) => {
@@ -27,10 +67,40 @@ export const useStreetAgentProfileDetail = (id?: string | number) => {
     });
 };
 
+export const useStreetAgentConfidence = (id?: string | number | null) => {
+    return useQuery({
+        queryKey: [QUERY_KEYS.STREET_AGENT_CONFIDENCE, id],
+        queryFn: () => getStreetAgentConfidence(id!),
+        enabled: !!id,
+        select: (response) => response.data,
+    });
+};
+
+export const useStreetAgentDailySalesReports = (
+    id?: string | number | null,
+    params?: DailySalesReportListParams
+) => {
+    return useQuery({
+        queryKey: [QUERY_KEYS.STREET_AGENT_DAILY_SALES_REPORTS, id, params],
+        queryFn: () => listStreetAgentDailySalesReports(id!, params),
+        enabled: !!id,
+        select: (response) => response.data,
+    });
+};
+
+export const useDailySalesReportDetail = (id?: string | number | null) => {
+    return useQuery({
+        queryKey: [QUERY_KEYS.DAILY_SALES_REPORT_DETAIL, id],
+        queryFn: () => getDailySalesReportById(id!),
+        enabled: !!id,
+        select: (response) => response.data,
+    });
+};
+
 export const useCreateStreetAgentProfile = () => {
     const queryClient = useQueryClient();
     return useMutation({
-        mutationFn: (data: Record<string, unknown>) => createStreetAgentProfile(data),
+        mutationFn: (data: CreateStreetAgentProfilePayload) => createStreetAgentProfile(data),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.STREET_AGENT_PROFILES] });
         },
@@ -44,6 +114,29 @@ export const useUpdateStreetAgentProfile = () => {
             updateStreetAgentProfile(id, data),
         onSuccess: (_response, variables) => {
             queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.STREET_AGENT_PROFILES] });
+            queryClient.invalidateQueries({
+                queryKey: [QUERY_KEYS.STREET_AGENT_PROFILE_DETAIL, variables.id],
+            });
+        },
+    });
+};
+
+export const useUploadStreetAgentSignedContract = () => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: ({ id, file }: { id: string | number; file: File }) =>
+            uploadStreetAgentSignedContract(id, file),
+        onSuccess: (response, variables) => {
+            if (response.success && response.data) {
+                queryClient.setQueryData(
+                    [QUERY_KEYS.STREET_AGENT_PROFILE_DETAIL, variables.id],
+                    response
+                );
+            }
+            queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.STREET_AGENT_PROFILES] });
+            queryClient.invalidateQueries({
+                queryKey: [QUERY_KEYS.STREET_AGENT_PROFILES, "status-count"],
+            });
             queryClient.invalidateQueries({
                 queryKey: [QUERY_KEYS.STREET_AGENT_PROFILE_DETAIL, variables.id],
             });

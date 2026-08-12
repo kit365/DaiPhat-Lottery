@@ -7,8 +7,8 @@ export const BADGE_COLOR_PALETTE = {
         unselected: { bg: 'rgba(145, 158, 171, 0.16)', text: '#637381' }
     },
     success: { // ACTIVE, COMPLETED, DELIVERED
-        selected: { bg: '#00A76F', text: '#FFFFFF' },
-        unselected: { bg: 'rgba(0, 167, 111, 0.16)', text: '#007867' }
+        selected: { bg: '#22C55E', text: '#FFFFFF' },
+        unselected: { bg: 'rgba(34, 197, 94, 0.16)', text: '#118D57' }
     },
     warning: { // PENDING, WAITING
         selected: { bg: '#FFAB00', text: '#1C252E' },
@@ -102,5 +102,33 @@ export const getTabBadgeStyles = (statusOrVariant: string, isSelected: boolean) 
         backgroundColor: state.bg,
         color: state.text,
         transition: 'all 0.2s'
+    };
+};
+
+/** Badge đếm trên icon (Header thông báo, số lượng vé, v.v.). */
+export const adminCountBadgeSx = {
+    '& .MuiBadge-badge': {
+        backgroundColor: '#FF5630',
+        color: '#FFFFFF',
+        fontWeight: 700,
+        fontSize: '0.65rem',
+        minWidth: 18,
+        height: 18,
+        padding: '0 5px',
+        borderRadius: '9px',
+        boxShadow: '0 2px 6px rgba(255, 86, 48, 0.35)',
+    },
+} as const;
+
+export const getMetricChipSx = (variant: Extract<BadgeColorVariant, 'success' | 'info'>) => {
+    const colors = BADGE_COLOR_PALETTE[variant].unselected;
+
+    return {
+        height: 26,
+        fontWeight: 700,
+        fontSize: '0.75rem',
+        bgcolor: colors.bg,
+        color: colors.text,
+        border: 'none',
     };
 };

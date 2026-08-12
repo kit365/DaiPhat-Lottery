@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import Link from "@/admin/components/navigation/AdminLink";
 import Breadcrumbs from "@mui/material/Breadcrumbs";
 
 type BreadcrumbItem = {
@@ -30,7 +30,7 @@ export const Breadcrumb = ({ items }: BreadcrumbProps) => {
                 item.to ? (
                     <Link
                         key={index}
-                        to={item.to}
+                        href={item.to}
                         className="text-[0.875rem] text-[#1C252E] hover:underline"
                     >
                         {item.label}

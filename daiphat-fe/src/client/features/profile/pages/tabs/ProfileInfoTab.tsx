@@ -87,7 +87,7 @@ export const ProfileInfoTab = () => {
                             <i className="fa-regular fa-user"></i>
                         </div>
                         <div>
-                            <h3 className="text-[20px] font-bold text-[#212B36] mb-1">Thông tin cá nhân</h3>
+                            <h3 className="client-heading m-0 mb-1">Thông tin cá nhân</h3>
                             <p className="text-[13px] text-[#637381]">Quản lý thông tin và bảo mật tài khoản của bạn</p>
                         </div>
                     </div>

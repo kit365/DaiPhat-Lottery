@@ -17,4 +17,5 @@ public final class StorageFolderConstants {
     public static final String PRIZE_PAYOUT_TRANSFER_EVIDENCE_FOLDER = "prize-payout-transfers";
     public static final String PRIZE_PAYOUT_RECIPIENT_ID_FOLDER = "prize-payout-recipient-ids";
     public static final String PRIZE_PAYOUT_CONFIRMATION_CONTRACT_FOLDER = "prize-payout-confirmation-contracts";
+    public static final String STREET_AGENT_SIGNED_CONTRACT_FOLDER = "street-agent-signed-contracts";
 }

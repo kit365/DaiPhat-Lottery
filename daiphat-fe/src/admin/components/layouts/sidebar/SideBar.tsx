@@ -1,17 +1,16 @@
-import { Link } from "react-router-dom";
-import { LogoAdmin } from "../../../../assets/admin/logo";
+"use client";
+
+import Link from "@/admin/components/navigation/AdminLink";
 import { NavGroup } from "./NavGroup";
 import { menuManagementData, menuOverviewData, menuDevelopmentData } from "../../../constants/sideBar";
 import { IconButton } from "@mui/material";
 import { ArrowIcon } from "../../../assets/icons";
 import { useSidebar } from "../../../context/sidebar/useSidebar";
 import { ROUTES } from "../../../constants/routes";
-import { useAuthStore } from "../../../../stores/useAuthStore";
+import { SiteLogo } from "@/client/components/layout/SiteLogo";
 
 export const SideBar = () => {
     const { isOpen, toggleSidebar } = useSidebar();
-    const { user } = useAuthStore();
-
 
     return (
         <div className={`flex fixed top-0 left-0 flex-col z-[1200] h-full bg-white border-r border-[#919eab1f] transition-[width] duration-[120ms] ease-linear ${isOpen ? 'w-[300px]' : 'w-[88px]'}`}>
@@ -36,11 +35,11 @@ export const SideBar = () => {
 
             {/* Logo */}
             <div className={isOpen
-                ? "pl-[28px] pt-[20px] pb-[8px]"
+                ? "pl-[24px] pt-[20px] pb-[8px]"
                 : "py-[20px] flex justify-center"
             }>
-                <Link to={ROUTES.ADMIN.DASHBOARD.ROOT} className="inline-block w-[40px] h-[40px]">
-                    <LogoAdmin />
+                <Link href={ROUTES.ADMIN.DASHBOARD.ROOT} className="inline-block w-[40px] h-[40px]">
+                    <SiteLogo className="w-10 h-10 rounded" imgClassName="w-full h-full object-contain" />
                 </Link>
             </div>
 
@@ -48,9 +47,9 @@ export const SideBar = () => {
                 <div className="absolute inset-0 h-full overflow-y-auto sidebar-scroll">
                     <nav className={`text-[#637381] ${isOpen ? 'px-[16px]' : 'px-[4px]'}`}>
                         <ul>
-                            <NavGroup title={"admin.overview"} data={menuOverviewData} />
-                            <NavGroup title={"admin.management"} data={menuManagementData} />
-                            <NavGroup title={"admin.development"} data={menuDevelopmentData} />
+                            <NavGroup title="Tổng quan" data={menuOverviewData} />
+                            <NavGroup title="Quản lý" data={menuManagementData} />
+                            <NavGroup title="Phát triển" data={menuDevelopmentData} />
                         </ul>
                     </nav>
                 </div>

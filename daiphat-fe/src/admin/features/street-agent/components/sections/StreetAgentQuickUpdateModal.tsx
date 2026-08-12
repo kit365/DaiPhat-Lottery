@@ -3,9 +3,11 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
     Alert,
+    Autocomplete,
     Avatar,
     Box,
     Button,
+    Chip,
     CircularProgress,
     Dialog,
     DialogActions,
@@ -24,6 +26,12 @@ import { toast } from "react-toastify";
 import { REGION_DATA } from "../../../../constants/region.constants";
 import { STATUS_LABELS } from "../configs/constants";
 import {
+    COVERAGE_AREA_OPTIONS,
+    CoverageAreaOption,
+    parseCoverageAreaCodes,
+    serializeCoverageAreaCodes,
+} from "../../constants/coverageAreas";
+import {
     useStreetAgentProfileDetail,
     useUpdateStreetAgentProfile,
 } from "../../hooks/useStreetAgent";
@@ -31,11 +39,6 @@ import {
 const PROVINCE_OPTIONS = Array.from(new Set(Object.values(REGION_DATA).flat())).sort((a, b) =>
     a.localeCompare(b, "vi")
 );
-
-const STATUS_OPTIONS = [
-    { value: "ACTIVE", label: STATUS_LABELS.ACTIVE },
-    { value: "INACTIVE", label: STATUS_LABELS.INACTIVE },
-];
 
 const fieldSx = {
     "& .MuiOutlinedInput-root": {
@@ -84,7 +87,7 @@ export const StreetAgentQuickUpdateModal = ({ open, onClose, id }: StreetAgentQu
         phone: "",
         cccd: "",
         contactProvince: "",
-        coverageArea: "",
+        coverageAreaCodes: [] as string[],
     });
 
     useEffect(() => {
@@ -96,13 +99,13 @@ export const StreetAgentQuickUpdateModal = ({ open, onClose, id }: StreetAgentQu
                 phone: profile.phone || "",
                 cccd: profile.cccd || "",
                 contactProvince: profile.contactProvince || "",
-                coverageArea: profile.coverageArea || "",
+                coverageAreaCodes: parseCoverageAreaCodes(profile.coverageArea),
             });
         }
     }, [profile, open]);
 
     const fullName = useMemo(
-        () => `${formValues.lastName} ${formValues.firstName}`.trim() || "Đại lý bán dạo",
+        () => `${formValues.lastName} ${formValues.firstName}`.trim() || "Người bán vé số",
         [formValues.firstName, formValues.lastName]
     );
 
@@ -142,21 +145,18 @@ export const StreetAgentQuickUpdateModal = ({ open, onClose, id }: StreetAgentQu
                     lastName: formValues.lastName.trim(),
                     phone: formValues.phone.trim(),
                     cccd: formValues.cccd.trim(),
-                    status: formValues.status,
                     imageUrl: profile.imageUrl || undefined,
                     contactAddress: profile.contactAddress || undefined,
                     contactProvince: formValues.contactProvince || undefined,
-                    coverageArea: formValues.coverageArea || undefined,
-                    commissionRate: profile.commissionRate ?? undefined,
+                    coverageArea: serializeCoverageAreaCodes(formValues.coverageAreaCodes),
                     contractStartDate: profile.contractStartDate || undefined,
                     contractEndDate: profile.contractEndDate || undefined,
-                    depositBalance: profile.depositBalance ?? undefined,
                 },
             },
             {
                 onSuccess: (response) => {
                     if (response.success) {
-                        toast.success(response.message || "Cập nhật hồ sơ đại lý bán dạo thành công!");
+                        toast.success(response.message || "Cập nhật hồ sơ người bán vé số thành công!");
                         onClose();
                     } else {
                         toast.error(response.message || "Cập nhật thất bại");
@@ -171,9 +171,9 @@ export const StreetAgentQuickUpdateModal = ({ open, onClose, id }: StreetAgentQu
 
     const getStatusMessage = (status: string) => {
         if (status === "INACTIVE") {
-            return "Đại lý đang ngưng hoạt động";
+            return "Người bán vé số đang ngưng hoạt động";
         }
-        return "Đại lý đang hoạt động bình thường";
+        return "Người bán vé số đang hoạt động bình thường";
     };
 
     const getAlertSeverity = (status: string) => (status === "INACTIVE" ? "warning" : "success");
@@ -257,20 +257,25 @@ export const StreetAgentQuickUpdateModal = ({ open, onClose, id }: StreetAgentQu
                                     </Typography>
                                 </Box>
 
-                                <TextField
-                                    select
-                                    label="Trạng thái"
-                                    size="small"
-                                    value={formValues.status}
-                                    onChange={(e) => handleInputChange("status", e.target.value)}
-                                    sx={{ ...fieldSx, minWidth: { xs: "100%", sm: 180 } }}
-                                >
-                                    {STATUS_OPTIONS.map((option) => (
-                                        <MenuItem key={option.value} value={option.value}>
-                                            {option.label}
-                                        </MenuItem>
-                                    ))}
-                                </TextField>
+                                <Chip
+                                    label={STATUS_LABELS[formValues.status] || formValues.status}
+                                    sx={{
+                                        fontWeight: 700,
+                                        minWidth: { xs: "100%", sm: 140 },
+                                        bgcolor:
+                                            formValues.status === "ACTIVE"
+                                                ? "rgba(34, 197, 94, 0.16)"
+                                                : formValues.status === "PENDING"
+                                                  ? "rgba(255, 171, 0, 0.16)"
+                                                  : "rgba(145, 158, 171, 0.16)",
+                                        color:
+                                            formValues.status === "ACTIVE"
+                                                ? "rgb(17, 141, 87)"
+                                                : formValues.status === "PENDING"
+                                                  ? "rgb(183, 110, 0)"
+                                                  : "var(--palette-text-secondary)",
+                                    }}
+                                />
                             </Stack>
 
                             <Alert
@@ -340,13 +345,43 @@ export const StreetAgentQuickUpdateModal = ({ open, onClose, id }: StreetAgentQu
                                             </MenuItem>
                                         ))}
                                     </TextField>
-                                    <TextField
-                                        label="Địa bàn bán"
-                                        fullWidth
-                                        placeholder="VD: Quận 1, Quận 3"
-                                        value={formValues.coverageArea}
-                                        onChange={(e) => handleInputChange("coverageArea", e.target.value)}
-                                        sx={fieldSx}
+                                    <Autocomplete
+                                        multiple
+                                        options={COVERAGE_AREA_OPTIONS}
+                                        value={COVERAGE_AREA_OPTIONS.filter((option) =>
+                                            formValues.coverageAreaCodes.includes(option.code)
+                                        )}
+                                        getOptionLabel={(option: CoverageAreaOption) => option.label}
+                                        isOptionEqualToValue={(a, b) => a.code === b.code}
+                                        onChange={(_e, next) =>
+                                            setFormValues((prev) => ({
+                                                ...prev,
+                                                coverageAreaCodes: next.map((item) => item.code),
+                                            }))
+                                        }
+                                        renderTags={(value, getTagProps) =>
+                                            value.map((option, index) => {
+                                                const { key, ...tagProps } = getTagProps({ index });
+                                                return (
+                                                    <Chip
+                                                        key={key}
+                                                        label={option.label}
+                                                        size="small"
+                                                        {...tagProps}
+                                                        sx={{ fontWeight: 600 }}
+                                                    />
+                                                );
+                                            })
+                                        }
+                                        renderInput={(params) => (
+                                            <TextField
+                                                {...params}
+                                                label="Khu vực bán"
+                                                placeholder="+ Thêm khu vực"
+                                                sx={{ ...fieldSx, gridColumn: { sm: "1 / -1" } }}
+                                            />
+                                        )}
+                                        sx={{ gridColumn: { sm: "1 / -1" } }}
                                     />
                                 </Box>
                             </Box>

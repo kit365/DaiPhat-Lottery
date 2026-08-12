@@ -1,50 +1,61 @@
 "use client";
 
-import React, { useMemo } from 'react';
-import dynamic from 'next/dynamic';
-import { PermissionGuard } from './PermissionGuard';
-import { LoadingSpinner } from '@/client/components/ui/LoadingSpinner';
+import React, { useMemo } from "react";
+import dynamic from "next/dynamic";
+import { PermissionGuard } from "./PermissionGuard";
+import { AdminNavigationComplete } from "@/admin/components/navigation/AdminNavigationComplete";
+import { SpinnerLoading } from "@/admin/components/ui/SpinnerLoading";
+import type { ComponentType } from "react";
 
 interface AdminPageBoundaryProps {
-  permission?: string;
-  permissions?: string[];
-  loader: () => Promise<any>;
-  exportName?: string;
+    permission?: string;
+    permissions?: string[];
+    loader: () => Promise<Record<string, unknown>>;
+    exportName?: string;
 }
 
-const componentCache = new Map<string, React.ComponentType<any>>();
+const componentCache = new Map<string, ComponentType>();
+
+function wrapWithNavigationComplete<P extends object>(Component: ComponentType<P>) {
+    const Wrapped = (props: P) => (
+        <>
+            <AdminNavigationComplete />
+            <Component {...props} />
+        </>
+    );
+    Wrapped.displayName = `WithNavigationComplete(${Component.displayName || Component.name || "Page"})`;
+    return Wrapped;
+}
 
 export function AdminPageBoundary({ permission, permissions, loader, exportName }: AdminPageBoundaryProps) {
-  const DynamicComponent = useMemo(() => {
-    const cacheKey = exportName ? `${loader.toString()}_${exportName}` : loader.toString();
+    const DynamicComponent = useMemo(() => {
+        const cacheKey = exportName ? `${loader.toString()}_${exportName}` : loader.toString();
 
-    let comp = componentCache.get(cacheKey);
-    if (!comp) {
-      comp = dynamic(
-        () =>
-          loader().then((m) => {
-            if (exportName && m[exportName]) {
-              return m[exportName];
-            }
-            return m.default || m;
-          }),
-        {
-          ssr: false,
-          loading: () => (
-            <div className="flex items-center justify-center p-12 min-h-[300px]">
-              <LoadingSpinner />
-            </div>
-          ),
+        let comp = componentCache.get(cacheKey);
+        if (!comp) {
+            comp = dynamic(
+                () =>
+                    loader().then((m) => {
+                        const Page = (exportName && m[exportName] ? m[exportName] : m.default || m) as ComponentType;
+                        return wrapWithNavigationComplete(Page);
+                    }),
+                {
+                    ssr: false,
+                    loading: () => null,
+                },
+            );
+            componentCache.set(cacheKey, comp);
         }
-      );
-      componentCache.set(cacheKey, comp);
-    }
-    return comp;
-  }, [loader, exportName]);
+        return comp;
+    }, [loader, exportName]);
 
-  return (
-    <PermissionGuard permission={permission} permissions={permissions}>
-      <DynamicComponent />
-    </PermissionGuard>
-  );
+    return (
+        <PermissionGuard
+            permission={permission}
+            permissions={permissions}
+            fallback={<SpinnerLoading message="Đang xác thực quyền truy cập..." />}
+        >
+            <DynamicComponent />
+        </PermissionGuard>
+    );
 }

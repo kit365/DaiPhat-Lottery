@@ -10,35 +10,34 @@ import {
 } from '../services/notificationService';
 import type { GetNotificationsParams } from '../types/notification.type';
 import { QUERY_KEYS } from '../constants/queryKeys';
+import { QUERY_KEYS as GLOBAL_QUERY_KEYS } from '@/constants/queryKeys';
 import { AppToast as toast } from '../../../../utils/toast.util';
 import { useAuthStore } from '../../../../stores/useAuthStore';
 import { hasPermission } from '../../../utils/permission.util';
 import { PERMISSIONS } from '../../../constants/permission.constants';
-import { ADMIN_BADGE_POLL_MS } from '../../../hooks/adminBadgePoll';
 
 const DEFAULT_PAGE = 1;
 const DEFAULT_LIMIT = 5;
 
-export const useNotifications = (params?: GetNotificationsParams) => {
+type UseNotificationsOptions = GetNotificationsParams & {
+    enabled?: boolean;
+};
+
+export const useNotifications = (params?: UseNotificationsOptions) => {
     const token = useAuthStore((s) => s.token);
     const user = useAuthStore((s) => s.user);
     const canView =
         Boolean(token) && Boolean(user) && hasPermission(user, PERMISSIONS.NOTIFICATION.VIEW);
     const limit = params?.limit ?? DEFAULT_LIMIT;
+    const enabled = (params?.enabled ?? true) && canView;
 
     const query = useInfiniteQuery({
         queryKey: [QUERY_KEYS.NOTIFICATIONS, limit],
         queryFn: ({ pageParam = DEFAULT_PAGE }) =>
             getNotifications({ ...params, page: pageParam, limit }),
         initialPageParam: DEFAULT_PAGE,
-        enabled: canView,
-        refetchInterval: (q) => {
-            if (!canView) return false;
-            if (q.state.error) return false;
-            return ADMIN_BADGE_POLL_MS;
-        },
-        refetchIntervalInBackground: false,
-        refetchOnWindowFocus: canView,
+        enabled,
+        refetchOnWindowFocus: enabled,
         retry: false,
         getNextPageParam: (lastPage) => {
             if (lastPage.pagination?.isLast) {
@@ -73,6 +72,7 @@ export const useMarkAsRead = () => {
         mutationFn: (id: string) => markAsRead(id),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.NOTIFICATIONS] });
+            queryClient.invalidateQueries({ queryKey: [GLOBAL_QUERY_KEYS.ADMIN_BADGES] });
         },
     });
 };
@@ -83,6 +83,7 @@ export const useMarkAllAsRead = () => {
         mutationFn: () => markAllAsRead(),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.NOTIFICATIONS] });
+            queryClient.invalidateQueries({ queryKey: [GLOBAL_QUERY_KEYS.ADMIN_BADGES] });
             toast.success('Đã đánh dấu tất cả là đã đọc');
         },
     });
@@ -94,6 +95,7 @@ export const useDeleteNotification = () => {
         mutationFn: (id: string) => deleteNotification(id),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.NOTIFICATIONS] });
+            queryClient.invalidateQueries({ queryKey: [GLOBAL_QUERY_KEYS.ADMIN_BADGES] });
             toast.success('Đã xóa thông báo đã đọc');
         },
     });
@@ -105,6 +107,7 @@ export const useDeleteAllNotifications = () => {
         mutationFn: () => deleteAllNotifications(),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.NOTIFICATIONS] });
+            queryClient.invalidateQueries({ queryKey: [GLOBAL_QUERY_KEYS.ADMIN_BADGES] });
             toast.success('Đã xóa tất cả thông báo đã đọc');
         },
     });

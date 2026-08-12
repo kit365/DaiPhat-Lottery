@@ -104,49 +104,15 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     final bottomInset = MediaQuery.paddingOf(context).bottom;
 
     if (!widget.isAuthenticated) {
-      return Scaffold(
-        backgroundColor: Colors.white,
-        body: Column(
-          children: [
-            _ChatHeader(onBack: widget.onBack),
-            Expanded(
-              child: Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(
-                        Icons.lock_outline_rounded,
-                        size: 48,
-                        color: AppColors.primary,
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        'Vui lòng đăng nhập để chat với Đại Phát',
-                        textAlign: TextAlign.center,
-                        style: GoogleFonts.publicSans(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w600,
-                          color: const Color(0xFF2B2F36),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      FilledButton(
-                        onPressed: () => context.push(AppRoute.login.path),
-                        style: FilledButton.styleFrom(
-                          backgroundColor: AppColors.primary,
-                        ),
-                        child: const Text('Đăng nhập'),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      );
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        if (widget.onBack != null) {
+          widget.onBack!();
+        } else if (context.canPop()) {
+          context.pop();
+        }
+      });
+      return const SizedBox.shrink();
     }
 
     return Scaffold(

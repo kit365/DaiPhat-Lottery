@@ -240,6 +240,25 @@ public class ImportBatchService implements ImportBatchServicePort {
         return importBatchApplicationMapper.toResponse(saved);
     }
 
+    @Override
+    @Transactional
+    public ImportBatchResponse attachInvoiceEvidence(Long id, String invoiceEvidenceUrl) {
+        ImportBatchModel batch = getImportBatchOrThrow(id);
+        String trimmed = invoiceEvidenceUrl != null ? invoiceEvidenceUrl.trim() : null;
+        if (trimmed == null || trimmed.isBlank()) {
+            throw new DomainException(ErrorCode.INVALID_INPUT, "URL ảnh biên lai phiếu nhập là bắt buộc.");
+        }
+        String existing = trimToNull(batch.getInvoiceEvidenceUrl());
+        if (existing != null) {
+            throw new DomainException(ErrorCode.IMPORT_BATCH_INVOICE_EVIDENCE_LOCKED);
+        }
+        batch.setInvoiceEvidenceUrl(trimmed);
+        batch.setUpdatedAt(LocalDateTime.now(clock));
+        ImportBatchModel saved = importBatchRepositoryPort.save(batch);
+        log.info("Attached invoiceEvidenceUrl for importBatchId={}", id);
+        return importBatchApplicationMapper.toResponse(saved);
+    }
+
     private void applyLineUpdates(
             ImportBatchModel batch,
             UpdateImportBatchRequest request,

@@ -1,4 +1,5 @@
-import Image, { getImageProps } from "next/image";
+import { getImageProps } from "next/image";
+import imageLoader from "@/utils/imageLoader";
 import { motion } from "framer-motion";
 import { useAuthStore } from "../../../stores/useAuthStore";
 
@@ -20,7 +21,7 @@ const HERO_CONTENT = {
 export const Hero = () => {
   const { openLoginModal } = useAuthStore();
 
-  const commonProps = { alt: "", fill: true, priority: true, sizes: "100vw" };
+  const commonProps = { alt: "", fill: true, priority: true, sizes: "100vw", loader: imageLoader };
   const { props: { srcSet: desktopSrcSet } } = getImageProps({ ...commonProps, src: HERO_CONTENT.images.desktop });
   const { props: { srcSet: mobileSrcSet, ...restMobileProps } } = getImageProps({ ...commonProps, src: HERO_CONTENT.images.mobile });
 

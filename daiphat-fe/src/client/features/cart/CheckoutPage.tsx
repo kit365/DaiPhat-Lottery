@@ -1,7 +1,8 @@
 "use client";
 
+import { useRouter } from "next/navigation";
+import Link from "next/link";
 import React, { useCallback, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
 import { Trash2, ChevronRight, ShieldCheck, ArrowLeft, Store, CreditCard, CheckCircle2 } from 'lucide-react';
 import { useCartStore, CartItem } from '../../../stores/useCartStore';
 import { useAuthStore } from '../../../stores/useAuthStore';
@@ -17,9 +18,15 @@ import OrderSummary from './components/OrderSummary';
 import { CartQuantityControl } from './components/CartQuantityControl';
 import { validateAndSyncCartStock } from '../../utils/cartStock.util';
 import { PaymentQrDialog } from '../../components/payment/PaymentQrDialog';
+import {
+  CLIENT_PAGE_BACKGROUND,
+  PROVINCE_ICON_FALLBACK,
+  TICKET_IMAGE_FALLBACK,
+} from '../../constants/clientBannerAssets';
+import { Breadcrumb } from '../../components/ui/Breadcrumb';
 
 export const CheckoutPage = () => {
-    const navigate = useNavigate();
+    const router = useRouter();
     const {
         items,
         buyNowItems,
@@ -96,9 +103,9 @@ export const CheckoutPage = () => {
         if (!token) {
             toast.error("Vui lòng đăng nhập để tiếp tục thanh toán");
             openLoginModal();
-            navigate('/cart', { replace: true });
+            router.replace('/cart');
         }
-    }, [token, navigate, openLoginModal]);
+    }, [token, router, openLoginModal]);
 
     React.useEffect(() => {
         // Mua ngay: không validate/đẩy về giỏ theo giỏ chính — tránh mất phiên mua ngay.
@@ -107,7 +114,7 @@ export const CheckoutPage = () => {
         const validateCartStock = async () => {
             const hasAdjustment = await validateAndSyncCartStock();
             if (hasAdjustment) {
-                navigate('/cart', { replace: true });
+                router.replace('/cart');
             }
         };
 
@@ -117,12 +124,12 @@ export const CheckoutPage = () => {
 
     React.useEffect(() => {
         if (paymentDialogOpen || checkoutFinalizedRef.current) return;
-        const hasCheckoutItems = checkoutItems.some((item) => item.quantity > 0);
-        if (!hasCheckoutItems) {
+        // Only leave checkout when every line was removed — qty 0 still stays until Delete.
+        if (checkoutItems.length === 0) {
             if (isBuyNow) clearBuyNow();
-            navigate('/cart', { replace: true });
+            router.replace('/cart');
         }
-    }, [checkoutItems, isBuyNow, clearBuyNow, navigate, paymentDialogOpen]);
+    }, [checkoutItems, isBuyNow, clearBuyNow, router, paymentDialogOpen]);
 
     const getMaxStock = (item: CartItem) =>
         typeof item.maxStock === 'number' ? item.maxStock : 999;
@@ -141,6 +148,7 @@ export const CheckoutPage = () => {
     };
 
     const handleDecreaseQty = (item: CartItem) => {
+        if (item.quantity <= 0) return;
         if (isBuyNow) {
             updateBuyNowQuantity(item.id, -1);
             return;
@@ -148,12 +156,18 @@ export const CheckoutPage = () => {
         updateQuantity(item.id, -1);
     };
 
-    const handleRemoveItem = (id: string) => {
+    const handleRemoveItem = async (item: CartItem) => {
+        const confirmed = await toast.confirm(
+            `Bạn có chắc muốn xóa vé số ${item.numbers} (${item.province}) khỏi đơn hàng?`,
+            'Xóa vé'
+        );
+        if (!confirmed) return;
+
         if (isBuyNow) {
-            removeBuyNowItem(id);
+            removeBuyNowItem(item.id);
             return;
         }
-        removeItem(id);
+        removeItem(item.id);
     };
 
     const finalizeSuccessfulCheckout = useCallback(() => {
@@ -264,7 +278,7 @@ export const CheckoutPage = () => {
                         // For cash or if no transaction id
                         toast.success("Đặt hàng thành công!");
                         finalizeSuccessfulCheckout();
-                        navigate('/'); // Navigate to success page
+                        router.push('/'); // Navigate to success page
                     }
                 }
             }
@@ -283,22 +297,22 @@ export const CheckoutPage = () => {
         const orderId = pendingPaymentOrder?.orderId;
         closePaymentDialog();
         if (orderId) {
-            navigate(`/profile/orders/${orderId}`);
+            router.push(`/profile/orders/${orderId}`);
         } else {
-            navigate('/profile/orders');
+            router.push('/profile/orders');
         }
-    }, [closePaymentDialog, navigate, pendingPaymentOrder?.orderId]);
+    }, [closePaymentDialog, router, pendingPaymentOrder?.orderId]);
 
     const handlePaymentExpired = useCallback(() => {
         toast.error('Phiên thanh toán đã hết hạn. Đơn hàng đã bị hủy.');
         const orderId = pendingPaymentOrder?.orderId;
         closePaymentDialog();
         if (orderId) {
-            navigate(`/profile/orders/${orderId}`);
+            router.push(`/profile/orders/${orderId}`);
         } else {
-            navigate('/profile/orders');
+            router.push('/profile/orders');
         }
-    }, [closePaymentDialog, navigate, pendingPaymentOrder?.orderId]);
+    }, [closePaymentDialog, router, pendingPaymentOrder?.orderId]);
 
     const handlePaymentDialogClose = useCallback(() => {
         toast.info('Đơn đang chờ thanh toán. Bạn có thể thanh toán lại từ Đơn hàng của tôi.');
@@ -307,16 +321,16 @@ export const CheckoutPage = () => {
         finalizeSuccessfulCheckout();
         closePaymentDialog();
         if (orderId) {
-            navigate(`/profile/orders/${orderId}`);
+            router.push(`/profile/orders/${orderId}`);
         } else {
-            navigate('/profile/orders');
+            router.push('/profile/orders');
         }
-    }, [closePaymentDialog, finalizeSuccessfulCheckout, navigate, pendingPaymentOrder?.orderId]);
+    }, [closePaymentDialog, finalizeSuccessfulCheckout, router, pendingPaymentOrder?.orderId]);
 
     const handleBackToCart = () => {
         // Huỷ phiên mua ngay — giữ nguyên giỏ hàng chính.
         clearBuyNow();
-        navigate('/cart');
+        router.push('/cart');
     };
 
     const isSubmitting = createOrderMutation.isPending || processPaymentMutation.isPending;
@@ -324,19 +338,20 @@ export const CheckoutPage = () => {
     return (
         <div 
             className="client-page min-h-screen flex flex-col bg-fixed bg-cover bg-center pb-20"
-            style={{ backgroundImage: 'url("https://i.ibb.co/BVFGYpL1/86f05f70-fcf8-445f-978e-a0539eb2f0de.png")' }}
+            style={{ backgroundImage: `url("${CLIENT_PAGE_BACKGROUND}")` }}
         >
             {/* Top Section for Breadcrumb & Title */}
             <div className="w-full mt-[70px] lg:mt-[80px] py-4 lg:py-6">
                 <div className="w-full max-w-[1440px] mx-auto px-4 lg:px-8">
                     <div className="flex flex-col">
-                        <div className="flex items-center gap-2 text-[13px] text-[#637381] mb-2 font-medium">
-                            <Link to="/" className="hover:text-[#ee1314] transition-colors">Trang chủ</Link>
-                            <ChevronRight size={14} />
-                            <Link to="/cart" className="hover:text-[#ee1314] transition-colors">Giỏ hàng</Link>
-                            <ChevronRight size={14} />
-                            <span className="text-[#212B36] font-medium">Thanh toán</span>
-                        </div>
+                        <Breadcrumb
+                            items={[
+                                { label: 'Trang chủ', to: '/' },
+                                { label: 'Giỏ hàng', to: '/cart' },
+                                { label: 'Thanh toán' }
+                            ]}
+                            className="mb-2"
+                        />
                         <div className="flex items-center gap-3">
                             <div>
                                 <h1 className="client-heading mb-1 tracking-tight">Thanh toán đơn hàng</h1>
@@ -376,14 +391,14 @@ export const CheckoutPage = () => {
                                         
                                         {/* Vé số */}
                                         <div className="flex items-center gap-3">
-                                            <img src={item.ticketImg || 'https://i.ibb.co/TBf95cjX/6b561e49-2b8d-4dc5-b4c7-cff26a273abc.png'} alt="Vé" className="w-[80px] h-[50px] object-cover mix-blend-multiply border border-gray-100 rounded shrink-0" />
+                                            <img src={item.ticketImg || TICKET_IMAGE_FALLBACK} alt="Vé" className="w-[80px] h-[50px] object-cover mix-blend-multiply border border-gray-100 rounded shrink-0" />
                                             <div className="font-bold text-[16px] text-[#212B36] tracking-tight">{item.numbers}</div>
                                         </div>
 
                                         {/* Đài & Ngày quay */}
                                         <div className="flex flex-col items-start gap-1">
                                             <div className="flex items-center gap-2">
-                                                <img src={item.provinceIcon || 'https://i.ibb.co/XrKTHt8g/t-i-xu-ng.png'} alt="Logo" className="w-5 h-5 rounded-full border border-gray-200" />
+                                                <img src={item.provinceIcon || PROVINCE_ICON_FALLBACK} alt="Logo" className="w-5 h-5 rounded-full border border-gray-200" />
                                                 <span className="font-bold text-[13px] text-[#212B36]">{item.province}</span>
                                             </div>
                                             <div className="flex items-center gap-1.5 text-[12px] text-[#637381] pl-7">
@@ -399,7 +414,7 @@ export const CheckoutPage = () => {
                                                 item={item}
                                                 onDecrease={() => handleDecreaseQty(item)}
                                                 onIncrease={() => handleIncreaseQty(item)}
-                                                onRemove={() => handleRemoveItem(item.id)}
+                                                onRemove={() => handleRemoveItem(item)}
                                             />
                                         </div>
 
@@ -415,7 +430,12 @@ export const CheckoutPage = () => {
 
                                         {/* Thao tác */}
                                         <div className="flex justify-center">
-                                            <button onClick={() => handleRemoveItem(item.id)} className="text-[#ee1314] hover:text-[#d00f10] transition-colors w-8 h-8 rounded-full hover:bg-[#FFF4F4] flex items-center justify-center">
+                                            <button
+                                                type="button"
+                                                onClick={() => handleRemoveItem(item)}
+                                                aria-label={`Xóa vé số ${item.numbers}`}
+                                                className="text-[#ee1314] hover:text-[#d00f10] transition-colors w-8 h-8 rounded-full hover:bg-[#FFF4F4] flex items-center justify-center"
+                                            >
                                                 <Trash2 size={16} />
                                             </button>
                                         </div>

@@ -79,9 +79,9 @@ class ReturnBatchSummaryCalculatorTest {
                                 .importCost(new BigDecimal("9000.000"))
                                 .build()
                 ));
-        when(lotteryTicketSerialRepositoryPort.countByImportBatchLineIdAndStatus(50L, LotteryTicketSerialStatus.IN_STOCK))
+        when(lotteryTicketSerialRepositoryPort.countReturnEligibleByImportBatchLineId(50L))
                 .thenReturn(2L);
-        when(lotteryTicketSerialRepositoryPort.countByImportBatchLineIdAndStatus(51L, LotteryTicketSerialStatus.IN_STOCK))
+        when(lotteryTicketSerialRepositoryPort.countReturnEligibleByImportBatchLineId(51L))
                 .thenReturn(1L);
         when(returnBatchRepositoryPort.saveLine(any())).thenAnswer(inv -> inv.getArgument(0));
         when(returnBatchRepositoryPort.save(any())).thenAnswer(inv -> inv.getArgument(0));

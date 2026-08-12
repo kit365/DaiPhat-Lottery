@@ -6,6 +6,7 @@ import com.daiphat.coreapi.infrastructure.persistence.entity.lotteries.LotterySt
 import com.daiphat.coreapi.infrastructure.persistence.entity.lotteries.LotterySupplierEntity;
 import com.daiphat.coreapi.infrastructure.persistence.entity.lotteries.ReturnBatchEntity;
 import com.daiphat.coreapi.infrastructure.persistence.entity.lotteries.ReturnBatchLineEntity;
+import com.daiphat.coreapi.infrastructure.persistence.entity.streetagent.AllocationBatchEntity;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
@@ -29,12 +30,16 @@ public class ReturnBatchPersistenceMapper {
 
         return ReturnBatchModel.builder()
                 .id(entity.getId())
+                .batchCode(entity.getBatchCode())
                 .lotterySupplierId(supplier != null ? supplier.getId() : null)
                 .supplierName(supplier != null ? supplier.getName() : null)
                 .supplierCode(supplier != null ? supplier.getCode() : null)
+                .returnBatchType(entity.getReturnBatchType())
+                .sourceAllocationBatchId(entity.getSourceAllocationBatch() != null ? entity.getSourceAllocationBatch().getId() : null)
                 .drawDate(entity.getDrawDate())
                 .supplierSettlementId(entity.getSupplierSettlementId())
                 .returnReceiptUrl(entity.getReturnReceiptUrl())
+                .returnEvidenceUrl(entity.getReturnEvidenceUrl())
                 .deliveryMode(entity.getDeliveryMode())
                 .totalQuantity(entity.getTotalQuantity())
                 .totalReturnValue(entity.getTotalReturnValue())
@@ -85,12 +90,21 @@ public class ReturnBatchPersistenceMapper {
             supplier = new LotterySupplierEntity();
             supplier.setId(model.getLotterySupplierId());
         }
+        AllocationBatchEntity allocationBatch = null;
+        if (model.getSourceAllocationBatchId() != null) {
+            allocationBatch = new AllocationBatchEntity();
+            allocationBatch.setId(model.getSourceAllocationBatchId());
+        }
         return ReturnBatchEntity.builder()
                 .id(model.getId())
+                .batchCode(model.getBatchCode())
                 .lotterySupplier(supplier)
+                .returnBatchType(model.getReturnBatchType())
+                .sourceAllocationBatch(allocationBatch)
                 .drawDate(model.getDrawDate())
                 .supplierSettlementId(model.getSupplierSettlementId())
                 .returnReceiptUrl(model.getReturnReceiptUrl())
+                .returnEvidenceUrl(model.getReturnEvidenceUrl())
                 .deliveryMode(model.getDeliveryMode())
                 .totalQuantity(model.getTotalQuantity())
                 .totalReturnValue(model.getTotalReturnValue())
@@ -139,9 +153,12 @@ public class ReturnBatchPersistenceMapper {
     }
 
     public void updateEntityFromModel(ReturnBatchModel model, ReturnBatchEntity entity) {
+        entity.setBatchCode(model.getBatchCode());
+        entity.setReturnBatchType(model.getReturnBatchType());
         entity.setDrawDate(model.getDrawDate());
         entity.setSupplierSettlementId(model.getSupplierSettlementId());
         entity.setReturnReceiptUrl(model.getReturnReceiptUrl());
+        entity.setReturnEvidenceUrl(model.getReturnEvidenceUrl());
         entity.setDeliveryMode(model.getDeliveryMode());
         entity.setTotalQuantity(model.getTotalQuantity());
         entity.setTotalReturnValue(model.getTotalReturnValue());
@@ -159,6 +176,19 @@ public class ReturnBatchPersistenceMapper {
             LotterySupplierEntity supplier = new LotterySupplierEntity();
             supplier.setId(model.getLotterySupplierId());
             entity.setLotterySupplier(supplier);
+        }
+        if (model.getLotterySupplierId() == null) {
+            entity.setLotterySupplier(null);
+        }
+        if (model.getSourceAllocationBatchId() != null
+                && (entity.getSourceAllocationBatch() == null
+                || !model.getSourceAllocationBatchId().equals(entity.getSourceAllocationBatch().getId()))) {
+            AllocationBatchEntity allocationBatch = new AllocationBatchEntity();
+            allocationBatch.setId(model.getSourceAllocationBatchId());
+            entity.setSourceAllocationBatch(allocationBatch);
+        }
+        if (model.getSourceAllocationBatchId() == null) {
+            entity.setSourceAllocationBatch(null);
         }
     }
 

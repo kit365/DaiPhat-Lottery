@@ -1,7 +1,7 @@
 "use client";
 
-import { Outlet, useLocation } from "@/components/router-compat";
 import { ThemeProvider } from "@mui/material/styles";
+import { Suspense } from "react";
 
 import { SideBar } from "../components/layouts/sidebar/SideBar";
 import { Header } from "../components/layouts/Header";
@@ -9,40 +9,26 @@ import { adminTheme } from "../config/theme";
 import '../styles/index.css';
 import { useSidebar } from "../context/sidebar/useSidebar";
 import { SidebarProvider } from "../context/sidebar/SidebarProvider";
-import { useAuth } from "../pages/authen/hooks/useAuth";
 import { useAuthStore } from "../../stores/useAuthStore";
-
+import { usePrefetchAdminPagesWhenIdle } from "../hooks/usePrefetchAdminPagesWhenIdle";
 import { SocketProvider } from "../context/SocketContext";
-
-import { Suspense } from "react";
-import LoadingScreen from "../components/ui/LoadingScreen";
-
-import { ROUTES } from "../constants/routes";
+import { AdminProviders } from "../providers/AdminProviders";
+import { NavigationProgressBar } from "../components/ui/NavigationProgressBar";
+import { PageNavigationProvider } from "../context/PageNavigationContext";
+import { AdminBadgeCountsProvider } from "../context/AdminBadgeCountsProvider";
+import { SpinnerLoading } from "../components/ui/SpinnerLoading";
+import { useAdminLoginSuccessToast } from "../features/auth/hooks/useAdminLoginSuccessToast";
 
 const LayoutAdminContent = ({ children }: { children?: React.ReactNode }) => {
-    const { user, isLoading } = useAuth();
-    const location = useLocation();
+    const { user, token } = useAuthStore();
     const { isOpen } = useSidebar();
+    useAdminLoginSuccessToast();
 
-    // [THE VAULT DOOR] - Chặn đứng mọi nỗ lực xem Dashboard khi chưa setup xong
-    if (isLoading && !user) {
-        return <LoadingScreen />;
-    }
-
-
-    const isBlogDetail = location.pathname.startsWith(ROUTES.ADMIN.BLOGS.DETAIL);
-    const fullWidthRoutes = [
-        ROUTES.ADMIN.DASHBOARD.ROOT,
-        ROUTES.ADMIN.DASHBOARD.SYSTEM,
-        ROUTES.ADMIN.DASHBOARD.ANALYTICS,
-        ROUTES.ADMIN.DASHBOARD.ECOMMERCE
-    ];
-    const isFullWidthPage = fullWidthRoutes.some(route => route === location.pathname) || isBlogDetail;
-
-    // Route state Toast listener removed. Using direct toast in use-login now.
+    usePrefetchAdminPagesWhenIdle(!!user && !!token);
 
     return (
         <div className="flex min-h-screen bg-white overflow-x-hidden w-full max-w-full">
+            <NavigationProgressBar />
             <SideBar />
 
             <div className={`flex-1 min-w-0 min-h-screen bg-white transition-[padding-left] duration-[120ms] ease-linear ${isOpen ? 'pl-[300px]' : 'pl-[88px]'}`}>
@@ -50,23 +36,28 @@ const LayoutAdminContent = ({ children }: { children?: React.ReactNode }) => {
 
                 <ThemeProvider theme={adminTheme}>
                     <main className="max-w-[1536px] w-full mx-auto px-[40px] pt-[8px] pb-[64px]">
-                        <Suspense fallback={<LoadingScreen />}>
-                            {children ? children : <Outlet />}
+                        <Suspense fallback={<SpinnerLoading message="Đang tải trang..." minHeight={360} />}>
+                            {children}
                         </Suspense>
                     </main>
                 </ThemeProvider>
             </div>
-
         </div>
     );
 };
 
 export const LayoutAdmin = ({ children }: { children?: React.ReactNode }) => {
     return (
-        <SocketProvider>
-            <SidebarProvider>
-                <LayoutAdminContent>{children}</LayoutAdminContent>
-            </SidebarProvider>
-        </SocketProvider>
+        <PageNavigationProvider>
+            <AdminProviders>
+                <SocketProvider>
+                    <AdminBadgeCountsProvider>
+                        <SidebarProvider>
+                            <LayoutAdminContent>{children}</LayoutAdminContent>
+                        </SidebarProvider>
+                    </AdminBadgeCountsProvider>
+                </SocketProvider>
+            </AdminProviders>
+        </PageNavigationProvider>
     );
 };

@@ -8,5 +8,7 @@ export const usePublicSystemConfig = (key: string) => {
         queryKey: ['public-system-config', key],
         queryFn: () => getPublicSystemConfigByKey(key),
         staleTime: 1000 * 60 * 60, // 1 hour since it rarely changes
+        retry: false,
+        throwOnError: false,
     });
 };

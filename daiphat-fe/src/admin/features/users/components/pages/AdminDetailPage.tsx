@@ -1,7 +1,8 @@
 "use client";
 
+import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
+import { useRouteParams } from "@/hooks/useRouteParams";
 import { useEffect, useState, useRef } from "react";
-import { useParams, useNavigate } from "react-router-dom";
 import {
     Box,
     Card,
@@ -13,13 +14,12 @@ import {
     TextField,
     MenuItem,
     Chip,
-    Button,
-} from "@mui/material";
+} from '@mui/material';
 import { UserStatus } from "../../../../../types/user.type";
 import Grid from "@mui/material/Grid";
-import { Icon } from "@iconify/react";
-import { Breadcrumb } from '../../../../components/ui/Breadcrumb';
-import { Title } from '../../../../components/ui/Title';
+import { Icon } from '@/admin/components/ui/AdminIcon';
+import { PageHeader } from '../../../../components/ui/PageHeader';
+import { SpinnerLoading } from '../../../../components/ui/SpinnerLoading';
 import { prefixAdmin } from '../../../../constants/routes';
 import {
     useUserDetail,
@@ -30,16 +30,15 @@ import {
     useUploadUserAvatar
 } from "../../hooks/useUsers";
 import { useRoles } from "../../../role/hooks/useRole";
-import { StaffBoardingHistory } from "../sections/StaffBoardingHistory";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { accountAdminSchema } from "../../../../schemas/account-admin.schema";
+import { accountAdminSchema } from "@/admin/features/users/schemas/account-admin.schema";
 import { toast } from "react-toastify";
-import { LoadingButton } from '../../../../components/ui/LoadingButton';
+import { Button } from '../../../../components/ui/Button';
 
 export const AdminDetailPage = () => {
-    const { id } = useParams();
-    const navigate = useNavigate();
+    const { id } = useRouteParams();
+    const router = useAdminRouter();
     const [currentTab, setCurrentTab] = useState("general");
     const { data: account, isLoading: isAccountLoading } = useUserDetail(id);
     const { mutate: update, isPending: isUpdating } = useUpdateUser();
@@ -172,7 +171,7 @@ export const AdminDetailPage = () => {
             removeAccount(id!, {
                 onSuccess: () => {
                     toast.success("Xóa quản trị viên thành công!");
-                    navigate(`/${prefixAdmin}/account-admin/list`);
+                    router.push(`/${prefixAdmin}/account-admin/list`);
                 },
                 onError: (error: any) => {
                     toast.error(error.response?.data?.message || "Xóa thất bại");
@@ -183,27 +182,31 @@ export const AdminDetailPage = () => {
 
     if (isAccountLoading) {
         return (
-            <Box sx={{ display: 'flex', justifyContent: 'center', py: 5 }}>
-                <CircularProgress />
-            </Box>
+            <div className="p-[24px] pt-[16px] flex flex-col gap-[24px] max-w-[1200px] mx-auto w-full">
+                <PageHeader
+                    title="Tài khoản"
+                    breadcrumbItems={[
+                        { label: "Dashboard", to: `/${prefixAdmin}` },
+                        { label: "Quản trị viên", to: `/${prefixAdmin}/account-admin/list` },
+                        { label: "Chi tiết" }
+                    ]}
+                />
+                <SpinnerLoading />
+            </div>
         );
     }
 
     return (
         <div className="p-[24px] pt-[16px] flex flex-col gap-[24px] max-w-[1200px] mx-auto w-full">
             {/* Header */}
-            <div className="flex justify-between items-start">
-                <div>
-                    <Title title="Tài khoản" />
-                    <Breadcrumb
-                        items={[
-                            { label: "Dashboard", to: `/${prefixAdmin}` },
-                            { label: "Quản trị viên", to: `/${prefixAdmin}/account-admin/list` },
-                            { label: account ? `${account.lastName} ${account.firstName}` : "Chi tiết" }
-                        ]}
-                    />
-                </div>
-            </div>
+            <PageHeader
+                title="Tài khoản"
+                breadcrumbItems={[
+                    { label: "Dashboard", to: `/${prefixAdmin}` },
+                    { label: "Quản trị viên", to: `/${prefixAdmin}/account-admin/list` },
+                    { label: account ? `${account.lastName} ${account.firstName}` : "Chi tiết" }
+                ]}
+            />
 
             <Tabs
                 value={currentTab}
@@ -231,16 +234,6 @@ export const AdminDetailPage = () => {
                         <Stack direction="row" spacing={1} alignItems="center">
                             <Icon icon="solar:user-id-bold" width={20} />
                             <span>Tổng quan</span>
-                        </Stack>
-                    }
-                />
-                <Tab
-                    disableRipple
-                    value="boarding-history"
-                    label={
-                        <Stack direction="row" spacing={1} alignItems="center">
-                            <Icon icon="solar:home-2-bold" width={20} />
-                            <span>Lịch sử boarding</span>
                         </Stack>
                     }
                 />
@@ -448,7 +441,7 @@ export const AdminDetailPage = () => {
                                 </div>
 
                                 <div className="flex justify-end mt-[24px]">
-                                    <LoadingButton
+                                    <Button
                                         type="submit"
                                         loading={isUpdating}
                                         label="Lưu thay đổi"
@@ -461,16 +454,6 @@ export const AdminDetailPage = () => {
                 </form>
             )}
 
-            {currentTab === "boarding-history" && id && (
-                <Card sx={{ borderRadius: "var(--shape-borderRadius-lg)", boxShadow: "var(--customShadows-card)", overflow: 'hidden' }}>
-                    <Box sx={{ p: 3, borderBottom: '1px dashed var(--palette-divider)' }}>
-                        <Typography variant="h6">Lịch sử boarding</Typography>
-                        <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.5 }}>Toàn bộ đơn lưu trú quản trị viên được phân công</Typography>
-                    </Box>
-                    <StaffBoardingHistory staffId={id} />
-                </Card>
-            )}
-
             {currentTab === "security" && (
                 <Card sx={{ p: 4, borderRadius: "var(--shape-borderRadius-lg)", boxShadow: "var(--customShadows-card)" }}>
                     {!otpSent ? (
@@ -480,7 +463,7 @@ export const AdminDetailPage = () => {
                                 Hệ thống sẽ gửi mã OTP xác thực đến email người dùng. Sau khi xác nhận, mật khẩu mới sẽ được tạo tự động và gửi qua email.
                             </Typography>
                             <Stack direction="row" justifyContent="flex-end" sx={{ width: '100%' }}>
-                                <LoadingButton
+                                <Button
                                     onClick={handleInitiateReset}
                                     loading={isInitiatingReset}
                                     label="Gửi mã OTP"
@@ -506,11 +489,10 @@ export const AdminDetailPage = () => {
                                 <Button
                                     variant="text"
                                     onClick={() => setOtpSent(false)}
-                                    sx={{ textTransform: 'none', fontWeight: 700 }}
                                 >
                                     Quay lại
                                 </Button>
-                                <LoadingButton
+                                <Button
                                     onClick={handleConfirmReset}
                                     loading={isConfirmingReset}
                                     disabled={otp.length < 6}

@@ -32,32 +32,6 @@ export const SwitchButton = <T extends FieldValues>({
                             {...field}
                             checked={field.value === checkedValue}
                             onChange={(e) => field.onChange(e.target.checked ? checkedValue : uncheckedValue)}
-                            sx={{
-                                '& .MuiSwitch-switchBase.Mui-checked': {
-                                    color: '#00A76F',
-                                    transform: "translateX(14px)",
-                                    '& + .MuiSwitch-track': {
-                                        backgroundColor: '#00A76F',
-                                        opacity: 1,
-                                    },
-                                },
-                                '& .MuiSwitch-switchBase': {
-                                    top: "6px",
-                                    left: "6px"
-                                },
-                                '& .MuiSwitch-thumb': {
-                                    boxShadow: "0px 2px 1px -1px rgba(145 158 171 / 20%),0px 1px 1px 0px rgba(145 158 171 / 14%),0px 1px 3px 0px rgba(145 158 171 / 12%)",
-                                    backgroundColor: "#fff",
-                                    width: "0.875rem",
-                                    height: "0.875rem",
-                                },
-                                '& .MuiSwitch-track': {
-                                    height: "20px",
-                                    borderRadius: "10px",
-                                    backgroundColor: "#919eab7a",
-                                    opacity: "1"
-                                }
-                            }}
                         />
                     }
                     label={

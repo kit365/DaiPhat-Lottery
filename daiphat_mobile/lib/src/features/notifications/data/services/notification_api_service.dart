@@ -13,7 +13,6 @@ class NotificationApiService {
       '/notifications/me',
       queryParameters: {'page': page, 'limit': limit},
     );
-    print('DEBUG API RESPONSE: $response');
 
     final apiResponse = ApiResponse<PageResponse<NotificationModel>>.fromJson(
       response,
@@ -48,6 +47,15 @@ class NotificationApiService {
     if (!apiResponse.isSuccess) {
       throw Exception(apiResponse.message);
     }
+  }
+
+  Future<bool> isReferenceAvailable(int id) async {
+    final response = await _apiClient.get('/notifications/$id/reference');
+    final data = response['data'];
+    if (data is Map<String, dynamic>) {
+      return data['available'] as bool? ?? false;
+    }
+    return false;
   }
 
   Future<void> deleteAllReadNotifications() async {

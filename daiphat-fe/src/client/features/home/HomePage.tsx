@@ -1,7 +1,7 @@
 "use client";
 
+import { useSearchParams } from "next/navigation";
 import { useEffect, useLayoutEffect, useMemo, useState } from "react";
-import { useSearchParams } from "react-router-dom";
 
 import dynamic from 'next/dynamic';
 
@@ -10,8 +10,11 @@ import { buildLotteryCountdownMessage, getCountdownState } from "../../component
 import { LeftSidebar } from "../../components/home/LeftSidebar";
 import { HomeSidebar } from "../../components/home/HomeSidebar";
 import { ResultsMatrix } from "../../components/home/ResultsMatrix";
+import { CLIENT_PAGE_BACKGROUND } from "../../constants/clientBannerAssets";
+import { usePrefetchClientPagesWhenIdle } from "../../hooks/usePrefetchClientPagesWhenIdle";
+import type { HomeServerInitialData } from '@/lib/server-lottery';
 import { useLottery } from "../../hooks/useLottery";
-import { buildCountdownTarget, formatApiDateToDisplay, isTodayDisplayDate } from "../../types/lottery";
+import { buildCountdownTarget, formatApiDateToDisplay } from "../../types/lottery";
 
 const MobileLotterySelector = dynamic(
   () => import('../../components/home/MobileLotterySelector').then((mod) => mod.MobileLotterySelector),
@@ -25,8 +28,8 @@ const scrollWindowToTop = () => {
   document.body.scrollTop = 0;
 };
 
-export const HomePage = () => {
-  const [searchParams] = useSearchParams();
+export const HomePage = ({ initialData }: { initialData?: HomeServerInitialData }) => {
+  const searchParams = useSearchParams();
   const urlDrawDate = searchParams.get('drawDate');
   const urlStationId = searchParams.get('stationId');
   const urlStationIds = searchParams.get('stationIds');
@@ -52,10 +55,9 @@ export const HomePage = () => {
     availableProvinces,
     scheduleStations,
     isLoading,
-    isRefreshing,
     isWaitingForResults,
     error
-  } = useLottery();
+  } = useLottery(initialData);
 
   const activeDigit = hoveredDigit || selectedDigit;
   const singleProvince = selectedProvinces.length > 0 ? selectedProvinces[0] : '';
@@ -119,29 +121,12 @@ export const HomePage = () => {
     ? `Kết quả ${selectedProvinceLabel || singleData.province} ngày ${singleData.date} đã được cập nhật.`
     : countdownMessage
       ? countdownMessage
-    : singleData
-      ? `${selectedProvinceLabel || `Đài ${singleData.province}`} đang chờ cập nhật kết quả.`
-      : 'Đang cập nhật kết quả mới nhất từ hệ thống.';
+      : singleData
+        ? `${selectedProvinceLabel || `Đài ${singleData.province}`} đang chờ cập nhật kết quả.`
+        : '';
 
   const emptyStateMessage = error || 'Chưa có dữ liệu kết quả cho ngày đã chọn.';
-  const hasAnyWinningNumbers = useMemo(() => {
-    return lotteryData.some((item) =>
-      Boolean(
-        item.prizes.special ||
-        item.prizes.first ||
-        item.prizes.second ||
-        item.prizes.fifth ||
-        item.prizes.seventh ||
-        item.prizes.eighth ||
-        item.prizes.third.length > 0 ||
-        item.prizes.fourth.length > 0 ||
-        item.prizes.sixth.length > 0
-      )
-    );
-  }, [lotteryData]);
-  const shouldShowLoadingOverlay = !isTodayDisplayDate(selectedDate)
-    && (isLoading || isWaitingForResults)
-    && !hasAnyWinningNumbers;
+  const shouldShowEmptyState = lotteryData.length === 0 && !isLoading && !isWaitingForResults;
 
   useEffect(() => {
     const token = searchParams.get("verify_token");
@@ -228,14 +213,15 @@ export const HomePage = () => {
     setSelectedProvinces(availableProvinces);
   }, [urlRegion, urlStationId, urlStationIds, availableProvinces, setSelectedProvinces]);
 
+  usePrefetchClientPagesWhenIdle(!isLoading);
 
   return (
     <div 
       className="relative min-h-screen overflow-x-hidden font-client-main bg-fixed bg-cover bg-center"
-      style={{ backgroundImage: 'url("https://i.ibb.co/BVFGYpL1/86f05f70-fcf8-445f-978e-a0539eb2f0de.png")' }}
+      style={{ backgroundImage: `url("${CLIENT_PAGE_BACKGROUND}")` }}
     >
       <main className="relative z-1">
-        <div className="max-w-[1440px] mx-auto px-4 lg:px-6 py-8 lg:pt-24 flex flex-col lg:flex-row gap-4 lg:gap-6 items-start">
+        <div className="max-w-[1440px] mx-auto px-4 lg:px-6 pt-[148px] pb-[100px] lg:pt-[100px] lg:pb-12 flex flex-col lg:flex-row gap-4 lg:gap-6 items-start">
           <div className="hidden lg:block shrink-0">
             <LeftSidebar
               activeProvinces={selectedProvinces}
@@ -261,15 +247,6 @@ export const HomePage = () => {
             />
             
             <div className="relative">
-              {shouldShowLoadingOverlay && (
-                <div className="absolute inset-0 z-50 flex items-center justify-center bg-white/60 backdrop-blur-[2px] rounded-3xl min-h-[400px]">
-                  <div className="flex flex-col items-center gap-4 bg-white p-6 rounded-2xl shadow-xl border border-gray-100">
-                    <div className="w-12 h-12 border-4 border-slate-100 border-t-[#ee1314] rounded-full animate-spin"></div>
-                    <span className="text-[#102937] font-bold text-sm uppercase tracking-wider">Đang lấy kết quả...</span>
-                  </div>
-                </div>
-              )}
-
               <div className="transition-all duration-300">
                 {lotteryData.length > 0 ? (
                   <ResultsMatrix
@@ -285,9 +262,8 @@ export const HomePage = () => {
                     activeDigit={activeDigit}
                     setHoveredDigit={setHoveredDigit}
                     statusMessage={resultStatusMessage}
-                    isRefreshing={isRefreshing}
                   />
-                ) : !shouldShowLoadingOverlay ? (
+                ) : shouldShowEmptyState ? (
                   /* EMPTY STATE - When no data is available */
                   <div className="bg-white rounded-3xl border border-gray-100 shadow-[0_4px_25px_rgba(0,0,0,0.02)] p-12 lg:p-20 flex flex-col items-center justify-center text-center space-y-6 animate-in fade-in zoom-in duration-500">
                     <div className="w-24 h-24 bg-slate-50 rounded-full flex items-center justify-center">
@@ -306,9 +282,7 @@ export const HomePage = () => {
                       Xem đài đang mở
                     </button>
                   </div>
-                ) : (
-                  <div className="bg-white rounded-3xl border border-gray-100 shadow-[0_4px_25px_rgba(0,0,0,0.02)] min-h-[400px]" />
-                )}
+                ) : null}
               </div>
             </div>
           </div>

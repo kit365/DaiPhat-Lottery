@@ -8,9 +8,11 @@ import type { SupplierSettlementKpis } from '../../types/supplierSettlement.type
 
 interface Props {
     kpis: SupplierSettlementKpis;
+    hasHandedOver?: boolean;
+    isExpired?: boolean;
 }
 
-export const SettlementKpiCards = ({ kpis }: Props) => {
+export const SettlementKpiCards = ({ kpis, hasHandedOver, isExpired }: Props) => {
     return (
         <Box
             sx={{
@@ -125,10 +127,13 @@ export const SettlementKpiCards = ({ kpis }: Props) => {
                     </Box>
                     <Box sx={{ minWidth: 0 }}>
                         <Typography variant="caption" fontWeight={700} color="#166534">
-                            Còn lại trong kho
+                            {isExpired ? 'Quá hạn trả' : (hasHandedOver ? 'Đã trả NCC' : 'Còn lại trong kho')}
                         </Typography>
                         <Typography variant="h5" fontWeight={800} color="#15803d">
-                            {kpis.totalRemainingTickets.toLocaleString('vi-VN')}
+                            {(isExpired
+                                ? (kpis.totalExpiredReturnTickets ?? 0)
+                                : kpis.totalRemainingTickets
+                            ).toLocaleString('vi-VN')}
                         </Typography>
                     </Box>
                 </Stack>

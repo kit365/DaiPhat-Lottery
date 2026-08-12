@@ -5,6 +5,7 @@ import com.daiphat.coreapi.adapter.in.web.response.ApiResponse;
 import com.daiphat.coreapi.adapter.in.web.security.AuthenticatedUserPrincipal;
 import com.daiphat.coreapi.application.dto.request.lotteries.CreateImportBatchRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.ImportBatchClassificationPreviewRequest;
+import com.daiphat.coreapi.application.dto.request.lotteries.UpdateImportBatchInvoiceEvidenceRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.UpdateImportBatchRequest;
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.ImportBatchClassificationPreviewResponse;
@@ -63,6 +64,17 @@ public class ImportBatchController {
         return ApiResponse.success(
                 "Cập nhật phiếu nhập lô vé thành công.",
                 importBatchServicePort.update(id, request)
+        );
+    }
+
+    @PostMapping("/{id:\\d+}/invoice-evidence")
+    @PreAuthorize("hasAnyAuthority('importBatch:create')")
+    public ApiResponse<ImportBatchResponse> attachInvoiceEvidence(
+            @PathVariable Long id,
+            @Valid @RequestBody UpdateImportBatchInvoiceEvidenceRequest request) {
+        return ApiResponse.success(
+                "Đã đính kèm ảnh biên lai phiếu nhập.",
+                importBatchServicePort.attachInvoiceEvidence(id, request.invoiceEvidenceUrl())
         );
     }
 

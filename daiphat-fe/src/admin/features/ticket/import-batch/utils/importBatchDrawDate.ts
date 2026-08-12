@@ -131,3 +131,23 @@ export const isInReturnCutOffWarningWindow = (
         (now.isSame(warningStart) || now.isAfter(warningStart)) && now.isBefore(todayCutoff)
     );
 };
+
+/**
+ * Resolves the default draw date for a new import batch:
+ * If the cutoff time for today has passed, defaults to tomorrow.
+ * Otherwise, defaults to today.
+ */
+export const getDefaultInitialDrawDate = (
+    returnCutOffTime?: string,
+    now: Dayjs = dayjs()
+): string => {
+    const cutoffPassed = returnCutOffTime
+        ? isReturnCutOffPassed(returnCutOffTime, now)
+        : isReturnCutOffPassed('14:30', now);
+
+    if (cutoffPassed) {
+        return now.add(1, 'day').format('YYYY-MM-DD');
+    }
+    return now.format('YYYY-MM-DD');
+};
+

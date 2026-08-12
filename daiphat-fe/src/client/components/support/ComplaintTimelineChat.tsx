@@ -159,14 +159,14 @@ export const ComplaintTimelineChat: React.FC<ComplaintTimelineChatProps> = ({
                             Bạn có hài lòng với phương án giải quyết của chúng tôi không?
                         </h4>
                         <p className="text-[13px] text-[#637381] max-w-md mb-2">
-                            Nếu chọn <strong className="text-[#00A76F]">Có</strong>, yêu cầu sẽ được hoàn tất. Nếu chọn <strong className="text-[#ee1314]">Không</strong>, yêu cầu sẽ được mở lại để nhân viên tiếp tục hỗ trợ bạn.
+                            Nếu chọn <strong className="text-[#FF3030]">Có</strong>, yêu cầu sẽ được hoàn tất. Nếu chọn <strong className="text-[#ee1314]">Không</strong>, yêu cầu sẽ được mở lại để nhân viên tiếp tục hỗ trợ bạn.
                         </p>
                         <div className="flex items-center gap-3 flex-wrap justify-center w-full mb-3">
                             <button
                                 type="button"
                                 disabled={feedbackMutation.isPending}
                                 onClick={() => handleSatisfaction(true)}
-                                className="flex-1 sm:flex-none px-6 py-2.5 rounded-xl bg-[#00A76F] text-white font-bold text-[14px] hover:bg-[#007867] shadow-sm hover:shadow-none transition-all disabled:opacity-50 cursor-pointer flex items-center justify-center gap-2"
+                                className="flex-1 sm:flex-none px-6 py-2.5 rounded-xl bg-[#FF3030] text-white font-bold text-[14px] hover:bg-[#B71833] shadow-sm hover:shadow-none transition-all disabled:opacity-50 cursor-pointer flex items-center justify-center gap-2"
                             >
                                 <i className="fa-solid fa-thumbs-up"></i> Có, tôi hài lòng
                             </button>

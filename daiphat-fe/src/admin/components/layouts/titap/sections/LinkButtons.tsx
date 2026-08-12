@@ -2,7 +2,6 @@
 
 import { memo, useState, useCallback } from "react";
 import type { Editor } from '@tiptap/react'
-import { useTranslation } from "react-i18next";
 import { ButtonTiptap } from "./ButtonTiptap";
 import { InsertLinkIcon, RemoveLinkIcon } from "../../../../assets/icons";
 import { Button, Popover, Stack, TextField, Typography } from "@mui/material";
@@ -13,7 +12,6 @@ interface LinkButtonProps {
 }
 
 export const LinkButtons = memo(({ editor, active }: LinkButtonProps) => {
-    const { t } = useTranslation();
     const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
     const [linkUrl, setLinkUrl] = useState('');
 
@@ -52,7 +50,7 @@ export const LinkButtons = memo(({ editor, active }: LinkButtonProps) => {
     return (
         <>
             <ButtonTiptap
-                title={t("admin.tiptap.toolbar.insert_link")}
+                title="Chèn liên kết"
                 active={active}
                 onClick={handleOpen}
             >
@@ -74,13 +72,13 @@ export const LinkButtons = memo(({ editor, active }: LinkButtonProps) => {
                     }
                 }}
             >
-                <Typography variant="subtitle2" sx={{ mb: "10px", fontWeight: 600, fontSize: "0.875rem" }}>{t("admin.tiptap.link_dialog.title")}</Typography>
+                <Typography variant="subtitle2" sx={{ mb: "10px", fontWeight: 600, fontSize: "0.875rem" }}>Đường dẫn</Typography>
 
                 <Stack direction="row" spacing={1} alignItems="center">
                     <TextField
                         fullWidth
                         size="small"
-                        placeholder={t("admin.tiptap.link_dialog.placeholder")}
+                        placeholder="Nhập đường dẫn"
                         value={linkUrl}
                         onChange={(e) => setLinkUrl(e.target.value)}
                         autoFocus
@@ -121,13 +119,13 @@ export const LinkButtons = memo(({ editor, active }: LinkButtonProps) => {
                             }
                         }}
                     >
-                        {t("admin.common.save")}
+                        Lưu
                     </Button>
                 </Stack>
             </Popover>
 
             <ButtonTiptap
-                title={t("admin.tiptap.toolbar.remove_link")}
+                title="Gỡ liên kết"
                 disabled={!active}
                 onClick={handleRemoveLink}
                 sx={{

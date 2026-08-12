@@ -5,6 +5,8 @@ export type ReturnBatchStatus =
     | 'HANDED_OVER'
     | 'CANCELLED';
 
+export type ReturnBatchType = 'SUPPLIER_RETURN' | 'STREET_AGENT_RETURN';
+
 export type ReturnBatchLineStatus =
     | 'PENDING'
     | 'SUCCESS'
@@ -27,12 +29,16 @@ export interface ReturnBatchLine {
 
 export interface ReturnBatch {
     id: number;
-    lotterySupplierId: number;
+    batchCode?: string | null;
+    returnBatchType?: ReturnBatchType | null;
+    sourceAllocationBatchId?: number | null;
+    lotterySupplierId?: number | null;
     supplierName?: string | null;
     supplierCode?: string | null;
     drawDate: string;
     supplierSettlementId?: number | null;
     returnReceiptUrl?: string | null;
+    returnEvidenceUrl?: string | null;
     totalQuantity: number;
     totalReturnValue: number;
     returnedBy?: string | null;
@@ -87,6 +93,8 @@ export interface ReturnBatchListParams {
     search?: string;
     sortBy?: string;
     direction?: string;
+    /** Keep supplier operations isolated from vendor inbound return batches. */
+    returnBatchType?: ReturnBatchType;
 }
 
 export interface AttachReturnSerialItem {
@@ -108,6 +116,8 @@ export interface ConfirmReturnInspectionPayload {
 
 export interface ConfirmReturnHandoverPayload {
     returnReceiptUrl?: string | null;
+    /** Required Cloudinary/storage URL after successful upload. */
+    returnEvidenceUrl: string;
     note?: string | null;
 }
 

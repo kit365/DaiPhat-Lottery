@@ -22,6 +22,7 @@ import type {
     ReturnBatchStatus,
 } from '../types/returnBatch.type';
 import { QUERY_KEYS } from '../constants/queryKeys';
+import { useServerPagination } from '../../../../shared/data-grid/useServerPagination';
 
 export const useReturnBatches = (params?: ReturnBatchListParams, options?: any) => {
     return useQuery({
@@ -167,28 +168,32 @@ export const useUpdateReturnBatchLineStatus = () => {
 interface IReturnBatchFilters {
     search?: string;
     status?: ReturnBatchStatus | '';
-    page: number;
-    size: number;
 }
 
 export const useReturnBatchList = () => {
+    const {
+        apiPage,
+        pageSize,
+        paginationModel,
+        onPaginationModelChange,
+        resetPage,
+    } = useServerPagination(10);
     const [filters, setFilters] = useState<IReturnBatchFilters>({
         search: '',
         status: '',
-        page: 1,
-        size: 10,
     });
 
     const queryParams = useMemo(
         () => ({
+            returnBatchType: 'SUPPLIER_RETURN' as const,
             search: filters.search || undefined,
             status: filters.status || undefined,
-            page: filters.page,
-            size: filters.size,
+            page: apiPage,
+            size: pageSize,
             sortBy: 'drawDate',
             direction: 'desc',
         }),
-        [filters]
+        [apiPage, filters, pageSize]
     );
 
     const { data, isLoading, error } = useReturnBatches(queryParams, {
@@ -210,10 +215,15 @@ export const useReturnBatchList = () => {
         isLoading,
         error,
         filters,
-        setSearch: (search: string) => setFilters((prev) => ({ ...prev, search, page: 1 })),
-        setStatus: (status: ReturnBatchStatus | '') =>
-            setFilters((prev) => ({ ...prev, status, page: 1 })),
-        setPage: (page: number) => setFilters((prev) => ({ ...prev, page })),
-        setLimit: (size: number) => setFilters((prev) => ({ ...prev, size, page: 1 })),
+        paginationModel,
+        onPaginationModelChange,
+        setSearch: (search: string) => {
+            setFilters((prev) => ({ ...prev, search }));
+            resetPage();
+        },
+        setStatus: (status: ReturnBatchStatus | '') => {
+            setFilters((prev) => ({ ...prev, status }));
+            resetPage();
+        },
     };
 };

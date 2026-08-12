@@ -1,15 +1,14 @@
 "use client";
 
-import { Box, Stack } from '@mui/material';
+import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
+import { Box, Stack, FormControlLabel, Switch } from '@mui/material';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMemo, useState } from 'react';
-import { useForm } from 'react-hook-form';
-import { useNavigate } from '@/components/router-compat';
+import { useForm, Controller } from 'react-hook-form';
 import { toast } from 'react-toastify';
-import { Breadcrumb } from '../../../../components/ui/Breadcrumb';
-import { Title } from '../../../../components/ui/Title';
+import { PageHeader } from '../../../../components/ui/PageHeader';
 import { CollapsibleCard } from '../../../../components/ui/CollapsibleCard';
-import { LoadingButton } from '../../../../components/ui/LoadingButton';
+import { Button } from '../../../../components/ui/Button';
 import { ROUTES } from '../../../../constants/routes';
 import { useCreateSupplier } from '../../hooks/useSupplier';
 import { SupplierFormFields } from '../sections/SupplierFormFields';
@@ -21,7 +20,7 @@ import {
 } from '../../utils/supplier-activation';
 
 export const SupplierCreatePage = () => {
-    const navigate = useNavigate();
+    const router = useAdminRouter();
     const { mutateAsync, isPending } = useCreateSupplier();
     const [activationErrorsVisible, setActivationErrorsVisible] = useState(false);
 
@@ -85,7 +84,7 @@ export const SupplierCreatePage = () => {
             });
             if (res.success) {
                 toast.success(res.message || 'Tạo nhà cung cấp thành công.');
-                navigate(ROUTES.ADMIN.SUPPLIER.LIST);
+                router.push(ROUTES.ADMIN.SUPPLIER.LIST);
             } else {
                 toast.error(res.message || 'Tạo nhà cung cấp thất bại.');
             }
@@ -105,14 +104,14 @@ export const SupplierCreatePage = () => {
 
     return (
         <Box sx={{ maxWidth: 900, mx: 'auto' }}>
-            <Breadcrumb
-                items={[
+            <PageHeader
+                title="Thêm nhà cung cấp"
+                breadcrumbItems={[
                     { label: 'Vé số', to: ROUTES.ADMIN.TICKETS.LIST },
                     { label: 'Nhà cung cấp', to: ROUTES.ADMIN.SUPPLIER.LIST },
                     { label: 'Thêm mới' },
                 ]}
             />
-            <Title title="Thêm nhà cung cấp" />
 
             <form onSubmit={handleSubmit(onSubmit)} noValidate>
                 <CollapsibleCard title="Thông tin nhà cung cấp" expanded onToggle={() => undefined}>
@@ -123,16 +122,42 @@ export const SupplierCreatePage = () => {
                             onActiveToggle={handleActiveToggle}
                             hideIsActive={true}
                         />
-                        <LoadingButton
-                            type="submit"
-                            variant="contained"
-                            loading={isPending}
-                            label="Lưu"
-                            loadingLabel="Đang lưu..."
-                            sx={{ alignSelf: 'flex-start' }}
-                        />
                     </Stack>
                 </CollapsibleCard>
+
+                <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mt: 3 }}>
+                    <Controller
+                        name="isActive"
+                        control={control}
+                        render={({ field }) => (
+                            <FormControlLabel
+                                control={
+                                    <Switch
+                                        checked={field.value}
+                                        onChange={(e) => {
+                                            const nextActive = e.target.checked;
+                                            if (nextActive && !handleActiveToggle(true)) {
+                                                return;
+                                            }
+                                            if (!nextActive) {
+                                                handleActiveToggle(false);
+                                            }
+                                            field.onChange(nextActive);
+                                        }}
+                                    />
+                                }
+                                label={field.value ? 'Hoạt động' : 'Ngừng hoạt động'}
+                            />
+                        )}
+                    />
+                    <Button
+                        type="submit"
+                        variant="contained"
+                        loading={isPending}
+                        label="Lưu"
+                        loadingLabel="Đang lưu..."
+                    />
+                </Stack>
             </form>
         </Box>
     );

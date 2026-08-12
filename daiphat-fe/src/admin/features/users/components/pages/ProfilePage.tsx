@@ -3,37 +3,21 @@
 import { useEffect, useState, useRef } from "react";
 import { useMutation } from "@tanstack/react-query";
 import {
-    Box,
-    Card,
-    Stack,
-    Typography,
-    Avatar,
-    CircularProgress,
-    TextField,
-    InputAdornment,
-    IconButton,
-    List,
-    ListItemButton,
-    ListItemIcon,
-    ListItemText,
-    Button,
-} from "@mui/material";
+    Box, Card, Stack, Typography, Avatar, CircularProgress, TextField, InputAdornment, IconButton, List, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
 import Grid from "@mui/material/Grid";
-import { Icon } from "@iconify/react";
-import { Breadcrumb } from '../../../../components/ui/Breadcrumb';
-import { Title } from '../../../../components/ui/Title';
-import { useUpdateUser } from "../../hooks/useUsers";
+import { Icon } from '@/admin/components/ui/AdminIcon';
+import { PageHeader } from '../../../../components/ui/PageHeader';
+import { useUpdateUser, useUploadUserAvatar } from "../../hooks/useUsers";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { accountAdminSchema } from "../../../../schemas/account-admin.schema";
+import { accountAdminSchema } from "@/admin/features/users/schemas/account-admin.schema";
 import { toast } from "react-toastify";
 import { AxiosError } from "axios";
-import { uploadImagesToCloudinary } from '../../../../api/uploadCloudinary.api';
-import { LoadingButton } from '../../../../components/ui/LoadingButton';
+import { Button } from '../../../../components/ui/Button';
 import * as zod from "zod";
 import { useAuthStore } from "../../../../../stores/useAuthStore";
-import { authService } from "../../../../pages/authen/services/auth.service";
-import { PasswordPolicy } from "../../../../pages/authen/types/auth.type";
+import { authService } from "@/admin/features/auth/services/auth.service";
+import { PasswordPolicy } from "@/admin/features/auth/types/auth.type";
 
 const passwordSchema = zod.object({
     currentPassword: zod.string().min(1, "Vui lòng nhập mật khẩu hiện tại"),
@@ -130,6 +114,7 @@ export const ProfilePage = () => {
     const account = user;
 
     const { mutate: update, isPending: isUpdating } = useUpdateUser();
+    const { mutateAsync: uploadAvatar } = useUploadUserAvatar();
     const { mutate: changePassword, isPending: isChangingPassword } = useMutation({
         mutationFn: authService.changePassword,
     });
@@ -229,9 +214,12 @@ export const ProfilePage = () => {
         if (!file) return;
         try {
             setIsUploading(true);
-            const [url] = await uploadImagesToCloudinary([file]);
+            if (!id) {
+                throw new Error("Không xác định được tài khoản.");
+            }
+            const response = await uploadAvatar({ id: String(id), file });
+            const url = response.data?.avatarUrl || response.data?.avatar || "";
             setValue("avatar", url, { shouldValidate: true });
-            toast.success("Tải ảnh đại diện thành công!");
         } catch (error) {
             toast.error("Tải ảnh đại diện thất bại!");
         } finally {
@@ -240,10 +228,9 @@ export const ProfilePage = () => {
     };
 
     const onSubmit = (data: zod.infer<typeof accountAdminSchema>) => {
-        const payload = {
-            ...data,
-            avatar: data.avatar ?? undefined,
-        };
+        // Avatar is uploaded separately; omit the nullable form field from the
+        // profile update payload instead of passing `null` to the API contract.
+        const { avatar: _avatar, ...payload } = data;
 
         update({ id: id!, data: payload }, {
             onSuccess: () => {
@@ -280,16 +267,14 @@ export const ProfilePage = () => {
     return (
         <Box sx={{ maxWidth: '1200px', mx: 'auto', pb: 10 }}>
             {/* Header Area */}
-            <Box sx={{ mb: 4 }}>
-                <Title title="Quản lý hồ sơ" />
-                <Breadcrumb
-                    items={[
-                        { label: "Trang chủ", to: "/" },
-                        { label: "Admin", to: "#" },
-                        { label: "Hồ sơ cá nhân" }
-                    ]}
-                />
-            </Box>
+            <PageHeader
+                title="Quản lý hồ sơ"
+                breadcrumbItems={[
+                    { label: "Trang chủ", to: "/" },
+                    { label: "Admin", to: "#" },
+                    { label: "Hồ sơ cá nhân" }
+                ]}
+            />
 
             {/* Profile Header Card */}
             <Card sx={{
@@ -456,7 +441,7 @@ export const ProfilePage = () => {
                                         transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
                                         position: 'relative',
                                         '&.Mui-selected': {
-                                            bgcolor: 'rgba(0, 167, 111, 0.12)',
+                                            bgcolor: 'rgba(255, 48, 48, 0.12)',
                                             color: 'var(--palette-primary-main)',
                                             '&::before': {
                                                 content: '""',
@@ -468,7 +453,7 @@ export const ProfilePage = () => {
                                                 width: { xs: '60%', md: '4px' },
                                                 bgcolor: 'var(--palette-primary-main)',
                                                 borderRadius: '4px',
-                                                boxShadow: '0 0 8px rgba(0, 167, 111, 0.4)'
+                                                boxShadow: '0 0 8px rgba(255, 48, 48, 0.4)'
                                             },
                                             '& .MuiListItemIcon-root': {
                                                 color: 'var(--palette-primary-main)',
@@ -583,7 +568,7 @@ export const ProfilePage = () => {
                                         >
                                             Hủy
                                         </Button>
-                                        <LoadingButton
+                                        <Button
                                             type="submit"
                                             loading={isUpdating}
                                             label="Lưu thay đổi"
@@ -690,7 +675,7 @@ export const ProfilePage = () => {
                                     />
 
                                     <Stack direction="row" justifyContent="flex-end">
-                                        <LoadingButton
+                                        <Button
                                             type="submit"
                                             disabled={!isPasswordValid}
                                             loading={isChangingPassword}

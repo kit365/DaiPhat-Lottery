@@ -1,5 +1,24 @@
+import { Button } from '@/admin/components/ui/Button';
 import { SxProps, Theme } from '@mui/material/styles';
 import { DATA_GRID_COLORS as COLORS } from './colors';
+
+/** Chiều cao hàng chuẩn cho admin DataGrid (đồng bộ các trang list). */
+export const ADMIN_DATAGRID_ROW_HEIGHT = 56;
+export const ADMIN_DATAGRID_ROW_MIN_HEIGHT = 52;
+
+export const adminDataGridRowHeightProps = {
+    getRowHeight: () => 'auto' as const,
+    getEstimatedRowHeight: () => ADMIN_DATAGRID_ROW_HEIGHT,
+};
+
+export const adminDataGridRowHeightSx: SxProps<Theme> = {
+    '& .MuiDataGrid-cell': {
+        py: 1.5,
+    },
+    '& .MuiDataGrid-row': {
+        minHeight: `${ADMIN_DATAGRID_ROW_MIN_HEIGHT}px !important`,
+    },
+};
 
 /**
  * Layout-only leftovers for MUI `sx`.

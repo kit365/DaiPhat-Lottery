@@ -1,0 +1,109 @@
+package com.daiphat.coreapi.domain.service.streetagent;
+
+import com.daiphat.coreapi.domain.model.enums.streetagent.VendorLateReturnPolicy;
+import lombok.AccessLevel;
+import lombok.NoArgsConstructor;
+
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+
+@NoArgsConstructor(access = AccessLevel.PRIVATE)
+public final class VendorSettlementCalculator {
+
+    public record Result(
+            int soldQuantity,
+            int returnedQuantity,
+            BigDecimal grossCashRemitted,
+            BigDecimal commissionPayable,
+            BigDecimal depositRefundAmount,
+            BigDecimal depositForfeitedAmount,
+            BigDecimal depositAppliedAmount,
+            BigDecimal depositExcessRefundAmount,
+            BigDecimal forcedPurchaseAmount,
+            BigDecimal additionalAmountDue,
+            BigDecimal agencyNetSalesAmount
+    ) {}
+
+    /**
+     * Counter-facing, mutually exclusive cash movement.  This is deliberately derived in
+     * the domain calculator rather than reconstructed by a screen from gross/commission/
+     * deposit rows.  In particular FORCE_PURCHASE_ALL has a deposit offset that must not
+     * be shown as an additional cash collection.
+     */
+    public record CounterCashMovement(
+            BigDecimal dueFromVendor,
+            BigDecimal payableToVendor
+    ) {}
+
+    public static CounterCashMovement counterCashMovement(Result result) {
+        if (result == null) {
+            throw new IllegalArgumentException("Settlement result is required");
+        }
+        if (result.forcedPurchaseAmount().signum() > 0) {
+            return new CounterCashMovement(
+                    money(result.additionalAmountDue()),
+                    money(result.depositExcessRefundAmount()));
+        }
+
+        BigDecimal payable = result.commissionPayable()
+                .add(result.depositRefundAmount())
+                .add(result.depositExcessRefundAmount());
+        BigDecimal net = result.grossCashRemitted().subtract(payable);
+        return net.signum() >= 0
+                ? new CounterCashMovement(money(net), BigDecimal.ZERO)
+                : new CounterCashMovement(BigDecimal.ZERO, money(net.abs()));
+    }
+
+    public static Result calculate(
+            int allocatedQuantity,
+            int returnedQuantity,
+            BigDecimal faceValue,
+            BigDecimal vendorUnitPrice,
+            BigDecimal depositHeld,
+            boolean late,
+            VendorLateReturnPolicy latePolicy
+    ) {
+        validate(allocatedQuantity, returnedQuantity, faceValue, vendorUnitPrice, depositHeld, latePolicy);
+        int soldQuantity = allocatedQuantity - returnedQuantity;
+
+        if (late && latePolicy == VendorLateReturnPolicy.FORCE_PURCHASE_ALL) {
+            BigDecimal forcedPurchase = money(vendorUnitPrice.multiply(BigDecimal.valueOf(allocatedQuantity)));
+            BigDecimal applied = money(depositHeld.min(forcedPurchase));
+            BigDecimal excessRefund = money(depositHeld.subtract(applied));
+            BigDecimal due = money(forcedPurchase.subtract(applied));
+            return new Result(soldQuantity, returnedQuantity, forcedPurchase, BigDecimal.ZERO,
+                    BigDecimal.ZERO, BigDecimal.ZERO, applied, excessRefund, forcedPurchase, due, forcedPurchase);
+        }
+
+        BigDecimal gross = money(faceValue.multiply(BigDecimal.valueOf(soldQuantity)));
+        BigDecimal commissionPerTicket = faceValue.subtract(vendorUnitPrice);
+        BigDecimal commission = money(commissionPerTicket.multiply(BigDecimal.valueOf(soldQuantity)));
+        BigDecimal refund = late ? BigDecimal.ZERO : money(depositHeld);
+        BigDecimal forfeited = late ? money(depositHeld) : BigDecimal.ZERO;
+        return new Result(soldQuantity, returnedQuantity, gross, commission, refund, forfeited,
+                BigDecimal.ZERO, BigDecimal.ZERO,
+                BigDecimal.ZERO, BigDecimal.ZERO, money(gross.subtract(commission)));
+    }
+
+    private static void validate(
+            int allocatedQuantity,
+            int returnedQuantity,
+            BigDecimal faceValue,
+            BigDecimal vendorUnitPrice,
+            BigDecimal depositHeld,
+            VendorLateReturnPolicy latePolicy
+    ) {
+        if (allocatedQuantity < 0 || returnedQuantity < 0 || returnedQuantity > allocatedQuantity
+                || faceValue == null || faceValue.signum() < 0
+                || vendorUnitPrice == null || vendorUnitPrice.signum() < 0
+                || vendorUnitPrice.compareTo(faceValue) > 0
+                || depositHeld == null || depositHeld.signum() < 0
+                || latePolicy == null) {
+            throw new IllegalArgumentException("Invalid vendor settlement inputs");
+        }
+    }
+
+    private static BigDecimal money(BigDecimal value) {
+        return value.setScale(0, RoundingMode.HALF_UP);
+    }
+}

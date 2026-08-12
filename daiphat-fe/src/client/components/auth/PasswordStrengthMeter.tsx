@@ -1,6 +1,6 @@
 import React from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { PasswordPolicy } from "../../../admin/pages/authen/types/auth.type";
+import { PasswordPolicy } from "@/shared/auth/types/auth.type";
 
 interface Props {
   password?: string;

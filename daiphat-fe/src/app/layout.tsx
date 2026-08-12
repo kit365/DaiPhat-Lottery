@@ -1,35 +1,24 @@
 import type { Metadata } from 'next';
-import { Inter, Barlow, Public_Sans } from 'next/font/google';
 import '../index.css';
 import 'react-toastify/dist/ReactToastify.css';
 import '../styles/client.css';
+import { fontVariables } from '@/styles/fonts';
 import { Providers } from './providers';
 import { FontLoader } from '../components/FontLoader';
-
-const inter = Inter({
-  subsets: ['latin', 'vietnamese'],
-  weight: ['400', '500', '600', '700'],
-  variable: '--font-inter',
-  display: 'swap',
-});
-
-const barlow = Barlow({
-  subsets: ['latin'],
-  weight: ['400', '500', '600', '700', '800', '900'],
-  variable: '--font-barlow',
-  display: 'swap',
-});
-
-const publicSans = Public_Sans({
-  subsets: ['latin'],
-  weight: ['400', '500', '600', '700'],
-  variable: '--font-public-sans',
-  display: 'swap',
-});
+const DAI_PHAT_LOGO = 'https://i.ibb.co/YBYnq3HR/z7824247008533-94446d3b6c16598cda67404d805c15c4-removebg-preview.png';
+import { CLIENT_FAVICON } from '@/client/constants/clientBannerAssets';
 
 export const metadata: Metadata = {
-  title: 'Đại Phát Lottery Platform',
-  description: 'Nền tảng mua vé và theo dõi kết quả xổ số trực tuyến uy tín',
+  title: {
+    default: 'ĐẠI PHÁT | TÀI LỘC - MAY MẮN - THỊNH VƯỢNG',
+    template: '%s | ĐẠI PHÁT',
+  },
+  description: 'Hệ thống xổ số kiến thiết uy tín — nhanh chóng, minh bạch, bảo mật.',
+  icons: {
+    icon: CLIENT_FAVICON || DAI_PHAT_LOGO,
+    shortcut: CLIENT_FAVICON || DAI_PHAT_LOGO,
+    apple: CLIENT_FAVICON || DAI_PHAT_LOGO,
+  },
 };
 
 export default function RootLayout({
@@ -40,10 +29,13 @@ export default function RootLayout({
   return (
     <html
       lang="vi"
-      className={`${inter.variable} ${barlow.variable} ${publicSans.variable}`}
+      className={fontVariables}
       suppressHydrationWarning
     >
       <head>
+        <link rel="icon" type="image/jpeg" href={DAI_PHAT_LOGO} />
+        <link rel="shortcut icon" href={DAI_PHAT_LOGO} />
+        <link rel="apple-touch-icon" href={DAI_PHAT_LOGO} />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
       </head>

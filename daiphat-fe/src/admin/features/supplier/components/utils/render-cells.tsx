@@ -1,17 +1,16 @@
 "use client";
 
-import type { ReactElement } from 'react';
+import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
 import { Link } from '@mui/material';
-import { GridActionsCell, GridActionsCellItem, GridRenderCellParams } from '@mui/x-data-grid';
-import { EditIcon } from '../../../../assets/icons/index';
-import { useNavigate } from '@/components/router-compat';
+import { GridRenderCellParams } from '@mui/x-data-grid';
 import { ROUTES } from '../../../../constants/routes';
 import { PERMISSIONS } from '../../../../constants/permission.constants';
 import { useAuthStore } from '../../../../../stores/useAuthStore';
+import { AdminRowActionsMenu } from '../../../../components/ui/AdminRowActionsMenu';
 import { getSupplierStatusLabel, getSupplierTypeLabel } from '../../utils/supplierLabels';
 
 export const RenderNameCell = (params: GridRenderCellParams) => {
-    const navigate = useNavigate();
+    const router = useAdminRouter();
     const id = params.row.id;
 
     return (
@@ -20,7 +19,7 @@ export const RenderNameCell = (params: GridRenderCellParams) => {
             className="admin-cell-title"
             onClick={(e) => {
                 e.preventDefault();
-                navigate(ROUTES.ADMIN.SUPPLIER.DETAIL(id));
+                router.push(ROUTES.ADMIN.SUPPLIER.DETAIL(id));
             }}
             underline="hover"
         >
@@ -44,7 +43,7 @@ export const RenderStatusCell = (params: GridRenderCellParams) => {
 };
 
 export const RenderActionsCell = (params: GridRenderCellParams) => {
-    const navigate = useNavigate();
+    const router = useAdminRouter();
     const { user } = useAuthStore();
     const roleCode = typeof user?.role === 'string' ? user.role : user?.role?.code || '';
     const isAdmin = roleCode === 'ADMIN' || roleCode === 'SUPER_ADMIN';
@@ -55,16 +54,16 @@ export const RenderActionsCell = (params: GridRenderCellParams) => {
         return null;
     }
 
-    const items: ReactElement[] = [
-        <GridActionsCellItem
-            key="edit"
-            className="admin-menu-item"
-            icon={<EditIcon />}
-            label="Chỉnh sửa"
-            showInMenu
-            onClick={() => navigate(ROUTES.ADMIN.SUPPLIER.EDIT(id))}
-        />,
-    ];
-
-    return <GridActionsCell {...params}>{items}</GridActionsCell>;
+    return (
+        <AdminRowActionsMenu
+            items={[
+                {
+                    id: 'edit',
+                    label: 'Chỉnh sửa',
+                    icon: 'edit',
+                    onClick: () => router.push(ROUTES.ADMIN.SUPPLIER.EDIT(id)),
+                },
+            ]}
+        />
+    );
 };

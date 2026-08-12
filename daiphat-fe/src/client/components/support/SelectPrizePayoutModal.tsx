@@ -1,5 +1,5 @@
+import { useRouter } from "next/navigation";
 import React, { useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useGetMyPrizePayouts } from '../../hooks/usePrizePayout';
 import {
     formatPrizePayoutCurrency,
@@ -41,7 +41,7 @@ export const SelectPrizePayoutModal: React.FC<SelectPrizePayoutModalProps> = ({
     onSelect,
     selectedPrizePayoutId,
 }) => {
-    const navigate = useNavigate();
+    const router = useRouter();
     const { data: payoutsData, isLoading } = useGetMyPrizePayouts({ page: 1, limit: 100 }, isOpen);
     const { data: waitHoursConfig } = usePublicSystemConfig('PRIZE_PAYOUT_COMPLAINT_PROCESSING_WAIT_HOURS');
     const { data: graceDaysConfig } = usePublicSystemConfig('PRIZE_PAYOUT_COMPLAINT_GRACE_DAYS');
@@ -58,7 +58,7 @@ export const SelectPrizePayoutModal: React.FC<SelectPrizePayoutModalProps> = ({
 
     const handleGoToPayouts = () => {
         onClose();
-        navigate('/profile/prize-payouts');
+        router.push('/profile/prize-payouts');
     };
 
     return (

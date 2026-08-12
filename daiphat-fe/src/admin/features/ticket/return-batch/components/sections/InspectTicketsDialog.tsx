@@ -5,41 +5,12 @@ import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
 import ReportProblemIcon from '@mui/icons-material/ReportProblem';
 import SearchIcon from '@mui/icons-material/Search';
-import {
-    Alert,
-    Box,
-    Button,
-    Card,
-    Checkbox,
-    Chip,
-    CircularProgress,
-    Collapse,
-    Dialog,
-    DialogActions,
-    DialogContent,
-    DialogTitle,
-    IconButton,
-    InputAdornment,
-    Paper,
-    Radio,
-    RadioGroup,
-    Stack,
-    Tab,
-    Table,
-    TableBody,
-    TableCell,
-    TableContainer,
-    TableHead,
-    TableRow,
-    Tabs,
-    TextField,
-    Typography,
-} from '@mui/material';
+import { Alert, Box, Card, Checkbox, Chip, CircularProgress, Collapse, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, InputAdornment, Paper, Radio, RadioGroup, Stack, Tab, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Tabs, TextField, Typography } from '@mui/material';
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'react-toastify';
 import Swal from 'sweetalert2';
-import { LoadingButton } from '../../../../../components/ui/LoadingButton';
-import { ReportSerialFaultPane } from '../../../import-batch/components/sections/ReportSerialFaultPane';
+import { Button } from '../../../../../components/ui/Button';
+import { LazyReportSerialFaultPane } from '../../../import-batch/components/sections/LazyReportSerialFaultPane';
 import type { CancelSelectedSerial } from '../../../import-batch/hooks/useCancelTicketSelection';
 import { formatImportCost } from '../../../import-batch/utils/importCostCalculator';
 import { isFaultyTicketCondition, normalizeSerialStatus } from '../../../import-batch/utils/serialIncidentWorkflow';
@@ -304,7 +275,7 @@ export const InspectTicketsDialog = ({
                 <tr style="border-bottom: 1px solid #F1F5F9;">
                     <td style="padding: 8px 0; font-weight: 600; color: #334155;">${st.stationName}</td>
                     <td style="padding: 8px 0; text-align: center; color: #0284C7; font-weight: 600;">${st.count} vé</td>
-                    <td style="padding: 8px 0; text-align: right; font-weight: 700; color: #00A76F;">${formatImportCost(st.totalCost)} VNĐ</td>
+                    <td style="padding: 8px 0; text-align: right; font-weight: 700; color: #FF3030;">${formatImportCost(st.totalCost)} VNĐ</td>
                 </tr>
             `
             )
@@ -329,7 +300,7 @@ export const InspectTicketsDialog = ({
                         </div>
                         <div style="display: flex; justify-content: space-between;">
                             <span style="color: #64748B;">Tổng giá trị vốn ước tính:</span>
-                            <span style="font-weight: 700; color: #00A76F; font-size: 0.95rem;">${formatImportCost(inStockValue)} VNĐ</span>
+                            <span style="font-weight: 700; color: #FF3030; font-size: 0.95rem;">${formatImportCost(inStockValue)} VNĐ</span>
                         </div>
                     </div>
 
@@ -358,7 +329,7 @@ export const InspectTicketsDialog = ({
             `,
             icon: 'question',
             showCancelButton: true,
-            confirmButtonColor: '#00A76F',
+            confirmButtonColor: '#FF3030',
             cancelButtonColor: '#919EAB',
             confirmButtonText: 'Xác nhận ngay',
             cancelButtonText: 'Hủy bỏ',
@@ -426,7 +397,7 @@ export const InspectTicketsDialog = ({
                         </Alert>
                     )}
                     {activeStep === 'REPORT' && (
-                        <ReportSerialFaultPane
+                        <LazyReportSerialFaultPane
                             serials={selectedSerialsForReport}
                             ticketNumbers={reportDialogProps.ticketNumbers}
                             ticketId={reportDialogProps.ticketId}
@@ -489,17 +460,17 @@ export const InspectTicketsDialog = ({
                                             borderRadius: '10px',
                                             cursor: 'pointer',
                                             borderColor:
-                                                deliveryMode === 'RETAILER_DELIVERS' ? '#00A76F' : '#E5E7EB',
+                                                deliveryMode === 'RETAILER_DELIVERS' ? '#FF3030' : '#E5E7EB',
                                             bgcolor: deliveryMode === 'RETAILER_DELIVERS' ? '#F4FBF7' : '#fff',
                                             display: 'flex',
                                             alignItems: 'flex-start',
                                             boxShadow:
                                                 deliveryMode === 'RETAILER_DELIVERS'
-                                                    ? '0 0 0 1px #00A76F'
+                                                    ? '0 0 0 1px #FF3030'
                                                     : 'none',
                                             transition: 'all 0.2s ease-in-out',
                                             boxSizing: 'border-box',
-                                            '&:hover': { borderColor: '#00A76F' },
+                                            '&:hover': { borderColor: '#FF3030' },
                                         }}
                                     >
                                         <Radio
@@ -509,7 +480,7 @@ export const InspectTicketsDialog = ({
                                                 mt: -0.25,
                                                 mr: 1.25,
                                                 color: '#919EAB',
-                                                '&.Mui-checked': { color: '#00A76F' },
+                                                '&.Mui-checked': { color: '#FF3030' },
                                             }}
                                         />
                                         <Box sx={{ flex: 1 }}>
@@ -538,17 +509,17 @@ export const InspectTicketsDialog = ({
                                             borderRadius: '10px',
                                             cursor: 'pointer',
                                             borderColor:
-                                                deliveryMode === 'SUPPLIER_COLLECTS' ? '#00A76F' : '#E5E7EB',
+                                                deliveryMode === 'SUPPLIER_COLLECTS' ? '#FF3030' : '#E5E7EB',
                                             bgcolor: deliveryMode === 'SUPPLIER_COLLECTS' ? '#F4FBF7' : '#fff',
                                             display: 'flex',
                                             alignItems: 'flex-start',
                                             boxShadow:
                                                 deliveryMode === 'SUPPLIER_COLLECTS'
-                                                    ? '0 0 0 1px #00A76F'
+                                                    ? '0 0 0 1px #FF3030'
                                                     : 'none',
                                             transition: 'all 0.2s ease-in-out',
                                             boxSizing: 'border-box',
-                                            '&:hover': { borderColor: '#00A76F' },
+                                            '&:hover': { borderColor: '#FF3030' },
                                         }}
                                     >
                                         <Radio
@@ -558,7 +529,7 @@ export const InspectTicketsDialog = ({
                                                 mt: -0.25,
                                                 mr: 1.25,
                                                 color: '#919EAB',
-                                                '&.Mui-checked': { color: '#00A76F' },
+                                                '&.Mui-checked': { color: '#FF3030' },
                                             }}
                                         />
                                         <Box sx={{ flex: 1 }}>
@@ -695,7 +666,7 @@ export const InspectTicketsDialog = ({
                                             <Typography variant="caption" color="text.secondary">
                                                 Tổng giá vốn:
                                             </Typography>
-                                            <Typography variant="caption" fontWeight={700} color="#00A76F">
+                                            <Typography variant="caption" fontWeight={700} color="#FF3030">
                                                 {formatImportCost(item.totalCost)} VNĐ
                                             </Typography>
                                         </Box>
@@ -742,9 +713,9 @@ export const InspectTicketsDialog = ({
                                     fontSize: '0.85rem',
                                     py: 0.5,
                                     color: '#6B7280',
-                                    '&.Mui-selected': { color: '#00A76F' },
+                                    '&.Mui-selected': { color: '#FF3030' },
                                 },
-                                '& .MuiTabs-indicator': { backgroundColor: '#00A76F' },
+                                '& .MuiTabs-indicator': { backgroundColor: '#FF3030' },
                             }}
                         >
                             <Tab label={`Tất cả (${inStockSerials.length})`} value="ALL" />
@@ -994,7 +965,7 @@ export const InspectTicketsDialog = ({
                                 Báo tình trạng ({selectedSerialIds.size})
                             </Button>
                         ) : (
-                            <LoadingButton
+                            <Button
                                 label="Xác nhận kiểm tra"
                                 className="btn-primary-admin"
                                 loading={confirmInspection.isPending}

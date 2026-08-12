@@ -44,6 +44,9 @@ public class LotteryTicketSerialModel {
     private LocalDateTime reservedAt;
     private LocalDateTime reservationExpiresAt;
     private UUID reservedByOrderId;
+    private Long reservedByAllocationBatchId;
+    @Builder.Default private boolean lucky = false;
+    private String luckyBadges;
     private UUID importedById;
     private LocalDateTime importedAt;
 

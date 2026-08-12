@@ -1,17 +1,18 @@
 "use client";
 
-import { Breadcrumb } from '../../../../components/ui/Breadcrumb';
-import { Title } from '../../../../components/ui/Title';
+import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
+import { useRouteParams } from "@/hooks/useRouteParams";
+import { PageHeader } from '../../../../components/ui/PageHeader';
+import { SpinnerLoading } from '../../../../components/ui/SpinnerLoading';
 import { useUserDetail, useInitiateUserPasswordReset, useConfirmUserPasswordReset } from "../../hooks/useUsers";
 import { prefixAdmin } from '../../../../constants/routes';
 import { toast } from "react-toastify";
-import { useNavigate, useParams } from "react-router-dom";
-import { Box, CircularProgress } from "@mui/material";
+import { Box } from "@mui/material";
 import { UserPasswordResetCard } from "../sections/UserPasswordResetCard";
 
 export const ClientChangePasswordPage = () => {
-    const { id } = useParams();
-    const navigate = useNavigate();
+    const { id } = useRouteParams();
+    const router = useAdminRouter();
     const { data: user, isLoading } = useUserDetail(id);
     const { mutate: initiateReset, isPending: isInitiating } = useInitiateUserPasswordReset();
     const { mutate: confirmReset, isPending: isConfirming } = useConfirmUserPasswordReset();
@@ -36,7 +37,7 @@ export const ClientChangePasswordPage = () => {
         confirmReset({ id: id!, otp }, {
             onSuccess: () => {
                 toast.success("Đặt lại mật khẩu thành công! Mật khẩu mới đã được gửi đến email người dùng.");
-                navigate(`/${prefixAdmin}/account-user/list`);
+                router.push(`/${prefixAdmin}/account-user/list`);
             },
             onError: (error: any) => {
                 toast.error(error.response?.data?.message || "Xác thực OTP thất bại");
@@ -45,23 +46,29 @@ export const ClientChangePasswordPage = () => {
     };
 
     if (isLoading) return (
-        <Box sx={{ display: 'flex', justifyContent: 'center', py: 5 }}>
-            <CircularProgress />
+        <Box sx={{ maxWidth: '600px', mx: 'auto' }}>
+            <PageHeader
+                title="Đặt lại mật khẩu"
+                breadcrumbItems={[
+                    { label: "Dashboard", to: "/" },
+                    { label: "Khách hàng", to: `/${prefixAdmin}/account-user/list` },
+                    { label: "Đặt lại mật khẩu" }
+                ]}
+            />
+            <SpinnerLoading />
         </Box>
     );
 
     return (
         <Box sx={{ maxWidth: '600px', mx: 'auto' }}>
-            <Box sx={{ mb: 5 }}>
-                <Title title="Đặt lại mật khẩu" />
-                <Breadcrumb
-                    items={[
-                        { label: "Dashboard", to: "/" },
-                        { label: "Khách hàng", to: `/${prefixAdmin}/account-user/list` },
-                        { label: "Đặt lại mật khẩu" }
-                    ]}
-                />
-            </Box>
+            <PageHeader
+                title="Đặt lại mật khẩu"
+                breadcrumbItems={[
+                    { label: "Dashboard", to: "/" },
+                    { label: "Khách hàng", to: `/${prefixAdmin}/account-user/list` },
+                    { label: "Đặt lại mật khẩu" }
+                ]}
+            />
 
             <UserPasswordResetCard
                 accountName={user?.fullName}
@@ -70,7 +77,7 @@ export const ClientChangePasswordPage = () => {
                 isConfirming={isConfirming}
                 onInitiate={handleInitiate}
                 onConfirm={handleConfirm}
-                onCancel={() => navigate(-1)}
+                onCancel={() => router.back()}
             />
         </Box>
     );

@@ -26,12 +26,36 @@ export interface FortuneCastResult {
   buyPath: string;
   alreadyCastToday: boolean;
   previousCastSummary?: FortuneCastPreviousSummary | null;
+  /** ISO-8601 instant when the next cast unlocks; null when not in cooldown */
+  nextUnlockAt?: string | null;
 }
 
-export const castFortune = async (birthYear?: number): Promise<FortuneCastResult> => {
+export interface CastFortunePayload {
+  birthYear?: number;
+  /** ISO date YYYY-MM-DD */
+  birthDate?: string;
+  randomElement?: boolean;
+}
+
+export const castFortune = async (payload?: CastFortunePayload): Promise<FortuneCastResult> => {
+  const body: CastFortunePayload = {};
+  const currentYear = new Date().getFullYear();
+  if (payload?.birthDate) {
+    body.birthDate = payload.birthDate;
+  } else if (payload?.birthYear != null) {
+    body.birthYear = payload.birthYear;
+  }
+  if (payload?.randomElement) {
+    body.randomElement = true;
+    // Defensive fallback: keep request valid even if backend ignores randomElement flag.
+    if (body.birthYear == null && !body.birthDate) {
+      body.birthYear = currentYear;
+    }
+  }
+
   const response = await apiApp.post<ApiResponse<FortuneCastResult>>(
     '/fortune/cast',
-    birthYear != null ? { birthYear } : {},
+    Object.keys(body).length > 0 ? body : {},
     { skipGlobalErrorToast: true } as CustomAxiosConfig
   );
   if (!response.data?.data) {

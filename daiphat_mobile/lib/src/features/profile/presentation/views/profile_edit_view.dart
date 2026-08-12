@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import '../viewmodels/profile_viewmodel.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
+import 'package:daiphat_mobile/src/shared/utils/app_toast.dart';
 import 'package:daiphat_mobile/src/features/profile/data/dto/update_profile_request.dart';
 
 class ProfileEditView extends StatefulWidget {
@@ -28,7 +29,6 @@ class _ProfileEditViewState extends State<ProfileEditView> {
   late TextEditingController _emailController;
   late TextEditingController _dobController;
   late TextEditingController _genderController;
-  late TextEditingController _addressController;
 
   @override
   void initState() {
@@ -46,7 +46,6 @@ class _ProfileEditViewState extends State<ProfileEditView> {
     _emailController = TextEditingController(text: user?.email ?? '');
     _dobController = TextEditingController(text: user?.dob ?? '');
     _genderController = TextEditingController(text: user?.gender ?? 'Nam');
-    _addressController = TextEditingController(text: user?.address ?? '');
   }
 
   @override
@@ -58,13 +57,13 @@ class _ProfileEditViewState extends State<ProfileEditView> {
     _emailController.dispose();
     _dobController.dispose();
     _genderController.dispose();
-    _addressController.dispose();
     super.dispose();
   }
 
   Future<void> _pickAvatar() async {
     final picker = ImagePicker();
     final pickedFile = await picker.pickImage(source: ImageSource.gallery);
+    if (!mounted) return;
     if (pickedFile != null) {
       setState(() {
         _selectedAvatarFile = pickedFile;
@@ -73,46 +72,36 @@ class _ProfileEditViewState extends State<ProfileEditView> {
   }
 
   void _onSave() async {
-    if (_formKey.currentState!.validate()) {
-      if (_selectedAvatarFile != null) {
-        final avatarSuccess = await widget.viewModel.uploadAvatar(_selectedAvatarFile!.path);
-        if (!avatarSuccess && mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(widget.viewModel.errorMessage ?? 'Tải ảnh thất bại'),
-              backgroundColor: Colors.red,
-            ),
-          );
-          return;
-        }
-      }
+    final formState = _formKey.currentState;
+    if (formState == null || !formState.validate()) return;
 
-      final request = UpdateProfileRequest(
-        firstName: _tenController.text.trim(),
-        lastName: _hoController.text.trim(),
-        phone: _phoneController.text,
-        email: _emailController.text,
-        dob: _dobController.text,
-        gender: _genderController.text,
-        address: _addressController.text,
-      );
-
-      final success = await widget.viewModel.updateProfile(request);
-      
+    final selectedAvatar = _selectedAvatarFile;
+    if (selectedAvatar != null) {
+      final avatarSuccess = await widget.viewModel.uploadAvatar(selectedAvatar.path);
       if (!mounted) return;
-      if (success) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Cập nhật thành công')),
-        );
-        context.pop();
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(widget.viewModel.errorMessage ?? 'Cập nhật thất bại'),
-            backgroundColor: Colors.red,
-          ),
-        );
+      if (!avatarSuccess) {
+        AppToast.error(widget.viewModel.errorMessage ?? 'Tải ảnh thất bại');
+        return;
       }
+    }
+
+    final request = UpdateProfileRequest(
+      firstName: _tenController.text.trim(),
+      lastName: _hoController.text.trim(),
+      phone: _phoneController.text,
+      email: _emailController.text,
+      dob: _dobController.text,
+      gender: _genderController.text,
+    );
+
+    final success = await widget.viewModel.updateProfile(request);
+
+    if (!mounted) return;
+    if (success) {
+      AppToast.success('Cập nhật thành công');
+      context.pop();
+    } else {
+      AppToast.error(widget.viewModel.errorMessage ?? 'Cập nhật thất bại');
     }
   }
 
@@ -200,11 +189,27 @@ class _ProfileEditViewState extends State<ProfileEditView> {
                             ]
                           ),
                           clipBehavior: Clip.antiAlias,
-                          child: _selectedAvatarFile != null
-                              ? Image.file(File(_selectedAvatarFile!.path), fit: BoxFit.cover)
-                              : (user?.avatarUrl != null && user!.avatarUrl!.isNotEmpty
-                                  ? Image.network(user.avatarUrl!, fit: BoxFit.cover)
-                                  : const Icon(Icons.person, size: 60, color: AppColors.textMuted)),
+                          child: () {
+                            final selectedAvatar = _selectedAvatarFile;
+                            final networkAvatar = user?.avatarUrl;
+                            if (selectedAvatar != null) {
+                              return Image.file(
+                                File(selectedAvatar.path),
+                                fit: BoxFit.cover,
+                              );
+                            }
+                            if (networkAvatar != null && networkAvatar.isNotEmpty) {
+                              return Image.network(
+                                networkAvatar,
+                                fit: BoxFit.cover,
+                              );
+                            }
+                            return const Icon(
+                              Icons.person,
+                              size: 60,
+                              color: AppColors.textMuted,
+                            );
+                          }(),
                         ),
                         Positioned(
                           right: 0,
@@ -264,8 +269,6 @@ class _ProfileEditViewState extends State<ProfileEditView> {
                     _buildDatePicker('Ngày sinh', _dobController),
                     const SizedBox(height: 16),
                     _buildGenderDropdown('Giới tính', _genderController),
-                    const SizedBox(height: 16),
-                    _buildTextField('Địa chỉ', _addressController),
                   ],
                 ),
               ),
@@ -425,7 +428,7 @@ class _ProfileEditViewState extends State<ProfileEditView> {
         ),
         const SizedBox(height: 8),
         DropdownButtonFormField<String>(
-          value: ['Nam', 'Nữ', 'Khác'].contains(controller.text) ? controller.text : 'Nam',
+          initialValue: ['Nam', 'Nữ', 'Khác'].contains(controller.text) ? controller.text : 'Nam',
           decoration: InputDecoration(
             filled: true,
             fillColor: const Color(0xFFF8F9FA),

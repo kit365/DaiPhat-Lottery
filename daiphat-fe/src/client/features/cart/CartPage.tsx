@@ -1,18 +1,27 @@
 "use client";
 
+import { useRouter } from "next/navigation";
+import Link from "next/link";
 import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { ROUTES } from '@/admin/constants/routes';
 import { Trash2, ChevronRight } from 'lucide-react';
 import { useCartStore, CartItem } from '../../../stores/useCartStore';
 import { useAuthStore } from '../../../stores/useAuthStore';
 import { Checkbox } from '../../components/ui/Checkbox';
+import { Breadcrumb } from '../../components/ui/Breadcrumb';
 import OrderSummary from './components/OrderSummary';
 import { CartQuantityControl } from './components/CartQuantityControl';
 import { validateAndSyncCartStock } from '../../utils/cartStock.util';
 import { AppToast as toast } from '../../../utils/toast.util';
+import {
+  CART_PROMO_BANNERS,
+  CLIENT_PAGE_BACKGROUND,
+  PROVINCE_ICON_FALLBACK,
+  TICKET_IMAGE_FALLBACK,
+} from '../../constants/clientBannerAssets';
 
 export const CartPage = () => {
-    const navigate = useNavigate();
+    const router = useRouter();
     const { items, updateQuantity, removeItem, clearBuyNow } = useCartStore();
     const { token, openLoginModal } = useAuthStore();
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -41,6 +50,21 @@ export const CartPage = () => {
         updateQuantity(item.id, 1);
     };
 
+    const handleDecreaseQty = (item: CartItem) => {
+        if (item.quantity <= 0) return;
+        updateQuantity(item.id, -1);
+    };
+
+    const handleRemoveItem = async (item: CartItem) => {
+        const confirmed = await toast.confirm(
+            `Bạn có chắc muốn xóa vé số ${item.numbers} (${item.province}) khỏi giỏ hàng?`,
+            'Xóa vé khỏi giỏ'
+        );
+        if (!confirmed) return;
+        removeItem(item.id);
+        setSelectedIds((prev) => prev.filter((id) => id !== item.id));
+    };
+
     const toggleSelectAll = () => {
         if (selectedIds.length === items.length) {
             setSelectedIds([]);
@@ -55,10 +79,15 @@ export const CartPage = () => {
         );
     };
 
-    const handleClearCart = () => {
-        const remainingIds = selectedIds.filter(id => !selectedIds.includes(id));
-        selectedIds.forEach(id => removeItem(id));
-        setSelectedIds(remainingIds);
+    const handleClearCart = async () => {
+        if (selectedIds.length === 0) return;
+        const confirmed = await toast.confirm(
+            `Bạn có chắc muốn xóa ${selectedIds.length} vé đã chọn khỏi giỏ hàng?`,
+            'Xóa tất cả'
+        );
+        if (!confirmed) return;
+        selectedIds.forEach((id) => removeItem(id));
+        setSelectedIds([]);
     };
 
     const selectedItems = items.filter(i => selectedIds.includes(i.id) && i.quantity > 0);
@@ -68,17 +97,19 @@ export const CartPage = () => {
     return (
         <div 
             className="client-page min-h-screen flex flex-col pb-20 bg-fixed bg-cover bg-center"
-            style={{ backgroundImage: 'url("https://i.ibb.co/BVFGYpL1/86f05f70-fcf8-445f-978e-a0539eb2f0de.png")' }}
+            style={{ backgroundImage: `url("${CLIENT_PAGE_BACKGROUND}")` }}
         >
             {/* Top Section for Breadcrumb & Title (Transparent to show background) */}
             <div className="w-full mt-[70px] lg:mt-[80px] py-4 lg:py-6">
                 <div className="w-full max-w-[1440px] mx-auto px-4 lg:px-8">
                     <div className="flex flex-col">
-                        <div className="flex items-center gap-2 text-[13px] text-[#637381] mb-2 font-medium">
-                            <Link to="/" className="hover:text-[#ee1314] transition-colors">Trang chủ</Link>
-                            <ChevronRight size={14} />
-                            <span className="text-[#212B36] font-medium">Giỏ hàng</span>
-                        </div>
+                        <Breadcrumb
+                            items={[
+                                { label: 'Trang chủ', to: '/' },
+                                { label: 'Giỏ hàng' }
+                            ]}
+                            className="mb-2"
+                        />
                         <h1 className="client-heading mb-1 tracking-tight">Giỏ hàng</h1>
                         <p className="client-body">Kiểm tra lại vé số trước khi thanh toán</p>
                     </div>
@@ -137,14 +168,14 @@ export const CartPage = () => {
 
                                             {/* Vé số */}
                                             <div className="flex items-center gap-3">
-                                                <img src={item.ticketImg || 'https://i.ibb.co/TBf95cjX/6b561e49-2b8d-4dc5-b4c7-cff26a273abc.png'} alt="Vé" className="w-[80px] h-[50px] object-cover mix-blend-multiply border border-gray-100 rounded shrink-0" />
+                                                <img src={item.ticketImg || TICKET_IMAGE_FALLBACK} alt="Vé" className="w-[80px] h-[50px] object-cover mix-blend-multiply border border-gray-100 rounded shrink-0" />
                                                 <div className="font-bold text-[16px] text-[#212B36] tracking-tight">{item.numbers}</div>
                                             </div>
 
                                             {/* Đài & Ngày quay */}
                                             <div className="flex flex-col items-start gap-1">
                                                 <div className="flex items-center gap-2">
-                                                    <img src={item.provinceIcon || 'https://i.ibb.co/XrKTHt8g/t-i-xu-ng.png'} alt="Logo" className="w-5 h-5 rounded-full border border-gray-200" />
+                                                    <img src={item.provinceIcon || PROVINCE_ICON_FALLBACK} alt="Logo" className="w-5 h-5 rounded-full border border-gray-200" />
                                                     <span className="font-bold text-[13px] text-[#212B36]">{item.province}</span>
                                                 </div>
                                                 <div className="flex items-center gap-1.5 text-[12px] text-[#637381] pl-7">
@@ -158,9 +189,9 @@ export const CartPage = () => {
                                             <div className="flex flex-col items-center">
                                                 <CartQuantityControl
                                                     item={item}
-                                                    onDecrease={() => updateQuantity(item.id, -1)}
+                                                    onDecrease={() => handleDecreaseQty(item)}
                                                     onIncrease={() => handleIncreaseQty(item)}
-                                                    onRemove={() => removeItem(item.id)}
+                                                    onRemove={() => handleRemoveItem(item)}
                                                 />
                                             </div>
 
@@ -176,7 +207,12 @@ export const CartPage = () => {
 
                                             {/* Thao tác */}
                                             <div className="flex justify-center">
-                                                <button onClick={() => removeItem(item.id)} className="text-[#ee1314] hover:text-[#d00f10] transition-colors w-8 h-8 rounded-full hover:bg-[#FFF4F4] flex items-center justify-center">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleRemoveItem(item)}
+                                                    aria-label={`Xóa vé số ${item.numbers}`}
+                                                    className="text-[#ee1314] hover:text-[#d00f10] transition-colors w-8 h-8 rounded-full hover:bg-[#FFF4F4] flex items-center justify-center"
+                                                >
                                                     <Trash2 size={16} />
                                                 </button>
                                             </div>
@@ -187,7 +223,7 @@ export const CartPage = () => {
                                     <div className="py-12 flex flex-col items-center justify-center text-center">
                                         <div className="w-24 h-24 mb-4 opacity-50"><i className="fa-solid fa-cart-arrow-down text-[60px] text-gray-300"></i></div>
                                         <p className="text-[16px] text-[#212B36] font-medium mb-2">Giỏ hàng của bạn đang trống.</p>
-                                        <button onClick={() => navigate('/mua-ve')} className="text-[#ee1314] font-bold hover:underline">Mua vé ngay</button>
+                                        <button onClick={() => router.push('/mua-ve')} className="text-[#ee1314] font-bold hover:underline">Mua vé ngay</button>
                                     </div>
                                 )}
                             </div>
@@ -213,7 +249,7 @@ export const CartPage = () => {
                                             openLoginModal();
                                             return;
                                         }
-                                        navigate('/checkout');
+                                        router.push('/checkout');
                                     }}
                                     disabled={selectedItems.length === 0}
                                     className="w-full h-[48px] bg-[#ee1314] text-white font-bold rounded-lg hover:bg-[#d00f10] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-md shadow-[#ee1314]/20"
@@ -237,7 +273,7 @@ export const CartPage = () => {
                                 openLoginModal();
                                 return;
                             }
-                            navigate('/gieo-que');
+                            router.push(ROUTES.PUBLIC.FORTUNE);
                         }}
                         role="link"
                         tabIndex={0}
@@ -248,11 +284,11 @@ export const CartPage = () => {
                                     openLoginModal();
                                     return;
                                 }
-                                navigate('/gieo-que');
+                                router.push(ROUTES.PUBLIC.FORTUNE);
                             }
                         }}
                     >
-                        <img src="https://i.ibb.co/XxyrJVWS/7a8a0e84-06df-4227-83ee-c04c1551e3be.png" alt="Lắc quẻ tài lộc bg" className="w-full h-full absolute inset-0 z-0 transition-transform duration-500 group-hover:scale-105" />
+                        <img src={CART_PROMO_BANNERS[0]} alt="Lắc quẻ tài lộc bg" className="w-full h-full absolute inset-0 z-0 transition-transform duration-500 group-hover:scale-105" />
                         <div className="absolute inset-0 bg-black/10 z-0 pointer-events-none"></div>
                         
                         <div className="relative z-10 p-6 h-full flex flex-col justify-center w-[60%]">
@@ -268,7 +304,7 @@ export const CartPage = () => {
                                         openLoginModal();
                                         return;
                                     }
-                                    navigate('/gieo-que');
+                                    router.push(ROUTES.PUBLIC.FORTUNE);
                                 }}
                             >
                                 LẮC QUẺ NGAY <ChevronRight size={14} strokeWidth={3} />
@@ -278,7 +314,7 @@ export const CartPage = () => {
 
                     {/* Promo Banner 2 */}
                     <div className="w-full lg:w-[380px] shrink-0 relative rounded-[16px] overflow-hidden shadow-sm h-[180px] group cursor-pointer border border-[#E5E8EB]">
-                        <img src="https://i.ibb.co/60GvfsXg/dd112c65-2f34-421f-a417-b2ea7867d9ff.png" alt="Chat với AI bg" className="w-full h-full object-cover absolute inset-0 z-0 transition-transform duration-500 group-hover:scale-105" />
+                        <img src={CART_PROMO_BANNERS[1]} alt="Chat với AI bg" className="w-full h-full object-cover absolute inset-0 z-0 transition-transform duration-500 group-hover:scale-105" />
                         <div className="absolute inset-0 bg-black/10 z-0 pointer-events-none"></div>
 
                         <div className="relative z-10 p-5 h-full flex flex-col justify-center max-w-[65%]">
@@ -290,7 +326,6 @@ export const CartPage = () => {
                         </div>
                     </div>
                 </div>
-
             </main>
 
         </div>

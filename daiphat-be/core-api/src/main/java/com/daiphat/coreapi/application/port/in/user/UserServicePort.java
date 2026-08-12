@@ -13,6 +13,7 @@ import java.util.UUID;
 
 public interface UserServicePort {
     UserResponse create(CreateUserRequest request);
+    UserResponse createInternalStreetAgent(CreateUserRequest request);
     void update(UUID id, UpdateUserRequest request);
     UserResponse getById(UUID id);
     UserResponse getByUsername(String username);

@@ -6,6 +6,326 @@ import lombok.RequiredArgsConstructor;
 @Getter
 @RequiredArgsConstructor
 public enum SystemConfigEnum {
+    SITE_NAME(
+            ConfigType.GENERAL_SETTING,
+            DataType.STRING,
+            "ĐẠI PHÁT",
+            "Tên website hiển thị công khai",
+            "Tên Website",
+            null,
+            "{\"allowEmpty\":false,\"maxLength\":255}",
+            true
+    ),
+    SITE_DOMAIN(
+            ConfigType.GENERAL_SETTING,
+            DataType.STRING,
+            "",
+            "Tên miền chính thức của website (để trống nếu chưa cấu hình)",
+            "Tên miền Website",
+            null,
+            "{\"allowEmpty\":true,\"maxLength\":255}",
+            true
+    ),
+    SITE_LOGO_URL(
+            ConfigType.GENERAL_SETTING,
+            DataType.STRING,
+            "",
+            "URL logo website",
+            "Logo Website",
+            null,
+            "{\"allowEmpty\":true,\"maxLength\":2048}",
+            true
+    ),
+    SITE_FAVICON_URL(
+            ConfigType.GENERAL_SETTING,
+            DataType.STRING,
+            "",
+            "URL favicon website",
+            "Favicon Website",
+            null,
+            "{\"allowEmpty\":true,\"maxLength\":2048}",
+            true
+    ),
+    SITE_PHONE(
+            ConfigType.GENERAL_SETTING,
+            DataType.STRING,
+            "1900 636 365",
+            "Số điện thoại liên hệ công khai",
+            "Số điện thoại",
+            null,
+            "{\"allowEmpty\":true,\"maxLength\":50}",
+            true
+    ),
+    SITE_EMAIL(
+            ConfigType.GENERAL_SETTING,
+            DataType.STRING,
+            "hotro@daiphat.id.vn",
+            "Email liên hệ công khai",
+            "Email",
+            null,
+            "{\"allowEmpty\":true,\"maxLength\":255}",
+            true
+    ),
+    SITE_ADDRESS(
+            ConfigType.GENERAL_SETTING,
+            DataType.STRING,
+            "123 Lý Chính Thắng, Phường Võ Thị Sáu, Quận 3, Thành phố Hồ Chí Minh",
+            "Địa chỉ liên hệ công khai",
+            "Địa chỉ",
+            null,
+            "{\"allowEmpty\":true,\"maxLength\":500}",
+            true
+    ),
+    SITE_LEGAL_NAME(
+            ConfigType.GENERAL_SETTING,
+            DataType.STRING,
+            "ĐẠI PHÁT",
+            "Tên pháp lý của đơn vị sử dụng khi lập hợp đồng",
+            "Tên pháp lý đơn vị",
+            null,
+            "{\"allowEmpty\":true,\"maxLength\":500}",
+            true
+    ),
+    SITE_TAX_CODE(
+            ConfigType.GENERAL_SETTING,
+            DataType.STRING,
+            "0312345678",
+            "Mã số thuế hoặc mã số đăng ký kinh doanh của đơn vị",
+            "Mã số thuế / ĐKKD",
+            null,
+            "{\"allowEmpty\":true,\"maxLength\":50}",
+            true
+    ),
+    SITE_LEGAL_REPRESENTATIVE(
+            ConfigType.GENERAL_SETTING,
+            DataType.STRING,
+            "Nguyễn Văn Minh",
+            "Họ tên người đại diện ký hợp đồng của đơn vị",
+            "Người đại diện ký hợp đồng",
+            null,
+            "{\"allowEmpty\":true,\"maxLength\":255}",
+            true
+    ),
+    SITE_LEGAL_REPRESENTATIVE_TITLE(
+            ConfigType.GENERAL_SETTING,
+            DataType.STRING,
+            "Giám đốc",
+            "Chức danh người đại diện ký hợp đồng của đơn vị",
+            "Chức danh người đại diện",
+            null,
+            "{\"allowEmpty\":true,\"maxLength\":255}",
+            true
+    ),
+    SITE_CONTRACT_SIGNING_PLACE(
+            ConfigType.GENERAL_SETTING,
+            DataType.STRING,
+            "Thành phố Hồ Chí Minh",
+            "Địa điểm lập hợp đồng hiển thị trên bản PDF",
+            "Địa điểm lập hợp đồng",
+            null,
+            "{\"allowEmpty\":true,\"maxLength\":255}",
+            true
+    ),
+    SITE_COPYRIGHT(
+            ConfigType.GENERAL_SETTING,
+            DataType.STRING,
+            "© Đại Phát. All rights reserved.",
+            "Thông tin bản quyền hiển thị footer",
+            "Bản quyền (Copyright)",
+            null,
+            "{\"allowEmpty\":true,\"maxLength\":255}",
+            true
+    ),
+    SITE_FACEBOOK_URL(
+            ConfigType.GENERAL_SETTING,
+            DataType.STRING,
+            "",
+            "Liên kết Facebook công khai",
+            "Facebook",
+            null,
+            "{\"allowEmpty\":true,\"maxLength\":2048}",
+            true
+    ),
+    SITE_INSTAGRAM_URL(
+            ConfigType.GENERAL_SETTING,
+            DataType.STRING,
+            "",
+            "Liên kết Instagram công khai",
+            "Instagram",
+            null,
+            "{\"allowEmpty\":true,\"maxLength\":2048}",
+            true
+    ),
+    SITE_TELEGRAM_URL(
+            ConfigType.GENERAL_SETTING,
+            DataType.STRING,
+            "",
+            "Liên kết Telegram công khai (footer)",
+            "Telegram",
+            null,
+            "{\"allowEmpty\":true,\"maxLength\":2048}",
+            true
+    ),
+    SITE_SLOGAN(
+            ConfigType.GENERAL_SETTING,
+            DataType.STRING,
+            "TÀI LỘC - MAY MẮN - THỊNH VƯỢNG",
+            "Slogan hiển thị dưới tên thương hiệu (footer)",
+            "Slogan",
+            null,
+            "{\"allowEmpty\":true,\"maxLength\":255}",
+            true
+    ),
+    SITE_INTRO(
+            ConfigType.GENERAL_SETTING,
+            DataType.STRING,
+            "Đại Phát - Hệ thống xổ số kiến thiết uy tín hàng đầu Việt Nam. Nhanh chóng, minh bạch, bảo mật và luôn đồng hành cùng bạn trên hành trình may mắn.",
+            "Đoạn giới thiệu ngắn trên footer",
+            "Giới thiệu ngắn",
+            null,
+            "{\"allowEmpty\":true,\"maxLength\":1000}",
+            true
+    ),
+    SITE_SUPPORT_OPEN_TIME(
+            ConfigType.GENERAL_SETTING,
+            DataType.TIME,
+            "08:00",
+            "Giờ bắt đầu hỗ trợ hotline (mỗi ngày)",
+            "Giờ mở hỗ trợ",
+            "HH:mm",
+            "{\"min\":\"00:00\",\"max\":\"23:59\"}",
+            true
+    ),
+    SITE_SUPPORT_CLOSE_TIME(
+            ConfigType.GENERAL_SETTING,
+            DataType.TIME,
+            "22:00",
+            "Giờ kết thúc hỗ trợ hotline (mỗi ngày)",
+            "Giờ đóng hỗ trợ",
+            "HH:mm",
+            "{\"min\":\"00:00\",\"max\":\"23:59\"}",
+            true
+    ),
+    PAGE_ABOUT(
+            ConfigType.STATIC_PAGE,
+            DataType.JSON,
+            "{\"title\":\"Giới thiệu\",\"content\":\"\"}",
+            "Nội dung trang Giới thiệu",
+            "Trang Giới thiệu",
+            null,
+            "{}",
+            true
+    ),
+    PAGE_FAQ(
+            ConfigType.STATIC_PAGE,
+            DataType.JSON,
+            "{\"title\":\"Câu hỏi thường gặp\",\"content\":\"\"}",
+            "Nội dung trang FAQ",
+            "Trang FAQ",
+            null,
+            "{}",
+            true
+    ),
+    PAGE_PRIVACY(
+            ConfigType.STATIC_PAGE,
+            DataType.JSON,
+            "{\"title\":\"Chính sách bảo mật\",\"content\":\"\"}",
+            "Nội dung trang Chính sách bảo mật",
+            "Chính sách bảo mật",
+            null,
+            "{}",
+            true
+    ),
+    PAGE_TERMS(
+            ConfigType.STATIC_PAGE,
+            DataType.JSON,
+            "{\"title\":\"Điều khoản sử dụng\",\"content\":\"\"}",
+            "Nội dung trang Điều khoản sử dụng",
+            "Điều khoản sử dụng",
+            null,
+            "{}",
+            true
+    ),
+    PAGE_SHIPPING(
+            ConfigType.STATIC_PAGE,
+            DataType.JSON,
+            "{\"title\":\"Chính sách vận chuyển\",\"content\":\"\"}",
+            "Nội dung trang Chính sách vận chuyển",
+            "Chính sách vận chuyển",
+            null,
+            "{}",
+            true
+    ),
+    PAGE_RETURNS(
+            ConfigType.STATIC_PAGE,
+            DataType.JSON,
+            "{\"title\":\"Chính sách đổi trả\",\"content\":\"\"}",
+            "Nội dung trang Chính sách đổi trả",
+            "Chính sách đổi trả",
+            null,
+            "{}",
+            true
+    ),
+    PAGE_CONTACT(
+            ConfigType.STATIC_PAGE,
+            DataType.JSON,
+            "{\"title\":\"Liên hệ\",\"content\":\"\"}",
+            "Nội dung trang Liên hệ",
+            "Trang Liên hệ",
+            null,
+            "{}",
+            true
+    ),
+    PAGE_CAREERS(
+            ConfigType.STATIC_PAGE,
+            DataType.JSON,
+            "{\"title\":\"Tuyển dụng\",\"content\":\"\"}",
+            "Nội dung trang Tuyển dụng",
+            "Trang Tuyển dụng",
+            null,
+            "{}",
+            true
+    ),
+    PAGE_GUIDE_PLAY(
+            ConfigType.STATIC_PAGE,
+            DataType.JSON,
+            "{\"title\":\"Hướng dẫn chơi\",\"content\":\"\"}",
+            "Nội dung trang Hướng dẫn chơi",
+            "Hướng dẫn chơi",
+            null,
+            "{}",
+            true
+    ),
+    PAGE_GUIDE_BUY(
+            ConfigType.STATIC_PAGE,
+            DataType.JSON,
+            "{\"title\":\"Hướng dẫn mua vé\",\"content\":\"\"}",
+            "Nội dung trang Hướng dẫn mua vé",
+            "Hướng dẫn mua vé",
+            null,
+            "{}",
+            true
+    ),
+    PAGE_GUIDE_PAYMENT(
+            ConfigType.STATIC_PAGE,
+            DataType.JSON,
+            "{\"title\":\"Hướng dẫn thanh toán\",\"content\":\"\"}",
+            "Nội dung trang Hướng dẫn thanh toán",
+            "Hướng dẫn thanh toán",
+            null,
+            "{}",
+            true
+    ),
+    PAGE_GUIDE_PRIZE(
+            ConfigType.STATIC_PAGE,
+            DataType.JSON,
+            "{\"title\":\"Hướng dẫn nhận thưởng\",\"content\":\"\"}",
+            "Nội dung trang Hướng dẫn nhận thưởng",
+            "Hướng dẫn nhận thưởng",
+            null,
+            "{}",
+            true
+    ),
     ORDER_CANCEL_GRACE_MIN(
             ConfigType.ORDER_SETTING,
             DataType.INT,
@@ -46,18 +366,240 @@ public enum SystemConfigEnum {
             "{}",
             false
     ),
+    // Phase 3: snapshotted onto allocation batch at confirm; used for late-return settlement.
     VENDOR_RETURN_CUTOFF(
-            ConfigType.ORDER_SETTING,
+            ConfigType.VENDOR_SETTING,
             DataType.TIME,
             "15:00",
-            "Giờ chốt trả vé cho đại lý",
+            "Giờ chốt trả vé cho đại lý (Phase 3: snapshot khi xác nhận bàn giao)",
             "Giờ chốt trả vé đại lý",
             "HH:mm",
             "{\"min\":\"00:00\",\"max\":\"23:59\"}",
             true
     ),
+    VENDOR_EFFECTIVE_HANDOVER_DEADLINE_RULE(
+            ConfigType.VENDOR_SETTING,
+            DataType.STRING,
+            "Tự tính theo từng phiếu",
+            "Hạn giao thực tế không phải setting cố định. Hệ thống lấy mốc sớm hơn giữa giờ chốt người bán và giờ trả nhà cung cấp sớm nhất trừ thời gian đệm.",
+            "Cách tính hạn giao thực tế",
+            null,
+            "{\"allowEmpty\":false,\"maxLength\":255}",
+            false
+    ),
+    VENDOR_COMMISSION_RATE(
+            ConfigType.VENDOR_SETTING,
+            DataType.DECIMAL,
+            "0.10",
+            "Tỷ lệ hoa hồng chung trả cho người bán dạo trên mỗi vé bán thành công. Giá vendor được tính từ mệnh giá trừ tỷ lệ này.",
+            "Tỷ lệ hoa hồng vendor",
+            "%",
+            "{\"min\":0,\"max\":1}",
+            true
+    ),
+    VENDOR_DEFAULT_CONTRACT_MAX_DAILY_CAP(
+            ConfigType.VENDOR_SETTING,
+            DataType.INT,
+            "200",
+            "Hạn mức vé/ngày mặc định được ghi trong hợp đồng khi tạo vendor mới.",
+            "Hạn mức hợp đồng mặc định",
+            "vé/ngày",
+            "{\"min\":1,\"max\":100000}",
+            true
+    ),
+    VENDOR_DEPOSIT_RATE(
+            ConfigType.VENDOR_SETTING,
+            DataType.DECIMAL,
+            "0.10",
+            "Tỷ lệ tiền cọc tính trên tổng giá trị vendor của batch",
+            "Tỷ lệ cọc vendor",
+            "%",
+            "{\"min\":0,\"max\":1}",
+            true
+    ),
+    // Phase 3: snapshotted onto allocation batch at confirm; applied on late return settlement.
+    VENDOR_LATE_RETURN_POLICY(
+            ConfigType.VENDOR_SETTING,
+            DataType.STRING,
+            "FORFEIT_DEPOSIT",
+            "Chính sách xử lý khi vendor trả vé sau giờ chốt (Phase 3)",
+            "Chính sách trả vé trễ",
+            null,
+            "{\"allowedValues\":[\"FORFEIT_DEPOSIT\",\"FORCE_PURCHASE_ALL\"]}",
+            true
+    ),
+    VENDOR_DRAFT_RESERVATION_TTL_MINUTES(
+            ConfigType.VENDOR_SETTING,
+            DataType.INT,
+            "15",
+            "Thời gian giữ vé khi phiếu bàn giao ở trạng thái nháp",
+            "Thời gian giữ vé nháp",
+            "phút",
+            "{\"min\":1,\"max\":120}",
+            true
+    ),
+    VENDOR_CONFIDENCE_DEVELOPING_MIN_SCORE(
+            ConfigType.VENDOR_SETTING,
+            DataType.DECIMAL,
+            "40",
+            "Điểm tối thiểu để đạt tier DEVELOPING",
+            "Ngưỡng điểm DEVELOPING",
+            "điểm",
+            "{\"min\":0,\"max\":100}",
+            true
+    ),
+    VENDOR_CONFIDENCE_ESTABLISHED_MIN_SCORE(
+            ConfigType.VENDOR_SETTING,
+            DataType.DECIMAL,
+            "60",
+            "Điểm tối thiểu để đạt tier ESTABLISHED",
+            "Ngưỡng điểm ESTABLISHED",
+            "điểm",
+            "{\"min\":0,\"max\":100}",
+            true
+    ),
+    VENDOR_CONFIDENCE_TRUSTED_MIN_SCORE(
+            ConfigType.VENDOR_SETTING,
+            DataType.DECIMAL,
+            "80",
+            "Điểm tối thiểu để đạt tier TRUSTED",
+            "Ngưỡng điểm TRUSTED",
+            "điểm",
+            "{\"min\":0,\"max\":100}",
+            true
+    ),
+    VENDOR_CONFIDENCE_DEVELOPING_MIN_BATCHES(
+            ConfigType.VENDOR_SETTING,
+            DataType.INT,
+            "5",
+            "Số batch settle tối thiểu để mở trần DEVELOPING",
+            "Ngưỡng batch DEVELOPING",
+            "batch",
+            "{\"min\":1,\"max\":1000}",
+            true
+    ),
+    VENDOR_CONFIDENCE_ESTABLISHED_MIN_BATCHES(
+            ConfigType.VENDOR_SETTING,
+            DataType.INT,
+            "10",
+            "Số batch settle tối thiểu để mở trần ESTABLISHED",
+            "Ngưỡng batch ESTABLISHED",
+            "batch",
+            "{\"min\":1,\"max\":1000}",
+            true
+    ),
+    VENDOR_CONFIDENCE_TRUSTED_MIN_BATCHES(
+            ConfigType.VENDOR_SETTING,
+            DataType.INT,
+            "20",
+            "Số batch settle tối thiểu để mở trần TRUSTED",
+            "Ngưỡng batch TRUSTED",
+            "batch",
+            "{\"min\":1,\"max\":1000}",
+            true
+    ),
+    VENDOR_CONFIDENCE_NEW_CAP_PERCENT(
+            ConfigType.VENDOR_SETTING,
+            DataType.DECIMAL,
+            "0.25",
+            "Tỷ lệ daily cap cho tier NEW",
+            "Cap % NEW",
+            "%",
+            "{\"min\":0,\"max\":1}",
+            true
+    ),
+    VENDOR_CONFIDENCE_DEVELOPING_CAP_PERCENT(
+            ConfigType.VENDOR_SETTING,
+            DataType.DECIMAL,
+            "0.50",
+            "Tỷ lệ daily cap cho tier DEVELOPING",
+            "Cap % DEVELOPING",
+            "%",
+            "{\"min\":0,\"max\":1}",
+            true
+    ),
+    VENDOR_CONFIDENCE_ESTABLISHED_CAP_PERCENT(
+            ConfigType.VENDOR_SETTING,
+            DataType.DECIMAL,
+            "0.75",
+            "Tỷ lệ daily cap cho tier ESTABLISHED",
+            "Cap % ESTABLISHED",
+            "%",
+            "{\"min\":0,\"max\":1}",
+            true
+    ),
+    VENDOR_CONFIDENCE_TRUSTED_CAP_PERCENT(
+            ConfigType.VENDOR_SETTING,
+            DataType.DECIMAL,
+            "1.00",
+            "Tỷ lệ daily cap cho tier TRUSTED",
+            "Cap % TRUSTED",
+            "%",
+            "{\"min\":0,\"max\":1}",
+            true
+    ),
+    VENDOR_CONFIDENCE_ON_TIME_WEIGHT(
+            ConfigType.VENDOR_SETTING,
+            DataType.DECIMAL,
+            "0.50",
+            "Trọng số on-time trong công thức confidence (tổng 3 trọng số = 1)",
+            "Trọng số đúng hạn",
+            null,
+            "{\"min\":0,\"max\":1}",
+            true
+    ),
+    VENDOR_CONFIDENCE_SELL_THROUGH_WEIGHT(
+            ConfigType.VENDOR_SETTING,
+            DataType.DECIMAL,
+            "0.40",
+            "Trọng số sell-through trong công thức confidence (tổng 3 trọng số = 1)",
+            "Trọng số bán ra",
+            null,
+            "{\"min\":0,\"max\":1}",
+            true
+    ),
+    VENDOR_CONFIDENCE_EXPERIENCE_WEIGHT(
+            ConfigType.VENDOR_SETTING,
+            DataType.DECIMAL,
+            "0.10",
+            "Trọng số experience trong công thức confidence (tổng 3 trọng số = 1)",
+            "Trọng số kinh nghiệm",
+            null,
+            "{\"min\":0,\"max\":1}",
+            true
+    ),
+    VENDOR_CONFIDENCE_EXPERIENCE_WINDOW(
+            ConfigType.VENDOR_SETTING,
+            DataType.INT,
+            "30",
+            "Số batch settle gần nhất dùng để tính confidence",
+            "Cửa sổ kinh nghiệm",
+            "batch",
+            "{\"min\":1,\"max\":500}",
+            true
+    ),
+    STREET_AGENT_COUNTER_RESERVE_PER_STATION(
+            ConfigType.VENDOR_SETTING,
+            DataType.INT,
+            "10",
+            "Số vé thường tối thiểu phải chừa cho quầy trên mỗi đài xổ",
+            "Tồn tối thiểu chừa quầy",
+            "vé/đài",
+            "{\"min\":0,\"max\":100000}",
+            true
+    ),
+    STREET_AGENT_COUNTER_RESERVE_PERCENT_PER_STATION(
+            ConfigType.VENDOR_SETTING,
+            DataType.DECIMAL,
+            "0.20",
+            "Tỷ lệ vé thường hợp lệ phải chừa cho quầy tại mỗi đài. Mức giữ thực tế lấy giá trị lớn hơn giữa tỷ lệ này và tồn tối thiểu chừa quầy.",
+            "Tỷ lệ tồn chừa quầy",
+            "%",
+            "{\"min\":0,\"max\":1}",
+            true
+    ),
     RETURN_BUFFER_TIME(
-            ConfigType.TICKET_IMPORT,
+            ConfigType.TICKET_RETURN,
             DataType.INT,
             "45",
             "Thời gian đệm (phút) trước hạn trả vé của nhà cung cấp",
@@ -74,6 +616,26 @@ public enum SystemConfigEnum {
             "Nhắc kiểm tra trả vé",
             "phút",
             "{\"min\":1,\"max\":1440}",
+            true
+    ),
+    VERIFICATION_DEADLINE(
+            ConfigType.TICKET_RETURN,
+            DataType.TIME,
+            "17:00",
+            "Hạn chót đối chiếu / upload biên lai đối soát trong ngày (sau hạn trả vé NCC)",
+            "Hạn chót đối chiếu",
+            "HH:mm",
+            "{\"min\":\"00:00\",\"max\":\"23:59\"}",
+            true
+    ),
+    SETTLEMENT_BUFFER_TIME(
+            ConfigType.TICKET_RETURN,
+            DataType.INT,
+            "120",
+            "Thời gian đệm (phút) sau hạn chót đối chiếu để hoàn tất đối soát và thanh toán NCC",
+            "Thời gian đệm đối soát/thanh toán",
+            "phút",
+            "{\"min\":0,\"max\":1440}",
             true
     ),
     TICKET_AUTO_IMPORT_THRESHOLD(
@@ -264,6 +826,20 @@ public enum SystemConfigEnum {
             "Hoa hồng trả thưởng",
             "%",
             "{}",
+            true
+    ),
+    /**
+     * Wall-clock slot length in minutes (aligned from 00:00 Asia/Ho_Chi_Minh).
+     * Example: 60 = once per clock hour, 360 = every 6 hours, 1440 = once per calendar day.
+     */
+    FORTUNE_CAST_COOLDOWN_HOURS(
+            ConfigType.FORTUNE_SETTING,
+            DataType.INT,
+            "1440",
+            "Độ dài mỗi khung giờ mở gieo quẻ theo giờ đồng hồ Việt Nam (căn từ 0h). Ví dụ 60 = mỗi giờ, 360 = mỗi 6 giờ, 1440 = mỗi ngày. Không tính từ lúc khách gieo.",
+            "Khung giờ mở gieo quẻ",
+            "phút",
+            "{\"min\":1,\"max\":1440}",
             true
     );
 

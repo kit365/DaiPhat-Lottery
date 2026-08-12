@@ -1,7 +1,9 @@
-"use client";
+﻿"use client";
 
+import { useRouter } from "next/navigation";
+import { useRouteParams } from "@/hooks/useRouteParams";
+import Link from "next/link";
 import { useMemo, useState } from 'react';
-import { Link, useNavigate, useParams } from '@/components/router-compat';
 import { format } from 'date-fns';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAttachRefundBankAccount, useGetRefundDetail } from '../../../../hooks/useRefund';
@@ -17,20 +19,20 @@ import { RefundStatusBadge } from '../../../../components/refund/RefundStatusBad
 import { RefundStatusStepper } from '../../../../components/refund/RefundStatusStepper';
 import { RefundComplaintButton } from '../../../../components/support/RefundComplaintButton';
 import { BankAccountFormModal } from '../../../../components/refund/BankAccountFormModal';
-import { TransferEvidencePreview } from '../../../../../admin/pages/refund/components/TransferEvidencePreview';
+import { TransferEvidencePreview } from '@/admin/features/refund/components/TransferEvidencePreview';
 import {
     UnavailableReferenceState,
     UNAVAILABLE_REFERENCE_MESSAGE,
 } from '../../../../components/notification/UnavailableReferenceState';
 import { QUERY_KEYS } from '../../../../../constants/queryKeys';
+import { TICKET_IMAGE_FALLBACK } from '../../../../constants/clientBannerAssets';
 
 const REFUND_TYPE_LABELS: Record<RefundType, string> = {
     [RefundType.FULL_ORDER]: 'Hoàn cả đơn',
     [RefundType.ORDER_DETAIL]: 'Hoàn từng vé'
 };
 
-const FALLBACK_TICKET_IMG =
-    'https://i.ibb.co/TBf95cjX/6b561e49-2b8d-4dc5-b4c7-cff26a273abc.png';
+const FALLBACK_TICKET_IMG = TICKET_IMAGE_FALLBACK;
 
 function resolveIncidentReason(
     serialStatus?: string | null,
@@ -43,8 +45,8 @@ function resolveIncidentReason(
 }
 
 export const RefundDetailTab = () => {
-    const { id } = useParams<{ id: string }>();
-    const navigate = useNavigate();
+    const { id } = useRouteParams();
+    const router = useRouter();
     const queryClient = useQueryClient();
     const refundId = Number(id);
 
@@ -124,13 +126,13 @@ export const RefundDetailTab = () => {
             <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
                 <div className="min-w-0">
                     <button
-                        onClick={() => navigate('/profile/refunds')}
+                        onClick={() => router.push('/profile/refunds')}
                         className="text-[13px] text-[#637381] hover:text-[#ee1314] font-medium flex items-center gap-1.5 mb-2 cursor-pointer"
                     >
                         <i className="fa-solid fa-arrow-left text-[11px]"></i> Quay lại danh sách
                     </button>
                     <div className="flex items-center gap-3 flex-wrap">
-                        <h2 className="text-[22px] font-bold text-[#212B36]">Yêu cầu hoàn tiền #{refund.id}</h2>
+                        <h2 className="client-heading m-0">Yêu cầu hoàn tiền #{refund.id}</h2>
                         <RefundStatusBadge status={refund.status} />
                     </div>
                     <p className="text-[14px] text-[#637381] mt-1">
@@ -211,7 +213,7 @@ export const RefundDetailTab = () => {
                             <span className="text-[13px] text-[#637381]">Đơn hàng liên quan</span>
                             {refund.orderId ? (
                                 <Link
-                                    to={`/profile/orders/${refund.orderId}`}
+                                    href={`/profile/orders/${refund.orderId}`}
                                     className="text-[15px] font-semibold text-[#2065D1] hover:underline w-max"
                                 >
                                     {refund.orderCode?.trim() || 'Xem đơn hàng'}

@@ -1,7 +1,8 @@
 "use client";
 
+import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
 import { Bell, ChevronRight, Newspaper, ShieldCheck, MoreHorizontal, Check, Settings, Trash2 } from "lucide-react";
 import {
   useDeleteAllMyReadNotifications,
@@ -65,11 +66,13 @@ const getNotificationMeta = (type: NotificationResponse["type"]) => {
 };
 
 export const NotificationDropdown = () => {
-  const navigate = useNavigate();
+  const router = useRouter();
   const {
     notifications,
     unreadCount,
     isLoading,
+    isError,
+    isFetchNextPageError,
     isFetchingNextPage,
     hasNextPage,
     fetchNextPage,
@@ -103,13 +106,13 @@ export const NotificationDropdown = () => {
     const root = scrollContainerRef.current;
     const target = loadMoreRef.current;
 
-    if (!root || !target || !hasNextPage) {
+    if (!root || !target || !hasNextPage || isError || isFetchNextPageError) {
       return;
     }
 
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries[0]?.isIntersecting && hasNextPage && !isFetchingNextPage) {
+        if (entries[0]?.isIntersecting && hasNextPage && !isFetchingNextPage && !isFetchNextPageError && !isError) {
           fetchNextPage();
         }
       },
@@ -121,7 +124,7 @@ export const NotificationDropdown = () => {
 
     observer.observe(target);
     return () => observer.disconnect();
-  }, [fetchNextPage, hasNextPage, isFetchingNextPage]);
+  }, [fetchNextPage, hasNextPage, isFetchingNextPage, isError, isFetchNextPageError]);
 
   return (
     <div className="absolute top-full right-0 mt-2 w-[400px] bg-white rounded-2xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.15)] border border-[#E5E8EB] opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-[1100]">
@@ -212,13 +215,13 @@ export const NotificationDropdown = () => {
                     }
                     const result = await resolveNotificationNavigation(notification);
                     if (result.kind === "navigate") {
-                      navigate(result.path);
+                      router.push(result.path);
                       return;
                     }
                     if (result.kind === "unavailable") {
-                      navigate("/profile/notifications", {
-                        state: { unavailableMessage: result.message },
-                      } as any);
+                      router.push(
+                        `/profile/notifications?unavailableMessage=${encodeURIComponent(result.message)}`,
+                      );
                     }
                   }}
                   className={`relative flex gap-3 p-3 rounded-xl transition-colors hover:bg-slate-50 ${!notification.isRead ? "bg-[#FFF9F9]" : "bg-white opacity-[0.65]"
@@ -275,7 +278,7 @@ export const NotificationDropdown = () => {
 
       <div className="p-3 border-t border-[#E5E8EB] flex justify-center">
         <Link
-          to="/profile/notifications"
+          href="/profile/notifications"
           className={`flex items-center gap-1 py-1 font-bold text-[#ee1314] hover:underline transition-colors ${HEADER_DROPDOWN_ACTION_CLASS}`}
         >
           Xem tất cả thông báo <ChevronRight size={16} />

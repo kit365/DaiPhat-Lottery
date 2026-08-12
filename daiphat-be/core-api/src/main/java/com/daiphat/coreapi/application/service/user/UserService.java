@@ -42,6 +42,7 @@ import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -89,6 +90,34 @@ public class UserService implements UserServicePort {
                 .build());
 
         return userApplicationMapper.mapToUserResponse(savedUser);
+    }
+
+    @Override
+    @Transactional
+    public UserResponse createInternalStreetAgent(CreateUserRequest request) {
+        log.info("Creating internal non-login street agent identity for email: {}", request.email());
+
+        userValidationService.ensureEmailAvailable(request.email(), null);
+        userValidationService.ensurePhoneAvailable(request.phone(), null);
+        String internalUsername = internalStreetAgentUsername(request.phone());
+        userValidationService.ensureUsernameAvailable(internalUsername, null);
+
+        UserModel user = userApplicationMapper.toUserModel(request);
+        user.setUsername(internalUsername);
+        user.onboardInternalStreetAgentUser();
+        assignRoleToUser(user, RoleConstants.ROLE_STREET_AGENT);
+
+        // No password and no UserCreatedEvent: this identity is solely the
+        // one-to-one owner of a staff-managed street-agent profile.
+        return userApplicationMapper.mapToUserResponse(userRepositoryPort.save(user));
+    }
+
+    private String internalStreetAgentUsername(String phone) {
+        String normalizedPhone = phone == null ? "" : phone.replaceAll("\\D", "");
+        if (normalizedPhone.isBlank()) {
+            throw new DomainException(ErrorCode.PHONE_REQUIRED);
+        }
+        return "street-agent-" + normalizedPhone;
     }
 
     @Override
@@ -242,14 +271,14 @@ public class UserService implements UserServicePort {
     @Override
     @Transactional(readOnly = true)
     public PageResponse<UserResponse> getAll(int page, int size, String search, String status, List<String> roleIds, String sortBy, String direction) {
-        UserStatus userStatus = UserStatus.fromFilter(status);
+        List<UserStatus> statusFilters = parseStatusList(status);
 
         Sort sort = SortUtils.createSort(sortBy, direction);
 
         Page<UserModel> userPage = userRepositoryPort.findAll(
                 PageableUtils.of(page, size, sort),
                 search,
-                userStatus,
+                statusFilters,
                 roleIds
         );
 
@@ -386,6 +415,30 @@ public class UserService implements UserServicePort {
         }
     }
 
+    private List<UserStatus> parseStatusList(String status) {
+        if (status == null || status.isBlank() || "ALL".equalsIgnoreCase(status)) {
+            return List.of();
+        }
 
+        List<UserStatus> parsed = Arrays.stream(status.split(","))
+                .map(String::trim)
+                .filter(value -> !value.isBlank())
+                .map(value -> {
+                    try {
+                        return UserStatus.valueOf(value.toUpperCase());
+                    } catch (IllegalArgumentException ex) {
+                        return null;
+                    }
+                })
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
+
+        if (parsed.size() >= UserStatus.values().length) {
+            return List.of();
+        }
+
+        return parsed;
+    }
 
 }

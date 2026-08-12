@@ -1,3 +1,4 @@
+import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
 import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
 import {
     IconButton,
@@ -11,7 +12,6 @@ import {
     Typography,
 } from '@mui/material';
 import dayjs from 'dayjs';
-import { useNavigate } from '@/components/router-compat';
 import { CollapsibleCard } from '../../../../../components/ui/CollapsibleCard';
 import { ROUTES } from '../../../../../constants/routes';
 import { formatImportCost } from '../../../import-batch/utils/importCostCalculator';
@@ -23,7 +23,7 @@ interface Props {
 }
 
 export const SettlementReturnBatchesSection = ({ batches }: Props) => {
-    const navigate = useNavigate();
+    const router = useAdminRouter();
 
     return (
         <CollapsibleCard title={`Phiếu trả vé (${batches.length})`} expanded onToggle={() => undefined}>
@@ -45,7 +45,31 @@ export const SettlementReturnBatchesSection = ({ batches }: Props) => {
                         {batches.map((batch) => (
                             <TableRow key={batch.id} hover>
                                 <TableCell>
-                                    <Typography fontWeight={600}>#{batch.id}</Typography>
+                                    <Typography
+                                        fontWeight={700}
+                                        color="#FF3030"
+                                        onClick={() => router.push(ROUTES.ADMIN.RETURN_BATCH.DETAIL(batch.id))}
+                                        sx={{
+                                            cursor: 'pointer',
+                                            display: 'inline-block',
+                                            bgcolor: '#FF303014',
+                                            px: 1,
+                                            py: 0.35,
+                                            borderRadius: '6px',
+                                            border: '1px solid #FF303026',
+                                            fontSize: '0.8125rem',
+                                            transition: 'all 0.15s ease',
+                                            '&:hover': {
+                                                bgcolor: '#FF303024',
+                                                borderColor: '#FF30304d',
+                                                color: '#dc2626',
+                                                transform: 'translateY(-1px)',
+                                            },
+                                        }}
+                                        title="Xem chi tiết phiếu trả vé"
+                                    >
+                                        #{batch.id}
+                                    </Typography>
                                 </TableCell>
                                 <TableCell>
                                     {batch.drawDate ? dayjs(batch.drawDate).format('DD/MM/YYYY') : '—'}
@@ -68,7 +92,7 @@ export const SettlementReturnBatchesSection = ({ batches }: Props) => {
                                             size="small"
                                             color="primary"
                                             onClick={() =>
-                                                navigate(ROUTES.ADMIN.RETURN_BATCH.DETAIL(batch.id))
+                                                router.push(ROUTES.ADMIN.RETURN_BATCH.DETAIL(batch.id))
                                             }
                                         >
                                             <VisibilityOutlinedIcon fontSize="small" />

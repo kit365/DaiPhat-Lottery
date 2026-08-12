@@ -1,8 +1,11 @@
 "use client";
 
+import { useRouter } from "next/navigation";
+import Link from "next/link";
 import React from 'react';
-import { Link, useNavigate } from 'react-router-dom';
 import { usePublicCategories, usePublicPosts } from '../hooks/useBlog';
+import { BLOG_SIDEBAR_BANNER } from '@/client/constants/clientBannerAssets';
+import { ROUTES } from '@/admin/constants/routes';
 
 const formatViews = (views: number) => {
   if (views >= 1000) {
@@ -50,7 +53,7 @@ export const BlogCategoryWidget = ({
             return (
               <li key={cat.id} className={isLast ? '' : 'border-b border-[#F4F6F8]'}>
                 <Link
-                  to={cat.slug === 'all' ? '/blogs' : `/blogs?category=${cat.slug}`}
+                  href={cat.slug === 'all' ? '/blogs' : `/blogs?category=${cat.slug}`}
                   className={`flex items-center justify-between px-4 py-2.5 rounded-lg transition-colors group ${isActive ? 'bg-[#FFF4F4] text-[#ee1314]' : 'hover:bg-[#FAFBFC] text-[#454F5B]'
                     }`}
                 >
@@ -73,7 +76,7 @@ export const BlogCategoryWidget = ({
 };
 
 export const BlogFeaturedWidget = () => {
-  const navigate = useNavigate();
+  const router = useRouter();
   const { data: featuredData, isLoading } = usePublicPosts({
     page: 1,
     limit: 6,
@@ -102,7 +105,7 @@ export const BlogFeaturedWidget = () => {
                   if (!post.slug) {
                     return;
                   }
-                  navigate(`/blogs/detail/${post.slug}`);
+                  router.push(`/blogs/detail/${post.slug}`);
                 }}
               >
                 <img 
@@ -133,12 +136,12 @@ export const BlogFeaturedWidget = () => {
 
 export const BuyTicketBanner = () => (
   <Link
-    to="/buy-ticket"
+    href={ROUTES.PUBLIC.TICKETS}
     className="block mt-6 rounded-xl overflow-hidden shadow-[0_2px_12px_rgb(0,0,0,0.03)] group relative aspect-[1448/1086]"
   >
     <div
       className="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-105"
-      style={{ backgroundImage: 'url("https://i.ibb.co/q3rWD00G/75b31416-13ed-49ce-8708-b4861fc96198.png")' }}
+      style={{ backgroundImage: `url("${BLOG_SIDEBAR_BANNER}")` }}
     ></div>
 
     <div className="relative z-10 p-6 flex flex-col h-full w-[85%]">

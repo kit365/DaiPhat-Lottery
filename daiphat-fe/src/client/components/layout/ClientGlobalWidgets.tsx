@@ -2,10 +2,7 @@
 
 import dynamic from 'next/dynamic';
 
-const ChatbotPopup = dynamic(
-  () => import('@/client/components/support/ChatbotPopup').then((mod) => mod.ChatbotPopup),
-  { ssr: false }
-);
+import { ChatbotEntry } from '@/client/components/support/ChatbotEntry';
 
 const AuthModalContainer = dynamic(
   () => import('@/client/components/auth/AuthModalContainer').then((mod) => mod.AuthModalContainer),
@@ -15,7 +12,7 @@ const AuthModalContainer = dynamic(
 export function ClientGlobalWidgets() {
   return (
     <>
-      <ChatbotPopup />
+      <ChatbotEntry />
       <AuthModalContainer />
     </>
   );

@@ -13,7 +13,7 @@ import {
     Box,
     Stack,
 } from '@mui/material';
-import { Icon } from '@iconify/react';
+import { Icon } from '@/admin/components/ui/AdminIcon';
 
 interface OrderHandoverConfirmDialogProps {
     open: boolean;
@@ -149,12 +149,7 @@ export const OrderHandoverConfirmDialog = ({
                     variant="outlined"
                     color="inherit"
                     onClick={onClose}
-                    sx={{
-                        textTransform: 'none',
-                        fontWeight: 700,
-                        borderRadius: '8px',
-                        minWidth: 96,
-                    }}
+                    sx={{ minWidth: 96 }}
                 >
                     Hủy
                 </Button>

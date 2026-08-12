@@ -1,6 +1,7 @@
 package com.daiphat.coreapi.application.port.out.lotteries;
 
 import com.daiphat.coreapi.domain.model.enums.lottery.ReturnBatchStatus;
+import com.daiphat.coreapi.domain.model.enums.lottery.ReturnBatchType;
 import com.daiphat.coreapi.domain.model.lotteries.ReturnBatchLineModel;
 import com.daiphat.coreapi.domain.model.lotteries.ReturnBatchModel;
 import org.springframework.data.domain.Page;
@@ -24,10 +25,13 @@ public interface ReturnBatchRepositoryPort {
 
     Optional<ReturnBatchModel> findBySupplierAndDrawDate(Long supplierId, LocalDate drawDate);
 
+    Optional<ReturnBatchModel> findStreetAgentByAllocationBatchId(Long allocationBatchId);
+
     Page<ReturnBatchModel> findAll(
             Pageable pageable,
             Long lotterySupplierId,
             Long supplierSettlementId,
+            ReturnBatchType returnBatchType,
             ReturnBatchStatus status,
             LocalDate drawDateFrom,
             LocalDate drawDateTo,
@@ -39,4 +43,6 @@ public interface ReturnBatchRepositoryPort {
     List<ReturnBatchModel> findByStatuses(List<ReturnBatchStatus> statuses);
 
     List<ReturnBatchModel> findBySupplierSettlementId(Long supplierSettlementId);
+
+    long nextHeaderBatchCodeSequence();
 }

@@ -1,10 +1,11 @@
 "use client";
 
-import React from 'react';
-import { Link } from 'react-router-dom';
+import Link from "next/link";
+import React, { useEffect, useMemo, useState } from 'react';
+import { ROUTES } from '@/admin/constants/routes';
 import dayjs from 'dayjs';
 import { Search } from 'lucide-react';
-import { useStationsByDrawDate } from '../../../admin/features/station/hooks/useStation';
+import { useStationsByDrawDate } from '@/client/hooks/useStationSchedule';
 import { useLotteryTicketSearch } from '../../hooks/useLotteryTicketSearch';
 import { useCartStore } from '../../../stores/useCartStore';
 import {
@@ -21,18 +22,40 @@ import {
     minSellableDrawDate,
     resolveSellableDrawDateParam,
 } from '../../utils/sellableDrawDate.util';
+import { ClientDatePicker } from '../ui/ClientDatePicker';
+import { ClientStationSelect } from '../ui/ClientStationSelect';
 
 export const TicketSearchWidget: React.FC = () => {
-    const [search, setSearch] = React.useState('');
-    const [selectedDate, setSelectedDate] = React.useState(defaultSellableDrawDate);
-    const [stationId, setStationId] = React.useState<string>('');
+    const [search, setSearch] = useState('');
+    const [selectedDate, setSelectedDate] = useState(defaultSellableDrawDate);
+    const [stationId, setStationId] = useState<string>('');
+    const [isStationOpen, setIsStationOpen] = useState(false);
+    const [isDateOpen, setIsDateOpen] = useState(false);
 
-    React.useEffect(() => {
+    const minDate = minSellableDrawDate();
+    const maxDate = maxSellableDrawDate();
+
+    useEffect(() => {
         const next = resolveSellableDrawDateParam(selectedDate);
         if (next !== selectedDate) setSelectedDate(next);
     }, [selectedDate]);
 
-    const { data: stations } = useStationsByDrawDate(selectedDate);
+    const { data: stations, isLoading: isLoadingStations } = useStationsByDrawDate(selectedDate);
+
+    const stationOptions = useMemo(
+        () =>
+            (stations || []).map((s: { id?: string | number; _id?: string | number; name?: string }) => ({
+                id: String(s.id || s._id || ''),
+                label: s.name || '',
+            })).filter((s) => s.id),
+        [stations]
+    );
+
+    useEffect(() => {
+        if (!stationId) return;
+        const stillValid = stationOptions.some((s) => s.id === stationId);
+        if (!stillValid) setStationId('');
+    }, [stationOptions, stationId]);
 
     const hasSearchDigits = search.trim().length >= 2;
     const canSearch = hasSearchDigits;
@@ -48,7 +71,6 @@ export const TicketSearchWidget: React.FC = () => {
         { enabled: canSearch }
     );
 
-    // Subscribe để nút thêm giỏ cập nhật ngay khi giỏ thay đổi
     useCartStore((s) => s.items);
 
     const tickets = filterSellableTickets(data?.data?.recordList ?? []);
@@ -59,7 +81,7 @@ export const TicketSearchWidget: React.FC = () => {
     };
 
     return (
-        <div className="bg-white rounded-2xl shadow-[0_2px_15px_rgba(0,0,0,0.04)] border border-gray-100 overflow-hidden">
+        <div className="bg-white rounded-2xl shadow-[0_2px_15px_rgba(0,0,0,0.04)] border border-gray-100">
             <div className="px-5 py-4 border-b border-gray-100">
                 <h3 className="text-[16px] font-bold text-[#333333] flex items-center gap-2">
                     <Search size={18} className="text-[#ee1314]" />
@@ -69,7 +91,10 @@ export const TicketSearchWidget: React.FC = () => {
             </div>
 
             <div className="p-5 space-y-4">
-                <form onSubmit={handleSearch} className="flex items-center bg-[#F4F6F8] rounded-full border border-[#E5E8EB] p-1">
+                <form
+                    onSubmit={handleSearch}
+                    className="flex items-center bg-[#F4F6F8] rounded-full border border-[#E5E8EB] p-1"
+                >
                     <input
                         type="text"
                         inputMode="numeric"
@@ -78,42 +103,35 @@ export const TicketSearchWidget: React.FC = () => {
                         placeholder="Đuôi số (VD: 68, 686868)"
                         className="flex-1 bg-transparent border-none outline-none px-3 text-[13px] text-[#212B36]"
                     />
-                    <button type="submit" className="px-4 py-1.5 bg-[#FFF4F4] text-[#ee1314] font-bold text-[13px] rounded-full">
+                    <button
+                        type="submit"
+                        className="px-4 py-1.5 bg-[#FFF4F4] text-[#ee1314] font-bold text-[13px] rounded-full"
+                    >
                         Tìm
                     </button>
                 </form>
 
                 <div className="grid grid-cols-2 gap-2">
-                    <label className="flex flex-col gap-1">
-                        <span className="text-[11px] font-semibold text-[#637381]">Ngày quay</span>
-                        <input
-                            type="date"
-                            value={selectedDate}
-                            min={minSellableDrawDate()}
-                            max={maxSellableDrawDate()}
-                            onChange={(e) =>
-                                setSelectedDate(
-                                    resolveSellableDrawDateParam(
-                                        e.target.value || defaultSellableDrawDate()
-                                    )
-                                )
-                            }
-                            className="px-3 py-2 border border-[#E5E8EB] rounded-xl text-[13px] outline-none"
-                        />
-                    </label>
-                    <label className="flex flex-col gap-1">
-                        <span className="text-[11px] font-semibold text-[#637381]">Chọn đài</span>
-                        <select
-                            value={stationId}
-                            onChange={(e) => setStationId(e.target.value)}
-                            className="px-3 py-2 border border-[#E5E8EB] rounded-xl text-[13px] outline-none"
-                        >
-                            <option value="">Tất cả đài</option>
-                            {(stations || []).map((s: { id?: string | number; _id?: string | number; name?: string }) => (
-                                <option key={String(s.id || s._id || '')} value={String(s.id || s._id || '')}>{s.name || ''}</option>
-                            ))}
-                        </select>
-                    </label>
+                    <ClientDatePicker
+                        label="Ngày quay"
+                        value={selectedDate}
+                        minDate={minDate}
+                        maxDate={maxDate}
+                        open={isDateOpen}
+                        onOpenChange={setIsDateOpen}
+                        onOpen={() => setIsStationOpen(false)}
+                        onChange={(ymd) => setSelectedDate(resolveSellableDrawDateParam(ymd))}
+                    />
+                    <ClientStationSelect
+                        label="Chọn đài"
+                        value={stationId}
+                        options={stationOptions}
+                        isLoading={isLoadingStations}
+                        open={isStationOpen}
+                        onOpenChange={setIsStationOpen}
+                        onOpen={() => setIsDateOpen(false)}
+                        onChange={setStationId}
+                    />
                 </div>
 
                 <div className="space-y-2 min-h-[80px]">
@@ -124,53 +142,61 @@ export const TicketSearchWidget: React.FC = () => {
                         <p className="text-[13px] text-[#637381] text-center py-4">Không tìm thấy vé phù hợp</p>
                     )}
                     {!hasSearchDigits && (
-                        <p className="text-[12px] text-[#919EAB] text-center py-2">Nhập ít nhất 2 số để bắt đầu tìm vé</p>
+                        <p className="text-[12px] text-[#919EAB] text-center py-2">
+                            Nhập ít nhất 2 số để bắt đầu tìm vé
+                        </p>
                     )}
-                    {hasSearchDigits && tickets.map((ticket: PublicLotteryTicket) => {
-                        const stock = getTicketStock(ticket);
-                        const cartQty = getCartQtyForTicket(ticket.id);
-                        const atLimit = isTicketAtCartLimit(ticket);
+                    {hasSearchDigits &&
+                        tickets.map((ticket: PublicLotteryTicket) => {
+                            const stock = getTicketStock(ticket);
+                            const cartQty = getCartQtyForTicket(ticket.id);
+                            const atLimit = isTicketAtCartLimit(ticket);
 
-                        return (
-                            <div key={ticket.id} className="flex items-center justify-between p-3 bg-[#FAFBFC] rounded-xl border border-[#E5E8EB]">
-                                <div>
-                                    <div className="text-[14px] font-black text-[#ee1314] tracking-wider">{ticket.numbers}</div>
-                                    <div className="text-[11px] text-[#637381]">
-                                        {ticket.stationName} • Còn {stock} vé
-                                        {cartQty > 0 ? ` (đã chọn ${cartQty})` : ''}
-                                        {' • '}
-                                        {(ticket.priceSnapshot ?? 10000).toLocaleString('vi-VN')}đ
-                                    </div>
-                                </div>
-                                <button
-                                    type="button"
-                                    title={atLimit ? 'Đã đủ số lượng trong giỏ' : 'Thêm giỏ hàng'}
-                                    aria-label={atLimit ? 'Đã đủ số lượng trong giỏ' : 'Thêm giỏ hàng'}
-                                    disabled={atLimit}
-                                    onClick={() => {
-                                        if (atLimit) return;
-                                        addPublicTicketToCart({
-                                            ticket,
-                                            stationName: ticket.stationName || 'Vé số',
-                                            dateLabel,
-                                        });
-                                    }}
-                                    className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors shrink-0 ${
-                                        atLimit
-                                            ? 'bg-[#C4CDD5] text-white cursor-not-allowed'
-                                            : 'bg-[#ee1314] hover:bg-[#d61011] text-white shadow-sm active:scale-95'
-                                    }`}
+                            return (
+                                <div
+                                    key={ticket.id}
+                                    className="flex items-center justify-between p-3 bg-[#FAFBFC] rounded-xl border border-[#E5E8EB]"
                                 >
-                                    <i className="fa-solid fa-cart-plus text-[14px]"></i>
-                                </button>
-                            </div>
-                        );
-                    })}
+                                    <div>
+                                        <div className="text-[14px] font-black text-[#ee1314] tracking-wider">
+                                            {ticket.numbers}
+                                        </div>
+                                        <div className="text-[11px] text-[#637381]">
+                                            {ticket.stationName} • Còn {stock} vé
+                                            {cartQty > 0 ? ` (đã chọn ${cartQty})` : ''}
+                                            {' • '}
+                                            {(ticket.priceSnapshot ?? 10000).toLocaleString('vi-VN')}đ
+                                        </div>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        title={atLimit ? 'Đã đủ số lượng trong giỏ' : 'Thêm giỏ hàng'}
+                                        aria-label={atLimit ? 'Đã đủ số lượng trong giỏ' : 'Thêm giỏ hàng'}
+                                        disabled={atLimit}
+                                        onClick={() => {
+                                            if (atLimit) return;
+                                            addPublicTicketToCart({
+                                                ticket,
+                                                stationName: ticket.stationName || 'Vé số',
+                                                dateLabel,
+                                            });
+                                        }}
+                                        className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors shrink-0 ${
+                                            atLimit
+                                                ? 'bg-[#C4CDD5] text-white cursor-not-allowed'
+                                                : 'bg-[#ee1314] hover:bg-[#d61011] text-white shadow-sm active:scale-95'
+                                        }`}
+                                    >
+                                        <i className="fa-solid fa-cart-plus text-[14px]"></i>
+                                    </button>
+                                </div>
+                            );
+                        })}
                 </div>
 
                 {hasSearchDigits && (
                     <Link
-                        to={`/buy-ticket?ticketNumber=${encodeURIComponent(search)}&drawDate=${selectedDate}${stationId ? `&stationId=${stationId}` : ''}`}
+                        href={`${ROUTES.PUBLIC.TICKETS}?ticketNumber=${encodeURIComponent(search)}&drawDate=${selectedDate}${stationId ? `&stationId=${stationId}` : ''}`}
                         className="block text-center text-[13px] font-bold text-[#ee1314] hover:underline"
                     >
                         Xem tất cả kết quả →

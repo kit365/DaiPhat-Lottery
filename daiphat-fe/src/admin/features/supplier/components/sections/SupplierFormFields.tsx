@@ -1,6 +1,9 @@
 import {
     Box,
+    Checkbox,
+    FormControl,
     FormControlLabel,
+    FormHelperText,
     InputAdornment,
     MenuItem,
     Stack,
@@ -8,9 +11,10 @@ import {
     TextField,
     Typography,
 } from '@mui/material';
-import { TimePicker } from '@mui/x-date-pickers';
+import { useRef, useEffect } from 'react';
 import dayjs from 'dayjs';
-import { Control, Controller } from 'react-hook-form';
+import { Control, Controller, useWatch } from 'react-hook-form';
+import { AdminTimePicker } from '../../../../components/ui/AdminTimePicker';
 import { SupplierFormValues } from '../../schemas/supplier.schema';
 import { SUPPLIER_TYPE_LABELS } from '../../utils/supplierLabels';
 import {
@@ -25,7 +29,178 @@ import {
     preventNumberInputWheel,
 } from '../../utils/supplierNumberFields';
 
-const PAYMENT_TERM_HELPER = '0 = Thanh toán trong ngày.';
+const PaymentTermField = ({
+    field,
+    fieldState,
+    activationMissing,
+    fieldHelper,
+}: {
+    field: any;
+    fieldState: any;
+    activationMissing: boolean;
+    fieldHelper: (field: SupplierActivationField, defaultText?: string) => string | undefined;
+}) => {
+    const lastTermDaysRef = useRef(7);
+
+    useEffect(() => {
+        const current = Number(field.value);
+        if (Number.isFinite(current) && current > 0) {
+            lastTermDaysRef.current = current;
+        }
+    }, [field.value]);
+
+    const isSameDay =
+        field.value === 0 ||
+        field.value === '' ||
+        field.value === null ||
+        field.value === undefined;
+
+    const handleModeChange = (mode: 'same_day' | 'term') => {
+        if (mode === 'same_day') {
+            const current = Number(field.value);
+            if (Number.isFinite(current) && current > 0) {
+                lastTermDaysRef.current = current;
+            }
+            field.onChange(0);
+            return;
+        }
+
+        field.onChange(lastTermDaysRef.current || 7);
+    };
+
+    const handleDaysChange = (raw: string) => {
+        if (raw === '') {
+            field.onChange('');
+            return;
+        }
+        if (!/^\d{1,3}$/.test(raw)) return;
+
+        const parsed = Number(raw);
+        if (!Number.isFinite(parsed)) return;
+        lastTermDaysRef.current = parsed;
+        field.onChange(parsed);
+    };
+
+    const daysInputValue = isSameDay
+        ? (lastTermDaysRef.current || 7)
+        : (field.value === '' || field.value === null || field.value === undefined ? '' : field.value);
+
+    const isValueError =
+        !isSameDay &&
+        (field.value === 0 ||
+            field.value === null ||
+            field.value === undefined ||
+            field.value === '');
+
+    const helperText =
+        isValueError
+            ? 'Số ngày thanh toán theo kỳ phải lớn hơn 0'
+            : fieldState.error?.message || fieldHelper('PAYMENT_TERM_DAYS');
+
+    const hasError = !!fieldState.error || activationMissing || isValueError;
+
+    return (
+        <FormControl error={hasError} fullWidth>
+            <Typography variant="body2" sx={{ mb: 1, fontWeight: 600, color: 'var(--palette-text-primary)' }}>
+                Thời hạn thanh toán
+            </Typography>
+
+            <Stack
+                direction="row"
+                spacing={2}
+                alignItems="center"
+                flexWrap="wrap"
+                useFlexGap
+            >
+                <FormControlLabel
+                    control={
+                        <Checkbox
+                            size="small"
+                            checked={isSameDay}
+                            onChange={() => handleModeChange('same_day')}
+                        />
+                    }
+                    label="Trong ngày"
+                />
+
+                <Stack direction="row" spacing={1} alignItems="center">
+                    <FormControlLabel
+                        control={
+                            <Checkbox
+                                size="small"
+                                checked={!isSameDay}
+                                onChange={() => handleModeChange('term')}
+                            />
+                        }
+                        label="Theo ngày"
+                    />
+
+                    <TextField
+                        name={field.name}
+                        onBlur={field.onBlur}
+                        inputRef={field.ref}
+                        value={daysInputValue}
+                        type="number"
+                        placeholder="7"
+                        size="small"
+                        disabled={isSameDay}
+                        error={hasError && !isSameDay}
+                        onChange={(e) => handleDaysChange(e.target.value)}
+                        onKeyDown={(e) => {
+                            if (e.key === '-' || e.key === 'e' || e.key === 'E' || e.key === '+') {
+                                e.preventDefault();
+                            }
+                        }}
+                        onWheel={preventNumberInputWheel}
+                        slotProps={{
+                            htmlInput: { min: 1, max: 999, step: 1, inputMode: 'numeric', maxLength: 3 },
+                            input: {
+                                endAdornment: (
+                                    <InputAdornment position="end" sx={{ ml: 0, mr: 0.25 }}>
+                                        <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.875rem', lineHeight: 1, fontWeight: 600 }}>
+                                            ngày
+                                        </Typography>
+                                    </InputAdornment>
+                                ),
+                            },
+                        }}
+                        sx={{
+                            width: 84,
+                            ...missingFieldInputSx(activationMissing && !isSameDay),
+                            '& .MuiOutlinedInput-root': {
+                                height: 28,
+                                minHeight: 28,
+                                fontSize: '0.875rem',
+                                borderRadius: '6px',
+                                pr: 0.5,
+                            },
+                            '& .MuiOutlinedInput-input': {
+                                py: 0,
+                                px: 0.5,
+                                height: '100%',
+                                boxSizing: 'border-box',
+                                textAlign: 'center',
+                            },
+                            '& .MuiInputAdornment-root': {
+                                height: 'auto',
+                                ml: 0,
+                            },
+                            '& input::-webkit-outer-spin-button, & input::-webkit-inner-spin-button': {
+                                WebkitAppearance: 'none',
+                                margin: 0,
+                            },
+                            '& input[type=number]': {
+                                MozAppearance: 'textfield',
+                            },
+                        }}
+                    />
+                </Stack>
+            </Stack>
+
+            {helperText ? <FormHelperText>{helperText}</FormHelperText> : null}
+        </FormControl>
+    );
+};
 
 interface SupplierFormFieldsProps {
     control: Control<SupplierFormValues>;
@@ -42,6 +217,10 @@ export const SupplierFormFields = ({
 }: SupplierFormFieldsProps) => {
     const fieldHelper = (field: SupplierActivationField, defaultText?: string) =>
         isFieldMissing(missingFields, field) ? getActivationFieldHelperText(field) : defaultText;
+
+    const importAllowFromVal = useWatch({ control, name: 'importAllowFrom' });
+
+    const minReturnCutOffTime = importAllowFromVal ? dayjs(`2000-01-01T${importAllowFromVal}`) : undefined;
 
     return (
         <Stack spacing={2.5}>
@@ -178,63 +357,6 @@ export const SupplierFormFields = ({
                         />
                     )}
                 />
-                <Box sx={{ width: '100%' }} data-activation-field="paymentTermDays">
-                    <Controller
-                        name="paymentTermDays"
-                        control={control}
-                        render={({ field, fieldState }) => {
-                            const activationMissing = isFieldMissing(
-                                missingFields,
-                                'PAYMENT_TERM_DAYS'
-                            );
-                            return (
-                                <TextField
-                                    name={field.name}
-                                    onBlur={field.onBlur}
-                                    inputRef={field.ref}
-                                    value={field.value ?? ''}
-                                    type="number"
-                                    label="Số ngày thanh toán"
-                                    fullWidth
-                                    error={!!fieldState.error || activationMissing}
-                                    helperText={
-                                        fieldState.error?.message ||
-                                        fieldHelper('PAYMENT_TERM_DAYS', PAYMENT_TERM_HELPER)
-                                    }
-                                    sx={missingFieldInputSx(activationMissing)}
-                                    onChange={(e) => {
-                                        const raw = e.target.value;
-                                        if (raw === '') {
-                                            field.onChange(null);
-                                            return;
-                                        }
-                                        const parsed = Number(raw);
-                                        if (!Number.isFinite(parsed)) {
-                                            return;
-                                        }
-                                        field.onChange(Math.max(0, Math.trunc(parsed)));
-                                    }}
-                                    onKeyDown={(e) => {
-                                        if (e.key === '-' || e.key === 'e' || e.key === 'E' || e.key === '+') {
-                                            e.preventDefault();
-                                        }
-                                    }}
-                                    onWheel={preventNumberInputWheel}
-                                    inputProps={{ min: 0, step: 1, inputMode: 'numeric' }}
-                                    InputProps={{
-                                        endAdornment: (
-                                            <InputAdornment position="end">
-                                                <Typography variant="body2" color="text.secondary">
-                                                    days
-                                                </Typography>
-                                            </InputAdornment>
-                                        ),
-                                    }}
-                                />
-                            );
-                        }}
-                    />
-                </Box>
                 <Box sx={{ width: '100%' }} data-activation-field="defaultImportCost">
                     <Controller
                         name="defaultImportCost"
@@ -267,15 +389,17 @@ export const SupplierFormFields = ({
                                         }
                                     }}
                                     onWheel={preventNumberInputWheel}
-                                    inputProps={{ inputMode: 'numeric' }}
-                                    InputProps={{
-                                        endAdornment: (
-                                            <InputAdornment position="end">
-                                                <Typography variant="body2" color="text.secondary">
-                                                    VNĐ
-                                                </Typography>
-                                            </InputAdornment>
-                                        ),
+                                    slotProps={{
+                                        htmlInput: { inputMode: 'numeric' },
+                                        input: {
+                                            endAdornment: (
+                                                <InputAdornment position="end">
+                                                    <Typography variant="body2" color="text.secondary">
+                                                        VNĐ
+                                                    </Typography>
+                                                </InputAdornment>
+                                            ),
+                                        },
                                     }}
                                 />
                             );
@@ -289,7 +413,7 @@ export const SupplierFormFields = ({
                     name="importAllowFrom"
                     control={control}
                     render={({ field, fieldState }) => (
-                        <TimePicker
+                        <AdminTimePicker
                             label="Giờ cho phép nhập vé"
                             value={field.value ? dayjs(`2000-01-01T${field.value}`) : null}
                             onChange={(newValue) => {
@@ -313,9 +437,10 @@ export const SupplierFormFields = ({
                     name="returnCutOffTime"
                     control={control}
                     render={({ field, fieldState }) => (
-                        <TimePicker
+                        <AdminTimePicker
                             label="Hạn trả vé"
                             value={field.value ? dayjs(`2000-01-01T${field.value}`) : null}
+                            minTime={minReturnCutOffTime}
                             onChange={(newValue) => {
                                 field.onChange(newValue ? newValue.format('HH:mm') : '');
                             }}
@@ -333,7 +458,51 @@ export const SupplierFormFields = ({
                         />
                     )}
                 />
+                <Controller
+                    name="paymentCutOffTime"
+                    control={control}
+                    render={({ field, fieldState }) => (
+                        <AdminTimePicker
+                            label="Giờ thanh toán"
+                            value={field.value ? dayjs(`2000-01-01T${field.value}`) : null}
+                            readOnly
+                            disabled
+                            localeText={{ cancelButtonLabel: 'Hủy' }}
+                            slotProps={{
+                                textField: {
+                                    fullWidth: true,
+                                    error: !!fieldState.error,
+                                    helperText:
+                                        fieldState.error?.message ||
+                                        'Tự tính từ Hạn chót đối chiếu + Thời gian đệm đối soát/thanh toán (Cấu hình hệ thống)',
+                                    InputLabelProps: { shrink: true },
+                                },
+                            }}
+                        />
+                    )}
+                />
             </Stack>
+
+            <Box data-activation-field="paymentTermDays">
+                <Controller
+                        name="paymentTermDays"
+                        control={control}
+                        render={({ field, fieldState }) => {
+                            const activationMissing = isFieldMissing(
+                                missingFields,
+                                'PAYMENT_TERM_DAYS'
+                            );
+                            return (
+                                <PaymentTermField
+                                    field={field}
+                                    fieldState={fieldState}
+                                    activationMissing={activationMissing}
+                                    fieldHelper={fieldHelper}
+                                />
+                            );
+                        }}
+                    />
+                </Box>
 
             {!hideIsActive && (
                 <Controller
@@ -361,6 +530,7 @@ export const SupplierFormFields = ({
                     )}
                 />
             )}
+
         </Stack>
     );
 };

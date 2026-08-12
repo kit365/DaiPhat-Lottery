@@ -50,7 +50,7 @@ export const BankAccountsTab = () => {
         <div className="flex flex-col gap-5">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
-                    <h2 className="text-[20px] font-bold text-[#212B36]">Tài khoản ngân hàng</h2>
+                    <h2 className="client-heading m-0">Tài khoản ngân hàng</h2>
                     <p className="text-[14px] text-[#637381] mt-1">Quản lý tài khoản nhận hoàn tiền</p>
                 </div>
                 <button

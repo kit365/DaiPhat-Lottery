@@ -1,14 +1,12 @@
 "use client";
 
-import type { ReactElement } from "react";
+import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
 import { Avatar, Box, Link, ListItemText, IconButton, CircularProgress } from "@mui/material";
-import { GridActionsCell, GridActionsCellItem, GridRenderCellParams } from "@mui/x-data-grid";
-import { DeleteIcon, EditIcon, EyeIcon } from "../../../../assets/icons/index";
+import { GridRenderCellParams } from "@mui/x-data-grid";
 import { useDeleteStation, useUploadStationImage } from "../../hooks/useStation";
 import { Camera } from "lucide-react";
 import { useQueryClient } from '@tanstack/react-query';
 import { QUERY_KEYS } from '../../constants/queryKeys';
-import { useNavigate } from "react-router-dom";
 import { prefixAdmin } from "../../../../constants/routes";
 import { toast } from "react-toastify";
 import dayjs from 'dayjs';
@@ -16,6 +14,7 @@ import 'dayjs/locale/vi';
 import { confirmDelete } from "../../../../utils/swal";
 import { useAuthStore } from '../../../../../stores/useAuthStore';
 import { PERMISSIONS } from '../../../../constants/permission.constants';
+import { AdminRowActionsMenu, type AdminRowActionsMenuItem } from '../../../../components/ui/AdminRowActionsMenu';
 
 dayjs.locale('vi');
 interface RenderCreatedAtCellProps {
@@ -26,7 +25,7 @@ export const RenderTitleCell = (params: GridRenderCellParams) => {
     const { name, avatar, image, thumbnailUrl, altImage } = params.row;
     const finalAvatar = avatar || thumbnailUrl || image;
     const id = params.row._id || params.row.id;
-    const navigate = useNavigate();
+    const router = useAdminRouter();
 
     const { mutateAsync: uploadImage, isPending } = useUploadStationImage();
     const queryClient = useQueryClient();
@@ -95,7 +94,7 @@ export const RenderTitleCell = (params: GridRenderCellParams) => {
                         className="admin-cell-title"
                         onClick={(e) => {
                             e.preventDefault();
-                            navigate(`/${prefixAdmin}/provider/edit/${id}`);
+                            router.push(`/${prefixAdmin}/provider/edit/${id}`);
                         }}
                         underline="hover"
                     >
@@ -164,7 +163,7 @@ export const RenderStatusCell = (params: GridRenderCellParams) => {
 }
 
 export const RenderActionsCell = (params: GridRenderCellParams) => {
-    const navigate = useNavigate();
+    const router = useAdminRouter();
     const { user } = useAuthStore();
     const roleCode = typeof user?.role === 'string' ? user.role : (user?.role?.code || '');
     const isAdmin = roleCode === 'ADMIN' || roleCode === 'SUPER_ADMIN';
@@ -175,7 +174,7 @@ export const RenderActionsCell = (params: GridRenderCellParams) => {
     const id = params.row._id || params.row.id;
 
     const handleEdit = () => {
-        navigate(`/${prefixAdmin}/provider/edit/${id}`);
+        router.push(`/${prefixAdmin}/provider/edit/${id}`);
     };
 
     const handleDelete = () => {
@@ -195,46 +194,39 @@ export const RenderActionsCell = (params: GridRenderCellParams) => {
         });
     };
 
-    const items: ReactElement[] = [];
+    const items: AdminRowActionsMenuItem[] = [];
 
     if (canView) {
-        items.push(
-            <GridActionsCellItem
-                key="view"
-                className="admin-menu-item"
-                icon={<EyeIcon />}
-                label="Chi tiết"
-                showInMenu
-                onClick={() => navigate(`/${prefixAdmin}/provider/detail/${id}`)}
-            />
-        );
+        items.push({
+            id: 'view',
+            label: 'Chi tiết',
+            icon: 'view',
+            onClick: () => router.push(`/${prefixAdmin}/provider/detail/${id}`),
+        });
     }
 
     if (canEdit) {
-        items.push(
-            <GridActionsCellItem
-                key="edit"
-                className="admin-menu-item"
-                icon={<EditIcon />}
-                label="Chỉnh sửa"
-                showInMenu
-                onClick={handleEdit}
-            />
-        );
+        items.push({
+            id: 'edit',
+            label: 'Chỉnh sửa',
+            icon: 'edit',
+            onClick: handleEdit,
+        });
     }
 
     if (canDelete) {
-        items.push(
-            <GridActionsCellItem
-                key="delete"
-                className="admin-menu-item admin-menu-item--danger"
-                icon={<DeleteIcon />}
-                label="Xóa"
-                showInMenu
-                onClick={handleDelete}
-            />
-        );
+        items.push({
+            id: 'delete',
+            label: 'Xóa',
+            icon: 'delete',
+            onClick: handleDelete,
+            danger: true,
+        });
     }
 
-    return <GridActionsCell {...params}>{items}</GridActionsCell>;
+    if (items.length === 0) {
+        return null;
+    }
+
+    return <AdminRowActionsMenu items={items} />;
 }

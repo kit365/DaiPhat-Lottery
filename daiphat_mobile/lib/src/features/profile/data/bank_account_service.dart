@@ -34,4 +34,28 @@ class BankAccountService {
     final data = response['data'] as Map<String, dynamic>;
     return UserBankAccountResponse.fromJson(data);
   }
+
+  Future<UserBankAccountResponse> updateAccount(
+    int id,
+    CreateUserBankAccountRequest request,
+  ) async {
+    final response = await _apiClient.put(
+      '/users/me/bank-accounts/$id',
+      data: request.toJson(),
+    );
+    final data = response['data'] as Map<String, dynamic>;
+    return UserBankAccountResponse.fromJson(data);
+  }
+
+  Future<void> deleteAccount(int id) async {
+    await _apiClient.delete('/users/me/bank-accounts/$id');
+  }
+
+  Future<UserBankAccountResponse> setDefaultAccount(int id) async {
+    final response = await _apiClient.patch(
+      '/users/me/bank-accounts/$id/default',
+    );
+    final data = response['data'] as Map<String, dynamic>;
+    return UserBankAccountResponse.fromJson(data);
+  }
 }

@@ -14,7 +14,6 @@ interface ResultsMatrixProps {
   activeDigit?: string | null;
   setHoveredDigit?: (val: string | null) => void;
   statusMessage?: string;
-  isRefreshing?: boolean;
 }
 
 // Helper to highlight specific digits
@@ -53,21 +52,12 @@ export const ResultsMatrix: React.FC<ResultsMatrixProps> = ({
   activeDigit,
   setHoveredDigit,
   statusMessage,
-  isRefreshing = false,
 }) => {
   const mainDate = dataList[0]?.date || '';
   const isSingleMode = dataList.length === 1;
 
   return (
     <section className="w-full relative">
-      {isRefreshing && (
-        <div className="absolute inset-0 z-[100] flex items-center justify-center bg-white/60 backdrop-blur-[2px] rounded-3xl min-h-[400px]">
-          <div className="flex flex-col items-center gap-4 bg-white p-6 rounded-2xl shadow-xl border border-gray-100">
-            <div className="w-12 h-12 border-4 border-slate-100 border-t-[#ee1314] rounded-full animate-spin"></div>
-            <span className="text-[#102937] font-bold text-sm uppercase tracking-wider">Đang cập nhật...</span>
-          </div>
-        </div>
-      )}
       <div className="bg-white rounded-3xl border border-gray-100 shadow-[0_4px_25px_rgba(0,0,0,0.03)] overflow-hidden font-client-main">
         {/* Header Section */}
         <div className="p-3 lg:p-4 bg-white border-b border-gray-100 rounded-t-3xl">
@@ -79,14 +69,13 @@ export const ResultsMatrix: React.FC<ResultsMatrixProps> = ({
                   KẾT QUẢ XỔ SỐ KIẾN THIẾT HÔM NAY {mainDate}
                 </h2>
               </div>
-              <div className="flex items-center gap-2 ml-3.5">
-                <p className="text-slate-600 text-[13px] flex items-center gap-2">
-                  <span className="flex gap-1 items-center">
-                    <span className="w-1.5 h-1.5 rounded-full bg-[#ee1314] animate-pulse"></span>
-                  </span>
-                  <span>{statusMessage || 'Đang cập nhật kết quả mới nhất từ hệ thống.'}</span>
-                </p>
-              </div>
+              {statusMessage ? (
+                <div className="flex items-center gap-2 ml-3.5">
+                  <p className="text-slate-600 text-[13px]">
+                    <span suppressHydrationWarning>{statusMessage}</span>
+                  </p>
+                </div>
+              ) : null}
             </div>
           </div>
         </div>
@@ -153,7 +142,8 @@ export const ResultsMatrix: React.FC<ResultsMatrixProps> = ({
         </div>
 
         {/* Results Table */}
-        <div className="w-full">
+        <div className="w-full overflow-x-auto overflow-y-hidden">
+          <div className="min-w-[650px] lg:min-w-0">
           {/* TABLE HEADER FOR PROVINCES (Only for multiple stations) */}
           {!isSingleMode && (
             <div className="flex border-b border-gray-100 bg-slate-50">
@@ -239,6 +229,7 @@ export const ResultsMatrix: React.FC<ResultsMatrixProps> = ({
               </div>
             </div>
           ))}
+          </div>
         </div>
 
         {/* Integrated Quick Filter Bar (Mobile) */}

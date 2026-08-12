@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { ROUTES } from '@/admin/constants/routes';
 import {
   buildBuyTicketPath,
   buildLotteryResultsPath,
@@ -87,22 +88,22 @@ describe('parseScheduleResultSummaryToken', () => {
 describe('buildBuyTicketPath', () => {
   it('builds path for single station with draw date', () => {
     expect(buildBuyTicketPath({ stationId: 42, highlightDate: '2026-07-04' })).toBe(
-      '/buy-ticket?stationId=42&drawDate=2026-07-04'
+      `${ROUTES.PUBLIC.TICKETS}?stationId=42&drawDate=2026-07-04`
     );
   });
 
   it('builds path with ticketId from chat CTA', () => {
     expect(
       buildBuyTicketPath({ ticketId: 99, stationId: 3, highlightDate: '2026-07-21' })
-    ).toBe('/buy-ticket?ticketId=99&stationId=3&drawDate=2026-07-21');
+    ).toBe(`${ROUTES.PUBLIC.TICKETS}?ticketId=99&stationId=3&drawDate=2026-07-21`);
   });
 
   it('builds path for region scope', () => {
-    expect(buildBuyTicketPath({ region: 'MIEN_NAM' })).toBe('/buy-ticket?region=MIEN_NAM');
+    expect(buildBuyTicketPath({ region: 'MIEN_NAM' })).toBe(`${ROUTES.PUBLIC.TICKETS}?region=MIEN_NAM`);
   });
 
   it('falls back to buy ticket page without query', () => {
-    expect(buildBuyTicketPath({})).toBe('/buy-ticket');
+    expect(buildBuyTicketPath({})).toBe(ROUTES.PUBLIC.TICKETS);
   });
 });
 

@@ -4,6 +4,7 @@ class PageResponse<T> {
   final int totalElements;
   final int pageSize;
   final int pageNumber;
+  final Map<String, int> statusCounts;
 
   PageResponse({
     required this.items,
@@ -11,6 +12,7 @@ class PageResponse<T> {
     required this.totalElements,
     required this.pageSize,
     required this.pageNumber,
+    this.statusCounts = const {},
   });
 
   factory PageResponse.fromJson(
@@ -26,8 +28,15 @@ class PageResponse<T> {
     final List<T> items = itemsJson.map((item) => fromJsonT(item)).toList();
 
     final pagination = source['pagination'] as Map<String, dynamic>?;
+    final rawCounts = source['statusCounts'] as Map<String, dynamic>?;
 
     return PageResponse<T>(
+      statusCounts: rawCounts == null
+          ? const {}
+          : rawCounts.map(
+              (key, value) =>
+                  MapEntry(key, int.tryParse(value.toString()) ?? 0),
+            ),
       items: items,
       totalPages: source['totalPages'] ?? pagination?['totalPages'] ?? 1,
       totalElements: source['totalElements'] ?? pagination?['totalRecords'] ?? items.length,

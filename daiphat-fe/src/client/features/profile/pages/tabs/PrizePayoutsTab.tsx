@@ -1,7 +1,7 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from 'react';
-import { useNavigate } from '@/components/router-compat';
 import dayjs from 'dayjs';
 import { useGetMyPrizePayouts, useGetPrizePayoutStatuses } from '../../../../hooks/usePrizePayout';
 import { PrizePayoutRequestStatus } from '../../../../../types/prize-payout.type';
@@ -11,7 +11,7 @@ import { formatPrizePayoutCurrency } from '../../../../../types/prize-payout.typ
 import { PrizePayoutComplaintButton } from '../../../../components/support/PrizePayoutComplaintButton';
 
 export const PrizePayoutsTab = () => {
-    const navigate = useNavigate();
+    const router = useRouter();
     const [activeTab, setActiveTab] = useState<PrizePayoutRequestStatus | 'ALL'>('ALL');
     const [page, setPage] = useState(1);
     const [searchTerm, setSearchTerm] = useState('');
@@ -103,7 +103,7 @@ export const PrizePayoutsTab = () => {
                                             </p>
                                             <button
                                                 type="button"
-                                                onClick={() => navigate('/profile/tickets')}
+                                                onClick={() => router.push('/profile/tickets')}
                                                 className="px-4 py-2 rounded-lg bg-[#ee1314] text-white text-[13px] font-semibold hover:bg-[#d70f10] transition-colors cursor-pointer"
                                             >
                                                 Đi tới Vé của tôi
@@ -116,7 +116,7 @@ export const PrizePayoutsTab = () => {
                                     <tr
                                         key={item.id}
                                         className="border-b border-[#F4F6F8] hover:bg-[#FAFBFC] cursor-pointer"
-                                        onClick={() => navigate(`/profile/prize-payouts/${item.id}`)}
+                                        onClick={() => router.push(`/profile/prize-payouts/${item.id}`)}
                                     >
                                         <td className="py-4 px-5 font-medium text-[14px]">{item.requestCode}</td>
                                         <td className="py-4 px-5 text-[14px]">

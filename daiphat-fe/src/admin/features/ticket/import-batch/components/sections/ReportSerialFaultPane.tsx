@@ -59,8 +59,8 @@ import {
     type RefundOrderDraft,
 } from './TicketIncidentRefundStep';
 import { createPartialRefund } from '../../../../orders/services/orderService';
-import { refundAdminApi } from '../../../../../api/refund.api';
-import { getOrderStatusBadge } from '../../../../orders/constants/orderStatus.constants';
+import { refundAdminApi } from '@/admin/features/refund/services/refundService';
+import { getOrderStatusBadge } from '@/admin/features/orders/utils/orderStatusBadge';
 import { OrderStatus } from '../../../../../../types/order.type';
 import {
     formatRefundCurrency,
@@ -2482,14 +2482,13 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
                         onClick={handleEvidenceApplyNo}
                         variant="outlined"
                         color="inherit"
-                        sx={{ fontWeight: 700, textTransform: 'none', borderRadius: '8px' }}
                     >
                         Không
                     </Button>
                     <Button
                         onClick={handleEvidenceApplyYes}
                         variant="contained"
-                        sx={{ fontWeight: 700, textTransform: 'none', borderRadius: '8px', bgcolor: '#ef4444', '&:hover': { bgcolor: '#dc2626' } }}
+                        sx={{ bgcolor: '#ef4444', '&:hover': { bgcolor: '#dc2626' } }}
                     >
                         Có, áp dụng cho tất cả
                     </Button>

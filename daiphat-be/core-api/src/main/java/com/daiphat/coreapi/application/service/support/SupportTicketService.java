@@ -20,6 +20,7 @@ import com.daiphat.coreapi.application.event.SupportTicketCommentAddedEvent;
 import com.daiphat.coreapi.application.event.SupportTicketCreatedEvent;
 import com.daiphat.coreapi.application.event.SupportTicketRejectedEvent;
 import com.daiphat.coreapi.application.event.SupportTicketReopenedEvent;
+import com.daiphat.coreapi.application.event.SupportTicketResolvedEvent;
 import com.daiphat.coreapi.application.mapper.support.SupportApplicationMapper;
 import com.daiphat.coreapi.application.port.in.support.SupportTicketServicePort;
 import com.daiphat.coreapi.application.port.out.file.StoragePort;
@@ -284,14 +285,13 @@ public class SupportTicketService implements SupportTicketServicePort {
                 SupportTicketModel saved = supportTicketRepositoryPort.save(ticket);
                 saveSystemComment(
                         saved.getId(),
-                        "Khiếu nại đã được đánh dấu giải quyết và đóng (khách đã đồng ý).");
+                        "Khiếu nại đã được đánh dấu giải quyết. Vui lòng xác nhận bạn có hài lòng với phương án này.");
                 TicketCategoryModel category = getCategoryOrThrow(ticket.getTicketCategoryId());
-                eventPublisher.publishEvent(SupportTicketClosedEvent.builder()
+                eventPublisher.publishEvent(SupportTicketResolvedEvent.builder()
                         .ticketId(saved.getId())
                         .title(saved.getTitle())
                         .categoryName(category.getName())
                         .customerId(saved.getCustomerId())
-                        .autoClosed(false)
                         .build());
             }
             case REJECT -> {

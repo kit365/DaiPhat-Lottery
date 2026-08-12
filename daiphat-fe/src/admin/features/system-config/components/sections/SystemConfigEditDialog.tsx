@@ -1,8 +1,8 @@
 "use client";
 
 import {
+    Alert,
     Box,
-    Button,
     Chip,
     Dialog,
     DialogActions,
@@ -22,19 +22,24 @@ import { KeyRound, Clock, User } from 'lucide-react';
 import dayjs from 'dayjs';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Controller, useForm } from 'react-hook-form';
-import { useEffect } from 'react';
-import { LoadingButton } from '../../../../components/ui/LoadingButton';
+import { useEffect, useState } from 'react';
+import { Button } from '../../../../components/ui/Button';
 import {
     createUpdateSystemConfigSchema,
     UpdateSystemConfigFormValues,
-} from '../../../../schemas/system-config.schema';
+} from '@/admin/features/system-config/schemas/system-config.schema';
 import {
     CONFIG_DATA_TYPE_LABELS,
     CONFIG_TYPE_LABELS,
     ConfigDataType,
+    parseValidationRules,
     SystemConfigResponse,
 } from '../../types/system-config';
 import { CommissionTiersEditor } from './CommissionTiersEditor';
+import {
+    FortuneCooldownDurationEditor,
+    isFortuneCooldownConfig,
+} from './FortuneCooldownDurationEditor';
 
 interface SystemConfigEditDialogProps {
     config: SystemConfigResponse | null;
@@ -44,10 +49,48 @@ interface SystemConfigEditDialogProps {
     isPending: boolean;
 }
 
+const LATE_RETURN_POLICY_LABELS: Record<string, string> = {
+    FORFEIT_DEPOSIT: 'Tịch thu tiền cọc',
+    FORCE_PURCHASE_ALL: 'Tính tiền toàn bộ số vé',
+};
+
 const isCommissionTiersConfig = (config: SystemConfigResponse) =>
     config.configKey === 'PRIZE_PAYOUT_COMMISSION_TIERS';
 
+const VENDOR_TIMING_LABELS: Record<string, string> = {
+    VENDOR_RETURN_CUTOFF: 'Giờ cuối người bán vé số trả vé trong ngày',
+    VENDOR_DRAFT_RESERVATION_TTL_MINUTES: 'Thời gian giữ phiếu chưa xác nhận',
+};
+
+const VENDOR_TIMING_HELPERS: Record<string, string> = {
+    VENDOR_RETURN_CUTOFF:
+        'Sau mốc này, vé trả được tính là trễ và không thể xác nhận bàn giao mới trong cùng ngày.',
+    VENDOR_DRAFT_RESERVATION_TTL_MINUTES:
+        'Hết thời gian này mà chưa xác nhận, hệ thống tự trả vé đang giữ về kho.',
+};
+
+const getAllowedValues = (config: SystemConfigResponse): string[] => {
+    const rules = parseValidationRules(config.validationRules);
+    return rules?.allowedValues?.filter(Boolean) ?? [];
+};
+
+const getNumericBounds = (config: SystemConfigResponse): { min?: number; max?: number; step?: number | string } => {
+    const rules = parseValidationRules(config.validationRules);
+    const min = typeof rules?.min === 'number' ? rules.min : undefined;
+    const max = typeof rules?.max === 'number' ? rules.max : undefined;
+    if (config.dataType === ConfigDataType.INT) {
+        return { min, max, step: 1 };
+    }
+    if (config.dataType === ConfigDataType.DECIMAL) {
+        return { min, max, step: 'any' };
+    }
+    return {};
+};
+
 const getValueFieldHelper = (config: SystemConfigResponse): string => {
+    if (isFortuneCooldownConfig(config.configKey)) {
+        return 'Nhập giờ và phút cho mỗi khung giờ đồng hồ';
+    }
     switch (config.dataType) {
         case ConfigDataType.INT:
             return config.unit ? `Nhập số nguyên (${config.unit})` : 'Nhập số nguyên';
@@ -56,7 +99,7 @@ const getValueFieldHelper = (config: SystemConfigResponse): string => {
                 ? 'Nhập dạng thập phân (ví dụ 0.10 = 10%)'
                 : 'Nhập số thập phân';
         case ConfigDataType.TIME:
-            return 'Định dạng HH:mm (ví dụ: 14:30)';
+            return 'Định dạng HH:mm (ví dụ: 17:00)';
         case ConfigDataType.BOOLEAN:
             return 'Chỉ nhận true hoặc false';
         case ConfigDataType.JSON:
@@ -64,6 +107,14 @@ const getValueFieldHelper = (config: SystemConfigResponse): string => {
         default:
             return 'Nhập giá trị cấu hình';
     }
+};
+
+/** Keep API/legacy values such as 17:00:00 or 1700 compatible with an HTML time input. */
+const normalizeTimeValue = (value: string) => {
+    const normalized = value.trim();
+    const match = normalized.match(/^(\d{1,2}):?(\d{2})(?::\d{2})?$/);
+    if (!match) return value;
+    return `${match[1].padStart(2, '0')}:${match[2]}`;
 };
 
 export const SystemConfigEditDialog = ({
@@ -95,11 +146,13 @@ export const SystemConfigEditDialog = ({
         },
     });
 
+    const [confirmData, setConfirmData] = useState<UpdateSystemConfigFormValues | null>(null);
+
     const schema = config
         ? createUpdateSystemConfigSchema(config.dataType, config.validationRules)
         : null;
 
-    const { control, handleSubmit, reset } = useForm<UpdateSystemConfigFormValues>({
+    const { control, handleSubmit, register, reset } = useForm<UpdateSystemConfigFormValues>({
         resolver: schema ? zodResolver(schema) : undefined,
         defaultValues: {
             configName: '',
@@ -108,39 +161,55 @@ export const SystemConfigEditDialog = ({
         },
     });
 
+    const submitForm = handleSubmit((data) => {
+        const payload = { ...data };
+        if (config?.dataType === ConfigDataType.JSON) {
+            try {
+                payload.configValue = JSON.stringify(JSON.parse(data.configValue));
+            } catch {
+                // keep as-is; schema already validates JSON
+            }
+        }
+        if (
+            config?.configKey === 'VENDOR_RETURN_CUTOFF' ||
+            config?.configKey === 'VENDOR_DRAFT_RESERVATION_TTL_MINUTES'
+        ) {
+            setConfirmData(payload);
+        } else {
+            onSubmit(payload);
+        }
+    });
+
     useEffect(() => {
         if (!config || !open) return;
 
         reset({
             configName: config.configName || '',
-            configValue: config.configValue,
+            configValue:
+                config.dataType === ConfigDataType.TIME || config.configKey === 'VENDOR_RETURN_CUTOFF'
+                    ? normalizeTimeValue(config.configValue)
+                    : config.configValue,
             description: config.description,
         });
+        setConfirmData(null);
     }, [config, open, reset]);
 
     if (!config) return null;
 
+    const isVendorTiming = Object.prototype.hasOwnProperty.call(VENDOR_TIMING_LABELS, config.configKey);
+    const isVendorCutoff = config.configKey === 'VENDOR_RETURN_CUTOFF';
+    const displayName = VENDOR_TIMING_LABELS[config.configKey] || config.configName || 'Cập nhật cấu hình';
+
     return (
         <ThemeProvider theme={localTheme}>
             <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-                <form
-                    onSubmit={handleSubmit((data) => {
-                        const payload = { ...data };
-                        if (config.dataType === ConfigDataType.JSON) {
-                            try {
-                                payload.configValue = JSON.stringify(JSON.parse(data.configValue));
-                            } catch {
-                                // keep as-is; schema already validates JSON
-                            }
-                        }
-                        onSubmit(payload);
-                    })}
-                >
+                <form onSubmit={(event) => { event.preventDefault(); void submitForm(); }}>
                     <DialogTitle sx={{ pb: 1, fontWeight: 700, fontSize: '1.25rem' }}>
-                        {config.configName || 'Cập nhật cấu hình'}
+                        {displayName}
                     </DialogTitle>
                     <DialogContent sx={{ py: '20px !important' }}>
                         <Stack spacing={3}>
+                            {!isVendorTiming && (
                             <Paper
                                 elevation={0}
                                 sx={{
@@ -184,6 +253,7 @@ export const SystemConfigEditDialog = ({
                                     )}
                                 </Stack>
                             </Paper>
+                            )}
 
                             <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
                                 <Chip
@@ -196,52 +266,72 @@ export const SystemConfigEditDialog = ({
                                     label={
                                         isCommissionTiersConfig(config)
                                             ? 'Bậc thang %'
-                                            : CONFIG_DATA_TYPE_LABELS[config.dataType] || config.dataType
+                                            : isFortuneCooldownConfig(config.configKey)
+                                              ? 'Giờ + phút'
+                                              : CONFIG_DATA_TYPE_LABELS[config.dataType] || config.dataType
                                     }
                                     variant="outlined"
                                 />
                                 {config.unit && !isCommissionTiersConfig(config) && (
-                                    <Chip size="small" label={`Đơn vị: ${config.unit}`} variant="outlined" />
+                                    <Chip
+                                        size="small"
+                                        label={
+                                            isFortuneCooldownConfig(config.configKey)
+                                                ? 'Khung giờ đồng hồ'
+                                                : `Đơn vị: ${config.unit}`
+                                        }
+                                        variant="outlined"
+                                    />
                                 )}
                             </Stack>
 
                             <Divider sx={{ borderStyle: 'dashed' }} />
 
-                            <Box>
-                                <Controller
-                                    name="configName"
-                                    control={control}
-                                    render={({ field, fieldState }) => (
-                                        <TextField
-                                            {...field}
-                                            label="Tên cấu hình"
-                                            fullWidth
-                                            error={!!fieldState.error}
-                                            helperText={fieldState.error?.message}
-                                            inputProps={{ maxLength: 255 }}
+                            {!isVendorTiming && (
+                                <>
+                                    <Box>
+                                        <Controller
+                                            name="configName"
+                                            control={control}
+                                            render={({ field, fieldState }) => (
+                                                <TextField
+                                                    {...field}
+                                                    label="Tên cấu hình"
+                                                    fullWidth
+                                                    error={!!fieldState.error}
+                                                    helperText={fieldState.error?.message}
+                                                    inputProps={{ maxLength: 255 }}
+                                                />
+                                            )}
                                         />
-                                    )}
-                                />
-                            </Box>
+                                    </Box>
 
-                            <Box>
-                                <Controller
-                                    name="description"
-                                    control={control}
-                                    render={({ field, fieldState }) => (
-                                        <TextField
-                                            {...field}
-                                            label="Mô tả"
-                                            fullWidth
-                                            multiline
-                                            minRows={2}
-                                            error={!!fieldState.error}
-                                            helperText={fieldState.error?.message || 'Tối đa 255 ký tự'}
-                                            inputProps={{ maxLength: 255 }}
+                                    <Box>
+                                        <Controller
+                                            name="description"
+                                            control={control}
+                                            render={({ field, fieldState }) => (
+                                                <TextField
+                                                    {...field}
+                                                    label="Mô tả"
+                                                    fullWidth
+                                                    multiline
+                                                    minRows={2}
+                                                    error={!!fieldState.error}
+                                                    helperText={fieldState.error?.message || 'Tối đa 255 ký tự'}
+                                                    inputProps={{ maxLength: 255 }}
+                                                />
+                                            )}
                                         />
-                                    )}
-                                />
-                            </Box>
+                                    </Box>
+                                </>
+                            )}
+                            {isVendorTiming && (
+                                <>
+                                    <input type="hidden" {...register('configName')} />
+                                    <input type="hidden" {...register('description')} />
+                                </>
+                            )}
 
                             <Box>
                                 {isCommissionTiersConfig(config) ? (
@@ -256,19 +346,75 @@ export const SystemConfigEditDialog = ({
                                             />
                                         )}
                                     />
-                                ) : config.dataType === ConfigDataType.INT ? (
+                                ) : isFortuneCooldownConfig(config.configKey) ? (
+                                    <Controller
+                                        name="configValue"
+                                        control={control}
+                                        render={({ field, fieldState }) => (
+                                            <FortuneCooldownDurationEditor
+                                                value={field.value}
+                                                onChange={field.onChange}
+                                                error={fieldState.error?.message}
+                                            />
+                                        )}
+                                    />
+                                ) : getAllowedValues(config).length > 0 ? (
                                     <Controller
                                         name="configValue"
                                         control={control}
                                         render={({ field, fieldState }) => (
                                             <TextField
                                                 {...field}
-                                                type="number"
+                                                select
                                                 label="Giá trị"
                                                 fullWidth
                                                 error={!!fieldState.error}
-                                                helperText={fieldState.error?.message || getValueFieldHelper(config)}
-                                                inputProps={{ step: 1 }}
+                                                helperText={fieldState.error?.message || 'Chọn một giá trị cho phép'}
+                                                SelectProps={{ native: true }}
+                                            >
+                                                {getAllowedValues(config).map((value) => (
+                                                    <option key={value} value={value}>
+                                                        {config.configKey === 'VENDOR_LATE_RETURN_POLICY'
+                                                            ? LATE_RETURN_POLICY_LABELS[value] || value
+                                                            : value}
+                                                    </option>
+                                                ))}
+                                            </TextField>
+                                        )}
+                                    />
+                                ) : config.dataType === ConfigDataType.INT ? (
+                                    <Controller
+                                        name="configValue"
+                                        control={control}
+                                        render={({ field, fieldState }) => {
+                                            const bounds = getNumericBounds(config);
+                                            return (
+                                                <TextField
+                                                    {...field}
+                                                    type="number"
+                                                    label={isVendorTiming ? 'Thời gian' : 'Giá trị'}
+                                                    fullWidth
+                                                    error={!!fieldState.error}
+                                                    helperText={fieldState.error?.message || VENDOR_TIMING_HELPERS[config.configKey] || getValueFieldHelper(config)}
+                                                    inputProps={bounds}
+                                                />
+                                            );
+                                        }}
+                                    />
+                                ) : config.dataType === ConfigDataType.TIME || isVendorCutoff ? (
+                                    <Controller
+                                        name="configValue"
+                                        control={control}
+                                        render={({ field, fieldState }) => (
+                                            <TextField
+                                                {...field}
+                                                type="time"
+                                                label="Giờ"
+                                                fullWidth
+                                                InputLabelProps={{ shrink: true }}
+                                                error={!!fieldState.error}
+                                                helperText={fieldState.error?.message || VENDOR_TIMING_HELPERS[config.configKey] || 'Chọn giờ theo định dạng 24 giờ (HH:mm).'}
+                                                inputProps={{ step: 60 }}
                                             />
                                         )}
                                     />
@@ -276,17 +422,20 @@ export const SystemConfigEditDialog = ({
                                     <Controller
                                         name="configValue"
                                         control={control}
-                                        render={({ field, fieldState }) => (
-                                            <TextField
-                                                {...field}
-                                                type="number"
-                                                label="Giá trị"
-                                                fullWidth
-                                                error={!!fieldState.error}
-                                                helperText={fieldState.error?.message || getValueFieldHelper(config)}
-                                                inputProps={{ step: 'any' }}
-                                            />
-                                        )}
+                                        render={({ field, fieldState }) => {
+                                            const bounds = getNumericBounds(config);
+                                            return (
+                                                <TextField
+                                                    {...field}
+                                                    type="number"
+                                                    label="Giá trị"
+                                                    fullWidth
+                                                    error={!!fieldState.error}
+                                                    helperText={fieldState.error?.message || getValueFieldHelper(config)}
+                                                    inputProps={bounds}
+                                                />
+                                            );
+                                        }}
                                     />
                                 ) : config.dataType === ConfigDataType.BOOLEAN ? (
                                     <Controller
@@ -331,11 +480,11 @@ export const SystemConfigEditDialog = ({
                                         render={({ field, fieldState }) => (
                                             <TextField
                                                 {...field}
-                                                label="Giá trị"
+                                                label={isVendorTiming ? 'Thời gian' : 'Giá trị'}
                                                 fullWidth
                                                 placeholder="14:30"
                                                 error={!!fieldState.error}
-                                                helperText={fieldState.error?.message || getValueFieldHelper(config)}
+                                                helperText={fieldState.error?.message || VENDOR_TIMING_HELPERS[config.configKey] || getValueFieldHelper(config)}
                                                 inputProps={{
                                                     maxLength: config.dataType === ConfigDataType.TIME ? 5 : undefined,
                                                 }}
@@ -350,8 +499,9 @@ export const SystemConfigEditDialog = ({
                         <Button onClick={onClose} variant="outlined" color="inherit" disabled={isPending}>
                             Hủy
                         </Button>
-                        <LoadingButton
-                            type="submit"
+                        <Button
+                            type="button"
+                            onClick={() => void submitForm()}
                             loading={isPending}
                             label="Lưu thay đổi"
                             loadingLabel="Đang lưu..."
@@ -359,6 +509,36 @@ export const SystemConfigEditDialog = ({
                         />
                     </DialogActions>
                 </form>
+            </Dialog>
+
+            <Dialog open={!!confirmData} onClose={() => setConfirmData(null)} maxWidth="sm" fullWidth>
+                <DialogTitle sx={{ pb: 1, fontWeight: 700 }}>Xác nhận thay đổi</DialogTitle>
+                <DialogContent>
+                    <Typography mb={2}>
+                        Bạn có chắc chắn muốn thay đổi <strong>{displayName}</strong>?
+                    </Typography>
+                    <Alert severity="warning">
+                        Thay đổi áp dụng ngay cho phiếu đang giữ và các phiếu tạo sau đó. Phiếu đã bàn giao vẫn giữ mốc đã chốt.
+                    </Alert>
+                </DialogContent>
+                <DialogActions sx={{ pt: 2, px: 3, pb: 2 }}>
+                    <Button onClick={() => setConfirmData(null)} variant="outlined" color="inherit" disabled={isPending}>
+                        Hủy
+                    </Button>
+                    <Button
+                        onClick={() => {
+                            if (confirmData) {
+                                onSubmit(confirmData);
+                                setConfirmData(null);
+                            }
+                        }}
+                        loading={isPending}
+                        label="Xác nhận lưu"
+                        loadingLabel="Đang lưu..."
+                        variant="contained"
+                        color="error"
+                    />
+                </DialogActions>
             </Dialog>
         </ThemeProvider>
     );

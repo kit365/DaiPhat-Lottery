@@ -42,6 +42,9 @@ export const supplierFormSchema = z.object({
         .string()
         .trim()
         .regex(drawTimePattern, 'Hạn trả vé phải theo định dạng HH:mm'),
+    paymentCutOffTime: z
+        .string()
+        .optional(),
     isActive: z.boolean(),
 });
 
@@ -60,5 +63,6 @@ export const supplierFormDefaultValues: SupplierFormValues = {
     defaultImportCost: 10000,
     importAllowFrom: '08:00',
     returnCutOffTime: '14:30',
+    paymentCutOffTime: '19:00',
     isActive: true,
 };

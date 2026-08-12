@@ -1,10 +1,11 @@
 "use client";
 
 import { Box, Button, ButtonBase, FormHelperText, Stack, Typography } from "@mui/material";
+import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
 import { UploadFileIcon, UploadIcon } from "../../assets/icons";
-import { useDropzone } from "react-dropzone";
+import { useDropzone, type Accept } from "react-dropzone";
 import { memo, useCallback, useEffect, useRef, useState } from "react";
-import { uploadImagesToCloudinary } from "../../api/uploadCloudinary.api";
+import { uploadAdminImage } from "@/admin/shared/services/upload.service";
 import { AppToast } from "../../../utils/toast.util";
 
 interface CustomFile extends File {
@@ -22,9 +23,12 @@ interface UploadSingleFileProps {
     autoUpload?: boolean;
     onUploadingChange?: (uploading: boolean) => void;
     compact?: boolean;
+    compactThumbSize?: number;
     label?: string;
     required?: boolean;
     maxFileSizeMb?: number;
+    accept?: Accept;
+    onPreview?: () => void;
 }
 
 export const UploadSingleFile = memo(
@@ -38,9 +42,12 @@ export const UploadSingleFile = memo(
         autoUpload,
         onUploadingChange,
         compact,
+        compactThumbSize,
         label = "Hình ảnh",
         required,
         maxFileSizeMb = 10,
+        accept = { "image/*": [] },
+        onPreview,
     }: UploadSingleFileProps) => {
         const [localFile, setLocalFile] = useState<CustomFile | null>(null);
         const [isUploading, setIsUploading] = useState(false);
@@ -73,12 +80,10 @@ export const UploadSingleFile = memo(
                 if (customUpload) {
                     url = await customUpload(file);
                 } else {
-                    const urls = await uploadImagesToCloudinary([file]);
-                    url = urls[0];
+                    url = await uploadAdminImage(file);
                 }
                 onChange(url);
                 setLocalFile(null);
-                AppToast.success("Tải ảnh lên thành công!");
             } catch (err: any) {
                 AppToast.error(err?.message || "Tải ảnh lên thất bại!");
             } finally {
@@ -108,7 +113,7 @@ export const UploadSingleFile = memo(
         }, [useRawFile, onChange, autoUpload, uploadFile, maxFileSizeMb]);
 
         const { getRootProps, getInputProps, isDragActive } = useDropzone({
-            accept: { "image/*": [] },
+            accept,
             multiple: false,
             onDrop,
             disabled: disabled || isUploading,
@@ -145,9 +150,12 @@ export const UploadSingleFile = memo(
             }
         }, [value]);
 
-        const renderThumb = () => {
+        const renderThumb = (thumbSize = 80) => {
             let src = "";
             let isUploaded = false;
+            const rawFile = useRawFile && value instanceof File ? value : null;
+            const isImageFile = !rawFile || rawFile.type.startsWith("image/");
+            const isPdfFile = Boolean(rawFile && (rawFile.type === "application/pdf" || rawFile.name.toLowerCase().endsWith(".pdf")));
 
             if (useRawFile) {
                 if (value instanceof File) {
@@ -164,49 +172,121 @@ export const UploadSingleFile = memo(
             if (!src) return null;
 
             return (
-                <li className="inline-flex">
-                    <span className="inline-flex relative items-center justify-center rounded-[10px] w-[80px] h-[80px] border border-[#919eab29]">
+                <Box
+                    sx={{
+                        position: 'relative',
+                        width: thumbSize,
+                        height: thumbSize,
+                        borderRadius: compact ? '6px' : '10px',
+                        overflow: 'hidden',
+                        border: compact ? 'none' : '1px solid #919eab29',
+                        flexShrink: 0,
+                    }}
+                >
+                    {isImageFile ? (
                         <Box
                             component="img"
                             src={src}
-                            sx={{ width: 1, height: 1, objectFit: "cover", borderRadius: "10px" }}
+                            alt={rawFile?.name || "Tệp đã chọn"}
+                            sx={{ width: 1, height: 1, objectFit: 'cover', display: 'block' }}
                         />
+                    ) : isPdfFile ? (
+                        <Box
+                            component="iframe"
+                            src={`${src}#page=1&toolbar=0&navpanes=0&scrollbar=0`}
+                            title={rawFile?.name || "Xem trước PDF"}
+                            sx={{
+                                width: "calc(100% + 6px)",
+                                height: "calc(100% + 6px)",
+                                ml: "-3px",
+                                mt: "-3px",
+                                border: 0,
+                                pointerEvents: "none",
+                                bgcolor: "#fff",
+                            }}
+                        />
+                    ) : (
+                        <Stack
+                            alignItems="center"
+                            justifyContent="center"
+                            spacing={0.25}
+                            sx={{ width: 1, height: 1, bgcolor: "rgba(255, 48, 48, 0.06)" }}
+                        >
+                            <PictureAsPdfIcon sx={{ color: "error.main", fontSize: 30 }} />
+                            <Typography variant="caption" sx={{ fontWeight: 700, color: "error.main" }}>
+                                PDF
+                            </Typography>
+                        </Stack>
+                    )}
 
+                    {onPreview && rawFile ? (
                         <ButtonBase
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                handleRemove();
+                            onClick={(event) => {
+                                event.stopPropagation();
+                                onPreview();
                             }}
                             sx={{
                                 position: "absolute",
-                                top: 4,
-                                right: 4,
+                                inset: 0,
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                bgcolor: "rgba(15, 23, 42, 0.38)",
                                 color: "#fff",
-                                bgcolor: "#141a217a",
-                                borderRadius: "50%",
-                                padding: "4px",
-                                "&:hover": { bgcolor: "#FF5630" },
+                                opacity: 1,
+                                transition: "opacity 0.15s ease",
+                                "&:hover": { bgcolor: "rgba(15, 23, 42, 0.52)" },
                             }}
                         >
-                            <svg width="0.75rem" height="0.75rem" viewBox="0 0 24 24">
-                                <path fill="currentColor" d="m12 13.414l5.657 5.657a1 1 0 0 0 1.414-1.414L13.414 12l5.657-5.657a1 1 0 0 0-1.414-1.414L12 10.586L6.343 4.929A1 1 0 0 0 4.93 6.343L10.586 12l-5.657 5.657a1 1 0 1 0 1.414 1.414z" />
-                            </svg>
+                            <Typography variant="caption" sx={{ fontWeight: 700 }}>
+                                Xem trước
+                            </Typography>
                         </ButtonBase>
+                    ) : null}
 
-                        {isUploaded && (
-                            <Box sx={{
-                                position: 'absolute', bottom: 2, right: 2,
-                                bgcolor: '#00A76F', borderRadius: '50%',
-                                width: 14, height: 14, border: '2px solid #fff',
-                                display: 'flex', alignItems: 'center', justifyContent: 'center'
-                            }}>
-                                <svg width="8" height="8" viewBox="0 0 24 24">
-                                    <path fill="#fff" d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
-                                </svg>
-                            </Box>
-                        )}
-                    </span>
-                </li>
+                    <ButtonBase
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            handleRemove();
+                        }}
+                        sx={{
+                            position: 'absolute',
+                            top: 2,
+                            right: 2,
+                            color: '#fff',
+                            bgcolor: '#141a217a',
+                            borderRadius: '50%',
+                            padding: compact ? '2px' : '4px',
+                            '&:hover': { bgcolor: '#FF5630' },
+                        }}
+                    >
+                        <svg width={compact ? '0.625rem' : '0.75rem'} height={compact ? '0.625rem' : '0.75rem'} viewBox="0 0 24 24">
+                            <path fill="currentColor" d="m12 13.414l5.657 5.657a1 1 0 0 0 1.414-1.414L13.414 12l5.657-5.657a1 1 0 0 0-1.414-1.414L12 10.586L6.343 4.929A1 1 0 0 0 4.93 6.343L10.586 12l-5.657 5.657a1 1 0 1 0 1.414 1.414z" />
+                        </svg>
+                    </ButtonBase>
+
+                    {isUploaded && !compact && (
+                        <Box
+                            sx={{
+                                position: 'absolute',
+                                bottom: 2,
+                                right: 2,
+                                bgcolor: '#FF3030',
+                                borderRadius: '50%',
+                                width: 14,
+                                height: 14,
+                                border: '2px solid #fff',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                            }}
+                        >
+                            <svg width="8" height="8" viewBox="0 0 24 24">
+                                <path fill="#fff" d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
+                            </svg>
+                        </Box>
+                    )}
+                </Box>
             );
         };
 
@@ -218,29 +298,76 @@ export const UploadSingleFile = memo(
         };
 
         const hasMedia = useRawFile ? Boolean(value) : Boolean(localFile || value);
+        const thumbSize = compactThumbSize ?? 44;
 
         if (compact) {
             return (
-                <Stack spacing={0.5}>
-                    <div {...getRootProps()}>
+                <Stack spacing={0.5} alignItems="flex-end">
+                    <Box
+                        component="div"
+                        {...getRootProps()}
+                        sx={{
+                            width: thumbSize,
+                            height: thumbSize,
+                            borderRadius: '6px',
+                            border: '1px dashed',
+                            borderColor: error ? 'error.main' : 'divider',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            overflow: 'hidden',
+                            cursor: disabled || isUploading ? 'not-allowed' : 'pointer',
+                            opacity: disabled || isUploading ? 0.55 : 1,
+                            bgcolor: 'var(--palette-grey-100)',
+                            position: 'relative',
+                            flexShrink: 0,
+                            transition: 'border-color 0.2s, background-color 0.2s',
+                            ...(!(disabled || isUploading) && {
+                                '&:hover': {
+                                    borderColor: 'var(--palette-primary-main)',
+                                    bgcolor: 'var(--palette-grey-200)',
+                                },
+                            }),
+                        }}
+                    >
                         <input {...getInputProps()} />
                         {hasMedia ? (
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                <ul className="flex gap-[8px] flex-wrap m-0 p-0 list-none">{renderThumb()}</ul>
-                                {!useRawFile && localFile && !autoUpload && (
-                                    <Button size="small" onClick={handleUpload} disabled={isUploading} sx={{ minWidth: 0, px: 1 }}>
-                                        {isUploading ? '...' : '↑'}
-                                    </Button>
+                            <>
+                                {renderThumb(thumbSize)}
+                                {isUploading && (
+                                    <Box
+                                        sx={{
+                                            position: 'absolute',
+                                            inset: 0,
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            bgcolor: 'rgba(0, 0, 0, 0.35)',
+                                        }}
+                                    >
+                                        <Typography sx={{ fontSize: '0.625rem', color: '#fff' }}>
+                                            ...
+                                        </Typography>
+                                    </Box>
                                 )}
-                            </Box>
+                            </>
                         ) : (
-                            <Button size="small" variant="outlined" sx={{ textTransform: 'none', fontSize: '0.75rem' }}>
-                                Chọn ảnh
-                            </Button>
+                            <Typography
+                                sx={{
+                                    fontSize: '0.625rem',
+                                    color: 'text.secondary',
+                                    textAlign: 'center',
+                                    lineHeight: 1.15,
+                                    px: 0.25,
+                                    userSelect: 'none',
+                                }}
+                            >
+                                Ảnh
+                            </Typography>
                         )}
-                    </div>
-                    {(error || (!useRawFile && localFile && !value && !isUploading)) && (
-                        <FormHelperText error sx={{ m: 0 }}>
+                    </Box>
+                    {getErrorMessage() && (
+                        <FormHelperText error sx={{ m: 0, textAlign: 'right' }}>
                             {getErrorMessage()}
                         </FormHelperText>
                     )}
@@ -271,7 +398,7 @@ export const UploadSingleFile = memo(
                                 {isUploading ? "Đang tải ảnh lên..." : "Kéo thả hoặc chọn tệp"}
                             </div>
                             <div className="text-[0.875rem] text-[#637381]">
-                                Kéo tệp vào đây, hoặc <span className="underline text-[#00A76F]">chọn tệp</span>
+                                Kéo tệp vào đây, hoặc <span className="underline text-[#FF3030]">chọn tệp</span>
                             </div>
                         </div>
                     </div>
@@ -286,7 +413,9 @@ export const UploadSingleFile = memo(
                 {hasMedia && (
                     <>
                         <Box sx={{ my: 3 }}>
-                            <ul className="flex gap-[12px] flex-wrap">{renderThumb()}</ul>
+                            <ul className="flex gap-[12px] flex-wrap m-0 p-0 list-none">
+                                <li className="inline-flex">{renderThumb()}</li>
+                            </ul>
                         </Box>
 
                         {!useRawFile && localFile && !autoUpload && (

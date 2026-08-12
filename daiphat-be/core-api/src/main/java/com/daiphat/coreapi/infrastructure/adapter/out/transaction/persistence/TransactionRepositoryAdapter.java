@@ -2,10 +2,12 @@ package com.daiphat.coreapi.infrastructure.adapter.out.transaction.persistence;
 
 import com.daiphat.coreapi.application.port.out.order.TransactionRepositoryPort;
 import com.daiphat.coreapi.domain.model.enums.transaction.TransactionType;
+import com.daiphat.coreapi.domain.model.enums.transaction.TransactionBusinessType;
 import com.daiphat.coreapi.domain.model.orders.TransactionModel;
 import com.daiphat.coreapi.infrastructure.persistence.entity.order.OrderEntity;
 import com.daiphat.coreapi.infrastructure.persistence.entity.order.TransactionEntity;
 import com.daiphat.coreapi.infrastructure.persistence.entity.refund.RefundRequestEntity;
+import com.daiphat.coreapi.infrastructure.persistence.entity.payout.PrizePayoutRequestEntity;
 import com.daiphat.coreapi.infrastructure.persistence.entity.user.UserEntity;
 import com.daiphat.coreapi.infrastructure.persistence.repository.order.TransactionRepository;
 import lombok.RequiredArgsConstructor;
@@ -71,6 +73,13 @@ public class TransactionRepositoryAdapter implements TransactionRepositoryPort {
         } else {
             entity.setRefundRequest(null);
         }
+        if (model.getPrizePayoutRequestId() != null) {
+            PrizePayoutRequestEntity prizePayoutRequest = new PrizePayoutRequestEntity();
+            prizePayoutRequest.setId(model.getPrizePayoutRequestId());
+            entity.setPrizePayoutRequest(prizePayoutRequest);
+        } else {
+            entity.setPrizePayoutRequest(null);
+        }
         entity.setAmount(model.getAmount());
         entity.setGateway(model.getGateway());
         entity.setGatewayOrderCode(model.getGatewayOrderCode());
@@ -84,6 +93,10 @@ public class TransactionRepositoryAdapter implements TransactionRepositoryPort {
         entity.setPaymentEvidenceUrl(model.getPaymentEvidenceUrl());
         entity.setPaymentBy(userRef(model.getPaymentBy()));
         entity.setNote(model.getNote());
+        TransactionBusinessType businessType = model.getTransactionType() != null
+                ? model.getTransactionType()
+                : inferredBusinessType(model.getType());
+        entity.setTransactionType(businessType);
         entity.setType(model.getType());
         entity.setCreatedAt(model.getCreatedAt());
         entity.setUpdatedAt(model.getUpdatedAt());
@@ -97,6 +110,9 @@ public class TransactionRepositoryAdapter implements TransactionRepositoryPort {
                 .id(entity.getId())
                 .orderId(entity.getOrder() != null ? entity.getOrder().getId() : null)
                 .refundRequestId(entity.getRefundRequest() != null ? entity.getRefundRequest().getId() : null)
+                .prizePayoutRequestId(entity.getPrizePayoutRequest() != null
+                        ? entity.getPrizePayoutRequest().getId()
+                        : null)
                 .amount(entity.getAmount())
                 .gateway(entity.getGateway())
                 .gatewayOrderCode(entity.getGatewayOrderCode())
@@ -110,6 +126,7 @@ public class TransactionRepositoryAdapter implements TransactionRepositoryPort {
                 .paymentEvidenceUrl(entity.getPaymentEvidenceUrl())
                 .paymentBy(userId(entity.getPaymentBy()))
                 .note(entity.getNote())
+                .transactionType(entity.getTransactionType())
                 .type(entity.getType())
                 .createdAt(entity.getCreatedAt())
                 .updatedAt(entity.getUpdatedAt())
@@ -130,4 +147,11 @@ public class TransactionRepositoryAdapter implements TransactionRepositoryPort {
     private UUID userId(UserEntity user) {
         return user != null ? user.getId() : null;
     }
+
+    private TransactionBusinessType inferredBusinessType(TransactionType paymentType) {
+        return paymentType == TransactionType.REFUND
+                ? TransactionBusinessType.ORDER_REFUND
+                : TransactionBusinessType.ORDER_PAYMENT;
+    }
+
 }

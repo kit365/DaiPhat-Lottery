@@ -14,6 +14,7 @@ import lombok.RequiredArgsConstructor;
 public enum UserStatus implements CodedLabeledEnum {
     ACTIVE("ACTIVE", "Hoạt động"),
     PENDING("PENDING", "Chờ xử lý"),
+    INTERNAL("INTERNAL", "Hồ sơ nội bộ"),
     LOCKED("LOCKED", "Bị khóa"),
     BANNED("BANNED", "Bị cấm"),
     DELETED("DELETED", "Đã xóa");

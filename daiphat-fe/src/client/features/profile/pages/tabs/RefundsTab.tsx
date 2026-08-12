@@ -1,7 +1,8 @@
 "use client";
 
+import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import { useGetMyRefunds, useGetRefundStatuses } from '../../../../hooks/useRefund';
 import { RefundRequestStatus, RefundType } from '../../../../../types/refund.type';
@@ -15,7 +16,7 @@ const REFUND_TYPE_LABELS: Record<RefundType, string> = {
 };
 
 export const RefundsTab = () => {
-    const navigate = useNavigate();
+    const router = useRouter();
     const [activeTab, setActiveTab] = useState<RefundRequestStatus | 'ALL'>('ALL');
     const [page, setPage] = useState(1);
     const [searchTerm, setSearchTerm] = useState('');
@@ -110,7 +111,7 @@ export const RefundsTab = () => {
                                             </div>
                                             <p className="text-[14px] text-[#637381]">Chưa có yêu cầu hoàn tiền nào</p>
                                             <Link
-                                                to="/profile/orders"
+                                                href="/profile/orders"
                                                 className="text-[#ee1314] font-bold text-[14px] hover:underline"
                                             >
                                                 Xem đơn hàng
@@ -129,7 +130,7 @@ export const RefundsTab = () => {
                                     <tr
                                         key={refund.id}
                                         className="border-b border-[#F4F6F8] hover:bg-[#FAFBFC] transition-colors cursor-pointer"
-                                        onClick={() => navigate(`/profile/refunds/${refund.id}`)}
+                                        onClick={() => router.push(`/profile/refunds/${refund.id}`)}
                                     >
                                         <td className="py-4 px-5 align-top">
                                             <span className="text-[14px] font-medium text-[#212B36]">#{refund.id}</span>
@@ -142,7 +143,7 @@ export const RefundsTab = () => {
                                         <td className="py-4 px-5 align-top">
                                             {refund.orderId ? (
                                                 <Link
-                                                    to={`/profile/orders/${refund.orderId}`}
+                                                    href={`/profile/orders/${refund.orderId}`}
                                                     onClick={(e) => e.stopPropagation()}
                                                     className="text-[14px] text-[#2065D1] hover:underline font-medium"
                                                 >
@@ -173,7 +174,7 @@ export const RefundsTab = () => {
                                                 <button
                                                     onClick={(e) => {
                                                         e.stopPropagation();
-                                                        navigate(`/profile/refunds/${refund.id}`);
+                                                        router.push(`/profile/refunds/${refund.id}`);
                                                     }}
                                                     className="w-8 h-8 rounded-lg border border-[#E5E8EB] flex items-center justify-center text-[#919EAB] hover:text-[#2065D1] hover:border-[#2065D1] hover:bg-[#F0F5FF] transition-all cursor-pointer"
                                                     title="Xem chi tiết"

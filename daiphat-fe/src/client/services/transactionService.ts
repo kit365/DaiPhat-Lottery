@@ -5,7 +5,7 @@ import {
     PendingPaymentCountdownResult,
     ProcessPaymentRequest
 } from '../../types/transaction.type';
-import { ApiResponse } from '../../admin/config/type';
+import type { ApiResponse } from '@/types/api.type';
 
 const BASE_URL = '/transactions';
 

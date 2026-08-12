@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect, type ReactElement } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import {
     Box,
     Card,
@@ -14,17 +15,18 @@ import {
     Typography,
     styled,
 } from '@mui/material';
-import { Banknote, CreditCard, Gift, LayoutList, MessageSquare, PackageMinus, ShoppingCart, Ticket } from 'lucide-react';
+import { Banknote, CreditCard, FileText, Gift, Globe2, LayoutList, MessageSquare, PackageMinus, ShoppingCart, Sparkles, Store, Ticket } from 'lucide-react';
 import { toast } from 'react-toastify';
-import { Breadcrumb } from '../../../../components/ui/Breadcrumb';
+import { PageHeader } from '../../../../components/ui/PageHeader';
 import { Search } from '../../../../components/ui/Search';
-import { Title } from '../../../../components/ui/Title';
 import { PERMISSIONS } from '../../../../constants/permission.constants';
 import { useAuthStore } from '../../../../../stores/useAuthStore';
-import { UpdateSystemConfigFormValues } from '../../../../schemas/system-config.schema';
-import { useSystemConfigs, useUpdateSystemConfig } from '../../hooks/useSystemConfig';
+import { UpdateSystemConfigFormValues } from '@/admin/features/system-config/schemas/system-config.schema';
+import { useBulkUpdateVendorConfidencePolicy, useSystemConfigs, useUpdateSystemConfig } from '../../hooks/useSystemConfig';
 import { SystemConfigEditDialog } from '../sections/SystemConfigEditDialog';
 import { SystemConfigTableRow } from '../sections/SystemConfigTableRow';
+import { VendorConfidencePolicyDialog } from '../sections/VendorConfidencePolicyDialog';
+import { VendorSettingsView } from '../sections/VendorSettingsView';
 import {
     CONFIG_TYPE_LABELS,
     ConfigType,
@@ -46,8 +48,20 @@ const TabBadge = styled('span')(() => ({
 
 type TypeFilter = 'all' | ConfigType;
 
-const TYPE_TABS: { value: TypeFilter; label: string; icon: React.ReactNode; color: string }[] = [
+const TYPE_TABS: { value: TypeFilter; label: string; icon: ReactElement; color: string }[] = [
     { value: 'all', label: 'Tất cả', icon: <LayoutList size={18} />, color: 'primary.main' },
+    {
+        value: ConfigType.GENERAL_SETTING,
+        label: CONFIG_TYPE_LABELS[ConfigType.GENERAL_SETTING],
+        icon: <Globe2 size={18} />,
+        color: 'primary.dark',
+    },
+    {
+        value: ConfigType.STATIC_PAGE,
+        label: CONFIG_TYPE_LABELS[ConfigType.STATIC_PAGE],
+        icon: <FileText size={18} />,
+        color: 'primary.main',
+    },
     {
         value: ConfigType.ORDER_SETTING,
         label: CONFIG_TYPE_LABELS[ConfigType.ORDER_SETTING],
@@ -73,6 +87,12 @@ const TYPE_TABS: { value: TypeFilter; label: string; icon: React.ReactNode; colo
         color: 'warning.dark',
     },
     {
+        value: ConfigType.VENDOR_SETTING,
+        label: CONFIG_TYPE_LABELS[ConfigType.VENDOR_SETTING],
+        icon: <Store size={18} />,
+        color: 'info.dark',
+    },
+    {
         value: ConfigType.REFUND_SETTING,
         label: CONFIG_TYPE_LABELS[ConfigType.REFUND_SETTING],
         icon: <Banknote size={18} />,
@@ -90,7 +110,48 @@ const TYPE_TABS: { value: TypeFilter; label: string; icon: React.ReactNode; colo
         icon: <Gift size={18} />,
         color: 'success.dark',
     },
+    {
+        value: ConfigType.FORTUNE_SETTING,
+        label: CONFIG_TYPE_LABELS[ConfigType.FORTUNE_SETTING],
+        icon: <Sparkles size={18} />,
+        color: 'error.dark',
+    },
 ];
+
+const renderTypeFilterTab = (
+    tab: (typeof TYPE_TABS)[number],
+    selected: boolean,
+    count: number
+) => (
+    <Tab
+        key={tab.value}
+        value={tab.value}
+        icon={tab.icon}
+        iconPosition="start"
+        label={
+            <Box
+                component="span"
+                sx={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 1,
+                    color: selected ? tab.color : 'text.secondary',
+                }}
+            >
+                <Box component="span">{tab.label}</Box>
+                <TabBadge
+                    sx={{
+                        ml: 0,
+                        bgcolor: selected ? tab.color : 'action.hover',
+                        color: selected ? '#fff' : 'text.secondary',
+                    }}
+                >
+                    {count}
+                </TabBadge>
+            </Box>
+        }
+    />
+);
 
 export const SystemConfigListPage = () => {
     const { user } = useAuthStore();
@@ -98,25 +159,50 @@ export const SystemConfigListPage = () => {
         user?.permissions?.includes(PERMISSIONS.SETTINGS.EDIT) ||
         user?.rolesName?.includes('ROLE_ADMIN');
 
+    const router = useRouter();
+    const searchParams = useSearchParams();
+
     const [search, setSearch] = useState('');
     const [typeFilter, setTypeFilter] = useState<TypeFilter>('all');
+
+    useEffect(() => {
+        const tab = searchParams.get('tab') as TypeFilter;
+        if (tab && TYPE_TABS.some((t) => t.value === tab)) {
+            setTypeFilter(tab);
+        } else if (!tab) {
+            setTypeFilter('all');
+        }
+    }, [searchParams]);
+
+    const handleTabChange = (value: TypeFilter) => {
+        setTypeFilter(value);
+        const params = new URLSearchParams(searchParams.toString());
+        params.set('tab', value);
+        router.replace(`?${params.toString()}`, { scroll: false });
+    };
     const [selectedConfig, setSelectedConfig] = useState<SystemConfigResponse | null>(null);
+    const [confidencePolicyOpen, setConfidencePolicyOpen] = useState(false);
 
     const { data: configsRes, isLoading } = useSystemConfigs('all');
     const { mutate: updateConfig, isPending } = useUpdateSystemConfig();
+    const { mutate: bulkUpdateConfidence, isPending: isBulkConfidencePending } =
+        useBulkUpdateVendorConfidencePolicy();
 
     const allConfigs = configsRes?.data || [];
-
     const typeCounts = useMemo(() => {
         const counts: Record<TypeFilter, number> = {
             all: allConfigs.length,
+            [ConfigType.GENERAL_SETTING]: 0,
+            [ConfigType.STATIC_PAGE]: 0,
             [ConfigType.ORDER_SETTING]: 0,
             [ConfigType.PAYMENT_SETTING]: 0,
             [ConfigType.TICKET_IMPORT]: 0,
             [ConfigType.TICKET_RETURN]: 0,
+            [ConfigType.VENDOR_SETTING]: 0,
             [ConfigType.REFUND_SETTING]: 0,
             [ConfigType.COMPLAINT_SETTING]: 0,
             [ConfigType.PAYOUT_SETTING]: 0,
+            [ConfigType.FORTUNE_SETTING]: 0,
         };
         allConfigs.forEach((c) => {
             if (counts[c.configType] !== undefined) {
@@ -146,6 +232,10 @@ export const SystemConfigListPage = () => {
     }, [allConfigs, search, typeFilter]);
 
     const handleEdit = (config: SystemConfigResponse) => {
+        if (config.configKey.startsWith('VENDOR_CONFIDENCE_')) {
+            setConfidencePolicyOpen(true);
+            return;
+        }
         setSelectedConfig(config);
     };
 
@@ -180,20 +270,36 @@ export const SystemConfigListPage = () => {
         );
     };
 
+    const handleBulkConfidenceSubmit = (values: Record<string, string>) => {
+        bulkUpdateConfidence(values, {
+            onSuccess: (res) => {
+                if (res.success) {
+                    toast.success(res.message || 'Cập nhật chính sách điểm tin cậy thành công!');
+                    setConfidencePolicyOpen(false);
+                } else {
+                    toast.error(res.message || 'Cập nhật chính sách điểm tin cậy thất bại!');
+                }
+            },
+            onError: (err: any) => {
+                toast.error(
+                    err?.response?.data?.message ||
+                        err.message ||
+                        'Cập nhật chính sách điểm tin cậy thất bại!'
+                );
+            },
+        });
+    };
+
     return (
         <>
-            <div className="mb-[calc(5*var(--spacing))] gap-[calc(2*var(--spacing))] flex items-start justify-end">
-                <div className="mr-auto">
-                    <Title title="Cấu hình hệ thống" />
-                    <Breadcrumb
-                        items={[
+            <PageHeader
+                title="Cấu hình hệ thống"
+                breadcrumbItems={[
                             { label: 'Dashboard', to: '/admin' },
                             { label: 'Cài đặt', to: '/admin/dashboard/settings' },
                             { label: 'Cấu hình hệ thống' },
                         ]}
-                    />
-                </div>
-            </div>
+            />
 
             <Card
                 sx={{
@@ -212,19 +318,25 @@ export const SystemConfigListPage = () => {
                         sx={{ mb: 2 }}
                     >
                         <Search
-                            placeholder="Tìm theo tên, khóa, mô tả hoặc giá trị..."
+                            placeholder={
+                                typeFilter === ConfigType.VENDOR_SETTING
+                                    ? 'Tìm chính sách người bán vé số...'
+                                    : 'Tìm theo tên, mô tả hoặc giá trị...'
+                            }
                             value={search}
                             onChange={setSearch}
                             maxWidth="100%"
                         />
-                        <Typography variant="body2" color="text.secondary" sx={{ whiteSpace: 'nowrap' }}>
-                            {filteredConfigs.length} cấu hình
-                        </Typography>
+                        <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
+                            <Typography variant="body2" color="text.secondary" sx={{ whiteSpace: 'nowrap' }}>
+                                {filteredConfigs.length} cấu hình
+                            </Typography>
+                        </Stack>
                     </Stack>
 
                     <Tabs
                         value={typeFilter}
-                        onChange={(_, value: TypeFilter) => setTypeFilter(value)}
+                        onChange={(_, value: TypeFilter) => handleTabChange(value)}
                         variant="scrollable"
                         scrollButtons="auto"
                         allowScrollButtonsMobile
@@ -244,44 +356,27 @@ export const SystemConfigListPage = () => {
                             },
                         }}
                     >
-                        {TYPE_TABS.map((tab) => {
-                            const isSelected = typeFilter === tab.value;
-                            return (
-                                <Tab
-                                    key={tab.value}
-                                    value={tab.value}
-                                    label={
-                                        <Box
-                                            sx={{
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                gap: 1,
-                                                color: isSelected ? tab.color : 'text.secondary',
-                                            }}
-                                        >
-                                            {tab.icon}
-                                            {tab.label}
-                                            <TabBadge
-                                                sx={{
-                                                    ml: 0,
-                                                    bgcolor: isSelected ? tab.color : 'action.hover',
-                                                    color: isSelected ? '#fff' : 'text.secondary',
-                                                }}
-                                            >
-                                                {typeCounts[tab.value]}
-                                            </TabBadge>
-                                        </Box>
-                                    }
-                                />
-                            );
-                        })}
+                        {TYPE_TABS.map((tab) =>
+                            renderTypeFilterTab(tab, typeFilter === tab.value, typeCounts[tab.value])
+                        )}
                     </Tabs>
                 </Box>
 
-                <TableContainer>
-                    <Table>
-                        <TableHead>
-                            <TableRow
+                {typeFilter === ConfigType.VENDOR_SETTING ? (
+                    <Box pt={2}>
+                        <VendorSettingsView
+                            configs={filteredConfigs}
+                            allConfigs={allConfigs}
+                            canEdit={Boolean(canEdit)}
+                            onEdit={handleEdit}
+                            onBulkConfidenceEdit={() => setConfidencePolicyOpen(true)}
+                        />
+                    </Box>
+                ) : (
+                    <TableContainer>
+                        <Table>
+                            <TableHead>
+                                <TableRow
                                 sx={{
                                     '& th': {
                                         color: 'var(--palette-text-secondary)',
@@ -326,6 +421,7 @@ export const SystemConfigListPage = () => {
                         </TableBody>
                     </Table>
                 </TableContainer>
+                )}
             </Card>
 
             <SystemConfigEditDialog
@@ -334,6 +430,14 @@ export const SystemConfigListPage = () => {
                 onClose={handleCloseDialog}
                 onSubmit={handleSubmit}
                 isPending={isPending}
+            />
+
+            <VendorConfidencePolicyDialog
+                open={confidencePolicyOpen}
+                configs={allConfigs}
+                loading={isBulkConfidencePending}
+                onClose={() => setConfidencePolicyOpen(false)}
+                onSubmit={handleBulkConfidenceSubmit}
             />
         </>
     );

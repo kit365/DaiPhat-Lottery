@@ -37,8 +37,20 @@ public final class StorageUtils {
             throw new DomainException(ErrorCode.INVALID_INPUT, "URL minh chứng chuyển khoản là bắt buộc.");
         }
         String trimmed = url.trim();
-        if (!trimmed.startsWith("http://") && !trimmed.startsWith("https://")) {
+        // Cloudinary returns absolute https://...; local storage returns /uploads/... when
+        // daiphat.storage.local.public-base-url is empty (see application-local.yml).
+        if (!isAbsoluteHttpUrl(trimmed) && !isSafeRelativeUploadUrl(trimmed)) {
             throw new DomainException(ErrorCode.INVALID_INPUT, "URL minh chứng chuyển khoản không hợp lệ.");
         }
+    }
+
+    private static boolean isAbsoluteHttpUrl(String url) {
+        return url.startsWith("http://") || url.startsWith("https://");
+    }
+
+    private static boolean isSafeRelativeUploadUrl(String url) {
+        return url.startsWith("/")
+                && !url.startsWith("//")
+                && !url.contains("..");
     }
 }

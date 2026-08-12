@@ -1,26 +1,11 @@
-"use client";
+﻿"use client";
 
-import dynamic from 'next/dynamic';
-import { PermissionGuard } from '@/admin/components/auth/PermissionGuard';
+import { PrizePayoutListPage } from '@/admin/features/prize-payout/components/pages/PrizePayoutListPage';
+
+import { createAdminClientPage } from '@/admin/lib/createAdminClientPage';
 import { PERMISSIONS } from '@/admin/constants/permission.constants';
-import { LoadingSpinner } from '@/client/components/ui/LoadingSpinner';
 
-const FeaturePage = dynamic(
-  () => import('@/admin/pages/prize-payout/PrizePayoutListPage').then((m) => m.PrizePayoutListPage),
-  {
-    ssr: false,
-    loading: () => (
-      <div className="flex items-center justify-center p-12 min-h-[300px]">
-        <LoadingSpinner />
-      </div>
-    ),
-  }
-);
-
-export function ClientPage() {
-  return (
-    <PermissionGuard permission={PERMISSIONS.PRIZE_PAYOUT.VIEW}>
-      <FeaturePage />
-    </PermissionGuard>
-  );
-}
+export const ClientPage = createAdminClientPage({
+  component: PrizePayoutListPage,
+  permission: PERMISSIONS.PRIZE_PAYOUT.VIEW,
+});

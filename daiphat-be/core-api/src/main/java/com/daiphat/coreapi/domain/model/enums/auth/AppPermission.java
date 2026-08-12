@@ -113,6 +113,8 @@ public enum AppPermission {
             "Quản lý Người bán vé số dạo", "Sửa hồ sơ người bán vé số dạo", "Quyền cập nhật hồ sơ người bán vé số dạo", 603),
     STREET_AGENT_DELETE(PermissionConstants.STREET_AGENT + PermissionConstants.DELETE,
             "Quản lý Người bán vé số dạo", "Xóa hồ sơ người bán vé số dạo", "Quyền xóa hồ sơ người bán vé số dạo", 601),
+    STREET_AGENT_MANAGE(PermissionConstants.STREET_AGENT + PermissionConstants.MANAGE,
+            "Quản lý Người bán vé số dạo", "Override số đẹp / quản trị nâng cao", "Quyền override số đẹp khi bàn giao vé cho người bán dạo", 600),
 
     PRIZE_STRUCTURE_VIEW(PermissionConstants.PRIZE_STRUCTURE + PermissionConstants.VIEW,
             "Quản lý Cơ cấu giải", "Xem cơ cấu giải", "Quyền xem danh sách cơ cấu giải theo miền", 599),

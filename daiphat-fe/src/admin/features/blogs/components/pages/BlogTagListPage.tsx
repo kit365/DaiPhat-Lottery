@@ -16,32 +16,26 @@ import {
     Stack,
     TextField,
     Typography,
-    ButtonBase,
-    Popover,
-    MenuItem,
-    ListItemIcon,
-    ListItemText
 } from '@mui/material';
-import { DataGrid, GridColDef } from '@mui/x-data-grid';
+import type { GridColDef } from '@mui/x-data-grid';
+import { LazyDataGrid } from '@/admin/shared/data-grid/LazyDataGrid';
 import AddIcon from '@mui/icons-material/Add';
 import CloseIcon from '@mui/icons-material/Close';
-import { useTranslation } from "react-i18next";
-import { Breadcrumb } from "../../../../components/ui/Breadcrumb";
-import { Title } from "../../../../components/ui/Title";
+import { PageHeader } from "../../../../components/ui/PageHeader";
 import { Search } from "../../../../components/ui/Search";
 import { prefixAdmin } from "../../../../constants/routes";
 import { useBlogTagsPaged, useCreateBlogTag, useUpdateBlogTag, useDeleteBlogTag } from "../../hooks/useBlogTag";
 import { DATA_GRID_LOCALE_VN } from "../../../../../shared/components/DataTable/localeText.config";
 import { dataGridStyles } from "../../../../shared/data-grid";
-import { DeleteIcon, EditIcon, ThreeDotsIcon, SortAscendingIcon, SortDescendingIcon, UnsortedIcon, EyeIcon } from "../../../../assets/icons";
+import { SortAscendingIcon, SortDescendingIcon, UnsortedIcon } from "../../../../assets/icons";
 import { confirmDelete } from "../../../../utils/swal";
 import { toast } from "react-toastify";
 import dayjs from "dayjs";
 import { usePermissions } from "../../../../hooks/usePermission";
 import { CanAccess } from "../../../../components/auth/CanAccess";
+import { AdminRowActionsMenu } from "../../../../components/ui/AdminRowActionsMenu";
 
 export const BlogTagListPage = () => {
-    const { t } = useTranslation();
     const { can, canAny } = usePermissions();
     const canEdit = can(PERMISSIONS.ARTICLE.EDIT);
     const canDelete = can(PERMISSIONS.ARTICLE.DELETE);
@@ -57,10 +51,6 @@ export const BlogTagListPage = () => {
     const [openDetailDialog, setOpenDetailDialog] = useState(false);
     const [detailTag, setDetailTag] = useState<any>(null);
 
-    // Popover menu state
-    const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
-    const [selectedTag, setSelectedTag] = useState<{ id: string | number; name: string; slug: string } | null>(null);
-
     // Queries & Mutations
     const params = {
         page: page + 1,
@@ -75,57 +65,38 @@ export const BlogTagListPage = () => {
     const { mutate: updateTag, isPending: isUpdating } = useUpdateBlogTag();
     const { mutate: deleteTag } = useDeleteBlogTag();
 
-    const handleOpenMenu = (event: React.MouseEvent<HTMLElement>, tag: any) => {
-        setAnchorEl(event.currentTarget);
-        setSelectedTag(tag);
+    const openTagDetail = (tag: any) => {
+        setDetailTag(tag);
+        setOpenDetailDialog(true);
     };
 
-    const handleCloseMenu = () => {
-        setAnchorEl(null);
-        setSelectedTag(null);
+    const openTagEdit = (tag: any) => {
+        setEditingTag(tag);
+        setFormValues({ name: tag.name });
+        setOpenDialog(true);
+    };
+
+    const handleDeleteTag = (tag: any) => {
+        confirmDelete("Bạn có chắc chắn muốn xóa thẻ bài viết này?", () => {
+            deleteTag(tag.id, {
+                onSuccess: (response: any) => {
+                    if (response.success) {
+                        toast.success("Xóa thẻ bài viết thành công!");
+                    } else {
+                        toast.error(response.message || "Xóa thất bại");
+                    }
+                },
+                onError: (err: any) => {
+                    toast.error(err.response?.data?.message || err.message || "Xóa thất bại");
+                }
+            });
+        });
     };
 
     const handleOpenCreate = () => {
         setEditingTag(null);
         setFormValues({ name: '' });
         setOpenDialog(true);
-    };
-
-    const handleOpenDetail = () => {
-        if (selectedTag) {
-            setDetailTag(selectedTag);
-            setOpenDetailDialog(true);
-            handleCloseMenu();
-        }
-    };
-
-    const handleOpenEdit = () => {
-        if (selectedTag) {
-            setEditingTag(selectedTag);
-            setFormValues({ name: selectedTag.name });
-            setOpenDialog(true);
-            handleCloseMenu();
-        }
-    };
-
-    const handleDelete = () => {
-        if (selectedTag) {
-            confirmDelete("Bạn có chắc chắn muốn xóa thẻ bài viết này?", () => {
-                deleteTag(selectedTag.id, {
-                    onSuccess: (response: any) => {
-                        if (response.success) {
-                            toast.success("Xóa thẻ bài viết thành công!");
-                        } else {
-                            toast.error(response.message || "Xóa thất bại");
-                        }
-                    },
-                    onError: (err: any) => {
-                        toast.error(err.response?.data?.message || "Xóa thất bại");
-                    }
-                });
-            });
-            handleCloseMenu();
-        }
     };
 
     const handleFormSubmit = (e: React.FormEvent) => {
@@ -191,39 +162,46 @@ export const BlogTagListPage = () => {
             filterable: false,
             align: 'right' as const,
             renderCell: (params: any) => (
-                <ButtonBase
-                    onClick={(e) => handleOpenMenu(e, params.row)}
-                    sx={{
-                        color: "var(--palette-text-secondary)",
-                        p: "8px",
-                        borderRadius: "50%",
-                        rotate: "90deg",
-                        transition: "background-color 150ms",
-                        "&:hover": {
-                            backgroundColor: "var(--palette-text-secondary)14",
+                <AdminRowActionsMenu
+                    items={[
+                        {
+                            id: 'detail',
+                            label: 'Chi tiết',
+                            icon: 'detail',
+                            onClick: () => openTagDetail(params.row),
                         },
-                    }}
-                >
-                    <ThreeDotsIcon />
-                </ButtonBase>
+                        {
+                            id: 'edit',
+                            label: 'Chỉnh sửa',
+                            icon: 'edit',
+                            onClick: () => openTagEdit(params.row),
+                            hidden: !canEdit,
+                        },
+                        {
+                            id: 'delete',
+                            label: 'Xóa',
+                            icon: 'delete',
+                            onClick: () => handleDeleteTag(params.row),
+                            hidden: !canDelete,
+                            danger: true,
+                        },
+                    ]}
+                />
             )
         }] : []),
     ];
 
     return (
         <>
-            <div className="mb-[calc(5*var(--spacing))] gap-[calc(2*var(--spacing))] flex items-start justify-end">
-                <div className="mr-auto">
-                    <Title title="Thẻ bài viết" />
-                    <Breadcrumb
-                        items={[
-                            { label: t("admin.dashboard.title"), to: "/" },
-                            { label: t("admin.blog.title.list"), to: `/${prefixAdmin}/blog/list` },
+            <PageHeader
+                title="Thẻ bài viết"
+                breadcrumbItems={[
+                            { label: "Bảng điều khiển", to: "/" },
+                            { label: "Danh sách bài viết", to: `/${prefixAdmin}/blog/list` },
                             { label: "Thẻ bài viết" }
                         ]}
-                    />
-                </div>
-                <div>
+                action={
+                    <div>
                     <CanAccess permission={PERMISSIONS.ARTICLE.CREATE}>
                         <Button
                             onClick={handleOpenCreate}
@@ -235,7 +213,8 @@ export const BlogTagListPage = () => {
                         </Button>
                     </CanAccess>
                 </div>
-            </div>
+                }
+            />
 
             <Card elevation={0} sx={{
                 borderRadius: 'var(--shape-borderRadius-lg)',
@@ -255,7 +234,7 @@ export const BlogTagListPage = () => {
 
             <Card elevation={0} className="admin-datagrid-card">
                 <div style={{ width: '100%', flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-                    <DataGrid
+                    <LazyDataGrid
                         rows={tags}
                         getRowId={(row) => row.id}
                         loading={isLoading}
@@ -268,7 +247,7 @@ export const BlogTagListPage = () => {
                         slots={{
                             noRowsOverlay: () => (
                                 <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
-                                    {isLoading ? <CircularProgress size={32} /> : <span className="admin-datagrid-empty">{t("admin.common.no_data")}</span>}
+                                    {isLoading ? <CircularProgress size={32} /> : <span className="admin-datagrid-empty">Chưa có dữ liệu</span>}
                                 </Box>
                             )
                         }}
@@ -450,61 +429,6 @@ export const BlogTagListPage = () => {
                     </Button>
                 </DialogActions>
             </Dialog>
-
-            {/* Action Popover Menu */}
-            <Popover
-                anchorEl={anchorEl}
-                open={Boolean(anchorEl)}
-                onClose={handleCloseMenu}
-                anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
-                transformOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-                PaperProps={{
-                    sx: {
-                        marginTop: "-8px",
-                        width: 140,
-                        boxShadow: '0 0 2px 0 rgba(145, 158, 171, 0.24), 0 20px 40px -4px rgba(145, 158, 171, 0.24)',
-                        padding: '4px',
-                        borderRadius: '10px',
-                        overflow: 'visible',
-                        '&::before': {
-                            content: '""',
-                            position: 'absolute',
-                            bottom: -7,
-                            right: 20,
-                            width: 12,
-                            height: 12,
-                            backgroundColor: 'background.paper',
-                            transform: 'rotate(45deg)',
-                            borderRight: '1px solid rgba(145, 158, 171, 0.12)',
-                            borderBottom: '1px solid rgba(145, 158, 171, 0.12)',
-                            zIndex: 1,
-                        }
-                    },
-                }}
-            >
-                <MenuItem onClick={handleOpenDetail} sx={{ borderRadius: "var(--shape-borderRadius-sm)", py: 1 }}>
-                    <ListItemIcon sx={{ minWidth: '24px !important', mr: 1 }}>
-                        <EyeIcon sx={{ width: 20, height: 20 }} />
-                    </ListItemIcon>
-                    <ListItemText primaryTypographyProps={{ fontSize: '0.875rem', fontWeight: 500 }}>Chi tiết</ListItemText>
-                </MenuItem>
-                {canEdit && (
-                    <MenuItem onClick={handleOpenEdit} sx={{ borderRadius: "var(--shape-borderRadius-sm)", py: 1 }}>
-                        <ListItemIcon sx={{ minWidth: '24px !important', mr: 1 }}>
-                            <EditIcon sx={{ width: 20, height: 20 }} />
-                        </ListItemIcon>
-                        <ListItemText primaryTypographyProps={{ fontSize: '0.875rem', fontWeight: 500 }}>Chỉnh sửa</ListItemText>
-                    </MenuItem>
-                )}
-                {canDelete && (
-                    <MenuItem onClick={handleDelete} sx={{ borderRadius: "var(--shape-borderRadius-sm)", py: 1, color: 'error.main' }}>
-                        <ListItemIcon sx={{ minWidth: '24px !important', mr: 1, color: 'error.main' }}>
-                            <DeleteIcon sx={{ width: 20, height: 20 }} />
-                        </ListItemIcon>
-                        <ListItemText primaryTypographyProps={{ fontSize: '0.875rem', fontWeight: 500 }}>Xóa</ListItemText>
-                    </MenuItem>
-                )}
-            </Popover>
         </>
     );
 };

@@ -26,8 +26,11 @@ public class LotterySourceCrawlerAdapter implements LotterySourceCrawlerPort {
         try {
             Connection.Response response = Jsoup.connect(url)
                     .userAgent(userAgent)
+                    .header("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8")
+                    .header("Accept-Language", "vi-VN,vi;q=0.9,en-US;q=0.8,en;q=0.7")
                     .timeout((int) TIMEOUT.toMillis())
                     .ignoreContentType(true)
+                    .followRedirects(true)
                     .execute();
 
             return LotterySourceCrawlData.builder()
@@ -37,7 +40,7 @@ public class LotterySourceCrawlerAdapter implements LotterySourceCrawlerPort {
                     .build();
         } catch (IOException e) {
             throw new DomainException(
-                    ErrorCode.INTERNAL_SERVER_ERROR,
+                    ErrorCode.SYNC_FAILED,
                     "Không thể tải dữ liệu từ nguồn " + url + ": " + e.getMessage()
             );
         }

@@ -90,6 +90,16 @@ public class LotteryTicketSerialEntity extends BaseEntity {
     @Column(name = "reserved_by_order_id")
     private UUID reservedByOrderId;
 
+    @Column(name = "reserved_by_allocation_batch_id")
+    private Long reservedByAllocationBatchId;
+
+    @Column(name = "is_lucky", nullable = false)
+    @Builder.Default
+    private boolean lucky = false;
+
+    @Column(name = "lucky_badges", columnDefinition = "TEXT")
+    private String luckyBadges;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "imported_by", nullable = false)
     private UserEntity importedBy;

@@ -1,18 +1,18 @@
 .admin-theme {
     max-width: 100vw;
     overflow-x: hidden;
-    /* Primary */
-    --palette-primary-lighter: #C8FAD6;
-    --palette-primary-light: #5BE49B;
-    --palette-primary-main: #00A76F;
-    --palette-primary-dark: #007867;
-    --palette-primary-darker: #004B50;
+    /* Primary — lottery red brand */
+    --palette-primary-lighter: #FFE3D5;
+    --palette-primary-light: #FFC1AC;
+    --palette-primary-main: #FF3030;
+    --palette-primary-dark: #B71833;
+    --palette-primary-darker: #7A0930;
     --palette-primary-contrastText: #FFFFFF;
-    --palette-primary-lighterChannel: 200 250 214;
-    --palette-primary-lightChannel: 91 228 155;
-    --palette-primary-mainChannel: 0 167 111;
-    --palette-primary-darkChannel: 0 120 103;
-    --palette-primary-darkerChannel: 0 75 80;
+    --palette-primary-lighterChannel: 255 227 213;
+    --palette-primary-lightChannel: 255 193 172;
+    --palette-primary-mainChannel: 255 48 48;
+    --palette-primary-darkChannel: 183 24 51;
+    --palette-primary-darkerChannel: 122 9 48;
     --palette-primary-contrastTextChannel: 255 255 255;
 
     /* Secondary */
@@ -171,7 +171,7 @@
     --customShadows-dialog: -40px 40px 80px -8px rgba(0 0 0 / 24%);
     --customShadows-card: 0 0 2px 0 rgba(145 158 171 / 20%), 0 12px 24px -4px rgba(145 158 171 / 12%);
     --customShadows-dropdown: 0 0 2px 0 rgba(145 158 171 / 24%), -20px 20px 40px -4px rgba(145 158 171 / 24%);
-    --customShadows-primary: 0 8px 16px 0 rgba(0 167 111 / 24%);
+    --customShadows-primary: 0 8px 16px 0 rgba(255 48 48 / 24%);
     --customShadows-secondary: 0 8px 16px 0 rgba(142 51 255 / 24%);
     --customShadows-info: 0 8px 16px 0 rgba(0 184 217 / 24%);
     --customShadows-success: 0 8px 16px 0 rgba(34 197 94 / 24%);
@@ -315,12 +315,12 @@ input:-webkit-autofill:active {
 .btn-primary-admin {
     background-color: var(--palette-text-primary) !important;
     color: var(--palette-common-white) !important;
-    min-height: 2.25rem !important;
+    min-height: 36px !important;
     min-width: 4rem !important;
     font-weight: 700 !important;
     font-size: 0.875rem !important;
-    padding: 6px 12px !important;
-    border-radius: var(--shape-borderRadius) !important;
+    padding: 6px 16px !important;
+    border-radius: 8px !important;
     text-transform: none !important;
     box-shadow: none !important;
     display: inline-flex !important;
@@ -334,9 +334,283 @@ input:-webkit-autofill:active {
     box-shadow: var(--customShadows-z8) !important;
 }
 
-.btn-primary-admin.Mui-disabled {
+.btn-primary-admin.Mui-disabled,
+.MuiButton-contained.btn-primary-admin.Mui-disabled,
+.MuiDialogActions-root .MuiButton-contained.btn-primary-admin.Mui-disabled {
     background-color: rgba(145, 158, 171, 0.24) !important;
     color: rgba(145, 158, 171, 0.8) !important;
+    box-shadow: none !important;
+    cursor: not-allowed !important;
+    opacity: 0.6 !important;
+}
+
+.MuiButton-contained.btn-primary-admin:not(.Mui-disabled),
+.MuiDialogActions-root .MuiButton-contained.btn-primary-admin:not(.Mui-disabled) {
+    background-color: var(--palette-text-primary) !important;
+    color: var(--palette-common-white) !important;
+}
+
+/* Outlined / Cancel button style for admin */
+.btn-outlined-admin {
+    background-color: transparent !important;
+    color: var(--palette-text-primary) !important;
+    border: 1px solid rgba(28, 37, 46, 0.32) !important;
+    min-height: 36px !important;
+    min-width: 4rem !important;
+    font-weight: 700 !important;
+    font-size: 0.875rem !important;
+    padding: 6px 16px !important;
+    border-radius: 8px !important;
+    text-transform: none !important;
+    box-shadow: none !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    transition: background-color 250ms cubic-bezier(0.4, 0, 0.2, 1) 0ms, border-color 250ms cubic-bezier(0.4, 0, 0.2, 1) 0ms !important;
+}
+
+.btn-outlined-admin:hover {
+    background-color: rgba(28, 37, 46, 0.06) !important;
+    border-color: var(--palette-text-primary) !important;
+    box-shadow: none !important;
+}
+
+.btn-outlined-admin.Mui-disabled {
+    color: rgba(145, 158, 171, 0.8) !important;
+    border-color: rgba(145, 158, 171, 0.32) !important;
+}
+
+/* Import batch list — "Nhập ngay" CTA pulse */
+@keyframes import-batch-cta-pulse {
+    0%,
+    100% {
+        box-shadow: 0 0 0 0 rgba(var(--palette-info-mainChannel) / 0.2);
+    }
+
+    50% {
+        box-shadow: 0 0 0 4px rgba(var(--palette-info-lighterChannel) / 1),
+            0 0 0 7px rgba(var(--palette-info-mainChannel) / 0.14);
+    }
+}
+
+@keyframes import-batch-cta-shine {
+    0% {
+        transform: translateX(-140%) skewX(-18deg);
+    }
+
+    45%,
+    100% {
+        transform: translateX(240%) skewX(-18deg);
+    }
+}
+
+@keyframes import-batch-cta-arrow-nudge {
+    0%,
+    100% {
+        transform: translateX(0);
+    }
+
+    50% {
+        transform: translateX(3px);
+    }
+}
+
+@keyframes import-batch-cta-ticket-pop {
+    0%,
+    100% {
+        transform: scale(1) rotate(0deg);
+    }
+
+    35% {
+        transform: scale(1.1) rotate(-8deg);
+    }
+
+    70% {
+        transform: scale(1.05) rotate(5deg);
+    }
+}
+
+.import-batch-import-cta {
+    position: relative !important;
+    overflow: hidden !important;
+    isolation: isolate;
+    background-color: var(--palette-info-lighter) !important;
+    color: var(--palette-info-dark) !important;
+    border: 1px solid rgba(var(--palette-info-mainChannel) / 0.28) !important;
+    box-shadow: none !important;
+    animation: import-batch-cta-pulse 2.2s ease-in-out infinite;
+}
+
+.MuiButton-outlined.import-batch-import-cta:hover,
+.MuiButton-contained.import-batch-import-cta:hover {
+    background-color: rgba(var(--palette-info-lightChannel) / 0.38) !important;
+    color: var(--palette-info-darker) !important;
+    border-color: rgba(var(--palette-info-mainChannel) / 0.42) !important;
+    box-shadow: none !important;
+}
+
+.import-batch-import-cta::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    width: 42%;
+    background: linear-gradient(
+        105deg,
+        transparent 0%,
+        rgba(255, 255, 255, 0.55) 48%,
+        transparent 100%
+    );
+    pointer-events: none;
+    z-index: 0;
+    animation: import-batch-cta-shine 3.2s ease-in-out infinite;
+}
+
+.import-batch-import-cta .MuiButton-startIcon,
+.import-batch-import-cta .MuiButton-endIcon {
+    position: relative;
+    z-index: 1;
+}
+
+.import-batch-import-cta .import-batch-import-cta__arrow {
+    animation: import-batch-cta-arrow-nudge 1.1s ease-in-out infinite;
+}
+
+.import-batch-import-cta .import-batch-import-cta__ticket {
+    animation: import-batch-cta-ticket-pop 2.4s ease-in-out infinite;
+}
+
+.import-batch-import-cta:hover,
+.import-batch-import-cta:focus-visible {
+    animation: none;
+}
+
+.import-batch-import-cta:hover::after,
+.import-batch-import-cta:focus-visible::after {
+    animation: none;
+    opacity: 0;
+}
+
+.import-batch-import-cta:hover .import-batch-import-cta__arrow,
+.import-batch-import-cta:focus-visible .import-batch-import-cta__arrow {
+    animation: none;
+    transform: translateX(2px);
+}
+
+.import-batch-import-cta:hover .import-batch-import-cta__ticket,
+.import-batch-import-cta:focus-visible .import-batch-import-cta__ticket {
+    animation: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .import-batch-import-cta,
+    .import-batch-import-cta::after,
+    .import-batch-import-cta .import-batch-import-cta__arrow,
+    .import-batch-import-cta .import-batch-import-cta__ticket {
+        animation: none !important;
+    }
+}
+
+/* Import line table — compact equal-height row actions */
+.import-batch-line-table-action.MuiButton-root {
+    min-height: 32px !important;
+    height: 32px !important;
+    padding: 0 10px !important;
+    font-size: 0.8125rem !important;
+    font-weight: 700 !important;
+    min-width: unset !important;
+    border-radius: 8px !important;
+    text-transform: none !important;
+    white-space: nowrap;
+    box-shadow: none !important;
+}
+
+.import-batch-line-table-action .MuiButton-startIcon {
+    margin-right: 4px;
+    margin-left: -2px;
+}
+
+.import-batch-line-table-action.import-batch-import-cta {
+    animation: none !important;
+}
+
+.import-batch-line-table-action.import-batch-import-cta::after {
+    display: none;
+}
+
+.import-batch-line-table-action.import-batch-import-cta .import-batch-import-cta__ticket {
+    animation: none !important;
+}
+
+/* Ticket create / import entry */
+.admin-ticket-create-page {
+    width: 100%;
+    padding-bottom: 32px;
+}
+
+.admin-ticket-create-card {
+    overflow: hidden !important;
+    border-radius: var(--shape-borderRadius-lg) !important;
+    background: var(--palette-background-paper) !important;
+    box-shadow: var(--customShadows-card) !important;
+    border: 1px solid var(--palette-divider) !important;
+}
+
+.admin-ticket-create-card__body {
+    padding: 20px 24px 24px;
+}
+
+.admin-ticket-create-meta {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+}
+
+@media (max-width: 600px) {
+    .admin-ticket-create-meta {
+        grid-template-columns: 1fr;
+    }
+}
+
+.admin-ticket-create-readonly .MuiInputBase-root {
+    background-color: var(--palette-grey-100) !important;
+}
+
+.admin-ticket-create-readonly .MuiInputBase-input {
+    font-weight: 600 !important;
+    color: var(--palette-text-primary) !important;
+}
+
+.admin-ticket-create-section {
+    border: 1px solid var(--palette-divider);
+    border-radius: var(--shape-borderRadius-md, 8px);
+    background: var(--palette-background-paper);
+    padding: 16px;
+}
+
+.admin-ticket-create-section + .admin-ticket-create-section {
+    margin-top: 12px;
+}
+
+.admin-ticket-create-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 12px;
+    flex-wrap: wrap;
+    padding-top: 8px;
+}
+
+.admin-ticket-create-actions--sticky {
+    position: sticky;
+    bottom: 0;
+    z-index: 10;
+    margin-top: 16px;
+    padding: 16px 0 0;
+    background: linear-gradient(
+        180deg,
+        rgba(255, 255, 255, 0) 0%,
+        var(--palette-background-default) 24%
+    );
 }
 
 /* Form typography — sync create/edit pages */
@@ -419,15 +693,17 @@ input:-webkit-autofill:active {
     height: 2px !important;
 }
 
-/* Shared list layout — aligned with the Order list reference. */
+/* Shared list layout — full width inside admin main container. */
 .admin-list-page {
     width: 100%;
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 16px 24px 24px;
+    padding: 16px 0 24px;
     display: flex;
     flex-direction: column;
     gap: 24px;
+}
+
+.admin-page {
+    width: 100%;
 }
 
 .admin-list-header {
@@ -522,9 +798,28 @@ input:-webkit-autofill:active {
 .admin-datagrid.MuiDataGrid-root {
     color: var(--palette-text-primary);
     border-width: 0;
-    --DataGrid-t-color-interactive-focus: var(--palette-success-main);
+    --DataGrid-t-color-interactive-focus: var(--palette-primary-main);
     --DataGrid-t-color-border-base: var(--palette-background-neutral);
     overflow: auto;
+}
+
+/* Unified HTML TableHead & TableCell styling to match DataGrid headers */
+.MuiTableContainer-root thead,
+.MuiTableHead-root {
+    background-color: var(--palette-background-neutral) !important;
+}
+
+.MuiTableContainer-root thead th,
+.MuiTableHead-root th {
+    background-color: var(--palette-background-neutral) !important;
+    color: var(--palette-text-secondary) !important;
+    font-size: 0.875rem !important;
+    font-weight: 600 !important;
+    padding: 12px 16px !important;
+    height: 52px !important;
+    max-height: 52px !important;
+    box-sizing: border-box !important;
+    border-bottom: 1px solid var(--palette-background-neutral) !important;
 }
 
 .admin-datagrid .MuiDataGrid-columnHeaders {
@@ -564,10 +859,10 @@ input:-webkit-autofill:active {
 }
 
 .admin-datagrid .MuiDataGrid-footerContainer {
-    border-top: 1px dashed var(--palette-background-neutral);
+    border-top: 1px solid var(--palette-divider) !important;
     min-height: auto;
     font-size: 0.875rem;
-    color: inherit;
+    color: var(--palette-text-secondary) !important;
     position: relative;
     z-index: 5;
     pointer-events: auto;
@@ -575,13 +870,16 @@ input:-webkit-autofill:active {
 }
 
 .admin-datagrid .MuiTablePagination-selectLabel,
-.admin-datagrid .MuiTablePagination-displayedRows {
-    font-size: 0.875rem;
-    color: inherit;
+.admin-datagrid .MuiTablePagination-displayedRows,
+.admin-datagrid-card .MuiTablePagination-selectLabel,
+.admin-datagrid-card .MuiTablePagination-displayedRows {
+    font-size: 0.875rem !important;
+    color: var(--palette-text-secondary) !important;
 }
 
-.admin-datagrid .MuiTablePagination-selectLabel {
-    margin-bottom: -2px;
+.admin-datagrid-card .MuiTablePagination-root {
+    border-top: 1px solid var(--palette-divider) !important;
+    color: var(--palette-text-secondary) !important;
 }
 
 .admin-datagrid .MuiSelect-select {
@@ -706,22 +1004,6 @@ input:-webkit-autofill:active {
     color: var(--palette-text-primary) !important;
     font-weight: 600 !important;
     font-size: 0.8125rem !important;
-    transition: color 0.2s;
-}
-
-.admin-datagrid .MuiDataGrid-cell:hover .admin-cell-title,
-.admin-datagrid .MuiDataGrid-cell:hover .ticket-title,
-.admin-datagrid .MuiDataGrid-cell:hover .supplier-title,
-.admin-datagrid .MuiDataGrid-cell:hover .admin-cell-date,
-.admin-datagrid .MuiDataGrid-cell:hover .date-text {
-    color: var(--palette-success-main) !important;
-}
-
-.admin-datagrid .supplier-title {
-    color: var(--palette-text-primary);
-    font-weight: 600;
-    font-size: 0.8125rem;
-    transition: color 0.2s;
 }
 
 .admin-cell-text {
@@ -778,6 +1060,17 @@ input:-webkit-autofill:active {
     color: var(--palette-grey-800);
 }
 
+.admin-status-badge--compact {
+    min-width: auto;
+    height: 1.125rem;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    padding: 0 4px;
+    border-radius: 4px;
+    line-height: 1.2;
+    white-space: nowrap;
+}
+
 .admin-status-badge--draft {
     background-color: #e5e7eb;
     color: #374151;
@@ -805,9 +1098,31 @@ input:-webkit-autofill:active {
 
 /* DataGrid action menu typography */
 .MuiDataGrid-menu .MuiTypography-root,
-.admin-menu-item .MuiTypography-root {
+.admin-menu-item .MuiTypography-root,
+.admin-row-actions-menu__paper .MuiTypography-root,
+.admin-row-actions-menu__paper .admin-menu-item,
+.admin-row-actions-menu__label {
     font-size: 0.8125rem !important;
-    font-weight: 600 !important;
+    font-weight: 700 !important;
+    line-height: 1.5;
+}
+
+.admin-row-actions-menu__paper .MuiListItemIcon-root {
+    min-width: 28px !important;
+}
+
+.admin-row-actions-menu__paper .MuiListItemIcon-root .MuiSvgIcon-root {
+    font-size: 1.25rem !important;
+    color: #1C252E;
+}
+
+.admin-menu-item--danger,
+.admin-menu-item--danger .admin-row-actions-menu__label {
+    color: var(--palette-error-main) !important;
+}
+
+.admin-menu-item--danger .MuiListItemIcon-root .MuiSvgIcon-root {
+    color: var(--palette-error-main) !important;
 }
 
 .admin-menu-item--danger .MuiTypography-root {
@@ -850,6 +1165,7 @@ input:-webkit-autofill:active {
 .admin-table-container {
     flex: 1;
     overflow: auto;
+    padding: 0 !important;
 }
 
 .admin-table {
@@ -864,33 +1180,107 @@ input:-webkit-autofill:active {
     background: var(--palette-background-neutral) !important;
 }
 
-.admin-table .MuiTableCell-head:first-of-type,
-.admin-table .MuiTableCell-body:first-of-type {
-    padding-left: 24px !important;
-}
-
 .admin-table .MuiTableCell-body {
     color: var(--palette-text-primary) !important;
     font-size: 0.875rem !important;
     border-bottom: 1px dashed var(--palette-divider) !important;
 }
 
-.admin-table .MuiTableRow-root:hover .MuiTableCell-body {
-    background-color: var(--palette-action-hover);
+.admin-table .MuiTableRow-root:hover,
+.admin-table .MuiTableRow-root.MuiTableRow-hover:hover {
+    background-color: transparent !important;
+}
+
+.admin-table .MuiTableRow-root:hover > .MuiTableCell-body {
+    background-color: transparent !important;
+}
+
+.admin-table .MuiTableRow-root.admin-table-row-attention > .MuiTableCell-body,
+.admin-table .MuiTableRow-root.admin-table-row-attention:hover > .MuiTableCell-body {
+    background-color: rgba(var(--palette-warning-mainChannel) / 0.04) !important;
+}
+
+.admin-row-actions-trigger {
+    color: var(--palette-text-secondary) !important;
+    border-radius: 8px !important;
+    padding: 4px !important;
+}
+
+.admin-row-actions-trigger:hover,
+.admin-row-actions-trigger[aria-expanded="true"] {
+    background-color: var(--palette-action-hover, rgba(145, 158, 171, 0.08)) !important;
+}
+
+.admin-row-actions-trigger .MuiSvgIcon-root {
+    font-size: 1.25rem;
+}
+
+.admin-datagrid .MuiDataGrid-actionsCell .MuiIconButton-root,
+.admin-table .admin-row-actions-trigger {
+    color: var(--palette-text-secondary);
 }
 
 .admin-table-action {
     color: var(--palette-text-secondary) !important;
 }
 
-.admin-table-action:hover {
-    color: var(--palette-primary-main) !important;
-    background-color: var(--palette-action-hover) !important;
+.admin-table .admin-table-action:hover {
+    color: var(--palette-text-secondary) !important;
+    background-color: transparent !important;
+}
+
+.admin-import-batch-line-embed-panel {
+    padding: 12px;
+    background-color: var(--palette-background-neutral);
+}
+
+.admin-import-batch-line-embed-inner {
+    background-color: var(--palette-background-paper);
+    border: 1px solid var(--palette-divider);
+    border-radius: var(--shape-borderRadius-md);
+    overflow: hidden;
+}
+
+.admin-import-batch-line-embed-table.admin-table .MuiTableCell-head,
+.admin-import-batch-line-embed-table.admin-table .MuiTableCell-body {
+    padding: 8px 16px !important;
+    background-color: var(--palette-background-paper) !important;
+}
+
+.admin-import-batch-line-embed-table.admin-table .MuiTableRow-root:hover,
+.admin-import-batch-line-embed-table.admin-table .MuiTableRow-root.MuiTableRow-hover:hover,
+.admin-import-batch-line-embed-table.admin-table .MuiTableRow-root:hover > .MuiTableCell-body,
+.admin-import-batch-line-embed-table.admin-table .MuiTableRow-root.MuiTableRow-hover:hover > .MuiTableCell-body,
+.admin-import-batch-line-embed-table.admin-table .MuiTableRow-root:hover > .MuiTableCell-head,
+.admin-import-batch-line-embed-table.admin-table .MuiTableRow-root.MuiTableRow-hover:hover > .MuiTableCell-head {
+    background-color: var(--palette-background-paper) !important;
+}
+
+.admin-datagrid .MuiDataGrid-row:not(.admin-datagrid-row-expired):hover,
+.admin-datagrid .MuiDataGrid-row:not(.admin-datagrid-row-expired).Mui-hovered,
+.admin-datagrid .MuiDataGrid-row:not(.admin-datagrid-row-expired):hover .MuiDataGrid-cell,
+.admin-datagrid .MuiDataGrid-row:not(.admin-datagrid-row-expired).Mui-hovered .MuiDataGrid-cell {
+    background-color: transparent !important;
 }
 
 /* -------------------------------------------------------------------------
    MUI DatePicker / DateTimePicker / TimePicker Global Styling
    ------------------------------------------------------------------------- */
+/* Picker Input Box Styling */
+.MuiPickersOutlinedInput-root {
+    border-radius: var(--shape-borderRadius) !important;
+}
+
+.MuiPickersOutlinedInput-root.Mui-focused .MuiPickersOutlinedInput-notchedOutline,
+.MuiPickersOutlinedInput-root.Mui-focused.Mui-error .MuiPickersOutlinedInput-notchedOutline {
+    border-color: #1C252E !important;
+    border-width: 2px !important;
+}
+
+.MuiFormControl-root:has(.MuiPickersOutlinedInput-root.Mui-focused) .MuiInputLabel-root {
+    color: #1C252E !important;
+}
+
 .MuiPickersPopper-root .MuiPaper-root {
     border-radius: var(--shape-borderRadius-lg) !important;
     box-shadow: var(--customShadows-z20) !important;
@@ -899,13 +1289,13 @@ input:-webkit-autofill:active {
 
 /* Selected Date Day Circle in Calendar */
 .MuiPickersDay-root.Mui-selected {
-    background-color: var(--palette-text-primary) !important;
-    color: var(--palette-common-white) !important;
+    background-color: #FF3030 !important;
+    color: #FFFFFF !important;
     font-weight: 700 !important;
 }
 
 .MuiPickersDay-root.Mui-selected:hover {
-    background-color: var(--palette-grey-700) !important;
+    background-color: rgba(255, 48, 48, 0.8) !important;
 }
 
 /* Today Indicator */
@@ -915,26 +1305,55 @@ input:-webkit-autofill:active {
 
 /* Selected Time Item in Digital Clock / TimePicker */
 .MuiMultiSectionDigitalClockSection-item.Mui-selected {
-    background-color: var(--palette-text-primary) !important;
-    color: var(--palette-common-white) !important;
+    background-color: #FF3030 !important;
+    color: #FFFFFF !important;
     font-weight: 700 !important;
     border-radius: 8px !important;
 }
 
 .MuiMultiSectionDigitalClockSection-item.Mui-selected:hover {
-    background-color: var(--palette-grey-700) !important;
+    background-color: rgba(255, 48, 48, 0.8) !important;
 }
 
 /* AM / PM Selector Button */
 .MuiTimePickerToolbar-ampmSelection .MuiButton-root.Mui-selected,
 .MuiPickersToolbarText-root.Mui-selected {
-    color: var(--palette-text-primary) !important;
+    color: #FF3030 !important;
     font-weight: 700 !important;
 }
 
 .MuiTimePickerToolbar-ampmSelection .MuiButton-root.Mui-selected {
-    background-color: var(--palette-text-primary) !important;
-    color: var(--palette-common-white) !important;
+    background-color: #FF3030 !important;
+    color: #FFFFFF !important;
+}
+
+/* Picker Action Buttons (Cancel / OK) */
+.MuiPickersLayout-root .MuiDialogActions-root .MuiButton-root {
+    border-radius: 8px !important;
+    text-transform: none !important;
+    font-weight: 700 !important;
+    padding: 6px 16px !important;
+}
+
+/* Cancel Button */
+.MuiPickersLayout-root .MuiDialogActions-root .MuiButton-root:first-of-type {
+    border: 1px solid rgba(145, 158, 171, 0.32) !important;
+    color: #1C252E !important;
+    background-color: transparent !important;
+}
+.MuiPickersLayout-root .MuiDialogActions-root .MuiButton-root:first-of-type:hover {
+    background-color: rgba(145, 158, 171, 0.08) !important;
+    border-color: rgba(145, 158, 171, 0.48) !important;
+}
+
+/* OK Button */
+.MuiPickersLayout-root .MuiDialogActions-root .MuiButton-root:last-of-type {
+    background-color: #1C252E !important;
+    color: #FFFFFF !important;
+    border: 1px solid #1C252E !important;
+}
+.MuiPickersLayout-root .MuiDialogActions-root .MuiButton-root:last-of-type:hover {
+    background-color: #3f4a56 !important; /* Slightly lighter black/dark-grey for hover */
 }
 
 /* Analog Clock Pointer & Pin */

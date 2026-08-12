@@ -26,12 +26,6 @@ const config: Config = {
           hoverIcon: "rgba(99, 115, 129, 0.08)"
         }
       },
-      fontFamily: {
-        "client-main": ["Public Sans", "sans-serif"],
-        "client-display": ["Barlow", "sans-serif"],
-        secondary: ["Barlow", "sans-serif"],
-        third: ["Pacifico", "cursive"]
-      },
       borderRadius: {
         "client-sm": "8px",
         "client-md": "8px",
@@ -65,10 +59,6 @@ const config: Config = {
       });
 
       addUtilities({
-        ".font-secondary": {
-          fontFamily: "'Merriweather', sans-serif",
-          fontWeight: "800",
-        },
         ".transition-default": {
           "@apply transition-colors duration-300 ease-linear": {},
         },

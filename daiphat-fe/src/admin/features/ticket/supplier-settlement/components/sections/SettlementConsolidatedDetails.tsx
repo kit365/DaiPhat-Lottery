@@ -21,7 +21,7 @@ import {
 } from '@mui/material';
 import dayjs from 'dayjs';
 import { useState } from 'react';
-import { useNavigate } from '@/components/router-compat';
+import { useAdminRouter } from '@/admin/hooks/useAdminRouter';
 import { ROUTES } from '../../../../../constants/routes';
 import { formatImportCost } from '../../../import-batch/utils/importCostCalculator';
 import { getImportBatchStatusBadgeClass, getImportBatchStatusLabel } from '../../../import-batch/utils/batchTypeLabels';
@@ -43,8 +43,13 @@ export const SettlementConsolidatedDetails = ({
     importBatches = [],
     returnBatches = [],
 }: Props) => {
-    const navigate = useNavigate();
+    const router = useAdminRouter();
     const [activeTab, setActiveTab] = useState(0);
+
+    const totalSystemImportQty = inventoryRows.reduce((acc, r) => acc + (r.importedQuantity || 0), 0);
+    const totalSystemReturnQty = inventoryRows.reduce((acc, r) => acc + (r.returnQuantity || 0), 0);
+    const totalSystemReturnValue = inventoryRows.reduce((acc, r) => acc + (r.returnValue || 0), 0);
+
 
     return (
         <Card
@@ -62,13 +67,10 @@ export const SettlementConsolidatedDetails = ({
                 sx={{
                     borderBottom: '1px solid #e2e8f0',
                     px: 3,
-                    pt: 2,
+                    pt: 0.5,
                     bgcolor: '#fafafa',
                 }}
             >
-                <Typography variant="subtitle1" fontWeight={700} color="#0f172a" sx={{ mb: 1.5 }}>
-                    Chi tiết dữ liệu đối soát
-                </Typography>
                 <Tabs
                     value={activeTab}
                     onChange={(_, newValue) => setActiveTab(newValue)}
@@ -220,49 +222,77 @@ export const SettlementConsolidatedDetails = ({
                     <Table size="medium">
                         <TableHead sx={{ bgcolor: '#f8fafc' }}>
                             <TableRow>
-                                <TableCell sx={{ fontWeight: 700, color: '#334155' }}>Mã phiếu</TableCell>
-                                <TableCell sx={{ fontWeight: 700, color: '#334155' }}>Ngày quay</TableCell>
-                                <TableCell sx={{ fontWeight: 700, color: '#334155' }}>Trạng thái</TableCell>
-                                <TableCell align="right" sx={{ fontWeight: 700, color: '#334155' }}>Số lượng nhập</TableCell>
-                                <TableCell align="right" sx={{ fontWeight: 700, color: '#166534' }}>Giá trị nhập</TableCell>
-                                <TableCell align="center" width={80} sx={{ fontWeight: 700, color: '#334155' }}>Thao tác</TableCell>
+                                <TableCell sx={{ fontWeight: 700, color: '#64748b', textTransform: 'uppercase', fontSize: '0.75rem', letterSpacing: '0.5px' }}>Mã phiếu</TableCell>
+                                <TableCell sx={{ fontWeight: 700, color: '#64748b', textTransform: 'uppercase', fontSize: '0.75rem', letterSpacing: '0.5px' }}>Ngày quay</TableCell>
+                                <TableCell sx={{ fontWeight: 700, color: '#64748b', textTransform: 'uppercase', fontSize: '0.75rem', letterSpacing: '0.5px' }}>Trạng thái</TableCell>
+                                <TableCell align="right" sx={{ fontWeight: 700, color: '#64748b', textTransform: 'uppercase', fontSize: '0.75rem', letterSpacing: '0.5px' }}>Số lượng nhập</TableCell>
+                                <TableCell align="right" sx={{ fontWeight: 700, color: '#64748b', textTransform: 'uppercase', fontSize: '0.75rem', letterSpacing: '0.5px' }}>Giá trị nhập</TableCell>
+                                <TableCell align="center" width={80} sx={{ fontWeight: 700, color: '#64748b', textTransform: 'uppercase', fontSize: '0.75rem', letterSpacing: '0.5px' }}>Thao tác</TableCell>
                             </TableRow>
                         </TableHead>
                         <TableBody>
-                            {importBatches.map((batch) => (
-                                <TableRow key={batch.id} hover>
-                                    <TableCell>
-                                        <Typography fontWeight={700} color="#0f172a">
-                                            {batch.batchCode || `#${batch.id}`}
-                                        </Typography>
-                                    </TableCell>
-                                    <TableCell sx={{ fontWeight: 500, color: '#334155' }}>
-                                        {batch.drawDate ? dayjs(batch.drawDate).format('DD/MM/YYYY') : '—'}
-                                    </TableCell>
-                                    <TableCell>
-                                        <span className={`admin-status-badge ${getImportBatchStatusBadgeClass(batch.status || undefined)}`}>
-                                            {getImportBatchStatusLabel(batch.status || undefined)}
-                                        </span>
-                                    </TableCell>
-                                    <TableCell align="right" sx={{ fontWeight: 600, color: '#0f172a' }}>
-                                        {(batch.totalImportedQuantity ?? batch.totalDeclareQuantity ?? 0).toLocaleString('vi-VN')} vé
-                                    </TableCell>
-                                    <TableCell align="right" sx={{ fontWeight: 700, color: '#166534' }}>
-                                        {formatImportCost(batch.totalImportedCostValue ?? batch.totalDeclaredCostValue)} VNĐ
-                                    </TableCell>
-                                    <TableCell align="center">
-                                        <Tooltip title="Xem chi tiết phiếu nhập">
-                                            <IconButton
-                                                size="small"
-                                                color="primary"
-                                                onClick={() => navigate(ROUTES.ADMIN.IMPORT_BATCH.DETAIL(batch.id))}
+                            {importBatches.map((batch) => {
+                                const qty = batch.totalImportedQuantity || batch.totalDeclareQuantity || (importBatches.length === 1 ? totalSystemImportQty : 0);
+                                const val = batch.totalImportedCostValue || batch.totalDeclaredCostValue || 0;
+                                return (
+                                    <TableRow key={batch.id} hover sx={{ '&:last-child td, &:last-child th': { border: 0 } }}>
+                                        <TableCell>
+                                            <Typography
+                                                fontWeight={700}
+                                                color="#0f172a"
+                                                onClick={() => router.push(ROUTES.ADMIN.IMPORT_BATCH.DETAIL(batch.id))}
+                                                sx={{
+                                                    cursor: 'pointer',
+                                                    display: 'inline-block',
+                                                    bgcolor: '#f1f5f9',
+                                                    px: 1.5,
+                                                    py: 0.5,
+                                                    borderRadius: '6px',
+                                                    border: '1px solid #e2e8f0',
+                                                    fontSize: '0.8125rem',
+                                                    transition: 'all 0.15s ease',
+                                                    '&:hover': {
+                                                        bgcolor: '#e2e8f0',
+                                                        borderColor: '#cbd5e1',
+                                                        transform: 'translateY(-1px)',
+                                                    },
+                                                }}
+                                                title="Xem chi tiết phiếu nhập"
                                             >
-                                                <VisibilityOutlinedIcon fontSize="small" />
-                                            </IconButton>
-                                        </Tooltip>
-                                    </TableCell>
-                                </TableRow>
-                            ))}
+                                                {batch.batchCode || `#${batch.id}`}
+                                            </Typography>
+                                        </TableCell>
+                                        <TableCell sx={{ fontWeight: 500, color: '#475569' }}>
+                                            {batch.drawDate ? dayjs(batch.drawDate).format('DD/MM/YYYY') : '—'}
+                                        </TableCell>
+                                        <TableCell>
+                                            <span className={`admin-status-badge ${getImportBatchStatusBadgeClass(batch.status || undefined)}`}>
+                                                {getImportBatchStatusLabel(batch.status || undefined)}
+                                            </span>
+                                        </TableCell>
+                                        <TableCell align="right" sx={{ fontWeight: 600, color: '#0f172a' }}>
+                                            <Box component="span" sx={{ bgcolor: '#f8fafc', px: 1, py: 0.5, borderRadius: 1, border: '1px solid #e2e8f0' }}>
+                                                {(qty).toLocaleString('vi-VN')} vé
+                                            </Box>
+                                        </TableCell>
+                                        <TableCell align="right" sx={{ fontWeight: 700, color: '#166534' }}>
+                                            {formatImportCost(val)} VNĐ
+                                        </TableCell>
+                                        <TableCell align="center">
+                                            <Tooltip title="Xem chi tiết phiếu nhập">
+                                                <IconButton
+                                                    size="small"
+                                                    color="primary"
+                                                    onClick={() => router.push(ROUTES.ADMIN.IMPORT_BATCH.DETAIL(batch.id))}
+                                                    sx={{ bgcolor: 'primary.50', '&:hover': { bgcolor: 'primary.100' } }}
+                                                >
+                                                    <VisibilityOutlinedIcon fontSize="small" />
+                                                </IconButton>
+                                            </Tooltip>
+                                        </TableCell>
+                                    </TableRow>
+                                );
+                            })}
                             {importBatches.length === 0 && (
                                 <TableRow>
                                     <TableCell colSpan={6} align="center">
@@ -283,50 +313,101 @@ export const SettlementConsolidatedDetails = ({
                     <Table size="medium">
                         <TableHead sx={{ bgcolor: '#f8fafc' }}>
                             <TableRow>
-                                <TableCell sx={{ fontWeight: 700, color: '#334155' }}>Mã phiếu</TableCell>
-                                <TableCell sx={{ fontWeight: 700, color: '#334155' }}>Ngày quay</TableCell>
-                                <TableCell sx={{ fontWeight: 700, color: '#334155' }}>Trạng thái</TableCell>
-                                <TableCell align="right" sx={{ fontWeight: 700, color: '#334155' }}>Số lượng</TableCell>
-                                <TableCell align="right" sx={{ fontWeight: 700, color: '#166534' }}>Giá trị trả</TableCell>
-                                <TableCell align="center" width={80} sx={{ fontWeight: 700, color: '#334155' }}>Thao tác</TableCell>
+                                <TableCell sx={{ fontWeight: 700, color: '#64748b', textTransform: 'uppercase', fontSize: '0.75rem', letterSpacing: '0.5px' }}>Mã phiếu</TableCell>
+                                <TableCell sx={{ fontWeight: 700, color: '#64748b', textTransform: 'uppercase', fontSize: '0.75rem', letterSpacing: '0.5px' }}>Ngày quay</TableCell>
+                                <TableCell sx={{ fontWeight: 700, color: '#64748b', textTransform: 'uppercase', fontSize: '0.75rem', letterSpacing: '0.5px' }}>Trạng thái</TableCell>
+                                <TableCell align="right" sx={{ fontWeight: 700, color: '#64748b', textTransform: 'uppercase', fontSize: '0.75rem', letterSpacing: '0.5px' }}>Số lượng trả</TableCell>
+                                <TableCell align="right" sx={{ fontWeight: 700, color: '#64748b', textTransform: 'uppercase', fontSize: '0.75rem', letterSpacing: '0.5px' }}>Giá trị trả</TableCell>
+                                <TableCell align="center" sx={{ fontWeight: 700, color: '#64748b', textTransform: 'uppercase', fontSize: '0.75rem', letterSpacing: '0.5px' }}>Bằng chứng</TableCell>
+                                <TableCell align="center" width={80} sx={{ fontWeight: 700, color: '#64748b', textTransform: 'uppercase', fontSize: '0.75rem', letterSpacing: '0.5px' }}>Thao tác</TableCell>
                             </TableRow>
                         </TableHead>
                         <TableBody>
-                            {returnBatches.map((batch) => (
-                                <TableRow key={batch.id} hover>
-                                    <TableCell>
-                                        <Typography fontWeight={700} color="#0f172a">#{batch.id}</Typography>
-                                    </TableCell>
-                                    <TableCell sx={{ fontWeight: 500, color: '#334155' }}>
-                                        {batch.drawDate ? dayjs(batch.drawDate).format('DD/MM/YYYY') : '—'}
-                                    </TableCell>
-                                    <TableCell>
-                                        <span className={`admin-status-badge ${getReturnBatchStatusBadgeClass(batch.status as any)}`}>
-                                            {getReturnBatchStatusLabel(batch.status as any, batch.statusLabel)}
-                                        </span>
-                                    </TableCell>
-                                    <TableCell align="right" sx={{ fontWeight: 600, color: '#0f172a' }}>
-                                        {(batch.totalQuantity ?? 0).toLocaleString('vi-VN')} vé
-                                    </TableCell>
-                                    <TableCell align="right" sx={{ fontWeight: 700, color: '#166534' }}>
-                                        {formatImportCost(batch.totalReturnValue)} VNĐ
-                                    </TableCell>
-                                    <TableCell align="center">
-                                        <Tooltip title="Xem chi tiết phiếu trả">
-                                            <IconButton
-                                                size="small"
-                                                color="primary"
-                                                onClick={() => navigate(ROUTES.ADMIN.RETURN_BATCH.DETAIL(batch.id))}
+                            {returnBatches.map((batch) => {
+                                const qty = batch.totalQuantity || (returnBatches.length === 1 ? totalSystemReturnQty : 0);
+                                const val = batch.totalReturnValue || (returnBatches.length === 1 ? totalSystemReturnValue : 0);
+                                return (
+                                    <TableRow key={batch.id} hover sx={{ '&:last-child td, &:last-child th': { border: 0 } }}>
+                                        <TableCell>
+                                            <Typography
+                                                fontWeight={700}
+                                                color="#FF3030"
+                                                onClick={() => router.push(ROUTES.ADMIN.RETURN_BATCH.DETAIL(batch.id))}
+                                                sx={{
+                                                    cursor: 'pointer',
+                                                    display: 'inline-block',
+                                                    bgcolor: '#FF303014',
+                                                    px: 1.5,
+                                                    py: 0.5,
+                                                    borderRadius: '6px',
+                                                    border: '1px solid #FF303026',
+                                                    fontSize: '0.8125rem',
+                                                    transition: 'all 0.15s ease',
+                                                    '&:hover': {
+                                                        bgcolor: '#FF303024',
+                                                        borderColor: '#FF30304d',
+                                                        color: '#dc2626',
+                                                        transform: 'translateY(-1px)',
+                                                    },
+                                                }}
+                                                title="Xem chi tiết phiếu trả vé"
                                             >
-                                                <VisibilityOutlinedIcon fontSize="small" />
-                                            </IconButton>
-                                        </Tooltip>
-                                    </TableCell>
-                                </TableRow>
-                            ))}
+                                                {batch.batchCode || `#${batch.id}`}
+                                            </Typography>
+                                        </TableCell>
+                                        <TableCell sx={{ fontWeight: 500, color: '#475569' }}>
+                                            {batch.drawDate ? dayjs(batch.drawDate).format('DD/MM/YYYY') : '—'}
+                                        </TableCell>
+                                        <TableCell>
+                                            <span className={`admin-status-badge ${getReturnBatchStatusBadgeClass(batch.status as any)}`}>
+                                                {getReturnBatchStatusLabel(batch.status as any, batch.statusLabel)}
+                                            </span>
+                                        </TableCell>
+                                        <TableCell align="right" sx={{ fontWeight: 600, color: '#0f172a' }}>
+                                            <Box component="span" sx={{ bgcolor: '#f8fafc', px: 1, py: 0.5, borderRadius: 1, border: '1px solid #e2e8f0' }}>
+                                                {(qty).toLocaleString('vi-VN')} vé
+                                            </Box>
+                                        </TableCell>
+                                        <TableCell align="right" sx={{ fontWeight: 700, color: '#166534' }}>
+                                            {formatImportCost(val)} VNĐ
+                                        </TableCell>
+                                        <TableCell align="center">
+                                            {batch.returnEvidenceUrl || batch.returnReceiptUrl ? (
+                                                <Chip
+                                                    label="Đã đính kèm"
+                                                    size="small"
+                                                    color="success"
+                                                    variant="outlined"
+                                                    sx={{ height: 24, fontSize: '0.7rem', fontWeight: 700, borderRadius: '6px' }}
+                                                />
+                                            ) : (
+                                                <Chip
+                                                    label="Chưa có"
+                                                    size="small"
+                                                    color="default"
+                                                    variant="outlined"
+                                                    sx={{ height: 24, fontSize: '0.7rem', fontWeight: 500, borderRadius: '6px' }}
+                                                />
+                                            )}
+                                        </TableCell>
+                                        <TableCell align="center">
+                                            <Tooltip title="Xem chi tiết phiếu trả">
+                                                <IconButton
+                                                    size="small"
+                                                    color="error"
+                                                    onClick={() => router.push(ROUTES.ADMIN.RETURN_BATCH.DETAIL(batch.id))}
+                                                    sx={{ bgcolor: 'error.lighter', color: 'error.main', '&:hover': { bgcolor: 'error.light', color: '#fff' } }}
+                                                >
+                                                    <VisibilityOutlinedIcon fontSize="small" />
+                                                </IconButton>
+                                            </Tooltip>
+                                        </TableCell>
+                                    </TableRow>
+                                );
+                            })}
                             {returnBatches.length === 0 && (
                                 <TableRow>
-                                    <TableCell colSpan={6} align="center">
+                                    <TableCell colSpan={7} align="center">
                                         <Typography color="text.secondary" sx={{ py: 4 }}>
                                             Chưa có phiếu trả vé liên kết kỳ đối soát này.
                                         </Typography>

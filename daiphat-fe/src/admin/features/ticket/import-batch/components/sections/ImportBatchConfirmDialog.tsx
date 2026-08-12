@@ -1,25 +1,14 @@
 "use client";
 
-import {
-    Alert,
-    Box,
-    Button,
-    Dialog,
-    DialogActions,
-    DialogContent,
-    DialogTitle,
-    Divider,
-    IconButton,
-    Stack,
-    Typography,
-} from '@mui/material';
+import { Alert, Box, Dialog, DialogActions, DialogContent, DialogTitle, Divider, IconButton, Stack, Typography } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
+import { Button } from '../../../../../components/ui/Button';
 import { getBatchTypeLabel, getImportModeLabel } from '../../utils/batchTypeLabels';
 import type { ImportBatchImportMode } from '../../utils/batchTypeLabels';
 import type { InvoiceEvidenceValue } from '../../utils/invoiceEvidence';
-import { formatImportCost } from '../../utils/importCostCalculator';
+import { formatVnd } from '../../utils/importCostCalculator';
 
 export interface ConfirmLineSummary {
     stationName: string;
@@ -41,8 +30,6 @@ interface ImportBatchConfirmDialogProps {
     onClose: () => void;
     onConfirm: () => void;
 }
-
-const formatVnd = (value: number) => `${formatImportCost(value)} VNĐ`;
 
 const SummaryRow = ({ label, value }: { label: string; value: string }) => (
     <Box
@@ -239,11 +226,13 @@ export const ImportBatchConfirmDialog = ({
                     <Button
                         onClick={onConfirm}
                         variant="contained"
+                        color="primary"
                         className="btn-primary-admin"
+                        loading={isPending}
                         disabled={isPending}
-                    >
-                        {isPending ? 'Đang xử lý...' : 'Xác nhận & Lưu'}
-                    </Button>
+                        label="Xác nhận & Lưu"
+                        loadingLabel="Đang xử lý..."
+                    />
                 </DialogActions>
             </Dialog>
 

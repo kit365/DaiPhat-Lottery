@@ -74,7 +74,7 @@ class TransactionServiceTest {
                 paymentAttemptCachePort,
                 applicationEventPublisher,
                 paymentTimeoutConfigService,
-                mock(TransactionServicePort.class)
+                null
         );
         when(paymentTimeoutConfigService.getTimeoutSeconds()).thenReturn(180L);
         when(paymentTimeoutConfigService.getTimeoutCancelReason()).thenReturn("Quá thời gian thanh toán 3 phút.");
@@ -345,6 +345,7 @@ OrderModel order = OrderModel.builder()
                 .build();
 
         when(orderRepositoryPort.findPendingPaymentOrderIdsCreatedBefore(any())).thenReturn(List.of(orderId));
+        when(orderRepositoryPort.findById(orderId)).thenReturn(Optional.of(order));
         when(orderRepositoryPort.findByIdWithLock(orderId)).thenReturn(Optional.of(order));
 
         int expiredCount = transactionService.expirePendingPayments();
@@ -379,6 +380,7 @@ OrderModel order = OrderModel.builder()
                 .build();
 
         when(orderRepositoryPort.findPendingPaymentOrderIdsCreatedBefore(any())).thenReturn(List.of(orderId));
+        when(orderRepositoryPort.findById(orderId)).thenReturn(Optional.of(order));
         when(orderRepositoryPort.findByIdWithLock(orderId)).thenReturn(Optional.of(order));
 
         int expiredCount = transactionService.expirePendingPayments();
@@ -839,16 +841,31 @@ OrderModel order = OrderModel.builder()
     }
 
     @Test
-    @DisplayName("[DP-343] getPendingPaymentCountdown: returns 0 if order not pending_payment")
-    void getPendingPaymentCountdown_returnsZeroIfNotPendingPayment() {
+    @DisplayName("[DP-343] getPendingPaymentCountdown: paid/completed order is not expired")
+    void getPendingPaymentCountdown_returnsNotExpiredWhenPaid() {
         OrderModel order = OrderModel.builder()
                 .id(UUID.randomUUID())
-                .status(OrderStatus.COMPLETED)
+                .status(OrderStatus.PAID)
                 .build();
         when(orderRepositoryPort.findById(order.getId())).thenReturn(Optional.of(order));
 
         PendingPaymentCountdownResult result = transactionService.getPendingPaymentCountdown(order.getId());
-        
+
+        assertThat(result.remainingSeconds()).isZero();
+        assertThat(result.expired()).isFalse();
+    }
+
+    @Test
+    @DisplayName("[DP-343] getPendingPaymentCountdown: cancelled order is expired")
+    void getPendingPaymentCountdown_returnsExpiredWhenCancelled() {
+        OrderModel order = OrderModel.builder()
+                .id(UUID.randomUUID())
+                .status(OrderStatus.CANCELLED)
+                .build();
+        when(orderRepositoryPort.findById(order.getId())).thenReturn(Optional.of(order));
+
+        PendingPaymentCountdownResult result = transactionService.getPendingPaymentCountdown(order.getId());
+
         assertThat(result.remainingSeconds()).isZero();
         assertThat(result.expired()).isTrue();
     }

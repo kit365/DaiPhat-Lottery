@@ -38,9 +38,8 @@ import {
     DialogActions,
     DialogContentText
 } from '@mui/material';
-import { Icon } from '@iconify/react';
-import { Title } from '../../../../components/ui/Title';
-import { Breadcrumb } from '../../../../components/ui/Breadcrumb';
+import { Icon } from '@/admin/components/ui/AdminIcon';
+import { PageHeader } from '../../../../components/ui/PageHeader';
 import { CounterToolbar } from '../sections/CounterToolbar';
 import { prefixAdmin } from '../../../../constants/routes';
 import { useTickets } from '../../../ticket/inventory/hooks/useTicket';
@@ -561,29 +560,22 @@ export const CounterOrderCreatePage = () => {
     return (
         <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: 'calc(100vh - 100px)' }}>
             {/* Header Area */}
-            <Box sx={{ mb: 4 }}>
-                <Title title="Tạo đơn tại quầy" />
-                <Breadcrumb
-                    items={[
-                        { label: 'Bảng điều khiển', to: `/${prefixAdmin}/dashboard` },
-                        { label: 'Đơn hàng', to: `/${prefixAdmin}/order/list` },
-                        activeStep === 1 
-                            ? { label: 'Tạo đơn tại quầy' }
-                            : { label: 'Tạo đơn tại quầy', onClick: () => setActiveStep(1) },
-                        ...(activeStep === 2 ? [{ label: 'Thông tin đơn hàng' }] : [])
-                    ]}
-                />
-            </Box>
+            <PageHeader
+                title="Tạo đơn tại quầy"
+                breadcrumbItems={[
+                    { label: 'Bảng điều khiển', to: `/${prefixAdmin}/dashboard` },
+                    { label: 'Đơn hàng', to: `/${prefixAdmin}/order/list` },
+                    activeStep === 1
+                        ? { label: 'Tạo đơn tại quầy' }
+                        : { label: 'Tạo đơn tại quầy', onClick: () => setActiveStep(1) },
+                    ...(activeStep === 2 ? [{ label: 'Thông tin đơn hàng' }] : [])
+                ]}
+            />
 
 
 
             {activeStep === 1 && (
-                <Card sx={{
-                    borderRadius: 'var(--shape-borderRadius-lg)',
-                    bgcolor: 'var(--palette-background-paper)',
-                    boxShadow: "var(--customShadows-card)",
-                    overflow: 'hidden'
-                }}>
+                <Card elevation={0} className="admin-datagrid-card" sx={{ height: 'auto' }}>
                     {/* Toolbar */}
                     <CounterToolbar
                         filters={{ ...filters, search: searchQuery }}
@@ -602,8 +594,8 @@ export const CounterOrderCreatePage = () => {
 
 
                     {/* Table */}
-                    <TableContainer>
-                        <Table size="medium" sx={{ minWidth: 960 }}>
+                    <TableContainer sx={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'auto' }}>
+                        <Table size="medium" sx={{ minWidth: 960, height: groupedTickets.length === 0 ? '100%' : 'auto' }}>
                             <TableHead sx={{ bgcolor: 'var(--palette-background-neutral)' }}>
                                 <TableRow>
                                     <TableCell sx={{ color: 'var(--palette-text-secondary)', fontWeight: 600, fontSize: '0.875rem' }}>Số vé</TableCell>
@@ -616,105 +608,129 @@ export const CounterOrderCreatePage = () => {
                                 </TableRow>
                             </TableHead>
                             <TableBody>
-                                {groupedTickets.map((group, groupIndex) => (
-                                    <React.Fragment key={group.stationCode + groupIndex}>
-                                        {/* Group Header Row */}
-                                        <TableRow sx={{ bgcolor: 'var(--palette-background-neutral)' }}>
-                                            <TableCell colSpan={5} sx={{ py: 1 }}>
-                                                <Stack direction="row" alignItems="center" spacing={1.5}>
-                                                    <Box sx={{ 
-                                                        width: 24, height: 24, borderRadius: 1, 
-                                                        bgcolor: 'var(--palette-success-main)', 
-                                                        color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                                        fontSize: '0.65rem', fontWeight: 700
-                                                    }}>
-                                                        {group.stationCode}
-                                                    </Box>
-                                                    <Typography sx={{ fontWeight: 700, fontSize: '0.875rem', color: 'var(--palette-text-primary)' }}>
-                                                        {group.stationName}
-                                                    </Typography>
-                                                </Stack>
-                                            </TableCell>
-                                        </TableRow>
-
-                                        {group.tickets.map((row: any) => {
-                                            const qty = selectedTickets[row.id]?.qty || 0;
-                                            const maxQty = row.quantity || 0;
-
-                                            return (
-                                                <TableRow
-                                                    hover
-                                                    tabIndex={-1}
-                                                    key={row.id}
-                                                    selected={qty > 0}
-                                                    sx={{ '&:hover': { bgcolor: 'var(--palette-action-hover)' } }}
-                                                >
-                                                    <TableCell sx={{ borderBottom: '1px dashed var(--palette-background-neutral)' }}>
-                                                        <Typography sx={{ fontWeight: 800, fontSize: '1rem', color: 'var(--palette-text-primary)' }}>
-                                                            {row.numbers}
+                                {isTicketsFetching ? (
+                                    <TableRow>
+                                        <TableCell colSpan={5} align="center" sx={{ borderBottom: 'none', py: 10 }}>
+                                            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 320 }}>
+                                                <CircularProgress size={32} />
+                                            </Box>
+                                        </TableCell>
+                                    </TableRow>
+                                ) : groupedTickets.length === 0 ? (
+                                    <TableRow>
+                                        <TableCell colSpan={5} align="center" sx={{ borderBottom: 'none', py: 10 }}>
+                                            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 320 }}>
+                                                <span className="admin-datagrid-empty">Không có dữ liệu</span>
+                                            </Box>
+                                        </TableCell>
+                                    </TableRow>
+                                ) : (
+                                    groupedTickets.map((group, groupIndex) => (
+                                        <React.Fragment key={group.stationCode + groupIndex}>
+                                            {/* Group Header Row */}
+                                            <TableRow sx={{ bgcolor: 'var(--palette-background-neutral)' }}>
+                                                <TableCell colSpan={5} sx={{ py: 1 }}>
+                                                    <Stack direction="row" alignItems="center" spacing={1.5}>
+                                                        <Box sx={{ 
+                                                            width: 24, height: 24, borderRadius: 1, 
+                                                            bgcolor: 'var(--palette-success-main)', 
+                                                            color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                            fontSize: '0.65rem', fontWeight: 700
+                                                        }}>
+                                                            {group.stationCode}
+                                                        </Box>
+                                                        <Typography sx={{ fontWeight: 700, fontSize: '0.875rem', color: 'var(--palette-text-primary)' }}>
+                                                            {group.stationName}
                                                         </Typography>
-                                                    </TableCell>
-                                                    <TableCell sx={{ borderBottom: '1px dashed var(--palette-background-neutral)', fontSize: '0.875rem', color: 'var(--palette-text-primary)' }}>
-                                                        {row.drawDate || '-'}
-                                                    </TableCell>
-                                                    <TableCell sx={{ borderBottom: '1px dashed var(--palette-background-neutral)', fontSize: '0.875rem', color: 'var(--palette-text-primary)' }}>
-                                                        {(row.price || 10000).toLocaleString('vi-VN')}đ
-                                                    </TableCell>
-                                                    <TableCell sx={{ borderBottom: '1px dashed var(--palette-background-neutral)', fontSize: '0.875rem', color: 'var(--palette-text-primary)', fontWeight: 700 }}>
-                                                        {maxQty}
-                                                    </TableCell>
-                                                    <TableCell sx={{ borderBottom: '1px dashed var(--palette-background-neutral)' }}>
-                                                        <Stack direction="row" alignItems="center" spacing={1}>
-                                                            <Box 
-                                                                onClick={(e) => { e.stopPropagation(); handleQuantityChange(row, -1, maxQty); }}
-                                                                sx={{ 
-                                                                    width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', 
-                                                                    borderRadius: 1, border: '1px solid var(--palette-action-disabledBackground)',
-                                                                    cursor: qty > 0 ? 'pointer' : 'not-allowed', color: qty > 0 ? 'var(--palette-text-primary)' : 'var(--palette-text-disabled)',
-                                                                    '&:hover': qty > 0 ? { bgcolor: 'var(--palette-action-hover)' } : {}
-                                                                }}
-                                                            >
-                                                                -
-                                                            </Box>
-                                                            <Typography sx={{ width: 30, textAlign: 'center', fontWeight: 600 }}>
-                                                                {qty}
+                                                    </Stack>
+                                                </TableCell>
+                                            </TableRow>
+
+                                            {group.tickets.map((row: any) => {
+                                                const qty = selectedTickets[row.id]?.qty || 0;
+                                                const maxQty = row.quantity || 0;
+
+                                                return (
+                                                    <TableRow
+                                                        hover
+                                                        tabIndex={-1}
+                                                        key={row.id}
+                                                        selected={qty > 0}
+                                                        sx={{ '&:hover': { bgcolor: 'var(--palette-action-hover)' } }}
+                                                    >
+                                                        <TableCell sx={{ borderBottom: '1px dashed var(--palette-background-neutral)' }}>
+                                                            <Typography sx={{ fontWeight: 800, fontSize: '1rem', color: 'var(--palette-text-primary)' }}>
+                                                                {row.numbers}
                                                             </Typography>
-                                                            <Box 
-                                                                onClick={(e) => { e.stopPropagation(); handleQuantityChange(row, 1, maxQty); }}
-                                                                sx={{ 
-                                                                    width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', 
-                                                                    borderRadius: 1, border: '1px solid var(--palette-action-disabledBackground)',
-                                                                    cursor: qty < maxQty ? 'pointer' : 'not-allowed', color: qty < maxQty ? 'var(--palette-text-primary)' : 'var(--palette-text-disabled)',
-                                                                    '&:hover': qty < maxQty ? { bgcolor: 'var(--palette-action-hover)' } : {}
-                                                                }}
-                                                            >
-                                                                +
-                                                            </Box>
-                                                        </Stack>
-                                                    </TableCell>
-                                                </TableRow>
-                                            );
-                                        })}
-                                    </React.Fragment>
-                                ))}
+                                                        </TableCell>
+                                                        <TableCell sx={{ borderBottom: '1px dashed var(--palette-background-neutral)', fontSize: '0.875rem', color: 'var(--palette-text-primary)' }}>
+                                                            {row.drawDate || '-'}
+                                                        </TableCell>
+                                                        <TableCell sx={{ borderBottom: '1px dashed var(--palette-background-neutral)', fontSize: '0.875rem', color: 'var(--palette-text-primary)' }}>
+                                                            {(row.price || 10000).toLocaleString('vi-VN')}đ
+                                                        </TableCell>
+                                                        <TableCell sx={{ borderBottom: '1px dashed var(--palette-background-neutral)', fontSize: '0.875rem', color: 'var(--palette-text-primary)', fontWeight: 700 }}>
+                                                            {maxQty}
+                                                        </TableCell>
+                                                        <TableCell sx={{ borderBottom: '1px dashed var(--palette-background-neutral)' }}>
+                                                            <Stack direction="row" alignItems="center" spacing={1}>
+                                                                <Box 
+                                                                    onClick={(e) => { e.stopPropagation(); handleQuantityChange(row, -1, maxQty); }}
+                                                                    sx={{ 
+                                                                        width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', 
+                                                                        borderRadius: 1, border: '1px solid var(--palette-action-disabledBackground)',
+                                                                        cursor: qty > 0 ? 'pointer' : 'not-allowed', color: qty > 0 ? 'var(--palette-text-primary)' : 'var(--palette-text-disabled)',
+                                                                        '&:hover': qty > 0 ? { bgcolor: 'var(--palette-action-hover)' } : {}
+                                                                    }}
+                                                                >
+                                                                    -
+                                                                </Box>
+                                                                <Typography sx={{ width: 30, textAlign: 'center', fontWeight: 600 }}>
+                                                                    {qty}
+                                                                </Typography>
+                                                                <Box 
+                                                                    onClick={(e) => { e.stopPropagation(); handleQuantityChange(row, 1, maxQty); }}
+                                                                    sx={{ 
+                                                                        width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', 
+                                                                        borderRadius: 1, border: '1px solid var(--palette-action-disabledBackground)',
+                                                                        cursor: qty < maxQty ? 'pointer' : 'not-allowed', color: qty < maxQty ? 'var(--palette-text-primary)' : 'var(--palette-text-disabled)',
+                                                                        '&:hover': qty < maxQty ? { bgcolor: 'var(--palette-action-hover)' } : {}
+                                                                    }}
+                                                                >
+                                                                    +
+                                                                </Box>
+                                                            </Stack>
+                                                        </TableCell>
+                                                    </TableRow>
+                                                );
+                                            })}
+                                        </React.Fragment>
+                                    ))
+                                )}
                             </TableBody>
                         </Table>
                     </TableContainer>
 
-                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', p: 2, borderTop: '1px dashed var(--palette-background-neutral)' }}>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                            <TablePagination
-                                component="div"
-                                count={totalRecords}
-                                page={page}
-                                onPageChange={handleChangePage}
-                                rowsPerPage={rowsPerPage}
-                                onRowsPerPageChange={handleChangeRowsPerPage}
-                                labelRowsPerPage="Hiển thị"
-                                sx={{ border: 'none', '.MuiTablePagination-toolbar': { minHeight: '36px', p: 0 } }}
-                            />
-                        </Box>
-                    </Box>
+                    <TablePagination
+                        component="div"
+                        count={totalRecords}
+                        page={page}
+                        onPageChange={handleChangePage}
+                        rowsPerPage={rowsPerPage}
+                        onRowsPerPageChange={handleChangeRowsPerPage}
+                        rowsPerPageOptions={[5, 10, 25, 50]}
+                        labelRowsPerPage="Số hàng mỗi trang:"
+                        labelDisplayedRows={({ from, to, count }) =>
+                            `${from}-${to} của ${count !== -1 ? count : `hơn ${to}`}`
+                        }
+                        sx={{
+                            borderTop: '1px solid var(--palette-divider)',
+                            color: 'var(--palette-text-secondary)',
+                            '& .MuiTablePagination-selectLabel, & .MuiTablePagination-displayedRows': {
+                                fontSize: '0.875rem',
+                            },
+                        }}
+                    />
                 </Card>
             )}
 

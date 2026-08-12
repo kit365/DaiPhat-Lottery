@@ -1,7 +1,11 @@
 "use client";
 
+import { useRouter } from "next/navigation";
+import { useRouteParams } from "@/hooks/useRouteParams";
+import { usePathname, useSearchParams } from "next/navigation";
+import Link from "next/link";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useParams, useNavigate, Link, useLocation } from '@/components/router-compat';
+import { PROVINCE_ICON_FALLBACK, TICKET_IMAGE_FALLBACK } from '../../../../constants/clientBannerAssets';
 import QRCode from 'react-qr-code';
 import { useGetMyOrderDetail } from '../../../../hooks/useOrder';
 import { useGetPendingPaymentCountdown, useProcessPayment, useSyncPaymentFromGateway } from '../../../../hooks/useTransaction';
@@ -113,9 +117,10 @@ const OrderStepper = ({ order }: { order: any }) => {
 };
 
 export const OrderDetailTab = () => {
-    const { id } = useParams<{ id: string }>();
-    const navigate = useNavigate();
-    const location = useLocation();
+    const { id } = useRouteParams();
+    const router = useRouter();
+    const pathname = usePathname() ?? '';
+    const searchParamsForLocation = useSearchParams();
     const { data: orderData, isLoading, isError, refetch: refetchOrder } = useGetMyOrderDetail(id || '');
     const { data: refundsData } = useGetMyRefunds({ orderId: id, limit: 100, page: 1 }, !!id);
     const processPaymentMutation = useProcessPayment();
@@ -240,7 +245,7 @@ export const OrderDetailTab = () => {
         seconds: remainingCountdownSeconds % 60,
     };
 
-    // Khi countdown hết hạn: đóng dialog, toast, refetch tới khi backend hủy đơn
+    // Countdown hết hạn: chỉ báo lỗi sau khi backend đã CANCELLED (không toast khi vừa PAID).
     useEffect(() => {
         if (!order?.id || order.status !== OrderStatus.PENDING_PAYMENT || !isPaymentCountdownExpired) {
             if (order?.status !== OrderStatus.PENDING_PAYMENT) {
@@ -249,21 +254,26 @@ export const OrderDetailTab = () => {
             return;
         }
 
-        if (!paymentExpiredHandledRef.current) {
-            paymentExpiredHandledRef.current = true;
-            handlePaymentExpired();
-        }
-
         const timer = window.setInterval(() => {
             void refetchOrder();
         }, 3000);
 
         return () => window.clearInterval(timer);
-    }, [order?.id, order?.status, isPaymentCountdownExpired, handlePaymentExpired, refetchOrder]);
+    }, [order?.id, order?.status, isPaymentCountdownExpired, refetchOrder]);
 
     useEffect(() => {
-        const state = location.state as { openRefund?: boolean } | null;
-        if (!state?.openRefund || !order || !isRefundCandidateStatus(order.status) || isLoadingEligibility) {
+        if (!order?.id || order.status !== OrderStatus.CANCELLED || !isPaymentCountdownExpired) {
+            return;
+        }
+        if (paymentExpiredHandledRef.current) {
+            return;
+        }
+        paymentExpiredHandledRef.current = true;
+        handlePaymentExpired();
+    }, [order?.id, order?.status, isPaymentCountdownExpired, handlePaymentExpired]);
+
+    useEffect(() => {
+        if (searchParamsForLocation?.get("openRefund") !== "true" || !order || !isRefundCandidateStatus(order.status) || isLoadingEligibility) {
             return;
         }
 
@@ -273,8 +283,8 @@ export const OrderDetailTab = () => {
             AppToast.error(refundIneligibleReason);
         }
 
-        navigate(location.pathname, { replace: true, state: null } as any);
-    }, [location.state, location.pathname, order, navigate, isLoadingEligibility, refundEligible, refundIneligibleReason]);
+        router.replace(pathname);
+    }, [searchParamsForLocation, pathname, order, router, isLoadingEligibility, refundEligible, refundIneligibleReason]);
 
     if (isLoading) {
         return (
@@ -365,9 +375,9 @@ export const OrderDetailTab = () => {
             {/* Header Title (with back button) */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div className="flex items-center gap-3 text-[14px] font-medium text-[#637381]">
-                    <Link to="/" className="hover:text-[#212B36] transition-colors">Trang chủ</Link>
+                    <Link href="/" className="hover:text-[#212B36] transition-colors">Trang chủ</Link>
                     <i className="fa-solid fa-chevron-right text-[10px]"></i>
-                    <Link to="/profile/orders" className="hover:text-[#212B36] transition-colors">Đơn hàng của tôi</Link>
+                    <Link href="/profile/orders" className="hover:text-[#212B36] transition-colors">Đơn hàng của tôi</Link>
                     <i className="fa-solid fa-chevron-right text-[10px]"></i>
                     <span className="text-[#212B36] font-bold">Chi tiết đơn hàng</span>
                 </div>
@@ -375,10 +385,10 @@ export const OrderDetailTab = () => {
 
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-2">
                 <div className="flex items-center gap-3">
-                    <h1 className="text-[20px] sm:text-[24px] font-bold text-[#212B36]">Chi tiết đơn hàng</h1>
+                    <h1 className="client-heading m-0">Chi tiết đơn hàng</h1>
                 </div>
                 <button
-                    onClick={() => navigate('/profile/orders')}
+                    onClick={() => router.push('/profile/orders')}
                     className="px-5 py-2.5 bg-white border border-[#E5E8EB] rounded-xl text-[13px] font-bold text-[#454F5B] hover:bg-[#F9FAFB] transition-colors shadow-sm cursor-pointer flex items-center gap-2 w-max"
                 >
                     <i className="fa-solid fa-arrow-left"></i> Quay lại
@@ -503,7 +513,7 @@ export const OrderDetailTab = () => {
                             const drawDate = detail.drawDate ? format(new Date(detail.drawDate), 'dd/MM/yyyy') : detail.lotteryTicket?.drawDate ? format(new Date(detail.lotteryTicket.drawDate), 'dd/MM/yyyy') : (order.createdAt ? format(new Date(order.createdAt), 'dd/MM/yyyy') : '-');
                             const numbers = detail.numbers || detail.lotteryTicket?.numbers || "---";
                             const price = detail.price || 10000;
-                            const ticketImg = detail.ticketImg || detail.lotteryTicket?.imageUrl || "https://i.ibb.co/TBf95cjX/6b561e49-2b8d-4dc5-b4c7-cff26a273abc.png";
+                            const ticketImg = detail.ticketImg || detail.lotteryTicket?.imageUrl || TICKET_IMAGE_FALLBACK;
 
                             const pendingDetailRefund = detail.id ? getPendingRefundForDetail(detail.id) : undefined;
                             const detailRefund = detail.id ? getRefundForDetail(detail.id) : undefined;
@@ -523,7 +533,7 @@ export const OrderDetailTab = () => {
 
                                         <div className="flex flex-col items-start gap-1 sm:border-l sm:border-[#E5E8EB] sm:pl-6">
                                             <div className="flex items-center gap-2">
-                                                <img src={detail.lotteryTicket?.station?.logoUrl || 'https://i.ibb.co/XrKTHt8g/t-i-xu-ng.png'} alt="Logo" className="w-5 h-5 rounded-full border border-gray-200" />
+                                                <img src={detail.lotteryTicket?.station?.logoUrl || PROVINCE_ICON_FALLBACK} alt="Logo" className="w-5 h-5 rounded-full border border-gray-200" />
                                                 <span className="font-bold text-[14px] text-[#212B36]">{stationName}</span>
                                             </div>
                                             <div className="flex items-center gap-1.5 text-[13px] text-[#637381] pl-7">
@@ -560,7 +570,7 @@ export const OrderDetailTab = () => {
                                             })()}
                                             {isPaidOrCompleted && (
                                                 <Link
-                                                    to="/results"
+                                                    href="/"
                                                     className="hidden lg:flex text-[#ee1314] hover:text-[#c80f11] text-[13px] font-bold items-center gap-1.5 hover:underline bg-[#FFF4F4] px-3 py-1.5 rounded-lg border border-[#FFEBEE]"
                                                 >
                                                     Tra kết quả <i className="fa-solid fa-arrow-up-right-from-square text-[11px]"></i>
@@ -568,7 +578,7 @@ export const OrderDetailTab = () => {
                                             )}
                                             {(pendingDetailRefund || (detail.status === 'REFUND_PENDING' && detailRefund)) && (
                                                 <Link
-                                                    to={`/profile/refunds/${(pendingDetailRefund || detailRefund)?.id}`}
+                                                    href={`/profile/refunds/${(pendingDetailRefund || detailRefund)?.id}`}
                                                     className="text-[#FFB020] text-[12px] font-bold flex items-center gap-1.5 hover:underline w-max"
                                                 >
                                                     <i className="fa-solid fa-clock text-[11px]"></i> Xem yêu cầu hủy
@@ -838,7 +848,7 @@ export const OrderDetailTab = () => {
                         </div>
                     </div>
                     <Link
-                        to={`/profile/refunds/${pendingFullOrderRefund.id}`}
+                        href={`/profile/refunds/${pendingFullOrderRefund.id}`}
                         className="h-9 px-4 rounded-xl border border-[#DFE3E8] bg-white text-[#454F5B] text-[13px] font-semibold hover:border-[#C4CDD5] hover:bg-[#F4F6F8] hover:text-[#212B36] transition-colors whitespace-nowrap self-start sm:self-center flex items-center justify-center shadow-[0_1px_2px_rgb(0,0,0,0.04)]"
                     >
                         Xem chi tiết

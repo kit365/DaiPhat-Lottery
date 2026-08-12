@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
 import 'package:go_router/go_router.dart';
 import 'package:daiphat_mobile/src/app/routing/app_routes.dart';
+import 'package:daiphat_mobile/src/features/checkout/presentation/providers/checkout_provider.dart';
+import 'package:daiphat_mobile/src/features/chat/presentation/views/chat_screen.dart';
 import 'package:daiphat_mobile/src/features/notifications/presentation/viewmodels/notification_viewmodel.dart';
 import '../viewmodels/profile_viewmodel.dart';
+import '../viewmodels/profile_tickets_summary_viewmodel.dart';
 
-class ProfileView extends StatelessWidget {
+class ProfileView extends ConsumerStatefulWidget {
   final ProfileViewModel viewModel;
   final NotificationViewModel notificationViewModel;
 
@@ -15,6 +19,31 @@ class ProfileView extends StatelessWidget {
     required this.viewModel,
     required this.notificationViewModel,
   });
+
+  @override
+  ConsumerState<ProfileView> createState() => _ProfileViewState();
+}
+
+class _ProfileViewState extends ConsumerState<ProfileView> {
+  ProfileTicketsSummaryViewModel? _ticketsSummaryViewModel;
+
+  @override
+  void initState() {
+    super.initState();
+    _ticketsSummaryViewModel = ProfileTicketsSummaryViewModel(
+      ref.read(orderServiceProvider),
+    );
+  }
+
+  @override
+  void dispose() {
+    _ticketsSummaryViewModel?.dispose();
+    super.dispose();
+  }
+
+  ProfileViewModel get viewModel => widget.viewModel;
+  NotificationViewModel get notificationViewModel =>
+      widget.notificationViewModel;
 
   @override
   Widget build(BuildContext context) {
@@ -40,6 +69,7 @@ class ProfileView extends StatelessWidget {
           body: RefreshIndicator(
             onRefresh: () async {
               await viewModel.loadUser();
+              await _ticketsSummaryViewModel?.loadSummary();
             },
             color: AppColors.primary,
             child: SingleChildScrollView(
@@ -48,6 +78,10 @@ class ProfileView extends StatelessWidget {
               child: Column(
                 children: [
                   _buildHeaderAndProfileCard(context),
+                  if (viewModel.user?.isAdmin == true) ...[
+                    const SizedBox(height: 16),
+                    _buildAdminSection(context),
+                  ],
                   const SizedBox(height: 16),
                   _buildMyTicketsSection(),
                   const SizedBox(height: 16),
@@ -103,13 +137,19 @@ class ProfileView extends StatelessWidget {
                   onTap: () => context.push(AppRoute.profileDetail.path),
                 ),
                 const SizedBox(width: 10),
-                ListenableBuilder(
-                  listenable: notificationViewModel,
-                  builder: (context, _) => _buildHeaderAction(
-                    icon: Icons.notifications_none_rounded,
-                    badge: notificationViewModel.unreadCount,
-                    onTap: () => context.push(AppRoute.notifications.path),
-                  ),
+                _buildHeaderAction(
+                  icon: Icons.chat_bubble_outline_rounded,
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => ChatScreen(
+                          isAuthenticated: true,
+                          isActive: true,
+                          onBack: () => Navigator.of(context).pop(),
+                        ),
+                      ),
+                    );
+                  },
                 ),
               ],
             ),
@@ -140,11 +180,12 @@ class ProfileView extends StatelessWidget {
                   final user = viewModel.user;
                   final rawName = user?.fullName?.trim();
                   final username = user?.username.trim();
-                  final name = rawName?.isNotEmpty == true
-                      ? rawName!
-                      : username?.isNotEmpty == true
-                      ? username!
+                  final name = (rawName != null && rawName.isNotEmpty)
+                      ? rawName
+                      : (username != null && username.isNotEmpty)
+                      ? username
                       : 'Member Default';
+                  final avatarUrl = user?.avatarUrl;
 
                   return Stack(
                     clipBehavior: Clip.none,
@@ -167,9 +208,9 @@ class ProfileView extends StatelessWidget {
                                     ),
                                   ),
                                   clipBehavior: Clip.antiAlias,
-                                  child: user?.avatarUrl?.isNotEmpty == true
+                                  child: avatarUrl != null && avatarUrl.isNotEmpty
                                       ? Image.network(
-                                          user!.avatarUrl!,
+                                          avatarUrl,
                                           fit: BoxFit.cover,
                                           errorBuilder: (_, _, _) => const Icon(
                                             Icons.person_rounded,
@@ -360,46 +401,196 @@ class ProfileView extends StatelessWidget {
     );
   }
 
-  Widget _buildMyTicketsSection() {
+  Widget _buildAdminSection(BuildContext context) {
     return _buildCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Ví của tôi',
-            style: GoogleFonts.publicSans(
-              fontSize: 16,
-              fontWeight: FontWeight.w700,
-              color: AppColors.textMain,
-            ),
-          ),
-          const SizedBox(height: 16),
           Row(
             children: [
-              _buildTicketStatItemAsset(
-                'assets/images/icons/icon_ve_cho_quay.png',
-                const Color(0xFFFBC02D),
-                '2',
-                'Chờ quay',
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.admin_panel_settings_rounded,
+                  color: AppColors.primary,
+                  size: 22,
+                ),
               ),
-              _buildVerticalDivider(),
-              _buildTicketStatItemAsset(
-                'assets/images/icons/icon_ve_da_quay.png',
-                const Color(0xFFE91E63),
-                '12',
-                'Đã quay',
-              ),
-              _buildVerticalDivider(),
-              _buildTicketStatItemIcon(
-                Icons.emoji_events_outlined,
-                const Color(0xFFF57F17),
-                '3',
-                'Trúng thưởng',
+              const SizedBox(width: 10),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Bảng điều khiển Admin',
+                    style: GoogleFonts.publicSans(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.textMain,
+                    ),
+                  ),
+                  Text(
+                    'Quyền Quản trị viên & Nhân viên',
+                    style: GoogleFonts.publicSans(
+                      fontSize: 11,
+                      color: AppColors.textMuted,
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
+          const SizedBox(height: 12),
+          InkWell(
+            onTap: () => context.push(AppRoute.adminScan.path),
+            borderRadius: BorderRadius.circular(12),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFFD32F2F), Color(0xFFE53935)],
+                  begin: Alignment.centerLeft,
+                  end: Alignment.centerRight,
+                ),
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Color(0x33D32F2F),
+                    blurRadius: 10,
+                    offset: Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: const BoxDecoration(
+                      color: Colors.white24,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.qr_code_scanner_rounded,
+                      color: Colors.white,
+                      size: 24,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Quét vé số OCR (Trang Admin)',
+                          style: GoogleFonts.publicSans(
+                            color: Colors.white,
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'Kết nối Real-time với màn hình Web Admin',
+                          style: GoogleFonts.publicSans(
+                            color: Colors.white70,
+                            fontSize: 11,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Icon(
+                    Icons.arrow_forward_ios_rounded,
+                    color: Colors.white,
+                    size: 16,
+                  ),
+                ],
+              ),
+            ),
+          ),
         ],
       ),
+    );
+  }
+
+  Widget _buildMyTicketsSection() {
+    final summaryVm = _ticketsSummaryViewModel;
+    if (summaryVm == null) {
+      return _buildCard(child: const SizedBox.shrink());
+    }
+
+    return ListenableBuilder(
+      listenable: summaryVm,
+      builder: (context, _) {
+        final stats = summaryVm.stats;
+        final pending = summaryVm.isLoading ? '—' : '${stats.pendingCount}';
+        final drawn = summaryVm.isLoading ? '—' : '${stats.drawnCount}';
+        final won = summaryVm.isLoading ? '—' : '${stats.wonCount}';
+
+        return _buildCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Vé của tôi',
+                      style: GoogleFonts.publicSans(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textMain,
+                      ),
+                    ),
+                  ),
+                  InkWell(
+                    onTap: () => context.push(AppRoute.myTickets.path),
+                    child: Text(
+                      'Xem tất cả',
+                      style: GoogleFonts.publicSans(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  _buildTicketStatItemAsset(
+                    'assets/images/icons/icon_ve_cho_quay.png',
+                    const Color(0xFFFBC02D),
+                    pending,
+                    'Chờ quay',
+                    onTap: () => context.push(AppRoute.myTickets.path),
+                  ),
+                  _buildVerticalDivider(),
+                  _buildTicketStatItemAsset(
+                    'assets/images/icons/icon_ve_da_quay.png',
+                    const Color(0xFFE91E63),
+                    drawn,
+                    'Đã quay',
+                    onTap: () => context.push(AppRoute.myTickets.path),
+                  ),
+                  _buildVerticalDivider(),
+                  _buildTicketStatItemIcon(
+                    Icons.emoji_events_outlined,
+                    const Color(0xFFF57F17),
+                    won,
+                    'Trúng thưởng',
+                    onTap: () => context.push(AppRoute.myTickets.path),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -407,39 +598,44 @@ class ProfileView extends StatelessWidget {
     IconData icon,
     Color color,
     String count,
-    String label,
-  ) {
+    String label, {
+    VoidCallback? onTap,
+  }) {
     return Expanded(
-      child: Column(
-        children: [
-          Container(
-            width: 52,
-            height: 52,
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.1),
-              shape: BoxShape.circle,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Column(
+          children: [
+            Container(
+              width: 52,
+              height: 52,
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, color: color, size: 25),
             ),
-            child: Icon(icon, color: color, size: 25),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            count,
-            style: GoogleFonts.publicSans(
-              fontSize: 16,
-              fontWeight: FontWeight.w800,
-              color: AppColors.textMain,
+            const SizedBox(height: 8),
+            Text(
+              count,
+              style: GoogleFonts.publicSans(
+                fontSize: 16,
+                fontWeight: FontWeight.w800,
+                color: AppColors.textMain,
+              ),
             ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            label,
-            style: GoogleFonts.publicSans(
-              fontSize: 11,
-              fontWeight: FontWeight.w500,
-              color: AppColors.textMuted,
+            const SizedBox(height: 2),
+            Text(
+              label,
+              style: GoogleFonts.publicSans(
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+                color: AppColors.textMuted,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -448,48 +644,53 @@ class ProfileView extends StatelessWidget {
     String assetPath,
     Color color,
     String count,
-    String label,
-  ) {
+    String label, {
+    VoidCallback? onTap,
+  }) {
     return Expanded(
-      child: Column(
-        children: [
-          Container(
-            width: 52,
-            height: 52,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.1),
-              shape: BoxShape.circle,
-            ),
-            child: Transform.scale(
-              scale: 1.55,
-              child: Image.asset(
-                assetPath,
-                width: 34,
-                height: 34,
-                fit: BoxFit.contain,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Column(
+          children: [
+            Container(
+              width: 52,
+              height: 52,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Transform.scale(
+                scale: 1.55,
+                child: Image.asset(
+                  assetPath,
+                  width: 34,
+                  height: 34,
+                  fit: BoxFit.contain,
+                ),
               ),
             ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            count,
-            style: GoogleFonts.publicSans(
-              fontSize: 16,
-              fontWeight: FontWeight.w800,
-              color: AppColors.textMain,
+            const SizedBox(height: 8),
+            Text(
+              count,
+              style: GoogleFonts.publicSans(
+                fontSize: 16,
+                fontWeight: FontWeight.w800,
+                color: AppColors.textMain,
+              ),
             ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            label,
-            style: GoogleFonts.publicSans(
-              fontSize: 11,
-              fontWeight: FontWeight.w500,
-              color: AppColors.textMuted,
+            const SizedBox(height: 2),
+            Text(
+              label,
+              style: GoogleFonts.publicSans(
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+                color: AppColors.textMuted,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -513,21 +714,41 @@ class ProfileView extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           _buildListItem(
+            Icons.dashboard_outlined,
+            'Tổng quan tài khoản',
+            onTap: () => context.push(AppRoute.profileOverview.path),
+          ),
+          _buildListItem(
             Icons.person_outline,
             'Thông tin cá nhân',
             onTap: () {
               context.push(AppRoute.profileDetail.path);
             },
           ),
-          _buildListItem(Icons.star_outline, 'Số yêu thích'),
           _buildListItem(
-            Icons.history,
-            'Lịch sử mua vé',
+            Icons.confirmation_number_outlined,
+            'Vé của tôi',
+            onTap: () => context.push(AppRoute.myTickets.path),
+          ),
+          _buildListItem(
+            Icons.receipt_long_outlined,
+            'Đơn hàng của tôi',
             onTap: () => context.push(AppRoute.myOrders.path),
           ),
           _buildListItem(
-            Icons.favorite_outline,
-            'Giới thiệu bạn bè',
+            Icons.rotate_left_rounded,
+            'Yêu cầu hoàn tiền',
+            onTap: () => context.push(AppRoute.refunds.path),
+          ),
+          _buildListItem(
+            Icons.emoji_events_outlined,
+            'Yêu cầu trả thưởng',
+            onTap: () => context.push(AppRoute.prizePayouts.path),
+          ),
+          _buildListItem(
+            Icons.account_balance_outlined,
+            'Tài khoản ngân hàng',
+            onTap: () => context.push(AppRoute.bankAccounts.path),
             showDivider: false,
           ),
         ],
@@ -541,7 +762,7 @@ class ProfileView extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Tiện ích',
+            'Tiện ích & Quản trị',
             style: GoogleFonts.publicSans(
               fontSize: 16,
               fontWeight: FontWeight.w700,
@@ -552,15 +773,18 @@ class ProfileView extends StatelessWidget {
           Row(
             children: [
               _buildUtilityItemIcon(
+                Icons.qr_code_scanner_rounded,
+                'Quét vé OCR',
+                onTap: () => context.push(AppRoute.adminScan.path),
+              ),
+              const SizedBox(width: 10),
+              _buildUtilityItemIcon(
                 Icons.notifications_active_outlined,
                 'Thông báo',
                 onTap: () => context.push(AppRoute.notifications.path),
               ),
               const SizedBox(width: 10),
-              _buildUtilityItemIcon(
-                Icons.auto_fix_high,
-                'Gieo quẻ',
-              ),
+              _buildUtilityItemIcon(Icons.auto_fix_high, 'Gieo quẻ'),
               const SizedBox(width: 10),
               _buildUtilityItemIcon(
                 Icons.calendar_month_outlined,
@@ -632,14 +856,27 @@ class ProfileView extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           _buildListItem(
+            Icons.notifications_outlined,
+            'Cài đặt thông báo',
+            iconColor: const Color(0xFF242424),
+            onTap: () => context.push(AppRoute.notificationSettings.path),
+          ),
+          _buildListItem(
             Icons.security_outlined,
             'Bảo mật',
             iconColor: const Color(0xFF242424),
           ),
           _buildListItem(
+            Icons.headset_mic_outlined,
+            'Khiếu nại / Hỗ trợ',
+            iconColor: const Color(0xFF242424),
+            onTap: () => context.push(AppRoute.complaints.path),
+          ),
+          _buildListItem(
             Icons.help_outline,
             'Trung tâm hỗ trợ',
             iconColor: const Color(0xFF242424),
+            onTap: () => context.push(AppRoute.complaints.path),
           ),
           _buildListItem(
             Icons.info_outline,

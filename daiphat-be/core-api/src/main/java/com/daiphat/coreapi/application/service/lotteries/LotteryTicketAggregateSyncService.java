@@ -1,6 +1,7 @@
 package com.daiphat.coreapi.application.service.lotteries;
 
 import com.daiphat.coreapi.application.port.in.lotteries.LotteryStationServicePort;
+import com.daiphat.coreapi.application.port.in.lotteries.LotteryTicketAggregateSyncUseCase;
 import com.daiphat.coreapi.application.port.out.lotteries.LotteryTicketRepositoryPort;
 import com.daiphat.coreapi.application.port.out.lotteries.LotteryTicketSerialRepositoryPort;
 import com.daiphat.coreapi.domain.exception.DomainException;
@@ -23,7 +24,7 @@ import java.util.List;
  */
 @Service
 @RequiredArgsConstructor
-public class LotteryTicketAggregateSyncService {
+public class LotteryTicketAggregateSyncService implements LotteryTicketAggregateSyncUseCase {
 
     private static final Collection<LotteryTicketSerialStatus> SOLD_SERIAL_STATUSES =
             List.of(LotteryTicketSerialStatus.SOLD);

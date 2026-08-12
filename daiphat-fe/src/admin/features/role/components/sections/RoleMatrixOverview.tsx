@@ -1,28 +1,16 @@
 "use client";
 
+import { Button } from '@/admin/components/ui/Button';
+
 import React, { useState, useMemo, useEffect } from 'react';
 import { Search } from "../../../../components/ui/Search";
 import { JiraFilter } from "../../../../shared/data-grid";
-import { Badge, SvgIcon } from "@mui/material";
-import {
-    Box,
-    Typography,
-    Card,
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableRow,
-    styled,
-    CircularProgress,
-    IconButton,
-    Checkbox,
-    CheckboxProps,
-    Button
-} from '@mui/material';
+import { Badge, SvgIcon } from '@mui/material';
+import { Box, Typography, Card, Table, TableBody, TableCell, TableHead, TableRow, styled, CircularProgress, IconButton, Checkbox, CheckboxProps } from '@mui/material';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import KeyboardArrowRightIcon from '@mui/icons-material/KeyboardArrowRight';
 import SaveIcon from '@mui/icons-material/Save';
+import { SpinnerLoading } from '../../../../components/ui/SpinnerLoading';
 import { useRoles, useUpdateRole, usePermissions, useReorderPermissions } from '../../hooks/useRole';
 import { AppToast as toast } from '../../../../../utils/toast.util';
 import {
@@ -328,11 +316,7 @@ export const RoleMatrixOverview = () => {
     };
 
     if (isLoading) {
-        return (
-            <Box sx={{ display: 'flex', justifyContent: 'center', py: 10 }}>
-                <CircularProgress />
-            </Box>
-        );
+        return <SpinnerLoading compact />;
     }
 
     if (roles.length === 0) {
@@ -583,7 +567,7 @@ const SortableModuleSection = ({ group, isReorderMode, isExpanded, toggleModule,
                     return (
                         <TableCell key={`mod-${roleId}`} align="center" onClick={(e) => e.stopPropagation()}>
                             {!isReorderMode && (
-                                <Box onClick={() => handleBulkToggle(roleId, group.permIds, !isFull)} sx={{ display: 'inline-flex', px: 1.5, py: 0.5, borderRadius: '12px', cursor: 'pointer', bgcolor: isFull ? 'rgba(0, 167, 111, 0.16)' : isEmpty ? 'rgba(145, 158, 171, 0.12)' : 'rgba(255, 171, 0, 0.16)', color: isFull ? 'var(--palette-success-dark)' : isEmpty ? 'var(--palette-text-secondary)' : 'var(--palette-warning-dark)', fontWeight: 700, fontSize: '0.75rem' }}>
+                                <Box onClick={() => handleBulkToggle(roleId, group.permIds, !isFull)} sx={{ display: 'inline-flex', px: 1.5, py: 0.5, borderRadius: '12px', cursor: 'pointer', bgcolor: isFull ? 'rgba(255, 48, 48, 0.16)' : isEmpty ? 'rgba(145, 158, 171, 0.12)' : 'rgba(255, 171, 0, 0.16)', color: isFull ? 'var(--palette-primary-dark)' : isEmpty ? 'var(--palette-text-secondary)' : 'var(--palette-warning-dark)', fontWeight: 700, fontSize: '0.75rem' }}>
                                     {isFull ? 'Full' : `${count}/${group.permIds.length}`}
                                 </Box>
                             )}

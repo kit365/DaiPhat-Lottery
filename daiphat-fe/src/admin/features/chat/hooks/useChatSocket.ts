@@ -152,6 +152,42 @@ export const useChatOperatorSocket = ({
                     showConversationToast((title) => `Hội thoại "${title}" đã được nhân viên khác nhận.`);
                     return;
                 }
+
+                queryClient.setQueryData<Conversation[]>(
+                    ADMIN_CHAT_CONVERSATIONS_KEY,
+                    (prev = []) =>
+                        prev.map((conversation) =>
+                            conversation.id === event.conversationId
+                                ? {
+                                      ...conversation,
+                                      status: event.status,
+                                      assignedOperatorId:
+                                          event.assignedOperatorId ?? conversation.assignedOperatorId,
+                                  }
+                                : conversation
+                        )
+                );
+                queryClient.invalidateQueries({ queryKey: adminChatDetailKey(event.conversationId) });
+                return;
+            }
+
+            if (event.eventType === 'CONVERSATION_ASSIGNED') {
+                queryClient.setQueryData<Conversation[]>(
+                    ADMIN_CHAT_CONVERSATIONS_KEY,
+                    (prev = []) =>
+                        prev.map((conversation) =>
+                            conversation.id === event.conversationId
+                                ? {
+                                      ...conversation,
+                                      status: event.status,
+                                      assignedOperatorId:
+                                          event.assignedOperatorId ?? conversation.assignedOperatorId,
+                                  }
+                                : conversation
+                        )
+                );
+                queryClient.invalidateQueries({ queryKey: adminChatDetailKey(event.conversationId) });
+                return;
             }
 
             if (event.eventType === 'CONVERSATION_CLOSED') {

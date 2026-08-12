@@ -8,6 +8,9 @@ interface FormUploadSingleFileProps {
     useRawFile?: boolean;
     customUpload?: (file: File) => Promise<string>;
     compact?: boolean;
+    compactThumbSize?: number;
+    /** When true, upload starts immediately after file selection. */
+    autoUpload?: boolean;
 }
 
 export const FormUploadSingleFile = ({
@@ -17,6 +20,8 @@ export const FormUploadSingleFile = ({
     useRawFile,
     customUpload,
     compact,
+    compactThumbSize,
+    autoUpload,
 }: FormUploadSingleFileProps) => {
     return (
         <Controller
@@ -31,6 +36,8 @@ export const FormUploadSingleFile = ({
                     useRawFile={useRawFile}
                     customUpload={customUpload}
                     compact={compact}
+                    compactThumbSize={compactThumbSize}
+                    autoUpload={autoUpload}
                 />
             )}
         />

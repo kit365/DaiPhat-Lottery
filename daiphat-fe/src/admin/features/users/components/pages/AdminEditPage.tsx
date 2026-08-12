@@ -1,15 +1,16 @@
 "use client";
 
-import { Breadcrumb } from '../../../../components/ui/Breadcrumb';
-import { Title } from '../../../../components/ui/Title';
+import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
+import { useRouteParams } from "@/hooks/useRouteParams";
+import { PageHeader } from '../../../../components/ui/PageHeader';
+import { SpinnerLoading } from '../../../../components/ui/SpinnerLoading';
 import { useUpdateUser, useUserDetail, useDeleteUser, useUploadUserAvatar } from "../../hooks/useUsers";
 import { useRoles } from "../../../role/hooks/useRole";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm, Controller } from "react-hook-form";
-import { accountAdminSchema } from "../../../../schemas/account-admin.schema";
+import { accountAdminSchema } from "@/admin/features/users/schemas/account-admin.schema";
 import { prefixAdmin } from '../../../../constants/routes';
 import { toast } from "react-toastify";
-import { useNavigate, useParams } from "react-router-dom";
 import { useEffect, useRef, useState } from "react";
 import {
     Box,
@@ -23,11 +24,11 @@ import {
 } from "@mui/material";
 import { UserStatus } from "../../../../../types/user.type";
 import Grid from "@mui/material/Grid";
-import { LoadingButton } from '../../../../components/ui/LoadingButton';
+import { Button } from '../../../../components/ui/Button';
 
 export const AdminEditPage = () => {
-    const { id } = useParams();
-    const navigate = useNavigate();
+    const { id } = useRouteParams();
+    const router = useAdminRouter();
     const { data: account, isLoading } = useUserDetail(id);
     const { mutate: update, isPending } = useUpdateUser();
     const { mutate: removeAccount } = useDeleteUser();
@@ -111,7 +112,7 @@ export const AdminEditPage = () => {
             removeAccount(id!, {
                 onSuccess: () => {
                     toast.success("Xóa quản trị viên thành công!");
-                    navigate(`/${prefixAdmin}/account-admin/list`);
+                    router.push(`/${prefixAdmin}/account-admin/list`);
                 },
                 onError: (error: any) => {
                     toast.error(error.response?.data?.message || "Xóa thất bại");
@@ -126,7 +127,7 @@ export const AdminEditPage = () => {
         update({ id: id!, data: payload }, {
             onSuccess: () => {
                 toast.success("Cập nhật quản trị viên thành công!");
-                navigate(`/${prefixAdmin}/account-admin/list`);
+                router.push(`/${prefixAdmin}/account-admin/list`);
             },
             onError: (error: any) => {
                 toast.error(error.response?.data?.message || "Cập nhật thất bại");
@@ -135,26 +136,30 @@ export const AdminEditPage = () => {
     };
 
     if (isLoading) return (
-        <Box sx={{ display: 'flex', justifyContent: 'center', py: 5 }}>
-            <CircularProgress />
-        </Box>
+        <div className="p-[24px] pt-[16px] flex flex-col gap-[24px] max-w-[1200px] mx-auto w-full">
+            <PageHeader
+                title="Chỉnh sửa quản trị viên"
+                breadcrumbItems={[
+                    { label: "Dashboard", to: `/${prefixAdmin}` },
+                    { label: "Quản trị viên", to: `/${prefixAdmin}/account-admin/list` },
+                    { label: "Cập nhật" }
+                ]}
+            />
+            <SpinnerLoading />
+        </div>
     );
 
     return (
         <div className="p-[24px] pt-[16px] flex flex-col gap-[24px] max-w-[1200px] mx-auto w-full">
             {/* Header */}
-            <div className="flex justify-between items-start">
-                <div>
-                    <Title title="Chỉnh sửa quản trị viên" />
-                    <Breadcrumb
-                        items={[
-                            { label: "Dashboard", to: `/${prefixAdmin}` },
-                            { label: "Quản trị viên", to: `/${prefixAdmin}/account-admin/list` },
-                            { label: "Cập nhật" }
-                        ]}
-                    />
-                </div>
-            </div>
+            <PageHeader
+                title="Chỉnh sửa quản trị viên"
+                breadcrumbItems={[
+                    { label: "Dashboard", to: `/${prefixAdmin}` },
+                    { label: "Quản trị viên", to: `/${prefixAdmin}/account-admin/list` },
+                    { label: "Cập nhật" }
+                ]}
+            />
 
             <form onSubmit={handleSubmit(onSubmit)}>
                 <div className="grid grid-cols-1 md:grid-cols-12 gap-[24px]">
@@ -213,7 +218,7 @@ export const AdminEditPage = () => {
                             </p>
 
                             <div className="mt-[32px]">
-                                <LoadingButton
+                                <Button
                                     variant="contained"
                                     color="error"
                                     onClick={handleDelete}
@@ -321,7 +326,7 @@ export const AdminEditPage = () => {
                             </div>
 
                             <div className="flex justify-end mt-[24px]">
-                                <LoadingButton
+                                <Button
                                     type="submit"
                                     loading={isPending}
                                     label="Lưu thay đổi"

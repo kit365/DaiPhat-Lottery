@@ -1,360 +1,547 @@
 import 'package:flutter/material.dart';
-import 'package:daiphat_mobile/src/features/notifications/presentation/viewmodels/notification_viewmodel.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
+
+import 'package:daiphat_mobile/src/app/routing/app_routes.dart';
+import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
+import 'package:daiphat_mobile/src/shared/utils/app_toast.dart';
+import '../../utils/notification_navigation.dart';
+import '../viewmodels/notification_viewmodel.dart';
 
 class NotificationView extends StatefulWidget {
   final NotificationViewModel viewModel;
-  const NotificationView({Key? key, required this.viewModel}) : super(key: key);
+  final VoidCallback? onBack;
+
+  const NotificationView({
+    super.key,
+    required this.viewModel,
+    this.onBack,
+  });
 
   @override
   State<NotificationView> createState() => _NotificationViewState();
 }
 
-class _NotificationViewState extends State<NotificationView> with SingleTickerProviderStateMixin {
-  late TabController _tabController;
-  late NotificationViewModel _viewModel;
+class _NotificationViewState extends State<NotificationView> {
+  final _scrollController = ScrollController();
+
+  NotificationViewModel get _viewModel => widget.viewModel;
 
   @override
   void initState() {
     super.initState();
-    _viewModel = widget.viewModel;
-    _tabController = TabController(length: 2, vsync: this);
-    
-    // Luôn tải lại thông báo mới nhất khi mở trang
+    _scrollController.addListener(_onScroll);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _viewModel.fetchNotifications(refresh: true);
     });
-
-    _viewModel.addListener(_onViewModelChanged);
   }
 
-  void _onViewModelChanged() {
-    if (mounted) setState(() {});
+  void _onScroll() {
+    if (_scrollController.position.pixels >=
+        _scrollController.position.maxScrollExtent - 200) {
+      _viewModel.fetchNotifications();
+    }
   }
 
   @override
   void dispose() {
-    _tabController.dispose();
-    _viewModel.removeListener(_onViewModelChanged);
+    _scrollController.dispose();
     super.dispose();
+  }
+
+  Future<void> _onItemTap(NotificationItem item) async {
+    if (!item.isRead) await _viewModel.markAsRead(item.id);
+
+    final route = resolveNotificationRoute(
+      referenceType: item.referenceType,
+      referenceId: item.referenceId,
+    );
+    if (route == null) return;
+
+    if (notificationNeedsReferenceCheck(item.referenceType)) {
+      final available = await _viewModel.isReferenceAvailable(item.id);
+      if (!available) {
+        AppToast.error(
+          'Nội dung tham chiếu không còn khả dụng hoặc đã bị xoá.',
+        );
+        return;
+      }
+    }
+
+    if (!mounted) return;
+    context.push(route);
+  }
+
+  Future<void> _confirmDeleteRead() async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(
+          'Xoá thông báo đã đọc',
+          style: GoogleFonts.publicSans(fontWeight: FontWeight.w800),
+        ),
+        content: Text(
+          'Toàn bộ thông báo đã đọc sẽ bị xoá. Bạn có chắc chắn?',
+          style: GoogleFonts.publicSans(fontSize: 14),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text('Không', style: GoogleFonts.publicSans()),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+            ),
+            child: Text(
+              'Xoá',
+              style: GoogleFonts.publicSans(fontWeight: FontWeight.w700),
+            ),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    await _viewModel.deleteAllRead();
+    AppToast.success('Đã xoá thông báo đã đọc.');
   }
 
   @override
   Widget build(BuildContext context) {
-    print('========= NOTIFICATION VIEW BUILD =========');
-    print('isLoading: ${_viewModel.isLoading}, count: ${_viewModel.notifications.length}');
     return Scaffold(
-      backgroundColor: const Color(0xFFF9FAFB),
-      body: Column(
-        children: [
-          _buildHeader(context),
-          const SizedBox(height: 8),
-          Expanded(
-            child: _viewModel.isLoading 
-              ? const Center(child: CircularProgressIndicator(color: Color(0xFFE90000)))
-              : NotificationListener<ScrollNotification>(
-                  onNotification: (ScrollNotification scrollInfo) {
-                    if (scrollInfo.metrics.pixels >= scrollInfo.metrics.maxScrollExtent - 200) {
-                      if (!_viewModel.isLoading && !_viewModel.isLoadingMore && _viewModel.hasNextPage) {
-                        _viewModel.fetchNotifications(refresh: false);
-                      }
-                    }
-                    return false;
-                  },
-                  child: TabBarView(
-                    controller: _tabController,
-                    children: [
-                      _buildNotificationList(_viewModel.notifications),
-                      _buildNotificationList(_viewModel.unreadNotifications),
-                    ],
-                  ),
+      backgroundColor: const Color(0xFFF8F9FA),
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(
+            Icons.arrow_back_ios_new_rounded,
+            size: 20,
+            color: AppColors.primary,
+          ),
+          onPressed: () {
+            if (widget.onBack != null) {
+              widget.onBack!();
+            } else {
+              context.pop();
+            }
+          },
+        ),
+        title: Text(
+          'Thông báo',
+          style: GoogleFonts.publicSans(
+            fontSize: 18,
+            fontWeight: FontWeight.w700,
+            color: AppColors.textMain,
+          ),
+        ),
+        centerTitle: true,
+        actions: [
+          IconButton(
+            tooltip: 'Cài đặt thông báo',
+            icon: const Icon(
+              Icons.tune_rounded,
+              size: 21,
+              color: AppColors.primary,
+            ),
+            onPressed: () => context.push(AppRoute.notificationSettings.path),
+          ),
+          PopupMenuButton<String>(
+            icon: const Icon(
+              Icons.more_vert_rounded,
+              size: 21,
+              color: AppColors.primary,
+            ),
+            onSelected: (value) async {
+              if (value == 'mark_all_read') {
+                await _viewModel.markAllAsRead();
+                AppToast.success('Đã đánh dấu tất cả là đã đọc.');
+              } else if (value == 'delete_all_read') {
+                await _confirmDeleteRead();
+              }
+            },
+            itemBuilder: (_) => [
+              PopupMenuItem(
+                value: 'mark_all_read',
+                child: Text(
+                  'Đánh dấu tất cả đã đọc',
+                  style: GoogleFonts.publicSans(fontSize: 14),
                 ),
-          ),
-          if (_viewModel.isLoadingMore)
-            const Padding(
-              padding: EdgeInsets.all(8.0),
-              child: Center(child: CircularProgressIndicator(color: Color(0xFFE90000), strokeWidth: 2)),
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildHeader(BuildContext context) {
-    final topPadding = MediaQuery.of(context).padding.top;
-    return SizedBox(
-      height: topPadding + 130,
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          // Background Image
-          Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
-            height: topPadding + 105,
-            child: Image.asset(
-              'assets/images/home_bg.png',
-              fit: BoxFit.cover,
-            ),
-          ),
-          // AppBar elements
-          Positioned(
-            top: topPadding + 10,
-            left: 0,
-            right: 0,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Container(
-                    width: 40,
-                    height: 40,
-                    decoration: const BoxDecoration(
-                      color: Colors.white,
-                      shape: BoxShape.circle,
-                    ),
-                    child: IconButton(
-                      padding: EdgeInsets.zero,
-                      icon: const Icon(Icons.arrow_back, color: Color(0xFFE90000), size: 22),
-                      onPressed: () => context.pop(),
-                    ),
-                  ),
-                  const Text(
-                    'Thông báo',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
-                  Container(
-                    width: 40,
-                    height: 40,
-                    decoration: const BoxDecoration(
-                      color: Colors.white,
-                      shape: BoxShape.circle,
-                    ),
-                    child: PopupMenuButton<String>(
-                      padding: EdgeInsets.zero,
-                      icon: const Icon(Icons.settings_outlined, color: Color(0xFFE90000), size: 22),
-                      onSelected: (value) {
-                        if (value == 'mark_all_read') {
-                          _viewModel.markAllAsRead();
-                        } else if (value == 'delete_all_read') {
-                          _viewModel.deleteAllRead();
-                        }
-                      },
-                      itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
-                        const PopupMenuItem<String>(
-                          value: 'mark_all_read',
-                          child: Text('Đánh dấu tất cả đã đọc'),
-                        ),
-                        const PopupMenuItem<String>(
-                          value: 'delete_all_read',
-                          child: Text('Xóa thông báo đã đọc'),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
               ),
-            ),
-          ),
-          // Floating TabBar
-          Positioned(
-            left: 16,
-            right: 16,
-            bottom: 0,
-            child: Container(
-              height: 48,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.05),
-                    blurRadius: 10,
-                    offset: const Offset(0, 5),
-                  ),
-                ],
+              PopupMenuItem(
+                value: 'delete_all_read',
+                child: Text(
+                  'Xoá thông báo đã đọc',
+                  style: GoogleFonts.publicSans(fontSize: 14),
+                ),
               ),
-              child: TabBar(
-                controller: _tabController,
-                indicatorColor: const Color(0xFFE90000),
-                indicatorWeight: 3,
-                labelColor: const Color(0xFFE90000),
-                unselectedLabelColor: Colors.grey[600],
-                labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
-                unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 15),
-                indicatorSize: TabBarIndicatorSize.tab,
-                dividerColor: Colors.transparent,
-                tabs: [
-                  const Tab(text: 'Tất cả'),
-                  Tab(text: 'Chưa đọc (${_viewModel.unreadCount})'),
-                ],
-              ),
-            ),
+            ],
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildNotificationList(List<NotificationItem> items) {
-    if (items.isEmpty) {
-      return RefreshIndicator(
-        onRefresh: () => _viewModel.fetchNotifications(refresh: true),
-        color: const Color(0xFFE90000),
-        child: ListView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          children: const [
-            SizedBox(height: 100),
-            Center(
-              child: Text('Không có thông báo nào.', style: TextStyle(color: Colors.grey)),
-            ),
+      body: ListenableBuilder(
+        listenable: _viewModel,
+        builder: (context, _) => Column(
+          children: [
+            _buildFilters(),
+            const Divider(height: 1, color: Color(0xFFEEEEEE)),
+            Expanded(child: _buildBody()),
           ],
         ),
-      );
-    }
-    return RefreshIndicator(
-      onRefresh: () => _viewModel.fetchNotifications(refresh: true),
-      color: const Color(0xFFE90000),
+      ),
+    );
+  }
+
+  Widget _buildFilters() {
+    return Container(
+      color: Colors.white,
+      height: 52,
       child: ListView.separated(
-        physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.all(16),
-        itemCount: items.length,
-        separatorBuilder: (_, __) => const SizedBox(height: 12),
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        itemCount: NotificationFilter.values.length,
+        separatorBuilder: (_, _) => const SizedBox(width: 8),
         itemBuilder: (context, index) {
-          return _buildNotificationItem(items[index]);
+          final filter = NotificationFilter.values[index];
+          final isSelected = _viewModel.filter == filter;
+          final label = filter == NotificationFilter.unread
+              ? '${filter.label} (${_viewModel.unreadCount})'
+              : filter.label;
+
+          return GestureDetector(
+            onTap: () => _viewModel.setFilter(filter),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 180),
+              padding: const EdgeInsets.symmetric(horizontal: 14),
+              decoration: BoxDecoration(
+                color: isSelected ? AppColors.primary : const Color(0xFFF4F6F8),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              alignment: Alignment.center,
+              child: Text(
+                label,
+                style: GoogleFonts.publicSans(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: isSelected ? Colors.white : AppColors.textMuted,
+                ),
+              ),
+            ),
+          );
         },
       ),
     );
   }
 
-  Widget _buildNotificationItem(NotificationItem item) {
-    IconData iconData;
-    Color iconColor;
-    Color bgColor;
-
-    switch (item.type) {
-      case 'success':
-        iconData = Icons.verified_user_outlined;
-        iconColor = const Color(0xFFE90000);
-        bgColor = const Color(0xFFFFEBEB);
-        break;
-      case 'offer':
-        iconData = Icons.card_giftcard;
-        iconColor = const Color(0xFFE90000);
-        bgColor = const Color(0xFFFFEBEB);
-        break;
-      case 'payment':
-        iconData = Icons.monetization_on;
-        iconColor = const Color(0xFFFFA000);
-        bgColor = const Color(0xFFFFF8E1);
-        break;
-      case 'result':
-        iconData = Icons.calendar_month_outlined;
-        iconColor = const Color(0xFF1976D2);
-        bgColor = const Color(0xFFE3F2FD);
-        break;
-      case 'security':
-        iconData = Icons.security;
-        iconColor = const Color(0xFF388E3C);
-        bgColor = const Color(0xFFE8F5E9);
-        break;
-      default:
-        iconData = Icons.notifications_none;
-        iconColor = Colors.grey;
-        bgColor = Colors.grey[200]!;
+  Widget _buildBody() {
+    if (_viewModel.isLoading) {
+      return const Center(
+        child: CircularProgressIndicator(color: AppColors.primary),
+      );
+    }
+    if (_viewModel.error != null && _viewModel.notifications.isEmpty) {
+      return _buildError();
     }
 
-    final bool isRead = item.isRead;
-    final Color textColor = isRead ? Colors.grey[600]! : Colors.black87;
+    final items = _viewModel.filteredNotifications;
+    if (items.isEmpty) return _buildEmpty();
 
-    return GestureDetector(
-      onTap: () {
-        if (!isRead) {
-          _viewModel.markAsRead(item.id);
-        }
-        if (item.referenceType == 'BLOG_POST' && item.referenceId != null) {
-          // Future mapping to blog detail
-          // context.push('/blogs/detail/${item.referenceId}');
-        }
-      },
-      child: Container(
-        padding: const EdgeInsets.all(16),
+    return RefreshIndicator(
+      color: AppColors.primary,
+      onRefresh: () => _viewModel.fetchNotifications(refresh: true),
+      child: ListView.builder(
+        controller: _scrollController,
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
+        itemCount: items.length + (_viewModel.isLoadingMore ? 1 : 0),
+        itemBuilder: (context, index) {
+          if (index == items.length) {
+            return const Padding(
+              padding: EdgeInsets.symmetric(vertical: 20),
+              child: Center(
+                child: CircularProgressIndicator(color: AppColors.primary),
+              ),
+            );
+          }
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: _buildItem(items[index]),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildItem(NotificationItem item) {
+    final style = _NotificationStyle.of(item.type);
+
+    return Dismissible(
+      key: ValueKey(item.id),
+      direction: item.isRead
+          ? DismissDirection.endToStart
+          : DismissDirection.none,
+      background: Container(
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.only(right: 20),
         decoration: BoxDecoration(
-          color: isRead ? Colors.grey[50] : Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.grey[200]!),
+          color: AppColors.error,
+          borderRadius: BorderRadius.circular(14),
         ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: isRead ? Colors.grey[200] : bgColor,
-                shape: BoxShape.circle,
+        child: const Icon(Icons.delete_outline_rounded, color: Colors.white),
+      ),
+      onDismissed: (_) async {
+        final err = await _viewModel.deleteNotification(item.id);
+        if (err != null) AppToast.error(err);
+      },
+      child: GestureDetector(
+        onTap: () => _onItemTap(item),
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: item.isRead ? const Color(0xFFFAFAFA) : Colors.white,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: const Color(0xFFEFEFEF)),
+            boxShadow: item.isRead
+                ? null
+                : [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.04),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: item.isRead ? const Color(0xFFF1F1F1) : style.bgColor,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  style.icon,
+                  size: 22,
+                  color: item.isRead ? const Color(0xFF9A9A9A) : style.color,
+                ),
               ),
-              child: Icon(iconData, color: isRead ? Colors.grey : iconColor, size: 28),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Expanded(
-                        child: Text(
-                          item.title,
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: isRead ? FontWeight.w600 : FontWeight.bold,
-                            color: textColor,
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            item.title,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.publicSans(
+                              fontSize: 14,
+                              fontWeight: item.isRead
+                                  ? FontWeight.w600
+                                  : FontWeight.w800,
+                              color: AppColors.textMain,
+                            ),
                           ),
                         ),
+                        if (!item.isRead)
+                          Container(
+                            width: 8,
+                            height: 8,
+                            margin: const EdgeInsets.only(left: 8, top: 4),
+                            decoration: const BoxDecoration(
+                              color: AppColors.primary,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 5),
+                    Text(
+                      item.body,
+                      style: GoogleFonts.publicSans(
+                        fontSize: 13,
+                        height: 1.4,
+                        color: AppColors.textMuted,
                       ),
-                      if (!isRead)
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
                         Container(
-                          width: 8,
-                          height: 8,
-                          decoration: const BoxDecoration(
-                            color: Color(0xFFE90000),
-                            shape: BoxShape.circle,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 3,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF4F6F8),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            style.label,
+                            style: GoogleFonts.publicSans(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.textMuted,
+                            ),
                           ),
                         ),
-                    ],
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    item.body,
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: isRead ? Colors.grey[500] : Colors.grey[700],
-                      height: 1.4,
+                        const Spacer(),
+                        Text(
+                          item.timeText,
+                          style: GoogleFonts.publicSans(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w500,
+                            color: const Color(0xFF9A9A9A),
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    item.timeText,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildError() {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.error_outline, size: 48, color: AppColors.textMuted),
+          const SizedBox(height: 12),
+          Text(
+            _viewModel.error ?? 'Đã xảy ra lỗi',
+            textAlign: TextAlign.center,
+            style: GoogleFonts.publicSans(
+              fontSize: 14,
+              color: AppColors.textMuted,
+            ),
+          ),
+          const SizedBox(height: 16),
+          TextButton(
+            onPressed: () => _viewModel.fetchNotifications(refresh: true),
+            child: Text(
+              'Thử lại',
+              style: GoogleFonts.publicSans(
+                fontWeight: FontWeight.w700,
+                color: AppColors.primary,
               ),
             ),
-          ],
-        ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmpty() {
+    return RefreshIndicator(
+      color: AppColors.primary,
+      onRefresh: () => _viewModel.fetchNotifications(refresh: true),
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        children: [
+          const SizedBox(height: 120),
+          Center(
+            child: Column(
+              children: [
+                Container(
+                  width: 72,
+                  height: 72,
+                  decoration: const BoxDecoration(
+                    color: Color(0xFFFFF4F4),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.notifications_none_rounded,
+                    size: 36,
+                    color: AppColors.primary,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Bạn chưa có thông báo nào',
+                  style: GoogleFonts.publicSans(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textMain,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
 }
 
+class _NotificationStyle {
+  final IconData icon;
+  final Color color;
+  final Color bgColor;
+  final String label;
+
+  const _NotificationStyle(this.icon, this.color, this.bgColor, this.label);
+
+  factory _NotificationStyle.of(String type) {
+    switch (type) {
+      case 'AUTH':
+      case 'SECURITY':
+        return const _NotificationStyle(
+          Icons.shield_outlined,
+          Color(0xFF388E3C),
+          Color(0xFFE8F5E9),
+          'Bảo mật',
+        );
+      case 'BLOG':
+        return const _NotificationStyle(
+          Icons.article_outlined,
+          Color(0xFF1976D2),
+          Color(0xFFE3F2FD),
+          'Bài viết',
+        );
+      case 'ORDER':
+      case 'PAYMENT':
+        return const _NotificationStyle(
+          Icons.receipt_long_outlined,
+          Color(0xFFFFA000),
+          Color(0xFFFFF8E1),
+          'Đơn hàng',
+        );
+      case 'RESULT':
+      case 'DRAW_RESULT':
+        return const _NotificationStyle(
+          Icons.emoji_events_outlined,
+          AppColors.primary,
+          Color(0xFFFFEBEB),
+          'Kết quả',
+        );
+      case 'OFFER':
+        return const _NotificationStyle(
+          Icons.card_giftcard_rounded,
+          AppColors.primary,
+          Color(0xFFFFEBEB),
+          'Ưu đãi',
+        );
+      default:
+        return const _NotificationStyle(
+          Icons.notifications_none_rounded,
+          Color(0xFF64748B),
+          Color(0xFFF1F5F9),
+          'Hệ thống',
+        );
+    }
+  }
+}

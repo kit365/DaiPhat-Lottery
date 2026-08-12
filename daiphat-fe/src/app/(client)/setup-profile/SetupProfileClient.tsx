@@ -1,6 +1,6 @@
-"use client";
+﻿"use client";
 
-import { ProfileSetupPage } from '@/admin/routes';
+import { ProfileSetupPage } from '@/admin/features/auth/components/pages/ProfileSetupPage';
 import { AuthGuard } from '@/admin/components/auth/AuthGuard';
 
 export function SetupProfileClient() {

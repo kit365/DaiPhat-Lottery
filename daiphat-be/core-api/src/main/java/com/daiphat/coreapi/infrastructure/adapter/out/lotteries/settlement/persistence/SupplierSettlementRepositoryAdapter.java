@@ -1,7 +1,10 @@
 package com.daiphat.coreapi.infrastructure.adapter.out.lotteries.settlement.persistence;
 
 import com.daiphat.coreapi.application.port.out.lotteries.SupplierSettlementRepositoryPort;
+import com.daiphat.coreapi.application.port.out.lotteries.SettlementResolvableSerialRow;
+import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus;
 import com.daiphat.coreapi.domain.model.enums.lottery.SupplierSettlementStatus;
+import com.daiphat.coreapi.domain.model.enums.lottery.TicketCondition;
 import com.daiphat.coreapi.domain.model.lotteries.SupplierSettlementModel;
 import com.daiphat.coreapi.infrastructure.persistence.entity.lotteries.SupplierSettlementEntity;
 import com.daiphat.coreapi.infrastructure.persistence.mapper.lotteries.SupplierSettlementPersistenceMapper;
@@ -55,6 +58,25 @@ public class SupplierSettlementRepositoryAdapter implements SupplierSettlementRe
     }
 
     @Override
+    public java.util.List<SupplierSettlementModel> findByStatus(SupplierSettlementStatus status) {
+        return supplierSettlementRepository.findByStatusAndDeletedAtIsNull(status).stream()
+                .map(supplierSettlementPersistenceMapper::toDomain)
+                .toList();
+    }
+
+    @Override
+    public java.util.List<SupplierSettlementModel> findByStatuses(
+            java.util.Collection<SupplierSettlementStatus> statuses
+    ) {
+        if (statuses == null || statuses.isEmpty()) {
+            return java.util.List.of();
+        }
+        return supplierSettlementRepository.findByStatusInAndDeletedAtIsNull(statuses).stream()
+                .map(supplierSettlementPersistenceMapper::toDomain)
+                .toList();
+    }
+
+    @Override
     public Page<SupplierSettlementModel> findAll(
             Pageable pageable,
             Long lotterySupplierId,
@@ -101,5 +123,69 @@ public class SupplierSettlementRepositoryAdapter implements SupplierSettlementRe
     public BigDecimal sumInStockGoodImportCostBySettlementId(Long settlementId) {
         BigDecimal sum = supplierSettlementRepository.sumInStockGoodImportCostBySettlementId(settlementId);
         return sum != null ? sum : BigDecimal.ZERO;
+    }
+
+    @Override
+    public BigDecimal sumExpiredReturnValueBySettlementId(Long settlementId) {
+        BigDecimal sum = supplierSettlementRepository.sumExpiredReturnValueBySettlementId(settlementId);
+        return sum != null ? sum : BigDecimal.ZERO;
+    }
+
+    @Override
+    public long countExpiredReturnTicketsBySettlementId(Long settlementId) {
+        if (settlementId == null) {
+            return 0L;
+        }
+        return supplierSettlementRepository.countExpiredReturnTicketsBySettlementId(settlementId);
+    }
+
+    @Override
+    public long countImportedTicketsBySettlementId(Long settlementId) {
+        if (settlementId == null) {
+            return 0L;
+        }
+        return supplierSettlementRepository.countImportedTicketsBySettlementId(settlementId);
+    }
+
+    @Override
+    public long countPreparedReturnTicketsBySettlementId(Long settlementId) {
+        if (settlementId == null) {
+            return 0L;
+        }
+        return supplierSettlementRepository.countPreparedReturnTicketsBySettlementId(settlementId);
+    }
+
+    @Override
+    public java.util.List<SettlementResolvableSerialRow> findPreparedReturnSerialsBySettlementId(Long settlementId) {
+        if (settlementId == null) {
+            return java.util.List.of();
+        }
+        return mapSerialRows(supplierSettlementRepository.findPreparedReturnSerialRowsBySettlementId(settlementId));
+    }
+
+    @Override
+    public java.util.List<SettlementResolvableSerialRow> findImportResolvableSerialsBySettlementId(Long settlementId) {
+        if (settlementId == null) {
+            return java.util.List.of();
+        }
+        return mapSerialRows(supplierSettlementRepository.findImportResolvableSerialRowsBySettlementId(settlementId));
+    }
+
+    @Override
+    public long nextSettlementCodeSequence() {
+        return supplierSettlementRepository.nextSettlementCodeSequence();
+    }
+
+    private java.util.List<SettlementResolvableSerialRow> mapSerialRows(java.util.List<Object[]> rows) {
+        return rows.stream()
+                .map(row -> new SettlementResolvableSerialRow(
+                        (Long) row[0],
+                        (String) row[1],
+                        (LotteryTicketSerialStatus) row[2],
+                        (TicketCondition) row[3],
+                        (String) row[4],
+                        row[5] != null ? (BigDecimal) row[5] : BigDecimal.ZERO
+                ))
+                .toList();
     }
 }

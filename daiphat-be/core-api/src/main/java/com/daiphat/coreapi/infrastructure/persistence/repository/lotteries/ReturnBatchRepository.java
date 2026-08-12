@@ -26,6 +26,13 @@ public interface ReturnBatchRepository
             LocalDate drawDate
     );
 
+    Optional<ReturnBatchEntity> findBySourceAllocationBatch_IdAndDeletedAtIsNull(Long allocationBatchId);
+
+    List<ReturnBatchEntity> findAllByLotterySupplier_IdAndDrawDateAndDeletedAtIsNull(
+            Long lotterySupplierId,
+            LocalDate drawDate
+    );
+
     List<ReturnBatchEntity> findByNoteStartingWithAndDeletedAtIsNull(String notePrefix);
 
     List<ReturnBatchEntity> findByStatusInAndDeletedAtIsNull(Collection<ReturnBatchStatus> statuses);
@@ -33,4 +40,7 @@ public interface ReturnBatchRepository
     List<ReturnBatchEntity> findBySupplierSettlementIdAndDeletedAtIsNullOrderByDrawDateDescIdDesc(
             Long supplierSettlementId
     );
+
+    @org.springframework.data.jpa.repository.Query(value = "SELECT nextval('return_batch_header_code_seq')", nativeQuery = true)
+    long nextHeaderBatchCodeSequence();
 }

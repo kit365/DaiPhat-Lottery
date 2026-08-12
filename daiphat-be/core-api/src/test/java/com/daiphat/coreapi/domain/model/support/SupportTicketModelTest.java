@@ -109,7 +109,7 @@ class SupportTicketModelTest {
 
         ticket.resolveByStaff(55L, "Refund processed");
 
-        assertThat(ticket.getStatus()).isEqualTo(TicketStatus.CLOSED);
+        assertThat(ticket.getStatus()).isEqualTo(TicketStatus.RESOLVED);
         assertThat(ticket.getResponse()).isEqualTo("Refund processed");
         assertThat(ticket.getResolvedReasonId()).isEqualTo(55L);
         assertThat(ticket.getRejectedReasonId()).isNull();
@@ -122,7 +122,7 @@ class SupportTicketModelTest {
 
         ticket.resolveByStaff(56L, "Issue fixed");
 
-        assertThat(ticket.getStatus()).isEqualTo(TicketStatus.CLOSED);
+        assertThat(ticket.getStatus()).isEqualTo(TicketStatus.RESOLVED);
         assertThat(ticket.getResolvedReasonId()).isEqualTo(56L);
     }
 

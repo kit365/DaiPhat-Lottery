@@ -26,11 +26,11 @@ import {
 } from '@mui/material';
 import dayjs from 'dayjs';
 import { useCallback, useState } from 'react';
-import { useNavigate } from '@/components/router-compat';
+import { useAdminRouter } from '@/admin/hooks/useAdminRouter';
 import { CanAccess } from '../../../../../components/auth/CanAccess';
 import { PERMISSIONS } from '../../../../../constants/permission.constants';
 import { ROUTES } from '../../../../../constants/routes';
-import type { ImportBatch } from '../../types/importBatch.type';
+import type { ImportBatch, ImportBatchStatus } from '../../types/importBatch.type';
 import type { useImportBatchList } from '../../hooks/useImportBatch';
 import {
     getImportBatchStatusBadgeClass,
@@ -38,6 +38,7 @@ import {
     getImportModeBadgeClass,
     getImportModeChipLabel,
     getImportModeLabel,
+    type ImportBatchImportMode,
 } from '../../utils/batchTypeLabels';
 import {
     displayImportBatchHeaderCodeRaw,
@@ -53,19 +54,47 @@ import {
     importBatchMissingStations,
     isImportBatchEditable,
 } from '../../utils/importBatchProgress';
+import { useSettings, dataGridContainerStyles } from '../../../../../shared/data-grid';
+import { ImportBatchToolbar } from './ImportBatchToolbar';
 
 type ImportBatchListProps = {
     listHook: ReturnType<typeof useImportBatchList>;
 };
 
 export const ImportBatchList = ({ listHook }: ImportBatchListProps) => {
-    const navigate = useNavigate();
-    const { batches, pagination, isLoading, filters, setPage, setLimit } = listHook;
+    const router = useAdminRouter();
+    const { settings, setSettings } = useSettings();
+    const {
+        batches,
+        pagination,
+        isLoading,
+        error,
+        filters,
+        setSearch,
+        setStatus,
+        setImportMode,
+        setPage,
+        setLimit,
+    } = listHook;
     const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null);
     const [menuBatch, setMenuBatch] = useState<ImportBatch | null>(null);
 
     const page = (filters.page ?? 1) - 1;
     const rowsPerPage = filters.size ?? 10;
+
+    const handleFilterChange = (fieldId: string, values: string[]) => {
+        if (fieldId === 'status') {
+            setStatus(values.length > 0 ? (values[0] as ImportBatchStatus) : '');
+        } else if (fieldId === 'importMode') {
+            setImportMode(values.length > 0 ? (values[0] as ImportBatchImportMode) : '');
+        }
+    };
+
+    const handleClearFilters = () => {
+        setStatus('');
+        setImportMode('');
+        setSearch('');
+    };
 
     const handleOpenMenu = (event: React.MouseEvent<HTMLElement>, batch: ImportBatch) => {
         setMenuAnchor(event.currentTarget);
@@ -78,29 +107,65 @@ export const ImportBatchList = ({ listHook }: ImportBatchListProps) => {
     };
 
     const handleViewDetail = useCallback(
-        (batchId: number) => navigate(ROUTES.ADMIN.IMPORT_BATCH.DETAIL(batchId)),
-        [navigate]
+        (batchId: number) => router.push(ROUTES.ADMIN.IMPORT_BATCH.DETAIL(batchId)),
+        [router]
     );
 
     const handleAddTicket = useCallback(
         (batch: ImportBatch) => {
             const firstLine = findFirstIncompleteLine(batch);
-            navigate(ROUTES.ADMIN.TICKETS.CREATE_FOR_BATCH(batch.id, firstLine?.id));
+            if (firstLine?.id != null) {
+                router.push(ROUTES.ADMIN.IMPORT_BATCH.LINE_DETAIL(batch.id, firstLine.id));
+                return;
+            }
+            router.push(ROUTES.ADMIN.IMPORT_BATCH.DETAIL(batch.id));
         },
-        [navigate]
+        [router]
     );
 
     const handleEditBatch = useCallback(
-        (batchId: number) => navigate(ROUTES.ADMIN.IMPORT_BATCH.EDIT(batchId)),
-        [navigate]
+        (batchId: number) => router.push(ROUTES.ADMIN.IMPORT_BATCH.EDIT(batchId)),
+        [router]
     );
+
+    if (error) {
+        return (
+            <Box sx={{ py: 5, textAlign: 'center', color: 'var(--palette-error-main)', fontSize: '1.125rem' }}>
+                Lỗi khi tải danh sách phiếu nhập lô. Vui lòng thử lại.
+            </Box>
+        );
+    }
 
     return (
         <>
             <Card elevation={0} className="admin-datagrid-card">
-                <div className="admin-table-wrap">
-                    <TableContainer className="admin-table-container">
-                        <Table className="admin-table" sx={{ minWidth: 960 }} size="medium">
+                <Box sx={dataGridContainerStyles}>
+                    {/* Integrated Toolbar with Search, JiraFilter, Columns & Settings */}
+                    <ImportBatchToolbar
+                        settings={settings}
+                        onSettingsChange={setSettings}
+                        filters={{
+                            status: filters.status,
+                            importMode: filters.importMode,
+                            search: filters.search,
+                        }}
+                        onFilterChange={handleFilterChange}
+                        onClearFilters={handleClearFilters}
+                        onSearchChange={setSearch}
+                    />
+
+                    <TableContainer className="admin-table-container" sx={{ flex: 1, overflow: 'auto' }}>
+                        <Table
+                            className="admin-table"
+                            sx={{
+                                minWidth: 960,
+                                height: batches.length === 0 ? '100%' : 'auto',
+                                ...(settings.showCellBorders && {
+                                    '& td, & th': { borderRight: '1px solid var(--palette-divider)' },
+                                }),
+                            }}
+                            size={settings.density === 'compact' ? 'small' : 'medium'}
+                        >
                             <TableHead>
                                 <TableRow>
                                     <TableCell>Mã phiếu</TableCell>
@@ -117,14 +182,18 @@ export const ImportBatchList = ({ listHook }: ImportBatchListProps) => {
                             <TableBody>
                                 {isLoading ? (
                                     <TableRow>
-                                        <TableCell colSpan={9} align="center" sx={{ py: 10 }}>
-                                            <CircularProgress size={32} />
+                                        <TableCell colSpan={9} align="center" sx={{ borderBottom: 'none', py: 10 }}>
+                                            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 320 }}>
+                                                <CircularProgress size={32} />
+                                            </Box>
                                         </TableCell>
                                     </TableRow>
                                 ) : batches.length === 0 ? (
                                     <TableRow>
-                                        <TableCell colSpan={9} align="center" sx={{ py: 10 }}>
-                                            <Typography className="admin-datagrid-empty">Không có dữ liệu</Typography>
+                                        <TableCell colSpan={9} align="center" sx={{ borderBottom: 'none', py: 10 }}>
+                                            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 320 }}>
+                                                <Typography className="admin-datagrid-empty">Không có dữ liệu</Typography>
+                                            </Box>
                                         </TableCell>
                                     </TableRow>
                                 ) : (
@@ -151,7 +220,7 @@ export const ImportBatchList = ({ listHook }: ImportBatchListProps) => {
                                                 <TableCell>
                                                     <Stack direction="row" spacing={0.75} alignItems="center">
                                                         {(missingStations || hasPending) && (
-                                                            <Tooltip
+                                                             <Tooltip
                                                                 title={
                                                                     missingStations
                                                                         ? hasStartedImportBatchLineEntry(batch.id)
@@ -228,10 +297,12 @@ export const ImportBatchList = ({ listHook }: ImportBatchListProps) => {
                                                     )}
                                                 </TableCell>
                                                 <TableCell align="right">
-                                                    <span className="admin-cell-text">{declaredQty}</span>
+                                                    <span className="admin-cell-text">{declaredQty.toLocaleString('vi-VN')}</span>
                                                 </TableCell>
                                                 <TableCell align="right">
-                                                    <span className="admin-cell-text">{importedQty}</span>
+                                                    <span className="admin-cell-text" style={{ fontWeight: 700, color: importedQty >= declaredQty && declaredQty > 0 ? '#16a34a' : 'inherit' }}>
+                                                        {importedQty.toLocaleString('vi-VN')}
+                                                    </span>
                                                 </TableCell>
                                                 <TableCell align="right">
                                                     <IconButton
@@ -255,28 +326,28 @@ export const ImportBatchList = ({ listHook }: ImportBatchListProps) => {
                             </TableBody>
                         </Table>
                     </TableContainer>
-                </div>
 
-                <TablePagination
-                    component="div"
-                    count={pagination.totalRecords ?? 0}
-                    page={page}
-                    onPageChange={(_e, newPage) => setPage(newPage + 1)}
-                    rowsPerPage={rowsPerPage}
-                    onRowsPerPageChange={(e) => setLimit(parseInt(e.target.value, 10))}
-                    rowsPerPageOptions={[5, 10, 25, 50]}
-                    labelRowsPerPage="Số hàng mỗi trang:"
-                    labelDisplayedRows={({ from, to, count }) =>
-                        `${from}-${to} của ${count !== -1 ? count : `hơn ${to}`}`
-                    }
-                    sx={{
-                        borderTop: '1px dashed var(--palette-divider)',
-                        color: 'var(--palette-text-secondary)',
-                        '& .MuiTablePagination-selectLabel, & .MuiTablePagination-displayedRows': {
-                            fontSize: '0.875rem',
-                        },
-                    }}
-                />
+                    <TablePagination
+                        component="div"
+                        count={pagination.totalRecords ?? 0}
+                        page={page}
+                        onPageChange={(_e, newPage) => setPage(newPage + 1)}
+                        rowsPerPage={rowsPerPage}
+                        onRowsPerPageChange={(e) => setLimit(parseInt(e.target.value, 10))}
+                        rowsPerPageOptions={[5, 10, 25, 50]}
+                        labelRowsPerPage="Số hàng mỗi trang:"
+                        labelDisplayedRows={({ from, to, count }) =>
+                            `${from}-${to} của ${count !== -1 ? count : `hơn ${to}`}`
+                        }
+                        sx={{
+                            borderTop: '1px solid var(--palette-divider)',
+                            color: 'var(--palette-text-secondary)',
+                            '& .MuiTablePagination-selectLabel, & .MuiTablePagination-displayedRows': {
+                                fontSize: '0.875rem',
+                            },
+                        }}
+                    />
+                </Box>
             </Card>
 
             <Menu

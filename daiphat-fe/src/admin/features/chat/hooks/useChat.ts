@@ -2,8 +2,8 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { AppToast as toast } from '../../../../utils/toast.util';
-import { chatService } from '../services/chatService';
-import { ConversationCloseReason } from '../../../../types/chat.type';
+import { chatService, mapConversation, mapMessage } from '../services/chatService';
+import { Conversation, ConversationCloseReason } from '../../../../types/chat.type';
 import {
     adminChatCustomerTimelineKey,
     useCustomerChatTimeline as useCustomerChatTimelineQuery,
@@ -82,14 +82,42 @@ export const useAssignConversation = () => {
     return useMutation({
         mutationFn: (conversationId: number) => chatService.assignToMe(conversationId),
         onSuccess: (detail, conversationId) => {
-            queryClient.invalidateQueries({ queryKey: ADMIN_CHAT_CONVERSATIONS_KEY });
-            queryClient.setQueryData(adminChatDetailKey(conversationId), detail);
-            const assignedCustomerId = detail.conversation?.customerId;
+            const conversation = mapConversation(detail.conversation);
+            const messages = (detail.messages ?? [])
+                .filter((message) => message.type === 'TEXT' || message.type === 'SYSTEM')
+                .map(mapMessage);
+
+            // ChatWindow reads canReply/canClaim from the conversations list — patch it
+            // immediately from the assign response so the input unlocks without waiting
+            // on a refetch that can race with pre-commit websocket events.
+            queryClient.setQueryData<Conversation[]>(ADMIN_CHAT_CONVERSATIONS_KEY, (prev = []) => {
+                const exists = prev.some((item) => item.id === conversationId);
+                if (!exists) {
+                    return [conversation, ...prev];
+                }
+                return prev.map((item) =>
+                    item.id === conversationId
+                        ? {
+                              ...item,
+                              ...conversation,
+                              lastMessage: item.lastMessage,
+                              unreadCount: item.unreadCount,
+                          }
+                        : item
+                );
+            });
+
+            queryClient.setQueryData(adminChatDetailKey(conversationId), {
+                conversation,
+                messages,
+            });
+
+            const assignedCustomerId = conversation.customerId;
             if (assignedCustomerId) {
-                if (detail.messages?.length) {
+                if (messages.length) {
                     queryClient.setQueryData(
                         adminChatCustomerTimelineKey(assignedCustomerId),
-                        buildTimelineInfiniteDataFromMessages(detail.messages)
+                        buildTimelineInfiniteDataFromMessages(messages)
                     );
                 } else {
                     queryClient.invalidateQueries({

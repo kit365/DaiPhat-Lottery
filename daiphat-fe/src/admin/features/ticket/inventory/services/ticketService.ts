@@ -163,9 +163,9 @@ export const scanExpiredTickets = async (): Promise<ApiResponse<any>> => {
     } as any;
 };
 
-import { uploadAdminImage } from '../../../../api/upload.api';
+import { uploadAdminImage } from "@/admin/shared/services/upload.service";
 
-/** Upload ảnh vé số lên Cloudinary qua backend (dùng khi tạo vé, chưa có ticket id) */
+/** Upload ảnh vé số qua backend storage (dùng khi tạo vé, chưa có ticket id) */
 export const uploadLotteryTicketAsset = uploadAdminImage;
 
 /** Tải ảnh vé số */

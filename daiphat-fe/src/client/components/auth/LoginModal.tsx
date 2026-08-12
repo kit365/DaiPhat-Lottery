@@ -1,7 +1,7 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { ROUTES } from "../../../admin/constants/routes";
 import { useAuth } from "../../hooks/useAuth";
@@ -10,7 +10,7 @@ import { GoogleIcon, VisualPanelContent, AuthBranding } from "./SharedAuth";
 import { redirectToGoogleOAuth } from "../../utils/google-oauth.util";
 
 export const LoginContent = ({ onSwitchToRegister }: { onSwitchToRegister?: () => void }) => {
-    const navigate = useNavigate();
+    const router = useRouter();
     const [showPassword, setShowPassword] = useState(false);
     const {
         loginForm: {
@@ -103,9 +103,9 @@ export const LoginContent = ({ onSwitchToRegister }: { onSwitchToRegister?: () =
                         onClick={(e) => {
                             e.preventDefault();
                             closeAuthModals();
-                            navigate("/forgot-password");
+                            router.push("/forgot-password");
                         }}
-                        className="text-[#FF6262] hover:underline"
+                        className="text-[#FF6262] hover:underline cursor-pointer"
                     >
                         Quên mật khẩu?
                     </a>
@@ -129,7 +129,7 @@ export const LoginContent = ({ onSwitchToRegister }: { onSwitchToRegister?: () =
 
             <p className="mt-6 text-center text-slate-500 font-bold text-sm">
                 Chưa có tài khoản?{" "}
-                <a href="#" onClick={(e) => { e.preventDefault(); onSwitchToRegister?.(); }} className="text-[#FF6262] hover:underline">
+                <a href="#" onClick={(e) => { e.preventDefault(); onSwitchToRegister?.(); }} className="text-[#FF6262] hover:underline cursor-pointer">
                     Đăng ký miễn phí
                 </a>
             </p>

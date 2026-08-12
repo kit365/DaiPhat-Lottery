@@ -19,7 +19,7 @@ import {
     Chip,
     Badge,
 } from '@mui/material';
-import { Icon } from '@iconify/react';
+import { Icon } from '@/admin/components/ui/AdminIcon';
 import { Conversation } from '../../../../../types/chat.type';
 import { MessageSenderRole, ConversationStatusEnum } from '../../../../../types/chat.type';
 import dayjs from 'dayjs';

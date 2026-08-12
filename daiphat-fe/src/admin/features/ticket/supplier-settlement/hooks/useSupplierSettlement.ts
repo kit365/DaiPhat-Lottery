@@ -1,14 +1,32 @@
 "use client";
 
 import { useMemo, useState } from 'react';
-import { keepPreviousData, useQuery } from '@tanstack/react-query';
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
+    completeSettlementReconciliation,
+    confirmSettlementMatching,
     getSupplierSettlementById,
     getSupplierSettlementOverview,
     getSupplierSettlements,
+    listImportResolvableTickets,
+    listMissingReturnTickets,
+    recalculateSettlementReconciliation,
+    resolveImportDiscrepancy,
+    resolveReturnDiscrepancy,
+    resolveUnitPriceDiscrepancy,
+    addSettlementMonetaryAdjustment,
 } from '../services/supplierSettlementService';
-import type { SupplierSettlementListParams } from '../types/supplierSettlement.type';
+import type {
+    ConfirmSettlementMatchingPayload,
+    ResolveImportDiscrepancyPayload,
+    ResolveReturnDiscrepancyPayload,
+    ResolveUnitPriceDiscrepancyPayload,
+    AddSettlementMonetaryAdjustmentPayload,
+    SupplierSettlementListParams,
+    SupplierSettlementStatus,
+} from '../types/supplierSettlement.type';
 import { QUERY_KEYS } from '../constants/queryKeys';
+import { useServerPagination } from '../../../../shared/data-grid/useServerPagination';
 
 export const useSupplierSettlements = (params?: SupplierSettlementListParams, options?: any) => {
     return useQuery({
@@ -42,39 +60,138 @@ export const useSupplierSettlementOverview = (id?: string | number) => {
     });
 };
 
+const invalidateSettlement = (queryClient: ReturnType<typeof useQueryClient>, id?: string | number) => {
+    queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.SUPPLIER_SETTLEMENT_OVERVIEW, String(id)] });
+    queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.SUPPLIER_SETTLEMENT_DETAIL, id] });
+    queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.SUPPLIER_SETTLEMENTS] });
+};
+
+export const useConfirmSettlementMatching = (id?: string | number) => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: (payload: ConfirmSettlementMatchingPayload) => confirmSettlementMatching(id!, payload),
+        onSuccess: () => invalidateSettlement(queryClient, id),
+    });
+};
+
+export const useMissingReturnTickets = (id?: string | number, enabled = false) => {
+    return useQuery({
+        queryKey: [QUERY_KEYS.SUPPLIER_SETTLEMENT_OVERVIEW, id, 'missing-return'],
+        queryFn: () => listMissingReturnTickets(id!),
+        enabled: !!id && enabled,
+        select: (res: any) => res.data ?? [],
+    });
+};
+
+export const useImportResolvableTickets = (id?: string | number, enabled = false) => {
+    return useQuery({
+        queryKey: [QUERY_KEYS.SUPPLIER_SETTLEMENT_OVERVIEW, id, 'import-resolvable'],
+        queryFn: () => listImportResolvableTickets(id!),
+        enabled: !!id && enabled,
+        select: (res: any) => res.data ?? [],
+    });
+};
+
+export const useResolveImportDiscrepancy = (id?: string | number) => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: (payload: ResolveImportDiscrepancyPayload) => resolveImportDiscrepancy(id!, payload),
+        onSuccess: () => invalidateSettlement(queryClient, id),
+    });
+};
+
+export const useResolveReturnDiscrepancy = (id?: string | number) => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: (payload: ResolveReturnDiscrepancyPayload) => resolveReturnDiscrepancy(id!, payload),
+        onSuccess: () => invalidateSettlement(queryClient, id),
+    });
+};
+
+export const useResolveUnitPriceDiscrepancy = (id?: string | number) => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: (payload: ResolveUnitPriceDiscrepancyPayload) => resolveUnitPriceDiscrepancy(id!, payload),
+        onSuccess: () => invalidateSettlement(queryClient, id),
+    });
+};
+
+export const useAddSettlementMonetaryAdjustment = (id?: string | number) => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: (payload: AddSettlementMonetaryAdjustmentPayload) =>
+            addSettlementMonetaryAdjustment(id!, payload),
+        onSuccess: () => invalidateSettlement(queryClient, id),
+    });
+};
+
+export const useRecalculateSettlementReconciliation = (id?: string | number) => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: () => recalculateSettlementReconciliation(id!),
+        onSuccess: () => invalidateSettlement(queryClient, id),
+    });
+};
+
+export const useCompleteSettlementReconciliation = (id?: string | number) => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: (note?: string) => completeSettlementReconciliation(id!, note),
+        onSuccess: () => invalidateSettlement(queryClient, id),
+    });
+};
+
 interface ISupplierSettlementFilters {
     search?: string;
+    status?: SupplierSettlementStatus;
+    expiredOnly?: boolean;
+    lotterySupplierId?: number;
     sortBy?: string;
     direction?: string;
-    page: number;
-    limit: number;
 }
 
 export const useSupplierSettlementList = () => {
+    const {
+        apiPage,
+        pageSize,
+        paginationModel,
+        onPaginationModelChange,
+        resetPage,
+    } = useServerPagination(10);
     const [filters, setFilters] = useState<ISupplierSettlementFilters>({
         search: '',
+        status: undefined,
+        expiredOnly: false,
+        lotterySupplierId: undefined,
         sortBy: 'periodFrom',
         direction: 'desc',
-        page: 1,
-        limit: 10,
     });
 
     const queryParams = useMemo(
         () => ({
             search: filters.search || undefined,
+            status: filters.status,
+            lotterySupplierId: filters.lotterySupplierId,
             sortBy: filters.sortBy,
             direction: filters.direction,
-            page: filters.page,
-            size: filters.limit,
+            page: apiPage,
+            size: pageSize,
         }),
-        [filters]
+        [apiPage, filters, pageSize]
     );
 
     const { data, isLoading, error } = useSupplierSettlements(queryParams, {
         placeholderData: keepPreviousData,
     });
 
-    const settlements = useMemo(() => (data as any)?.recordList ?? [], [data]);
+    const allSettlements = useMemo(() => (data as any)?.recordList ?? [], [data]);
+
+    const settlements = useMemo(() => {
+        if (filters.expiredOnly) {
+            return allSettlements.filter((s: any) => s.isReturnExpired);
+        }
+        return allSettlements;
+    }, [allSettlements, filters.expiredOnly]);
 
     const pagination = (data as any)?.pagination || {
         totalRecords: 0,
@@ -84,15 +201,23 @@ export const useSupplierSettlementList = () => {
     };
 
     const setSearchFilter = (search: string) => {
-        setFilters((prev) => ({ ...prev, search, page: 1 }));
+        setFilters((prev) => ({ ...prev, search }));
+        resetPage();
     };
 
-    const setPage = (page: number) => {
-        setFilters((prev) => ({ ...prev, page }));
+    const setStatusFilter = (status?: SupplierSettlementStatus) => {
+        setFilters((prev) => ({ ...prev, status, expiredOnly: false }));
+        resetPage();
     };
 
-    const setLimit = (limit: number) => {
-        setFilters((prev) => ({ ...prev, limit, page: 1 }));
+    const setExpiredOnlyFilter = (expiredOnly?: boolean) => {
+        setFilters((prev) => ({ ...prev, expiredOnly: expiredOnly ?? !prev.expiredOnly }));
+        resetPage();
+    };
+
+    const setSupplierFilter = (lotterySupplierId?: number) => {
+        setFilters((prev) => ({ ...prev, lotterySupplierId }));
+        resetPage();
     };
 
     const setSort = (sortBy?: string, direction?: string) => {
@@ -100,19 +225,23 @@ export const useSupplierSettlementList = () => {
             ...prev,
             sortBy: sortBy || 'periodFrom',
             direction: direction || 'desc',
-            page: 1,
         }));
+        resetPage();
     };
 
     return {
+        allSettlements,
         settlements,
         pagination,
         isLoading,
         error,
         filters,
+        paginationModel,
+        onPaginationModelChange,
         setSearchFilter,
-        setPage,
-        setLimit,
+        setStatusFilter,
+        setExpiredOnlyFilter,
+        setSupplierFilter,
         setSort,
     };
 };

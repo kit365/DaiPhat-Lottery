@@ -1,3 +1,4 @@
+import { Button } from '@/admin/components/ui/Button';
 import { createTheme } from '@mui/material/styles';
 import { createElement } from 'react';
 import SvgIcon from '@mui/material/SvgIcon';
@@ -43,6 +44,56 @@ const backgroundPopup = {
 };
 
 export const adminTheme = createTheme({
+    palette: {
+        primary: {
+            lighter: '#FFE3D5',
+            light: '#FFC1AC',
+            main: '#FF3030',
+            dark: '#B71833',
+            darker: '#7A0930',
+            contrastText: '#FFFFFF',
+        },
+        secondary: {
+            lighter: '#EFD6FF',
+            light: '#C684FF',
+            main: '#8E33FF',
+            dark: '#5119B7',
+            darker: '#27097A',
+            contrastText: '#FFFFFF',
+        },
+        success: {
+            lighter: '#D3FCD2',
+            light: '#77ED8B',
+            main: '#22C55E',
+            dark: '#118D57',
+            darker: '#065E49',
+            contrastText: '#ffffff',
+        },
+        info: {
+            lighter: '#CAFDF5',
+            light: '#61F3F3',
+            main: '#00B8D9',
+            dark: '#006C9C',
+            darker: '#003768',
+            contrastText: '#FFFFFF',
+        },
+        warning: {
+            lighter: '#FFF5CC',
+            light: '#FFD666',
+            main: '#FFAB00',
+            dark: '#B76E00',
+            darker: '#7A4100',
+            contrastText: '#1C252E',
+        },
+        error: {
+            lighter: '#FFE9D5',
+            light: '#FFAC82',
+            main: '#FF5630',
+            dark: '#B71D18',
+            darker: '#7A0916',
+            contrastText: '#FFFFFF',
+        },
+    },
     typography: {
         fontFamily: '"Public Sans", "Barlow", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
         h1: { fontWeight: 800, fontSize: "2.5rem", lineHeight: 1.25, fontFamily: '"Barlow", sans-serif' },
@@ -152,20 +203,87 @@ export const adminTheme = createTheme({
         },
         MuiButton: {
             styleOverrides: {
+                root: {
+                    borderRadius: '8px',
+                    textTransform: 'none',
+                    fontWeight: 700,
+                    fontSize: '0.875rem',
+                    boxShadow: 'none',
+                    minHeight: '36px',
+                    padding: '6px 16px',
+                    '&:hover': {
+                        boxShadow: 'none',
+                    },
+                },
+                contained: {
+                    boxShadow: 'none',
+                    '&:hover': {
+                        boxShadow: 'none',
+                    },
+                },
                 containedPrimary: {
                     backgroundColor: 'var(--palette-text-primary)',
                     color: 'var(--palette-common-white)',
-                    boxShadow: 'none',
-                    fontWeight: 700,
-                    fontSize: '0.875rem',
-                    textTransform: 'none',
-                    borderRadius: '8px',
                     '&:hover': {
                         backgroundColor: 'var(--palette-grey-700)',
                         boxShadow: 'var(--customShadows-z8)',
                     },
+                    '&.Mui-disabled': {
+                        backgroundColor: 'rgba(145, 158, 171, 0.24)',
+                        color: 'rgba(145, 158, 171, 0.8)',
+                    },
+                },
+                outlinedPrimary: {
+                    borderColor: 'rgba(28, 37, 46, 0.32)',
+                    color: 'var(--palette-text-primary)',
+                    backgroundColor: 'transparent',
+                    '&:hover': {
+                        backgroundColor: 'rgba(28, 37, 46, 0.06)',
+                        borderColor: 'var(--palette-text-primary)',
+                    },
+                },
+                outlinedInherit: {
+                    borderColor: 'rgba(145, 158, 171, 0.32)',
+                    color: 'var(--palette-text-secondary)',
+                    '&:hover': {
+                        backgroundColor: 'rgba(145, 158, 171, 0.08)',
+                        borderColor: 'rgba(145, 158, 171, 0.48)',
+                    },
+                },
+                outlined: {
+                    boxShadow: 'none',
+                    '&:hover': {
+                        boxShadow: 'none',
+                    },
+                },
+                sizeLarge: {
+                    minHeight: '48px',
+                    padding: '8px 22px',
+                    fontSize: '0.9375rem',
+                },
+                sizeSmall: {
+                    minHeight: '30px',
+                    padding: '4px 10px',
+                    fontSize: '0.8125rem',
                 },
             },
+            variants: [
+                {
+                    props: { variant: 'contained', color: 'primary' },
+                    style: {
+                        backgroundColor: 'var(--palette-text-primary)',
+                        color: 'var(--palette-common-white)',
+                        '&:hover': {
+                            backgroundColor: 'var(--palette-grey-700)',
+                            boxShadow: 'var(--customShadows-z8)',
+                        },
+                        '&.Mui-disabled': {
+                            backgroundColor: 'rgba(145, 158, 171, 0.24)',
+                            color: 'rgba(145, 158, 171, 0.8)',
+                        },
+                    },
+                },
+            ],
         },
         MuiCheckbox: {
             defaultProps: {
@@ -178,7 +296,7 @@ export const adminTheme = createTheme({
                 root: {
                     padding: '4px',
                     color: '#637381',
-                    '&.Mui-checked, &.Mui-checkbox-indeterminate': { color: '#00A76F' },
+                    '&.Mui-checked, &.Mui-checkbox-indeterminate': { color: 'var(--palette-primary-main)' },
                     '& .MuiSvgIcon-root': { fontSize: '1.25rem' },
                 },
             },
@@ -251,6 +369,67 @@ export const adminTheme = createTheme({
                 },
             },
         },
+        MuiTableRow: {
+            styleOverrides: {
+                root: {
+                    '&:hover': {
+                        backgroundColor: 'transparent',
+                    },
+                    '&.MuiTableRow-hover:hover': {
+                        backgroundColor: 'transparent',
+                    },
+                },
+            },
+        },
+        MuiSwitch: {
+            styleOverrides: {
+                root: {
+                    width: '36px !important',
+                    height: '20px !important',
+                    padding: '0 !important',
+                    margin: '8px !important',
+                },
+                switchBase: {
+                    padding: '0 !important',
+                    margin: '2px !important',
+                    transitionDuration: '300ms',
+                    '&.Mui-checked': {
+                        transform: 'translateX(16px) !important',
+                        color: '#fff !important',
+                        '& + .MuiSwitch-track': {
+                            backgroundColor: '#FF3030 !important',
+                            opacity: '1 !important',
+                            border: '0 !important',
+                        },
+                        '&.Mui-disabled + .MuiSwitch-track': {
+                            opacity: '0.5 !important',
+                        },
+                    },
+                    '&.Mui-focusVisible .MuiSwitch-thumb': {
+                        color: '#FF3030 !important',
+                        border: '4px solid #fff !important',
+                    },
+                    '&.Mui-disabled .MuiSwitch-thumb': {
+                        color: '#f5f5f5 !important',
+                    },
+                    '&.Mui-disabled + .MuiSwitch-track': {
+                        opacity: '0.7 !important',
+                    },
+                },
+                thumb: {
+                    boxSizing: 'border-box',
+                    width: '16px !important',
+                    height: '16px !important',
+                    boxShadow: '0 2px 4px 0 rgb(0 35 11 / 20%) !important',
+                },
+                track: {
+                    borderRadius: '10px !important',
+                    backgroundColor: '#919eab7a !important',
+                    opacity: '1 !important',
+                    transition: 'background-color 500ms',
+                },
+            },
+        },
         MuiDataGrid: {
             defaultProps: {
                 disableColumnMenu: true,
@@ -262,7 +441,7 @@ export const adminTheme = createTheme({
                     color: 'var(--palette-text-primary)',
                     borderWidth: "0",
                     overflow: 'auto',
-                    '--DataGrid-t-color-interactive-focus': 'var(--palette-success-main)',
+                    '--DataGrid-t-color-interactive-focus': 'var(--palette-primary-main)',
                     '--DataGrid-t-color-border-base': 'var(--palette-background-neutral)',
                     
                     '& .MuiDataGrid-columnHeaders': {
@@ -279,11 +458,11 @@ export const adminTheme = createTheme({
                     },
                     
                     '& .MuiDataGrid-footerContainer': {
-                        borderTop: "1px dashed", minHeight: "auto", fontSize: "0.875rem", color: "inherit",
-                        '& .MuiTablePagination-selectLabel': { fontSize: "0.875rem", color: "inherit", marginBottom: "-2px" },
+                        borderTop: "1px solid var(--palette-divider)", minHeight: "auto", fontSize: "0.875rem", color: "var(--palette-text-secondary)",
+                        '& .MuiTablePagination-selectLabel': { fontSize: "0.875rem", color: "var(--palette-text-secondary)", marginBottom: "-2px" },
                         '& .MuiSelect-select': { minHeight: "21.5625px", lineHeight: "1.5rem", fontSize: "0.9375rem" },
                         '& .MuiSelect-icon': { top: "6px" },
-                        '& .MuiTablePagination-displayedRows': { fontSize: "0.875rem", color: "inherit" },
+                        '& .MuiTablePagination-displayedRows': { fontSize: "0.875rem", color: "var(--palette-text-secondary)" },
                         '& .MuiTablePaginationActions-root': {
                             marginRight: "8px",
                             '& .MuiButtonBase-root': { padding: "5px", '& .MuiSvgIcon-root': { width: "1.5rem", height: "1.5rem" } }
@@ -294,10 +473,14 @@ export const adminTheme = createTheme({
                     
                     '& .MuiDataGrid-cell': {
                         color: 'inherit', fontSize: "0.875rem", display: 'flex', alignItems: 'center',
-                        '&:hover': {
-                            '& .ticket-title': { color: `var(--palette-success-main) !important` },
-                            '& .date-text': { color: `var(--palette-success-main) !important` }
-                        }
+                    },
+
+                    '& .MuiDataGrid-row:hover, & .MuiDataGrid-row.Mui-hovered': {
+                        backgroundColor: 'transparent',
+                    },
+
+                    '& .MuiDataGrid-row:hover .MuiDataGrid-cell, & .MuiDataGrid-row.Mui-hovered .MuiDataGrid-cell': {
+                        backgroundColor: 'transparent',
                     },
                     
                     '& .MuiDataGrid-toolbarContainer': {
@@ -397,6 +580,23 @@ export const adminTheme = createTheme({
 
                 }
             }
-        }
+        },
+        MuiTablePagination: {
+            styleOverrides: {
+                root: {
+                    borderTop: '1px solid var(--palette-divider)',
+                    color: 'var(--palette-text-secondary)',
+                    fontSize: '0.875rem',
+                },
+                selectLabel: {
+                    fontSize: '0.875rem',
+                    color: 'var(--palette-text-secondary)',
+                },
+                displayedRows: {
+                    fontSize: '0.875rem',
+                    color: 'var(--palette-text-secondary)',
+                },
+            },
+        },
     },
 });

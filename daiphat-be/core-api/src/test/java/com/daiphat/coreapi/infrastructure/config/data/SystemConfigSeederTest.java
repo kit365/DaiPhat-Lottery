@@ -44,30 +44,22 @@ class SystemConfigSeederTest {
 
         assertThat(captor.getAllValues())
                 .extracting(SystemConfigEntity::getConfigKey)
-                .containsExactlyInAnyOrder(
-                        "ORDER_CANCEL_GRACE_MIN",
-                        "CUSTOMER_CANCEL_CUTOFF",
-                        "ORDER_PREPARE_SLA_MIN",
-                        "PAYMENT_TIMEOUT_MINUTES",
-                        "VENDOR_RETURN_CUTOFF",
-                        "RETURN_BUFFER_TIME",
-                        "RETURN_REMINDER_TIME",
-                        "TICKET_AUTO_IMPORT_THRESHOLD",
-                        "STAFF_INCIDENT_CUTOFF",
-                        "INVALID_INFO_EXPIRED_DAYS",
-                        "MAX_REFUND_REQUESTS_PER_DAY",
-                        "MAX_REFUND_BANK_INFO_RETRY",
-                        "REFUND_COMPLAINT_PROCESSING_WAIT_HOURS",
-                        "REFUND_COMPLAINT_GRACE_DAYS",
-                        "SUPPORT_TICKET_AUTO_CLOSE_HOURS",
-                        "ORDER_COMPLAINT_DRAW_CUTOFF_TIME",
-                        "ORDER_SERVICE_COMPLAINT_WINDOW_HOURS",
-                        "ORDER_STATUS_DELAY_COMPLAINT_MINUTES",
-                        "ORDER_CANCELLED_COMPLAINT_WINDOW_HOURS"
+                .containsExactlyInAnyOrderElementsOf(
+                        java.util.Arrays.stream(SystemConfigEnum.values())
+                                .map(Enum::name)
+                                .toList()
                 );
         assertThat(captor.getAllValues()).allMatch(entity -> Boolean.TRUE.equals(entity.getIsActive()));
         assertThat(captor.getAllValues()).allMatch(entity ->
                 entity.getConfigName() != null && !entity.getConfigName().isBlank());
+        assertThat(captor.getAllValues())
+                .filteredOn(entity -> entity.getConfigKey().startsWith("SITE_"))
+                .extracting(SystemConfigEntity::getConfigType)
+                .containsOnly(ConfigType.GENERAL_SETTING);
+        assertThat(captor.getAllValues())
+                .filteredOn(entity -> entity.getConfigKey().startsWith("PAGE_"))
+                .extracting(SystemConfigEntity::getConfigType)
+                .containsOnly(ConfigType.STATIC_PAGE);
         assertThat(captor.getAllValues())
                 .filteredOn(entity -> entity.getConfigKey().startsWith("REFUND_COMPLAINT_"))
                 .extracting(SystemConfigEntity::getConfigType)
@@ -99,6 +91,33 @@ class SystemConfigSeederTest {
                     assertThat(entity.getUnit()).isEqualTo("phút");
                     assertThat(entity.getValidationRules()).isEqualTo("{\"min\":1,\"max\":1440}");
                 });
+        assertThat(captor.getAllValues())
+                .filteredOn(entity -> entity.getConfigKey().equals("VENDOR_DRAFT_RESERVATION_TTL_MINUTES"))
+                .singleElement()
+                .satisfies(entity -> {
+                    assertThat(entity.getConfigType()).isEqualTo(ConfigType.VENDOR_SETTING);
+                    assertThat(entity.getDataType()).isEqualTo(DataType.INT);
+                    assertThat(entity.getConfigValue()).isEqualTo("15");
+                    assertThat(entity.getValidationRules()).isEqualTo("{\"min\":1,\"max\":120}");
+                });
+        assertThat(captor.getAllValues())
+                .filteredOn(entity -> entity.getConfigKey().equals("VENDOR_RETURN_CUTOFF"))
+                .singleElement()
+                .satisfies(entity -> {
+                    assertThat(entity.getConfigType()).isEqualTo(ConfigType.VENDOR_SETTING);
+                    assertThat(entity.getDataType()).isEqualTo(DataType.TIME);
+                    assertThat(entity.getConfigValue()).isEqualTo("15:00");
+                });
+        assertThat(captor.getAllValues())
+                .filteredOn(entity -> entity.getConfigType() == ConfigType.VENDOR_SETTING)
+                .extracting(SystemConfigEntity::getConfigKey)
+                .contains(
+                        "STREET_AGENT_COUNTER_RESERVE_PER_STATION",
+                        "VENDOR_DEPOSIT_RATE",
+                        "VENDOR_DRAFT_RESERVATION_TTL_MINUTES",
+                        "VENDOR_RETURN_CUTOFF",
+                        "VENDOR_LATE_RETURN_POLICY"
+                );
     }
 
     @Test

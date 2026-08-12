@@ -1,7 +1,7 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import { ComplaintStatusBadge } from '../../../../components/support/ComplaintStatusBadge';
 import { ComplaintFormModal } from '../../../../components/support/ComplaintFormModal';
@@ -21,7 +21,7 @@ const STATUS_TABS: { value: TicketStatus | 'ALL'; label: string }[] = [
 ];
 
 export const ComplaintsTab = () => {
-    const navigate = useNavigate();
+    const router = useRouter();
     const [activeTab, setActiveTab] = useState<TicketStatus | 'ALL'>('ALL');
     const [page, setPage] = useState(1);
     const [searchTerm, setSearchTerm] = useState('');
@@ -144,7 +144,7 @@ export const ComplaintsTab = () => {
                                     <tr
                                         key={ticket.id}
                                         className="border-b border-[#F4F6F8] hover:bg-[#FAFBFC] transition-colors cursor-pointer"
-                                        onClick={() => navigate(`/profile/complaints/${ticket.id}`)}
+                                        onClick={() => router.push(`/profile/complaints/${ticket.id}`)}
                                     >
                                         <td className="py-4 px-5 align-middle">
                                             <span className="text-[14px] font-medium text-[#212B36]">#{ticket.id}</span>
@@ -179,7 +179,7 @@ export const ComplaintsTab = () => {
                                                 <button
                                                     onClick={(e) => {
                                                         e.stopPropagation();
-                                                        navigate(`/profile/complaints/${ticket.id}`);
+                                                        router.push(`/profile/complaints/${ticket.id}`);
                                                     }}
                                                     className="w-8 h-8 shrink-0 rounded-lg border border-[#E5E8EB] inline-flex items-center justify-center text-[#919EAB] hover:text-[#2065D1] hover:border-[#2065D1] hover:bg-[#F0F5FF] transition-all cursor-pointer"
                                                     title="Xem chi tiết"

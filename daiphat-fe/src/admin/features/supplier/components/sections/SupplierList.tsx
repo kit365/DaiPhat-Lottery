@@ -1,14 +1,17 @@
-import {
-    DataGrid,
+import type {
     GridColDef,
 } from '@mui/x-data-grid';
+import { LazyDataGrid } from '@/admin/shared/data-grid/LazyDataGrid';
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import CircularProgress from '@mui/material/CircularProgress';
 import {
     IGridSettings,
     useSettings,
+    adminDataGridRowHeightProps,
+    adminDataGridRowHeightSx,
     columnsPanelStyles,
+    dataGridContainerStyles,
     dataGridStyles,
     filterPanelStyles,
 } from '../../../../shared/data-grid';
@@ -36,9 +39,9 @@ export const SupplierList = ({
         isLoading,
         error,
         filters,
+        paginationModel,
+        onPaginationModelChange,
         setSearchFilter,
-        setPage,
-        setLimit,
         setSort,
     } = supplierHook;
 
@@ -52,8 +55,8 @@ export const SupplierList = ({
 
     return (
         <Card elevation={0} className="admin-datagrid-card">
-            <Box sx={{ width: '100%', flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-                <DataGrid
+            <Box sx={dataGridContainerStyles}>
+                <LazyDataGrid
                     rows={suppliers}
                     getRowId={(row) => row.id}
                     columns={columnsConfig}
@@ -113,24 +116,17 @@ export const SupplierList = ({
                     }}
                     loading={isLoading}
                     rowCount={pagination?.totalRecords || 0}
-                    paginationModel={{
-                        page: filters.page - 1,
-                        pageSize: filters.limit,
-                    }}
-                    onPaginationModelChange={(model) => {
-                        if (model.page + 1 !== filters.page) {
-                            setPage(model.page + 1);
-                        }
-                        if (model.pageSize !== filters.limit) {
-                            setLimit(model.pageSize);
-                        }
-                    }}
+                    paginationModel={paginationModel}
+                    onPaginationModelChange={onPaginationModelChange}
                     pageSizeOptions={[5, 10, 20, 50]}
                     initialState={columnsInitialState}
-                    getRowHeight={() => 'auto'}
+                    {...adminDataGridRowHeightProps}
                     disableRowSelectionOnClick
                     className="admin-datagrid"
-                    sx={dataGridStyles}
+                    sx={{
+                        ...dataGridStyles,
+                        ...adminDataGridRowHeightSx,
+                    } as import('@mui/material/styles').SxProps<import('@mui/material/styles').Theme>}
                 />
             </Box>
         </Card>

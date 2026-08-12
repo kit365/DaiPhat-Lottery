@@ -4,6 +4,7 @@ import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
 import com.daiphat.coreapi.domain.model.enums.payment.PaymentGateway;
 import com.daiphat.coreapi.domain.model.enums.transaction.TransactionStatus;
+import com.daiphat.coreapi.domain.model.enums.transaction.TransactionBusinessType;
 import com.daiphat.coreapi.domain.model.enums.transaction.TransactionType;
 import lombok.*;
 
@@ -23,6 +24,8 @@ public class TransactionModel {
     private UUID orderId;
     /** Set for REFUND payout transactions (1 RefundRequest → N Transactions). */
     private Long refundRequestId;
+    /** Set for prize payout ledger entries (a combined payout can create cash and transfer entries). */
+    private Long prizePayoutRequestId;
     private BigDecimal amount;
     private PaymentGateway gateway;
     private Long gatewayOrderCode;
@@ -39,6 +42,8 @@ public class TransactionModel {
     private String paymentEvidenceUrl;
     private UUID paymentBy;
     private String note;
+    /** Business purpose in the shared ledger; independent from payment channel {@link #type}. */
+    private TransactionBusinessType transactionType;
     private TransactionType type;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;

@@ -6,8 +6,11 @@ import {
     TICKET_WITHOUT_SERIAL_MESSAGE,
     findDuplicateNumberSectionIndices,
     findDuplicateSerialPaths,
+    findMissingSerialImagePaths,
     findSectionRelationshipIssues,
+    SERIAL_IMAGE_REQUIRED_MESSAGE,
 } from '../utils/ticketSerialValidation';
+import { SECTION_QUANTITY_MIN_MESSAGE } from '../utils/ticketSectionQuantity';
 import {
     TicketNumberLengthRules,
     getTicketNumberLengthMessage,
@@ -15,7 +18,7 @@ import {
 
 const serialItemSchema = z.object({
     id: z.union([z.string(), z.number()]).optional(),
-    serialNumber: z.string().min(1, 'Số sê-ri không được để trống'),
+    serialNumber: z.string(),
     ticketImg: z.any().optional(),
 });
 
@@ -36,6 +39,7 @@ const buildTicketSectionSchema = (lengthRules: TicketNumberLengthRules) =>
     z.object({
         ticketId: z.number().optional(),
         numbers: buildNumbersFieldSchema(lengthRules),
+        quantity: z.number().int().min(1, SECTION_QUANTITY_MIN_MESSAGE).optional(),
         serials: z.array(serialItemSchema).min(1, 'Phải có ít nhất 1 số sê-ri'),
     });
 
@@ -57,6 +61,14 @@ const withTicketSectionRefinements = <T extends z.ZodTypeAny>(schema: T) =>
                     code: z.ZodIssueCode.custom,
                     message: SERIAL_DUPLICATE_MESSAGE,
                     path: ['ticketSections', sectionIndex, 'serials', serialIndex, 'serialNumber'],
+                });
+            });
+
+            findMissingSerialImagePaths(sections).forEach(({ sectionIndex, serialIndex }) => {
+                ctx.addIssue({
+                    code: z.ZodIssueCode.custom,
+                    message: SERIAL_IMAGE_REQUIRED_MESSAGE,
+                    path: ['ticketSections', sectionIndex, 'serials', serialIndex, 'ticketImg'],
                 });
             });
 

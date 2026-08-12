@@ -1,38 +1,37 @@
 "use client";
 
-import { Breadcrumb } from '../../../../components/ui/Breadcrumb';
-import { Title } from '../../../../components/ui/Title';
-import { useUpdateUser, useUserDetail, useDeleteUser } from "../../hooks/useUsers";
+import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
+import { useRouteParams } from "@/hooks/useRouteParams";
+import { PageHeader } from '../../../../components/ui/PageHeader';
+import { SpinnerLoading } from '../../../../components/ui/SpinnerLoading';
+import { useUpdateUser, useUserDetail, useDeleteUser, useUploadUserAvatar } from "../../hooks/useUsers";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm, Controller } from "react-hook-form";
-import { accountUserSchema } from "../../../../schemas/account-user.schema";
+import { accountUserSchema } from "@/admin/features/users/schemas/account-user.schema";
 import { prefixAdmin } from '../../../../constants/routes';
 import { toast } from "react-toastify";
-import { useNavigate, useParams } from "react-router-dom";
 import { useEffect, useRef, useState } from "react";
 import {
     Box,
     TextField,
-    Button,
-    Typography,
+Typography,
     Card,
     MenuItem,
     CircularProgress,
     Stack,
     Chip
-} from "@mui/material";
+} from '@mui/material';
 import { UserStatus } from "../../../../../types/user.type";
 import Grid from "@mui/material/Grid";
-import { uploadImagesToCloudinary } from '../../../../api/uploadCloudinary.api';
-import { UserUserTicketList } from "../sections/UserTicketList";
-import { LoadingButton } from '../../../../components/ui/LoadingButton';
+import { Button } from '../../../../components/ui/Button';
 
 export const ClientEditPage = () => {
-    const { id } = useParams();
-    const navigate = useNavigate();
+    const { id } = useRouteParams();
+    const router = useAdminRouter();
     const { data: user, isLoading } = useUserDetail(id);
     const { mutate: update, isPending } = useUpdateUser();
     const { mutate: removeUser } = useDeleteUser();
+    const { mutateAsync: uploadAvatar } = useUploadUserAvatar();
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [isUploading, setIsUploading] = useState(false);
 
@@ -91,9 +90,9 @@ export const ClientEditPage = () => {
 
         try {
             setIsUploading(true);
-            const [url] = await uploadImagesToCloudinary([file]);
+            const response = await uploadAvatar({ id: id!, file });
+            const url = response.data?.avatarUrl || response.data?.avatar || "";
             setValue("avatar", url, { shouldValidate: true });
-            toast.success("Tải ảnh đại diện thành công!");
         } catch (error) {
             toast.error("Tải ảnh đại diện thất bại!");
         } finally {
@@ -106,7 +105,7 @@ export const ClientEditPage = () => {
             removeUser(id!, {
                 onSuccess: () => {
                     toast.success("Xóa tài khoản thành công!");
-                    navigate(`/${prefixAdmin}/account-user/list`);
+                    router.push(`/${prefixAdmin}/account-user/list`);
                 },
                 onError: (error: any) => {
                     toast.error(error.response?.data?.message || "Xóa thất bại");
@@ -116,10 +115,12 @@ export const ClientEditPage = () => {
     };
 
     const onSubmit = (data: any) => {
-        update({ id: id!, data }, {
+        const payload = { ...data };
+        delete payload.avatar;
+        update({ id: id!, data: payload }, {
             onSuccess: () => {
                 toast.success("Cập nhật tài khoản khách hàng thành công!");
-                navigate(`/${prefixAdmin}/account-user/list`);
+                router.push(`/${prefixAdmin}/account-user/list`);
             },
             onError: (error: any) => {
                 toast.error(error.response?.data?.message || "Cập nhật thất bại");
@@ -128,26 +129,30 @@ export const ClientEditPage = () => {
     };
 
     if (isLoading) return (
-        <Box sx={{ display: 'flex', justifyContent: 'center', py: 5 }}>
-            <CircularProgress />
-        </Box>
+        <div className="p-[24px] pt-[16px] flex flex-col gap-[24px] max-w-[1200px] mx-auto w-full">
+            <PageHeader
+                title="Chỉnh sửa tài khoản khách hàng"
+                breadcrumbItems={[
+                    { label: "Dashboard", to: `/${prefixAdmin}` },
+                    { label: "Khách hàng", to: `/${prefixAdmin}/account-user/list` },
+                    { label: "Cập nhật" }
+                ]}
+            />
+            <SpinnerLoading />
+        </div>
     );
 
     return (
         <div className="p-[24px] pt-[16px] flex flex-col gap-[24px] max-w-[1200px] mx-auto w-full">
             {/* Header */}
-            <div className="flex justify-between items-start">
-                <div>
-                    <Title title="Chỉnh sửa tài khoản khách hàng" />
-                    <Breadcrumb
-                        items={[
-                            { label: "Dashboard", to: `/${prefixAdmin}` },
-                            { label: "Khách hàng", to: `/${prefixAdmin}/account-user/list` },
-                            { label: "Cập nhật" }
-                        ]}
-                    />
-                </div>
-            </div>
+            <PageHeader
+                title="Chỉnh sửa tài khoản khách hàng"
+                breadcrumbItems={[
+                    { label: "Dashboard", to: `/${prefixAdmin}` },
+                    { label: "Khách hàng", to: `/${prefixAdmin}/account-user/list` },
+                    { label: "Cập nhật" }
+                ]}
+            />
 
             <form onSubmit={handleSubmit(onSubmit)}>
                 <div className="grid grid-cols-1 md:grid-cols-12 gap-[24px]">
@@ -296,7 +301,7 @@ export const ClientEditPage = () => {
                             </div>
 
                             <div className="flex justify-end mt-[24px]">
-                                <LoadingButton
+                                <Button
                                     type="submit"
                                     loading={isPending}
                                     label="Lưu thay đổi"
@@ -304,8 +309,6 @@ export const ClientEditPage = () => {
                                 />
                             </div>
                         </div>
-
-                        {id && <UserUserTicketList userId={id} />}
                     </div>
                 </div>
             </form>

@@ -1,26 +1,31 @@
-"use client";
+﻿"use client";
 
-import dynamic from 'next/dynamic';
-import { PermissionGuard } from '@/admin/components/auth/PermissionGuard';
-import { PERMISSIONS } from '@/admin/constants/permission.constants';
-import { LoadingSpinner } from '@/client/components/ui/LoadingSpinner';
+import dynamic from "next/dynamic";
+import { Box, CircularProgress } from "@mui/material";
+import { createAdminClientPage } from "@/admin/lib/createAdminClientPage";
 
-const FeaturePage = dynamic(
-  () => import('@/admin/pages/hr/ScheduleCalendarPage').then((m) => m.ScheduleCalendarPage),
-  {
-    ssr: false,
-    loading: () => (
-      <div className="flex items-center justify-center p-12 min-h-[300px]">
-        <LoadingSpinner />
-      </div>
-    ),
-  }
+const ScheduleCalendarPage = dynamic(
+    () =>
+        import("@/admin/features/hr/components/pages/ScheduleCalendarPage").then(
+            (mod) => mod.ScheduleCalendarPage,
+        ),
+    {
+        ssr: false,
+        loading: () => (
+            <Box
+                sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    minHeight: 480,
+                }}
+            >
+                <CircularProgress />
+            </Box>
+        ),
+    },
 );
 
-export function ClientPage() {
-  return (
-    <PermissionGuard >
-      <FeaturePage />
-    </PermissionGuard>
-  );
-}
+export const ClientPage = createAdminClientPage({
+    component: ScheduleCalendarPage,
+});

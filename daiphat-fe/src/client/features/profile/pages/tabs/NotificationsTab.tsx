@@ -1,6 +1,7 @@
 "use client";
 
-import { useLocation, useNavigate } from "react-router-dom";
+import { useRouter } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Bell, Newspaper, ShieldCheck, Check, Trash2, Trophy } from "lucide-react";
 import {
@@ -79,8 +80,9 @@ const getTypeMeta = (type: NotificationResponse["type"]) => {
 };
 
 export const NotificationsTab = () => {
-    const navigate = useNavigate();
-    const location = useLocation();
+    const router = useRouter();
+    const pathname = usePathname() ?? '';
+    const searchParamsForLocation = useSearchParams();
     const [activeTab, setActiveTab] = useState<'all' | 'unread'>('all');
     const [unavailableMessage, setUnavailableMessage] = useState<string | null>(null);
     const scrollContainerRef = useRef<HTMLDivElement | null>(null);
@@ -89,6 +91,8 @@ export const NotificationsTab = () => {
         notifications: allNotifications,
         unreadCount,
         isLoading,
+        isError,
+        isFetchNextPageError,
         isFetchingNextPage,
         hasNextPage,
         fetchNextPage,
@@ -105,12 +109,13 @@ export const NotificationsTab = () => {
     );
 
     useEffect(() => {
-        const state = location.state as { unavailableMessage?: string } | null;
-        if (state?.unavailableMessage) {
-            setUnavailableMessage(state.unavailableMessage);
-            navigate(location.pathname, { replace: true, state: null } as any);
+        const message = searchParamsForLocation?.get("unavailableMessage");
+        if (!message) {
+            return;
         }
-    }, [location.state, location.pathname, navigate]);
+        setUnavailableMessage(message);
+        router.replace(pathname);
+    }, [searchParamsForLocation, pathname, router]);
 
     useEffect(() => {
         if (activeTab !== 'all') {
@@ -120,7 +125,7 @@ export const NotificationsTab = () => {
         const root = scrollContainerRef.current;
         const target = loadMoreRef.current;
 
-        if (!root || !target || !hasNextPage) {
+        if (!root || !target || !hasNextPage || isError || isFetchNextPageError) {
             return;
         }
 
@@ -128,7 +133,7 @@ export const NotificationsTab = () => {
             (entries) => {
                 const [entry] = entries;
 
-                if (entry?.isIntersecting && !isFetchingNextPage) {
+                if (entry?.isIntersecting && !isFetchingNextPage && !isFetchNextPageError && !isError) {
                     fetchNextPage();
                 }
             },
@@ -142,14 +147,14 @@ export const NotificationsTab = () => {
         observer.observe(target);
 
         return () => observer.disconnect();
-    }, [activeTab, fetchNextPage, hasNextPage, isFetchingNextPage]);
+    }, [activeTab, fetchNextPage, hasNextPage, isFetchingNextPage, isError, isFetchNextPageError]);
 
     return (
         <div className="flex flex-col">
             {/* Header */}
             <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4 mb-6">
                 <div>
-                    <h2 className="text-[24px] font-bold text-[#212B36] font-client-display mb-1">Thông báo</h2>
+                    <h2 className="client-heading m-0 mb-1">Thông báo</h2>
                     <p className="text-[14px] text-[#637381]">Xem các thông báo của bạn</p>
                 </div>
                 <div className="flex items-center gap-3">
@@ -178,7 +183,7 @@ export const NotificationsTab = () => {
                         secondaryLabel="Xem đơn hàng"
                         onSecondaryClick={() => {
                             setUnavailableMessage(null);
-                            navigate('/profile/orders');
+                            router.push('/profile/orders');
                         }}
                     />
                 </div>
@@ -240,7 +245,7 @@ export const NotificationsTab = () => {
                                         }
                                         const result = await resolveNotificationNavigation(notification);
                                         if (result.kind === "navigate") {
-                                            navigate(result.path);
+                                            router.push(result.path);
                                             return;
                                         }
                                         if (result.kind === "unavailable") {

@@ -3,8 +3,10 @@ package com.daiphat.coreapi.application.service.settings;
 import com.daiphat.coreapi.application.dto.request.settings.UpdateSystemConfigRequest;
 import com.daiphat.coreapi.application.dto.response.settings.SystemConfigResponse;
 import com.daiphat.coreapi.application.mapper.settings.SystemConfigApplicationMapper;
+import com.daiphat.coreapi.application.port.in.streetagent.VendorConfidenceServicePort;
 import com.daiphat.coreapi.application.port.out.settings.SystemConfigCachePort;
 import com.daiphat.coreapi.application.port.out.settings.SystemConfigRepositoryPort;
+import com.daiphat.coreapi.application.service.lotteries.SupplierPaymentCutOffSyncService;
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
 import com.daiphat.coreapi.domain.model.enums.settings.ConfigType;
@@ -41,8 +43,14 @@ class SystemConfigServiceTest {
     @Mock
     private SystemConfigCachePort systemConfigCachePort;
 
+    @Mock
+    private VendorConfidenceServicePort vendorConfidenceServicePort;
+
     @Spy
     private SystemConfigApplicationMapper systemConfigApplicationMapper = new SystemConfigApplicationMapper();
+
+    @Mock
+    private SupplierPaymentCutOffSyncService supplierPaymentCutOffSyncService;
 
     @InjectMocks
     private SystemConfigService systemConfigService;
@@ -165,6 +173,33 @@ class SystemConfigServiceTest {
             assertThat(response.configValue()).isEqualTo("45");
             assertThat(response.description()).isEqualTo("Updated grace");
             verify(systemConfigCachePort).evict("ORDER_CANCEL_GRACE_MIN");
+            verify(supplierPaymentCutOffSyncService, never()).syncAllSuppliers();
+        }
+
+        @Test
+        void syncsSupplierPaymentCutoff_whenVerificationDeadlineUpdated() {
+            SystemConfigModel existing = SystemConfigModel.builder()
+                    .id(3L)
+                    .configKey("VERIFICATION_DEADLINE")
+                    .configValue("17:00")
+                    .configType(ConfigType.TICKET_RETURN)
+                    .dataType(DataType.TIME)
+                    .description("Hạn chót đối chiếu")
+                    .configName("Hạn chót đối chiếu")
+                    .unit("HH:mm")
+                    .validationRules("{\"min\":\"00:00\",\"max\":\"23:59\"}")
+                    .isEditable(true)
+                    .isActive(true)
+                    .build();
+            when(systemConfigRepositoryPort.findById(3L)).thenReturn(Optional.of(existing));
+            when(systemConfigRepositoryPort.save(any(SystemConfigModel.class))).thenAnswer(inv -> inv.getArgument(0));
+
+            systemConfigService.update(
+                    3L,
+                    new UpdateSystemConfigRequest("Hạn chót đối chiếu", "17:30", "Updated"));
+
+            verify(systemConfigCachePort).evict("VERIFICATION_DEADLINE");
+            verify(supplierPaymentCutOffSyncService).syncAllSuppliers();
         }
 
         @Test
@@ -199,6 +234,65 @@ class SystemConfigServiceTest {
 
             verify(systemConfigRepositoryPort, never()).save(any());
             verify(systemConfigCachePort, never()).evict(any());
+        }
+
+        @Test
+        void rejectsInvalidTime_withSpecificVietnameseMessage() {
+            SystemConfigModel existing = SystemConfigModel.builder()
+                    .id(2L)
+                    .configKey("VENDOR_RETURN_CUTOFF")
+                    .configValue("15:00")
+                    .configType(ConfigType.VENDOR_SETTING)
+                    .dataType(DataType.TIME)
+                    .description("Giờ chốt trả vé")
+                    .configName("Giờ chốt trả vé đại lý")
+                    .unit("HH:mm")
+                    .validationRules("{\"min\":\"00:00\",\"max\":\"23:59\"}")
+                    .isEditable(true)
+                    .isActive(true)
+                    .build();
+            when(systemConfigRepositoryPort.findById(2L)).thenReturn(Optional.of(existing));
+
+            UpdateSystemConfigRequest request = new UpdateSystemConfigRequest(
+                    "Giờ chốt trả vé đại lý", "17h00", "bad time");
+
+            assertThatThrownBy(() -> systemConfigService.update(2L, request))
+                    .isInstanceOf(DomainException.class)
+                    .satisfies(ex -> {
+                        DomainException domain = (DomainException) ex;
+                        assertThat(domain.getErrorCode()).isEqualTo(ErrorCode.SYSTEM_CONFIG_TIME_INVALID);
+                        assertThat(domain.getMessage())
+                                .isEqualTo("Giờ chốt trả vé đại lý phải có định dạng HH:mm (ví dụ 17:00).");
+                    });
+
+            verify(systemConfigRepositoryPort, never()).save(any());
+            verify(systemConfigCachePort, never()).evict(any());
+        }
+
+        @Test
+        void acceptsCanonicalHhMmTime_andNormalizes() {
+            SystemConfigModel existing = SystemConfigModel.builder()
+                    .id(2L)
+                    .configKey("VENDOR_RETURN_CUTOFF")
+                    .configValue("15:00")
+                    .configType(ConfigType.VENDOR_SETTING)
+                    .dataType(DataType.TIME)
+                    .description("Giờ chốt trả vé")
+                    .configName("Giờ chốt trả vé đại lý")
+                    .unit("HH:mm")
+                    .validationRules("{\"min\":\"00:00\",\"max\":\"23:59\"}")
+                    .isEditable(true)
+                    .isActive(true)
+                    .build();
+            when(systemConfigRepositoryPort.findById(2L)).thenReturn(Optional.of(existing));
+            when(systemConfigRepositoryPort.save(any(SystemConfigModel.class))).thenAnswer(inv -> inv.getArgument(0));
+
+            SystemConfigResponse response = systemConfigService.update(
+                    2L,
+                    new UpdateSystemConfigRequest("Giờ chốt trả vé đại lý", "17:00", "Updated cutoff"));
+
+            assertThat(response.configValue()).isEqualTo("17:00");
+            verify(systemConfigCachePort).evict("VENDOR_RETURN_CUTOFF");
         }
 
         @Test

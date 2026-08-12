@@ -1,6 +1,7 @@
 package com.daiphat.coreapi.infrastructure.persistence.specification.lotteries;
 
 import com.daiphat.coreapi.domain.model.enums.lottery.ReturnBatchStatus;
+import com.daiphat.coreapi.domain.model.enums.lottery.ReturnBatchType;
 import com.daiphat.coreapi.infrastructure.persistence.entity.lotteries.ReturnBatchEntity;
 import jakarta.persistence.criteria.JoinType;
 import jakarta.persistence.criteria.Predicate;
@@ -18,6 +19,7 @@ public final class ReturnBatchSpecification {
     public static Specification<ReturnBatchEntity> filter(
             Long lotterySupplierId,
             Long supplierSettlementId,
+            ReturnBatchType returnBatchType,
             ReturnBatchStatus status,
             LocalDate drawDateFrom,
             LocalDate drawDateTo,
@@ -33,6 +35,9 @@ public final class ReturnBatchSpecification {
             if (supplierSettlementId != null) {
                 predicates.add(cb.equal(root.get("supplierSettlementId"), supplierSettlementId));
             }
+            if (returnBatchType != null) {
+                predicates.add(cb.equal(root.get("returnBatchType"), returnBatchType));
+            }
             if (status != null) {
                 predicates.add(cb.equal(root.get("status"), status));
             }
@@ -46,6 +51,7 @@ public final class ReturnBatchSpecification {
                 var supplier = root.join("lotterySupplier", JoinType.LEFT);
                 String likePattern = "%" + search.trim().toLowerCase() + "%";
                 predicates.add(cb.or(
+                        cb.like(cb.lower(root.get("batchCode")), likePattern),
                         cb.like(cb.lower(supplier.get("name")), likePattern),
                         cb.like(cb.lower(supplier.get("code")), likePattern)
                 ));

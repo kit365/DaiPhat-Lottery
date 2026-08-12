@@ -3,9 +3,10 @@
 import { useEffect, useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuthStore } from "../../../stores/useAuthStore";
-import { authService } from "../../../admin/pages/authen/services/auth.service";
+import { authService } from "@/shared/auth/services/auth.service";
 import CloseIcon from '@mui/icons-material/Close';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
+import { VERIFY_MODAL_BACKGROUND } from '@/client/constants/clientBannerAssets';
 
 export const VerifyContent = () => {
     const { verificationToken, closeVerifyModal, openLoginModal } = useAuthStore();
@@ -44,7 +45,7 @@ export const VerifyContent = () => {
         <div
             className="flex flex-col w-full h-full min-h-[420px] relative transition-all duration-500"
             style={status === 'success' ? {
-                backgroundImage: "url('https://cdn.phototourl.com/free/2026-06-07-f0a1017f-11b8-4d6a-9e4c-f61136689c53.png')",
+                backgroundImage: `url('${VERIFY_MODAL_BACKGROUND}')`,
                 backgroundSize: 'cover',
                 backgroundPosition: 'center',
                 backgroundRepeat: 'no-repeat'

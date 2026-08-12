@@ -1,5 +1,6 @@
 package com.daiphat.coreapi.infrastructure.scheduler;
 
+import com.daiphat.coreapi.application.port.in.lotteries.SupplierSettlementServicePort;
 import com.daiphat.coreapi.application.service.lotteries.ReturnBatchAutoCancelService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -12,6 +13,7 @@ import org.springframework.stereotype.Component;
 public class ReturnBatchAutoCancelScheduler {
 
     private final ReturnBatchAutoCancelService returnBatchAutoCancelService;
+    private final SupplierSettlementServicePort supplierSettlementServicePort;
 
     @Scheduled(
             fixedRateString = "${daiphat.return-batch.auto-cancel-rate-ms:60000}",
@@ -21,6 +23,11 @@ public class ReturnBatchAutoCancelScheduler {
         int cancelledCount = returnBatchAutoCancelService.cancelExpiredOpenBatches();
         if (cancelledCount > 0) {
             log.info("Auto-cancelled {} return batch(es) past supplier cutoff", cancelledCount);
+        }
+
+        int expiredSettlementsCount = supplierSettlementServicePort.updateExpiredSettlements();
+        if (expiredSettlementsCount > 0) {
+            log.info("Cronjob: Marked {} supplier settlement(s) as isReturnExpired=true past returnCutOffTime", expiredSettlementsCount);
         }
     }
 }

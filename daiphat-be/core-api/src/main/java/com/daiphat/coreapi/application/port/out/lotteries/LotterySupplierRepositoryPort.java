@@ -23,5 +23,7 @@ public interface LotterySupplierRepositoryPort {
 
     List<LotterySupplierModel> findAllActive();
 
+    List<LotterySupplierModel> findAllNotDeleted();
+
     boolean existsActive();
 }

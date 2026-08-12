@@ -1,7 +1,9 @@
 package com.daiphat.coreapi.infrastructure.persistence.entity.streetagent;
 
 import com.daiphat.coreapi.domain.model.enums.streetagent.StreetAgentProfileStatus;
+import com.daiphat.coreapi.domain.model.enums.streetagent.VendorConfidenceTier;
 import com.daiphat.coreapi.infrastructure.persistence.entity.BaseEntity;
+import com.daiphat.coreapi.infrastructure.persistence.entity.user.UserEntity;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
@@ -21,6 +23,15 @@ public class StreetAgentProfileEntity extends BaseEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    /**
+     * Target business: required 1:1 with {@link UserEntity} ({@code unique + not null}).
+     * Phase 1 keeps the column optional so legacy rows / create-before-link still work;
+     * after backfill and create-flow wires {@code user_id}, tighten to {@code optional = false}.
+     */
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", unique = true)
+    private UserEntity user;
 
     @Column(name = "first_name", nullable = false, length = 100)
     private String firstName;
@@ -43,6 +54,9 @@ public class StreetAgentProfileEntity extends BaseEntity {
     @Column(name = "contact_province", length = 100)
     private String contactProvince;
 
+    @Column(name = "contact_ward", length = 100)
+    private String contactWard;
+
     @Column(name = "coverage_area", length = 255)
     private String coverageArea;
 
@@ -55,6 +69,27 @@ public class StreetAgentProfileEntity extends BaseEntity {
     @Column(name = "contract_end_date")
     private LocalDate contractEndDate;
 
+    @Column(name = "contract_code", length = 100)
+    private String contractCode;
+
+    @Column(name = "contract_document_url", length = 500)
+    private String contractDocumentUrl;
+
+    @Column(name = "contract_max_daily_cap")
+    private Integer contractMaxDailyCap;
+
+    @Column(name = "confidence_score", nullable = false, precision = 5, scale = 2)
+    @Builder.Default
+    private BigDecimal confidenceScore = new BigDecimal("25");
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "confidence_tier", nullable = false, length = 20)
+    @Builder.Default
+    private VendorConfidenceTier confidenceTier = VendorConfidenceTier.NEW;
+
+    @Column(name = "confidence_calculated_at")
+    private java.time.LocalDateTime confidenceCalculatedAt;
+
     @Column(name = "deposit_balance", nullable = false, precision = 15, scale = 0)
     @Builder.Default
     private BigDecimal depositBalance = BigDecimal.ZERO;
@@ -66,4 +101,14 @@ public class StreetAgentProfileEntity extends BaseEntity {
     @Column(nullable = false, length = 20)
     @Builder.Default
     private StreetAgentProfileStatus status = StreetAgentProfileStatus.ACTIVE;
+
+    public boolean hasContractInForce(LocalDate businessDate) {
+        return businessDate != null && contractCode != null && !contractCode.isBlank()
+                && contractStartDate != null && contractEndDate != null
+                && !businessDate.isBefore(contractStartDate) && !businessDate.isAfter(contractEndDate);
+    }
+
+    public boolean hasEffectiveContract(LocalDate businessDate) {
+        return hasContractInForce(businessDate) && contractMaxDailyCap != null && contractMaxDailyCap > 0;
+    }
 }

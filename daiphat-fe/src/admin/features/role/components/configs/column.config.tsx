@@ -1,11 +1,10 @@
-import type { ReactElement } from 'react';
-import { GridColDef, GridRenderCellParams, GridActionsCell, GridActionsCellItem } from '@mui/x-data-grid';
+import { GridColDef, GridRenderCellParams } from '@mui/x-data-grid';
 import Box from '@mui/material/Box';
 import Chip from '@mui/material/Chip';
-import EditIcon from '@mui/icons-material/Edit';
-import DeleteIcon from '@mui/icons-material/Delete';
 import Typography from '@mui/material/Typography';
 import Stack from '@mui/material/Stack';
+import { AdminRowActionsMenu } from '../../../../components/ui/AdminRowActionsMenu';
+
 export const getColumnsConfig = (
     onEdit: (id: string) => void,
     onDelete: (id: string) => void,
@@ -38,7 +37,7 @@ export const getColumnsConfig = (
                             px: 1,
                             py: 0.2,
                             fontSize: '0.6875rem',
-                            bgcolor: 'rgba(0, 167, 111, 0.16)',
+                            bgcolor: 'rgba(255, 48, 48, 0.16)',
                             color: 'rgb(0, 120, 103)',
                             borderRadius: "var(--shape-borderRadius-sm)",
                             fontWeight: 700,
@@ -76,7 +75,7 @@ export const getColumnsConfig = (
                     <Chip
                         label={isActive ? 'Hoạt động' : 'Tạm dừng'}
                         sx={{
-                            bgcolor: isActive ? 'rgba(0, 167, 111, 0.16)' : 'rgba(255, 86, 48, 0.16)',
+                            bgcolor: isActive ? 'rgba(255, 48, 48, 0.16)' : 'rgba(255, 86, 48, 0.16)',
                             color: isActive ? 'rgb(0, 120, 103)' : 'rgb(183, 29, 71)',
                             fontWeight: 700,
                             fontSize: '0.75rem',
@@ -96,62 +95,36 @@ export const getColumnsConfig = (
             disableColumnMenu: true,
             align: 'right',
             headerAlign: 'right',
-            renderCell: (params: GridRenderCellParams) => {
-                const items: ReactElement[] = [];
-
-                if (permissions.canEdit) {
-                    items.push(
-                        <GridActionsCellItem
-                            key="edit"
-                            icon={<EditIcon sx={{ fontSize: '1.25rem' }} />}
-                            label="Chỉnh sửa"
-                            onClick={() => onEdit(params.row._id)}
-                            showInMenu
-                            {...({
-                                sx: {
-                                    '& .MuiTypography-root': {
-                                        fontSize: '0.8125rem',
-                                        fontWeight: "600"
-                                    },
-                                },
-                            } as any)}
-                        />
-                    );
-                }
-
-                if (permissions.canDelete) {
-                    items.push(
-                        <GridActionsCellItem
-                            key="delete"
-                            icon={<DeleteIcon sx={{ fontSize: '1.25rem', color: 'var(--palette-error-main)' }} />}
-                            label="Xóa"
-                            onClick={() => onDelete(params.row._id)}
-                            showInMenu
-                            {...({
-                                sx: {
-                                    '& .MuiTypography-root': {
-                                        fontSize: '0.8125rem',
-                                        fontWeight: "600",
-                                        color: "var(--palette-error-main)"
-                                    },
-                                },
-                            } as any)}
-                        />
-                    );
-                }
-
-                return <GridActionsCell {...params}>{items}</GridActionsCell>;
-            },
-        },
+            renderCell: (params: GridRenderCellParams) => (
+                <AdminRowActionsMenu
+                    items={[
+                        ...(permissions.canEdit
+                            ? [
+                                  {
+                                      id: 'edit',
+                                      label: 'Chỉnh sửa',
+                                      icon: 'edit',
+                                      onClick: () => onEdit(params.row._id),
+                                  },
+                              ]
+                            : []),
+                        ...(permissions.canDelete
+                            ? [
+                                  {
+                                      id: 'delete',
+                                      label: 'Xóa',
+                                      icon: 'delete',
+                                      onClick: () => onDelete(params.row._id),
+                                      danger: true,
+                                  },
+                              ]
+                            : []),
+                    ]}
+                />
+            ),        },
     ];
 
-export const columnsInitialState = {
-    pagination: {
-        paginationModel: {
-            pageSize: 10,
-        },
-    },
-};
+export const columnsInitialState = {};
 
 
 

@@ -1,6 +1,6 @@
 import { Box, Typography, Tooltip, Stack, Divider } from "@mui/material";
-import { Icon } from '@iconify/react';
-import Chart from 'react-apexcharts';
+import { Icon } from '@/admin/components/ui/AdminIcon';
+import Chart from '@/components/ApexChartCompat';
 import DashboardCard from "./DashboardCard";
 import dayjs from 'dayjs';
 

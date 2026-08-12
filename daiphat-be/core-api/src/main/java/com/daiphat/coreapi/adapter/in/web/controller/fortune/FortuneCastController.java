@@ -31,7 +31,7 @@ public class FortuneCastController {
             @AuthenticationPrincipal AuthenticatedUserPrincipal principal,
             @Valid @RequestBody(required = false) CastFortuneRequest request
     ) {
-        CastFortuneRequest body = request != null ? request : new CastFortuneRequest(null);
+        CastFortuneRequest body = request != null ? request : new CastFortuneRequest(null, null, null);
         return ApiResponse.success(
                 "Fortune cast completed.",
                 fortuneCastServicePort.cast(principal.getId(), body)

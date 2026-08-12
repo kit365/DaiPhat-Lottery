@@ -1,11 +1,11 @@
-"use client";
+﻿"use client";
 
 import React, { lazy } from 'react';
 import { PermissionGuard } from '@/admin/components/auth/PermissionGuard';
 import { PERMISSIONS } from '@/admin/constants/permission.constants';
 
 const PrizePayoutCreatePage = lazy(() =>
-  import('@/admin/pages/prize-payout/PrizePayoutCreatePage').then((m) => ({
+  import('@/admin/features/prize-payout/components/pages/PrizePayoutCreatePage').then((m) => ({
     default: m.PrizePayoutCreatePage,
   }))
 );

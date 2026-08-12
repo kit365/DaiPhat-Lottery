@@ -1,10 +1,13 @@
 "use client";
 
+import { useRouter } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
+import Link from "next/link";
 import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
+import imageLoader from "@/utils/imageLoader";
 import { motion, AnimatePresence } from "framer-motion";
-import { Link, useNavigate, useLocation } from "react-router-dom";
-import { Search, User as UserIcon, Home, Crosshair, Ticket, CalendarDays, Gift, Bell, Wallet, ChevronDown, ShoppingCart, BookOpen, Trash2, Sparkles } from "lucide-react";
+import { Search, User as UserIcon, Home, Crosshair, Ticket, Bell, Wallet, ChevronDown, ShoppingCart, BookOpen, Trash2, Sparkles, CalendarDays } from "lucide-react";
 import { ROUTES } from "../../../admin/constants/routes";
 import { useAuthStore } from "../../../stores/useAuthStore";
 import { useCartStore } from "../../../stores/useCartStore";
@@ -19,14 +22,18 @@ import { useAuth } from "../../hooks/useAuth";
 import { useNotifications } from "../../hooks/useNotifications";
 import { Skeleton } from "../../../components/ui/Skeleton";
 import { AppToast as toast } from "../../../utils/toast.util";
+import { createNavBannerPrefetchHandlers } from "../../utils/prefetchImagesWhenIdle";
+import { CLIENT_LOGO, PROVINCE_ICON_FALLBACK } from "../../constants/clientBannerAssets";
+import { useSiteBranding } from "@/client/hooks/useSiteBranding";
+import { SiteLogo } from "@/client/components/layout/SiteLogo";
 
 const navItems = [
   { label: "Trang chủ", to: ROUTES.PUBLIC.HOME, icon: Home },
-  { label: "Mua vé số", to: "/buy-ticket", icon: Ticket },
+  { label: "Mua vé số", to: ROUTES.PUBLIC.TICKETS, icon: Ticket },
   { label: "Vé của tôi", to: "/profile/tickets", icon: Ticket },
   { label: "Gieo quẻ", to: ROUTES.PUBLIC.FORTUNE, icon: Sparkles },
-  { label: "Lịch mở thưởng", to: "/lich-mo-thuong", icon: CalendarDays },
-  { label: "Bài viết", to: "/blogs", icon: BookOpen },
+  { label: "Lịch mở thưởng", to: ROUTES.PUBLIC.SCHEDULE, icon: CalendarDays },
+  { label: "Bài viết", to: ROUTES.PUBLIC.BLOGS, icon: BookOpen },
 ];
 
 export const Header = () => {
@@ -36,6 +43,7 @@ export const Header = () => {
     isUserLoading,
     token
   } = useAuth();
+  const { name: siteName, slogan: siteSlogan } = useSiteBranding();
   
   const user = realUser;
   const { isProfileSetupModalOpen, openLoginModal, openProfileSetupModal } = useAuthStore();
@@ -43,8 +51,9 @@ export const Header = () => {
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const profileMenuRef = useRef<HTMLDivElement | null>(null);
-  const navigate = useNavigate();
-  const location = useLocation();
+  const router = useRouter();
+  const pathname = usePathname() ?? '';
+    const searchParamsForLocation = useSearchParams();
   const cartItems = useCartStore(state => state.items);
   const removeCartItem = useCartStore(state => state.removeItem);
   const { unreadCount } = useNotifications(4);
@@ -84,7 +93,7 @@ export const Header = () => {
 
   useEffect(() => {
     setIsProfileMenuOpen(false);
-  }, [location.pathname]);
+  }, [pathname]);
 
   const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
 
@@ -121,20 +130,34 @@ export const Header = () => {
           scrolled ? "h-auto lg:h-[68px]" : "h-auto lg:h-20"
         }`}>
           <div className="flex items-center justify-between w-full lg:w-auto shrink-0 group">
-            <Link to={ROUTES.PUBLIC.HOME} className="flex items-center gap-3 no-underline font-client-display" aria-label="DaiPhat home">
+            <Link href={ROUTES.PUBLIC.HOME} className="flex items-center gap-3 no-underline font-client-display" aria-label={`${siteName} home`}>
               <div className="relative p-[2px] bg-gradient-to-tr from-[#ee1314] to-[#F59E0B] rounded-xl shadow-md shadow-[#ee1314]/10 transition-transform duration-300 group-hover:scale-105">
-                <Image 
-                  src="https://i.ibb.co/4R7c75YN/z7824247008533-94446d3b6c16598cda67404d805c15c4.jpg" 
-                  alt="Đại Phát Logo"
-                  width={38}
-                  height={38}
-                  priority
-                  className="w-[38px] h-[38px] rounded-[10px] object-cover bg-white" 
+                <SiteLogo
+                  className="w-[38px] h-[38px] rounded-[10px]"
+                  imgClassName="w-full h-full rounded-[10px] object-cover bg-white"
+                  alt={siteName}
                 />
+                <div className="hidden">
+                  <Image 
+                    unoptimized
+                    src="https://i.ibb.co/YBYnq3HR/z7824247008533-94446d3b6c16598cda67404d805c15c4-removebg-preview.png" 
+                    alt="Đại Phát Logo"
+                    width={38}
+                    height={38}
+                    priority
+                    className="w-[38px] h-[38px] rounded-[10px] object-cover bg-white" 
+                  />
+                </div>
               </div>
               <div className="flex flex-col justify-center">
-                  <span className="text-[20px] tracking-tight font-client-display font-black text-[#ee1314] leading-none mb-1">ĐẠI PHÁT</span>
-                  <span className="text-[8.5px] font-bold text-[#F59E0B] leading-none uppercase tracking-wider whitespace-nowrap">Tài lộc - May mắn - Thịnh vượng</span>
+                  <span className="text-[20px] tracking-tight font-client-display font-black text-[#ee1314] leading-none mb-1">
+                    {siteName}
+                  </span>
+                  {siteSlogan ? (
+                    <span className="text-[8.5px] font-bold text-[#F59E0B] leading-none uppercase tracking-wider whitespace-nowrap">
+                      {siteSlogan}
+                    </span>
+                  ) : null}
               </div>
             </Link>
 
@@ -148,12 +171,13 @@ export const Header = () => {
           <div className="hidden lg:flex justify-center items-center gap-0.5 xl:gap-1.5 flex-1 min-w-0 overflow-x-auto scrollbar-none">
             {navItems.filter(item => item.to !== "/profile/tickets" || token).map((item) => {
               const Icon = item.icon;
-              const isActive = item.to === ROUTES.PUBLIC.HOME ? location.pathname === ROUTES.PUBLIC.HOME : location.pathname.startsWith(item.to) && item.to !== "#";
+              const isActive = item.to === ROUTES.PUBLIC.HOME ? pathname === ROUTES.PUBLIC.HOME : pathname.startsWith(item.to) && item.to !== "#";
               
               return (
                 <Link
                   key={item.label}
-                  to={item.to}
+                  href={item.to}
+                  {...createNavBannerPrefetchHandlers(item.to)}
                   className={`relative flex shrink-0 items-center gap-1.5 xl:gap-2 font-bold no-underline transition-all duration-300 px-2.5 xl:px-3.5 py-2 xl:py-2.5 rounded-2xl text-[12.5px] xl:text-[14px] tracking-tight font-client-display select-none whitespace-nowrap ${
                     isActive
                       ? "text-[#ee1314]" 
@@ -190,7 +214,8 @@ export const Header = () => {
                 <div className="flex items-center gap-1.5">
                   <div className="relative group">
                     <button 
-                      onClick={() => navigate('/cart')}
+                      onClick={() => router.push('/cart')}
+                      {...createNavBannerPrefetchHandlers('/cart')}
                       className="relative text-[#505050] hover:text-[#ee1314] hover:bg-[#FFF4F4]/50 transition-all p-2 rounded-full cursor-pointer"
                     >
                       <ShoppingCart size={21} strokeWidth={2} />
@@ -209,7 +234,7 @@ export const Header = () => {
                     <div className="absolute top-full right-0 mt-2 w-[370px] bg-white/95 backdrop-blur-xl rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.12)] border border-slate-100 opacity-0 invisible pointer-events-none translate-y-2 group-hover:opacity-100 group-hover:visible group-hover:pointer-events-auto group-hover:translate-y-0 transition-all duration-300 ease-out z-[1100] overflow-hidden">
                       <div className="p-4 flex items-center justify-between border-b border-[#E5E8EB]">
                         <h4 className={HEADER_DROPDOWN_TITLE_CLASS}>Giỏ hàng <span className="text-[#ee1314]">({cartItems.length})</span></h4>
-                        <span className={`${HEADER_DROPDOWN_ACTION_CLASS} cursor-pointer hover:text-[#ee1314]`} onClick={() => navigate('/cart')}>Xem giỏ hàng</span>
+                        <span className={`${HEADER_DROPDOWN_ACTION_CLASS} cursor-pointer hover:text-[#ee1314]`} onClick={() => router.push('/cart')}>Xem giỏ hàng</span>
                       </div>
                       <div className="max-h-[320px] overflow-y-auto p-2">
                         {(() => {
@@ -219,12 +244,12 @@ export const Header = () => {
                           return cartItems.map(item => (
                             <div key={item.id} className="relative flex gap-4 p-3 hover:bg-slate-50 rounded-xl transition-colors group/item border-b border-gray-100 last:border-0">
                               {/* Left: Icon */}
-                              <div className="w-11 h-11 shrink-0 rounded-full border border-[#E5E8EB] shadow-sm p-1.5 flex items-center justify-center bg-white cursor-pointer" onClick={() => navigate('/cart')}>
-                                <img src="https://i.ibb.co/XrKTHt8g/t-i-xu-ng.png" alt="Province" className="w-full h-full object-contain" />
+                              <div className="w-11 h-11 shrink-0 rounded-full border border-[#E5E8EB] shadow-sm p-1.5 flex items-center justify-center bg-white cursor-pointer" onClick={() => router.push('/cart')}>
+                                <img src={PROVINCE_ICON_FALLBACK} alt="Province" className="w-full h-full object-contain" />
                               </div>
                               
                               {/* Middle & Right: Content */}
-                              <div className="flex-1 min-w-0 flex flex-col justify-center cursor-pointer" onClick={() => navigate('/cart')}>
+                              <div className="flex-1 min-w-0 flex flex-col justify-center cursor-pointer" onClick={() => router.push('/cart')}>
                                 <div className="flex items-start justify-between mb-1">
                                     <div>
                                         <div className={`${HEADER_DROPDOWN_ITEM_TITLE_CLASS} truncate`}>{item.province}</div>
@@ -260,10 +285,10 @@ export const Header = () => {
                                   {cartItems.reduce((acc, item) => acc + item.price * item.quantity, 0).toLocaleString('vi-VN')} đ
                               </span>
                           </div>
-                          <button onClick={() => navigate('/cart')} className="w-full py-2.5 bg-[#ee1314] text-white text-[14px] font-bold rounded-xl hover:bg-[#cc0000] transition-colors flex items-center justify-center gap-2 cursor-pointer">
+                          <button onClick={() => router.push('/cart')} className="w-full py-2.5 bg-[#ee1314] text-white text-[14px] font-bold rounded-xl hover:bg-[#cc0000] transition-colors flex items-center justify-center gap-2 cursor-pointer">
                             <ShoppingCart size={18} /> Xem giỏ hàng
                           </button>
-                          <button onClick={() => navigate('/buy-ticket')} className="w-full py-2.5 bg-white text-[#212B36] border border-[#E5E8EB] text-[14px] font-bold rounded-xl hover:border-[#ee1314] hover:text-[#ee1314] transition-colors cursor-pointer">
+                          <button onClick={() => router.push(ROUTES.PUBLIC.TICKETS)} className="w-full py-2.5 bg-white text-[#212B36] border border-[#E5E8EB] text-[14px] font-bold rounded-xl hover:border-[#ee1314] hover:text-[#ee1314] transition-colors cursor-pointer">
                             Tiếp tục mua
                           </button>
                         </div>
@@ -273,7 +298,7 @@ export const Header = () => {
  
                   <div className="relative group">
                     <button 
-                      onClick={() => navigate('/profile/notifications')}
+                      onClick={() => router.push('/profile/notifications')}
                       className="relative text-[#505050] hover:text-[#ee1314] hover:bg-[#FFF4F4]/50 transition-all p-2 rounded-full cursor-pointer"
                     >
                       <Bell size={21} strokeWidth={2} />
@@ -326,15 +351,15 @@ export const Header = () => {
                     <div className="absolute -top-[6px] right-8 w-3 h-3 bg-white border-l border-t border-slate-100 rotate-45 pointer-events-none"></div>
                     
                     <div className="relative z-10">
-                        <Link to="/profile/overview" onClick={() => setIsProfileMenuOpen(false)} className="flex items-center gap-3 px-5 py-3 text-[14px] font-medium text-[#212B36] hover:bg-slate-50 hover:text-[#ee1314] transition-colors">
+                        <Link href="/profile/overview" onClick={() => setIsProfileMenuOpen(false)} className="flex items-center gap-3 px-5 py-3 text-[14px] font-medium text-[#212B36] hover:bg-slate-50 hover:text-[#ee1314] transition-colors">
                         <i className="fa-solid fa-layer-group text-[15px] text-[#637381] w-5 text-center"></i>
                         <span>Tổng Quan</span>
                         </Link>
-                        <Link to="/profile/info" onClick={() => setIsProfileMenuOpen(false)} className="flex items-center gap-3 px-5 py-3 text-[14px] font-medium text-[#212B36] hover:bg-slate-50 hover:text-[#ee1314] transition-colors">
+                        <Link href="/profile/info" onClick={() => setIsProfileMenuOpen(false)} className="flex items-center gap-3 px-5 py-3 text-[14px] font-medium text-[#212B36] hover:bg-slate-50 hover:text-[#ee1314] transition-colors">
                         <i className="fa-regular fa-user text-[15px] text-[#637381] w-5 text-center"></i>
                         <span>Tài Khoản</span>
                         </Link>
-                        <Link to="/profile/orders" onClick={() => setIsProfileMenuOpen(false)} className="flex items-center gap-3 px-5 py-3 text-[14px] font-medium text-[#212B36] hover:bg-slate-50 hover:text-[#ee1314] transition-colors">
+                        <Link href="/profile/orders" onClick={() => setIsProfileMenuOpen(false)} className="flex items-center gap-3 px-5 py-3 text-[14px] font-medium text-[#212B36] hover:bg-slate-50 hover:text-[#ee1314] transition-colors">
                         <i className="fa-solid fa-bag-shopping text-[15px] text-[#637381] w-5 text-center"></i>
                         <span>Đơn Hàng</span>
                         </Link>
@@ -350,7 +375,7 @@ export const Header = () => {
             ) : (
               <>
                 <button
-                  onClick={() => navigate('/login')}
+                  onClick={() => router.push('/login')}
                   className="relative overflow-hidden inline-flex items-center justify-center min-h-[44px] px-8 rounded-xl bg-gradient-to-r from-[#ee1314] to-[#f93c3d] text-white font-bold no-underline shadow-md shadow-[#ee1314]/20 transition-all duration-300 hover:shadow-lg hover:shadow-[#ee1314]/30 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] cursor-pointer text-[14.5px] font-client-display uppercase tracking-wider"
                   type="button"
                 >
@@ -402,7 +427,8 @@ export const Header = () => {
                       transition={{ delay: 0.1 + index * 0.05 }}
                     >
                       <Link
-                        to={item.to}
+                        href={item.to}
+                        {...createNavBannerPrefetchHandlers(item.to)}
                         className="mobile-nav-link"
                         onClick={() => setIsMenuOpen(false)}
                       >
@@ -449,7 +475,7 @@ export const Header = () => {
                         className="mobile-action-cta" // Using the CTA style for the single button
                         onClick={() => {
                           setIsMenuOpen(false);
-                          navigate('/login');
+                          router.push('/login');
                         }}
                       >
                         Đăng nhập
