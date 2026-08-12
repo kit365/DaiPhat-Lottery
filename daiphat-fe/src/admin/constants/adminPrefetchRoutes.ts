@@ -3,18 +3,6 @@
 import { ROUTES } from './routes';
 import { registerAdminPageChunkLoader } from '../lib/adminPagePrefetchRegistry';
 
-/**
- * Small, stable set of high-traffic destinations warmed after the admin shell
- * becomes idle. Keep this list intentionally short; sidebar hover handles the
- * remaining routes on demand.
- */
-export const ADMIN_PREFETCH_ROUTE_PRIORITY = [
-    ROUTES.ADMIN.DASHBOARD.ROOT,
-    ROUTES.ADMIN.TICKETS.LIST,
-    ROUTES.ADMIN.ORDERS.LIST,
-    ROUTES.ADMIN.IMPORT_BATCH.LIST,
-] as const;
-
 /** Map route → dynamic import chunk, dùng khi hover sidebar / sau login. */
 const registerAdminPageChunkLoaders = () => {
     const loaders: Array<[string, () => Promise<unknown>]> = [

@@ -433,7 +433,7 @@ export const StreetAgentCreatePage = () => {
                                     Hiệu lực: {profile?.contractStartDate ? profile.contractStartDate.split("-").reverse().join("/") : "—"} - {profile?.contractEndDate ? profile.contractEndDate.split("-").reverse().join("/") : "—"}
                                 </Typography>
                                 <Typography variant="body2" color="text.secondary">
-                                    Hạn mức: {profile?.contractMaxDailyCap != null ? profile.contractMaxDailyCap : "—"} vé/ngày
+                                    Giới hạn mỗi phiếu: {profile?.contractMaxDailyCap != null ? profile.contractMaxDailyCap : "—"} vé
                                 </Typography>
                                 <Button
                                     variant="contained"

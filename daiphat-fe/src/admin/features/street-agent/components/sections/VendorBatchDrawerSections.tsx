@@ -502,6 +502,8 @@ export const VendorBatchReturnEntrySection = ({
     onScanSubmit,
     onSubmitReturns,
     onSelectAllReturnable,
+    canConfirmNoReturn,
+    onConfirmNoReturn,
 }: {
     batch: VendorAllocationBatch;
     canEdit: boolean;
@@ -513,6 +515,8 @@ export const VendorBatchReturnEntrySection = ({
     onScanSubmit: () => void;
     onSubmitReturns: () => void;
     onSelectAllReturnable: () => void;
+    canConfirmNoReturn: boolean;
+    onConfirmNoReturn: () => void;
 }) => {
     const [searchFilter, setSearchFilter] = useState("");
     const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
@@ -633,6 +637,7 @@ export const VendorBatchReturnEntrySection = ({
                     Serial ({batch.serials?.length || 0})
                 </Typography>
             </Stack>
+
             <TextField
                 size="small"
                 fullWidth
@@ -742,6 +747,8 @@ export const VendorBatchReturnEntrySection = ({
                                                                                 : pendingInspection ? "Chờ kiểm nhận"
                                                                                 : rejected ? "Từ chối nhận"
                                                                                 : pendingSelected ? "Chờ gửi trả"
+                                                                                : s.allocationStatus === "HANDED_OVER" ? "Đang giữ"
+                                                                                : s.allocationStatus === "SOLD" ? "Đã bán"
                                                                                 : s.allocationStatus
                                                                         }
                                                                         color={
@@ -801,14 +808,24 @@ export const VendorBatchReturnEntrySection = ({
                         backdropFilter: "blur(8px)",
                     })}
                 >
-                    <Button
-                        fullWidth
-                        loading={isSubmittingReturns}
-                        label={`Gửi kiểm nhận (${selectedSerialIds.length})`}
-                        loadingLabel="Đang gửi..."
-                        disabled={selectedSerialIds.length === 0}
-                        onClick={onSubmitReturns}
-                    />
+                    {selectedSerialIds.length > 0 ? (
+                        <Button
+                            fullWidth
+                            loading={isSubmittingReturns}
+                            label={`Gửi kiểm nhận (${selectedSerialIds.length})`}
+                            loadingLabel="Đang gửi..."
+                            onClick={onSubmitReturns}
+                        />
+                    ) : canConfirmNoReturn ? (
+                        <Button
+                            fullWidth
+                            variant="contained"
+                            color="primary"
+                            loading={isSubmittingReturns}
+                            label="Xác nhận không có vé trả"
+                            onClick={onConfirmNoReturn}
+                        />
+                    ) : null}
                 </Box>
             )}
         </Stack>
@@ -944,11 +961,7 @@ export const VendorBatchInspectionSection = ({
 
     return (
         <Stack spacing={2}>
-            {unreturnedCount > 0 && (
-                <Alert severity="info" sx={{ py: 0.5 }}>
-                    Có {unreturnedCount} vé người bán vé số không trả. Số vé này sẽ được tính là ĐÃ BÁN khi quyết toán.
-                </Alert>
-            )}
+
 
             <Typography variant="body2" color="text.secondary">
                 Tick chọn vé nếu muốn <strong>từ chối nhận trả</strong>. Vé không bị tick sẽ được ngầm hiểu là <strong>chấp nhận</strong>.

@@ -24,11 +24,11 @@ export interface StreetAgentProfile {
     contractEndDate?: string;
     contractCode?: string;
     contractDocumentUrl?: string;
-    /** Trần ghi trong hợp đồng; chỉ đổi khi có phụ lục/hợp đồng mới. */
+    /** Trần ghi trong hợp đồng cho mỗi phiếu bàn giao; chỉ đổi khi có phụ lục/hợp đồng mới. */
     contractMaxDailyCap?: number;
-    /** Hạn mức áp dụng sau khi nhân hệ số tier tin cậy trên trần hợp đồng. */
+    /** Giới hạn áp dụng cho một phiếu đang mở sau khi nhân hệ số tier tin cậy. */
     effectiveDailyCap?: number;
-    /** Hạn mức còn lại của ngày kinh doanh đang được xem. */
+    /** Phần còn có thể thêm vào phiếu đang mở của ngày kinh doanh được xem. */
     remainingDailyCap?: number;
     confidenceScore?: number;
     confidenceTier?: VendorConfidenceTier;
@@ -159,6 +159,7 @@ export interface VendorAllocationReasonDetail {
     eligibleQuantity?: number | null;
     reserveQuantity?: number | null;
     vendorCapacity?: number | null;
+    /** Legacy API name; capacity still available to add to the current open handover. */
     remainingDailyCap?: number | null;
     requestedQuantity?: number | null;
 }
@@ -169,6 +170,7 @@ export interface VendorAllocationSuggestion {
     /** Present only when inventory has multiple denominations for the business date. */
     availableFaceValues?: number[];
     requestedQuantity: number;
+    /** Legacy API name; capacity still available to add to the current open handover. */
     remainingDailyCap: number;
     capLimitedQuantity: number;
     totalVendorCapacity: number;
@@ -219,6 +221,7 @@ export interface VendorAllocationBatchDetailRow {
 }
 
 export type VendorAllocationReturnWorkflowStage =
+    | "READY_FOR_RETURN"
     | "RETURN_ENTRY"
     | "INSPECTION"
     | "READY_FOR_SETTLEMENT"
@@ -236,8 +239,13 @@ export interface VendorAllocationReturnWorkflow {
     unreturnedQuantity: number;
     canEditReturns: boolean;
     canConfirmInspection: boolean;
+    canConfirmNoReturn: boolean;
     canPreviewSettlement: boolean;
     canSettle: boolean;
+}
+
+export interface ConfirmVendorNoReturnPayload {
+    note?: string;
 }
 
 export interface VendorAllocationBatch {

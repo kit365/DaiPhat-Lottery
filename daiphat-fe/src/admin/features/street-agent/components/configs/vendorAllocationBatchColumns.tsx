@@ -32,6 +32,7 @@ const getProfileLabel = (profile?: StreetAgentProfile | null) => {
 
 const workflowStageLabel = (stage: string) => {
     switch (stage) {
+        case "READY_FOR_RETURN": return "Sẵn sàng nhận vé trả";
         case "RETURN_ENTRY": return "Đang nhập vé trả";
         case "INSPECTION": return "Đang kiểm nhận";
         case "READY_FOR_SETTLEMENT": return "Chờ quyết toán";
