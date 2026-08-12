@@ -42,6 +42,7 @@ import {
     formatCommission,
     formatConfidencePoints,
     formatDate,
+    formatVendorHandoverLimit,
     formatVnd,
 } from "../../utils/format";
 
@@ -265,8 +266,8 @@ export const StreetAgentDetailPage = () => {
                             <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)" }, gap: 3 }}>
                                 <InfoItem label="Ngày bắt đầu hợp đồng" value={formatDate(profile.contractStartDate)} />
                                 <InfoItem label="Ngày kết thúc hợp đồng" value={formatDate(profile.contractEndDate)} />
-                                <InfoItem label="Hạn mức theo hợp đồng" value={profile.contractMaxDailyCap != null ? `${profile.contractMaxDailyCap} vé/ngày` : "—"} />
-                                <InfoItem label="Hạn mức giao thực tế" value={profile.effectiveDailyCap != null ? `${profile.effectiveDailyCap} vé/ngày` : "—"} />
+                                <InfoItem label="Giới hạn tối đa mỗi phiếu bàn giao" value={formatVendorHandoverLimit(profile.contractMaxDailyCap)} />
+                                <InfoItem label="Giới hạn giao hiện tại" value={formatVendorHandoverLimit(profile.effectiveDailyCap)} />
                                 <Box sx={{ gridColumn: { sm: "1 / -1" } }}>
                                     <InfoItem label="Khu vực bán" value={formatCoverageAreaDisplay(profile.coverageArea)} />
                                 </Box>

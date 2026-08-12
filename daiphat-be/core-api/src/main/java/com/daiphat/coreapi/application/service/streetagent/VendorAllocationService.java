@@ -4,6 +4,7 @@ import com.daiphat.coreapi.application.dto.request.streetagent.CreateVendorAlloc
 import com.daiphat.coreapi.application.dto.request.streetagent.ConfirmVendorAllocationRequest;
 import com.daiphat.coreapi.application.dto.request.streetagent.ReturnVendorAllocationSerialsRequest;
 import com.daiphat.coreapi.application.dto.request.streetagent.ConfirmVendorReturnInspectionRequest;
+import com.daiphat.coreapi.application.dto.request.streetagent.ConfirmVendorNoReturnRequest;
 import com.daiphat.coreapi.application.dto.request.streetagent.RejectedVendorReturnSerialRequest;
 import com.daiphat.coreapi.application.dto.request.streetagent.SettleVendorAllocationRequest;
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
@@ -497,6 +498,37 @@ public class VendorAllocationService implements VendorAllocationServicePort {
         return batchResponse(vendorAllocationRepositoryPort.save(batch), remaining(batch), null, null);
     }
 
+    @Override @Transactional
+    public VendorAllocationBatchResponse confirmNoReturnedTickets(
+            Long id, ConfirmVendorNoReturnRequest request, UUID operatorId) {
+        VendorAllocationBatchModel batch = vendorAllocationRepositoryPort.findByIdForUpdate(id)
+                .orElseThrow(() -> new DomainException(ErrorCode.VENDOR_ALLOCATION_NOT_FOUND));
+        if (returnBatchRepositoryPort == null) {
+            batch.confirmNoReturnedTickets();
+            return batchResponse(vendorAllocationRepositoryPort.save(batch), remaining(batch), null, null);
+        }
+        ReturnBatchModel receipt = requireStreetAgentReturnBatch(batch);
+        if (receipt.getStatus() != ReturnBatchStatus.PENDING_INSPECTION
+                && receipt.getStatus() != ReturnBatchStatus.INSPECTING) {
+            throw new DomainException(ErrorCode.VENDOR_ALLOCATION_INVALID_STATE);
+        }
+        batch.confirmNoReturnedTickets();
+        LocalDateTime confirmedAt = now();
+        receipt.setStatus(ReturnBatchStatus.RECEIVED);
+        receipt.setConfirmedAt(confirmedAt);
+        receipt.setReturnedAt(confirmedAt);
+        receipt.setReturnedBy(operatorId);
+        if (request != null && !blank(request.note())) {
+            receipt.setNote(request.note().trim());
+        } else {
+            receipt.setNote("Người bán vé số không trả vé; toàn bộ vé còn giữ tính là đã bán.");
+        }
+        refreshStreetAgentReturnLines(receipt, batch);
+        returnBatchRepositoryPort.save(receipt);
+        saveSerialsAndSync(batch.getSerials());
+        return batchResponse(vendorAllocationRepositoryPort.save(batch), remaining(batch), null, null);
+    }
+
     @Override @Transactional(readOnly = true)
     public VendorSettlementPreviewResponse previewSettlement(Long id) {
         VendorAllocationBatchModel batch = batch(id);
@@ -888,6 +920,7 @@ public class VendorAllocationService implements VendorAllocationServicePort {
         String stage = settled ? "SETTLED"
                 : receiptStatus == ReturnBatchStatus.RECEIVED ? "READY_FOR_SETTLEMENT"
                 : receiptStatus == ReturnBatchStatus.INSPECTING ? "INSPECTION"
+                : batch.getStatus() == AllocationBatchStatus.CONFIRMED ? "READY_FOR_RETURN"
                 : "RETURN_ENTRY";
         boolean editable = batch.getStatus() == AllocationBatchStatus.RETURN_OPEN
                 && (receiptStatus == ReturnBatchStatus.PENDING_INSPECTION || receiptStatus == ReturnBatchStatus.INSPECTING);
@@ -901,9 +934,15 @@ public class VendorAllocationService implements VendorAllocationServicePort {
                 pending,
                 accepted,
                 rejected,
-                handedOver,
+                // A rejected return is not accepted back into inventory and is therefore
+                // still counted as vendor-held/sold for the workflow summary.
+                handedOver + rejected,
                 editable,
                 receiptStatus == ReturnBatchStatus.INSPECTING && pending > 0,
+                batch.getStatus() == AllocationBatchStatus.RETURN_OPEN
+                        && (receiptStatus == ReturnBatchStatus.PENDING_INSPECTION
+                        || receiptStatus == ReturnBatchStatus.INSPECTING)
+                        && pending == 0 && handedOver > 0 && accepted == 0 && rejected == 0,
                 readyForSettlement,
                 readyForSettlement);
     }

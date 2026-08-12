@@ -8,6 +8,15 @@ export const formatVnd = (value?: number | null) => {
     return `${new Intl.NumberFormat("vi-VN").format(value)}đ`;
 };
 
+/**
+ * Operator-facing unit for vendor allocation limits. The API still exposes
+ * legacy `*DailyCap` keys, but the rule limits one open handover only.
+ */
+export const formatVendorHandoverLimit = (value?: number | null) => {
+    if (value == null) return "—";
+    return `${new Intl.NumberFormat("vi-VN").format(value)} vé/phiếu`;
+};
+
 export const formatConfidencePoints = (score?: number | null, tier?: string | null) => {
     if (score == null && !tier) return "—";
     const points =
