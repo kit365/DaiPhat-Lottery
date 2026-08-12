@@ -45,10 +45,11 @@ spring:
             enable: true
 
 daiphat:
-  # Placeholder Cloudinary keys (CLOUDINARY_CLOUD_NAME=local-cloud) cannot upload;
-  # use filesystem storage for local Import Batch receipt / ticket image flows.
+  # Local runs use the same Cloudinary storage as production by default so uploaded
+  # contracts and other files are not left in the working tree. Override with
+  # STORAGE_PROVIDER=local only when filesystem storage is intentionally needed.
   storage:
-    provider: local
+    provider: ${STORAGE_PROVIDER:cloudinary}
   vendor:
     test-seed:
       enabled: ${VENDOR_TEST_SEED_ENABLED:true}

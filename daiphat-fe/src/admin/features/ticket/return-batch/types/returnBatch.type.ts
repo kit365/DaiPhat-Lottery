@@ -38,7 +38,7 @@ export interface ReturnBatch {
     drawDate: string;
     supplierSettlementId?: number | null;
     returnReceiptUrl?: string | null;
-    returnReceiptEvidenceUrl?: string | null;
+    returnEvidenceUrl?: string | null;
     totalQuantity: number;
     totalReturnValue: number;
     returnedBy?: string | null;
@@ -112,12 +112,12 @@ export interface ConfirmReturnInspectionPayload {
     deliveryMode: ReturnDeliveryMode;
     serialIds: number[];
     returnReceiptUrl?: string | null;
-    note?: string | null;
-    returnEvidenceUrl?: string | null;
 }
 
 export interface ConfirmReturnHandoverPayload {
     returnReceiptUrl?: string | null;
+    /** Required Cloudinary/storage URL after successful upload. */
+    returnEvidenceUrl: string;
     note?: string | null;
 }
 

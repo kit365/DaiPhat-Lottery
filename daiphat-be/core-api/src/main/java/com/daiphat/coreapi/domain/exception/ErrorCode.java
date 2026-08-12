@@ -136,7 +136,6 @@ public enum ErrorCode {
     PRIZE_PAYOUT_ALREADY_REQUESTED("ORD_042", "Vé đã có yêu cầu trả thưởng hoặc đã được trả.", HttpStatus.BAD_REQUEST),
     PRIZE_PAYOUT_BANK_ACCOUNT_MISMATCH("ORD_043", "Tài khoản ngân hàng không thuộc khách hàng.", HttpStatus.BAD_REQUEST),
     PRIZE_PAYOUT_CODE_GENERATION_FAILED("ORD_044", "Không thể tạo mã yêu cầu trả thưởng.", HttpStatus.INTERNAL_SERVER_ERROR),
-    PRIZE_PAYOUT_BANK_NAME_MISMATCH("ORD_045", "Tên chủ tài khoản ngân hàng không khớp tên khách hàng.", HttpStatus.BAD_REQUEST),
     PRIZE_PAYOUT_BLOCKS_PICKUP("ORD_046", "Vé đang có yêu cầu trả thưởng — không thể nhận vé vật lý.", HttpStatus.BAD_REQUEST),
     PRIZE_PAYOUT_REQUIRES_IN_PERSON("ORD_047", "Vé này bắt buộc đổi thưởng trực tiếp tại đại lý.", HttpStatus.BAD_REQUEST),
     PRIZE_PAYOUT_FOUR_EYES_REQUIRED("ORD_048", "Giao dịch từ ngưỡng thuế trở lên cần nhân viên khác xác nhận trả thưởng.", HttpStatus.BAD_REQUEST),
@@ -494,6 +493,22 @@ public enum ErrorCode {
     VENDOR_SETTLEMENT_PREVIEW_STALE(
             "SAG_029",
             "Bản tính quyết toán đã thay đổi. Vui lòng tải lại trước khi xác nhận.",
+            HttpStatus.CONFLICT),
+    VENDOR_ALLOCATION_RETURN_CUTOFF_REACHED(
+            "SAG_030",
+            "Đã qua giờ chốt bàn giao vé trong ngày.",
+            HttpStatus.CONFLICT),
+    VENDOR_ALLOCATION_BUSINESS_DATE_PASSED(
+            "SAG_031",
+            "Ngày kinh doanh đã qua, không thể tạo hoặc xác nhận bàn giao vé.",
+            HttpStatus.CONFLICT),
+    VENDOR_ALLOCATION_OPERATIONAL_DEADLINE_REACHED(
+            "SAG_032",
+            "Đã qua thời điểm cuối có thể bàn giao vé sau khi tính giờ chốt và thời gian chuẩn bị trả vé.",
+            HttpStatus.CONFLICT),
+    VENDOR_ALLOCATION_SUPPLIER_RETURN_CUTOFF_MISSING(
+            "SAG_033",
+            "Chưa cấu hình giờ Đại Phát cần nhận lại vé cho một hoặc nhiều vé đã chọn, nên không thể xác nhận bàn giao.",
             HttpStatus.CONFLICT),
 
     // Support Ticket Errors

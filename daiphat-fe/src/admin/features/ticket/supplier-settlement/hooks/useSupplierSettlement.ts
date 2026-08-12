@@ -1,13 +1,30 @@
 "use client";
 
 import { useMemo, useState } from 'react';
-import { keepPreviousData, useQuery } from '@tanstack/react-query';
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
+    completeSettlementReconciliation,
+    confirmSettlementMatching,
     getSupplierSettlementById,
     getSupplierSettlementOverview,
     getSupplierSettlements,
+    listImportResolvableTickets,
+    listMissingReturnTickets,
+    recalculateSettlementReconciliation,
+    resolveImportDiscrepancy,
+    resolveReturnDiscrepancy,
+    resolveUnitPriceDiscrepancy,
+    addSettlementMonetaryAdjustment,
 } from '../services/supplierSettlementService';
-import type { SupplierSettlementListParams, SupplierSettlementStatus } from '../types/supplierSettlement.type';
+import type {
+    ConfirmSettlementMatchingPayload,
+    ResolveImportDiscrepancyPayload,
+    ResolveReturnDiscrepancyPayload,
+    ResolveUnitPriceDiscrepancyPayload,
+    AddSettlementMonetaryAdjustmentPayload,
+    SupplierSettlementListParams,
+    SupplierSettlementStatus,
+} from '../types/supplierSettlement.type';
 import { QUERY_KEYS } from '../constants/queryKeys';
 import { useServerPagination } from '../../../../shared/data-grid/useServerPagination';
 
@@ -40,6 +57,87 @@ export const useSupplierSettlementOverview = (id?: string | number) => {
         select: (res: any) => res.data ?? null,
         staleTime: 0,
         refetchOnMount: 'always',
+    });
+};
+
+const invalidateSettlement = (queryClient: ReturnType<typeof useQueryClient>, id?: string | number) => {
+    queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.SUPPLIER_SETTLEMENT_OVERVIEW, String(id)] });
+    queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.SUPPLIER_SETTLEMENT_DETAIL, id] });
+    queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.SUPPLIER_SETTLEMENTS] });
+};
+
+export const useConfirmSettlementMatching = (id?: string | number) => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: (payload: ConfirmSettlementMatchingPayload) => confirmSettlementMatching(id!, payload),
+        onSuccess: () => invalidateSettlement(queryClient, id),
+    });
+};
+
+export const useMissingReturnTickets = (id?: string | number, enabled = false) => {
+    return useQuery({
+        queryKey: [QUERY_KEYS.SUPPLIER_SETTLEMENT_OVERVIEW, id, 'missing-return'],
+        queryFn: () => listMissingReturnTickets(id!),
+        enabled: !!id && enabled,
+        select: (res: any) => res.data ?? [],
+    });
+};
+
+export const useImportResolvableTickets = (id?: string | number, enabled = false) => {
+    return useQuery({
+        queryKey: [QUERY_KEYS.SUPPLIER_SETTLEMENT_OVERVIEW, id, 'import-resolvable'],
+        queryFn: () => listImportResolvableTickets(id!),
+        enabled: !!id && enabled,
+        select: (res: any) => res.data ?? [],
+    });
+};
+
+export const useResolveImportDiscrepancy = (id?: string | number) => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: (payload: ResolveImportDiscrepancyPayload) => resolveImportDiscrepancy(id!, payload),
+        onSuccess: () => invalidateSettlement(queryClient, id),
+    });
+};
+
+export const useResolveReturnDiscrepancy = (id?: string | number) => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: (payload: ResolveReturnDiscrepancyPayload) => resolveReturnDiscrepancy(id!, payload),
+        onSuccess: () => invalidateSettlement(queryClient, id),
+    });
+};
+
+export const useResolveUnitPriceDiscrepancy = (id?: string | number) => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: (payload: ResolveUnitPriceDiscrepancyPayload) => resolveUnitPriceDiscrepancy(id!, payload),
+        onSuccess: () => invalidateSettlement(queryClient, id),
+    });
+};
+
+export const useAddSettlementMonetaryAdjustment = (id?: string | number) => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: (payload: AddSettlementMonetaryAdjustmentPayload) =>
+            addSettlementMonetaryAdjustment(id!, payload),
+        onSuccess: () => invalidateSettlement(queryClient, id),
+    });
+};
+
+export const useRecalculateSettlementReconciliation = (id?: string | number) => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: () => recalculateSettlementReconciliation(id!),
+        onSuccess: () => invalidateSettlement(queryClient, id),
+    });
+};
+
+export const useCompleteSettlementReconciliation = (id?: string | number) => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: (note?: string) => completeSettlementReconciliation(id!, note),
+        onSuccess: () => invalidateSettlement(queryClient, id),
     });
 };
 

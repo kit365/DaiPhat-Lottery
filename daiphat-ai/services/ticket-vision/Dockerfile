@@ -39,4 +39,4 @@ EXPOSE 8090
 HEALTHCHECK --interval=20s --timeout=5s --start-period=30s --retries=5 \
     CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8090/health', timeout=3)" || exit 1
 
-CMD ["uvicorn", "app.main:app", "--app-dir", "services/ticket-vision", "--host", "0.0.0.0", "--port", "8090"]
+CMD ["uvicorn", "main:app", "--app-dir", "services/ticket-vision", "--host", "0.0.0.0", "--port", "8090"]

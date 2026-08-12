@@ -148,7 +148,7 @@ export const PrizePayoutRequestModal: React.FC<PrizePayoutRequestModalProps> = (
                             )}
                         </div>
                         <p className="text-[12px] text-[#919EAB] m-0">
-                            Tên chủ tài khoản ngân hàng phải khớp tên khách hàng. Yêu cầu vẫn cần nhân viên duyệt trước khi chuyển tiền.
+                            Yêu cầu vẫn cần nhân viên duyệt trước khi chuyển tiền.
                         </p>
                         <button
                             type="button"

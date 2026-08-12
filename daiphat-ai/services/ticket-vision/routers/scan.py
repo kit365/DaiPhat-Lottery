@@ -21,14 +21,19 @@ def get_ticket_scan_service() -> TicketScanService:
 
     A fresh service instance is built per request (cheap: it just wires
     strategy objects together), but the strategies it wires -- the OCR
-    readers in particular -- are process-wide singletons created once in
-    domain/ocr/factory.py and lazily load their models on first use.
+    readers and the YOLO detector in particular -- are process-wide
+    singletons created once in domain/ocr/factory.py and
+    domain/detection/factory.py, and lazily load their models on first use.
+
+    The detector is passed as a *provider* rather than an instance because
+    ScanMetadata can override the strategy per request; the factory is only
+    called once the request's metadata has been parsed.
 
     Overridable per-test via `app.dependency_overrides[get_ticket_scan_service]`
     to inject a fake service without touching OpenCV/OCR at all.
     """
     return TicketScanService(
-        detector=TicketDetectorFactory.create(),
+        detector_provider=TicketDetectorFactory.create,
         ocr_strategy=OcrStrategyFactory.create(),
         validator=_validator,
         max_file_size_mb=settings.TICKET_VISION_MAX_FILE_SIZE_MB,

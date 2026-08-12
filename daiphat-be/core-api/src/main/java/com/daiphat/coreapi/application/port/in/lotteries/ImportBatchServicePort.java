@@ -29,6 +29,12 @@ public interface ImportBatchServicePort {
 
     ImportBatchResponse update(Long id, UpdateImportBatchRequest request);
 
+    /**
+     * Attach invoice evidence URL when the batch currently has none.
+     * Works for completed/imported batches (settlement reconciliation fill-in).
+     */
+    ImportBatchResponse attachInvoiceEvidence(Long id, String invoiceEvidenceUrl);
+
     Optional<ImportBatchResponse> getActiveDraft(UUID operatorId);
 
     List<ImportBatchResponse> getIncompleteBatches();

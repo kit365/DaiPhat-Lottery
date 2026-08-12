@@ -88,7 +88,7 @@ export const menuManagementData = [
         permission: PERMISSIONS.SUPPLIER.VIEW,
         children: [
             { id: "supplier", label: "Danh sách", path: ROUTES.ADMIN.SUPPLIER.LIST, permission: PERMISSIONS.SUPPLIER.VIEW },
-            { id: "supplier-settlement", label: "Đối soát", path: ROUTES.ADMIN.SUPPLIER_SETTLEMENT.LIST, permission: PERMISSIONS.IMPORT_BATCH.VIEW },
+            { id: "supplier-settlement", label: "Đối soát", path: ROUTES.ADMIN.SUPPLIER_SETTLEMENT.LIST, permission: PERMISSIONS.IMPORT_BATCH.VIEW, badge: 'supplier-settlement-attention' },
             { id: "return-batch", label: "Trả vé", path: ROUTES.ADMIN.RETURN_BATCH.LIST, permission: PERMISSIONS.IMPORT_BATCH.VIEW, badge: 'return-batch-pending' },
         ],
     },
@@ -112,8 +112,8 @@ export const menuManagementData = [
         Icon: ArticleIcon,
         permission: PERMISSIONS.ORDER.VIEW,
         children: [
-            { id: "list", label: "Danh sách đơn", path: ROUTES.ADMIN.ORDERS.LIST, permission: PERMISSIONS.ORDER.VIEW },
-            { id: "create-counter", label: "Đơn tại quầy", path: ROUTES.ADMIN.ORDERS.CREATE_COUNTER, permission: PERMISSIONS.ORDER.CREATE },
+            { id: "list", label: "Danh sách đơn", path: ROUTES.ADMIN.ORDERS.LIST, permission: PERMISSIONS.ORDER.VIEW, badge: 'orders-online-preparing' },
+            { id: "create-counter", label: "Đơn tại quầy", path: ROUTES.ADMIN.ORDERS.CREATE_COUNTER, permission: PERMISSIONS.ORDER.CREATE, badge: 'orders-direct-preparing' },
         ]
     },
     {

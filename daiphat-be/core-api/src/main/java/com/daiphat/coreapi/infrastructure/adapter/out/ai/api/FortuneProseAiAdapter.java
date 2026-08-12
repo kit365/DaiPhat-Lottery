@@ -2,7 +2,7 @@ package com.daiphat.coreapi.infrastructure.adapter.out.ai.api;
 
 import com.daiphat.coreapi.application.dto.request.fortune.FortuneProseAiRequest;
 import com.daiphat.coreapi.application.port.out.ai.FortuneProsePort;
-import com.daiphat.coreapi.infrastructure.dto.response.AiRemoteApiResponse;
+import com.daiphat.coreapi.infrastructure.dto.response.ai.AiRemoteApiResponse;
 import com.daiphat.coreapi.shared.util.UrlUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;

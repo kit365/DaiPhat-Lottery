@@ -8,7 +8,7 @@ import {
 import { hasInvoiceEvidence } from '../utils/invoiceEvidence';
 import { isDrawDateWithinAllowedRange } from '../utils/importBatchDrawDate';
 
-/** URL đã upload hoặc File local — upload khi bấm xác nhận/lưu. */
+/** Prefer uploaded URL; File still allowed on update forms that upload at save time. */
 const invoiceEvidenceSchema = z.union([z.string(), z.instanceof(File)]).nullish();
 
 const importBatchLineSchema = z.object({
@@ -60,7 +60,6 @@ export const createImportBatchSchema = z
         }
 
         const stationIds = new Set<number>();
-        let requiresInvoice = false;
 
         data.lines.forEach((line, index) => {
             if (stationIds.has(line.lotteryStationId)) {
@@ -71,14 +70,9 @@ export const createImportBatchSchema = z
                 });
             }
             stationIds.add(line.lotteryStationId);
-
-            const type = line.resolvedBatchType as ImportBatchType | undefined;
-            if (data.importMode === 'IN_DAY' && type === 'NEW') {
-                requiresInvoice = true;
-            }
         });
 
-        if (data.importMode === 'IN_DAY' && requiresInvoice && !hasInvoiceEvidence(data.invoiceEvidenceUrl)) {
+        if (data.importMode === 'IN_DAY' && !hasInvoiceEvidence(data.invoiceEvidenceUrl)) {
             ctx.addIssue({
                 code: z.ZodIssueCode.custom,
                 message: 'Vui lòng chọn ảnh biên lai.',

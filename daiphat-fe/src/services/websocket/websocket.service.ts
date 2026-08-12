@@ -219,6 +219,8 @@ class WebSocketService {
 
     private createClient(token: string): Client {
         return new Client({
+            // Longer delay reduces Next.js proxy ECONNREFUSED spam when core-api is down,
+            // which otherwise forces repeated /_error compiles and corrupt .next manifests.
             reconnectDelay: RECONNECT_DELAY_MS,
             heartbeatIncoming: HEARTBEAT_MS,
             heartbeatOutgoing: HEARTBEAT_MS,
@@ -227,7 +229,11 @@ class WebSocketService {
             },
             webSocketFactory: () => {
                 const endpoint = this.resolveEndpoint();
-                return new SockJS(`${endpoint}?token=${token}`);
+                return new SockJS(`${endpoint}?token=${token}`, undefined, {
+                    // Fewer transport fallbacks = fewer failed /ws/info polls through the Next proxy.
+                    transports: ['websocket', 'xhr-streaming', 'xhr-polling'],
+                    timeout: 10000,
+                });
             },
             debug: () => undefined,
         });

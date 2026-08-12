@@ -32,6 +32,7 @@ import { formatDate } from "../../utils/format";
 import { ALLOCATION_BATCH_STATUS_LABELS } from "../configs/constants";
 import {
     useConfirmVendorReturnInspection,
+    useConfirmVendorNoReturn,
     useOpenVendorAllocationReturnSession,
     useRemoveVendorAllocationReturnSerial,
     useReturnVendorAllocationSerials,
@@ -72,6 +73,7 @@ export const VendorAllocationBatchDetailPage = () => {
     const [rejectedSerialIds, setRejectedSerialIds] = useState<number[]>([]);
     const [rejectionReasons, setRejectionReasons] = useState<Record<number, string>>({});
     const [inspectionConfirmOpen, setInspectionConfirmOpen] = useState(false);
+    const [noReturnConfirmOpen, setNoReturnConfirmOpen] = useState(false);
     const [settleConfirmOpen, setSettleConfirmOpen] = useState(false);
     const [previewEnabled, setPreviewEnabled] = useState(false);
 
@@ -103,6 +105,7 @@ export const VendorAllocationBatchDetailPage = () => {
     const { mutate: submitReturns, isPending: isSubmittingReturns } = useReturnVendorAllocationSerials();
     const { mutate: removeReturn, isPending: isRemovingReturn } = useRemoveVendorAllocationReturnSerial();
     const { mutate: confirmInspection, isPending: isConfirmingInspection } = useConfirmVendorReturnInspection();
+    const { mutate: confirmNoReturn, isPending: isConfirmingNoReturn } = useConfirmVendorNoReturn();
     const { mutate: settleBatch, isPending: isSettling } = useSettleVendorAllocation();
 
     useEffect(() => {
@@ -117,6 +120,21 @@ export const VendorAllocationBatchDetailPage = () => {
                 refetchBatch();
             },
             onError: (error: any) => toast.error(getApiErrorMessage(error, "Mở phiên trả thất bại")),
+        });
+    };
+
+    const handleConfirmNoReturn = () => {
+        if (!detailId) return;
+        confirmNoReturn({
+            id: detailId,
+            data: { note: "Người bán vé số không trả vé; toàn bộ vé còn giữ tính là đã bán." },
+        }, {
+            onSuccess: (response) => {
+                toast.success(response.message || "Đã xác nhận không có vé trả.");
+                setNoReturnConfirmOpen(false);
+                refetchBatch();
+            },
+            onError: (error: any) => toast.error(getApiErrorMessage(error, "Không thể xác nhận không có vé trả")),
         });
     };
 
@@ -168,10 +186,6 @@ export const VendorAllocationBatchDetailPage = () => {
     };
 
     const openInspectionConfirmation = () => {
-        if (pendingInspectionCount === 0) {
-            toast.info("Không có serial nào chờ kiểm nhận.");
-            return;
-        }
         const missingReason = rejectedSerialIds.some((id) => !rejectionReasons[id]?.trim());
         if (missingReason) {
             toast.error("Mỗi vé từ chối cần có lý do.");
@@ -294,6 +308,8 @@ export const VendorAllocationBatchDetailPage = () => {
                                             onScanSubmit={handleScanSubmit}
                                             onSubmitReturns={handleSubmitReturns}
                                             onSelectAllReturnable={() => setSelectedSerialIds((batch.serials || []).filter((serial) => serial.allocationStatus === "HANDED_OVER").map((serial) => serial.serialId))}
+                                            canConfirmNoReturn={Boolean(batch.returnWorkflow?.canConfirmNoReturn)}
+                                            onConfirmNoReturn={() => setNoReturnConfirmOpen(true)}
                                         />
                                     </Box>
                                 )}
@@ -325,17 +341,19 @@ export const VendorAllocationBatchDetailPage = () => {
                             <StepLabel>{isSettled ? "Kết quả quyết toán" : "Quyết toán"}</StepLabel>
                             <StepContent>
                                 <Box sx={{ mt: 1 }}>
-                                    <VendorBatchSettlementSection
-                                        batch={batch}
-                                        previewEnabled={previewEnabled}
-                                        settlementPreview={settlementPreview}
-                                        isLoadingPreview={isLoadingPreview}
-                                        isFetchingPreview={isFetchingPreview}
-                                        previewErrorMessage={previewError ? getApiErrorMessage(previewError, "Không thể tính quyết toán") : null}
-                                        isSettling={isSettling}
-                                        onEnablePreview={() => previewEnabled ? refetchPreview() : setPreviewEnabled(true)}
-                                        onSettle={() => setSettleConfirmOpen(true)}
-                                    />
+                                    {(isSettled || isReadyForSettlement) && (
+                                        <VendorBatchSettlementSection
+                                            batch={batch}
+                                            previewEnabled={previewEnabled}
+                                            settlementPreview={settlementPreview}
+                                            isLoadingPreview={isLoadingPreview}
+                                            isFetchingPreview={isFetchingPreview}
+                                            previewErrorMessage={previewError ? getApiErrorMessage(previewError, "Không thể tính quyết toán") : null}
+                                            isSettling={isSettling}
+                                            onEnablePreview={() => previewEnabled ? refetchPreview() : setPreviewEnabled(true)}
+                                            onSettle={() => setSettleConfirmOpen(true)}
+                                        />
+                                    )}
                                 </Box>
                             </StepContent>
                         </Step>
@@ -355,6 +373,23 @@ export const VendorAllocationBatchDetailPage = () => {
                 <DialogActions>
                     <Button variant="outlined" onClick={() => setInspectionConfirmOpen(false)}>Quay lại</Button>
                     <Button loading={isConfirmingInspection} label="Chốt kết quả" loadingLabel="Đang chốt..." onClick={handleConfirmInspection} />
+                </DialogActions>
+            </Dialog>
+
+            <Dialog open={noReturnConfirmOpen} onClose={() => !isConfirmingNoReturn && setNoReturnConfirmOpen(false)} maxWidth="xs" fullWidth>
+                <DialogTitle>Xác nhận không có vé trả?</DialogTitle>
+                <DialogContent>
+                    <Stack spacing={1.5} sx={{ pt: 1 }}>
+                        <Typography>Đã nhận lại: <strong>0</strong> vé</Typography>
+                        <Typography>Chưa trả, tính là đã bán: <strong>{batch?.returnWorkflow?.unreturnedQuantity ?? batch?.allocatedQuantity ?? 0}</strong> vé</Typography>
+                        <Typography color="text.secondary">
+                            Chỉ xác nhận khi người bán vé số đã bán hết hoặc không mang bất kỳ vé nào về. Sau khi chốt, phiên trả không thể chỉnh sửa.
+                        </Typography>
+                    </Stack>
+                </DialogContent>
+                <DialogActions>
+                    <Button variant="outlined" onClick={() => setNoReturnConfirmOpen(false)}>Quay lại</Button>
+                    <Button loading={isConfirmingNoReturn} label="Xác nhận không có vé trả" loadingLabel="Đang xác nhận..." onClick={handleConfirmNoReturn} />
                 </DialogActions>
             </Dialog>
 

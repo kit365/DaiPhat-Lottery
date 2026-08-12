@@ -56,6 +56,7 @@ export const ROUTES = {
         SUPPLIER_SETTLEMENT: {
             LIST: `/${prefixAdmin}/supplier-settlement/list`,
             DETAIL: (id: number | string) => `/${prefixAdmin}/supplier-settlement/detail/${id}`,
+            INSPECT: (id: number | string) => `/${prefixAdmin}/supplier-settlement/inspect/${id}`,
         },
         SUPPLIER: {
             LIST: `/${prefixAdmin}/supplier/list`,

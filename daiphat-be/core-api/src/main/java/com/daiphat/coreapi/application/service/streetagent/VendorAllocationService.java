@@ -4,6 +4,7 @@ import com.daiphat.coreapi.application.dto.request.streetagent.CreateVendorAlloc
 import com.daiphat.coreapi.application.dto.request.streetagent.ConfirmVendorAllocationRequest;
 import com.daiphat.coreapi.application.dto.request.streetagent.ReturnVendorAllocationSerialsRequest;
 import com.daiphat.coreapi.application.dto.request.streetagent.ConfirmVendorReturnInspectionRequest;
+import com.daiphat.coreapi.application.dto.request.streetagent.ConfirmVendorNoReturnRequest;
 import com.daiphat.coreapi.application.dto.request.streetagent.RejectedVendorReturnSerialRequest;
 import com.daiphat.coreapi.application.dto.request.streetagent.SettleVendorAllocationRequest;
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
@@ -14,10 +15,11 @@ import com.daiphat.coreapi.application.port.in.lotteries.LotteryTicketAggregateS
 import com.daiphat.coreapi.application.port.out.settings.SystemConfigRepositoryPort;
 import com.daiphat.coreapi.application.port.out.streetagent.StreetAgentProfileRepositoryPort;
 import com.daiphat.coreapi.application.port.out.streetagent.VendorAllocationRepositoryPort;
-import com.daiphat.coreapi.application.port.out.streetagent.AgentDepositTransactionRepositoryPort;
+import com.daiphat.coreapi.application.port.out.streetagent.VendorDepositTransactionRepositoryPort;
 import com.daiphat.coreapi.application.port.out.lotteries.ReturnBatchRepositoryPort;
 import com.daiphat.coreapi.domain.exception.*;
 import com.daiphat.coreapi.domain.model.enums.settings.SystemConfigEnum;
+import com.daiphat.coreapi.domain.model.enums.transaction.TransactionBusinessType;
 import com.daiphat.coreapi.domain.model.enums.lottery.ReturnBatchLineStatus;
 import com.daiphat.coreapi.domain.model.enums.lottery.ReturnBatchStatus;
 import com.daiphat.coreapi.domain.model.enums.lottery.ReturnBatchType;
@@ -27,8 +29,6 @@ import com.daiphat.coreapi.domain.model.lotteries.ReturnBatchModel;
 import com.daiphat.coreapi.domain.model.enums.streetagent.*;
 import com.daiphat.coreapi.domain.model.streetagent.*;
 import com.daiphat.coreapi.domain.service.streetagent.*;
-import com.daiphat.coreapi.shared.util.SystemConfigValueValidator;
-import com.daiphat.coreapi.shared.util.DrawScheduleUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
@@ -59,8 +59,9 @@ public class VendorAllocationService implements VendorAllocationServicePort {
     private final SystemConfigRepositoryPort systemConfigRepositoryPort;
     private final VendorSettlementProjectionServicePort vendorSettlementProjectionServicePort;
     private final VendorConfidencePolicyResolver vendorConfidencePolicyResolver;
+    private final VendorOperationalTimingResolver vendorOperationalTimingResolver;
     private final LotteryTicketAggregateSyncUseCase lotteryTicketAggregateSyncUseCase;
-    private final AgentDepositTransactionRepositoryPort agentDepositTransactionRepositoryPort;
+    private final VendorDepositTransactionRepositoryPort vendorDepositTransactionRepositoryPort;
     private final ReturnBatchRepositoryPort returnBatchRepositoryPort;
 
     @Autowired
@@ -70,24 +71,28 @@ public class VendorAllocationService implements VendorAllocationServicePort {
             SystemConfigRepositoryPort systemConfigRepositoryPort,
             VendorSettlementProjectionServicePort vendorSettlementProjectionServicePort,
             VendorConfidencePolicyResolver vendorConfidencePolicyResolver,
+            VendorOperationalTimingResolver vendorOperationalTimingResolver,
             LotteryTicketAggregateSyncUseCase lotteryTicketAggregateSyncUseCase,
-            AgentDepositTransactionRepositoryPort agentDepositTransactionRepositoryPort,
+            VendorDepositTransactionRepositoryPort vendorDepositTransactionRepositoryPort,
             ReturnBatchRepositoryPort returnBatchRepositoryPort) {
         this.vendorAllocationRepositoryPort = vendorAllocationRepositoryPort;
         this.streetAgentProfileRepositoryPort = streetAgentProfileRepositoryPort;
         this.systemConfigRepositoryPort = systemConfigRepositoryPort;
         this.vendorSettlementProjectionServicePort = vendorSettlementProjectionServicePort;
         this.vendorConfidencePolicyResolver = vendorConfidencePolicyResolver;
+        this.vendorOperationalTimingResolver = vendorOperationalTimingResolver;
         this.lotteryTicketAggregateSyncUseCase = lotteryTicketAggregateSyncUseCase;
-        this.agentDepositTransactionRepositoryPort = agentDepositTransactionRepositoryPort;
+        this.vendorDepositTransactionRepositoryPort = vendorDepositTransactionRepositoryPort;
         this.returnBatchRepositoryPort = returnBatchRepositoryPort;
     }
 
     @Override @Transactional(readOnly = true)
     public List<VendorAllocationCandidateResponse> getCandidates(Long profileId, LocalDate businessDate) {
+        LocalDateTime commandNow = now();
+        vendorOperationalTimingResolver.requireConfiguredVendorCutoffOpen(businessDate, commandNow);
         requireEligible(profile(profileId), businessDate);
         VendorAllocationSuggestionBuilder.ReservePolicy reserve = counterReservePolicy();
-        List<VendorAllocationSerialModel> serials = sellableCandidates(businessDate);
+        List<VendorAllocationSerialModel> serials = sellableCandidates(businessDate, commandNow);
         return VendorAllocationSuggestionBuilder.annotate(serials, reserve).stream()
                 .map(item -> response(item.serial(), item.vendorEligible(), item.blockedReason()))
                 .toList();
@@ -101,11 +106,26 @@ public class VendorAllocationService implements VendorAllocationServicePort {
     @Override @Transactional(readOnly = true)
     public VendorAllocationSuggestionResponse getSuggestion(
             Long profileId, LocalDate businessDate, Integer requestedQuantity, BigDecimal faceValue) {
+        LocalDateTime commandNow = now();
+        vendorOperationalTimingResolver.requireBusinessDateCurrentOrFuture(businessDate, commandNow);
         StreetAgentProfileModel profile = profile(profileId);
         requireEligible(profile, businessDate);
         int remaining = remainingCap(profile, businessDate);
+        int requested = requestedQuantity == null ? remaining : requestedQuantity;
+        if (requested < 0) {
+            throw new DomainException(ErrorCode.VENDOR_ALLOCATION_SERIAL_INVALID);
+        }
+        LocalTime vendorCutoff = vendorOperationalTimingResolver.configuredVendorCutoff();
+        if (!commandNow.isBefore(businessDate.atTime(vendorCutoff))) {
+            VendorAllocationSuggestionBuilder.Suggestion blockedSuggestion =
+                    VendorAllocationSuggestionBuilder.blocked(
+                            requested, remaining, counterReservePolicy(),
+                            VendorTicketSellabilityPolicy.BLOCKED_RETURN_CUTOFF_REACHED);
+            return toSuggestionResponse(blockedSuggestion, faceValue, List.of(), List.of(),
+                    businessDate.atTime(vendorCutoff), commandNow);
+        }
         List<VendorAllocationSerialModel> raw = vendorAllocationRepositoryPort.findCandidates(businessDate);
-        List<VendorAllocationSerialModel> eligibleCandidates = filterSellable(raw, businessDate);
+        List<VendorAllocationSerialModel> eligibleCandidates = filterSellable(raw, businessDate, commandNow);
         List<BigDecimal> availableFaceValues = eligibleCandidates.stream()
                 .map(VendorAllocationSerialModel::getFaceValue)
                 .filter(Objects::nonNull)
@@ -122,23 +142,48 @@ public class VendorAllocationService implements VendorAllocationServicePort {
                                 && serial.getFaceValue().compareTo(selectedFaceValue) == 0)
                         .toList();
         List<VendorAllocationSerialModel> serials = denominationCandidates;
+        if (!serials.isEmpty()) {
+            try {
+                VendorOperationalTimingResolver.OperationalTiming timing =
+                        vendorOperationalTimingResolver.resolveForHandover(businessDate, serials, commandNow);
+                if (!commandNow.isBefore(timing.effectiveDeadline())) {
+                    VendorAllocationSuggestionBuilder.Suggestion blockedSuggestion =
+                            VendorAllocationSuggestionBuilder.blocked(
+                                    requested, remaining, counterReservePolicy(),
+                                    VendorTicketSellabilityPolicy.BLOCKED_OPERATIONAL_DEADLINE_REACHED);
+                    return toSuggestionResponse(blockedSuggestion, selectedFaceValue, availableFaceValues, raw,
+                            timing.effectiveDeadline(), commandNow);
+                }
+            } catch (DomainException ex) {
+                if (ex.getErrorCode() == ErrorCode.VENDOR_ALLOCATION_SUPPLIER_RETURN_CUTOFF_MISSING) {
+                    VendorAllocationSuggestionBuilder.Suggestion blockedSuggestion =
+                            VendorAllocationSuggestionBuilder.blocked(
+                                    requested, remaining, counterReservePolicy(),
+                                    VendorTicketSellabilityPolicy.BLOCKED_SUPPLIER_RETURN_CUTOFF_MISSING);
+                    return toSuggestionResponse(blockedSuggestion, selectedFaceValue, availableFaceValues, raw,
+                            businessDate.atTime(vendorCutoff), commandNow);
+                }
+                throw ex;
+            }
+        }
         String blockedReason = serials.isEmpty()
                 ? VendorTicketSellabilityPolicy.resolveBlockedReason(
                         businessDate,
                         remaining,
-                        faceValue == null ? raw : denominationCandidates)
+                        faceValue == null ? raw : denominationCandidates,
+                        commandNow)
                 : null;
-        int requested = requestedQuantity == null ? remaining : requestedQuantity;
-        if (requested < 0) {
-            throw new DomainException(ErrorCode.VENDOR_ALLOCATION_SERIAL_INVALID);
-        }
         VendorAllocationSuggestionBuilder.Suggestion suggestion =
                 VendorAllocationSuggestionBuilder.build(serials, remaining, requested, counterReservePolicy(), blockedReason);
-        return toSuggestionResponse(suggestion, selectedFaceValue, availableFaceValues);
+        LocalDateTime displayedDeadline = serials.isEmpty() ? businessDate.atTime(vendorCutoff)
+                : vendorOperationalTimingResolver.resolveForHandover(businessDate, serials, commandNow).effectiveDeadline();
+        return toSuggestionResponse(suggestion, selectedFaceValue, availableFaceValues, raw, displayedDeadline, commandNow);
     }
 
     @Override @Transactional
     public VendorAllocationBatchResponse createDraft(CreateVendorAllocationDraftRequest request, boolean canOverrideLuckyTicket) {
+        LocalDateTime commandNow = now();
+        vendorOperationalTimingResolver.requireConfiguredVendorCutoffOpen(request.businessDate(), commandNow);
         StreetAgentProfileModel profile = profileForUpdate(request.streetAgentProfileId());
         requireEligible(profile, request.businessDate());
         Set<Long> ids = new LinkedHashSet<>(request.serialIds());
@@ -160,7 +205,7 @@ public class VendorAllocationService implements VendorAllocationServicePort {
         List<VendorAllocationSerialModel> lockedStationInventory = vendorAllocationRepositoryPort.lockCandidatesForStations(
                 request.businessDate(), selectedPreview.stream().map(VendorAllocationSerialModel::getStationId).distinct().sorted().toList());
         List<VendorAllocationSerialModel> serials = vendorAllocationRepositoryPort.lockCandidates(ids.stream().sorted().toList());
-        if (serials.size() != ids.size() || serials.stream().anyMatch(s -> !s.isEligibleForDraft(request.businessDate()))) {
+        if (serials.size() != ids.size() || serials.stream().anyMatch(s -> !s.isEligibleForDraft(request.businessDate(), commandNow))) {
             throw new DomainException(ErrorCode.VENDOR_ALLOCATION_SERIAL_INVALID);
         }
         if (request.faceValue() != null && serials.stream().anyMatch(s -> s.getFaceValue() == null
@@ -174,6 +219,9 @@ public class VendorAllocationService implements VendorAllocationServicePort {
         if (serials.stream().map(VendorAllocationSerialModel::getFaceValue).filter(Objects::nonNull).distinct().count() != 1) {
             throw new DomainException(ErrorCode.VENDOR_ALLOCATION_SERIAL_INVALID);
         }
+        VendorOperationalTimingResolver.OperationalTiming timing =
+                vendorOperationalTimingResolver.resolveForHandover(request.businessDate(), serials, commandNow);
+        vendorOperationalTimingResolver.requireHandoverDeadlineOpen(timing, commandNow);
         int requested = request.requestedQuantity() == null ? ids.size() : request.requestedQuantity();
         BigDecimal selectedFaceValue = serials.stream()
                 .map(VendorAllocationSerialModel::getFaceValue)
@@ -181,7 +229,7 @@ public class VendorAllocationService implements VendorAllocationServicePort {
                 .findFirst()
                 .orElse(null);
         List<VendorAllocationSerialModel> lockedEligibleInventory = filterSellable(
-                lockedStationInventory, request.businessDate()).stream()
+                lockedStationInventory, request.businessDate(), commandNow).stream()
                 .filter(candidate -> selectedFaceValue == null
                         || (candidate.getFaceValue() != null
                         && candidate.getFaceValue().compareTo(selectedFaceValue) == 0))
@@ -205,13 +253,12 @@ public class VendorAllocationService implements VendorAllocationServicePort {
         if (selectedByStation.entrySet().stream().anyMatch(entry -> entry.getValue() > quotaByStation.getOrDefault(entry.getKey(), 0))) {
             throw new DomainException(ErrorCode.VENDOR_ALLOCATION_COUNTER_RESERVE_VIOLATED);
         }
-        LocalDateTime reservedAt = now();
         VendorDraftReservation reservation = VendorDraftReservation.create(
-                reservedAt,
+                commandNow,
                 integerConfig(SystemConfigEnum.VENDOR_DRAFT_RESERVATION_TTL_MINUTES));
         VendorAllocationBatchModel batch = VendorAllocationBatchModel.createDraft(
                 "VND-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase(Locale.ROOT),
-                profile.getId(), request.businessDate(), reservedAt, reservation.expiresAt(), serials,
+                profile.getId(), request.businessDate(), commandNow, reservation.expiresAt(), serials,
                 lucky ? request.luckyOverrideReason().trim() : null,
                 requested, counterReservePolicy());
         Map<Long, VendorAllocationSuggestionBuilder.StationSuggestion> stationQuotes = lockedQuote.stations().stream()
@@ -244,31 +291,22 @@ public class VendorAllocationService implements VendorAllocationServicePort {
     }
 
     @Override
-    @Transactional(readOnly = true)
+    @Transactional
     public VendorConfirmationQuoteResponse getConfirmationQuote(Long id) {
-        VendorAllocationBatchModel batch = batch(id);
-        if (batch.getStatus() != AllocationBatchStatus.DRAFT) {
-            throw new DomainException(ErrorCode.VENDOR_ALLOCATION_INVALID_STATE);
-        }
+        VendorAllocationBatchModel batch = vendorAllocationRepositoryPort.findByIdForUpdate(id)
+                .orElseThrow(() -> new DomainException(ErrorCode.VENDOR_ALLOCATION_NOT_FOUND));
         LocalDateTime now = now();
-        if (batch.isDraftExpired(now)) {
-            throw new DomainException(ErrorCode.VENDOR_ALLOCATION_INVALID_STATE);
-        }
-        if (batch.getSerials() != null && batch.getSerials().stream()
-                .anyMatch(VendorAllocationSerialModel::isPastDrawNow)) {
-            throw new DomainException(ErrorCode.VENDOR_ALLOCATION_INVALID_STATE);
-        }
+        VendorOperationalTimingResolver.OperationalTiming timing = requireActionableDraft(batch, now);
         BigDecimal commissionRate = decimalConfig(SystemConfigEnum.VENDOR_COMMISSION_RATE);
         BigDecimal unitPrice = vendorUnitPrice(batch, commissionRate);
         BigDecimal depositRate = decimalConfig(SystemConfigEnum.VENDOR_DEPOSIT_RATE);
-        ReturnWindow returnWindow = resolveReturnWindow(batch, now);
-        LocalTime returnCutoff = returnWindow.effectiveVendorCutoff();
+        LocalTime returnCutoff = timing.vendorCutoff();
         String latePolicy = stringConfig(SystemConfigEnum.VENDOR_LATE_RETURN_POLICY);
         BigDecimal required = VendorDepositCalculator.calculate(
                 batch.getAllocatedQuantity(), unitPrice, depositRate);
         String fingerprint = quoteFingerprint(
-                batch, commissionRate, unitPrice, depositRate, returnCutoff,
-                returnWindow.supplierReturnCutoff(), returnWindow.bufferMinutes(), latePolicy);
+                batch, commissionRate, unitPrice, depositRate, timing.effectiveDeadline(),
+                timing.supplierReturnCutoff(), timing.bufferMinutes(), latePolicy);
         return new VendorConfirmationQuoteResponse(
                 batch.getId(),
                 batch.getAllocatedQuantity(),
@@ -278,7 +316,8 @@ public class VendorAllocationService implements VendorAllocationServicePort {
                 returnCutoff,
                 latePolicy,
                 fingerprint,
-                now
+                now,
+                timing.effectiveDeadline()
         );
     }
 
@@ -319,14 +358,7 @@ public class VendorAllocationService implements VendorAllocationServicePort {
         VendorAllocationBatchModel batch = vendorAllocationRepositoryPort.findByIdForUpdate(id)
                 .orElseThrow(() -> new DomainException(ErrorCode.VENDOR_ALLOCATION_NOT_FOUND));
         LocalDateTime now = now();
-        if (batch.isDraftExpired(now)) {
-            release(batch, AllocationBatchStatus.EXPIRED);
-            throw new DomainException(ErrorCode.VENDOR_ALLOCATION_INVALID_STATE);
-        }
-        if (batch.getSerials().stream().anyMatch(VendorAllocationSerialModel::isPastDrawNow)) {
-            release(batch, AllocationBatchStatus.EXPIRED);
-            throw new DomainException(ErrorCode.VENDOR_ALLOCATION_INVALID_STATE);
-        }
+        VendorOperationalTimingResolver.OperationalTiming timing = requireActionableDraft(batch, now);
         StreetAgentProfileModel profile = profileForUpdate(batch.getStreetAgentProfileId());
         // The profile may have changed while the draft was being held; do not hand over on stale eligibility.
         profile.requireVendorAllocationPrerequisites(batch.getBusinessDate());
@@ -342,37 +374,32 @@ public class VendorAllocationService implements VendorAllocationServicePort {
         BigDecimal unitPrice = vendorUnitPrice(batch, commissionRate);
         BigDecimal depositRate = decimalConfig(SystemConfigEnum.VENDOR_DEPOSIT_RATE);
         String latePolicy = stringConfig(SystemConfigEnum.VENDOR_LATE_RETURN_POLICY);
-        ReturnWindow returnWindow = resolveReturnWindow(batch, now);
         String expectedFingerprint = quoteFingerprint(
-                batch, commissionRate, unitPrice, depositRate, returnWindow.effectiveVendorCutoff(),
-                returnWindow.supplierReturnCutoff(), returnWindow.bufferMinutes(), latePolicy);
+                batch, commissionRate, unitPrice, depositRate, timing.effectiveDeadline(),
+                timing.supplierReturnCutoff(), timing.bufferMinutes(), latePolicy);
         // HTTP validation requires the fingerprint. The legacy one-argument DTO constructor is
         // retained only for direct server-side callers compiled before this API hardening.
         if (blank(request.quoteFingerprint()) || !request.quoteFingerprint().equals(expectedFingerprint)) {
             throw new DomainException(ErrorCode.VENDOR_ALLOCATION_QUOTE_STALE);
         }
         batch.setCommissionRateSnapshot(commissionRate);
-        if (!now.toLocalDate().isBefore(batch.getBusinessDate())
-                && !now.toLocalTime().isBefore(returnWindow.effectiveVendorCutoff())) {
-            throw new DomainException(ErrorCode.VENDOR_ALLOCATION_INVALID_STATE);
-        }
         batch.confirmHandover(
                 now,
                 unitPrice,
                 depositRate,
                 VendorLateReturnPolicy.valueOf(latePolicy),
-                returnWindow.effectiveVendorCutoff(),
-                returnWindow.supplierReturnCutoff(),
-                returnWindow.bufferMinutes(),
+                timing.vendorCutoff(),
+                timing.supplierReturnCutoff(),
+                timing.bufferMinutes(),
+                timing.effectiveDeadline(),
                 request.depositReceivedAmount(),
                 profile.getDepositBalance(),
                 operatorId);
         profile.setDepositBalance(batch.getDepositBalanceAfter());
         streetAgentProfileRepositoryPort.save(profile);
-        agentDepositTransactionRepositoryPort.record(new AgentDepositTransactionRepositoryPort.DepositTransaction(
-                profile.getId(), batch.getId(), "RECEIVED", batch.getBusinessDate(),
-                batch.getDepositRequiredAmount(), batch.getDepositReceivedAmount(), BigDecimal.ZERO, BigDecimal.ZERO,
-                batch.getDepositBalanceBefore(), batch.getDepositBalanceAfter(), now, operatorId,
+        vendorDepositTransactionRepositoryPort.record(new VendorDepositTransactionRepositoryPort.DepositTransaction(
+                profile.getId(), batch.getId(), TransactionBusinessType.VENDOR_DEPOSIT, batch.getBusinessDate(),
+                batch.getDepositReceivedAmount(), now, operatorId,
                 "Nhận cọc khi xác nhận bàn giao"));
         saveSerialsAndSync(batch.getSerials());
         return batchResponse(vendorAllocationRepositoryPort.save(batch), remaining(batch), null, null);
@@ -471,6 +498,37 @@ public class VendorAllocationService implements VendorAllocationServicePort {
         return batchResponse(vendorAllocationRepositoryPort.save(batch), remaining(batch), null, null);
     }
 
+    @Override @Transactional
+    public VendorAllocationBatchResponse confirmNoReturnedTickets(
+            Long id, ConfirmVendorNoReturnRequest request, UUID operatorId) {
+        VendorAllocationBatchModel batch = vendorAllocationRepositoryPort.findByIdForUpdate(id)
+                .orElseThrow(() -> new DomainException(ErrorCode.VENDOR_ALLOCATION_NOT_FOUND));
+        if (returnBatchRepositoryPort == null) {
+            batch.confirmNoReturnedTickets();
+            return batchResponse(vendorAllocationRepositoryPort.save(batch), remaining(batch), null, null);
+        }
+        ReturnBatchModel receipt = requireStreetAgentReturnBatch(batch);
+        if (receipt.getStatus() != ReturnBatchStatus.PENDING_INSPECTION
+                && receipt.getStatus() != ReturnBatchStatus.INSPECTING) {
+            throw new DomainException(ErrorCode.VENDOR_ALLOCATION_INVALID_STATE);
+        }
+        batch.confirmNoReturnedTickets();
+        LocalDateTime confirmedAt = now();
+        receipt.setStatus(ReturnBatchStatus.RECEIVED);
+        receipt.setConfirmedAt(confirmedAt);
+        receipt.setReturnedAt(confirmedAt);
+        receipt.setReturnedBy(operatorId);
+        if (request != null && !blank(request.note())) {
+            receipt.setNote(request.note().trim());
+        } else {
+            receipt.setNote("Người bán vé số không trả vé; toàn bộ vé còn giữ tính là đã bán.");
+        }
+        refreshStreetAgentReturnLines(receipt, batch);
+        returnBatchRepositoryPort.save(receipt);
+        saveSerialsAndSync(batch.getSerials());
+        return batchResponse(vendorAllocationRepositoryPort.save(batch), remaining(batch), null, null);
+    }
+
     @Override @Transactional(readOnly = true)
     public VendorSettlementPreviewResponse previewSettlement(Long id) {
         VendorAllocationBatchModel batch = batch(id);
@@ -494,15 +552,12 @@ public class VendorAllocationService implements VendorAllocationServicePort {
                 || !request.settlementFingerprint().equals(expectedFingerprint)) {
             throw new DomainException(ErrorCode.VENDOR_SETTLEMENT_PREVIEW_STALE);
         }
+        VendorSettlementCalculator.CounterCashMovement cashMovement =
+                VendorSettlementCalculator.counterCashMovement(expected);
         batch.settle(settledAt, returnConfirmedAt, profile.getDepositBalance(), operatorId);
         profile.setDepositBalance(batch.getDepositBalanceAfter());
         streetAgentProfileRepositoryPort.save(profile);
-        agentDepositTransactionRepositoryPort.record(new AgentDepositTransactionRepositoryPort.DepositTransaction(
-                profile.getId(), batch.getId(), "SETTLED", batch.getBusinessDate(),
-                batch.getDepositRequiredAmount(), batch.getDepositReceivedAmount(), BigDecimal.ZERO,
-                batch.getDepositRefundAmount().add(batch.getDepositExcessRefundAmount()),
-                batch.getDepositBalanceBefore(), batch.getDepositBalanceAfter(), settledAt, operatorId,
-                batch.getDepositForfeitedAmount().signum() > 0 ? "Giữ cọc do trả trễ" : "Quyết toán cọc"));
+        recordSettlementCashMovement(batch, cashMovement, settledAt, operatorId);
         saveSerialsAndSync(batch.getSerials());
         VendorAllocationBatchModel saved = vendorAllocationRepositoryPort.save(batch);
         VendorSettlementProjectionServicePort.ProjectionLinks links =
@@ -517,6 +572,26 @@ public class VendorAllocationService implements VendorAllocationServicePort {
         return batchResponse(saved, remaining(saved), links.agentSettlementId(), links.dailySalesReportId());
     }
 
+    private void recordSettlementCashMovement(
+            VendorAllocationBatchModel batch,
+            VendorSettlementCalculator.CounterCashMovement cashMovement,
+            LocalDateTime settledAt,
+            UUID operatorId) {
+        if (cashMovement.dueFromVendor().signum() > 0) {
+            vendorDepositTransactionRepositoryPort.record(new VendorDepositTransactionRepositoryPort.DepositTransaction(
+                    batch.getStreetAgentProfileId(), batch.getId(),
+                    TransactionBusinessType.VENDOR_SETTLEMENT_COLLECTION, batch.getBusinessDate(),
+                    cashMovement.dueFromVendor(), settledAt, operatorId,
+                    "Thu tiền quyết toán từ người bán vé số"));
+        }
+        if (cashMovement.payableToVendor().signum() > 0) {
+            vendorDepositTransactionRepositoryPort.record(new VendorDepositTransactionRepositoryPort.DepositTransaction(
+                    batch.getStreetAgentProfileId(), batch.getId(), TransactionBusinessType.VENDOR_PAYOUT,
+                    batch.getBusinessDate(), cashMovement.payableToVendor(), settledAt, operatorId,
+                    "Chi tiền quyết toán cho người bán vé số"));
+        }
+    }
+
     @Override @Transactional
     public void cancel(Long id) {
         VendorAllocationBatchModel batch = vendorAllocationRepositoryPort.findByIdForUpdate(id)
@@ -524,7 +599,7 @@ public class VendorAllocationService implements VendorAllocationServicePort {
         if (batch.getStatus() != AllocationBatchStatus.DRAFT) {
             throw new DomainException(ErrorCode.VENDOR_ALLOCATION_INVALID_STATE);
         }
-        release(batch, AllocationBatchStatus.CANCELLED);
+        release(batch, AllocationBatchStatus.CANCELLED, now());
     }
 
     @Override @Transactional
@@ -533,36 +608,16 @@ public class VendorAllocationService implements VendorAllocationServicePort {
         List<VendorAllocationBatchModel> batches = vendorAllocationRepositoryPort.findOpenDrafts();
         int expired = 0;
         for (VendorAllocationBatchModel batch : batches) {
-            if (batch.isDraftExpired(now) || batch.hasAnySerialPastDraw()) {
-                release(batch, AllocationBatchStatus.EXPIRED);
+            if (shouldExpireDraft(batch, now)) {
+                release(batch, AllocationBatchStatus.EXPIRED, now);
                 expired++;
             }
         }
         return expired;
     }
 
-    private List<VendorAllocationSerialModel> sellableCandidates(LocalDate businessDate) {
-        return filterSellable(vendorAllocationRepositoryPort.findCandidates(businessDate), businessDate);
-    }
-
-    private ReturnWindow resolveReturnWindow(VendorAllocationBatchModel batch, LocalDateTime at) {
-        LocalTime configuredVendorCutoff = timeConfig(SystemConfigEnum.VENDOR_RETURN_CUTOFF);
-        if (returnBatchRepositoryPort == null) {
-            return new ReturnWindow(configuredVendorCutoff, null, 0);
-        }
-        List<LocalTime> supplierCutoffs = batch.getSerials().stream()
-                .map(VendorAllocationSerialModel::getSupplierReturnCutoffTime)
-                .filter(Objects::nonNull)
-                .toList();
-        if (supplierCutoffs.size() != batch.getSerials().size() || supplierCutoffs.isEmpty()) {
-            throw new DomainException(ErrorCode.VENDOR_ALLOCATION_INVALID_STATE);
-        }
-        LocalTime supplierCutoff = supplierCutoffs.stream().min(LocalTime::compareTo).orElseThrow();
-        int bufferMinutes = integerConfig(SystemConfigEnum.RETURN_BUFFER_TIME);
-        LocalTime safeSupplierCutoff = supplierCutoff.minusMinutes(bufferMinutes);
-        LocalTime effective = configuredVendorCutoff.isBefore(safeSupplierCutoff)
-                ? configuredVendorCutoff : safeSupplierCutoff;
-        return new ReturnWindow(effective, supplierCutoff, bufferMinutes);
+    private List<VendorAllocationSerialModel> sellableCandidates(LocalDate businessDate, LocalDateTime commandNow) {
+        return filterSellable(vendorAllocationRepositoryPort.findCandidates(businessDate), businessDate, commandNow);
     }
 
     private ReturnBatchModel ensureStreetAgentReturnBatch(VendorAllocationBatchModel batch) {
@@ -668,17 +723,15 @@ public class VendorAllocationService implements VendorAllocationServicePort {
         return receipt.getConfirmedAt();
     }
 
-    private record ReturnWindow(LocalTime effectiveVendorCutoff, LocalTime supplierReturnCutoff, int bufferMinutes) {}
-
     private List<VendorAllocationSerialModel> filterSellable(
-            List<VendorAllocationSerialModel> raw, LocalDate businessDate) {
+            List<VendorAllocationSerialModel> raw, LocalDate businessDate, LocalDateTime commandNow) {
         return raw.stream()
-                .filter(serial -> VendorTicketSellabilityPolicy.isSellableForVendor(serial, businessDate))
+                .filter(serial -> VendorTicketSellabilityPolicy.isSellableForVendor(serial, businessDate, commandNow))
                 .toList();
     }
 
-    private void release(VendorAllocationBatchModel batch, AllocationBatchStatus state) {
-        batch.releaseDraft(state, VendorAllocationSerialModel::isPastDrawNow);
+    private void release(VendorAllocationBatchModel batch, AllocationBatchStatus state, LocalDateTime at) {
+        batch.releaseDraft(state, serial -> serial.isPastDrawAt(at));
         saveSerialsAndSync(batch.getSerials());
         vendorAllocationRepositoryPort.save(batch);
     }
@@ -690,6 +743,61 @@ public class VendorAllocationService implements VendorAllocationServicePort {
         }
         if (!p.hasClearedLegacyDeposit()) {
             throw new DomainException(ErrorCode.VENDOR_ALLOCATION_LEGACY_DEPOSIT);
+        }
+    }
+
+    /**
+     * Revalidates a draft at its decisive boundary (quote/confirm). This intentionally uses the
+     * current configuration: an unconfirmed draft has not created a financial snapshot yet.
+     */
+    private VendorOperationalTimingResolver.OperationalTiming requireActionableDraft(
+            VendorAllocationBatchModel batch,
+            LocalDateTime commandNow) {
+        if (batch.getStatus() != AllocationBatchStatus.DRAFT) {
+            throw new DomainException(ErrorCode.VENDOR_ALLOCATION_INVALID_STATE);
+        }
+        if (vendorOperationalTimingResolver.isBusinessDatePast(batch.getBusinessDate(), commandNow)) {
+            release(batch, AllocationBatchStatus.EXPIRED, commandNow);
+            throw new DomainException(ErrorCode.VENDOR_ALLOCATION_BUSINESS_DATE_PASSED);
+        }
+        if (batch.getSerials().stream().anyMatch(serial -> serial.isPastDrawAt(commandNow))) {
+            release(batch, AllocationBatchStatus.EXPIRED, commandNow);
+            throw new DomainException(ErrorCode.VENDOR_ALLOCATION_INVALID_STATE);
+        }
+        if (batch.isDraftExpired(commandNow) || batch.getSerials().stream().anyMatch(serial ->
+                serial.getStatus() != AllocationSerialStatus.DRAFT_RESERVED
+                        || serial.getTicketStatus() != LotteryTicketSerialStatus.RESERVED
+                        || serial.getReservedExpiresAt() == null
+                        || !commandNow.isBefore(serial.getReservedExpiresAt()))) {
+            release(batch, AllocationBatchStatus.EXPIRED, commandNow);
+            throw new DomainException(ErrorCode.VENDOR_ALLOCATION_INVALID_STATE);
+        }
+        VendorOperationalTimingResolver.OperationalTiming timing =
+                vendorOperationalTimingResolver.resolveForHandover(batch.getBusinessDate(), batch.getSerials(), commandNow);
+        if (vendorOperationalTimingResolver.isDraftExpired(batch.getReservationExpiresAt(), timing, commandNow)) {
+            release(batch, AllocationBatchStatus.EXPIRED, commandNow);
+            throw new DomainException(ErrorCode.VENDOR_ALLOCATION_OPERATIONAL_DEADLINE_REACHED);
+        }
+        return timing;
+    }
+
+    private boolean shouldExpireDraft(VendorAllocationBatchModel batch, LocalDateTime commandNow) {
+        if (batch.isDraftExpired(commandNow)
+                || batch.getSerials().stream().anyMatch(serial -> serial.isPastDrawAt(commandNow))
+                || vendorOperationalTimingResolver.isBusinessDatePast(batch.getBusinessDate(), commandNow)) {
+            return true;
+        }
+        try {
+            VendorOperationalTimingResolver.OperationalTiming timing = vendorOperationalTimingResolver
+                    .resolveForHandover(batch.getBusinessDate(), batch.getSerials(), commandNow);
+            return vendorOperationalTimingResolver.isDraftExpired(batch.getReservationExpiresAt(), timing, commandNow);
+        } catch (DomainException ex) {
+            // A temporarily incomplete supplier schedule must block quote/confirm with SAG_033,
+            // but does not silently discard a still-valid draft.
+            if (ex.getErrorCode() == ErrorCode.VENDOR_ALLOCATION_SUPPLIER_RETURN_CUTOFF_MISSING) {
+                return false;
+            }
+            throw ex;
         }
     }
 
@@ -763,6 +871,7 @@ public class VendorAllocationService implements VendorAllocationServicePort {
                 b.getReturnCutoffSnapshot(),
                 b.getSupplierReturnCutoffSnapshot(),
                 b.getReturnBufferMinutesSnapshot(),
+                b.getEffectiveHandoverDeadlineAt(),
                 b.getDepositRequiredAmount(),
                 b.getDepositReceivedAmount(),
                 b.getDepositBalanceBefore(),
@@ -811,6 +920,7 @@ public class VendorAllocationService implements VendorAllocationServicePort {
         String stage = settled ? "SETTLED"
                 : receiptStatus == ReturnBatchStatus.RECEIVED ? "READY_FOR_SETTLEMENT"
                 : receiptStatus == ReturnBatchStatus.INSPECTING ? "INSPECTION"
+                : batch.getStatus() == AllocationBatchStatus.CONFIRMED ? "READY_FOR_RETURN"
                 : "RETURN_ENTRY";
         boolean editable = batch.getStatus() == AllocationBatchStatus.RETURN_OPEN
                 && (receiptStatus == ReturnBatchStatus.PENDING_INSPECTION || receiptStatus == ReturnBatchStatus.INSPECTING);
@@ -824,9 +934,15 @@ public class VendorAllocationService implements VendorAllocationServicePort {
                 pending,
                 accepted,
                 rejected,
-                handedOver,
+                // A rejected return is not accepted back into inventory and is therefore
+                // still counted as vendor-held/sold for the workflow summary.
+                handedOver + rejected,
                 editable,
                 receiptStatus == ReturnBatchStatus.INSPECTING && pending > 0,
+                batch.getStatus() == AllocationBatchStatus.RETURN_OPEN
+                        && (receiptStatus == ReturnBatchStatus.PENDING_INSPECTION
+                        || receiptStatus == ReturnBatchStatus.INSPECTING)
+                        && pending == 0 && handedOver > 0 && accepted == 0 && rejected == 0,
                 readyForSettlement,
                 readyForSettlement);
     }
@@ -891,12 +1007,15 @@ public class VendorAllocationService implements VendorAllocationServicePort {
     }
 
     private boolean isLate(VendorAllocationBatchModel batch, LocalDateTime now) {
-        return batch.getReturnCutoffSnapshot() != null
-                && now.isAfter(batch.getBusinessDate().atTime(batch.getReturnCutoffSnapshot()));
+        LocalDateTime deadline = batch.getEffectiveHandoverDeadlineAt() != null
+                ? batch.getEffectiveHandoverDeadlineAt()
+                : batch.getReturnCutoffSnapshot() == null ? null
+                        : batch.getBusinessDate().atTime(batch.getReturnCutoffSnapshot());
+        return deadline != null && now != null && !now.isBefore(deadline);
     }
 
     private LocalDateTime now() {
-        return LocalDateTime.now(DrawScheduleUtils.VIETNAM_ZONE);
+        return vendorOperationalTimingResolver.now();
     }
 
     private VendorAllocationSerialResponse serialResponse(VendorAllocationSerialModel serial) {
@@ -934,7 +1053,10 @@ public class VendorAllocationService implements VendorAllocationServicePort {
     private VendorAllocationSuggestionResponse toSuggestionResponse(
             VendorAllocationSuggestionBuilder.Suggestion suggestion,
             BigDecimal faceValue,
-            List<BigDecimal> availableFaceValues) {
+            List<BigDecimal> availableFaceValues,
+            List<VendorAllocationSerialModel> rawCandidates,
+            LocalDateTime effectiveDeadlineAt,
+            LocalDateTime commandNow) {
         return new VendorAllocationSuggestionResponse(
                 faceValue,
                 availableFaceValues,
@@ -951,6 +1073,7 @@ public class VendorAllocationService implements VendorAllocationServicePort {
                 suggestion.inventoryShortfallQuantity(),
                 suggestion.shortageReasons(),
                 suggestion.blockedReason(),
+                reasonDetails(suggestion, rawCandidates, effectiveDeadlineAt, commandNow),
                 suggestion.stations().stream()
                         .map(station -> new VendorAllocationSuggestionResponse.StationGroup(
                                 station.stationId(),
@@ -987,6 +1110,77 @@ public class VendorAllocationService implements VendorAllocationServicePort {
                                                         .toList()))
                                         .toList()))
                         .toList());
+    }
+
+    private List<VendorAllocationSuggestionResponse.ReasonDetail> reasonDetails(
+            VendorAllocationSuggestionBuilder.Suggestion suggestion,
+            List<VendorAllocationSerialModel> rawCandidates,
+            LocalDateTime effectiveDeadlineAt,
+            LocalDateTime commandNow) {
+        LinkedHashSet<String> reasonCodes = new LinkedHashSet<>(suggestion.shortageReasons());
+        if (!blank(suggestion.blockedReason())) {
+            reasonCodes.add(suggestion.blockedReason());
+        }
+
+        List<VendorAllocationSuggestionResponse.ReasonDetail> details = new ArrayList<>();
+        for (String code : reasonCodes) {
+            if (VendorTicketSellabilityPolicy.BLOCKED_RETURN_CUTOFF_REACHED.equals(code)
+                    || VendorTicketSellabilityPolicy.BLOCKED_OPERATIONAL_DEADLINE_REACHED.equals(code)) {
+                details.add(new VendorAllocationSuggestionResponse.ReasonDetail(
+                        code, effectiveDeadlineAt == null ? null : effectiveDeadlineAt.toLocalTime(), effectiveDeadlineAt,
+                        null, null, null, null, null,
+                        suggestion.remainingDailyCap(), suggestion.requestedQuantity()));
+                continue;
+            }
+            if (VendorTicketSellabilityPolicy.BLOCKED_SUPPLIER_RETURN_CUTOFF_MISSING.equals(code)) {
+                details.add(new VendorAllocationSuggestionResponse.ReasonDetail(
+                        code, null, null, null, null, null, null, null,
+                        suggestion.remainingDailyCap(), suggestion.requestedQuantity()));
+                continue;
+            }
+            if ("DAILY_CAP_LIMIT".equals(code)
+                    || VendorTicketSellabilityPolicy.BLOCKED_DAILY_CAP_EXHAUSTED.equals(code)) {
+                details.add(new VendorAllocationSuggestionResponse.ReasonDetail(
+                        code, null, null, null, null, null, null, null,
+                        suggestion.remainingDailyCap(), suggestion.requestedQuantity()));
+                continue;
+            }
+            if ("INSUFFICIENT_STATION_CAPACITY".equals(code)) {
+                int eligible = suggestion.stations().stream()
+                        .mapToInt(VendorAllocationSuggestionBuilder.StationSuggestion::normalEligibleQuantity)
+                        .sum();
+                int reserve = suggestion.stations().stream()
+                        .mapToInt(VendorAllocationSuggestionBuilder.StationSuggestion::effectiveAgencyReserveQuantity)
+                        .sum();
+                details.add(new VendorAllocationSuggestionResponse.ReasonDetail(
+                        code, null, null, null, null, eligible, reserve, suggestion.totalVendorCapacity(),
+                        suggestion.remainingDailyCap(), suggestion.requestedQuantity()));
+                continue;
+            }
+            if (VendorTicketSellabilityPolicy.BLOCKED_DRAW_TIME_PASSED.equals(code)) {
+                rawCandidates.stream()
+                        .filter(candidate -> VendorTicketSellabilityPolicy.isScheduledDrawDay(
+                                candidate.getDrawDate(), candidate.getDrawDays()))
+                        .filter(candidate -> VendorTicketSellabilityPolicy.isPastDraw(
+                                candidate.getDrawDate(), candidate.getDrawTime(), commandNow))
+                        .collect(Collectors.toMap(
+                                VendorAllocationSerialModel::getStationId,
+                                candidate -> candidate,
+                                (first, ignored) -> first,
+                                LinkedHashMap::new))
+                        .values()
+                        .forEach(candidate -> details.add(new VendorAllocationSuggestionResponse.ReasonDetail(
+                                code, null, null, candidate.getStationName(), candidate.getDrawTime(), null, null, null,
+                                suggestion.remainingDailyCap(), suggestion.requestedQuantity())));
+                if (!details.isEmpty()) {
+                    continue;
+                }
+            }
+            details.add(new VendorAllocationSuggestionResponse.ReasonDetail(
+                    code, null, null, null, null, null, null, null,
+                    suggestion.remainingDailyCap(), suggestion.requestedQuantity()));
+        }
+        return List.copyOf(details);
     }
 
     private List<String> badges(String raw) {
@@ -1054,12 +1248,12 @@ public class VendorAllocationService implements VendorAllocationServicePort {
 
     private String quoteFingerprint(VendorAllocationBatchModel batch, BigDecimal commissionRate,
                                     BigDecimal unitPrice, BigDecimal depositRate,
-                                    LocalTime returnCutoff, LocalTime supplierReturnCutoff,
+                                    LocalDateTime effectiveDeadlineAt, LocalTime supplierReturnCutoff,
                                     int returnBufferMinutes, String latePolicy) {
         String material = String.join("|",
                 String.valueOf(batch.getId()), String.valueOf(batch.getAllocatedQuantity()),
                 String.valueOf(batch.getFaceValueSnapshot()), String.valueOf(commissionRate),
-                String.valueOf(unitPrice), String.valueOf(depositRate), String.valueOf(returnCutoff),
+                String.valueOf(unitPrice), String.valueOf(depositRate), String.valueOf(effectiveDeadlineAt),
                 String.valueOf(supplierReturnCutoff), String.valueOf(returnBufferMinutes),
                 String.valueOf(latePolicy), String.valueOf(batch.getReservationExpiresAt()));
         return sha256(material);
@@ -1074,7 +1268,4 @@ public class VendorAllocationService implements VendorAllocationServicePort {
         }
     }
 
-    private LocalTime timeConfig(SystemConfigEnum key) {
-        return SystemConfigValueValidator.parseLocalTime(stringConfig(key), key.getConfigName());
-    }
 }

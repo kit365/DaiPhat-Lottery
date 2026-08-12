@@ -11,6 +11,7 @@ import com.daiphat.coreapi.application.port.in.lotteries.LotteryStationServicePo
 import com.daiphat.coreapi.application.port.out.file.StoragePort;
 import com.daiphat.coreapi.application.port.out.lotteries.LotteryTicketSerialRepositoryPort;
 import com.daiphat.coreapi.application.port.out.payout.PrizePayoutRequestRepositoryPort;
+import com.daiphat.coreapi.application.port.out.order.TransactionRepositoryPort;
 import com.daiphat.coreapi.application.port.out.refund.UserBankAccountRepositoryPort;
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
@@ -63,6 +64,7 @@ import static org.mockito.Mockito.when;
 class PrizePayoutStaffServiceCreateInPersonTest {
 
     @Mock private PrizePayoutRequestRepositoryPort prizePayoutRequestRepositoryPort;
+    @Mock private TransactionRepositoryPort transactionRepositoryPort;
     @Mock private PrizePayoutEligibilityService prizePayoutEligibilityService;
     @Mock private PrizePayoutCalculationService prizePayoutCalculationService;
     @Mock private PrizePayoutSerialLockService prizePayoutSerialLockService;

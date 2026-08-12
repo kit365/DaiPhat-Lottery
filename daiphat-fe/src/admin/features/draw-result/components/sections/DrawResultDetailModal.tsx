@@ -6,7 +6,6 @@ import {
     DialogTitle, 
     DialogContent, 
     DialogActions, 
-    Button, 
     Typography, 
     Box, 
     Table, 
@@ -15,8 +14,11 @@ import {
     TableContainer, 
     TableRow, 
     Alert,
-    CircularProgress
+    CircularProgress,
+    IconButton,
 } from '@mui/material';
+import CloseIcon from '@mui/icons-material/Close';
+import { Button } from '../../../../components/ui/Button';
 import { useLotteryResultDetails } from '../../hooks/useDrawResult';
 
 interface Props {
@@ -24,16 +26,23 @@ interface Props {
     onClose: () => void;
 }
 
+const DIALOG_PAPER_SX = {
+    borderRadius: '16px',
+    boxShadow: 'var(--customShadows-dialog)',
+    border: '1px solid #e2e8f0',
+    overflow: 'hidden',
+};
+
 const PRIZE_ORDER = [
-    { code: 'G8', label: 'Giải Tám' },
-    { code: 'G7', label: 'Giải Bảy' },
-    { code: 'G6', label: 'Giải Sáu' },
-    { code: 'G5', label: 'Giải Năm' },
-    { code: 'G4', label: 'Giải Tư' },
-    { code: 'G3', label: 'Giải Ba' },
-    { code: 'G2', label: 'Giải Nhì' },
-    { code: 'G1', label: 'Giải Nhất' },
     { code: 'DB', label: 'Đặc Biệt', color: 'error.main' },
+    { code: 'G1', label: 'Giải Nhất' },
+    { code: 'G2', label: 'Giải Nhì' },
+    { code: 'G3', label: 'Giải Ba' },
+    { code: 'G4', label: 'Giải Tư' },
+    { code: 'G5', label: 'Giải Năm' },
+    { code: 'G6', label: 'Giải Sáu' },
+    { code: 'G7', label: 'Giải Bảy' },
+    { code: 'G8', label: 'Giải Tám' },
 ];
 
 export const DrawResultDetailModal: React.FC<Props> = ({ resultId, onClose }) => {
@@ -64,11 +73,51 @@ export const DrawResultDetailModal: React.FC<Props> = ({ resultId, onClose }) =>
     };
 
     return (
-        <Dialog open={!!resultId} onClose={onClose} maxWidth="md" fullWidth>
-            <DialogTitle sx={{ fontWeight: 'bold' }}>
+        <Dialog
+            open={!!resultId}
+            onClose={onClose}
+            maxWidth="md"
+            fullWidth
+            PaperProps={{
+                className: 'admin-theme',
+                sx: DIALOG_PAPER_SX,
+            }}
+        >
+            <DialogTitle
+                sx={{
+                    pb: 1.5,
+                    pt: 2.5,
+                    px: 3,
+                    pr: 6,
+                    fontWeight: 800,
+                    fontSize: '1.05rem',
+                    color: 'var(--palette-text-primary)',
+                    borderBottom: '1px solid #e2e8f0',
+                }}
+            >
                 Chi tiết Vé Dò
+                <IconButton
+                    aria-label="Đóng"
+                    onClick={onClose}
+                    sx={{
+                        position: 'absolute',
+                        right: 12,
+                        top: 12,
+                        color: 'var(--palette-text-secondary)',
+                    }}
+                >
+                    <CloseIcon fontSize="small" />
+                </IconButton>
             </DialogTitle>
-            <DialogContent dividers>
+            <DialogContent
+                dividers
+                sx={{
+                    px: 3,
+                    pb: 2.5,
+                    pt: '24px !important',
+                    borderColor: '#e2e8f0',
+                }}
+            >
                 {isLoading && (
                     <Box display="flex" justifyContent="center" p={4}>
                         <CircularProgress />
@@ -86,9 +135,9 @@ export const DrawResultDetailModal: React.FC<Props> = ({ resultId, onClose }) =>
                 )}
 
                 {!isLoading && !isError && response?.data && response.data.length > 0 && (
-                    <Box sx={{ maxWidth: 800, mx: 'auto', border: '1px solid var(--palette-divider)', borderRadius: 2, overflow: 'hidden' }}>
+                    <Box sx={{ maxWidth: 800, mx: 'auto', border: '1px solid #e2e8f0', borderRadius: '16px', overflow: 'hidden' }}>
                         <TableContainer>
-                            <Table sx={{ '& .MuiTableCell-root': { borderBottom: '1px dashed rgba(224, 224, 224, 1)', py: 2 } }}>
+                            <Table sx={{ '& .MuiTableCell-root': { borderBottom: '1px dashed #e2e8f0', py: 2 } }}>
                                 <TableBody>
                                     {PRIZE_ORDER.map(({ code, label, color }) => {
                                         const prizeValues = prizesByCode[code];
@@ -96,7 +145,7 @@ export const DrawResultDetailModal: React.FC<Props> = ({ resultId, onClose }) =>
 
                                         return (
                                             <TableRow key={code} hover>
-                                                <TableCell width="25%" align="center" sx={{ borderRight: '1px solid rgba(224, 224, 224, 1)', bgcolor: 'background.neutral' }}>
+                                                <TableCell width="25%" align="center" sx={{ borderRight: '1px solid #e2e8f0', bgcolor: '#f8fafc' }}>
                                                     <Typography variant="subtitle1" fontWeight={600} color={color || 'text.secondary'}>
                                                         {label}
                                                     </Typography>
@@ -113,8 +162,23 @@ export const DrawResultDetailModal: React.FC<Props> = ({ resultId, onClose }) =>
                     </Box>
                 )}
             </DialogContent>
-            <DialogActions>
-                <Button onClick={onClose} color="inherit">Đóng</Button>
+            <DialogActions
+                sx={{
+                    px: 3,
+                    pb: 2.5,
+                    pt: 2,
+                    gap: 1,
+                    borderTop: '1px solid #e2e8f0',
+                    bgcolor: '#f8fafc',
+                }}
+            >
+                <Button
+                    onClick={onClose}
+                    variant="outlined"
+                    className="btn-outlined-admin"
+                    label="Đóng"
+                    sx={{ minWidth: 96, borderRadius: '8px', fontWeight: 700 }}
+                />
             </DialogActions>
         </Dialog>
     );

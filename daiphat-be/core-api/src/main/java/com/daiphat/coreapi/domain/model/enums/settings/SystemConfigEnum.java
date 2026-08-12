@@ -377,6 +377,16 @@ public enum SystemConfigEnum {
             "{\"min\":\"00:00\",\"max\":\"23:59\"}",
             true
     ),
+    VENDOR_EFFECTIVE_HANDOVER_DEADLINE_RULE(
+            ConfigType.VENDOR_SETTING,
+            DataType.STRING,
+            "Tự tính theo từng phiếu",
+            "Hạn giao thực tế không phải setting cố định. Hệ thống lấy mốc sớm hơn giữa giờ chốt người bán và giờ trả nhà cung cấp sớm nhất trừ thời gian đệm.",
+            "Cách tính hạn giao thực tế",
+            null,
+            "{\"allowEmpty\":false,\"maxLength\":255}",
+            false
+    ),
     VENDOR_COMMISSION_RATE(
             ConfigType.VENDOR_SETTING,
             DataType.DECIMAL,
@@ -589,7 +599,7 @@ public enum SystemConfigEnum {
             true
     ),
     RETURN_BUFFER_TIME(
-            ConfigType.TICKET_IMPORT,
+            ConfigType.TICKET_RETURN,
             DataType.INT,
             "45",
             "Thời gian đệm (phút) trước hạn trả vé của nhà cung cấp",
@@ -606,6 +616,26 @@ public enum SystemConfigEnum {
             "Nhắc kiểm tra trả vé",
             "phút",
             "{\"min\":1,\"max\":1440}",
+            true
+    ),
+    VERIFICATION_DEADLINE(
+            ConfigType.TICKET_RETURN,
+            DataType.TIME,
+            "17:00",
+            "Hạn chót đối chiếu / upload biên lai đối soát trong ngày (sau hạn trả vé NCC)",
+            "Hạn chót đối chiếu",
+            "HH:mm",
+            "{\"min\":\"00:00\",\"max\":\"23:59\"}",
+            true
+    ),
+    SETTLEMENT_BUFFER_TIME(
+            ConfigType.TICKET_RETURN,
+            DataType.INT,
+            "120",
+            "Thời gian đệm (phút) sau hạn chót đối chiếu để hoàn tất đối soát và thanh toán NCC",
+            "Thời gian đệm đối soát/thanh toán",
+            "phút",
+            "{\"min\":0,\"max\":1440}",
             true
     ),
     TICKET_AUTO_IMPORT_THRESHOLD(

@@ -24,11 +24,11 @@ export interface StreetAgentProfile {
     contractEndDate?: string;
     contractCode?: string;
     contractDocumentUrl?: string;
-    /** Trần ghi trong hợp đồng; chỉ đổi khi có phụ lục/hợp đồng mới. */
+    /** Trần ghi trong hợp đồng cho mỗi phiếu bàn giao; chỉ đổi khi có phụ lục/hợp đồng mới. */
     contractMaxDailyCap?: number;
-    /** Hạn mức áp dụng sau khi nhân hệ số tier tin cậy trên trần hợp đồng. */
+    /** Giới hạn áp dụng cho một phiếu đang mở sau khi nhân hệ số tier tin cậy. */
     effectiveDailyCap?: number;
-    /** Hạn mức còn lại của ngày kinh doanh đang được xem. */
+    /** Phần còn có thể thêm vào phiếu đang mở của ngày kinh doanh được xem. */
     remainingDailyCap?: number;
     confidenceScore?: number;
     confidenceTier?: VendorConfidenceTier;
@@ -144,12 +144,33 @@ export interface VendorAllocationStationGroup {
     tickets: VendorAllocationTicketGroup[];
 }
 
+/**
+ * Server-provided context for a suggestion that is limited or blocked.
+ * Keep the codes internal and let the page translate them into operator-facing
+ * Vietnamese copy while preserving the concrete times/quantities from BE.
+ */
+export interface VendorAllocationReasonDetail {
+    code: string;
+    cutoffTime?: string | null;
+    /** Absolute server-calculated deadline; FE must display it, never recompute it. */
+    effectiveDeadlineAt?: string | null;
+    stationName?: string | null;
+    drawTime?: string | null;
+    eligibleQuantity?: number | null;
+    reserveQuantity?: number | null;
+    vendorCapacity?: number | null;
+    /** Legacy API name; capacity still available to add to the current open handover. */
+    remainingDailyCap?: number | null;
+    requestedQuantity?: number | null;
+}
+
 export interface VendorAllocationSuggestion {
     /** Selected denomination. Null means the caller must choose one from availableFaceValues. */
     faceValue?: number | null;
     /** Present only when inventory has multiple denominations for the business date. */
     availableFaceValues?: number[];
     requestedQuantity: number;
+    /** Legacy API name; capacity still available to add to the current open handover. */
     remainingDailyCap: number;
     capLimitedQuantity: number;
     totalVendorCapacity: number;
@@ -162,6 +183,7 @@ export interface VendorAllocationSuggestion {
     inventoryShortfallQuantity: number;
     shortageReasons: string[];
     blockedReason?: string | null;
+    reasonDetails?: VendorAllocationReasonDetail[];
     stations: VendorAllocationStationGroup[];
 }
 
@@ -199,6 +221,7 @@ export interface VendorAllocationBatchDetailRow {
 }
 
 export type VendorAllocationReturnWorkflowStage =
+    | "READY_FOR_RETURN"
     | "RETURN_ENTRY"
     | "INSPECTION"
     | "READY_FOR_SETTLEMENT"
@@ -216,8 +239,13 @@ export interface VendorAllocationReturnWorkflow {
     unreturnedQuantity: number;
     canEditReturns: boolean;
     canConfirmInspection: boolean;
+    canConfirmNoReturn: boolean;
     canPreviewSettlement: boolean;
     canSettle: boolean;
+}
+
+export interface ConfirmVendorNoReturnPayload {
+    note?: string;
 }
 
 export interface VendorAllocationBatch {
@@ -240,6 +268,8 @@ export interface VendorAllocationBatch {
     returnCutoffSnapshot?: string | null;
     supplierReturnCutoffSnapshot?: string | null;
     returnBufferMinutesSnapshot?: number | null;
+    /** Absolute deadline snapshot from BE; FE must display it and never recompute it. */
+    effectiveHandoverDeadlineAt?: string | null;
     depositRequiredAmount?: number | null;
     depositReceivedAmount?: number | null;
     depositBalanceBefore?: number | null;
@@ -273,6 +303,7 @@ export interface VendorConfirmationQuote {
     depositRequiredAmount: number;
     returnCutoff?: string | null;
     latePolicy?: string | null;
+    effectiveHandoverDeadlineAt?: string | null;
     /** Opaque server value that must be echoed on confirm; stale quote returns HTTP 409. */
     quoteFingerprint: string;
     quotedAt?: string | null;

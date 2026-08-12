@@ -95,18 +95,15 @@ export const CounterPaymentQrDialog = ({
         }
     }, [open]);
 
+    // Poll until paid or cancelled. Do not treat countdown expiry alone as failure —
+    // a late PayOS success must still resolve to onPaid.
     useEffect(() => {
-        if (!open || !expired || resolvedRef.current) return;
-        handleExpired();
-    }, [open, expired, handleExpired]);
-
-    useEffect(() => {
-        if (!open || expired) return;
+        if (!open || !orderId) return;
 
         let cancelled = false;
 
         const poll = async () => {
-            if (cancelled || resolvedRef.current || !orderId || syncInFlightRef.current) return;
+            if (cancelled || resolvedRef.current || syncInFlightRef.current) return;
             syncInFlightRef.current = true;
             try {
                 const res = await syncPayment(orderId);
@@ -126,10 +123,10 @@ export const CounterPaymentQrDialog = ({
             cancelled = true;
             window.clearInterval(timer);
         };
-    }, [open, expired, orderId, resolvePaymentStatus, syncPayment]);
+    }, [open, orderId, resolvePaymentStatus, syncPayment]);
 
     const handleManualSync = async () => {
-        if (!orderId || resolvedRef.current || expired || syncInFlightRef.current) return;
+        if (!orderId || resolvedRef.current || syncInFlightRef.current) return;
         setSyncing(true);
         syncInFlightRef.current = true;
         try {
@@ -265,7 +262,7 @@ export const CounterPaymentQrDialog = ({
                     onClick={handleManualSync}
                     variant="contained"
                     className="btn-primary-admin"
-                    disabled={syncing || loading || !orderId || expired}
+                    disabled={syncing || loading || !orderId}
                     startIcon={syncing ? <CircularProgress size={16} color="inherit" /> : undefined}
                 >
                     {syncing ? 'Đang kiểm tra...' : 'Đã thanh toán — kiểm tra lại'}

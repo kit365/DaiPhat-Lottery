@@ -3,6 +3,7 @@ package com.daiphat.coreapi.application.port.in.streetagent;
 import com.daiphat.coreapi.application.dto.request.streetagent.CreateVendorAllocationDraftRequest;
 import com.daiphat.coreapi.application.dto.request.streetagent.ConfirmVendorAllocationRequest;
 import com.daiphat.coreapi.application.dto.request.streetagent.ConfirmVendorReturnInspectionRequest;
+import com.daiphat.coreapi.application.dto.request.streetagent.ConfirmVendorNoReturnRequest;
 import com.daiphat.coreapi.application.dto.request.streetagent.ReturnVendorAllocationSerialsRequest;
 import com.daiphat.coreapi.application.dto.request.streetagent.SettleVendorAllocationRequest;
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
@@ -53,6 +54,7 @@ public interface VendorAllocationServicePort {
     VendorAllocationBatchResponse recordReturns(Long id, ReturnVendorAllocationSerialsRequest request);
     VendorAllocationBatchResponse removeReturn(Long id, Long serialId);
     VendorAllocationBatchResponse confirmReturnInspection(Long id, ConfirmVendorReturnInspectionRequest request, UUID operatorId);
+    VendorAllocationBatchResponse confirmNoReturnedTickets(Long id, ConfirmVendorNoReturnRequest request, UUID operatorId);
     VendorSettlementPreviewResponse previewSettlement(Long id);
     VendorAllocationBatchResponse settle(Long id, SettleVendorAllocationRequest request, UUID operatorId);
     void cancel(Long id);

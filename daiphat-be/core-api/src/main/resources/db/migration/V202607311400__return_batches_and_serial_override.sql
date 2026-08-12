@@ -4,13 +4,14 @@ CREATE TABLE IF NOT EXISTS return_batches (
     batch_code               VARCHAR(100),
     -- SUPPLIER_RETURN: outbound return to supplier.
     -- STREET_AGENT_RETURN: inbound receipt from a vendor; linked to allocation later.
+    -- EXCESS_SUPPLIER_RETURN: additional supplier return after reconciliation.
     return_batch_type        VARCHAR(30) NOT NULL DEFAULT 'SUPPLIER_RETURN',
     lottery_supplier_id      BIGINT,
     source_allocation_batch_id BIGINT,
     draw_date                DATE NOT NULL,
     supplier_settlement_id   BIGINT,
     return_receipt_url       VARCHAR(500),
-    return_receipt_evidence_url VARCHAR(500),
+    return_evidence_url       VARCHAR(500),
     delivery_mode            VARCHAR(40),
     total_quantity           INT NOT NULL DEFAULT 0,
     total_return_value       NUMERIC(18, 3) NOT NULL DEFAULT 0,
@@ -46,6 +47,9 @@ CREATE INDEX IF NOT EXISTS idx_return_batches_source_allocation
     ON return_batches (source_allocation_batch_id);
 CREATE INDEX IF NOT EXISTS idx_return_batches_batch_code
     ON return_batches (batch_code);
+
+COMMENT ON COLUMN return_batches.return_batch_type IS
+    'SUPPLIER_RETURN | STREET_AGENT_RETURN | EXCESS_SUPPLIER_RETURN';
 
 CREATE SEQUENCE IF NOT EXISTS return_batch_header_code_seq START WITH 1 INCREMENT BY 1;
 

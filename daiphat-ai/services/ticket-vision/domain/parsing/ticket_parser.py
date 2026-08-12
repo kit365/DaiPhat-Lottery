@@ -96,6 +96,13 @@ def _format_denomination(value: int) -> str:
     return f"{value:,}".replace(",", ".") + "đ"
 
 
+# A region named "field:<name>" is known (by the layout that produced it) to
+# contain exactly that one field -- see domain/layouts/yolo_field_layout.py.
+# Its text is bound straight to the field instead of being fed through the
+# shape/position guessing the whole-ticket path has to use.
+FIELD_REGION_PREFIX = "field:"
+
+
 def _global_position(region: str, y_center: float) -> float:
     """Map a text line's position (local to its own region crop) onto a
     single 0..1 coordinate spanning the whole ticket, so lines from
@@ -174,6 +181,7 @@ class TicketParser:
                 x_center=result.x_center,
             )
             for region, results in ocr_results_by_region.items()
+            if not region.startswith(FIELD_REGION_PREFIX)
             for result in results
         ]
 
@@ -182,7 +190,95 @@ class TicketParser:
         self._extract_numbers_and_serial(all_lines, extracted, confidences, positions, expected_number_length)
         self._extract_denomination(all_lines, extracted, confidences)
 
+        # Applied last so a field the layout located wins over the same field
+        # guessed from the whole ticket -- but only where it actually yields
+        # a value, so a missed or unreadable field box costs nothing.
+        self._apply_field_regions(
+            ocr_results_by_region, extracted, confidences, positions, expected_number_length
+        )
+
         return ParsedTicket(extracted=extracted, field_confidences=confidences, field_positions=positions)
+
+    def _apply_field_regions(
+        self,
+        ocr_results_by_region: dict[str, list[OcrTextResult]],
+        extracted: ExtractedTicketFields,
+        confidences: dict[str, float],
+        positions: dict[str, tuple[float, float]],
+        expected_number_length: int | None,
+    ) -> None:
+        """Bind text read from single-field crops directly to their field.
+
+        A crop the model says *is* the serial number needs none of the
+        whole-ticket disambiguation: there's no competing prize amount or
+        batch code in it to be confused with. Each value is still run
+        through the same normaliser the heuristic path uses (date parsing,
+        station fuzzy-matching, denomination formatting), so a garbled read
+        is rejected rather than trusted just because it was well-located.
+        """
+        for region, results in ocr_results_by_region.items():
+            if not region.startswith(FIELD_REGION_PREFIX) or not results:
+                continue
+            field_name = region[len(FIELD_REGION_PREFIX):]
+
+            best = max(results, key=lambda r: r.confidence)
+            value = self._normalise_field_value(field_name, results, best, expected_number_length)
+            if value is None:
+                continue
+
+            setattr(extracted, field_name, value)
+            confidences[field_name] = best.confidence
+            # Drop any position recorded by the whole-ticket pass: it refers
+            # to a location this value no longer came from, and
+            # TicketScanService's ROI refinement would re-crop there and
+            # could clobber this reading. Refinement has nothing to add here
+            # anyway -- a single-field crop *is* the tight ROI it tries to
+            # reconstruct.
+            positions.pop(field_name, None)
+            if field_name == "stationName":
+                match = self._station_matcher.match(best.text, self._station_fuzzy_threshold)
+                if match.station is not None:
+                    extracted.stationCode = match.station.code
+
+    def _normalise_field_value(
+        self, field_name: str, results, best, expected_number_length: int | None = None
+    ) -> str | None:
+        """Validate/convert a single-field crop's text, or None to keep the
+        whole-ticket result."""
+        if field_name == "drawDate":
+            for result in sorted(results, key=lambda r: -r.confidence):
+                iso_date = _to_iso_date(result.text)
+                if iso_date:
+                    return iso_date
+            return None
+
+        if field_name == "stationName":
+            match = self._station_matcher.match(best.text, self._station_fuzzy_threshold)
+            return match.station.name if match.station is not None else None
+
+        if field_name == "ticketType":
+            for result in sorted(results, key=lambda r: -r.confidence):
+                for token in _tokenize(result.text):
+                    value = _denomination_value(token)
+                    if value is not None:
+                        return _format_denomination(value)
+            return None
+
+        if field_name == "numbers":
+            # Digits only -- OCR often reads the widely-kerned decorative
+            # copy with spaces between every digit. Length is checked too:
+            # a field crop that clips the number ("885" out of a 6-digit
+            # value) is digits-shaped but wrong, and accepting it would make
+            # this path *worse* than the whole-ticket heuristic, which
+            # applies the same length rule.
+            collapsed = re.sub(r"\s+", "", best.text.strip())
+            return collapsed if _is_plausible_number_token(collapsed, expected_number_length) else None
+
+        if field_name == "serialNumber":
+            collapsed = re.sub(r"\s+", "", best.text.strip())
+            return collapsed if _SERIAL_PATTERN.match(collapsed) else None
+
+        return None
 
     def _extract_station(
         self,

@@ -9,20 +9,17 @@ import { adminTheme } from "../config/theme";
 import '../styles/index.css';
 import { useSidebar } from "../context/sidebar/useSidebar";
 import { SidebarProvider } from "../context/sidebar/SidebarProvider";
-import { useAuthStore } from "../../stores/useAuthStore";
-import { usePrefetchAdminPagesWhenIdle } from "../hooks/usePrefetchAdminPagesWhenIdle";
 import { SocketProvider } from "../context/SocketContext";
 import { AdminProviders } from "../providers/AdminProviders";
 import { NavigationProgressBar } from "../components/ui/NavigationProgressBar";
 import { PageNavigationProvider } from "../context/PageNavigationContext";
 import { AdminBadgeCountsProvider } from "../context/AdminBadgeCountsProvider";
 import { SpinnerLoading } from "../components/ui/SpinnerLoading";
+import { useAdminLoginSuccessToast } from "../features/auth/hooks/useAdminLoginSuccessToast";
 
 const LayoutAdminContent = ({ children }: { children?: React.ReactNode }) => {
-    const { user, token } = useAuthStore();
     const { isOpen } = useSidebar();
-
-    usePrefetchAdminPagesWhenIdle(!!user && !!token);
+    useAdminLoginSuccessToast();
 
     return (
         <div className="flex min-h-screen bg-white overflow-x-hidden w-full max-w-full">

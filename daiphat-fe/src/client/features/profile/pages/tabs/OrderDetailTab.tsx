@@ -245,7 +245,7 @@ export const OrderDetailTab = () => {
         seconds: remainingCountdownSeconds % 60,
     };
 
-    // Khi countdown hết hạn: đóng dialog, toast, refetch tới khi backend hủy đơn
+    // Countdown hết hạn: chỉ báo lỗi sau khi backend đã CANCELLED (không toast khi vừa PAID).
     useEffect(() => {
         if (!order?.id || order.status !== OrderStatus.PENDING_PAYMENT || !isPaymentCountdownExpired) {
             if (order?.status !== OrderStatus.PENDING_PAYMENT) {
@@ -254,17 +254,23 @@ export const OrderDetailTab = () => {
             return;
         }
 
-        if (!paymentExpiredHandledRef.current) {
-            paymentExpiredHandledRef.current = true;
-            handlePaymentExpired();
-        }
-
         const timer = window.setInterval(() => {
             void refetchOrder();
         }, 3000);
 
         return () => window.clearInterval(timer);
-    }, [order?.id, order?.status, isPaymentCountdownExpired, handlePaymentExpired, refetchOrder]);
+    }, [order?.id, order?.status, isPaymentCountdownExpired, refetchOrder]);
+
+    useEffect(() => {
+        if (!order?.id || order.status !== OrderStatus.CANCELLED || !isPaymentCountdownExpired) {
+            return;
+        }
+        if (paymentExpiredHandledRef.current) {
+            return;
+        }
+        paymentExpiredHandledRef.current = true;
+        handlePaymentExpired();
+    }, [order?.id, order?.status, isPaymentCountdownExpired, handlePaymentExpired]);
 
     useEffect(() => {
         if (searchParamsForLocation?.get("openRefund") !== "true" || !order || !isRefundCandidateStatus(order.status) || isLoadingEligibility) {

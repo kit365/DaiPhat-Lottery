@@ -1,12 +1,15 @@
 "use client";
 
-import { useMemo, useState } from 'react';
-import { Box, Button, FormControl, FormHelperText, Popover, Typography } from '@mui/material';
+import { useEffect, useMemo, useState } from 'react';
+import { Box, Button, FormControl, FormHelperText, IconButton, InputAdornment, Popover, TextField, Typography } from '@mui/material';
 import { CalendarMonth } from '@mui/icons-material';
 import { DayPicker } from 'react-day-picker';
 import dayjs from 'dayjs';
+import customParseFormat from 'dayjs/plugin/customParseFormat';
 import { vi } from 'date-fns/locale';
 import 'react-day-picker/style.css';
+
+dayjs.extend(customParseFormat);
 
 const CALENDAR_STYLES = `
     .admin-date-picker .rdp-root {
@@ -96,6 +99,20 @@ const formatDisplay = (value?: string) => {
     return parsed.isValid() ? parsed.format('DD/MM/YYYY') : '';
 };
 
+const parseTypedDate = (value: string) => {
+    const normalized = value.trim();
+    if (!normalized) return undefined;
+    const parsed = dayjs(normalized, ['DD/MM/YYYY', 'D/M/YYYY', 'YYYY-MM-DD'], true);
+    return parsed.isValid() ? parsed : undefined;
+};
+
+const formatDateInput = (value: string) => {
+    const digits = value.replace(/\D/g, '').slice(0, 8);
+    if (digits.length <= 2) return digits;
+    if (digits.length <= 4) return `${digits.slice(0, 2)}/${digits.slice(2)}`;
+    return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`;
+};
+
 export interface AdminDatePickerProps {
     value?: string;
     onChange: (value: string) => void;
@@ -106,6 +123,8 @@ export interface AdminDatePickerProps {
     helperText?: string;
     helperTextColor?: 'error' | 'warning' | 'default';
     disabled?: boolean;
+    /** Keeps the custom calendar while allowing keyboard input (DD/MM/YYYY). */
+    allowInput?: boolean;
 }
 
 export const AdminDatePicker = ({
@@ -118,10 +137,13 @@ export const AdminDatePicker = ({
     helperText,
     helperTextColor = 'default',
     disabled = false,
+    allowInput = false,
 }: AdminDatePickerProps) => {
-    const [anchorEl, setAnchorEl] = useState<HTMLDivElement | null>(null);
+    const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
     const [focused, setFocused] = useState(false);
     const [tempDate, setTempDate] = useState<Date | undefined>(undefined);
+    const [inputValue, setInputValue] = useState('');
+    const [inputError, setInputError] = useState(false);
 
     const selectedDate = useMemo(() => parseYmd(value), [value]);
     const minDate = useMemo(() => parseYmd(min), [min]);
@@ -130,7 +152,12 @@ export const AdminDatePicker = ({
     const open = Boolean(anchorEl);
     const hasValue = !!value;
 
-    const handleOpen = (event: React.MouseEvent<HTMLDivElement>) => {
+    useEffect(() => {
+        setInputValue(displayValue);
+        setInputError(false);
+    }, [displayValue]);
+
+    const handleOpen = (event: React.MouseEvent<HTMLElement>) => {
         if (disabled) return;
         setTempDate(selectedDate);
         setAnchorEl(event.currentTarget);
@@ -152,73 +179,140 @@ export const AdminDatePicker = ({
         handleClose();
     };
 
+    const handleInputBlur = () => {
+        setFocused(false);
+        const typedDate = parseTypedDate(inputValue);
+        if (!typedDate) {
+            if (!inputValue.trim()) {
+                setInputError(false);
+                onChange('');
+            } else {
+                setInputError(true);
+            }
+            return;
+        }
+
+        const isBeforeMin = minDate && typedDate.isBefore(dayjs(minDate).startOf('day'));
+        const isAfterMax = maxDate && typedDate.isAfter(dayjs(maxDate).startOf('day'));
+        if (isBeforeMin || isAfterMax) {
+            setInputError(true);
+            return;
+        }
+
+        setInputError(false);
+        onChange(typedDate.format('YYYY-MM-DD'));
+    };
+
+    const helperTextValue = inputError
+        ? 'Nhập ngày hợp lệ theo dạng DD/MM/YYYY.'
+        : helperText;
+
     return (
         <Box>
             <FormControl fullWidth error={error} disabled={disabled}>
-                <Box
-                    onClick={handleOpen}
-                    sx={{
-                        position: 'relative',
-                        cursor: disabled ? 'not-allowed' : 'pointer',
-                        borderRadius: 'var(--shape-borderRadius)',
-                        outline: focused
-                            ? '2px solid var(--palette-text-primary)'
-                            : '1px solid transparent',
-                        outlineOffset: focused ? '-2px' : '-1px',
-                        boxShadow: focused
-                            ? undefined
-                            : 'inset 0 0 0 1px rgba(145, 158, 171, 0.2)',
-                        transition: 'box-shadow 0.15s ease, outline 0.15s ease',
-                        opacity: disabled ? 0.6 : 1,
-                        '&:hover': disabled
-                            ? undefined
-                            : {
-                                  boxShadow: focused ? undefined : 'inset 0 0 0 1px rgba(145, 158, 171, 0.8)',
-                              },
-                        backgroundColor: 'var(--palette-background-paper)',
-                        px: '14px',
-                        py: '16px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 1,
-                        minHeight: '56px',
-                    }}
-                >
-                    <Typography
-                        component="label"
+                {allowInput ? (
+                    <TextField
+                        fullWidth
+                        label={label}
+                        value={inputValue}
+                        placeholder="dd/mm/yyyy"
+                        onChange={(event) => {
+                            setInputValue(formatDateInput(event.target.value));
+                            setInputError(false);
+                        }}
+                        onFocus={() => setFocused(true)}
+                        onBlur={handleInputBlur}
+                        onKeyDown={(event) => {
+                            if (event.key === 'Enter') {
+                                event.preventDefault();
+                                event.currentTarget.blur();
+                            }
+                        }}
+                        error={Boolean(error || inputError)}
+                        helperText={helperTextValue}
+                        InputLabelProps={{ shrink: true }}
+                        InputProps={{
+                            endAdornment: (
+                                <InputAdornment position="end">
+                                    <IconButton
+                                        edge="end"
+                                        size="small"
+                                        aria-label={`Mở lịch ${label}`}
+                                        onMouseDown={(event) => event.preventDefault()}
+                                        onClick={handleOpen}
+                                    >
+                                        <CalendarMonth fontSize="small" />
+                                    </IconButton>
+                                </InputAdornment>
+                            ),
+                        }}
+                    />
+                ) : (
+                    <Box
+                        onClick={handleOpen}
                         sx={{
-                            position: 'absolute',
-                            top: hasValue || focused ? '-9px' : '50%',
-                            left: '10px',
-                            transform: hasValue || focused ? 'translateY(0)' : 'translateY(-50%)',
-                            fontSize: hasValue || focused ? '0.75rem' : '0.9375rem',
-                            fontWeight: focused ? 600 : 400,
-                            color: error
-                                ? 'error.main'
-                                : focused
-                                  ? 'var(--palette-text-primary)'
-                                  : 'var(--palette-text-disabled)',
-                            transition: 'all 0.15s',
-                            background: 'var(--palette-background-paper)',
-                            px: '4px',
-                            pointerEvents: 'none',
-                            lineHeight: 1,
+                            position: 'relative',
+                            cursor: disabled ? 'not-allowed' : 'pointer',
+                            borderRadius: 'var(--shape-borderRadius)',
+                            outline: focused
+                                ? '2px solid var(--palette-text-primary)'
+                                : '1px solid transparent',
+                            outlineOffset: focused ? '-2px' : '-1px',
+                            boxShadow: focused
+                                ? undefined
+                                : 'inset 0 0 0 1px rgba(145, 158, 171, 0.2)',
+                            transition: 'box-shadow 0.15s ease, outline 0.15s ease',
+                            opacity: disabled ? 0.6 : 1,
+                            '&:hover': disabled
+                                ? undefined
+                                : {
+                                      boxShadow: focused ? undefined : 'inset 0 0 0 1px rgba(145, 158, 171, 0.8)',
+                                  },
+                            backgroundColor: 'var(--palette-background-paper)',
+                            px: '14px',
+                            py: '16px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 1,
+                            minHeight: '56px',
                         }}
                     >
-                        {label}
-                    </Typography>
-                    <CalendarMonth sx={{ fontSize: '1.25rem', color: 'var(--palette-text-disabled)', flexShrink: 0 }} />
-                    <Typography
-                        sx={{
-                            fontSize: '0.9375rem',
-                            color: hasValue ? 'var(--palette-text-primary)' : 'var(--palette-text-disabled)',
-                            userSelect: 'none',
-                        }}
-                    >
-                        {displayValue || '\u00A0'}
-                    </Typography>
-                </Box>
-                {helperText ? (
+                        <Typography
+                            component="label"
+                            sx={{
+                                position: 'absolute',
+                                top: hasValue || focused ? '-9px' : '50%',
+                                left: '10px',
+                                transform: hasValue || focused ? 'translateY(0)' : 'translateY(-50%)',
+                                fontSize: hasValue || focused ? '0.75rem' : '0.9375rem',
+                                fontWeight: focused ? 600 : 400,
+                                color: error
+                                    ? 'error.main'
+                                    : focused
+                                      ? 'var(--palette-text-primary)'
+                                      : 'var(--palette-text-disabled)',
+                                transition: 'all 0.15s',
+                                background: 'var(--palette-background-paper)',
+                                px: '4px',
+                                pointerEvents: 'none',
+                                lineHeight: 1,
+                            }}
+                        >
+                            {label}
+                        </Typography>
+                        <CalendarMonth sx={{ fontSize: '1.25rem', color: 'var(--palette-text-disabled)', flexShrink: 0 }} />
+                        <Typography
+                            sx={{
+                                fontSize: '0.9375rem',
+                                color: hasValue ? 'var(--palette-text-primary)' : 'var(--palette-text-disabled)',
+                                userSelect: 'none',
+                            }}
+                        >
+                            {displayValue || '\u00A0'}
+                        </Typography>
+                    </Box>
+                )}
+                {helperTextValue && !allowInput ? (
                     <FormHelperText
                         sx={
                             helperTextColor === 'warning'
@@ -228,7 +322,7 @@ export const AdminDatePicker = ({
                                   : undefined
                         }
                     >
-                        {helperText}
+                        {helperTextValue}
                     </FormHelperText>
                 ) : null}
             </FormControl>

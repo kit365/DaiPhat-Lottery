@@ -5,6 +5,7 @@ import { useMemo } from "react";
 import {
     cancelVendorAllocation,
     confirmVendorReturnInspection,
+    confirmVendorNoReturn,
     confirmVendorAllocation,
     createVendorAllocationDraft,
     getOpenVendorAllocationBatch,
@@ -21,6 +22,7 @@ import {
 import {
     ConfirmVendorAllocationPayload,
     ConfirmVendorReturnInspectionPayload,
+    ConfirmVendorNoReturnPayload,
     CreateVendorAllocationDraftPayload,
     ReturnVendorAllocationSerialsPayload,
     SettleVendorAllocationPayload,
@@ -278,6 +280,17 @@ export const useConfirmVendorReturnInspection = () => {
             id: number | string;
             data: ConfirmVendorReturnInspectionPayload;
         }) => confirmVendorReturnInspection(id, data),
+        onSuccess: (_response, variables) => {
+            invalidateVendorAllocationQueries(queryClient, variables.id);
+        },
+    });
+};
+
+export const useConfirmVendorNoReturn = () => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: ({ id, data }: { id: number | string; data?: ConfirmVendorNoReturnPayload }) =>
+            confirmVendorNoReturn(id, data),
         onSuccess: (_response, variables) => {
             invalidateVendorAllocationQueries(queryClient, variables.id);
         },

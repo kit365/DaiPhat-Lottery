@@ -1,3 +1,5 @@
+"use client";
+
 import { useSearchParams } from "next/navigation";
 import { PageHeader } from '../../../../components/ui/PageHeader';
 import { prefixAdmin } from '../../../../constants/routes';

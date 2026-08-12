@@ -219,10 +219,8 @@ export const SupplierFormFields = ({
         isFieldMissing(missingFields, field) ? getActivationFieldHelperText(field) : defaultText;
 
     const importAllowFromVal = useWatch({ control, name: 'importAllowFrom' });
-    const returnCutOffTimeVal = useWatch({ control, name: 'returnCutOffTime' });
 
     const minReturnCutOffTime = importAllowFromVal ? dayjs(`2000-01-01T${importAllowFromVal}`) : undefined;
-    const minPaymentCutOffTime = returnCutOffTimeVal ? dayjs(`2000-01-01T${returnCutOffTimeVal}`) : undefined;
 
     return (
         <Stack spacing={2.5}>
@@ -467,10 +465,8 @@ export const SupplierFormFields = ({
                         <AdminTimePicker
                             label="Giờ thanh toán"
                             value={field.value ? dayjs(`2000-01-01T${field.value}`) : null}
-                            minTime={minPaymentCutOffTime}
-                            onChange={(newValue) => {
-                                field.onChange(newValue ? newValue.format('HH:mm') : '');
-                            }}
+                            readOnly
+                            disabled
                             localeText={{ cancelButtonLabel: 'Hủy' }}
                             slotProps={{
                                 textField: {
@@ -478,7 +474,7 @@ export const SupplierFormFields = ({
                                     error: !!fieldState.error,
                                     helperText:
                                         fieldState.error?.message ||
-                                        'Giờ chót thực hiện thanh toán cho nhà cung cấp',
+                                        'Tự tính từ Hạn chót đối chiếu + Thời gian đệm đối soát/thanh toán (Cấu hình hệ thống)',
                                     InputLabelProps: { shrink: true },
                                 },
                             }}

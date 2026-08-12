@@ -17,23 +17,25 @@ dependencies = [
     "pydantic>=2.3.0",
     "pydantic-settings>=2.0.3",
     "python-multipart>=0.0.9",
-    "opencv-python-headless>=4.9.0.80",
+    "opencv-python-headless>=4.9.0.80,<5",
     "numpy>=1.26.4",
     "rapidfuzz>=3.6.1",
     "easyocr>=1.7.1",
     "paddleocr>=2.7.3",
     "paddlepaddle>=2.6.1",
+    "ultralytics>=8.3.0",
 ]
 
 [project.optional-dependencies]
 dev = ["pytest>=7.4.0"]
 
 [tool.pytest.ini_options]
-# "." resolves this service's top-level packages (app, routers, domain, dto,
-# tests); ".." resolves the shared contracts/infra/libs at the daiphat-ai
-# repo root -- mirrors the PYTHONPATH used in Dockerfile/scripts/run_ticket_vision.sh.
+# "." resolves this service's top-level modules/packages (main, routers,
+# domain, dto, conftest); ".." resolves the shared contracts/infra/libs at
+# the daiphat-ai repo root -- mirrors the PYTHONPATH used in
+# Dockerfile/scripts/run_ticket_vision.sh.
 pythonpath = [".", ".."]
-testpaths = ["tests"]
+testpaths = ["."]
 
 [build-system]
 requires = ["hatchling"]

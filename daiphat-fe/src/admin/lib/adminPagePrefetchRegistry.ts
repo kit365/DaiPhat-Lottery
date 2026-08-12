@@ -20,8 +20,11 @@ export const registerAdminPageChunkLoader = (path: string, loader: AdminChunkLoa
   chunkLoaders.set(normalizeAdminPath(path), loader);
 };
 
-export const prefetchAdminPageChunk = (path: string): void => {
-  if (isDevRuntime) {
+export const prefetchAdminPageChunk = (
+  path: string,
+  options?: { allowInDev?: boolean },
+): void => {
+  if (isDevRuntime && !options?.allowInDev) {
     return;
   }
 

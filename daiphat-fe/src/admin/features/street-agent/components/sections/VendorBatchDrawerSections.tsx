@@ -102,11 +102,11 @@ export const VendorBatchInfoSection = ({
             {showCutoffSummary && batch.returnCutoffSnapshot && (
                 <Alert severity="info" sx={{ mb: 1, py: 0.5, px: 1.5 }} icon={false}>
                     <Typography variant="subtitle2" sx={{ color: "info.dark" }}>
-                        Hạn trả vendor: {batch.returnCutoffSnapshot}
+                        Hạn cuối có thể giao vé: {batch.effectiveHandoverDeadlineAt ? formatDateTime(batch.effectiveHandoverDeadlineAt) : batch.returnCutoffSnapshot}
                     </Typography>
-                    {(batch.supplierReturnCutoffSnapshot || batch.returnBufferMinutesSnapshot != null) && (
+                    {batch.effectiveHandoverDeadlineAt && (
                         <Typography variant="caption" sx={{ color: "info.main", display: "block", mt: 0.25 }}>
-                            Giờ chót gốc: {batch.supplierReturnCutoffSnapshot || "—"} · Buffer chuẩn bị: {batch.returnBufferMinutesSnapshot ?? 0} phút
+                            Giờ chốt trả vé của người bán vé số: {batch.returnCutoffSnapshot}
                         </Typography>
                     )}
                 </Alert>
@@ -191,10 +191,11 @@ export const VendorBatchDepositSnapshotSection = ({
                     <DetailRow label="Số dư cọc trước" value={formatCurrency(batch.depositBalanceBefore)} />
                     <DetailRow label="Số dư cọc sau" value={formatCurrency(batch.depositBalanceAfter)} />
                     <DetailRow
-                        label="Hạn trả người bán vé số"
-                        value={batch.returnCutoffSnapshot || "—"}
-                        description="(Hạn chót người bán vé số cần trả vé sau khi trừ thời gian đệm chuẩn bị)"
+                        label="Hạn cuối có thể giao vé"
+                        value={batch.effectiveHandoverDeadlineAt ? formatDateTime(batch.effectiveHandoverDeadlineAt) : "—"}
+                        description="Mốc này do hệ thống tính và đã chừa thời gian để Đại Phát nhận lại vé."
                     />
+                    <DetailRow label="Giờ chốt trả vé của người bán vé số" value={batch.returnCutoffSnapshot || "—"} />
                     <DetailRow label="Policy trả trễ" value={latePolicyLabel(batch.latePolicySnapshot)} />
                     {batch.reservationExpiresAt && batch.status === "DRAFT" && (
                         <DetailRow
@@ -501,6 +502,8 @@ export const VendorBatchReturnEntrySection = ({
     onScanSubmit,
     onSubmitReturns,
     onSelectAllReturnable,
+    canConfirmNoReturn,
+    onConfirmNoReturn,
 }: {
     batch: VendorAllocationBatch;
     canEdit: boolean;
@@ -512,6 +515,8 @@ export const VendorBatchReturnEntrySection = ({
     onScanSubmit: () => void;
     onSubmitReturns: () => void;
     onSelectAllReturnable: () => void;
+    canConfirmNoReturn: boolean;
+    onConfirmNoReturn: () => void;
 }) => {
     const [searchFilter, setSearchFilter] = useState("");
     const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
@@ -632,6 +637,7 @@ export const VendorBatchReturnEntrySection = ({
                     Serial ({batch.serials?.length || 0})
                 </Typography>
             </Stack>
+
             <TextField
                 size="small"
                 fullWidth
@@ -741,6 +747,8 @@ export const VendorBatchReturnEntrySection = ({
                                                                                 : pendingInspection ? "Chờ kiểm nhận"
                                                                                 : rejected ? "Từ chối nhận"
                                                                                 : pendingSelected ? "Chờ gửi trả"
+                                                                                : s.allocationStatus === "HANDED_OVER" ? "Đang giữ"
+                                                                                : s.allocationStatus === "SOLD" ? "Đã bán"
                                                                                 : s.allocationStatus
                                                                         }
                                                                         color={
@@ -800,14 +808,24 @@ export const VendorBatchReturnEntrySection = ({
                         backdropFilter: "blur(8px)",
                     })}
                 >
-                    <Button
-                        fullWidth
-                        loading={isSubmittingReturns}
-                        label={`Gửi kiểm nhận (${selectedSerialIds.length})`}
-                        loadingLabel="Đang gửi..."
-                        disabled={selectedSerialIds.length === 0}
-                        onClick={onSubmitReturns}
-                    />
+                    {selectedSerialIds.length > 0 ? (
+                        <Button
+                            fullWidth
+                            loading={isSubmittingReturns}
+                            label={`Gửi kiểm nhận (${selectedSerialIds.length})`}
+                            loadingLabel="Đang gửi..."
+                            onClick={onSubmitReturns}
+                        />
+                    ) : canConfirmNoReturn ? (
+                        <Button
+                            fullWidth
+                            variant="contained"
+                            color="primary"
+                            loading={isSubmittingReturns}
+                            label="Xác nhận không có vé trả"
+                            onClick={onConfirmNoReturn}
+                        />
+                    ) : null}
                 </Box>
             )}
         </Stack>
@@ -943,11 +961,7 @@ export const VendorBatchInspectionSection = ({
 
     return (
         <Stack spacing={2}>
-            {unreturnedCount > 0 && (
-                <Alert severity="info" sx={{ py: 0.5 }}>
-                    Có {unreturnedCount} vé người bán vé số không trả. Số vé này sẽ được tính là ĐÃ BÁN khi quyết toán.
-                </Alert>
-            )}
+
 
             <Typography variant="body2" color="text.secondary">
                 Tick chọn vé nếu muốn <strong>từ chối nhận trả</strong>. Vé không bị tick sẽ được ngầm hiểu là <strong>chấp nhận</strong>.

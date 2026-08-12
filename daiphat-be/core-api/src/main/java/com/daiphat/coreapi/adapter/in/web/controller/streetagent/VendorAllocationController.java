@@ -6,6 +6,7 @@ import com.daiphat.coreapi.application.dto.request.streetagent.CreateVendorAlloc
 import com.daiphat.coreapi.application.dto.request.streetagent.ConfirmVendorAllocationRequest;
 import com.daiphat.coreapi.application.dto.request.streetagent.ReturnVendorAllocationSerialsRequest;
 import com.daiphat.coreapi.application.dto.request.streetagent.ConfirmVendorReturnInspectionRequest;
+import com.daiphat.coreapi.application.dto.request.streetagent.ConfirmVendorNoReturnRequest;
 import com.daiphat.coreapi.application.dto.request.streetagent.SettleVendorAllocationRequest;
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.response.streetagent.VendorAllocationBatchResponse;
@@ -144,6 +145,17 @@ public class VendorAllocationController {
         return ApiResponse.success("Đã xác nhận kiểm nhận vé trả.",
                 vendorAllocationServicePort.confirmReturnInspection(
                         id, request != null ? request : new ConfirmVendorReturnInspectionRequest(null, null), principal.getId()));
+    }
+
+    @PostMapping("/{id}/return-inspection/confirm-no-return")
+    @PreAuthorize("hasAuthority('streetAgent:edit')")
+    public ApiResponse<VendorAllocationBatchResponse> confirmNoReturnedTickets(
+            @PathVariable Long id,
+            @RequestBody(required = false) ConfirmVendorNoReturnRequest request,
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal) {
+        return ApiResponse.success("Đã xác nhận người bán vé số không trả vé.",
+                vendorAllocationServicePort.confirmNoReturnedTickets(
+                        id, request == null ? new ConfirmVendorNoReturnRequest(null) : request, principal.getId()));
     }
 
     @GetMapping("/{id}/settlement-preview")

@@ -51,8 +51,8 @@ public class TransactionService implements TransactionServicePort {
     private final PaymentAttemptCachePort paymentAttemptCachePort;
     private final ApplicationEventPublisher eventPublisher;
     private final PaymentTimeoutConfigService paymentTimeoutConfigService;
-    /** Self-proxy để gọi {@link #handleOnlinePaymentSuccess} có @Transactional sau khi query PayOS. */
-    private final TransactionServicePort self;
+    /** Self-proxy để gọi {@link #handleOnlinePaymentSuccess} / expire có @Transactional sau khi query PayOS. */
+    private final TransactionService self;
 
     public TransactionService(
             OrderRepositoryPort orderRepositoryPort,
@@ -63,7 +63,7 @@ public class TransactionService implements TransactionServicePort {
             PaymentAttemptCachePort paymentAttemptCachePort,
             ApplicationEventPublisher eventPublisher,
             PaymentTimeoutConfigService paymentTimeoutConfigService,
-            @Lazy TransactionServicePort self
+            @Lazy TransactionService self
     ) {
         this.orderRepositoryPort = orderRepositoryPort;
         this.userLookupServicePort = userLookupServicePort;
@@ -74,6 +74,11 @@ public class TransactionService implements TransactionServicePort {
         this.eventPublisher = eventPublisher;
         this.paymentTimeoutConfigService = paymentTimeoutConfigService;
         this.self = self;
+    }
+
+    /** Unit tests may pass null self; production always injects the Spring proxy. */
+    private TransactionService selfOrThis() {
+        return self != null ? self : this;
     }
 
     @Override
@@ -213,7 +218,7 @@ public class TransactionService implements TransactionServicePort {
         }
 
         // handleOnlinePaymentSuccess tự @Transactional + lock order khi cập nhật
-        return self.handleOnlinePaymentSuccess(
+        return selfOrThis().handleOnlinePaymentSuccess(
                 orderId,
                 transaction.getId(),
                 gateway,
@@ -289,7 +294,6 @@ public class TransactionService implements TransactionServicePort {
     }
 
     @Override
-    @Transactional
     public int expirePendingPayments() {
         long timeoutSeconds = paymentTimeoutConfigService.getTimeoutSeconds();
         String timeoutReason = paymentTimeoutConfigService.getTimeoutCancelReason();
@@ -298,29 +302,52 @@ public class TransactionService implements TransactionServicePort {
         int expiredCount = 0;
 
         for (UUID orderId : expiredOrderIds) {
-            OrderModel order = orderRepositoryPort.findByIdWithLock(orderId).orElse(null);
-            if (order == null) {
-                continue;
-            }
-            if (order.getStatus() != OrderStatus.PENDING_PAYMENT || order.getCompletedTransactionAmount().signum() > 0) {
-                continue;
+            // Reconcile PayOS first (no DB lock held across HTTP) — late success must not be cancelled.
+            try {
+                OrderModel synced = selfOrThis().syncOnlinePaymentFromGateway(orderId);
+                if (synced.getStatus() != OrderStatus.PENDING_PAYMENT) {
+                    continue;
+                }
+            } catch (Exception ex) {
+                log.warn("Could not reconcile gateway before expire for order {}: {}", orderId, ex.getMessage());
             }
 
-            cancelPendingTransactions(order, timeoutReason);
-            releaseReservedTickets(order);
-            order.cancelPendingPayment(timeoutReason, OrderCancelType.SYSTEM_PAYMENT_TIMEOUT);
-            orderRepositoryPort.save(order);
-            paymentCountdownCachePort.clear(order.getId());
-            expiredCount++;
+            if (selfOrThis().expireSinglePendingPayment(orderId, timeoutReason)) {
+                expiredCount++;
+            }
         }
         return expiredCount;
+    }
+
+    /**
+     * Cancels one pending-payment order after TTL. Returns true if the order was cancelled.
+     */
+    @Transactional
+    public boolean expireSinglePendingPayment(UUID orderId, String timeoutReason) {
+        OrderModel order = orderRepositoryPort.findByIdWithLock(orderId).orElse(null);
+        if (order == null) {
+            return false;
+        }
+        if (order.getStatus() != OrderStatus.PENDING_PAYMENT || order.getCompletedTransactionAmount().signum() > 0) {
+            return false;
+        }
+
+        cancelPendingTransactions(order, timeoutReason);
+        releaseReservedTickets(order);
+        order.cancelPendingPayment(timeoutReason, OrderCancelType.SYSTEM_PAYMENT_TIMEOUT);
+        orderRepositoryPort.save(order);
+        paymentCountdownCachePort.clear(order.getId());
+        return true;
     }
 
     @Override
     public PendingPaymentCountdownResult getPendingPaymentCountdown(UUID orderId) {
         OrderModel order = getOrderOrThrow(orderId);
         if (order.getStatus() != OrderStatus.PENDING_PAYMENT) {
-            return new PendingPaymentCountdownResult(orderId, 0, null, true);
+            // Successful payment must never look like an expired session to the UI.
+            // Only cancelled orders are reported as expired.
+            boolean expired = order.getStatus() == OrderStatus.CANCELLED;
+            return new PendingPaymentCountdownResult(orderId, 0, null, expired);
         }
 
         long remainingSeconds = paymentCountdownCachePort.getRemainingSeconds(orderId).orElse(0L);

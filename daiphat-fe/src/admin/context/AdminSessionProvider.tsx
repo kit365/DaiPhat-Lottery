@@ -1,6 +1,7 @@
 "use client";
 
 import Cookies from "js-cookie";
+import { isAxiosError } from "axios";
 import { createContext, useContext, useEffect, type ReactNode } from "react";
 
 import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
@@ -24,6 +25,15 @@ const AdminSessionContext = createContext<AdminSessionContextValue>({
 });
 
 export const useAdminSession = () => useContext(AdminSessionContext);
+
+const isHardAuthFailure = (error: unknown): boolean => {
+    if (!isAxiosError(error)) {
+        return false;
+    }
+
+    const status = error.response?.status;
+    return status === 401 || status === 403;
+};
 
 /**
  * Single source of truth for admin session bootstrap:
@@ -52,13 +62,13 @@ export function AdminSessionProvider({ children }: { children: ReactNode }) {
     }, [getMeQuery.data, set, logout]);
 
     useEffect(() => {
-        if (!getMeQuery.isError) {
+        if (!getMeQuery.isError || !isHardAuthFailure(getMeQuery.error)) {
             return;
         }
 
         clearAdminAuthSession();
         router.push(ROUTES.ADMIN.AUTH.LOGIN);
-    }, [getMeQuery.isError, router]);
+    }, [getMeQuery.isError, getMeQuery.error, router]);
 
     return (
         <AdminSessionContext.Provider

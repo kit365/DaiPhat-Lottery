@@ -22,6 +22,7 @@ import com.daiphat.coreapi.domain.model.enums.order.OrderStatus;
 import com.daiphat.coreapi.domain.model.enums.order.OrderType;
 import com.daiphat.coreapi.domain.model.enums.transaction.TransactionStatus;
 import com.daiphat.coreapi.domain.model.enums.transaction.TransactionType;
+import com.daiphat.coreapi.domain.model.orders.OrderDetailModel;
 import com.daiphat.coreapi.domain.model.orders.OrderModel;
 import com.daiphat.coreapi.domain.model.orders.TransactionModel;
 
@@ -93,6 +94,10 @@ private static final String DEFAULT_CUSTOMER_NAME = "Kiet";
         return new CreateDirectOrderRequest(null, DEFAULT_CUSTOMER_NAME, phone, email, tickets, null, DEFAULT_NOTE, payments);
     }
 
+    private void verifyNoOrderCreation() {
+        verify(orderRepositoryPort, never()).save(any(OrderModel.class));
+    }
+
     @BeforeEach
     void setUp() {
         orderService = new OrderService(
@@ -151,6 +156,38 @@ private static final String DEFAULT_CUSTOMER_NAME = "Kiet";
     }
 
     @Test
+    @DisplayName("[TC-ORDER-031] CREATE: accepts exactly ten ticket units")
+    void createOnlineOrder_acceptsExactlyTenTicketUnits() {
+        UUID customerId = UUID.randomUUID();
+        LocalDate drawDate = LocalDate.now().plusDays(2);
+        UserModel customer = new UserModel();
+        customer.setId(customerId);
+        customer.setEmail(DEFAULT_EMAIL);
+
+        CreateOnlineOrderRequest request = createOnlineRequest(
+                List.of(new OrderTicketItemRequest(101L, 10)),
+                LocalDateTime.of(drawDate.minusDays(1), java.time.LocalTime.of(9, 0)),
+                DEFAULT_PHONE
+        );
+        List<Long> expectedTicketIds = Collections.nCopies(10, 101L);
+        List<OrderTicketSnapshot> snapshots = new java.util.ArrayList<>();
+        for (int i = 0; i < 10; i++) {
+            snapshots.add(new OrderTicketSnapshot(101L, 1001L + i, BigDecimal.valueOf(10_000), drawDate));
+        }
+
+        when(userLookupServicePort.findByIdOrThrow(customerId)).thenReturn(customer);
+        when(lotteryTicketServicePort.reserveForOrder(expectedTicketIds)).thenReturn(snapshots);
+        when(orderRepositoryPort.existsByOrderCode(anyString())).thenReturn(false);
+        when(orderRepositoryPort.save(any(OrderModel.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        OrderModel result = orderService.createOnlineOrder(request, customerId);
+
+        assertThat(result.getOrderDetails()).hasSize(10);
+        assertThat(result.getTotalAmount()).isEqualByComparingTo("100000");
+        verify(lotteryTicketServicePort).reserveForOrder(expectedTicketIds);
+    }
+
+    @Test
     @DisplayName("[DP-346] CREATE: Tạo đơn online thất bại khi danh sách vé trống")
     void createOnlineOrder_emptyTickets_throwsException() {
         UUID customerId = UUID.randomUUID();
@@ -165,7 +202,37 @@ private static final String DEFAULT_CUSTOMER_NAME = "Kiet";
     }
 
     @Test
-    @DisplayName("[DP-346] CREATE: Tạo đơn online thất bại do thời gian hẹn lấy vé quá xa ngày quay")
+    @DisplayName("[TC-ORDER-032] CREATE: rejects zero ticket quantity")
+    void createOnlineOrder_zeroQuantity_throwsException() {
+        CreateOnlineOrderRequest request = createOnlineRequest(
+                List.of(new OrderTicketItemRequest(101L, 0)),
+                LocalDateTime.now().plusHours(1),
+                DEFAULT_PHONE
+        );
+
+        assertThatThrownBy(() -> orderService.createOnlineOrder(request, UUID.randomUUID()))
+                .isInstanceOf(DomainException.class)
+                .extracting("errorCode").isEqualTo(ErrorCode.INVALID_INPUT);
+        verifyNoOrderCreation();
+    }
+
+    @Test
+    @DisplayName("[TC-ORDER-032] CREATE: rejects negative ticket quantity")
+    void createOnlineOrder_negativeQuantity_throwsException() {
+        CreateOnlineOrderRequest request = createOnlineRequest(
+                List.of(new OrderTicketItemRequest(101L, -1)),
+                LocalDateTime.now().plusHours(1),
+                DEFAULT_PHONE
+        );
+
+        assertThatThrownBy(() -> orderService.createOnlineOrder(request, UUID.randomUUID()))
+                .isInstanceOf(DomainException.class)
+                .extracting("errorCode").isEqualTo(ErrorCode.INVALID_INPUT);
+        verifyNoOrderCreation();
+    }
+
+    @Test
+    @DisplayName("[TC-ORDER-035] CREATE: rejects pickup date before the allowed draw window")
     void createOnlineOrder_rejectsPickupTimeTooFarFromDrawDate() {
         UUID customerId = UUID.randomUUID();
         LocalDate drawDate = LocalDate.now().plusDays(10);
@@ -186,6 +253,27 @@ private static final String DEFAULT_CUSTOMER_NAME = "Kiet";
         assertThatThrownBy(() -> orderService.createOnlineOrder(request, customerId))
                 .isInstanceOf(DomainException.class)
                 .hasMessage("Thời gian hẹn lấy vé không hợp lệ.");
+        verify(orderRepositoryPort, never()).save(any(OrderModel.class));
+    }
+
+    @Test
+    @DisplayName("[TC-ORDER-034] CREATE: rejects pickup time less than fifteen minutes from now")
+    void createOnlineOrder_rejectsPickupTimeUnderFifteenMinutes() {
+        UUID customerId = UUID.randomUUID();
+        LocalDate drawDate = LocalDate.now().plusDays(2);
+        CreateOnlineOrderRequest request = createOnlineRequest(
+                SINGLE_TICKET_ITEM,
+                LocalDateTime.now().plusMinutes(14),
+                DEFAULT_PHONE
+        );
+
+        when(userLookupServicePort.findByIdOrThrow(customerId)).thenReturn(new UserModel());
+        when(lotteryTicketServicePort.reserveForOrder(List.of(101L)))
+                .thenReturn(List.of(new OrderTicketSnapshot(101L, 1001L, BigDecimal.valueOf(10_000), drawDate)));
+
+        assertThatThrownBy(() -> orderService.createOnlineOrder(request, customerId))
+                .isInstanceOf(DomainException.class)
+                .extracting("errorCode").isEqualTo(ErrorCode.INVALID_PICKUP_TIME);
         verify(orderRepositoryPort, never()).save(any(OrderModel.class));
     }
 
@@ -533,7 +621,7 @@ private static final String DEFAULT_CUSTOMER_NAME = "Kiet";
     }
 
     @Test
-    @DisplayName("[DP-346] CREATE: Tạo đơn online thất bại khi pickupDate sau earliestDrawDate")
+    @DisplayName("[TC-ORDER-035] CREATE: rejects pickup date after the draw date")
     void createOnlineOrder_pickupDateAfterDrawDate_throwsException() {
         UUID customerId = UUID.randomUUID();
         LocalDate drawDate = LocalDate.now().plusDays(2);
@@ -569,7 +657,7 @@ private static final String DEFAULT_CUSTOMER_NAME = "Kiet";
     }
 
     @Test
-    @DisplayName("[DP-346] CREATE: Tạo đơn online thất bại khi chọn quá 10 vé")
+    @DisplayName("[TC-ORDER-033] CREATE: rejects more than ten ticket units")
     void createOnlineOrder_tooManyTickets_throwsException() {
         List<OrderTicketItemRequest> manyTickets = new java.util.ArrayList<>();
         for (long i = 1; i <= 11; i++) {
@@ -635,6 +723,32 @@ private static final String DEFAULT_CUSTOMER_NAME = "Kiet";
     }
 
     @Test
+    @DisplayName("[TC-ORDER-041] CREATE: rejects online payment below 10,000 VND")
+    void createDirectOrder_onlinePaymentBelowMinimum_throwsException() {
+        UUID operatorId = UUID.randomUUID();
+        LocalDate drawDate = LocalDate.now().plusDays(2);
+        CreateDirectOrderRequest request = createDirectRequest(
+                SINGLE_TICKET_ITEM,
+                DEFAULT_PHONE,
+                DEFAULT_EMAIL,
+                List.of(new DirectOrderTransactionRequest(
+                        TransactionType.ONLINE,
+                        BigDecimal.valueOf(9_999),
+                        "Ghi chú"
+                ))
+        );
+
+        when(userLookupServicePort.findByIdOrThrow(operatorId)).thenReturn(new UserModel());
+        when(lotteryTicketServicePort.reserveForOrder(List.of(101L)))
+                .thenReturn(List.of(new OrderTicketSnapshot(101L, 1001L, BigDecimal.valueOf(10_000), drawDate)));
+
+        assertThatThrownBy(() -> orderService.createDirectOrder(request, operatorId))
+                .isInstanceOf(DomainException.class)
+                .extracting("errorCode").isEqualTo(ErrorCode.ONLINE_PAYMENT_MIN_AMOUNT);
+        verifyNoOrderCreation();
+    }
+
+    @Test
     @DisplayName("[DP-346] CREATE: Tạo đơn online thất bại khi SDT rỗng")
     void createOnlineOrder_blankPhone_throwsException() {
         UUID creatorId = UUID.randomUUID();
@@ -689,7 +803,7 @@ private static final String DEFAULT_CUSTOMER_NAME = "Kiet";
     }
 
     @Test
-    @DisplayName("[DP-353] getOrders: Ném exception khi khoảng thời gian không hợp lệ")
+    @DisplayName("[TC-ORDER-036] getOrders: rejects a reversed date range")
     void getOrders_throwsWhenInvalidDateRange() {
         assertThatThrownBy(() -> orderService.getOrders(
                 1, 10, null, LocalDate.now(), LocalDate.now().minusDays(1), null, null, null, null, null
@@ -878,7 +992,7 @@ private static final String DEFAULT_CUSTOMER_NAME = "Kiet";
     }
 
     @Test
-    @DisplayName("[DP-356] getMyOrderDetail: Ném lỗi khi truy cập đơn hàng của người khác")
+    @DisplayName("[TC-ORDER-037] getMyOrderDetail: blocks another customer's order")
     void getMyOrderDetail_throwsWhenAccessDenied() {
         UUID orderId = UUID.randomUUID();
         UUID customerId = UUID.randomUUID();
@@ -894,7 +1008,7 @@ private static final String DEFAULT_CUSTOMER_NAME = "Kiet";
     }
 
     @Test
-    @DisplayName("updateOrderStatus: target PAID - Ném lỗi nếu chưa thanh toán đủ")
+    @DisplayName("[TC-ORDER-038] updateOrderStatus: blocks PAID before full payment")
     void updateOrderStatus_paid_throwsWhenNotFullyPaid() {
         UUID orderId = UUID.randomUUID();
         UUID operatorId = UUID.randomUUID();
@@ -966,11 +1080,17 @@ private static final String DEFAULT_CUSTOMER_NAME = "Kiet";
     }
 
     @Test
-    @DisplayName("updateOrderStatus: target CANCELLED - Hủy khi đang Pending Payment")
+    @DisplayName("[TC-ORDER-039] updateOrderStatus: cancellation releases reserved tickets")
     void updateOrderStatus_cancelled_pendingPayment() {
         UUID orderId = UUID.randomUUID();
         UUID operatorId = UUID.randomUUID();
-        OrderModel order = OrderModel.builder().id(orderId).userId(UUID.randomUUID()).orderType(OrderType.ONLINE).status(OrderStatus.PENDING_PAYMENT).build();
+        OrderModel order = OrderModel.builder()
+                .id(orderId)
+                .userId(UUID.randomUUID())
+                .orderType(OrderType.ONLINE)
+                .status(OrderStatus.PENDING_PAYMENT)
+                .orderDetails(List.of(OrderDetailModel.builder().lotteryTicketSerialId(8L).build()))
+                .build();
 
         when(userLookupServicePort.findByIdOrThrow(operatorId)).thenReturn(new UserModel());
         when(orderRepositoryPort.findById(orderId)).thenReturn(java.util.Optional.of(order));
@@ -980,6 +1100,7 @@ private static final String DEFAULT_CUSTOMER_NAME = "Kiet";
 
         assertThat(result).isNotNull();
         assertThat(order.getStatus()).isEqualTo(OrderStatus.CANCELLED);
+        verify(lotteryTicketServicePort).releaseReservationForOrder(8L);
     }
 
     @Test

@@ -126,8 +126,17 @@ export const useUploadStreetAgentSignedContract = () => {
     return useMutation({
         mutationFn: ({ id, file }: { id: string | number; file: File }) =>
             uploadStreetAgentSignedContract(id, file),
-        onSuccess: (_response, variables) => {
+        onSuccess: (response, variables) => {
+            if (response.success && response.data) {
+                queryClient.setQueryData(
+                    [QUERY_KEYS.STREET_AGENT_PROFILE_DETAIL, variables.id],
+                    response
+                );
+            }
             queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.STREET_AGENT_PROFILES] });
+            queryClient.invalidateQueries({
+                queryKey: [QUERY_KEYS.STREET_AGENT_PROFILES, "status-count"],
+            });
             queryClient.invalidateQueries({
                 queryKey: [QUERY_KEYS.STREET_AGENT_PROFILE_DETAIL, variables.id],
             });

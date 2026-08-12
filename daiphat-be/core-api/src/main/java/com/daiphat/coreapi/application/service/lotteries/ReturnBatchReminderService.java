@@ -67,8 +67,8 @@ public class ReturnBatchReminderService {
             }
 
             String supplierName = batch.getSupplierName() != null ? batch.getSupplierName() : "Nhà cung cấp";
-            String title = "Nhắc nhở kiểm vé trả NCC";
-            String content = "⏳ Phiếu trả vé #" + batch.getId() + " (" + supplierName
+            String title = "Nhắc nhở kiểm vé trả nhà cung cấp";
+            String content = "Phiếu trả vé #" + batch.getId() + " (" + supplierName
                     + ") sắp đến hạn trả vé lúc " + batch.getReturnCutOffTime()
                     + ". Vui lòng hoàn tất kiểm vé và bàn giao.";
 

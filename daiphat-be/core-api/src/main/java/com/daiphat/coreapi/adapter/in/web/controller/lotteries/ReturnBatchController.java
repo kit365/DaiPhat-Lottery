@@ -127,14 +127,14 @@ public class ReturnBatchController {
     @PreAuthorize("hasAnyAuthority('importBatch:create')")
     public ApiResponse<ReturnBatchResponse> confirmHandover(
             @PathVariable Long id,
-            @RequestBody(required = false) ConfirmReturnHandoverRequest request,
+            @Valid @RequestBody ConfirmReturnHandoverRequest request,
             @AuthenticationPrincipal AuthenticatedUserPrincipal principal
     ) {
         return ApiResponse.success(
                 "Đã xác nhận bàn giao vé trả nhà cung cấp.",
                 returnBatchServicePort.confirmHandover(
                         id,
-                        request != null ? request : new ConfirmReturnHandoverRequest(null, null),
+                        request,
                         principal.getId()
                 )
         );
@@ -189,7 +189,7 @@ public class ReturnBatchController {
                 "Đã cập nhật ảnh biên lai trả vé thành công.",
                 returnBatchServicePort.updateEvidenceUrl(
                         id,
-                        request != null ? request.returnReceiptEvidenceUrl() : null
+                        request != null ? request.returnEvidenceUrl() : null
                 )
         );
     }

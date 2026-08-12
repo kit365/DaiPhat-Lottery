@@ -394,13 +394,25 @@ public class ReturnBatchService implements ReturnBatchServicePort {
         refreshBatchAggregates(batchId);
 
         batch = getBatchOrThrow(batchId);
-        if (request != null) {
-            if (request.returnReceiptUrl() != null) {
-                batch.setReturnReceiptUrl(trimToNull(request.returnReceiptUrl()));
-            }
-            if (request.returnReceiptEvidenceUrl() != null) {
-                batch.setReturnReceiptEvidenceUrl(trimToNull(request.returnReceiptEvidenceUrl()));
-            }
+        if (request == null || trimToNull(request.returnEvidenceUrl()) == null) {
+            throw new DomainException(
+                    ErrorCode.INVALID_INPUT,
+                    "Ảnh bằng chứng trả vé (returnEvidenceUrl) là bắt buộc trước khi xác nhận bàn giao."
+            );
+        }
+        String evidenceUrl = trimToNull(request.returnEvidenceUrl());
+        if (evidenceUrl.startsWith("blob:") || evidenceUrl.startsWith("data:")) {
+            throw new DomainException(
+                    ErrorCode.INVALID_INPUT,
+                    "returnEvidenceUrl không hợp lệ. Vui lòng tải ảnh lên Cloudinary trước khi xác nhận."
+            );
+        }
+        if (request.returnReceiptUrl() != null) {
+            batch.setReturnReceiptUrl(trimToNull(request.returnReceiptUrl()));
+        }
+        batch.setReturnEvidenceUrl(evidenceUrl);
+        if (request.note() != null) {
+            batch.setNote(trimToNull(request.note()));
         }
         batch.setStatus(ReturnBatchStatus.HANDED_OVER);
         batch.setConfirmedAt(now);
@@ -595,8 +607,8 @@ public class ReturnBatchService implements ReturnBatchServicePort {
             if (request.returnReceiptUrl() != null) {
                 batch.setReturnReceiptUrl(trimToNull(request.returnReceiptUrl()));
             }
-            if (request.returnReceiptEvidenceUrl() != null) {
-                batch.setReturnReceiptEvidenceUrl(trimToNull(request.returnReceiptEvidenceUrl()));
+            if (request.returnEvidenceUrl() != null) {
+                batch.setReturnEvidenceUrl(trimToNull(request.returnEvidenceUrl()));
             }
         }
         batch.setStatus(ReturnBatchStatus.HANDED_OVER);
@@ -720,11 +732,11 @@ public class ReturnBatchService implements ReturnBatchServicePort {
 
     @Override
     @Transactional
-    public ReturnBatchResponse updateEvidenceUrl(Long batchId, String returnReceiptEvidenceUrl) {
+    public ReturnBatchResponse updateEvidenceUrl(Long batchId, String returnEvidenceUrl) {
         ReturnBatchModel batch = getBatchOrThrow(batchId);
-        batch.setReturnReceiptEvidenceUrl(trimToNull(returnReceiptEvidenceUrl));
+        batch.setReturnEvidenceUrl(trimToNull(returnEvidenceUrl));
         returnBatchRepositoryPort.save(batch);
-        log.info("Updated returnReceiptEvidenceUrl for batchId={}", batchId);
+        log.info("Updated returnEvidenceUrl for batchId={}", batchId);
         return toDetailResponse(batchId);
     }
 

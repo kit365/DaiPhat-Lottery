@@ -35,6 +35,7 @@ import {
     getAdminNotificationPath
 } from "../../features/notifications/utils/notification.util";
 import { toast } from "react-toastify";
+import { adminCountBadgeSx } from "@/admin/utils/badge";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
 import 'dayjs/locale/vi';
@@ -111,7 +112,7 @@ export const NotificationPopover = ({ onMouseEnter, onMouseLeave, isHovered, lay
                             transition: 'all 0.15s ease-in-out',
                         }}
                     >
-                        <Badge badgeContent={unreadBadgeCount} color="error">
+                        <Badge badgeContent={unreadBadgeCount} color="error" sx={adminCountBadgeSx}>
                             <Icon icon="solar:bell-bing-bold-duotone" width={24} />
                         </Badge>
                     </IconButton>

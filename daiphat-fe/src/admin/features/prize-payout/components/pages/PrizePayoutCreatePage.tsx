@@ -29,6 +29,9 @@ import { Icon } from '@/admin/components/ui/AdminIcon';
 import dayjs from 'dayjs';
 import { useQuery } from '@tanstack/react-query';
 import { PageHeader } from '@/admin/components/ui/PageHeader';
+import { AdminDatePicker } from '@/admin/components/ui/AdminDatePicker';
+import { AdminStatusBadge } from '@/admin/components/ui/AdminStatusBadge';
+import { getMetricChipSx } from '@/admin/utils/badge';
 import { prefixAdmin } from '@/admin/constants/routes';
 import { prizePayoutAdminApi } from "@/admin/features/prize-payout/services/prizePayoutService";
 import { useAuthStore } from '@/stores/useAuthStore';
@@ -82,7 +85,7 @@ const resolveLookupPayoutState = (item: PrizePayoutLookupItem): SerialPayoutStat
     return 'NONE';
 };
 
-const lookupPayoutStatusChip = (item: PrizePayoutLookupItem) => {
+const lookupPayoutStatusBadge = (item: PrizePayoutLookupItem) => {
     if (item.prizeStatus !== 'WON') {
         return null;
     }
@@ -90,13 +93,13 @@ const lookupPayoutStatusChip = (item: PrizePayoutLookupItem) => {
     if (payoutState === 'PAID_OUT') {
         return {
             label: SERIAL_PAYOUT_STATE_LABELS.PAID_OUT,
-            color: 'success' as const,
+            modifier: 'admin-status-badge--success',
         };
     }
     if (payoutState === 'PAYOUT_PENDING') {
         return {
             label: 'Đã yêu cầu',
-            color: 'warning' as const,
+            modifier: 'admin-status-badge--pending',
         };
     }
     return null;
@@ -609,19 +612,15 @@ export const PrizePayoutCreatePage = () => {
                                 />
                             ) : (
                                 <Stack spacing={2} sx={{ mb: 2 }}>
-                                    <TextField
+                                    <AdminDatePicker
                                         label="Ngày mở thưởng *"
-                                        type="date"
                                         value={drawDate}
-                                        onChange={(e) => {
-                                            setDrawDate(e.target.value);
+                                        onChange={(value) => {
+                                            setDrawDate(value);
                                             setSelectedStation(null);
                                             setLookupItems([]);
                                             setSelectedIds([]);
                                         }}
-                                        InputLabelProps={{ shrink: true }}
-                                        fullWidth
-                                        size="small"
                                     />
                                     <Autocomplete
                                         options={stations}
@@ -702,7 +701,7 @@ export const PrizePayoutCreatePage = () => {
                                                 const lockedByPayout = payoutState === 'PAYOUT_PENDING' || payoutState === 'PAID_OUT';
                                                 const selectable = item.prizeStatus === 'WON' && !lockedByPayout;
                                                 const checked = selectedIds.includes(item.orderDetailId);
-                                                const payoutChip = lookupPayoutStatusChip(item);
+                                                const payoutBadge = lookupPayoutStatusBadge(item);
                                                 const isWon = item.prizeStatus === 'WON';
                                                 return (
                                                     <TableRow
@@ -749,24 +748,21 @@ export const PrizePayoutCreatePage = () => {
                                                         </TableCell>
                                                         <TableCell>
                                                             {item.prizeDisplayName ? (
-                                                                <Chip
-                                                                    size="small"
+                                                                <AdminStatusBadge
                                                                     label={item.prizeDisplayName}
-                                                                    color={isWon ? 'warning' : 'default'}
-                                                                    variant={isWon ? 'filled' : 'outlined'}
-                                                                    sx={{ height: 22, fontWeight: 800, '& .MuiChip-label': { px: 1 } }}
+                                                                    modifier={isWon ? 'admin-status-badge--pending' : 'admin-status-badge--draft'}
+                                                                    className="admin-status-badge--compact"
                                                                 />
                                                             ) : (
                                                                 <Typography variant="caption" color="text.disabled">—</Typography>
                                                             )}
                                                         </TableCell>
                                                         <TableCell>
-                                                            {payoutChip ? (
-                                                                <Chip
-                                                                    size="small"
-                                                                    color={payoutChip.color}
-                                                                    label={payoutChip.label}
-                                                                    sx={{ height: 20, fontWeight: 700, '& .MuiChip-label': { px: 0.75 } }}
+                                                            {payoutBadge ? (
+                                                                <AdminStatusBadge
+                                                                    label={payoutBadge.label}
+                                                                    modifier={payoutBadge.modifier}
+                                                                    className="admin-status-badge--compact"
                                                                 />
                                                             ) : (
                                                                 <Typography variant="caption" color="text.disabled">—</Typography>
@@ -832,22 +828,12 @@ export const PrizePayoutCreatePage = () => {
                                         <Chip
                                             size="small"
                                             label={PRIZE_PAYOUT_TICKET_ORIGIN_LABELS[primary.ticketOrigin]}
-                                            sx={{
-                                                height: 24,
-                                                fontWeight: 700,
-                                                bgcolor: 'var(--palette-info-lighter)',
-                                                color: 'var(--palette-info-dark)',
-                                            }}
+                                            sx={getMetricChipSx('info')}
                                         />
-                                        <Chip
-                                            size="small"
+                                        <AdminStatusBadge
                                             label={PRIZE_PAYOUT_VERIFICATION_LABELS[primary.ownershipVerificationLevel]}
-                                            sx={{
-                                                height: 24,
-                                                fontWeight: 700,
-                                                bgcolor: 'var(--palette-warning-lighter)',
-                                                color: 'var(--palette-warning-dark)',
-                                            }}
+                                            modifier="admin-status-badge--pending"
+                                            className="admin-status-badge--compact"
                                         />
                                     </Stack>
                                 )}

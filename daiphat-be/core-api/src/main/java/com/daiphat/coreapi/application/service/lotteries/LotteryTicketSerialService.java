@@ -390,6 +390,10 @@ public class LotteryTicketSerialService implements LotteryTicketSerialServicePor
 
         if (request.ticketCondition() == TicketCondition.DAMAGED
                 || request.ticketCondition() == TicketCondition.LOST) {
+            if (request.faultedBy() == LotteryTicketSerialFaultedBy.LOST_DURING_RETURN
+                    || request.faultedBy() == LotteryTicketSerialFaultedBy.ISSUER_FAULT) {
+                return;
+            }
             if (serial.isInternalInventoryIncidentStatus()
                     && request.faultedBy() != LotteryTicketSerialFaultedBy.INTERNAL_FAULT) {
                 throw new DomainException(

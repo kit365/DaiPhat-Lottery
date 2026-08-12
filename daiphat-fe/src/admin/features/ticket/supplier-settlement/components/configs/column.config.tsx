@@ -7,9 +7,18 @@ import {
     RenderPaidAtCell,
     RenderStatusCell,
     RenderSupplierNameCell,
+    RenderSettlementCodeCell,
 } from '../utils/render-cells';
 
 export const columnsConfig: GridColDef[] = [
+    {
+        field: 'supplierSettlementCode',
+        headerName: 'Mã đối soát',
+        flex: 1,
+        minWidth: 160,
+        hideable: false,
+        renderCell: RenderSettlementCodeCell,
+    },
     {
         field: 'supplierName',
         headerName: 'Nhà cung cấp',

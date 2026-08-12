@@ -1,12 +1,23 @@
 "use client";
 
+import { useState } from 'react';
+import ArrowBackOutlinedIcon from '@mui/icons-material/ArrowBackOutlined';
+import ArrowForwardOutlinedIcon from '@mui/icons-material/ArrowForwardOutlined';
 import CheckCircleOutlinedIcon from '@mui/icons-material/CheckCircleOutlined';
 import CloseIcon from '@mui/icons-material/Close';
 import WarningAmberOutlinedIcon from '@mui/icons-material/WarningAmberOutlined';
+import ReceiptLongOutlinedIcon from '@mui/icons-material/ReceiptLongOutlined';
+import Inventory2OutlinedIcon from '@mui/icons-material/Inventory2Outlined';
+import LocalShippingOutlinedIcon from '@mui/icons-material/LocalShippingOutlined';
+import AssignmentReturnOutlinedIcon from '@mui/icons-material/AssignmentReturnOutlined';
+import BalanceOutlinedIcon from '@mui/icons-material/BalanceOutlined';
+import EditNoteOutlinedIcon from '@mui/icons-material/EditNoteOutlined';
 import {
+    Alert,
     Box,
     Button,
     Card,
+    Chip,
     Dialog,
     DialogActions,
     DialogContent,
@@ -14,22 +25,14 @@ import {
     Grid,
     IconButton,
     Stack,
-    Table,
-    TableBody,
-    TableCell,
-    TableContainer,
-    TableHead,
-    TableRow,
+    Step,
+    StepLabel,
+    Stepper,
+    TextField,
     Typography,
 } from '@mui/material';
-import { useCallback, useEffect, useState } from 'react';
-import { AdminStatusBadge } from '../../../../../components/ui/AdminStatusBadge';
-import { ImagePreview } from '../../../../../components/ui/ImagePreview';
-import { StatRibbonCard, StatRibbonCardsGrid } from '../../../../../components/ui/StatRibbonCard';
-import { UploadSingleFile } from '../../../../../components/upload/UploadSingleFile';
 import { AppToast } from '../../../../../../utils/toast.util';
-import { formatVnd } from '../../../import-batch/utils/importCostCalculator';
-import { updateReturnEvidenceUrl } from '../../../return-batch/services/returnBatchService';
+import { formatImportCost } from '../../../import-batch/utils/importCostCalculator';
 import type {
     SettlementOverviewImportBatch,
     SettlementOverviewReturnBatch,
@@ -37,6 +40,8 @@ import type {
     SupplierSettlement,
     SupplierSettlementKpis,
 } from '../../types/supplierSettlement.type';
+import { SettlementDayBatchesPanel } from './SettlementDayBatchesPanel';
+import { SettlementReconciliationTabs } from './SettlementReconciliationTabs';
 
 interface SettlementInspectionDialogProps {
     open: boolean;
@@ -49,15 +54,11 @@ interface SettlementInspectionDialogProps {
     onRefresh?: () => void;
 }
 
-const receiptThumbSx = {
-    display: 'block',
-    width: '100%',
-    maxHeight: 280,
-    borderRadius: 1,
-    border: '1px solid',
-    borderColor: 'divider',
-    objectFit: 'contain' as const,
-    bgcolor: 'background.paper',
+const formatDate = (dStr?: string) => {
+    if (!dStr) return '';
+    const parts = dStr.split('-');
+    if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
+    return dStr;
 };
 
 export const SettlementInspectionDialog = ({
@@ -70,389 +71,449 @@ export const SettlementInspectionDialog = ({
     inventoryByStation = [],
     onRefresh,
 }: SettlementInspectionDialogProps) => {
-    const primaryImportBatch = importBatches[0];
-    const primaryReturnBatch = returnBatches[0];
+    const [inspectStep, setInspectStep] = useState<'CHECK' | 'RECEIPTS'>('CHECK');
+    const [auditNotes, setAuditNotes] = useState<string>('');
+    const [zoomImage, setZoomImage] = useState<{ url: string; title: string } | null>(null);
 
-    const [returnEvidenceUrl, setReturnEvidenceUrl] = useState('');
+    const handleClose = () => {
+        setInspectStep('CHECK');
+        onClose();
+    };
 
-    const totalImportQty = kpis?.totalImportedTickets ?? 0;
-    const totalSoldQty = kpis?.totalSoldTickets ?? 0;
-    const totalRemainingQty = kpis?.totalRemainingTickets ?? 0;
-    const totalReturnQty = kpis?.totalPreparedForReturnTickets ?? 0;
+    // Calculated totals with smart fallbacks
+    const sumStationImport = inventoryByStation.reduce((acc, r) => acc + (r.importedQuantity || 0), 0);
+    const sumStationSold = inventoryByStation.reduce((acc, r) => acc + (r.soldQuantity || 0), 0);
+    const sumStationRemaining = inventoryByStation.reduce(
+        (acc, r) => acc + ((r.remainingQuantity !== undefined && r.remainingQuantity > 0) ? r.remainingQuantity : Math.max(0, (r.importedQuantity || 0) - (r.soldQuantity || 0))),
+        0
+    );
+    const sumStationReturn = inventoryByStation.reduce((acc, r) => acc + (r.returnQuantity || 0), 0);
+
+    const totalImportQty = kpis?.totalImportedTickets || sumStationImport || 0;
+    const totalSoldQty = kpis?.totalSoldTickets || sumStationSold || 0;
+    const totalRemainingQty = (kpis?.totalRemainingTickets !== undefined && kpis.totalRemainingTickets > 0)
+        ? kpis.totalRemainingTickets
+        : (totalImportQty > 0 ? (totalImportQty - totalSoldQty) : sumStationRemaining);
+    const totalReturnQty = kpis?.totalPreparedForReturnTickets || sumStationReturn || 0;
+
     const totalImportVal = settlement?.totalImportValue ?? 0;
     const totalReturnVal = settlement?.totalReturnValue ?? 0;
+    const remainingAmount = settlement?.remainingAmount ?? (totalImportVal - (settlement?.totalPaidAmount ?? 0));
+    const isExpired = Boolean(settlement?.isReturnExpired);
+
     const diffQty = totalRemainingQty - totalReturnQty;
     const isBalanced = diffQty === 0;
 
-    const importReceiptUrl =
-        primaryImportBatch?.receiptImageUrl?.trim() ||
-        primaryImportBatch?.evidenceUrl?.trim() ||
-        '';
-
-    useEffect(() => {
-        if (!open) return;
-        setReturnEvidenceUrl(
-            primaryReturnBatch?.returnReceiptEvidenceUrl?.trim() ||
-                primaryReturnBatch?.returnReceiptUrl?.trim() ||
-                ''
-        );
-    }, [
-        open,
-        primaryReturnBatch?.id,
-        primaryReturnBatch?.returnReceiptEvidenceUrl,
-        primaryReturnBatch?.returnReceiptUrl,
-    ]);
-
-    const persistReturnEvidence = useCallback(
-        async (url: string) => {
-            if (!primaryReturnBatch?.id) {
-                AppToast.error('Không tìm thấy phiếu trả vé để lưu biên lai.');
-                return;
-            }
-            if (!url.trim()) return;
-
-            try {
-                const res = await updateReturnEvidenceUrl(primaryReturnBatch.id, url.trim());
-                if (res.success) {
-                    AppToast.success('Đã lưu ảnh biên lai trả vé thành công!');
-                    onRefresh?.();
-                } else {
-                    AppToast.error(res.message || 'Lưu ảnh biên lai thất bại.');
-                }
-            } catch (err: any) {
-                AppToast.error(err?.response?.data?.message || 'Có lỗi xảy ra khi lưu biên lai.');
-            }
-        },
-        [onRefresh, primaryReturnBatch?.id]
-    );
-
-    const handleReturnEvidenceChange = useCallback(
-        (value: string | File | null) => {
-            const nextUrl = typeof value === 'string' ? value : '';
-            setReturnEvidenceUrl(nextUrl);
-            if (nextUrl.trim()) {
-                void persistReturnEvidence(nextUrl);
-            }
-        },
-        [persistReturnEvidence]
-    );
-
     return (
-        <Dialog
-            open={open}
-            onClose={onClose}
-            maxWidth="lg"
-            fullWidth
-            scroll="paper"
-            PaperProps={{ className: 'admin-theme' }}
-        >
-            <DialogTitle component="div" sx={{ pb: 1.5, borderBottom: '1px solid #e2e8f0', bgcolor: '#fff' }}>
-                <Stack
-                    direction={{ xs: 'column', sm: 'row' }}
-                    justifyContent="space-between"
-                    alignItems={{ xs: 'flex-start', sm: 'center' }}
-                    spacing={1.5}
-                >
-                    <Box sx={{ minWidth: 0, flex: 1 }}>
-                        <Typography variant="h6" fontWeight={800} color="#0f172a">
-                            Kiểm tra & Đối soát thông tin Nhập - Trả vé số
-                        </Typography>
-                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.25 }}>
-                            Nhà cung cấp: <strong style={{ color: '#0f172a' }}>{settlement?.supplierName || '—'}</strong>
-                            {' · '}
-                            Mã đối soát: <strong>#{settlement?.id}</strong>
-                            {' · '}
-                            Kỳ: {settlement?.periodFrom} — {settlement?.periodTo}
-                        </Typography>
-                    </Box>
-
-                    <Stack direction="row" spacing={1} alignItems="center" sx={{ flexShrink: 0 }}>
-                        <Box
-                            sx={{
-                                display: 'flex',
-                                alignItems: 'flex-start',
-                                gap: 0.75,
-                                px: 1.25,
-                                py: 0.9,
-                                borderRadius: '10px',
-                                maxWidth: { xs: '100%', sm: 300 },
-                                bgcolor: isBalanced ? '#f0fdf4' : '#fffbeb',
-                                border: `1px solid ${isBalanced ? '#bbf7d0' : '#fde68a'}`,
-                            }}
-                        >
-                            {isBalanced ? (
-                                <CheckCircleOutlinedIcon sx={{ fontSize: 18, color: '#16a34a', mt: 0.1, flexShrink: 0 }} />
-                            ) : (
-                                <WarningAmberOutlinedIcon sx={{ fontSize: 18, color: '#d97706', mt: 0.1, flexShrink: 0 }} />
-                            )}
-                            <Typography
-                                variant="caption"
+        <>
+            <Dialog
+                open={open}
+                onClose={handleClose}
+                maxWidth="lg"
+                fullWidth
+                scroll="paper"
+                PaperProps={{
+                    sx: {
+                        borderRadius: '20px',
+                        overflow: 'hidden',
+                        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+                    },
+                }}
+            >
+                <DialogTitle component="div" sx={{ p: 2.5, borderBottom: '1px solid #f1f5f9', bgcolor: '#ffffff' }}>
+                    <Stack direction="row" justifyContent="space-between" alignItems="center">
+                        <Stack direction="row" spacing={2} alignItems="center">
+                            <Box
                                 sx={{
-                                    color: isBalanced ? '#166534' : '#92400e',
-                                    fontWeight: 600,
-                                    lineHeight: 1.45,
+                                    width: 46,
+                                    height: 46,
+                                    borderRadius: '14px',
+                                    bgcolor: '#eff6ff',
+                                    color: '#2563eb',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    boxShadow: '0 2px 8px rgba(37, 99, 235, 0.15)',
+                                    flexShrink: 0,
                                 }}
                             >
-                                {isBalanced ? (
-                                    <>Đối soát khớp — tồn kho trùng với phiếu trả</>
-                                ) : (
-                                    <>
-                                        Chênh lệch <strong>{Math.abs(diffQty).toLocaleString()} vé</strong>
-                                        {' · '}
-                                        Tồn {totalRemainingQty.toLocaleString()} / Trả {totalReturnQty.toLocaleString()}
-                                    </>
-                                )}
-                            </Typography>
-                        </Box>
-                        <IconButton size="small" onClick={onClose} sx={{ bgcolor: '#f1f5f9' }}>
+                                <ReceiptLongOutlinedIcon sx={{ fontSize: '1.75rem' }} />
+                            </Box>
+                            <Box>
+                                <Typography variant="h6" fontWeight={800} color="#0f172a" lineHeight={1.2}>
+                                    Phiếu kiểm tra & Đối soát số liệu Nhập - Trả
+                                </Typography>
+                                <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" sx={{ mt: 0.5 }}>
+                                    <Typography variant="caption" color="text.secondary">
+                                        Nhà cung cấp: <strong style={{ color: '#0f172a' }}>{settlement?.supplierName || '—'}</strong>
+                                        {settlement?.supplierCode && ` (${settlement.supplierCode})`}
+                                    </Typography>
+                                    <Typography variant="caption" color="text.secondary">•</Typography>
+                                    <Typography variant="caption" color="text.secondary">
+                                        Mã đối soát:{' '}
+                                        <strong style={{ color: '#2563eb' }}>
+                                            {settlement?.supplierSettlementCode || `#${settlement?.id}`}
+                                        </strong>
+                                    </Typography>
+                                    <Typography variant="caption" color="text.secondary">•</Typography>
+                                    <Typography variant="caption" color="text.secondary">
+                                        Kỳ: <strong>{formatDate(settlement?.periodFrom)} — {formatDate(settlement?.periodTo)}</strong>
+                                    </Typography>
+                                    {isExpired ? (
+                                        <Chip
+                                            label="Quá hạn trả vé"
+                                            size="small"
+                                            sx={{
+                                                bgcolor: '#fee2e2',
+                                                color: '#991b1b',
+                                                fontWeight: 800,
+                                                fontSize: '0.675rem',
+                                                height: 20,
+                                                border: '1px solid #fca5a5',
+                                            }}
+                                        />
+                                    ) : (
+                                        <Chip
+                                            label="Trong hạn"
+                                            size="small"
+                                            sx={{
+                                                bgcolor: '#dcfce7',
+                                                color: '#166534',
+                                                fontWeight: 800,
+                                                fontSize: '0.675rem',
+                                                height: 20,
+                                                border: '1px solid #86efac',
+                                            }}
+                                        />
+                                    )}
+                                </Stack>
+                            </Box>
+                        </Stack>
+                        <IconButton
+                            size="small"
+                            onClick={handleClose}
+                            sx={{
+                                color: '#64748b',
+                                bgcolor: '#f8fafc',
+                                border: '1px solid #e2e8f0',
+                                '&:hover': { bgcolor: '#f1f5f9', color: '#0f172a' },
+                            }}
+                        >
                             <CloseIcon fontSize="small" />
                         </IconButton>
                     </Stack>
-                </Stack>
-            </DialogTitle>
+                </DialogTitle>
 
-            <DialogContent dividers sx={{ p: 3, bgcolor: '#f8fafc' }}>
-                <Box sx={{ mb: 3 }}>
-                    <StatRibbonCardsGrid columns={{ xs: 1, sm: 2, md: 4 }}>
-                        <StatRibbonCard
-                            value={`${totalImportQty.toLocaleString('vi-VN')} vé`}
-                            label={`Vé nhập kho (Sáng) · ${formatVnd(totalImportVal)}`}
-                            icon="solar:import-bold-duotone"
-                            color="cyan"
-                            valueSize="compact"
-                            sx={{ minHeight: 104 }}
-                        />
-                        <StatRibbonCard
-                            value={`${totalSoldQty.toLocaleString('vi-VN')} vé`}
-                            label={`Đã bán trong ngày · Tồn ${totalRemainingQty.toLocaleString('vi-VN')} vé`}
-                            icon="solar:cart-large-2-bold-duotone"
-                            color="orange"
-                            valueSize="compact"
-                            sx={{ minHeight: 104 }}
-                        />
-                        <StatRibbonCard
-                            value={`${totalReturnQty.toLocaleString('vi-VN')} vé`}
-                            label={`Phiếu trả (Chiều) · ${formatVnd(totalReturnVal)}`}
-                            icon="solar:export-bold-duotone"
-                            color="green"
-                            valueSize="compact"
-                            sx={{ minHeight: 104 }}
-                        />
-                        <StatRibbonCard
-                            value={`${Math.abs(diffQty).toLocaleString('vi-VN')} vé`}
-                            label={isBalanced ? 'Chênh lệch đối soát · Khớp số liệu' : 'Chênh lệch đối soát · Có chênh lệch'}
-                            icon={isBalanced ? 'solar:check-circle-bold-duotone' : 'solar:danger-triangle-bold-duotone'}
-                            color={isBalanced ? 'green' : 'red'}
-                            valueSize="compact"
-                            sx={{ minHeight: 104 }}
-                        />
-                    </StatRibbonCardsGrid>
-                </Box>
+                <DialogContent sx={{ p: 3, bgcolor: '#fafafa' }}>
+                    <Stepper
+                        activeStep={inspectStep === 'CHECK' ? 0 : 1}
+                        sx={{
+                            mb: 2.5,
+                            '& .MuiStepLabel-label': { fontWeight: 700, fontSize: '0.8rem' },
+                        }}
+                    >
+                        <Step>
+                            <StepLabel>Phiếu kiểm tra & biên bản</StepLabel>
+                        </Step>
+                        <Step>
+                            <StepLabel>Đối chiếu biên lai</StepLabel>
+                        </Step>
+                    </Stepper>
 
-                <Card elevation={0} sx={{ p: 2.5, borderRadius: '16px', border: '1px solid #e2e8f0', bgcolor: '#fff', mb: 3 }}>
-                    <Typography variant="subtitle1" fontWeight={800} color="#0f172a" sx={{ mb: 1.5 }}>
-                        Bảng chi tiết đối soát từng Nhà đài
-                    </Typography>
-                    <TableContainer className="admin-table-container">
-                        <Table className="admin-table" size="medium">
-                            <TableHead>
-                                <TableRow>
-                                    <TableCell align="center" width={56}>STT</TableCell>
-                                    <TableCell align="center">Nhà đài</TableCell>
-                                    <TableCell align="center">Nhập (Sáng)</TableCell>
-                                    <TableCell align="center">Đã bán</TableCell>
-                                    <TableCell align="center">Còn lại (Tồn)</TableCell>
-                                    <TableCell align="center">Số vé trả (Chiều)</TableCell>
-                                    <TableCell align="center">Trạng thái đối soát</TableCell>
-                                </TableRow>
-                            </TableHead>
-                            <TableBody>
-                                {inventoryByStation.map((row, idx) => {
-                                    const stationDiff = row.remainingQuantity - row.returnQuantity;
-                                    const stationOk = stationDiff === 0;
-                                    return (
-                                        <TableRow
-                                            key={row.lotteryStationId || idx}
-                                            hover
-                                            className={stationOk ? undefined : 'admin-table-row-attention'}
-                                            sx={
-                                                stationOk
-                                                    ? undefined
-                                                    : { boxShadow: 'inset 3px 0 0 var(--palette-warning-main)' }
-                                            }
-                                        >
-                                            <TableCell align="center">
-                                                <span className="admin-cell-text">{idx + 1}</span>
-                                            </TableCell>
-                                            <TableCell align="center">
-                                                <span className="admin-cell-title">
-                                                    {row.lotteryStationName || `Đài #${row.lotteryStationId}`}
-                                                </span>
-                                            </TableCell>
-                                            <TableCell align="center">
-                                                <span className="admin-cell-text">
-                                                    {row.importedQuantity.toLocaleString('vi-VN')}
-                                                </span>
-                                            </TableCell>
-                                            <TableCell align="center">
-                                                <span className="admin-cell-text">
-                                                    {row.soldQuantity.toLocaleString('vi-VN')}
-                                                </span>
-                                            </TableCell>
-                                            <TableCell align="center">
-                                                <span className="admin-cell-title">
-                                                    {row.remainingQuantity.toLocaleString('vi-VN')}
-                                                </span>
-                                            </TableCell>
-                                            <TableCell align="center">
-                                                <span className="admin-cell-text">
-                                                    {row.returnQuantity.toLocaleString('vi-VN')}
-                                                </span>
-                                            </TableCell>
-                                            <TableCell align="center">
-                                                <span
-                                                    className={`admin-status-badge admin-status-badge--compact ${
-                                                        stationOk ? 'admin-status-badge--success' : 'admin-status-badge--pending'
-                                                    }`}
-                                                >
-                                                    {stationOk ? 'Khớp' : `Lệch ${Math.abs(stationDiff).toLocaleString('vi-VN')} vé`}
-                                                </span>
-                                            </TableCell>
-                                        </TableRow>
-                                    );
-                                })}
-                                {inventoryByStation.length === 0 && (
-                                    <TableRow>
-                                        <TableCell colSpan={7} align="center" sx={{ borderBottom: 'none', py: 6 }}>
-                                            <span className="admin-datagrid-empty">
-                                                Chưa có dữ liệu phân rã theo đài.
-                                            </span>
-                                        </TableCell>
-                                    </TableRow>
-                                )}
-                            </TableBody>
-                        </Table>
-                    </TableContainer>
-                </Card>
-
-                <Typography variant="subtitle1" fontWeight={800} color="#0f172a" sx={{ mb: 1.5 }}>
-                    Đối chiếu ảnh biên lai Nhập vé (Sáng) & Trả vé (Chiều)
-                </Typography>
-
-                <Grid container spacing={3}>
-                    <Grid size={{ xs: 12, md: 6 }}>
-                        <Card
-                            elevation={0}
-                            sx={{
-                                p: 2.5,
-                                borderRadius: '16px',
-                                border: '1px solid #e2e8f0',
-                                bgcolor: '#fff',
-                                height: '100%',
-                            }}
-                        >
-                            <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1.5 }}>
-                                <Box>
-                                    <Typography variant="subtitle2" fontWeight={800} color="#0f172a">
-                                        Biên lai phiếu nhập lô (Buổi sáng)
-                                    </Typography>
-                                    <Typography variant="caption" color="text.secondary">
-                                        Mã lô: <strong>{primaryImportBatch?.batchCode || '—'}</strong>
-                                    </Typography>
-                                </Box>
-                                <AdminStatusBadge label="Đã bàn giao sáng" modifier="admin-status-badge--active" />
-                            </Stack>
-
-                            {importReceiptUrl ? (
-                                <ImagePreview
-                                    src={importReceiptUrl}
-                                    alt="Biên lai phiếu nhập lô"
-                                    dialogTitle="Biên lai phiếu nhập lô (Sáng)"
-                                    infoItems={[
-                                        { label: 'Mã lô', value: primaryImportBatch?.batchCode || `#${primaryImportBatch?.id}` },
-                                        { label: 'Nhà cung cấp', value: settlement?.supplierName || '—' },
-                                    ]}
-                                    thumbnailSx={receiptThumbSx}
-                                />
-                            ) : (
-                                <Box
+                    {inspectStep === 'CHECK' && (
+                        <>
+                            {isBalanced ? (
+                                <Alert
+                                    icon={<CheckCircleOutlinedIcon fontSize="inherit" />}
+                                    severity="success"
                                     sx={{
-                                        minHeight: 200,
-                                        borderRadius: '12px',
-                                        border: '1px dashed',
-                                        borderColor: 'divider',
-                                        bgcolor: 'var(--palette-background-neutral)',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        px: 2,
+                                        mb: 2.5,
+                                        borderRadius: '14px',
+                                        fontWeight: 600,
+                                        border: '1px solid #bbf7d0',
+                                        bgcolor: '#f0fdf4',
+                                        color: '#166534',
                                     }}
                                 >
-                                    <Typography variant="body2" color="text.secondary" textAlign="center">
-                                        Chưa có ảnh biên lai phiếu nhập lô
-                                    </Typography>
-                                </Box>
+                                    <strong>Đối soát thành công!</strong> Số lượng vé tồn kho còn lại ({totalRemainingQty.toLocaleString()} vé) hoàn toàn trùng khớp với số lượng vé trên phiếu trả nhà cung cấp ({totalReturnQty.toLocaleString()} vé).
+                                </Alert>
+                            ) : (
+                                <Alert
+                                    icon={<WarningAmberOutlinedIcon fontSize="inherit" />}
+                                    severity="warning"
+                                    sx={{
+                                        mb: 2.5,
+                                        borderRadius: '14px',
+                                        fontWeight: 600,
+                                        border: '1px solid #fef08a',
+                                        bgcolor: '#fefce8',
+                                        color: '#854d0e',
+                                    }}
+                                >
+                                    <strong>Cảnh báo chênh lệch đối soát!</strong> Tồn kho còn lại ({totalRemainingQty.toLocaleString()} vé) chênh lệch <strong>{Math.abs(diffQty).toLocaleString()} vé</strong> so với số vé lập trên phiếu trả ({totalReturnQty.toLocaleString()} vé).
+                                </Alert>
                             )}
-                        </Card>
-                    </Grid>
 
-                    <Grid size={{ xs: 12, md: 6 }}>
-                        <Card
-                            elevation={0}
-                            sx={{
-                                p: 2.5,
-                                borderRadius: '16px',
-                                border: '1px solid #e2e8f0',
-                                bgcolor: '#fff',
-                                height: '100%',
-                            }}
-                        >
-                            <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1.5 }}>
-                                <Box>
-                                    <Typography variant="subtitle2" fontWeight={800} color="#0f172a">
-                                        Biên lai phiếu trả vé (Chiều)
-                                    </Typography>
-                                    <Typography variant="caption" color="text.secondary">
-                                        Mã phiếu trả: <strong>{primaryReturnBatch?.id ? `#${primaryReturnBatch.id}` : '—'}</strong>
-                                    </Typography>
-                                </Box>
-                                <AdminStatusBadge
-                                    label={returnEvidenceUrl ? 'Đã có biên lai' : 'Chưa có biên lai'}
-                                    modifier={
-                                        returnEvidenceUrl
-                                            ? 'admin-status-badge--success'
-                                            : 'admin-status-badge--pending'
-                                    }
-                                />
-                            </Stack>
+                            <Grid container spacing={2} sx={{ mb: 2.5 }}>
+                                <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                                    <Card elevation={0} sx={{ p: 2, borderRadius: '14px', border: '1px solid #e2e8f0', bgcolor: '#ffffff' }}>
+                                        <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 0.5 }}>
+                                            <Inventory2OutlinedIcon sx={{ fontSize: '1.1rem', color: '#64748b' }} />
+                                            <Typography variant="caption" fontWeight={700} color="text.secondary">
+                                                1. VÉ NHẬP KHO (SÁNG)
+                                            </Typography>
+                                        </Stack>
+                                        <Typography variant="h5" fontWeight={800} color="#0f172a">
+                                            {totalImportQty.toLocaleString()} <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#64748b' }}>vé</span>
+                                        </Typography>
+                                        <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 0.25 }}>
+                                            Giá trị nhập: <strong>{formatImportCost(totalImportVal)} VNĐ</strong>
+                                        </Typography>
+                                    </Card>
+                                </Grid>
+                                <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                                    <Card elevation={0} sx={{ p: 2, borderRadius: '14px', border: '1px solid #e2e8f0', bgcolor: '#ffffff' }}>
+                                        <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 0.5 }}>
+                                            <LocalShippingOutlinedIcon sx={{ fontSize: '1.1rem', color: '#0284c7' }} />
+                                            <Typography variant="caption" fontWeight={700} color="text.secondary">
+                                                2. VÉ ĐÃ BÁN TRONG NGÀY
+                                            </Typography>
+                                        </Stack>
+                                        <Typography variant="h5" fontWeight={800} color="#0284c7">
+                                            {totalSoldQty.toLocaleString()} <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#0369a1' }}>vé</span>
+                                        </Typography>
+                                        <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 0.25 }}>
+                                            Tồn còn lại: <strong>{totalRemainingQty.toLocaleString()} vé</strong>
+                                        </Typography>
+                                    </Card>
+                                </Grid>
+                                <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                                    <Card elevation={0} sx={{ p: 2, borderRadius: '14px', border: '1px solid #e2e8f0', bgcolor: '#ffffff' }}>
+                                        <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 0.5 }}>
+                                            <AssignmentReturnOutlinedIcon sx={{ fontSize: '1.1rem', color: '#16a34a' }} />
+                                            <Typography variant="caption" fontWeight={700} color="text.secondary">
+                                                3. SỐ VÉ TRÊN PHIẾU TRẢ (CHIỀU)
+                                            </Typography>
+                                        </Stack>
+                                        <Typography variant="h5" fontWeight={800} color="#16a34a">
+                                            {totalReturnQty.toLocaleString()} <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#15803d' }}>vé</span>
+                                        </Typography>
+                                        <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 0.25 }}>
+                                            Trị giá trả: <strong>{formatImportCost(totalReturnVal)} VNĐ</strong>
+                                        </Typography>
+                                    </Card>
+                                </Grid>
+                                <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                                    <Card
+                                        elevation={0}
+                                        sx={{
+                                            p: 2,
+                                            borderRadius: '14px',
+                                            border: isBalanced ? '1px solid #bbf7d0' : '1px solid #fecaca',
+                                            bgcolor: isBalanced ? '#ffffff' : '#fff1f2',
+                                        }}
+                                    >
+                                        <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 0.5 }}>
+                                            <BalanceOutlinedIcon sx={{ fontSize: '1.1rem', color: isBalanced ? '#16a34a' : '#dc2626' }} />
+                                            <Typography variant="caption" fontWeight={700} color={isBalanced ? '#166534' : '#991b1b'}>
+                                                4. CHÊNH LỆCH ĐỐI SOÁT
+                                            </Typography>
+                                        </Stack>
+                                        <Typography variant="h5" fontWeight={800} color={isBalanced ? '#15803d' : '#dc2626'}>
+                                            {Math.abs(diffQty).toLocaleString()} <span style={{ fontSize: '0.85rem', fontWeight: 600, color: isBalanced ? '#166534' : '#b91c1c' }}>vé</span>
+                                        </Typography>
+                                        <Chip
+                                            size="small"
+                                            label={isBalanced ? 'Khớp số liệu 100%' : `Lệch ${Math.abs(diffQty)} vé`}
+                                            color={isBalanced ? 'success' : 'error'}
+                                            sx={{ height: 20, fontSize: '0.68rem', fontWeight: 700, mt: 0.25 }}
+                                        />
+                                    </Card>
+                                </Grid>
+                            </Grid>
 
-                            <UploadSingleFile
-                                value={returnEvidenceUrl}
-                                onChange={handleReturnEvidenceChange}
-                                label=""
-                                autoUpload
+                            <SettlementReconciliationTabs
+                                inventoryByStation={inventoryByStation}
+                                importBatches={importBatches}
+                                returnBatches={returnBatches}
+                                remainingPayableAmount={remainingAmount}
+                                settlement={settlement}
                             />
-                        </Card>
-                    </Grid>
-                </Grid>
-            </DialogContent>
 
-            <DialogActions sx={{ px: 3, py: 2, borderTop: '1px solid #e2e8f0', bgcolor: '#fff' }}>
-                <Button variant="outlined" color="inherit" onClick={onClose} sx={{ borderRadius: '8px', textTransform: 'none', px: 2.5 }}>
-                    Đóng
-                </Button>
-                <Button
-                    variant="contained"
-                    color="primary"
-                    onClick={() => {
-                        AppToast.success('Đã xác nhận kiểm tra và hoàn tất đối soát nhà cung cấp!');
-                        onClose();
+                            <Card elevation={0} sx={{ p: 2.5, borderRadius: '16px', border: '1px solid #e2e8f0', bgcolor: '#ffffff', boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)' }}>
+                                <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1.5 }}>
+                                    <EditNoteOutlinedIcon sx={{ color: '#2563eb', fontSize: '1.4rem' }} />
+                                    <Typography variant="subtitle2" fontWeight={800} color="#0f172a">
+                                        Ghi chú kiểm tra & Biên bản đối soát (Kế toán / Quản lý)
+                                    </Typography>
+                                </Stack>
+                                <TextField
+                                    multiline
+                                    rows={2}
+                                    fullWidth
+                                    placeholder="Nhập ghi chú kiểm đếm, nguyên nhân chênh lệch hoặc ghi chú biên bản đối soát (nếu có)..."
+                                    value={auditNotes}
+                                    onChange={(e) => setAuditNotes(e.target.value)}
+                                    sx={{ bgcolor: '#f8fafc' }}
+                                />
+                            </Card>
+                        </>
+                    )}
+
+                    {inspectStep === 'RECEIPTS' && (
+                        <SettlementDayBatchesPanel
+                            settlementId={settlement.id}
+                            supplierSettlementCode={settlement.supplierSettlementCode}
+                            supplierSettlementReceiptUrl={settlement.supplierSettlementReceiptUrl}
+                            importBatches={importBatches}
+                            onRefresh={onRefresh}
+                            onZoomImage={setZoomImage}
+                        />
+                    )}
+                </DialogContent>
+
+                <DialogActions sx={{ px: 3, py: 2.5, borderTop: '1px solid #e2e8f0', bgcolor: '#ffffff' }}>
+                    {inspectStep === 'CHECK' ? (
+                        <>
+                            <Button
+                                variant="outlined"
+                                color="inherit"
+                                onClick={handleClose}
+                                sx={{
+                                    borderRadius: '10px',
+                                    textTransform: 'none',
+                                    px: 3,
+                                    fontWeight: 700,
+                                    color: '#475569',
+                                    borderColor: '#cbd5e1',
+                                }}
+                            >
+                                Đóng
+                            </Button>
+                            <Button
+                                variant="contained"
+                                onClick={() => setInspectStep('RECEIPTS')}
+                                endIcon={<ArrowForwardOutlinedIcon />}
+                                sx={{
+                                    borderRadius: '10px',
+                                    textTransform: 'none',
+                                    fontWeight: 800,
+                                    px: 3.5,
+                                    py: 1,
+                                    bgcolor: '#2563eb',
+                                    boxShadow: '0 2px 8px rgba(37, 99, 235, 0.25)',
+                                    '&:hover': { bgcolor: '#1d4ed8' },
+                                }}
+                            >
+                                Tiếp tục
+                            </Button>
+                        </>
+                    ) : (
+                        <>
+                            <Button
+                                variant="outlined"
+                                color="inherit"
+                                onClick={() => setInspectStep('CHECK')}
+                                startIcon={<ArrowBackOutlinedIcon />}
+                                sx={{
+                                    borderRadius: '10px',
+                                    textTransform: 'none',
+                                    px: 3,
+                                    fontWeight: 700,
+                                    color: '#475569',
+                                    borderColor: '#cbd5e1',
+                                }}
+                            >
+                                Quay lại
+                            </Button>
+                            <Button
+                                variant="contained"
+                                onClick={() => {
+                                    AppToast.success('Đã xác nhận kiểm tra và hoàn tất đối soát nhà cung cấp!');
+                                    handleClose();
+                                }}
+                                sx={{
+                                    borderRadius: '10px',
+                                    textTransform: 'none',
+                                    fontWeight: 800,
+                                    px: 3.5,
+                                    py: 1,
+                                    bgcolor: '#2563eb',
+                                    boxShadow: '0 2px 8px rgba(37, 99, 235, 0.25)',
+                                    '&:hover': { bgcolor: '#1d4ed8' },
+                                }}
+                            >
+                                Xác nhận hoàn tất đối soát
+                            </Button>
+                        </>
+                    )}
+                </DialogActions>
+            </Dialog>
+
+            {/* Image Zoom Lightbox Modal */}
+            <Dialog
+                open={Boolean(zoomImage)}
+                onClose={() => setZoomImage(null)}
+                maxWidth="md"
+                fullWidth
+                PaperProps={{
+                    sx: {
+                        borderRadius: '20px',
+                        overflow: 'hidden',
+                        bgcolor: '#0f172a',
+                        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+                    },
+                }}
+            >
+                <DialogTitle
+                    sx={{
+                        m: 0,
+                        p: 2,
+                        bgcolor: '#1e293b',
+                        color: '#f8fafc',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        borderBottom: '1px solid #334155',
                     }}
-                    sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 700, px: 3 }}
                 >
-                    Xác nhận hoàn tất đối soát
-                </Button>
-            </DialogActions>
-        </Dialog>
+                    <Typography variant="subtitle1" fontWeight={800} color="#f8fafc">
+                        {zoomImage?.title || 'Xem ảnh biên lai'}
+                    </Typography>
+                    <IconButton
+                        size="small"
+                        onClick={() => setZoomImage(null)}
+                        sx={{ color: '#94a3b8', '&:hover': { color: '#ffffff', bgcolor: '#334155' } }}
+                    >
+                        <CloseIcon fontSize="small" />
+                    </IconButton>
+                </DialogTitle>
+                <DialogContent
+                    sx={{
+                        p: 3,
+                        bgcolor: '#0f172a',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        minHeight: 400,
+                    }}
+                >
+                    {zoomImage?.url && (
+                        <Box
+                            component="img"
+                            src={zoomImage.url}
+                            alt={zoomImage.title || 'Biên lai'}
+                            sx={{
+                                maxWidth: '100%',
+                                maxHeight: '75vh',
+                                objectFit: 'contain',
+                                borderRadius: '12px',
+                                boxShadow: '0 10px 25px rgba(0,0,0,0.5)',
+                            }}
+                        />
+                    )}
+                </DialogContent>
+            </Dialog>
+        </>
     );
 };
