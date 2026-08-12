@@ -8,6 +8,8 @@ import { Search } from '../../../../components/ui/Search';
 import { Columns } from '../../../../components/ui/Columns';
 import { ExportButton } from '../../../../components/ui/ExportButton';
 import { SettingsList } from '../../../../components/ui/SettingsList';
+import { AdminDatePicker } from '../../../../components/ui/AdminDatePicker';
+import { adminCountBadgeSx, getMetricChipSx } from '@/admin/utils/badge';
 
 interface IGridSettings {
     density: "compact" | "standard" | "comfortable";
@@ -101,9 +103,8 @@ export const DrawResultToolbar = ({
                 {isRefreshing && (
                     <Chip
                         size="small"
-                        color="info"
-                        variant="outlined"
                         label="Đang đồng bộ dữ liệu..."
+                        sx={getMetricChipSx('info')}
                     />
                 )}
                 
@@ -118,7 +119,7 @@ export const DrawResultToolbar = ({
                             badgeContent={filterCount}
                             color="primary"
                             variant="dot"
-                            sx={{ '& .MuiBadge-badge': { backgroundColor: "#FF5630" } }}
+                            sx={adminCountBadgeSx}
                         >
                             <SvgIcon sx={{ fontSize: '1.125rem !important' }} viewBox="0 0 24 24">
                                 <g fill="none" fillRule="evenodd">
@@ -304,21 +305,12 @@ export const DrawResultToolbar = ({
 
                                     {dateMode === 'single' ? (
                                         <Box>
-                                            <TextField
-                                                fullWidth
-                                                size="small"
-                                                type="date"
+                                            <AdminDatePicker
                                                 label="Ngày quay"
                                                 value={drawDate}
-                                                onChange={(e) => onDrawDateChange(e.target.value)}
-                                                InputLabelProps={{ shrink: true }}
-                                                inputProps={{ max: tomorrowStr }}
+                                                onChange={onDrawDateChange}
+                                                max={tomorrowStr}
                                                 disabled={isLoading}
-                                                sx={{
-                                                    '& fieldset': { borderColor: '#DFE1E6' },
-                                                    '&:hover fieldset': { borderColor: '#B3BAC5 !important' },
-                                                    '&.Mui-focused fieldset': { borderColor: '#FF3030 !important', borderWidth: '2px !important' }
-                                                }}
                                             />
                                             {drawDate !== todayStr && (
                                                 <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 1 }}>
@@ -344,40 +336,20 @@ export const DrawResultToolbar = ({
                                         </Box>
                                     ) : (
                                         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                                            <TextField
-                                                fullWidth
-                                                size="small"
-                                                type="date"
+                                            <AdminDatePicker
                                                 label="Từ ngày"
                                                 value={fromDate}
-                                                onChange={(e) => onFromDateChange(e.target.value)}
-                                                InputLabelProps={{ shrink: true }}
-                                                inputProps={{ max: tomorrowStr }}
+                                                onChange={onFromDateChange}
+                                                max={tomorrowStr}
                                                 disabled={isLoading}
-                                                sx={{
-                                                    '& fieldset': { borderColor: '#DFE1E6' },
-                                                    '&:hover fieldset': { borderColor: '#B3BAC5 !important' },
-                                                    '&.Mui-focused fieldset': { borderColor: '#FF3030 !important', borderWidth: '2px !important' }
-                                                }}
                                             />
-                                            <TextField
-                                                fullWidth
-                                                size="small"
-                                                type="date"
+                                            <AdminDatePicker
                                                 label="Đến ngày"
                                                 value={toDate}
-                                                onChange={(e) => onToDateChange(e.target.value)}
-                                                InputLabelProps={{ shrink: true }}
-                                                inputProps={{ 
-                                                    max: tomorrowStr,
-                                                    min: minToDate || undefined
-                                                }}
+                                                onChange={onToDateChange}
+                                                min={minToDate || undefined}
+                                                max={tomorrowStr}
                                                 disabled={isLoading}
-                                                sx={{
-                                                    '& fieldset': { borderColor: '#DFE1E6' },
-                                                    '&:hover fieldset': { borderColor: '#B3BAC5 !important' },
-                                                    '&.Mui-focused fieldset': { borderColor: '#FF3030 !important', borderWidth: '2px !important' }
-                                                }}
                                             />
                                         </Box>
                                     )}
