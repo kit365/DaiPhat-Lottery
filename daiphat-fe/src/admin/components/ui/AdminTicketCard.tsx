@@ -1,5 +1,9 @@
 import React from "react";
-import { Box, Typography, Stack, Chip, Button } from "@mui/material";
+import { Badge, Box, Typography, Stack, Chip, Button } from "@mui/material";
+import ConfirmationNumberOutlinedIcon from "@mui/icons-material/ConfirmationNumberOutlined";
+import AutoAwesomeOutlinedIcon from "@mui/icons-material/AutoAwesomeOutlined";
+
+import { adminCountBadgeSx } from "@/admin/utils/badge";
 
 export interface AdminTicketCardProps {
     ticketNumbers: string;
@@ -14,6 +18,42 @@ export interface AdminTicketCardProps {
     disabled?: boolean;
 }
 
+const luckyPrimaryChipSx = {
+    height: 22,
+    fontSize: "0.6875rem",
+    fontWeight: 700,
+    bgcolor: "rgba(255, 171, 0, 0.14)",
+    color: "#B76E00",
+    border: "1px solid rgba(255, 171, 0, 0.35)",
+    "& .MuiChip-icon": {
+        color: "#FFAB00",
+        fontSize: 14,
+        ml: 0.5,
+    },
+    "& .MuiChip-label": {
+        px: 0.75,
+    },
+};
+
+const luckyBadgeChipSx = {
+    height: 20,
+    fontSize: "0.625rem",
+    fontWeight: 700,
+    bgcolor: "rgba(255, 171, 0, 0.1)",
+    color: "#B76E00",
+    border: "1px solid rgba(255, 171, 0, 0.28)",
+    "& .MuiChip-label": {
+        px: 0.75,
+    },
+};
+
+const formatQuantityBadge = (quantity: number) => {
+    if (quantity > 99) {
+        return "x99+";
+    }
+    return `x${quantity}`;
+};
+
 export const AdminTicketCard: React.FC<AdminTicketCardProps> = ({
     ticketNumbers,
     stationName,
@@ -26,98 +66,151 @@ export const AdminTicketCard: React.FC<AdminTicketCardProps> = ({
     actionLabel,
     disabled,
 }) => {
+    const isLuckyTicket = Boolean(isLucky || (luckyBadges && luckyBadges.length > 0));
+    const resolvedActionLabel = actionLabel || "Chọn";
+    const showTicketIcon = ["Đổi vé", "Chọn", "Chọn serial", "Ẩn serial"].includes(resolvedActionLabel);
+
     return (
-        <Box
+        <Badge
+            badgeContent={formatQuantityBadge(quantity)}
+            color="error"
+            invisible={quantity <= 0}
+            overlap="rectangular"
+            anchorOrigin={{ vertical: "top", horizontal: "right" }}
             sx={{
-                position: "relative",
-                width: 156,
-                minHeight: 90,
-                bgcolor: "background.paper",
-                borderRadius: 2,
-                border: "1px solid",
-                borderColor: "divider",
-                boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
-                p: 1.5,
-                display: "flex",
-                flexDirection: "column",
-                gap: 1,
+                ...adminCountBadgeSx,
+                "& .MuiBadge-badge": {
+                    ...adminCountBadgeSx["& .MuiBadge-badge"],
+                    minWidth: 22,
+                    padding: "0 6px",
+                },
             }}
         >
-            {quantity > 0 && (
-                <Box
-                    sx={{
-                        position: "absolute",
-                        top: -8,
-                        right: -8,
-                        bgcolor: "primary.main",
-                        color: "primary.contrastText",
-                        borderRadius: "12px",
-                        px: 1,
-                        py: 0.25,
-                        fontSize: "0.75rem",
-                        fontWeight: 700,
-                        boxShadow: 1,
-                        zIndex: 1,
-                    }}
-                >
-                    x{quantity}
-                </Box>
-            )}
-
-            <Box>
-                <Typography
-                    variant="h6"
-                    sx={{
-                        fontFamily: "monospace",
-                        fontWeight: 700,
-                        fontSize: "1.25rem",
-                        lineHeight: 1,
-                        letterSpacing: "0.05em",
-                        color: "text.primary",
-                    }}
-                >
-                    {ticketNumbers}
-                </Typography>
-                <Typography variant="caption" sx={{ color: "text.secondary", display: "block", mt: 0.5, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                    {stationName}
-                </Typography>
-                <Typography variant="caption" sx={{ color: "error.main", fontWeight: 600 }}>
-                    {new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(faceValue)}
-                </Typography>
-            </Box>
-
-            {(isLucky || (luckyBadges && luckyBadges.length > 0)) && (
-                <Stack direction="row" flexWrap="wrap" gap={0.5}>
-                    {isLucky && <Chip size="small" label="Số đẹp" sx={{ height: 20, fontSize: "0.65rem", fontWeight: 700 }} />}
-                    {luckyBadges?.map((badge, i) => (
-                        <Chip key={i} size="small" label={badge} variant="outlined" color="primary" sx={{ height: 20, fontSize: "0.65rem" }} />
-                    ))}
-                </Stack>
-            )}
-
-            {counterReserveOverride && (
-                <Chip
-                    size="small"
-                    color="warning"
-                    label="BE đề xuất vé giữ quầy"
-                    sx={{ height: 20, fontSize: "0.62rem", fontWeight: 700 }}
-                />
-            )}
-
-            {onClickAction && (
-                <Box sx={{ mt: "auto", pt: 0.5 }}>
-                    <Button
-                        size="small"
-                        variant="outlined"
-                        fullWidth
-                        onClick={onClickAction}
-                        disabled={disabled}
-                        sx={{ fontSize: "0.7rem", py: 0.25 }}
+            <Box
+                sx={{
+                    position: "relative",
+                    width: 156,
+                    minHeight: 90,
+                    bgcolor: "background.paper",
+                    borderRadius: 2,
+                    border: "1px solid",
+                    borderColor: isLuckyTicket ? "rgba(255, 171, 0, 0.45)" : "divider",
+                    boxShadow: isLuckyTicket
+                        ? "0 2px 8px rgba(255, 171, 0, 0.12)"
+                        : "0 1px 2px rgba(0,0,0,0.05)",
+                    p: 1.5,
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 0.75,
+                    overflow: "hidden",
+                    "&::before": isLuckyTicket
+                        ? {
+                              content: '""',
+                              position: "absolute",
+                              left: 0,
+                              top: 0,
+                              bottom: 0,
+                              width: 3,
+                              bgcolor: "#FFAB00",
+                          }
+                        : undefined,
+                }}
+            >
+                <Box sx={{ pl: isLuckyTicket ? 0.5 : 0 }}>
+                    <Typography
+                        variant="h6"
+                        sx={{
+                            fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+                            fontWeight: 800,
+                            fontSize: "1.25rem",
+                            lineHeight: 1.1,
+                            letterSpacing: "0.06em",
+                            color: "text.primary",
+                            pr: quantity > 0 ? 2 : 0,
+                        }}
                     >
-                        {actionLabel || "Chọn"}
-                    </Button>
+                        {ticketNumbers}
+                    </Typography>
+                    <Typography
+                        variant="caption"
+                        sx={{
+                            color: "text.secondary",
+                            display: "block",
+                            mt: 0.5,
+                            whiteSpace: "nowrap",
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                        }}
+                    >
+                        {stationName}
+                    </Typography>
+                    <Typography variant="caption" sx={{ color: "error.main", fontWeight: 700 }}>
+                        {new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(faceValue)}
+                    </Typography>
                 </Box>
-            )}
-        </Box>
+
+                {isLuckyTicket ? (
+                    <Stack direction="row" flexWrap="wrap" gap={0.5} sx={{ pl: isLuckyTicket ? 0.5 : 0 }}>
+                        {isLucky ? (
+                            <Chip
+                                size="small"
+                                icon={<AutoAwesomeOutlinedIcon />}
+                                label="Số đẹp"
+                                sx={luckyPrimaryChipSx}
+                            />
+                        ) : null}
+                        {luckyBadges?.map((badge, index) => (
+                            <Chip
+                                key={`${badge}-${index}`}
+                                size="small"
+                                label={badge}
+                                sx={luckyBadgeChipSx}
+                            />
+                        ))}
+                    </Stack>
+                ) : null}
+
+                {counterReserveOverride ? (
+                    <Chip
+                        size="small"
+                        color="warning"
+                        label="Giữ quầy"
+                        sx={{
+                            height: 20,
+                            fontSize: "0.625rem",
+                            fontWeight: 700,
+                            alignSelf: "flex-start",
+                            ml: isLuckyTicket ? 0.5 : 0,
+                        }}
+                    />
+                ) : null}
+
+                {onClickAction ? (
+                    <Box sx={{ mt: "auto", pt: 0.25 }}>
+                        <Button
+                            size="small"
+                            variant="outlined"
+                            fullWidth
+                            onClick={onClickAction}
+                            disabled={disabled}
+                            startIcon={
+                                showTicketIcon ? (
+                                    <ConfirmationNumberOutlinedIcon sx={{ fontSize: "0.95rem !important" }} />
+                                ) : undefined
+                            }
+                            sx={{
+                                fontSize: "0.7rem",
+                                fontWeight: 700,
+                                py: 0.35,
+                                borderRadius: "8px",
+                                textTransform: "none",
+                            }}
+                        >
+                            {resolvedActionLabel}
+                        </Button>
+                    </Box>
+                ) : null}
+            </Box>
+        </Badge>
     );
 };

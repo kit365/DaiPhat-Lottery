@@ -1,79 +1,10 @@
-﻿import { ROUTES } from './routes';
-import { menuDevelopmentData, menuManagementData, menuOverviewData } from './sideBar';
+﻿"use client";
+
+import { ROUTES } from './routes';
 import { registerAdminPageChunkLoader } from '../lib/adminPagePrefetchRegistry';
 
-type SidebarItem = {
-    path?: string;
-    children?: { path?: string }[];
-};
-
-const collectSidebarPaths = (items: SidebarItem[]): string[] => {
-    const paths: string[] = [];
-
-    items.forEach((item) => {
-        if (item.path) {
-            paths.push(item.path);
-        }
-        item.children?.forEach((child) => {
-            if (child.path) {
-                paths.push(child.path);
-            }
-        });
-    });
-
-    return paths;
-};
-
-/** Tất cả route tĩnh trong sidebar admin — dùng cho prefetch toàn bộ. */
-export const ADMIN_PREFETCH_ALL_ROUTES = Array.from(
-    new Set([
-        ...collectSidebarPaths(menuOverviewData),
-        ...collectSidebarPaths(menuManagementData),
-        ...collectSidebarPaths(menuDevelopmentData),
-        ROUTES.ADMIN.DASHBOARD.ANALYTICS,
-        ROUTES.ADMIN.DASHBOARD.STATISTICS.GENERAL,
-        ROUTES.ADMIN.DASHBOARD.STATISTICS.ORDERS,
-        ROUTES.ADMIN.TICKETS.EXPIRED,
-        ROUTES.ADMIN.TICKETS.DRAW_RESULT,
-        ROUTES.ADMIN.TICKETS.PRIZE_STRUCTURE,
-        ROUTES.ADMIN.TICKETS.REGION,
-        ROUTES.ADMIN.TICKETS.PROVIDER,
-        ROUTES.ADMIN.NOTIFICATIONS,
-        ROUTES.ADMIN.PROFILE,
-        ROUTES.ADMIN.REVIEWS,
-        ROUTES.ADMIN.DASHBOARD.SETTINGS.SYSTEM_CONFIG,
-        '/admin/department/list',
-        '/admin/shift/list',
-        '/admin/schedule-calendar',
-        '/admin/dashboard/statistics/staff',
-    ]),
-);
-
-/** Các trang admin hay mở nhất — prefetch ngay khi shell load. */
-export const ADMIN_PREFETCH_ROUTE_PRIORITY = [
-    ROUTES.ADMIN.DASHBOARD.ROOT,
-    ROUTES.ADMIN.TICKETS.LIST,
-    ROUTES.ADMIN.ORDERS.LIST,
-    ROUTES.ADMIN.IMPORT_BATCH.LIST,
-    ROUTES.ADMIN.IMPORT_BATCH.CREATE,
-    ROUTES.ADMIN.TICKETS.PROVIDER,
-    ROUTES.ADMIN.SUPPLIER.LIST,
-    ROUTES.ADMIN.CHAT,
-    ROUTES.ADMIN.REFUNDS.LIST,
-    ROUTES.ADMIN.PRIZE_PAYOUTS.LIST,
-    ROUTES.ADMIN.SUPPORT_TICKETS.LIST,
-    ROUTES.ADMIN.RETURN_BATCH.LIST,
-    ROUTES.ADMIN.SUPPLIER_SETTLEMENT.LIST,
-    ROUTES.ADMIN.DASHBOARD.SYSTEM,
-    ROUTES.ADMIN.DASHBOARD.ECOMMERCE,
-    ROUTES.ADMIN.BLOGS.LIST,
-    ROUTES.ADMIN.ACCOUNTS.USER.LIST,
-    ROUTES.ADMIN.ACCOUNTS.ADMIN.LIST,
-    ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.LIST,
-    ROUTES.ADMIN.ROLES.LIST,
-] as const;
-
-const registerPriorityChunkLoaders = () => {
+/** Map route → dynamic import chunk, dùng khi hover sidebar / sau login. */
+const registerAdminPageChunkLoaders = () => {
     const loaders: Array<[string, () => Promise<unknown>]> = [
         [ROUTES.ADMIN.TICKETS.LIST, () => import('@/admin/features/ticket/inventory/components/pages/TicketListPage')],
         [ROUTES.ADMIN.TICKETS.PROVIDER, () => import('@/admin/features/station/components/pages/StationListPage')],
@@ -126,4 +57,4 @@ const registerPriorityChunkLoaders = () => {
     loaders.forEach(([path, loader]) => registerAdminPageChunkLoader(path, loader));
 };
 
-registerPriorityChunkLoaders();
+registerAdminPageChunkLoaders();
