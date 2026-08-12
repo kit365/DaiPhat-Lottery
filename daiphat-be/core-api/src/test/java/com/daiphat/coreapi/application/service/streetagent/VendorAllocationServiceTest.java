@@ -9,7 +9,7 @@ import com.daiphat.coreapi.application.port.in.streetagent.VendorSettlementProje
 import com.daiphat.coreapi.application.port.in.lotteries.LotteryTicketAggregateSyncUseCase;
 import com.daiphat.coreapi.application.port.out.lotteries.ReturnBatchRepositoryPort;
 import com.daiphat.coreapi.application.port.out.settings.SystemConfigRepositoryPort;
-import com.daiphat.coreapi.application.port.out.streetagent.AgentDepositTransactionRepositoryPort;
+import com.daiphat.coreapi.application.port.out.streetagent.VendorDepositTransactionRepositoryPort;
 import com.daiphat.coreapi.application.port.out.streetagent.StreetAgentProfileRepositoryPort;
 import com.daiphat.coreapi.application.port.out.streetagent.VendorAllocationRepositoryPort;
 import com.daiphat.coreapi.domain.exception.DomainException;
@@ -20,6 +20,7 @@ import com.daiphat.coreapi.domain.model.enums.streetagent.AllocationBatchStatus;
 import com.daiphat.coreapi.domain.model.enums.streetagent.StreetAgentProfileStatus;
 import com.daiphat.coreapi.domain.model.enums.streetagent.VendorConfidenceTier;
 import com.daiphat.coreapi.domain.model.enums.streetagent.VendorLateReturnPolicy;
+import com.daiphat.coreapi.domain.model.enums.transaction.TransactionBusinessType;
 import com.daiphat.coreapi.domain.model.enums.settings.SystemConfigEnum;
 import com.daiphat.coreapi.domain.model.enums.lottery.TicketCondition;
 import com.daiphat.coreapi.domain.model.settings.SystemConfigModel;
@@ -53,7 +54,7 @@ class VendorAllocationServiceTest {
     private SystemConfigRepositoryPort systemConfigRepositoryPort;
     private VendorSettlementProjectionServicePort projectionServicePort;
     private LotteryTicketAggregateSyncUseCase ticketAggregateSyncUseCase;
-    private AgentDepositTransactionRepositoryPort depositTransactionRepositoryPort;
+    private VendorDepositTransactionRepositoryPort depositTransactionRepositoryPort;
     private ReturnBatchRepositoryPort returnBatchRepositoryPort;
     private VendorAllocationService service;
 
@@ -66,7 +67,7 @@ class VendorAllocationServiceTest {
         systemConfigRepositoryPort = mock(SystemConfigRepositoryPort.class);
         projectionServicePort = mock(VendorSettlementProjectionServicePort.class);
         ticketAggregateSyncUseCase = mock(LotteryTicketAggregateSyncUseCase.class);
-        depositTransactionRepositoryPort = mock(AgentDepositTransactionRepositoryPort.class);
+        depositTransactionRepositoryPort = mock(VendorDepositTransactionRepositoryPort.class);
         returnBatchRepositoryPort = mock(ReturnBatchRepositoryPort.class);
         when(projectionServicePort.projectOnSettle(any(), any(), any(), any(), any()))
                 .thenReturn(new VendorSettlementProjectionServicePort.ProjectionLinks(1L, 2L));
@@ -166,6 +167,12 @@ class VendorAllocationServiceTest {
         assertThat(response.status()).isEqualTo(AllocationBatchStatus.CONFIRMED.name());
         assertThat(response.depositReceivedAmount()).isEqualByComparingTo("90000");
         assertThat(response.depositBalanceAfter()).isEqualByComparingTo("90000");
+        var transactionCaptor = org.mockito.ArgumentCaptor.forClass(
+                VendorDepositTransactionRepositoryPort.DepositTransaction.class);
+        verify(depositTransactionRepositoryPort).record(transactionCaptor.capture());
+        assertThat(transactionCaptor.getValue().transactionType())
+                .isEqualTo(TransactionBusinessType.VENDOR_DEPOSIT);
+        assertThat(transactionCaptor.getValue().amount()).isEqualByComparingTo("90000");
         // Held balance while batch is open must not be treated as legacy on next gate:
         when(profileRepositoryPort.findById(7L)).thenReturn(Optional.of(
                 eligibleProfileBuilder().depositBalance(new BigDecimal("90000")).build()));

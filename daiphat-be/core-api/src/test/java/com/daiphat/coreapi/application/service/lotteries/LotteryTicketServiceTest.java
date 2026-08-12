@@ -61,6 +61,7 @@ import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -1075,6 +1076,16 @@ class LotteryTicketServiceTest {
     // ============================================================
     // ORDER TESTS
     // ============================================================
+    @Test
+    @DisplayName("[TC-ORDER-040] REPLACEMENT: missing criteria returns an empty list")
+    void getReplacementCandidates_missingCriteria_returnsEmptyList() {
+        List<com.daiphat.coreapi.application.dto.response.lotteries.LotteryTicketSerialResponse> result =
+                lotteryTicketService.getReplacementCandidates(null, "  ", null);
+
+        assertThat(result).isEmpty();
+        verifyNoInteractions(lotteryTicketSerialService, lotteryTicketApplicationMapper);
+    }
+
     @Test
     @DisplayName("[DP-325] RESERVE_FOR_ORDER: Thành công")
     void reserveForOrder_success() {

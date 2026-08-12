@@ -10,6 +10,7 @@ import com.daiphat.coreapi.domain.model.enums.order.OrderReceiveType;
 import com.daiphat.coreapi.domain.model.enums.order.detail.OrderDetailStatus;
 import com.daiphat.coreapi.domain.model.enums.order.OrderType;
 import com.daiphat.coreapi.domain.model.enums.transaction.TransactionType;
+import com.daiphat.coreapi.domain.model.enums.transaction.TransactionBusinessType;
 import com.daiphat.coreapi.domain.model.orders.OrderDetailModel;
 import com.daiphat.coreapi.domain.model.orders.OrderModel;
 import com.daiphat.coreapi.domain.model.orders.TransactionModel;
@@ -98,6 +99,7 @@ public interface OrderApplicationMapper {
     default TransactionModel toOnlineTransactionModel(BigDecimal amount, String note) {
         return TransactionModel.builder()
                 .type(TransactionType.ONLINE)
+                .transactionType(TransactionBusinessType.ORDER_PAYMENT)
                 .amount(amount)
                 .note(note)
                 .build();
@@ -106,6 +108,7 @@ public interface OrderApplicationMapper {
     default TransactionModel toDirectTransactionModel(TransactionType type, BigDecimal amount, String note) {
         return TransactionModel.builder()
                 .type(type)
+                .transactionType(TransactionBusinessType.ORDER_PAYMENT)
                 .amount(amount)
                 .note(note)
                 .build();

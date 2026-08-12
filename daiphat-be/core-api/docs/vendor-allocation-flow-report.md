@@ -39,7 +39,7 @@ Màn danh sách phiếu vendor đã dùng cùng kiểu DataGrid, filter, trạng
 | `lottery_ticket_serials` | Serial kho gốc và trạng thái tồn kho |
 | `return_batches` | Phiếu trả; phân biệt `SUPPLIER_RETURN` và `STREET_AGENT_RETURN` |
 | `return_batch_lines` | Dòng nhận trả theo đài |
-| `agent_deposit_transactions` | Audit nhận/hoàn/giữ/cấn trừ tiền cọc |
+| `transactions` | Sổ giao dịch tiền chung; vendor ghi `VENDOR_DEPOSIT`, `VENDOR_SETTLEMENT_COLLECTION` hoặc `VENDOR_PAYOUT`, liên kết bằng profile/batch |
 | `agent_settlements` | Kết quả quyết toán vendor |
 | `daily_sales_reports`, `daily_sales_report_details` | Nền tảng báo cáo; chưa phải phần ghi nhận chính của flow này |
 
@@ -74,9 +74,10 @@ FROM agent_ticket_stocks
 GROUP BY allocation_batch_id, status
 ORDER BY allocation_batch_id, status;
 
-SELECT id, allocation_id, agent_id, required_amount, paid_amount,
-       returned_amount, status
-FROM agent_deposit_transactions
+SELECT id, transaction_type, amount, street_agent_profile_id,
+       allocation_batch_id, business_date, paid_at
+FROM transactions
+WHERE transaction_type IN ('VENDOR_DEPOSIT', 'VENDOR_SETTLEMENT_COLLECTION', 'VENDOR_PAYOUT')
 ORDER BY id DESC;
 
 SELECT id, allocation_batch_id, returned_value, sold_value,

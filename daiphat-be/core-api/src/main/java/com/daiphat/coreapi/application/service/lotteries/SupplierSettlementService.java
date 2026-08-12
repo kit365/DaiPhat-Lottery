@@ -29,6 +29,7 @@ import com.daiphat.coreapi.application.port.out.lotteries.ReturnBatchRepositoryP
 import com.daiphat.coreapi.application.port.out.lotteries.SettlementResolvableSerialRow;
 import com.daiphat.coreapi.application.port.out.lotteries.SupplierSettlementAdjustmentRepositoryPort;
 import com.daiphat.coreapi.application.port.out.lotteries.SupplierSettlementRepositoryPort;
+import com.daiphat.coreapi.application.port.out.order.TransactionRepositoryPort;
 import com.daiphat.coreapi.application.dto.request.lotteries.ReportSerialFaultRequest;
 import com.daiphat.coreapi.application.port.in.notification.NotificationServicePort;
 import com.daiphat.coreapi.application.port.out.user.UserRepositoryPort;
@@ -47,12 +48,16 @@ import com.daiphat.coreapi.domain.model.enums.notification.NotificationChannel;
 import com.daiphat.coreapi.domain.model.enums.notification.NotificationReferenceType;
 import com.daiphat.coreapi.domain.model.enums.notification.NotificationType;
 import com.daiphat.coreapi.domain.model.enums.user.UserStatus;
+import com.daiphat.coreapi.domain.model.enums.transaction.TransactionBusinessType;
+import com.daiphat.coreapi.domain.model.enums.transaction.TransactionStatus;
+import com.daiphat.coreapi.domain.model.enums.transaction.TransactionType;
 import com.daiphat.coreapi.domain.model.lotteries.LotterySupplierModel;
 import com.daiphat.coreapi.domain.model.lotteries.LotteryTicketSerialModel;
 import com.daiphat.coreapi.domain.model.lotteries.SettlementStationInventoryRow;
 import com.daiphat.coreapi.domain.model.lotteries.SupplierSettlementAdjustmentModel;
 import com.daiphat.coreapi.domain.model.lotteries.SettlementDiscrepancyItem;
 import com.daiphat.coreapi.domain.model.lotteries.SupplierSettlementModel;
+import com.daiphat.coreapi.domain.model.orders.TransactionModel;
 import com.daiphat.coreapi.domain.model.notifications.NotificationModel;
 import com.daiphat.coreapi.shared.util.ImportCostCalculator;
 import com.daiphat.coreapi.shared.util.SortUtils;
@@ -113,6 +118,7 @@ public class SupplierSettlementService implements SupplierSettlementServicePort 
             "Chênh lệch thanh toán so với biên lai (phát sinh ngoài kỳ)";
 
     private final SupplierSettlementRepositoryPort supplierSettlementRepositoryPort;
+    private final TransactionRepositoryPort transactionRepositoryPort;
     private final SupplierSettlementAdjustmentRepositoryPort supplierSettlementAdjustmentRepositoryPort;
     private final LotterySupplierRepositoryPort lotterySupplierRepositoryPort;
     private final ImportBatchRepositoryPort importBatchRepositoryPort;
@@ -1236,6 +1242,18 @@ public class SupplierSettlementService implements SupplierSettlementServicePort 
         settlement.setCompletedBy(actorId);
         if (settlement.getPaidAt() == null) {
             settlement.setPaidAt(LocalDateTime.now(clock));
+        }
+        if (settlement.getTransactionId() == null) {
+            TransactionModel payment = TransactionModel.builder()
+                    .amount(actualPaid)
+                    .type(TransactionType.OFFLINE)
+                    .transactionType(TransactionBusinessType.SUPPLIER_PAYMENT)
+                    .status(TransactionStatus.COMPLETED)
+                    .paidAt(settlement.getPaidAt())
+                    .paymentBy(actorId)
+                    .note("Thanh toán đối soát NCC " + settlement.getSupplierSettlementCode())
+                    .build();
+            settlement.setTransactionId(transactionRepositoryPort.save(payment).getId());
         }
         SupplierSettlementModel saved = supplierSettlementRepositoryPort.save(settlement);
         return SettlementCompleteResultResponse.builder()
