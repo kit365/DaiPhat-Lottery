@@ -47,7 +47,7 @@ const parseNumber = (raw?: string | null): number | null => {
 
 export const useVendorSettingsDefaults = () => {
     const query = useSystemConfigs(ConfigType.VENDOR_SETTING);
-    const returnQuery = useSystemConfigs(ConfigType.TICKET_IMPORT);
+    const returnQuery = useSystemConfigs(ConfigType.TICKET_RETURN);
 
     const defaults = useMemo<VendorSettingsDefaults>(() => {
         const configs = query.data?.data || [];

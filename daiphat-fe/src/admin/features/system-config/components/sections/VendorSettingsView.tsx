@@ -131,7 +131,7 @@ export const VendorSettingsView: React.FC<VendorSettingsViewProps> = ({ configs,
                                     </Typography>
                                     <Button
                                         component={Link}
-                                        href="/admin/settings/system-config/list?tab=TICKET_IMPORT"
+                                        href="/admin/settings/system-config/list?tab=TICKET_RETURN"
                                         size="small"
                                         endIcon={<ExternalLink size={16} />}
                                     >

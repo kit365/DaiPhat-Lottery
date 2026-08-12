@@ -287,8 +287,14 @@ export const VendorAllocationPage = () => {
         isFetching: isFetchingOpen,
     } = useVendorAllocationOpenBatch(profile?.id);
 
+    // A DRAFT batch only holds serials temporarily. It is rendered by the
+    // draft banner below and must not be presented as an unsettled handover.
+    // Only a confirmed/return-open batch blocks a new allocation and produces
+    // the "chưa quyết toán" warning.
     const blockingOpenBatch =
-        openBatch && openBatch.status !== "DRAFT" ? openBatch : null;
+        openBatch && (openBatch.status === "CONFIRMED" || openBatch.status === "RETURN_OPEN")
+            ? openBatch
+            : null;
 
     const {
         data: suggestion,
@@ -301,13 +307,24 @@ export const VendorAllocationPage = () => {
         businessDate,
         requestedQuantity,
         faceValue,
-        !blockingOpenBatch && profile?.status === "ACTIVE"
+        !blockingOpenBatch &&
+        !draftId &&
+        openBatch?.status !== "DRAFT" &&
+        !isLoadingOpen &&
+        !isFetchingOpen &&
+        profile?.status === "ACTIVE"
     );
 
     const { data: draftBatch } = useVendorAllocationBatch(draftId);
     const { mutate: createDraft, isPending: isCreatingDraft } = useCreateVendorAllocationDraft();
     const { mutate: cancelDraft, isPending: isCancelling } = useCancelVendorAllocation();
     const { defaults: vendorDefaults } = useVendorSettingsDefaults();
+
+    const hasActiveDraft = Boolean(
+        draftId ||
+        openBatch?.status === "DRAFT" ||
+        draftBatch?.status === "DRAFT"
+    );
 
     useEffect(() => {
         const timer = window.setInterval(() => setNowMs(Date.now()), 1000);
@@ -573,6 +590,12 @@ export const VendorAllocationPage = () => {
         (suggestionError ? "Không tải được gợi ý bàn giao." : null);
 
     const vendorOpenBatchAlertMessage = useMemo(() => {
+        // A draft is already explained by the reservation banner. In
+        // particular, ignore a stale SAG_010 suggestion error caused by the
+        // draft itself being part of the backend's open-batch guard.
+        if (hasActiveDraft) {
+            return null;
+        }
         if (blockingOpenBatch) {
             return (
                 <>
@@ -586,7 +609,7 @@ export const VendorAllocationPage = () => {
             return suggestionErrorMessage;
         }
         return null;
-    }, [blockingOpenBatch, suggestionErrorMessage]);
+    }, [blockingOpenBatch, hasActiveDraft, suggestionErrorMessage]);
 
     const businessDateDisabledReason = draftId
         ? `Đang có phiếu nháp${draftBatch?.batchCode ? ` ${draftBatch.batchCode}` : ""} — không thể đổi ngày kinh doanh.`
@@ -753,7 +776,7 @@ export const VendorAllocationPage = () => {
                         Người bán vé số này chưa hoàn tất hồ sơ (Trạng thái: {profile.status}). Vui lòng hoàn tất hồ sơ trước khi giao vé.
                     </Alert>
                 )}
-                {suggestionErrorMessage && !vendorOpenBatchAlertMessage && (
+                {suggestionErrorMessage && !hasActiveDraft && !vendorOpenBatchAlertMessage && (
                     <Alert
                         severity="error"
                         action={
