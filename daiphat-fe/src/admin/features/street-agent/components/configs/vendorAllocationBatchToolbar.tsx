@@ -1,13 +1,11 @@
 "use client";
 
 import {
-    Autocomplete,
     Box,
     FormControl,
     InputLabel,
     MenuItem,
     Select,
-    TextField,
     Toolbar,
 } from "@mui/material";
 import { Search } from "../../../../components/ui/Search";
@@ -118,19 +116,25 @@ export const VendorAllocationBatchToolbar = ({
                 />
             </Box>
             <Box sx={{ flex: "1 1 200px", minWidth: 180, maxWidth: { xs: "100%", xl: 260 }, ...toolbarFieldWrapSx }}>
-                <Autocomplete
-                    options={profiles}
-                    loading={isLoadingProfiles}
-                    value={profile ?? null}
-                    onChange={(_event, value) => onProfileChange(value ?? null)}
-                    getOptionLabel={getProfileLabel}
-                    isOptionEqualToValue={(a, b) => a.id === b.id}
-                    loadingText="Đang tải danh sách…"
-                    noOptionsText="Không tìm thấy người bán vé số"
-                    renderInput={(params) => (
-                        <TextField {...params} label="Người bán vé số" sx={toolbarFieldSx} />
-                    )}
-                />
+                <FormControl fullWidth sx={toolbarFieldSx} disabled={isLoadingProfiles}>
+                    <InputLabel id="vendor-batch-profile-label">Người bán vé số</InputLabel>
+                    <Select
+                        labelId="vendor-batch-profile-label"
+                        label="Người bán vé số"
+                        value={profile?.id ? String(profile.id) : ""}
+                        onChange={(event) => {
+                            const nextId = event.target.value;
+                            onProfileChange(profiles.find((item) => String(item.id) === nextId) || null);
+                        }}
+                    >
+                        <MenuItem value="">Tất cả</MenuItem>
+                        {profiles.map((item) => (
+                            <MenuItem key={item.id} value={String(item.id)}>
+                                {getProfileLabel(item)}
+                            </MenuItem>
+                        ))}
+                    </Select>
+                </FormControl>
             </Box>
             <Box sx={{ flex: "0 1 150px", minWidth: 140, maxWidth: { xs: "100%", sm: 170 }, ...toolbarFieldWrapSx }}>
                 <FormControl fullWidth sx={toolbarFieldSx}>
