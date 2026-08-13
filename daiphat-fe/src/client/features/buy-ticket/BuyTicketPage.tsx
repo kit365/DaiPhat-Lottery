@@ -231,6 +231,13 @@ export const BuyTicketPage = () => {
             ),
         [dynamicProvinces, selectedProvinces]
     );
+    const provinceNameById = useMemo(() => {
+        const map = new Map<string, string>();
+        dynamicProvinces.forEach((province) => {
+            map.set(String(province.id), province.name);
+        });
+        return map;
+    }, [dynamicProvinces]);
     const isAllProvincesSelected =
         allProvinceIds.length > 0 && activeProvinces.length === allProvinceIds.length;
     const selectedDatesKey = selectedDates.join(',');
@@ -1186,7 +1193,10 @@ export const BuyTicketPage = () => {
                                             const isSelected = selectedNumbers.includes(num);
                                             const isDeepLinked =
                                                 !!urlTicketId && String(ticket.id ?? ticket._id) === String(urlTicketId);
-                                            const ticketImage = ticket.ticketImg;
+                                            const stationName =
+                                                ticket.stationName ||
+                                                provinceNameById.get(String(ticket.stationId ?? ticket.providerId ?? '')) ||
+                                                'Nhà đài';
 
                                             return (
                                                 <div
@@ -1198,23 +1208,8 @@ export const BuyTicketPage = () => {
                                                         ${isDeepLinked ? 'ring-2 ring-[#ee1314]/40' : ''}
                                                     `}
                                                 >
-                                                    {/* Image */}
-                                                    <div className="w-full h-[75px] mb-3 flex justify-center items-center bg-[#FAFAFA] rounded-lg overflow-hidden">
-                                                        {ticketImage ? (
-                                                            <img
-                                                                src={ticketImage}
-                                                                alt={`Vé số ${num}`}
-                                                                className="w-full max-h-full object-contain"
-                                                                onError={(e) => {
-                                                                    e.currentTarget.style.display = 'none';
-                                                                    const fallback = e.currentTarget.nextElementSibling as HTMLElement | null;
-                                                                    if (fallback) fallback.classList.remove('hidden');
-                                                                }}
-                                                            />
-                                                        ) : null}
-                                                        <div className={`text-[#919EAB] text-[12px] font-medium ${ticketImage ? 'hidden' : ''}`}>
-                                                            Vé số
-                                                        </div>
+                                                    <div className="mb-2 text-center text-[11.5px] font-semibold text-[#637381] leading-snug line-clamp-2 min-h-[32px] flex items-center justify-center px-1">
+                                                        {stationName}
                                                     </div>
 
                                                     {/* Number */}

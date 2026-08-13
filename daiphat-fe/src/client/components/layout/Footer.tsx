@@ -56,7 +56,7 @@ const FooterNavList = ({
         <ul className="space-y-3">
             {links.map((item) => (
                 <li key={item.label}>
-                    <Link href={item.to} className={navLinkClass}>
+                    <Link href={item.to} prefetch={false} className={navLinkClass}>
                         <span>{item.label}</span>
                         <ChevronRight
                             size={12}

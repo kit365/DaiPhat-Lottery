@@ -44,6 +44,7 @@ class WebSocketService {
     private listeners = new Set<ConnectionListener>();
     private subscriptions = new Map<number, ManagedSubscription>();
     private nextSubscriptionId = 1;
+    private lastEmittedConnected: boolean | null = null;
 
     constructor() {
         useAuthStore.subscribe((state, previousState) => {
@@ -52,7 +53,9 @@ class WebSocketService {
             }
 
             if (!state.token) {
-                this.disconnect();
+                if (this.client || this.connected) {
+                    this.disconnect();
+                }
                 return;
             }
 
@@ -135,6 +138,9 @@ class WebSocketService {
     }
 
     disconnect(): void {
+        if (!this.client && !this.connected) {
+            return;
+        }
         this.stopClient(true);
     }
 
@@ -288,6 +294,10 @@ class WebSocketService {
     }
 
     private emitConnectionState(connected: boolean): void {
+        if (this.lastEmittedConnected === connected) {
+            return;
+        }
+        this.lastEmittedConnected = connected;
         this.listeners.forEach((listener) => listener(connected));
     }
 

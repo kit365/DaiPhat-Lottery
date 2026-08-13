@@ -21,7 +21,7 @@ export const Breadcrumb: React.FC<BreadcrumbProps> = ({ items, className = '', t
   const activeText = isDark ? 'text-white' : 'text-[#212B36]';
 
   return (
-    <div className={`flex items-center gap-2 text-[13px] ${containerText} mb-2 font-medium ${className}`}>
+    <div className={`flex items-center gap-2 text-[15px] ${containerText} mb-2 font-medium ${className}`}>
       {items.map((item, index) => {
         const isLast = index === items.length - 1;
         
@@ -34,7 +34,7 @@ export const Breadcrumb: React.FC<BreadcrumbProps> = ({ items, className = '', t
             ) : (
               <span className={`${activeText} font-medium`}>{item.label}</span>
             )}
-            {!isLast && <ChevronRight size={14} />}
+            {!isLast && <ChevronRight size={16} />}
           </React.Fragment>
         );
       })}

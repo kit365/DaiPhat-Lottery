@@ -21,6 +21,7 @@ import {
     validateRefundSubmitFields,
 } from './refundRequestForm.logic';
 import { AppToast } from '../../../utils/toast.util';
+import { ClientSelect } from '../ui/ClientSelect';
 
 interface RefundRequestModalProps {
     isOpen: boolean;
@@ -337,20 +338,15 @@ export const RefundRequestModal: React.FC<RefundRequestModalProps> = ({ isOpen, 
                                 </div>
                             ) : (
                                 <>
-                                    <select
-                                        value={bankAccountId}
-                                        onChange={(e) => setBankAccountId(Number(e.target.value))}
-                                        className="w-full px-4 py-3 bg-white border border-[#E5E8EB] rounded-xl text-[14px] outline-none focus:border-[#ee1314] cursor-pointer disabled:bg-[#F4F6F8] disabled:text-[#919EAB]"
-                                        required
+                                    <ClientSelect
+                                        value={String(bankAccountId || '')}
+                                        onChange={(next) => setBankAccountId(Number(next))}
                                         disabled={isSubmitting || isRefundBlocked}
-                                    >
-                                        {bankAccounts.map((account) => (
-                                            <option key={account.id} value={account.id}>
-                                                {account.bankName} - {maskBankAccountNo(account.bankAccountNo)}
-                                                {account.isDefault ? ' (Mặc định)' : ''}
-                                            </option>
-                                        ))}
-                                    </select>
+                                        options={bankAccounts.map((account) => ({
+                                            value: String(account.id),
+                                            label: `${account.bankName} - ${maskBankAccountNo(account.bankAccountNo)}${account.isDefault ? ' (Mặc định)' : ''}`,
+                                        }))}
+                                    />
                                     <button
                                         type="button"
                                         onClick={() => setShowBankForm(true)}

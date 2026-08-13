@@ -5,6 +5,7 @@ import React from 'react';
 
 import { PROVINCE_ICON_FALLBACK } from '../../../../constants/clientBannerAssets';
 import { ROUTES } from '@/admin/constants/routes';
+import { ClientSelect } from '../../../../components/ui/ClientSelect';
 
 export const OverviewTab = () => {
     return (
@@ -204,9 +205,12 @@ export const OverviewTab = () => {
                 <div className="lg:col-span-2 bg-white rounded-xl shadow-[0_2px_12px_rgb(0,0,0,0.03)] border border-[#E5E8EB] p-5 flex flex-col">
                     <div className="flex justify-between items-center mb-6">
                         <h3 className="text-[16px] font-bold text-[#212B36]">Thống kê chi tiêu theo nhà đài</h3>
-                        <select className="border border-[#E5E8EB] rounded-lg px-3 py-1.5 text-[13px] text-[#454F5B] outline-none">
-                            <option>Tháng 3/2025</option>
-                        </select>
+                        <ClientSelect
+                            value="2025-03"
+                            onChange={() => {}}
+                            options={[{ value: '2025-03', label: 'Tháng 3/2025' }]}
+                            className="w-[160px]"
+                        />
                     </div>
                     <div className="flex-1 flex flex-col md:flex-row items-center gap-8 justify-center">
                         {/* Placeholder for Donut Chart */}

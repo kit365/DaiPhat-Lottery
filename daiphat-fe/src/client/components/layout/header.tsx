@@ -22,6 +22,7 @@ import { useNotificationUnreadCount } from "../../hooks/useNotifications";
 import { Skeleton } from "../../../components/ui/Skeleton";
 import { AppToast as toast } from "../../../utils/toast.util";
 import { createNavBannerPrefetchHandlers } from "../../utils/prefetchImagesWhenIdle";
+import { shouldPrefetchClientNavRoute } from "../../utils/clientNavPrefetch";
 import { CLIENT_LOGO, PROVINCE_ICON_FALLBACK } from "../../constants/clientBannerAssets";
 import { useSiteBranding } from "@/client/hooks/useSiteBranding";
 import { SiteLogo } from "@/client/components/layout/SiteLogo";
@@ -172,6 +173,7 @@ export const Header = () => {
                 <Link
                   key={item.label}
                   href={item.to}
+                  prefetch={shouldPrefetchClientNavRoute(item.to)}
                   {...createNavBannerPrefetchHandlers(item.to)}
                   className={`relative flex shrink-0 items-center gap-1.5 xl:gap-2 font-bold no-underline transition-all duration-300 px-2.5 xl:px-3.5 py-2 xl:py-2.5 rounded-2xl text-[12.5px] xl:text-[14px] tracking-tight font-client-display select-none whitespace-nowrap ${
                     isActive
@@ -423,6 +425,7 @@ export const Header = () => {
                     >
                       <Link
                         href={item.to}
+                        prefetch={shouldPrefetchClientNavRoute(item.to)}
                         {...createNavBannerPrefetchHandlers(item.to)}
                         className="mobile-nav-link"
                         onClick={() => setIsMenuOpen(false)}

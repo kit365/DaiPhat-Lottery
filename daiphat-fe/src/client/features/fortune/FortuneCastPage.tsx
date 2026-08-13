@@ -27,6 +27,13 @@ import {
   type FortuneAnimPhase,
   type JarSceneMode,
 } from './fortuneUi';
+import {
+  fireFortuneEjectBurst,
+  originFromElement,
+  rattleDevice,
+  startFortuneResultFireworks,
+  startFortuneShakeSparkles,
+} from './fortuneCelebration';
 
 type CastMode = 'birthdate' | 'random';
 
@@ -171,6 +178,8 @@ export function FortuneCastPage() {
   const [sceneKey, setSceneKey] = useState(0);
   const [nextCastCountdownMs, setNextCastCountdownMs] = useState(0);
   const ejectDoneRef = useRef<(() => void) | null>(null);
+  const jarRef = useRef<HTMLDivElement>(null);
+  const fireworksStopRef = useRef<(() => void) | null>(null);
 
   const alreadyCastToday = hasCastToday || Boolean(result?.alreadyCastToday);
   const profileHasDob = Boolean(user?.dob);
@@ -295,6 +304,24 @@ export function FortuneCastPage() {
     scrollToTop();
   }, [loadingToday, phase, sceneKey]);
 
+  useEffect(() => {
+    if (phase !== 'shaking') return;
+    const sparkles = startFortuneShakeSparkles(() => originFromElement(jarRef.current, 0.28));
+    return () => sparkles.stop();
+  }, [phase]);
+
+  useEffect(() => {
+    if (phase !== 'ejecting') return;
+    fireFortuneEjectBurst(originFromElement(jarRef.current, 0.22));
+  }, [phase]);
+
+  useEffect(() => {
+    return () => {
+      fireworksStopRef.current?.();
+      fireworksStopRef.current = null;
+    };
+  }, []);
+
   const ensureAuth = () => {
     if (token) return true;
     openLoginModal();
@@ -324,6 +351,7 @@ export function FortuneCastPage() {
     setErrorMessage(null);
     setSceneKey((k) => k + 1);
     setPhase('shaking');
+    rattleDevice([40, 30, 40, 30, 80, 40, 50]);
 
     const apiPromise = castFortune(opts.payload);
 
@@ -334,7 +362,10 @@ export function FortuneCastPage() {
       const [castResult] = await Promise.all([apiPromise, waitForEjectComplete()]);
       setResult(castResult);
       setHasCastToday(true);
+      rattleDevice([20, 40, 120]);
       setPhase('result');
+      fireworksStopRef.current?.();
+      fireworksStopRef.current = startFortuneResultFireworks().stop;
     } catch (error) {
       setErrorMessage(extractErrorMessage(error));
       setPhase('error');
@@ -551,7 +582,10 @@ export function FortuneCastPage() {
                     </div>
                   )}
 
-                  <div className="relative w-full max-w-[300px] sm:max-w-[340px] lg:max-w-[360px] flex-1 flex items-center justify-center min-h-[280px]">
+                  <div
+                    ref={jarRef}
+                    className="relative w-full max-w-[300px] sm:max-w-[340px] lg:max-w-[360px] flex-1 flex items-center justify-center min-h-[280px]"
+                  >
                     <FortuneJarScene
                       mode={jarMode}
                       winningTail={result?.luckyTail}

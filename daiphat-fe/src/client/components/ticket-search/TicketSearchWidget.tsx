@@ -117,6 +117,7 @@ export const TicketSearchWidget: React.FC = () => {
                         value={selectedDate}
                         minDate={minDate}
                         maxDate={maxDate}
+                        earliestShortcutLabel="Ngày bán sớm nhất"
                         open={isDateOpen}
                         onOpenChange={setIsDateOpen}
                         onOpen={() => setIsStationOpen(false)}

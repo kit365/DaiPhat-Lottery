@@ -2,6 +2,7 @@
 
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import dayjs, { Dayjs } from 'dayjs';
+import { ClientSelect } from '../../../components/ui/ClientSelect';
 
 interface CheckoutDateTimePickerProps {
   value: string; // ISO string
@@ -261,7 +262,7 @@ export const CheckoutDateTimePicker: React.FC<CheckoutDateTimePickerProps> = ({
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className={`w-full h-11 px-3 py-2 border rounded-lg text-[14px] transition-colors text-left flex items-center justify-between ${isOpen ? 'border-[#ee1314]' : 'border-[#E5E8EB]'} bg-white text-[#212B36]`}
+        className={`w-full h-12 px-3.5 py-2.5 border rounded-lg text-[15px] transition-colors text-left flex items-center justify-between ${isOpen ? 'border-[#ee1314]' : 'border-[#E5E8EB]'} bg-white text-[#212B36]`}
       >
         <span className={selectedDateStr && selectedHour12 && selectedMinute && selectedPeriod ? 'font-medium' : 'text-gray-400'}>
           {selectedDateStr && selectedHour12 && selectedMinute && selectedPeriod
@@ -274,13 +275,13 @@ export const CheckoutDateTimePicker: React.FC<CheckoutDateTimePickerProps> = ({
       {isOpen && (
         <div className="absolute top-[calc(100%+8px)] left-0 z-50 w-[320px] bg-white rounded-xl shadow-[0_10px_40px_rgba(0,0,0,0.1)] border border-gray-100 p-4 animate-in fade-in zoom-in-95 duration-200">
           <div className="mb-4">
-            <span className="text-[13px] font-bold text-[#212B36] block mb-2">Ngày nhận vé</span>
+            <span className="text-[14px] font-bold text-[#212B36] block mb-2">Ngày nhận vé</span>
             <div className="grid grid-cols-2 gap-2">
               <button
                 type="button"
                 disabled={!canSelectToday}
                 onClick={handleSelectToday}
-                className={`py-2 px-3 rounded-lg text-[13px] font-medium border transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
+                className={`py-2.5 px-3.5 rounded-lg text-[14px] font-medium border transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
                   selectedDateStr === todayStr
                     ? 'bg-[#BA0000]/10 border-[#BA0000] text-[#BA0000]'
                     : 'border-[#E5E8EB] text-[#444444] hover:bg-gray-50'
@@ -291,7 +292,7 @@ export const CheckoutDateTimePicker: React.FC<CheckoutDateTimePickerProps> = ({
               <button
                 type="button"
                 onClick={handleSelectTomorrow}
-                className={`py-2 px-3 rounded-lg text-[13px] font-medium border transition-colors ${
+                className={`py-2.5 px-3.5 rounded-lg text-[14px] font-medium border transition-colors ${
                   selectedDateStr === tomorrowStr
                     ? 'bg-[#BA0000]/10 border-[#BA0000] text-[#BA0000]'
                     : 'border-[#E5E8EB] text-[#444444] hover:bg-gray-50'
@@ -300,55 +301,49 @@ export const CheckoutDateTimePicker: React.FC<CheckoutDateTimePickerProps> = ({
                 Ngày mai ({tomorrow.format('DD/MM')})
               </button>
             </div>
-            <p className="text-[11px] text-[#919EAB] mt-2">
+            <p className="text-[12px] text-[#919EAB] mt-2">
               Chỉ chọn giờ từ hiện tại trở đi (tối thiểu sau {minLeadMinutes} phút).
             </p>
           </div>
 
           <div className="pt-4 border-t border-gray-100 flex flex-col gap-3">
             <div className="flex items-center justify-between">
-              <span className="text-[13px] font-bold text-[#212B36]">Thời gian nhận vé</span>
+              <span className="text-[14px] font-bold text-[#212B36]">Thời gian nhận vé</span>
               <div className="flex items-center gap-2">
-                <select
+                <ClientSelect
+                  size="sm"
                   value={selectedHour12}
-                  onChange={(e) => setSelectedHour12(e.target.value)}
-                  className="h-9 px-2 border border-[#E5E8EB] rounded-lg text-[14px] font-medium text-[#212B36] focus:outline-none focus:border-[#ee1314] bg-white cursor-pointer"
-                >
-                  {availableHours12.length === 0 ? (
-                    <option value="">-</option>
-                  ) : (
-                    availableHours12.map((h) => (
-                      <option key={h} value={h}>{h}</option>
-                    ))
-                  )}
-                </select>
+                  onChange={setSelectedHour12}
+                  options={
+                    availableHours12.length === 0
+                      ? [{ value: '', label: '-' }]
+                      : availableHours12.map((h) => ({ value: h, label: h }))
+                  }
+                  className="w-[72px]"
+                />
                 <span className="font-bold text-[#212B36]">:</span>
-                <select
+                <ClientSelect
+                  size="sm"
                   value={selectedMinute}
-                  onChange={(e) => setSelectedMinute(e.target.value)}
-                  className="h-9 px-2 border border-[#E5E8EB] rounded-lg text-[14px] font-medium text-[#212B36] focus:outline-none focus:border-[#ee1314] bg-white cursor-pointer"
-                >
-                  {availableMinutes.length === 0 ? (
-                    <option value="">--</option>
-                  ) : (
-                    availableMinutes.map((m) => (
-                      <option key={m} value={m}>{m}</option>
-                    ))
-                  )}
-                </select>
-                <select
+                  onChange={setSelectedMinute}
+                  options={
+                    availableMinutes.length === 0
+                      ? [{ value: '', label: '--' }]
+                      : availableMinutes.map((m) => ({ value: m, label: m }))
+                  }
+                  className="w-[72px]"
+                />
+                <ClientSelect
+                  size="sm"
                   value={selectedPeriod}
-                  onChange={(e) => setSelectedPeriod(e.target.value)}
-                  className="h-9 px-2 border border-[#E5E8EB] rounded-lg text-[14px] font-medium text-[#212B36] focus:outline-none focus:border-[#ee1314] bg-white cursor-pointer ml-1"
-                >
-                  {availablePeriods.length === 0 ? (
-                    <option value="">-</option>
-                  ) : (
-                    availablePeriods.map((p) => (
-                      <option key={p} value={p}>{p}</option>
-                    ))
-                  )}
-                </select>
+                  onChange={setSelectedPeriod}
+                  options={
+                    availablePeriods.length === 0
+                      ? [{ value: '', label: '-' }]
+                      : availablePeriods.map((p) => ({ value: p, label: p }))
+                  }
+                  className="w-[84px]"
+                />
               </div>
             </div>
             <button

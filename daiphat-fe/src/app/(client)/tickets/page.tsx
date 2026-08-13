@@ -2,6 +2,7 @@ import { Suspense } from 'react';
 import { dehydrate, HydrationBoundary, QueryClient } from '@tanstack/react-query';
 
 import { BuyTicketPage } from '@/client/features/buy-ticket/BuyTicketPage';
+import { prefetchBuyTicketCatalog } from '@/client/features/buy-ticket/prefetch/prefetchBuyTicketCatalog';
 import {
     getPublicStationsToday,
     getPublicStationsTomorrow,
@@ -23,6 +24,8 @@ export default async function TicketsPage() {
             queryFn: getPublicStationsTomorrow,
         }),
     ]);
+
+    await prefetchBuyTicketCatalog(queryClient);
 
     return (
         <HydrationBoundary state={dehydrate(queryClient)}>

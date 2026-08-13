@@ -43,7 +43,8 @@ export const fetchAllPublicBuyTickets = async (params: PublicTicketQueryParams) 
             paramsSerializer: {
                 indexes: null,
             },
-        });
+            skipGlobalErrorToast: true,
+        } as Parameters<typeof apiApp.get>[1]);
 
         const result = response.data?.data;
         const recordList = (result?.recordList || []).map(mapPublicTicketRecord);
