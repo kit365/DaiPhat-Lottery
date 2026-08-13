@@ -19,13 +19,15 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 import com.daiphat.coreapi.application.config.AuthProperties;
 import com.daiphat.coreapi.application.config.OrderRefundProperties;
 import com.daiphat.coreapi.application.config.PaymentProperties;
+import com.daiphat.coreapi.application.config.VendorTestSeedProperties;
 
 @SpringBootApplication
 @EntityScan(basePackages = "com.daiphat.coreapi.infrastructure.persistence.entity")
 @EnableJpaRepositories(basePackages = "com.daiphat.coreapi.infrastructure.persistence.repository")
 @EnableAsync
 @EnableScheduling
-@EnableConfigurationProperties({AuthProperties.class, PaymentProperties.class, OrderRefundProperties.class})
+@EnableConfigurationProperties({AuthProperties.class, PaymentProperties.class, OrderRefundProperties.class,
+        VendorTestSeedProperties.class})
 public class CoreApiApplication {
 
     public static void main(String[] args) {

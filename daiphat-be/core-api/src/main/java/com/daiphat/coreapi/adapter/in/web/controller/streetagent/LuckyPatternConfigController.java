@@ -19,22 +19,22 @@ public class LuckyPatternConfigController {
     private final LuckyPatternConfigServicePort luckyPatternConfigService;
 
     @GetMapping
-    @PreAuthorize("hasAnyAuthority('streetAgent:view', 'member:view')")
+    @PreAuthorize("hasAuthority('streetAgent:view')")
     public ApiResponse<List<LuckyPatternConfigResponse>> getAll() { return ApiResponse.success(null, luckyPatternConfigService.getAll()); }
 
     @PostMapping
-    @PreAuthorize("hasAnyAuthority('streetAgent:edit', 'member:edit')")
+    @PreAuthorize("hasAuthority('streetAgent:edit')")
     public ApiResponse<LuckyPatternConfigResponse> create(@Valid @RequestBody UpsertLuckyPatternConfigRequest request) {
         return ApiResponse.success("Đã tạo cấu hình số đẹp.", luckyPatternConfigService.create(request));
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasAnyAuthority('streetAgent:edit', 'member:edit')")
+    @PreAuthorize("hasAuthority('streetAgent:edit')")
     public ApiResponse<LuckyPatternConfigResponse> update(@PathVariable Long id, @Valid @RequestBody UpsertLuckyPatternConfigRequest request) {
         return ApiResponse.success("Đã cập nhật cấu hình số đẹp.", luckyPatternConfigService.update(id, request));
     }
 
     @PostMapping("/recompute")
-    @PreAuthorize("hasAnyAuthority('streetAgent:edit', 'member:edit')")
+    @PreAuthorize("hasAuthority('streetAgent:edit')")
     public ApiResponse<Void> recompute() { luckyPatternConfigService.recomputeAll(); return ApiResponse.success("Đã đánh dấu lại số đẹp cho vé tồn.", null); }
 }

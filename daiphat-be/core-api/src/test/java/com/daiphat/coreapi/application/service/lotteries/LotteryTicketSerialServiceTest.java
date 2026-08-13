@@ -9,6 +9,7 @@ import com.daiphat.coreapi.application.port.in.lotteries.LotteryTicketSerialServ
 import com.daiphat.coreapi.application.port.out.file.StoragePort;
 import com.daiphat.coreapi.application.port.out.lotteries.LotteryTicketSerialRepositoryPort;
 import com.daiphat.coreapi.application.port.out.order.OrderRepositoryPort;
+import com.daiphat.coreapi.application.service.streetagent.LuckySerialTagger;
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
 import com.daiphat.coreapi.domain.model.enums.lottery.InputSource;
@@ -47,6 +48,9 @@ class LotteryTicketSerialServiceTest {
     @Mock
     private LotteryTicketSerialIncidentService lotteryTicketSerialIncidentService;
 
+    @Mock
+    private LuckySerialTagger luckySerialTagger;
+
     private LotteryTicketSerialServicePort lotteryTicketSerialService;
 
     private final Long TICKET_ID = 1L;
@@ -61,9 +65,10 @@ class LotteryTicketSerialServiceTest {
                 lotteryTicketSerialRepositoryPort,
                 storagePort,
                 orderRepositoryPort,
-                lotteryTicketSerialIncidentService);
+                lotteryTicketSerialIncidentService,
+                luckySerialTagger);
 
-        ticketModel = LotteryTicketModel.builder().id(TICKET_ID).build();
+        ticketModel = LotteryTicketModel.builder().id(TICKET_ID).numbers("001234").build();
         
         serialModel = LotteryTicketSerialModel.builder()
                 .id(SERIAL_ID)
@@ -101,6 +106,29 @@ class LotteryTicketSerialServiceTest {
         assertThat(result.getImportBatchId()).isEqualTo(1L);
         assertThat(result.getImportBatchLineId()).isEqualTo(2L);
         assertThat(result.getInputSource()).isEqualTo(InputSource.MANUAL);
+        verify(luckySerialTagger).apply(any(LotteryTicketSerialModel.class), eq("001234"));
+    }
+
+    @Test
+    @DisplayName("[DP-37] upsertSerialForTicket_appliesLuckyTagFromActivePatterns")
+    void upsertSerialForTicket_appliesLuckyTagFromActivePatterns() {
+        CreateLotteryTicketSerialRequest req = new CreateLotteryTicketSerialRequest("img.png", " SN-LCK ");
+        when(lotteryTicketSerialRepositoryPort.existsByTicketIdAndSerialNumber(TICKET_ID, "SN-LCK")).thenReturn(false);
+        when(lotteryTicketSerialRepositoryPort.save(any())).thenAnswer(i -> i.getArgument(0));
+        doAnswer(invocation -> {
+            LotteryTicketSerialModel serial = invocation.getArgument(0);
+            serial.setLucky(true);
+            serial.setLuckyBadges("Tứ quý");
+            return null;
+        }).when(luckySerialTagger).apply(any(LotteryTicketSerialModel.class), eq("001234"));
+
+        LotteryTicketSerialModel result = lotteryTicketSerialService.upsertSerialForTicket(ticketModel, req, USER_ID, 1L, 2L);
+
+        assertThat(result.isLucky()).isTrue();
+        assertThat(result.getLuckyBadges()).isEqualTo("Tứ quý");
+        ArgumentCaptor<LotteryTicketSerialModel> captor = ArgumentCaptor.forClass(LotteryTicketSerialModel.class);
+        verify(lotteryTicketSerialRepositoryPort).save(captor.capture());
+        assertThat(captor.getValue().isLucky()).isTrue();
     }
 
     // === syncSerialsForTicket ===

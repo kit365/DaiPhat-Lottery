@@ -14,6 +14,14 @@ public interface LotteryTicketRepository
         extends JpaRepository<LotteryTicketEntity, Long>,
         JpaSpecificationExecutor<LotteryTicketEntity> {
 
+    @Query("""
+            select count(t)
+            from LotteryTicketEntity t
+            where t.active = true
+              and t.deletedAt is null
+            """)
+    long countActiveProducts();
+
     boolean existsByStation_IdAndNumbersAndDrawDateAndDeletedAtIsNull(
             Long productId,
             String numbers,

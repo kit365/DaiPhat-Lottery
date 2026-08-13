@@ -14,6 +14,7 @@ public record VendorAllocationReturnWorkflowResponse(
         boolean canConfirmInspection,
         boolean canConfirmNoReturn,
         boolean canPreviewSettlement,
-        boolean canSettle
+        boolean canSettle,
+        boolean canReopenInspection
 ) {
 }

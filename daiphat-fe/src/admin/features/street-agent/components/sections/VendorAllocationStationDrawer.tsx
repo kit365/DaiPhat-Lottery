@@ -27,9 +27,15 @@ import {
     VendorAllocationStationGroup,
     VendorAllocationTicketGroup,
 } from "../../types/street-agent.type";
+import { BLOCKED_REASON_LABELS } from "../configs/constants";
 import { StationCapacityBadges } from "./StationCapacityBadges";
 import { Button } from "../../../../components/ui/Button";
 import { formatCurrency } from "../../utils/format";
+
+const blockedReasonLabel = (code?: string | null) => {
+    if (!code) return "";
+    return BLOCKED_REASON_LABELS[code] || code;
+};
 
 export interface VendorAllocationStationDrawerProps {
     open: boolean;
@@ -299,6 +305,7 @@ export const VendorAllocationStationDrawer: React.FC<VendorAllocationStationDraw
                         <StationCapacityBadges
                             vendorCapacity={station.vendorCapacity}
                             agencyReserve={station.effectiveAgencyReserveQuantity}
+                            luckyQuantity={station.luckyQuantity}
                         />
                     )}
                 </Stack>
@@ -496,7 +503,7 @@ export const VendorAllocationStationDrawer: React.FC<VendorAllocationStationDraw
                                                         )}
                                                         {ticket.blockedReason && (
                                                             <Typography variant="caption" color="error" display="block">
-                                                                {ticket.blockedReason}
+                                                                {blockedReasonLabel(ticket.blockedReason)}
                                                             </Typography>
                                                         )}
                                                     </TableCell>
@@ -591,7 +598,7 @@ export const VendorAllocationStationDrawer: React.FC<VendorAllocationStationDraw
                                                     isCounterReserve(serial) && serial.suggested;
                                                 const selectableSerial = isSerialSelectable(serial, canOverrideLucky);
                                                 const blockedText = !selectableSerial
-                                                    ? serial.blockedReason || "Không hợp lệ"
+                                                    ? blockedReasonLabel(serial.blockedReason) || "Không hợp lệ"
                                                     : "";
 
                                                 return (

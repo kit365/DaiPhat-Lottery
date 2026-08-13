@@ -117,11 +117,15 @@ export const ROUTES = {
                 ALLOCATION: `/${prefixAdmin}/street-agent/allocation`,
                 ALLOCATION_BATCHES: `/${prefixAdmin}/street-agent/allocation/batches`,
                 ALLOCATION_BATCH_DETAIL: (id: number | string) => `/${prefixAdmin}/street-agent/allocation/batches/${id}`,
+                REPORTS: `/${prefixAdmin}/street-agent/reports`,
                 CONTRACT_PDF: (id: number | string) => `/${prefixAdmin}/street-agent/contract/${id}`,
             }
         },
         CHAT: `/${prefixAdmin}/chat`,
         NOTIFICATIONS: `/${prefixAdmin}/notifications`,
+        REPORTS: {
+            REVENUE: `/${prefixAdmin}/reports/revenue`,
+        },
         PROFILE: `/${prefixAdmin}/profile`,
         ACCOUNT: `/${prefixAdmin}/account`,
         MANAGEMENT: {

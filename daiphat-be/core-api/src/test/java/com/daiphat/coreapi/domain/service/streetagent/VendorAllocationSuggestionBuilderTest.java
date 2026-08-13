@@ -15,6 +15,24 @@ import static org.assertj.core.api.Assertions.assertThat;
 class VendorAllocationSuggestionBuilderTest {
 
     @Test
+    void excludes_lucky_from_vendor_capacity_and_reports_lucky_quantity() {
+        List<VendorAllocationSerialModel> serials = new ArrayList<>();
+        serials.addAll(stationSerials(1L, "A", "A", 20, false));
+        serials.addAll(stationSerials(1L, "A", "L", 8, true));
+
+        VendorAllocationSuggestionBuilder.Suggestion suggestion = VendorAllocationSuggestionBuilder.build(
+                serials, 100, 100,
+                new VendorAllocationSuggestionBuilder.ReservePolicy(10, new BigDecimal("0.20")), null);
+
+        VendorAllocationSuggestionBuilder.StationSuggestion station = suggestion.stations().getFirst();
+        // normal=20 → reserve=max(10, ceil(0.2*20))=10 → vendorCapacity=10; lucky excluded
+        assertThat(station.luckyQuantity()).isEqualTo(8);
+        assertThat(station.normalEligibleQuantity()).isEqualTo(20);
+        assertThat(station.vendorCapacity()).isEqualTo(10);
+        assertThat(station.effectiveAgencyReserveQuantity()).isEqualTo(10);
+    }
+
+    @Test
     void applies_max_of_fixed_and_percent_reserve_with_ceiling() {
         List<VendorAllocationSerialModel> serials = new ArrayList<>();
         serials.addAll(stationSerials(1L, "A", "A", 5, false));

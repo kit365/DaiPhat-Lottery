@@ -31,7 +31,6 @@ import {
 import AddIcon from "@mui/icons-material/Add";
 import RemoveIcon from "@mui/icons-material/Remove";
 import CloseIcon from "@mui/icons-material/Close";
-import dayjs from "dayjs";
 import { toast } from "react-toastify";
 import { PageHeader } from "../../../../components/ui/PageHeader";
 import { Button } from '../../../../components/ui/Button';
@@ -59,6 +58,10 @@ import {
     CONFIDENCE_TIER_LABELS,
 } from "../configs/constants";
 import { formatCountdown, formatCurrency, formatDate } from "../../utils/format";
+import {
+    minVendorAllocationBusinessDate,
+    resolveVendorAllocationBusinessDate,
+} from "../../utils/vendorAllocationBusinessDate";
 import { getMetricChipSx } from "@/admin/utils/badge";
 import { useVendorSettingsDefaults } from "../../hooks/useVendorSettingsDefaults";
 import { ConfirmVendorDepositDialog } from "../ConfirmVendorDepositDialog";
@@ -66,6 +69,7 @@ import { AdminTicketCard } from "../../../../components/ui/AdminTicketCard";
 import { StationCapacityBadges } from "../sections/StationCapacityBadges";
 import { AdminDatePicker } from "../../../../components/ui/AdminDatePicker";
 import { VendorAllocationStationDrawer } from "../sections/VendorAllocationStationDrawer";
+import { todayIsoVn } from "@/client/utils/sellableDrawDate.util";
 
 const fieldSx = {
     "& .MuiOutlinedInput-root": {
@@ -331,8 +335,8 @@ export const VendorAllocationPage = () => {
     const { isOpen: isSidebarOpen } = useSidebar();
 
     const [profile, setProfile] = useState<StreetAgentProfile | null>(null);
-    const [businessDate, setBusinessDate] = useState(
-        () => searchParams.get("businessDate") || dayjs().format("YYYY-MM-DD")
+    const [businessDate, setBusinessDate] = useState(() =>
+        resolveVendorAllocationBusinessDate(searchParams.get("businessDate"))
     );
     const [selectedSerialIds, setSelectedSerialIds] = useState<number[]>([]);
     const [requestedQuantity, setRequestedQuantity] = useState<number | null>(null);
@@ -407,10 +411,32 @@ export const VendorAllocationPage = () => {
         draftBatch?.status === "DRAFT"
     );
 
+    const returnCutoff = vendorDefaults.returnCutoff || vendorDefaults.timing.returnCutoff;
+    const minBusinessDate = useMemo(
+        () => minVendorAllocationBusinessDate(returnCutoff, new Date(nowMs)),
+        [returnCutoff, nowMs]
+    );
+    const businessDateCutoffHelperText = useMemo(() => {
+        if (!returnCutoff || minBusinessDate <= todayIsoVn(new Date(nowMs))) {
+            return undefined;
+        }
+        const cutoffLabel = returnCutoff.match(/^(\d{1,2}:\d{2})/)?.[1] || returnCutoff;
+        return `Đã qua giờ chốt trả vé (${cutoffLabel}) — không thể chọn hôm nay.`;
+    }, [returnCutoff, minBusinessDate, nowMs]);
+
     useEffect(() => {
         const timer = window.setInterval(() => setNowMs(Date.now()), 1000);
         return () => window.clearInterval(timer);
     }, []);
+
+    // Keep selection aligned with BE: past VN days + today after VENDOR_RETURN_CUTOFF are closed.
+    // Do not rewrite a draft's business date while a reservation is open.
+    useEffect(() => {
+        if (draftId || hasActiveDraft) return;
+        if (businessDate && businessDate < minBusinessDate) {
+            setBusinessDate(minBusinessDate);
+        }
+    }, [businessDate, minBusinessDate, draftId, hasActiveDraft]);
 
     useEffect(() => {
         if (hydratedProfileFromUrl || isLoadingProfiles || profiles.length === 0) return;
@@ -818,8 +844,14 @@ export const VendorAllocationPage = () => {
                             <AdminDatePicker
                                 label="Ngày kinh doanh"
                                 value={businessDate}
-                                onChange={setBusinessDate}
+                                onChange={(next) => {
+                                    if (next && next < minBusinessDate) return;
+                                    setBusinessDate(next);
+                                }}
+                                min={minBusinessDate}
                                 disabled={!!businessDateDisabledReason}
+                                helperText={businessDateDisabledReason ? undefined : businessDateCutoffHelperText}
+                                helperTextColor="warning"
                             />
                         </DisabledWithTooltip>
                     </Box>
@@ -1095,6 +1127,7 @@ export const VendorAllocationPage = () => {
                                             <StationCapacityBadges
                                                 vendorCapacity={station.vendorCapacity}
                                                 agencyReserve={station.effectiveAgencyReserveQuantity}
+                                                luckyQuantity={station.luckyQuantity}
                                             />
                                         </Stack>
 

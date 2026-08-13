@@ -16,6 +16,8 @@ import {
     listVendorAllocationBatches,
     openVendorAllocationReturnSession,
     removeVendorAllocationReturnSerial,
+    replaceVendorAllocationReturns,
+    reopenVendorReturnInspection,
     returnVendorAllocationSerials,
     settleVendorAllocation,
 } from "../services/vendorAllocationService";
@@ -25,6 +27,7 @@ import {
     ConfirmVendorNoReturnPayload,
     CreateVendorAllocationDraftPayload,
     ReturnVendorAllocationSerialsPayload,
+    ReplaceVendorAllocationReturnsPayload,
     SettleVendorAllocationPayload,
     VendorAllocationBatch,
     VendorAllocationBatchListParams,
@@ -259,6 +262,17 @@ export const useReturnVendorAllocationSerials = () => {
     });
 };
 
+export const useReplaceVendorAllocationReturns = () => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: ({ id, data }: { id: number | string; data: ReplaceVendorAllocationReturnsPayload }) =>
+            replaceVendorAllocationReturns(id, data),
+        onSuccess: (_response, variables) => {
+            invalidateVendorAllocationQueries(queryClient, variables.id);
+        },
+    });
+};
+
 export const useRemoveVendorAllocationReturnSerial = () => {
     const queryClient = useQueryClient();
     return useMutation({
@@ -293,6 +307,16 @@ export const useConfirmVendorNoReturn = () => {
             confirmVendorNoReturn(id, data),
         onSuccess: (_response, variables) => {
             invalidateVendorAllocationQueries(queryClient, variables.id);
+        },
+    });
+};
+
+export const useReopenVendorReturnInspection = () => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: (id: number | string) => reopenVendorReturnInspection(id),
+        onSuccess: (_response, id) => {
+            invalidateVendorAllocationQueries(queryClient, id);
         },
     });
 };

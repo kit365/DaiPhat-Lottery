@@ -67,6 +67,11 @@ Số đẹp được precompute trên serial:
 - `is_lucky = TRUE`
 - `lucky_badges` chứa các badge tương ứng
 
+Thời điểm gắn tag:
+
+1. **Khi tạo serial** (`LotteryTicketSerialService.upsertSerialForTicket`) — `LuckySerialTagger` đối chiếu số vé với pattern đang active ngay trước khi save (import, sync serial mới, replacement, …).
+2. **Khi tạo/sửa cấu hình số đẹp** hoặc gọi `POST .../lucky-pattern-configs/recompute` — `recomputeAll()` gắn lại toàn bộ serial còn sống bằng cùng `LuckySerialTagger`.
+
 Các pattern được đối chiếu bởi `LuckyPatternMatcher` với các loại:
 
 - `EXACT`: khớp toàn bộ số.
@@ -78,6 +83,15 @@ Mặc định:
 
 ```text
 is_lucky = TRUE → không đưa vào gợi ý vendor
+```
+
+Công thức capacity theo station (chỉ serial thường):
+
+```text
+normal = count(!isLucky)
+lucky  = total - normal
+reserve = min(normal, max(fixedReserve, ceil(percent * normal)))
+vendorCapacity = normal - reserve
 ```
 
 Nếu nhân viên có quyền override số đẹp, FE phải gửi thêm lý do override. BE vẫn kiểm tra quyền và lý do, không tin dữ liệu FE gửi lên một cách mù quáng.
