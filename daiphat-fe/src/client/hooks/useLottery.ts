@@ -351,20 +351,28 @@ export const useCheckWinning = () => {
   const [checkResult, setCheckResult] = useState<TicketCheckResult | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const check = async (stationId: number, drawDate: string, ticketNumber: string) => {
+  const check = async (
+    stationId: number,
+    drawDate: string,
+    ticketNumber: string,
+    region?: string | null
+  ) => {
     setIsChecking(true);
     setErrorMessage(null);
     setHasChecked(false);
     setCheckResult(null);
 
     try {
-      const results = await lotteryService.checkWinning(stationId, drawDate, ticketNumber);
+      const results = await lotteryService.checkWinning(stationId, drawDate, ticketNumber, region);
       setCheckResult(results);
       setHasChecked(true);
       return results;
     } catch (error: any) {
       console.error('Check winning error', error);
-      const msg = error?.response?.data?.message || 'Không tìm thấy kết quả quay số của đài này vào ngày đã chọn.';
+      const msg =
+        error?.response?.data?.message ||
+        error?.response?.data?.error ||
+        'Không tìm thấy kết quả quay số của đài này vào ngày đã chọn.';
       setErrorMessage(msg);
       throw error;
     } finally {

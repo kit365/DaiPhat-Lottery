@@ -1,5 +1,4 @@
 import { apiApp } from '../../../../../api';
-import { withAuthHeaders } from '../../../../../api/authHeaders';
 import { ApiResponse } from '../../../../../types/api.type';
 import {
     BatchImportScannedTicketsPayload,
@@ -8,8 +7,6 @@ import {
 } from '../types/ticketScan.type';
 
 const BASE_URL = `/lottery-tickets`;
-
-const withAuth = () => withAuthHeaders();
 
 /** Camera ticket-scan feature (DP-269): POST /lottery-tickets/scan — calls ticket-vision
  * through the backend, returns detected tickets without saving anything. */
@@ -23,7 +20,6 @@ export const scanTicketImage = async (
     formData.append('file', file);
 
     const response = await apiApp.post(`${BASE_URL}/scan`, formData, {
-        ...withAuth(),
         skipGlobalErrorToast: options?.skipGlobalErrorToast,
         // OCR on a multi-ticket photo can take several seconds (doc: 3-10s)
         // plus network time for the image itself — give it more room than
@@ -41,7 +37,6 @@ export const batchImportScannedTickets = async (
     options?: { skipGlobalErrorToast?: boolean }
 ): Promise<ApiResponse<ScanBatchImportResult>> => {
     const response = await apiApp.post(`${BASE_URL}/batch-import`, payload, {
-        ...withAuth(),
         skipGlobalErrorToast: options?.skipGlobalErrorToast,
     } as any);
     return response.data;

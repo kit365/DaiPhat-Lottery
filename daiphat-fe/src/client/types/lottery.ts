@@ -90,6 +90,7 @@ export interface LotteryStationDrawApiResponse {
 export interface LotteryStationDraw {
   id: number;
   province: string;
+  region: string;
   drawTime: string | null;
   nextDrawDate: string | null;
   thumbnailUrl?: string | null;
@@ -204,6 +205,7 @@ export const mapStationDrawToClient = (
 ): LotteryStationDraw => ({
   id: item.id,
   province: toProvinceDisplayName(item.name || item.province || ''),
+  region: item.region || 'MIEN_NAM',
   drawTime: item.drawTime || null,
   nextDrawDate: item.nextDrawDate || null,
   thumbnailUrl: item.thumbnailUrl || null,

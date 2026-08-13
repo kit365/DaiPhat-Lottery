@@ -4,7 +4,6 @@ import { useRouter } from "next/navigation";
 import { usePathname, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useState, useEffect, useRef } from "react";
-import Image from "next/image";
 import imageLoader from "@/utils/imageLoader";
 import { motion, AnimatePresence } from "framer-motion";
 import { Search, User as UserIcon, Home, Crosshair, Ticket, Bell, Wallet, ChevronDown, ShoppingCart, BookOpen, Trash2, Sparkles, CalendarDays } from "lucide-react";
@@ -19,7 +18,7 @@ import {
   HEADER_DROPDOWN_TITLE_CLASS,
 } from "./headerDropdown.constants";
 import { useAuth } from "../../hooks/useAuth";
-import { useNotifications } from "../../hooks/useNotifications";
+import { useNotificationUnreadCount } from "../../hooks/useNotifications";
 import { Skeleton } from "../../../components/ui/Skeleton";
 import { AppToast as toast } from "../../../utils/toast.util";
 import { createNavBannerPrefetchHandlers } from "../../utils/prefetchImagesWhenIdle";
@@ -43,20 +42,25 @@ export const Header = () => {
     isUserLoading,
     token
   } = useAuth();
-  const { name: siteName, slogan: siteSlogan } = useSiteBranding();
+  const { name: siteName, slogan: siteSlogan, logoUrl } = useSiteBranding();
   
   const user = realUser;
   const { isProfileSetupModalOpen, openLoginModal, openProfileSetupModal } = useAuthStore();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const [logoMounted, setLogoMounted] = useState(false);
   const profileMenuRef = useRef<HTMLDivElement | null>(null);
   const router = useRouter();
   const pathname = usePathname() ?? '';
     const searchParamsForLocation = useSearchParams();
   const cartItems = useCartStore(state => state.items);
   const removeCartItem = useCartStore(state => state.removeItem);
-  const { unreadCount } = useNotifications(4);
+  const { unreadCount } = useNotificationUnreadCount();
+
+  useEffect(() => {
+    setLogoMounted(true);
+  }, []);
 
   // Monitor window scroll to make header sticky & compact
   useEffect(() => {
@@ -131,24 +135,15 @@ export const Header = () => {
         }`}>
           <div className="flex items-center justify-between w-full lg:w-auto shrink-0 group">
             <Link href={ROUTES.PUBLIC.HOME} className="flex items-center gap-3 no-underline font-client-display" aria-label={`${siteName} home`}>
-              <div className="relative p-[2px] bg-gradient-to-tr from-[#ee1314] to-[#F59E0B] rounded-xl shadow-md shadow-[#ee1314]/10 transition-transform duration-300 group-hover:scale-105">
-                <SiteLogo
-                  className="w-[38px] h-[38px] rounded-[10px]"
-                  imgClassName="w-full h-full rounded-[10px] object-cover bg-white"
-                  alt={siteName}
-                />
-                <div className="hidden">
-                  <Image 
-                    unoptimized
-                    src="https://i.ibb.co/YBYnq3HR/z7824247008533-94446d3b6c16598cda67404d805c15c4-removebg-preview.png" 
-                    alt="Đại Phát Logo"
-                    width={38}
-                    height={38}
-                    priority
-                    className="w-[38px] h-[38px] rounded-[10px] object-cover bg-white" 
+              {logoMounted && logoUrl ? (
+                <div className="relative p-[2px] bg-gradient-to-tr from-[#ee1314] to-[#F59E0B] rounded-xl shadow-md shadow-[#ee1314]/10 transition-transform duration-300 group-hover:scale-105">
+                  <SiteLogo
+                    className="w-[38px] h-[38px] rounded-[10px]"
+                    imgClassName="w-full h-full rounded-[10px] object-cover bg-white"
+                    alt={siteName}
                   />
                 </div>
-              </div>
+              ) : null}
               <div className="flex flex-col justify-center">
                   <span className="text-[20px] tracking-tight font-client-display font-black text-[#ee1314] leading-none mb-1">
                     {siteName}

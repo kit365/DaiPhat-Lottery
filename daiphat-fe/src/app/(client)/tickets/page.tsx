@@ -6,6 +6,7 @@ import {
     getPublicStationsToday,
     getPublicStationsTomorrow,
 } from '@/shared/station/scheduleApi';
+import { publicStationsQueryKeys } from '@/constants/queryKeys';
 
 export const revalidate = 60;
 
@@ -14,11 +15,11 @@ export default async function TicketsPage() {
 
     await Promise.all([
         queryClient.prefetchQuery({
-            queryKey: ['public-stations-today'],
+            queryKey: publicStationsQueryKeys.today(),
             queryFn: getPublicStationsToday,
         }),
         queryClient.prefetchQuery({
-            queryKey: ['public-stations-tomorrow'],
+            queryKey: publicStationsQueryKeys.tomorrow(),
             queryFn: getPublicStationsTomorrow,
         }),
     ]);

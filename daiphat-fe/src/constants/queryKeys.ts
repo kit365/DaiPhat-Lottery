@@ -1,3 +1,5 @@
+import { QUERY_KEYS as IMPORT_BATCH_QUERY_KEYS } from '@/admin/features/ticket/import-batch/constants/queryKeys';
+
 export const QUERY_KEYS = {
     // Auth
     AUTH_ME: 'admin-me',
@@ -9,10 +11,12 @@ export const QUERY_KEYS = {
     // Admin / Staff
     ADMIN_ORDERS: 'admin-orders',
     ADMIN_ORDER_DETAIL: 'admin-order',
+    ORDER_DETAIL_REFUND_PREP: 'order-detail-refund-prep',
 
     // User / Customer
     ACCOUNTS_USER: 'accounts-user',
     ACCOUNT_USER_DETAIL: 'account-user',
+    USER_ORDERS: 'user-orders',
     STREET_AGENT_PROFILES: 'street-agent-profiles',
     STREET_AGENT_PROFILE_DETAIL: 'street-agent-profile',
     LUCKY_PATTERN_CONFIGS: 'lucky-pattern-configs',
@@ -27,18 +31,11 @@ export const QUERY_KEYS = {
     PROVIDER_DETAIL: 'provider',
     STATIONS_TODAY: 'stations-today',
     STATIONS_TOMORROW: 'stations-tomorrow',
+    PUBLIC_STATIONS_TODAY: 'public-stations-today',
+    PUBLIC_STATIONS_TOMORROW: 'public-stations-tomorrow',
 
-    // Import batch
-    IMPORT_BATCH_ACTIVE_DRAFT: 'import-batch-active-draft',
-    IMPORT_BATCH_LIST: 'import-batch-list',
-    IMPORT_BATCH_DETAIL: 'import-batch-detail',
-    IMPORT_BATCH_CLASSIFY_PREVIEW: 'import-batch-classify-preview',
-    IMPORT_BATCH_ELIGIBLE_STATIONS: 'import-batch-eligible-stations',
-    IMPORT_BATCH_TIME_POLICY: 'import-batch-time-policy',
-    IMPORT_BATCH_INCOMPLETE: 'import-batch-incomplete',
-    IMPORT_BATCH_WITHOUT_LINES: 'import-batch-without-lines',
-    IMPORT_BATCH_REDUCTION_TICKETS: 'import-batch-reduction-tickets',
-    IMPORT_BATCH_LINE_ENTRY_TICKETS: 'import-batch-line-entry-tickets',
+    // Import batch (source of truth: feature constants)
+    ...IMPORT_BATCH_QUERY_KEYS,
 
     // Supplier
     SUPPLIERS: 'suppliers',
@@ -88,7 +85,28 @@ export const QUERY_KEYS = {
     ADMIN_CUSTOMER_BANK_ACCOUNTS: 'admin-customer-bank-accounts',
     ADMIN_BADGES: 'admin-badges',
 
+    // Reviews (Admin)
+    ADMIN_REVIEWS: 'admin-reviews',
+
+    // System / public config
+    PUBLIC_SYSTEM_CONFIG: 'public-system-config',
+    PASSWORD_POLICY: 'password-policy',
+
     // Blogs (Shared / Client-facing)
     PUBLIC_BLOG_CATEGORIES: 'public-blog-categories',
     PUBLIC_BLOG_POSTS: 'public-posts',
 } as const;
+
+export const publicSystemConfigQueryKey = (key: string) =>
+    [QUERY_KEYS.PUBLIC_SYSTEM_CONFIG, key] as const;
+
+export const publicStationsQueryKeys = {
+    today: () => [QUERY_KEYS.PUBLIC_STATIONS_TODAY] as const,
+    tomorrow: () => [QUERY_KEYS.PUBLIC_STATIONS_TOMORROW] as const,
+} as const;
+
+export const orderDetailRefundPrepQueryKey = (orderId: string) =>
+    [QUERY_KEYS.ORDER_DETAIL_REFUND_PREP, orderId] as const;
+
+export const userOrdersQueryKey = (userId: string, page: number, rowsPerPage: number) =>
+    [QUERY_KEYS.USER_ORDERS, userId, page, rowsPerPage] as const;

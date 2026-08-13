@@ -7,7 +7,7 @@ import React, { useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "../../../hooks/useAuth";
 import { useAuthStore } from "../../../../stores/useAuthStore";
-import { useNotifications } from "../../../hooks/useNotifications";
+import { useNotificationUnreadCount } from "../../../hooks/useNotifications";
 import { useMyRefundPendingCount } from "../../../hooks/useMyRefundPendingCount";
 import { useMyPrizePayoutPendingCount } from "../../../hooks/usePrizePayout";
 import { useMySupportTicketActiveCount } from "../../../hooks/useMySupportTicketActiveCount";
@@ -43,7 +43,7 @@ const TABS: TabConfig[] = [
 export const ProfilePage = ({ children }: { children?: React.ReactNode }) => {
     const { user, isUserLoading, handleUploadAvatar, uploadAvatarMutation, logout } = useAuth();
     const { token, isHydrated, openLoginModal } = useAuthStore();
-    const { unreadCount } = useNotifications(4);
+    const { unreadCount } = useNotificationUnreadCount();
     const { pendingCount: pendingRefundCount } = useMyRefundPendingCount();
     const { data: pendingPayoutRes } = useMyPrizePayoutPendingCount();
     const pendingPayoutCount = pendingPayoutRes?.data ?? 0;

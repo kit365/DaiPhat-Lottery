@@ -132,7 +132,6 @@ export const useScanExpiredTickets = () => {
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.TICKETS] });
             queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.EXPIRED_TICKETS] });
-            queryClient.invalidateQueries({ queryKey: ['ticket-expired-list'] });
         },
     });
 };

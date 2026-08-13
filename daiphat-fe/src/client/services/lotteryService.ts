@@ -6,10 +6,10 @@ import {
   LotteryResultLiveSummaryApiResponse,
   TicketCheckResult,
   formatApiDateToDisplay,
-  formatDisplayDateToApi,
   mapResultSummaryToLotteryResult,
   mergeResultWithLiveDetails,
 } from '../types/lottery';
+import { normalizeTicketNumberForCheck, toApiDrawDate } from '../utils/ticketCheck.util';
 
 const BASE_URL = '/lottery-results';
 const DEFAULT_REGION = 'MIEN_NAM';
@@ -21,7 +21,7 @@ export const lotteryService = {
       const response = await apiApp.get<ApiResponse<LotteryResultLiveSummaryApiResponse>>(`${BASE_URL}/board`, {
         params: {
           region: resolvedRegion,
-          drawDate: formatDisplayDateToApi(date),
+          drawDate: toApiDrawDate(date),
         },
       });
 
@@ -32,8 +32,8 @@ export const lotteryService = {
         ...response.data,
         data: {
           region: liveBoard?.region || resolvedRegion,
-          drawDate: formatApiDateToDisplay(liveBoard?.drawDate || formatDisplayDateToApi(date)),
-          drawDateIso: liveBoard?.drawDate || formatDisplayDateToApi(date),
+          drawDate: formatApiDateToDisplay(liveBoard?.drawDate || toApiDrawDate(date)),
+          drawDateIso: liveBoard?.drawDate || toApiDrawDate(date),
           results,
           availableProvinces: results.map((item) => item.province),
         },
@@ -46,8 +46,8 @@ export const lotteryService = {
         timestamp: new Date().toISOString(),
         data: {
           region: resolvedRegion,
-          drawDate: formatApiDateToDisplay(formatDisplayDateToApi(date)),
-          drawDateIso: formatDisplayDateToApi(date),
+          drawDate: formatApiDateToDisplay(toApiDrawDate(date)),
+          drawDateIso: toApiDrawDate(date),
           results: [],
           availableProvinces: [],
         },
@@ -76,13 +76,18 @@ export const lotteryService = {
     const liveItemByResultId = new Map(resultItems.map((item) => [item.result.id, item]));
     return boardResults.map((result) => mergeResultWithLiveDetails(result, result.id ? liveItemByResultId.get(result.id) : undefined));
   },
-  async checkWinning(stationId: number, drawDate: string, ticketNumber: string): Promise<TicketCheckResult> {
+  async checkWinning(
+    stationId: number,
+    drawDate: string,
+    ticketNumber: string,
+    region?: string | null
+  ): Promise<TicketCheckResult> {
     try {
       const response = await apiApp.get<ApiResponse<TicketCheckResult>>(`${BASE_URL}/check`, {
         params: {
           stationId,
-          drawDate: formatDisplayDateToApi(drawDate),
-          ticketNumber,
+          drawDate: toApiDrawDate(drawDate),
+          ticketNumber: normalizeTicketNumberForCheck(ticketNumber, region),
         },
       });
       return response.data?.data as TicketCheckResult;

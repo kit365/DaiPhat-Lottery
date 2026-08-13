@@ -23,6 +23,7 @@ import { useQueries } from '@tanstack/react-query';
 import { getOrderDetail } from '../../../../orders/services/orderService';
 import { getOrderStatusBadge } from '@/admin/features/orders/utils/orderStatusBadge';
 import { prefixAdmin } from '../../../../../constants/routes';
+import { orderDetailRefundPrepQueryKey } from '@/constants/queryKeys';
 import { OrderDetailStatus } from '../../../../../../types/order.type';
 import {
     formatRefundCurrency,
@@ -115,7 +116,7 @@ export const TicketIncidentRefundStep: React.FC<Props> = ({
 
     const orderQueries = useQueries({
         queries: orderIds.map((orderId) => ({
-            queryKey: ['order-detail-refund-prep', orderId],
+            queryKey: orderDetailRefundPrepQueryKey(orderId),
             queryFn: () => getOrderDetail(orderId),
             enabled: !!orderId,
             staleTime: 0,

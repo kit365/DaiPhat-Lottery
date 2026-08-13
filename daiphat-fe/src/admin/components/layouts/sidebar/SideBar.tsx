@@ -33,13 +33,16 @@ export const SideBar = () => {
                 <ArrowIcon sx={{ fontSize: "0.625rem", rotate: isOpen ? "90deg" : "270deg" }} />
             </IconButton>
 
-            {/* Logo */}
-            <div className={isOpen
-                ? "pl-[24px] pt-[20px] pb-[8px]"
-                : "py-[20px] flex justify-center"
-            }>
-                <Link href={ROUTES.ADMIN.DASHBOARD.ROOT} className="inline-block w-[40px] h-[40px]">
-                    <SiteLogo className="w-10 h-10 rounded" imgClassName="w-full h-full object-contain" />
+            {/* Logo — cố định góc trái, không căn giữa khi mở rộng */}
+            <div className="flex shrink-0 overflow-hidden py-5 pl-5 pr-2">
+                <Link
+                    href={ROUTES.ADMIN.DASHBOARD.ROOT}
+                    className="flex h-8 w-8 items-center justify-center overflow-hidden"
+                >
+                    <SiteLogo
+                        className="h-8 w-8 rounded object-contain"
+                        imgClassName="h-full w-full object-contain"
+                    />
                 </Link>
             </div>
 

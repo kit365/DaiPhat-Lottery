@@ -11,26 +11,33 @@ import {
 } from "../services/notificationService";
 import { normalizePagination } from "../utils/pagination.util";
 
-const DEFAULT_LIMIT = 4;
-const CLIENT_NOTIFICATION_REFETCH_INTERVAL_MS = 10_000;
+const NOTIFICATION_PAGE_SIZE = 10;
+const CLIENT_NOTIFICATION_REFETCH_INTERVAL_MS = 30_000;
 
-export const useNotifications = (limit: number = DEFAULT_LIMIT) => {
+export const clientNotificationsQueryKey = (token: string | null | undefined) =>
+    [QUERY_KEYS.CLIENT_NOTIFICATIONS, token] as const;
+
+const useClientNotificationsQuery = (options?: { enablePolling?: boolean }) => {
     const token = useAuthStore((state) => state.token);
+    const enablePolling = options?.enablePolling ?? true;
 
-    const query = useInfiniteQuery({
-        queryKey: [QUERY_KEYS.CLIENT_NOTIFICATIONS, token, limit],
-        queryFn: ({ pageParam = 1 }) => getMyNotifications({ page: pageParam, limit }),
+    return useInfiniteQuery({
+        queryKey: clientNotificationsQueryKey(token),
+        queryFn: ({ pageParam = 1 }) =>
+            getMyNotifications({ page: pageParam, limit: NOTIFICATION_PAGE_SIZE }),
         initialPageParam: 1,
         enabled: !!token,
-        staleTime: 5_000,
+        staleTime: 15_000,
         gcTime: 1000 * 60 * 5,
         retry: false,
         refetchInterval: (query) => {
-            if (query.state.error) return false;
+            if (!enablePolling || query.state.error) {
+                return false;
+            }
             return CLIENT_NOTIFICATION_REFETCH_INTERVAL_MS;
         },
         refetchIntervalInBackground: false,
-        refetchOnWindowFocus: true,
+        refetchOnWindowFocus: false,
         getNextPageParam: (lastPage) => {
             const pagination = normalizePagination(lastPage.pagination);
             if (pagination.isLast || pagination.currentPage >= pagination.totalPages) {
@@ -39,7 +46,9 @@ export const useNotifications = (limit: number = DEFAULT_LIMIT) => {
             return pagination.currentPage + 1;
         },
     });
+};
 
+const mapNotificationQueryResult = (query: ReturnType<typeof useClientNotificationsQuery>) => {
     const pages = query.data?.pages ?? [];
     const notifications = pages.flatMap((page) => page.recordList ?? []);
     const firstPage = pages[0];
@@ -63,6 +72,16 @@ export const useNotifications = (limit: number = DEFAULT_LIMIT) => {
     };
 };
 
+/** Danh sách thông báo (dropdown / tab profile). */
+export const useNotifications = (options?: { enablePolling?: boolean }) =>
+    mapNotificationQueryResult(useClientNotificationsQuery(options));
+
+/** Chỉ lấy số chưa đọc — dùng chung cache, không tạo query key riêng. */
+export const useNotificationUnreadCount = (options?: { enablePolling?: boolean }) => {
+    const { unreadCount, isLoading, isFetching, isError } = useNotifications(options);
+    return { unreadCount, isLoading, isFetching, isError };
+};
+
 export const useMarkMyNotificationAsRead = () => {
     const queryClient = useQueryClient();
     const token = useAuthStore((state) => state.token);
@@ -70,7 +89,7 @@ export const useMarkMyNotificationAsRead = () => {
     return useMutation({
         mutationFn: (notificationId: number) => markMyNotificationAsRead(notificationId),
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.CLIENT_NOTIFICATIONS, token] });
+            queryClient.invalidateQueries({ queryKey: clientNotificationsQueryKey(token) });
         },
     });
 };
@@ -82,7 +101,7 @@ export const useMarkAllMyNotificationsAsRead = () => {
     return useMutation({
         mutationFn: () => markAllMyNotificationsAsRead(),
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.CLIENT_NOTIFICATIONS, token] });
+            queryClient.invalidateQueries({ queryKey: clientNotificationsQueryKey(token) });
         },
     });
 };
@@ -94,7 +113,7 @@ export const useDeleteAllMyReadNotifications = () => {
     return useMutation({
         mutationFn: () => deleteAllMyReadNotifications(),
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.CLIENT_NOTIFICATIONS, token] });
+            queryClient.invalidateQueries({ queryKey: clientNotificationsQueryKey(token) });
         },
     });
 };

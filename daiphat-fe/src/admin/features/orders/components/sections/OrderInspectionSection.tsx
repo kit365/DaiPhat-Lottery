@@ -2,7 +2,7 @@
 
 import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
 import React, { useEffect, useMemo, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useOrderRefundsForInspection } from '../../hooks/useOrder';
 import { getTickets } from '../../../ticket/inventory/services/ticketService';
 import {
     getReplacementCandidates,
@@ -53,8 +53,6 @@ import { resolveLotteryTicketSerialStatusBadge, resolveOrderDetailStatusBadge } 
 import type { IncidentTicketDisplay } from '../../types/incidentTicket.type';
 import { resolveOrderDetailTicketDisplay } from '../../utils/resolveOrderDetailTicketDisplay';
 import { prefixAdmin, ROUTES } from '../../../../constants/routes';
-import { refundAdminApi } from "@/admin/features/refund/services/refundService";
-import { QUERY_KEYS } from '../../../../../constants/queryKeys';
 import { RefundRequestResponse } from '../../../../../types/refund.type';
 
 /** Quick suggestions for staff refund reason (UI-only; not persisted separately). */
@@ -211,12 +209,10 @@ export function OrderInspectionSection({
         [tickets]
     );
 
-    const { data: orderRefundsResponse, isFetching: isFetchingOrderRefunds } = useQuery({
-        queryKey: [QUERY_KEYS.ADMIN_REFUNDS, { orderId, page: 1, limit: 20 }],
-        queryFn: () => refundAdminApi.getStaffRefunds({ orderId, page: 1, limit: 20 }),
-        enabled: !!orderId && hasAlreadyFaultReportedTickets,
-        staleTime: 30_000,
-    });
+    const { data: orderRefundsResponse, isFetching: isFetchingOrderRefunds } = useOrderRefundsForInspection(
+        orderId,
+        !!orderId && hasAlreadyFaultReportedTickets
+    );
 
     const linkedRefundRequests = useMemo(() => {
         const list = orderRefundsResponse?.data?.recordList ?? [];

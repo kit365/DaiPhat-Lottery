@@ -4,7 +4,6 @@ import { useRouter } from "next/navigation";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { useQuery } from '@tanstack/react-query';
 import { ChevronRight, CheckCircle2, ShieldCheck, RefreshCw, ChevronDown, Filter, LayoutGrid, Heart, SlidersHorizontal, Trash2, Search } from 'lucide-react';
 import { useCartStore, CartItem } from '../../../stores/useCartStore';
 import { useAuthStore } from '../../../stores/useAuthStore';
@@ -14,7 +13,7 @@ import {
     useStationsToday,
     useStationsTomorrow,
 } from '@/client/hooks/useStationSchedule';
-import { apiApp } from '../../../api';
+import { useBuyTicketList } from './hooks/useBuyTicketList';
 import dayjs from 'dayjs';
 import 'dayjs/locale/vi';
 import {
@@ -42,69 +41,6 @@ import {
 import { PublicLotteryTicket } from '../../../types/lottery-ticket.type';
 
 dayjs.locale('vi');
-
-const PUBLIC_TICKET_PAGE_SIZE = 500;
-const PUBLIC_TICKET_MAX_PAGES = 50;
-
-type PublicTicketQueryParams = {
-    stationIds: string[];
-    drawDate: string;
-    search?: string;
-    searches?: string[];
-    tailRanges?: string[];
-    numberTypes?: string[];
-};
-
-const mapPublicTicketRecord = (item: Record<string, unknown>) => ({
-    ...item,
-    _id: item.id,
-    avatar: item.ticketImg,
-    status: item.status ? String(item.status).toLowerCase() : 'draft',
-});
-
-const fetchAllPublicBuyTickets = async (params: PublicTicketQueryParams) => {
-    const merged: ReturnType<typeof mapPublicTicketRecord>[] = [];
-    let page = 1;
-    let totalRecords = 0;
-    let hasMore = true;
-
-    while (hasMore && page <= PUBLIC_TICKET_MAX_PAGES) {
-        const response = await apiApp.get('/lottery-tickets/public', {
-            params: {
-                page,
-                size: PUBLIC_TICKET_PAGE_SIZE,
-                stationIds: params.stationIds,
-                drawDate: params.drawDate,
-                search: params.search || undefined,
-                searchMode: params.search ? 'CONTAINS' : undefined,
-                searches: params.searches && params.searches.length > 0 ? params.searches : undefined,
-                tailRanges: params.tailRanges && params.tailRanges.length > 0 ? params.tailRanges : undefined,
-                numberTypes: params.numberTypes && params.numberTypes.length > 0 ? params.numberTypes : undefined,
-                sortBy: undefined,
-                direction: undefined,
-            },
-            paramsSerializer: {
-                indexes: null,
-            },
-        });
-
-        const result = response.data?.data;
-        const recordList = (result?.recordList || []).map(mapPublicTicketRecord);
-        merged.push(...recordList);
-
-        const pagination = result?.pagination;
-        totalRecords = pagination?.totalRecords ?? merged.length;
-        hasMore = pagination ? !pagination.isLast : recordList.length === PUBLIC_TICKET_PAGE_SIZE;
-        page += 1;
-    }
-
-    return {
-        recordList: merged,
-        pagination: {
-            totalRecords: totalRecords || merged.length,
-        },
-    };
-};
 
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -480,29 +416,13 @@ export const BuyTicketPage = () => {
     );
     const drawDateFilter = selectedDates.map(resolveDrawDateToken).join(',');
     const activeFilterCount = countActiveTicketFilters(appliedFilters);
-    const { data: ticketsRes, isLoading: isLoadingTickets, isFetching: isFetchingTickets } = useQuery({
-        queryKey: [
-            'public-buy-ticket-list',
-            selectedStationIdsForQuery,
-            drawDateFilter,
-            appliedSearch,
-            appliedFilters,
-        ],
-        enabled: selectedStationIdsForQuery.length > 0 && Boolean(drawDateFilter),
-        queryFn: async () => {
-            const result = await fetchAllPublicBuyTickets({
-                stationIds: selectedStationIdsForQuery,
-                drawDate: drawDateFilter,
-                search: appliedSearch || undefined,
-                searches: appliedFilters.searches.length > 0 ? appliedFilters.searches : undefined,
-                tailRanges: appliedFilters.tailRanges.length > 0 ? appliedFilters.tailRanges : undefined,
-                numberTypes: appliedFilters.numberTypes.length > 0 ? appliedFilters.numberTypes : undefined,
-            });
-
-            return {
-                data: result,
-            };
-        },
+    const { data: ticketsRes, isLoading: isLoadingTickets, isFetching: isFetchingTickets } = useBuyTicketList({
+        stationIds: selectedStationIdsForQuery,
+        drawDate: drawDateFilter,
+        search: appliedSearch || undefined,
+        searches: appliedFilters.searches.length > 0 ? appliedFilters.searches : undefined,
+        tailRanges: appliedFilters.tailRanges.length > 0 ? appliedFilters.tailRanges : undefined,
+        numberTypes: appliedFilters.numberTypes.length > 0 ? appliedFilters.numberTypes : undefined,
     });
     const availableTickets = ticketsRes?.data?.recordList || [];
     const totalTicketCount = ticketsRes?.data?.pagination?.totalRecords ?? availableTickets.length;
