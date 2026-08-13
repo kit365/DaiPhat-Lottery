@@ -48,7 +48,7 @@ const DatePill = ({
         type="button"
         disabled={disabled}
         onClick={onClick}
-        className={`flex-1 min-w-0 rounded-xl px-2.5 py-2 text-left transition-all border ${
+        className={`flex-1 min-w-0 rounded-xl px-3 py-2.5 text-left transition-all border ${
             disabled
                 ? 'opacity-50 cursor-not-allowed border-[#E5E8EB] bg-[#F9FAFB]'
                 : active
@@ -56,10 +56,10 @@ const DatePill = ({
                   : 'border-[#E5E8EB] bg-white hover:border-[#ee1314]/40 hover:bg-[#FFF4F4]'
         }`}
     >
-        <div className={`font-bold text-[13px] leading-tight ${active && !disabled ? 'text-white' : 'text-[#212B36]'}`}>
+        <div className={`font-bold text-[14px] leading-tight ${active && !disabled ? 'text-white' : 'text-[#212B36]'}`}>
             {title}
         </div>
-        <div className={`text-[11px] mt-0.5 truncate ${active && !disabled ? 'text-white/85' : 'text-[#637381]'}`}>
+        <div className={`text-[12px] mt-0.5 truncate ${active && !disabled ? 'text-white/85' : 'text-[#637381]'}`}>
             {subtitle}
         </div>
     </button>
@@ -204,20 +204,20 @@ export const BuyTicketDateStationSelectors = ({
                         aria-expanded={isProvinceOpen}
                     >
                         <div className="flex-1 min-w-0">
-                            <div className="text-[11px] text-[#637381] font-bold uppercase tracking-wider">
+                            <div className="text-[12px] text-[#637381] font-bold uppercase tracking-wider">
                                 Chọn đài
                             </div>
                             <div className="flex items-center gap-2 min-w-0 mt-0.5">
-                                <span className="font-bold text-[14px] text-[#212B36] truncate leading-tight">
+                                <span className="font-bold text-[15px] text-[#212B36] truncate leading-tight">
                                     {stationTitle}
                                 </span>
                                 {subsetCount > 0 && (
-                                    <span className="shrink-0 min-w-[18px] h-[18px] px-1 rounded-full bg-[#ee1314] text-white text-[10px] font-bold flex items-center justify-center">
+                                    <span className="shrink-0 min-w-[20px] h-[20px] px-1 rounded-full bg-[#ee1314] text-white text-[11px] font-bold flex items-center justify-center">
                                         {subsetCount}
                                     </span>
                                 )}
                             </div>
-                            <div className="text-[12px] text-[#637381] truncate leading-tight">{stationSubtitle}</div>
+                            <div className="text-[13px] text-[#637381] truncate leading-tight">{stationSubtitle}</div>
                         </div>
                         <span
                             className={`w-6 h-6 rounded-md flex items-center justify-center shrink-0 transition-colors ${
@@ -239,7 +239,7 @@ export const BuyTicketDateStationSelectors = ({
                             onMouseDown={(e) => e.stopPropagation()}
                         >
                             <div className="px-3 py-2 border-b border-[#F4F6F8]">
-                                <div className="text-[12px] text-[#637381]">
+                                <div className="text-[13px] text-[#637381]">
                                     {isAllProvincesSelected
                                         ? `Đã chọn tất cả (${provinces.length})`
                                         : `Đã chọn ${activeProvinces.length}/${provinces.length}`}
@@ -248,9 +248,9 @@ export const BuyTicketDateStationSelectors = ({
 
                             <div className="p-1 max-h-[min(50vh,280px)] overflow-y-auto">
                                 {isLoadingProvinces ? (
-                                    <div className="p-3 text-center text-[#637381] text-[13px]">Đang tải...</div>
+                                    <div className="p-3 text-center text-[#637381] text-[14px]">Đang tải...</div>
                                 ) : provinces.length === 0 ? (
-                                    <div className="p-3 text-center text-[#637381] text-[13px]">Không có đài</div>
+                                    <div className="p-3 text-center text-[#637381] text-[14px]">Không có đài</div>
                                 ) : (
                                     <div className="flex flex-col">
                                         {provinces.map((prov) => {
@@ -263,7 +263,7 @@ export const BuyTicketDateStationSelectors = ({
                                                 <button
                                                     key={prov.id}
                                                     type="button"
-                                                    className={`w-full px-2.5 py-2 rounded-lg flex items-center gap-2.5 text-left transition-colors ${
+                                                    className={`w-full px-3 py-2.5 rounded-lg flex items-center gap-2.5 text-left transition-colors ${
                                                         isProvSelected
                                                             ? 'bg-[#FFF4F4]'
                                                             : 'hover:bg-gray-50'
@@ -276,7 +276,7 @@ export const BuyTicketDateStationSelectors = ({
                                                 >
                                                     <SelectionCheck checked={isProvSelected} />
                                                     <span
-                                                        className={`font-bold text-[13px] truncate ${
+                                                        className={`font-bold text-[14px] truncate ${
                                                             isProvSelected ? 'text-[#ee1314]' : 'text-[#212B36]'
                                                         }`}
                                                     >
@@ -307,7 +307,7 @@ export const BuyTicketDateStationSelectors = ({
 
             {todaySellClosed && (
                 <div className="px-3 py-2 border-t border-[#FFE4E4] bg-[#FFF4F4] rounded-b-[20px]">
-                    <p className="text-[13px] text-[#ee1314] leading-snug text-center">
+                    <p className="text-[14px] text-[#ee1314] leading-snug text-center">
                         Đã hết giờ bán hôm nay (sau {effectiveDrawTime}). Chỉ còn vé ngày mai.
                     </p>
                 </div>

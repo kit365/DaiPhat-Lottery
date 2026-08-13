@@ -2,7 +2,7 @@
 
 import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
 import React, { useEffect, useMemo, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useOrderRefundsForInspection } from '../../hooks/useOrder';
 import { getTickets } from '../../../ticket/inventory/services/ticketService';
 import {
     getReplacementCandidates,
@@ -49,12 +49,11 @@ import {
 import { Icon } from '@/admin/components/ui/AdminIcon';
 import { UploadFiles } from '../../../../components/ui/UploadFiles';
 import dayjs from 'dayjs';
-import { resolveLotteryTicketSerialStatusBadge, resolveOrderDetailStatusBadge } from '../../../../../types/order.type';
+import { resolveLotteryTicketSerialStatusBadge } from '../../../../../types/order.type';
+import { OrderDetailStatusBadge, StatusBadge } from '@/shared/components/StatusBadge';
 import type { IncidentTicketDisplay } from '../../types/incidentTicket.type';
 import { resolveOrderDetailTicketDisplay } from '../../utils/resolveOrderDetailTicketDisplay';
 import { prefixAdmin, ROUTES } from '../../../../constants/routes';
-import { refundAdminApi } from "@/admin/features/refund/services/refundService";
-import { QUERY_KEYS } from '../../../../../constants/queryKeys';
 import { RefundRequestResponse } from '../../../../../types/refund.type';
 
 /** Quick suggestions for staff refund reason (UI-only; not persisted separately). */
@@ -211,12 +210,10 @@ export function OrderInspectionSection({
         [tickets]
     );
 
-    const { data: orderRefundsResponse, isFetching: isFetchingOrderRefunds } = useQuery({
-        queryKey: [QUERY_KEYS.ADMIN_REFUNDS, { orderId, page: 1, limit: 20 }],
-        queryFn: () => refundAdminApi.getStaffRefunds({ orderId, page: 1, limit: 20 }),
-        enabled: !!orderId && hasAlreadyFaultReportedTickets,
-        staleTime: 30_000,
-    });
+    const { data: orderRefundsResponse, isFetching: isFetchingOrderRefunds } = useOrderRefundsForInspection(
+        orderId,
+        !!orderId && hasAlreadyFaultReportedTickets
+    );
 
     const linkedRefundRequests = useMemo(() => {
         const list = orderRefundsResponse?.data?.recordList ?? [];
@@ -981,7 +978,6 @@ export function OrderInspectionSection({
                                     )}
                                     {tickets.map((ticket) => {
                                         const disabled = !ticket.isIncidentEligible || ticket.id == null;
-                                        const activityBadge = resolveOrderDetailStatusBadge(ticket.status);
                                         const serialBadge = resolveLotteryTicketSerialStatusBadge(
                                             ticket.serialStatus,
                                             ticket.serialStatusDisplayName,
@@ -1061,22 +1057,12 @@ export function OrderInspectionSection({
                                                     </TableCell>
                                                     <TableCell>
                                                         <Stack spacing={0.5} alignItems="flex-start">
-                                                            <Typography
-                                                                variant="caption"
-                                                                sx={{
-                                                                    fontWeight: 700,
-                                                                    color: serialBadge.color,
-                                                                    bgcolor: serialBadge.bgcolor,
-                                                                    px: 1,
-                                                                    py: 0.5,
-                                                                    borderRadius: '6px',
-                                                                }}
-                                                            >
-                                                                {serialBadge.label}
-                                                            </Typography>
-                                                            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
-                                                                {activityBadge.label}
-                                                            </Typography>
+                                                            <StatusBadge
+                                                                label={serialBadge.label}
+                                                                color={serialBadge.color}
+                                                                bg={serialBadge.bgcolor}
+                                                            />
+                                                            <OrderDetailStatusBadge status={ticket.status} />
                                                         </Stack>
                                                     </TableCell>
                                                     <TableCell align="right">

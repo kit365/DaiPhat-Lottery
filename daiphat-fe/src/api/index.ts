@@ -193,6 +193,11 @@ apiApp.interceptors.response.use(
             const message = (response.data as { message?: string } | undefined)?.message || "Đã có lỗi xảy ra từ máy chủ!";
 
             if (status === 401 && originalRequest && !originalRequest._retry) {
+                // Background / optional reads should fail quietly without refresh storms or logout.
+                if (skipToast) {
+                    return Promise.reject(error);
+                }
+
                 // Skip refresh logic for auth endpoints (login, refresh-token itself)
                 if (isAuthEndpoint(originalRequest.url)) {
                     // For login endpoint: just show the real error from backend

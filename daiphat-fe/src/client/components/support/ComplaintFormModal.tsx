@@ -285,9 +285,9 @@ export const ComplaintFormModal: React.FC<ComplaintFormModalProps> = ({
     const isPending = createMutation.isPending || updateMutation.isPending;
 
     return (
-        <div className="fixed inset-0 z-[9998] flex items-center justify-center p-4">
-            <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose}></div>
-            <div className="relative bg-white rounded-[20px] shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
+        <div className="fixed inset-0 z-[9998] flex items-start justify-center p-4 pt-10 sm:pt-16 overflow-y-auto">
+            <div className="absolute inset-0 bg-black/40" onClick={onClose}></div>
+            <div className="relative bg-white rounded-[20px] shadow-2xl w-full max-w-4xl max-h-[calc(100vh-5rem)] flex flex-col overflow-hidden mb-8">
                 <div className="flex items-center justify-between p-6 border-b border-[#E5E8EB] bg-white z-10">
                     <h2 className="text-[18px] font-bold text-[#212B36]">
                         {isEditing ? 'Chỉnh sửa khiếu nại' : 'Tạo khiếu nại mới'}
@@ -309,7 +309,7 @@ export const ComplaintFormModal: React.FC<ComplaintFormModalProps> = ({
                                 <label className="text-[13px] font-bold text-[#454F5B]">Danh mục *</label>
                                 <div className="relative">
                                     <div
-                                        className={`w-full px-4 py-3 bg-white border ${isDropdownOpen ? 'border-[#ee1314]' : 'border-[#E5E8EB]'} rounded-xl text-[14px] flex items-center justify-between cursor-pointer transition-colors ${isEditing || defaultCategoryCode ? 'bg-[#F4F6F8] cursor-not-allowed opacity-80' : 'hover:border-[#ee1314]'}`}
+                                        className={`w-full px-4 py-3 bg-white border ${isDropdownOpen ? 'border-[#ee1314]' : 'border-[#E5E8EB]'} rounded-xl text-[14px] flex items-center justify-between cursor-pointer transition-colors ${isEditing || defaultCategoryCode ? 'cursor-not-allowed opacity-80' : 'hover:border-[#ee1314]'}`}
                                         onClick={() => {
                                             if (!isEditing && !defaultCategoryCode) {
                                                 setIsDropdownOpen(!isDropdownOpen);
@@ -400,7 +400,7 @@ export const ComplaintFormModal: React.FC<ComplaintFormModalProps> = ({
                                 <div className="flex flex-col gap-2">
                                     <label className="text-[13px] font-bold text-[#454F5B]">Đơn hàng liên quan *</label>
                                     {defaultOrderId ? (
-                                        <div className="w-full px-4 py-3 bg-[#F4F6F8] border border-[#E5E8EB] rounded-xl text-[14px] text-[#212B36] font-semibold">
+                                        <div className="w-full px-4 py-3 bg-white border border-[#E5E8EB] rounded-xl text-[14px] text-[#212B36] font-semibold">
                                             #{(selectedOrder?.orderCode || defaultOrderId).toString()}
                                         </div>
                                     ) : (
@@ -440,7 +440,7 @@ export const ComplaintFormModal: React.FC<ComplaintFormModalProps> = ({
                                         {TICKET_REF_TYPE_LABELS[requiredRefType]} *
                                     </label>
                                     {defaultRefundId != null ? (
-                                        <div className="w-full px-4 py-3 bg-[#F4F6F8] border border-[#E5E8EB] rounded-xl text-[14px] text-[#212B36] font-semibold">
+                                        <div className="w-full px-4 py-3 bg-white border border-[#E5E8EB] rounded-xl text-[14px] text-[#212B36] font-semibold">
                                             #{defaultRefundId}
                                         </div>
                                     ) : (
@@ -480,7 +480,7 @@ export const ComplaintFormModal: React.FC<ComplaintFormModalProps> = ({
                                         {TICKET_REF_TYPE_LABELS[requiredRefType]} *
                                     </label>
                                     {defaultPrizePayoutId != null ? (
-                                        <div className="w-full px-4 py-3 bg-[#F4F6F8] border border-[#E5E8EB] rounded-xl text-[14px] text-[#212B36] font-semibold">
+                                        <div className="w-full px-4 py-3 bg-white border border-[#E5E8EB] rounded-xl text-[14px] text-[#212B36] font-semibold">
                                             #{defaultPrizePayoutId}
                                             {selectedPrizePayout?.requestCode ? ` · ${selectedPrizePayout.requestCode}` : ''}
                                         </div>
@@ -564,7 +564,7 @@ export const ComplaintFormModal: React.FC<ComplaintFormModalProps> = ({
                                 />
                             </div>
 
-                            <div className="bg-[#F9FAFB] p-4 rounded-xl border border-[#E5E8EB] shadow-sm">
+                            <div className="bg-white p-4 rounded-xl border border-[#E5E8EB]">
                                 <ImageUploadPreview
                                     value={attachmentFile}
                                     existingUrl={editingTicket?.attachmentUrl}

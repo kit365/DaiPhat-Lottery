@@ -2,7 +2,7 @@
 
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Calendar, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Calendar, ChevronDown, ChevronLeft, ChevronRight, X } from 'lucide-react';
 
 const WEEKDAYS = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'] as const;
 
@@ -60,6 +60,10 @@ export type ClientDatePickerProps = {
     minDate?: string;
     maxDate?: string;
     label?: string;
+    placeholder?: string;
+    allowClear?: boolean;
+    /** Lottery-only shortcut in the calendar footer. Hidden when omitted. */
+    earliestShortcutLabel?: string;
     error?: boolean;
     className?: string;
     /** Called when this picker opens (so parent can close sibling popovers). */
@@ -76,6 +80,9 @@ export const ClientDatePicker: React.FC<ClientDatePickerProps> = ({
     minDate,
     maxDate,
     label,
+    placeholder = 'Chọn ngày',
+    allowClear = false,
+    earliestShortcutLabel,
     error,
     className = '',
     onOpen,
@@ -117,7 +124,7 @@ export const ClientDatePicker: React.FC<ClientDatePickerProps> = ({
         const el = triggerRef.current;
         if (!el) return;
         const rect = el.getBoundingClientRect();
-        const panelWidth = 270;
+        const panelWidth = 290;
         let left = rect.left;
         if (left + panelWidth > window.innerWidth - 8) {
             left = Math.max(8, window.innerWidth - panelWidth - 8);
@@ -168,7 +175,7 @@ export const ClientDatePicker: React.FC<ClientDatePickerProps> = ({
             <div
                 ref={panelRef}
                 style={{ position: 'fixed', top: pos.top, left: pos.left, zIndex: 10000 }}
-                className="bg-white border border-[#E5E8EB] rounded-xl shadow-[0_12px_32px_rgba(0,0,0,0.12)] w-[270px] p-3"
+                className="bg-white border border-[#E5E8EB] rounded-xl shadow-[0_12px_32px_rgba(0,0,0,0.12)] w-[290px] p-3.5"
             >
                 <div className="flex items-center justify-between mb-2.5 px-0.5">
                     <button
@@ -185,7 +192,7 @@ export const ClientDatePicker: React.FC<ClientDatePickerProps> = ({
                     >
                         <ChevronLeft size={15} />
                     </button>
-                    <span className="text-[12px] font-bold text-[#212B36]">
+                    <span className="text-[14px] font-bold text-[#212B36]">
                         Tháng {viewMonth + 1}, {viewYear}
                     </span>
                     <button
@@ -204,7 +211,7 @@ export const ClientDatePicker: React.FC<ClientDatePickerProps> = ({
                     </button>
                 </div>
 
-                <div className="grid grid-cols-7 gap-1 text-center mb-1 text-[10px] font-bold text-[#919EAB]">
+                <div className="grid grid-cols-7 gap-1 text-center mb-1.5 text-[12px] font-bold text-[#919EAB]">
                     {WEEKDAYS.map((d) => (
                         <div key={d} className="py-0.5">
                             {d}
@@ -212,7 +219,7 @@ export const ClientDatePicker: React.FC<ClientDatePickerProps> = ({
                     ))}
                 </div>
 
-                <div className="grid grid-cols-7 gap-1 text-center text-[11px]">
+                <div className="grid grid-cols-7 gap-1 text-center text-[13px]">
                     {generateCalendarDays(viewMonth, viewYear).map((cell, idx) => {
                         const ymd = formatDateToYMD(cell.year, cell.month, cell.day);
                         const isSelected = value === ymd;
@@ -229,7 +236,7 @@ export const ClientDatePicker: React.FC<ClientDatePickerProps> = ({
                                 type="button"
                                 disabled={!allowed}
                                 onClick={() => pickDate(ymd)}
-                                className={`py-1 rounded-lg font-semibold transition-all ${
+                                className={`py-1.5 rounded-lg font-semibold transition-all ${
                                     isSelected
                                         ? 'bg-[#ee1314] text-white font-bold'
                                         : !allowed
@@ -247,15 +254,15 @@ export const ClientDatePicker: React.FC<ClientDatePickerProps> = ({
                     })}
                 </div>
 
-                {minDate && isDateAllowed(minDate) && (
+                {earliestShortcutLabel && minDate && isDateAllowed(minDate) && (
                     <div className="border-t border-[#F4F6F8] mt-2 pt-2 text-center">
                         <button
                             type="button"
                             onClick={() => pickDate(minDate)}
-                            className="text-[11.5px] font-bold text-[#ee1314] hover:bg-[#FFF4F4] px-3 py-1 rounded-lg transition-colors inline-flex items-center justify-center gap-1.5"
+                            className="text-[13px] font-bold text-[#ee1314] hover:bg-[#FFF4F4] px-3 py-1.5 rounded-lg transition-colors inline-flex items-center justify-center gap-1.5"
                         >
-                            <Calendar size={11} />
-                            Ngày bán sớm nhất
+                            <Calendar size={13} />
+                            {earliestShortcutLabel}
                         </button>
                     </div>
                 )}
@@ -265,12 +272,12 @@ export const ClientDatePicker: React.FC<ClientDatePickerProps> = ({
 
     return (
         <div className={`flex flex-col gap-1 relative ${className}`}>
-            {label ? <span className="text-[11px] font-semibold text-[#637381]">{label}</span> : null}
+            {label ? <span className="text-[13px] font-semibold text-[#637381]">{label}</span> : null}
             <button
                 ref={triggerRef}
                 type="button"
                 onClick={() => setOpen(!isOpen)}
-                className={`w-full flex items-center justify-between px-3 py-2 rounded-xl border bg-white text-[13px] font-medium transition-all ${
+                className={`w-full flex items-center justify-between px-3.5 h-[46px] rounded-xl border bg-white text-[14px] font-medium transition-all ${
                     error
                         ? 'border-red-400 ring-2 ring-red-50'
                         : isOpen
@@ -278,14 +285,38 @@ export const ClientDatePicker: React.FC<ClientDatePickerProps> = ({
                           : 'border-[#E5E8EB] hover:border-[#C4CDD5]'
                 }`}
             >
-                <span className="flex items-center gap-1.5 text-[#212B36]">
-                    <Calendar size={15} className="text-[#ee1314] shrink-0" />
-                    <span>{formatDateToDMY(value) || 'Chọn ngày'}</span>
+                <span className={`flex items-center gap-1.5 min-w-0 ${value ? 'text-[#212B36]' : 'text-[#919EAB]'}`}>
+                    <Calendar size={16} className="text-[#ee1314] shrink-0" />
+                    <span className="truncate">{formatDateToDMY(value) || placeholder}</span>
                 </span>
-                <ChevronDown
-                    size={15}
-                    className={`text-[#919EAB] transition-transform shrink-0 ${isOpen ? 'rotate-180' : ''}`}
-                />
+                <span className="flex items-center gap-1 shrink-0">
+                    {allowClear && value ? (
+                        <span
+                            role="button"
+                            tabIndex={0}
+                            aria-label="Xóa ngày"
+                            onClick={(event) => {
+                                event.stopPropagation();
+                                onChange('');
+                                setOpen(false);
+                            }}
+                            onKeyDown={(event) => {
+                                if (event.key !== 'Enter' && event.key !== ' ') return;
+                                event.preventDefault();
+                                event.stopPropagation();
+                                onChange('');
+                                setOpen(false);
+                            }}
+                            className="p-0.5 rounded-md text-[#919EAB] hover:text-[#212B36] hover:bg-[#F4F6F8]"
+                        >
+                            <X size={14} />
+                        </span>
+                    ) : null}
+                    <ChevronDown
+                        size={16}
+                        className={`text-[#919EAB] transition-transform ${isOpen ? 'rotate-180' : ''}`}
+                    />
+                </span>
             </button>
             {panel}
         </div>

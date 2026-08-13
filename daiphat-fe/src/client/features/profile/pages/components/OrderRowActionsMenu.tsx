@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { OrderResponse, OrderStatus } from '../../../../../types/order.type';
 import { canShowRefundRequest } from '../../../../../types/refund.type';
 import { ComplaintFormModal } from '../../../../components/support/ComplaintFormModal';
@@ -16,6 +17,14 @@ interface OrderRowActionsMenuProps {
     onQuickPayment?: () => void;
 }
 
+type MenuPos = {
+    top: number;
+    left: number;
+    transform?: string;
+};
+
+const MENU_WIDTH = 200;
+
 export const OrderRowActionsMenu = ({
     order,
     hasPendingRefund,
@@ -26,7 +35,11 @@ export const OrderRowActionsMenu = ({
 }: OrderRowActionsMenuProps) => {
     const [open, setOpen] = useState(false);
     const [showComplaintModal, setShowComplaintModal] = useState(false);
-    const menuRef = useRef<HTMLDivElement>(null);
+    const [mounted, setMounted] = useState(false);
+    const [menuPos, setMenuPos] = useState<MenuPos>({ top: 0, left: 0 });
+
+    const triggerRef = useRef<HTMLButtonElement>(null);
+    const panelRef = useRef<HTMLDivElement>(null);
 
     const showRefund = canShowRefundRequest(order, hasPendingRefund);
     const showPayment = order.status === OrderStatus.PENDING_PAYMENT && !!onQuickPayment;
@@ -35,13 +48,61 @@ export const OrderRowActionsMenu = ({
         useGetOrderComplaintEligibility(order.id, showComplaint);
     const complaintEligibility = complaintEligibilityData?.data;
 
+    useEffect(() => setMounted(true), []);
+
+    const updatePosition = () => {
+        const trigger = triggerRef.current;
+        const panel = panelRef.current;
+        if (!trigger) return;
+
+        const rect = trigger.getBoundingClientRect();
+        const panelHeight = panel?.offsetHeight ?? 180;
+
+        let left = rect.right - MENU_WIDTH;
+        left = Math.max(8, Math.min(left, window.innerWidth - MENU_WIDTH - 8));
+
+        const spaceBelow = window.innerHeight - rect.bottom;
+        const openUp = spaceBelow < panelHeight + 12 && rect.top > panelHeight + 12;
+
+        if (openUp) {
+            setMenuPos({
+                top: rect.top - 6,
+                left,
+                transform: 'translateY(-100%)',
+            });
+            return;
+        }
+
+        setMenuPos({
+            top: rect.bottom + 6,
+            left,
+        });
+    };
+
+    useLayoutEffect(() => {
+        if (!open) return;
+
+        updatePosition();
+        const raf = requestAnimationFrame(updatePosition);
+
+        const onReposition = () => updatePosition();
+        window.addEventListener('scroll', onReposition, true);
+        window.addEventListener('resize', onReposition);
+        return () => {
+            cancelAnimationFrame(raf);
+            window.removeEventListener('scroll', onReposition, true);
+            window.removeEventListener('resize', onReposition);
+        };
+    }, [open, showRefund, showPayment, showComplaint, isLoadingComplaintEligibility]);
+
     useEffect(() => {
         if (!open) return;
 
         const handleClickOutside = (event: MouseEvent) => {
-            if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-                setOpen(false);
-            }
+            const target = event.target as Node;
+            if (triggerRef.current?.contains(target)) return;
+            if (panelRef.current?.contains(target)) return;
+            setOpen(false);
         };
 
         const handleEscape = (event: KeyboardEvent) => {
@@ -61,95 +122,109 @@ export const OrderRowActionsMenu = ({
         action();
     };
 
-    return (
-        <div className="relative inline-flex" ref={menuRef}>
+    const menuPanel = open ? (
+        <div
+            ref={panelRef}
+            style={{
+                position: 'fixed',
+                top: menuPos.top,
+                left: menuPos.left,
+                transform: menuPos.transform,
+                width: MENU_WIDTH,
+                zIndex: 10000,
+            }}
+            className="py-1.5 bg-white border border-[#E5E8EB] rounded-xl shadow-[0_8px_24px_rgb(0,0,0,0.12)]"
+            onClick={(e) => e.stopPropagation()}
+        >
             <button
                 type="button"
-                onClick={(e) => {
-                    e.stopPropagation();
-                    setOpen((prev) => !prev);
-                }}
-                className="w-8 h-8 rounded-lg border border-[#E5E8EB] flex items-center justify-center text-[#637381] hover:text-[#212B36] hover:border-[#919EAB] hover:bg-[#F4F6F8] transition-all cursor-pointer"
-                title="Thao tác"
-                aria-label="Mở menu thao tác"
-                aria-expanded={open}
+                onClick={() => closeAndRun(onViewDetail)}
+                className="w-full px-4 py-2.5 text-left text-[14px] text-[#212B36] hover:bg-[#F4F6F8] flex items-center gap-2.5 cursor-pointer transition-colors"
             >
-                <i className="fa-solid fa-ellipsis-vertical text-[14px]"></i>
+                <i className="fa-regular fa-eye text-[#637381] w-4 text-center"></i>
+                Xem chi tiết
             </button>
 
-            {open && (
-                <div
-                    className="absolute right-0 top-full mt-1.5 z-20 min-w-[200px] py-1.5 bg-white border border-[#E5E8EB] rounded-xl shadow-[0_8px_24px_rgb(0,0,0,0.12)]"
-                    onClick={(e) => e.stopPropagation()}
+            {showRefund && (
+                <button
+                    type="button"
+                    onClick={() => closeAndRun(onRequestRefund)}
+                    className="w-full px-4 py-2.5 text-left text-[14px] text-[#ee1314] hover:bg-[#FFF4F4] flex items-center gap-2.5 cursor-pointer transition-colors font-medium"
                 >
-                    <button
-                        type="button"
-                        onClick={() => closeAndRun(onViewDetail)}
-                        className="w-full px-4 py-2.5 text-left text-[14px] text-[#212B36] hover:bg-[#F4F6F8] flex items-center gap-2.5 cursor-pointer transition-colors"
-                    >
-                        <i className="fa-regular fa-eye text-[#637381] w-4 text-center"></i>
-                        Xem chi tiết
-                    </button>
-
-                    {showRefund && (
-                        <button
-                            type="button"
-                            onClick={() => closeAndRun(onRequestRefund)}
-                            className="w-full px-4 py-2.5 text-left text-[14px] text-[#ee1314] hover:bg-[#FFF4F4] flex items-center gap-2.5 cursor-pointer transition-colors font-medium"
-                        >
-                            <i className="fa-solid fa-rotate-left w-4 text-center"></i>
-                            Yêu cầu hoàn tiền
-                        </button>
-                    )}
-
-                    {showPayment && (
-                        <button
-                            type="button"
-                            disabled={isPaying}
-                            onClick={() => closeAndRun(onQuickPayment!)}
-                            className="w-full px-4 py-2.5 text-left text-[14px] text-[#ee1314] hover:bg-[#FFF4F4] flex items-center gap-2.5 cursor-pointer transition-colors font-medium disabled:opacity-50"
-                        >
-                            {isPaying ? (
-                                <i className="fa-solid fa-spinner fa-spin w-4 text-center"></i>
-                            ) : (
-                                <i className="fa-solid fa-credit-card w-4 text-center"></i>
-                            )}
-                            Thanh toán ngay
-                        </button>
-                    )}
-
-                    {showComplaint && (
-                        <button
-                            type="button"
-                            disabled={isLoadingComplaintEligibility}
-                            onClick={() =>
-                                closeAndRun(() => {
-                                    if (!complaintEligibility?.eligible) {
-                                        AppToast.error(
-                                            complaintEligibility?.message ||
-                                                'Đơn hàng chưa đủ điều kiện gửi khiếu nại.'
-                                        );
-                                        return;
-                                    }
-                                    setShowComplaintModal(true);
-                                })
-                            }
-                            className={`w-full px-4 py-2.5 text-left text-[14px] flex items-center gap-2.5 cursor-pointer transition-colors font-medium ${
-                                complaintEligibility?.eligible
-                                    ? 'text-[#ee1314] hover:bg-[#FFF4F4]'
-                                    : 'text-[#919EAB] hover:bg-[#F4F6F8]'
-                            }`}
-                        >
-                            {isLoadingComplaintEligibility ? (
-                                <i className="fa-solid fa-spinner fa-spin w-4 text-center"></i>
-                            ) : (
-                                <i className="fa-solid fa-headset w-4 text-center"></i>
-                            )}
-                            Gửi khiếu nại
-                        </button>
-                    )}
-                </div>
+                    <i className="fa-solid fa-rotate-left w-4 text-center"></i>
+                    Yêu cầu hoàn tiền
+                </button>
             )}
+
+            {showPayment && (
+                <button
+                    type="button"
+                    disabled={isPaying}
+                    onClick={() => closeAndRun(onQuickPayment!)}
+                    className="w-full px-4 py-2.5 text-left text-[14px] text-[#ee1314] hover:bg-[#FFF4F4] flex items-center gap-2.5 cursor-pointer transition-colors font-medium disabled:opacity-50"
+                >
+                    {isPaying ? (
+                        <i className="fa-solid fa-spinner fa-spin w-4 text-center"></i>
+                    ) : (
+                        <i className="fa-solid fa-credit-card w-4 text-center"></i>
+                    )}
+                    Thanh toán ngay
+                </button>
+            )}
+
+            {showComplaint && (
+                <button
+                    type="button"
+                    disabled={isLoadingComplaintEligibility}
+                    onClick={() =>
+                        closeAndRun(() => {
+                            if (!complaintEligibility?.eligible) {
+                                AppToast.error(
+                                    complaintEligibility?.message ||
+                                        'Đơn hàng chưa đủ điều kiện gửi khiếu nại.'
+                                );
+                                return;
+                            }
+                            setShowComplaintModal(true);
+                        })
+                    }
+                    className={`w-full px-4 py-2.5 text-left text-[14px] flex items-center gap-2.5 cursor-pointer transition-colors font-medium ${
+                        complaintEligibility?.eligible
+                            ? 'text-[#ee1314] hover:bg-[#FFF4F4]'
+                            : 'text-[#919EAB] hover:bg-[#F4F6F8]'
+                    }`}
+                >
+                    {isLoadingComplaintEligibility ? (
+                        <i className="fa-solid fa-spinner fa-spin w-4 text-center"></i>
+                    ) : (
+                        <i className="fa-solid fa-headset w-4 text-center"></i>
+                    )}
+                    Gửi khiếu nại
+                </button>
+            )}
+        </div>
+    ) : null;
+
+    return (
+        <>
+            <div className="relative inline-flex">
+                <button
+                    ref={triggerRef}
+                    type="button"
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        setOpen((prev) => !prev);
+                    }}
+                    className="w-8 h-8 rounded-lg border border-[#E5E8EB] flex items-center justify-center text-[#637381] hover:text-[#212B36] hover:border-[#919EAB] hover:bg-[#F4F6F8] transition-all cursor-pointer"
+                    title="Thao tác"
+                    aria-label="Mở menu thao tác"
+                    aria-expanded={open}
+                >
+                    <i className="fa-solid fa-ellipsis-vertical text-[14px]"></i>
+                </button>
+            </div>
+
+            {mounted && menuPanel ? createPortal(menuPanel, document.body) : null}
 
             <ComplaintFormModal
                 isOpen={showComplaintModal}
@@ -158,6 +233,6 @@ export const OrderRowActionsMenu = ({
                 defaultCategoryCode={complaintEligibility?.categoryCode || undefined}
                 requireEvidence={complaintEligibility?.requiresEvidence}
             />
-        </div>
+        </>
     );
 };

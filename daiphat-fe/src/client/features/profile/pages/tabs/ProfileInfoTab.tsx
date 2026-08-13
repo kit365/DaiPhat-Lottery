@@ -3,6 +3,8 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from "../../../../hooks/useAuth";
 import { AppToast as toast } from "../../../../../utils/toast.util";
+import { ClientDatePicker } from '../../../../components/ui/ClientDatePicker';
+import { todayIsoVn } from '../../../../utils/sellableDrawDate.util';
 
 const DEFAULT_DOB = '';
 const DEFAULT_GENDER = '';
@@ -217,12 +219,13 @@ export const ProfileInfoTab = () => {
                         </div>
                         <div className="flex-1 text-[15px] font-semibold text-[#212B36]">
                             {isEditing ? (
-                                <input
-                                    type="date"
-                                    value={formData.dob}
-                                    onChange={e => setFormData({ ...formData, dob: e.target.value })}
-                                    className="w-full md:w-2/3 border border-[#E5E8EB] rounded-lg px-3 py-2 text-[14px] outline-none focus:border-[#ee1314] transition-colors font-normal"
-                                />
+                                <div className="w-full md:w-2/3">
+                                    <ClientDatePicker
+                                        value={formData.dob}
+                                        maxDate={todayIsoVn()}
+                                        onChange={(ymd) => setFormData({ ...formData, dob: ymd })}
+                                    />
+                                </div>
                             ) : (
                                 formData.dob ? formData.dob.split('-').reverse().join('/') : "Chưa cập nhật"
                             )}

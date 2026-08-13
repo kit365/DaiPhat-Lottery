@@ -96,7 +96,7 @@ export const NotificationsTab = () => {
         isFetchingNextPage,
         hasNextPage,
         fetchNextPage,
-    } = useNotifications(7);
+    } = useNotifications();
     const { mutate: markMyNotificationAsRead } = useMarkMyNotificationAsRead();
     const { mutate: markAllMyNotificationsAsRead } = useMarkAllMyNotificationsAsRead();
     const { mutate: deleteAllMyReadNotifications } = useDeleteAllMyReadNotifications();

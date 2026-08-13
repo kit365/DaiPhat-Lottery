@@ -1,23 +1,6 @@
 import React from 'react';
 import { useGetMyOrders } from '../../hooks/useOrder';
-
-const ORDER_STATUS_LABELS: Record<string, string> = {
-    PENDING_PAYMENT: 'Chờ thanh toán',
-    PAID: 'Đã thanh toán',
-    PREPARING: 'Đang xử lý',
-    PENDING_PICKUP: 'Chờ nhận vé',
-    COMPLETED: 'Hoàn thành',
-    CANCELLED: 'Đã huỷ'
-};
-
-const ORDER_STATUS_STYLES: Record<string, string> = {
-    PENDING_PAYMENT: 'bg-[#FFF9F3] text-[#FFB020]',
-    PAID: 'bg-[#E4F8ED] text-[#1CD162]',
-    PREPARING: 'bg-[#F0F5FF] text-[#2065D1]',
-    PENDING_PICKUP: 'bg-[#F0F5FF] text-[#2065D1]',
-    COMPLETED: 'bg-[#E4F8ED] text-[#1CD162]',
-    CANCELLED: 'bg-[#ee1314] text-white'
-};
+import { OrderStatusBadge } from '@/shared/components/StatusBadge';
 
 const ORDER_CANCEL_TYPE_LABELS: Record<string, string> = {
     CUSTOMER_REQUEST: 'Người dùng huỷ',
@@ -115,9 +98,7 @@ export const SelectOrderModal: React.FC<SelectOrderModalProps> = ({
                                             <div className="flex flex-col gap-0.5">
                                                 <div className="flex items-center gap-2">
                                                     <span className="font-bold text-[#212B36] text-[14px]">#{order.id.slice(0, 8).toUpperCase()}</span>
-                                                    <span className={`px-2 py-0.5 text-[10px] font-bold rounded-md uppercase ${ORDER_STATUS_STYLES[order.status] || 'bg-[#F4F6F8] text-[#454F5B]'}`}>
-                                                        {ORDER_STATUS_LABELS[order.status] || order.status}
-                                                    </span>
+                                                    <OrderStatusBadge status={order.status} />
                                                     {order.status === 'CANCELLED' && order.cancelType && (
                                                         <span className="px-2 py-0.5 bg-[#FFF4F4] text-[#ee1314] text-[10px] font-bold rounded-md uppercase">
                                                             {ORDER_CANCEL_TYPE_LABELS[order.cancelType] || order.cancelType}

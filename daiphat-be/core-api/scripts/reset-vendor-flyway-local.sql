@@ -11,7 +11,7 @@
 -- Run (Docker Compose Postgres on 5434):
 --   docker exec -i daiphat-local-postgres-1 psql -U sa -d daiphat_core_db < daiphat-be/core-api/scripts/reset-vendor-flyway-local.sql
 --
--- Then restart core-api with profile `local` (repair-on-migrate is already enabled there).
+-- Then restart core-api with profile `local` (LocalFlywayConfig runs repair before migrate).
 
 BEGIN;
 

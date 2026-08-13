@@ -51,26 +51,18 @@ export const PROVINCE_ICON_FALLBACK =
 /** Vé mặc định khi API không trả ảnh — dùng chung với banner mua vé #1. */
 export const TICKET_IMAGE_FALLBACK = BUY_TICKET_BANNERS[0];
 
-/** Banner dùng chung nhiều trang — prefetch sau các route ưu tiên. */
-export const CLIENT_SHARED_PREFETCH_BANNERS: readonly string[] = [
-  HOME_SIDEBAR_CTA_BANNER,
-  FOOTER_BACKGROUND,
-  VERIFY_MODAL_BACKGROUND,
-  PROVINCE_ICON_FALLBACK,
-];
-
 /**
- * Thứ tự prefetch route + banner khi Home load xong.
- * Mỗi route: tải JS page và banner của trang đó song song.
+ * Funnel mua vé — chỉ warm route có xác suất click cao từ Home.
+ * Các trang khác (blog, fortune, profile…) dùng hover banner hoặc Link mặc định.
  */
 export const CLIENT_PREFETCH_ROUTE_PRIORITY: readonly string[] = [
   ROUTES.PUBLIC.TICKETS,
   ROUTES.PUBLIC.CART,
-  ROUTES.PUBLIC.PROFILE.MY_TICKETS,
-  ROUTES.PUBLIC.FORTUNE,
-  ROUTES.PUBLIC.SCHEDULE,
-  ROUTES.PUBLIC.BLOGS,
-  ROUTES.PUBLIC.PROFILE.OVERVIEW,
+];
+
+/** Banner nhẹ sau funnel — tránh tải footer/modal nặng khi user chưa cần. */
+export const CLIENT_SHARED_PREFETCH_BANNERS: readonly string[] = [
+  PROVINCE_ICON_FALLBACK,
 ];
 
 const normalizeClientPath = (path: string): string => {
