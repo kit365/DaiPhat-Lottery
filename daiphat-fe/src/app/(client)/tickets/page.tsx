@@ -14,18 +14,22 @@ export const revalidate = 60;
 export default async function TicketsPage() {
     const queryClient = new QueryClient();
 
-    await Promise.all([
-        queryClient.prefetchQuery({
-            queryKey: publicStationsQueryKeys.today(),
-            queryFn: getPublicStationsToday,
-        }),
-        queryClient.prefetchQuery({
-            queryKey: publicStationsQueryKeys.tomorrow(),
-            queryFn: getPublicStationsTomorrow,
-        }),
-    ]);
+    try {
+        await Promise.all([
+            queryClient.prefetchQuery({
+                queryKey: publicStationsQueryKeys.today(),
+                queryFn: getPublicStationsToday,
+            }),
+            queryClient.prefetchQuery({
+                queryKey: publicStationsQueryKeys.tomorrow(),
+                queryFn: getPublicStationsTomorrow,
+            }),
+        ]);
 
-    await prefetchBuyTicketCatalog(queryClient);
+        await prefetchBuyTicketCatalog(queryClient);
+    } catch {
+        // Backend may be down during CI/build. The client hydrates and fetches on its own.
+    }
 
     return (
         <HydrationBoundary state={dehydrate(queryClient)}>

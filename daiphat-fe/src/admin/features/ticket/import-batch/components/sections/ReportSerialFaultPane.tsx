@@ -60,7 +60,7 @@ import {
 } from './TicketIncidentRefundStep';
 import { createPartialRefund } from '../../../../orders/services/orderService';
 import { refundAdminApi } from '@/admin/features/refund/services/refundService';
-import { getOrderStatusBadge } from '@/admin/features/orders/utils/orderStatusBadge';
+import { OrderStatusBadge } from '@/shared/components/StatusBadge';
 import { OrderStatus } from '../../../../../../types/order.type';
 import {
     formatRefundCurrency,
@@ -2676,7 +2676,6 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
                             </Typography>
                             <Stack spacing={1.5}>
                                 {Object.entries(refundDraftByOrderId).map(([orderId, draft]) => {
-                                    const statusBadge = getOrderStatusBadge(draft.orderStatus);
                                     const orderTypeLabel =
                                         ORDER_TYPE_LABELS[draft.orderType || ''] || draft.orderType || '—';
 
@@ -2694,17 +2693,7 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
                                             <Typography variant="body2" fontWeight={800}>
                                                 {draft.orderCode || orderId}
                                             </Typography>
-                                            <Chip
-                                                label={statusBadge.label}
-                                                size="small"
-                                                sx={{
-                                                    fontWeight: 700,
-                                                    fontSize: '0.65rem',
-                                                    color: statusBadge.color,
-                                                    bgcolor: statusBadge.bg,
-                                                    height: 22,
-                                                }}
-                                            />
+                                            <OrderStatusBadge status={draft.orderStatus} />
                                         </Stack>
                                         <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
                                             {draft.customerName || '—'}

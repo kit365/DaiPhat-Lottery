@@ -37,7 +37,7 @@ import { OrderCutoffReminderBanner } from './OrderCutoffReminderBanner';
 import { OrderHandoverConfirmDialog } from './OrderHandoverConfirmDialog';
 import { OrderStatus } from '../../../../../types/order.type';
 import { ORDER_STATUS_TABS } from '../../constants/orderStatus.constants';
-import { getOrderStatusBadge } from '../../utils/orderStatusBadge';
+import { OrderStatusBadge } from '@/shared/components/StatusBadge';
 import {
     AdminRowActionsMenu,
     type AdminRowActionsMenuItem,
@@ -485,25 +485,9 @@ export const OrderList = () => {
                                             </TableCell>
 
                                             <TableCell align="right" sx={{ borderBottom: '1px dashed var(--palette-background-neutral)' }}>
-                                                {(() => {
-                                                    const status = getOrderStatusBadge(row.status);
-                                                    return (
-                                                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
-                                                            <Chip
-                                                                label={status.label}
-                                                                size="small"
-                                                                sx={{
-                                                                    borderRadius: "var(--shape-borderRadius-sm)",
-                                                                    fontWeight: 700,
-                                                                    fontSize: '0.6875rem',
-                                                                    color: status.color,
-                                                                    bgcolor: status.bg,
-                                                                    height: '24px'
-                                                                }}
-                                                            />
-                                                        </Box>
-                                                    );
-                                                })()}
+                                                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
+                                                    <OrderStatusBadge status={row.status} />
+                                                </Box>
                                             </TableCell>
 
                                             <TableCell align="right" sx={{ borderBottom: '1px dashed var(--palette-background-neutral)', width: 80 }}>

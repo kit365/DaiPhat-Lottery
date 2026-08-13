@@ -1,13 +1,13 @@
 "use client";
 
 import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
-import { Box, Typography, Chip, TablePagination } from "@mui/material";
+import { Box, Typography, TablePagination } from "@mui/material";
 import { SpinnerLoading } from "../../../../components/ui/SpinnerLoading";
 import { useUserOrders } from "../../hooks/useUserOrders";
 import dayjs from "dayjs";
 import { prefixAdmin } from '../../../../constants/routes';
 import { useState } from "react";
-import { getOrderStatusBadge } from '@/admin/features/orders/utils/orderStatusBadge';
+import { OrderStatusBadge } from '@/shared/components/StatusBadge';
 
 interface UserOrderHistoryProps {
     userId: string;
@@ -65,7 +65,6 @@ export const UserOrderHistory = ({ userId }: UserOrderHistoryProps) => {
                             order.tickets?.map((p: any) => p.ticketName || p.ticketId?.name).filter(Boolean).join(', ') ||
                             order.orderDetails?.map((p: any) => p.ticketName || p.productName || p.name).filter(Boolean).join(', ') ||
                             'N/A';
-                        const status = getOrderStatusBadge(order.status);
 
                         return (
                             <Box
@@ -101,18 +100,7 @@ export const UserOrderHistory = ({ userId }: UserOrderHistoryProps) => {
                                     {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(order.totalAmount ?? order.totalPrice ?? 0)}
                                 </Typography>
                                 <Box textAlign="center">
-                                    <Chip
-                                        label={status.label}
-                                        size="small"
-                                        sx={{
-                                            borderRadius: "var(--shape-borderRadius-sm)",
-                                            fontWeight: 700,
-                                            fontSize: '0.6875rem',
-                                            color: status.color,
-                                            bgcolor: status.bg,
-                                            height: '24px',
-                                        }}
-                                    />
+                                    <OrderStatusBadge status={order.status} />
                                 </Box>
                             </Box>
                         );

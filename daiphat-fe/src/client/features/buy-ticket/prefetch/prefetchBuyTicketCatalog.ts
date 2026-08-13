@@ -91,14 +91,18 @@ export const prefetchBuyTicketCatalog = async (
     queryClient: QueryClient,
 ): Promise<void> => {
     const [todayStations, tomorrowStations] = await Promise.all([
-        queryClient.ensureQueryData({
-            queryKey: publicStationsQueryKeys.today(),
-            queryFn: getPublicStationsToday,
-        }),
-        queryClient.ensureQueryData({
-            queryKey: publicStationsQueryKeys.tomorrow(),
-            queryFn: getPublicStationsTomorrow,
-        }),
+        queryClient
+            .ensureQueryData({
+                queryKey: publicStationsQueryKeys.today(),
+                queryFn: getPublicStationsToday,
+            })
+            .catch((): PublicStationSchedule[] => []),
+        queryClient
+            .ensureQueryData({
+                queryKey: publicStationsQueryKeys.tomorrow(),
+                queryFn: getPublicStationsTomorrow,
+            })
+            .catch((): PublicStationSchedule[] => []),
     ]);
 
     const targets = buildBuyTicketCatalogTargets(todayStations, tomorrowStations);
@@ -116,10 +120,12 @@ export const prefetchBuyTicketCatalogForDrawDates = async (
         return prefetchBuyTicketCatalog(queryClient);
     }
 
-    const stations = await queryClient.ensureQueryData({
-        queryKey: ['public-stations-by-draw-date', normalizedDates] as const,
-        queryFn: () => getPublicStationsByDrawDate(normalizedDates),
-    });
+    const stations = await queryClient
+        .ensureQueryData({
+            queryKey: ['public-stations-by-draw-date', normalizedDates] as const,
+            queryFn: () => getPublicStationsByDrawDate(normalizedDates),
+        })
+        .catch((): PublicStationSchedule[] => []);
 
     const stationIds = stationIdsFromSchedule(stations);
     if (stationIds.length === 0) {

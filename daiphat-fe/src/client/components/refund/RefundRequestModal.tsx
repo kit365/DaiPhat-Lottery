@@ -22,21 +22,13 @@ import {
 } from './refundRequestForm.logic';
 import { AppToast } from '../../../utils/toast.util';
 import { ClientSelect } from '../ui/ClientSelect';
+import { OrderStatusBadge } from '@/shared/components/StatusBadge';
 
 interface RefundRequestModalProps {
     isOpen: boolean;
     onClose: () => void;
     order: OrderResponse;
 }
-
-const ORDER_STATUS_LABELS: Record<string, string> = {
-    PENDING_PAYMENT: 'Chờ thanh toán',
-    PAID: 'Đã thanh toán',
-    PREPARING: 'Đang chuẩn bị vé',
-    PENDING_PICKUP: 'Chờ nhận vé',
-    COMPLETED: 'Đã hoàn thành',
-    CANCELLED: 'Đã hủy'
-};
 
 export const RefundRequestModal: React.FC<RefundRequestModalProps> = ({ isOpen, onClose, order }) => {
     const router = useRouter();
@@ -237,11 +229,9 @@ export const RefundRequestModal: React.FC<RefundRequestModalProps> = ({ isOpen, 
                                 </div>
                                 <div>
                                     <span className="text-[#637381]">Trạng thái</span>
-                                    <p className="font-semibold text-[#212B36] mt-0.5">
-                                        {ORDER_STATUS_LABELS[eligibility?.orderStatus || order.status] ||
-                                            eligibility?.orderStatus ||
-                                            order.status}
-                                    </p>
+                                    <div className="mt-0.5">
+                                        <OrderStatusBadge status={eligibility?.orderStatus || order.status} />
+                                    </div>
                                 </div>
                                 <div>
                                     <span className="text-[#637381]">Ngày đặt</span>

@@ -15,17 +15,9 @@ import { OrderRowActionsMenu } from '../components/OrderRowActionsMenu';
 import { ProfileTablePagination } from '../components/ProfileTablePagination';
 import { ClientSelect } from '../../../../components/ui/ClientSelect';
 import { ClientDatePicker } from '../../../../components/ui/ClientDatePicker';
+import { OrderStatusBadge } from '@/shared/components/StatusBadge';
 import { todayIsoVn } from '../../../../utils/sellableDrawDate.util';
 import { format } from 'date-fns';
-
-const ORDER_STATUS_MAP: Record<OrderStatus, { label: string, bg: string, text: string }> = {
-    [OrderStatus.PENDING_PAYMENT]: { label: 'Chờ thanh toán', bg: 'bg-[#FFF9F3]', text: 'text-[#FFB020]' },
-    [OrderStatus.PAID]: { label: 'Đã thanh toán', bg: 'bg-[#E4F8ED]', text: 'text-[#1CD162]' },
-    [OrderStatus.PREPARING]: { label: 'Đang chuẩn bị vé', bg: 'bg-[#F0F5FF]', text: 'text-[#2065D1]' },
-    [OrderStatus.PENDING_PICKUP]: { label: 'Chờ nhận vé', bg: 'bg-[#F0F5FF]', text: 'text-[#2065D1]' },
-    [OrderStatus.COMPLETED]: { label: 'Đã hoàn thành', bg: 'bg-[#E4F8ED]', text: 'text-[#1CD162]' },
-    [OrderStatus.CANCELLED]: { label: 'Đã huỷ', bg: 'bg-[#FFF4F4]', text: 'text-[#ee1314]' }
-};
 
 const ORDER_TYPE_MAP: Record<OrderType, { label: string, icon: string }> = {
     [OrderType.ONLINE]: { label: 'Online', icon: 'fa-solid fa-desktop' },
@@ -216,15 +208,6 @@ export const OrdersTab = () => {
         { value: OrderStatus.CANCELLED, label: 'Đã huỷ' }
     ];
 
-    const getStatusBadge = (status: OrderStatus) => {
-        const config = ORDER_STATUS_MAP[status];
-        return (
-            <div className={`inline-block ${config.bg} ${config.text} px-2.5 py-1 rounded-md text-[12px] font-medium`}>
-                {config.label}
-            </div>
-        );
-    };
-
     const getOrderTypeDisplay = (type: OrderType) => {
         const config = ORDER_TYPE_MAP[type];
         return (
@@ -327,7 +310,7 @@ export const OrdersTab = () => {
                                     <th className="py-4 px-5 text-[13px] font-semibold text-[#637381] tracking-wide">Giờ lấy vé</th>
                                     <th className="py-4 px-5 text-[13px] font-semibold text-[#637381] tracking-wide text-center">SL Vé</th>
                                     <th className="py-4 px-5 text-[13px] font-semibold text-[#637381] tracking-wide">Thành tiền</th>
-                                    <th className="py-4 px-5 text-[13px] font-semibold text-[#637381] tracking-wide">Trạng thái</th>
+                                    <th className="py-4 px-5 text-[13px] font-semibold text-[#637381] tracking-wide text-center">Trạng thái</th>
                                     <th className="py-4 px-5 text-[13px] font-semibold text-[#637381] tracking-wide text-right">Thao tác</th>
                                 </tr>
                             </thead>
@@ -390,8 +373,10 @@ export const OrdersTab = () => {
                                                 <td className="py-4 px-5 align-top">
                                                     <span className="text-[14px] font-bold text-[#212B36]">{order.totalAmount.toLocaleString('vi-VN')}đ</span>
                                                 </td>
-                                                <td className="py-4 px-5 align-top">
-                                                    {getStatusBadge(order.status)}
+                                                <td className="py-4 px-5 align-middle text-center">
+                                                    <div className="flex justify-center">
+                                                        <OrderStatusBadge status={order.status} />
+                                                    </div>
                                                 </td>
                                                 <td className="py-4 px-5 text-right align-top">
                                                     <div className="flex items-center justify-end">

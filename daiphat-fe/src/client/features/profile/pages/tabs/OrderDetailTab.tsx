@@ -10,7 +10,8 @@ import QRCode from 'react-qr-code';
 import { useGetMyOrderDetail } from '../../../../hooks/useOrder';
 import { useGetPendingPaymentCountdown, useProcessPayment, useSyncPaymentFromGateway } from '../../../../hooks/useTransaction';
 import { useGetMyRefunds } from '../../../../hooks/useRefund';
-import { OrderStatus, OrderType, resolveOrderDetailStatusBadge } from '../../../../../types/order.type';
+import { OrderStatus, OrderType } from '../../../../../types/order.type';
+import { OrderDetailStatusBadge, OrderStatusBadge } from '@/shared/components/StatusBadge';
 import { RefundRequestStatus, RefundType, formatRefundCountdown, isRefundCandidateStatus } from '../../../../../types/refund.type';
 import { PaymentGateway, PaymentResult } from '../../../../../types/transaction.type';
 import { AppToast } from '../../../../../utils/toast.util';
@@ -24,16 +25,6 @@ import { OrderComplaintButton } from '../../../../components/support/OrderCompla
 import { useGetOrderRefundEligibility } from '../../../../hooks/useRefund';
 import { useRefundCountdown } from '../../../../hooks/useRefundCountdown';
 import { format } from 'date-fns';
-
-const ORDER_STATUS_MAP: Record<OrderStatus, { label: string, bg: string, text: string }> = {
-    [OrderStatus.PENDING_PAYMENT]: { label: 'Chờ thanh toán', bg: 'bg-[#FFF9F3]', text: 'text-[#FFB020]' },
-    [OrderStatus.PAID]: { label: 'Đã thanh toán', bg: 'bg-[#E4F8ED]', text: 'text-[#1CD162]' },
-    [OrderStatus.PREPARING]: { label: 'Đang xử lý', bg: 'bg-[#F0F5FF]', text: 'text-[#2065D1]' },
-    [OrderStatus.PENDING_PICKUP]: { label: 'Chờ nhận vé', bg: 'bg-[#F0F5FF]', text: 'text-[#2065D1]' },
-    [OrderStatus.COMPLETED]: { label: 'Đã hoàn thành', bg: 'bg-[#E4F8ED]', text: 'text-[#1CD162]' },
-    [OrderStatus.CANCELLED]: { label: 'Đã huỷ', bg: 'bg-[#FFF4F4]', text: 'text-[#ee1314]' }
-};
-
 
 const OrderStepper = ({ order }: { order: any }) => {
     const currentStatus = order?.status;
@@ -306,7 +297,6 @@ export const OrderDetailTab = () => {
     /** Countdown đã hết nhưng backend chưa kịp hủy → hiển thị như đã huỷ */
     const displayStatus =
         isPendingPayment && isPaymentCountdownExpired ? OrderStatus.CANCELLED : order.status;
-    const statusConfig = ORDER_STATUS_MAP[displayStatus];
     const isPaidOrCompleted = [OrderStatus.PAID, OrderStatus.PREPARING, OrderStatus.PENDING_PICKUP, OrderStatus.COMPLETED].includes(order.status);
 
     const handleCopyOrderCode = () => {
@@ -481,9 +471,7 @@ export const OrderDetailTab = () => {
                         <div className="flex flex-col gap-1.5 sm:items-end">
                             <span className="text-[13px] font-medium text-[#637381]">Trạng thái</span>
                             <div className="flex items-center min-h-[26px]">
-                                <span className={`text-[12px] font-bold px-3 py-1 rounded-full border ${statusConfig.bg} ${statusConfig.text} border-current/20`}>
-                                    {statusConfig.label}
-                                </span>
+                                <OrderStatusBadge status={displayStatus} />
                             </div>
                         </div>
                     </div>
@@ -578,14 +566,9 @@ export const OrderDetailTab = () => {
                                             <span className="text-[15px] font-bold text-[#ee1314] whitespace-nowrap">
                                                 {price.toLocaleString('vi-VN')}đ
                                             </span>
-                                            {detail.status && (() => {
-                                                const badge = resolveOrderDetailStatusBadge(detail.status);
-                                                return (
-                                                    <span className={`inline-flex items-center px-2 py-1 rounded-lg text-[12px] font-bold ${badge.bg} ${badge.text}`}>
-                                                        {badge.label}
-                                                    </span>
-                                                );
-                                            })()}
+                                            {detail.status ? (
+                                                <OrderDetailStatusBadge status={detail.status} />
+                                            ) : null}
                                             {isPaidOrCompleted && (
                                                 <Link
                                                     href="/"

@@ -49,7 +49,8 @@ import {
 import { Icon } from '@/admin/components/ui/AdminIcon';
 import { UploadFiles } from '../../../../components/ui/UploadFiles';
 import dayjs from 'dayjs';
-import { resolveLotteryTicketSerialStatusBadge, resolveOrderDetailStatusBadge } from '../../../../../types/order.type';
+import { resolveLotteryTicketSerialStatusBadge } from '../../../../../types/order.type';
+import { OrderDetailStatusBadge, StatusBadge } from '@/shared/components/StatusBadge';
 import type { IncidentTicketDisplay } from '../../types/incidentTicket.type';
 import { resolveOrderDetailTicketDisplay } from '../../utils/resolveOrderDetailTicketDisplay';
 import { prefixAdmin, ROUTES } from '../../../../constants/routes';
@@ -977,7 +978,6 @@ export function OrderInspectionSection({
                                     )}
                                     {tickets.map((ticket) => {
                                         const disabled = !ticket.isIncidentEligible || ticket.id == null;
-                                        const activityBadge = resolveOrderDetailStatusBadge(ticket.status);
                                         const serialBadge = resolveLotteryTicketSerialStatusBadge(
                                             ticket.serialStatus,
                                             ticket.serialStatusDisplayName,
@@ -1057,22 +1057,12 @@ export function OrderInspectionSection({
                                                     </TableCell>
                                                     <TableCell>
                                                         <Stack spacing={0.5} alignItems="flex-start">
-                                                            <Typography
-                                                                variant="caption"
-                                                                sx={{
-                                                                    fontWeight: 700,
-                                                                    color: serialBadge.color,
-                                                                    bgcolor: serialBadge.bgcolor,
-                                                                    px: 1,
-                                                                    py: 0.5,
-                                                                    borderRadius: '6px',
-                                                                }}
-                                                            >
-                                                                {serialBadge.label}
-                                                            </Typography>
-                                                            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
-                                                                {activityBadge.label}
-                                                            </Typography>
+                                                            <StatusBadge
+                                                                label={serialBadge.label}
+                                                                color={serialBadge.color}
+                                                                bg={serialBadge.bgcolor}
+                                                            />
+                                                            <OrderDetailStatusBadge status={ticket.status} />
                                                         </Stack>
                                                     </TableCell>
                                                     <TableCell align="right">

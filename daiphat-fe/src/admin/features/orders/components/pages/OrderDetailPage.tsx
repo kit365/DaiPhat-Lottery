@@ -28,7 +28,7 @@ import dayjs from "dayjs";
 import { PageHeader } from "../../../../components/ui/PageHeader";
 import { SpinnerLoading } from "../../../../components/ui/SpinnerLoading";
 import { useOrderDetail, useUpdateOrderStatus } from "../../hooks/useOrder";
-import { OrderStatus, resolveLotteryTicketSerialStatusBadge, resolveOrderDetailStatusBadge } from "../../../../../types/order.type";
+import { OrderStatus, resolveLotteryTicketSerialStatusBadge } from "../../../../../types/order.type";
 import { toast } from "react-toastify";
 import { prefixAdmin } from "../../../../constants/routes";
 import { confirmAction } from "../../../../utils/swal";
@@ -38,6 +38,7 @@ import { OrderInspectionSection } from "../sections/OrderInspectionSection";
 import { OrderHandoverConfirmDialog } from "../sections/OrderHandoverConfirmDialog";
 import { OrderSteppersCard } from "../sections/OrderSteppersCard";
 import { getOrderStatusBadge } from '../../utils/orderStatusBadge';
+import { OrderDetailStatusBadge, OrderStatusBadge } from '@/shared/components/StatusBadge';
 import { resolveOrderPaymentMethodLabel } from "../../../../../utils/orderPayment.util";
 
 const PAYMENT_STATUS_OPTIONS: { [key: string]: { label: string; color: string; bg: string } } = {
@@ -313,18 +314,7 @@ export const OrderDetailPage = () => {
 
                                 <Grid size={{ xs: 12, sm: 6, md: 1.5 }}>
                                     <Typography variant="caption" sx={{ color: 'var(--palette-text-disabled)', display: 'block', mb: 1 }}>Trạng thái</Typography>
-                                    <Chip
-                                        label={currentStatus.label}
-                                        size="small"
-                                        sx={{
-                                            fontWeight: 700,
-                                            height: 24,
-                                            fontSize: '0.75rem',
-                                            borderRadius: '6px',
-                                            color: currentStatus.color,
-                                            bgcolor: currentStatus.bg,
-                                        }}
-                                    />
+                                    <OrderStatusBadge status={order.status} />
                                 </Grid>
                             </Grid>
 
@@ -425,7 +415,6 @@ export const OrderDetailPage = () => {
                                                     ticketCondition,
                                                     ticketConditionLabel
                                                 );
-                                                const activityBadge = resolveOrderDetailStatusBadge(detail.status);
 
                                                 return (
                                                 <TableRow key={detail.id || detail.lotteryTicketSerialId || detail.serialNumber} sx={{ '&:last-child td, &:last-child th': { border: 0 } }}>
@@ -497,18 +486,7 @@ export const OrderDetailPage = () => {
                                                         />
                                                     </TableCell>
                                                     <TableCell>
-                                                        <Chip
-                                                            label={activityBadge.label}
-                                                            size="small"
-                                                            sx={{
-                                                                fontWeight: 700,
-                                                                height: 24,
-                                                                fontSize: '0.75rem',
-                                                                borderRadius: '6px',
-                                                                color: activityBadge.color,
-                                                                bgcolor: activityBadge.bgcolor,
-                                                            }}
-                                                        />
+                                                        <OrderDetailStatusBadge status={detail.status} />
                                                     </TableCell>
                                                 </TableRow>
                                                 );
