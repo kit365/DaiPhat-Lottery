@@ -243,10 +243,10 @@ export const StreetAgentReportPage = () => {
             return;
         }
         if (fieldId === 'status') {
-            const previous = status ? [status] : [];
+            const previous: string[] = status ? [status] : [];
             const added = values.find((value) => !previous.includes(value));
             // Status is single-select: newly checked wins, uncheck clears.
-            setStatus((added || (values[0] as StreetAgentReportStatus | undefined) || '') as StreetAgentReportStatus | '');
+            setStatus((added || values[0] || '') as StreetAgentReportStatus | '');
             resetTablePage();
         }
     };
