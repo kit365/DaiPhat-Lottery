@@ -34,12 +34,13 @@ import {
     useConfirmVendorReturnInspection,
     useConfirmVendorNoReturn,
     useOpenVendorAllocationReturnSession,
-    useRemoveVendorAllocationReturnSerial,
-    useReturnVendorAllocationSerials,
+    useReplaceVendorAllocationReturns,
+    useReopenVendorReturnInspection,
     useSettleVendorAllocation,
     useVendorAllocationBatch,
     useVendorSettlementPreview,
 } from "../../hooks/useVendorAllocation";
+import { useVendorReturnSelectionDraft } from "../../hooks/useVendorReturnSelectionDraft";
 import { useStreetAgentProfiles } from "../../hooks/useStreetAgent";
 import {
     mapPreviewToBreakdown,
@@ -69,15 +70,17 @@ export const VendorAllocationBatchDetailPage = () => {
     const canEdit = can(PERMISSIONS.STREET_AGENT.EDIT);
 
     const [scanInput, setScanInput] = useState("");
-    const [selectedSerialIds, setSelectedSerialIds] = useState<number[]>([]);
     const [rejectedSerialIds, setRejectedSerialIds] = useState<number[]>([]);
     const [rejectionReasons, setRejectionReasons] = useState<Record<number, string>>({});
     const [inspectionConfirmOpen, setInspectionConfirmOpen] = useState(false);
     const [noReturnConfirmOpen, setNoReturnConfirmOpen] = useState(false);
     const [settleConfirmOpen, setSettleConfirmOpen] = useState(false);
+    const [reopenConfirmOpen, setReopenConfirmOpen] = useState(false);
     const [previewEnabled, setPreviewEnabled] = useState(false);
+    const [inspectionView, setInspectionView] = useState<"selection" | "inspection">("inspection");
 
     const { data: batch, isLoading, refetch: refetchBatch } = useVendorAllocationBatch(detailId || undefined);
+    const { selectedSerialIds, setSelectedSerialIds } = useVendorReturnSelectionDraft(batch);
     const { data: profilesRes } = useStreetAgentProfiles({ page: 1, limit: 100 });
     const profile = profilesRes?.data?.recordList?.find((item) => item.id === batch?.streetAgentProfileId);
 
@@ -87,8 +90,12 @@ export const VendorAllocationBatchDetailPage = () => {
     const isSettled = stage === "SETTLED";
     const isReadyForSettlement = stage === "READY_FOR_SETTLEMENT";
     const isInspection = stage === "INSPECTION";
-    const isReturnEntry = stage === "RETURN_ENTRY" && batch?.status === "RETURN_OPEN";
     const needsReturnSession = batch?.status === "CONFIRMED";
+    const activeStep = isSettled || isReadyForSettlement
+        ? 2
+        : isInspection && inspectionView === "inspection"
+            ? 1
+            : 0;
 
     const {
         data: settlementPreview,
@@ -102,8 +109,8 @@ export const VendorAllocationBatchDetailPage = () => {
     );
 
     const { mutate: openReturnSession, isPending: isOpeningReturn } = useOpenVendorAllocationReturnSession();
-    const { mutate: submitReturns, isPending: isSubmittingReturns } = useReturnVendorAllocationSerials();
-    const { mutate: removeReturn, isPending: isRemovingReturn } = useRemoveVendorAllocationReturnSerial();
+    const { mutate: replaceReturns, isPending: isSubmittingReturns } = useReplaceVendorAllocationReturns();
+    const { mutate: reopenInspection, isPending: isReopeningInspection } = useReopenVendorReturnInspection();
     const { mutate: confirmInspection, isPending: isConfirmingInspection } = useConfirmVendorReturnInspection();
     const { mutate: confirmNoReturn, isPending: isConfirmingNoReturn } = useConfirmVendorNoReturn();
     const { mutate: settleBatch, isPending: isSettling } = useSettleVendorAllocation();
@@ -148,8 +155,8 @@ export const VendorAllocationBatchDetailPage = () => {
             toast.error("Không tìm thấy serial trong phiếu bàn giao này.");
             return;
         }
-        if (found.allocationStatus !== "HANDED_OVER") {
-            toast.error("Serial này không còn ở trạng thái người bán vé số đang giữ.");
+        if (found.allocationStatus !== "HANDED_OVER" && found.allocationStatus !== "RETURN_PENDING_INSPECTION") {
+            toast.error("Serial này không thể thay đổi ở bước chọn vé trả.");
             return;
         }
         setSelectedSerialIds((current) => current.includes(found.serialId) ? current : [...current, found.serialId]);
@@ -157,31 +164,30 @@ export const VendorAllocationBatchDetailPage = () => {
     };
 
     const handleSubmitReturns = () => {
-        if (!detailId || selectedSerialIds.length === 0) return;
-        submitReturns({ id: detailId, data: { serialIds: selectedSerialIds } }, {
+        if (!detailId) return;
+        replaceReturns({ id: detailId, data: { serialIds: selectedSerialIds } }, {
             onSuccess: (response) => {
-                toast.success(response.message || "Đã gửi vé vào phiên kiểm nhận.");
-                setSelectedSerialIds([]);
+                toast.success(response.message || "Đã lưu danh sách vé chờ kiểm nhận.");
+                setInspectionView("inspection");
                 refetchBatch();
             },
-            onError: (error: any) => toast.error(getApiErrorMessage(error, "Gửi vé trả thất bại")),
+            onError: (error: any) => toast.error(getApiErrorMessage(error, "Cập nhật danh sách vé trả thất bại")),
         });
     };
 
-    const handleRemoveReturn = (serialId: number) => {
+    const handleReopenInspection = () => {
         if (!detailId) return;
-        removeReturn({ id: detailId, serialId }, {
+        reopenInspection(detailId, {
             onSuccess: (response) => {
-                toast.success(response.message || "Đã đưa serial trở lại bước nhập vé trả.");
-                setRejectedSerialIds((current) => current.filter((id) => id !== serialId));
-                setRejectionReasons((current) => {
-                    const next = { ...current };
-                    delete next[serialId];
-                    return next;
-                });
+                toast.success(response.message || "Đã mở lại bước kiểm nhận.");
+                setReopenConfirmOpen(false);
+                setPreviewEnabled(false);
+                setRejectedSerialIds([]);
+                setRejectionReasons({});
+                setInspectionView("selection");
                 refetchBatch();
             },
-            onError: (error: any) => toast.error(getApiErrorMessage(error, "Không thể bỏ serial khỏi phiên kiểm nhận")),
+            onError: (error: any) => toast.error(getApiErrorMessage(error, "Không thể mở lại kiểm nhận")),
         });
     };
 
@@ -273,7 +279,7 @@ export const VendorAllocationBatchDetailPage = () => {
                             </Stack>
                             <Stack direction={{ xs: "column", sm: "row" }} spacing={1} alignItems={{ sm: "center" }}>
                                 {["Nhập vé trả", "Kiểm nhận", "Quyết toán"].map((label, index) => {
-                                    const activeIndex = isSettled || isReadyForSettlement ? 2 : isInspection ? 1 : 0;
+                                    const activeIndex = activeStep;
                                     return <Chip key={label} size="small" label={`${index + 1}. ${label}`} color={index === activeIndex ? "primary" : index < activeIndex ? "success" : "default"} variant={index === activeIndex ? "filled" : "outlined"} />;
                                 })}
                             </Stack>
@@ -285,7 +291,7 @@ export const VendorAllocationBatchDetailPage = () => {
                         </Stack>
                     </Paper>
 
-                    <Stepper activeStep={isSettled || isReadyForSettlement ? 2 : isInspection ? 1 : 0} orientation="vertical" sx={{ px: 2 }}>
+                    <Stepper activeStep={activeStep} orientation="vertical" sx={{ px: 2 }}>
                         {/* Step 1: Nhập vé trả */}
                         <Step>
                             <StepLabel>Nhập vé trả</StepLabel>
@@ -307,7 +313,9 @@ export const VendorAllocationBatchDetailPage = () => {
                                             isSubmittingReturns={isSubmittingReturns}
                                             onScanSubmit={handleScanSubmit}
                                             onSubmitReturns={handleSubmitReturns}
-                                            onSelectAllReturnable={() => setSelectedSerialIds((batch.serials || []).filter((serial) => serial.allocationStatus === "HANDED_OVER").map((serial) => serial.serialId))}
+                                            onSelectAllReturnable={() => setSelectedSerialIds((batch.serials || [])
+                                                .filter((serial) => serial.allocationStatus === "HANDED_OVER" || serial.allocationStatus === "RETURN_PENDING_INSPECTION")
+                                                .map((serial) => serial.serialId))}
                                             canConfirmNoReturn={Boolean(batch.returnWorkflow?.canConfirmNoReturn)}
                                             onConfirmNoReturn={() => setNoReturnConfirmOpen(true)}
                                         />
@@ -321,16 +329,28 @@ export const VendorAllocationBatchDetailPage = () => {
                             <StepLabel>Kiểm nhận và chốt kết quả</StepLabel>
                             <StepContent>
                                 <Box sx={{ mt: 1 }}>
-                                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>Có thể bỏ một serial khỏi phiên để quay lại bước nhập trước khi chốt.</Typography>
+                                    <Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" alignItems={{ sm: "center" }} gap={1} sx={{ mb: 2 }}>
+                                        <Typography variant="body2" color="text.secondary">Kiểm tra vé thực tế, chọn vé từ chối và nhập lý do trước khi chốt.</Typography>
+                                        <Button
+                                            variant="outlined"
+                                            disabled={!canEdit}
+                                            onClick={() => {
+                                                setRejectedSerialIds([]);
+                                                setRejectionReasons({});
+                                                setInspectionView("selection");
+                                            }}
+                                        >
+                                            Quay lại chọn vé trả
+                                        </Button>
+                                    </Stack>
                                     <VendorBatchInspectionSection
                                         batch={batch}
                                         rejectedInspectionSerialIds={rejectedSerialIds}
                                         setRejectedInspectionSerialIds={setRejectedSerialIds}
                                         inspectionNotes={rejectionReasons}
                                         setInspectionNotes={setRejectionReasons}
-                                        isConfirmingInspection={isConfirmingInspection || isRemovingReturn}
+                                        isConfirmingInspection={isConfirmingInspection}
                                         onConfirmInspection={openInspectionConfirmation}
-                                        onRemoveReturn={handleRemoveReturn}
                                     />
                                 </Box>
                             </StepContent>
@@ -342,17 +362,24 @@ export const VendorAllocationBatchDetailPage = () => {
                             <StepContent>
                                 <Box sx={{ mt: 1 }}>
                                     {(isSettled || isReadyForSettlement) && (
-                                        <VendorBatchSettlementSection
-                                            batch={batch}
-                                            previewEnabled={previewEnabled}
-                                            settlementPreview={settlementPreview}
-                                            isLoadingPreview={isLoadingPreview}
-                                            isFetchingPreview={isFetchingPreview}
-                                            previewErrorMessage={previewError ? getApiErrorMessage(previewError, "Không thể tính quyết toán") : null}
-                                            isSettling={isSettling}
-                                            onEnablePreview={() => previewEnabled ? refetchPreview() : setPreviewEnabled(true)}
-                                            onSettle={() => setSettleConfirmOpen(true)}
-                                        />
+                                        <Stack spacing={2}>
+                                            {!isSettled && batch.returnWorkflow?.canReopenInspection && (
+                                                <Button variant="outlined" color="warning" disabled={!canEdit} onClick={() => setReopenConfirmOpen(true)}>
+                                                    Mở lại kiểm nhận
+                                                </Button>
+                                            )}
+                                            <VendorBatchSettlementSection
+                                                batch={batch}
+                                                previewEnabled={previewEnabled}
+                                                settlementPreview={settlementPreview}
+                                                isLoadingPreview={isLoadingPreview}
+                                                isFetchingPreview={isFetchingPreview}
+                                                previewErrorMessage={previewError ? getApiErrorMessage(previewError, "Không thể tính quyết toán") : null}
+                                                isSettling={isSettling}
+                                                onEnablePreview={() => previewEnabled ? refetchPreview() : setPreviewEnabled(true)}
+                                                onSettle={() => setSettleConfirmOpen(true)}
+                                            />
+                                        </Stack>
                                     )}
                                 </Box>
                             </StepContent>
@@ -401,6 +428,19 @@ export const VendorAllocationBatchDetailPage = () => {
                 <DialogActions>
                     <Button variant="outlined" onClick={() => setSettleConfirmOpen(false)}>Hủy</Button>
                     <Button loading={isSettling} label="Xác nhận quyết toán" loadingLabel="Đang quyết toán..." onClick={handleSettle} />
+                </DialogActions>
+            </Dialog>
+
+            <Dialog open={reopenConfirmOpen} onClose={() => !isReopeningInspection && setReopenConfirmOpen(false)} maxWidth="xs" fullWidth>
+                <DialogTitle>Mở lại kiểm nhận?</DialogTitle>
+                <DialogContent>
+                    <Typography color="text.secondary" sx={{ pt: 1 }}>
+                        Kết quả kiểm nhận hiện tại sẽ được hủy để bạn chọn lại vé trả. Chưa có bút toán quyết toán nào được tạo.
+                    </Typography>
+                </DialogContent>
+                <DialogActions>
+                    <Button variant="outlined" onClick={() => setReopenConfirmOpen(false)}>Hủy</Button>
+                    <Button loading={isReopeningInspection} label="Mở lại kiểm nhận" loadingLabel="Đang mở lại..." onClick={handleReopenInspection} />
                 </DialogActions>
             </Dialog>
         </Box>

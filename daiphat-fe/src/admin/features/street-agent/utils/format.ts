@@ -29,11 +29,23 @@ export const formatConfidencePoints = (score?: number | null, tier?: string | nu
     return tier ? `${pointsLabel} · ${tier}` : pointsLabel;
 };
 
+/** ISO `YYYY-MM-DD` → display `DD/MM/YYYY` (DateRangePicker / UI). */
 export const formatDate = (value?: string | null) => {
     if (!value) return "—";
     const [year, month, day] = value.split("-");
     if (!year || !month || !day) return value;
     return `${day}/${month}/${year}`;
+};
+
+/**
+ * Display `DD/MM/YYYY` (from DateRangePicker) → API `YYYY-MM-DD`.
+ * Inverse of {@link formatDate}.
+ */
+export const parseDisplayDateToApi = (value?: string | null) => {
+    if (!value) return "";
+    const [day, month, year] = value.split("/");
+    if (!year || !month || !day) return "";
+    return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
 };
 
 const VIETNAM_TIME_ZONE = "Asia/Ho_Chi_Minh";
@@ -50,6 +62,9 @@ const todayInVietnam = () => {
 
     return `${get("year")}-${get("month")}-${get("day")}`;
 };
+
+/** Today in Vietnam as `DD/MM/YYYY` for DateRangePicker defaults. */
+export const todayDisplayDate = () => formatDate(todayInVietnam());
 
 export type StreetAgentPendingNotice = {
     message: string;

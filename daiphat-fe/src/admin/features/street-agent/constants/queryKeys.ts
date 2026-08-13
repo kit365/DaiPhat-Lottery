@@ -12,4 +12,7 @@ export const QUERY_KEYS = {
     VENDOR_ALLOCATION_LIST: 'vendor-allocation-list',
     VENDOR_ALLOCATION_SETTLEMENT_PREVIEW: 'vendor-allocation-settlement-preview',
     VENDOR_ALLOCATION_CONFIRMATION_QUOTE: 'vendor-allocation-confirmation-quote',
+    STREET_AGENT_REPORT_OVERVIEW: 'street-agent-report-overview',
+    STREET_AGENT_REPORT_AGENTS: 'street-agent-report-agents',
+    STREET_AGENT_REPORT_STATIONS: 'street-agent-report-stations',
 } as const;

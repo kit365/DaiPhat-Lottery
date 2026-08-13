@@ -6,7 +6,9 @@ interface SummaryWidgetProps {
     percent: number;
     color?: string;
     chartData: number[];
+    subtitle?: string;
     recentSources?: AdminMetricCardRecentSource[];
+    hideTrend?: boolean;
 }
 
 const SummaryWidget = ({
@@ -15,13 +17,16 @@ const SummaryWidget = ({
     percent,
     color = '#FF3030',
     chartData,
+    subtitle,
     recentSources,
+    hideTrend = false,
 }: SummaryWidgetProps) => (
     <AdminMetricCard
         title={title}
         value={total}
         color={color}
-        trend={{ percent, chartData }}
+        subtitle={subtitle}
+        trend={hideTrend ? undefined : { percent, chartData }}
         recentSources={recentSources}
     />
 );

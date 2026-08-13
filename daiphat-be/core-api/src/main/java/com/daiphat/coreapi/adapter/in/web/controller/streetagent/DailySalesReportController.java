@@ -19,7 +19,7 @@ public class DailySalesReportController {
     private final VendorDailySalesReportServicePort vendorDailySalesReportServicePort;
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasAnyAuthority('streetAgent:view', 'member:view')")
+    @PreAuthorize("hasAuthority('streetAgent:view')")
     public ApiResponse<DailySalesReportResponse> getById(@PathVariable Long id) {
         return ApiResponse.success(null, vendorDailySalesReportServicePort.getById(id));
     }

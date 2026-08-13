@@ -1,6 +1,7 @@
 package com.daiphat.coreapi.domain.service.streetagent;
 
 import com.daiphat.coreapi.domain.model.streetagent.VendorAllocationSerialModel;
+import com.daiphat.coreapi.domain.model.enums.streetagent.VendorAllocationShortageReason;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 
@@ -93,8 +94,8 @@ public final class VendorAllocationSuggestionBuilder {
         int capShortfall = Math.max(0, requested - cap);
         int inventoryShortfall = Math.max(0, capLimited - totalCapacity);
         List<String> shortageReasons = new ArrayList<>();
-        if (capShortfall > 0) shortageReasons.add("DAILY_CAP_LIMIT");
-        if (inventoryShortfall > 0) shortageReasons.add("INSUFFICIENT_STATION_CAPACITY");
+        if (capShortfall > 0) shortageReasons.add(VendorAllocationShortageReason.DAILY_CAP_LIMIT.name());
+        if (inventoryShortfall > 0) shortageReasons.add(VendorAllocationShortageReason.INSUFFICIENT_STATION_CAPACITY.name());
         if (serials.isEmpty() && blockedReason != null) shortageReasons.add(blockedReason);
 
         List<AnnotatedSerial> annotated = annotate(serials, policy);

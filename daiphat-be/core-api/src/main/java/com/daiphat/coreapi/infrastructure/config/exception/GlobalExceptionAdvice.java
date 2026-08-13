@@ -133,14 +133,6 @@ public class GlobalExceptionAdvice {
             return "Một hoặc nhiều vé đã được phân bổ cho đơn hàng khác.";
         }
 
-        if (rawMessage.contains("uq_allocation_batch_one_open_per_profile")) {
-            return ErrorCode.VENDOR_ALLOCATION_OPEN_BATCH_EXISTS.getMessage();
-        }
-
-        if (rawMessage.contains("uq_active_agent_ticket_stock")) {
-            return ErrorCode.VENDOR_ALLOCATION_SERIAL_INVALID.getMessage();
-        }
-
         return ErrorCode.INVALID_INPUT.getMessage();
     }
 

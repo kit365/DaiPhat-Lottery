@@ -19,11 +19,7 @@ import {
     useVendorConfirmationQuote,
 } from "../hooks/useVendorAllocation";
 import { StreetAgentProfile, VendorAllocationBatch } from "../types/street-agent.type";
-import { formatCommission, formatCurrency, formatDateTime } from "../utils/format";
-import {
-    VENDOR_LATE_RETURN_POLICY_LABELS,
-    VendorLateReturnPolicyValue,
-} from "../hooks/useVendorSettingsDefaults";
+import { formatCurrency, formatDateTime } from "../utils/format";
 
 const fieldSx = {
     "& .MuiOutlinedInput-root": {
@@ -41,13 +37,6 @@ const isDepositInsufficientError = (error: any) => {
         message.includes("SAG_022") ||
         message.includes("không đủ") ||
         message.toLowerCase().includes("deposit")
-    );
-};
-
-const latePolicyLabel = (policy?: string | null) => {
-    if (!policy) return "—";
-    return (
-        VENDOR_LATE_RETURN_POLICY_LABELS[policy as VendorLateReturnPolicyValue] || policy
     );
 };
 
@@ -171,30 +160,15 @@ export const ConfirmVendorDepositDialog = ({
                                         : formatCurrency(requiredAmount)
                                 }
                                 InputProps={{ readOnly: true }}
-                                helperText={
-                                    quote
-                                        ? `= ${quote.allocatedQuantity} × ${formatCurrency(
-                                              quote.vendorUnitPrice
-                                          )} × ${formatCommission(quote.depositRate)} (báo giá BE)`
-                                        : "Đang lấy báo giá từ hệ thống..."
-                                }
                                 sx={fieldSx}
                                 fullWidth
                             />
 
-                            <Stack direction="row" spacing={2} flexWrap="wrap" useFlexGap>
+                            {quote?.effectiveHandoverDeadlineAt ? (
                                 <Typography variant="caption" color="text.secondary">
-                                    Hạn cuối có thể giao vé: {quote?.effectiveHandoverDeadlineAt ? formatDateTime(quote.effectiveHandoverDeadlineAt) : "—"}
+                                    Hạn cuối có thể giao vé: {formatDateTime(quote.effectiveHandoverDeadlineAt)}
                                 </Typography>
-                                <Typography variant="caption" color="text.secondary">
-                                    Policy trễ: {latePolicyLabel(quote?.latePolicy)}
-                                </Typography>
-                                {quote?.quotedAt && (
-                                    <Typography variant="caption" color="text.secondary">
-                                        Báo giá lúc: {formatDateTime(quote.quotedAt)}
-                                    </Typography>
-                                )}
-                            </Stack>
+                            ) : null}
                         </>
                     )}
 
@@ -207,7 +181,7 @@ export const ConfirmVendorDepositDialog = ({
                         helperText={
                             insufficient
                                 ? `Tiền cọc thực nhận phải ≥ ${formatCurrency(requiredAmount)}`
-                                : "Nhập số tiền cọc thực tế thu được từ đại lý. Số dư cọc sau xác nhận do BE cập nhật."
+                                : "Nhập số tiền cọc thực tế thu được từ đại lý."
                         }
                         inputProps={{ min: 0, step: 1000 }}
                         sx={fieldSx}

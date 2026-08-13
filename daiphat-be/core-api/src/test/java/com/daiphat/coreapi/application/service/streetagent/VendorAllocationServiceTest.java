@@ -1,5 +1,7 @@
 package com.daiphat.coreapi.application.service.streetagent;
 
+import com.daiphat.coreapi.application.policy.streetagent.VendorConfidencePolicyResolver;
+import com.daiphat.coreapi.application.policy.streetagent.VendorOperationalTimingResolver;
 import com.daiphat.coreapi.application.dto.request.streetagent.CreateVendorAllocationDraftRequest;
 import com.daiphat.coreapi.application.dto.request.streetagent.ConfirmVendorAllocationRequest;
 import com.daiphat.coreapi.application.dto.request.streetagent.ReturnVendorAllocationSerialsRequest;
@@ -18,6 +20,7 @@ import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus;
 import com.daiphat.coreapi.domain.model.enums.lottery.ReturnBatchStatus;
 import com.daiphat.coreapi.domain.model.enums.lottery.ReturnBatchType;
 import com.daiphat.coreapi.domain.model.enums.streetagent.AllocationBatchStatus;
+import com.daiphat.coreapi.domain.model.enums.streetagent.AllocationSerialStatus;
 import com.daiphat.coreapi.domain.model.enums.streetagent.StreetAgentProfileStatus;
 import com.daiphat.coreapi.domain.model.enums.streetagent.VendorConfidenceTier;
 import com.daiphat.coreapi.domain.model.enums.streetagent.VendorLateReturnPolicy;
@@ -438,10 +441,10 @@ class VendorAllocationServiceTest {
                 .allocatedQuantity(25)
                 .serials(List.of())
                 .build();
-        when(allocationRepositoryPort.search(eq(7L), any(), isNull(), isNull(), any()))
+        when(allocationRepositoryPort.search(eq(7L), any(), isNull(), isNull(), isNull(), any(), any()))
                 .thenReturn(new org.springframework.data.domain.PageImpl<>(List.of(draft)));
 
-        var page = service.list(7L, List.of(AllocationBatchStatus.DRAFT), null, null, 1, 10);
+        var page = service.list(7L, List.of(AllocationBatchStatus.DRAFT), null, null, null, 1, 10);
 
         assertThat(page.getRecordList()).hasSize(1);
         assertThat(page.getRecordList().getFirst().batchCode()).isEqualTo("VND-TEST");
@@ -606,6 +609,41 @@ class VendorAllocationServiceTest {
                 workflow -> workflow.stage(), workflow -> workflow.acceptedReturnQuantity(),
                 workflow -> workflow.rejectedReturnQuantity(), workflow -> workflow.unreturnedQuantity())
                 .containsExactly("READY_FOR_SETTLEMENT", 1, 1, 1);
+    }
+
+    @Test
+    void reopen_inspection_reverses_confirmed_outcomes_and_invalidates_the_settlement_state() {
+        VendorAllocationSerialModel accepted = serial(101L, 1L, "Đài HCM", "001001", "S1", false);
+        VendorAllocationSerialModel rejected = serial(102L, 1L, "Đài HCM", "001002", "S2", false);
+        VendorAllocationBatchModel batch = VendorAllocationBatchModel.createDraft(
+                "VND-TEST", 7L, businessDate, LocalDateTime.now().plusMinutes(15), List.of(accepted, rejected), null);
+        batch.setId(99L);
+        accepted.markReservedByBatch(99L);
+        rejected.markReservedByBatch(99L);
+        batch.confirmHandover(LocalDateTime.now(), BigDecimal.valueOf(9_000), new BigDecimal("0.10"),
+                VendorLateReturnPolicy.FORFEIT_DEPOSIT, LocalTime.of(15, 0), BigDecimal.valueOf(1_800), BigDecimal.ZERO,
+                UUID.randomUUID());
+        batch.openReturnSession();
+        ReturnBatchModel receipt = returnReceipt(1L, ReturnBatchStatus.PENDING_INSPECTION);
+        when(allocationRepositoryPort.findByIdForUpdate(99L)).thenReturn(Optional.of(batch));
+        when(allocationRepositoryPort.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(allocationRepositoryPort.sumAllocatedForDay(eq(7L), eq(businessDate), anyCollection())).thenReturn(2L);
+        when(returnBatchRepositoryPort.findStreetAgentByAllocationBatchId(99L)).thenReturn(Optional.of(receipt));
+        when(returnBatchRepositoryPort.findLinesByBatchId(1L)).thenReturn(List.of(
+                ReturnBatchLineModel.builder().id(11L).lotteryStationId(1L).build()));
+
+        service.recordReturns(99L, new ReturnVendorAllocationSerialsRequest(List.of(101L, 102L)));
+        service.confirmReturnInspection(99L, new ConfirmVendorReturnInspectionRequest(
+                List.of(new RejectedVendorReturnSerialRequest(102L, "Rách vé")), null), UUID.randomUUID());
+        var response = service.reopenReturnInspection(99L);
+
+        assertThat(receipt.getStatus()).isEqualTo(ReturnBatchStatus.INSPECTING);
+        assertThat(receipt.getConfirmedAt()).isNull();
+        assertThat(accepted.getStatus()).isEqualTo(AllocationSerialStatus.RETURN_PENDING_INSPECTION);
+        assertThat(accepted.getTicketStatus()).isEqualTo(LotteryTicketSerialStatus.WITH_STREET_AGENT);
+        assertThat(rejected.getStatus()).isEqualTo(AllocationSerialStatus.RETURN_PENDING_INSPECTION);
+        assertThat(rejected.getReturnRejectionReason()).isNull();
+        assertThat(response.returnWorkflow().stage()).isEqualTo("INSPECTION");
     }
 
     @Test

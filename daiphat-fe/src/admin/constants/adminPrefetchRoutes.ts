@@ -36,6 +36,7 @@ const registerAdminPageChunkLoaders = () => {
         [ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.LIST, () => import('@/admin/features/street-agent/components/pages/StreetAgentListPage')],
         [ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.ALLOCATION, () => import('@/admin/features/street-agent/components/pages/VendorAllocationPage')],
         [ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.ALLOCATION_BATCHES, () => import('@/admin/features/street-agent/components/pages/VendorAllocationBatchListPage')],
+        [ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.REPORTS, () => import('@/admin/features/street-agent/components/pages/StreetAgentReportPage')],
         [ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.LUCKY_PATTERNS, () => import('@/admin/features/street-agent/components/pages/LuckyPatternConfigPage')],
         [ROUTES.ADMIN.ROLES.LIST, () => import('@/admin/features/role/components/pages/RoleListPage')],
         [ROUTES.ADMIN.REVIEWS, () => import('@/admin/features/review/components/pages/ReviewListPage')],

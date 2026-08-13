@@ -9,6 +9,7 @@ import com.daiphat.coreapi.domain.exception.ErrorCode;
 import com.daiphat.coreapi.domain.model.enums.settings.SystemConfigEnum;
 import com.daiphat.coreapi.domain.model.settings.SystemConfigModel;
 import com.daiphat.coreapi.domain.model.streetagent.StreetAgentProfileModel;
+import com.daiphat.coreapi.infrastructure.adapter.out.document.ThymeleafStreetAgentContractHtmlRenderer;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -53,7 +54,7 @@ class StreetAgentContractServiceTest {
         service = new StreetAgentContractService(
                 profileRepositoryPort,
                 systemConfigRepositoryPort,
-                templateEngine,
+                new ThymeleafStreetAgentContractHtmlRenderer(templateEngine),
                 contractPdfRendererPort);
     }
 

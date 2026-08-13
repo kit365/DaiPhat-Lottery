@@ -1,18 +1,19 @@
-package com.daiphat.coreapi.application.service.streetagent;
+package com.daiphat.coreapi.application.policy.streetagent;
 
 import com.daiphat.coreapi.application.port.out.settings.SystemConfigRepositoryPort;
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
 import com.daiphat.coreapi.domain.model.enums.settings.SystemConfigEnum;
 import com.daiphat.coreapi.domain.model.streetagent.VendorAllocationSerialModel;
-import com.daiphat.coreapi.shared.util.DrawScheduleUtils;
+import com.daiphat.coreapi.shared.time.VietnamClock;
 import com.daiphat.coreapi.shared.util.SystemConfigValueValidator;
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.Clock;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.Objects;
@@ -25,13 +26,26 @@ import java.util.Objects;
  * into this resolver so a command cannot classify its own state against several clock reads.
  */
 @Component
-@RequiredArgsConstructor
 public class VendorOperationalTimingResolver {
 
     private final SystemConfigRepositoryPort systemConfigRepositoryPort;
+    private final VietnamClock vietnamClock;
+
+    @Autowired
+    public VendorOperationalTimingResolver(
+            SystemConfigRepositoryPort systemConfigRepositoryPort,
+            VietnamClock vietnamClock) {
+        this.systemConfigRepositoryPort = systemConfigRepositoryPort;
+        this.vietnamClock = vietnamClock;
+    }
+
+    /** Compatibility constructor for focused tests; production injects the shared Vietnam clock. */
+    public VendorOperationalTimingResolver(SystemConfigRepositoryPort systemConfigRepositoryPort) {
+        this(systemConfigRepositoryPort, new VietnamClock(Clock.systemUTC()));
+    }
 
     public LocalDateTime now() {
-        return LocalDateTime.now(DrawScheduleUtils.VIETNAM_ZONE);
+        return vietnamClock.now();
     }
 
     public void requireBusinessDateCurrentOrFuture(LocalDate businessDate, LocalDateTime at) {
