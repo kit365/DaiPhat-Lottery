@@ -1087,16 +1087,24 @@ export const VendorAllocationPage = () => {
                         <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}>
                             <CircularProgress />
                         </Box>
-                    ) : !hasSelectableInventory || suggestion?.allowedQuantity === 0 ? (
-                        <Alert severity={suggestionBlockedMessage ? "warning" : "info"}>
-                            <Stack spacing={0.25}>
-                                {suggestionReasonMessages.map((message) => (
-                                    <Typography key={message} variant="body2">{message}</Typography>
-                                ))}
-                            </Stack>
-                        </Alert>
                     ) : (
                         <Stack spacing={3}>
+                            {(!hasSelectableInventory || suggestion?.allowedQuantity === 0) && (
+                                <Alert severity={suggestionBlockedMessage ? "warning" : "info"}>
+                                    <Stack spacing={0.25}>
+                                        {suggestionReasonMessages.map((message) => (
+                                            <Typography key={message} variant="body2">{message}</Typography>
+                                        ))}
+                                    </Stack>
+                                </Alert>
+                            )}
+                            {!suggestion?.stations?.length ? (
+                                <Box sx={{ py: 8, textAlign: "center" }}>
+                                    <Typography className="admin-datagrid-empty">
+                                        Không có danh sách vé để bàn giao cho ngày này.
+                                    </Typography>
+                                </Box>
+                            ) : null}
                             {suggestion?.stations?.map((station) => {
                                 const pickedTickets = station.tickets.filter((ticket) => {
                                     const key = ticketKey(station.stationId, ticket.ticketNumbers);
@@ -1133,7 +1141,7 @@ export const VendorAllocationPage = () => {
 
                                         {station.vendorCapacity === 0 ? (
                                             <Typography variant="body2" color="text.disabled" sx={{ fontStyle: "italic" }}>
-                                                Hết vé (Đã chừa quầy)
+                                                Không có vé để bàn giao cho đài này.
                                             </Typography>
                                         ) : !hasPicked ? (
                                             <DisabledWithTooltip
@@ -1184,19 +1192,6 @@ export const VendorAllocationPage = () => {
                                 );
                             })}
                         </Stack>
-                    )}
-
-                    {hasLuckySelected && canOverrideLucky && !draftId && (
-                        <TextField
-                            sx={{ ...fieldSx, mt: 3 }}
-                            fullWidth
-                            multiline
-                            minRows={2}
-                            label="Lý do override số đẹp"
-                            value={luckyOverrideReason}
-                            onChange={(e) => setLuckyOverrideReason(e.target.value)}
-                            helperText="Bắt buộc khi chọn vé số đẹp. Cần quyền streetAgent:manage."
-                        />
                     )}
 
                     {draftBatch && draftBatch.status !== "DRAFT" && (

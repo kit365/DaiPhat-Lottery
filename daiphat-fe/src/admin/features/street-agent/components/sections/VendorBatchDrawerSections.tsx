@@ -41,6 +41,7 @@ import {
     VENDOR_LATE_RETURN_POLICY_LABELS,
     VendorLateReturnPolicyValue,
 } from "../../hooks/useVendorSettingsDefaults";
+import { BADGE_COLOR_PALETTE } from "@/admin/utils/badge";
 
 const fieldSx = {
     "& .MuiOutlinedInput-root": {
@@ -54,6 +55,18 @@ const latePolicyLabel = (policy?: string | null) => {
     return (
         VENDOR_LATE_RETURN_POLICY_LABELS[policy as VendorLateReturnPolicyValue] || policy
     );
+};
+
+const timingBadgeSx = (late: boolean) => {
+    const colors = BADGE_COLOR_PALETTE[late ? "warning" : "success"].unselected;
+    return {
+        height: 26,
+        fontWeight: 700,
+        fontSize: "0.75rem",
+        bgcolor: colors.bg,
+        color: colors.text,
+        border: "none",
+    };
 };
 
 export const DetailRow = ({ label, value, description, valueColor = "text.primary" }: { label: React.ReactNode; value: React.ReactNode; description?: React.ReactNode; valueColor?: string }) => (
@@ -287,8 +300,8 @@ export const VendorSettlementBreakdown = ({
                 ) : (
                     <Chip
                         size="small"
-                        color={late ? "warning" : "success"}
                         label={late ? "Trễ hạn" : "Đúng hạn"}
+                        sx={timingBadgeSx(late)}
                     />
                 )}
             </Stack>
@@ -410,8 +423,8 @@ export const VendorSettlementConfirmationSummary = ({
             </Typography>
             <Chip
                 size="small"
-                color={preview.late ? "warning" : "success"}
                 label={preview.late ? "Trễ hạn" : "Đúng hạn"}
+                sx={timingBadgeSx(preview.late)}
             />
         </Stack>
     );

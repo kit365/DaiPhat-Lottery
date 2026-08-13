@@ -31,6 +31,7 @@ import { BLOCKED_REASON_LABELS } from "../configs/constants";
 import { StationCapacityBadges } from "./StationCapacityBadges";
 import { Button } from "../../../../components/ui/Button";
 import { formatCurrency } from "../../utils/format";
+import { BADGE_COLOR_PALETTE } from "@/admin/utils/badge";
 
 const blockedReasonLabel = (code?: string | null) => {
     if (!code) return "";
@@ -50,6 +51,10 @@ export interface VendorAllocationStationDrawerProps {
 }
 
 const MONO = "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace";
+const LUCKY_ROW_BG = BADGE_COLOR_PALETTE.warning.unselected.bg;
+const LUCKY_ROW_HOVER_BG = "rgba(255, 171, 0, 0.24)";
+const ACTIVE_ROW_BG = "rgba(255, 48, 48, 0.08)";
+const ACTIVE_ROW_HOVER_BG = "rgba(255, 48, 48, 0.12)";
 
 const isCounterReserve = (serial: { blockedReason?: string | null }) =>
     serial.blockedReason === "COUNTER_RESERVE";
@@ -87,6 +92,7 @@ export const VendorAllocationStationDrawer: React.FC<VendorAllocationStationDraw
     const [focusedSourceSerialId, setFocusedSourceSerialId] = useState<number | null>(null);
     const [query, setQuery] = useState("");
     const [selectedTicketNumber, setSelectedTicketNumber] = useState<string | null>(null);
+    const [overrideOpen, setOverrideOpen] = useState(false);
 
     useEffect(() => {
         if (open) {
@@ -94,6 +100,7 @@ export const VendorAllocationStationDrawer: React.FC<VendorAllocationStationDraw
             setLuckyOverrideReason(initialLuckyReason);
             setInlineMessage("");
             setQuery("");
+            setOverrideOpen(false);
 
             const firstSelected = station?.tickets.find((ticket) =>
                 ticket.serials.some((serial) => initialSelectedSerialIds.includes(serial.serialId))
@@ -243,7 +250,20 @@ export const VendorAllocationStationDrawer: React.FC<VendorAllocationStationDraw
     };
 
     const handleSave = () => {
+        if (hasLuckySelected && !canOverrideLucky) {
+            return;
+        }
+        if (hasLuckySelected && canOverrideLucky) {
+            setOverrideOpen(true);
+            return;
+        }
         onSave(draftSerialIds, luckyOverrideReason);
+    };
+
+    const confirmLuckyOverride = () => {
+        if (!luckyOverrideReason.trim()) return;
+        setOverrideOpen(false);
+        onSave(draftSerialIds, luckyOverrideReason.trim());
     };
 
     const title = focusedTicketNumber
@@ -264,6 +284,7 @@ export const VendorAllocationStationDrawer: React.FC<VendorAllocationStationDraw
         : 0;
 
     return (
+        <>
         <Dialog
             open={open}
             onClose={onClose}
@@ -462,20 +483,26 @@ export const VendorAllocationStationDrawer: React.FC<VendorAllocationStationDraw
                                                     sx={{
                                                         cursor: "pointer",
                                                         bgcolor: isActive
-                                                            ? "rgba(255, 48, 48, 0.08)"
-                                                            : index % 2 === 0
-                                                              ? "#F9FAFB"
-                                                              : "#FFFFFF",
+                                                            ? ACTIVE_ROW_BG
+                                                            : ticket.lucky
+                                                              ? LUCKY_ROW_BG
+                                                              : index % 2 === 0
+                                                                ? "#F9FAFB"
+                                                                : "#FFFFFF",
                                                         boxShadow: isActive ? "inset 3px 0 0 #FF3030" : "none",
                                                         "&:hover": {
                                                             bgcolor: isActive
-                                                                ? "rgba(255, 48, 48, 0.12) !important"
-                                                                : "#F4F6F8 !important",
+                                                                ? `${ACTIVE_ROW_HOVER_BG} !important`
+                                                                : ticket.lucky
+                                                                  ? `${LUCKY_ROW_HOVER_BG} !important`
+                                                                  : "#F4F6F8 !important",
                                                         },
                                                         "&.MuiTableRow-hover:hover": {
                                                             bgcolor: isActive
-                                                                ? "rgba(255, 48, 48, 0.12) !important"
-                                                                : "#F4F6F8 !important",
+                                                                ? `${ACTIVE_ROW_HOVER_BG} !important`
+                                                                : ticket.lucky
+                                                                  ? `${LUCKY_ROW_HOVER_BG} !important`
+                                                                  : "#F4F6F8 !important",
                                                         },
                                                         "& td": {
                                                             borderBottom: "1px dashed #F4F6F8",
@@ -483,25 +510,33 @@ export const VendorAllocationStationDrawer: React.FC<VendorAllocationStationDraw
                                                     }}
                                                 >
                                                     <TableCell>
-                                                        <Typography
-                                                            sx={{
-                                                                fontFamily: MONO,
-                                                                fontWeight: 800,
-                                                                fontSize: "0.9375rem",
-                                                                letterSpacing: "0.06em",
-                                                            }}
-                                                        >
-                                                            {ticket.ticketNumbers}
-                                                        </Typography>
-                                                        {ticket.lucky && (
+                                                        <Stack direction="row" alignItems="center" spacing={1} flexWrap="wrap" useFlexGap>
                                                             <Typography
-                                                                variant="caption"
-                                                                sx={{ color: "#B76E00", fontWeight: 700 }}
+                                                                sx={{
+                                                                    fontFamily: MONO,
+                                                                    fontWeight: 800,
+                                                                    fontSize: "0.9375rem",
+                                                                    letterSpacing: "0.06em",
+                                                                }}
                                                             >
-                                                                Số đẹp
+                                                                {ticket.ticketNumbers}
                                                             </Typography>
-                                                        )}
-                                                        {ticket.blockedReason && (
+                                                            {ticket.lucky && (
+                                                                <Chip
+                                                                    size="small"
+                                                                    label="Số đẹp"
+                                                                    sx={{
+                                                                        height: 22,
+                                                                        fontWeight: 700,
+                                                                        fontSize: "0.6875rem",
+                                                                        bgcolor: LUCKY_ROW_BG,
+                                                                        color: BADGE_COLOR_PALETTE.warning.unselected.text,
+                                                                        border: "none",
+                                                                    }}
+                                                                />
+                                                            )}
+                                                        </Stack>
+                                                        {ticket.blockedReason && ticket.blockedReason !== "LUCKY_PATTERN" && (
                                                             <Typography variant="caption" color="error" display="block">
                                                                 {blockedReasonLabel(ticket.blockedReason)}
                                                             </Typography>
@@ -649,9 +684,19 @@ export const VendorAllocationStationDrawer: React.FC<VendorAllocationStationDraw
                                                             py: 0.35,
                                                             borderRadius: 1,
                                                             opacity: selectableSerial ? 1 : 0.5,
-                                                            bgcolor: isPicked ? "rgba(255, 48, 48, 0.06)" : "transparent",
+                                                            bgcolor: isPicked
+                                                                ? ACTIVE_ROW_BG
+                                                                : serial.lucky
+                                                                  ? LUCKY_ROW_BG
+                                                                  : "transparent",
                                                             "&:hover": selectableSerial
-                                                                ? { bgcolor: "rgba(145, 158, 171, 0.08)" }
+                                                                ? {
+                                                                      bgcolor: isPicked
+                                                                          ? ACTIVE_ROW_HOVER_BG
+                                                                          : serial.lucky
+                                                                            ? LUCKY_ROW_HOVER_BG
+                                                                            : "rgba(145, 158, 171, 0.08)",
+                                                                  }
                                                                 : undefined,
                                                         }}
                                                     />
@@ -677,31 +722,6 @@ export const VendorAllocationStationDrawer: React.FC<VendorAllocationStationDraw
                             </Box>
                         </Box>
 
-                        {hasLuckySelected && canOverrideLucky && (
-                            <Box
-                                sx={{
-                                    mx: 3,
-                                    mb: 2,
-                                    p: 2,
-                                    bgcolor: "info.lighter",
-                                    borderRadius: 1.5,
-                                    border: "1px solid",
-                                    borderColor: "info.light",
-                                    flexShrink: 0,
-                                }}
-                            >
-                                <Typography variant="subtitle2" color="info.dark" gutterBottom>
-                                    Cấp vé số đẹp
-                                </Typography>
-                                <TextField
-                                    fullWidth
-                                    size="small"
-                                    placeholder="Lý do cấp vé số đẹp..."
-                                    value={luckyOverrideReason}
-                                    onChange={(e) => setLuckyOverrideReason(e.target.value)}
-                                />
-                            </Box>
-                        )}
                         {hasLuckySelected && !canOverrideLucky && (
                             <Alert severity="error" sx={{ mx: 3, mb: 2, flexShrink: 0 }}>
                                 Bạn không có quyền cấp vé số đẹp.
@@ -731,13 +751,67 @@ export const VendorAllocationStationDrawer: React.FC<VendorAllocationStationDraw
                     <Button
                         variant="contained"
                         onClick={handleSave}
-                        disabled={hasLuckySelected && canOverrideLucky && !luckyOverrideReason.trim()}
+                        disabled={hasLuckySelected && !canOverrideLucky}
                     >
                         Lưu thay đổi
                     </Button>
                 </Stack>
             </DialogActions>
         </Dialog>
+
+        <Dialog
+            open={overrideOpen}
+            onClose={() => setOverrideOpen(false)}
+            fullWidth
+            maxWidth="sm"
+            PaperProps={{
+                className: "admin-theme",
+                sx: {
+                    borderRadius: "16px",
+                    boxShadow: "var(--customShadows-dialog, 0px 24px 48px -8px rgba(0, 0, 0, 0.16))",
+                    bgcolor: "#FFFFFF",
+                },
+            }}
+        >
+            <DialogTitle
+                sx={{
+                    m: 0,
+                    px: 3,
+                    pt: 2.5,
+                    pb: 2,
+                    fontWeight: 700,
+                    fontSize: "1.125rem",
+                    borderBottom: "1px solid var(--palette-divider)",
+                }}
+            >
+                Cấp vé số đẹp
+            </DialogTitle>
+            <DialogContent sx={{ px: 3, pt: "24px !important", pb: 1 }}>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                    Vé số đẹp cần lý do khi cấp cho người bán. Lý do sẽ được lưu cùng phiếu bàn giao.
+                </Typography>
+                <TextField
+                    autoFocus
+                    fullWidth
+                    multiline
+                    minRows={3}
+                    label="Lý do cấp vé số đẹp"
+                    placeholder="Nhập lý do override..."
+                    value={luckyOverrideReason}
+                    onChange={(e) => setLuckyOverrideReason(e.target.value)}
+                />
+            </DialogContent>
+            <DialogActions sx={{ px: 3, py: 2.5, gap: 1.5 }}>
+                <Button variant="outlined" color="inherit" onClick={() => setOverrideOpen(false)} label="Hủy" />
+                <Button
+                    variant="contained"
+                    onClick={confirmLuckyOverride}
+                    disabled={!luckyOverrideReason.trim()}
+                    label="Xác nhận"
+                />
+            </DialogActions>
+        </Dialog>
+        </>
     );
 };
 

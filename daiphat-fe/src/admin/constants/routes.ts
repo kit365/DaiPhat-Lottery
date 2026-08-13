@@ -24,7 +24,6 @@ export const ROUTES = {
                 GENERAL: `/${prefixAdmin}/dashboard/settings/general`,
                 POLICIES: `/${prefixAdmin}/dashboard/settings/policies`,
                 PAGES: `/${prefixAdmin}/dashboard/settings/pages`,
-                APP_PASSWORD: `/${prefixAdmin}/dashboard/settings/app-password`,
                 SYSTEM_CONFIG: `/${prefixAdmin}/settings/system-config/list`,
             }
         },
@@ -89,7 +88,6 @@ export const ROUTES = {
             DETAIL: `/${prefixAdmin}/support-tickets/detail/`,
             CATEGORIES: `/${prefixAdmin}/support-tickets/categories`,
         },
-        REVIEWS: `/${prefixAdmin}/review`,
         ROLES: {
             LIST: `/${prefixAdmin}/role/list`,
             CREATE: `/${prefixAdmin}/role/create`,

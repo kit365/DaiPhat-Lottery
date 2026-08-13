@@ -5,7 +5,6 @@ import {
     getSettingShipping, updateSettingShipping,
     getSettingPayment, updateSettingPayment,
     getSettingLoginSocial, updateSettingLoginSocial,
-    getSettingAppPassword, updateSettingAppPassword,
     getSettingPoint, updateSettingPoint,
 } from "@/admin/features/settings/services/legacySettingService";
 import { toast } from "react-toastify";
@@ -135,26 +134,6 @@ export const useUpdateSettingLoginSocial = () => {
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["settingLoginSocial"] });
             toast.success("Cập nhật cấu hình MXH thành công");
-        },
-    });
-};
-
-/** Hook quản lý cài đặt App Password */
-export const useSettingAppPassword = () => {
-    return useQuery({
-        queryKey: ["settingAppPassword"],
-        queryFn: getSettingAppPassword,
-        select: (data) => data.data,
-    });
-};
-
-export const useUpdateSettingAppPassword = () => {
-    const queryClient = useQueryClient();
-    return useMutation({
-        mutationFn: updateSettingAppPassword,
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ["settingAppPassword"] });
-            toast.success("Cập nhật mật khẩu ứng dụng thành công");
         },
     });
 };

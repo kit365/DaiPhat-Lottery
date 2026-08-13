@@ -34,16 +34,6 @@ export const updateSettingLoginSocial = async (data: unknown): Promise<ApiRespon
     return response.data;
 };
 
-export const getSettingAppPassword = async (): Promise<ApiResponse<unknown>> => {
-    const response = await apiApp.get(`${BASE_URL}/api-app-password`);
-    return response.data;
-};
-
-export const updateSettingAppPassword = async (data: unknown): Promise<ApiResponse<unknown>> => {
-    const response = await apiApp.patch(`${BASE_URL}/api-app-password`, data);
-    return response.data;
-};
-
 export const getSettingPoint = async (): Promise<ApiResponse<unknown>> => {
     const response = await apiApp.get(`${BASE_URL}/point`);
     return response.data;

@@ -7,7 +7,6 @@ import SettingsIcon from "@mui/icons-material/Settings";
 
 
 import ShoppingCartIcon from "@mui/icons-material/ShoppingCart";
-import RateReviewIcon from "@mui/icons-material/RateReview";
 import ChatIcon from "@mui/icons-material/Chat";
 import SupportAgentIcon from "@mui/icons-material/SupportAgent";
 import PaymentsIcon from "@mui/icons-material/Payments";
@@ -184,13 +183,6 @@ export const menuManagementData = [
 
 export const menuDevelopmentData = [
     {
-        id: "reviews",
-        label: "Đánh giá",
-        Icon: RateReviewIcon,
-        path: ROUTES.ADMIN.REVIEWS,
-        permission: PERMISSIONS.REVIEW.VIEW
-    },
-    {
         id: "settings",
         label: "Cài đặt",
         tKey: "admin.sidebar.settings",
@@ -201,7 +193,6 @@ export const menuDevelopmentData = [
             { id: "settings-general", label: "Cài đặt chung", path: ROUTES.ADMIN.DASHBOARD.SETTINGS.GENERAL },
             { id: "settings-policies", label: "Chính sách", path: ROUTES.ADMIN.DASHBOARD.SETTINGS.POLICIES },
             { id: "settings-pages", label: "Trang thông tin", path: ROUTES.ADMIN.DASHBOARD.SETTINGS.PAGES },
-            { id: "settings-app-password", label: "Mật khẩu ứng dụng", path: ROUTES.ADMIN.DASHBOARD.SETTINGS.APP_PASSWORD },
             { id: "settings-system-config", label: "Cấu hình hệ thống", path: ROUTES.ADMIN.DASHBOARD.SETTINGS.SYSTEM_CONFIG, permission: PERMISSIONS.SETTINGS.VIEW },
         ]
     }
