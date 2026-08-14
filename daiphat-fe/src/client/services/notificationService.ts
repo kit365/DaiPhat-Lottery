@@ -11,7 +11,11 @@ export const getMyNotifications = async (params: {
     page?: number;
     limit?: number;
 }): Promise<PageResponse<NotificationResponse>> => {
-    const response = await apiApp.get("/notifications/me", { params });
+    // Polling every ~10s must not spam the global "server maintenance" toast on transient 5xx/proxy blips.
+    const response = await apiApp.get("/notifications/me", {
+        params,
+        skipGlobalErrorToast: true,
+    } as Parameters<typeof apiApp.get>[1] & { skipGlobalErrorToast?: boolean });
     return response.data.data;
 };
 

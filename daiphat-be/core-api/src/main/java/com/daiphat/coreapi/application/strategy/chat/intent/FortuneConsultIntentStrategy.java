@@ -6,6 +6,7 @@ import com.daiphat.coreapi.application.dto.chat.intent.ChatIntentOutcome;
 import com.daiphat.coreapi.application.dto.response.chat.ChatGenerateResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.LotteryTicketResponse;
 import com.daiphat.coreapi.application.port.in.chat.ChatAiPort;
+import com.daiphat.coreapi.application.service.chat.fortune.DestinyNumberInterpreter;
 import com.daiphat.coreapi.application.service.chat.fortune.DreamFortuneInterpreter;
 import com.daiphat.coreapi.application.service.chat.ticket.ChatTicketInventoryService;
 import com.daiphat.coreapi.domain.model.enums.chat.ChatIntent;
@@ -27,6 +28,7 @@ public class FortuneConsultIntentStrategy implements ChatIntentHandlerStrategy {
     private final ChatMessageProperties chatMessageProperties;
     private final ChatTicketInventoryService chatTicketInventoryService;
     private final DreamFortuneInterpreter dreamFortuneInterpreter;
+    private final DestinyNumberInterpreter destinyNumberInterpreter;
 
     @Override
     public ChatIntent supportedIntent() {
@@ -37,6 +39,29 @@ public class FortuneConsultIntentStrategy implements ChatIntentHandlerStrategy {
     public ChatIntentOutcome resolve(ChatIntentContext ctx) {
         String message = ctx.getCustomerMessage() != null ? ctx.getCustomerMessage().getContent() : null;
         Long conversationId = ctx.getConversation() != null ? ctx.getConversation().getId() : null;
+
+        // Zodiac / con giáp / căn mệnh first — customer asked for destiny-based number tips.
+        var destiny = destinyNumberInterpreter.interpret(message);
+        if (destiny.isPresent()) {
+            DestinyNumberInterpreter.Interpretation local = destiny.get();
+            if (local.luckyNumbers() != null && !local.luckyNumbers().isEmpty()) {
+                ChatTicketInventoryService.TicketInventoryReply inventory =
+                        findTicketsForLuckyNumbers(local.reply(), local.luckyNumbers());
+                return new ChatIntentOutcome.BotReply(
+                        inventory.content(),
+                        inventory.displayContent(),
+                        ChatIntent.OTHER_KNOWLEDGE.name()
+                );
+            }
+            // Topic recognized but missing specific cung/giáp/mệnh — still offer sellable tips.
+            ChatTicketInventoryService.TicketInventoryReply inventory =
+                    chatTicketInventoryService.appendInventoryBlock(local.reply());
+            return new ChatIntentOutcome.BotReply(
+                    inventory.content(),
+                    inventory.displayContent(),
+                    ChatIntent.OTHER_KNOWLEDGE.name()
+            );
+        }
 
         DreamFortuneInterpreter.Interpretation local = dreamFortuneInterpreter.interpret(message);
         ChatGenerateResponse ai = chatAiPort.generateFortune(message, conversationId);

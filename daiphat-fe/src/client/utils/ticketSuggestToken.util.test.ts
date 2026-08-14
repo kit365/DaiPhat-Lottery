@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   formatChatMessageContent,
+  formatCustomerChatMessageContent,
   parseTicketSuggestToken,
   splitTicketSuggestText,
   stripTicketSuggestToken,
@@ -60,6 +61,13 @@ describe('parseTicketSuggestToken', () => {
     expect(formatChatMessageContent(content)).toContain('579361');
     expect(formatChatMessageContent(content)).toContain('Bến Tre');
     expect(formatChatMessageContent(content)).not.toContain('TICKET_SUGGEST');
+  });
+
+  it('hides exclude params from customer message display', () => {
+    expect(formatCustomerChatMessageContent('gợi ý vé số cho tôi|exclude=1,2,3'))
+      .toBe('Gợi ý vé số');
+    expect(formatCustomerChatMessageContent('tìm vé đuôi số 68|exclude=9'))
+      .toBe('tìm vé đuôi số 68');
   });
 });
 

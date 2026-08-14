@@ -1,6 +1,10 @@
-import { Conversation, ConversationStatusEnum, Message, CustomerChatTimelineResponse, SessionBoundaryResponse } from '../../../../types/chat.type';
+import { Conversation, ConversationStatusEnum, Message, MessageSenderRole, CustomerChatTimelineResponse, SessionBoundaryResponse } from '../../../../types/chat.type';
 import { flattenTimelineItems, formatSessionStartedLabel } from '../../../../utils/chatTimeline.util';
 import { mapMessage } from '../services/chatService';
+import {
+    formatChatMessageContent,
+    formatCustomerChatMessageContent,
+} from '../../../../client/utils/ticketSuggestToken.util';
 
 const isActiveStatus = (status: Conversation['status']): boolean =>
     status !== ConversationStatusEnum.CLOSED;
@@ -13,11 +17,40 @@ export const getManagementUnreadCount = (conversation: Conversation): number => 
     return conversation.unreadCount ?? 0;
 };
 
+/**
+ * Mirror BE {@code updateConversationStatusAfterMessage}:
+ * staff reply → chờ khách; khách reply khi đang chờ → đang xử lý.
+ */
+export const resolveStatusAfterMessage = (
+    conversation: Pick<Conversation, 'status' | 'assignedOperatorId'>,
+    senderType: Message['senderType'] | string | null | undefined
+): Conversation['status'] => {
+    if (!conversation.assignedOperatorId) {
+        return conversation.status;
+    }
+    if (senderType === MessageSenderRole.OPERATOR) {
+        return ConversationStatusEnum.WAITING_FOR_CUSTOMER;
+    }
+    if (
+        senderType === MessageSenderRole.CUSTOMER
+        && conversation.status === ConversationStatusEnum.WAITING_FOR_CUSTOMER
+    ) {
+        return ConversationStatusEnum.ACTIVE;
+    }
+    return conversation.status;
+};
+
 const SESSION_DIVIDER_PATTERNS = [
     'phiên hỗ trợ mới bắt đầu',
     'phiên hỗ trợ đã kết thúc',
     'phiên hỗ trợ với',
     'đã kết thúc. lần sau bạn có thể',
+];
+
+/** Customer-facing close copy — keep for customer chat, hide in admin timeline. */
+const CUSTOMER_FACING_CLOSE_PATTERNS = [
+    'cuộc trò chuyện đã được đóng',
+    'nếu cần hỗ trợ thêm, bạn cứ nhắn lại',
 ];
 
 const AI_NOTICE_PATTERNS = [
@@ -36,6 +69,11 @@ const AI_NOTICE_PATTERNS = [
 export const isSessionDividerText = (text: string): boolean => {
     const normalized = text.toLowerCase();
     return SESSION_DIVIDER_PATTERNS.some((pattern) => normalized.includes(pattern));
+};
+
+export const isCustomerFacingCloseNotice = (text: string): boolean => {
+    const normalized = text.toLowerCase().trim();
+    return CUSTOMER_FACING_CLOSE_PATTERNS.some((pattern) => normalized.includes(pattern));
 };
 
 export const isAiSystemNoticeText = (text: string): boolean => {
@@ -159,12 +197,21 @@ export const getConversationPreviewText = (
     if (!lastMsg?.content) {
         return statusLabels[conversation.status] || 'Cuộc trò chuyện mới';
     }
+    if (isCustomerFacingCloseNotice(lastMsg.content)) {
+        return statusLabels[conversation.status] || 'Cuộc trò chuyện mới';
+    }
     if (isSessionDividerText(lastMsg.content) || isAiSystemNoticeText(lastMsg.content)) {
         return getAdminSystemNoticeText(lastMsg.content, {
             currentUserId,
             assignedOperatorId: conversation.assignedOperatorId,
             assignedOperatorName: conversation.assignedOperatorName,
         });
+    }
+    if (lastMsg.senderType === 'AI_SYSTEM') {
+        return formatChatMessageContent(lastMsg.content);
+    }
+    if (lastMsg.senderType === 'CUSTOMER') {
+        return formatCustomerChatMessageContent(lastMsg.content);
     }
     return lastMsg.content;
 };
@@ -199,6 +246,9 @@ export const buildTimelineRows = (pages: CustomerChatTimelineResponse[]): Timeli
         }
 
         if (item.message.type === 'TEXT' || item.message.type === 'SYSTEM') {
+            if (isCustomerFacingCloseNotice(item.message.content ?? '')) {
+                continue;
+            }
             const nextBoundary = items[index + 1]?.sessionBoundary;
             const isSessionCloseDivider = Boolean(parseSessionCloseNotice(item.message.content ?? ''));
 

@@ -75,12 +75,6 @@ List<QuickReplyChip> buildWelcomeQuickReplies() => const [
     action: QuickReplyAction.send,
     message: suggestTicketsMessage,
   ),
-  QuickReplyChip(
-    id: 'welcome-order',
-    label: 'Hỗ trợ đơn hàng',
-    action: QuickReplyAction.send,
-    message: 'Tôi cần hỗ trợ đơn hàng',
-  ),
 ];
 
 List<QuickReplyChip> buildStaffOnlyQuickReplies() => const [
