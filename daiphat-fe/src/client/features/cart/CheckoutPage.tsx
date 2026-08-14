@@ -121,7 +121,6 @@ export const CheckoutPage = () => {
         };
 
         validateCartStock();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isBuyNow]);
 
     React.useEffect(() => {

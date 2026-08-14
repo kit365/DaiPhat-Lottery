@@ -8,6 +8,7 @@ import {
     DialogActions,
     DialogContent,
     DialogTitle,
+    InputAdornment,
     Stack,
     TextField,
     Typography,
@@ -20,6 +21,15 @@ import {
 } from "../hooks/useVendorAllocation";
 import { StreetAgentProfile, VendorAllocationBatch } from "../types/street-agent.type";
 import { formatCurrency, formatDateTime } from "../utils/format";
+
+const formatVndInput = (digits: string) => {
+    if (!digits) return "";
+    const amount = Number(digits);
+    if (!Number.isFinite(amount)) return "";
+    return amount.toLocaleString("vi-VN");
+};
+
+const digitsOnly = (value: string) => value.replace(/\D/g, "");
 
 const fieldSx = {
     "& .MuiOutlinedInput-root": {
@@ -123,10 +133,36 @@ export const ConfirmVendorDepositDialog = ({
         (quoteError ? "Không tải được báo giá cọc từ hệ thống." : null);
 
     return (
-        <Dialog open={open} onClose={isPending ? undefined : onClose} fullWidth maxWidth="sm">
-            <DialogTitle>Xác nhận bàn giao & nhận cọc</DialogTitle>
-            <DialogContent>
-                <Stack spacing={2} sx={{ pt: 1 }}>
+        <Dialog
+            open={open}
+            onClose={isPending ? undefined : onClose}
+            fullWidth
+            maxWidth="sm"
+            PaperProps={{
+                className: "admin-theme",
+                sx: {
+                    borderRadius: "16px",
+                    boxShadow: "var(--customShadows-dialog, 0px 24px 48px -8px rgba(0, 0, 0, 0.16))",
+                    bgcolor: "#FFFFFF",
+                },
+            }}
+        >
+            <DialogTitle
+                sx={{
+                    m: 0,
+                    px: 3,
+                    pt: 2.5,
+                    pb: 2,
+                    fontWeight: 700,
+                    fontSize: "1.125rem",
+                    borderBottom: "1px solid var(--palette-divider)",
+                    bgcolor: "#FFFFFF",
+                }}
+            >
+                Xác nhận bàn giao & nhận cọc
+            </DialogTitle>
+            <DialogContent sx={{ px: 3, pt: "24px !important", pb: 1, bgcolor: "#FFFFFF" }}>
+                <Stack spacing={2}>
                     <Typography variant="body2" color="text.secondary">
                         Phiếu <strong>{batch?.batchCode || "—"}</strong> ·{" "}
                         {quote?.allocatedQuantity ?? batch?.allocatedQuantity ?? 0} vé
@@ -134,6 +170,12 @@ export const ConfirmVendorDepositDialog = ({
                             ? ` · ${`${profile.lastName || ""} ${profile.firstName || ""}`.trim()}`
                             : ""}
                     </Typography>
+
+                    {quote?.effectiveHandoverDeadlineAt ? (
+                        <Typography variant="body2" sx={{ fontWeight: 700, color: "text.primary" }}>
+                            Hạn cuối có thể giao vé trước {formatDateTime(quote.effectiveHandoverDeadlineAt)}
+                        </Typography>
+                    ) : null}
 
                     {(isLoadingQuote || isFetchingQuote) && !quote ? (
                         <Stack alignItems="center" py={3}>
@@ -163,37 +205,39 @@ export const ConfirmVendorDepositDialog = ({
                                 sx={fieldSx}
                                 fullWidth
                             />
-
-                            {quote?.effectiveHandoverDeadlineAt ? (
-                                <Typography variant="caption" color="text.secondary">
-                                    Hạn cuối có thể giao vé: {formatDateTime(quote.effectiveHandoverDeadlineAt)}
-                                </Typography>
-                            ) : null}
                         </>
                     )}
 
                     <TextField
                         label="Tiền thực nhận *"
-                        type="number"
-                        value={depositReceived}
-                        onChange={(e) => setDepositReceived(e.target.value)}
+                        value={formatVndInput(depositReceived)}
+                        onChange={(e) => setDepositReceived(digitsOnly(e.target.value))}
                         error={insufficient || (depositReceived !== "" && !receivedValid)}
                         helperText={
                             insufficient
                                 ? `Tiền cọc thực nhận phải ≥ ${formatCurrency(requiredAmount)}`
                                 : "Nhập số tiền cọc thực tế thu được từ đại lý."
                         }
-                        inputProps={{ min: 0, step: 1000 }}
+                        inputMode="numeric"
                         sx={fieldSx}
                         fullWidth
                         disabled={!quote}
+                        InputProps={{
+                            endAdornment: <InputAdornment position="end">đ</InputAdornment>,
+                        }}
                     />
                 </Stack>
             </DialogContent>
-            <DialogActions>
-                <Button onClick={onClose} disabled={isPending}>
-                    Đóng
-                </Button>
+            <DialogActions
+                sx={{
+                    px: 3,
+                    py: 2.5,
+                    gap: 1.5,
+                    borderTop: "1px solid var(--palette-divider)",
+                    bgcolor: "#FFFFFF",
+                }}
+            >
+                <Button variant="outlined" color="inherit" onClick={onClose} disabled={isPending} label="Hủy" />
                 <Button
                     loading={isPending}
                     variant="contained"

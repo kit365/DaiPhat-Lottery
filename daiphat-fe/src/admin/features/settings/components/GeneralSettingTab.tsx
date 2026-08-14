@@ -200,7 +200,7 @@ export const GeneralSettingTab = () => {
                         <Card sx={cardSx}>
                             <SectionHeader
                                 title="Thông tin định danh Website"
-                                description="Các trường dùng cho footer / header client (GENERAL_SETTING)."
+                                description="Tên website, slogan và thông tin liên hệ hiện trên trang khách."
                             />
                             <Stack spacing={2.5}>
                                 <Controller

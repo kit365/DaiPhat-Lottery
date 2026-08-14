@@ -4,6 +4,7 @@ export { OrderDetailStatusBadge, type OrderDetailStatusBadgeProps } from './Orde
 export {
     ORDER_STATUS_BADGE,
     getOrderStatusBadge,
+    getOrderStatusAdminBadgeModifier,
     type OrderStatusBadge as OrderStatusBadgeTone,
-} from './orderStatusBadge';
+} from './orderStatusMap';
 export type { StatusBadgeTone } from './statusBadge.types';

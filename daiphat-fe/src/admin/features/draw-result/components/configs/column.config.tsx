@@ -48,6 +48,8 @@ export const columnsConfig = (onViewDetails: (id: number) => void): GridColDef[]
         field: 'detailCount',
         headerName: 'Số giải đã có',
         width: 130,
+        align: 'center',
+        headerAlign: 'center',
     },
     {
         field: 'actions',

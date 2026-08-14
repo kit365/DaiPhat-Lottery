@@ -1,5 +1,5 @@
 import { OrderStatus } from '@/types/order.type';
-import { ORDER_STATUS_BADGE } from '@/shared/components/StatusBadge';
+import { ORDER_STATUS_BADGE } from '@/shared/components/StatusBadge/orderStatusMap';
 
 import type { OrderStatusBadge, OrderStatusTab } from '../types/orderStatus.type';
 

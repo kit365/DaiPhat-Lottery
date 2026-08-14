@@ -1,23 +1,24 @@
 import React from 'react';
 import {
   Box,
+  Stack,
   TableCell,
   TableRow,
   Typography,
   Tooltip,
-  Chip,
-  IconButton,
-  Stack,
 } from '@mui/material';
-import { Edit2 } from 'lucide-react';
+import { AdminStatusBadge } from '../../../../components/ui/AdminStatusBadge';
+import { AdminRowActionsMenu } from '../../../../components/ui/AdminRowActionsMenu';
 import {
   CONFIG_DATA_TYPE_LABELS,
-  CONFIG_TYPE_LABELS,
   ConfigDataType,
-  ConfigType,
   SystemConfigResponse,
 } from '../../types/system-config';
 import { formatSystemConfigDisplayValue } from '../../utils/systemConfigDisplay.util';
+import {
+  getConfigDataTypeBadgeClass,
+  isBooleanConfigOn,
+} from '../../utils/systemConfigBadge';
 
 interface SystemConfigTableRowProps {
   config: SystemConfigResponse;
@@ -25,95 +26,92 @@ interface SystemConfigTableRowProps {
   onEdit: (config: SystemConfigResponse) => void;
 }
 
-const getTypeChipColor = (
-  type: ConfigType
-): 'default' | 'primary' | 'secondary' | 'warning' | 'error' | 'info' | 'success' => {
-  switch (type) {
-    case ConfigType.GENERAL_SETTING:
-      return 'default';
-    case ConfigType.STATIC_PAGE:
-      return 'default';
-    case ConfigType.ORDER_SETTING:
-      return 'primary';
-    case ConfigType.PAYMENT_SETTING:
-      return 'info';
-    case ConfigType.TICKET_IMPORT:
-      return 'warning';
-    case ConfigType.TICKET_RETURN:
-      return 'warning';
-    case ConfigType.VENDOR_SETTING:
-      return 'info';
-    case ConfigType.REFUND_SETTING:
-      return 'secondary';
-    case ConfigType.COMPLAINT_SETTING:
-      return 'error';
-    case ConfigType.PAYOUT_SETTING:
-      return 'success';
-    case ConfigType.FORTUNE_SETTING:
-      return 'error';
-    default:
-      return 'default';
-  }
-};
-
 const ConfigValueCell = ({ config }: { config: SystemConfigResponse }) => {
-  const display = formatSystemConfigDisplayValue(
-    config.configKey,
-    config.configValue,
-    config.dataType
-  );
+  const unit = config.unit?.trim();
 
-  if (display.isStructured && display.detailLines?.length) {
-    const preview = display.detailLines[0];
-    const extraCount = display.detailLines.length - 1;
-    return (
-      <Tooltip
-        title={
-          <Box component="ul" sx={{ m: 0, pl: 2 }}>
-            {display.detailLines.map((line) => (
-              <li key={line}>{line}</li>
-            ))}
-          </Box>
-        }
-        placement="top-start"
-      >
-        <Stack spacing={0.25} sx={{ maxWidth: 260, cursor: 'help' }}>
-          <Typography variant="body2" sx={{ fontWeight: 600, lineHeight: 1.35 }}>
-            {display.summary}
-          </Typography>
+  const valueNode = (() => {
+    if (config.dataType === ConfigDataType.BOOLEAN) {
+      const isOn = isBooleanConfigOn(config.configValue);
+      return (
+        <AdminStatusBadge
+          label={isOn ? 'Bật' : 'Tắt'}
+          modifier={isOn ? 'admin-status-badge--success' : 'admin-status-badge--inactive'}
+        />
+      );
+    }
+
+    const display = formatSystemConfigDisplayValue(
+      config.configKey,
+      config.configValue,
+      config.dataType
+    );
+
+    if (display.isStructured && display.detailLines?.length) {
+      return (
+        <Tooltip
+          title={
+            <Box component="ul" sx={{ m: 0, pl: 2, textAlign: 'left' }}>
+              {display.detailLines.map((line) => (
+                <li key={line}>{line}</li>
+              ))}
+            </Box>
+          }
+          placement="top"
+        >
           <Typography
-            variant="caption"
-            color="text.secondary"
+            variant="body2"
             sx={{
+              fontWeight: 600,
               lineHeight: 1.35,
+              textAlign: 'center',
+              cursor: 'help',
               overflow: 'hidden',
               textOverflow: 'ellipsis',
               whiteSpace: 'nowrap',
+              maxWidth: '100%',
             }}
           >
-            {preview}
-            {extraCount > 0 ? '…' : ''}
+            {display.summary}
           </Typography>
-        </Stack>
+        </Tooltip>
+      );
+    }
+
+    return (
+      <Tooltip title={display.summary} placement="top">
+        <Typography
+          variant="body2"
+          sx={{
+            fontWeight: 600,
+            fontFamily: config.dataType === ConfigDataType.TIME ? 'monospace' : 'inherit',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+            maxWidth: '100%',
+            textAlign: 'center',
+          }}
+        >
+          {display.summary}
+        </Typography>
       </Tooltip>
     );
-  }
+  })();
 
   return (
-    <Tooltip title={display.summary} placement="top-start">
-      <Typography
-        variant="body2"
-        sx={{
-          fontFamily: config.dataType === ConfigDataType.TIME ? 'monospace' : 'inherit',
-          maxWidth: 260,
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-          whiteSpace: 'nowrap',
-        }}
-      >
-        {display.summary}
-      </Typography>
-    </Tooltip>
+    <Stack
+      direction="row"
+      spacing={0.5}
+      alignItems="baseline"
+      justifyContent="center"
+      sx={{ maxWidth: 120, mx: 'auto', flexWrap: 'nowrap' }}
+    >
+      {valueNode}
+      {unit ? (
+        <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.35, whiteSpace: 'nowrap' }}>
+          {unit}
+        </Typography>
+      ) : null}
+    </Stack>
   );
 };
 
@@ -127,44 +125,23 @@ export const SystemConfigTableRow: React.FC<SystemConfigTableRowProps> = ({
       hover
       sx={{ '& td': { borderBottom: '1px dashed var(--palette-divider)' } }}
     >
-      <TableCell sx={{ maxWidth: 240 }}>
-        <Typography variant="body2" sx={{ fontWeight: 600 }}>
+      <TableCell sx={{ width: '32%', verticalAlign: 'middle' }}>
+        <Typography variant="body2" sx={{ fontWeight: 600, whiteSpace: 'normal', wordBreak: 'break-word' }}>
           {config.configName || config.configKey}
         </Typography>
-        <Typography
-          variant="caption"
-          color="text.disabled"
-          sx={{ fontFamily: 'monospace' }}
-        >
-          {config.configKey}
-        </Typography>
       </TableCell>
-      <TableCell sx={{ maxWidth: 220 }}>
-        <Typography variant="body2" color="text.secondary">
+      <TableCell sx={{ width: '36%', verticalAlign: 'middle' }}>
+        <Typography variant="body2" color="text.secondary" sx={{ whiteSpace: 'normal', wordBreak: 'break-word' }}>
           {config.description}
         </Typography>
       </TableCell>
-      <TableCell sx={{ maxWidth: 280, verticalAlign: 'middle' }}>
+      <TableCell align="center" sx={{ width: 120, verticalAlign: 'middle' }}>
         <ConfigValueCell config={config} />
       </TableCell>
-      <TableCell>
-        <Typography variant="body2" color="text.secondary">
-          {config.unit || '—'}
-        </Typography>
-      </TableCell>
       <TableCell align="center">
-        <Chip
-          size="small"
-          label={CONFIG_TYPE_LABELS[config.configType] || config.configType}
-          color={getTypeChipColor(config.configType)}
-          variant="outlined"
-        />
-      </TableCell>
-      <TableCell>
-        <Chip
-          size="small"
+        <AdminStatusBadge
           label={CONFIG_DATA_TYPE_LABELS[config.dataType] || config.dataType}
-          variant="outlined"
+          modifier={getConfigDataTypeBadgeClass(config.dataType)}
         />
       </TableCell>
       {canEdit && (
@@ -172,17 +149,30 @@ export const SystemConfigTableRow: React.FC<SystemConfigTableRowProps> = ({
           {config.isEditable === false ? (
             <Tooltip title="Cấu hình hệ thống — không chỉnh sửa được">
               <span>
-                <IconButton size="small" disabled>
-                  <Edit2 size={18} />
-                </IconButton>
+                <AdminRowActionsMenu
+                  disabled
+                  items={[
+                    {
+                      id: 'edit',
+                      label: 'Chỉnh sửa',
+                      icon: 'edit',
+                      onClick: () => undefined,
+                    },
+                  ]}
+                />
               </span>
             </Tooltip>
           ) : (
-            <Tooltip title="Chỉnh sửa">
-              <IconButton onClick={() => onEdit(config)} size="small" color="primary">
-                <Edit2 size={18} />
-              </IconButton>
-            </Tooltip>
+            <AdminRowActionsMenu
+              items={[
+                {
+                  id: 'edit',
+                  label: 'Chỉnh sửa',
+                  icon: 'edit',
+                  onClick: () => onEdit(config),
+                },
+              ]}
+            />
           )}
         </TableCell>
       )}

@@ -4,24 +4,25 @@ import Link from "@/admin/components/navigation/AdminLink";
 import { ConversationTitle } from '../components/ConversationTitle';
 import { ConversationAvatarLetter } from '../components/ConversationAvatarLetter';
 import {
-    getConversationDisplayTitle,
-    getConversationAvatarLetter,
     isAdminDividerMessage,
     getAssigneeDisplayLabel,
     getAdminSystemNoticeText,
+    getConversationDisplayTitle,
     buildTimelineRows,
     formatSessionBoundaryDetail,
     parseSessionCloseNotice,
-    formatWaitDuration,
     TimelineRow} from '../utils';
 import {
     Box,
     Stack,
     Typography,
     Avatar,
+    TextField,
+    Autocomplete,
     InputBase,
     CircularProgress,
-Chip,
+    IconButton,
+    Tooltip,
     Dialog,
     DialogTitle,
     DialogContent,
@@ -38,7 +39,7 @@ Chip,
 } from '@mui/material';
 import { formatChatMessageContent } from '../../../../../client/utils/ticketSuggestToken.util';
 import { Button } from '../../../../components/ui/Button';
-import { Icon } from '@/admin/components/ui/AdminIcon';
+import { ChatDetails } from './ChatDetails';
 import { useCallback, useRef, useEffect, useLayoutEffect, useState, useMemo } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { AppToast as toast } from '../../../../../utils/toast.util';
@@ -60,6 +61,20 @@ import { ChatSocketMessageEvent } from '../../../../../types/websocket.type';
 import { ChatConversationSocketEvent, MessageSenderRole, ConversationStatusEnum, ConversationCloseReason, CLOSE_REASON_OPTIONS } from '../../../../../types/chat.type';
 import { useAuthStore } from '../../../../../stores/useAuthStore';
 import dayjs from 'dayjs';
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
+import CloseOutlinedIcon from '@mui/icons-material/CloseOutlined';
+
+const formatBubbleTime = (iso?: string | null) => {
+    if (!iso) return '';
+    const t = dayjs(iso);
+    if (!t.isValid()) return '';
+    const mins = dayjs().diff(t, 'minute');
+    if (mins < 1) return 'vừa xong';
+    if (mins < 60) return `${mins} phút`;
+    const hours = dayjs().diff(t, 'hour');
+    if (hours < 24) return `${hours} giờ`;
+    return t.format('HH:mm · DD/MM');
+};
 
 const STATUS_LABELS: Record<string, { label: string; color: string; bg: string }> = {
     [ConversationStatusEnum.OPEN]: { label: 'Mở', color: 'var(--palette-info-dark)', bg: 'var(--palette-info-lighter)' },
@@ -81,14 +96,24 @@ const mapSocketMessage = (payload: ChatSocketMessageEvent): Message => ({
 
 interface ChatWindowProps {
     conversationId: number | null;
+    recipients?: Conversation[];
+    onSelectRecipient?: (id: number) => void;
     onToggleDetails?: () => void;
+    showDetails?: boolean;
 }
 
-export const ChatWindow = ({ conversationId, onToggleDetails }: ChatWindowProps) => {
+export const ChatWindow = ({
+    conversationId,
+    recipients = [],
+    onSelectRecipient,
+    onToggleDetails,
+    showDetails,
+}: ChatWindowProps) => {
     const [message, setMessage] = useState('');
     const [closeDialogOpen, setCloseDialogOpen] = useState(false);
     const [closeReason, setCloseReason] = useState<ConversationCloseReason>('RESOLVED');
     const [showPreHandoff, setShowPreHandoff] = useState(false);
+    const [summaryOpen, setSummaryOpen] = useState(false);
     const [preHandoffMessages, setPreHandoffMessages] = useState<Message[]>([]);
     const [loadingPreHandoff, setLoadingPreHandoff] = useState(false);
 
@@ -176,6 +201,7 @@ export const ChatWindow = ({ conversationId, onToggleDetails }: ChatWindowProps)
     useEffect(() => {
         setShowPreHandoff(false);
         setPreHandoffMessages([]);
+        setSummaryOpen(false);
     }, [conversationId]);
 
     const handleTogglePreHandoff = async () => {
@@ -539,120 +565,234 @@ export const ChatWindow = ({ conversationId, onToggleDetails }: ChatWindowProps)
     };
 
     if (!conversationId) {
+        const hour = new Date().getHours();
+        const greeting =
+            hour < 12 ? 'Chào buổi sáng!' : hour < 18 ? 'Chào buổi chiều!' : 'Chào buổi tối!';
+
         return (
             <Box
                 sx={{
                     height: '100%',
+                    minHeight: 0,
                     display: 'flex',
                     flexDirection: 'column',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    p: 4,
-                    textAlign: 'center',
+                    bgcolor: 'var(--palette-background-paper)',
+                    overflow: 'hidden',
                 }}
             >
-                <Box
+                <Stack
+                    direction="row"
+                    alignItems="center"
+                    spacing={1.5}
                     sx={{
-                        width: 140,
-                        height: 140,
-                        borderRadius: '50%',
-                        bgcolor: 'var(--palette-primary-lighter)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        mb: 3,
+                        px: 2.5,
+                        minHeight: 72,
+                        flexShrink: 0,
+                        borderBottom: '1px solid rgba(145, 158, 171, 0.16)',
                     }}
                 >
-                    <Icon icon="solar:chat-round-dots-bold-duotone" width={80} color="var(--palette-primary-main)" />
+                    <Typography sx={{ fontWeight: 700, fontSize: '0.9375rem', color: 'var(--palette-text-primary)', flexShrink: 0 }}>
+                        Đến:
+                    </Typography>
+                    <Autocomplete
+                        options={recipients}
+                        getOptionLabel={(option) => getConversationDisplayTitle(option)}
+                        isOptionEqualToValue={(option, value) => option.id === value.id}
+                        filterOptions={(options, state) => {
+                            const q = state.inputValue.trim().toLowerCase();
+                            if (!q) return options;
+                            return options.filter((conv) => {
+                                const title = getConversationDisplayTitle(conv).toLowerCase();
+                                const preview = (conv.lastMessage?.content || '').toLowerCase();
+                                return title.includes(q) || preview.includes(q);
+                            });
+                        }}
+                        onChange={(_, value) => {
+                            if (value) onSelectRecipient?.(value.id);
+                        }}
+                        noOptionsText="Không có hội thoại"
+                        popupIcon={null}
+                        sx={{ width: 280, maxWidth: '100%' }}
+                        renderInput={(params) => (
+                            <TextField
+                                {...params}
+                                placeholder="+ Người nhận"
+                                size="small"
+                                sx={{
+                                    '& .MuiOutlinedInput-root': {
+                                        fontSize: '0.9375rem',
+                                        borderRadius: '8px',
+                                        bgcolor: '#fff',
+                                        '& fieldset': { borderColor: 'rgba(145, 158, 171, 0.32)' },
+                                        '&:hover fieldset': { borderColor: 'rgba(145, 158, 171, 0.48)' },
+                                        '&.Mui-focused fieldset': {
+                                            borderColor: '#1C252E',
+                                            borderWidth: '1px',
+                                        },
+                                    },
+                                }}
+                            />
+                        )}
+                        slotProps={{
+                            paper: {
+                                elevation: 0,
+                                sx: {
+                                    mt: 0.75,
+                                    width: 280,
+                                    borderRadius: '10px',
+                                    overflow: 'hidden',
+                                    backgroundImage: 'none',
+                                    bgcolor: '#fff',
+                                    boxShadow:
+                                        '0px 5px 5px -3px rgba(145, 158, 171, 0.2), 0px 8px 10px 1px rgba(145, 158, 171, 0.14), 0px 3px 14px 2px rgba(145, 158, 171, 0.12)',
+                                },
+                            },
+                            listbox: {
+                                sx: { py: 0.5, maxHeight: 320 },
+                            },
+                        }}
+                        renderOption={(props, option) => {
+                            const { key, ...rest } = props;
+                            return (
+                                <Box
+                                    component="li"
+                                    key={key}
+                                    {...rest}
+                                    sx={{
+                                        display: 'flex !important',
+                                        alignItems: 'center',
+                                        gap: 1.5,
+                                        px: '12px !important',
+                                        py: '8px !important',
+                                        '&.Mui-focused, &[aria-selected="true"]': {
+                                            bgcolor: 'var(--palette-action-selected) !important',
+                                        },
+                                    }}
+                                >
+                                    <Avatar
+                                        sx={{
+                                            width: 32,
+                                            height: 32,
+                                            fontSize: '0.8125rem',
+                                            fontWeight: 700,
+                                            bgcolor: 'var(--palette-grey-200)',
+                                            color: 'var(--palette-text-secondary)',
+                                        }}
+                                    >
+                                        <ConversationAvatarLetter conversation={option} />
+                                    </Avatar>
+                                    <Typography noWrap sx={{ fontWeight: 600, fontSize: '0.875rem' }}>
+                                        {getConversationDisplayTitle(option)}
+                                    </Typography>
+                                </Box>
+                            );
+                        }}
+                    />
+                </Stack>
+
+                <Box
+                    sx={{
+                        flex: 1,
+                        minHeight: 0,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        px: 4,
+                        textAlign: 'center',
+                    }}
+                >
+                    <Box
+                        component="img"
+                        src="https://pub-c5e31b5cdafb419fb247a8ac2e78df7a.r2.dev/public/assets/icons/empty/ic-chat-active.svg"
+                        alt=""
+                        sx={{ width: 160, height: 160, mb: 2.5 }}
+                    />
+                    <Typography sx={{ fontWeight: 700, fontSize: '1.25rem', color: 'var(--palette-text-primary)', mb: 0.75 }}>
+                        {greeting}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                        Viết gì đó hay ho...
+                    </Typography>
                 </Box>
-                <Typography variant="h5" sx={{ fontWeight: 800, mb: 1, fontFamily: 'Barlow, sans-serif' }}>
-                    Đại Phát Support
-                </Typography>
-                <Typography variant="body1" color="text.secondary" sx={{ maxWidth: 320 }}>
-                    Chọn một hội thoại để bắt đầu tư vấn.
-                </Typography>
+
+                <Box
+                    sx={{
+                        px: 2.5,
+                        py: 1.5,
+                        flexShrink: 0,
+                        borderTop: '1px solid rgba(145, 158, 171, 0.16)',
+                    }}
+                >
+                    <InputBase
+                        fullWidth
+                        placeholder="Nhập tin nhắn"
+                        disabled
+                        sx={{
+                            fontSize: '0.9375rem',
+                            py: 0.75,
+                            color: 'var(--palette-text-primary)',
+                        }}
+                    />
+                </Box>
             </Box>
         );
     }
 
     return (
         <>
-        <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+        <Box sx={{ height: '100%', minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
             <Stack
                 direction="row"
                 alignItems="center"
                 justifyContent="space-between"
                 sx={{
-                    px: 3,
+                    px: 2.5,
                     py: 1.5,
-                    borderBottom: '1px solid var(--palette-divider)',
-                    minHeight: 70,
+                    borderBottom: '1px solid rgba(145, 158, 171, 0.16)',
+                    minHeight: 72,
                     flexShrink: 0,
-                    bgcolor: 'rgba(255, 255, 255, 0.9)',
-                    backdropFilter: 'blur(8px)',
-                    zIndex: 10,
+                    bgcolor: 'var(--palette-background-paper)',
                 }}
             >
-                <Stack direction="row" alignItems="center" spacing={2}>
-                    <Avatar
-                        sx={{ width: 44, height: 44, fontWeight: 700, cursor: 'pointer' }}
-                        onClick={onToggleDetails}
-                    >
+                <Stack direction="row" alignItems="center" spacing={1.5} minWidth={0}>
+                    <Avatar sx={{ width: 36, height: 36, fontSize: '0.875rem', fontWeight: 700, flexShrink: 0 }}>
                         <ConversationAvatarLetter conversation={activeConversation} />
                     </Avatar>
-
-                    <Box>
-                        <Stack direction="row" alignItems="center" spacing={1}>
-                            <ConversationTitle conversation={activeConversation}  variant="subtitle1" sx={{ fontWeight: 700, lineHeight: 1.2 }} />
-                            {activeConversation?.status && (() => {
-                                const statusInfo = STATUS_LABELS[activeConversation.status] || { label: activeConversation.status, color: 'var(--palette-primary-main)', bg: 'var(--palette-action-selected)' };
-                                return (
-                                    <Chip
-                                        label={statusInfo.label}
-                                        size="small"
-                                        sx={{
-                                            bgcolor: statusInfo.bg,
-                                            color: statusInfo.color,
-                                            fontSize: '0.7rem',
-                                            fontWeight: 600,
-                                            height: 22,
-                                        }}
-                                    />
-                                );
-                            })()}
-                        </Stack>
-                        <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
-                            Mã KH: {activeConversation?.customerId}
-                            {activeConversation && (
-                                <> · {getAssigneeDisplayLabel(activeConversation, userId)}</>
-                            )}
-                            {activeConversation?.status === ConversationStatusEnum.WAITING_FOR_OPERATOR
-                                && activeConversation.escalatedAt && (
-                                <> · Đã chờ {formatWaitDuration(activeConversation.escalatedAt)}</>
-                            )}
+                    <Box minWidth={0}>
+                        <ConversationTitle
+                            conversation={activeConversation}
+                            variant="subtitle2"
+                            noWrap
+                            sx={{ fontWeight: 700, lineHeight: 1.3 }}
+                        />
+                        <Typography variant="caption" color="text.secondary" noWrap sx={{ display: 'block' }}>
+                            {STATUS_LABELS[activeConversation?.status || '']?.label || activeConversation?.status}
+                            {activeConversation?.customerId ? ` · ${activeConversation.customerId.slice(0, 8)}` : ''}
+                            {activeConversation && <> · {getAssigneeDisplayLabel(activeConversation, userId)}</>}
+                            {!isConnected && ' · Đang kết nối…'}
                         </Typography>
-                        {!isConnected && (
-                            <Typography variant="caption" sx={{ color: 'var(--palette-warning-main)' }}>
-                                Đang kết nối realtime...
-                            </Typography>
-                        )}
                     </Box>
                 </Stack>
 
-                <Stack direction="row" spacing={1}>
+                <Stack direction="row" spacing={0.5} flexShrink={0} alignItems="center">
                     {canClose && (
                         <Button
                             variant="outlined"
                             onClick={handleCloseConversation}
                             disabled={closeMutation.isPending}
                             sx={{
-                                color: 'var(--palette-grey-600)',
-                                borderColor: 'var(--palette-grey-300)',
-                                fontWeight: 600,
-                                '&:hover': { borderColor: 'var(--palette-grey-500)', bgcolor: 'var(--palette-grey-100)' },
+                                height: 36,
+                                px: 1.5,
+                                borderRadius: '8px',
+                                textTransform: 'none',
+                                fontWeight: 700,
+                                boxShadow: 'none',
+                                borderColor: 'rgba(145, 158, 171, 0.24)',
+                                color: 'var(--palette-text-primary)',
                             }}
                         >
-                            {closeMutation.isPending ? 'Đang đóng...' : 'Đóng hội thoại'}
+                            {closeMutation.isPending ? 'Đang đóng…' : 'Đóng'}
                         </Button>
                     )}
                     {canClaim && (
@@ -661,108 +801,61 @@ export const ChatWindow = ({ conversationId, onToggleDetails }: ChatWindowProps)
                             onClick={handleAssignToMe}
                             disabled={assignMutation.isPending}
                             sx={{
-                                bgcolor: 'var(--palette-primary-main)',
-                                color: 'white',
-                                fontWeight: 600,
+                                height: 36,
+                                px: 1.5,
+                                borderRadius: '8px',
+                                textTransform: 'none',
+                                fontWeight: 700,
                                 boxShadow: 'none',
-                                '&:hover': { bgcolor: 'var(--palette-primary-dark)', boxShadow: 'none' },
+                                bgcolor: 'var(--palette-grey-800)',
+                                '&:hover': { bgcolor: 'var(--palette-grey-900)' },
                             }}
                         >
-                            {assignMutation.isPending ? 'Đang nhận...' : 'Nhận hội thoại'}
+                            {assignMutation.isPending ? 'Đang nhận…' : 'Nhận hội thoại'}
                         </Button>
+                    )}
+                    {onToggleDetails && (
+                        <Tooltip title={showDetails ? 'Ẩn thông tin' : 'Hiện thông tin'}>
+                            <IconButton
+                                onClick={onToggleDetails}
+                                aria-label={showDetails ? 'Ẩn thông tin' : 'Hiện thông tin'}
+                                sx={{
+                                    color: showDetails ? 'var(--palette-text-primary)' : 'var(--palette-text-secondary)',
+                                    bgcolor: showDetails ? 'rgba(145, 158, 171, 0.12)' : 'transparent',
+                                }}
+                            >
+                                <InfoOutlinedIcon fontSize="small" />
+                            </IconButton>
+                        </Tooltip>
                     )}
                 </Stack>
             </Stack>
 
+            <Box sx={{ flex: '1 1 auto', minHeight: 0, display: 'flex', flexDirection: 'row', overflow: 'hidden' }}>
+            <Box sx={{ flex: '1 1 auto', minWidth: 0, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
             <Box
                 ref={scrollRef}
                 sx={{
-                    flexGrow: 1,
+                    flex: '1 1 auto',
+                    minHeight: 0,
                     overflowY: 'auto',
-                    p: 3,
+                    px: 3,
+                    py: 3,
+                    bgcolor: 'var(--palette-background-paper)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: isLoading || !timelineRows.length ? 'center' : 'flex-end',
                 }}
             >
                 <Box
                     sx={{
-                        minHeight: '100%',
                         width: '100%',
                         display: 'flex',
                         flexDirection: 'column',
-                        justifyContent: 'flex-end',
-                        gap: 2,
+                        gap: 2.5,
                     }}
                 >
                     <Box ref={topSentinelRef} sx={{ height: 1, flexShrink: 0 }} />
-                    {activeConversation?.handoffSummary && (
-                        <Box
-                            sx={{
-                                flexShrink: 0,
-                                mb: 1,
-                                p: 2,
-                                borderRadius: 2,
-                                bgcolor: 'var(--palette-warning-lighter)',
-                                border: '1px solid var(--palette-warning-light)',
-                            }}
-                        >
-                            <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1 }}>
-                                <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'var(--palette-warning-dark)' }}>
-                                    Tóm tắt trước khi gặp nhân viên
-                                </Typography>
-                                {canExpandPreHandoff && (
-                                    <Button
-                                        size="small"
-                                        variant="text"
-                                        onClick={() => void handleTogglePreHandoff()}
-                                        disabled={loadingPreHandoff}
-                                        sx={{ textTransform: 'none', fontWeight: 600 }}
-                                    >
-                                        {loadingPreHandoff
-                                            ? 'Đang tải...'
-                                            : showPreHandoff
-                                              ? 'Ẩn lịch sử AI'
-                                              : 'Xem toàn bộ lịch sử AI'}
-                                    </Button>
-                                )}
-                            </Stack>
-                            <Typography
-                                variant="body2"
-                                sx={{ whiteSpace: 'pre-wrap', color: 'text.primary', lineHeight: 1.6 }}
-                            >
-                                {activeConversation.handoffSummary}
-                            </Typography>
-                            {!canExpandPreHandoff && canClaim && (
-                                <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
-                                    Nhận hội thoại để xem chi tiết lịch sử chat với AI (nếu cần).
-                                </Typography>
-                            )}
-                            <Collapse in={showPreHandoff}>
-                                <Stack spacing={1.25} sx={{ mt: 2, pt: 1.5, borderTop: '1px dashed var(--palette-divider)' }}>
-                                    {preHandoffMessages.length === 0 ? (
-                                        <Typography variant="caption" color="text.secondary">
-                                            Không có tin nhắn AI trước khi tiếp nhận.
-                                        </Typography>
-                                    ) : (
-                                        preHandoffMessages.map((msg) => (
-                                            <Box key={`pre-${msg.id}`}>
-                                                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
-                                                    {msg.senderType === MessageSenderRole.CUSTOMER
-                                                        ? 'Khách'
-                                                        : msg.senderType === MessageSenderRole.AI_SYSTEM
-                                                          ? 'AI'
-                                                          : 'Hệ thống'}
-                                                    {' · '}
-                                                    {dayjs(msg.createdAt).format('HH:mm')}
-                                                </Typography>
-                                                <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>
-                                                    {msg.content}
-                                                </Typography>
-                                            </Box>
-                                        ))
-                                    )}
-                                </Stack>
-                            </Collapse>
-                        </Box>
-                    )}
                     {(timelineQuery.isFetchingPreviousPage || timelineQuery.hasPreviousPage) && (
                         <Box sx={{ display: 'flex', justifyContent: 'center', py: 1, flexShrink: 0 }}>
                             {timelineQuery.isFetchingPreviousPage ? (
@@ -789,10 +882,10 @@ export const ChatWindow = ({ conversationId, onToggleDetails }: ChatWindowProps)
                             <CircularProgress />
                         </Box>
                     ) : !timelineRows.length ? (
-                        <Box sx={{ textAlign: 'center', mt: 4, opacity: 0.6 }}>
-                            <Typography variant="body2">
+                        <Box sx={{ textAlign: 'center' }}>
+                            <Typography variant="body2" color="text.secondary">
                                 {activeConversation?.handoffSummary
-                                    ? 'Vui lòng đọc tóm tắt phía trên trước khi phản hồi.'
+                                    ? 'Chưa có tin nhắn với nhân viên. Mở tóm tắt bên dưới nếu cần.'
                                     : 'Hãy bắt đầu cuộc trò chuyện.'}
                             </Typography>
                         </Box>
@@ -882,8 +975,11 @@ export const ChatWindow = ({ conversationId, onToggleDetails }: ChatWindowProps)
                             );
                         }
 
-                        const isMe = msg.senderType === MessageSenderRole.OPERATOR;
-                        const isBot = msg.senderType === MessageSenderRole.AI_SYSTEM;
+                        const senderType = String(msg.senderType || '').toUpperCase();
+                        const isMe =
+                            senderType === MessageSenderRole.OPERATOR ||
+                            (!!userId && msg.senderId === userId && senderType !== MessageSenderRole.CUSTOMER);
+                        const isBot = senderType === MessageSenderRole.AI_SYSTEM;
                         const isLast = index === timelineRows.length - 1;
 
                         const isReadByCustomer =
@@ -891,68 +987,85 @@ export const ChatWindow = ({ conversationId, onToggleDetails }: ChatWindowProps)
                             (activeConversation?.customerLastReadAt &&
                                 new Date(msg.createdAt) <= new Date(activeConversation.customerLastReadAt));
                         const showSeen = isMe && isLast && isReadByCustomer;
+                        const senderName = isMe
+                            ? 'Bạn'
+                            : isBot
+                              ? 'AI'
+                              : getConversationDisplayTitle(activeConversation);
+                        const meta = `${senderName}, ${formatBubbleTime(msg.createdAt)}`;
 
                         return (
                             <Stack
                                 key={row.key}
                                 direction="row"
                                 justifyContent={isMe ? 'flex-end' : 'flex-start'}
-                                alignItems="flex-end"
-                                spacing={1}
+                                alignItems="flex-start"
+                                spacing={1.25}
+                                sx={{ width: '100%' }}
                             >
-                                {!isMe && !isBot && (
-                                    <Avatar sx={{ width: 28, height: 28, mb: 0.5, fontSize: '0.8rem' }}>
-                                        <ConversationAvatarLetter conversation={activeConversation} />
-                                    </Avatar>
-                                )}
-                                {isBot && (
-                                    <Avatar sx={{ width: 28, height: 28, mb: 0.5, bgcolor: 'var(--palette-info-lighter)', color: 'var(--palette-info-dark)' }}>
-                                        <Icon icon="solar:smart-speaker-bold-duotone" width={18} />
+                                {!isMe && (
+                                    <Avatar
+                                        sx={{
+                                            width: 32,
+                                            height: 32,
+                                            minWidth: 32,
+                                            minHeight: 32,
+                                            mt: 2.25,
+                                            fontSize: isBot ? '0.65rem' : '0.8rem',
+                                            fontWeight: 700,
+                                            bgcolor: 'var(--palette-grey-200)',
+                                            color: 'var(--palette-text-secondary)',
+                                            flexShrink: 0,
+                                        }}
+                                    >
+                                        {isBot ? 'AI' : <ConversationAvatarLetter conversation={activeConversation} />}
                                     </Avatar>
                                 )}
                                 <Box
                                     sx={{
-                                        maxWidth: '85%',
-                                        position: 'relative',
+                                        maxWidth: '72%',
                                         display: 'flex',
                                         flexDirection: 'column',
                                         alignItems: isMe ? 'flex-end' : 'flex-start',
                                     }}
                                 >
+                                    <Typography
+                                        variant="caption"
+                                        sx={{
+                                            color: 'var(--palette-text-disabled)',
+                                            fontSize: '0.75rem',
+                                            mb: 0.75,
+                                            px: 0.25,
+                                        }}
+                                    >
+                                        {meta}
+                                        {showSeen ? ' · Đã xem' : ''}
+                                    </Typography>
                                     <Box
                                         sx={{
                                             px: 2,
                                             py: 1.25,
-                                            borderRadius: isMe ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
-                                            bgcolor: isMe ? 'var(--palette-primary-main)' : isBot ? 'var(--palette-info-lighter)' : 'var(--palette-background-paper)',
-                                            color: isMe ? 'white' : 'text.primary',
-                                            boxShadow: '0 2px 5px rgba(0,0,0,0.05)',
-                                            border: isMe ? 'none' : isBot ? '1px solid var(--palette-info-light)' : '1px solid var(--palette-divider)',
+                                            borderRadius: '12px',
+                                            bgcolor: isMe ? '#FFE9D5' : '#F4F6F8',
+                                            color: '#1C252E',
                                             width: 'fit-content',
+                                            maxWidth: '100%',
+                                            border: 'none',
+                                            boxShadow: 'none',
                                         }}
                                     >
-                                        <Typography variant="body2" sx={{ lineHeight: 1.5, wordBreak: 'break-word', whiteSpace: 'pre-wrap' }}>
+                                        <Typography
+                                            variant="body2"
+                                            sx={{
+                                                lineHeight: 1.6,
+                                                wordBreak: 'break-word',
+                                                whiteSpace: 'pre-wrap',
+                                                fontSize: '0.875rem',
+                                            }}
+                                        >
                                             {isBot ? formatChatMessageContent(msg.content ?? '') : msg.content}
                                         </Typography>
                                     </Box>
-                                    <Typography
-                                        variant="caption"
-                                        sx={{
-                                            opacity: 0.6,
-                                            display: 'block',
-                                            mt: 0.5,
-                                            px: 1,
-                                            textAlign: isMe ? 'right' : 'left',
-                                            fontSize: '0.7rem',
-                                        }}
-                                    >
-                                        {dayjs(msg.createdAt).format('HH:mm')}
-                                        {showSeen && (
-                                            <span style={{ marginLeft: 4, fontWeight: 600, color: 'var(--palette-success-main)' }}>
-                                                ✓ Đã xem
-                                            </span>
-                                        )}
-                                    </Typography>
                                 </Box>
                             </Stack>
                         );
@@ -961,59 +1074,188 @@ export const ChatWindow = ({ conversationId, onToggleDetails }: ChatWindowProps)
                 </Box>
             </Box>
 
-            <Box sx={{ p: 2, bgcolor: 'var(--palette-background-paper)', borderTop: '1px solid var(--palette-divider)', flexShrink: 0 }}>
+            {activeConversation?.handoffSummary && (
+                <Box
+                    sx={{
+                        flexShrink: 0,
+                        borderTop: '1px solid rgba(145, 158, 171, 0.16)',
+                        bgcolor: 'var(--palette-background-paper)',
+                    }}
+                >
+                    {!summaryOpen ? (
+                        <Box sx={{ px: 2.5, py: 1, display: 'flex', justifyContent: 'flex-end' }}>
+                            <Button
+                                size="small"
+                                variant="outlined"
+                                onClick={() => setSummaryOpen(true)}
+                                sx={{
+                                    height: 32,
+                                    textTransform: 'none',
+                                    fontWeight: 700,
+                                    borderRadius: '8px',
+                                    borderColor: 'rgba(145, 158, 171, 0.32)',
+                                    color: 'var(--palette-text-primary)',
+                                }}
+                            >
+                                Xem tóm tắt
+                            </Button>
+                        </Box>
+                    ) : (
+                        <Box
+                            sx={{
+                                mx: 2,
+                                mb: 1.5,
+                                mt: 1.5,
+                                p: 2,
+                                maxHeight: 240,
+                                overflowY: 'auto',
+                                borderRadius: '12px',
+                                bgcolor: '#FFF7E8',
+                                border: '1px solid #FFE0B2',
+                            }}
+                        >
+                            <Stack direction="row" alignItems="flex-start" justifyContent="space-between" gap={1} sx={{ mb: 1 }}>
+                                <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#B76E00' }}>
+                                    Tóm tắt trước khi gặp nhân viên
+                                </Typography>
+                                <Stack direction="row" alignItems="center" spacing={0.5} flexShrink={0}>
+                                    {canExpandPreHandoff && (
+                                        <Button
+                                            size="small"
+                                            variant="text"
+                                            onClick={() => void handleTogglePreHandoff()}
+                                            disabled={loadingPreHandoff}
+                                            sx={{ textTransform: 'none', fontWeight: 600, minWidth: 0 }}
+                                        >
+                                            {loadingPreHandoff
+                                                ? 'Đang tải…'
+                                                : showPreHandoff
+                                                  ? 'Ẩn lịch sử AI'
+                                                  : 'Lịch sử AI'}
+                                        </Button>
+                                    )}
+                                    <IconButton
+                                        size="small"
+                                        onClick={() => {
+                                            setSummaryOpen(false);
+                                            setShowPreHandoff(false);
+                                        }}
+                                        aria-label="Đóng tóm tắt"
+                                        sx={{ color: 'var(--palette-text-secondary)' }}
+                                    >
+                                        <CloseOutlinedIcon fontSize="small" />
+                                    </IconButton>
+                                </Stack>
+                            </Stack>
+                            <Typography
+                                variant="body2"
+                                sx={{ whiteSpace: 'pre-wrap', color: 'text.primary', lineHeight: 1.6 }}
+                            >
+                                {activeConversation.handoffSummary}
+                            </Typography>
+                            {!canExpandPreHandoff && canClaim && (
+                                <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+                                    Nhận hội thoại để xem chi tiết lịch sử chat với AI (nếu cần).
+                                </Typography>
+                            )}
+                            <Collapse in={showPreHandoff}>
+                                <Stack spacing={1.25} sx={{ mt: 2, pt: 1.5, borderTop: '1px dashed var(--palette-divider)' }}>
+                                    {preHandoffMessages.length === 0 ? (
+                                        <Typography variant="caption" color="text.secondary">
+                                            Không có tin nhắn AI trước khi tiếp nhận.
+                                        </Typography>
+                                    ) : (
+                                        preHandoffMessages.map((msg) => (
+                                            <Box key={`pre-${msg.id}`}>
+                                                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
+                                                    {msg.senderType === MessageSenderRole.CUSTOMER
+                                                        ? 'Khách'
+                                                        : msg.senderType === MessageSenderRole.AI_SYSTEM
+                                                          ? 'AI'
+                                                          : 'Hệ thống'}
+                                                    {' · '}
+                                                    {dayjs(msg.createdAt).format('HH:mm')}
+                                                </Typography>
+                                                <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>
+                                                    {msg.content}
+                                                </Typography>
+                                            </Box>
+                                        ))
+                                    )}
+                                </Stack>
+                            </Collapse>
+                        </Box>
+                    )}
+                </Box>
+            )}
+
+            <Box sx={{ px: 2.5, py: 1.5, bgcolor: 'var(--palette-background-paper)', borderTop: '1px solid rgba(145, 158, 171, 0.16)', flexShrink: 0 }}>
                 <Box
                     sx={{
                         display: 'flex',
-                        alignItems: 'center',
-                        bgcolor: 'var(--palette-background-neutral)',
-                        border: '1px solid var(--palette-grey-300)',
-                        borderRadius: '50px',
-                        p: 0.5,
-                        pl: 2,
-                        transition: 'all 0.2s',
-                        '&:focus-within': {
-                            borderColor: 'var(--palette-error-light)',
-                            boxShadow: '0 0 0 1px var(--palette-error-lighter)',
-                        },
+                        alignItems: 'flex-end',
+                        gap: 1,
                     }}
                 >
                     <InputBase
                         fullWidth
+                        multiline
+                        maxRows={4}
                         placeholder={
                             activeConversation?.status === 'CLOSED'
                                 ? 'Hội thoại đã đóng'
                                 : canReply
-                                ? 'Nhập câu trả lời...'
-                                : 'Chưa được phân công hội thoại này'
+                                ? 'Nhập tin nhắn'
+                                : 'Nhận hội thoại để trả lời'
                         }
                         value={message}
                         onChange={(e) => setMessage(e.target.value)}
                         onKeyDown={handleKeyDown}
                         disabled={!canReply}
-                        sx={{ fontSize: '0.9375rem', mr: 1 }}
+                        sx={{
+                            fontSize: '0.9375rem',
+                            py: 0.75,
+                            px: 0.5,
+                            color: 'var(--palette-text-primary)',
+                        }}
                     />
-
                     <Button
                         variant="contained"
                         onClick={() => void handleSend()}
                         disabled={!message.trim() || !canReply}
                         sx={{
-                            minWidth: 'auto',
-                            width: 36,
                             height: 36,
-                            borderRadius: '50%',
-                            p: 0,
-                            bgcolor: 'var(--palette-primary-main)',
-                            color: 'white',
-                            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
-                            '&:hover': { bgcolor: 'var(--palette-primary-dark)' },
+                            minWidth: 64,
+                            px: 2,
+                            borderRadius: '8px',
+                            textTransform: 'none',
+                            fontWeight: 700,
+                            boxShadow: 'none',
+                            bgcolor: 'var(--palette-grey-800)',
+                            '&:hover': { bgcolor: 'var(--palette-grey-900)' },
                             '&.Mui-disabled': { bgcolor: 'var(--palette-grey-300)', color: 'var(--palette-grey-500)', boxShadow: 'none' },
                         }}
                     >
-                        <Icon icon="solar:plain-bold" width={18} style={{ transform: 'translateX(-1px) translateY(1px)' }} />
+                        Gửi
                     </Button>
                 </Box>
+            </Box>
+            </Box>
+            {showDetails && (
+                <Box
+                    sx={{
+                        width: 280,
+                        flexShrink: 0,
+                        minHeight: 0,
+                        height: '100%',
+                        borderLeft: '1px solid rgba(145, 158, 171, 0.16)',
+                        overflowY: 'auto',
+                        bgcolor: 'var(--palette-background-paper)',
+                    }}
+                >
+                    <ChatDetails conversation={activeConversation} />
+                </Box>
+            )}
             </Box>
         </Box>
 

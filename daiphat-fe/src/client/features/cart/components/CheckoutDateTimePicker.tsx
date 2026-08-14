@@ -218,7 +218,6 @@ export const CheckoutDateTimePicker: React.FC<CheckoutDateTimePickerProps> = ({
       setSelectedHour12(parts.h12);
       setSelectedMinute(String(next.minute()).padStart(2, '0'));
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [minSelectable.valueOf()]);
 
   const handleConfirm = () => {
