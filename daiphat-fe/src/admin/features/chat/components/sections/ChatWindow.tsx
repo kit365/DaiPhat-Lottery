@@ -64,7 +64,7 @@ import dayjs from 'dayjs';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import CloseOutlinedIcon from '@mui/icons-material/CloseOutlined';
 
-const formatBubbleTime = (iso?: string) => {
+const formatBubbleTime = (iso?: string | null) => {
     if (!iso) return '';
     const t = dayjs(iso);
     if (!t.isValid()) return '';

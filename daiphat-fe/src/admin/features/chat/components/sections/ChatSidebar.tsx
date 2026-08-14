@@ -40,7 +40,7 @@ const avatarStatusColor = (status?: string) => {
     return '#22C55E';
 };
 
-const formatListTime = (iso?: string) => {
+const formatListTime = (iso?: string | null) => {
     if (!iso) return '';
     const t = dayjs(iso);
     if (!t.isValid()) return '';
