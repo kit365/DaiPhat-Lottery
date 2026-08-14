@@ -93,7 +93,7 @@ export const TicketSearchWidget: React.FC = () => {
             <div className="p-5 space-y-4">
                 <form
                     onSubmit={handleSearch}
-                    className="flex items-center bg-[#F4F6F8] rounded-full border border-[#E5E8EB] p-1"
+                    className="flex items-center bg-[#F4F6F8] rounded-full border border-[#E5E8EB] px-1 py-1"
                 >
                     <input
                         type="text"
@@ -101,14 +101,8 @@ export const TicketSearchWidget: React.FC = () => {
                         value={search}
                         onChange={(e) => setSearch(e.target.value.replace(/\D/g, '').slice(0, 6))}
                         placeholder="Đuôi số (VD: 68, 686868)"
-                        className="flex-1 bg-transparent border-none outline-none px-3 text-[13px] text-[#212B36]"
+                        className="flex-1 bg-transparent border-none outline-none px-3 py-1.5 text-[13px] text-[#212B36]"
                     />
-                    <button
-                        type="submit"
-                        className="px-4 py-1.5 bg-[#FFF4F4] text-[#ee1314] font-bold text-[13px] rounded-full"
-                    >
-                        Tìm
-                    </button>
                 </form>
 
                 <div className="grid grid-cols-2 gap-2">
