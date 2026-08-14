@@ -1,13 +1,64 @@
 import React from 'react';
-import { TicketStatus } from '../../../types/support.type';
+import { StatusBadge } from '../../../shared/components/StatusBadge/StatusBadge';
+import { TicketStatus, TICKET_STATUS_LABELS, getTicketStatusBadgeClass } from '../../../types/support.type';
+
+/** Same tokens as `.admin-status-badge--*` (bg + text). */
+const ADMIN_BADGE_TONES: Record<string, { color: string; bg: string }> = {
+    'admin-status-badge--draft': {
+        color: '#374151',
+        bg: '#e5e7eb',
+    },
+    'admin-status-badge--pending': {
+        color: 'var(--palette-warning-dark, #B76E00)',
+        bg: 'var(--palette-warning-lighter, #FFF5CC)',
+    },
+    'admin-status-badge--active': {
+        color: 'var(--palette-info-dark, #006C9C)',
+        bg: 'var(--palette-info-lighter, #CAFDF5)',
+    },
+    'admin-status-badge--inactive': {
+        color: 'var(--palette-error-dark, #B71D18)',
+        bg: 'var(--palette-error-lighter, #FFE9D5)',
+    },
+    'admin-status-badge--success': {
+        color: 'var(--palette-success-dark, #118D57)',
+        bg: 'var(--palette-success-lighter, #D3FCD2)',
+    },
+};
+
+const FALLBACK_TONE = ADMIN_BADGE_TONES['admin-status-badge--draft'];
 
 export const COMPLAINT_STATUS_MAP: Record<TicketStatus, { label: string; bg: string; text: string }> = {
-    [TicketStatus.OPEN]: { label: 'Mới tạo', bg: 'bg-[#FFF9F3]', text: 'text-[#FFB020]' },
-    [TicketStatus.IN_PROGRESS]: { label: 'Đang xử lý', bg: 'bg-[#F0F5FF]', text: 'text-[#2065D1]' },
-    [TicketStatus.WAITING_FOR_CUSTOMER]: { label: 'Chờ phản hồi', bg: 'bg-[#FFF4F4]', text: 'text-[#ee1314]' },
-    [TicketStatus.RESOLVED]: { label: 'Đã giải quyết', bg: 'bg-[#E4F8ED]', text: 'text-[#1CD162]' },
-    [TicketStatus.REJECTED]: { label: 'Đã từ chối', bg: 'bg-[#FFF0F0]', text: 'text-[#B71D18]' },
-    [TicketStatus.CLOSED]: { label: 'Đã đóng', bg: 'bg-[#F4F6F8]', text: 'text-[#919EAB]' },
+    [TicketStatus.OPEN]: {
+        label: TICKET_STATUS_LABELS[TicketStatus.OPEN],
+        bg: ADMIN_BADGE_TONES['admin-status-badge--draft'].bg,
+        text: ADMIN_BADGE_TONES['admin-status-badge--draft'].color,
+    },
+    [TicketStatus.IN_PROGRESS]: {
+        label: TICKET_STATUS_LABELS[TicketStatus.IN_PROGRESS],
+        bg: ADMIN_BADGE_TONES['admin-status-badge--active'].bg,
+        text: ADMIN_BADGE_TONES['admin-status-badge--active'].color,
+    },
+    [TicketStatus.WAITING_FOR_CUSTOMER]: {
+        label: TICKET_STATUS_LABELS[TicketStatus.WAITING_FOR_CUSTOMER],
+        bg: ADMIN_BADGE_TONES['admin-status-badge--pending'].bg,
+        text: ADMIN_BADGE_TONES['admin-status-badge--pending'].color,
+    },
+    [TicketStatus.RESOLVED]: {
+        label: TICKET_STATUS_LABELS[TicketStatus.RESOLVED],
+        bg: ADMIN_BADGE_TONES['admin-status-badge--success'].bg,
+        text: ADMIN_BADGE_TONES['admin-status-badge--success'].color,
+    },
+    [TicketStatus.REJECTED]: {
+        label: TICKET_STATUS_LABELS[TicketStatus.REJECTED],
+        bg: ADMIN_BADGE_TONES['admin-status-badge--inactive'].bg,
+        text: ADMIN_BADGE_TONES['admin-status-badge--inactive'].color,
+    },
+    [TicketStatus.CLOSED]: {
+        label: TICKET_STATUS_LABELS[TicketStatus.CLOSED],
+        bg: ADMIN_BADGE_TONES['admin-status-badge--draft'].bg,
+        text: ADMIN_BADGE_TONES['admin-status-badge--draft'].color,
+    },
 };
 
 interface ComplaintStatusBadgeProps {
@@ -16,17 +67,14 @@ interface ComplaintStatusBadgeProps {
 }
 
 export const ComplaintStatusBadge: React.FC<ComplaintStatusBadgeProps> = ({ status, className = '' }) => {
-    const config = COMPLAINT_STATUS_MAP[status] || {
-        label: status,
-        bg: 'bg-[#F4F6F8]',
-        text: 'text-[#637381]',
-    };
+    const tone = ADMIN_BADGE_TONES[getTicketStatusBadgeClass(status)] ?? FALLBACK_TONE;
 
     return (
-        <span
-            className={`status-badge inline-flex items-center justify-center h-6 ${config.bg} ${config.text} px-2.5 rounded-md text-[12px] font-medium leading-none ${className}`}
-        >
-            {config.label}
-        </span>
+        <StatusBadge
+            label={TICKET_STATUS_LABELS[status] ?? status}
+            color={tone.color}
+            bg={tone.bg}
+            className={className}
+        />
     );
 };
