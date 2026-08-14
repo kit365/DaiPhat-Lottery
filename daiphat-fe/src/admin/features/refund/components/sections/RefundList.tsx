@@ -314,7 +314,7 @@ export const RefundList = () => {
                             <TableCell sx={headerCellSx}>Đơn hàng</TableCell>
                             <TableCell sx={headerCellSx}>Khách hàng</TableCell>
                             <TableCell sx={headerCellSx}>Số tiền hoàn</TableCell>
-                            <TableCell sx={headerCellSx}>Trạng thái</TableCell>
+                            <TableCell sx={headerCellSx} align="center">Trạng thái</TableCell>
                             <TableCell sx={headerCellSx}>Hạn xử lý</TableCell>
                             <TableCell sx={headerCellSx}>Ngày tạo</TableCell>
                             <TableCell sx={headerCellSx}>NV phụ trách</TableCell>
@@ -462,7 +462,7 @@ export const RefundList = () => {
                                             </Typography>
                                         </TableCell>
 
-                                        <TableCell sx={cellBorderSx}>
+                                        <TableCell sx={cellBorderSx} align="center">
                                             <RefundStatusBadge status={refund.status} />
                                         </TableCell>
 

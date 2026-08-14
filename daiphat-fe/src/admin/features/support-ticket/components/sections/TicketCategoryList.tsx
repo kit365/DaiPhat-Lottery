@@ -308,7 +308,7 @@ export const TicketCategoryList = () => {
                         </Typography>
                     )}
                 </TableCell>
-                <TableCell align="right" sx={BODY_CELL_SX}>
+                <TableCell align="center" sx={BODY_CELL_SX}>
                     {isEditing ? (
                         <Switch
                             checked={editData.isActive}
@@ -316,7 +316,7 @@ export const TicketCategoryList = () => {
                             color="primary"
                         />
                     ) : (
-                        <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+                        <Box sx={{ display: 'flex', justifyContent: 'center' }}>
                             <AdminStatusBadge
                                 label={category.isActive ? 'Hoạt động' : 'Không hoạt động'}
                                 modifier={
@@ -467,7 +467,7 @@ export const TicketCategoryList = () => {
                             <TableCell sx={HEAD_CELL_SX}>Tên danh mục</TableCell>
                             <TableCell sx={HEAD_CELL_SX}>Liên quan đến</TableCell>
                             <TableCell sx={HEAD_CELL_SX} align="center">Độ ưu tiên</TableCell>
-                            <TableCell sx={HEAD_CELL_SX} align="right">Trạng thái</TableCell>
+                            <TableCell sx={HEAD_CELL_SX} align="center">Trạng thái</TableCell>
                             <TableCell sx={{ ...HEAD_CELL_SX, width: 80 }} align="right" />
                         </TableRow>
                     </TableHead>

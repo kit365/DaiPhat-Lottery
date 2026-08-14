@@ -411,7 +411,7 @@ export const ChatList = ({ conversations, onSelectConversation, onToggleMode, vi
                             <TableCell sx={HEAD_CELL_SX}>Khách hàng</TableCell>
                             <TableCell sx={HEAD_CELL_SX}>Tin nhắn gần nhất</TableCell>
                             <TableCell sx={HEAD_CELL_SX}>Nhân viên phụ trách</TableCell>
-                            <TableCell sx={HEAD_CELL_SX}>Trạng thái</TableCell>
+                            <TableCell sx={HEAD_CELL_SX} align="center">Trạng thái</TableCell>
                             <TableCell sx={HEAD_CELL_SX}>Cập nhật lúc</TableCell>
                             <TableCell sx={{ ...HEAD_CELL_SX, width: 80 }} align="right" />
                         </TableRow>
@@ -484,7 +484,7 @@ export const ChatList = ({ conversations, onSelectConversation, onToggleMode, vi
                                             </Typography>
                                         </TableCell>
 
-                                        <TableCell sx={BODY_CELL_SX}>
+                                        <TableCell sx={BODY_CELL_SX} align="center">
                                             {row.status === ConversationStatusEnum.CLOSED ? (
                                                 <Chip label="Đã đóng" size="small" sx={{ fontWeight: 600 }} />
                                             ) : hasUnread ? (

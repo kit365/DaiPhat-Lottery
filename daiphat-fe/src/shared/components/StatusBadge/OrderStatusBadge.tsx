@@ -2,7 +2,7 @@
 
 import React from 'react';
 
-import { getOrderStatusBadge } from './orderStatusBadge';
+import { getOrderStatusBadge } from './orderStatusMap';
 import { StatusBadge } from './StatusBadge';
 
 export type OrderStatusBadgeProps = {

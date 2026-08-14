@@ -670,6 +670,7 @@ input:-webkit-autofill:active {
     font-weight: 500 !important;
     color: var(--palette-text-secondary) !important;
     flex-direction: row !important;
+    overflow: visible !important;
 }
 
 .admin-tab.Mui-selected {
@@ -1046,23 +1047,28 @@ input:-webkit-autofill:active {
 
 /* Status badges */
 .admin-status-badge-host {
-    display: inline-block;
+    display: inline-flex;
+    align-items: center;
     max-width: 100%;
     min-width: 0;
+    height: 24px;
+    line-height: 1;
     vertical-align: middle;
 }
 
 .admin-status-badge {
-    display: inline-block;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     max-width: 100%;
     min-width: 0;
     box-sizing: border-box;
-    line-height: 1.5rem;
-    min-height: 1.5rem;
-    height: 1.5rem;
-    font-size: 0.75rem;
+    line-height: 1;
+    height: 24px;
+    min-height: 24px;
+    font-size: 0.6875rem;
     font-weight: 700;
-    padding: 0 6px;
+    padding: 0 8px;
     border-radius: 6px;
     background-color: var(--palette-grey-200);
     color: var(--palette-grey-800);
@@ -1106,6 +1112,25 @@ input:-webkit-autofill:active {
 .admin-status-badge--success {
     background-color: var(--palette-success-lighter);
     color: var(--palette-success-dark);
+}
+
+.MuiTableCell-root:has(.admin-status-badge-host),
+.MuiTableCell-root:has(.admin-status-badge),
+.MuiTableCell-root:has(.status-badge) {
+    text-align: center !important;
+}
+
+.MuiTableCell-root:has(.admin-status-badge-host) > .MuiBox-root,
+.MuiTableCell-root:has(.admin-status-badge) > .MuiBox-root,
+.MuiTableCell-root:has(.status-badge) > .MuiBox-root {
+    justify-content: center !important;
+    width: 100%;
+}
+
+.MuiDataGrid-cell:has(.admin-status-badge-host),
+.MuiDataGrid-cell:has(.admin-status-badge),
+.MuiDataGrid-cell:has(.status-badge) {
+    justify-content: center !important;
 }
 
 /* DataGrid action menu typography */

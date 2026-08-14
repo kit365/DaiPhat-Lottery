@@ -462,7 +462,7 @@ export const SupportTicketList = () => {
                             <TableCell sx={HEAD_CELL_SX}>Tiêu đề</TableCell>
                             <TableCell sx={HEAD_CELL_SX}>Khách hàng</TableCell>
                             <TableCell sx={HEAD_CELL_SX}>Liên quan đến</TableCell>
-                            <TableCell sx={HEAD_CELL_SX} align="right">Trạng thái</TableCell>
+                            <TableCell sx={HEAD_CELL_SX} align="center">Trạng thái</TableCell>
                             <TableCell sx={HEAD_CELL_SX}>Người xử lý</TableCell>
                             <TableCell sx={HEAD_CELL_SX} sortDirection={sortBy === 'dueAt' ? sortDirection : false}>
                                 <TableSortLabel
@@ -549,13 +549,11 @@ export const SupportTicketList = () => {
                                                 : '—'}
                                         </Typography>
                                     </TableCell>
-                                    <TableCell align="right" sx={BODY_CELL_SX}>
-                                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
-                                            <AdminStatusBadge
-                                                label={TICKET_STATUS_LABELS[ticket.status]}
-                                                modifier={getTicketStatusBadgeClass(ticket.status)}
-                                            />
-                                        </Box>
+                                    <TableCell align="center" sx={BODY_CELL_SX}>
+                                        <AdminStatusBadge
+                                            label={TICKET_STATUS_LABELS[ticket.status]}
+                                            modifier={getTicketStatusBadgeClass(ticket.status)}
+                                        />
                                     </TableCell>
                                     <TableCell sx={BODY_CELL_SX}>
                                         <Typography sx={{ fontSize: '0.875rem', color: 'var(--palette-text-primary)' }}>

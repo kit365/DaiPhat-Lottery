@@ -1171,7 +1171,7 @@ export const BuyTicketPage = () => {
 
                                                     <div className="font-black text-[20px] text-[#212B36] tracking-tight mb-1.5 leading-none">{num}</div>
 
-                                                    <div className="font-bold text-[#ee1314] text-[14px]">{(ticket.price || 10000).toLocaleString('vi-VN')}đ</div>
+                                                    <div className="font-bold text-[#ee1314] text-[14px]">{(ticket.priceSnapshot || 10000).toLocaleString('vi-VN')}đ</div>
                                                     {ticket.stock > 1 ? (
                                                         <div className="mt-1 text-[11px] font-semibold text-[#637381]">
                                                             Còn {ticket.stock} vé

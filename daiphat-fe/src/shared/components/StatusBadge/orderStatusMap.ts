@@ -21,17 +21,17 @@ export const ORDER_STATUS_BADGE: Record<string, StatusBadgeTone> = {
     },
     [OrderStatus.PREPARING]: {
         label: 'Đang chuẩn bị',
-        color: '#1A237E',
-        bg: '#E8EAF6',
-        activeColor: '#FFFFFF',
-        activeBg: '#3F51B5',
+        color: 'var(--palette-warning-dark, #B76E00)',
+        bg: 'var(--palette-warning-lighter, #FFF5CC)',
+        activeColor: 'var(--palette-warning-contrastText, #1C252E)',
+        activeBg: 'var(--palette-warning-main, #FFAB00)',
     },
     [OrderStatus.PENDING_PICKUP]: {
         label: 'Chờ nhận vé',
-        color: '#6B21A8',
-        bg: '#F3E8FF',
-        activeColor: '#FFFFFF',
-        activeBg: '#9C27B0',
+        color: 'var(--palette-info-dark, #006C9C)',
+        bg: 'var(--palette-info-lighter, #CAFDF5)',
+        activeColor: 'var(--palette-info-contrastText, #FFFFFF)',
+        activeBg: 'var(--palette-info-main, #00B8D9)',
     },
     [OrderStatus.COMPLETED]: {
         label: 'Hoàn thành',
@@ -60,4 +60,21 @@ const FALLBACK: StatusBadgeTone = {
 export const getOrderStatusBadge = (status?: string | null): StatusBadgeTone => {
     if (!status) return FALLBACK;
     return ORDER_STATUS_BADGE[status] || { ...FALLBACK, label: status };
+};
+
+export const getOrderStatusAdminBadgeModifier = (status?: string | null): string => {
+    switch (status) {
+        case OrderStatus.PENDING_PAYMENT:
+        case OrderStatus.PREPARING:
+            return 'admin-status-badge--pending';
+        case OrderStatus.PAID:
+        case OrderStatus.PENDING_PICKUP:
+            return 'admin-status-badge--active';
+        case OrderStatus.COMPLETED:
+            return 'admin-status-badge--success';
+        case OrderStatus.CANCELLED:
+            return 'admin-status-badge--inactive';
+        default:
+            return '';
+    }
 };
