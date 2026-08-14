@@ -155,8 +155,6 @@ export const OrderDetailTab = () => {
 
         syncTriggeredRef.current = true;
         syncPaymentMutation.mutate(order.id);
-    // Chỉ chạy 1 lần khi đơn đang chờ thanh toán
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [order?.id, order?.status]);
 
     const pendingFullOrderRefund = useMemo(

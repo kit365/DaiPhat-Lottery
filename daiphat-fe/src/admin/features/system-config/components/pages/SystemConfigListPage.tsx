@@ -94,7 +94,7 @@ export const SystemConfigListPage = () => {
     );
 
     const filteredConfigs = useMemo(() => {
-        let items = listConfigs.filter((c) => c.configType === typeFilter);
+        const items = listConfigs.filter((c) => c.configType === typeFilter);
 
         const q = search.trim().toLowerCase();
         if (!q) return items;

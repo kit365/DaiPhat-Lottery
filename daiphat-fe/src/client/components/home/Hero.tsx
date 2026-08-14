@@ -37,6 +37,7 @@ export const Hero = () => {
           <source media="(max-width: 1023px)" srcSet={mobileSrcSet} />
           <img 
             {...restMobileProps}
+            alt=""
             aria-hidden="true"
             className="w-full h-full object-cover object-[center_15%] lg:object-[right_22%] block" 
           />
