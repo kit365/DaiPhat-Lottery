@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
@@ -16,6 +16,10 @@ import {
 import { lotteryStationService } from '../../services/lotteryStationService';
 import { LotteryStationDraw } from '../../types/lottery';
 import { useCheckWinning } from '../../hooks/useLottery';
+import { TicketWinCelebration } from './TicketWinCelebration';
+import { TicketWinScreenEffects } from './TicketWinScreenEffects';
+import { getHighestPrizeCode } from './ticketWinCelebration.util';
+import { getTicketNumberLengthHint } from '../../utils/ticketCheck.util';
 
 interface QuickCheckTicketBannerProps {
     availableDates?: string[];
@@ -102,6 +106,17 @@ export const QuickCheckTicketBanner: React.FC<QuickCheckTicketBannerProps> = ({ 
         errorMessage, 
         setErrorMessage 
     } = useCheckWinning();
+
+    const showWinEffects = isExpanded && hasChecked && Boolean(checkResult?.winning);
+    const winPrizeCode = useMemo(
+        () => (checkResult?.winning ? getHighestPrizeCode(checkResult.matchedPrizes) : 'G8'),
+        [checkResult]
+    );
+    const selectedStation = useMemo(
+        () => stations.find((station) => station.id === selectedStationId),
+        [stations, selectedStationId]
+    );
+    const ticketLengthHint = getTicketNumberLengthHint(selectedStation?.region);
 
     // Click outside listener
     useEffect(() => {
@@ -190,18 +205,21 @@ export const QuickCheckTicketBanner: React.FC<QuickCheckTicketBannerProps> = ({ 
             return;
         }
 
-        if (trimmedNumber.length < 5) {
-            setFieldErrors({ number: 'Vui lòng nhập đúng 5 hoặc 6 chữ số trên vé.' });
+        const requiredLength = getTicketNumberLengthHint(selectedStation?.region);
+        if (trimmedNumber.length < requiredLength - 1) {
+            setFieldErrors({
+                number: `Vui lòng nhập đúng ${requiredLength} chữ số trên vé (có thể bỏ số 0 đầu).`,
+            });
             ticketNumberInputRef.current?.focus();
             return;
         }
 
         try {
-            const displayDate = fromDateInputValue(selectedDate);
             await check(
                 Number(selectedStationId),
-                displayDate,
-                trimmedNumber
+                selectedDate,
+                trimmedNumber,
+                selectedStation?.region
             );
         } catch {
             // Error is already handled by the hook
@@ -286,7 +304,7 @@ export const QuickCheckTicketBanner: React.FC<QuickCheckTicketBannerProps> = ({ 
     const modalContent = (
         <AnimatePresence>
         {isExpanded && (
-            <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4">
+            <div className="fixed inset-0 z-[100002] flex items-center justify-center p-4">
                 {/* Backdrop overlay */}
                 <motion.div 
                     initial={{ opacity: 0 }}
@@ -346,41 +364,7 @@ export const QuickCheckTicketBanner: React.FC<QuickCheckTicketBannerProps> = ({ 
                         {!isChecking && !errorMessage && hasChecked && (
                             <div className="flex flex-col gap-4">
                                 {checkResult?.winning ? (
-                                    <div className="flex flex-col gap-3">
-                                        {/* Winning banner */}
-                                        <div className="bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-100 rounded-xl p-4 text-center">
-                                            <span className="text-[28px] mb-1 block animate-bounce">🎉</span>
-                                            <h4 className="text-[14px] font-bold text-emerald-800">Chúc mừng bạn đã trúng!</h4>
-                                            <p className="text-[11px] text-emerald-600 mt-1">Vé số của bạn trùng khớp với kết quả:</p>
-                                        </div>
-                                        
-                                        {/* Prize list */}
-                                        <div className="flex flex-col gap-2 max-h-[160px] overflow-y-auto pr-1">
-                                            {checkResult.matchedPrizes.map((prize, idx) => (
-                                                <div key={idx} className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100 hover:border-emerald-100 transition-colors">
-                                                    <div>
-                                                        <div className="text-[12.5px] font-bold text-slate-800">{prize.prizeDisplayName}</div>
-                                                        <div className="text-[11px] text-slate-500 mt-0.5">
-                                                          Số trúng: <span className="font-bold text-[#ee1314]">{prize.winningNumber}</span>
-                                                        </div>
-                                                    </div>
-                                                    <div className="text-[13px] font-extrabold text-[#ee1314]">
-                                                        {(prize.prizeValue || 0).toLocaleString('vi-VN')}đ
-                                                    </div>
-                                                </div>
-                                            ))}
-                                        </div>
-
-                                        {/* Total winning amount */}
-                                        {checkResult.matchedPrizes.length > 1 && (
-                                            <div className="bg-gradient-to-r from-[#ee1314]/5 to-[#ee1314]/10 rounded-xl p-4 flex items-center justify-between border border-[#ee1314]/10">
-                                                <span className="text-[12px] font-bold text-slate-700">Tổng giải thưởng:</span>
-                                                <span className="text-[14.5px] font-black text-[#ee1314]">
-                                                    {(checkResult.totalWinningAmount || 0).toLocaleString('vi-VN')}đ
-                                                </span>
-                                            </div>
-                                        )}
-                                    </div>
+                                    <TicketWinCelebration checkResult={checkResult} />
                                 ) : !checkResult?.resultAvailable ? (
                                     /* Result not available state */
                                     <div className="bg-slate-50 border border-slate-200/60 rounded-xl p-6 text-center flex flex-col items-center gap-2">
@@ -416,7 +400,7 @@ export const QuickCheckTicketBanner: React.FC<QuickCheckTicketBannerProps> = ({ 
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 relative z-50">
                                     {/* Station Dropdown */}
                                     <div className="flex flex-col gap-1.5 relative">
-                                        <label className="text-[12.5px] font-bold text-slate-700">Chọn đài</label>
+                                        <label className="text-[13px] font-bold text-slate-700">Chọn đài</label>
                                         <div className="relative" ref={stationDropdownRef}>
                                             <button 
                                                 onClick={() => {
@@ -426,7 +410,7 @@ export const QuickCheckTicketBanner: React.FC<QuickCheckTicketBannerProps> = ({ 
                                                         setFieldErrors((prev) => ({ ...prev, station: undefined }));
                                                     }
                                                 }}
-                                                className={`w-full flex items-center justify-between p-2.5 rounded-xl border bg-white text-[13px] font-medium transition-all ${
+                                                className={`w-full flex items-center justify-between p-3 rounded-xl border bg-white text-[14px] font-medium transition-all ${
                                                     fieldErrors.station
                                                         ? 'border-red-400 ring-2 ring-red-50'
                                                         : isStationDropdownOpen
@@ -452,9 +436,9 @@ export const QuickCheckTicketBanner: React.FC<QuickCheckTicketBannerProps> = ({ 
                                                 >
                                                     <div className="max-h-[180px] overflow-y-auto py-0.5">
                                                         {isLoadingProvinces ? (
-                                                            <div className="p-3 text-center text-slate-400 text-[11.5px]">Đang tải đài...</div>
+                                                            <div className="p-3.5 text-center text-slate-400 text-[13px]">Đang tải đài...</div>
                                                         ) : stations.length === 0 ? (
-                                                            <div className="p-3 text-center text-slate-400 text-[11.5px]">Không có đài trong ngày này</div>
+                                                            <div className="p-3.5 text-center text-slate-400 text-[13px]">Không có đài trong ngày này</div>
                                                         ) : (
                                                             stations.map((station) => {
                                                                 const isSelected = selectedStationId === station.id;
@@ -467,7 +451,7 @@ export const QuickCheckTicketBanner: React.FC<QuickCheckTicketBannerProps> = ({ 
                                                                             setIsStationDropdownOpen(false);
                                                                             setFieldErrors((prev) => ({ ...prev, station: undefined }));
                                                                         }}
-                                                                        className={`w-full flex items-center justify-between px-3.5 py-2 text-left text-[12.5px] hover:bg-slate-50 transition-colors border-none bg-transparent cursor-pointer ${
+                                                                        className={`w-full flex items-center justify-between px-3.5 py-2.5 text-left text-[14px] hover:bg-slate-50 transition-colors border-none bg-transparent cursor-pointer ${
                                                                             isSelected ? 'text-[#ee1314] font-semibold bg-red-50/30' : 'text-slate-700'
                                                                         }`}
                                                                     >
@@ -492,7 +476,7 @@ export const QuickCheckTicketBanner: React.FC<QuickCheckTicketBannerProps> = ({ 
 
                                     {/* Datepicker Select */}
                                     <div className="flex flex-col gap-1.5 relative">
-                                        <label className="text-[12.5px] font-bold text-slate-700">Chọn ngày</label>
+                                        <label className="text-[13px] font-bold text-slate-700">Chọn ngày</label>
                                         <div className="relative" ref={datePickerRef}>
                                             <button 
                                                 onClick={() => {
@@ -502,7 +486,7 @@ export const QuickCheckTicketBanner: React.FC<QuickCheckTicketBannerProps> = ({ 
                                                         setFieldErrors((prev) => ({ ...prev, date: undefined }));
                                                     }
                                                 }}
-                                                className={`w-full flex items-center justify-between p-2.5 rounded-xl border bg-white text-[13px] font-medium transition-all ${
+                                                className={`w-full flex items-center justify-between p-3 rounded-xl border bg-white text-[14px] font-medium transition-all ${
                                                     fieldErrors.date
                                                         ? 'border-red-400 ring-2 ring-red-50'
                                                         : isDatePickerOpen
@@ -541,7 +525,7 @@ export const QuickCheckTicketBanner: React.FC<QuickCheckTicketBannerProps> = ({ 
                                                         >
                                                             <ChevronLeft size={15} />
                                                         </button>
-                                                        <span className="text-[12px] font-bold text-slate-800">Tháng {selectedMonth + 1}, {selectedYear}</span>
+                                                        <span className="text-[14px] font-bold text-slate-800">Tháng {selectedMonth + 1}, {selectedYear}</span>
                                                         <button 
                                                             onClick={() => {
                                                                 if (selectedMonth === 11) {
@@ -558,14 +542,14 @@ export const QuickCheckTicketBanner: React.FC<QuickCheckTicketBannerProps> = ({ 
                                                     </div>
 
                                                     {/* Day-of-week labels */}
-                                                    <div className="grid grid-cols-7 gap-1 text-center mb-1 text-[10px] font-bold text-slate-400">
+                                                    <div className="grid grid-cols-7 gap-1 text-center mb-1.5 text-[12px] font-bold text-slate-400">
                                                         {['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'].map(d => (
                                                             <div key={d} className="py-0.5">{d}</div>
                                                         ))}
                                                     </div>
 
                                                     {/* Calendar Days */}
-                                                    <div className="grid grid-cols-7 gap-1 text-center text-[11px]">
+                                                    <div className="grid grid-cols-7 gap-1 text-center text-[13px]">
                                                         {generateCalendarDays().map((cell, idx) => {
                                                             const isToday = cell.day === now.getDate() && cell.month === now.getMonth() && cell.year === now.getFullYear();
                                                             const isSelected = selectedDate === formatDateToYMD(cell.year, cell.month, cell.day);
@@ -607,7 +591,7 @@ export const QuickCheckTicketBanner: React.FC<QuickCheckTicketBannerProps> = ({ 
                                                                 setIsDatePickerOpen(false);
                                                                 setFieldErrors((prev) => ({ ...prev, date: undefined }));
                                                             }}
-                                                            className="text-[11.5px] font-bold text-[#ee1314] hover:bg-red-50 px-3 py-1 rounded-lg transition-colors border-none bg-transparent flex items-center justify-center gap-1.5 mx-auto cursor-pointer"
+                                                            className="text-[13px] font-bold text-[#ee1314] hover:bg-red-50 px-3 py-1.5 rounded-lg transition-colors border-none bg-transparent flex items-center justify-center gap-1.5 mx-auto cursor-pointer"
                                                         >
                                                             <Calendar size={11} />
                                                             Hôm nay
@@ -631,7 +615,7 @@ export const QuickCheckTicketBanner: React.FC<QuickCheckTicketBannerProps> = ({ 
                                             ref={ticketNumberInputRef}
                                             type="text" 
                                             placeholder="Nhập dãy số (ví dụ: 123456)"
-                                            maxLength={6}
+                                            maxLength={ticketLengthHint}
                                             value={ticketNumber}
                                             onChange={(e) => {
                                                 const val = e.target.value.replace(/[^0-9]/g, '');
@@ -651,7 +635,9 @@ export const QuickCheckTicketBanner: React.FC<QuickCheckTicketBannerProps> = ({ 
                                     {fieldErrors.number ? (
                                         <span className="text-[11px] text-red-500 font-medium">{fieldErrors.number}</span>
                                     ) : (
-                                        <span className="text-[11.5px] text-slate-400">Nhập đúng 6 chữ số trên vé của bạn</span>
+                                        <span className="text-[11.5px] text-slate-400">
+                                            Nhập đúng {ticketLengthHint} chữ số trên vé (có thể bỏ số 0 đầu)
+                                        </span>
                                     )}
                                 </div>
 
@@ -738,7 +724,12 @@ export const QuickCheckTicketBanner: React.FC<QuickCheckTicketBannerProps> = ({ 
             </motion.div>
 
             {/* Portal to document.body */}
-            {mounted && typeof document !== 'undefined' && createPortal(modalContent, document.body)}
+            {mounted && typeof document !== 'undefined' && (
+                <>
+                    <TicketWinScreenEffects active={showWinEffects} prizeCode={winPrizeCode} />
+                    {createPortal(modalContent, document.body)}
+                </>
+            )}
         </div>
     );
 };

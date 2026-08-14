@@ -8,7 +8,6 @@ import {
     Card,
     Tabs,
     Tab,
-    styled,
     CircularProgress,
     Typography,
     Table,
@@ -37,25 +36,16 @@ import { OrderCutoffReminderBanner } from './OrderCutoffReminderBanner';
 import { OrderHandoverConfirmDialog } from './OrderHandoverConfirmDialog';
 import { OrderStatus } from '../../../../../types/order.type';
 import { ORDER_STATUS_TABS } from '../../constants/orderStatus.constants';
-import { getOrderStatusBadge } from '../../utils/orderStatusBadge';
+import {
+    getOrderStatusAdminBadgeModifier,
+    getOrderStatusBadge,
+} from '@/shared/components/StatusBadge/orderStatusMap';
+import { AdminStatusBadge } from '../../../../components/ui/AdminStatusBadge';
+import { getTabBadgeStyles } from '../../../../utils/badge';
 import {
     AdminRowActionsMenu,
     type AdminRowActionsMenuItem,
 } from '../../../../components/ui/AdminRowActionsMenu';
-
-const TabBadge = styled('span')(() => ({
-    height: "24px",
-    minWidth: "24px",
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-    marginLeft: '8px',
-    padding: '0px 6px',
-    borderRadius: "var(--shape-borderRadius-sm)",
-    fontSize: '0.75rem',
-    fontWeight: 700,
-    transition: 'all 0.2s',
-}));
 
 export const OrderList = () => {
     const router = useAdminRouter();
@@ -239,77 +229,32 @@ export const OrderList = () => {
                 value={tabStatus}
                 onChange={handleTabChange}
                 variant="scrollable"
-                scrollButtons={false}
-                sx={{
-                    px: '20px',
-                    minHeight: "48px",
-                    borderBottom: `1px solid var(--palette-background-neutral)`,
-                    '& .MuiTabs-flexContainer': { gap: "calc(5 * var(--spacing))" },
-                    '& .MuiTabs-indicator': { backgroundColor: 'var(--palette-text-primary)', height: 2 },
-                }}
+                scrollButtons="auto"
+                className="admin-tabs"
             >
                 {ORDER_STATUS_TABS.map((tab) => {
                     const isPreparingUrgent = tab.value === 'PREPARING' && shouldHighlightPreparing;
-                    const urgentColors = cutoffPhase === 'past'
-                        ? {
-                            color: 'var(--palette-error-dark)',
-                            bg: 'var(--palette-error-lighter)',
-                            activeColor: 'var(--palette-error-contrastText)',
-                            activeBg: 'var(--palette-error-main)',
-                        }
-                        : {
-                            color: 'var(--palette-warning-dark)',
-                            bg: 'var(--palette-warning-lighter)',
-                            activeColor: 'var(--palette-warning-contrastText)',
-                            activeBg: 'var(--palette-warning-main)',
-                        };
-                    const tabColors = isPreparingUrgent ? { ...tab, ...urgentColors } : tab;
+                    const badgeVariant = isPreparingUrgent && cutoffPhase === 'past'
+                        ? 'error'
+                        : tab.value;
 
                     return (
-                    <Tab
-                        key={tab.value}
-                        value={tab.value}
-                        disableRipple
-                        label={
-                            <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                                <Typography sx={{
-                                    fontSize: '0.875rem',
-                                    fontWeight: tabStatus === tab.value || isPreparingUrgent ? 700 : 500,
-                                    color: tabStatus === tab.value
-                                        ? 'var(--palette-text-primary)'
-                                        : isPreparingUrgent
-                                            ? tabColors.color
-                                            : 'inherit'
-                                }}>
-                                    {tab.label}
-                                </Typography>
-                                <TabBadge
-                                    sx={{
-                                        bgcolor: tabStatus === tab.value ? tabColors.activeBg : tabColors.bg,
-                                        color: tabStatus === tab.value ? tabColors.activeColor : tabColors.color,
-                                        transition: 'all 0.2s ease',
-                                        ...(isPreparingUrgent && tabStatus !== tab.value && {
-                                            boxShadow: cutoffPhase === 'past'
-                                                ? '0 0 0 1px var(--palette-error-main)'
-                                                : '0 0 0 1px var(--palette-warning-main)',
-                                        }),
-                                    }}
+                        <Tab
+                            key={tab.value}
+                            value={tab.value}
+                            disableRipple
+                            className="admin-tab"
+                            label={tab.label}
+                            icon={
+                                <span
+                                    className="admin-tab-badge"
+                                    style={getTabBadgeStyles(badgeVariant, tabStatus === tab.value)}
                                 >
                                     {safeStatusCounts[tab.value] || 0}
-                                </TabBadge>
-                            </Box>
-                        }
-                        sx={{
-                            minWidth: 0,
-                            padding: '0',
-                            minHeight: '48px',
-                            textTransform: 'none',
-                            color: isPreparingUrgent ? tabColors.color : 'var(--palette-text-secondary)',
-                            '&.Mui-selected': {
-                                color: 'var(--palette-text-primary)'
-                            },
-                        }}
-                    />
+                                </span>
+                            }
+                            iconPosition="end"
+                        />
                     );
                 })}
             </Tabs>
@@ -344,7 +289,7 @@ export const OrderList = () => {
                             <TableCell sx={{ borderBottom: 'none', color: 'var(--palette-text-secondary)', fontWeight: 600, fontSize: '0.875rem' }}>Loại đơn</TableCell>
                             <TableCell sx={{ borderBottom: 'none', color: 'var(--palette-text-secondary)', fontWeight: 600, fontSize: '0.875rem' }}>Ngày tạo</TableCell>
                             <TableCell sx={{ borderBottom: 'none', color: 'var(--palette-text-secondary)', fontWeight: 600, fontSize: '0.875rem' }}>Tổng tiền</TableCell>
-                            <TableCell sx={{ borderBottom: 'none', color: 'var(--palette-text-secondary)', fontWeight: 600, fontSize: '0.875rem' }} align="right">Trạng thái</TableCell>
+                            <TableCell sx={{ borderBottom: 'none', color: 'var(--palette-text-secondary)', fontWeight: 600, fontSize: '0.875rem' }} align="center">Trạng thái</TableCell>
                             <TableCell sx={{ borderBottom: 'none', width: 80 }} align="right" />
                         </TableRow>
                     </TableHead>
@@ -484,26 +429,17 @@ export const OrderList = () => {
                                                 </Typography>
                                             </TableCell>
 
-                                            <TableCell align="right" sx={{ borderBottom: '1px dashed var(--palette-background-neutral)' }}>
-                                                {(() => {
-                                                    const status = getOrderStatusBadge(row.status);
-                                                    return (
-                                                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
-                                                            <Chip
-                                                                label={status.label}
-                                                                size="small"
-                                                                sx={{
-                                                                    borderRadius: "var(--shape-borderRadius-sm)",
-                                                                    fontWeight: 700,
-                                                                    fontSize: '0.6875rem',
-                                                                    color: status.color,
-                                                                    bgcolor: status.bg,
-                                                                    height: '24px'
-                                                                }}
-                                                            />
-                                                        </Box>
-                                                    );
-                                                })()}
+                                            <TableCell
+                                                align="center"
+                                                sx={{
+                                                    borderBottom: '1px dashed var(--palette-background-neutral)',
+                                                    lineHeight: 1,
+                                                }}
+                                            >
+                                                <AdminStatusBadge
+                                                    label={getOrderStatusBadge(row.status).label}
+                                                    modifier={getOrderStatusAdminBadgeModifier(row.status)}
+                                                />
                                             </TableCell>
 
                                             <TableCell align="right" sx={{ borderBottom: '1px dashed var(--palette-background-neutral)', width: 80 }}>

@@ -5,29 +5,33 @@ import {
     getSettingShipping, updateSettingShipping,
     getSettingPayment, updateSettingPayment,
     getSettingLoginSocial, updateSettingLoginSocial,
-    getSettingAppPassword, updateSettingAppPassword,
     getSettingPoint, updateSettingPoint,
 } from "@/admin/features/settings/services/legacySettingService";
 import { toast } from "react-toastify";
 import { ConfigType } from "../../../features/system-config/types/system-config";
 import { SYSTEM_CONFIG_KEYS } from "../../../features/system-config/hooks/useSystemConfig";
+import { getSystemConfigs } from "../../../features/system-config/services/systemConfigService";
 import { SettingGeneralFormValues, SettingPageFormValues } from "@/admin/features/settings/schemas/setting.schema";
 import {
     fetchGeneralSettings,
     saveGeneralSettings,
 } from "../services/generalSettingService";
 import {
-    fetchStaticPage,
+    parsePageJson,
     saveStaticPage,
     StaticPageConfigKey,
 } from "../services/staticPageService";
 
-/** Hook quản lý trang tĩnh / chính sách — system_config STATIC_PAGE */
+/** Hook quản lý trang tĩnh / chính sách — một lần tải toàn bộ STATIC_PAGE, đổi tab không fetch lại. */
 export const useSettingPage = (configKey: StaticPageConfigKey) => {
     return useQuery({
-        queryKey: [...SYSTEM_CONFIG_KEYS.list(ConfigType.STATIC_PAGE), configKey],
-        queryFn: () => fetchStaticPage(configKey),
-        select: (data) => data.form,
+        queryKey: SYSTEM_CONFIG_KEYS.list(ConfigType.STATIC_PAGE),
+        queryFn: () => getSystemConfigs(ConfigType.STATIC_PAGE),
+        select: (response) => {
+            const config = (response.data ?? []).find((item) => item.configKey === configKey);
+            return config ? parsePageJson(config.configValue) : undefined;
+        },
+        staleTime: 60_000,
     });
 };
 
@@ -135,26 +139,6 @@ export const useUpdateSettingLoginSocial = () => {
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["settingLoginSocial"] });
             toast.success("Cập nhật cấu hình MXH thành công");
-        },
-    });
-};
-
-/** Hook quản lý cài đặt App Password */
-export const useSettingAppPassword = () => {
-    return useQuery({
-        queryKey: ["settingAppPassword"],
-        queryFn: getSettingAppPassword,
-        select: (data) => data.data,
-    });
-};
-
-export const useUpdateSettingAppPassword = () => {
-    const queryClient = useQueryClient();
-    return useMutation({
-        mutationFn: updateSettingAppPassword,
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ["settingAppPassword"] });
-            toast.success("Cập nhật mật khẩu ứng dụng thành công");
         },
     });
 };

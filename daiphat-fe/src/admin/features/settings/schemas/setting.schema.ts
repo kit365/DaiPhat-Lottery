@@ -88,14 +88,6 @@ export const settingLoginSocialSchema = z.object({
 
 export type SettingLoginSocialFormValues = z.infer<typeof settingLoginSocialSchema>;
 
-/** Schema for App Password Settings */
-export const settingAppPasswordSchema = z.object({
-    gmailUser: z.string().email("Email không hợp lệ").min(1, "Vui lòng nhập Gmail User"),
-    gmailPassword: z.string().min(1, "Vui lòng nhập Gmail Password"),
-});
-
-export type SettingAppPasswordFormValues = z.infer<typeof settingAppPasswordSchema>;
-
 /** Schema for Static Pages */
 export const settingPageSchema = z.object({
     title: z.string().min(1, "Vui lòng nhập tiêu đề trang"),

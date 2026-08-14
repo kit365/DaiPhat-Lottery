@@ -19,7 +19,7 @@ export const RefundStatusBadge: React.FC<RefundStatusBadgeProps> = ({ status, cl
     const config = REFUND_STATUS_MAP[status] || { label: status, bg: 'bg-[#F4F6F8]', text: 'text-[#637381]' };
 
     return (
-        <span className={`inline-block ${config.bg} ${config.text} px-2.5 py-1 rounded-md text-[12px] font-medium ${className}`}>
+        <span className={`status-badge inline-flex items-center justify-center ${config.bg} ${config.text} h-6 px-2.5 rounded-md text-[12px] font-medium leading-none ${className}`}>
             {config.label}
         </span>
     );

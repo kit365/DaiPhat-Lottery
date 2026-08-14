@@ -9,7 +9,6 @@ import com.daiphat.coreapi.application.dto.chat.schedule.ChatScheduleStationReso
 import com.daiphat.coreapi.application.port.in.chat.AiServiceConfigPort;
 import com.daiphat.coreapi.application.port.out.lotteries.LotteryStationRepositoryPort;
 import com.daiphat.coreapi.domain.model.enums.chat.ChatScheduleStationMatchSource;
-import com.daiphat.coreapi.domain.model.enums.lottery.LotteryStationStatus;
 import com.daiphat.coreapi.domain.model.lotteries.LotteryStationModel;
 import jakarta.annotation.PostConstruct;
 import lombok.Getter;
@@ -63,8 +62,9 @@ public class ChatScheduleStationResolver {
 
     public synchronized void rebuild() {
         yamlAliasToCanonical = buildYamlAliasMap();
+        // Align with LotteryStationService: workflow uses boolean isActive, not legacy status enum.
         activeStations = lotteryStationRepositoryPort.findAll().stream()
-                .filter(station -> station.getStatus() == LotteryStationStatus.ACTIVE)
+                .filter(LotteryStationModel::isActive)
                 .filter(station -> !station.isDeleted())
                 .filter(station -> station.getName() != null && !station.getName().isBlank())
                 .map(this::toStationRef)
@@ -114,7 +114,7 @@ public class ChatScheduleStationResolver {
             return Optional.empty();
         }
         return lotteryStationRepositoryPort.findById(stationId)
-                .filter(station -> station.getStatus() == LotteryStationStatus.ACTIVE)
+                .filter(LotteryStationModel::isActive)
                 .filter(station -> !station.isDeleted());
     }
 
@@ -124,7 +124,7 @@ public class ChatScheduleStationResolver {
         }
         String target = ChatScheduleTexts.normalize(canonicalName);
         return lotteryStationRepositoryPort.findAll().stream()
-                .filter(station -> station.getStatus() == LotteryStationStatus.ACTIVE)
+                .filter(LotteryStationModel::isActive)
                 .filter(station -> !station.isDeleted())
                 .filter(station -> station.getName() != null && !station.getName().isBlank())
                 .filter(station -> matchesCanonical(station.getName(), target))

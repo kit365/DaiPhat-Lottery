@@ -7,7 +7,6 @@ import com.daiphat.coreapi.application.listener.ChatScheduleStationAliasIndexLis
 import com.daiphat.coreapi.application.port.in.chat.AiServiceConfigPort;
 import com.daiphat.coreapi.application.port.out.lotteries.LotteryStationRepositoryPort;
 import com.daiphat.coreapi.domain.model.enums.chat.ChatScheduleStationMatchSource;
-import com.daiphat.coreapi.domain.model.enums.lottery.LotteryStationStatus;
 import com.daiphat.coreapi.domain.model.lotteries.LotteryStationModel;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -50,7 +49,7 @@ class ChatScheduleStationAliasIndexTest {
         LotteryStationModel station = new LotteryStationModel();
         station.setId(10L);
         station.setName("Hồ Chí Minh");
-        station.setStatus(LotteryStationStatus.ACTIVE);
+        station.setActive(true);
         when(lotteryStationRepositoryPort.findAll()).thenReturn(List.of(station));
 
         stationResolver.rebuild();
@@ -71,7 +70,7 @@ class ChatScheduleStationAliasIndexTest {
         LotteryStationModel benTre = new LotteryStationModel();
         benTre.setId(2L);
         benTre.setName("Bến Tre");
-        benTre.setStatus(LotteryStationStatus.ACTIVE);
+        benTre.setActive(true);
         when(lotteryStationRepositoryPort.findAll()).thenReturn(List.of(benTre));
 
         listener.handleLotteryStationChanged(LotteryStationChangedEvent.builder().stationId(2L).build());

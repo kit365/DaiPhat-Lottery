@@ -137,7 +137,6 @@ export const PERMISSIONS_GROUPED = [
             { id: PERMISSIONS.CHAT.VIEW, name: "Xem chat" },
             { id: PERMISSIONS.CHAT.MANAGE, name: "Quản lý chat" },
             { id: PERMISSIONS.NOTIFICATION.VIEW, name: "Xem thông báo" },
-            { id: PERMISSIONS.REVIEW.VIEW, name: "Xem đánh giá" },
             { id: PERMISSIONS.CALENDAR.VIEW, name: "Xem lịch" },
             { id: PERMISSIONS.SETTINGS.VIEW, name: "Xem cài đặt" },
             { id: PERMISSIONS.SETTINGS.EDIT, name: "Sửa cài đặt" },

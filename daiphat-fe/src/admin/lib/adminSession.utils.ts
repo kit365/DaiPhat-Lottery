@@ -58,7 +58,7 @@ export function syncUserFromMeResponse(
     set: (state: Partial<{ user: User | null }>) => void,
     logout: () => void,
 ): void {
-    if (!response) {
+    if (!response || !useAuthStore.getState().token) {
         return;
     }
 

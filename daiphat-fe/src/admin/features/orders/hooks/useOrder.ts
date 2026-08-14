@@ -21,6 +21,8 @@ import { hasPermission } from '../../../utils/permission.util';
 import { PERMISSIONS } from '../../../constants/permission.constants';
 import { ADMIN_BADGE_POLL_MS } from '../../../hooks/adminBadgePoll';
 import { useAdminDeferredQueries } from '../../../hooks/useAdminDeferredQueries';
+import { refundAdminApi } from '../../refund/services/refundService';
+import { QUERY_STALE_TIMES } from '@/shared/react-query';
 
 type AdminOrderListFilters = OrderFilterParams & { limit?: number };
 
@@ -331,4 +333,13 @@ export const useOrderDrawCutoff = (preparingCount = 0) => {
         preparingCount,
         now,
     };
+};
+
+export const useOrderRefundsForInspection = (orderId?: string, enabled = false) => {
+    return useQuery({
+        queryKey: [GLOBAL_QUERY_KEYS.ADMIN_REFUNDS, { orderId, page: 1, limit: 20 }],
+        queryFn: () => refundAdminApi.getStaffRefunds({ orderId, page: 1, limit: 20 }),
+        enabled: !!orderId && enabled,
+        staleTime: QUERY_STALE_TIMES.badge,
+    });
 };

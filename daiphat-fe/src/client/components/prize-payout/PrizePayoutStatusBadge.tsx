@@ -15,7 +15,7 @@ export const PrizePayoutStatusBadge: React.FC<PrizePayoutStatusBadgeProps> = ({ 
 
     return (
         <span
-            className={`inline-block ${config.bg} ${config.text} px-2.5 py-1 rounded-md text-[12px] font-medium ${className}`}
+            className={`status-badge inline-flex items-center justify-center h-6 ${config.bg} ${config.text} px-2.5 rounded-md text-[12px] font-medium leading-none ${className}`}
         >
             {config.label}
         </span>

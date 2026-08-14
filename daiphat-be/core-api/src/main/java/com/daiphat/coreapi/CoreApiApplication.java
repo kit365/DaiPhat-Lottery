@@ -19,13 +19,15 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 import com.daiphat.coreapi.application.config.AuthProperties;
 import com.daiphat.coreapi.application.config.OrderRefundProperties;
 import com.daiphat.coreapi.application.config.PaymentProperties;
+import com.daiphat.coreapi.application.config.VendorTestSeedProperties;
 
 @SpringBootApplication
 @EntityScan(basePackages = "com.daiphat.coreapi.infrastructure.persistence.entity")
 @EnableJpaRepositories(basePackages = "com.daiphat.coreapi.infrastructure.persistence.repository")
 @EnableAsync
 @EnableScheduling
-@EnableConfigurationProperties({AuthProperties.class, PaymentProperties.class, OrderRefundProperties.class})
+@EnableConfigurationProperties({AuthProperties.class, PaymentProperties.class, OrderRefundProperties.class,
+        VendorTestSeedProperties.class})
 public class CoreApiApplication {
 
     public static void main(String[] args) {
@@ -48,6 +50,7 @@ public class CoreApiApplication {
         for (Path envFile : resolveLocalEnvFiles(cwd, repoRoot)) {
             loadEnvFile(envFile);
         }
+        mirrorAuthJwtSystemProperties();
     }
 
     private static List<Path> resolveLocalEnvFiles(Path cwd, Path repoRoot) {
@@ -115,6 +118,48 @@ public class CoreApiApplication {
         }
 
         System.setProperty(key, value);
+        bridgeEnvKeyToSpringProperty(key, value);
+    }
+
+    /**
+     * {@code AUTH_JWT_SECRET} does not relax-bind to {@code daiphat.auth.jwt.secret}.
+     * Mirror the common auth env keys onto the property names used by {@code @Value},
+     * including values already present in the process environment (IntelliJ EnvFile).
+     */
+    private static void bridgeEnvKeyToSpringProperty(String key, String value) {
+        String springKey = switch (key) {
+            case "AUTH_JWT_SECRET" -> "daiphat.auth.jwt.secret";
+            case "AUTH_JWT_ISSUER" -> "daiphat.auth.jwt.issuer";
+            case "AUTH_JWT_ACCESS_TOKEN_TTL_SECONDS" -> "daiphat.auth.jwt.access-token-ttl-seconds";
+            case "AUTH_JWT_REFRESH_TOKEN_TTL_SECONDS" -> "daiphat.auth.jwt.refresh-token-ttl-seconds";
+            default -> null;
+        };
+        if (springKey != null && System.getProperty(springKey) == null && value != null && !value.isBlank()) {
+            System.setProperty(springKey, value);
+        }
+    }
+
+    private static void mirrorAuthJwtSystemProperties() {
+        bridgeEnvKeyToSpringProperty("AUTH_JWT_SECRET", firstNonBlank(
+                System.getProperty("AUTH_JWT_SECRET"), System.getenv("AUTH_JWT_SECRET")));
+        bridgeEnvKeyToSpringProperty("AUTH_JWT_ISSUER", firstNonBlank(
+                System.getProperty("AUTH_JWT_ISSUER"), System.getenv("AUTH_JWT_ISSUER")));
+        bridgeEnvKeyToSpringProperty("AUTH_JWT_ACCESS_TOKEN_TTL_SECONDS", firstNonBlank(
+                System.getProperty("AUTH_JWT_ACCESS_TOKEN_TTL_SECONDS"),
+                System.getenv("AUTH_JWT_ACCESS_TOKEN_TTL_SECONDS")));
+        bridgeEnvKeyToSpringProperty("AUTH_JWT_REFRESH_TOKEN_TTL_SECONDS", firstNonBlank(
+                System.getProperty("AUTH_JWT_REFRESH_TOKEN_TTL_SECONDS"),
+                System.getenv("AUTH_JWT_REFRESH_TOKEN_TTL_SECONDS")));
+    }
+
+    private static String firstNonBlank(String primary, String fallback) {
+        if (primary != null && !primary.isBlank()) {
+            return primary;
+        }
+        if (fallback != null && !fallback.isBlank()) {
+            return fallback;
+        }
+        return null;
     }
 
     private static String stripQuotes(String value) {

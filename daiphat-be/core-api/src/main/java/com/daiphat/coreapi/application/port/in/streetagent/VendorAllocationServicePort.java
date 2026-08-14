@@ -5,6 +5,7 @@ import com.daiphat.coreapi.application.dto.request.streetagent.ConfirmVendorAllo
 import com.daiphat.coreapi.application.dto.request.streetagent.ConfirmVendorReturnInspectionRequest;
 import com.daiphat.coreapi.application.dto.request.streetagent.ConfirmVendorNoReturnRequest;
 import com.daiphat.coreapi.application.dto.request.streetagent.ReturnVendorAllocationSerialsRequest;
+import com.daiphat.coreapi.application.dto.request.streetagent.ReplaceVendorAllocationReturnsRequest;
 import com.daiphat.coreapi.application.dto.request.streetagent.SettleVendorAllocationRequest;
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.response.streetagent.VendorAllocationBatchResponse;
@@ -46,15 +47,18 @@ public interface VendorAllocationServicePort {
             Collection<AllocationBatchStatus> statuses,
             LocalDate businessDateFrom,
             LocalDate businessDateTo,
+            String search,
             int page,
             int size);
     VendorAllocationBatchResponse confirm(Long id, ConfirmVendorAllocationRequest request, UUID operatorId);
     VendorConfirmationQuoteResponse getConfirmationQuote(Long id);
     VendorAllocationBatchResponse openReturnSession(Long id);
     VendorAllocationBatchResponse recordReturns(Long id, ReturnVendorAllocationSerialsRequest request);
+    VendorAllocationBatchResponse replaceReturns(Long id, ReplaceVendorAllocationReturnsRequest request);
     VendorAllocationBatchResponse removeReturn(Long id, Long serialId);
     VendorAllocationBatchResponse confirmReturnInspection(Long id, ConfirmVendorReturnInspectionRequest request, UUID operatorId);
     VendorAllocationBatchResponse confirmNoReturnedTickets(Long id, ConfirmVendorNoReturnRequest request, UUID operatorId);
+    VendorAllocationBatchResponse reopenReturnInspection(Long id);
     VendorSettlementPreviewResponse previewSettlement(Long id);
     VendorAllocationBatchResponse settle(Long id, SettleVendorAllocationRequest request, UUID operatorId);
     void cancel(Long id);

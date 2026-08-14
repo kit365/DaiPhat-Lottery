@@ -17,25 +17,16 @@ const STAFF_BASE = '/staff/tickets';
 const TICKET_BASE = '/tickets';
 const CATEGORY_URL = '/ticket-categories';
 
-const withAuth = () => {
-    const token = Cookies.get(STORAGE_KEYS.TOKEN);
-    return {
-        headers: {
-            Authorization: `Bearer ${token}`,
-        },
-    };
-};
-
 export const supportTicketAdminApi = {
     getStaffTickets: async (
         params: GetStaffTicketsParams
     ): Promise<ApiResponse<PageResponse<SupportTicketStaffSummaryResponse>>> => {
-        const response = await apiApp.get(STAFF_BASE, { ...withAuth(), params });
+        const response = await apiApp.get(STAFF_BASE, { params });
         return response.data;
     },
 
     assignTicket: async (id: number): Promise<ApiResponse<SupportTicketResponse>> => {
-        const response = await apiApp.put(`${STAFF_BASE}/${id}/assign`, {}, withAuth());
+        const response = await apiApp.put(`${STAFF_BASE}/${id}/assign`, {});
         return response.data;
     },
 
@@ -43,7 +34,7 @@ export const supportTicketAdminApi = {
         id: number,
         data: ResolveSupportTicketRequest
     ): Promise<ApiResponse<SupportTicketResponse>> => {
-        const response = await apiApp.put(`${STAFF_BASE}/${id}/resolve`, data, withAuth());
+        const response = await apiApp.put(`${STAFF_BASE}/${id}/resolve`, data);
         return response.data;
     },
 
@@ -68,12 +59,12 @@ export const supportTicketAdminApi = {
     },
 
     getTicketById: async (id: number): Promise<ApiResponse<SupportTicketResponse>> => {
-        const response = await apiApp.get(`${TICKET_BASE}/${id}`, withAuth());
+        const response = await apiApp.get(`${TICKET_BASE}/${id}`);
         return response.data;
     },
 
     getComments: async (id: number): Promise<ApiResponse<SupportTicketCommentResponse[]>> => {
-        const response = await apiApp.get(`${TICKET_BASE}/${id}/comments`, withAuth());
+        const response = await apiApp.get(`${TICKET_BASE}/${id}/comments`);
         return response.data;
     },
 
@@ -98,12 +89,12 @@ export const supportTicketAdminApi = {
     },
 
     getCategories: async (): Promise<ApiResponse<TicketCategoryResponse[]>> => {
-        const response = await apiApp.get(CATEGORY_URL, withAuth());
+        const response = await apiApp.get(CATEGORY_URL);
         return response.data;
     },
 
     updateCategory: async (id: number, data: any): Promise<ApiResponse<TicketCategoryResponse>> => {
-        const response = await apiApp.put(`${CATEGORY_URL}/${id}`, data, withAuth());
+        const response = await apiApp.put(`${CATEGORY_URL}/${id}`, data);
         return response.data;
     },
 };

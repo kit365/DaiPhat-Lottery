@@ -1,6 +1,7 @@
 package com.daiphat.coreapi.application.service.streetagent;
 
 import com.daiphat.coreapi.application.dto.response.streetagent.VendorConfidenceResponse;
+import com.daiphat.coreapi.application.policy.streetagent.VendorConfidencePolicyResolver;
 import com.daiphat.coreapi.application.port.in.streetagent.VendorConfidenceServicePort;
 import com.daiphat.coreapi.application.port.out.streetagent.StreetAgentProfileRepositoryPort;
 import com.daiphat.coreapi.application.port.out.streetagent.VendorSettlementProjectionRepositoryPort;
@@ -9,6 +10,7 @@ import com.daiphat.coreapi.domain.exception.ErrorCode;
 import com.daiphat.coreapi.domain.model.enums.streetagent.AllocationBatchStatus;
 import com.daiphat.coreapi.domain.model.streetagent.StreetAgentProfileModel;
 import com.daiphat.coreapi.domain.service.streetagent.VendorConfidenceCalculator;
+import com.daiphat.coreapi.shared.time.VietnamClock;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,6 +25,7 @@ public class VendorConfidenceService implements VendorConfidenceServicePort {
     private final StreetAgentProfileRepositoryPort streetAgentProfileRepositoryPort;
     private final VendorSettlementProjectionRepositoryPort projectionRepositoryPort;
     private final VendorConfidencePolicyResolver confidencePolicyResolver;
+    private final VietnamClock vietnamClock;
 
     @Override
     @Transactional(readOnly = true)
@@ -45,7 +48,7 @@ public class VendorConfidenceService implements VendorConfidenceServicePort {
     @Override
     @Transactional
     public int recalculateAllProfiles() {
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = vietnamClock.now();
         int updated = 0;
         for (Long profileId : streetAgentProfileRepositoryPort.findAllActiveIds()) {
             StreetAgentProfileModel profile = streetAgentProfileRepositoryPort.findByIdForUpdate(profileId)

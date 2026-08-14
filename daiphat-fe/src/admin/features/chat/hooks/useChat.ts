@@ -101,7 +101,7 @@ export const useAssignConversation = () => {
                               ...item,
                               ...conversation,
                               lastMessage: item.lastMessage,
-                              unreadCount: item.unreadCount,
+                              unreadCount: 0,
                           }
                         : item
                 );

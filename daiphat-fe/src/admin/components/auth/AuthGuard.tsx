@@ -3,6 +3,7 @@
 import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
 import { usePathname } from "next/navigation";
 import { ReactNode, useEffect } from "react";
+import { clearAdminAuthSession } from "@/admin/lib/adminSession.utils";
 import { useAuthStore } from "../../../stores/useAuthStore";
 import { USER_ROLES } from "../../../constants/role.constants";
 import { toast } from "react-toastify";
@@ -27,7 +28,7 @@ function isRestrictedAdminRole(role: unknown): boolean {
 export const AuthGuard = ({ children }: Props) => {
     const router = useAdminRouter();
     const pathname = usePathname() ?? "";
-    const { token, isHydrated, user, logout } = useAuthStore();
+    const { token, isHydrated, user } = useAuthStore();
 
     const isRestrictedRole = isRestrictedAdminRole(user?.role);
     const isSetupIncomplete = user && (user.hasPassword === false || user.agreedToTerms === false);
@@ -39,9 +40,9 @@ export const AuthGuard = ({ children }: Props) => {
             toast.error("Bạn không có quyền truy cập vùng quản trị!", {
                 toastId: "auth-denied",
             });
-            logout();
+            clearAdminAuthSession();
         }
-    }, [isRestrictedRole, logout]);
+    }, [isRestrictedRole]);
 
     useEffect(() => {
         if (!isHydrated) return;

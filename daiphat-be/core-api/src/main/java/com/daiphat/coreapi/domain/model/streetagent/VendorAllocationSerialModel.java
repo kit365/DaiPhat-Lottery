@@ -196,6 +196,34 @@ public class VendorAllocationSerialModel {
         reservedExpiresAt = null;
     }
 
+    public boolean canReopenStreetAgentReturnInspection() {
+        return (status == AllocationSerialStatus.RETURNED
+                && (ticketStatus == LotteryTicketSerialStatus.IN_STOCK || ticketStatus == LotteryTicketSerialStatus.EXPIRED))
+                || (status == AllocationSerialStatus.RETURN_REJECTED
+                && ticketStatus == LotteryTicketSerialStatus.WITH_STREET_AGENT);
+    }
+
+    public void reopenAcceptedStreetAgentReturn() {
+        if (status != AllocationSerialStatus.RETURNED
+                || (ticketStatus != LotteryTicketSerialStatus.IN_STOCK && ticketStatus != LotteryTicketSerialStatus.EXPIRED)) {
+            throw new DomainException(ErrorCode.VENDOR_ALLOCATION_INVALID_STATE);
+        }
+        status = AllocationSerialStatus.RETURN_PENDING_INSPECTION;
+        ticketStatus = LotteryTicketSerialStatus.WITH_STREET_AGENT;
+        returnedAt = null;
+        returnRejectionReason = null;
+    }
+
+    public void reopenRejectedStreetAgentReturn() {
+        if (status != AllocationSerialStatus.RETURN_REJECTED
+                || ticketStatus != LotteryTicketSerialStatus.WITH_STREET_AGENT) {
+            throw new DomainException(ErrorCode.VENDOR_ALLOCATION_INVALID_STATE);
+        }
+        status = AllocationSerialStatus.RETURN_PENDING_INSPECTION;
+        returnedAt = null;
+        returnRejectionReason = null;
+    }
+
     public void markSoldAtSettlement(LocalDateTime soldAt) {
         if ((status != AllocationSerialStatus.HANDED_OVER && status != AllocationSerialStatus.RETURN_REJECTED)
                 || ticketStatus != LotteryTicketSerialStatus.WITH_STREET_AGENT) {

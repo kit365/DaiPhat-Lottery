@@ -27,7 +27,7 @@ import {
 } from '@mui/material';
 import { Icon } from '@/admin/components/ui/AdminIcon';
 import dayjs from 'dayjs';
-import { useQuery } from '@tanstack/react-query';
+import { useCreateStaffPrizePayoutBatch, usePrizePayoutCustomerBankAccounts, usePrizePayoutLookupStations } from '@/admin/features/prize-payout/hooks/usePrizePayoutManagement';
 import { PageHeader } from '@/admin/components/ui/PageHeader';
 import { AdminDatePicker } from '@/admin/components/ui/AdminDatePicker';
 import { AdminStatusBadge } from '@/admin/components/ui/AdminStatusBadge';
@@ -47,11 +47,9 @@ import {
 import { VietQrBankResponse } from '@/types/refund.type';
 import { useGetBanks } from '@/client/hooks/useBankAccount';
 import { Station } from '@/admin/features/station/types/station.type';
-import { useCreateStaffPrizePayoutBatch } from '@/admin/features/prize-payout/hooks/usePrizePayoutManagement';
 import { TransferEvidencePreview } from '@/admin/features/refund/components/TransferEvidencePreview';
 import { UploadSingleFile } from '@/admin/components/upload/UploadSingleFile';
 import { AppToast as toast } from '@/utils/toast.util';
-import { QUERY_KEYS } from '@/constants/queryKeys';
 import {
     clearPrizePayoutCreateDraft,
     writePrizePayoutCreateDraft,
@@ -124,21 +122,7 @@ export const PrizePayoutCreatePage = () => {
         data: stationsForDrawDate = [],
         isLoading: isLoadingStationsForDate,
         isFetching: isFetchingStationsForDate,
-    } = useQuery({
-        queryKey: [QUERY_KEYS.ADMIN_PRIZE_PAYOUT_LOOKUP_STATIONS, drawDate],
-        queryFn: async () => {
-            const res = await prizePayoutAdminApi.lookupStationsByDrawDate(drawDate);
-            const rows = res.data || [];
-            return rows.map(
-                (row): Station => ({
-                    id: row.id,
-                    name: row.name,
-                })
-            );
-        },
-        enabled: lookupMode === 'TRIPLE' && !!drawDate,
-        placeholderData: (prev) => prev,
-    });
+    } = usePrizePayoutLookupStations(drawDate, lookupMode === 'TRIPLE');
     const stations = stationsForDrawDate;
 
     const [lookupItems, setLookupItems] = useState<PrizePayoutLookupItem[]>([]);
@@ -175,11 +159,7 @@ export const PrizePayoutCreatePage = () => {
         return null;
     }, [selectedItems]);
 
-    const { data: userAccountsRes } = useQuery({
-        queryKey: [QUERY_KEYS.ADMIN_CUSTOMER_BANK_ACCOUNTS, linkedCustomerId],
-        queryFn: () => prizePayoutAdminApi.getCustomerBankAccounts(String(linkedCustomerId!)),
-        enabled: !!linkedCustomerId,
-    });
+    const { data: userAccountsRes } = usePrizePayoutCustomerBankAccounts(linkedCustomerId);
 
     /** Offline/in-person: show all saved accounts — any holder name is allowed. */
     const suggestedBankAccounts = userAccountsRes?.data || [];

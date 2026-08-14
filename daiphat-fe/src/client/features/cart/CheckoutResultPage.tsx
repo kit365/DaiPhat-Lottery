@@ -90,7 +90,6 @@ export const CheckoutResultPage = () => {
                 refetchOrder();
             }
         });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [resultData.orderId, resultData.code, resultData.cancel, resultData.flow]);
 
     const isCancelFlow = resultData.flow === 'cancel';
