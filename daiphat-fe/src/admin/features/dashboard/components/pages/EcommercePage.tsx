@@ -1,234 +1,174 @@
 "use client";
 
-import { Grid, Box, Typography, Button, Divider, Menu, MenuItem, Stack, Table, TableBody, TableCell, TableHead, TableRow, TableContainer, Avatar } from "@mui/material"
+import { Grid, Box, Typography, Button, Divider, Menu, MenuItem, Stack, Table, TableBody, TableCell, TableHead, TableRow, TableContainer, Avatar, CircularProgress } from "@mui/material"
 import WelcomeWidget from "@/admin/components/dashboard/WelcomeWidget";
 import SummaryWidget from "@/admin/components/dashboard/SummaryWidget";
+import { useRouter } from 'next/navigation';
 import DashboardCard from "@/admin/components/dashboard/DashboardCard";
+import { ROUTES } from "@/admin/constants/routes";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { Icon } from '@/admin/components/ui/AdminIcon';
 import { useState, useEffect } from "react";
-import { getEcommerceStats } from "@/admin/features/dashboard/services/dashboardService";
+import { getDashboardKpis, getActionItems, getInventoryRisks, getVendorRisks } from "@/admin/features/dashboard/services/dashboardService";
+import type { StationTicketRiskItem } from "@/admin/features/dashboard/services/dashboardService";
 import Chart from '@/components/ApexChartCompat';
 
-const SalesByCategory = ({ data }: { data: any[] }) => {
-    const total = data?.reduce((acc, curr) => acc + curr.total, 0) || 0;
-    const labels = data?.map(item => item.label) || ['Trống', 'Trống'];
-    const series = data?.map(item => (total > 0 ? (item.total / total) * 100 : 0)) || [0, 0];
+const VI_NUMBER_FORMATTER = new Intl.NumberFormat('vi-VN');
 
-    const chartOptions: any = {
-        chart: { type: 'radialBar' },
-        labels: labels,
-        stroke: { lineCap: 'round' },
-        plotOptions: {
-            radialBar: {
-                hollow: { size: '40%' },
-                track: {
-                    background: 'rgba(145, 158, 171, 0.08)',
-                    strokeWidth: '100%',
-                },
-                dataLabels: {
-                    name: {
-                        fontSize: '0.875rem',
-                        fontWeight: 600,
-                        color: 'var(--palette-text-secondary)',
-                        offsetY: -10,
-                    },
-                    value: {
-                        fontSize: '1.25rem',
-                        fontWeight: 700,
-                        color: 'var(--palette-text-primary)',
-                        offsetY: 5,
-                        formatter: (val: number) => `${val.toFixed(2)}%`,
-                    },
-                    total: {
-                        show: true,
-                        label: 'Tổng thu',
-                        formatter: () => {
-                            if (total >= 1000000) return (total / 1000000).toFixed(1) + 'M';
-                            if (total >= 1000) return (total / 1000).toFixed(1) + 'K';
-                            return total.toString();
-                        },
-                    }
-                }
-            }
-        },
-        colors: ['#FF3030', '#ffab00', '#00b8d9'],
-        legend: { show: false }
+const formatCount = (value: number | null | undefined) =>
+    VI_NUMBER_FORMATTER.format(value ?? 0);
+
+const formatCurrency = (value: number | null | undefined) =>
+    `${VI_NUMBER_FORMATTER.format(value ?? 0)} đ`;
+
+const ActionItemDonut = () => {
+    const [data, setData] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(false);
+
+    const fetchData = async () => {
+        setLoading(true); setError(false);
+        const res = await getActionItems();
+        if (res.success) setData(res.data || []);
+        else setError(true);
+        setLoading(false);
     };
 
+    useEffect(() => { fetchData(); }, []);
+
+    if (loading) return <DashboardCard sx={{ height: '100%', p: 3, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><CircularProgress /></DashboardCard>;
+    if (error) return <DashboardCard sx={{ height: '100%', p: 3, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2 }}><Typography variant="body2" color="error">Không thể tải dữ liệu</Typography><Button onClick={fetchData} variant="outlined" size="small">Thử lại</Button></DashboardCard>;
+    if (data.length === 0) return <DashboardCard sx={{ height: '100%', p: 3, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Typography variant="body2" sx={{ color: 'var(--palette-text-secondary)', fontWeight: 500 }}>Chưa có việc cần xử lý</Typography></DashboardCard>;
+
+    const chartOptions: any = {
+        chart: { type: 'donut', toolbar: { show: false } },
+        labels: data.map(item => item.type || item.category || 'Khác'),
+        dataLabels: { enabled: false },
+        legend: { position: 'bottom' },
+        colors: ['#00B8D9', '#36B37E', '#FFAB00', '#FF5630', '#637381'],
+        tooltip: { y: { formatter: (val: number) => `${val.toLocaleString('vi-VN')} việc` } }
+    };
+    const series = data.map(item => item.count || 0);
+
     return (
-        <DashboardCard>
-            <Box sx={{ p: 3, pb: 0 }}>
-                <Typography variant="h6" sx={{ fontWeight: 600, fontSize: '1.125rem' }}>Doanh số theo danh mục</Typography>
+        <DashboardCard sx={{ p: 3, pb: '20px', height: '100%' }}>
+            <Box sx={{ mb: 3 }}>
+                <Typography variant="h6" sx={{ fontWeight: 600, fontSize: '1.125rem' }}>Việc cần xử lý</Typography>
             </Box>
-
-            <Box sx={{ height: 320, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Chart options={chartOptions} series={series} type="radialBar" width={300} height={300} />
-            </Box>
-
-            <Divider sx={{ borderStyle: 'dashed' }} />
-
-            <Box sx={{ p: 3, display: 'flex', justifyContent: 'center', gap: 2, flexWrap: 'wrap' }}>
-                {labels.map((label: string, index: number) => (
-                    <Box key={`${label}-${index}`} sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                        <Box sx={{ width: 12, height: 12, borderRadius: '50%', bgcolor: chartOptions.colors[index] }} />
-                        <Typography sx={{ fontSize: '0.813rem', fontWeight: 600, color: 'var(--palette-text-secondary)' }}>{label}</Typography>
-                    </Box>
-                ))}
-            </Box>
+            <Chart options={chartOptions} series={series} type="donut" height={280} />
         </DashboardCard>
     );
 };
 
-const YearlySales = ({ data }: { data: number[] }) => {
-    const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
-    const [selectedYear, setSelectedYear] = useState(new Date().getFullYear().toString());
+const InventoryRiskBarChart = () => {
+    const [data, setData] = useState<StationTicketRiskItem[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(false);
 
-    const open = Boolean(anchorEl);
-    const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
-        setAnchorEl(event.currentTarget);
+    const fetchData = async () => {
+        setLoading(true); setError(false);
+        const res = await getInventoryRisks();
+        if (res.success) setData(res.data || []);
+        else setError(true);
+        setLoading(false);
     };
-    const handleClose = (year?: string) => {
-        if (year && typeof year === 'string') setSelectedYear(year);
-        setAnchorEl(null);
-    };
+
+    useEffect(() => { fetchData(); }, []);
+
+    if (loading) return <DashboardCard sx={{ height: '100%', p: 3, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><CircularProgress /></DashboardCard>;
+    if (error) return <DashboardCard sx={{ height: '100%', p: 3, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2 }}><Typography variant="body2" color="error">Không thể tải dữ liệu</Typography><Button onClick={fetchData} variant="outlined" size="small">Thử lại</Button></DashboardCard>;
+    if (data.length === 0) return <DashboardCard sx={{ height: '100%', p: 3, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Typography variant="body2" sx={{ color: 'var(--palette-text-secondary)', fontWeight: 500 }}>Chưa có dữ liệu rủi ro tồn vé</Typography></DashboardCard>;
+
+    const chartHeight = Math.max(280, data.length * 85);
 
     const chartOptions: any = {
-        chart: {
-            type: 'area',
-            toolbar: { show: false },
-            zoom: { enabled: false },
-        },
+        chart: { type: 'bar', toolbar: { show: false }, fontFamily: 'inherit' },
+        plotOptions: { bar: { horizontal: true, barHeight: '60%', borderRadius: 4, dataLabels: { position: 'top' } } },
         dataLabels: { enabled: false },
-        stroke: { curve: 'smooth', width: 3 },
-        fill: {
-            type: 'gradient',
-            gradient: {
-                shadeIntensity: 1,
-                opacityFrom: 0.4,
-                opacityTo: 0,
-                stops: [0, 100]
-            }
-        },
+        stroke: { show: true, width: 2, colors: ['transparent'] },
         xaxis: {
-            categories: ['Thg 1', 'Thg 2', 'Thg 3', 'Thg 4', 'Thg 5', 'Thg 6', 'Thg 7', 'Thg 8', 'Thg 9', 'Thg 10', 'Thg 11', 'Thg 12'],
+            categories: data.map(item => `${item.stationName} (${item.drawDate})`),
+            labels: { style: { colors: 'var(--palette-text-secondary)', fontSize: '12px', fontWeight: 500 } },
+            axisBorder: { show: false }, axisTicks: { show: false },
         },
-        yaxis: { labels: { show: true } },
-        grid: { strokeDashArray: 3, borderColor: 'var(--palette-divider)' },
-        legend: { show: false },
-        colors: ['#FF3030'],
+        yaxis: { labels: { style: { colors: 'var(--palette-text-primary)', fontSize: '12px', fontWeight: 600 } } },
+        colors: ['#FF3030', '#00B8D9'],
+        tooltip: {
+            theme: 'dark',
+            y: { formatter: (val: number, opts: any) => { const item = data[opts?.dataPointIndex]; const riskText = item?.risk ? ` • Rủi ro: ${item.risk}` : ''; return `${val?.toLocaleString('vi-VN') || 0} vé${riskText}`; } }
+        },
+        legend: { position: 'top', horizontalAlign: 'right', fontSize: '12px', fontWeight: 600, labels: { colors: 'var(--palette-text-primary)' }, markers: { radius: 12 } },
+        grid: { strokeDashArray: 3, borderColor: 'var(--palette-divider)', padding: { right: 32, left: 20 } },
     };
 
     const series = [
-        { name: 'Doanh thu', data: Array.isArray(data) ? data : Array(12).fill(0) }
+        { name: 'Vé người bán giữ', data: data.map(item => item.vendorHeldQuantity) },
+        { name: 'Vé còn bán', data: data.map(item => item.sellableQuantity) },
     ];
 
     return (
-        <DashboardCard sx={{ p: 3, pb: '20px' }}>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3 }}>
+        <DashboardCard sx={{ height: '100%' }}>
+            <Box sx={{ p: 3, pb: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <Box>
-                    <Typography variant="h6" sx={{ fontWeight: 600, fontSize: '1.125rem' }}>Doanh s? h�ng nam</Typography>
-                    <Typography variant="body2" sx={{ color: 'var(--palette-text-secondary)', mt: 0.5 }}>
-                        <span style={{ fontWeight: 600, color: 'var(--palette-success-main)' }}>(+43%)</span> so v?i nam ngo�i
-                    </Typography>
-                </Box>
-                <Button
-                    size="small"
-                    variant="outlined"
-                    onClick={handleClick}
-                    endIcon={<Icon icon={open ? "eva:chevron-up-fill" : "eva:chevron-down-fill"} />}
-                    sx={{
-                        color: 'inherit',
-                        height: '34px',
-                        textTransform: 'none',
-                        fontWeight: 600,
-                        border: 'solid 1px rgba(145, 158, 171, 0.24)',
-                    }}
-                >
-                    {selectedYear}
-                </Button>
-                <Menu
-                    anchorEl={anchorEl}
-                    open={open}
-                    onClose={() => handleClose()}
-                    anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-                    transformOrigin={{ vertical: 'top', horizontal: 'right' }}
-                    PaperProps={{ sx: { mt: 1, borderRadius: '12px', minWidth: 100, p: 0.5 } }}
-                >
-                    {['2023', '2024', '2025'].map((year) => (
-                        <MenuItem
-                            key={year}
-                            selected={year === selectedYear}
-                            onClick={() => handleClose(year)}
-                            sx={{ borderRadius: '8px', mb: 0.5 }}
-                        >
-                            {year}
-                        </MenuItem>
-                    ))}
-                </Menu>
-            </Box>
-
-            <Box sx={{ display: 'flex', gap: 3, mb: 3 }}>
-                <Box>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
-                        <Box sx={{ width: 12, height: 12, borderRadius: '50%', bgcolor: 'var(--palette-primary-main)' }} />
-                        <Typography sx={{ fontSize: '0.813rem', fontWeight: 500, color: 'var(--palette-text-secondary)' }}>Doanh thu</Typography>
-                    </Box>
-                    <Typography variant="h5" sx={{ fontWeight: 700 }}>
-                        {(Array.isArray(data) ? data.reduce((a: number, b: number) => a + b, 0) : 0).toLocaleString()}đ
-                    </Typography>
+                    <Typography variant="h6" sx={{ fontWeight: 600, fontSize: '1.125rem' }}>Vé có thể bán và vé người bán đang giữ</Typography>
+                    <Typography variant="caption" sx={{ color: 'var(--palette-text-secondary)', display: 'block', mt: 0.25 }}>Tỷ lệ tồn kho & rủi ro đại lý giữ vé</Typography>
                 </Box>
             </Box>
-
-            <Chart options={chartOptions} series={series} type="area" height={280} />
+            <Box sx={{ minHeight: { xs: 280, sm: chartHeight }, height: { xs: 'auto', sm: chartHeight }, px: { xs: 2, md: 3 }, pt: 1, pb: { xs: 3, md: 4 }, width: '100%', overflow: 'hidden' }}>
+                <Chart options={chartOptions} series={series} type="bar" height={chartHeight} />
+            </Box>
         </DashboardCard>
     );
 };
 
-const TopCustomers = ({ customers }: { customers: any[] }) => {
-    return (
-        <DashboardCard sx={{ p: 0 }}>
-            <Box sx={{ p: 3, pb: 3 }}>
-                <Typography variant="h6" sx={{ fontWeight: 600, fontSize: '1.125rem' }}>Kh�ch h�ng th�n thi?t</Typography>
+const VendorRiskTable = () => {
+    const [data, setData] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(false);
+
+    const fetchData = async () => {
+        setLoading(true); setError(false);
+        const res = await getVendorRisks();
+        if (res.success) setData(res.data || []);
+        else setError(true);
+        setLoading(false);
+    };
+
+    useEffect(() => { fetchData(); }, []);
+
+    if (loading) return <DashboardCard sx={{ height: 200, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><CircularProgress /></DashboardCard>;
+    if (error) return <DashboardCard sx={{ height: 200, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2 }}><Typography variant="body2" color="error">Không thể tải dữ liệu</Typography><Button onClick={fetchData} variant="outlined" size="small">Thử lại</Button></DashboardCard>;
+    if (data.length === 0) return (
+        <DashboardCard>
+            <Box sx={{ p: 3, pb: 0 }}>
+                <Typography variant="h6" sx={{ fontWeight: 600, fontSize: '1.125rem' }}>Rủi ro người bán</Typography>
             </Box>
-            <TableContainer>
-                <Table sx={{ minWidth: 640 }}>
-                    <TableHead sx={{ bgcolor: 'var(--palette-background-neutral)' }}>
-                        <TableRow>
-                            <TableCell sx={{ color: 'var(--palette-text-secondary)', fontWeight: 600, fontSize: '0.875rem', borderBottom: 'none' }}>Kh�ch h�ng</TableCell>
-                            <TableCell sx={{ color: 'var(--palette-text-secondary)', fontWeight: 600, fontSize: '0.875rem', borderBottom: 'none' }}>S? don</TableCell>
-                            <TableCell sx={{ color: 'var(--palette-text-secondary)', fontWeight: 600, fontSize: '0.875rem', borderBottom: 'none' }}>Chi ti�u</TableCell>
-                            <TableCell align="right" sx={{ color: 'var(--palette-text-secondary)', fontWeight: 600, fontSize: '0.875rem', borderBottom: 'none' }}>X?p h?ng</TableCell>
+            <Box sx={{ height: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', p: 3 }}>
+                <Typography variant="body2" sx={{ color: 'var(--palette-text-secondary)', fontWeight: 500 }}>Chưa có dữ liệu rủi ro người bán</Typography>
+            </Box>
+        </DashboardCard>
+    );
+
+    return (
+        <DashboardCard>
+            <Box sx={{ p: 3, pb: 2 }}>
+                <Typography variant="h6" sx={{ fontWeight: 600, fontSize: '1.125rem' }}>Rủi ro người bán</Typography>
+            </Box>
+            <TableContainer sx={{ px: 3, pb: 3 }}>
+                <Table size="small">
+                    <TableHead>
+                        <TableRow sx={{ '& th': { borderBottom: '1px dashed var(--palette-divider)', color: 'var(--palette-text-secondary)', fontWeight: 600, fontSize: '0.75rem' } }}>
+                            <TableCell>Người bán</TableCell>
+                            <TableCell align="right">Vé đang giữ</TableCell>
+                            <TableCell>Trạng thái</TableCell>
                         </TableRow>
                     </TableHead>
                     <TableBody>
-                        {customers?.map((customer, index) => (
-                            <TableRow key={customer._id} sx={{ '&:hover': { bgcolor: 'var(--palette-action-hover)' } }}>
-                                <TableCell sx={{ borderBottom: 'dashed 1px var(--palette-divider)' }}>
-                                    <Stack direction="row" alignItems="center" spacing={2}>
-                                        <Avatar src={customer.avatar} sx={{ width: 40, height: 40 }} />
-                                        <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>{customer.fullName}</Typography>
-                                    </Stack>
-                                </TableCell>
-                                <TableCell sx={{ borderBottom: 'dashed 1px var(--palette-divider)', fontWeight: 600 }}>{customer.totalOrders ?? 0}</TableCell>
-                                <TableCell sx={{ borderBottom: 'dashed 1px var(--palette-divider)', fontWeight: 600 }}>{(customer.totalSpent ?? 0).toLocaleString()}đ</TableCell>
-                                <TableCell align="right" sx={{ borderBottom: 'dashed 1px var(--palette-divider)' }}>
-                                    <Box
-                                        sx={{
-                                            display: 'inline-flex',
-                                            alignItems: 'center',
-                                            justifyContent: 'center',
-                                            borderRadius: '6px',
-                                            px: 1,
-                                            fontSize: '0.75rem',
-                                            fontWeight: 700,
-                                            color: index < 3 ? 'var(--palette-success-dark)' : 'var(--palette-text-secondary)',
-                                            bgcolor: index < 3 ? 'rgba(34, 197, 94, 0.16)' : 'rgba(145, 158, 171, 0.16)',
-                                        }}
-                                    >
-                                        #{index + 1}
-                                    </Box>
-                                </TableCell>
+                        {data.map((item, idx) => (
+                            <TableRow key={idx} sx={{ '& td': { borderBottom: '1px dashed var(--palette-divider)', py: 1.5 } }}>
+                                <TableCell sx={{ fontWeight: 600, fontSize: '0.813rem' }}>{item.vendorName || item.name || 'N/A'}</TableCell>
+                                <TableCell align="right" sx={{ fontWeight: 600, fontSize: '0.813rem' }}>{formatCount(item.heldQuantity || item.quantity)} vé</TableCell>
+                                <TableCell sx={{ fontSize: '0.813rem', color: 'var(--palette-text-secondary)' }}>{item.status || item.risk || '-'}</TableCell>
                             </TableRow>
                         ))}
                     </TableBody>
@@ -238,45 +178,23 @@ const TopCustomers = ({ customers }: { customers: any[] }) => {
     );
 };
 
+
+
 export const EcommercePage = () => {
     const { user } = useAuthStore();
+    const router = useRouter();
     const [activeIndex, setActiveIndex] = useState(0);
     const [stats, setStats] = useState<any>(null);
 
     useEffect(() => {
         const fetchStats = async () => {
-            try {
-                const response = await getEcommerceStats();
-                if (response.success) {
-                    setStats(response.data);
-                }
-            } catch (error) {
-                console.error("Failed to fetch ecommerce stats:", error);
+            const response = await getDashboardKpis();
+            if (response.success) {
+                setStats(response.data);
             }
         };
         fetchStats();
     }, []);
-
-    const featuredTickets = [
-        {
-            name: "Urban Explorer Sneakers",
-            description: "NEW",
-            image: "https://pub-c5e31b5cdafb419fb247a8ac2e78df7a.r2.dev/public/assets/images/mock/cover/cover-1.webp",
-        },
-        {
-            name: "Retro Runner Shoes",
-            description: "HOT",
-            image: "https://pub-c5e31b5cdafb419fb247a8ac2e78df7a.r2.dev/public/assets/images/mock/cover/cover-2.webp",
-        },
-        {
-            name: "Classic Leather Boots",
-            description: "CLASSIC",
-            image: "https://pub-c5e31b5cdafb419fb247a8ac2e78df7a.r2.dev/public/assets/images/mock/cover/cover-3.webp",
-        }
-    ];
-
-    const handleNext = () => setActiveIndex((prev) => (prev + 1) % featuredTickets.length);
-    const handlePrev = () => setActiveIndex((prev) => (prev - 1 + featuredTickets.length) % featuredTickets.length);
 
     return (
         <Grid
@@ -301,7 +219,7 @@ export const EcommercePage = () => {
                 sx={{
                     flexGrow: 0,
                     flexBasis: 'auto',
-                    width: 'calc(100% * 8 / var(--Grid-parent-columns) - (var(--Grid-parent-columns) - 8) * (var(--Grid-parent-columnSpacing) / var(--Grid-parent-columns)))',
+                    width: 'calc(100% * 12 / var(--Grid-parent-columns) - (var(--Grid-parent-columns) - 12) * (var(--Grid-parent-columnSpacing) / var(--Grid-parent-columns)))',
                 }}
             >
                 <WelcomeWidget
@@ -311,113 +229,67 @@ export const EcommercePage = () => {
                 />
             </Grid>
 
-            {/* Featured Ticket Slide */}
-            <Grid
-                sx={{
-                    flexGrow: 0,
-                    flexBasis: 'auto',
-                    width: 'calc(100% * 4 / var(--Grid-parent-columns) - (var(--Grid-parent-columns) - 4) * (var(--Grid-parent-columnSpacing) / var(--Grid-parent-columns)))',
-                }}
-            >
-                <DashboardCard
-                    sx={{
-                        backgroundColor: 'var(--palette-common-black)',
-                        height: '320px',
-                        overflow: 'hidden',
-                        position: 'relative'
-                    }}
-                >
-                    <div className="m-auto max-w-full overflow-hidden relative h-full">
-                        <ul
-                            className="flex list-none p-0 m-0 h-full transition-transform duration-500 ease-in-out"
-                            style={{ transform: `translate3d(-${activeIndex * 100}%, 0px, 0px)` }}
-                        >
-                            {featuredTickets.map((item, index) => (
-                                <li key={index} className="block relative min-w-0 flex-[0_0_100%] h-full">
-                                    <Box sx={{ position: 'relative', height: '100%', width: '100%' }}>
-                                        <div className="absolute bottom-0 z-[9] w-full p-[calc(3*var(--spacing))] flex flex-col gap-[var(--spacing)] text-[var(--palette-common-white)]">
-                                            <span className="m-0 font-bold text-[0.75rem] uppercase text-[var(--palette-success-light)]">
-                                                {item.description}
-                                            </span>
-                                            <Typography
-                                                variant="h5"
-                                                sx={{
-                                                    fontWeight: 700,
-                                                    fontSize: '1.25rem',
-                                                    overflow: 'hidden',
-                                                    textOverflow: 'ellipsis',
-                                                    whiteSpace: 'nowrap',
-                                                    color: 'inherit',
-                                                }}
-                                            >
-                                                {item.name}
-                                            </Typography>
-                                        </div>
-                                        <Box
-                                            sx={{
-                                                position: 'absolute',
-                                                top: 0, left: 0, right: 0, bottom: 0,
-                                                background: 'linear-gradient(to bottom, rgba(22, 28, 36, 0) 0%, rgba(22, 28, 36, 1) 100%)',
-                                                zIndex: 8
-                                            }}
-                                        />
-                                        <img src={item.image} alt={item.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                                    </Box>
-                                </li>
-                            ))}
-                        </ul>
-                    </div>
-                    <div className="flex items-center absolute top-[calc(1.5*var(--spacing))] right-[calc(1.5*var(--spacing))] z-[9] text-[var(--palette-common-white)]">
-                        <button type="button" onClick={handlePrev} className="inline-flex items-center justify-center relative bg-transparent cursor-pointer rounded-full p-[var(--spacing)] border-none transition-all duration-250 ease-[cubic-bezier(0.4,0,0.6,1)] hover:bg-[rgba(255,255,255,0.08)]">
-                            <Icon icon="eva:chevron-left-fill" width={20} />
-                        </button>
-                        <button type="button" onClick={handleNext} className="inline-flex items-center justify-center relative bg-transparent cursor-pointer rounded-full p-[var(--spacing)] border-none transition-all duration-250 ease-[cubic-bezier(0.4,0,0.6,1)] hover:bg-[rgba(255,255,255,0.08)]">
-                            <Icon icon="eva:chevron-right-fill" width={20} />
-                        </button>
-                    </div>
-                </DashboardCard>
+            {/* KPI vận hành */}
+            <Grid sx={{ width: '100%', flexGrow: 0, flexBasis: '100%', minWidth: 0 }}>
+                <Grid container spacing={3} alignItems="stretch">
+                    <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+                        <Box sx={{ height: '100%', minWidth: 0, '& > *': { height: '100%', minWidth: 0, display: 'flex', flexDirection: 'column' } }}>
+                            <SummaryWidget
+                                title="Vé đã bán"
+                                total={formatCount(stats?.totalTickets)}
+                                percent={0}
+                                color="#00B8D9"
+                                chartData={[0, 0]}
+                                hideTrend={true}
+                            />
+                        </Box>
+                    </Grid>
+                    <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+                        <Box sx={{ height: '100%', minWidth: 0, '& > *': { height: '100%', minWidth: 0, display: 'flex', flexDirection: 'column' } }}>
+                            <SummaryWidget
+                                title="Doanh thu bán vé"
+                                total={stats?.monthlyRevenue != null ? formatCurrency(stats?.monthlyRevenue) : '0 đ'}
+                                percent={Number(stats?.revenueMonthPercent) || 0}
+                                color="#22C55E"
+                                chartData={[0, 0]}
+                                hideTrend={!stats?.revenueMonthPercent}
+                            />
+                        </Box>
+                    </Grid>
+
+                    <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+                        <Box sx={{ height: '100%', minWidth: 0, '& > *': { height: '100%', minWidth: 0, display: 'flex', flexDirection: 'column' } }}>
+                            <SummaryWidget
+                                title="Tổng đơn hàng"
+                                total={formatCount(stats?.totalOrders)}
+                                percent={0}
+                                color="#FF4842"
+                                chartData={[0, 0]}
+                                hideTrend={true}
+                            />
+                        </Box>
+                    </Grid>
+                </Grid>
             </Grid>
 
-            {/* Stats Summary Section */}
-            <Grid sx={{ flexGrow: 0, flexBasis: 'auto', width: 'calc(100% * 4 / var(--Grid-parent-columns) - (var(--Grid-parent-columns) - 4) * (var(--Grid-parent-columnSpacing) / var(--Grid-parent-columns)))' }}>
-                <SummaryWidget title="Tổng sản phẩm" total={stats?.summary?.totalTickets?.toString() || "0"} percent={0} color="#FF3030" chartData={[25, 66, 41, 89, 63, 25, 44, 12]} />
+            <Grid sx={{ width: '100%', flexGrow: 0, flexBasis: '100%', minWidth: 0 }}>
+                <Grid container spacing={3}>
+                    <Grid size={{ xs: 12, md: 4 }}>
+                        <ActionItemDonut />
+                    </Grid>
+                    <Grid size={{ xs: 12, md: 8 }}>
+                        <InventoryRiskBarChart />
+                    </Grid>
+                </Grid>
             </Grid>
-            <Grid sx={{ flexGrow: 0, flexBasis: 'auto', width: 'calc(100% * 4 / var(--Grid-parent-columns) - (var(--Grid-parent-columns) - 4) * (var(--Grid-parent-columnSpacing) / var(--Grid-parent-columns)))' }}>
-                <SummaryWidget
-                    title="T?ng don h�ng"
-                    total={stats?.summary?.totalOrders?.toString() || "0"}
-                    percent={0}
-                    color="#ffab00"
-                    chartData={[15, 32, 45, 32, 56, 32, 44, 55]}
-                    recentSources={stats?.recentOrders?.map((o: any) => ({
-                        id: o._id,
-                        label: o.userId?.fullName || o.fullName || "Kh�ch h�ng",
-                        amount: o.total - (o.shipping?.fee || 0),
-                        time: o.createdAt,
-                        type: 'order'
-                    }))}
-                />
-            </Grid>
-            <Grid sx={{ flexGrow: 0, flexBasis: 'auto', width: 'calc(100% * 4 / var(--Grid-parent-columns) - (var(--Grid-parent-columns) - 4) * (var(--Grid-parent-columnSpacing) / var(--Grid-parent-columns)))' }}>
-                <SummaryWidget
-                    title="Doanh thu th�ng"
-                    total={(stats?.summary?.monthlyRevenue?.toLocaleString() || "0") + "d"}
-                    percent={stats?.summary?.revenueMonthPercent || 0}
-                    color="#00b8d9"
-                    chartData={[56, 44, 32, 45, 32, 15, 25, 12]}
-                    recentSources={stats?.summary?.recentRevenueSources}
-                />
+            <Grid sx={{ width: '100%', flexGrow: 0, flexBasis: '100%', minWidth: 0 }}>
+                <VendorRiskTable />
             </Grid>
 
-            <Grid sx={{ flexGrow: 0, flexBasis: 'auto', width: 'calc(100% * 4 / var(--Grid-parent-columns) - (var(--Grid-parent-columns) - 4) * (var(--Grid-parent-columnSpacing) / var(--Grid-parent-columns)))' }}>
-                <SalesByCategory data={stats?.topCategories} />
-            </Grid>
-            <Grid sx={{ flexGrow: 0, flexBasis: 'auto', width: 'calc(100% * 8 / var(--Grid-parent-columns) - (var(--Grid-parent-columns) - 8) * (var(--Grid-parent-columnSpacing) / var(--Grid-parent-columns)))' }}>
-                <YearlySales data={stats?.yearlyRevenueChart?.total ?? stats?.yearlyRevenueChart} />
-            </Grid>
-
-            <Grid sx={{ flexGrow: 0, flexBasis: 'auto', width: 'calc(100% * 8 / var(--Grid-parent-columns) - (var(--Grid-parent-columns) - 8) * (var(--Grid-parent-columnSpacing) / var(--Grid-parent-columns)))' }}>
-                <TopCustomers customers={stats?.topCustomers} />
+            <Grid sx={{ width: '100%', flexGrow: 0, flexBasis: '100%', minWidth: 0, display: 'flex', justifyContent: 'flex-end', mt: 1 }}>
+                <Button variant="text" onClick={() => router.push(ROUTES.ADMIN.REPORTS.REVENUE)} sx={{ fontWeight: 600 }}>
+                    Xem báo cáo doanh thu & đối soát →
+                </Button>
             </Grid>
         </Grid>
     );

@@ -2,16 +2,11 @@
 
 import { Card, Typography, Stack, Box, alpha, Button, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Chip } from "@mui/material";
 import { Icon } from '@/admin/components/ui/AdminIcon';
-import { useQuery } from "@tanstack/react-query";
-import { getStaffingStatus } from "@/admin/features/dashboard/services/dashboardService";
+import { useStaffingStatusToday } from '@/admin/features/dashboard/hooks/useDashboard';
 import dayjs from "dayjs";
 
 export const StaffingAlertWidget = () => {
-    const { data: statusRes, isLoading } = useQuery({
-        queryKey: ["staffing-status-today"],
-        queryFn: () => getStaffingStatus(dayjs().format("YYYY-MM-DD")),
-        refetchInterval: 300000 
-    });
+    const { data: statusRes, isLoading } = useStaffingStatusToday(dayjs().format("YYYY-MM-DD"));
 
     const staffingData = Array.isArray(statusRes?.data) ? statusRes.data : [];
 

@@ -21,7 +21,9 @@ spring:
   flyway:
     enabled: true
     out-of-order: true
-    repair-on-migrate: true
+    # Incomplete IntelliJ classpath must not treat disk migrations as missing.
+    ignore-migration-patterns: "*:missing"
+    # repair-on-migrate was removed in Spring Boot 3.4; LocalFlywayConfig repairs only after migrate failure.
   servlet:
     multipart:
       max-file-size: 15MB
@@ -32,17 +34,33 @@ spring:
       port: ${LOCAL_REDIS_PORT:${CORE_REDIS_PORT:6380}}
   mail:
     # Local .env uses AUTH_LOCAL_MAIL_*; MAIL_* remains an optional override.
-    host: ${MAIL_HOST:${AUTH_LOCAL_MAIL_HOST}}
-    port: ${MAIL_PORT:${AUTH_LOCAL_MAIL_PORT}}
-    username: ${MAIL_USERNAME:${AUTH_LOCAL_MAIL_USERNAME}}
-    password: ${MAIL_PASSWORD:${AUTH_LOCAL_MAIL_PASSWORD}}
-    from: ${MAIL_FROM:${AUTH_LOCAL_MAIL_USERNAME}}
+    # Empty defaults avoid PlaceholderResolutionException when IntelliJ skips repo-root .env.
+    host: ${MAIL_HOST:${AUTH_LOCAL_MAIL_HOST:}}
+    port: ${MAIL_PORT:${AUTH_LOCAL_MAIL_PORT:587}}
+    username: ${MAIL_USERNAME:${AUTH_LOCAL_MAIL_USERNAME:}}
+    password: ${MAIL_PASSWORD:${AUTH_LOCAL_MAIL_PASSWORD:}}
+    from: ${MAIL_FROM:${AUTH_LOCAL_MAIL_USERNAME:}}
     properties:
       mail:
         smtp:
           auth: true
           starttls:
             enable: true
+          connectiontimeout: 5000
+          timeout: 5000
+          writetimeout: 5000
+  # IntelliJ often does not load repo-root .env — keep Google OAuth placeholders local-safe.
+  google:
+    client-id: ${GOOGLE_CLIENT_ID:}
+    client-secret: ${GOOGLE_CLIENT_SECRET:}
+    token-url: https://oauth2.googleapis.com/token
+    token-info-url: https://oauth2.googleapis.com/tokeninfo
+    user-info-url: https://www.googleapis.com/oauth2/v3/userinfo
+
+management:
+  health:
+    mail:
+      enabled: false
 
 daiphat:
   # Local runs use the same Cloudinary storage as production by default so uploaded

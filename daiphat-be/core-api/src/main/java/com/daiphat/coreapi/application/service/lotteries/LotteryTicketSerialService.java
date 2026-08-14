@@ -14,6 +14,7 @@ import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus;
 import com.daiphat.coreapi.domain.model.enums.lottery.TicketCondition;
 import com.daiphat.coreapi.domain.model.lotteries.LotteryTicketModel;
 import com.daiphat.coreapi.domain.model.lotteries.LotteryTicketSerialModel;
+import com.daiphat.coreapi.application.service.streetagent.LuckySerialTagger;
 import com.daiphat.coreapi.application.port.out.file.StoragePort;
 import com.daiphat.coreapi.application.dto.storage.StorageResult;
 import com.daiphat.coreapi.application.dto.storage.UploadRequest;
@@ -44,6 +45,7 @@ public class LotteryTicketSerialService implements LotteryTicketSerialServicePor
     private final StoragePort storagePort;
     private final OrderRepositoryPort orderRepositoryPort;
     private final LotteryTicketSerialIncidentService serialIncidentService;
+    private final LuckySerialTagger luckySerialTagger;
 
     @Override
     @Transactional
@@ -71,6 +73,7 @@ public class LotteryTicketSerialService implements LotteryTicketSerialServicePor
                 .replacedForTicketId(request.replacedForTicketId())
                 .build();
         serial.initializeImport(importedById);
+        luckySerialTagger.apply(serial, ticket.getNumbers());
         return lotteryTicketSerialRepositoryPort.save(serial);
     }
 

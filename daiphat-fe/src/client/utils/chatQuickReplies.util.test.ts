@@ -26,7 +26,6 @@ describe('resolveContextualQuickReplies', () => {
       'Xem lịch xổ',
       'Tra cứu kết quả',
       'Gợi ý vé',
-      'Hỗ trợ đơn hàng',
     ]);
   });
 

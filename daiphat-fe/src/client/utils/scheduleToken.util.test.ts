@@ -98,6 +98,19 @@ describe('buildBuyTicketPath', () => {
     ).toBe(`${ROUTES.PUBLIC.TICKETS}?ticketId=99&stationId=3&drawDate=2026-07-21`);
   });
 
+  it('puts suggested numbers on ticketNumber so the buy page can pre-fill search', () => {
+    expect(
+      buildBuyTicketPath({
+        ticketId: 9757,
+        stationId: 1,
+        highlightDate: '2026-08-15',
+        search: '701055',
+      })
+    ).toBe(
+      `${ROUTES.PUBLIC.TICKETS}?ticketId=9757&ticketNumber=701055&stationId=1&drawDate=2026-08-15`
+    );
+  });
+
   it('builds path for region scope', () => {
     expect(buildBuyTicketPath({ region: 'MIEN_NAM' })).toBe(`${ROUTES.PUBLIC.TICKETS}?region=MIEN_NAM`);
   });

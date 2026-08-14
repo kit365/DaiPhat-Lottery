@@ -136,7 +136,7 @@ export const LeftSidebar: React.FC<LeftSidebarProps> = ({
                     )}
                   </div>
                 </div>
-                <span className="text-[14px] leading-relaxed transition-all font-medium">Chọn tất cả</span>
+                <span className="text-[15px] leading-relaxed transition-all font-medium">Chọn tất cả</span>
               </label>
 
               {filteredProvinces.map((province) => {
@@ -169,7 +169,7 @@ export const LeftSidebar: React.FC<LeftSidebarProps> = ({
                           )}
                         </div>
                       </div>
-                      <span className="text-[14px] leading-relaxed transition-all font-medium">
+                      <span className="text-[15px] leading-relaxed transition-all font-medium">
                         {province}
                       </span>
                     </div>

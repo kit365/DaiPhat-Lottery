@@ -44,7 +44,7 @@ class VendorAllocationSchemaFlywayIT {
     }
 
     @Test
-    @DisplayName("Flyway clean migrate creates vendor unique indexes and report detail FK")
+    @DisplayName("Flyway clean migrate creates vendor report indexes and report detail FK")
     void flyway_creates_vendor_constraints() throws Exception {
         Flyway.configure()
                 .dataSource(postgres.getJdbcUrl(), postgres.getUsername(), postgres.getPassword())
@@ -61,7 +61,9 @@ class VendorAllocationSchemaFlywayIT {
                     "uq_allocation_batch_one_open_per_profile",
                     "uq_daily_sales_reports_agent_date",
                     "uq_daily_sales_report_details_report_detail",
-                    "uq_agent_settlements_batch"
+                    "uq_agent_settlements_batch",
+                    "idx_daily_sales_reports_date_status",
+                    "idx_agent_settlements_report"
             );
 
             try (PreparedStatement ps = connection.prepareStatement(
@@ -92,7 +94,6 @@ class VendorAllocationSchemaFlywayIT {
                 SELECT indexname
                 FROM pg_indexes
                 WHERE schemaname = 'public'
-                  AND indexname LIKE 'uq_%'
                 """
         ); ResultSet rs = ps.executeQuery()) {
             while (rs.next()) {

@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { DatePicker } from '../common/DatePicker';
+import { ClientSelect } from '../ui/ClientSelect';
 
 interface MobileLotterySelectorProps {
   isAllProvinceSelected: boolean;
@@ -27,24 +28,20 @@ export const MobileLotterySelector: React.FC<MobileLotterySelectorProps> = ({
   return (
     <div className="block lg:hidden mb-6 bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
       <div className="flex flex-col gap-3">
-        <select
-          className="w-full p-3 rounded-xl border border-gray-200 text-[#111111] font-bold outline-none cursor-pointer"
-          value={isAllProvinceSelected || selectedProvinces.length > 1 ? '__ALL__' : singleProvince}
-          onChange={(e) => {
-            if (e.target.value === '__ALL__') {
-              onSelectProvince(availableProvinces);
-              return;
-            }
-            onSelectProvince([e.target.value]);
-          }}
-        >
-          <option value="__ALL__">Tất cả đài miền Nam</option>
-          {availableProvinces.map((province) => (
-            <option key={province} value={province}>
-              {province}
-            </option>
-          ))}
-        </select>
+        <ClientSelect
+            value={isAllProvinceSelected || selectedProvinces.length > 1 ? '__ALL__' : singleProvince}
+            onChange={(next) => {
+                if (next === '__ALL__') {
+                    onSelectProvince(availableProvinces);
+                    return;
+                }
+                onSelectProvince([next]);
+            }}
+            options={[
+                { value: '__ALL__', label: 'Tất cả đài miền Nam' },
+                ...availableProvinces.map((province) => ({ value: province, label: province })),
+            ]}
+        />
 
         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
           <button
@@ -63,7 +60,7 @@ export const MobileLotterySelector: React.FC<MobileLotterySelectorProps> = ({
                 }
               }
             }}
-            className="w-full flex items-center justify-between p-3 text-[#637381] font-medium outline-none cursor-pointer bg-white border-none"
+            className="w-full flex items-center justify-between p-3.5 text-[15px] text-[#637381] font-medium outline-none cursor-pointer bg-white border-none"
           >
             <div className="flex items-center gap-2">
               <span className="material-symbols-outlined text-[18px]">calendar_month</span>

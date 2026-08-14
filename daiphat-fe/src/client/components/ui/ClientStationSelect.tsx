@@ -127,7 +127,7 @@ export const ClientStationSelect: React.FC<ClientStationSelectProps> = ({
                                 onChange('');
                                 setOpen(false);
                             }}
-                            className={`w-full flex items-center justify-between px-3.5 py-2 text-left text-[12.5px] hover:bg-[#F4F6F8] transition-colors ${
+                            className={`w-full flex items-center justify-between px-3.5 py-2.5 text-left text-[14px] hover:bg-[#F4F6F8] transition-colors ${
                                 !value ? 'text-[#ee1314] font-semibold bg-[#FFF4F4]/60' : 'text-[#454F5B]'
                             }`}
                         >
@@ -140,9 +140,9 @@ export const ClientStationSelect: React.FC<ClientStationSelectProps> = ({
                     )}
 
                     {isLoading ? (
-                        <div className="p-3 text-center text-[#919EAB] text-[11.5px]">Đang tải đài...</div>
+                        <div className="p-3.5 text-center text-[#919EAB] text-[13px]">Đang tải đài...</div>
                     ) : options.length === 0 ? (
-                        <div className="p-3 text-center text-[#919EAB] text-[11.5px]">{emptyText}</div>
+                        <div className="p-3.5 text-center text-[#919EAB] text-[13px]">{emptyText}</div>
                     ) : (
                         options.map((option) => {
                             const isSelected = value === option.id;
@@ -154,7 +154,7 @@ export const ClientStationSelect: React.FC<ClientStationSelectProps> = ({
                                         onChange(option.id);
                                         setOpen(false);
                                     }}
-                                    className={`w-full flex items-center justify-between px-3.5 py-2 text-left text-[12.5px] hover:bg-[#F4F6F8] transition-colors ${
+                                    className={`w-full flex items-center justify-between px-3.5 py-2.5 text-left text-[14px] hover:bg-[#F4F6F8] transition-colors ${
                                         isSelected
                                             ? 'text-[#ee1314] font-semibold bg-[#FFF4F4]/60'
                                             : 'text-[#454F5B]'
@@ -179,15 +179,15 @@ export const ClientStationSelect: React.FC<ClientStationSelectProps> = ({
 
     return (
         <div className={`flex flex-col gap-1 relative ${className}`}>
-            {label ? <span className="text-[11px] font-semibold text-[#637381]">{label}</span> : null}
+            {label ? <span className="text-[13px] font-semibold text-[#637381]">{label}</span> : null}
             <button
                 ref={triggerRef}
                 type="button"
                 onClick={() => setOpen(!isOpen)}
                 className={`flex items-center justify-between border bg-white font-medium transition-all ${
                     isSm
-                        ? 'w-auto min-w-[118px] max-w-[150px] px-2.5 py-1.5 rounded-lg text-[11px] gap-1'
-                        : 'w-full px-3 py-2 rounded-xl text-[13px]'
+                        ? 'w-auto min-w-[128px] max-w-[165px] px-3 py-2 rounded-lg text-[13px] gap-1'
+                        : 'w-full px-3.5 py-2.5 rounded-xl text-[14px]'
                 } ${
                     error
                         ? 'border-red-400 ring-2 ring-red-50'
@@ -197,11 +197,11 @@ export const ClientStationSelect: React.FC<ClientStationSelectProps> = ({
                 }`}
             >
                 <span className="flex items-center gap-1.5 text-[#212B36] min-w-0">
-                    <MapPin size={isSm ? 12 : 15} className="text-[#ee1314] shrink-0" />
+                    <MapPin size={isSm ? 14 : 16} className="text-[#ee1314] shrink-0" />
                     <span className="truncate">{selectedLabel}</span>
                 </span>
                 <ChevronDown
-                    size={isSm ? 13 : 15}
+                    size={isSm ? 14 : 16}
                     className={`text-[#919EAB] transition-transform shrink-0 ${isOpen ? 'rotate-180' : ''}`}
                 />
             </button>

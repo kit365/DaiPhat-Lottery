@@ -19,6 +19,12 @@ import {
     Box,
 } from "@mui/material";
 import { Button } from "../../../../components/ui/Button";
+import {
+    ADMIN_DIALOG_ACTIONS_SX,
+    ADMIN_DIALOG_CONTENT_SX,
+    ADMIN_DIALOG_PAPER_SX,
+    ADMIN_DIALOG_TITLE_SX,
+} from "../../../../components/ui/AdminConfirmDialog";
 import { SystemConfigResponse } from "../../types/system-config";
 
 const fieldSx = {
@@ -110,9 +116,15 @@ export const VendorConfidencePolicyDialog = ({
     };
 
     return (
-        <Dialog open={open} onClose={loading ? undefined : onClose} fullWidth maxWidth="lg">
-            <DialogTitle>Điều chỉnh chính sách điểm tin cậy</DialogTitle>
-            <DialogContent sx={{ py: 2 }}>
+        <Dialog
+            open={open}
+            onClose={loading ? undefined : onClose}
+            fullWidth
+            maxWidth="lg"
+            PaperProps={{ className: "admin-theme", sx: ADMIN_DIALOG_PAPER_SX }}
+        >
+            <DialogTitle sx={ADMIN_DIALOG_TITLE_SX}>Điều chỉnh chính sách điểm tin cậy</DialogTitle>
+            <DialogContent sx={ADMIN_DIALOG_CONTENT_SX}>
                 <Stack spacing={4}>
                     <Box>
                         <Typography variant="subtitle1" fontWeight={600} mb={1.5}>
@@ -198,10 +210,8 @@ export const VendorConfidencePolicyDialog = ({
                     </Box>
                 </Stack>
             </DialogContent>
-            <DialogActions sx={{ pt: 2, px: 3, pb: 2 }}>
-                <Button onClick={onClose} disabled={!!loading} variant="outlined" color="inherit">
-                    Đóng
-                </Button>
+            <DialogActions sx={ADMIN_DIALOG_ACTIONS_SX}>
+                <Button onClick={onClose} disabled={!!loading} variant="outlined" color="inherit" label="Đóng" />
                 <Button
                     loading={!!loading}
                     variant="contained"

@@ -72,7 +72,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({
       <div className="w-full bg-white px-2">
         <div className="grid grid-cols-7 mb-1">
           {['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'].map((d, idx) => (
-            <div key={d} className={`text-center text-[12px] font-bold py-1 ${idx >= 5 ? 'text-[#ee1314]' : 'text-[#444444]/60'}`}>
+            <div key={d} className={`text-center text-[13px] font-bold py-1 ${idx >= 5 ? 'text-[#ee1314]' : 'text-[#444444]/60'}`}>
               {d}
             </div>
           ))}
@@ -96,7 +96,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({
                 }}
                 disabled={isDisabled}
                 className={`
-                  relative w-8 h-8 mx-auto flex flex-col items-center justify-center text-[14px] transition-all cursor-pointer group rounded-full
+                  relative w-9 h-9 mx-auto flex flex-col items-center justify-center text-[15px] transition-all cursor-pointer group rounded-full
                   ${isSelected
                     ? 'bg-[#ee1314] text-white z-10 font-bold shadow-md shadow-[#ee1314]/30'
                     : isDisabled
@@ -125,7 +125,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({
           <button onClick={handlePrevYear} className="w-7 h-7 flex items-center justify-center hover:bg-slate-50 rounded-full text-[#444444] cursor-pointer transition-colors"><span className="material-symbols-outlined text-[18px]">keyboard_double_arrow_left</span></button>
           <button onClick={handlePrevMonth} className="w-7 h-7 flex items-center justify-center hover:bg-slate-50 rounded-full text-[#444444] cursor-pointer transition-colors"><span className="material-symbols-outlined text-[18px]">chevron_left</span></button>
         </div>
-        <h4 className="text-[14px] font-bold text-[#333333] capitalize whitespace-nowrap text-center flex-1">
+        <h4 className="text-[15px] font-bold text-[#333333] capitalize whitespace-nowrap text-center flex-1">
           {currentViewDate.format('MMMM YYYY')}
         </h4>
         <div className="flex items-center">
@@ -142,7 +142,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({
             setCurrentViewDate(dayjs().startOf('month'));
             onDateSelect(dayjs().format('DD/MM/YYYY'));
           }}
-          className="w-full text-center py-2 rounded-xl text-[14px] font-bold text-[#ee1314] bg-red-50 hover:bg-red-100 transition-colors cursor-pointer"
+          className="w-full text-center py-2.5 rounded-xl text-[15px] font-bold text-[#ee1314] bg-red-50 hover:bg-red-100 transition-colors cursor-pointer"
         >
           Hôm nay
         </button>

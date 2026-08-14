@@ -24,7 +24,6 @@ export const ROUTES = {
                 GENERAL: `/${prefixAdmin}/dashboard/settings/general`,
                 POLICIES: `/${prefixAdmin}/dashboard/settings/policies`,
                 PAGES: `/${prefixAdmin}/dashboard/settings/pages`,
-                APP_PASSWORD: `/${prefixAdmin}/dashboard/settings/app-password`,
                 SYSTEM_CONFIG: `/${prefixAdmin}/settings/system-config/list`,
             }
         },
@@ -89,7 +88,6 @@ export const ROUTES = {
             DETAIL: `/${prefixAdmin}/support-tickets/detail/`,
             CATEGORIES: `/${prefixAdmin}/support-tickets/categories`,
         },
-        REVIEWS: `/${prefixAdmin}/review`,
         ROLES: {
             LIST: `/${prefixAdmin}/role/list`,
             CREATE: `/${prefixAdmin}/role/create`,
@@ -117,11 +115,15 @@ export const ROUTES = {
                 ALLOCATION: `/${prefixAdmin}/street-agent/allocation`,
                 ALLOCATION_BATCHES: `/${prefixAdmin}/street-agent/allocation/batches`,
                 ALLOCATION_BATCH_DETAIL: (id: number | string) => `/${prefixAdmin}/street-agent/allocation/batches/${id}`,
+                REPORTS: `/${prefixAdmin}/street-agent/reports`,
                 CONTRACT_PDF: (id: number | string) => `/${prefixAdmin}/street-agent/contract/${id}`,
             }
         },
         CHAT: `/${prefixAdmin}/chat`,
         NOTIFICATIONS: `/${prefixAdmin}/notifications`,
+        REPORTS: {
+            REVENUE: `/${prefixAdmin}/reports/revenue`,
+        },
         PROFILE: `/${prefixAdmin}/profile`,
         ACCOUNT: `/${prefixAdmin}/account`,
         MANAGEMENT: {

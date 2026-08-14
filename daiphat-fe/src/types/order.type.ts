@@ -34,35 +34,35 @@ export const ORDER_DETAIL_STATUS_LABELS: Record<OrderDetailStatus, string> = {
 
 export const ORDER_DETAIL_STATUS_BADGE: Record<
     OrderDetailStatus,
-    { label: string; bg: string; text: string; color?: string; bgcolor?: string }
+    { label: string; bg: string; text: string; color: string; bgcolor: string }
 > = {
     [OrderDetailStatus.ACTIVE]: {
         label: ORDER_DETAIL_STATUS_LABELS[OrderDetailStatus.ACTIVE],
-        bg: 'bg-[#E4F8ED]',
-        text: 'text-[#1CD162]',
-        color: 'var(--palette-success-dark)',
-        bgcolor: 'var(--palette-success-lighter)',
+        bg: 'bg-[#D3FCD2]',
+        text: 'text-[#118D57]',
+        color: 'var(--palette-success-dark, #118D57)',
+        bgcolor: 'var(--palette-success-lighter, #D3FCD2)',
     },
     [OrderDetailStatus.INACTIVE]: {
         label: ORDER_DETAIL_STATUS_LABELS[OrderDetailStatus.INACTIVE],
-        bg: 'bg-[#F4F6F8]',
+        bg: 'bg-[rgba(145,158,171,0.16)]',
         text: 'text-[#637381]',
-        color: 'var(--palette-text-secondary)',
-        bgcolor: 'var(--palette-background-neutral)',
+        color: 'var(--palette-text-secondary, #637381)',
+        bgcolor: 'var(--palette-action-selected, rgba(145, 158, 171, 0.16))',
     },
     [OrderDetailStatus.REFUND_PENDING]: {
         label: ORDER_DETAIL_STATUS_LABELS[OrderDetailStatus.REFUND_PENDING],
-        bg: 'bg-[#FFF9F3]',
+        bg: 'bg-[#FFF5CC]',
         text: 'text-[#B76E00]',
-        color: 'var(--palette-warning-dark)',
-        bgcolor: 'var(--palette-warning-lighter)',
+        color: 'var(--palette-warning-dark, #B76E00)',
+        bgcolor: 'var(--palette-warning-lighter, #FFF5CC)',
     },
     [OrderDetailStatus.REFUNDED]: {
         label: ORDER_DETAIL_STATUS_LABELS[OrderDetailStatus.REFUNDED],
-        bg: 'bg-[#F0F5FF]',
-        text: 'text-[#2065D1]',
-        color: 'var(--palette-info-dark)',
-        bgcolor: 'var(--palette-info-lighter)',
+        bg: 'bg-[#CAFDF5]',
+        text: 'text-[#006C9C]',
+        color: 'var(--palette-info-dark, #006C9C)',
+        bgcolor: 'var(--palette-info-lighter, #CAFDF5)',
     },
 };
 
@@ -73,10 +73,10 @@ export function resolveOrderDetailStatusBadge(status?: string | null) {
     const key = status as OrderDetailStatus;
     return ORDER_DETAIL_STATUS_BADGE[key] ?? {
         label: status,
-        bg: 'bg-[#F4F6F8]',
+        bg: 'bg-[rgba(145,158,171,0.16)]',
         text: 'text-[#637381]',
-        color: 'var(--palette-text-secondary)',
-        bgcolor: 'var(--palette-background-neutral)',
+        color: 'var(--palette-text-secondary, #637381)',
+        bgcolor: 'var(--palette-action-selected, rgba(145, 158, 171, 0.16))',
     };
 }
 

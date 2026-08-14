@@ -66,7 +66,9 @@ function Stick({
   }
 
   const idleY: number[] = [0, -4, 0];
-  const shakeY: number[] = [0, -32 - (stick.id % 7) * 2, 6, -48 - (stick.id % 5) * 3, 0];
+  const bounce = 28 + (stick.id % 7) * 4;
+  const shakeY: number[] = [0, -bounce, 10, -(bounce + 22), 4, -bounce * 0.7, 0];
+  const shakeX: number[] = [0, 5 + (stick.id % 3), -7, 8, -4, 0];
 
   return (
     <motion.div
@@ -80,16 +82,17 @@ function Stick({
       animate={
         ejecting
           ? {
-              y: [0, -160, -70, 150],
-              x: [0, 24, 70, 96],
-              rotate: [stick.tilt, -35, 40, 95],
-              scale: [1, 1.25, 1.3, 1.1],
+              y: [0, -180, -80, 160],
+              x: [0, 18, 64, 108],
+              rotate: [stick.tilt, -42, 48, 108],
+              scale: [1, 1.32, 1.28, 1.08],
               opacity: [1, 1, 1, 0],
             }
           : shaking
             ? {
                 y: shakeY,
-                rotate: [stick.tilt, stick.tilt - 10, stick.tilt + 12, stick.tilt],
+                x: shakeX,
+                rotate: [stick.tilt, stick.tilt - 16, stick.tilt + 18, stick.tilt - 8, stick.tilt],
               }
             : {
                 y: idleY,
@@ -101,13 +104,13 @@ function Stick({
       }
       transition={
         ejecting
-          ? { duration: 1.1, times: [0, 0.25, 0.5, 1], ease: [0.2, 0.85, 0.25, 1] }
+          ? { duration: 1.1, times: [0, 0.22, 0.48, 1], ease: [0.18, 0.9, 0.22, 1] }
           : shaking
             ? {
-                duration: 0.38 + stick.delay,
+                duration: 0.28 + stick.delay * 0.45,
                 repeat: Infinity,
                 ease: 'easeInOut',
-                delay: stick.delay,
+                delay: stick.delay * 0.4,
               }
             : { duration: 2.8 + stick.delay * 4, repeat: Infinity, ease: 'easeInOut' }
       }
@@ -178,7 +181,35 @@ export function FortuneJarScene({
         aria-label="Ống quẻ tài lộc"
       >
         {/* Glow */}
-        <div className="pointer-events-none absolute inset-x-6 bottom-8 h-52 rounded-full bg-amber-400/35 blur-3xl" />
+        <div
+          className={`pointer-events-none absolute inset-x-6 bottom-8 h-52 rounded-full blur-3xl transition-all duration-300 ${
+            shaking ? 'bg-amber-300/70 scale-110' : 'bg-amber-400/35'
+          }`}
+        />
+
+        {shaking && (
+          <div className="pointer-events-none absolute inset-0 z-40 overflow-visible">
+            {[0, 1, 2, 3, 4, 5, 6, 7].map((i) => (
+              <motion.span
+                key={i}
+                className="absolute h-1.5 w-1.5 rounded-full bg-amber-200 shadow-[0_0_8px_rgba(251,191,36,0.9)]"
+                style={{ left: `${18 + (i * 9) % 64}%`, top: `${10 + (i % 4) * 8}%` }}
+                animate={{
+                  y: [0, -18 - (i % 3) * 10, 8],
+                  x: [0, (i % 2 === 0 ? 10 : -10), 0],
+                  opacity: [0, 1, 0],
+                  scale: [0.4, 1.2, 0.3],
+                }}
+                transition={{
+                  duration: 0.55 + (i % 3) * 0.12,
+                  repeat: Infinity,
+                  delay: i * 0.07,
+                  ease: 'easeOut',
+                }}
+              />
+            ))}
+          </div>
+        )}
 
         {/* Sticks cluster (clipped by jar mouth visually via layering) */}
         <div className="absolute inset-x-[14%] top-[6%] bottom-[38%] overflow-visible">
@@ -191,15 +222,20 @@ export function FortuneJarScene({
         <motion.div
           animate={
             shaking
-              ? { rotate: [-10, 12, -14, 14, -8, 8, 0], x: [-8, 10, -12, 10, 0] }
+              ? {
+                  rotate: [-14, 16, -18, 18, -12, 14, -6, 8, 0],
+                  x: [-16, 18, -20, 16, -10, 12, 0],
+                  y: [0, 8, -6, 10, 2, 0],
+                  scale: [1, 1.04, 0.96, 1.05, 1],
+                }
               : mode === 'ejecting'
-                ? { rotate: [0, -6, 3, 0], x: 0 }
-                : { rotate: 0, x: 0 }
+                ? { rotate: [0, -8, 4, 0], x: 0, y: 0, scale: 1 }
+                : { rotate: 0, x: 0, y: 0, scale: 1 }
           }
           transition={
             shaking
-              ? { duration: 0.4, repeat: Infinity, ease: 'easeInOut' }
-              : { duration: 0.5 }
+              ? { duration: 0.32, repeat: Infinity, ease: 'easeInOut' }
+              : { duration: 0.45 }
           }
           className="absolute left-1/2 bottom-[7%] z-20 w-[78%] -translate-x-1/2 h-[56%] rounded-b-[2.4rem] rounded-t-2xl overflow-hidden border border-amber-300/45"
           style={{

@@ -44,13 +44,6 @@ export const SignedContractUploadDialog = ({
         return file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
     }, [file]);
 
-    const sizeLabel = useMemo(() => {
-        if (!file) return "";
-        const kb = file.size / 1024;
-        if (kb < 1024) return `${kb.toFixed(0)} KB`;
-        return `${(kb / 1024).toFixed(2)} MB`;
-    }, [file]);
-
     // Chrome PDF viewer: fit page width so text isn't stuck at ~67% mini zoom.
     const pdfPreviewSrc = previewUrl ? `${previewUrl}#zoom=page-width` : null;
 
@@ -61,10 +54,12 @@ export const SignedContractUploadDialog = ({
             fullWidth
             maxWidth="xl"
             PaperProps={{
+                className: "admin-theme",
                 sx: {
                     height: { xs: "100%", md: "92vh" },
                     maxHeight: { xs: "100%", md: "92vh" },
                     m: { xs: 0, md: 2 },
+                    bgcolor: "#FFFFFF",
                 },
             }}
         >
@@ -79,11 +74,6 @@ export const SignedContractUploadDialog = ({
                     overflow: "hidden",
                 }}
             >
-                <Typography variant="body2" color="text.secondary" sx={{ flexShrink: 0 }}>
-                    {file
-                        ? `${file.name} · ${sizeLabel} · kiểm tra nội dung trước khi chọn.`
-                        : "Chưa chọn file."}
-                </Typography>
                 <Typography variant="body2" color="info.main" sx={{ flexShrink: 0 }}>
                     File mới chỉ được giữ tạm trên trang. Bạn sẽ xác nhận lưu chính thức ở bước tiếp theo.
                 </Typography>
@@ -127,10 +117,8 @@ export const SignedContractUploadDialog = ({
                     )}
                 </Box>
             </DialogContent>
-            <DialogActions>
-                <Button onClick={onClose} disabled={uploading}>
-                    Hủy
-                </Button>
+            <DialogActions sx={{ px: 3, py: 2, gap: 1.5 }}>
+                <Button variant="outlined" color="inherit" onClick={onClose} disabled={uploading} label="Hủy" />
                 <Button
                     loading={uploading}
                     variant="contained"

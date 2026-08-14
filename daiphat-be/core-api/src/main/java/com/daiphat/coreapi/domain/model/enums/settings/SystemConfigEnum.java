@@ -401,9 +401,9 @@ public enum SystemConfigEnum {
             ConfigType.VENDOR_SETTING,
             DataType.INT,
             "200",
-            "Hạn mức vé/ngày mặc định được ghi trong hợp đồng khi tạo vendor mới.",
+            "Giới hạn số vé tối đa cho mỗi phiếu bàn giao, được ghi trong hợp đồng khi tạo người bán vé số mới.",
             "Hạn mức hợp đồng mặc định",
-            "vé/ngày",
+            "vé/phiếu",
             "{\"min\":1,\"max\":100000}",
             true
     ),

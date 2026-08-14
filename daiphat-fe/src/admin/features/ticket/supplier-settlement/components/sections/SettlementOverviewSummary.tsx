@@ -100,7 +100,7 @@ export const SettlementOverviewSummary = ({ settlement }: Props) => {
     const isExpired = settlement.isReturnExpired;
 
     return (
-        <Box sx={{ pt: 2.5 }}>
+        <Box sx={{ pt: 0.5 }}>
             <Box
                 sx={{
                     ...gridSx,

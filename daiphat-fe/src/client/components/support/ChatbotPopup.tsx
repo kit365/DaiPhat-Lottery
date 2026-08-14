@@ -26,6 +26,7 @@ import {
   ChatMessageResponse,
   ConversationDetailResponse,
   ConversationStatus,
+  ConversationStatusEnum,
   CustomerChatTimelineResponse,
   ChatConversationSocketEvent,
   BACKEND_HANDOFF_ESCALATION_REASONS,
@@ -252,6 +253,10 @@ const compactHandoffBotMessages = (messages: Message[]): Message[] => {
 
 const isOpenBotThread = (status: ConversationStatus | null): boolean =>
   status === 'OPEN' || status === null;
+
+/** Bot hub chips after staff ends the session (CLOSED) — customer can use AI again. */
+const canUseBotQuickReplies = (status: ConversationStatus | null): boolean =>
+  isOpenBotThread(status) || status === 'CLOSED';
 
 const prepareDisplayMessages = (messages: Message[], isAiEnabled: boolean): Message[] =>
   compactHandoffBotMessages(
@@ -627,7 +632,7 @@ const ChatBrandImg = ({ className, alt }: { className?: string; alt?: string }) 
   return <img src={logoUrl} alt={alt || name} className={className} />;
 };
 
-export const ChatbotPopup = () => {
+export const ChatbotPopup = ({ defaultOpen = false }: { defaultOpen?: boolean }) => {
   const router = useRouter();
   const token = useAuthStore((state) => state.token);
   const { user } = useAuth();
@@ -652,7 +657,7 @@ export const ChatbotPopup = () => {
   const isAiEnabled = aiStatusQuery.data?.enabled !== false;
   const { fetchPreviousPage, refetch: refetchTimeline } = timelineQuery;
   const timelineRefreshingRef = useRef(false);
-  const [isOpen, setIsOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState(defaultOpen);
   const [isMinimized, setIsMinimized] = useState(false);
   const [conversationId, setConversationId] = useState<number | null>(null);
   const [conversationStatus, setConversationStatus] = useState<ConversationStatus | null>(null);
@@ -1632,12 +1637,15 @@ export const ChatbotPopup = () => {
     }
 
     if (event.eventType === 'CONVERSATION_CLOSED') {
+      setIsEscalating(false);
       void refreshTimelineMessages();
       void loadOpenConversation().then((openDetail) => {
-        if (!openDetail) {
+        if (openDetail) {
+          applyConversationState(openDetail);
           return;
         }
-        applyConversationState(openDetail);
+        // No new OPEN thread yet — keep closed history but restore bot quick-reply hub.
+        setConversationStatus(ConversationStatusEnum.CLOSED);
       });
       return;
     }
@@ -1985,7 +1993,10 @@ export const ChatbotPopup = () => {
   const showContextualQuickReplies = shouldShowContextualQuickReplies({
     lastMessage: quickReplyContextMessage,
     inputValue,
-    isInteractive: isOpenBotThread(conversationStatus) && !isEscalating && conversationStatus !== 'WAITING_FOR_OPERATOR',
+    isInteractive:
+      canUseBotQuickReplies(conversationStatus) &&
+      !isEscalating &&
+      conversationStatus !== 'WAITING_FOR_OPERATOR',
     replies: contextualReplies,
   });
   const isBotReplyPending = isSendingUi || typingHoldActive;
@@ -2034,9 +2045,10 @@ export const ChatbotPopup = () => {
   if (!isOpen) {
     return (
       <button
-        onClick={() => router.push('/profile/complaints')}
-        className="fixed bottom-6 right-6 w-14 h-14 bg-gradient-to-r from-[#df1b1c] to-[#ff4b4b] rounded-full flex items-center justify-center shadow-2xl hover:shadow-[#df1b1c]/50 hover:scale-110 transition-all duration-300 z-50 group"
-        aria-label="Mở trang khiếu nại"
+        type="button"
+        onClick={handleOpenChat}
+        className="fixed bottom-6 right-6 w-14 h-14 bg-gradient-to-r from-[#df1b1c] to-[#ff4b4b] rounded-full flex items-center justify-center shadow-2xl hover:shadow-[#df1b1c]/50 hover:scale-110 transition-all duration-300 z-[1100] group"
+        aria-label="Mở chat hỗ trợ"
       >
         <MessageCircle className="w-7 h-7 text-white group-hover:animate-pulse" />
         {hasUnreadMessages && (
@@ -2051,7 +2063,7 @@ export const ChatbotPopup = () => {
 
   return (
     <div 
-      className={`fixed right-6 bottom-6 z-50 flex flex-col bg-white rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.15)] overflow-hidden transition-all duration-300 ease-in-out border border-gray-100 ${
+      className={`fixed right-6 bottom-6 z-[1100] flex flex-col bg-white rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.15)] overflow-hidden transition-all duration-300 ease-in-out border border-gray-100 ${
         isMinimized ? 'h-16 w-[360px]' : 'h-[600px] w-[380px]'
       }`}
     >
@@ -2554,7 +2566,7 @@ export const ChatbotPopup = () => {
                                   </button>
                                 ))}
                               </div>
-                            ) : isOpenBotThread(conversationStatus) ? (
+                            ) : canUseBotQuickReplies(conversationStatus) ? (
                               <div className="flex gap-2 mt-2 w-full max-w-[95%] overflow-x-auto flex-nowrap pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                                 <button
                                   type="button"

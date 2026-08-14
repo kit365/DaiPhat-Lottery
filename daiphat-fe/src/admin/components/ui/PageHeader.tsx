@@ -7,10 +7,11 @@ export type { BreadcrumbItem };
 
 interface PageHeaderProps {
     title: string;
-    breadcrumbItems: BreadcrumbItem[];
+    breadcrumbItems?: BreadcrumbItem[];
     action?: ReactNode;
     titleExtra?: ReactNode;
     description?: ReactNode;
+    disableBottomMargin?: boolean;
 }
 
 export const PageHeader = ({
@@ -19,9 +20,16 @@ export const PageHeader = ({
     action,
     titleExtra,
     description,
+    disableBottomMargin,
 }: PageHeaderProps) => {
+    const hasBreadcrumb = Boolean(breadcrumbItems?.length);
+
     return (
-        <div className="mb-[calc(5*var(--spacing))] gap-[calc(2*var(--spacing))] flex items-start justify-end flex-wrap">
+        <div
+            className={`gap-[calc(2*var(--spacing))] flex items-start justify-end flex-wrap ${
+                disableBottomMargin ? '' : 'mb-[calc(5*var(--spacing))]'
+            }`}
+        >
             <div className="mr-auto min-w-0">
                 <Stack
                     direction="row"
@@ -29,7 +37,7 @@ export const PageHeader = ({
                     spacing={1.5}
                     flexWrap="wrap"
                     useFlexGap
-                    sx={{ mb: '16px' }}
+                    sx={{ mb: hasBreadcrumb ? '16px' : 0 }}
                 >
                     <Title title={title} disableBottomMargin />
                     {titleExtra}
@@ -41,7 +49,7 @@ export const PageHeader = ({
                     </Box>
                 ) : null}
 
-                <Breadcrumb items={breadcrumbItems} />
+                {hasBreadcrumb ? <Breadcrumb items={breadcrumbItems!} /> : null}
             </div>
 
             {action ? (

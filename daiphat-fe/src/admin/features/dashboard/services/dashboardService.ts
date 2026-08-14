@@ -3,7 +3,27 @@ import type { ApiResponse } from '@/types/api.type';
 
 const BASE_URL = '/admin/dashboard';
 
-/** Placeholder stats — BE chưa có endpoint dashboard đầy đủ. */
+/**
+ * Read model for the KPI cards on the ecommerce dashboard.
+ *
+ * The remaining dashboard sections still use their existing legacy payload for
+ * now, but these four values always come from the backend read endpoint.
+ */
+export interface AdminEcommerceSummary {
+    totalTickets: number;
+    totalOrders: number;
+    monthlyRevenue: number;
+    revenueMonthPercent: number;
+}
+
+const EMPTY_ECOMMERCE_SUMMARY: AdminEcommerceSummary = {
+    totalTickets: 0,
+    totalOrders: 0,
+    monthlyRevenue: 0,
+    revenueMonthPercent: 0,
+};
+
+/** Legacy payload for dashboard sections that are not part of the KPI rollout yet. */
 const ECOMMERCE_STATS = {
     summary: {
         totalRevenue: 254_780_000,
@@ -194,7 +214,46 @@ const SYSTEM_STATS = {
 
 const mockSuccess = <T>(data: T) => ({ success: true, data });
 
-export const getEcommerceStats = async () => mockSuccess(ECOMMERCE_STATS);
+const withLiveEcommerceSummary = (
+    summary: AdminEcommerceSummary,
+    success: boolean,
+) => ({
+    success,
+    data: {
+        ...ECOMMERCE_STATS,
+        summary: {
+            ...ECOMMERCE_STATS.summary,
+            ...summary,
+            // Recent-source popovers are not part of the real KPI read
+            // model yet; never expose the legacy fixture as live data.
+            recentRevenueSources: [],
+        },
+        recentOrders: [],
+    },
+});
+
+export const getEcommerceStats = async () => {
+    try {
+        const response = await apiApp.get<ApiResponse<AdminEcommerceSummary>>(
+            `${BASE_URL}/ecommerce/summary`,
+            { skipGlobalErrorToast: true },
+        );
+        const apiResult = response.data;
+
+        // Do not fall back to the old mock KPI values. A missing/invalid read model
+        // should be visible as zero rather than presenting fabricated figures.
+        const summary: AdminEcommerceSummary = {
+            ...EMPTY_ECOMMERCE_SUMMARY,
+            ...(apiResult.success && apiResult.data ? apiResult.data : {}),
+        };
+
+        return withLiveEcommerceSummary(summary, apiResult.success === true);
+    } catch {
+        // A dashboard read failure must not resurrect fabricated KPI values or
+        // leave the page in a permanent loading state.
+        return withLiveEcommerceSummary(EMPTY_ECOMMERCE_SUMMARY, false);
+    }
+};
 
 export const getAnalyticsStats = async () => mockSuccess(ANALYTICS_STATS);
 
@@ -213,3 +272,52 @@ export const getStaffingStatus = async (date?: string) => {
     });
     return response.data as ApiResponse<unknown>;
 };
+
+/**
+ * KPI cards for ecommerce + revenue report.
+ * Backend currently exposes only {@code GET /admin/dashboard/ecommerce/summary}
+ * (see AdminDashboardController) — there is no `/kpis` route.
+ */
+export const getDashboardKpis = async (): Promise<ApiResponse<AdminEcommerceSummary>> => {
+    try {
+        const response = await apiApp.get<ApiResponse<AdminEcommerceSummary>>(
+            `${BASE_URL}/ecommerce/summary`,
+            { skipGlobalErrorToast: true },
+        );
+        const apiResult = response.data;
+        if (!apiResult?.success || !apiResult.data) {
+            return { success: false, data: EMPTY_ECOMMERCE_SUMMARY };
+        }
+        return {
+            success: true,
+            data: {
+                ...EMPTY_ECOMMERCE_SUMMARY,
+                ...apiResult.data,
+            },
+        };
+    } catch {
+        return { success: false, data: EMPTY_ECOMMERCE_SUMMARY };
+    }
+};
+
+export interface StationTicketRiskItem {
+    stationId: string;
+    stationName: string;
+    drawDate: string;
+    sellableQuantity: number;
+    vendorHeldQuantity: number;
+    risk: 'CAO' | 'TRUNG BÌNH' | 'THẤP';
+}
+
+/**
+ * Sections below are wired in the FE but have no matching admin dashboard
+ * endpoints in core-api yet. Return empty success so the UI shows the empty
+ * state instead of a hard error until BE ships them.
+ */
+export const getActionItems = async () => mockSuccess<unknown[]>([]);
+
+export const getInventoryRisks = async () => mockSuccess<StationTicketRiskItem[]>([]);
+
+export const getVendorRisks = async () => mockSuccess<unknown[]>([]);
+
+export const getReconciliations = async () => mockSuccess<unknown[]>([]);

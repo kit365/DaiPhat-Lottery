@@ -171,8 +171,8 @@ export const ImportBatchList = ({ listHook }: ImportBatchListProps) => {
                                     <TableCell>Mã phiếu</TableCell>
                                     <TableCell>Ngày quay</TableCell>
                                     <TableCell>Nhà cung cấp</TableCell>
-                                    <TableCell>Hình thức nhập</TableCell>
-                                    <TableCell>Trạng thái</TableCell>
+                                    <TableCell align="center">Hình thức nhập</TableCell>
+                                    <TableCell align="center">Trạng thái</TableCell>
                                     <TableCell sx={{ maxWidth: 200 }}>Mã lô / Loại</TableCell>
                                     <TableCell align="right">Khai báo</TableCell>
                                     <TableCell align="right">Đã nhập</TableCell>
@@ -257,14 +257,14 @@ export const ImportBatchList = ({ listHook }: ImportBatchListProps) => {
                                                 <TableCell>
                                                     <span className="admin-cell-text">{batch.supplierName || '—'}</span>
                                                 </TableCell>
-                                                <TableCell>
+                                                <TableCell align="center">
                                                     <Tooltip title={getImportModeLabel(batch.importMode)}>
                                                         <span className={`admin-status-badge ${getImportModeBadgeClass(batch.importMode)}`}>
                                                             {getImportModeChipLabel(batch.importMode)}
                                                         </span>
                                                     </Tooltip>
                                                 </TableCell>
-                                                <TableCell>
+                                                <TableCell align="center">
                                                     <span className={`admin-status-badge ${getImportBatchStatusBadgeClass(batch.status)}`}>
                                                         {getImportBatchStatusLabel(batch.status)}
                                                     </span>

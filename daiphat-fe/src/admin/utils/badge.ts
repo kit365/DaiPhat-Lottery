@@ -49,6 +49,10 @@ export const STATUS_TO_VARIANT_MAP: Record<string, BadgeColorVariant> = {
     // Đang xử lý / Chờ duyệt
     PENDING: 'warning',
     pending: 'warning',
+    PENDING_PAYMENT: 'warning',
+    PREPARING: 'warning',
+    PAID: 'info',
+    PENDING_PICKUP: 'info',
     WAITING: 'warning',
     waiting: 'warning',
     REFUND_PENDING: 'warning',

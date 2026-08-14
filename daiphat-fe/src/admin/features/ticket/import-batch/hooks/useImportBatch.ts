@@ -14,6 +14,7 @@ import {
     getEligibleImportBatchStations,
     getImportBatchTimePolicy,
     getImportBatchLineEntryTickets,
+    getImportBatchReductionTickets,
     pauseImportBatchLine,
     resumeImportBatchLine,
     updateImportBatch,
@@ -25,8 +26,9 @@ import type {
     ImportBatchType,
     UpdateImportBatchPayload,
 } from '../types/importBatch.type';
-import { QUERY_KEYS } from '../constants/queryKeys';
+import { QUERY_KEYS, importBatchQueryKeys } from '../constants/queryKeys';
 import type { ImportBatchImportMode } from '../utils/batchTypeLabels';
+import { QUERY_STALE_TIMES, selectApiDataOrNull } from '@/shared/react-query';
 
 export const useActiveImportBatchDraft = (enabled = true) => {
     return useQuery({
@@ -315,5 +317,23 @@ export const useEligibleImportBatchStations = (
         enabled: !!drawDate && !!importMode,
         select: (res) => res.data ?? { eligible: [], blocked: [] },
         staleTime: 10_000,
+    });
+};
+
+export const useImportBatchDraftBanner = (enabled = true) => {
+    return useQuery({
+        queryKey: importBatchQueryKeys.draftBanner(),
+        queryFn: () => getImportBatches({ page: 1, size: 1, status: 'DRAFT' }),
+        enabled,
+        staleTime: QUERY_STALE_TIMES.badge,
+    });
+};
+
+export const useImportBatchReductionTickets = (batchId: number, enabled: boolean) => {
+    return useQuery({
+        queryKey: importBatchQueryKeys.reductionTickets(batchId),
+        queryFn: () => getImportBatchReductionTickets(batchId),
+        enabled: enabled && !!batchId,
+        select: selectApiDataOrNull,
     });
 };

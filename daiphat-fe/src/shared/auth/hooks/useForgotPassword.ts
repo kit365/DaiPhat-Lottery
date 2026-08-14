@@ -3,6 +3,8 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { authService } from '@/shared/auth/services/auth.service';
 import { AppToast as toast } from '@/utils/toast.util';
+import { QUERY_KEYS } from '@/constants/queryKeys';
+import { QUERY_STALE_TIMES } from '@/shared/react-query';
 import type { ForgotPasswordRequest, VerifyOtpRequest, ResetPasswordRequest } from '@/shared/auth/types/auth.type';
 
 export const useForgotPassword = () => {
@@ -53,13 +55,13 @@ export const useForgotPassword = () => {
 
     const usePasswordPolicy = () =>
         useQuery({
-            queryKey: ['password-policy'],
+            queryKey: [QUERY_KEYS.PASSWORD_POLICY],
             queryFn: async () => {
                 const res = await authService.getPasswordPolicy();
                 if (res.isSuccess || res.success) return res.data;
                 throw new Error(res.message || 'Gánh thất bại khi lấy quy tắc mật khẩu');
             },
-            staleTime: 1000 * 60 * 60,
+            staleTime: QUERY_STALE_TIMES.static,
         });
 
     return {

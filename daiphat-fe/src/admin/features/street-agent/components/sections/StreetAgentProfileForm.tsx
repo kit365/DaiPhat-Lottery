@@ -550,63 +550,64 @@ export const StreetAgentProfileForm = ({
                             <Controller
                                 name="contactProvince"
                                 control={control}
-                                render={({ field, fieldState }) => {
-                                    const selectedOption = vietnamLocations?.find(p => p.name === field.value) || null;
-                                    return (
-                                        <Autocomplete
-                                            options={vietnamLocations || []}
-                                            getOptionLabel={(option) => option.name}
-                                            value={selectedOption}
-                                            onChange={(_, newValue) => {
-                                                field.onChange(newValue ? newValue.name : "");
-                                                setValue?.("contactWard", "");
-                                            }}
-                                            disabled={isLoadingLocations}
-                                            loading={isLoadingLocations}
-                                            loadingText="Đang tải danh sách địa phương…"
-                                            noOptionsText="Không tìm thấy tỉnh/thành"
-                                            renderInput={(params) => (
-                                                <TextField
-                                                    {...params}
-                                                    label="Tỉnh/thành"
-                                                    error={!!fieldState.error}
-                                                    helperText={fieldState.error?.message || (isLoadingLocations ? "Đang tải danh sách địa phương…" : undefined)}
-                                                    sx={fieldSx}
-                                                />
-                                            )}
-                                        />
-                                    );
-                                }}
+                                render={({ field, fieldState }) => (
+                                    <TextField
+                                        {...field}
+                                        select
+                                        fullWidth
+                                        label="Tỉnh/thành"
+                                        value={field.value ?? ""}
+                                        onChange={(event) => {
+                                            field.onChange(event.target.value);
+                                            setValue?.("contactWard", "");
+                                        }}
+                                        disabled={isLoadingLocations}
+                                        error={!!fieldState.error}
+                                        helperText={
+                                            fieldState.error?.message ||
+                                            (isLoadingLocations ? "Đang tải danh sách địa phương…" : undefined)
+                                        }
+                                        sx={fieldSx}
+                                    >
+                                        <MenuItem value="">
+                                            <em>Chọn tỉnh/thành</em>
+                                        </MenuItem>
+                                        {(vietnamLocations || []).map((province) => (
+                                            <MenuItem key={province.name} value={province.name}>
+                                                {province.name}
+                                            </MenuItem>
+                                        ))}
+                                    </TextField>
+                                )}
                             />
                             <Controller
                                 name="contactWard"
                                 control={control}
-                                render={({ field, fieldState }) => {
-                                    const selectedWard = wardOptions.find(w => w.name === field.value) || null;
-                                    return (
-                                        <Autocomplete
-                                            options={wardOptions}
-                                            getOptionLabel={(option) => option.name}
-                                            value={selectedWard}
-                                            onChange={(_, newValue) => {
-                                                field.onChange(newValue ? newValue.name : "");
-                                            }}
-                                            disabled={isLoadingLocations || !contactProvince}
-                                            loading={isLoadingLocations}
-                                            loadingText="Đang tải danh sách địa phương…"
-                                            noOptionsText={!contactProvince ? "Vui lòng chọn tỉnh/thành trước" : "Không tìm thấy phường/xã"}
-                                            renderInput={(params) => (
-                                                <TextField
-                                                    {...params}
-                                                    label="Phường/xã"
-                                                    error={!!fieldState.error}
-                                                    helperText={fieldState.error?.message || (!contactProvince ? "Chọn tỉnh/thành trước" : undefined)}
-                                                    sx={fieldSx}
-                                                />
-                                            )}
-                                        />
-                                    );
-                                }}
+                                render={({ field, fieldState }) => (
+                                    <TextField
+                                        {...field}
+                                        select
+                                        fullWidth
+                                        label="Phường/xã"
+                                        value={field.value ?? ""}
+                                        disabled={isLoadingLocations || !contactProvince}
+                                        error={!!fieldState.error}
+                                        helperText={
+                                            fieldState.error?.message ||
+                                            (!contactProvince ? "Chọn tỉnh/thành trước" : undefined)
+                                        }
+                                        sx={fieldSx}
+                                    >
+                                        <MenuItem value="">
+                                            <em>{contactProvince ? "Chọn phường/xã" : "Chọn tỉnh/thành trước"}</em>
+                                        </MenuItem>
+                                        {wardOptions.map((ward) => (
+                                            <MenuItem key={ward.name} value={ward.name}>
+                                                {ward.name}
+                                            </MenuItem>
+                                        ))}
+                                    </TextField>
+                                )}
                             />
                             <Controller
                                 name="contactAddress"

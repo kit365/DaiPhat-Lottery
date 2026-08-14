@@ -77,7 +77,7 @@ export const NotificationDropdown = () => {
     hasNextPage,
     fetchNextPage,
     remainingCount,
-  } = useNotifications(4);
+  } = useNotifications();
   const { mutate: markMyNotificationAsRead } = useMarkMyNotificationAsRead();
   const { mutate: markAllMyNotificationsAsRead } = useMarkAllMyNotificationsAsRead();
   const { mutate: deleteAllMyReadNotifications } = useDeleteAllMyReadNotifications();

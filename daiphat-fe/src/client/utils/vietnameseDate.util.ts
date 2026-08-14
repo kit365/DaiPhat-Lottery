@@ -1,6 +1,8 @@
 import dayjs from 'dayjs';
 import customParseFormat from 'dayjs/plugin/customParseFormat';
 
+import { VIETNAM_TZ } from './sellableDrawDate.util';
+
 dayjs.extend(customParseFormat);
 
 /** Vietnamese weekday labels matching product copy (Thứ 2 … Chủ nhật). */
@@ -70,4 +72,36 @@ export function vietnameseWeekdayLabel(value?: string | null): string {
     const parsed = parseDrawDate(value);
     if (!parsed.isValid()) return '';
     return VI_WEEKDAY_BY_DAYJS[parsed.day()] ?? '';
+}
+
+/** Chuẩn hoá drawDate về `YYYY-MM-DD` (tránh lệch ngày do UTC). */
+export function normalizeDrawDateIso(raw?: string | null): string {
+    if (!raw) return '';
+    const matched = raw.match(/\d{4}-\d{2}-\d{2}/);
+    if (matched?.[0]) return matched[0];
+    const parsed = parseDrawDate(raw);
+    return parsed.isValid() ? parsed.format('YYYY-MM-DD') : '';
+}
+
+/** Hiển thị datetime theo giờ VN: `DD/MM/YYYY - HH:mm:ss`. */
+export function formatVietnameseDateTime(value?: string | null): string {
+    if (!value) return '—';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '—';
+
+    const parts = new Intl.DateTimeFormat('en-GB', {
+        timeZone: VIETNAM_TZ,
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false,
+    }).formatToParts(date);
+
+    const get = (type: Intl.DateTimeFormatPartTypes) =>
+        parts.find((part) => part.type === type)?.value ?? '';
+
+    return `${get('day')}/${get('month')}/${get('year')} - ${get('hour')}:${get('minute')}:${get('second')}`;
 }

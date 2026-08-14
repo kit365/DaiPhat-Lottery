@@ -224,7 +224,7 @@ export const PrizePayoutList = () => {
                                 <TableCell sx={headerCellSx}>Kênh</TableCell>
                                 <TableCell sx={headerCellSx}>Nguồn vé</TableCell>
                                 <TableCell sx={headerCellSx}>Thực nhận</TableCell>
-                                <TableCell sx={headerCellSx}>Trạng thái</TableCell>
+                                <TableCell sx={headerCellSx} align="center">Trạng thái</TableCell>
                                 <TableCell sx={headerCellSx}>Ngày tạo</TableCell>
                             </TableRow>
                         </TableHead>
@@ -328,7 +328,7 @@ export const PrizePayoutList = () => {
                                                 {formatPrizePayoutCurrency(row.netAmount ?? row.grossAmount)}
                                             </Typography>
                                         </TableCell>
-                                        <TableCell sx={cellBorderSx}>
+                                        <TableCell sx={cellBorderSx} align="center">
                                             <PrizePayoutStatusBadge
                                                 status={row.status as PrizePayoutRequestStatus}
                                             />

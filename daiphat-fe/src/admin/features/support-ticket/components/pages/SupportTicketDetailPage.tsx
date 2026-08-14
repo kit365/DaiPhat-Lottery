@@ -11,18 +11,17 @@ import {
     Button,
     Card,
     CardContent,
-    Chip,
     Grid,
     Stack,
     Typography,
 } from '@mui/material';
-import { Icon } from '@/admin/components/ui/AdminIcon';
 import dayjs from 'dayjs';
-import { PageHeader } from '../../../../components/ui/PageHeader';
-import { SpinnerLoading } from '../../../../components/ui/SpinnerLoading';
-import { CanAccess } from '../../../../components/auth/CanAccess';
-import { PERMISSIONS } from '../../../../constants/permission.constants';
-import { prefixAdmin } from '../../../../constants/routes';
+import { PageHeader } from '@/admin/components/ui/PageHeader';
+import { AdminStatusBadge } from '@/admin/components/ui/AdminStatusBadge';
+import { SpinnerLoading } from '@/admin/components/ui/SpinnerLoading';
+import { CanAccess } from '@/admin/components/auth/CanAccess';
+import { PERMISSIONS } from '@/admin/constants/permission.constants';
+import { prefixAdmin } from '@/admin/constants/routes';
 import { StaffComplaintTimeline } from '../sections/StaffComplaintTimeline';
 import {
     useAssignSupportTicket,
@@ -31,16 +30,19 @@ import {
 import {
     findReasonComment,
     isTerminalTicketStatus,
-    TicketCommentSenderRole,
     TicketRefType,
     TicketStatus,
     TICKET_REF_TYPE_LABELS,
     TICKET_STATUS_LABELS,
-} from '../../../../../types/support.type';
+    getTicketStatusBadgeClass,
+} from '@/types/support.type';
 
 function FieldLabel({ children }: { children: ReactNode }) {
     return (
-        <Typography variant="caption" sx={{ color: 'text.disabled', display: 'block', mb: 0.75 }}>
+        <Typography
+            variant="caption"
+            sx={{ color: 'var(--palette-text-disabled)', display: 'block', mb: 0.75, fontWeight: 600 }}
+        >
             {children}
         </Typography>
     );
@@ -48,18 +50,24 @@ function FieldLabel({ children }: { children: ReactNode }) {
 
 function FieldValue({ children, sx }: { children: ReactNode; sx?: object }) {
     return (
-        <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'text.primary', ...sx }}>
+        <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'var(--palette-text-primary)', ...sx }}>
             {children}
         </Typography>
     );
 }
 
-function CardSectionTitle({ icon, title, iconColor = '#2065D1' }: { icon: string; title: string; iconColor?: string }) {
+function CardSectionTitle({ title }: { title: string }) {
     return (
-        <Stack direction="row" alignItems="center" spacing={1.5} sx={{ mb: 2.5 }}>
-            <Icon icon={icon} width={22} style={{ color: iconColor }} />
-            <Typography sx={{ fontSize: '1.05rem', fontWeight: 700 }}>{title}</Typography>
-        </Stack>
+        <Typography
+            sx={{
+                fontSize: '1.125rem',
+                fontWeight: 700,
+                color: 'var(--palette-text-primary)',
+                mb: 2.5,
+            }}
+        >
+            {title}
+        </Typography>
     );
 }
 
@@ -67,6 +75,15 @@ const cardSx = {
     borderRadius: 'var(--shape-borderRadius-lg)',
     boxShadow: 'var(--customShadows-card)',
 } as const;
+
+const headerButtonSx = {
+    height: 36,
+    px: 2,
+    borderRadius: '8px',
+    fontWeight: 700,
+    textTransform: 'none' as const,
+    boxShadow: 'none',
+};
 
 function normalizeLegacySystemNote(
     content: string,
@@ -124,11 +141,6 @@ export const SupportTicketDetailPage = () => {
 
     const ticket = data?.data;
 
-    const systemNotes = useMemo(
-        () => (ticket?.comments || []).filter((comment) => comment.senderRole === TicketCommentSenderRole.SYSTEM),
-        [ticket?.comments]
-    );
-
     const reasonComment = useMemo(() => {
         if (!ticket) return undefined;
         return (
@@ -146,17 +158,16 @@ export const SupportTicketDetailPage = () => {
     const canAssign = ticket?.status === TicketStatus.OPEN;
     const referenceLink = buildReferenceLink(ticket?.refType, ticket?.refId, ticket?.id);
 
+    const breadcrumbItems = [
+        { label: 'Bảng điều khiển', to: `/${prefixAdmin}` },
+        { label: 'Khiếu nại', to: `/${prefixAdmin}/support-tickets/list` },
+        { label: `#${ticketId}` },
+    ];
+
     if (isLoading) {
         return (
             <>
-                <PageHeader
-                    title={`Khiếu nại #${ticketId}`}
-                    breadcrumbItems={[
-                        { label: 'Bảng điều khiển', to: `/${prefixAdmin}` },
-                        { label: 'Khiếu nại', to: `/${prefixAdmin}/support-tickets/list` },
-                        { label: `#${ticketId}` },
-                    ]}
-                />
+                <PageHeader title={`Khiếu nại #${ticketId}`} breadcrumbItems={breadcrumbItems} />
                 <SpinnerLoading />
             </>
         );
@@ -173,143 +184,159 @@ export const SupportTicketDetailPage = () => {
         );
     }
 
+    const relatedHref = referenceLink
+        ? `${referenceLink}${referenceLink.includes('?') ? '&' : '?'}returnTo=${encodeURIComponent(
+              `${pathname}${searchParamsForLocation?.toString() ? `?${searchParamsForLocation.toString()}` : ''}`
+          )}&returnLabel=${encodeURIComponent(`Quay lại khiếu nại #${ticket.id}`)}`
+        : null;
+
+    const relatedLabel =
+        ticket.refType === TicketRefType.PRIZE_CLAIM
+            ? `#${ticket.refId}`
+            : ticket.refType === TicketRefType.REFUND_REQUEST
+              ? `#${ticket.refId}`
+              : ticket.refType === TicketRefType.ORDER
+                ? `#${ticket.refId}`
+                : ticket.refId || '—';
+
     return (
-        <>
+        <Box sx={{ width: '100%', mx: 'auto' }}>
             <PageHeader
-                title={`Khiếu nại #${ticket.id}`}
-                breadcrumbItems={[
-                    { label: 'Bảng điều khiển', to: `/${prefixAdmin}` },
-                    { label: 'Khiếu nại', to: `/${prefixAdmin}/support-tickets/list` },
-                    { label: `#${ticket.id}` },
-                ]}
+                title={ticket.title}
+                titleExtra={
+                    <AdminStatusBadge
+                        label={TICKET_STATUS_LABELS[ticket.status]}
+                        modifier={getTicketStatusBadgeClass(ticket.status)}
+                    />
+                }
+                description={
+                    <Typography variant="body2" sx={{ color: 'var(--palette-text-secondary)' }}>
+                        Khiếu nại #{ticket.id}
+                        {ticket.ticketCategoryName ? ` · ${ticket.ticketCategoryName}` : ''}
+                        {' · '}
+                        Tạo {dayjs(ticket.createdAt).format('DD/MM/YYYY HH:mm')}
+                        {ticket.dueAt
+                            ? ` · Hạn ${dayjs(ticket.dueAt).format('DD/MM/YYYY HH:mm')}${isOverdue ? ' (quá hạn)' : ''}`
+                            : ''}
+                    </Typography>
+                }
+                breadcrumbItems={breadcrumbItems}
                 action={
-                    <Stack direction="row" spacing={1} flexWrap="wrap">
-                        {canAssign && (
-                            <CanAccess permission={(PERMISSIONS.SUPPORT_TICKET as any).MANAGE}>
-                                <Button
-                                    variant="contained"
-                                    disabled={assignMutation.isPending}
-                                    onClick={() => assignMutation.mutate(ticketId)}
-                                    startIcon={<Icon icon="mdi:account-check-outline" />}
-                                >
-                                    Tiếp nhận
-                                </Button>
-                            </CanAccess>
-                        )}
-                        <Button variant="outlined" onClick={() => router.push(`/${prefixAdmin}/support-tickets/list`)}>
-                            Quay lại
-                        </Button>
-                    </Stack>
+                    canAssign ? (
+                        <CanAccess permission={PERMISSIONS.SUPPORT_TICKET.PROCESS}>
+                            <Button
+                                variant="contained"
+                                disabled={assignMutation.isPending}
+                                onClick={() => assignMutation.mutate(ticketId)}
+                                sx={{
+                                    ...headerButtonSx,
+                                    bgcolor: 'var(--palette-grey-800)',
+                                    color: 'common.white',
+                                    '&:hover': { bgcolor: 'var(--palette-grey-900)' },
+                                }}
+                            >
+                                {assignMutation.isPending ? 'Đang tiếp nhận…' : 'Tiếp nhận'}
+                            </Button>
+                        </CanAccess>
+                    ) : undefined
                 }
             />
 
-            <Stack direction="row" alignItems="center" spacing={2} sx={{ mb: 3, flexWrap: 'wrap' }}>
-                <Chip label={TICKET_STATUS_LABELS[ticket.status]} color="primary" variant="outlined" />
-                <Typography variant="body2" color="text.secondary">
-                    Tạo lúc {dayjs(ticket.createdAt).format('DD/MM/YYYY HH:mm')}
-                </Typography>
-                {ticket.dueAt && (
-                    <Typography variant="body2" color={isOverdue ? 'error.main' : 'text.secondary'} fontWeight={isOverdue ? 700 : 500}>
-                        Hạn xử lý: {dayjs(ticket.dueAt).format('DD/MM/YYYY HH:mm')}
-                        {isOverdue ? ' (quá hạn)' : ''}
-                    </Typography>
-                )}
-            </Stack>
-
             {isOverdue && (
-                <Alert severity="warning" sx={{ mb: 3 }}>
-                    Yêu cầu này đã vượt quá thời hạn cam kết xử lý. Vui lòng ưu tiên xử lý để đảm bảo SLA.
+                <Alert severity="warning" sx={{ mb: 3, borderRadius: '12px' }}>
+                    Đã quá hạn xử lý {ticket.dueAt ? `(${dayjs(ticket.dueAt).format('DD/MM/YYYY HH:mm')})` : ''}.
+                    Ưu tiên xử lý yêu cầu này.
                 </Alert>
             )}
 
-            <Grid container spacing={3} sx={{ mb: 3 }}>
-                <Grid size={{ xs: 12, lg: 8 }}>
-                    <Stack spacing={3}>
+            <Grid container spacing={3} alignItems="stretch">
+                <Grid size={{ xs: 12, lg: 6 }} sx={{ display: 'flex' }}>
+                    <Stack spacing={3} sx={{ flex: 1, width: '100%' }}>
                         <Card sx={cardSx}>
-                            <CardContent>
-                                <CardSectionTitle icon="mdi:file-document-outline" title="Thông tin yêu cầu" />
+                            <CardContent sx={{ p: 3 }}>
+                                <CardSectionTitle title="Thông tin khiếu nại" />
                                 <Grid container spacing={2.5}>
                                     <Grid size={{ xs: 12, sm: 6 }}>
                                         <FieldLabel>Danh mục</FieldLabel>
                                         <FieldValue>{ticket.ticketCategoryName || '—'}</FieldValue>
                                     </Grid>
                                     <Grid size={{ xs: 12, sm: 6 }}>
-                                        <FieldLabel>Tiêu đề</FieldLabel>
-                                        <FieldValue>{ticket.title}</FieldValue>
+                                        <FieldLabel>
+                                            {ticket.refType ? TICKET_REF_TYPE_LABELS[ticket.refType] : 'Liên quan'}
+                                        </FieldLabel>
+                                        {relatedHref ? (
+                                            <Link href={relatedHref} style={{ fontWeight: 700 }}>
+                                                {relatedLabel}
+                                            </Link>
+                                        ) : (
+                                            <FieldValue>{ticket.refId || '—'}</FieldValue>
+                                        )}
                                     </Grid>
                                     <Grid size={{ xs: 12 }}>
                                         <FieldLabel>Mô tả</FieldLabel>
-                                        <FieldValue sx={{ whiteSpace: 'pre-wrap', fontWeight: 500 }}>
+                                        <FieldValue sx={{ whiteSpace: 'pre-wrap', fontWeight: 500, lineHeight: 1.7 }}>
                                             {ticket.description}
                                         </FieldValue>
                                     </Grid>
-                                    {ticket.attachmentUrl && (
-                                        <Grid size={{ xs: 12 }}>
-                                            <FieldLabel>Hình đính kèm</FieldLabel>
+                                    <Grid size={{ xs: 12 }}>
+                                        <FieldLabel>Tệp đính kèm</FieldLabel>
+                                        {ticket.attachmentUrl ? (
                                             <Box
                                                 component="a"
                                                 href={ticket.attachmentUrl}
                                                 target="_blank"
                                                 rel="noopener noreferrer"
-                                                sx={{ display: 'block', mt: 1 }}
+                                                sx={{
+                                                    display: 'inline-flex',
+                                                    alignItems: 'center',
+                                                    gap: 1.25,
+                                                    mt: 0.25,
+                                                    textDecoration: 'none',
+                                                    color: 'var(--palette-text-primary)',
+                                                    '&:hover': { textDecoration: 'underline' },
+                                                }}
                                             >
                                                 <Box
                                                     component="img"
                                                     src={ticket.attachmentUrl}
-                                                    alt="Hình đính kèm"
+                                                    alt=""
                                                     sx={{
-                                                        width: '100%',
-                                                        maxHeight: 280,
-                                                        objectFit: 'contain',
-                                                        borderRadius: 2,
-                                                        border: '1px solid',
-                                                        borderColor: 'divider',
-                                                        bgcolor: 'background.neutral',
+                                                        width: 48,
+                                                        height: 48,
+                                                        objectFit: 'cover',
+                                                        borderRadius: '8px',
+                                                        border: '1px solid var(--palette-divider)',
+                                                        bgcolor: 'var(--palette-background-neutral)',
+                                                        flexShrink: 0,
                                                     }}
                                                 />
+                                                <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+                                                    Xem tệp
+                                                </Typography>
                                             </Box>
-                                        </Grid>
-                                    )}
-                                </Grid>
-                            </CardContent>
-                        </Card>
-
-                        <Card sx={cardSx}>
-                            <CardContent>
-                                <CardSectionTitle icon="mdi:link-variant" title="Liên quan đến" />
-                                <Grid container spacing={2.5}>
+                                        ) : (
+                                            <FieldValue sx={{ fontWeight: 500, color: 'var(--palette-text-secondary)' }}>
+                                                Không có
+                                            </FieldValue>
+                                        )}
+                                    </Grid>
                                     <Grid size={{ xs: 12, sm: 6 }}>
-                                        <FieldLabel>Loại</FieldLabel>
-                                        <FieldValue>
-                                            {ticket.refType ? TICKET_REF_TYPE_LABELS[ticket.refType] : '—'}
+                                        <FieldLabel>Khách hàng</FieldLabel>
+                                        <FieldValue>{ticket.customerName || '—'}</FieldValue>
+                                    </Grid>
+                                    <Grid size={{ xs: 12, sm: 6 }}>
+                                        <FieldLabel>Người tiếp nhận</FieldLabel>
+                                        <FieldValue>{ticket.assignedToName || 'Chưa tiếp nhận'}</FieldValue>
+                                    </Grid>
+                                    <Grid size={{ xs: 12, sm: 6 }}>
+                                        <FieldLabel>Hạn xử lý</FieldLabel>
+                                        <FieldValue sx={{ color: isOverdue ? 'var(--palette-error-main)' : undefined }}>
+                                            {ticket.dueAt ? dayjs(ticket.dueAt).format('DD/MM/YYYY HH:mm') : '—'}
                                         </FieldValue>
                                     </Grid>
                                     <Grid size={{ xs: 12, sm: 6 }}>
-                                        <FieldLabel>
-                                            {ticket.refType === TicketRefType.PRIZE_CLAIM
-                                                ? 'Yêu cầu trả thưởng'
-                                                : ticket.refType === TicketRefType.REFUND_REQUEST
-                                                  ? 'Yêu cầu hoàn tiền'
-                                                  : ticket.refType === TicketRefType.ORDER
-                                                    ? 'Đơn hàng'
-                                                    : 'Mã đối tượng'}
-                                        </FieldLabel>
-                                        {referenceLink ? (
-                                            <Link
-                                                href={`${referenceLink}${referenceLink.includes("?") ? "&" : "?"}returnTo=${encodeURIComponent(`${pathname}${searchParamsForLocation?.toString() ? `?${searchParamsForLocation.toString()}` : ""}`)}&returnLabel=${encodeURIComponent(`Quay lại khiếu nại #${ticket.id}`)}`}
-                                                style={{ fontWeight: 700, color: '#2065D1' }}
-                                            >
-                                                {ticket.refType === TicketRefType.PRIZE_CLAIM
-                                                    ? `Mở yêu cầu trả thưởng #${ticket.refId}`
-                                                    : ticket.refType === TicketRefType.REFUND_REQUEST
-                                                      ? `Mở yêu cầu hoàn tiền #${ticket.refId}`
-                                                      : ticket.refType === TicketRefType.ORDER
-                                                        ? `Mở đơn hàng #${ticket.refId}`
-                                                        : `#${ticket.refId}`}
-                                            </Link>
-                                        ) : (
-                                            <FieldValue>{ticket.refId || '—'}</FieldValue>
-                                        )}
+                                        <FieldLabel>Cập nhật lần cuối</FieldLabel>
+                                        <FieldValue>{dayjs(ticket.updatedAt).format('DD/MM/YYYY HH:mm')}</FieldValue>
                                     </Grid>
                                 </Grid>
                             </CardContent>
@@ -317,43 +344,25 @@ export const SupportTicketDetailPage = () => {
 
                         {(reasonComment || ticket.response || ticket.resolvedAt) && (
                             <Card sx={cardSx}>
-                                <CardContent>
+                                <CardContent sx={{ p: 3 }}>
                                     <CardSectionTitle
-                                        icon={
-                                            ticket.status === TicketStatus.REJECTED
-                                                ? 'mdi:close-octagon-outline'
-                                                : 'mdi:check-decagram-outline'
-                                        }
                                         title={
                                             ticket.status === TicketStatus.REJECTED
                                                 ? 'Lý do từ chối'
                                                 : 'Kết quả xử lý'
                                         }
-                                        iconColor={ticket.status === TicketStatus.REJECTED ? '#B71D18' : '#FF3030'}
                                     />
                                     {(reasonComment?.content || ticket.response) && (
-                                        <Box sx={{ mb: 2 }}>
-                                            <FieldLabel>
-                                                {ticket.status === TicketStatus.REJECTED
-                                                    ? 'Nội dung từ chối'
-                                                    : 'Lý do giải quyết (nội bộ)'}
-                                            </FieldLabel>
-                                            <FieldValue sx={{ whiteSpace: 'pre-wrap', fontWeight: 500 }}>
+                                        <Box sx={{ mb: ticket.resolvedAt ? 2 : 0 }}>
+                                            <FieldValue sx={{ whiteSpace: 'pre-wrap', fontWeight: 500, lineHeight: 1.7 }}>
                                                 {reasonComment?.content || ticket.response}
                                             </FieldValue>
                                         </Box>
                                     )}
                                     {ticket.resolvedAt && (
-                                        <Box>
-                                            <FieldLabel>
-                                                {ticket.status === TicketStatus.REJECTED
-                                                    ? 'Thời gian từ chối'
-                                                    : 'Thời gian giải quyết'}
-                                            </FieldLabel>
-                                            <FieldValue>
-                                                {dayjs(ticket.resolvedAt).format('DD/MM/YYYY HH:mm')}
-                                            </FieldValue>
-                                        </Box>
+                                        <Typography variant="body2" sx={{ color: 'var(--palette-text-secondary)' }}>
+                                            {dayjs(ticket.resolvedAt).format('DD/MM/YYYY HH:mm')}
+                                        </Typography>
                                     )}
                                 </CardContent>
                             </Card>
@@ -361,88 +370,19 @@ export const SupportTicketDetailPage = () => {
                     </Stack>
                 </Grid>
 
-                <Grid size={{ xs: 12, lg: 4 }}>
-                    <Stack spacing={3}>
-                        <Card sx={cardSx}>
-                            <CardContent>
-                                <CardSectionTitle icon="mdi:account-outline" title="Khách hàng" />
-                                <FieldLabel>Họ tên</FieldLabel>
-                                <FieldValue>{ticket.customerName || '—'}</FieldValue>
-                                <Box sx={{ mt: 2 }}>
-                                    <FieldLabel>Mã khách hàng</FieldLabel>
-                                    <FieldValue sx={{ fontFamily: 'monospace', fontSize: 13 }}>
-                                        {ticket.customerId}
-                                    </FieldValue>
-                                </Box>
-                            </CardContent>
-                        </Card>
-
-                        <Card sx={cardSx}>
-                            <CardContent>
-                                <CardSectionTitle icon="mdi:headset" title="Phân công xử lý" />
-                                <FieldLabel>Người tiếp nhận</FieldLabel>
-                                <FieldValue>{ticket.assignedToName || 'Chưa tiếp nhận'}</FieldValue>
-                                {ticket.assignedTo && (
-                                    <Box sx={{ mt: 2 }}>
-                                        <FieldLabel>Mã nhân viên</FieldLabel>
-                                        <FieldValue sx={{ fontFamily: 'monospace', fontSize: 13 }}>
-                                            {ticket.assignedTo}
-                                        </FieldValue>
-                                    </Box>
-                                )}
-                            </CardContent>
-                        </Card>
-
-                        <Card sx={cardSx}>
-                            <CardContent>
-                                <CardSectionTitle icon="mdi:clock-alert-outline" title="Cam kết xử lý (SLA)" />
-                                <FieldLabel>Hạn xử lý</FieldLabel>
-                                <FieldValue sx={{ color: isOverdue ? 'error.main' : 'text.primary' }}>
-                                    {ticket.dueAt ? dayjs(ticket.dueAt).format('DD/MM/YYYY HH:mm') : '—'}
-                                </FieldValue>
-                                <Box sx={{ mt: 2 }}>
-                                    <FieldLabel>Cập nhật lần cuối</FieldLabel>
-                                    <FieldValue>{dayjs(ticket.updatedAt).format('DD/MM/YYYY HH:mm')}</FieldValue>
-                                </Box>
-                            </CardContent>
-                        </Card>
-
-                        {systemNotes.length > 0 && (
-                            <Card sx={cardSx}>
-                                <CardContent>
-                                    <CardSectionTitle icon="mdi:history" title="Ghi chú hệ thống" />
-                                    <Stack spacing={1.5}>
-                                        {systemNotes.map((note) => (
-                                            <Box
-                                                key={note.id}
-                                                sx={{
-                                                    p: 1.5,
-                                                    borderRadius: 1.5,
-                                                    bgcolor: 'background.neutral',
-                                                    border: '1px solid',
-                                                    borderColor: 'divider',
-                                                }}
-                                            >
-                                                <Typography variant="body2">
-                                                    {normalizeLegacySystemNote(note.content, {
-                                                        refType: ticket.refType,
-                                                        ticketCategoryName: ticket.ticketCategoryName,
-                                                    })}
-                                                </Typography>
-                                                <Typography variant="caption" color="text.secondary">
-                                                    {dayjs(note.createdAt).format('DD/MM/YYYY HH:mm')}
-                                                </Typography>
-                                            </Box>
-                                        ))}
-                                    </Stack>
-                                </CardContent>
-                            </Card>
-                        )}
-                    </Stack>
+                <Grid size={{ xs: 12, lg: 6 }} sx={{ display: 'flex', minHeight: { xs: 420, lg: 0 } }}>
+                    <StaffComplaintTimeline
+                        ticketId={ticketId}
+                        status={ticket.status}
+                        formatSystemNote={(content) =>
+                            normalizeLegacySystemNote(content, {
+                                refType: ticket.refType,
+                                ticketCategoryName: ticket.ticketCategoryName,
+                            })
+                        }
+                    />
                 </Grid>
             </Grid>
-
-            <StaffComplaintTimeline ticketId={ticketId} status={ticket.status} />
-        </>
+        </Box>
     );
 };

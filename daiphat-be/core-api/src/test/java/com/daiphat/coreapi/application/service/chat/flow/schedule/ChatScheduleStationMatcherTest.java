@@ -5,7 +5,6 @@ import com.daiphat.coreapi.application.dto.chat.schedule.ChatScheduleStationMatc
 import com.daiphat.coreapi.application.dto.chat.schedule.ChatScheduleStationResolveResult;
 import com.daiphat.coreapi.application.port.out.lotteries.LotteryStationRepositoryPort;
 import com.daiphat.coreapi.domain.model.enums.chat.ChatScheduleStationMatchSource;
-import com.daiphat.coreapi.domain.model.enums.lottery.LotteryStationStatus;
 import com.daiphat.coreapi.domain.model.lotteries.LotteryRegionModel;
 import com.daiphat.coreapi.domain.model.lotteries.LotteryStationModel;
 import org.junit.jupiter.api.BeforeEach;
@@ -108,7 +107,7 @@ class ChatScheduleStationMatcherTest {
         LotteryStationModel model = new LotteryStationModel();
         model.setId(id);
         model.setName(name);
-        model.setStatus(LotteryStationStatus.ACTIVE);
+        model.setActive(true);
         model.setRegion(region);
         return model;
     }

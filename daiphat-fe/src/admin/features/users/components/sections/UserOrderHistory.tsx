@@ -1,14 +1,13 @@
 "use client";
 
 import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
-import { Box, Typography, Chip, TablePagination } from "@mui/material";
+import { Box, Typography, TablePagination } from "@mui/material";
 import { SpinnerLoading } from "../../../../components/ui/SpinnerLoading";
-import { useQuery } from "@tanstack/react-query";
-import { getOrders } from '../../../orders/services/orderService';
+import { useUserOrders } from "../../hooks/useUserOrders";
 import dayjs from "dayjs";
 import { prefixAdmin } from '../../../../constants/routes';
-import { useMemo, useState } from "react";
-import { getOrderStatusBadge } from '@/admin/features/orders/utils/orderStatusBadge';
+import { useState } from "react";
+import { OrderStatusBadge } from '@/shared/components/StatusBadge';
 
 interface UserOrderHistoryProps {
     userId: string;
@@ -19,27 +18,10 @@ export const UserOrderHistory = ({ userId }: UserOrderHistoryProps) => {
     const [page, setPage] = useState(0);
     const [rowsPerPage, setRowsPerPage] = useState(5);
 
-    const { data: res, isLoading } = useQuery({
-        queryKey: ["user-orders", userId, page, rowsPerPage],
-        queryFn: () => getOrders({
-            userId,
-            page: page + 1,
-            limit: rowsPerPage
-        } as any),
-        enabled: !!userId,
-    });
+    const { data, isLoading } = useUserOrders(userId, page, rowsPerPage);
 
-    const orders = useMemo(() => {
-        if (!res) return [];
-        const data = res as any;
-        if (Array.isArray(data.data?.recordList)) return data.data.recordList;
-        if (Array.isArray(data.recordList)) return data.recordList;
-        if (Array.isArray(data.data)) return data.data;
-        if (Array.isArray(data)) return data;
-        return [];
-    }, [res]);
-
-    const pagination = res?.data?.pagination || { totalRecords: 0 };
+    const orders = data?.orders ?? [];
+    const pagination = data?.pagination || { totalRecords: 0 };
 
     const handleChangePage = (_event: unknown, newPage: number) => {
         setPage(newPage);
@@ -83,7 +65,6 @@ export const UserOrderHistory = ({ userId }: UserOrderHistoryProps) => {
                             order.tickets?.map((p: any) => p.ticketName || p.ticketId?.name).filter(Boolean).join(', ') ||
                             order.orderDetails?.map((p: any) => p.ticketName || p.productName || p.name).filter(Boolean).join(', ') ||
                             'N/A';
-                        const status = getOrderStatusBadge(order.status);
 
                         return (
                             <Box
@@ -119,18 +100,7 @@ export const UserOrderHistory = ({ userId }: UserOrderHistoryProps) => {
                                     {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(order.totalAmount ?? order.totalPrice ?? 0)}
                                 </Typography>
                                 <Box textAlign="center">
-                                    <Chip
-                                        label={status.label}
-                                        size="small"
-                                        sx={{
-                                            borderRadius: "var(--shape-borderRadius-sm)",
-                                            fontWeight: 700,
-                                            fontSize: '0.6875rem',
-                                            color: status.color,
-                                            bgcolor: status.bg,
-                                            height: '24px',
-                                        }}
-                                    />
+                                    <OrderStatusBadge status={order.status} />
                                 </Box>
                             </Box>
                         );

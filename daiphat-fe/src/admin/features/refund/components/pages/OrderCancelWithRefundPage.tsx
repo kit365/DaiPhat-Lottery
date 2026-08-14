@@ -35,7 +35,8 @@ import { prefixAdmin } from '@/admin/constants/routes';
 import { SpinnerLoading } from '@/admin/components/ui/SpinnerLoading';
 import { useOrderDetail } from '@/admin/features/orders/hooks/useOrder';
 import { useCancelOrderWithRefund } from '@/admin/features/refund/hooks/useRefundManagement';
-import { OrderStatus, resolveOrderDetailStatusBadge } from '@/types/order.type';
+import { OrderStatus } from '@/types/order.type';
+import { OrderDetailStatusBadge } from '@/shared/components/StatusBadge';
 import {
     ORDER_CANCEL_REASON_DEFAULTS,
     calculateOrderRefundAmount,
@@ -907,7 +908,6 @@ export function OrderCancelWithRefundPage() {
                                             </TableRow>
                                         )}
                                         {tickets.map((ticket) => {
-                                            const badge = resolveOrderDetailStatusBadge(ticket.status);
                                             const state =
                                                 ticket.id != null ? incidents[ticket.id] : undefined;
                                             const isReporting =
@@ -1048,19 +1048,7 @@ export function OrderCancelWithRefundPage() {
                                                             </Typography>
                                                         </TableCell>
                                                         <TableCell>
-                                                            <Typography
-                                                                variant="caption"
-                                                                sx={{
-                                                                    fontWeight: 700,
-                                                                    color: badge.color,
-                                                                    bgcolor: badge.bgcolor,
-                                                                    px: 1,
-                                                                    py: 0.5,
-                                                                    borderRadius: '6px',
-                                                                }}
-                                                            >
-                                                                {badge.label}
-                                                            </Typography>
+                                                            <OrderDetailStatusBadge status={ticket.status} />
                                                         </TableCell>
                                                         {cancelType === 'OUT_OF_STOCK_INCIDENT' && (
                                                             <TableCell align="right">

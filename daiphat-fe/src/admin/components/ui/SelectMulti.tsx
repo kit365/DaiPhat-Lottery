@@ -105,12 +105,25 @@ export const SelectMulti = memo(({ label, options, sx, value, onChange, disabled
         }, 0);
     }, []);
 
-    const displayValue = useMemo(() => (selected: string[]) =>
-        options
-            .filter(opt => selected.includes(opt.value))
-            .map(opt => opt.label)
-            .join(', ')
-        , [options]);
+    const selectableValues = useMemo(
+        () => options.filter((opt) => !opt.disabled).map((opt) => opt.value),
+        [options]
+    );
+
+    const isAllSelected =
+        selectableValues.length > 0 && selectableValues.every((v) => selectedValues.includes(v));
+
+    const displayValue = useMemo(
+        () => (selected: string[]) => {
+            const selectedOptions = options.filter((opt) => selected.includes(opt.value));
+            const allSelected =
+                selectableValues.length > 0 &&
+                selectableValues.every((v) => selected.includes(v));
+            if (allSelected) return 'Tất cả';
+            return selectedOptions.map((opt) => opt.label).join(', ');
+        },
+        [options, selectableValues]
+    );
 
     return (
         <FormControl
@@ -172,6 +185,30 @@ export const SelectMulti = memo(({ label, options, sx, value, onChange, disabled
                 MenuProps={MENU_PROPS}
                 notched={selectedValues.length > 0}
             >
+                <MenuItem
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        const next = isAllSelected ? [] : selectableValues;
+                        if (onChange) {
+                            onChange(next);
+                        } else {
+                            setInternalValues(next);
+                        }
+                    }}
+                    sx={{
+                        fontWeight: isAllSelected ? 550 : 400,
+                    }}
+                >
+                    <Checkbox
+                        size="small"
+                        color="primary"
+                        checked={isAllSelected}
+                        indeterminate={!isAllSelected && selectedValues.length > 0}
+                        sx={CHECKBOX_STYLE}
+                    />
+                    Tất cả
+                </MenuItem>
                 {options.map((option) => (
                     <MenuItem
                         key={option.value}

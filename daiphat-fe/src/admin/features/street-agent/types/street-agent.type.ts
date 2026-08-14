@@ -242,6 +242,7 @@ export interface VendorAllocationReturnWorkflow {
     canConfirmNoReturn: boolean;
     canPreviewSettlement: boolean;
     canSettle: boolean;
+    canReopenInspection: boolean;
 }
 
 export interface ConfirmVendorNoReturnPayload {
@@ -401,6 +402,68 @@ export interface VendorAllocationBatchListParams {
     size?: number;
 }
 
+export type StreetAgentReportStatus = 'OPEN' | 'FINALIZED';
+
+export interface StreetAgentReportParams {
+    from: string;
+    to: string;
+    status?: StreetAgentReportStatus;
+}
+
+export interface StreetAgentReportTableParams extends StreetAgentReportParams {
+    page: number;
+    size: number;
+    sortBy?: string;
+    direction?: 'asc' | 'desc';
+}
+
+export interface StreetAgentReportSummary {
+    allocatedQuantity: number;
+    soldQuantity: number;
+    returnedQuantity: number;
+    grossSales: number;
+    commissionPayable: number;
+    agentCashRemitted: number;
+    sellThroughRate: number;
+}
+
+export interface StreetAgentReportOverview {
+    period: {
+        from: string;
+        to: string;
+        statuses: string[];
+    };
+    reportCount: number;
+    openReportCount: number;
+    finalizedReportCount: number;
+    unsettledBatchCount: number;
+    provisional: boolean;
+    summary: StreetAgentReportSummary;
+}
+
+export interface StreetAgentReportAgent {
+    agentId: number;
+    agentName: string;
+    reportCount: number;
+    allocatedQuantity: number;
+    soldQuantity: number;
+    returnedQuantity: number;
+    grossSales: number;
+    commissionPayable: number;
+    agentCashRemitted: number;
+    sellThroughRate: number;
+}
+
+export interface StreetAgentReportStation {
+    stationId: number;
+    stationName: string;
+    allocatedQuantity: number;
+    soldQuantity: number;
+    returnedQuantity: number;
+    grossSales: number;
+    sellThroughRate: number;
+}
+
 export interface CreateVendorAllocationDraftPayload {
     streetAgentProfileId: number;
     businessDate: string;
@@ -420,6 +483,8 @@ export interface ConfirmVendorAllocationPayload {
 export interface ReturnVendorAllocationSerialsPayload {
     serialIds: number[];
 }
+
+export type ReplaceVendorAllocationReturnsPayload = ReturnVendorAllocationSerialsPayload;
 
 export interface SettleVendorAllocationPayload {
     settlementFingerprint: string;

@@ -3,8 +3,13 @@
 import Link from "next/link";
 import React, { useEffect, useMemo, useState } from 'react';
 import { scrollToTop } from '../../../../../utils/scroll.util';
-import dayjs from 'dayjs';
-import { formatVietnameseDrawDate } from '../../../../utils/vietnameseDate.util';
+import {
+    formatVietnameseDateTime,
+    formatVietnameseDrawDate,
+    normalizeDrawDateIso,
+} from '../../../../utils/vietnameseDate.util';
+import { todayIsoVn } from '../../../../utils/sellableDrawDate.util';
+import { ClientDatePicker } from '../../../../components/ui/ClientDatePicker';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Pagination } from '../../../../components/common/Pagination';
 import { useStationsByDrawDate } from '@/client/hooks/useStationSchedule';
@@ -74,9 +79,6 @@ const formatMoney = (value?: number) =>
 /** Always "Thứ 2, dd/mm/yyyy" — never English Monday from dayjs `dddd`. */
 const formatDrawDate = formatVietnameseDrawDate;
 
-const formatDateTime = (value?: string) =>
-    value ? dayjs(value).format('DD/MM/YYYY - HH:mm:ss') : '—';
-
 /** Tách số vé thành từng cặp 2 chữ số nếu đủ chẵn (VD: 68 11 00), ngược lại tách từng ký tự. */
 const splitTicketNumbers = (numbers?: string): string[] => {
     const digits = (numbers || '').replace(/\D/g, '');
@@ -102,13 +104,6 @@ const normalizeStationName = (value?: string) =>
         .replace(/\s+/g, ' ')
         .trim();
 
-const normalizeDrawDateIso = (raw?: string) => {
-    if (!raw) return '';
-    const matched = raw.match(/\d{4}-\d{2}-\d{2}/);
-    if (matched?.[0]) return matched[0];
-    return dayjs(raw).format('YYYY-MM-DD');
-};
-
 export const TicketsTab = () => {
     const [page, setPage] = useState(1);
     const [activeTab, setActiveTab] = useState<StatusTab>('Tất cả');
@@ -116,16 +111,19 @@ export const TicketsTab = () => {
     const [searchCode, setSearchCode] = useState('');
     const [fromDate, setFromDate] = useState('');
     const [toDate, setToDate] = useState('');
+    const [fromDateOpen, setFromDateOpen] = useState(false);
+    const [toDateOpen, setToDateOpen] = useState(false);
     const [selectedTicket, setSelectedTicket] = useState<PurchasedTicket | null>(null);
     const [payoutModalOpen, setPayoutModalOpen] = useState(false);
 
+    const todayIso = todayIsoVn();
     const pageSize = 10;
     const apiStatus = STATUS_TAB_TO_API[activeTab];
     const redeemedParam =
         activeTab === 'Trúng thưởng' && wonRedeemFilter !== 'ALL'
             ? wonRedeemFilter === 'REDEEMED'
             : undefined;
-    const hasInvalidDateRange = Boolean(fromDate && toDate && dayjs(fromDate).isAfter(dayjs(toDate)));
+    const hasInvalidDateRange = Boolean(fromDate && toDate && fromDate > toDate);
 
     const { data, isLoading, isFetching, isError, error, refetch } = usePurchasedTicketLookup({
         page,
@@ -405,7 +403,7 @@ export const TicketsTab = () => {
                                 <div className="bg-slate-50/70 rounded-2xl p-4 border border-slate-200/70 flex flex-col gap-3">
                                     <div className="flex items-center justify-between text-[14px]">
                                         <span className="text-slate-500 font-medium">Thời gian mua vé</span>
-                                        <span className="text-slate-900 font-bold">{formatDateTime(selectedTicket.purchasedAt)}</span>
+                                        <span className="text-slate-900 font-bold">{formatVietnameseDateTime(selectedTicket.purchasedAt)}</span>
                                     </div>
                                     <div className="h-[1px] bg-slate-200/60"></div>
 
@@ -463,7 +461,7 @@ export const TicketsTab = () => {
                                                         </span>
                                                         {selectedTicket.actualPickedUpAt ? (
                                                             <span className="text-[12px] text-slate-500 font-medium">
-                                                                Lấy lúc {formatDateTime(selectedTicket.actualPickedUpAt)}
+                                                                Lấy lúc {formatVietnameseDateTime(selectedTicket.actualPickedUpAt)}
                                                             </span>
                                                         ) : possession.hint ? (
                                                             <span className="text-[12px] text-slate-500 font-medium max-w-[220px]">
@@ -496,6 +494,22 @@ export const TicketsTab = () => {
                         {/* Prize payout action box for winning tickets */}
                         {isWon && (() => {
                             const payoutDisplay = resolveTicketPayoutDisplay(selectedTicket);
+                            const isPayoutCompleted = payoutDisplay?.status === 'COMPLETED';
+                            const isPayoutInProgress = payoutDisplay?.status === 'PENDING';
+                            const payoutRequestHref = selectedTicket.activePayoutRequestId
+                                ? `/profile/prize-payouts/${selectedTicket.activePayoutRequestId}`
+                                : null;
+
+                            const congratulationCopy = isEligibleForPayout
+                                ? 'Bạn có thể gửi yêu cầu trả thưởng online. Tiền sẽ được chuyển sau khi nhân viên duyệt.'
+                                : isPayoutCompleted
+                                    ? 'Yêu cầu trả thưởng đã được duyệt và hoàn tất.'
+                                    : isPayoutInProgress
+                                        ? 'Yêu cầu trả thưởng của bạn đang được xử lý.'
+                                        : selectedTicket.claimChannel === 'IN_PERSON' || selectedTicket.canClaimOnline === false
+                                            ? 'Vé này cần mang đến đại lý để đổi thưởng trực tiếp.'
+                                            : 'Tiền thưởng sẽ được chuyển tới tài khoản ngân hàng của bạn sau khi yêu cầu được duyệt.';
+
                             return (
                             <div className="bg-gradient-to-r from-amber-50 via-amber-100/50 to-amber-50 rounded-2xl p-5 border border-amber-200/80 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-sm">
                                 <div className="flex items-start gap-3">
@@ -505,11 +519,7 @@ export const TicketsTab = () => {
                                     <div>
                                         <h4 className="text-amber-950 font-black text-[16px] mb-0.5">Chúc mừng bạn đã trúng thưởng!</h4>
                                         <p className="text-slate-600 text-[13px] m-0">
-                                            {isEligibleForPayout
-                                                ? 'Bạn có thể gửi yêu cầu trả thưởng online. Tiền sẽ được chuyển sau khi nhân viên duyệt.'
-                                                : selectedTicket.claimChannel === 'IN_PERSON' || selectedTicket.canClaimOnline === false
-                                                    ? 'Vé này cần mang đến đại lý để đổi thưởng trực tiếp.'
-                                                    : 'Tiền thưởng sẽ được chuyển tới tài khoản ngân hàng của bạn sau khi yêu cầu được duyệt.'}
+                                            {congratulationCopy}
                                         </p>
                                     </div>
                                 </div>
@@ -522,9 +532,9 @@ export const TicketsTab = () => {
                                     >
                                         🏆 Yêu cầu trả thưởng ngay
                                     </button>
-                                ) : selectedTicket.activePayoutRequestId ? (
+                                ) : isPayoutInProgress && payoutRequestHref ? (
                                     <Link
-                                        href={`/profile/prize-payouts/${selectedTicket.activePayoutRequestId}`}
+                                        href={payoutRequestHref}
                                         className="text-amber-700 font-bold text-[14px] hover:underline no-underline"
                                     >
                                         Xem yêu cầu đang xử lý →
@@ -539,11 +549,18 @@ export const TicketsTab = () => {
                                                 {payoutDisplay.label}
                                             </div>
                                         )}
-                                        {ineligibilityReason && (
+                                        {isPayoutCompleted && payoutRequestHref ? (
+                                            <Link
+                                                href={payoutRequestHref}
+                                                className="text-emerald-700 font-bold text-[13px] hover:underline no-underline"
+                                            >
+                                                Xem yêu cầu đã hoàn tất →
+                                            </Link>
+                                        ) : ineligibilityReason ? (
                                             <span className="text-[12px] text-slate-500 font-medium">
                                                 {ineligibilityReason}
                                             </span>
-                                        )}
+                                        ) : null}
                                     </div>
                                 )}
                             </div>
@@ -675,38 +692,35 @@ export const TicketsTab = () => {
 
                 <div className="flex flex-col lg:flex-row lg:items-end gap-3 px-4 md:px-5 py-3.5 border-b border-slate-100 bg-white">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full lg:max-w-[460px]">
-                        <div className="flex flex-col gap-1">
-                            <label htmlFor="ticketFromDate" className="text-[12px] font-bold text-slate-500 uppercase tracking-wide">
-                                Từ ngày
-                            </label>
-                            <input
-                                id="ticketFromDate"
-                                type="date"
-                                value={fromDate}
-                                max={toDate || undefined}
-                                onChange={(e) => {
-                                    setFromDate(e.target.value);
-                                    setPage(1);
-                                }}
-                                className="h-[42px] w-full px-3 border border-slate-200 bg-white rounded-xl text-[13.5px] outline-none focus:border-red-500 focus:ring-2 focus:ring-red-500/10 transition-all font-semibold text-slate-800 shadow-xs"
-                            />
-                        </div>
-                        <div className="flex flex-col gap-1">
-                            <label htmlFor="ticketToDate" className="text-[12px] font-bold text-slate-500 uppercase tracking-wide">
-                                Đến ngày
-                            </label>
-                            <input
-                                id="ticketToDate"
-                                type="date"
-                                value={toDate}
-                                min={fromDate || undefined}
-                                onChange={(e) => {
-                                    setToDate(e.target.value);
-                                    setPage(1);
-                                }}
-                                className="h-[42px] w-full px-3 border border-slate-200 bg-white rounded-xl text-[13.5px] outline-none focus:border-red-500 focus:ring-2 focus:ring-red-500/10 transition-all font-semibold text-slate-800 shadow-xs"
-                            />
-                        </div>
+                        <ClientDatePicker
+                            label="Từ ngày"
+                            value={fromDate}
+                            maxDate={toDate || todayIso}
+                            allowClear
+                            open={fromDateOpen}
+                            onOpenChange={setFromDateOpen}
+                            onOpen={() => setToDateOpen(false)}
+                            onChange={(ymd) => {
+                                setFromDate(ymd);
+                                setPage(1);
+                            }}
+                            className="w-full"
+                        />
+                        <ClientDatePicker
+                            label="Đến ngày"
+                            value={toDate}
+                            minDate={fromDate || undefined}
+                            maxDate={todayIso}
+                            allowClear
+                            open={toDateOpen}
+                            onOpenChange={setToDateOpen}
+                            onOpen={() => setFromDateOpen(false)}
+                            onChange={(ymd) => {
+                                setToDate(ymd);
+                                setPage(1);
+                            }}
+                            className="w-full"
+                        />
                     </div>
 
                     {/* Search Code / Numbers */}

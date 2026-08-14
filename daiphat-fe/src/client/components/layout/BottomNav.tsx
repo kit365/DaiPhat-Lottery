@@ -9,6 +9,7 @@ import { ROUTES } from "../../../admin/constants/routes";
 import { useAuthStore } from "../../../stores/useAuthStore";
 import { AppToast as toast } from "../../../utils/toast.util";
 import { createNavBannerPrefetchHandlers } from "../../utils/prefetchImagesWhenIdle";
+import { shouldPrefetchClientNavRoute } from "../../utils/clientNavPrefetch";
 
 export const BottomNav: React.FC = () => {
   const pathname = usePathname() ?? '';
@@ -86,6 +87,7 @@ export const BottomNav: React.FC = () => {
             <Link
               key={item.label}
               href={item.to}
+              prefetch={shouldPrefetchClientNavRoute(item.to)}
               {...createNavBannerPrefetchHandlers(item.to)}
               className="flex-1 h-full cursor-pointer block"
               onClick={item.action ? (e) => item.action(e) : undefined}

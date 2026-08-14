@@ -229,16 +229,7 @@ export const RefundList = () => {
             : 'Không có yêu cầu hoàn tiền';
 
     return (
-        <Card
-            sx={{
-                borderRadius: 'var(--shape-borderRadius-lg)',
-                bgcolor: 'var(--palette-background-paper)',
-                boxShadow: 'var(--customShadows-card)',
-                overflow: 'hidden',
-                display: 'flex',
-                flexDirection: 'column',
-            }}
-        >
+        <Card elevation={0} className="admin-datagrid-card">
             <Tabs
                 value={statusTab}
                 onChange={handleTabChange}
@@ -312,7 +303,7 @@ export const RefundList = () => {
                 />
             </Box>
 
-            <TableContainer sx={{ position: 'relative', overflow: 'unset' }}>
+            <TableContainer sx={{ position: 'relative', overflow: 'auto', flex: 1, display: 'flex', flexDirection: 'column' }}>
                 <Table
                     sx={{ minWidth: 1100 }}
                     size={settings.density === 'compact' ? 'small' : 'medium'}
@@ -323,7 +314,7 @@ export const RefundList = () => {
                             <TableCell sx={headerCellSx}>Đơn hàng</TableCell>
                             <TableCell sx={headerCellSx}>Khách hàng</TableCell>
                             <TableCell sx={headerCellSx}>Số tiền hoàn</TableCell>
-                            <TableCell sx={headerCellSx}>Trạng thái</TableCell>
+                            <TableCell sx={headerCellSx} align="center">Trạng thái</TableCell>
                             <TableCell sx={headerCellSx}>Hạn xử lý</TableCell>
                             <TableCell sx={headerCellSx}>Ngày tạo</TableCell>
                             <TableCell sx={headerCellSx}>NV phụ trách</TableCell>
@@ -334,16 +325,18 @@ export const RefundList = () => {
                     <TableBody>
                         {isLoading ? (
                             <TableRow>
-                                <TableCell colSpan={9} align="center" sx={{ py: 10 }}>
-                                    <CircularProgress size={32} />
+                                <TableCell colSpan={9} align="center" sx={{ borderBottom: 'none', py: 10 }}>
+                                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 320 }}>
+                                        <CircularProgress size={32} />
+                                    </Box>
                                 </TableCell>
                             </TableRow>
                         ) : refunds.length === 0 ? (
                             <TableRow>
-                                <TableCell colSpan={9} align="center" sx={{ py: 10 }}>
-                                    <Typography sx={{ color: 'var(--palette-text-secondary)' }}>
-                                        {emptyMessage}
-                                    </Typography>
+                                <TableCell colSpan={9} align="center" sx={{ borderBottom: 'none', py: 10 }}>
+                                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 320 }}>
+                                        <span className="admin-datagrid-empty">{emptyMessage}</span>
+                                    </Box>
                                 </TableCell>
                             </TableRow>
                         ) : (
@@ -469,7 +462,7 @@ export const RefundList = () => {
                                             </Typography>
                                         </TableCell>
 
-                                        <TableCell sx={cellBorderSx}>
+                                        <TableCell sx={cellBorderSx} align="center">
                                             <RefundStatusBadge status={refund.status} />
                                         </TableCell>
 
@@ -593,6 +586,9 @@ export const RefundList = () => {
                 onPageChange={handleChangePage}
                 onRowsPerPageChange={handleChangeRowsPerPage}
                 labelRowsPerPage="Số hàng mỗi trang:"
+                labelDisplayedRows={({ from, to, count }) =>
+                    `${from}-${to} của ${count !== -1 ? count : `hơn ${to}`}`
+                }
             />
         </Card>
     );

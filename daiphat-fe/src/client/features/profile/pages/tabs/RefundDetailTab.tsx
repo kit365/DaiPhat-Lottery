@@ -26,6 +26,7 @@ import {
 } from '../../../../components/notification/UnavailableReferenceState';
 import { QUERY_KEYS } from '../../../../../constants/queryKeys';
 import { TICKET_IMAGE_FALLBACK } from '../../../../constants/clientBannerAssets';
+import { ClientSelect } from '../../../../components/ui/ClientSelect';
 
 const REFUND_TYPE_LABELS: Record<RefundType, string> = {
     [RefundType.FULL_ORDER]: 'Hoàn cả đơn',
@@ -421,25 +422,27 @@ export const RefundDetailTab = () => {
                                         <label className="text-[13px] font-semibold text-[#212B36]">
                                             Chọn tài khoản khác
                                         </label>
-                                        <select
-                                            className="w-full rounded-xl border border-[#E5E8EB] px-4 py-3 text-[14px] text-[#212B36] bg-white"
-                                            value={selectedBankId}
-                                            onChange={(e) =>
-                                                setSelectedBankId(e.target.value ? Number(e.target.value) : '')
-                                            }
-                                        >
-                                            <option value="">
-                                                {bankAccount
+                                    <ClientSelect
+                                        value={selectedBankId === '' ? '' : String(selectedBankId)}
+                                        onChange={(next) => setSelectedBankId(next ? Number(next) : '')}
+                                        placeholder={
+                                            bankAccount
+                                                ? 'Giữ tài khoản hiện tại hoặc chọn tài khoản khác'
+                                                : 'Chọn tài khoản nhận hoàn'
+                                        }
+                                        options={[
+                                            {
+                                                value: '',
+                                                label: bankAccount
                                                     ? 'Giữ tài khoản hiện tại hoặc chọn tài khoản khác'
-                                                    : 'Chọn tài khoản nhận hoàn'}
-                                            </option>
-                                            {myBanks.map((account) => (
-                                                <option key={account.id} value={account.id}>
-                                                    {account.bankName} — {maskBankAccountNo(account.bankAccountNo)} (
-                                                    {account.bankAccountName})
-                                                </option>
-                                            ))}
-                                        </select>
+                                                    : 'Chọn tài khoản nhận hoàn',
+                                            },
+                                            ...myBanks.map((account) => ({
+                                                value: String(account.id),
+                                                label: `${account.bankName} — ${maskBankAccountNo(account.bankAccountNo)} (${account.bankAccountName})`,
+                                            })),
+                                        ]}
+                                    />
                                     </div>
 
                                     <div className="flex flex-wrap items-center gap-2.5">

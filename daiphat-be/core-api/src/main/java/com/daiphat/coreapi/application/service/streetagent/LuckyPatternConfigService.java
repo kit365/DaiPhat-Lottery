@@ -21,6 +21,7 @@ import java.util.List;
 public class LuckyPatternConfigService implements LuckyPatternConfigServicePort {
     private final LuckyPatternConfigRepositoryPort luckyPatternConfigRepositoryPort;
     private final VendorAllocationRepositoryPort vendorAllocationRepositoryPort;
+    private final LuckySerialTagger luckySerialTagger;
 
     @Override
     @Transactional(readOnly = true)
@@ -54,14 +55,10 @@ public class LuckyPatternConfigService implements LuckyPatternConfigServicePort 
     @Override
     @Transactional
     public void recomputeAll() {
-        List<LuckyPatternConfigModel> patterns = luckyPatternConfigRepositoryPort.findActiveByPriorityDesc();
+        List<LuckyPatternConfigModel> patterns = luckySerialTagger.loadActivePatterns();
         List<VendorAllocationSerialModel> serials = vendorAllocationRepositoryPort.findAllLiveSerials();
         for (VendorAllocationSerialModel serial : serials) {
-            List<String> badges = patterns.stream()
-                    .filter(pattern -> pattern.matches(serial.getTicketNumbers()))
-                    .map(LuckyPatternConfigModel::getBadgeLabel).distinct().toList();
-            serial.setLucky(!badges.isEmpty());
-            serial.setLuckyBadges(String.join(",", badges));
+            luckySerialTagger.apply(serial, patterns);
         }
         vendorAllocationRepositoryPort.saveSerials(serials);
     }

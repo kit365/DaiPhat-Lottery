@@ -3,6 +3,7 @@ package com.daiphat.coreapi.adapter.in.web.controller.streetagent;
 import com.daiphat.coreapi.adapter.in.web.security.AuthenticatedUserPrincipal;
 import com.daiphat.coreapi.application.dto.request.streetagent.ConfirmVendorAllocationRequest;
 import com.daiphat.coreapi.application.dto.request.streetagent.ReturnVendorAllocationSerialsRequest;
+import com.daiphat.coreapi.application.dto.request.streetagent.ReplaceVendorAllocationReturnsRequest;
 import com.daiphat.coreapi.application.dto.request.streetagent.SettleVendorAllocationRequest;
 import com.daiphat.coreapi.application.port.in.streetagent.VendorAllocationServicePort;
 import org.junit.jupiter.api.BeforeEach;
@@ -53,11 +54,16 @@ class VendorAllocationControllerTest {
 
         assertThat(controller.openReturnSession(BATCH_ID).isSuccess()).isTrue();
         assertThat(controller.recordReturns(BATCH_ID, request).isSuccess()).isTrue();
+        ReplaceVendorAllocationReturnsRequest replaceRequest = new ReplaceVendorAllocationReturnsRequest(List.of(102L));
+        assertThat(controller.replaceReturns(BATCH_ID, replaceRequest).isSuccess()).isTrue();
         assertThat(controller.removeReturn(BATCH_ID, 101L).isSuccess()).isTrue();
+        assertThat(controller.reopenReturnInspection(BATCH_ID).isSuccess()).isTrue();
 
         verify(vendorAllocationServicePort).openReturnSession(BATCH_ID);
         verify(vendorAllocationServicePort).recordReturns(BATCH_ID, request);
+        verify(vendorAllocationServicePort).replaceReturns(BATCH_ID, replaceRequest);
         verify(vendorAllocationServicePort).removeReturn(BATCH_ID, 101L);
+        verify(vendorAllocationServicePort).reopenReturnInspection(BATCH_ID);
     }
 
     @Test
@@ -76,7 +82,9 @@ class VendorAllocationControllerTest {
                 VendorAllocationController.class.getMethod("confirm", Long.class, ConfirmVendorAllocationRequest.class, AuthenticatedUserPrincipal.class),
                 VendorAllocationController.class.getMethod("openReturnSession", Long.class),
                 VendorAllocationController.class.getMethod("recordReturns", Long.class, ReturnVendorAllocationSerialsRequest.class),
+                VendorAllocationController.class.getMethod("replaceReturns", Long.class, ReplaceVendorAllocationReturnsRequest.class),
                 VendorAllocationController.class.getMethod("removeReturn", Long.class, Long.class),
+                VendorAllocationController.class.getMethod("reopenReturnInspection", Long.class),
                 VendorAllocationController.class.getMethod("settle", Long.class, SettleVendorAllocationRequest.class, AuthenticatedUserPrincipal.class))) {
             PreAuthorize authorization = method.getAnnotation(PreAuthorize.class);
             assertThat(authorization).isNotNull();
