@@ -66,7 +66,8 @@ class ChatIntentClassifierTest {
                 ChatIntentTestFixtures.minimalProperties(),
                 aiServiceConfigPort,
                 scheduleParser,
-                stationResolver
+                stationResolver,
+                new com.daiphat.coreapi.application.service.chat.fortune.DestinyNumberInterpreter()
         );
 
         classifier = new ChatIntentClassifier(javaClassifier, chatAiPort, aiServiceConfigPort, 0.7);
@@ -263,6 +264,22 @@ class ChatIntentClassifierTest {
         ChatClassifyResponse result = classifier.classify("con số may mắn", 12L);
 
         assertThat(result.getIntent()).isEqualTo(ChatIntent.WEB_SUGGEST.name());
+    }
+
+    @Test
+    void classify_zodiacNumberAsk_mapsToOtherKnowledgeNotUnknown() {
+        ChatClassifyResponse result = classifier.classify("tôi là cung thiên bình thì nên mua số gì", 42L);
+
+        assertThat(result.getIntent()).isEqualTo(ChatIntent.OTHER_KNOWLEDGE.name());
+        assertThat(result.getConfidence()).isGreaterThanOrEqualTo(0.7);
+        verify(chatAiPort, never()).classifyMessage(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
+    void classify_suggestWithZodiac_prefersOtherKnowledgeOverWebSuggest() {
+        ChatClassifyResponse result = classifier.classify("gợi ý số theo cung thiên bình", 43L);
+
+        assertThat(result.getIntent()).isEqualTo(ChatIntent.OTHER_KNOWLEDGE.name());
     }
 
     @Test

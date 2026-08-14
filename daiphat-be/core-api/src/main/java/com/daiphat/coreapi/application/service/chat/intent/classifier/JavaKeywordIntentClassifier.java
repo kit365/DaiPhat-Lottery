@@ -7,6 +7,7 @@ import com.daiphat.coreapi.application.dto.response.chat.ChatClassifyResponse;
 import com.daiphat.coreapi.application.dto.chat.schedule.ChatScheduleStationResolveResult;
 import com.daiphat.coreapi.application.service.chat.flow.schedule.ChatScheduleParser;
 import com.daiphat.coreapi.application.service.chat.flow.schedule.ChatScheduleStationResolver;
+import com.daiphat.coreapi.application.service.chat.fortune.DestinyNumberInterpreter;
 import com.daiphat.coreapi.domain.model.enums.chat.AiIntentConfigKey;
 import com.daiphat.coreapi.domain.model.enums.chat.ChatIntent;
 import com.daiphat.coreapi.domain.model.enums.chat.ChatScheduleStationMatchSource;
@@ -46,12 +47,18 @@ public class JavaKeywordIntentClassifier {
     private final AiServiceConfigPort aiServiceConfigPort;
     private final ChatScheduleParser scheduleParser;
     private final ChatScheduleStationResolver scheduleStations;
+    private final DestinyNumberInterpreter destinyNumberInterpreter;
 
     public ChatClassifyResponse classify(String message) {
         // FE "Gợi ý khác" appends "|exclude=1,2,3" — strip before classify so ticket IDs
         // are not mistaken for đuôi/đầu search fragments.
         String classifyMessage = stripSuggestExcludePayload(message);
         String normalized = scheduleParser.normalize(classifyMessage);
+
+        // Destiny / dream fortune before generic "gợi ý" so "gợi ý số cung Thiên Bình" stays OTHER_KNOWLEDGE.
+        if (isFortuneIntent(normalized)) {
+            return buildDefault(ChatIntent.OTHER_KNOWLEDGE, Map.of());
+        }
 
         // Suggest before inventory search: "gợi ý vé ...|exclude=4716" still contains digits + "ve"
         // which would otherwise win as WEB_SEARCH.
@@ -99,15 +106,19 @@ public class JavaKeywordIntentClassifier {
             return build(ChatIntent.WEB_RESULT, confidenceKey, entities);
         }
 
-        if (containsAny(normalized, intentProperties.getFortuneKeywords())) {
-            return buildDefault(ChatIntent.OTHER_KNOWLEDGE, Map.of());
-        }
-
         if (normalizedTrashTalkExact().contains(normalized)) {
             return buildDefault(ChatIntent.TRASH_TALK, Map.of());
         }
 
         return buildDefault(ChatIntent.UNKNOWN, Map.of());
+    }
+
+    private boolean isFortuneIntent(String normalized) {
+        if (containsAny(normalized, intentProperties.getFortuneKeywords())) {
+            return true;
+        }
+        // Catch zodiac / giáp / mệnh symbol names even when keyword list drifts.
+        return destinyNumberInterpreter.matchesCue(normalized);
     }
 
     /**
