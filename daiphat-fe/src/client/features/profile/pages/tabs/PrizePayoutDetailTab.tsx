@@ -4,18 +4,23 @@ import { useRouter } from "next/navigation";
 import { useRouteParams } from "@/hooks/useRouteParams";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import dayjs from 'dayjs';
 import {
     useCancelPrizePayout,
     useGetPrizePayoutDetail,
 } from '../../../../hooks/usePrizePayout';
-import { PrizePayoutRequestStatus, formatPrizePayoutCurrency } from '../../../../../types/prize-payout.type';
+import {
+    PrizePayoutRequestStatus,
+    PRIZE_PAYOUT_STATUS_MAP,
+    formatPrizePayoutCurrency,
+} from '../../../../../types/prize-payout.type';
 import { PrizePayoutStatusStepper } from '../../../../components/prize-payout/PrizePayoutStatusStepper';
 import { TransferEvidencePreview } from '@/admin/features/refund/components/TransferEvidencePreview';
 import { PrizePayoutRequestModal } from '../../../../components/prize-payout/PrizePayoutRequestModal';
 import { PrizePayoutComplaintButton } from '../../../../components/support/PrizePayoutComplaintButton';
 import { PurchasedTicket } from '../../../../../types/lottery-ticket.type';
+import { AppToast as toast } from '../../../../../utils/toast.util';
 
 export const PrizePayoutDetailTab = () => {
     const { id } = useRouteParams();
@@ -25,8 +30,20 @@ export const PrizePayoutDetailTab = () => {
     const { data, isLoading } = useGetPrizePayoutDetail(requestId);
     const cancelMutation = useCancelPrizePayout();
     const [resubmitOpen, setResubmitOpen] = useState(false);
+    const lastStatusRef = useRef<PrizePayoutRequestStatus | null>(null);
 
     const payout = data?.data;
+
+    useEffect(() => {
+        const nextStatus = payout?.status;
+        if (!nextStatus) return;
+        const prev = lastStatusRef.current;
+        lastStatusRef.current = nextStatus;
+        if (prev && prev !== nextStatus) {
+            const label = PRIZE_PAYOUT_STATUS_MAP[nextStatus]?.label ?? nextStatus;
+            toast.info(`Trạng thái cập nhật: ${label}`);
+        }
+    }, [payout?.status]);
     const fromComplaintId = searchParams.get('fromComplaintId');
     const sessionComplaintId = useMemo(() => {
         if (typeof window === 'undefined' || !id) return null;
