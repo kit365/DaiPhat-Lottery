@@ -2,7 +2,7 @@
 
 import Link from "@/admin/components/navigation/AdminLink";
 import { NavGroup } from "./NavGroup";
-import { menuManagementData, menuOverviewData, menuDevelopmentData } from "../../../constants/sideBar";
+import { menuManagementData, menuOverviewData } from "../../../constants/sideBar";
 import { IconButton } from "@mui/material";
 import { ArrowIcon } from "../../../assets/icons";
 import { useSidebar } from "../../../context/sidebar/useSidebar";
@@ -52,7 +52,6 @@ export const SideBar = () => {
                         <ul>
                             <NavGroup title="Tổng quan" data={menuOverviewData} />
                             <NavGroup title="Quản lý" data={menuManagementData} />
-                            <NavGroup title="Phát triển" data={menuDevelopmentData} />
                         </ul>
                     </nav>
                 </div>

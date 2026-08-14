@@ -1045,12 +1045,20 @@ input:-webkit-autofill:active {
 }
 
 /* Status badges */
+.admin-status-badge-host {
+    display: inline-block;
+    max-width: 100%;
+    min-width: 0;
+    vertical-align: middle;
+}
+
 .admin-status-badge {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    line-height: 1.5;
-    min-width: 1.5rem;
+    display: inline-block;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    line-height: 1.5rem;
+    min-height: 1.5rem;
     height: 1.5rem;
     font-size: 0.75rem;
     font-weight: 700;
@@ -1058,17 +1066,21 @@ input:-webkit-autofill:active {
     border-radius: 6px;
     background-color: var(--palette-grey-200);
     color: var(--palette-grey-800);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    vertical-align: middle;
 }
 
 .admin-status-badge--compact {
     min-width: auto;
+    min-height: 1.125rem;
     height: 1.125rem;
     font-size: 0.6875rem;
     font-weight: 600;
     padding: 0 4px;
     border-radius: 4px;
-    line-height: 1.2;
-    white-space: nowrap;
+    line-height: 1.125rem;
 }
 
 .admin-status-badge--draft {

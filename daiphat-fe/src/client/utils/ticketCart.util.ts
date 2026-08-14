@@ -21,8 +21,39 @@ export const getCartQtyForTicket = (ticketId: string | number): number => {
 };
 
 /** Vé đã hết hàng — nên ẩn khỏi danh sách bán. */
-export const isTicketSoldOut = (ticket: PublicLotteryTicket): boolean =>
-    getTicketStock(ticket) <= 0;
+export const isTicketSoldOut = (ticket: PublicLotteryTicket): boolean => {
+    if (ticket.quantity == null) return false;
+    return getTicketStock(ticket) <= 0;
+};
+
+export const ticketSaleGroupKey = (ticket: PublicLotteryTicket): string =>
+    `${ticket.stationId ?? ticket.providerId ?? ''}|${ticket.numbers}|${ticket.drawDate ?? ''}`;
+
+export type GroupedPublicTicket = PublicLotteryTicket & {
+    groupKey: string;
+    stock: number;
+};
+
+const ticketDisplayStock = (ticket: PublicLotteryTicket): number =>
+    ticket.quantity == null ? 1 : getTicketStock(ticket);
+
+/** Gom nhiều serial cùng số / đài / ngày thành 1 dòng bán. */
+export const groupSellableTickets = (tickets: PublicLotteryTicket[]): GroupedPublicTicket[] => {
+    const map = new Map<string, GroupedPublicTicket>();
+    for (const ticket of filterSellableTickets(tickets)) {
+        const groupKey = ticketSaleGroupKey(ticket);
+        const stock = ticketDisplayStock(ticket);
+        if (stock <= 0) continue;
+        const existing = map.get(groupKey);
+        if (!existing) {
+            map.set(groupKey, { ...ticket, groupKey, stock, quantity: stock });
+        } else {
+            existing.stock += stock;
+            existing.quantity = existing.stock;
+        }
+    }
+    return Array.from(map.values());
+};
 
 /**
  * Đã đủ số lượng trong giỏ so với tồn DB

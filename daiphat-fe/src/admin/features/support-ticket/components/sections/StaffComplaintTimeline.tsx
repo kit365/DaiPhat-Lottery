@@ -4,11 +4,14 @@ import { useEffect, useRef, useState } from 'react';
 import {
     Box,
     Button,
+    Card,
     Chip,
     Dialog,
     DialogActions,
     DialogContent,
     DialogTitle,
+    InputBase,
+    Stack,
     TextField,
     Typography,
 } from '@mui/material';
@@ -34,6 +37,7 @@ import { PERMISSIONS } from '../../../../constants/permission.constants';
 interface StaffComplaintTimelineProps {
     ticketId: number;
     status: TicketStatus;
+    formatSystemNote?: (content: string) => string;
 }
 
 const MAX_CONTENT_LENGTH = 2000;
@@ -54,7 +58,11 @@ const REJECT_REASON_QUICK_REPLIES = [
 
 type DecisionAction = StaffTicketResponseAction.RESOLVE | StaffTicketResponseAction.REJECT;
 
-export const StaffComplaintTimeline = ({ ticketId, status }: StaffComplaintTimelineProps) => {
+export const StaffComplaintTimeline = ({
+    ticketId,
+    status,
+    formatSystemNote,
+}: StaffComplaintTimelineProps) => {
     const [content, setContent] = useState('');
     const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
     const [decisionAction, setDecisionAction] = useState<DecisionAction | null>(null);
@@ -142,7 +150,7 @@ export const StaffComplaintTimeline = ({ ticketId, status }: StaffComplaintTimel
         );
     };
 
-    const handleKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    const handleKeyDown = (event: React.KeyboardEvent) => {
         if (event.key !== 'Enter' || event.shiftKey || isComposingRef.current) {
             return;
         }
@@ -154,70 +162,110 @@ export const StaffComplaintTimeline = ({ ticketId, status }: StaffComplaintTimel
     const quickReplies = isResolveDialog ? RESOLVE_REASON_QUICK_REPLIES : REJECT_REASON_QUICK_REPLIES;
 
     return (
-        <div className="bg-white rounded-[var(--shape-borderRadius-lg)] border border-[var(--palette-divider)] shadow-[var(--customShadows-card)] flex flex-col overflow-hidden">
-            <div className="flex items-center gap-3 p-6 border-b border-[var(--palette-divider)]">
-                <div className="w-10 h-10 rounded-full bg-[#F0F5FF] text-[#2065D1] flex items-center justify-center text-lg shrink-0">
-                    <i className="fa-solid fa-comments"></i>
-                </div>
-                <div className="flex-1 min-w-0">
-                    <h3 className="text-[18px] font-bold text-[#212B36]">Trao đổi & lịch sử xử lý</h3>
-                    <p className="text-[13px] text-[#637381] mt-0.5">
-                        Trao đổi với khách hàng và các sự kiện hệ thống
-                    </p>
-                </div>
+        <Card
+            elevation={0}
+            sx={{
+                borderRadius: '16px',
+                border: '1px solid rgba(145, 158, 171, 0.16)',
+                boxShadow: '0 0 2px 0 rgba(145, 158, 171, 0.2), 0 12px 24px -4px rgba(145, 158, 171, 0.12)',
+                display: 'flex',
+                flexDirection: 'column',
+                overflow: 'hidden',
+                width: '100%',
+                height: '100%',
+                minHeight: 0,
+                flex: 1,
+            }}
+        >
+            <Box
+                sx={{
+                    px: 2.5,
+                    minHeight: 72,
+                    borderBottom: '1px solid rgba(145, 158, 171, 0.16)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: 2,
+                    flexWrap: 'wrap',
+                    flexShrink: 0,
+                }}
+            >
+                <Box>
+                    <Typography sx={{ fontWeight: 700, fontSize: '0.9375rem', lineHeight: 1.3 }}>
+                        Trao đổi
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                        Với khách hàng
+                    </Typography>
+                </Box>
                 {canDecide && (
-                    <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end">
+                    <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
                         <Button
                             variant="outlined"
-                            color="error"
-                            size="small"
+                            className="btn-outlined-admin"
                             disabled={respondMutation.isPending}
                             onClick={() => openDecisionDialog(StaffTicketResponseAction.REJECT)}
-                            startIcon={<i className="fa-solid fa-times-circle text-[13px]" />}
-                            sx={{ fontWeight: 700, textTransform: 'none', borderRadius: '10px' }}
                         >
                             Từ chối
                         </Button>
                         <Button
                             variant="contained"
-                            color="success"
-                            size="small"
+                            className="btn-primary-admin"
                             disabled={respondMutation.isPending}
                             onClick={() => openDecisionDialog(StaffTicketResponseAction.RESOLVE)}
-                            startIcon={<i className="fa-solid fa-check-circle text-[13px]" />}
-                            sx={{ fontWeight: 700, textTransform: 'none', borderRadius: '10px' }}
                         >
                             Đã giải quyết
                         </Button>
-                    </div>
+                    </Stack>
                 )}
-            </div>
+            </Box>
 
-            <div
+            <Box
                 ref={scrollRef}
-                className="flex-1 min-h-[320px] max-h-[520px] overflow-y-auto px-4 sm:px-6 py-6 flex flex-col gap-6 relative"
+                sx={{
+                    flex: 1,
+                    minHeight: 180,
+                    overflowY: 'auto',
+                    px: 3,
+                    py: 1.5,
+                    bgcolor: '#fff',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: isLoading || isError || comments.length === 0 ? 'center' : 'flex-start',
+                    gap: 2.5,
+                }}
             >
-                <div className="absolute left-8 sm:left-10 top-6 bottom-6 w-[2px] bg-[#E5E8EB] z-0 rounded-full" />
+                {!isLoading && !isError && comments.length > 0 ? (
+                    <Box sx={{ flex: '1 1 auto', minHeight: 0 }} />
+                ) : null}
                 {isLoading && (
-                    <div className="flex-1 flex items-center justify-center text-[14px] text-[#637381]">
-                        <i className="fa-solid fa-spinner fa-spin mr-2" /> Đang tải trao đổi...
-                    </div>
+                    <Typography variant="body2" color="text.secondary" sx={{ m: 'auto' }}>
+                        Đang tải trao đổi…
+                    </Typography>
                 )}
                 {isError && (
-                    <div className="flex-1 flex items-center justify-center text-[14px] text-[#ee1314]">
+                    <Typography variant="body2" color="error" sx={{ m: 'auto' }}>
                         Không thể tải lịch sử trao đổi
-                    </div>
+                    </Typography>
                 )}
                 {!isLoading && !isError && comments.length === 0 && (
-                    <div className="flex-1 flex items-center justify-center text-[14px] text-[#919EAB] italic">
+                    <Typography variant="body2" color="text.secondary" sx={{ m: 'auto' }}>
                         Chưa có trao đổi
-                    </div>
+                    </Typography>
                 )}
                 {!isLoading &&
                     !isError &&
                     comments.map((comment) =>
                         comment.senderRole === TicketCommentSenderRole.SYSTEM ? (
-                            <ComplaintSystemNotice key={comment.id} comment={comment} />
+                            <ComplaintSystemNotice
+                                key={comment.id}
+                                comment={{
+                                    ...comment,
+                                    content: formatSystemNote
+                                        ? formatSystemNote(comment.content)
+                                        : comment.content,
+                                }}
+                            />
                         ) : (
                             <ComplaintCommentBubble
                                 key={comment.id}
@@ -226,11 +274,11 @@ export const StaffComplaintTimeline = ({ ticketId, status }: StaffComplaintTimel
                             />
                         )
                     )}
-            </div>
+            </Box>
 
-            <div className="border-t border-[#F4F6F8] p-4 sm:p-6 bg-[#FAFBFC]">
+            <Box sx={{ borderTop: '1px solid rgba(145, 158, 171, 0.16)', px: 2.5, py: 1.25, bgcolor: '#fff', flexShrink: 0 }}>
                 {isTerminal ? (
-                    <p className="text-[13px] text-[#919EAB] text-center italic py-2">
+                    <Typography variant="body2" color="text.secondary">
                         Yêu cầu đã{' '}
                         {status === TicketStatus.CLOSED
                             ? 'đóng'
@@ -238,67 +286,74 @@ export const StaffComplaintTimeline = ({ ticketId, status }: StaffComplaintTimel
                               ? 'từ chối'
                               : 'giải quyết'}
                         . Không thể gửi thêm tin nhắn.
-                    </p>
+                    </Typography>
                 ) : status === TicketStatus.OPEN ? (
-                    <p className="text-[13px] text-[#637381] text-center py-2">
-                        Vui lòng tiếp nhận yêu cầu trước khi trao đổi với khách hàng.
-                    </p>
+                    <Typography variant="body2" color="text.secondary">
+                        Tiếp nhận yêu cầu trước khi trao đổi với khách hàng.
+                    </Typography>
+                ) : !canSend ? (
+                    <Typography variant="body2" color="text.secondary">
+                        Đang chờ khách phản hồi — vẫn có thể chọn Đã giải quyết hoặc Từ chối.
+                    </Typography>
                 ) : (
-                    <div className="flex flex-col gap-4">
-                        {!canSend && (
-                            <p className="text-[13px] text-[#637381]">
-                                <i className="fa-solid fa-clock mr-2 text-[#919EAB]" />
-                                Đang chờ khách phản hồi — vẫn có thể bấm <strong>Đã giải quyết</strong> hoặc{' '}
-                                <strong>Từ chối</strong> phía trên.
-                            </p>
-                        )}
-                        {canSend && (
-                            <>
-                                <textarea
-                                    value={content}
-                                    onChange={(e) => setContent(e.target.value.slice(0, MAX_CONTENT_LENGTH))}
-                                    onKeyDown={handleKeyDown}
-                                    onCompositionStart={() => {
-                                        isComposingRef.current = true;
-                                    }}
-                                    onCompositionEnd={() => {
-                                        isComposingRef.current = false;
-                                    }}
-                                    rows={3}
-                                    placeholder="Nhập nội dung phản hồi cho khách hàng... (Enter để gửi, Shift+Enter xuống dòng)"
-                                    className="w-full px-4 py-3 text-[14px] text-[#212B36] placeholder:text-[#919EAB] focus:outline-none resize-none bg-white border border-[#E5E8EB] rounded-xl"
-                                />
-                                <div className="flex items-center justify-between gap-3 flex-wrap">
-                                    <span className="text-[12px] font-medium text-[#919EAB]">
-                                        {content.length}/{MAX_CONTENT_LENGTH}
-                                    </span>
-                                    <button
-                                        type="button"
-                                        onClick={submitNormalReply}
-                                        disabled={respondMutation.isPending || !content.trim()}
-                                        className="px-4 py-2 rounded-xl bg-[#2065D1] text-white flex items-center gap-2 hover:bg-[#184ea8] font-bold text-[13px] transition-all disabled:opacity-50 cursor-pointer"
-                                    >
-                                        {respondMutation.isPending ? (
-                                            <i className="fa-solid fa-spinner fa-spin text-[14px]" />
-                                        ) : (
-                                            <>
-                                                <span>Gửi phản hồi</span>
-                                                <i className="fa-solid fa-paper-plane text-[13px]" />
-                                            </>
-                                        )}
-                                    </button>
-                                </div>
-                                <ImageUploadPreview
-                                    value={attachmentFile}
-                                    onChange={setAttachmentFile}
-                                    label="Đính kèm hình ảnh (nếu cần)"
-                                    helperText=""
-                                />
-                            </>
-                        )}
-                    </div>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+                        <Box
+                            sx={{
+                                display: 'flex',
+                                alignItems: 'flex-end',
+                                gap: 1,
+                            }}
+                        >
+                            <InputBase
+                                fullWidth
+                                multiline
+                                maxRows={4}
+                                placeholder="Nhập tin nhắn"
+                                value={content}
+                                onChange={(e) => setContent(e.target.value.slice(0, MAX_CONTENT_LENGTH))}
+                                onKeyDown={handleKeyDown}
+                                onCompositionStart={() => {
+                                    isComposingRef.current = true;
+                                }}
+                                onCompositionEnd={() => {
+                                    isComposingRef.current = false;
+                                }}
+                                disabled={respondMutation.isPending}
+                                sx={{ fontSize: '0.9375rem', py: 0.75 }}
+                            />
+                            <Button
+                                variant="contained"
+                                onClick={submitNormalReply}
+                                disabled={respondMutation.isPending || !content.trim()}
+                                sx={{
+                                    height: 36,
+                                    minWidth: 64,
+                                    px: 2,
+                                    borderRadius: '8px',
+                                    textTransform: 'none',
+                                    fontWeight: 700,
+                                    boxShadow: 'none',
+                                    bgcolor: 'var(--palette-grey-800)',
+                                    '&:hover': { bgcolor: 'var(--palette-grey-900)' },
+                                    '&.Mui-disabled': {
+                                        bgcolor: 'var(--palette-grey-300)',
+                                        color: 'var(--palette-grey-500)',
+                                        boxShadow: 'none',
+                                    },
+                                }}
+                            >
+                                {respondMutation.isPending ? '…' : 'Gửi'}
+                            </Button>
+                        </Box>
+                        <ImageUploadPreview
+                            value={attachmentFile}
+                            onChange={setAttachmentFile}
+                            label="Đính kèm hình (nếu cần)"
+                            helperText=""
+                        />
+                    </Box>
                 )}
-            </div>
+            </Box>
 
             <Dialog
                 open={decisionAction != null}
@@ -392,6 +447,6 @@ export const StaffComplaintTimeline = ({ ticketId, status }: StaffComplaintTimel
                     </Button>
                 </DialogActions>
             </Dialog>
-        </div>
+        </Card>
     );
 };

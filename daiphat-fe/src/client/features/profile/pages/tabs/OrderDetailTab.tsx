@@ -538,8 +538,23 @@ export const OrderDetailTab = () => {
                                         : (order.createdAt ? format(new Date(order.createdAt), 'dd/MM/yyyy') : '-');
                                 const numbers = detail.numbers || detail.lotteryTicket?.numbers || '---';
                                 const price = detail.price || 10000;
+                                const quantity = detail.quantity || 1;
                                 const pendingDetailRefund = detail.id ? getPendingRefundForDetail(detail.id) : undefined;
                                 const detailRefund = detail.id ? getRefundForDetail(detail.id) : undefined;
+                                const stationId =
+                                    detail.lotteryTicket?.station?.id ??
+                                    detail.lotteryTicket?.stationId ??
+                                    detail.stationId;
+                                const drawDateRaw = detail.drawDate || detail.lotteryTicket?.drawDate;
+                                const resultLookupUrl = (() => {
+                                    const params = new URLSearchParams();
+                                    if (drawDateRaw) params.set('drawDate', String(drawDateRaw).slice(0, 10));
+                                    if (stationId != null) params.set('stationId', String(stationId));
+                                    const digits = String(numbers).replace(/\D/g, '');
+                                    if (digits) params.set('search', digits);
+                                    const query = params.toString();
+                                    return query ? `/?${query}` : '/';
+                                })();
 
                                 return (
                                     <div
@@ -547,11 +562,16 @@ export const OrderDetailTab = () => {
                                         className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-xl border border-[#E5E8EB] bg-[#F9FAFB]"
                                     >
                                         <div className="flex flex-col sm:flex-row sm:items-center gap-3 min-w-0">
-                                            <span className="font-bold text-[16px] text-[#212B36] tracking-tight shrink-0">{numbers}</span>
+                                            <span className="font-bold text-[16px] text-[#212B36] tracking-tight shrink-0 tabular-nums">
+                                                {numbers}
+                                            </span>
                                             <div className="flex flex-col min-w-0 sm:border-l sm:border-[#E5E8EB] sm:pl-4">
-                                                <div className="flex items-center gap-2">
-                                                    <img src={detail.lotteryTicket?.station?.logoUrl || PROVINCE_ICON_FALLBACK} alt="" className="w-5 h-5 rounded-full border border-gray-200" />
+                                                <div className="flex items-center gap-2 min-w-0 flex-wrap">
+                                                    <img src={detail.lotteryTicket?.station?.logoUrl || PROVINCE_ICON_FALLBACK} alt="" className="w-5 h-5 rounded-full border border-gray-200 shrink-0" />
                                                     <span className="font-bold text-[14px] text-[#212B36] truncate">{stationName}</span>
+                                                    {detail.status ? (
+                                                        <OrderDetailStatusBadge status={detail.status} />
+                                                    ) : null}
                                                 </div>
                                                 <span className="text-[13px] text-[#637381] pl-7">
                                                     {drawDate} • 16:15
@@ -559,21 +579,16 @@ export const OrderDetailTab = () => {
                                             </div>
                                         </div>
 
-                                        <div className="flex items-center gap-4 sm:gap-6 justify-between sm:justify-end">
-                                            <span className="text-[13px] text-[#637381]">
-                                                SL <span className="font-bold text-[#212B36]">{detail.quantity || 1}</span>
+                                        <div className="flex items-center gap-3 sm:gap-4 justify-between sm:justify-end shrink-0">
+                                            <span className="text-[14px] font-bold text-[#212B36] whitespace-nowrap tabular-nums">
+                                                {quantity} x {price.toLocaleString('vi-VN')}đ
                                             </span>
-                                            <span className="text-[15px] font-bold text-[#ee1314] whitespace-nowrap">
-                                                {price.toLocaleString('vi-VN')}đ
-                                            </span>
-                                            {detail.status ? (
-                                                <OrderDetailStatusBadge status={detail.status} />
-                                            ) : null}
                                             {isPaidOrCompleted && (
                                                 <Link
-                                                    href="/"
-                                                    className="hidden lg:flex text-[#ee1314] text-[13px] font-bold items-center gap-1 hover:underline"
+                                                    href={resultLookupUrl}
+                                                    className="inline-flex h-8 items-center gap-1.5 px-3 rounded-lg border border-[#FFCDD2] bg-white text-[#ee1314] text-[12px] font-bold no-underline hover:bg-[#FFF4F4] transition-colors whitespace-nowrap"
                                                 >
+                                                    <i className="fa-solid fa-magnifying-glass text-[11px]"></i>
                                                     Tra kết quả
                                                 </Link>
                                             )}

@@ -1,71 +1,77 @@
 import React from 'react';
-import { format } from 'date-fns';
+import { format, differenceInMinutes, differenceInHours } from 'date-fns';
 import {
     SupportTicketCommentResponse,
     TicketCommentSenderRole,
 } from '../../../types/support.type';
+import { ChatThreadBubble } from './ChatThreadBubble';
+import { Box } from '@mui/material';
 
 interface ComplaintCommentBubbleProps {
     comment: SupportTicketCommentResponse;
     viewerRole?: 'customer' | 'staff';
 }
 
+const formatBubbleTime = (iso: string) => {
+    const date = new Date(iso);
+    const mins = differenceInMinutes(new Date(), date);
+    if (mins < 1) return 'vừa xong';
+    if (mins < 60) return `${mins} phút`;
+    const hours = differenceInHours(new Date(), date);
+    if (hours < 24) return `${hours} giờ`;
+    return format(date, 'HH:mm');
+};
+
 export const ComplaintCommentBubble: React.FC<ComplaintCommentBubbleProps> = ({
     comment,
     viewerRole = 'customer',
 }) => {
     const isCustomer = comment.senderRole === TicketCommentSenderRole.CUSTOMER;
-
+    const isMine = viewerRole === 'staff' ? !isCustomer : isCustomer;
     const senderLabel = isCustomer
         ? viewerRole === 'staff'
-            ? 'Khách hàng'
+            ? 'Khách'
             : 'Bạn'
         : viewerRole === 'staff'
-          ? 'Bạn (nhân viên)'
-          : 'Nhân viên hỗ trợ';
+          ? 'Bạn'
+          : 'Nhân viên';
 
     return (
-        <div className="flex gap-4 relative z-10 group">
-            <div className={`w-8 h-8 rounded-full shrink-0 flex items-center justify-center text-[13px] border-[3px] border-white shadow-sm mt-0.5 ${
-                isCustomer ? 'bg-[#FFF4F4] text-[#ee1314]' : 'bg-[#F0F5FF] text-[#2065D1]'
-            }`}>
-                <i className={`fa-solid ${isCustomer ? 'fa-user' : 'fa-headset'}`}></i>
-            </div>
-            
-            <div className={`flex-1 flex flex-col rounded-xl overflow-hidden border transition-shadow hover:shadow-sm ${
-                isCustomer ? 'border-[#E5E8EB] bg-white' : 'border-[#2065D1]/20 bg-white'
-            }`}>
-                <div className={`px-4 py-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-1 border-b ${
-                    isCustomer ? 'border-[#E5E8EB] bg-[#F9FAFB]' : 'border-[#2065D1]/10 bg-[#F0F5FF]/40'
-                }`}>
-                    <span className="text-[13px] font-bold text-[#212B36]">
-                        {senderLabel}
-                    </span>
-                    <span className="text-[12px] text-[#919EAB] font-medium">
-                        {format(new Date(comment.createdAt), 'HH:mm - dd/MM/yyyy')}
-                    </span>
-                </div>
-                
-                <div className="px-4 py-3">
-                    <p className="text-[14px] text-[#212B36] leading-relaxed whitespace-pre-wrap">
-                        {comment.content}
-                    </p>
-                    {comment.attachmentUrl && (
-                        <a
-                            href={comment.attachmentUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="block mt-3 rounded-lg overflow-hidden border border-[#E5E8EB] hover:border-[#ee1314]/30 transition-colors bg-[#F9FAFB]"
-                        >
-                            <img
-                                src={comment.attachmentUrl}
-                                alt="Hình đính kèm"
-                                className="w-full max-h-[280px] object-contain"
-                            />
-                        </a>
-                    )}
-                </div>
-            </div>
-        </div>
+        <ChatThreadBubble
+            align={isMine ? 'right' : 'left'}
+            name={senderLabel}
+            time={formatBubbleTime(comment.createdAt)}
+            avatarLetter={senderLabel.charAt(0)}
+            below={
+                comment.attachmentUrl ? (
+                    <Box
+                        component="a"
+                        href={comment.attachmentUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        sx={{ display: 'block', lineHeight: 0 }}
+                    >
+                        <Box
+                            component="img"
+                            src={comment.attachmentUrl}
+                            alt="Tệp đính kèm"
+                            sx={{
+                                display: 'block',
+                                maxWidth: 220,
+                                maxHeight: 220,
+                                width: 'auto',
+                                height: 'auto',
+                                objectFit: 'cover',
+                                borderRadius: '12px',
+                                border: '1px solid rgba(145,158,171,0.24)',
+                                bgcolor: '#fff',
+                            }}
+                        />
+                    </Box>
+                ) : undefined
+            }
+        >
+            {comment.content}
+        </ChatThreadBubble>
     );
 };

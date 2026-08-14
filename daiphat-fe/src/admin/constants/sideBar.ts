@@ -45,6 +45,20 @@ export const menuOverviewData = [
 
 export const menuManagementData = [
     {
+        id: "settings",
+        label: "Cài đặt",
+        tKey: "admin.sidebar.settings",
+        Icon: SettingsIcon,
+        path: ROUTES.ADMIN.DASHBOARD.SETTINGS.ROOT,
+        permission: PERMISSIONS.SETTINGS.VIEW,
+        children: [
+            { id: "settings-general", label: "Cài đặt chung", path: ROUTES.ADMIN.DASHBOARD.SETTINGS.GENERAL },
+            { id: "settings-policies", label: "Chính sách", path: ROUTES.ADMIN.DASHBOARD.SETTINGS.POLICIES },
+            { id: "settings-pages", label: "Trang thông tin", path: ROUTES.ADMIN.DASHBOARD.SETTINGS.PAGES },
+            { id: "settings-system-config", label: "Cấu hình hệ thống", path: ROUTES.ADMIN.DASHBOARD.SETTINGS.SYSTEM_CONFIG, permission: PERMISSIONS.SETTINGS.VIEW },
+        ]
+    },
+    {
         id: "blogs",
         label: "Bài viết",
         tKey: "admin.sidebar.blogs",
@@ -179,21 +193,4 @@ export const menuManagementData = [
         path: ROUTES.ADMIN.TICKETS.DRAW_RESULT,
         permission: PERMISSIONS.LOTTERY_RESULT.VIEW,
     },
-];
-
-export const menuDevelopmentData = [
-    {
-        id: "settings",
-        label: "Cài đặt",
-        tKey: "admin.sidebar.settings",
-        Icon: SettingsIcon,
-        path: ROUTES.ADMIN.DASHBOARD.SETTINGS.ROOT,
-        permission: PERMISSIONS.SETTINGS.VIEW,
-        children: [
-            { id: "settings-general", label: "Cài đặt chung", path: ROUTES.ADMIN.DASHBOARD.SETTINGS.GENERAL },
-            { id: "settings-policies", label: "Chính sách", path: ROUTES.ADMIN.DASHBOARD.SETTINGS.POLICIES },
-            { id: "settings-pages", label: "Trang thông tin", path: ROUTES.ADMIN.DASHBOARD.SETTINGS.PAGES },
-            { id: "settings-system-config", label: "Cấu hình hệ thống", path: ROUTES.ADMIN.DASHBOARD.SETTINGS.SYSTEM_CONFIG, permission: PERMISSIONS.SETTINGS.VIEW },
-        ]
-    }
 ];

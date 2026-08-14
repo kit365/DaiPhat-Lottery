@@ -39,6 +39,7 @@ import {
     toUiTailRangeLabel,
 } from '../../utils/buyTicketFilter.util';
 import { PublicLotteryTicket } from '../../../types/lottery-ticket.type';
+import { groupSellableTickets, ticketSaleGroupKey } from '../../utils/ticketCart.util';
 
 dayjs.locale('vi');
 
@@ -109,6 +110,7 @@ export const BuyTicketPage = () => {
     const [selectedProvinces, setSelectedProvinces] = useState<string[]>([]);
     const [selectedTab, setSelectedTab] = useState<'quick' | 'manual' | 'birthday'>('quick');
     const [selectedNumbers, setSelectedNumbers] = useState<string[]>([]);
+    const [selectedGroupKey, setSelectedGroupKey] = useState<string | null>(null);
     const [ticketQuantity, setTicketQuantity] = useState(1);
     const [isProvinceOpen, setIsProvinceOpen] = useState(false);
     const [isFilterOpen, setIsFilterOpen] = useState(false);
@@ -282,6 +284,7 @@ export const BuyTicketPage = () => {
                   : [...next, 'tomorrow']
         );
         setSelectedNumbers([]);
+        setSelectedGroupKey(null);
 
         if (!autoSwitchedToTomorrowRef.current) {
             autoSwitchedToTomorrowRef.current = true;
@@ -296,6 +299,7 @@ export const BuyTicketPage = () => {
         appliedTicketNumberRef.current = null;
         if (urlTicketId || urlTicketNumber || urlStationId || urlStationIds || urlDrawDate || urlRegion) {
             setSelectedNumbers([]);
+            setSelectedGroupKey(null);
             setTicketQuantity(1);
         }
     }, [urlStationId, urlStationIds, urlRegion, urlDrawDate, urlTicketId, urlTicketNumber]);
@@ -432,7 +436,11 @@ export const BuyTicketPage = () => {
         numberTypes: appliedFilters.numberTypes.length > 0 ? appliedFilters.numberTypes : undefined,
     });
     const availableTickets = ticketsRes?.data?.recordList || [];
-    const totalTicketCount = ticketsRes?.data?.pagination?.totalRecords ?? availableTickets.length;
+    const displayTickets = useMemo(
+        () => groupSellableTickets(availableTickets as unknown as PublicLotteryTicket[]),
+        [availableTickets]
+    );
+    const totalTicketCount = ticketsRes?.data?.pagination?.totalRecords ?? displayTickets.length;
 
     const openFilterPanel = () => {
         const nextOpen = !isFilterOpen;
@@ -536,6 +544,7 @@ export const BuyTicketPage = () => {
 
         appliedTicketIdRef.current = urlTicketId;
         setSelectedNumbers([matched.numbers]);
+        setSelectedGroupKey(ticketSaleGroupKey(matched));
         setTicketQuantity(1);
 
         // Ensure đài matches the ticket when list finally loaded
@@ -581,161 +590,111 @@ export const BuyTicketPage = () => {
 
         appliedTicketNumberRef.current = urlTicketNumber;
         setSelectedNumbers([matched.numbers]);
+        setSelectedGroupKey(ticketSaleGroupKey(matched));
         setTicketQuantity(1);
     }, [urlTicketNumber, availableTickets, isLoadingTickets, isFetchingTickets]);
 
-    const toggleNumber = (num: string) => {
-        setTicketQuantity(1); // Reset quantity when changing number
-        if (selectedNumbers.includes(num)) {
-            setSelectedNumbers(selectedNumbers.filter(n => n !== num));
-        } else {
-            setSelectedNumbers([num]);
+    const toggleTicket = (ticket: (typeof displayTickets)[number]) => {
+        setTicketQuantity(1);
+        if (selectedGroupKey === ticket.groupKey) {
+            setSelectedNumbers([]);
+            setSelectedGroupKey(null);
+            return;
         }
+        setSelectedNumbers([ticket.numbers]);
+        setSelectedGroupKey(ticket.groupKey);
     };
 
-    const maxAvailable = useMemo(() => {
-        if (selectedNumbers.length === 0) return 1;
-        const num = selectedNumbers[0];
-        const ticketData = (availableTickets as unknown as PublicLotteryTicket[]).find((t) => t.numbers === num);
-        return ticketData?.quantity || 1;
-    }, [selectedNumbers, availableTickets]);
+    const selectedTicket = useMemo(
+        () => displayTickets.find((ticket) => ticket.groupKey === selectedGroupKey) || null,
+        [displayTickets, selectedGroupKey]
+    );
+
+    const maxAvailable = selectedTicket?.stock || 1;
+
+    useEffect(() => {
+        if (ticketQuantity > maxAvailable) {
+            setTicketQuantity(maxAvailable);
+        }
+    }, [maxAvailable, ticketQuantity]);
 
     const selectedTicketProvinces = useMemo(() => {
-        if (selectedNumbers.length === 0) return activeProvinces;
-        
-        const provs = new Map<string, typeof dynamicProvinces[number]>();
-        selectedNumbers.forEach(num => {
-            const ticketData = (availableTickets as unknown as PublicLotteryTicket[]).find((t) => t.numbers === num);
-            if (ticketData) {
-                const prov = dynamicProvinces.find(
-                    (p) =>
-                        sameProvinceId(p.id, ticketData.providerId ?? '') ||
-                        sameProvinceId(p.id, ticketData.stationId ?? '')
-                );
-                if (prov && !provs.has(prov.id)) {
-                    provs.set(prov.id, prov);
-                }
-            }
-        });
-        
-        const arr = Array.from(provs.values());
-        return arr.length > 0 ? arr : activeProvinces;
-    }, [selectedNumbers, availableTickets, dynamicProvinces, activeProvinces]);
-    const totalQuantity = selectedNumbers.length * ticketQuantity;
+        if (!selectedTicket) return activeProvinces;
+        const prov = dynamicProvinces.find(
+            (p) =>
+                sameProvinceId(p.id, selectedTicket.providerId ?? '') ||
+                sameProvinceId(p.id, selectedTicket.stationId ?? '')
+        );
+        return prov ? [prov] : activeProvinces;
+    }, [selectedTicket, dynamicProvinces, activeProvinces]);
+    const totalQuantity = selectedTicket ? ticketQuantity : 0;
     const pricePerTicket = 10000;
     const totalAmount = totalQuantity * pricePerTicket;
 
+    const resolveSelectedCartItem = (): CartItem | null => {
+        if (!selectedTicket || (!selectedTicket.id && !selectedTicket._id)) {
+            toast.error('Lỗi: Không tìm thấy ID cho vé số đã chọn');
+            return null;
+        }
+        const maxAvailableQty = selectedTicket.stock || 1;
+        const currentCartItem = useCartStore.getState().items.find(
+            (i) => i.id === String(selectedTicket.id || selectedTicket._id)
+        );
+        const currentCartQty = currentCartItem ? currentCartItem.quantity : 0;
+        if (currentCartQty + ticketQuantity > maxAvailableQty) {
+            toast.error(
+                `Vé số ${selectedTicket.numbers} chỉ còn ${maxAvailableQty} vé (bạn đã có ${currentCartQty} vé trong giỏ)`
+            );
+            return null;
+        }
+        const activeProv = dynamicProvinces.find(
+            (p: any) =>
+                sameProvinceId(p.id, selectedTicket.providerId ?? '') ||
+                sameProvinceId(p.id, selectedTicket.stationId ?? '')
+        ) || activeProvinces[0];
+        const ticketDateStr = selectedTicket.drawDate
+            ? dayjs(selectedTicket.drawDate).format('DD/MM/YYYY')
+            : dayjs().format('DD/MM/YYYY');
+        return {
+            id: String(selectedTicket.id || selectedTicket._id),
+            province: activeProv?.name || 'Nhà đài',
+            provinceIcon: activeProv?.icon,
+            date: ticketDateStr,
+            time: activeProv?.time || '--:--',
+            kyHieu: (selectedTicket as { batchCode?: string }).batchCode || '2K2',
+            numbers: selectedTicket.numbers,
+            price: pricePerTicket,
+            quantity: ticketQuantity,
+            color: '#f59e0b',
+            ticketImg: selectedTicket.ticketImg,
+            maxStock: maxAvailableQty,
+        };
+    };
+
     const addToCart = () => {
-        if (selectedProvinces.length === 0 || selectedNumbers.length === 0) {
+        if (selectedProvinces.length === 0 || !selectedTicket) {
             toast.warning('Vui lòng chọn đài và ít nhất 1 vé số!');
             return false;
         }
-
-        let hasError = false;
-        selectedNumbers.forEach(num => {
-            const ticketData = (availableTickets as any[]).find((t: any) => t.numbers === num);
-            if (!ticketData || (!ticketData.id && !ticketData._id)) {
-                hasError = true;
-                toast.error(`Lỗi: Không tìm thấy ID cho vé số ${num}`);
-                return;
-            }
-
-            const maxAvailableQty = ticketData?.quantity || 1;
-            const currentCartItem = useCartStore.getState().items.find(i =>
-                i.id === String(ticketData.id || ticketData._id)
-            );
-            const currentCartQty = currentCartItem ? currentCartItem.quantity : 0;
-
-            if (currentCartQty + ticketQuantity > maxAvailableQty) {
-                hasError = true;
-                toast.error(`Vé số ${num} chỉ còn ${maxAvailableQty} vé (bạn đã có ${currentCartQty} vé trong giỏ)`);
-                return;
-            }
-
-            const activeProv = dynamicProvinces.find(
-                (p: any) =>
-                    sameProvinceId(p.id, ticketData.providerId ?? '') ||
-                    sameProvinceId(p.id, ticketData.stationId ?? '')
-            ) || activeProvinces[0];
-            const ticketDateStr = ticketData.drawDate ? dayjs(ticketData.drawDate).format('DD/MM/YYYY') : dayjs().format('DD/MM/YYYY');
-            useCartStore.getState().addItem({
-                id: String(ticketData.id || ticketData._id),
-                province: activeProv?.name || 'Nhà đài',
-                provinceIcon: activeProv?.icon,
-                date: ticketDateStr,
-                time: activeProv?.time || '--:--',
-                kyHieu: ticketData.batchCode || "2K2",
-                numbers: num,
-                price: pricePerTicket,
-                quantity: ticketQuantity,
-                color: "#f59e0b",
-                ticketImg: ticketData.ticketImg,
-                maxStock: maxAvailableQty
-            });
-        });
-
-        if (hasError) return false;
-        toast.success(`Đã thêm ${totalQuantity} vé vào giỏ hàng`);
+        const item = resolveSelectedCartItem();
+        if (!item) return false;
+        useCartStore.getState().addItem(item);
+        toast.success(`Đã thêm ${ticketQuantity} vé vào giỏ hàng`);
         return true;
     };
 
     const buildSelectedCartItems = () => {
-        const result: CartItem[] = [];
-        let hasError = false;
-
-        selectedNumbers.forEach((num) => {
-            const ticketData = (availableTickets as any[]).find((t: any) => t.numbers === num);
-            if (!ticketData || (!ticketData.id && !ticketData._id)) {
-                hasError = true;
-                toast.error(`Lỗi: Không tìm thấy ID cho vé số ${num}`);
-                return;
-            }
-
-            const maxAvailableQty = ticketData?.quantity || 1;
-            if (ticketQuantity > maxAvailableQty) {
-                hasError = true;
-                toast.error(`Vé số ${num} chỉ còn ${maxAvailableQty} vé`);
-                return;
-            }
-
-            const activeProv = dynamicProvinces.find(
-                (p: any) =>
-                    sameProvinceId(p.id, ticketData.providerId ?? '') ||
-                    sameProvinceId(p.id, ticketData.stationId ?? '')
-            ) || activeProvinces[0];
-            const ticketDateStr = ticketData.drawDate
-                ? dayjs(ticketData.drawDate).format('DD/MM/YYYY')
-                : dayjs().format('DD/MM/YYYY');
-
-            result.push({
-                id: String(ticketData.id || ticketData._id),
-                province: activeProv?.name || 'Nhà đài',
-                provinceIcon: activeProv?.icon,
-                date: ticketDateStr,
-                time: activeProv?.time || '--:--',
-                kyHieu: ticketData.batchCode || '2K2',
-                numbers: num,
-                price: pricePerTicket,
-                quantity: ticketQuantity,
-                color: '#f59e0b',
-                ticketImg: ticketData.ticketImg,
-                maxStock: maxAvailableQty,
-            });
-        });
-
-        return hasError ? null : result;
+        if (selectedProvinces.length === 0 || !selectedTicket) {
+            toast.warning('Vui lòng chọn đài và ít nhất 1 vé số!');
+            return null;
+        }
+        const item = resolveSelectedCartItem();
+        return item ? [item] : null;
     };
 
     const handleCheckout = () => {
-        if (selectedProvinces.length === 0 || selectedNumbers.length === 0) {
-            toast.warning('Vui lòng chọn đài và ít nhất 1 vé số!');
-            return;
-        }
-
-        // Mua ngay: thanh toán riêng vé đang chọn, KHÔNG xoá giỏ hàng đang có.
         const buyNowItems = buildSelectedCartItems();
         if (!buyNowItems?.length) return;
-
         useCartStore.getState().startBuyNow(buyNowItems);
         router.push('/checkout');
     };
@@ -1111,19 +1070,19 @@ export const BuyTicketPage = () => {
                                                                 </span>
                                                             </div>
 
-                                                            {availableTickets.length === 0 ? (
+                                                            {displayTickets.length === 0 ? (
                                                                 <div className="text-center py-12 text-[#94A3B8] border border-dashed border-[#CBD5E1] rounded-2xl bg-[#F8FAFC]">
                                                                     <i className="fa-solid fa-ticket-simple text-[24px] text-[#CBD5E1] mb-2 block"></i>
                                                                     <p className="font-semibold text-[13.5px]">Chưa có vé số cho bộ lọc / đài hiện tại</p>
                                                                 </div>
                                                             ) : (
                                                                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 max-h-[300px] overflow-y-auto pr-1">
-                                                                    {availableTickets.map((ticket: any) => {
+                                                                    {displayTickets.map((ticket) => {
                                                                         const isSelected = appliedSearch && String(ticket.numbers) === appliedSearch;
                                                                         return (
                                                                             <button
                                                                                 type="button"
-                                                                                key={ticket.id ?? ticket._id ?? ticket.numbers}
+                                                                                key={ticket.groupKey}
                                                                                 onClick={() => {
                                                                                     setTicketSearchInput(String(ticket.numbers || ''));
                                                                                     setAppliedSearch(normalizeTicketSearchDigits(String(ticket.numbers || ''), 6));
@@ -1186,11 +1145,10 @@ export const BuyTicketPage = () => {
                                         <div className="col-span-full py-10 flex justify-center text-[#637381] font-medium">
                                             <i className="fa-solid fa-spinner fa-spin mr-2"></i> Đang tải vé số...
                                         </div>
-                                    ) : availableTickets.length > 0 ? (
-                                        availableTickets.map((ticket: any, i: number) => {
+                                    ) : displayTickets.length > 0 ? (
+                                        displayTickets.map((ticket) => {
                                             const num = ticket.numbers;
-                                            const ticketKey = String(ticket.id ?? ticket._id ?? i);
-                                            const isSelected = selectedNumbers.includes(num);
+                                            const isSelected = selectedGroupKey === ticket.groupKey;
                                             const isDeepLinked =
                                                 !!urlTicketId && String(ticket.id ?? ticket._id) === String(urlTicketId);
                                             const stationName =
@@ -1200,9 +1158,9 @@ export const BuyTicketPage = () => {
 
                                             return (
                                                 <div
-                                                    key={ticketKey}
+                                                    key={ticket.groupKey}
                                                     data-ticket-id={ticket.id ?? ticket._id}
-                                                    onClick={() => toggleNumber(num)}
+                                                    onClick={() => toggleTicket(ticket)}
                                                     className={`relative border rounded-[20px] p-3 flex flex-col items-center cursor-pointer transition-shadow duration-200 hover:shadow-md
                                                         ${isSelected || isDeepLinked ? 'border-[#ee1314] bg-[#FFF4F4]/30' : 'border-[#E5E8EB] bg-white'}
                                                         ${isDeepLinked ? 'ring-2 ring-[#ee1314]/40' : ''}
@@ -1212,11 +1170,14 @@ export const BuyTicketPage = () => {
                                                         {stationName}
                                                     </div>
 
-                                                    {/* Number */}
                                                     <div className="font-black text-[20px] text-[#212B36] tracking-tight mb-1.5 leading-none">{num}</div>
 
-                                                    {/* Price */}
                                                     <div className="font-bold text-[#ee1314] text-[14px]">{(ticket.price || 10000).toLocaleString('vi-VN')}đ</div>
+                                                    {ticket.stock > 1 ? (
+                                                        <div className="mt-1 text-[11px] font-semibold text-[#637381]">
+                                                            Còn {ticket.stock} vé
+                                                        </div>
+                                                    ) : null}
                                                 </div>
                                             );
                                         })

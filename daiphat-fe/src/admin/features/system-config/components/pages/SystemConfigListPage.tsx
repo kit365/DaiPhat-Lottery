@@ -1,21 +1,20 @@
-import { useMemo, useState, useEffect, type ReactElement } from 'react';
+"use client";
+
+import { Fragment, useMemo, useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
     Box,
+    Button,
     Card,
     Stack,
-    Tab,
     Table,
     TableBody,
     TableCell,
     TableContainer,
     TableHead,
     TableRow,
-    Tabs,
     Typography,
-    styled,
 } from '@mui/material';
-import { Banknote, CreditCard, FileText, Gift, Globe2, LayoutList, MessageSquare, PackageMinus, ShoppingCart, Sparkles, Store, Ticket } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { PageHeader } from '../../../../components/ui/PageHeader';
 import { Search } from '../../../../components/ui/Search';
@@ -26,132 +25,32 @@ import { useBulkUpdateVendorConfidencePolicy, useSystemConfigs, useUpdateSystemC
 import { SystemConfigEditDialog } from '../sections/SystemConfigEditDialog';
 import { SystemConfigTableRow } from '../sections/SystemConfigTableRow';
 import { VendorConfidencePolicyDialog } from '../sections/VendorConfidencePolicyDialog';
-import { VendorSettingsView } from '../sections/VendorSettingsView';
+import { SettingsContentTabs } from '../../../settings/components/SettingsContentTabs';
+import { EditIcon } from '../../../../assets/icons';
+import { buildVendorConfigSections } from '../../utils/vendorConfigSections';
 import {
     CONFIG_TYPE_LABELS,
     ConfigType,
     SystemConfigResponse,
 } from '../../types/system-config';
 
-const TabBadge = styled('span')(() => ({
-    height: '24px',
-    minWidth: '24px',
-    display: 'inline-flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginLeft: '8px',
-    padding: '0px 6px',
-    borderRadius: 'var(--shape-borderRadius-sm)',
-    fontSize: '0.75rem',
-    fontWeight: 700,
-}));
+type TypeFilter = ConfigType;
 
-type TypeFilter = 'all' | ConfigType;
+const HIDDEN_CONFIG_TYPES = new Set([ConfigType.STATIC_PAGE, ConfigType.GENERAL_SETTING]);
 
-const TYPE_TABS: { value: TypeFilter; label: string; icon: ReactElement; color: string }[] = [
-    { value: 'all', label: 'Tất cả', icon: <LayoutList size={18} />, color: 'primary.main' },
-    {
-        value: ConfigType.GENERAL_SETTING,
-        label: CONFIG_TYPE_LABELS[ConfigType.GENERAL_SETTING],
-        icon: <Globe2 size={18} />,
-        color: 'primary.dark',
-    },
-    {
-        value: ConfigType.STATIC_PAGE,
-        label: CONFIG_TYPE_LABELS[ConfigType.STATIC_PAGE],
-        icon: <FileText size={18} />,
-        color: 'primary.main',
-    },
-    {
-        value: ConfigType.ORDER_SETTING,
-        label: CONFIG_TYPE_LABELS[ConfigType.ORDER_SETTING],
-        icon: <ShoppingCart size={18} />,
-        color: 'info.main',
-    },
-    {
-        value: ConfigType.PAYMENT_SETTING,
-        label: CONFIG_TYPE_LABELS[ConfigType.PAYMENT_SETTING],
-        icon: <CreditCard size={18} />,
-        color: 'success.main',
-    },
-    {
-        value: ConfigType.TICKET_IMPORT,
-        label: CONFIG_TYPE_LABELS[ConfigType.TICKET_IMPORT],
-        icon: <Ticket size={18} />,
-        color: 'warning.main',
-    },
-    {
-        value: ConfigType.TICKET_RETURN,
-        label: CONFIG_TYPE_LABELS[ConfigType.TICKET_RETURN],
-        icon: <PackageMinus size={18} />,
-        color: 'warning.dark',
-    },
-    {
-        value: ConfigType.VENDOR_SETTING,
-        label: CONFIG_TYPE_LABELS[ConfigType.VENDOR_SETTING],
-        icon: <Store size={18} />,
-        color: 'info.dark',
-    },
-    {
-        value: ConfigType.REFUND_SETTING,
-        label: CONFIG_TYPE_LABELS[ConfigType.REFUND_SETTING],
-        icon: <Banknote size={18} />,
-        color: 'secondary.main',
-    },
-    {
-        value: ConfigType.COMPLAINT_SETTING,
-        label: CONFIG_TYPE_LABELS[ConfigType.COMPLAINT_SETTING],
-        icon: <MessageSquare size={18} />,
-        color: 'error.main',
-    },
-    {
-        value: ConfigType.PAYOUT_SETTING,
-        label: CONFIG_TYPE_LABELS[ConfigType.PAYOUT_SETTING],
-        icon: <Gift size={18} />,
-        color: 'success.dark',
-    },
-    {
-        value: ConfigType.FORTUNE_SETTING,
-        label: CONFIG_TYPE_LABELS[ConfigType.FORTUNE_SETTING],
-        icon: <Sparkles size={18} />,
-        color: 'error.dark',
-    },
+const TYPE_TABS: { value: TypeFilter; label: string }[] = [
+    { value: ConfigType.ORDER_SETTING, label: CONFIG_TYPE_LABELS[ConfigType.ORDER_SETTING] },
+    { value: ConfigType.PAYMENT_SETTING, label: CONFIG_TYPE_LABELS[ConfigType.PAYMENT_SETTING] },
+    { value: ConfigType.TICKET_IMPORT, label: CONFIG_TYPE_LABELS[ConfigType.TICKET_IMPORT] },
+    { value: ConfigType.TICKET_RETURN, label: CONFIG_TYPE_LABELS[ConfigType.TICKET_RETURN] },
+    { value: ConfigType.VENDOR_SETTING, label: CONFIG_TYPE_LABELS[ConfigType.VENDOR_SETTING] },
+    { value: ConfigType.REFUND_SETTING, label: CONFIG_TYPE_LABELS[ConfigType.REFUND_SETTING] },
+    { value: ConfigType.COMPLAINT_SETTING, label: CONFIG_TYPE_LABELS[ConfigType.COMPLAINT_SETTING] },
+    { value: ConfigType.PAYOUT_SETTING, label: CONFIG_TYPE_LABELS[ConfigType.PAYOUT_SETTING] },
+    { value: ConfigType.FORTUNE_SETTING, label: CONFIG_TYPE_LABELS[ConfigType.FORTUNE_SETTING] },
 ];
 
-const renderTypeFilterTab = (
-    tab: (typeof TYPE_TABS)[number],
-    selected: boolean,
-    count: number
-) => (
-    <Tab
-        key={tab.value}
-        value={tab.value}
-        icon={tab.icon}
-        iconPosition="start"
-        label={
-            <Box
-                component="span"
-                sx={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 1,
-                    color: selected ? tab.color : 'text.secondary',
-                }}
-            >
-                <Box component="span">{tab.label}</Box>
-                <TabBadge
-                    sx={{
-                        ml: 0,
-                        bgcolor: selected ? tab.color : 'action.hover',
-                        color: selected ? '#fff' : 'text.secondary',
-                    }}
-                >
-                    {count}
-                </TabBadge>
-            </Box>
-        }
-    />
-);
+const DEFAULT_TAB = TYPE_TABS[0].value;
 
 export const SystemConfigListPage = () => {
     const { user } = useAuthStore();
@@ -163,14 +62,14 @@ export const SystemConfigListPage = () => {
     const searchParams = useSearchParams();
 
     const [search, setSearch] = useState('');
-    const [typeFilter, setTypeFilter] = useState<TypeFilter>('all');
+    const [typeFilter, setTypeFilter] = useState<TypeFilter>(DEFAULT_TAB);
 
     useEffect(() => {
         const tab = searchParams.get('tab') as TypeFilter;
         if (tab && TYPE_TABS.some((t) => t.value === tab)) {
             setTypeFilter(tab);
-        } else if (!tab) {
-            setTypeFilter('all');
+        } else {
+            setTypeFilter(DEFAULT_TAB);
         }
     }, [searchParams]);
 
@@ -189,35 +88,13 @@ export const SystemConfigListPage = () => {
         useBulkUpdateVendorConfidencePolicy();
 
     const allConfigs = configsRes?.data || [];
-    const typeCounts = useMemo(() => {
-        const counts: Record<TypeFilter, number> = {
-            all: allConfigs.length,
-            [ConfigType.GENERAL_SETTING]: 0,
-            [ConfigType.STATIC_PAGE]: 0,
-            [ConfigType.ORDER_SETTING]: 0,
-            [ConfigType.PAYMENT_SETTING]: 0,
-            [ConfigType.TICKET_IMPORT]: 0,
-            [ConfigType.TICKET_RETURN]: 0,
-            [ConfigType.VENDOR_SETTING]: 0,
-            [ConfigType.REFUND_SETTING]: 0,
-            [ConfigType.COMPLAINT_SETTING]: 0,
-            [ConfigType.PAYOUT_SETTING]: 0,
-            [ConfigType.FORTUNE_SETTING]: 0,
-        };
-        allConfigs.forEach((c) => {
-            if (counts[c.configType] !== undefined) {
-                counts[c.configType] += 1;
-            }
-        });
-        return counts;
-    }, [allConfigs]);
+    const listConfigs = useMemo(
+        () => allConfigs.filter((c) => !HIDDEN_CONFIG_TYPES.has(c.configType)),
+        [allConfigs]
+    );
 
     const filteredConfigs = useMemo(() => {
-        let items = allConfigs;
-
-        if (typeFilter !== 'all') {
-            items = items.filter((c) => c.configType === typeFilter);
-        }
+        let items = listConfigs.filter((c) => c.configType === typeFilter);
 
         const q = search.trim().toLowerCase();
         if (!q) return items;
@@ -229,7 +106,7 @@ export const SystemConfigListPage = () => {
                 c.description.toLowerCase().includes(q) ||
                 c.configValue.toLowerCase().includes(q)
         );
-    }, [allConfigs, search, typeFilter]);
+    }, [listConfigs, search, typeFilter]);
 
     const handleEdit = (config: SystemConfigResponse) => {
         if (config.configKey.startsWith('VENDOR_CONFIDENCE_')) {
@@ -333,50 +210,24 @@ export const SystemConfigListPage = () => {
                             </Typography>
                         </Stack>
                     </Stack>
-
-                    <Tabs
-                        value={typeFilter}
-                        onChange={(_, value: TypeFilter) => handleTabChange(value)}
-                        variant="scrollable"
-                        scrollButtons="auto"
-                        allowScrollButtonsMobile
-                        sx={{
-                            minHeight: 44,
-                            '& .MuiTab-root': {
-                                minHeight: 44,
-                                textTransform: 'none',
-                                fontWeight: 600,
-                                flexShrink: 0,
-                            },
-                            '& .MuiTabs-scrollButtons.Mui-disabled': {
-                                opacity: 0.3,
-                            },
-                            '& .MuiTabs-indicator': {
-                                backgroundColor: TYPE_TABS.find((t) => t.value === typeFilter)?.color || 'primary.main',
-                            },
-                        }}
-                    >
-                        {TYPE_TABS.map((tab) =>
-                            renderTypeFilterTab(tab, typeFilter === tab.value, typeCounts[tab.value])
-                        )}
-                    </Tabs>
                 </Box>
 
-                {typeFilter === ConfigType.VENDOR_SETTING ? (
-                    <Box pt={2}>
-                        <VendorSettingsView
-                            configs={filteredConfigs}
-                            allConfigs={allConfigs}
-                            canEdit={Boolean(canEdit)}
-                            onEdit={handleEdit}
-                            onBulkConfidenceEdit={() => setConfidencePolicyOpen(true)}
-                        />
-                    </Box>
-                ) : (
-                    <TableContainer>
-                        <Table>
-                            <TableHead>
-                                <TableRow
+                <SettingsContentTabs
+                    value={Math.max(
+                        0,
+                        TYPE_TABS.findIndex((tab) => tab.value === typeFilter)
+                    )}
+                    labels={TYPE_TABS.map((tab) => tab.label)}
+                    onChange={(index) => {
+                        const next = TYPE_TABS[index];
+                        if (next) handleTabChange(next.value);
+                    }}
+                />
+
+                <TableContainer>
+                    <Table sx={{ tableLayout: 'fixed', minWidth: 960 }}>
+                        <TableHead>
+                            <TableRow
                                 sx={{
                                     '& th': {
                                         color: 'var(--palette-text-secondary)',
@@ -386,28 +237,66 @@ export const SystemConfigListPage = () => {
                                     },
                                 }}
                             >
-                                <TableCell>Tên cấu hình</TableCell>
-                                <TableCell>Mô tả</TableCell>
-                                <TableCell>Giá trị</TableCell>
-                                <TableCell>Đơn vị</TableCell>
-                                <TableCell align="center">Loại</TableCell>
-                                <TableCell>Kiểu dữ liệu</TableCell>
-                                {canEdit && <TableCell align="center">Hành động</TableCell>}
+                                <TableCell sx={{ width: '32%' }}>Tên cấu hình</TableCell>
+                                <TableCell sx={{ width: '36%' }}>Mô tả</TableCell>
+                                <TableCell align="center" sx={{ width: 120 }}>Giá trị</TableCell>
+                                <TableCell align="center" sx={{ width: 120 }}>Kiểu dữ liệu</TableCell>
+                                {canEdit && <TableCell align="center" sx={{ width: 88 }}>Hành động</TableCell>}
                             </TableRow>
                         </TableHead>
                         <TableBody>
                             {isLoading ? (
                                 <TableRow>
-                                    <TableCell colSpan={canEdit ? 7 : 6} align="center" sx={{ py: 4 }}>
+                                    <TableCell colSpan={canEdit ? 5 : 4} align="center" sx={{ py: 4 }}>
                                         Đang tải dữ liệu...
                                     </TableCell>
                                 </TableRow>
                             ) : filteredConfigs.length === 0 ? (
                                 <TableRow>
-                                    <TableCell colSpan={canEdit ? 7 : 6} align="center" sx={{ py: 4 }}>
+                                    <TableCell colSpan={canEdit ? 5 : 4} align="center" sx={{ py: 4 }}>
                                         {search ? 'Không tìm thấy cấu hình phù hợp' : 'Không có dữ liệu'}
                                     </TableCell>
                                 </TableRow>
+                            ) : typeFilter === ConfigType.VENDOR_SETTING ? (
+                                buildVendorConfigSections(filteredConfigs).map((section) => (
+                                    <Fragment key={section.title}>
+                                        <TableRow>
+                                            <TableCell
+                                                colSpan={canEdit ? 5 : 4}
+                                                sx={{
+                                                    py: 1.5,
+                                                    bgcolor: 'var(--palette-background-neutral, rgba(145, 158, 171, 0.08))',
+                                                    borderBottom: '1px dashed var(--palette-divider)',
+                                                }}
+                                            >
+                                                <Stack direction="row" alignItems="center" justifyContent="space-between" gap={2}>
+                                                    <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#1C252E' }}>
+                                                        {section.title}
+                                                    </Typography>
+                                                    {section.showBulkConfidence && canEdit ? (
+                                                        <Button
+                                                            variant="outlined"
+                                                            size="small"
+                                                            onClick={() => setConfidencePolicyOpen(true)}
+                                                            startIcon={<EditIcon sx={{ fontSize: 18 }} />}
+                                                            sx={{ textTransform: 'none', fontWeight: 700 }}
+                                                        >
+                                                            Điều chỉnh điểm tin cậy
+                                                        </Button>
+                                                    ) : null}
+                                                </Stack>
+                                            </TableCell>
+                                        </TableRow>
+                                        {section.items.map((config) => (
+                                            <SystemConfigTableRow
+                                                key={config.id}
+                                                config={config}
+                                                canEdit={Boolean(canEdit)}
+                                                onEdit={handleEdit}
+                                            />
+                                        ))}
+                                    </Fragment>
+                                ))
                             ) : (
                                 filteredConfigs.map((config) => (
                                     <SystemConfigTableRow
@@ -421,7 +310,6 @@ export const SystemConfigListPage = () => {
                         </TableBody>
                     </Table>
                 </TableContainer>
-                )}
             </Card>
 
             <SystemConfigEditDialog

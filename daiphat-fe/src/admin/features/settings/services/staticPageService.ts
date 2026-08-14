@@ -37,7 +37,7 @@ export const CONTENT_PAGE_KEYS: { key: StaticPageConfigKey; label: string }[] = 
     { key: 'PAGE_GUIDE_PRIZE', label: 'Hướng dẫn nhận thưởng' },
 ];
 
-const parsePageJson = (raw?: string | null): SettingPageFormValues => {
+export const parsePageJson = (raw?: string | null): SettingPageFormValues => {
     if (!raw?.trim()) {
         return { title: '', content: '' };
     }
