@@ -14,6 +14,7 @@ public record ReturnBatchLineResponse(
         ReturnBatchLineStatus status,
         String statusLabel,
         Integer totalQuantity,
+        Integer remainingInspectableQuantity,
         BigDecimal totalReturnValue,
         Long attachedSerialCount
 ) {

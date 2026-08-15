@@ -122,6 +122,12 @@ export const ReturnBatchDetailPage = () => {
 
     const canConfirmHandover =
         isPersistableEvidenceUrl(returnEvidenceUrl) && !isEvidenceUploading && !confirmHandover.isPending;
+    const remainingInspectable = batch.remainingInspectableQuantity ?? 0;
+    const canInspectTickets =
+        !batch.inspectionExpired &&
+        (batch.status === 'PENDING_INSPECTION' ||
+            batch.status === 'INSPECTING' ||
+            (batch.status === 'PENDING_HANDOVER' && remainingInspectable > 0));
 
     const handleOpenHandoverDialog = () => {
         if (batch.status !== 'PENDING_HANDOVER') {
@@ -184,7 +190,10 @@ export const ReturnBatchDetailPage = () => {
             router.push(ROUTES.ADMIN.RETURN_BATCH.INSPECT(batch.id));
             return;
         }
-        if (canStartInspection(batch.status)) {
+        if (
+            canStartInspection(batch.status) ||
+            (batch.status === 'PENDING_HANDOVER' && remainingInspectable > 0)
+        ) {
             try {
                 await startInspection.mutateAsync(batch.id);
             } catch (err: any) {
@@ -231,17 +240,17 @@ export const ReturnBatchDetailPage = () => {
                 }
                 action={
                 <Stack direction="row" spacing={1} flexWrap="wrap">
-                    {(batch.status === 'PENDING_INSPECTION' || batch.status === 'INSPECTING') && !batch.inspectionExpired && (
+                    {canInspectTickets && (
                         <CanAccess permission={PERMISSIONS.IMPORT_BATCH.CREATE}>
                             <Button
-                                label={batch.status === 'INSPECTING' ? 'Kiểm tra vé (Tiếp tục)' : 'Kiểm tra vé'}
+                                label={batch.status === 'INSPECTING' || remainingInspectable > 0 ? 'Kiểm tra vé (Tiếp tục)' : 'Kiểm tra vé'}
                                 className="btn-primary-admin"
                                 loading={startInspection.isPending}
                                 onClick={handleInspectTickets}
                             />
                         </CanAccess>
                     )}
-                    {batch.status === 'PENDING_HANDOVER' && (
+                    {batch.status === 'PENDING_HANDOVER' && remainingInspectable === 0 && (
                         <CanAccess permission={PERMISSIONS.IMPORT_BATCH.CREATE}>
                             <Button
                                 label="Xác nhận bàn giao"
@@ -287,7 +296,14 @@ export const ReturnBatchDetailPage = () => {
                 </Alert>
             )}
 
-            {batch.status === 'PENDING_HANDOVER' && (
+            {batch.status === 'PENDING_HANDOVER' && remainingInspectable > 0 && (
+                <Alert severity="warning" sx={{ mb: 2.5, borderRadius: '12px' }}>
+                    Còn {new Intl.NumberFormat('vi-VN').format(remainingInspectable)} vé ế chưa kiểm tra.
+                    Bấm <strong>Kiểm tra vé</strong> để tiếp tục trước khi bàn giao nhà cung cấp.
+                </Alert>
+            )}
+
+            {batch.status === 'PENDING_HANDOVER' && remainingInspectable === 0 && (
                 <Alert severity="warning" sx={{ mb: 2.5, borderRadius: '12px' }}>
                     Kiểm tra đã hoàn tất — vé đang chờ bàn giao nhà cung cấp. Sau khi giao xong, bấm{' '}
                     <strong>Xác nhận bàn giao</strong>.
@@ -303,7 +319,7 @@ export const ReturnBatchDetailPage = () => {
                         <Box
                             sx={{
                                 display: 'grid',
-                                gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)' },
+                                gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(3, 1fr)', lg: 'repeat(5, 1fr)' },
                                 gap: 2,
                                 mb: 3,
                             }}
@@ -337,6 +353,32 @@ export const ReturnBatchDetailPage = () => {
                                 </Typography>
                                 <Typography variant="body1" fontWeight={800} color="#0284c7" sx={{ mt: 0.5 }}>
                                     {new Intl.NumberFormat('vi-VN').format(batch.totalQuantity ?? 0)} vé
+                                </Typography>
+                            </Box>
+
+                            <Box
+                                sx={{
+                                    p: 2,
+                                    borderRadius: '12px',
+                                    bgcolor: remainingInspectable > 0 ? '#fff7ed' : '#f8fafc',
+                                    border: remainingInspectable > 0 ? '1px solid #fdba74' : '1px solid #f1f5f9',
+                                }}
+                            >
+                                <Typography
+                                    variant="caption"
+                                    color={remainingInspectable > 0 ? '#c2410c' : 'text.secondary'}
+                                    fontWeight={700}
+                                    display="block"
+                                >
+                                    Vé ế còn lại
+                                </Typography>
+                                <Typography
+                                    variant="body1"
+                                    fontWeight={800}
+                                    color={remainingInspectable > 0 ? '#c2410c' : '#0f172a'}
+                                    sx={{ mt: 0.5 }}
+                                >
+                                    {new Intl.NumberFormat('vi-VN').format(remainingInspectable)} vé
                                 </Typography>
                             </Box>
 
@@ -447,6 +489,9 @@ export const ReturnBatchDetailPage = () => {
                                     <TableCell align="right" sx={{ fontWeight: 700, color: '#334155' }}>
                                         Số lượng
                                     </TableCell>
+                                    <TableCell align="right" sx={{ fontWeight: 700, color: '#c2410c' }}>
+                                        Vé ế còn lại
+                                    </TableCell>
                                     <TableCell align="right" sx={{ fontWeight: 700, color: '#166534' }}>
                                         Giá trị trả
                                     </TableCell>
@@ -466,6 +511,15 @@ export const ReturnBatchDetailPage = () => {
                                         </TableCell>
                                         <TableCell align="right" sx={{ fontWeight: 700, color: '#0284c7' }}>
                                             {new Intl.NumberFormat('vi-VN').format(line.totalQuantity ?? 0)} vé
+                                        </TableCell>
+                                        <TableCell
+                                            align="right"
+                                            sx={{
+                                                fontWeight: 800,
+                                                color: (line.remainingInspectableQuantity ?? 0) > 0 ? '#c2410c' : '#64748b',
+                                            }}
+                                        >
+                                            {new Intl.NumberFormat('vi-VN').format(line.remainingInspectableQuantity ?? 0)} vé
                                         </TableCell>
                                         <TableCell align="right" sx={{ fontWeight: 800, color: '#15803d' }}>
                                             {formatImportCost(line.totalReturnValue)} VNĐ

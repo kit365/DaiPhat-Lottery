@@ -25,6 +25,13 @@ public interface ReturnBatchRepositoryPort {
 
     Optional<ReturnBatchModel> findBySupplierAndDrawDate(Long supplierId, LocalDate drawDate);
 
+    /**
+     * Finds the normal supplier return batch for a draw date. Reconciliation
+     * adjustment batches (for example EXCESS_SUPPLIER_RETURN) must never be
+     * selected for automatic inventory enrichment.
+     */
+    Optional<ReturnBatchModel> findPrimarySupplierReturnBySupplierAndDrawDate(Long supplierId, LocalDate drawDate);
+
     Optional<ReturnBatchModel> findStreetAgentByAllocationBatchId(Long allocationBatchId);
 
     Page<ReturnBatchModel> findAll(

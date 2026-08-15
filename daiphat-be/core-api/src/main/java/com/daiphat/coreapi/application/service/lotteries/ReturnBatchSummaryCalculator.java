@@ -20,11 +20,12 @@ import java.util.List;
 /**
  * Computes {@code totalQuantity} / {@code totalReturnValue} for return batch headers and lines.
  * <p>
- * Open for inspection and no attached serials yet: eligible {@code IN_STOCK} serials from
- * ImportBatchLines matching supplier + station + drawDate → {@code importCost × count}.
+ * Open-for-inspection lines with no attached serials yet: eligible {@code IN_STOCK|EXPIRED}
+ * + GOOD serials from ImportBatchLines matching supplier + station + drawDate
+ * → {@code importCost × count}.
  * <p>
- * After serials are attached to the return batch: aggregates from attached serials only.
- * Header totals are always the sum of line totals.
+ * Inspected lines, or any line that already has attached serials: aggregates from attached
+ * serials only. Header totals are always the sum of line totals.
  */
 @Component
 @RequiredArgsConstructor
@@ -45,13 +46,14 @@ public class ReturnBatchSummaryCalculator {
             return;
         }
         List<ReturnBatchLineModel> lines = returnBatchRepositoryPort.findLinesByBatchId(batchId);
-        boolean hasAttached = lines.stream()
-                .anyMatch(line -> lotteryTicketSerialRepositoryPort.countByReturnBatchLineId(line.getId()) > 0);
+        boolean batchOpen = batch.getStatus() != null && batch.getStatus().isOpenForInspection();
 
-        if (batch.getStatus() != null && batch.getStatus().isOpenForInspection() && !hasAttached) {
-            recalculateFromEligibleImportInventory(batch, lines);
-        } else {
-            for (ReturnBatchLineModel line : lines) {
+        for (ReturnBatchLineModel line : lines) {
+            long attached = lotteryTicketSerialRepositoryPort.countByReturnBatchLineId(line.getId());
+            boolean lineOpen = line.getStatus() == null || line.getStatus().isOpenForInspection();
+            if (batchOpen && lineOpen && attached == 0) {
+                recalculateLineFromEligibleImportInventory(batch, line);
+            } else {
                 recalculateFromAttachedSerials(line);
             }
         }
@@ -70,38 +72,36 @@ public class ReturnBatchSummaryCalculator {
         );
     }
 
-    private void recalculateFromEligibleImportInventory(
+    private void recalculateLineFromEligibleImportInventory(
             ReturnBatchModel batch,
-            List<ReturnBatchLineModel> lines
+            ReturnBatchLineModel line
     ) {
-        for (ReturnBatchLineModel line : lines) {
-            List<ImportBatchLineModel> importLines =
-                    importBatchLineRepositoryPort.findEligibleBySupplierStationAndDrawDate(
-                            batch.getLotterySupplierId(),
-                            line.getLotteryStationId(),
-                            batch.getDrawDate()
-                    );
-
-            int quantity = 0;
-            BigDecimal value = BigDecimal.ZERO;
-            for (ImportBatchLineModel importLine : importLines) {
-                long eligibleCount = lotteryTicketSerialRepositoryPort.countReturnEligibleByImportBatchLineId(
-                        importLine.getId()
+        List<ImportBatchLineModel> importLines =
+                importBatchLineRepositoryPort.findEligibleBySupplierStationAndDrawDate(
+                        batch.getLotterySupplierId(),
+                        line.getLotteryStationId(),
+                        batch.getDrawDate()
                 );
-                if (eligibleCount <= 0) {
-                    continue;
-                }
-                BigDecimal unitCost = importLine.getImportCost() != null
-                        ? importLine.getImportCost()
-                        : BigDecimal.ZERO;
-                quantity += (int) eligibleCount;
-                value = value.add(unitCost.multiply(BigDecimal.valueOf(eligibleCount)));
-            }
 
-            line.setTotalQuantity(quantity);
-            line.setTotalReturnValue(ImportCostCalculator.scaleMoney(value));
-            returnBatchRepositoryPort.saveLine(line);
+        int quantity = 0;
+        BigDecimal value = BigDecimal.ZERO;
+        for (ImportBatchLineModel importLine : importLines) {
+            long eligibleCount = lotteryTicketSerialRepositoryPort.countReturnEligibleByImportBatchLineId(
+                    importLine.getId()
+            );
+            if (eligibleCount <= 0) {
+                continue;
+            }
+            BigDecimal unitCost = importLine.getImportCost() != null
+                    ? importLine.getImportCost()
+                    : BigDecimal.ZERO;
+            quantity += (int) eligibleCount;
+            value = value.add(unitCost.multiply(BigDecimal.valueOf(eligibleCount)));
         }
+
+        line.setTotalQuantity(quantity);
+        line.setTotalReturnValue(ImportCostCalculator.scaleMoney(value));
+        returnBatchRepositoryPort.saveLine(line);
     }
 
     private void recalculateFromAttachedSerials(ReturnBatchLineModel line) {

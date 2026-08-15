@@ -18,7 +18,6 @@ import { DATA_GRID_LOCALE_VN } from '../../../../../../shared/components/DataTab
 import type { useReturnBatchList } from '../../hooks/useReturnBatch';
 import type { ReturnBatchStatus } from '../../types/returnBatch.type';
 import { ReturnBatchToolbar } from './ReturnBatchToolbar';
-import { ReturnBatchReminderBanner } from './ReturnBatchReminderBanner';
 import { returnBatchColumnsConfig, returnBatchColumnsInitialState } from '../configs/column.config';
 
 export const ReturnBatchList = ({
@@ -60,8 +59,6 @@ export const ReturnBatchList = ({
 
     return (
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, width: '100%' }}>
-            <ReturnBatchReminderBanner batches={batches} />
-
             <Card
                 elevation={0}
                 className="admin-datagrid-card"
