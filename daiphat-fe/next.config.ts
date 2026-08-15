@@ -12,12 +12,11 @@ const withBundleAnalyzer = (config: NextConfig): NextConfig => {  if (process.en
   return config;
 };
 
-// Proxy /api/* → Spring. Không có trong .env local thì dùng 8080.
-const backendProxyTarget = process.env.BACKEND_UPSTREAM || 'http://localhost:8080';
-
-const normalizedBackendProxyTarget = backendProxyTarget.startsWith('http')
-  ? backendProxyTarget
-  : `http://${backendProxyTarget}`;
+// Proxy /api/* → Spring. Docker: BACKEND_UPSTREAM=backend; local mặc định 8080.
+const backendOrigin = (() => {
+  const raw = process.env.BACKEND_UPSTREAM || 'http://localhost:8080';
+  return `${raw.startsWith('http') ? raw : `http://${raw}`}`.replace(/\/$/, '');
+})();
 
 const nextConfig: NextConfig = {
   output: 'standalone',
@@ -66,16 +65,16 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-  // Nhờ Proxy để Next gửi dữ liệu sang BE thật
+  // Browser gọi /api, /uploads trên origin FE → Next rewrite sang Spring.
   async rewrites() {
     return [
       {
         source: '/api/:path*',
-        destination: `${normalizedBackendProxyTarget.replace(/\/$/, '')}/api/:path*`,
+        destination: `${backendOrigin}/api/:path*`,
       },
       {
         source: '/uploads/:path*',
-        destination: `${normalizedBackendProxyTarget.replace(/\/$/, '')}/uploads/:path*`,
+        destination: `${backendOrigin}/uploads/:path*`,
       },
     ];
   },

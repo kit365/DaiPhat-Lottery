@@ -5,8 +5,6 @@ export const STORAGE_KEYS = {
     TOKEN: "token",
     REFRESH_TOKEN: "refreshToken",
     CART: "cart-storage",
-    WISHLIST: "wishlist-storage",
-    BOOKING: "booking-storage",
     PKCE_VERIFIER: "pkce_code_verifier",
     OAUTH_REDIRECT_URI: "oauth_redirect_uri",
     FORCE_PROFILE_SETUP: "force_profile_setup",

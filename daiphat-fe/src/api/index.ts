@@ -1,27 +1,38 @@
 /**
  * Axios dùng chung toàn app (`apiApp`).
- * 1. Tạo instance: baseURL, timeout, cookie (withCredentials).
- * 2. Request: gắn Bearer, bỏ Content-Type khi upload FormData.
- * 3. Response: refresh token khi 401 (hàng đợi, tránh gọi refresh song song),
- *    toast lỗi tập trung, xóa session khi hết hạn.
+ * React Query chỉ cache / retry UI — không gọi HTTP, không toast.
  *
- * Không phải React Query. QueryClient chỉ cache/retry;
- * mọi HTTP đều đi qua đây nên toast global nằm interceptor, không nằm QueryCache.
+ * Luồng:
  *
- * Gọi API: `skipGlobalErrorToast: true` trên config nếu poll/public — tránh spam toast.
+ *   UI  →  React Query (nếu có)  →  apiApp
+ *                                      │
+ *                    có NEXT_PUBLIC_API_BASE_URL  →  gọi thẳng BE
+ *                    không có                     →  /api cùng origin FE
+ *                                                      → Next rewrite → BE
+ *                                      │
+ *                               [Request]
+ *                    gắn Bearer (trừ login / register / refresh / forgot / verify)
+ *                    FormData: xóa Content-Type, để browser tự set
+ *                                      │
+ *                               [Response OK]
+ *                    đổi / reset mật khẩu thành công → logout
+ *                                      │
+ *                               [Response lỗi]
+ *                    request bị hủy (đổi trang, Strict Mode) → im lặng
+ *                    /public/ hoặc skipGlobalErrorToast     → không toast, không refresh
+ *                    401 login          → sai mật khẩu, nhập lại, giữ session
+ *                    401 refresh-token  → phiên chết, xóa session, bắt login
+ *                    401 API khác       → refresh 1 lần, hàng đợi, gọi lại request
+ *                    refresh xong vẫn 401 → xóa session
+ *                    lỗi khác           → toast theo HTTP status
  */
+
 import axios, { AxiosError, InternalAxiosRequestConfig } from "axios"
 import { useAuthStore } from "../stores/useAuthStore"
 import { API_PREFIX, API_VERSION } from "./api.constants"
 import { AppToast } from "../utils/toast.util"
-import Cookies from "js-cookie"
-import { STORAGE_KEYS } from "../constants/storage.constants"
-import { resolveAccessToken } from "./authHeaders"
+import { persistAccessToken, resolveAccessToken, clearJsAuthCookies } from "./authHeaders"
 
-/*
- * Có NEXT_PUBLIC_API_BASE_URL → Axios gọi thẳng URL đó.
- * Không có / rỗng → "" (same-origin /api) → Next rewrite sang Spring (BACKEND_UPSTREAM).
- */
 const getBaseUrl = () => {
     if (typeof process !== "undefined" && process.env) {
         return process.env.NEXT_PUBLIC_API_BASE_URL || "";
@@ -33,24 +44,18 @@ const API_ROOT = `${BASE_URL}${API_PREFIX}${API_VERSION}`
 
 const apiApp = axios.create({
     baseURL: API_ROOT,
-    // /users/me không được treo vô hạn — admin sẽ kẹt màn loading.
     timeout: 15_000,
-    withCredentials: true,
+    withCredentials: true, // gửi cookie HttpOnly (refresh_token) khi same-origin
     headers: {
         "Content-Type": "application/json",
         "ngrok-skip-browser-warning": "69420"
     }
 })
 
-type ApiRequestConfig = InternalAxiosRequestConfig & {
-    _retry?: boolean;
-    /** Không toast (poll, public, refresh). */
-    skipGlobalErrorToast?: boolean;
-};
-
-/** Gắn token; bỏ qua login/register/refresh. */
+// --- Request: gắn access token ---
 apiApp.interceptors.request.use((config) => {
     const url = config.url || "";
+    // Login / register / refresh: BE chưa cần Bearer (và refresh dùng cookie).
     const isPublicAuth =
         url.includes("/auth/login") ||
         url.includes("/auth/register") ||
@@ -64,7 +69,6 @@ apiApp.interceptors.request.use((config) => {
         if (token) {
             config.headers.Authorization = `Bearer ${token}`;
         } else {
-            // Tránh header `Bearer undefined` từ helper cookie-only.
             const existing = String(config.headers.Authorization || "");
             if (!existing || existing.includes("undefined") || existing.includes("null")) {
                 if (typeof config.headers.delete === "function") {
@@ -76,7 +80,7 @@ apiApp.interceptors.request.use((config) => {
         }
     }
 
-    // Upload FormData: xóa Content-Type để browser tự set multipart + boundary. Set tay sẽ 400.
+    // Upload FormData: xóa Content-Type để browser tự set multipart + boundary.
     if (typeof FormData !== "undefined" && config.data instanceof FormData) {
         const headers = config.headers as { delete?: (name: string) => void } & Record<string, unknown>;
         if (typeof headers.delete === "function") {
@@ -96,7 +100,7 @@ interface PendingRequest {
 }
 
 let isRefreshing = false;
-/** Các request 401 trong lúc đang refresh — chờ token mới rồi gọi lại. */
+// Nhiều API 401 cùng lúc: chỉ 1 refresh, các request còn lại xếp hàng.
 let failedQueue: PendingRequest[] = [];
 
 /** API bắt buộc đăng nhập — 403 thì coi như hết phiên, không chỉ toast. */
@@ -109,28 +113,8 @@ const AUTH_REQUIRED_PATHS = [
 ];
 
 const clearAuthSession = () => {
-    const authStore = useAuthStore.getState();
-    authStore.logout();
-    Cookies.remove(STORAGE_KEYS.TOKEN, { path: "/" });
-    Cookies.remove(STORAGE_KEYS.REFRESH_TOKEN, { path: "/" });
-};
-
-/** Login / refresh — không chạy vòng refresh token. */
-const isAuthEndpoint = (url?: string) => {
-    if (!url) {
-        return false;
-    }
-
-    return url.includes("/auth/login") || url.includes("/auth/refresh-token");
-};
-
-/** Đổi/reset mật khẩu thành công → xóa session hiện tại. */
-const revokesCurrentSession = (url?: string) => {
-    if (!url) {
-        return false;
-    }
-
-    return url.includes("/auth/change-password") || url.includes("/auth/forgot-password/reset");
+    useAuthStore.getState().logout();
+    clearJsAuthCookies();
 };
 
 const isAuthRequiredRequest = (url?: string) => {
@@ -141,35 +125,12 @@ const isAuthRequiredRequest = (url?: string) => {
     return AUTH_REQUIRED_PATHS.some((path) => url.includes(path));
 };
 
-/** GET public (branding, config) — fail im lặng, không toast. */
-const isPublicReadEndpoint = (url?: string) => {
-    if (!url) {
-        return false;
-    }
-
-    return url.includes('/public/');
-};
-
 const handleExpiredSession = (showToast: boolean = true) => {
     clearAuthSession();
 
     if (showToast) {
         AppToast.error("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại!");
     }
-};
-
-const persistAccessToken = (accessToken: string, expiresIn?: number) => {
-    const authStore = useAuthStore.getState();
-    const ttlSeconds = expiresIn && expiresIn > 0 ? expiresIn : 900;
-    authStore.set({
-        token: accessToken,
-        expiresAt: Date.now() + ttlSeconds * 1000
-    });
-
-    Cookies.set(STORAGE_KEYS.TOKEN, accessToken, {
-        expires: Math.max(ttlSeconds, 60) / 86400,
-        path: "/"
-    });
 };
 
 const processQueue = (error: unknown, token: string | null = null) => {
@@ -183,7 +144,39 @@ const processQueue = (error: unknown, token: string | null = null) => {
     failedQueue = [];
 };
 
-/** Thành công: đổi mật khẩu thì logout. Lỗi: 401 refresh + toast theo status. */
+type ApiRequestConfig = InternalAxiosRequestConfig & {
+    _retry?: boolean; // đã refresh 1 lần cho request này — chặn vòng vô hạn
+    skipGlobalErrorToast?: boolean; // poll / public: không toast
+};
+
+/** Đổi/reset mật khẩu thành công → xóa session hiện tại. */
+const revokesCurrentSession = (url?: string) => {
+    if (!url) {
+        return false;
+    }
+
+    return url.includes("/auth/change-password") || url.includes("/auth/forgot-password/reset");
+};
+
+/** URL chứa /public/ — config site, không cần login. */
+const isPublicReadEndpoint = (url?: string) => {
+    if (!url) {
+        return false;
+    }
+
+    return url.includes('/public/');
+};
+
+/** Login / refresh 401: không gọi refresh thêm (tránh vòng). */
+const isAuthEndpoint = (url?: string) => {
+    if (!url) {
+        return false;
+    }
+
+    return url.includes("/auth/login") || url.includes("/auth/refresh-token");
+};
+
+// --- Response: refresh 401 + toast ---
 apiApp.interceptors.response.use(
     (response) => {
         if (revokesCurrentSession(response.config.url)) {
@@ -197,7 +190,7 @@ apiApp.interceptors.response.use(
         const skipToast = Boolean(originalRequest?.skipGlobalErrorToast)
             || isPublicReadEndpoint(originalRequest?.url);
 
-        // Request bị hủy (Strict Mode / đổi route / poll restart) — không báo "mất mạng"
+        // Đổi trang / Strict Mode hủy request cũ — không báo mất mạng.
         if (axios.isCancel(error) || (error as AxiosError).code === "ERR_CANCELED") {
             return Promise.reject(error);
         }
@@ -206,21 +199,21 @@ apiApp.interceptors.response.use(
             const status = response.status;
             const message = (response.data as { message?: string } | undefined)?.message || "Đã có lỗi xảy ra từ máy chủ!";
 
+            // Access token hết hạn: refresh 1 lần rồi gửi lại request.
             if (status === 401 && originalRequest && !originalRequest._retry) {
-                // Poll/public 401: không refresh, không logout.
                 if (skipToast) {
                     return Promise.reject(error);
                 }
 
-                // Login/refresh 401: trả lỗi BE, không vòng refresh.
                 if (isAuthEndpoint(originalRequest.url)) {
-                    // Sai mật khẩu: không xóa session. Refresh fail: xóa session.
+                    // login fail = nhập lại. refresh fail = bắt login lại.
                     if (originalRequest.url?.includes('/auth/refresh-token')) {
                         clearAuthSession();
                     }
                     return Promise.reject(error);
                 }
 
+                // Đang refresh: xếp hàng, xong mới gọi lại.
                 if (isRefreshing) {
                     return new Promise<string | null>((resolve, reject) => {
                         failedQueue.push({ resolve, reject });
@@ -279,7 +272,7 @@ apiApp.interceptors.response.use(
 
             switch (status) {
                 case 401: {
-                    // Tới đây = đã retry refresh rồi vẫn 401.
+                    // Đã refresh 1 lần vẫn 401 → phiên hết.
                     if (!isAuthEndpoint(originalRequest?.url)) {
                         handleExpiredSession();
                     }

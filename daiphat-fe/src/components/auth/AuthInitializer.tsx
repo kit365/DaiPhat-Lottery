@@ -3,14 +3,14 @@
 import { useEffect } from "react";
 import { STORAGE_KEYS } from "../../constants/storage.constants";
 import { useAuthStore } from "../../stores/useAuthStore";
+import { hydrateAccessTokenFromCookie } from "../../api/authHeaders";
 
-/**
- * AuthInitializer component
- * This component is mounted at the root level to handle silent authentication re-hydration.
- * It uses the useAuth hook which automatically fetches the user profile if a token exists.
- */
 export const AuthInitializer = () => {
     const { isHydrated, user, isProfileSetupModalOpen, openProfileSetupModal } = useAuthStore();
+
+    useEffect(() => {
+        hydrateAccessTokenFromCookie();
+    }, []);
 
     useEffect(() => {
         if (!user || !isHydrated || isProfileSetupModalOpen) {
