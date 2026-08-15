@@ -63,11 +63,19 @@ import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
 public class PrizePayoutStaffService implements PrizePayoutStaffServicePort {
+
+    private static final Set<String> SIGNED_CONTRACT_CONTENT_TYPES = Set.of(
+            "application/pdf",
+            "image/jpeg",
+            "image/jpg",
+            "image/png"
+    );
 
     private final PrizePayoutRequestRepositoryPort prizePayoutRequestRepositoryPort;
     private final TransactionRepositoryPort transactionRepositoryPort;
@@ -679,7 +687,13 @@ public class PrizePayoutStaffService implements PrizePayoutStaffServicePort {
 
     @Override
     public StorageResult uploadConfirmationContract(UploadRequest request) {
-        StorageUtils.validateImageUpload(request);
+        if (request == null || request.data() == null || request.data().length == 0) {
+            throw new DomainException(ErrorCode.IMAGE_FILE_REQUIRED);
+        }
+        String contentType = request.contentType() == null ? "" : request.contentType().trim().toLowerCase();
+        if (!SIGNED_CONTRACT_CONTENT_TYPES.contains(contentType)) {
+            throw new DomainException(ErrorCode.PRIZE_PAYOUT_CONTRACT_DOCUMENT_INVALID_TYPE);
+        }
         return storagePort.upload(new UploadRequest(
                 request.data(),
                 request.fileName(),

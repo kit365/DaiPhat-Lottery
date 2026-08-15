@@ -158,6 +158,13 @@ export const updateStation = async (
     return response.data;
 };
 
+export const bulkUpdateStationPricing = async (
+    items: Array<{ lotteryStationId: number; importCost: number; commissionRate: number }>
+): Promise<ApiResponse<Station[]>> => {
+    const response = await apiApp.put(`${BASE_URL}/pricing`, { items });
+    return response.data;
+};
+
 export const deleteStation = async (
     id: string | number
 ): Promise<ApiResponse<unknown>> => {
@@ -218,6 +225,17 @@ export const uploadStationImage = async (
         },
     });
     return response.data;
+};
+
+/** Asks the backend for a free station code derived from a name. */
+export const suggestStationCode = async (
+    name: string,
+    excludeStationId?: number
+): Promise<string> => {
+    const response = await apiApp.get(`${BASE_URL}/suggest-code`, {
+        params: { name, ...(excludeStationId != null ? { excludeStationId } : {}) },
+    });
+    return response.data?.data ?? '';
 };
 
 export const previewSyncStations = async (

@@ -116,8 +116,8 @@ export const GeneralSettingTab = () => {
             <Stack spacing={3}>
                 <Card sx={cardSx}>
                     <SectionHeader
-                        title="Thông tin pháp lý / hợp đồng đại lý"
-                        description="Các trường này hiện trên PDF hợp đồng bán hộ (MST, người ký, chức danh…). Để trống sẽ ra dấu —."
+                        title="Thông tin pháp lý / hợp đồng"
+                        description="Các trường này hiện trên PDF hợp đồng cộng tác bán vé số và hợp đồng xác nhận trả thưởng (MST, người ký, chức danh…). Để trống sẽ ra dấu —."
                     />
                     <Box
                         sx={{

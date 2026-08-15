@@ -16,10 +16,14 @@ import { PageNavigationProvider } from "../context/PageNavigationContext";
 import { AdminBadgeCountsProvider } from "../context/AdminBadgeCountsProvider";
 import { SpinnerLoading } from "../components/ui/SpinnerLoading";
 import { useAdminLoginSuccessToast } from "../features/auth/hooks/useAdminLoginSuccessToast";
+import { usePrefetchAdminPagesWhenIdle } from "../hooks/usePrefetchAdminPagesWhenIdle";
+import { useAuthStore } from "../../stores/useAuthStore";
 
 const LayoutAdminContent = ({ children }: { children?: React.ReactNode }) => {
+    const { user, token } = useAuthStore();
     const { isOpen } = useSidebar();
     useAdminLoginSuccessToast();
+    usePrefetchAdminPagesWhenIdle(!!user && !!token);
 
     return (
         <div className="flex min-h-screen bg-white overflow-x-hidden w-full max-w-full">

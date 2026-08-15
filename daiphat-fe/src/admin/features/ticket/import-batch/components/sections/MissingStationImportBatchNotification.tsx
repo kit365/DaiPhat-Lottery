@@ -61,7 +61,7 @@ export const MissingStationImportBatchNotification = ({
     const anyHaveStartedEntry = startedEntryCount > 0;
 
     const handleContinue = (batch: ImportBatch) => {
-        router.push(ROUTES.ADMIN.IMPORT_BATCH.EDIT(batch.id));
+        router.push(ROUTES.ADMIN.IMPORT_BATCH.DETAIL(batch.id));
     };
 
     const bannerText = !isMulti

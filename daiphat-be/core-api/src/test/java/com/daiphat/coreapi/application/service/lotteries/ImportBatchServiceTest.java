@@ -98,6 +98,10 @@ class ImportBatchServiceTest {
     @Mock
     private com.daiphat.coreapi.application.port.in.lotteries.SupplierSettlementServicePort supplierSettlementServicePort;
     @Mock
+    private com.daiphat.coreapi.application.port.out.file.StoragePort storagePort;
+    @Mock
+    private com.daiphat.coreapi.application.port.out.settings.SystemConfigRepositoryPort systemConfigRepositoryPort;
+    @Mock
     private Clock clock;
 
     @InjectMocks

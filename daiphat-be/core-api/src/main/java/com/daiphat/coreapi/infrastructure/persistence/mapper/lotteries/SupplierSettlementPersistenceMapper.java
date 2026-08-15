@@ -34,6 +34,7 @@ public class SupplierSettlementPersistenceMapper {
                 .totalPaidAmount(entity.getTotalPaidAmount())
                 .remainingAmount(entity.getRemainingAmount())
                 .supplierSettlementReceiptUrl(entity.getSupplierSettlementReceiptUrl())
+                .paymentEvidenceUrls(copyStringList(entity.getPaymentEvidenceUrls()))
                 .isReturnExpired(entity.isReturnExpired())
                 .expiredReturnValue(entity.getExpiredReturnValue())
                 .status(entity.getStatus())
@@ -99,6 +100,7 @@ public class SupplierSettlementPersistenceMapper {
                 .totalPaidAmount(model.getTotalPaidAmount())
                 .remainingAmount(model.getRemainingAmount())
                 .supplierSettlementReceiptUrl(model.getSupplierSettlementReceiptUrl())
+                .paymentEvidenceUrls(copyStringList(model.getPaymentEvidenceUrls()))
                 .isReturnExpired(model.isReturnExpired())
                 .expiredReturnValue(model.getExpiredReturnValue())
                 .status(model.getStatus())
@@ -153,6 +155,7 @@ public class SupplierSettlementPersistenceMapper {
         entity.setTotalPaidAmount(model.getTotalPaidAmount());
         entity.setRemainingAmount(model.getRemainingAmount());
         entity.setSupplierSettlementReceiptUrl(model.getSupplierSettlementReceiptUrl());
+        entity.setPaymentEvidenceUrls(copyStringList(model.getPaymentEvidenceUrls()));
         entity.setReturnExpired(model.isReturnExpired());
         entity.setExpiredReturnValue(model.getExpiredReturnValue());
         entity.setStatus(model.getStatus());
@@ -198,6 +201,10 @@ public class SupplierSettlementPersistenceMapper {
             supplier.setId(model.getLotterySupplierId());
             entity.setLotterySupplier(supplier);
         }
+    }
+
+    private static List<String> copyStringList(List<String> source) {
+        return source == null ? new ArrayList<>() : new ArrayList<>(source);
     }
 
     private static List<SupplierSettlementDiscrepancyType> copyEnumList(

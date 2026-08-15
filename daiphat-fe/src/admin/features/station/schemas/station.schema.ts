@@ -6,6 +6,12 @@ export const createStationSchema = z.object({
         .min(1, "Tên nhà đài không được để trống")
         .max(100),
 
+    code: z
+        .string()
+        .max(20, 'Mã nhà đài tối đa 20 ký tự')
+        .regex(/^[A-Za-z0-9_-]*$/, 'Mã chỉ gồm chữ, số, gạch ngang và gạch dưới')
+        .optional(),
+
     province: z.string().optional(),
     region: z.string().optional(),
 

@@ -58,6 +58,9 @@ public interface ImportBatchApplicationMapper {
                 .supplierSettlementId(model.getSupplierSettlementId())
                 .importMode(model.getImportMode())
                 .invoiceEvidenceUrl(model.getInvoiceEvidenceUrl())
+                .ticketListImageUrls(model.getTicketListImageUrls() == null
+                        ? List.of()
+                        : List.copyOf(model.getTicketListImageUrls()))
                 .importedBy(model.getImportedBy())
                 .importedAt(model.getImportedAt())
                 .status(model.getStatus())

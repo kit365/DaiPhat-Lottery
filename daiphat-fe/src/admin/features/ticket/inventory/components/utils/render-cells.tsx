@@ -1,7 +1,7 @@
 "use client";
 
 import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
-import { Box, Link, ListItemText } from '@mui/material';
+import { Box, Link, Typography, Stack } from '@mui/material';
 import { GridRenderCellParams } from '@mui/x-data-grid';
 import { prefixAdmin } from '../../../../../constants/routes';
 import { useTicketInventory } from '../../hooks/useTicketInventory';
@@ -13,6 +13,7 @@ import { useStations } from '../../../../station/hooks/useStation';
 import { formatImportBatchCode } from '../../../import-batch/utils/importBatchCode';
 import { getTicketStatusLabel, normalizeTicketStatus } from '../../constants/ticket-status.config';
 import { AdminRowActionsMenu } from '../../../../../components/ui/AdminRowActionsMenu';
+import { AdminStatusBadge } from '../../../../../components/ui/AdminStatusBadge';
 
 dayjs.locale('vi');
 
@@ -26,51 +27,29 @@ export const RenderTicketCell = (params: GridRenderCellParams) => {
     const id = params.row.id || params.row._id;
 
     return (
-        <Box
-            sx={{
-                display: 'flex',
-                alignItems: 'center',
-                py: 'calc(1 * var(--spacing))',
-                width: '100%',
-            }}
-        >
-            <ListItemText
-                primary={
-                    <Link
-                        href={`/${prefixAdmin}/ticket/edit/${id}`}
-                        className="admin-cell-title"
-                        onClick={(e) => {
-                            e.preventDefault();
-                            router.push(`/${prefixAdmin}/ticket/edit/${id}`);
-                        }}
-                        underline="hover"
-                        sx={{ 
-                            fontSize: '1.15rem', 
-                            letterSpacing: '0.05em', 
-                            color: 'primary.main',
-                            fontWeight: 700 
-                        }}
-                    >
-                        {numbers || 'N/A'}
-                    </Link>
-                }
-                secondary={
-                    <span className="admin-cell-subtitle" style={{ fontSize: '0.85rem' }}>
-                        Số lượng: <strong style={{ color: 'var(--palette-error-main)', fontSize: '0.95rem' }}>{quantity ?? 0}</strong>
-                    </span>
-                }
-                slotProps={{
-                    primary: {
-                        component: 'span',
-                        variant: 'body1',
-                        noWrap: true,
-                    },
-                    secondary: {
-                        component: 'span',
-                    },
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.25, py: 0.75 }}>
+            <Link
+                href={`/${prefixAdmin}/ticket/detail/${id}`}
+                onClick={(e) => {
+                    e.preventDefault();
+                    router.push(`/${prefixAdmin}/ticket/detail/${id}`);
                 }}
-                sx={{ m: 0 }}
-            />
+                underline="hover"
+                sx={{ 
+                    fontSize: '1.05rem', 
+                    letterSpacing: '0.06em', 
+                    color: '#0f172a',
+                    fontWeight: 800,
+                    fontFamily: 'monospace',
+                    lineHeight: 1.2,
+                    '&:hover': { color: '#2563eb' },
+                }}
+            >
+                {numbers || 'N/A'}
+            </Link>
+            <Typography variant="caption" sx={{ color: '#64748b', fontSize: '0.75rem', fontWeight: 600 }}>
+                Số lượng: <Box component="span" sx={{ color: '#ea580c', fontWeight: 800 }}>{quantity ?? 0}</Box> vé
+            </Typography>
         </Box>
     );
 };
@@ -81,9 +60,13 @@ export const RenderCreatedAtCell = ({ value }: RenderCreatedAtCellProps) => {
     if (!dateObj.isValid()) return null;
 
     return (
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            <span className="admin-cell-date">{dateObj.format('DD MMM, YYYY')}</span>
-            <span className="admin-cell-date-secondary">{dateObj.format('hh:mm A')}</span>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+            <Typography variant="body2" fontWeight={600} color="#0f172a" sx={{ fontSize: '0.8125rem' }}>
+                {dateObj.format('DD/MM/YYYY')}
+            </Typography>
+            <Typography variant="caption" color="#64748b" sx={{ fontSize: '0.75rem' }}>
+                {dateObj.format('HH:mm')}
+            </Typography>
         </Box>
     );
 };
@@ -100,9 +83,13 @@ const DrawDateCell = (params: GridRenderCellParams) => {
     if (!dateObj.isValid()) return null;
 
     return (
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            <span className="admin-cell-date">{dateObj.format('DD MMM, YYYY')}</span>
-            <span className="admin-cell-date-secondary">{drawTime}</span>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+            <Typography variant="body2" fontWeight={600} color="#0f172a" sx={{ fontSize: '0.8125rem' }}>
+                {dateObj.format('DD/MM/YYYY')}
+            </Typography>
+            <Typography variant="caption" color="#64748b" sx={{ fontSize: '0.75rem' }}>
+                {drawTime}
+            </Typography>
         </Box>
     );
 };
@@ -122,7 +109,6 @@ const ticketStatusModifier = (status?: string | null): string => {
         case 'EXPIRED':
             return 'admin-status-badge--inactive';
         default:
-            // Unknown / legacy cached values
             return 'admin-status-badge--draft';
     }
 };
@@ -132,7 +118,7 @@ export const RenderStatusCell = (params: GridRenderCellParams) => {
     const label = statusDisplayName || getTicketStatusLabel(status) || status || '—';
     const modifier = ticketStatusModifier(status);
 
-    return <span className={`admin-status-badge admin-status-badge--compact ${modifier}`.trim()}>{label}</span>;
+    return <AdminStatusBadge label={label} modifier={modifier} />;
 };
 
 const ticketConditionModifier = (condition?: string | null): string => {
@@ -150,7 +136,7 @@ export const RenderTicketConditionCell = (params: GridRenderCellParams) => {
     const label =
         ticketConditionDisplayName ||
         (condition === 'DAMAGED'
-            ? 'Hỏng vật lý'
+            ? 'Hỏng'
             : condition === 'LOST'
               ? 'Thất lạc'
               : condition === 'VOIDED'
@@ -159,7 +145,7 @@ export const RenderTicketConditionCell = (params: GridRenderCellParams) => {
 
     const modifier = ticketConditionModifier(ticketCondition);
 
-    return <span className={`admin-status-badge admin-status-badge--compact ${modifier}`.trim()}>{label}</span>;
+    return <AdminStatusBadge label={label} modifier={modifier} />;
 };
 
 export const RenderActionsCell = (params: GridRenderCellParams) => {

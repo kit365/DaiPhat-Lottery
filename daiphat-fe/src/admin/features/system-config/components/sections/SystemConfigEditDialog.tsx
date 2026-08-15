@@ -44,6 +44,7 @@ import {
     isFortuneCooldownConfig,
 } from './FortuneCooldownDurationEditor';
 import { getConfigDataTypeBadgeClass, getConfigTypeBadgeClass } from '../../utils/systemConfigBadge';
+import { SystemConfigJsonEditor } from './SystemConfigJsonEditor';
 
 interface SystemConfigEditDialogProps {
     config: SystemConfigResponse | null;
@@ -60,6 +61,9 @@ const LATE_RETURN_POLICY_LABELS: Record<string, string> = {
 
 const isCommissionTiersConfig = (config: SystemConfigResponse) =>
     config.configKey === 'PRIZE_PAYOUT_COMMISSION_TIERS';
+
+const isPrizePayoutContractTermsConfig = (config: SystemConfigResponse) =>
+    config.configKey === 'PRIZE_PAYOUT_CONTRACT_ADDITIONAL_TERMS';
 
 const VENDOR_TIMING_LABELS: Record<string, string> = {
     VENDOR_RETURN_CUTOFF: 'Giờ cuối người bán vé số trả vé trong ngày',
@@ -323,6 +327,23 @@ export const SystemConfigEditDialog = ({
                                             />
                                         )}
                                     />
+                                ) : isPrizePayoutContractTermsConfig(config) ? (
+                                    <Controller
+                                        name="configValue"
+                                        control={control}
+                                        render={({ field, fieldState }) => (
+                                            <TextField
+                                                {...field}
+                                                label="Điều khoản bổ sung"
+                                                fullWidth
+                                                multiline
+                                                minRows={4}
+                                                error={!!fieldState.error}
+                                                helperText={fieldState.error?.message || 'In vào Điều 6 của hợp đồng xác nhận trả thưởng. Để trống thì ẩn điều này.'}
+                                                inputProps={{ maxLength: 4000 }}
+                                            />
+                                        )}
+                                    />
                                 ) : isFortuneCooldownConfig(config.configKey) ? (
                                     <Controller
                                         name="configValue"
@@ -438,15 +459,11 @@ export const SystemConfigEditDialog = ({
                                         name="configValue"
                                         control={control}
                                         render={({ field, fieldState }) => (
-                                            <TextField
-                                                {...field}
-                                                label="Giá trị (JSON)"
-                                                fullWidth
-                                                multiline
-                                                minRows={6}
-                                                error={!!fieldState.error}
-                                                helperText={fieldState.error?.message || getValueFieldHelper(config)}
-                                                inputProps={{ style: { fontFamily: 'monospace', fontSize: 13 } }}
+                                            <SystemConfigJsonEditor
+                                                value={field.value}
+                                                onChange={field.onChange}
+                                                error={fieldState.error?.message}
+                                                helperText={getValueFieldHelper(config)}
                                             />
                                         )}
                                     />

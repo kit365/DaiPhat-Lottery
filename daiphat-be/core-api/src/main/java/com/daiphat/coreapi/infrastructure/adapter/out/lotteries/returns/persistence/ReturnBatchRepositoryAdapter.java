@@ -18,6 +18,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -79,11 +80,12 @@ public class ReturnBatchRepositoryAdapter implements ReturnBatchRepositoryPort {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public Optional<ReturnBatchModel> findById(Long id) {
         return returnBatchRepository.findByIdAndDeletedAtIsNull(id)
                 .map(entity -> {
-                    // Ensure lines are loaded
-                    entity.getLines().size();
+                    // Ensure lines / supplier are loaded while session is open (scheduler / non-OSIV callers).
+                    initializeAssociations(entity);
                     return returnBatchPersistenceMapper.toDomain(entity);
                 });
     }
@@ -111,13 +113,25 @@ public class ReturnBatchRepositoryAdapter implements ReturnBatchRepositoryPort {
     }
 
     @Override
+    public Optional<ReturnBatchModel> findPrimarySupplierReturnBySupplierAndDrawDate(Long supplierId, LocalDate drawDate) {
+        return returnBatchRepository
+                .findFirstByLotterySupplier_IdAndDrawDateAndReturnBatchTypeAndDeletedAtIsNullOrderByIdAsc(
+                        supplierId,
+                        drawDate,
+                        ReturnBatchType.SUPPLIER_RETURN
+                )
+                .map(returnBatchPersistenceMapper::toDomain);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public Optional<ReturnBatchModel> findStreetAgentByAllocationBatchId(Long allocationBatchId) {
         if (allocationBatchId == null) {
             return Optional.empty();
         }
         return returnBatchRepository.findBySourceAllocationBatch_IdAndDeletedAtIsNull(allocationBatchId)
                 .map(entity -> {
-                    entity.getLines().size();
+                    initializeAssociations(entity);
                     return returnBatchPersistenceMapper.toDomain(entity);
                 });
     }
@@ -157,19 +171,19 @@ public class ReturnBatchRepositoryAdapter implements ReturnBatchRepositoryPort {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<ReturnBatchModel> findByStatuses(List<ReturnBatchStatus> statuses) {
         if (statuses == null || statuses.isEmpty()) {
             return List.of();
         }
+        // Query JOIN FETCHes supplier + lines; keep transaction so mapping is session-safe for schedulers.
         return returnBatchRepository.findByStatusInAndDeletedAtIsNull(statuses).stream()
-                .map(entity -> {
-                    entity.getLines().size();
-                    return returnBatchPersistenceMapper.toDomain(entity);
-                })
+                .map(returnBatchPersistenceMapper::toDomain)
                 .toList();
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<ReturnBatchModel> findBySupplierSettlementId(Long supplierSettlementId) {
         if (supplierSettlementId == null) {
             return List.of();
@@ -177,15 +191,21 @@ public class ReturnBatchRepositoryAdapter implements ReturnBatchRepositoryPort {
         return returnBatchRepository
                 .findBySupplierSettlementIdAndDeletedAtIsNullOrderByDrawDateDescIdDesc(supplierSettlementId)
                 .stream()
-                .map(entity -> {
-                    entity.getLines().size();
-                    return returnBatchPersistenceMapper.toDomain(entity);
-                })
+                .map(returnBatchPersistenceMapper::toDomain)
                 .toList();
     }
 
     @Override
     public long nextHeaderBatchCodeSequence() {
         return returnBatchRepository.nextHeaderBatchCodeSequence();
+    }
+
+    private static void initializeAssociations(ReturnBatchEntity entity) {
+        if (entity.getLotterySupplier() != null) {
+            entity.getLotterySupplier().getId();
+        }
+        if (entity.getLines() != null) {
+            entity.getLines().size();
+        }
     }
 }

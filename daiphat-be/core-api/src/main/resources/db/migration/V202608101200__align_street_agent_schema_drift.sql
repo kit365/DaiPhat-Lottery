@@ -85,8 +85,21 @@ ALTER TABLE agent_settlements
 CREATE INDEX IF NOT EXISTS idx_agent_settlements_return_batch
     ON agent_settlements(return_batch_id);
 
-ALTER TABLE agent_deposit_transactions
-    ADD COLUMN IF NOT EXISTS transaction_type VARCHAR(30),
-    ADD COLUMN IF NOT EXISTS balance_before NUMERIC(18, 0),
-    ADD COLUMN IF NOT EXISTS balance_after NUMERIC(18, 0),
-    ADD COLUMN IF NOT EXISTS reason VARCHAR(500);
+-- Legacy local DBs may still have agent_deposit_transactions. Current schema
+-- records vendor cash on the shared transactions ledger (V202608041100), so
+-- skip this ALTER when the old table was never created.
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1
+        FROM information_schema.tables
+        WHERE table_schema = 'public'
+          AND table_name = 'agent_deposit_transactions'
+    ) THEN
+        ALTER TABLE agent_deposit_transactions
+            ADD COLUMN IF NOT EXISTS transaction_type VARCHAR(30),
+            ADD COLUMN IF NOT EXISTS balance_before NUMERIC(18, 0),
+            ADD COLUMN IF NOT EXISTS balance_after NUMERIC(18, 0),
+            ADD COLUMN IF NOT EXISTS reason VARCHAR(500);
+    END IF;
+END $$;

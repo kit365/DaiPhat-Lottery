@@ -5,7 +5,6 @@ import { useRouteParams } from "@/hooks/useRouteParams";
 import {
     Alert,
     Box,
-Chip,
     FormControl,
     InputLabel,
     MenuItem,
@@ -26,12 +25,17 @@ Chip,
     InputAdornment,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
+import FileDownloadOutlinedIcon from '@mui/icons-material/FileDownloadOutlined';
+import ConfirmationNumberOutlinedIcon from '@mui/icons-material/ConfirmationNumberOutlined';
 import { PageHeader } from '../../../../../components/ui/PageHeader';
 import { SpinnerLoading } from '../../../../../components/ui/SpinnerLoading';
 import { CollapsibleCard } from '../../../../../components/ui/CollapsibleCard';
 import { Button } from '../../../../../components/ui/Button';
 import { ImagePreview } from '../../../../../components/ui/ImagePreview';
 import { AdminDatePicker } from '../../../../../components/ui/AdminDatePicker';
+import { AdminStatusBadge } from '../../../../../components/ui/AdminStatusBadge';
+import { CanAccess } from '../../../../../components/auth/CanAccess';
+import { PERMISSIONS } from '../../../../../constants/permission.constants';
 import { prefixAdmin, ROUTES } from '../../../../../constants/routes';
 import {
     useEligibleImportBatchStations,
@@ -40,6 +44,8 @@ import {
     useResumeImportBatchLine,
     useUpdateImportBatch,
 } from '../../hooks/useImportBatch';
+import { attachTicketListImages, exportImportBatchFile } from '../../services/importBatchService';
+import { ImportBatchLineImportHost } from '../../../inventory/components/sections/ImportBatchLineImportHost';
 import { useImportBatchEditDraft } from '../../hooks/useImportBatchEditDraft';
 import { useActiveSuppliers } from '../../../../supplier';
 import { useStations } from '../../../../station/hooks/useStation';
@@ -56,7 +62,8 @@ import {
 } from '../sections/ImportBatchLineDeclareQuantityReductionDialog';
 import { ImportBatchDeclaredQuantityProgress } from '../sections/ImportBatchDeclaredQuantityProgress';
 import { ImportBatchLineRow } from '../sections/ImportBatchLineRow';
-import { getImportBatchStatusLabel, getImportModeLabel } from '../../utils/batchTypeLabels';
+import { ImportBatchTicketListImagesField } from '../sections/ImportBatchTicketListImagesField';
+import { getImportBatchStatusBadgeClass, getImportBatchStatusLabel, getImportModeLabel } from '../../utils/batchTypeLabels';
 import { formatImportBatchHeaderCode } from '../../utils/importBatchCode';
 import {
     batchUsesSharedInvoice,
@@ -107,7 +114,7 @@ import {
     computeImportBatchEditChanges,
     type ImportBatchEditChangeSummary,
 } from '../../utils/importBatchEditChanges';
-import { isImportBatchEditable } from '../../utils/importBatchProgress';
+import { findFirstIncompleteLine, hasTicketImportEligibleLines, isImportBatchEditable } from '../../utils/importBatchProgress';
 import { hasInvoiceEvidence } from '../../utils/invoiceEvidence';
 import type { ImportBatch, ImportBatchEligibleStation, UpdateImportBatchPayload } from '../../types/importBatch.type';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -168,6 +175,7 @@ export const ImportBatchEditPage = () => {
     const formInitializedForBatchIdRef = useRef<string | null>(null);
     const [initializedBatchId, setInitializedBatchId] = useState<string | null>(null);
     const [highlightedRowIndices, setHighlightedRowIndices] = useState<Set<number>>(new Set());
+    const [importLineId, setImportLineId] = useState<string | null>(null);
 
     const {
         control,
@@ -188,6 +196,7 @@ export const ImportBatchEditPage = () => {
             importMode: 'IN_DAY',
             totalDeclareQuantity: 0,
             invoiceEvidenceUrl: '',
+            ticketListImageUrls: [],
             lines: [],
         },
     });
@@ -198,6 +207,7 @@ export const ImportBatchEditPage = () => {
     const supplierId = useWatch({ control, name: 'supplierId' });
     const totalDeclareQuantity = useWatch({ control, name: 'totalDeclareQuantity' });
     const invoiceEvidenceUrl = useWatch({ control, name: 'invoiceEvidenceUrl' });
+    const ticketListImageUrls = useWatch({ control, name: 'ticketListImageUrls' }) ?? [];
     const lines = useWatch({ control, name: 'lines' }) ?? [];
 
     const importModeForStations = useMemo(() => {
@@ -305,9 +315,10 @@ export const ImportBatchEditPage = () => {
             importMode,
             totalDeclareQuantity,
             invoiceEvidenceUrl,
+            ticketListImageUrls,
             lines,
         }),
-        [supplierId, drawDate, importMode, totalDeclareQuantity, invoiceEvidenceUrl, lines]
+        [supplierId, drawDate, importMode, totalDeclareQuantity, invoiceEvidenceUrl, ticketListImageUrls, lines]
     );
 
     const { clearDraft } = useImportBatchEditDraft({
@@ -617,6 +628,7 @@ export const ImportBatchEditPage = () => {
         const payload: UpdateImportBatchPayload = {
             supplierId: canEditSupplier ? data.supplierId : (batch!.supplierId ?? data.supplierId),
             totalDeclareQuantity: data.totalDeclareQuantity,
+            ticketListImageUrls: data.ticketListImageUrls ?? [],
             lines: buildLinesPayload(data),
         };
 
@@ -852,7 +864,10 @@ export const ImportBatchEditPage = () => {
                 clearDraft();
                 setRemovedTicketIds([]);
                 toast.success(res.message || 'Cập nhật phiếu nhập lô thành công.');
-                router.push(ROUTES.ADMIN.IMPORT_BATCH.DETAIL(batch.id));
+                // Stay on detail URL: re-hydrate form from server (no separate edit screen).
+                formInitializedForBatchIdRef.current = null;
+                setInitializedBatchId(null);
+                await refetchBatch();
             } else {
                 toast.error(res.message || 'Cập nhật phiếu nhập lô thất bại.');
             }
@@ -906,7 +921,22 @@ export const ImportBatchEditPage = () => {
 
     const handleCancel = () => {
         clearDraft();
-        router.push(ROUTES.ADMIN.IMPORT_BATCH.DETAIL(batch!.id));
+        formInitializedForBatchIdRef.current = null;
+        setInitializedBatchId(null);
+        void refetchBatch().then(() => {
+            toast.info('Đã hủy thay đổi nháp.');
+        });
+    };
+
+    const handleExport = async () => {
+        if (!batch) {
+            return;
+        }
+        try {
+            await exportImportBatchFile(batch.id);
+        } catch {
+            toast.error('Không xuất được tệp cho phiếu nhập này.');
+        }
     };
 
     const handleRemoveLine = (index: number) => {
@@ -990,12 +1020,11 @@ export const ImportBatchEditPage = () => {
             <ThemeProvider theme={localTheme}>
                 <Box className="admin-page">
                     <PageHeader
-                        title={`Chỉnh sửa phiếu #${id}`}
+                        title={`Phiếu nhập lô #${id}`}
                         breadcrumbItems={[
                             { label: 'Vé số', to: `/${prefixAdmin}/ticket/list` },
                             { label: 'Nhập lô vé', to: ROUTES.ADMIN.IMPORT_BATCH.LIST },
                             { label: `#${id}` },
-                            { label: 'Chỉnh sửa' },
                         ]}
                     />
                     <SpinnerLoading />
@@ -1034,7 +1063,7 @@ export const ImportBatchEditPage = () => {
                 <Button
                     variant="contained"
                     className="btn-primary-admin"
-                    onClick={() => router.push(ROUTES.ADMIN.IMPORT_BATCH.DETAIL(batch.id))}
+                    onClick={() => router.replace(ROUTES.ADMIN.IMPORT_BATCH.DETAIL(batch.id))}
                 >
                     Xem chi tiết phiếu
                 </Button>
@@ -1042,21 +1071,54 @@ export const ImportBatchEditPage = () => {
         );
     }
 
+    const batchCodeLabel = formatImportBatchHeaderCode(batch.batchCode, batch.id);
+    const canImportTickets = hasTicketImportEligibleLines(batch);
+
     return (
         <ThemeProvider theme={localTheme}>
             <Box className="admin-page">
                 <PageHeader
-                    title={`Chỉnh sửa phiếu ${formatImportBatchHeaderCode(batch.batchCode, batch.id)}`}
+                    title={`Phiếu nhập lô ${batchCodeLabel}`}
                     breadcrumbItems={[
                         { label: 'Vé số', to: `/${prefixAdmin}/ticket/list` },
                         { label: 'Nhập lô vé', to: ROUTES.ADMIN.IMPORT_BATCH.LIST },
-                        {
-                            label: formatImportBatchHeaderCode(batch.batchCode, batch.id),
-                            to: ROUTES.ADMIN.IMPORT_BATCH.DETAIL(batch.id),
-                        },
-                        { label: 'Chỉnh sửa' },
+                        { label: batchCodeLabel },
                     ]}
-                    titleExtra={<Chip label={getImportBatchStatusLabel(batch.status)} size="small" />}
+                    titleExtra={
+                        <AdminStatusBadge
+                            label={getImportBatchStatusLabel(batch.status)}
+                            modifier={getImportBatchStatusBadgeClass(batch.status)}
+                        />
+                    }
+                    action={
+                        <Stack direction="row" spacing={1}>
+                            <Button
+                                variant="text"
+                                startIcon={<FileDownloadOutlinedIcon />}
+                                onClick={() => {
+                                    void handleExport();
+                                }}
+                            >
+                                Xuất tệp
+                            </Button>
+                            {canImportTickets && (
+                                <CanAccess permission={PERMISSIONS.TICKET.CREATE}>
+                                    <Button
+                                        variant="contained"
+                                        startIcon={<ConfirmationNumberOutlinedIcon />}
+                                        onClick={() => {
+                                            const firstLine = findFirstIncompleteLine(batch);
+                                            if (firstLine?.id != null) {
+                                                setImportLineId(String(firstLine.id));
+                                            }
+                                        }}
+                                    >
+                                        Nhập vé vào phiếu
+                                    </Button>
+                                </CanAccess>
+                            )}
+                        </Stack>
+                    }
                 />
 
                 {id && hasUnsavedImportBatchEditDraft(id) && (
@@ -1413,6 +1475,42 @@ export const ImportBatchEditPage = () => {
                                 </Box>
                             )}
 
+                            <Box>
+                                <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>
+                                    Ảnh danh sách vé nhập
+                                </Typography>
+                                <Typography
+                                    variant="body2"
+                                    color="text.secondary"
+                                    sx={{ mb: 1.5 }}
+                                >
+                                    Ảnh chụp danh sách vé của lô nhập. Không bắt buộc, có thể thêm hoặc thay thế.
+                                </Typography>
+                                <Controller
+                                    name="ticketListImageUrls"
+                                    control={control}
+                                    render={({ field }) => (
+                                        <ImportBatchTicketListImagesField
+                                            value={field.value ?? []}
+                                            onChange={(urls) => {
+                                                field.onChange(urls);
+                                                if (!batch?.id) {
+                                                    return;
+                                                }
+                                                void attachTicketListImages(batch.id, urls).catch((err: unknown) => {
+                                                    toast.error(
+                                                        (err as { response?: { data?: { message?: string } } })
+                                                            ?.response?.data?.message ||
+                                                            'Không lưu được ảnh danh sách vé nhập.'
+                                                    );
+                                                });
+                                            }}
+                                            compact
+                                        />
+                                    )}
+                                />
+                            </Box>
+
                             <Stack direction="row" spacing={2}>
                                 <Button
                                     type="submit"
@@ -1423,7 +1521,7 @@ export const ImportBatchEditPage = () => {
                                     loadingLabel="Đang xử lý..."
                                 />
                                 <Button variant="outlined" onClick={handleCancel}>
-                                    Hủy
+                                    Hủy thay đổi
                                 </Button>
                             </Stack>
                         </Stack>
@@ -1494,6 +1592,16 @@ export const ImportBatchEditPage = () => {
                         }}
                     />
                 )}
+
+                <ImportBatchLineImportHost
+                    batchId={batch.id}
+                    lineId={importLineId}
+                    onClose={() => setImportLineId(null)}
+                    onSuccess={() => {
+                        setImportLineId(null);
+                        void refetchBatch();
+                    }}
+                />
             </Box>
         </ThemeProvider>
     );

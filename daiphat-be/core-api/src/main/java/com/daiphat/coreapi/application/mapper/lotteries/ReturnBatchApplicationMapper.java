@@ -21,10 +21,18 @@ public class ReturnBatchApplicationMapper {
     private final Clock clock;
 
     public ReturnBatchResponse toResponse(ReturnBatchModel model) {
-        return toResponse(model, null);
+        return toResponse(model, null, null);
     }
 
     public ReturnBatchResponse toResponse(ReturnBatchModel model, List<ReturnBatchLineResponse> lines) {
+        return toResponse(model, lines, null);
+    }
+
+    public ReturnBatchResponse toResponse(
+            ReturnBatchModel model,
+            List<ReturnBatchLineResponse> lines,
+            Integer remainingInspectableQuantity
+    ) {
         if (model == null) {
             return null;
         }
@@ -33,6 +41,13 @@ public class ReturnBatchApplicationMapper {
                 : (model.getLines() == null
                 ? List.of()
                 : model.getLines().stream().map(this::toLineResponse).toList());
+        int remaining = remainingInspectableQuantity != null
+                ? remainingInspectableQuantity
+                : lineResponses.stream()
+                .mapToInt(line -> line.remainingInspectableQuantity() != null
+                        ? line.remainingInspectableQuantity()
+                        : 0)
+                .sum();
 
         int bufferMinutes = importBatchConfigResolver.resolveReturnBufferMinutes();
         int reminderMinutes = importBatchConfigResolver.resolveReturnReminderMinutes();
@@ -73,6 +88,7 @@ public class ReturnBatchApplicationMapper {
                 .deliveryMode(model.getDeliveryMode())
                 .deliveryModeLabel(model.getDeliveryMode() != null ? model.getDeliveryMode().getLabel() : null)
                 .totalQuantity(model.getTotalQuantity())
+                .remainingInspectableQuantity(remaining)
                 .totalReturnValue(model.getTotalReturnValue())
                 .returnedBy(model.getReturnedBy())
                 .returnedAt(model.getReturnedAt())
@@ -107,6 +123,14 @@ public class ReturnBatchApplicationMapper {
     }
 
     public ReturnBatchLineResponse toLineResponse(ReturnBatchLineModel model, Long attachedSerialCount) {
+        return toLineResponse(model, attachedSerialCount, null);
+    }
+
+    public ReturnBatchLineResponse toLineResponse(
+            ReturnBatchLineModel model,
+            Long attachedSerialCount,
+            Integer remainingInspectableQuantity
+    ) {
         if (model == null) {
             return null;
         }
@@ -118,6 +142,7 @@ public class ReturnBatchApplicationMapper {
                 .status(model.getStatus())
                 .statusLabel(model.getStatus() != null ? model.getStatus().getLabel() : null)
                 .totalQuantity(model.getTotalQuantity())
+                .remainingInspectableQuantity(remainingInspectableQuantity)
                 .totalReturnValue(model.getTotalReturnValue())
                 .attachedSerialCount(attachedSerialCount)
                 .build();

@@ -9,10 +9,9 @@ export const RETURN_BATCH_STATUS_LABELS: Record<ReturnBatchStatus, string> = {
 };
 
 export const RETURN_BATCH_LINE_STATUS_LABELS: Record<ReturnBatchLineStatus, string> = {
-    PENDING: 'Đang đợi đi trả vé',
-    SUCCESS: 'Trả vé thành công',
-    REJECTED_BY_SUPPLIER: 'Nhà cung cấp từ chối',
-    PULLED_FOR_SALE: 'Đã lấy bán trong lúc trả',
+    PENDING: 'Chờ kiểm tra',
+    INSPECTING: 'Đang kiểm tra',
+    INSPECTED: 'Đã kiểm tra',
 };
 
 export const getReturnBatchStatusLabel = (
@@ -46,12 +45,10 @@ export const getReturnBatchLineStatusBadgeClass = (status?: ReturnBatchLineStatu
     switch (status) {
         case 'PENDING':
             return 'admin-status-badge--pending';
-        case 'SUCCESS':
-            return 'admin-status-badge--success';
-        case 'REJECTED_BY_SUPPLIER':
-            return 'admin-status-badge--inactive';
-        case 'PULLED_FOR_SALE':
+        case 'INSPECTING':
             return 'admin-status-badge--active';
+        case 'INSPECTED':
+            return 'admin-status-badge--success';
         default:
             return 'admin-status-badge--draft';
     }
@@ -86,7 +83,7 @@ export const canViewInspection = (status?: ReturnBatchStatus | string | null) =>
 export const canAttachSerials = (
     batchStatus?: ReturnBatchStatus | null,
     lineStatus?: ReturnBatchLineStatus | null
-) => isOpenForInspection(batchStatus) && lineStatus === 'PENDING';
+) => isOpenForInspection(batchStatus) && (lineStatus === 'PENDING' || lineStatus === 'INSPECTING');
 
 export const formatMinutesUntilCutoff = (minutes?: number | null): string => {
     if (minutes == null || Number.isNaN(minutes)) return '—';

@@ -61,18 +61,56 @@ public class SupplierSettlementDiscrepancyInventoryHelper {
     private final LotteryStationRepositoryPort lotteryStationRepositoryPort;
     private final ReturnBatchRepositoryPort returnBatchRepositoryPort;
     private final ReturnBatchCodeGenerator returnBatchCodeGenerator;
+    private final ReturnBatchImportSyncService returnBatchImportSyncService;
 
     public List<Long> createLostPlaceholders(
             SupplierSettlementModel settlement,
             List<SettlementImportPlaceholderRequest> placeholders,
             BigDecimal unitCost,
             UUID actorId,
-            LocalDateTime now
+            LocalDateTime now,
+            TicketCondition ticketCondition,
+            String damagedEvidenceUrl,
+            String reasonNote
     ) {
         if (placeholders == null || placeholders.isEmpty()) {
             return List.of();
         }
-        ImportBatchModel batch = createAdjustmentBatch(settlement, actorId, now, "ADJ-LOST reconciliation");
+        TicketCondition condition = ticketCondition != null ? ticketCondition : TicketCondition.LOST;
+        if (condition != TicketCondition.LOST
+                && condition != TicketCondition.DAMAGED
+                && condition != TicketCondition.VOIDED) {
+            throw new DomainException(
+                    ErrorCode.INVALID_INPUT,
+                    "Tình trạng vé thiếu phải là LOST, DAMAGED hoặc VOIDED."
+            );
+        }
+        if (condition == TicketCondition.DAMAGED
+                && (damagedEvidenceUrl == null || damagedEvidenceUrl.isBlank())) {
+            throw new DomainException(
+                    ErrorCode.INVALID_INPUT,
+                    "Vé hư hỏng / rách bắt buộc đính kèm ảnh minh chứng."
+            );
+        }
+
+        String prefix = switch (condition) {
+            case DAMAGED -> "DMG";
+            case VOIDED -> "VOID";
+            default -> "LOST";
+        };
+        LotteryTicketSerialFaultedBy faultedBy = condition == TicketCondition.VOIDED
+                ? LotteryTicketSerialFaultedBy.DATA_ENTRY_FAULT
+                : LotteryTicketSerialFaultedBy.ISSUER_FAULT;
+        String reason = (reasonNote != null && !reasonNote.isBlank())
+                ? reasonNote.trim()
+                : "Settlement import discrepancy " + condition.name() + " placeholder";
+        String evidence = damagedEvidenceUrl != null && !damagedEvidenceUrl.isBlank()
+                ? damagedEvidenceUrl.trim()
+                : null;
+
+        ImportBatchModel batch = createAdjustmentBatch(
+                settlement, actorId, now, "ADJ-" + condition.name() + " reconciliation"
+        );
         List<Long> createdSerialIds = new ArrayList<>();
         Map<Long, ImportBatchLineModel> lineByStation = new HashMap<>();
 
@@ -88,8 +126,8 @@ public class SupplierSettlementDiscrepancyInventoryHelper {
             );
             for (int i = 0; i < req.quantity(); i++) {
                 String token = UUID.randomUUID().toString().replace("-", "");
-                String numbers = "LOST-" + token;
-                String serialNumber = "LOST-" + token;
+                String numbers = prefix + "-" + token;
+                String serialNumber = prefix + "-" + token;
                 LotteryTicketModel ticket = lotteryTicketRepositoryPort.save(LotteryTicketModel.builder()
                         .stationId(station.getId())
                         .numbers(numbers)
@@ -101,7 +139,7 @@ public class SupplierSettlementDiscrepancyInventoryHelper {
                         .importedById(actorId)
                         .importedAt(now)
                         .build());
-                LotteryTicketSerialModel serial = LotteryTicketSerialModel.builder()
+                LotteryTicketSerialModel.LotteryTicketSerialModelBuilder serialBuilder = LotteryTicketSerialModel.builder()
                         .ticketId(ticket.getId())
                         .importBatchId(batch.getId())
                         .importBatchLineId(line.getId())
@@ -109,13 +147,15 @@ public class SupplierSettlementDiscrepancyInventoryHelper {
                         .stationId(station.getId())
                         .drawDate(settlement.getPeriodFrom())
                         .status(LotteryTicketSerialStatus.IN_STOCK)
-                        .ticketCondition(TicketCondition.LOST)
-                        .faultedBy(LotteryTicketSerialFaultedBy.ISSUER_FAULT)
-                        .damagedReason("Settlement import discrepancy LOST placeholder")
+                        .ticketCondition(condition)
+                        .faultedBy(faultedBy)
+                        .damagedReason(reason)
                         .importedById(actorId)
-                        .importedAt(now)
-                        .build();
-                LotteryTicketSerialModel saved = lotteryTicketSerialRepositoryPort.save(serial);
+                        .importedAt(now);
+                if (condition == TicketCondition.DAMAGED) {
+                    serialBuilder.damagedEvidenceUrl(evidence);
+                }
+                LotteryTicketSerialModel saved = lotteryTicketSerialRepositoryPort.save(serialBuilder.build());
                 createdSerialIds.add(saved.getId());
                 bumpLineImported(line, unitCost);
             }
@@ -188,6 +228,13 @@ public class SupplierSettlementDiscrepancyInventoryHelper {
             bumpLineImported(line, unitCost);
         }
         finalizeAdjustmentBatch(batch);
+        // A good-ticket import adjustment is returnable inventory. If the normal
+        // return batch is still open, include it immediately; never enrich the
+        // separate EXCESS_SUPPLIER_RETURN adjustment receipt.
+        returnBatchImportSyncService.refreshOpenPrimarySupplierReturn(
+                settlement.getLotterySupplierId(),
+                settlement.getPeriodFrom()
+        );
         return createdSerialIds;
     }
 

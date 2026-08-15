@@ -9,9 +9,8 @@ export type ReturnBatchType = 'SUPPLIER_RETURN' | 'STREET_AGENT_RETURN';
 
 export type ReturnBatchLineStatus =
     | 'PENDING'
-    | 'SUCCESS'
-    | 'REJECTED_BY_SUPPLIER'
-    | 'PULLED_FOR_SALE';
+    | 'INSPECTING'
+    | 'INSPECTED';
 
 export type ReturnDeliveryMode = 'RETAILER_DELIVERS' | 'SUPPLIER_COLLECTS';
 
@@ -23,6 +22,7 @@ export interface ReturnBatchLine {
     status: ReturnBatchLineStatus;
     statusLabel?: string | null;
     totalQuantity: number;
+    remainingInspectableQuantity?: number | null;
     totalReturnValue: number;
     attachedSerialCount?: number | null;
 }
@@ -40,6 +40,7 @@ export interface ReturnBatch {
     returnReceiptUrl?: string | null;
     returnEvidenceUrl?: string | null;
     totalQuantity: number;
+    remainingInspectableQuantity?: number | null;
     totalReturnValue: number;
     returnedBy?: string | null;
     returnedAt?: string | null;
@@ -70,6 +71,7 @@ export interface InspectableReturnSerial {
     status: string;
     statusLabel?: string | null;
     ticketCondition?: string | null;
+    ticketConditionLabel?: string | null;
     ticketConditionDisplayName?: string | null;
     ticketId: number;
     ticketNumbers?: string | null;

@@ -24,6 +24,7 @@ export const ROUTES = {
                 GENERAL: `/${prefixAdmin}/dashboard/settings/general`,
                 POLICIES: `/${prefixAdmin}/dashboard/settings/policies`,
                 PAGES: `/${prefixAdmin}/dashboard/settings/pages`,
+                CONTRACTS: `/${prefixAdmin}/dashboard/settings/contracts`,
                 SYSTEM_CONFIG: `/${prefixAdmin}/settings/system-config/list`,
             }
         },

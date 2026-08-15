@@ -55,6 +55,7 @@ export const menuManagementData = [
             { id: "settings-general", label: "Cài đặt chung", path: ROUTES.ADMIN.DASHBOARD.SETTINGS.GENERAL },
             { id: "settings-policies", label: "Chính sách", path: ROUTES.ADMIN.DASHBOARD.SETTINGS.POLICIES },
             { id: "settings-pages", label: "Trang thông tin", path: ROUTES.ADMIN.DASHBOARD.SETTINGS.PAGES },
+            { id: "settings-contracts", label: "Hợp đồng", path: ROUTES.ADMIN.DASHBOARD.SETTINGS.CONTRACTS },
             { id: "settings-system-config", label: "Cấu hình hệ thống", path: ROUTES.ADMIN.DASHBOARD.SETTINGS.SYSTEM_CONFIG, permission: PERMISSIONS.SETTINGS.VIEW },
         ]
     },

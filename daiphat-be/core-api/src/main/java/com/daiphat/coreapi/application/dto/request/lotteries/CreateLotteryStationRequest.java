@@ -16,6 +16,9 @@ public record CreateLotteryStationRequest(
         @NotBlank(message = "Tên sản phẩm không được để trống")
         String name,
 
+        /** Leave blank to have the system derive it from the name. */
+        String code,
+
         String province,
         String region,
 

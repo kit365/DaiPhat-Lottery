@@ -1,5 +1,6 @@
 package com.daiphat.coreapi.application.port.in.lotteries;
 
+import com.daiphat.coreapi.application.dto.request.lotteries.BulkUpdateLotteryStationPricingRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.ConfirmSyncLotteryStationsRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.CreateLotteryStationRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.SyncLotteryStationsRequest;
@@ -19,6 +20,14 @@ import java.util.Optional;
 public interface LotteryStationServicePort {
 
     LotteryStationResponse create(CreateLotteryStationRequest request);
+
+    /**
+     * Proposes a free station code derived from a name, for the generate button on
+     * the station form.
+     *
+     * @param excludeStationId station allowed to keep its own code, when editing
+     */
+    String suggestCode(String name, Long excludeStationId);
 
     LotteryStationResponse getById(Long id);
 
@@ -46,6 +55,8 @@ public interface LotteryStationServicePort {
     );
 
     LotteryStationResponse update(Long id, UpdateLotteryStationRequest request);
+
+    List<LotteryStationResponse> updatePricing(BulkUpdateLotteryStationPricingRequest request);
 
     void delete(Long id);
 

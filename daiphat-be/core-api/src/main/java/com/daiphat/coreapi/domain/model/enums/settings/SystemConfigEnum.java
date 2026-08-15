@@ -648,6 +648,26 @@ public enum SystemConfigEnum {
             "{\"min\":1,\"max\":10000}",
             true
     ),
+    IMPORT_BATCH_TICKET_LIST_IMAGE_MAX_COUNT(
+            ConfigType.TICKET_IMPORT,
+            DataType.INT,
+            "5",
+            "Số ảnh danh sách vé nhập tối đa được đính trên một phiếu nhập lô.",
+            "Số ảnh danh sách vé nhập tối đa",
+            "ảnh",
+            "{\"min\":1,\"max\":20}",
+            true
+    ),
+    IMPORT_BATCH_TICKET_LIST_IMAGE_MAX_SIZE_MB(
+            ConfigType.TICKET_IMPORT,
+            DataType.INT,
+            "5",
+            "Dung lượng tối đa mỗi ảnh danh sách vé nhập trên phiếu nhập lô.",
+            "Dung lượng tối đa mỗi ảnh danh sách vé",
+            "MB",
+            "{\"min\":1,\"max\":10}",
+            true
+    ),
     STAFF_INCIDENT_CUTOFF(
             ConfigType.REFUND_SETTING,
             DataType.TIME,
@@ -828,10 +848,47 @@ public enum SystemConfigEnum {
             "{}",
             true
     ),
+    PRIZE_PAYOUT_CONTRACT_ADDITIONAL_TERMS(
+            ConfigType.PAYOUT_SETTING,
+            DataType.STRING,
+            "Người nhận cam kết là chủ sở hữu hợp pháp của vé hoặc được ủy quyền hợp lệ; chịu trách nhiệm trước pháp luật nếu thông tin CCCD/CMND không đúng. Đại lý chỉ trả thưởng theo kết quả đối chiếu hệ thống và giấy tờ đã thu thập tại thời điểm lập hợp đồng.",
+            "Điều khoản bổ sung in trên hợp đồng xác nhận trả thưởng (cùng khung pháp lý Bên A với hợp đồng cộng tác bán vé số).",
+            "Điều khoản hợp đồng trả thưởng",
+            null,
+            "{\"allowEmpty\":true,\"maxLength\":4000}",
+            true
+    ),
     /**
      * Wall-clock slot length in minutes (aligned from 00:00 Asia/Ho_Chi_Minh).
      * Example: 60 = once per clock hour, 360 = every 6 hours, 1440 = once per calendar day.
      */
+    /**
+     * One JSON blob rather than five separate keys: these settings are only ever
+     * read together by the file importer, and the import dialog shows them as a
+     * single "current configuration" panel.
+     */
+    TICKET_IMPORT_FILE_CONFIG(
+            ConfigType.TICKET_IMPORT,
+            DataType.JSON,
+            // Default fieldAliases mirror ImportBatchFileMappingDetector; Flyway seeds the same JSON.
+            "{\"maxFileSizeMb\":2,\"maxRows\":2000,\"serialSeparator\":\";\","
+                    + "\"storeOriginalFile\":true,\"allowPartialImport\":true,"
+                    + "\"fieldAliases\":{"
+                    + "\"drawDateColumn\":[\"ngayquay\",\"ngayxoso\",\"ngayso\",\"ngay\",\"drawdate\",\"date\"],"
+                    + "\"stationCodeColumn\":[\"madai\",\"manhadai\",\"ma\",\"stationcode\",\"code\"],"
+                    + "\"stationColumn\":[\"nhadai\",\"tendai\",\"dai\",\"tinh\",\"station\",\"lotterystation\"],"
+                    + "\"quantityColumn\":[\"soluong\",\"sl\",\"sove\",\"quantity\",\"qty\",\"amount\"],"
+                    + "\"numbersColumn\":[\"dayso\",\"sove\",\"sodu\",\"conso\",\"numbers\",\"ticketnumber\",\"so\"],"
+                    + "\"serialsColumn\":[\"seri\",\"sori\",\"soseri\",\"danhsachseri\",\"serial\",\"serials\",\"serialnumber\"],"
+                    + "\"ticketImageColumn\":[\"anhve\",\"hinhve\",\"anh\",\"hinh\",\"ticketimg\",\"ticketimage\",\"image\",\"photo\",\"url\"],"
+                    + "\"importCostColumn\":[\"giavon\",\"dongia\",\"giave\",\"importcost\",\"unitprice\",\"price\",\"gia\"]"
+                    + "}}",
+            "Giới hạn và quy ước khi đọc tệp .csv/.xlsx nhập vé, kèm alias tên cột tự nhận diện (dùng chung mọi NCC).",
+            "Cấu hình nhập vé từ tệp",
+            null,
+            "{}",
+            true
+    ),
     FORTUNE_CAST_COOLDOWN_HOURS(
             ConfigType.FORTUNE_SETTING,
             DataType.INT,

@@ -3,6 +3,30 @@
 import { ROUTES } from './routes';
 import { registerAdminPageChunkLoader } from '../lib/adminPagePrefetchRegistry';
 
+/** Các trang admin hay mở nhất — prefetch khi shell idle. */
+export const ADMIN_PREFETCH_ROUTE_PRIORITY = [
+    ROUTES.ADMIN.DASHBOARD.ROOT,
+    ROUTES.ADMIN.TICKETS.LIST,
+    ROUTES.ADMIN.ORDERS.LIST,
+    ROUTES.ADMIN.IMPORT_BATCH.LIST,
+    ROUTES.ADMIN.IMPORT_BATCH.CREATE,
+    ROUTES.ADMIN.TICKETS.PROVIDER,
+    ROUTES.ADMIN.SUPPLIER.LIST,
+    ROUTES.ADMIN.CHAT,
+    ROUTES.ADMIN.REFUNDS.LIST,
+    ROUTES.ADMIN.PRIZE_PAYOUTS.LIST,
+    ROUTES.ADMIN.SUPPORT_TICKETS.LIST,
+    ROUTES.ADMIN.RETURN_BATCH.LIST,
+    ROUTES.ADMIN.SUPPLIER_SETTLEMENT.LIST,
+    ROUTES.ADMIN.DASHBOARD.SYSTEM,
+    ROUTES.ADMIN.DASHBOARD.ECOMMERCE,
+    ROUTES.ADMIN.BLOGS.LIST,
+    ROUTES.ADMIN.ACCOUNTS.USER.LIST,
+    ROUTES.ADMIN.ACCOUNTS.ADMIN.LIST,
+    ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.LIST,
+    ROUTES.ADMIN.ROLES.LIST,
+] as const;
+
 /** Map route → dynamic import chunk, dùng khi hover sidebar / sau login. */
 const registerAdminPageChunkLoaders = () => {
     const loaders: Array<[string, () => Promise<unknown>]> = [
@@ -44,6 +68,7 @@ const registerAdminPageChunkLoaders = () => {
         [ROUTES.ADMIN.DASHBOARD.SETTINGS.GENERAL, () => import('@/admin/features/settings/components/pages/GeneralSettingsPage')],
         [ROUTES.ADMIN.DASHBOARD.SETTINGS.POLICIES, () => import('@/admin/features/settings/components/pages/PoliciesSettingsPage')],
         [ROUTES.ADMIN.DASHBOARD.SETTINGS.PAGES, () => import('@/admin/features/settings/components/pages/ContentSettingsPage')],
+        [ROUTES.ADMIN.DASHBOARD.SETTINGS.CONTRACTS, () => import('@/admin/features/settings/components/pages/ContractsSettingsPage')],
         [ROUTES.ADMIN.DASHBOARD.STATISTICS.GENERAL, () => import('@/admin/features/dashboard/components/statistics/GeneralStatisticsPage')],
         [ROUTES.ADMIN.DASHBOARD.STATISTICS.ORDERS, () => import('@/admin/features/dashboard/components/statistics/OrderStatisticsPage')],
         ['/admin/dashboard/statistics/staff', () => import('@/admin/features/dashboard/components/statistics/StaffStatisticsPage')],

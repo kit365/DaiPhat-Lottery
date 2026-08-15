@@ -35,12 +35,17 @@ import { AdminStatusBadge } from '../../../../../components/ui/AdminStatusBadge'
 import { Search } from '../../../../../components/ui/Search';
 import { prefixAdmin, ROUTES } from '../../../../../constants/routes';
 import { QUERY_KEYS } from '../../../inventory/constants/queryKeys';
+import { QUERY_KEYS as IMPORT_BATCH_QUERY_KEYS } from '../../constants/queryKeys';
 import { getTicketStatusLabel, normalizeTicketStatus } from '../../../inventory/constants/ticket-status.config';
-import { useTicketInventory } from '../../../inventory/hooks/useTicketInventory';
 import { useStations } from '../../../../station/hooks/useStation';
 import { LazyReportSerialFaultPane } from '../sections/LazyReportSerialFaultPane';
 import { TicketImportProgressTrack } from '../sections/TicketImportProgressTrack';
-import { useImportBatchDetail } from '../../hooks/useImportBatch';
+import { ImportBatchLineImportHost } from '../../../inventory/components/sections/ImportBatchLineImportHost';
+import { useImportBatchDetail, useImportBatchLineEntryTickets } from '../../hooks/useImportBatch';
+import { CanAccess } from '../../../../../components/auth/CanAccess';
+import { PERMISSIONS } from '../../../../../constants/permission.constants';
+import { Button as LoadingButton } from '../../../../../components/ui/Button';
+import ConfirmationNumberOutlinedIcon from '@mui/icons-material/ConfirmationNumberOutlined';
 import {
     displayImportBatchLineCodeRaw,
     formatImportBatchHeaderCode,
@@ -61,6 +66,9 @@ import {
     matchesCancelFlowStatusFilter,
 } from '../../utils/cancelTicketSelection';
 import { isSerialIncidentEligible } from '../../utils/serialIncidentWorkflow';
+import { isLineIncomplete, isLinePaused } from '../../utils/importBatchProgress';
+
+const asSerials = (serials: unknown): any[] => (Array.isArray(serials) ? serials : []);
 
 const ticketNumberSx = {
     fontWeight: 700,
@@ -119,7 +127,7 @@ const getTicketStatusBadgeClass = (status?: string | null): string => {
 };
 
 const getTicketConditionBadge = (condition?: string | null) => {
-    const normalized = (condition || 'GOOD').toUpperCase();
+    const normalized = String(condition || 'GOOD').toUpperCase();
     if (normalized === 'GOOD') {
         return { className: 'admin-status-badge--success', label: 'Tốt' };
     }
@@ -141,7 +149,7 @@ const getSerialDisplayBadge = (serial: {
     ticketCondition?: string | null;
     ticketConditionDisplayName?: string | null;
 }) => {
-    const condition = (serial.ticketCondition || '').toUpperCase();
+    const condition = String(serial.ticketCondition || '').toUpperCase();
     if (condition === 'DAMAGED' || condition === 'LOST' || condition === 'VOIDED') {
         return {
             className: getTicketStatusBadgeClass(condition),
@@ -181,12 +189,13 @@ const CollapsibleRow = ({
     );
     const conditionBadge = getTicketConditionBadge(ticket.ticketCondition);
 
+    const ticketSerials = asSerials(ticket.serials);
     const cancelableSerials = React.useMemo(() => {
         if (!ticketSelectable) {
             return [];
         }
-        return (ticket.serials || []).filter((serial: any) => isSerialIncidentEligible(serial));
-    }, [ticket.serials, ticketSelectable]);
+        return ticketSerials.filter((serial: any) => isSerialIncidentEligible(serial));
+    }, [ticketSerials, ticketSelectable]);
 
     const cancelableCount = cancelableSerials.length;
     const selectedCount = React.useMemo(
@@ -230,7 +239,7 @@ const CollapsibleRow = ({
                 </TableCell>
                 <TableCell onClick={toggleOpen}>
                     <span className="admin-cell-text">
-                        {ticket.serials?.length ? `${ticket.serials.length} sê-ri` : '—'}
+                        {ticketSerials.length ? `${ticketSerials.length} sê-ri` : '—'}
                     </span>
                 </TableCell>
                 <TableCell align="center" onClick={toggleOpen}>
@@ -251,8 +260,8 @@ const CollapsibleRow = ({
                 </TableCell>
             </TableRow>
 
-            {open && ticket.serials && ticket.serials.length > 0
-                ? ticket.serials.map((serial: any, serialIndex: number) => {
+            {open && ticketSerials.length > 0
+                ? ticketSerials.map((serial: any, serialIndex: number) => {
                       const serialBadge = getSerialDisplayBadge(serial);
                       const serialCondition = getTicketConditionBadge(serial.ticketCondition);
                       const isSerialChecked = selectedSerials.some(
@@ -339,12 +348,22 @@ const CollapsibleRow = ({
     );
 };
 
-export const ImportBatchLineDetailPage = () => {
-    const { id, lineId } = useRouteParams();
+type ImportBatchLineDetailPageProps = {
+    id?: string;
+    lineId?: string;
+};
+
+export const ImportBatchLineDetailPage = ({
+    id: idProp,
+    lineId: lineIdProp,
+}: ImportBatchLineDetailPageProps = {}) => {
+    const routeParams = useRouteParams<{ id?: string; lineId?: string }>();
+    const id = idProp || routeParams.id;
+    const lineId = lineIdProp || routeParams.lineId;
     const router = useAdminRouter();
     const queryClient = useQueryClient();
 
-    const { data: batch, isLoading: isBatchLoading } = useImportBatchDetail(id);
+    const { data: batch, isLoading: isBatchLoading, refetch: refetchBatch } = useImportBatchDetail(id);
     const { data: providersRes } = useStations({ limit: 1000 });
     const providers = (providersRes as any)?.data?.recordList || [];
 
@@ -354,9 +373,18 @@ export const ImportBatchLineDetailPage = () => {
 
     const line = batch?.lines?.find((item) => String(item.id) === String(lineId));
 
-    const { tickets, isLoading: isTicketsLoading } = useTicketInventory(
-        { importBatchLineId: line?.id },
-        1000
+    const { data: entryTickets, isLoading: isTicketsLoading } = useImportBatchLineEntryTickets(id, lineId);
+    const tickets = React.useMemo(
+        () =>
+            (entryTickets?.tickets ?? []).map((ticket) => {
+                const serials = asSerials(ticket.serials);
+                return {
+                    ...ticket,
+                    serials,
+                    quantity: serials.length,
+                };
+            }),
+        [entryTickets]
     );
 
     const [selectedSerials, setSelectedSerials] = React.useState<any[]>([]);
@@ -364,7 +392,9 @@ export const ImportBatchLineDetailPage = () => {
     const [statusFilter, setStatusFilter] = React.useState('ALL');
     const [quantityFilter, setQuantityFilter] = React.useState('ALL');
     const [isReportDialogOpen, setIsReportDialogOpen] = React.useState(false);
+    const [isImportDialogOpen, setIsImportDialogOpen] = React.useState(false);
     const dialogCancelMode: 'TICKET' | 'SERIAL' = 'TICKET';
+    const autoOpenedImportRef = React.useRef(false);
 
     const availableStatusFilterOptions = React.useMemo(
         () => buildCancelFlowStatusFilterOptions(tickets || []),
@@ -385,7 +415,7 @@ export const ImportBatchLineDetailPage = () => {
             if (searchQuery.trim()) {
                 const query = searchQuery.trim().toLowerCase();
                 const matchNumbers = (ticket.numbers || '').toLowerCase().includes(query);
-                const matchSerials = (ticket.serials || []).some((serial: any) =>
+                const matchSerials = asSerials(ticket.serials).some((serial: any) =>
                     (serial.serialNumber || '').toLowerCase().includes(query)
                 );
                 if (!matchNumbers && !matchSerials) {
@@ -395,7 +425,7 @@ export const ImportBatchLineDetailPage = () => {
 
             if (statusFilter !== 'ALL') {
                 const ticketStatusMatch = matchesCancelFlowStatusFilter(ticket.status, statusFilter);
-                const serialStatusMatch = (ticket.serials || []).some((serial: any) =>
+                const serialStatusMatch = asSerials(ticket.serials).some((serial: any) =>
                     matchesCancelFlowSerialFilter(serial, statusFilter)
                 );
                 if (!ticketStatusMatch && !serialStatusMatch) {
@@ -403,7 +433,7 @@ export const ImportBatchLineDetailPage = () => {
                 }
             }
 
-            const quantity = ticket.quantity || ticket.serials?.length || 0;
+            const quantity = ticket.quantity || asSerials(ticket.serials).length || 0;
             if (quantityFilter === '10' && quantity !== 10) return false;
             if (quantityFilter === 'LESS_10' && (quantity >= 10 || quantity === 0)) return false;
             if (quantityFilter === 'ZERO' && quantity !== 0) return false;
@@ -418,7 +448,7 @@ export const ImportBatchLineDetailPage = () => {
             if (!isTicketSelectableForCancel(ticket.status)) {
                 return;
             }
-            (ticket.serials || []).forEach((serial: any) => {
+            asSerials(ticket.serials).forEach((serial: any) => {
                 if (!isSerialIncidentEligible(serial)) {
                     return;
                 }
@@ -448,12 +478,12 @@ export const ImportBatchLineDetailPage = () => {
         if (!isTicketSelectableForCancel(ticket.status)) {
             return;
         }
-        const ticketSerialIds = (ticket.serials || [])
+        const ticketSerialIds = asSerials(ticket.serials)
             .filter((serial: any) => isSerialIncidentEligible(serial))
             .map((serial: any) => String(serial.id));
 
         if (checked) {
-            const cancelableOfTicket = (ticket.serials || [])
+            const cancelableOfTicket = asSerials(ticket.serials)
                 .filter((serial: any) => isSerialIncidentEligible(serial))
                 .map((serial: any) => ({
                     id: serial.id,
@@ -508,7 +538,22 @@ export const ImportBatchLineDetailPage = () => {
         setIsReportDialogOpen(false);
         setSelectedSerials([]);
         queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.TICKETS] });
+        queryClient.invalidateQueries({ queryKey: [IMPORT_BATCH_QUERY_KEYS.IMPORT_BATCH_LINE_ENTRY_TICKETS] });
+        queryClient.invalidateQueries({ queryKey: [IMPORT_BATCH_QUERY_KEYS.IMPORT_BATCH_DETAIL] });
     };
+
+    const canImportTickets = !!line && isLineIncomplete(line) && !isLinePaused(line);
+
+    React.useEffect(() => {
+        if (autoOpenedImportRef.current || !canImportTickets || isTicketsLoading) {
+            return;
+        }
+        // Empty incomplete line: open entry dialog so "Nhập vé" is not a dead-end detail page.
+        if ((tickets?.length ?? 0) === 0 && (line?.totalQuantity ?? 0) === 0) {
+            autoOpenedImportRef.current = true;
+            setIsImportDialogOpen(true);
+        }
+    }, [canImportTickets, isTicketsLoading, tickets?.length, line?.totalQuantity]);
 
     if (isBatchLoading || !line || !batch) {
         return (
@@ -594,13 +639,26 @@ export const ImportBatchLineDetailPage = () => {
                     </>
                 }
                 action={
-                    <Button
-                        variant="outlined"
-                        className="btn-outlined-admin"
-                        onClick={() => id && router.push(ROUTES.ADMIN.IMPORT_BATCH.DETAIL(id))}
-                    >
-                        Quay lại phiếu
-                    </Button>
+                    <Stack direction="row" spacing={1}>
+                        {canImportTickets && (
+                            <CanAccess permission={PERMISSIONS.TICKET.CREATE}>
+                                <LoadingButton
+                                    variant="contained"
+                                    className="btn-primary-admin"
+                                    label="Nhập vé"
+                                    startIcon={<ConfirmationNumberOutlinedIcon />}
+                                    onClick={() => setIsImportDialogOpen(true)}
+                                />
+                            </CanAccess>
+                        )}
+                        <Button
+                            variant="outlined"
+                            className="btn-outlined-admin"
+                            onClick={() => id && router.push(ROUTES.ADMIN.IMPORT_BATCH.DETAIL(id))}
+                        >
+                            Quay lại phiếu
+                        </Button>
+                    </Stack>
                 }
             />
 
@@ -743,8 +801,9 @@ export const ImportBatchLineDetailPage = () => {
                 </TableContainer>
             </Card>
 
+            {isReportDialogOpen && (
             <Dialog
-                open={isReportDialogOpen}
+                open
                 onClose={() => setIsReportDialogOpen(false)}
                 maxWidth="lg"
                 fullWidth
@@ -773,6 +832,23 @@ export const ImportBatchLineDetailPage = () => {
                     />
                 </DialogContent>
             </Dialog>
+            )}
+
+            {isImportDialogOpen && (
+            <ImportBatchLineImportHost
+                batchId={batch.id}
+                lineId={String(line.id)}
+                onClose={() => setIsImportDialogOpen(false)}
+                onSuccess={() => {
+                    setIsImportDialogOpen(false);
+                    refetchBatch();
+                    queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.TICKETS] });
+                    queryClient.invalidateQueries({
+                        queryKey: [IMPORT_BATCH_QUERY_KEYS.IMPORT_BATCH_LINE_ENTRY_TICKETS],
+                    });
+                }}
+            />
+            )}
         </Box>
     );
 };

@@ -33,9 +33,13 @@ export const DateRangePicker = ({
         if (!startDate && !endDate) return undefined;
         const parseDate = (d?: string) => {
             if (!d) return undefined;
+            const parsed = dayjs(d, ['YYYY-MM-DD', 'DD/MM/YYYY'], true);
+            if (parsed.isValid()) return parsed.toDate();
             const parts = d.split('/');
-            if (parts.length !== 3) return undefined;
-            return new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
+            if (parts.length === 3) {
+                return new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
+            }
+            return undefined;
         };
         return { from: parseDate(startDate), to: parseDate(endDate) };
     }, [startDate, endDate]);
@@ -71,11 +75,19 @@ export const DateRangePicker = ({
         handleClose();
     };
 
+    const formatDisplay = (d?: string) => {
+        if (!d) return "";
+        const parsed = dayjs(d, ['YYYY-MM-DD', 'DD/MM/YYYY']);
+        return parsed.isValid() ? parsed.format('DD/MM/YYYY') : d;
+    };
+
     const displayValue = useMemo(() => {
         if (!startDate && !endDate) return "";
-        if (startDate === endDate) return startDate;
-        if (startDate && !endDate) return startDate;
-        return `${startDate} → ${endDate}`;
+        const startDisplay = formatDisplay(startDate);
+        const endDisplay = formatDisplay(endDate);
+        if (startDisplay === endDisplay) return startDisplay;
+        if (startDisplay && !endDisplay) return startDisplay;
+        return `${startDisplay} → ${endDisplay}`;
     }, [startDate, endDate]);
 
     const open = Boolean(anchorEl);

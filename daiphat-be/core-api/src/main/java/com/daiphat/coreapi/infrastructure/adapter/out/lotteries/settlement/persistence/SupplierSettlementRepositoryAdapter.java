@@ -1,6 +1,7 @@
 package com.daiphat.coreapi.infrastructure.adapter.out.lotteries.settlement.persistence;
 
 import com.daiphat.coreapi.application.port.out.lotteries.SupplierSettlementRepositoryPort;
+import com.daiphat.coreapi.application.port.out.lotteries.SettlementImportedSerialRow;
 import com.daiphat.coreapi.application.port.out.lotteries.SettlementResolvableSerialRow;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus;
 import com.daiphat.coreapi.domain.model.enums.lottery.SupplierSettlementStatus;
@@ -160,7 +161,7 @@ public class SupplierSettlementRepositoryAdapter implements SupplierSettlementRe
         if (settlementId == null) {
             return java.util.List.of();
         }
-        return mapSerialRows(supplierSettlementRepository.findPreparedReturnSerialRowsBySettlementId(settlementId));
+        return mapSerialRows(supplierSettlementRepository.findPreparedReturnSerialRowsBySettlementId(settlementId), false);
     }
 
     @Override
@@ -168,7 +169,25 @@ public class SupplierSettlementRepositoryAdapter implements SupplierSettlementRe
         if (settlementId == null) {
             return java.util.List.of();
         }
-        return mapSerialRows(supplierSettlementRepository.findImportResolvableSerialRowsBySettlementId(settlementId));
+        return mapSerialRows(supplierSettlementRepository.findImportResolvableSerialRowsBySettlementId(settlementId), true);
+    }
+
+    @Override
+    public java.util.List<SettlementImportedSerialRow> findImportedSerialsForFileCheck(Long settlementId) {
+        if (settlementId == null) {
+            return java.util.List.of();
+        }
+        return supplierSettlementRepository.findImportedSerialRowsForFileCheck(settlementId).stream()
+                .map(row -> new SettlementImportedSerialRow(
+                        (Long) row[0],
+                        (String) row[1],
+                        (String) row[2],
+                        (Long) row[3],
+                        (String) row[4],
+                        (Long) row[5],
+                        (String) row[6]
+                ))
+                .toList();
     }
 
     @Override
@@ -176,7 +195,7 @@ public class SupplierSettlementRepositoryAdapter implements SupplierSettlementRe
         return supplierSettlementRepository.nextSettlementCodeSequence();
     }
 
-    private java.util.List<SettlementResolvableSerialRow> mapSerialRows(java.util.List<Object[]> rows) {
+    private java.util.List<SettlementResolvableSerialRow> mapSerialRows(java.util.List<Object[]> rows, boolean withImportBatch) {
         return rows.stream()
                 .map(row -> new SettlementResolvableSerialRow(
                         (Long) row[0],
@@ -184,7 +203,9 @@ public class SupplierSettlementRepositoryAdapter implements SupplierSettlementRe
                         (LotteryTicketSerialStatus) row[2],
                         (TicketCondition) row[3],
                         (String) row[4],
-                        row[5] != null ? (BigDecimal) row[5] : BigDecimal.ZERO
+                        row[5] != null ? (BigDecimal) row[5] : BigDecimal.ZERO,
+                        withImportBatch && row.length > 6 ? (Long) row[6] : null,
+                        withImportBatch && row.length > 7 ? (String) row[7] : null
                 ))
                 .toList();
     }
