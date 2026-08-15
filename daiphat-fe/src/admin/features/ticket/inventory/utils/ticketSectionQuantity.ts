@@ -58,12 +58,16 @@ export const canAppendTicketSection = (
     remainingQuota: number
 ) => countTotalQuotaSlots(sections) < Math.max(0, remainingQuota);
 
+export const getSectionFilledSerialsCount = (serials: TicketSerialForm[] = []): number =>
+    serials.filter((serial) => isPersistedSerial(serial) || !!serial.serialNumber?.trim()).length;
+
 export const buildSerialsForQuantity = (
     currentSerials: TicketSerialForm[] = [],
     quantity: number
 ): TicketSerialForm[] => {
     const persisted = currentSerials.filter((serial) => isPersistedSerial(serial));
-    const targetTotal = Math.max(quantity, persisted.length, currentSerials.length, 1);
+    const filledCount = getSectionFilledSerialsCount(currentSerials);
+    const targetTotal = Math.max(quantity, persisted.length, filledCount, 1);
     const next: TicketSerialForm[] =
         currentSerials.length > 0 ? [...currentSerials] : [emptySerial()];
 
@@ -73,7 +77,7 @@ export const buildSerialsForQuantity = (
 
     while (next.length > targetTotal) {
         const lastIndex = next.length - 1;
-        if (isPersistedSerial(next[lastIndex])) {
+        if (isPersistedSerial(next[lastIndex]) || next[lastIndex].serialNumber?.trim()) {
             break;
         }
         next.pop();

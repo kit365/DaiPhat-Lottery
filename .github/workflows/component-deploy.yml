@@ -31,7 +31,7 @@ jobs:
           COMPONENT: ${{ inputs.component }}
         run: |
           set -euo pipefail
-          [[ "$COMPONENT" =~ ^(backend|frontend|ai)$ ]]
+          [[ "$COMPONENT" =~ ^(backend|frontend|ai|ticket-vision)$ ]]
 
       - name: Checkout selected source
         uses: actions/checkout@v4
@@ -56,6 +56,7 @@ jobs:
             backend) repository=daiphat-be ;;
             frontend) repository=daiphat-fe ;;
             ai) repository=daiphat-ai ;;
+            ticket-vision) repository=daiphat-ticket-vision ;;
           esac
           echo "sha=$sha" >> "$GITHUB_OUTPUT"
           echo "channel=$channel" >> "$GITHUB_OUTPUT"
@@ -126,6 +127,51 @@ jobs:
           tags: ${{ env.IMAGE }}
           cache-from: type=registry,ref=docker.io/${{ secrets.DOCKER_USERNAME }}/daiphat-ai:buildcache
           cache-to: type=registry,ref=docker.io/${{ secrets.DOCKER_USERNAME }}/daiphat-ai:buildcache,mode=max
+
+      - name: Fetch ticket-vision model weights
+        if: ${{ inputs.component == 'ticket-vision' }}
+        env:
+          WEIGHTS_URL: ${{ secrets.TICKET_VISION_WEIGHTS_URL }}
+        run: |
+          set -euo pipefail
+          # models/best.pt is gitignored (a ~6MB binary doesn't belong in the
+          # repo), so this checkout has no weights. Without them the image
+          # still builds and runs -- TicketDetectorFactory/LayoutStrategyFactory
+          # fall back to the OpenCV contour detector and the generic layout --
+          # but the YOLO strategies stay unavailable. Set the
+          # TICKET_VISION_WEIGHTS_URL secret to a downloadable best.pt to bake
+          # them in.
+          if [[ -z "${WEIGHTS_URL:-}" ]]; then
+            echo "::warning::TICKET_VISION_WEIGHTS_URL is not set; building without YOLO weights (contour/generic strategies only)."
+            exit 0
+          fi
+          mkdir -p daiphat-ai/services/ticket-vision/models
+          curl -fsSL "$WEIGHTS_URL" -o daiphat-ai/services/ticket-vision/models/best.pt
+          # A wrong URL that returns an HTML error page would otherwise be
+          # baked in as "weights" and only fail at first scan.
+          python - <<'PY'
+          import sys
+          from pathlib import Path
+          weights = Path("daiphat-ai/services/ticket-vision/models/best.pt")
+          size = weights.stat().st_size
+          if size < 1_000_000:
+              sys.exit(f"Downloaded weights are implausibly small ({size} bytes); check TICKET_VISION_WEIGHTS_URL.")
+          if weights.read_bytes()[:2] != b"PK":
+              sys.exit("Downloaded weights are not a torch checkpoint (expected a zip archive).")
+          print(f"Weights OK: {size} bytes")
+          PY
+
+      - name: Build and push ticket-vision
+        if: ${{ inputs.component == 'ticket-vision' }}
+        uses: docker/build-push-action@v7
+        with:
+          context: ./daiphat-ai
+          file: ./daiphat-ai/services/ticket-vision/Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: ${{ env.IMAGE }}
+          cache-from: type=registry,ref=docker.io/${{ secrets.DOCKER_USERNAME }}/daiphat-ticket-vision:buildcache
+          cache-to: type=registry,ref=docker.io/${{ secrets.DOCKER_USERNAME }}/daiphat-ticket-vision:buildcache,mode=max
 
   deploy:
     runs-on: ubuntu-latest
@@ -219,6 +265,7 @@ jobs:
             backend) repository=daiphat-be ;;
             frontend) repository=daiphat-fe ;;
             ai) repository=daiphat-ai ;;
+            ticket-vision) repository=daiphat-ticket-vision ;;
           esac
           image="docker.io/$DOCKER_USERNAME/$repository:$IMAGE_CHANNEL-$SOURCE_SHA"
           printf '%s' "$DOCKER_PASSWORD" | ssh -i "$HOME/.ssh/daiphat_vps_deploy" -o BatchMode=yes -o ConnectTimeout=10 "$VPS_USER@$VPS_HOST" \
@@ -272,6 +319,7 @@ jobs:
             backend) repository=daiphat-be ;;
             frontend) repository=daiphat-fe ;;
             ai) repository=daiphat-ai ;;
+            ticket-vision) repository=daiphat-ticket-vision ;;
           esac
           image="docker.io/$DOCKER_USERNAME/$repository:$IMAGE_CHANNEL-$SOURCE_SHA"
           docker buildx imagetools create -t "docker.io/$DOCKER_USERNAME/$repository:prod" "$image"

@@ -8,9 +8,11 @@ import { prefixAdmin, ROUTES } from "@/admin/constants/routes";
 type SettingsPageShellProps = {
     title: string;
     children: ReactNode;
+    action?: ReactNode;
+    description?: ReactNode;
 };
 
-export const SettingsPageShell = ({ title, children }: SettingsPageShellProps) => {
+export const SettingsPageShell = ({ title, children, action, description }: SettingsPageShellProps) => {
     const breadcrumbs = [
         { label: "Dashboard", to: `/${prefixAdmin}` },
         { label: "Cài đặt", to: ROUTES.ADMIN.DASHBOARD.SETTINGS.GENERAL },
@@ -19,7 +21,12 @@ export const SettingsPageShell = ({ title, children }: SettingsPageShellProps) =
 
     return (
         <Box>
-            <PageHeader title={title} breadcrumbItems={breadcrumbs} />
+            <PageHeader
+                title={title}
+                breadcrumbItems={breadcrumbs}
+                action={action}
+                description={description}
+            />
             <Box sx={{ mt: 2 }}>{children}</Box>
         </Box>
     );

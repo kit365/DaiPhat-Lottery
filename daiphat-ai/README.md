@@ -44,8 +44,8 @@ DaiPhat-Lottery-Platform/
 | Phase | Scope | Status |
 |-------|-------|--------|
 | 0 | Monorepo skeleton | Done |
-| 1 | FastAPI `ticket-vision` + `/health` + `/v1/scan`: OpenCV contour detection (MVP), EasyOCR with a PaddleOCR fallback strategy, station fuzzy matching, Layer-1 format validation, green/yellow/red status resolution | Done — not yet calibrated against real ticket photos (see `services/ticket-vision/fixtures/README.md`); not yet wired into production CD (`docker-compose.prod.yml` / `ai-deploy.yml`) |
-| 2 | Fine-tuned YOLOv8 detector for overlapping/cluttered photos; per-station OCR region layouts | Not started — `TicketDetectorFactory`/`LayoutStrategyFactory` are the seams it plugs into |
+| 1 | FastAPI `ticket-vision` + `/health` + `/v1/scan`: OpenCV contour detection (MVP), EasyOCR with a PaddleOCR fallback strategy, station fuzzy matching, Layer-1 format validation, green/yellow/red status resolution | Done — not yet calibrated against real ticket photos (see `services/ticket-vision/fixtures/README.md`) |
+| 2 | Fine-tuned YOLOv8 detector for overlapping/cluttered photos; per-station OCR region layouts | Done, off by default — `YoloObbTicketDetector` (`TICKET_VISION_DETECTOR_STRATEGY=yolov8_obb`) and `YoloFieldLayoutStrategy` (`TICKET_VISION_LAYOUT_STRATEGY=yolo_field`). Both need `models/best.pt`; they fall back to contour/generic without it. Not yet benchmarked against the MVP, so the defaults stay unchanged |
 | 3 | Java `core-api` integration + Flutter scan UI | Java side done (`TicketVisionAdapter` → `POST /v1/scan`, Layer-2 business validation in `TicketScanImportService`); Flutter scan UI not started |
 
 ## Local setup
@@ -129,7 +129,16 @@ From the repository root, the standard local stack builds and starts both AI ser
 docker compose up -d --build
 ```
 
-Production publishes `daiphat-ai` (chat-bot) as an immutable image tagged with the same commit SHA as FE and BE, reachable internally at `http://ai:8000` — not exposed publicly on the VPS. `ticket-vision` doesn't have a production image/deploy pipeline yet (`ai-deploy.yml` only builds chat-bot, and it has no entry in `docker-compose.prod.yml`); that needs to be set up before this feature can run in production.
+Production publishes each service as an immutable image tagged with the same commit SHA as FE and BE, reachable only on the internal Docker network — neither is exposed publicly on the VPS:
+
+| Service | Image | Internal URL | Workflow |
+|---------|-------|--------------|----------|
+| chat-bot | `daiphat-ai` | `http://ai:8000` | `ai-deploy.yml` |
+| ticket-vision | `daiphat-ticket-vision` | `http://ticket-vision:8090` | `ticket-vision-deploy.yml` |
+
+They deploy independently: `ticket-vision`'s image carries torch/paddlepaddle/easyocr and is far slower to build, so `ai-deploy.yml` excludes its subtree rather than rebuilding it on every chat-bot change.
+
+**Model weights in CI.** `models/best.pt` is gitignored, so a CI checkout has none and the image ships without YOLO — `TicketDetectorFactory` and `LayoutStrategyFactory` fall back to the contour detector and the generic layout on their own. To bake the weights in, set the `TICKET_VISION_WEIGHTS_URL` repository secret to a downloadable `best.pt`; the build validates size and file type so a bad URL fails the build instead of shipping an HTML error page as "weights". Production defaults to `contour`/`generic` regardless — flip `TICKET_VISION_DETECTOR_STRATEGY` / `TICKET_VISION_LAYOUT_STRATEGY` only after benchmarking.
 
 
 ## License
