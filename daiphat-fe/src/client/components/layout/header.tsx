@@ -23,7 +23,7 @@ import { Skeleton } from "../../../components/ui/Skeleton";
 import { AppToast as toast } from "../../../utils/toast.util";
 import { createNavBannerPrefetchHandlers } from "../../utils/prefetchImagesWhenIdle";
 import { shouldPrefetchClientNavRoute } from "../../utils/clientNavPrefetch";
-import { CLIENT_LOGO, PROVINCE_ICON_FALLBACK } from "../../constants/clientBannerAssets";
+import { PROVINCE_ICON_FALLBACK } from "../../constants/clientBannerAssets";
 import { useSiteBranding } from "@/client/hooks/useSiteBranding";
 import { SiteLogo } from "@/client/components/layout/SiteLogo";
 

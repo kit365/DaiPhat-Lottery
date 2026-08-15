@@ -368,19 +368,27 @@ export const OrderList = () => {
                                                 </Typography>
                                             </TableCell>
 
-                                            <TableCell sx={{ borderBottom: '1px dashed var(--palette-background-neutral)' }}>
-                                                <Stack direction="row" spacing={2} alignItems="center">
+                                            <TableCell sx={{ borderBottom: '1px dashed var(--palette-background-neutral)', maxWidth: 240 }}>
+                                                <Stack direction="row" spacing={2} alignItems="center" sx={{ minWidth: 0 }}>
                                                     <Avatar
                                                         src={row.user?.avatar || ""}
-                                                        sx={{ width: 40, height: 40, borderRadius: 'var(--shape-borderRadius-sm)' }}
+                                                        sx={{ width: 40, height: 40, flexShrink: 0, borderRadius: 'var(--shape-borderRadius-sm)' }}
                                                     >
                                                         <Icon icon="eva:person-fill" width={24} />
                                                     </Avatar>
-                                                    <Stack spacing={0.25}>
-                                                        <Typography sx={{ fontWeight: 600, fontSize: '0.875rem', color: 'var(--palette-text-primary)' }}>
+                                                    <Stack spacing={0.25} sx={{ minWidth: 0 }}>
+                                                        <Typography
+                                                            noWrap
+                                                            title={row.name || row.user?.fullName || 'Khách vãng lai'}
+                                                            sx={{ fontWeight: 600, fontSize: '0.875rem', color: 'var(--palette-text-primary)' }}
+                                                        >
                                                             {row.name || row.user?.fullName || 'Khách vãng lai'}
                                                         </Typography>
-                                                        <Typography sx={{ color: 'var(--palette-text-secondary)', fontSize: '0.75rem' }}>
+                                                        <Typography
+                                                            noWrap
+                                                            title={row.phone || row.user?.phone || row.user?.email || "Không có thông tin"}
+                                                            sx={{ color: 'var(--palette-text-secondary)', fontSize: '0.75rem' }}
+                                                        >
                                                             {row.phone || row.user?.phone || row.user?.email || "Không có thông tin"}
                                                         </Typography>
                                                     </Stack>

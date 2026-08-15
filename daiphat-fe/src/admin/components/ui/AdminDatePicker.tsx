@@ -123,6 +123,8 @@ export interface AdminDatePickerProps {
     helperText?: string;
     helperTextColor?: 'error' | 'warning' | 'default';
     disabled?: boolean;
+    /** When true, the selected day cannot be cleared. */
+    required?: boolean;
     /** Keeps the custom calendar while allowing keyboard input (DD/MM/YYYY). */
     allowInput?: boolean;
 }
@@ -137,6 +139,7 @@ export const AdminDatePicker = ({
     helperText,
     helperTextColor = 'default',
     disabled = false,
+    required = false,
     allowInput = false,
 }: AdminDatePickerProps) => {
     const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
@@ -170,11 +173,13 @@ export const AdminDatePicker = ({
     };
 
     const handleSelect = (date?: Date) => {
-        setTempDate(date);
         if (!date) {
+            if (required) return;
+            setTempDate(undefined);
             onChange('');
             return;
         }
+        setTempDate(date);
         onChange(dayjs(date).format('YYYY-MM-DD'));
         handleClose();
     };
@@ -184,6 +189,11 @@ export const AdminDatePicker = ({
         const typedDate = parseTypedDate(inputValue);
         if (!typedDate) {
             if (!inputValue.trim()) {
+                if (required) {
+                    setInputValue(displayValue);
+                    setInputError(false);
+                    return;
+                }
                 setInputError(false);
                 onChange('');
             } else {
@@ -353,6 +363,7 @@ export const AdminDatePicker = ({
                     <style>{CALENDAR_STYLES}</style>
                     <DayPicker
                         mode="single"
+                        required={required}
                         selected={tempDate}
                         onSelect={handleSelect}
                         locale={vi}

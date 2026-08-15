@@ -844,8 +844,9 @@ export const VendorAllocationPage = () => {
                             <AdminDatePicker
                                 label="Ngày kinh doanh"
                                 value={businessDate}
+                                required
                                 onChange={(next) => {
-                                    if (next && next < minBusinessDate) return;
+                                    if (!next || next < minBusinessDate) return;
                                     setBusinessDate(next);
                                 }}
                                 min={minBusinessDate}

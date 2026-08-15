@@ -9,12 +9,14 @@ import {
 } from "../services/luckyPatternService";
 import { UpsertLuckyPatternConfigPayload } from "../types/street-agent.type";
 import { QUERY_KEYS } from "../constants/queryKeys";
+import { QUERY_STALE_TIMES } from "@/shared/react-query/queryPolicies";
 
 export const useLuckyPatternConfigs = () => {
     return useQuery({
         queryKey: [QUERY_KEYS.LUCKY_PATTERN_CONFIGS],
         queryFn: getLuckyPatternConfigs,
         select: (response) => response.data || [],
+        staleTime: QUERY_STALE_TIMES.static,
     });
 };
 

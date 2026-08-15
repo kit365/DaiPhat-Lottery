@@ -8,9 +8,11 @@ import { ArrowIcon } from "../../../assets/icons";
 import { useSidebar } from "../../../context/sidebar/useSidebar";
 import { ROUTES } from "../../../constants/routes";
 import { SiteLogo } from "@/client/components/layout/SiteLogo";
+import { useSiteBranding } from "@/client/hooks/useSiteBranding";
 
 export const SideBar = () => {
     const { isOpen, toggleSidebar } = useSidebar();
+    const { name } = useSiteBranding();
 
     return (
         <div className={`flex fixed top-0 left-0 flex-col z-[1200] h-full bg-white border-r border-[#919eab1f] transition-[width] duration-[120ms] ease-linear ${isOpen ? 'w-[300px]' : 'w-[88px]'}`}>
@@ -33,16 +35,20 @@ export const SideBar = () => {
                 <ArrowIcon sx={{ fontSize: "0.625rem", rotate: isOpen ? "90deg" : "270deg" }} />
             </IconButton>
 
-            {/* Logo — cố định góc trái, không căn giữa khi mở rộng */}
             <div className="flex shrink-0 overflow-hidden py-5 pl-5 pr-2">
                 <Link
                     href={ROUTES.ADMIN.DASHBOARD.ROOT}
-                    className="flex h-8 w-8 items-center justify-center overflow-hidden"
+                    className="flex min-w-0 items-center gap-3 no-underline"
                 >
                     <SiteLogo
-                        className="h-8 w-8 rounded object-contain"
-                        imgClassName="h-full w-full object-contain"
+                        className="h-9 w-9 shrink-0 rounded-lg"
+                        imgClassName="h-full w-full object-contain bg-white"
                     />
+                    {isOpen ? (
+                        <span className="truncate text-[15px] font-extrabold tracking-tight text-[#ee1314]">
+                            {name}
+                        </span>
+                    ) : null}
                 </Link>
             </div>
 

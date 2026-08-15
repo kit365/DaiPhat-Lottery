@@ -32,6 +32,7 @@ import { StationCapacityBadges } from "./StationCapacityBadges";
 import { Button } from "../../../../components/ui/Button";
 import { formatCurrency } from "../../utils/format";
 import { BADGE_COLOR_PALETTE } from "@/admin/utils/badge";
+import { LuckyTicketNumber } from "../LuckyTicketNumber";
 
 const blockedReasonLabel = (code?: string | null) => {
     if (!code) return "";
@@ -511,16 +512,7 @@ export const VendorAllocationStationDrawer: React.FC<VendorAllocationStationDraw
                                                 >
                                                     <TableCell>
                                                         <Stack direction="row" alignItems="center" spacing={1} flexWrap="wrap" useFlexGap>
-                                                            <Typography
-                                                                sx={{
-                                                                    fontFamily: MONO,
-                                                                    fontWeight: 800,
-                                                                    fontSize: "0.9375rem",
-                                                                    letterSpacing: "0.06em",
-                                                                }}
-                                                            >
-                                                                {ticket.ticketNumbers}
-                                                            </Typography>
+                                                            <LuckyTicketNumber value={ticket.ticketNumbers} />
                                                             {ticket.lucky && (
                                                                 <Chip
                                                                     size="small"
@@ -587,16 +579,7 @@ export const VendorAllocationStationDrawer: React.FC<VendorAllocationStationDraw
                                 {selectedTicket ? (
                                     <>
                                         <Box sx={{ px: 2, py: 2, borderBottom: "1px solid #F4F6F8", flexShrink: 0 }}>
-                                            <Typography
-                                                sx={{
-                                                    fontFamily: MONO,
-                                                    fontWeight: 800,
-                                                    fontSize: "1rem",
-                                                    letterSpacing: "0.06em",
-                                                }}
-                                            >
-                                                {selectedTicket.ticketNumbers}
-                                            </Typography>
+                                            <LuckyTicketNumber value={selectedTicket.ticketNumbers} fontSize="1rem" />
                                             <Typography variant="caption" color="text.secondary">
                                                 Đã chọn {selectedInGroup} / {selectedSelectable.length} seri
                                             </Typography>

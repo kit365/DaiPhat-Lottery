@@ -17,12 +17,11 @@ import {
     LinearProgress,
     Avatar,
 } from "@mui/material";
-import WelcomeWidget from "@/admin/components/dashboard/WelcomeWidget";
 import SummaryWidget from "@/admin/components/dashboard/SummaryWidget";
 import { useRouter } from "next/navigation";
 import DashboardCard from "@/admin/components/dashboard/DashboardCard";
 import { ROUTES } from "@/admin/constants/routes";
-import { useAuthStore } from "@/stores/useAuthStore";
+import { EllipsisText } from "@/shared/components/EllipsisText";
 import Chart from "@/components/ApexChartCompat";
 import type { ApexOptions } from "apexcharts";
 import { useEcommerceOverview } from "@/admin/features/dashboard/hooks/useDashboard";
@@ -46,7 +45,7 @@ const formatCount = (value: number | null | undefined) =>
     VI_NUMBER_FORMATTER.format(value ?? 0);
 
 const formatCurrency = (value: number | null | undefined) =>
-    `${VI_NUMBER_FORMATTER.format(value ?? 0)} đ`;
+    `${VI_NUMBER_FORMATTER.format(value ?? 0)}\u00A0đ`;
 
 const ACTION_COLORS = ["#FFAB00", "#00B8D9", "#8E33FF", "#FF5630", "#22C55E"];
 const ORDER_COLORS = ["#FFAB00", "#00B8D9", "#8E33FF", "#22C55E", "#FF5630", "#637381"];
@@ -77,12 +76,20 @@ const StatusChip = ({ label }: { label: string }) => {
         <Chip
             label={label || "—"}
             size="small"
+            title={label || "—"}
             sx={{
                 height: 24,
+                maxWidth: "100%",
                 fontWeight: 700,
                 fontSize: "0.7rem",
                 bgcolor: tone.bg,
                 color: tone.color,
+                "& .MuiChip-label": {
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                    px: 1,
+                },
             }}
         />
     );
@@ -94,11 +101,17 @@ const tableHeadSx = {
         color: "var(--palette-text-secondary)",
         fontWeight: 600,
         fontSize: "0.75rem",
+        whiteSpace: "nowrap",
     },
 };
 
 const tableRowSx = {
-    "& td": { borderBottom: "1px dashed var(--palette-divider)", py: 1.5 },
+    "& td": {
+        borderBottom: "1px dashed var(--palette-divider)",
+        py: 1.5,
+        whiteSpace: "nowrap",
+        verticalAlign: "middle",
+    },
 };
 
 const EmptyCard = ({ title, message }: { title?: string; message: string }) => (
@@ -173,11 +186,13 @@ const ActionItemPanel = ({ data }: { data: AdminEcommerceNamedCount[] }) => {
                     const pct = total > 0 ? Math.round(((item.count || 0) / total) * 100) : 0;
                     return (
                         <Box key={item.type || item.label}>
-                            <Box sx={{ display: "flex", justifyContent: "space-between", mb: 0.75 }}>
-                                <Typography variant="body2" sx={{ fontWeight: 600, fontSize: "0.813rem" }}>
-                                    {item.label || item.type}
-                                </Typography>
-                                <Typography variant="body2" sx={{ fontWeight: 700, color, fontSize: "0.813rem" }}>
+                            <Box sx={{ display: "flex", justifyContent: "space-between", gap: 1.5, mb: 0.75 }}>
+                                <Box sx={{ minWidth: 0, flex: 1 }}>
+                                    <EllipsisText sx={{ fontWeight: 600, fontSize: "0.813rem" }}>
+                                        {item.label || item.type}
+                                    </EllipsisText>
+                                </Box>
+                                <Typography variant="body2" sx={{ fontWeight: 700, color, fontSize: "0.813rem", whiteSpace: "nowrap", flexShrink: 0 }}>
                                     {formatCount(item.count)}
                                 </Typography>
                             </Box>
@@ -302,7 +317,7 @@ const VendorRiskTable = ({ data }: { data: AdminEcommerceVendorRisk[] }) => {
     }
 
     return (
-        <DashboardCard>
+        <DashboardCard sx={{ height: "100%" }}>
             <Box sx={{ p: 3, pb: 2 }}>
                 <Typography variant="h6" sx={{ fontWeight: 600, fontSize: "1.125rem" }}>
                     Rủi ro người bán
@@ -312,20 +327,24 @@ const VendorRiskTable = ({ data }: { data: AdminEcommerceVendorRisk[] }) => {
                 </Typography>
             </Box>
             <TableContainer sx={{ px: 3, pb: 3 }}>
-                <Table size="small">
+                <Table size="small" sx={{ tableLayout: "fixed", width: "100%" }}>
                     <TableHead>
                         <TableRow sx={tableHeadSx}>
                             <TableCell>Người bán</TableCell>
-                            <TableCell align="right">Vé đang giữ</TableCell>
-                            <TableCell>Trạng thái</TableCell>
+                            <TableCell align="right" sx={{ width: 110 }}>Vé đang giữ</TableCell>
+                            <TableCell sx={{ width: 128 }}>Trạng thái</TableCell>
                         </TableRow>
                     </TableHead>
                     <TableBody>
                         {data.map((item) => (
                             <TableRow key={item.vendorName} sx={tableRowSx}>
-                                <TableCell sx={{ fontWeight: 600, fontSize: "0.813rem" }}>{item.vendorName}</TableCell>
-                                <TableCell align="right" sx={{ fontWeight: 700, fontSize: "0.813rem" }}>
-                                    {formatCount(item.heldQuantity)} vé
+                                <TableCell sx={{ fontWeight: 600, fontSize: "0.813rem" }}>
+                                    <EllipsisText sx={{ fontWeight: 600, fontSize: "0.813rem" }}>
+                                        {item.vendorName}
+                                    </EllipsisText>
+                                </TableCell>
+                                <TableCell align="right" sx={{ fontWeight: 700, fontSize: "0.813rem", whiteSpace: "nowrap" }}>
+                                    {formatCount(item.heldQuantity)}{"\u00A0"}vé
                                 </TableCell>
                                 <TableCell>
                                     <StatusChip label={item.status || "—"} />
@@ -429,30 +448,31 @@ const TopCustomersTable = ({ data }: { data: AdminEcommerceTopCustomer[] }) => {
     }
 
     return (
-        <DashboardCard>
+        <DashboardCard sx={{ height: "100%" }}>
             <Box sx={{ p: 3, pb: 2 }}>
                 <Typography variant="h6" sx={{ fontWeight: 600, fontSize: "1.125rem" }}>
                     Khách chi nhiều nhất
                 </Typography>
             </Box>
-            <TableContainer sx={{ px: 3, pb: 3 }}>
-                <Table size="small">
+            <TableContainer sx={{ px: { xs: 2, sm: 3 }, pb: 3 }}>
+                <Table size="small" sx={{ tableLayout: "fixed", width: "100%" }}>
                     <TableHead>
                         <TableRow sx={tableHeadSx}>
                             <TableCell>Khách hàng</TableCell>
-                            <TableCell align="right">Số đơn</TableCell>
-                            <TableCell align="right">Tổng chi</TableCell>
+                            <TableCell align="right" sx={{ width: 76 }}>Số đơn</TableCell>
+                            <TableCell align="right" sx={{ width: 128 }}>Tổng chi</TableCell>
                         </TableRow>
                     </TableHead>
                     <TableBody>
                         {data.map((item, index) => (
                             <TableRow key={item.customerName} sx={tableRowSx}>
                                 <TableCell>
-                                    <Box sx={{ display: "flex", alignItems: "center", gap: 1.25 }}>
+                                    <Box sx={{ display: "flex", alignItems: "center", gap: 1.25, minWidth: 0 }}>
                                         <Avatar
                                             sx={{
                                                 width: 28,
                                                 height: 28,
+                                                flexShrink: 0,
                                                 fontSize: "0.75rem",
                                                 fontWeight: 700,
                                                 bgcolor: RANK_COLORS[index] ?? "rgba(145,158,171,0.24)",
@@ -461,16 +481,20 @@ const TopCustomersTable = ({ data }: { data: AdminEcommerceTopCustomer[] }) => {
                                         >
                                             {index + 1}
                                         </Avatar>
-                                        <Typography sx={{ fontWeight: 600, fontSize: "0.813rem" }}>
-                                            {item.customerName || "Khách lẻ"}
-                                        </Typography>
+                                        <Box sx={{ minWidth: 0, flex: 1 }}>
+                                            <EllipsisText sx={{ fontWeight: 600, fontSize: "0.813rem" }}>
+                                                {item.customerName || "Khách lẻ"}
+                                            </EllipsisText>
+                                        </Box>
                                     </Box>
                                 </TableCell>
-                                <TableCell align="right" sx={{ fontSize: "0.813rem" }}>
+                                <TableCell align="right" sx={{ fontSize: "0.813rem", whiteSpace: "nowrap" }}>
                                     {formatCount(item.orderCount)}
                                 </TableCell>
-                                <TableCell align="right" sx={{ fontWeight: 700, fontSize: "0.813rem" }}>
-                                    {formatCurrency(item.totalSpent)}
+                                <TableCell align="right" sx={{ fontWeight: 700, fontSize: "0.813rem", whiteSpace: "nowrap" }}>
+                                    <EllipsisText sx={{ fontWeight: 700, fontSize: "0.813rem", textAlign: "right" }}>
+                                        {formatCurrency(item.totalSpent)}
+                                    </EllipsisText>
                                 </TableCell>
                             </TableRow>
                         ))}
@@ -524,8 +548,8 @@ const RecentOrdersTable = ({ data }: { data: AdminEcommerceRecentOrder[] }) => {
                     Đơn hàng gần đây
                 </Typography>
             </Box>
-            <TableContainer sx={{ px: 3, pb: 3 }}>
-                <Table size="small">
+            <TableContainer sx={{ px: 3, pb: 3, overflowX: "auto" }}>
+                <Table size="small" sx={{ minWidth: 640 }}>
                     <TableHead>
                         <TableRow sx={tableHeadSx}>
                             <TableCell>Mã đơn</TableCell>
@@ -538,17 +562,21 @@ const RecentOrdersTable = ({ data }: { data: AdminEcommerceRecentOrder[] }) => {
                     <TableBody>
                         {data.map((item) => (
                             <TableRow key={item.id || item.orderCode} sx={tableRowSx}>
-                                <TableCell sx={{ fontWeight: 700, fontSize: "0.813rem", fontFamily: "Barlow, sans-serif" }}>
-                                    {item.orderCode || "—"}
+                                <TableCell sx={{ fontWeight: 700, fontSize: "0.813rem", fontFamily: "Barlow, sans-serif", maxWidth: 140 }}>
+                                    <EllipsisText sx={{ fontWeight: 700, fontSize: "0.813rem", fontFamily: "Barlow, sans-serif" }}>
+                                        {item.orderCode || "—"}
+                                    </EllipsisText>
                                 </TableCell>
-                                <TableCell sx={{ fontSize: "0.813rem" }}>{item.customerName}</TableCell>
+                                <TableCell sx={{ fontSize: "0.813rem", maxWidth: 180 }}>
+                                    <EllipsisText sx={{ fontSize: "0.813rem" }}>{item.customerName}</EllipsisText>
+                                </TableCell>
                                 <TableCell>
                                     <StatusChip label={item.status} />
                                 </TableCell>
-                                <TableCell align="right" sx={{ fontWeight: 700, fontSize: "0.813rem" }}>
+                                <TableCell align="right" sx={{ fontWeight: 700, fontSize: "0.813rem", whiteSpace: "nowrap" }}>
                                     {formatCurrency(item.total)}
                                 </TableCell>
-                                <TableCell align="right" sx={{ fontSize: "0.75rem", color: "var(--palette-text-secondary)" }}>
+                                <TableCell align="right" sx={{ fontSize: "0.75rem", color: "var(--palette-text-secondary)", whiteSpace: "nowrap" }}>
                                     {item.createdAt ? dayjs(item.createdAt).format("DD/MM HH:mm") : "—"}
                                 </TableCell>
                             </TableRow>
@@ -634,26 +662,13 @@ const KpiGrid = ({ data, isDemo }: { data: AdminEcommerceOverview; isDemo: boole
 };
 
 export const EcommercePage = () => {
-    const { user } = useAuthStore();
     const router = useRouter();
     const { data, isLoading, isError, refetch, isFetching } = useEcommerceOverview();
     const overview = data?.overview ?? EMPTY_ECOMMERCE_OVERVIEW;
     const isDemo = data?.isDemo ?? false;
 
     return (
-        <Grid container spacing={3}>
-            <Grid size={12}>
-                <WelcomeWidget
-                    title={`Chào mừng quay trở lại 👋\n` + (user?.fullName || "Admin")}
-                    description={
-                        isDemo
-                            ? "Backend chưa có số liệu — đang hiển thị dữ liệu mẫu để xem layout thống kê."
-                            : "Số liệu bán hàng lấy trực tiếp từ hệ thống — đơn, vé, tồn kho và người bán."
-                    }
-                    img="https://pub-c5e31b5cdafb419fb247a8ac2e78df7a.r2.dev/public/assets/illustrations/characters/character-present.webp"
-                />
-            </Grid>
-
+        <Grid container spacing={3} alignItems="stretch">
             {isDemo && !isLoading ? (
                 <Grid size={12}>
                     <Alert
@@ -712,10 +727,10 @@ export const EcommercePage = () => {
                         <TopStationsChart data={overview.topStations} />
                     </Grid>
 
-                    <Grid size={{ xs: 12, md: 8 }}>
+                    <Grid size={{ xs: 12, lg: 7 }}>
                         <VendorRiskTable data={overview.vendorRisks} />
                     </Grid>
-                    <Grid size={{ xs: 12, md: 4 }}>
+                    <Grid size={{ xs: 12, lg: 5 }}>
                         <TopCustomersTable data={overview.topCustomers} />
                     </Grid>
 

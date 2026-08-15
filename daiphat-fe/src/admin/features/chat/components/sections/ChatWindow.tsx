@@ -39,6 +39,12 @@ import {
 } from '@mui/material';
 import { formatChatMessageContent } from '../../../../../client/utils/ticketSuggestToken.util';
 import { Button } from '../../../../components/ui/Button';
+import {
+    ADMIN_DIALOG_ACTIONS_SX,
+    ADMIN_DIALOG_CONTENT_SX,
+    ADMIN_DIALOG_PAPER_SX,
+    ADMIN_DIALOG_TITLE_SX,
+} from '../../../../components/ui/AdminConfirmDialog';
 import { ChatDetails } from './ChatDetails';
 import { useCallback, useRef, useEffect, useLayoutEffect, useState, useMemo } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
@@ -1260,10 +1266,16 @@ export const ChatWindow = ({
         </Box>
 
         <ThemeProvider theme={localTheme}>
-            <Dialog open={closeDialogOpen} onClose={() => setCloseDialogOpen(false)} maxWidth="xs" fullWidth>
-                <DialogTitle sx={{ pb: 1, fontWeight: 700, fontSize: '1.25rem' }}>Đóng hội thoại</DialogTitle>
-                <DialogContent sx={{ py: '20px !important' }}>
-                    <FormControl fullWidth sx={{ mt: 1 }}>
+            <Dialog
+                open={closeDialogOpen}
+                onClose={() => setCloseDialogOpen(false)}
+                maxWidth="xs"
+                fullWidth
+                PaperProps={{ className: "admin-theme", sx: ADMIN_DIALOG_PAPER_SX }}
+            >
+                <DialogTitle sx={ADMIN_DIALOG_TITLE_SX}>Đóng hội thoại</DialogTitle>
+                <DialogContent sx={ADMIN_DIALOG_CONTENT_SX}>
+                    <FormControl fullWidth>
                         <InputLabel id="close-reason-label">Lý do đóng</InputLabel>
                         <Select
                             labelId="close-reason-label"
@@ -1279,22 +1291,14 @@ export const ChatWindow = ({
                         </Select>
                     </FormControl>
                 </DialogContent>
-                <DialogActions sx={{ pt: 2, px: 3, pb: 2 }}>
+                <DialogActions sx={ADMIN_DIALOG_ACTIONS_SX}>
                     <Button
                         onClick={() => setCloseDialogOpen(false)}
                         variant="outlined"
                         color="inherit"
                         disabled={closeMutation.isPending}
-                        sx={{
-                            borderRadius: '8px',
-                            textTransform: 'none',
-                            fontWeight: 700,
-                            px: 3,
-                            py: 1,
-                        }}
-                    >
-                        Hủy
-                    </Button>
+                        label="Quay lại"
+                    />
                     <Button
                         onClick={() => void confirmCloseConversation()}
                         loading={closeMutation.isPending}

@@ -1,7 +1,7 @@
 "use client";
 
-import { Dialog, DialogActions, DialogContent, DialogTitle, Typography } from "@mui/material";
-import { Button } from "../../../components/ui/Button";
+import { Typography } from "@mui/material";
+import { AdminConfirmDialog } from "../../../components/ui/AdminConfirmDialog";
 
 interface SignedContractSaveDialogProps {
     open: boolean;
@@ -19,29 +19,20 @@ export const SignedContractSaveDialog = ({
     onClose,
     onConfirm,
 }: SignedContractSaveDialogProps) => (
-    <Dialog
+    <AdminConfirmDialog
         open={open}
-        onClose={saving ? undefined : onClose}
-        fullWidth
+        title="Lưu bản hợp đồng đã ký?"
         maxWidth="sm"
-        PaperProps={{ className: "admin-theme", sx: { bgcolor: "#FFFFFF" } }}
+        loading={saving}
+        confirmDisabled={!file}
+        cancelLabel="Quay lại"
+        confirmLabel="Lưu bản ký"
+        confirmLoadingLabel="Đang lưu bản ký..."
+        onClose={onClose}
+        onConfirm={onConfirm}
     >
-        <DialogTitle>Lưu bản hợp đồng đã ký?</DialogTitle>
-        <DialogContent>
-            <Typography variant="body2" color="text.secondary" sx={{ pt: 1 }}>
-                Chỉ sau khi xác nhận bước này, bản ký mới được lưu chính thức vào hồ sơ người bán vé số.
-            </Typography>
-        </DialogContent>
-        <DialogActions sx={{ px: 3, py: 2, gap: 1.5 }}>
-            <Button variant="outlined" color="inherit" onClick={onClose} disabled={saving} label="Hủy" />
-            <Button
-                variant="contained"
-                onClick={onConfirm}
-                loading={saving}
-                label="Lưu bản ký"
-                loadingLabel="Đang lưu bản ký..."
-                disabled={!file}
-            />
-        </DialogActions>
-    </Dialog>
+        <Typography variant="body2" color="text.secondary">
+            Chỉ sau khi xác nhận bước này, bản ký mới được lưu chính thức vào hồ sơ người bán vé số.
+        </Typography>
+    </AdminConfirmDialog>
 );

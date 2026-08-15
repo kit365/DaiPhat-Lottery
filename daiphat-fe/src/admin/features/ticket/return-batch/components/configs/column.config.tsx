@@ -32,8 +32,8 @@ const ActionCell = ({ row }: { row: ReturnBatch }) => {
 };
 
 const CellTextCenter = ({ children }: { children: ReactNode }) => (
-    <div className="flex h-full w-full items-center justify-center">
-        <span className="admin-cell-text">{children}</span>
+    <div className="flex h-full w-full min-w-0 items-center justify-center">
+        <span className="admin-cell-text" title={typeof children === "string" ? children : undefined}>{children}</span>
     </div>
 );
 

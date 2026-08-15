@@ -10,5 +10,5 @@ export const formatVnd = (value?: number | string | null): string => {
     return `${numeric.toLocaleString('vi-VN', {
         minimumFractionDigits: 0,
         maximumFractionDigits: VND_MAX_FRACTION_DIGITS,
-    })}đ`;
+    })}\u00A0đ`;
 };

@@ -1,20 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import {
-    Alert,
-    CircularProgress,
-    Dialog,
-    DialogActions,
-    DialogContent,
-    DialogTitle,
-    InputAdornment,
-    Stack,
-    TextField,
-    Typography,
-} from '@mui/material';
+import { Alert, CircularProgress, InputAdornment, Stack, TextField, Typography } from '@mui/material';
 import { toast } from "react-toastify";
 import { Button } from "../../../components/ui/Button";
+import { AdminDialog } from "../../../components/ui/AdminDialog";
 import {
     useConfirmVendorAllocation,
     useVendorConfirmationQuote,
@@ -133,35 +123,26 @@ export const ConfirmVendorDepositDialog = ({
         (quoteError ? "Không tải được báo giá cọc từ hệ thống." : null);
 
     return (
-        <Dialog
+        <AdminDialog
             open={open}
-            onClose={isPending ? undefined : onClose}
-            fullWidth
+            title="Xác nhận bàn giao & nhận cọc"
             maxWidth="sm"
-            PaperProps={{
-                className: "admin-theme",
-                sx: {
-                    borderRadius: "16px",
-                    boxShadow: "var(--customShadows-dialog, 0px 24px 48px -8px rgba(0, 0, 0, 0.16))",
-                    bgcolor: "#FFFFFF",
-                },
-            }}
+            disableClose={isPending}
+            onClose={onClose}
+            actions={
+                <>
+                    <Button variant="outlined" color="inherit" onClick={onClose} disabled={isPending} label="Quay lại" />
+                    <Button
+                        loading={isPending}
+                        variant="contained"
+                        onClick={handleSubmit}
+                        disabled={!canSubmit}
+                        label="Xác nhận bàn giao"
+                        loadingLabel="Đang xác nhận..."
+                    />
+                </>
+            }
         >
-            <DialogTitle
-                sx={{
-                    m: 0,
-                    px: 3,
-                    pt: 2.5,
-                    pb: 2,
-                    fontWeight: 700,
-                    fontSize: "1.125rem",
-                    borderBottom: "1px solid var(--palette-divider)",
-                    bgcolor: "#FFFFFF",
-                }}
-            >
-                Xác nhận bàn giao & nhận cọc
-            </DialogTitle>
-            <DialogContent sx={{ px: 3, pt: "24px !important", pb: 1, bgcolor: "#FFFFFF" }}>
                 <Stack spacing={2}>
                     <Typography variant="body2" color="text.secondary">
                         Phiếu <strong>{batch?.batchCode || "—"}</strong> ·{" "}
@@ -227,26 +208,6 @@ export const ConfirmVendorDepositDialog = ({
                         }}
                     />
                 </Stack>
-            </DialogContent>
-            <DialogActions
-                sx={{
-                    px: 3,
-                    py: 2.5,
-                    gap: 1.5,
-                    borderTop: "1px solid var(--palette-divider)",
-                    bgcolor: "#FFFFFF",
-                }}
-            >
-                <Button variant="outlined" color="inherit" onClick={onClose} disabled={isPending} label="Hủy" />
-                <Button
-                    loading={isPending}
-                    variant="contained"
-                    onClick={handleSubmit}
-                    disabled={!canSubmit}
-                    label="Xác nhận bàn giao"
-                    loadingLabel="Đang xác nhận..."
-                />
-            </DialogActions>
-        </Dialog>
+        </AdminDialog>
     );
 };
