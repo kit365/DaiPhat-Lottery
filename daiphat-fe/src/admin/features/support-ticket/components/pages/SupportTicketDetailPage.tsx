@@ -370,7 +370,15 @@ export const SupportTicketDetailPage = () => {
                     </Stack>
                 </Grid>
 
-                <Grid size={{ xs: 12, lg: 6 }} sx={{ display: 'flex', minHeight: { xs: 420, lg: 0 } }}>
+                <Grid
+                    size={{ xs: 12, lg: 6 }}
+                    sx={{
+                        display: 'flex',
+                        height: { xs: 'min(70dvh, 640px)', lg: 'calc(100dvh - 240px)' },
+                        maxHeight: { xs: 'min(70dvh, 640px)', lg: 'calc(100dvh - 240px)' },
+                        alignSelf: { lg: 'flex-start' },
+                    }}
+                >
                     <StaffComplaintTimeline
                         ticketId={ticketId}
                         status={ticket.status}

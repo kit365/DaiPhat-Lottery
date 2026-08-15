@@ -12,7 +12,7 @@ import {
 import { Icon } from '@/admin/components/ui/AdminIcon';
 import { adminChatDetailKey, ADMIN_CHAT_CONVERSATIONS_KEY } from '../../hooks/useChat';
 import { MessageSenderRole, ConversationStatusEnum } from '../../../../../types/chat.type';
-import { SortOrderEnum } from '../../../../../constants/common.constants';
+import { SortOrderEnum } from '../../constants/sortOrder';
 import dayjs from "dayjs";
 
 const WaitTimerChip = ({ startTime }: { startTime: string }) => {

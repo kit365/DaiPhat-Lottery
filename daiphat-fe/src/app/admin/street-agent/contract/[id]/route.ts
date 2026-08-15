@@ -6,7 +6,6 @@ export const dynamic = 'force-dynamic';
 const backendBase = () => {
   const raw =
     process.env.BACKEND_UPSTREAM ||
-    process.env.VITE_DEV_PROXY_TARGET ||
     process.env.NEXT_PUBLIC_API_BASE_URL ||
     'http://localhost:8080';
   return (raw.startsWith('http') ? raw : `http://${raw}`).replace(/\/$/, '');

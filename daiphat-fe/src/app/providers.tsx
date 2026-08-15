@@ -4,6 +4,7 @@ import { StrictMode, useState } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ToastContainer } from 'react-toastify';
 import { AuthInitializer } from '../components/auth/AuthInitializer';
+import { MUTATION_RETRY, QUERY_GC_TIME, QUERY_STALE_TIMES, queryRetryDelay, shouldRetryQuery } from '@/shared/react-query/queryPolicies';
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(
@@ -11,15 +12,16 @@ export function Providers({ children }: { children: React.ReactNode }) {
       new QueryClient({
         defaultOptions: {
           queries: {
-            staleTime: 1000 * 60 * 2, // 2 minutes staleTime
-            gcTime: 1000 * 60 * 10, // 10 minutes cache time
+            staleTime: QUERY_STALE_TIMES.default,
+            gcTime: QUERY_GC_TIME,
             refetchOnWindowFocus: false,
-            // API lỗi/mất mạng không được đẩy lên error boundary — UI fallback tại chỗ.
             throwOnError: false,
-            retry: 1,
+            retry: shouldRetryQuery,
+            retryDelay: queryRetryDelay,
           },
           mutations: {
             throwOnError: false,
+            retry: MUTATION_RETRY,
           },
         },
       })

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import {
     Box,
     Button,
@@ -10,11 +10,17 @@ import {
     DialogActions,
     DialogContent,
     DialogTitle,
-    InputBase,
-    Stack,
+    IconButton,
     TextField,
     Typography,
 } from '@mui/material';
+import CloseIcon from '@mui/icons-material/Close';
+import {
+    ADMIN_DIALOG_ACTIONS_SX,
+    ADMIN_DIALOG_CONTENT_SX,
+    ADMIN_DIALOG_PAPER_SX,
+    ADMIN_DIALOG_TITLE_SX,
+} from '../../../../components/ui/AdminConfirmDialog';
 import {
     canOperatorSendComment,
     isTerminalTicketStatus,
@@ -42,13 +48,6 @@ interface StaffComplaintTimelineProps {
 
 const MAX_CONTENT_LENGTH = 2000;
 
-const RESOLVE_REASON_QUICK_REPLIES = [
-    'Đối soát xong — đã xác nhận chuyển khoản thành công.',
-    'Đã chuyển khoản lại theo STK khách cung cấp.',
-    'Đã điều chỉnh thông tin yêu cầu và hoàn tất xử lý.',
-    'Khách đã xác nhận nhận được tiền / đồng ý kết thúc khiếu nại.',
-] as const;
-
 const REJECT_REASON_QUICK_REPLIES = [
     'Thông tin cung cấp chưa đủ điều kiện để tiếp tục xử lý khiếu nại.',
     'Yêu cầu không thuộc phạm vi hỗ trợ của hệ thống / đại lý.',
@@ -56,20 +55,95 @@ const REJECT_REASON_QUICK_REPLIES = [
     'Khiếu nại trùng lặp hoặc đã được xử lý trước đó.',
 ] as const;
 
-type DecisionAction = StaffTicketResponseAction.RESOLVE | StaffTicketResponseAction.REJECT;
+
+function TimelineStatusBanner({
+    title,
+    subtitle,
+    tone,
+}: {
+    title: string;
+    subtitle: string;
+    tone: 'success' | 'error' | 'neutral' | 'warning' | 'info';
+}) {
+    const palette = {
+        success: {
+            bg: 'var(--palette-success-lighter)',
+            dot: 'var(--palette-success-main)',
+            title: 'var(--palette-success-darker)',
+            sub: 'var(--palette-success-dark)',
+        },
+        error: {
+            bg: 'var(--palette-error-lighter)',
+            dot: 'var(--palette-error-main)',
+            title: 'var(--palette-error-darker)',
+            sub: 'var(--palette-error-dark)',
+        },
+        warning: {
+            bg: 'var(--palette-warning-lighter)',
+            dot: 'var(--palette-warning-main)',
+            title: 'var(--palette-warning-darker)',
+            sub: 'var(--palette-warning-dark)',
+        },
+        info: {
+            bg: 'var(--palette-info-lighter)',
+            dot: 'var(--palette-info-main)',
+            title: 'var(--palette-info-darker)',
+            sub: 'var(--palette-info-dark)',
+        },
+        neutral: {
+            bg: 'var(--palette-background-neutral, #F4F6F8)',
+            dot: 'var(--palette-grey-500, #919EAB)',
+            title: 'var(--palette-text-primary)',
+            sub: 'var(--palette-text-secondary)',
+        },
+    }[tone];
+
+    return (
+        <Box
+            sx={{
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: 1.25,
+                px: 1.5,
+                py: 1.25,
+                borderRadius: '10px',
+                bgcolor: palette.bg,
+            }}
+        >
+            <Box
+                sx={{
+                    width: 8,
+                    height: 8,
+                    borderRadius: '50%',
+                    bgcolor: palette.dot,
+                    mt: '6px',
+                    flexShrink: 0,
+                }}
+            />
+            <Box>
+                <Typography sx={{ fontWeight: 700, fontSize: '0.8125rem', color: palette.title, lineHeight: 1.4 }}>
+                    {title}
+                </Typography>
+                <Typography sx={{ fontSize: '0.75rem', color: palette.sub, mt: 0.25, lineHeight: 1.45 }}>
+                    {subtitle}
+                </Typography>
+            </Box>
+        </Box>
+    );
+}
 
 export const StaffComplaintTimeline = ({
     ticketId,
     status,
     formatSystemNote,
 }: StaffComplaintTimelineProps) => {
+    const [replyOpen, setReplyOpen] = useState(false);
     const [content, setContent] = useState('');
     const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
-    const [decisionAction, setDecisionAction] = useState<DecisionAction | null>(null);
+    const [rejectOpen, setRejectOpen] = useState(false);
     const [decisionReason, setDecisionReason] = useState('');
     const [selectedQuickReplyIndex, setSelectedQuickReplyIndex] = useState<number | null>(null);
     const scrollRef = useRef<HTMLDivElement>(null);
-    const isComposingRef = useRef(false);
 
     const { data, isLoading, isError } = useGetStaffTicketComments(ticketId);
     const respondMutation = useRespondSupportTicket();
@@ -79,15 +153,66 @@ export const StaffComplaintTimeline = ({
     const isTerminal = isTerminalTicketStatus(status);
     const hasProcessPermission = can(PERMISSIONS.SUPPORT_TICKET.PROCESS);
     const canSend = canOperatorSendComment(status, comments) && hasProcessPermission;
-    const canDecide =
+    const canReject =
         hasProcessPermission
         && (status === TicketStatus.IN_PROGRESS || status === TicketStatus.WAITING_FOR_CUSTOMER);
 
+    const lastCommentId = comments.at(-1)?.id;
+
+    const scrollToLatest = () => {
+        const pane = scrollRef.current;
+        if (!pane) return;
+        pane.scrollTop = pane.scrollHeight;
+    };
+
+    useLayoutEffect(() => {
+        if (isLoading) return;
+        const pane = scrollRef.current;
+        if (!pane) return;
+
+        const toBottom = () => {
+            pane.scrollTop = pane.scrollHeight;
+        };
+
+        toBottom();
+        const frame = requestAnimationFrame(toBottom);
+        const ro = new ResizeObserver(toBottom);
+        ro.observe(pane);
+        const stop = window.setTimeout(() => ro.disconnect(), 600);
+
+        return () => {
+            cancelAnimationFrame(frame);
+            window.clearTimeout(stop);
+            ro.disconnect();
+        };
+    }, [isLoading, lastCommentId]);
+
     useEffect(() => {
-        if (scrollRef.current) {
-            scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-        }
-    }, [comments.length, isLoading]);
+        const pane = scrollRef.current;
+        if (!pane) return;
+        const images = Array.from(pane.querySelectorAll('img'));
+        images.forEach((img) => {
+            if (!img.complete) {
+                img.addEventListener('load', scrollToLatest);
+            }
+        });
+        return () => {
+            images.forEach((img) => img.removeEventListener('load', scrollToLatest));
+        };
+    }, [comments]);
+
+    const openReplyDialog = () => {
+        setContent('');
+        setAttachmentFile(null);
+        setReplyOpen(true);
+    };
+
+    const closeReplyDialog = () => {
+        if (respondMutation.isPending) return;
+        setReplyOpen(false);
+        setContent('');
+        setAttachmentFile(null);
+    };
 
     const submitNormalReply = () => {
         const trimmed = content.trim();
@@ -102,6 +227,7 @@ export const StaffComplaintTimeline = ({
             {
                 onSuccess: (res) => {
                     if (res.success) {
+                        setReplyOpen(false);
                         setContent('');
                         setAttachmentFile(null);
                     }
@@ -110,15 +236,15 @@ export const StaffComplaintTimeline = ({
         );
     };
 
-    const openDecisionDialog = (action: DecisionAction) => {
-        setDecisionAction(action);
+    const openRejectDialog = () => {
+        setRejectOpen(true);
         setDecisionReason('');
         setSelectedQuickReplyIndex(null);
     };
 
-    const closeDecisionDialog = () => {
+    const closeRejectDialog = () => {
         if (respondMutation.isPending) return;
-        setDecisionAction(null);
+        setRejectOpen(false);
         setDecisionReason('');
         setSelectedQuickReplyIndex(null);
     };
@@ -128,20 +254,19 @@ export const StaffComplaintTimeline = ({
         setSelectedQuickReplyIndex(index);
     };
 
-    const submitDecision = () => {
-        if (!decisionAction) return;
+    const submitReject = () => {
         const trimmed = decisionReason.trim();
         if (!trimmed || respondMutation.isPending) return;
 
         respondMutation.mutate(
             {
                 ticketId,
-                data: { content: trimmed, action: decisionAction },
+                data: { content: trimmed, action: StaffTicketResponseAction.REJECT },
             },
             {
                 onSuccess: (res) => {
                     if (res.success) {
-                        setDecisionAction(null);
+                        setRejectOpen(false);
                         setDecisionReason('');
                         setSelectedQuickReplyIndex(null);
                     }
@@ -150,16 +275,7 @@ export const StaffComplaintTimeline = ({
         );
     };
 
-    const handleKeyDown = (event: React.KeyboardEvent) => {
-        if (event.key !== 'Enter' || event.shiftKey || isComposingRef.current) {
-            return;
-        }
-        event.preventDefault();
-        submitNormalReply();
-    };
-
-    const isResolveDialog = decisionAction === StaffTicketResponseAction.RESOLVE;
-    const quickReplies = isResolveDialog ? RESOLVE_REASON_QUICK_REPLIES : REJECT_REASON_QUICK_REPLIES;
+    const quickReplies = REJECT_REASON_QUICK_REPLIES;
 
     return (
         <Card
@@ -198,25 +314,15 @@ export const StaffComplaintTimeline = ({
                         Với khách hàng
                     </Typography>
                 </Box>
-                {canDecide && (
-                    <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-                        <Button
-                            variant="outlined"
-                            className="btn-outlined-admin"
-                            disabled={respondMutation.isPending}
-                            onClick={() => openDecisionDialog(StaffTicketResponseAction.REJECT)}
-                        >
-                            Từ chối
-                        </Button>
-                        <Button
-                            variant="contained"
-                            className="btn-primary-admin"
-                            disabled={respondMutation.isPending}
-                            onClick={() => openDecisionDialog(StaffTicketResponseAction.RESOLVE)}
-                        >
-                            Đã giải quyết
-                        </Button>
-                    </Stack>
+                {canReject && (
+                    <Button
+                        variant="outlined"
+                        className="btn-outlined-admin"
+                        disabled={respondMutation.isPending}
+                        onClick={openRejectDialog}
+                    >
+                        Từ chối
+                    </Button>
                 )}
             </Box>
 
@@ -224,8 +330,9 @@ export const StaffComplaintTimeline = ({
                 ref={scrollRef}
                 sx={{
                     flex: 1,
-                    minHeight: 180,
+                    minHeight: 0,
                     overflowY: 'auto',
+                    overscrollBehavior: 'contain',
                     px: 3,
                     py: 1.5,
                     bgcolor: '#fff',
@@ -235,9 +342,6 @@ export const StaffComplaintTimeline = ({
                     gap: 2.5,
                 }}
             >
-                {!isLoading && !isError && comments.length > 0 ? (
-                    <Box sx={{ flex: '1 1 auto', minHeight: 0 }} />
-                ) : null}
                 {isLoading && (
                     <Typography variant="body2" color="text.secondary" sx={{ m: 'auto' }}>
                         Đang tải trao đổi…
@@ -278,98 +382,138 @@ export const StaffComplaintTimeline = ({
 
             <Box sx={{ borderTop: '1px solid rgba(145, 158, 171, 0.16)', px: 2.5, py: 1.25, bgcolor: '#fff', flexShrink: 0 }}>
                 {isTerminal ? (
-                    <Typography variant="body2" color="text.secondary">
-                        Yêu cầu đã{' '}
-                        {status === TicketStatus.CLOSED
-                            ? 'đóng'
-                            : status === TicketStatus.REJECTED
-                              ? 'từ chối'
-                              : 'giải quyết'}
-                        . Không thể gửi thêm tin nhắn.
-                    </Typography>
+                    <TimelineStatusBanner
+                        tone={
+                            status === TicketStatus.REJECTED
+                                ? 'error'
+                                : status === TicketStatus.CLOSED
+                                  ? 'neutral'
+                                  : 'success'
+                        }
+                        title={
+                            status === TicketStatus.CLOSED
+                                ? 'Yêu cầu đã đóng'
+                                : status === TicketStatus.REJECTED
+                                  ? 'Yêu cầu đã từ chối'
+                                  : 'Yêu cầu đã giải quyết'
+                        }
+                        subtitle="Không thể gửi thêm tin nhắn."
+                    />
                 ) : status === TicketStatus.OPEN ? (
-                    <Typography variant="body2" color="text.secondary">
-                        Tiếp nhận yêu cầu trước khi trao đổi với khách hàng.
-                    </Typography>
+                    <TimelineStatusBanner
+                        tone="info"
+                        title="Chưa tiếp nhận"
+                        subtitle="Tiếp nhận yêu cầu trước khi trao đổi với khách hàng."
+                    />
                 ) : !canSend ? (
-                    <Typography variant="body2" color="text.secondary">
-                        Đang chờ khách phản hồi — vẫn có thể chọn Đã giải quyết hoặc Từ chối.
-                    </Typography>
+                    <TimelineStatusBanner
+                        tone="warning"
+                        title="Đang chờ khách phản hồi"
+                        subtitle="Khách xác nhận để đóng khiếu nại. Bạn vẫn có thể Từ chối nếu không hợp lệ."
+                    />
                 ) : (
-                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-                        <Box
-                            sx={{
-                                display: 'flex',
-                                alignItems: 'flex-end',
-                                gap: 1,
-                            }}
+                    <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+                        <Button
+                            variant="contained"
+                            className="btn-primary-admin"
+                            disabled={respondMutation.isPending}
+                            onClick={openReplyDialog}
                         >
-                            <InputBase
-                                fullWidth
-                                multiline
-                                maxRows={4}
-                                placeholder="Nhập tin nhắn"
-                                value={content}
-                                onChange={(e) => setContent(e.target.value.slice(0, MAX_CONTENT_LENGTH))}
-                                onKeyDown={handleKeyDown}
-                                onCompositionStart={() => {
-                                    isComposingRef.current = true;
-                                }}
-                                onCompositionEnd={() => {
-                                    isComposingRef.current = false;
-                                }}
-                                disabled={respondMutation.isPending}
-                                sx={{ fontSize: '0.9375rem', py: 0.75 }}
-                            />
-                            <Button
-                                variant="contained"
-                                onClick={submitNormalReply}
-                                disabled={respondMutation.isPending || !content.trim()}
-                                sx={{
-                                    height: 36,
-                                    minWidth: 64,
-                                    px: 2,
-                                    borderRadius: '8px',
-                                    textTransform: 'none',
-                                    fontWeight: 700,
-                                    boxShadow: 'none',
-                                    bgcolor: 'var(--palette-grey-800)',
-                                    '&:hover': { bgcolor: 'var(--palette-grey-900)' },
-                                    '&.Mui-disabled': {
-                                        bgcolor: 'var(--palette-grey-300)',
-                                        color: 'var(--palette-grey-500)',
-                                        boxShadow: 'none',
-                                    },
-                                }}
-                            >
-                                {respondMutation.isPending ? '…' : 'Gửi'}
-                            </Button>
-                        </Box>
-                        <ImageUploadPreview
-                            value={attachmentFile}
-                            onChange={setAttachmentFile}
-                            label="Đính kèm hình (nếu cần)"
-                            helperText=""
-                        />
+                            Phản hồi khiếu nại
+                        </Button>
                     </Box>
                 )}
             </Box>
 
             <Dialog
-                open={decisionAction != null}
-                onClose={closeDecisionDialog}
+                open={replyOpen}
+                onClose={closeReplyDialog}
                 fullWidth
                 maxWidth="sm"
-                PaperProps={{ sx: { borderRadius: '16px' } }}
+                scroll="paper"
+                PaperProps={{
+                    className: 'admin-theme',
+                    sx: { ...ADMIN_DIALOG_PAPER_SX, maxHeight: 'calc(100dvh - 48px)' },
+                }}
             >
-                <DialogTitle sx={{ fontWeight: 800, pb: 1 }}>
-                    {isResolveDialog ? 'Đã giải quyết khiếu nại' : 'Từ chối khiếu nại'}
+                <DialogTitle sx={{ ...ADMIN_DIALOG_TITLE_SX, pr: 6, position: 'relative' }}>
+                    Phản hồi khiếu nại
+                    <IconButton
+                        aria-label="Đóng"
+                        onClick={closeReplyDialog}
+                        sx={{ position: 'absolute', right: 12, top: 12 }}
+                    >
+                        <CloseIcon />
+                    </IconButton>
                 </DialogTitle>
-                <DialogContent>
-                    <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
-                        {isResolveDialog
-                            ? 'Lưu lý do nội bộ vào hệ thống rồi đóng khiếu nại. Chỉ dùng khi khách đã đồng ý — không gửi tin nhắn cho khách.'
-                            : 'Nhập lý do từ chối. Thao tác này đóng khiếu nại và không thể hoàn tác từ phía khách.'}
+                <DialogContent sx={{ ...ADMIN_DIALOG_CONTENT_SX, overflowY: 'auto' }}>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                        Nội dung này sẽ gửi cho khách. Sau khi gửi, chờ khách phản hồi mới được trả lời tiếp.
+                    </Typography>
+                    <TextField
+                        autoFocus
+                        fullWidth
+                        multiline
+                        minRows={3}
+                        maxRows={8}
+                        label="Nội dung phản hồi"
+                        value={content}
+                        onChange={(e) => setContent(e.target.value.slice(0, MAX_CONTENT_LENGTH))}
+                        placeholder="VD: Vui lòng gửi thêm ảnh biên lai / chúng tôi đang đối soát…"
+                        helperText={`${content.length}/${MAX_CONTENT_LENGTH}`}
+                        sx={{ mb: 2 }}
+                    />
+                    <ImageUploadPreview
+                        value={attachmentFile}
+                        onChange={setAttachmentFile}
+                        label="Đính kèm hình (nếu cần)"
+                        helperText=""
+                    />
+                </DialogContent>
+                <DialogActions sx={ADMIN_DIALOG_ACTIONS_SX}>
+                    <Button
+                        variant="outlined"
+                        className="btn-outlined-admin"
+                        onClick={closeReplyDialog}
+                    >
+                        Hủy
+                    </Button>
+                    <Button
+                        variant="contained"
+                        className="btn-primary-admin"
+                        disabled={!content.trim() || respondMutation.isPending}
+                        onClick={submitNormalReply}
+                    >
+                        {respondMutation.isPending ? 'Đang gửi...' : 'Gửi phản hồi'}
+                    </Button>
+                </DialogActions>
+            </Dialog>
+
+            <Dialog
+                open={rejectOpen}
+                onClose={closeRejectDialog}
+                fullWidth
+                maxWidth="sm"
+                scroll="paper"
+                PaperProps={{
+                    className: 'admin-theme',
+                    sx: { ...ADMIN_DIALOG_PAPER_SX, maxHeight: 'calc(100dvh - 48px)' },
+                }}
+            >
+                <DialogTitle sx={{ ...ADMIN_DIALOG_TITLE_SX, pr: 6, position: 'relative' }}>
+                    Từ chối khiếu nại
+                    <IconButton
+                        aria-label="Đóng"
+                        onClick={closeRejectDialog}
+                        disabled={respondMutation.isPending}
+                        sx={{ position: 'absolute', right: 12, top: 12 }}
+                    >
+                        <CloseIcon />
+                    </IconButton>
+                </DialogTitle>
+                <DialogContent sx={{ ...ADMIN_DIALOG_CONTENT_SX, overflowY: 'auto' }}>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2.5 }}>
+                        Nhập lý do từ chối. Thao tác này đóng khiếu nại và không thể hoàn tác từ phía khách.
                     </Typography>
                     <Typography
                         variant="caption"
@@ -377,7 +521,7 @@ export const StaffComplaintTimeline = ({
                     >
                         Gợi ý lý do (nội bộ)
                     </Typography>
-                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 2 }}>
+                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 2.5 }}>
                         {quickReplies.map((reply, index) => {
                             const selected = selectedQuickReplyIndex === index;
                             return (
@@ -385,18 +529,26 @@ export const StaffComplaintTimeline = ({
                                     key={reply}
                                     label={reply}
                                     clickable
-                                    color={selected ? (isResolveDialog ? 'success' : 'error') : 'default'}
                                     variant={selected ? 'filled' : 'outlined'}
                                     onClick={() => applyQuickReply(reply, index)}
                                     sx={{
                                         maxWidth: '100%',
                                         height: 'auto',
                                         py: 0.75,
+                                        borderRadius: '8px',
+                                        fontWeight: selected ? 700 : 500,
+                                        bgcolor: selected ? 'var(--palette-grey-800)' : '#fff',
+                                        color: selected ? '#fff' : 'var(--palette-text-primary)',
+                                        borderColor: selected
+                                            ? 'var(--palette-grey-800)'
+                                            : 'rgba(145, 158, 171, 0.32)',
+                                        '&:hover': {
+                                            bgcolor: selected ? 'var(--palette-grey-700)' : 'rgba(145, 158, 171, 0.08)',
+                                        },
                                         '& .MuiChip-label': {
                                             whiteSpace: 'normal',
                                             textAlign: 'left',
                                             lineHeight: 1.35,
-                                            fontWeight: selected ? 700 : 500,
                                         },
                                     }}
                                 />
@@ -408,7 +560,7 @@ export const StaffComplaintTimeline = ({
                         fullWidth
                         multiline
                         minRows={4}
-                        label={isResolveDialog ? 'Lý do giải quyết (nội bộ)' : 'Lý do từ chối'}
+                        label="Lý do từ chối"
                         value={decisionReason}
                         onChange={(e) => {
                             const nextValue = e.target.value.slice(0, MAX_CONTENT_LENGTH);
@@ -420,30 +572,26 @@ export const StaffComplaintTimeline = ({
                                 setSelectedQuickReplyIndex(null);
                             }
                         }}
-                        placeholder={
-                            isResolveDialog
-                                ? 'VD: Đối soát xong, đã chuyển khoản lại theo STK khách...'
-                                : 'VD: Thông tin không đủ điều kiện xử lý...'
-                        }
+                        placeholder="VD: Thông tin không đủ điều kiện xử lý..."
                         helperText={`${decisionReason.length}/${MAX_CONTENT_LENGTH}`}
                     />
                 </DialogContent>
-                <DialogActions sx={{ px: 3, pb: 2.5 }}>
-                    <Button onClick={closeDecisionDialog} sx={{ fontWeight: 700 }}>
+                <DialogActions sx={ADMIN_DIALOG_ACTIONS_SX}>
+                    <Button
+                        variant="outlined"
+                        className="btn-outlined-admin"
+                        onClick={closeRejectDialog}
+                        disabled={respondMutation.isPending}
+                    >
                         Hủy
                     </Button>
                     <Button
                         variant="contained"
-                        color={isResolveDialog ? 'success' : 'error'}
+                        className="btn-primary-admin"
                         disabled={!decisionReason.trim() || respondMutation.isPending}
-                        onClick={submitDecision}
-                        sx={{ fontWeight: 800 }}
+                        onClick={submitReject}
                     >
-                        {respondMutation.isPending
-                            ? 'Đang xử lý...'
-                            : isResolveDialog
-                              ? 'Xác nhận đã giải quyết'
-                              : 'Xác nhận từ chối'}
+                        {respondMutation.isPending ? 'Đang xử lý...' : 'Xác nhận từ chối'}
                     </Button>
                 </DialogActions>
             </Dialog>

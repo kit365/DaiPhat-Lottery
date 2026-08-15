@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { useAuthStore } from "../../../stores/useAuthStore";
 import { LoadingSpinner } from "../../components/ui/LoadingSpinner";
+import { hydrateAccessTokenFromCookie } from "../../../api/authHeaders";
 
 export const PrivateRoute = ({ children }: { children?: React.ReactNode }) => {
   const router = useRouter();
@@ -20,14 +21,17 @@ export const PrivateRoute = ({ children }: { children?: React.ReactNode }) => {
     }).persist;
 
     if (persistApi?.hasHydrated?.()) {
+      hydrateAccessTokenFromCookie();
       useAuthStore.setState({ isHydrated: true });
       return;
     }
 
     const unsubscribe = persistApi?.onFinishHydration?.(() => {
+      hydrateAccessTokenFromCookie();
       useAuthStore.setState({ isHydrated: true });
     });
     const timeoutId = window.setTimeout(() => {
+      hydrateAccessTokenFromCookie();
       useAuthStore.setState({ isHydrated: true });
     }, 300);
 

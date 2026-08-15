@@ -136,6 +136,11 @@ export function canCustomerCancelTicket(status: TicketStatus): boolean {
     return !isTerminalTicketStatus(status);
 }
 
+/** Customer may confirm and close while the ticket is still open. */
+export function canCustomerConfirmTicket(status: TicketStatus): boolean {
+    return !isTerminalTicketStatus(status);
+}
+
 export function canCustomerSendComment(
     status: TicketStatus,
     comments: SupportTicketCommentResponse[]

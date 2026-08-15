@@ -1,6 +1,5 @@
 "use client";
 
-import Cookies from "js-cookie";
 import { isAxiosError } from "axios";
 import { createContext, useContext, useEffect, type ReactNode } from "react";
 
@@ -11,7 +10,7 @@ import {
     syncUserFromMeResponse,
 } from "@/admin/lib/adminSession.utils";
 import { ROUTES } from "@/admin/constants/routes";
-import { STORAGE_KEYS } from "@/constants/storage.constants";
+import { hydrateAccessTokenFromCookie } from "@/api/authHeaders";
 import { useAuthStore } from "@/stores/useAuthStore";
 
 type AdminSessionContextValue = {
@@ -36,10 +35,7 @@ const isHardAuthFailure = (error: unknown): boolean => {
 };
 
 /**
- * Single source of truth for admin session bootstrap:
- * - sync cookie token → Zustand when localStorage was cleared
- * - fetch GET /users/me (permissions, profile)
- * - logout + redirect on hard auth failure
+ * Cookie `token` → Zustand RAM, rồi GET /users/me.
  */
 export function AdminSessionProvider({ children }: { children: ReactNode }) {
     const router = useAdminRouter();
@@ -50,12 +46,8 @@ export function AdminSessionProvider({ children }: { children: ReactNode }) {
         if (!isHydrated) {
             return;
         }
-
-        const cookieToken = Cookies.get(STORAGE_KEYS.TOKEN);
-        if (!token && cookieToken) {
-            set({ token: cookieToken });
-        }
-    }, [isHydrated, token, set]);
+        hydrateAccessTokenFromCookie();
+    }, [isHydrated, token]);
 
     useEffect(() => {
         syncUserFromMeResponse(getMeQuery.data, set, logout);
