@@ -6,7 +6,7 @@
  *
  *   UI  →  React Query (nếu có)  →  apiApp
  *                                      │
- *                    có NEXT_PUBLIC_API_BASE_URL  →  gọi thẳng BE
+ *                    có NEXT_PUBLIC_API_BASE_URL  →  gọi thẳng BE (local đừng set)
  *                    không có                     →  /api cùng origin FE
  *                                                      → Next rewrite → BE
  *                                      │

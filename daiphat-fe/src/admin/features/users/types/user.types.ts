@@ -24,5 +24,3 @@ export interface CreateUserRequest {
 }
 
 export type UpdateUserRequest = Partial<CreateUserRequest>;
-
-export type UserMutationPayload = CreateUserRequest;

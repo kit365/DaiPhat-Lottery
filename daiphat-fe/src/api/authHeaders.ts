@@ -38,7 +38,9 @@ export const resolveAccessToken = (): string | null => {
 export const persistAccessToken = (accessToken: string, expiresIn?: number) => {
     const ttlSeconds = expiresIn && expiresIn > 0 ? expiresIn : DEFAULT_TTL_SECONDS;
     Cookies.set(STORAGE_KEYS.TOKEN, accessToken, {
-        expires: Math.max(ttlSeconds, 60) / 86400,
+        // Cookie sống theo refresh (~7 ngày), không theo access (~15 phút).
+        // Middleware / F5 chỉ cần "còn cookie"; JWT hết hạn thì boot/401 gọi refresh.
+        expires: 7,
         ...ACCESS_COOKIE,
     });
     useAuthStore.getState().set({

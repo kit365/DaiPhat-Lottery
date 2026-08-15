@@ -3,14 +3,15 @@
 import { useEffect } from "react";
 import { STORAGE_KEYS } from "../../constants/storage.constants";
 import { useAuthStore } from "../../stores/useAuthStore";
-import { hydrateAccessTokenFromCookie } from "../../api/authHeaders";
+import { restoreAccessSessionIfNeeded } from "../../api/sessionBoot";
 
 export const AuthInitializer = () => {
     const { isHydrated, user, isProfileSetupModalOpen, openProfileSetupModal } = useAuthStore();
 
     useEffect(() => {
-        hydrateAccessTokenFromCookie();
-    }, []);
+        if (!isHydrated) return;
+        void restoreAccessSessionIfNeeded();
+    }, [isHydrated]);
 
     useEffect(() => {
         if (!user || !isHydrated || isProfileSetupModalOpen) {
