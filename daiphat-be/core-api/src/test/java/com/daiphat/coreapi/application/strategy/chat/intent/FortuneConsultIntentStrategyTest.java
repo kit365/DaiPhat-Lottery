@@ -51,7 +51,8 @@ class FortuneConsultIntentStrategyTest {
                 chatAiPort,
                 chatMessageProperties,
                 chatTicketInventoryService,
-                new DreamFortuneInterpreter()
+                new DreamFortuneInterpreter(),
+                new DestinyNumberInterpreter()
         );
     }
 
@@ -133,6 +134,51 @@ class FortuneConsultIntentStrategyTest {
         assertThat(reply.content()).contains("bò");
         assertThat(reply.content()).doesNotContain("trâu");
         assertThat(reply.content()).doesNotContain("Đang tìm vé");
+    }
+
+    @Test
+    void resolve_libraZodiac_suggestsLuckySuffixTickets() {
+        when(chatAiPort.generateFortune(any(), any())).thenReturn(null);
+
+        LotteryTicketResponse ticket = LotteryTicketResponse.builder()
+                .id(21L)
+                .stationId(3L)
+                .stationName("Bến Tre")
+                .numbers("123407")
+                .drawDate(LocalDate.now())
+                .priceSnapshot(BigDecimal.valueOf(10_000))
+                .build();
+
+        when(chatTicketInventoryService.findAvailable(anyString(), isNull(), eq("today"), anyInt()))
+                .thenAnswer(invocation -> {
+                    String fragment = invocation.getArgument(0);
+                    return "07".equals(fragment) ? List.of(ticket) : List.of();
+                });
+
+        ChatTicketInventoryService.TicketInventoryReply formatted =
+                new ChatTicketInventoryService.TicketInventoryReply(
+                        "TICKET_SUGGEST:[{\"id\":21,\"numbers\":\"123407\"}]",
+                        "Dưới đây là vài vé đang bán khớp đuôi số 07, 16, 25, 34:"
+                );
+        when(chatTicketInventoryService.formatReply(anyList(), eq("07"), eq(true))).thenReturn(formatted);
+        when(chatTicketInventoryService.prependLeadingText(anyString(), eq(formatted)))
+                .thenAnswer(inv -> {
+                    String lead = inv.getArgument(0);
+                    ChatTicketInventoryService.TicketInventoryReply body = inv.getArgument(1);
+                    return new ChatTicketInventoryService.TicketInventoryReply(
+                            lead + "\n\n" + body.content(),
+                            lead
+                    );
+                });
+
+        ChatIntentOutcome outcome = strategy.resolve(context("tôi là cung thiên bình thì nên mua số gì"));
+
+        assertThat(outcome).isInstanceOf(ChatIntentOutcome.BotReply.class);
+        ChatIntentOutcome.BotReply reply = (ChatIntentOutcome.BotReply) outcome;
+        assertThat(reply.content()).contains("Thiên Bình");
+        assertThat(reply.content()).contains("07");
+        assertThat(reply.content()).contains("TICKET_SUGGEST:");
+        assertThat(reply.displayContent()).contains("tham khảo");
     }
 
     private ChatIntentContext context(String message) {

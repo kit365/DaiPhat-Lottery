@@ -7,6 +7,8 @@ import com.daiphat.coreapi.infrastructure.persistence.entity.user.UserEntity;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -47,6 +49,11 @@ public class ImportBatchEntity extends BaseEntity {
 
     @Column(name = "invoice_evidence_url", length = 500)
     private String invoiceEvidenceUrl;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "ticket_list_image_urls", nullable = false, columnDefinition = "jsonb")
+    @Builder.Default
+    private List<String> ticketListImageUrls = new ArrayList<>();
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "imported_by", nullable = false)

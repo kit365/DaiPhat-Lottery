@@ -75,6 +75,11 @@ public class SupplierSettlementEntity extends BaseEntity {
     @Column(name = "supplier_settlement_receipt_url", length = 500)
     private String supplierSettlementReceiptUrl;
 
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "payment_evidence_urls", nullable = false, columnDefinition = "jsonb")
+    @Builder.Default
+    private List<String> paymentEvidenceUrls = new ArrayList<>();
+
     @Column(name = "is_return_expired", nullable = false)
     @Builder.Default
     private boolean isReturnExpired = false;

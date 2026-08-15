@@ -494,6 +494,22 @@ export const TicketsTab = () => {
                         {/* Prize payout action box for winning tickets */}
                         {isWon && (() => {
                             const payoutDisplay = resolveTicketPayoutDisplay(selectedTicket);
+                            const isPayoutCompleted = payoutDisplay?.status === 'COMPLETED';
+                            const isPayoutInProgress = payoutDisplay?.status === 'PENDING';
+                            const payoutRequestHref = selectedTicket.activePayoutRequestId
+                                ? `/profile/prize-payouts/${selectedTicket.activePayoutRequestId}`
+                                : null;
+
+                            const congratulationCopy = isEligibleForPayout
+                                ? 'Bạn có thể gửi yêu cầu trả thưởng online. Tiền sẽ được chuyển sau khi nhân viên duyệt.'
+                                : isPayoutCompleted
+                                    ? 'Yêu cầu trả thưởng đã được duyệt và hoàn tất.'
+                                    : isPayoutInProgress
+                                        ? 'Yêu cầu trả thưởng của bạn đang được xử lý.'
+                                        : selectedTicket.claimChannel === 'IN_PERSON' || selectedTicket.canClaimOnline === false
+                                            ? 'Vé này cần mang đến đại lý để đổi thưởng trực tiếp.'
+                                            : 'Tiền thưởng sẽ được chuyển tới tài khoản ngân hàng của bạn sau khi yêu cầu được duyệt.';
+
                             return (
                             <div className="bg-gradient-to-r from-amber-50 via-amber-100/50 to-amber-50 rounded-2xl p-5 border border-amber-200/80 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-sm">
                                 <div className="flex items-start gap-3">
@@ -503,11 +519,7 @@ export const TicketsTab = () => {
                                     <div>
                                         <h4 className="text-amber-950 font-black text-[16px] mb-0.5">Chúc mừng bạn đã trúng thưởng!</h4>
                                         <p className="text-slate-600 text-[13px] m-0">
-                                            {isEligibleForPayout
-                                                ? 'Bạn có thể gửi yêu cầu trả thưởng online. Tiền sẽ được chuyển sau khi nhân viên duyệt.'
-                                                : selectedTicket.claimChannel === 'IN_PERSON' || selectedTicket.canClaimOnline === false
-                                                    ? 'Vé này cần mang đến đại lý để đổi thưởng trực tiếp.'
-                                                    : 'Tiền thưởng sẽ được chuyển tới tài khoản ngân hàng của bạn sau khi yêu cầu được duyệt.'}
+                                            {congratulationCopy}
                                         </p>
                                     </div>
                                 </div>
@@ -520,9 +532,9 @@ export const TicketsTab = () => {
                                     >
                                         🏆 Yêu cầu trả thưởng ngay
                                     </button>
-                                ) : selectedTicket.activePayoutRequestId ? (
+                                ) : isPayoutInProgress && payoutRequestHref ? (
                                     <Link
-                                        href={`/profile/prize-payouts/${selectedTicket.activePayoutRequestId}`}
+                                        href={payoutRequestHref}
                                         className="text-amber-700 font-bold text-[14px] hover:underline no-underline"
                                     >
                                         Xem yêu cầu đang xử lý →
@@ -537,11 +549,18 @@ export const TicketsTab = () => {
                                                 {payoutDisplay.label}
                                             </div>
                                         )}
-                                        {ineligibilityReason && (
+                                        {isPayoutCompleted && payoutRequestHref ? (
+                                            <Link
+                                                href={payoutRequestHref}
+                                                className="text-emerald-700 font-bold text-[13px] hover:underline no-underline"
+                                            >
+                                                Xem yêu cầu đã hoàn tất →
+                                            </Link>
+                                        ) : ineligibilityReason ? (
                                             <span className="text-[12px] text-slate-500 font-medium">
                                                 {ineligibilityReason}
                                             </span>
-                                        )}
+                                        ) : null}
                                     </div>
                                 )}
                             </div>

@@ -1,0 +1,43 @@
+{
+  "projectId": "74d60d21-c6ae-4623-9605-34412c8694dc",
+  "shape": "package",
+  "pkg": "daiphat-fe",
+  "globalName": "DaiPhatUI",
+  "tsconfig": "tsconfig.json",
+  "cssEntry": ".ds-sync/combined-styles.css",
+  "extraFonts": [".ds-sync/fonts/fonts.css"],
+  "readmeHeader": ".design-sync/conventions.md",
+  "provider": {
+    "component": "DsThemeProvider"
+  },
+  "componentSrcMap": {
+    "CategoryParentSelect": "src/admin/components/ui/CategoryTreeSelect.tsx",
+    "CategoryTreeSelectGeneric": "src/admin/components/ui/CategoryTreeSelectGeneric.tsx",
+    "CollapsibleCard": "src/admin/components/ui/CollapsibleCard.tsx",
+    "Columns": "src/admin/components/ui/Columns.tsx",
+    "DateRangePicker": "src/admin/components/ui/DateRangePicker.tsx",
+    "ExportButton": "src/admin/components/ui/ExportButton.tsx",
+    "ExportImport": "src/admin/components/ui/ExportImport.tsx",
+    "Filter": "src/admin/components/ui/Filter.tsx",
+    "ImagePreview": "src/admin/components/ui/ImagePreview.tsx",
+    "LoadingButton": "src/admin/components/ui/LoadingButton.tsx",
+    "LoadingScreen": "src/admin/components/ui/LoadingScreen.tsx",
+    "Search": "src/admin/components/ui/Search.tsx",
+    "SelectMulti": "src/admin/components/ui/SelectMulti.tsx",
+    "SelectSingle": "src/admin/components/ui/SelectSingle.tsx",
+    "SettingsList": "src/admin/components/ui/SettingsList.tsx",
+    "SortButton": "src/admin/components/ui/SortButton.tsx",
+    "SwitchButton": "src/admin/components/ui/SwitchButton.tsx",
+    "TabList": "src/admin/components/ui/TabList.tsx",
+    "Title": "src/admin/components/ui/Title.tsx",
+    "UploadFiles": "src/admin/components/ui/UploadFiles.tsx",
+    "Checkbox": "src/client/components/ui/Checkbox.tsx",
+    "EmptyStatePlaceholder": "src/client/components/ui/EmptyStatePlaceholder.tsx",
+    "LoadingSpinner": "src/client/components/ui/LoadingSpinner.tsx",
+    "PriceDisplay": "src/client/components/ui/PriceDisplay.tsx",
+    "StarRating": "src/client/components/ui/StarRating.tsx",
+    "StatusBadge": "src/client/components/ui/StatusBadge.tsx",
+    "Skeleton": "src/components/ui/Skeleton.tsx",
+    "DsThemeProvider": null
+  }
+}

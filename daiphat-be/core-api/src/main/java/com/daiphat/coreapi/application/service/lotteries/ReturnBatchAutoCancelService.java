@@ -23,8 +23,6 @@ import java.util.List;
 @Slf4j
 public class ReturnBatchAutoCancelService {
 
-    private static final String SEED_NOTE_PREFIX = "SEED-RETURN-";
-
     private static final List<ReturnBatchStatus> OPEN_INSPECTION_STATUSES = List.of(
             ReturnBatchStatus.PENDING_INSPECTION,
             ReturnBatchStatus.INSPECTING
@@ -62,10 +60,6 @@ public class ReturnBatchAutoCancelService {
         if (batch == null || batch.getStatus() == null || !batch.getStatus().isOpenForInspection()) {
             return false;
         }
-        // Seeded demo batches must remain PENDING_INSPECTION even after cutoff.
-        if (isSeedReturnBatch(batch)) {
-            return false;
-        }
         LocalTime cutOff = batch.getReturnCutOffTime();
         if (cutOff == null && batch.getLotterySupplierId() != null) {
             cutOff = lotterySupplierRepositoryPort.findById(batch.getLotterySupplierId())
@@ -88,10 +82,5 @@ public class ReturnBatchAutoCancelService {
                 ReturnBatchCancelReason.CUTOFF_EXCEEDED
         );
         return true;
-    }
-
-    private static boolean isSeedReturnBatch(ReturnBatchModel batch) {
-        String note = batch.getNote();
-        return note != null && note.startsWith(SEED_NOTE_PREFIX);
     }
 }

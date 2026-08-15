@@ -1,18 +1,10 @@
 "use client";
 
-import MoreVertIcon from '@mui/icons-material/MoreVert';
-import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
-import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import ConfirmationNumberOutlinedIcon from '@mui/icons-material/ConfirmationNumberOutlined';
 import {
     Box,
     Card,
     CircularProgress,
-    IconButton,
-    ListItemIcon,
-    ListItemText,
-    Menu,
-    MenuItem,
     Stack,
     Table,
     TableBody,
@@ -26,13 +18,17 @@ import {
 } from '@mui/material';
 import dayjs from 'dayjs';
 import { useCallback, useState } from 'react';
+import { toast } from 'react-toastify';
 import { useAdminRouter } from '@/admin/hooks/useAdminRouter';
-import { CanAccess } from '../../../../../components/auth/CanAccess';
+import { AdminRowActionsMenu } from '../../../../../components/ui/AdminRowActionsMenu';
 import { PERMISSIONS } from '../../../../../constants/permission.constants';
 import { ROUTES } from '../../../../../constants/routes';
+import { ImportBatchLineImportHost } from '../../../inventory/components/sections/ImportBatchLineImportHost';
 import type { ImportBatch, ImportBatchStatus } from '../../types/importBatch.type';
 import type { useImportBatchList } from '../../hooks/useImportBatch';
 import {
+    getBatchTypeBadgeClass,
+    getBatchTypeLabel,
     getImportBatchStatusBadgeClass,
     getImportBatchStatusLabel,
     getImportModeBadgeClass,
@@ -76,8 +72,7 @@ export const ImportBatchList = ({ listHook }: ImportBatchListProps) => {
         setPage,
         setLimit,
     } = listHook;
-    const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null);
-    const [menuBatch, setMenuBatch] = useState<ImportBatch | null>(null);
+    const [importTarget, setImportTarget] = useState<{ batchId: number; lineId: string } | null>(null);
 
     const page = (filters.page ?? 1) - 1;
     const rowsPerPage = filters.size ?? 10;
@@ -96,37 +91,34 @@ export const ImportBatchList = ({ listHook }: ImportBatchListProps) => {
         setSearch('');
     };
 
-    const handleOpenMenu = (event: React.MouseEvent<HTMLElement>, batch: ImportBatch) => {
-        setMenuAnchor(event.currentTarget);
-        setMenuBatch(batch);
-    };
-
-    const handleCloseMenu = () => {
-        setMenuAnchor(null);
-        setMenuBatch(null);
-    };
-
     const handleViewDetail = useCallback(
         (batchId: number) => router.push(ROUTES.ADMIN.IMPORT_BATCH.DETAIL(batchId)),
         [router]
     );
 
-    const handleAddTicket = useCallback(
-        (batch: ImportBatch) => {
-            const firstLine = findFirstIncompleteLine(batch);
-            if (firstLine?.id != null) {
-                router.push(ROUTES.ADMIN.IMPORT_BATCH.LINE_DETAIL(batch.id, firstLine.id));
-                return;
-            }
+    const handleAddTicket = useCallback((batch: ImportBatch) => {
+        const firstLine = findFirstIncompleteLine(batch);
+        if (firstLine?.id != null) {
+            setImportTarget({ batchId: batch.id, lineId: String(firstLine.id) });
+            return;
+        }
+        if ((batch.lines?.length ?? 0) === 0) {
+            toast.info('Phiếu chưa có dòng nhà đài. Hãy chỉnh sửa phiếu để thêm nhà đài trước.');
             router.push(ROUTES.ADMIN.IMPORT_BATCH.DETAIL(batch.id));
-        },
-        [router]
-    );
+            return;
+        }
+        toast.info('Không còn dòng nào cần nhập vé. Mở chi tiết phiếu để kiểm tra.');
+        router.push(ROUTES.ADMIN.IMPORT_BATCH.DETAIL(batch.id));
+    }, [router]);
 
-    const handleEditBatch = useCallback(
-        (batchId: number) => router.push(ROUTES.ADMIN.IMPORT_BATCH.EDIT(batchId)),
-        [router]
-    );
+    const handleCloseImportDialog = useCallback(() => {
+        setImportTarget(null);
+    }, []);
+
+    const handleImportSuccess = useCallback(() => {
+        setImportTarget(null);
+        listHook.refetch?.();
+    }, [listHook]);
 
     if (error) {
         return (
@@ -172,6 +164,7 @@ export const ImportBatchList = ({ listHook }: ImportBatchListProps) => {
                                     <TableCell>Ngày quay</TableCell>
                                     <TableCell>Nhà cung cấp</TableCell>
                                     <TableCell align="center">Hình thức nhập</TableCell>
+                                    <TableCell>Người thực hiện</TableCell>
                                     <TableCell align="center">Trạng thái</TableCell>
                                     <TableCell sx={{ maxWidth: 200 }}>Mã lô / Loại</TableCell>
                                     <TableCell align="right">Khai báo</TableCell>
@@ -182,7 +175,7 @@ export const ImportBatchList = ({ listHook }: ImportBatchListProps) => {
                             <TableBody>
                                 {isLoading ? (
                                     <TableRow>
-                                        <TableCell colSpan={9} align="center" sx={{ borderBottom: 'none', py: 10 }}>
+                                        <TableCell colSpan={10} align="center" sx={{ borderBottom: 'none', py: 10 }}>
                                             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 320 }}>
                                                 <CircularProgress size={32} />
                                             </Box>
@@ -190,7 +183,7 @@ export const ImportBatchList = ({ listHook }: ImportBatchListProps) => {
                                     </TableRow>
                                 ) : batches.length === 0 ? (
                                     <TableRow>
-                                        <TableCell colSpan={9} align="center" sx={{ borderBottom: 'none', py: 10 }}>
+                                        <TableCell colSpan={10} align="center" sx={{ borderBottom: 'none', py: 10 }}>
                                             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 320 }}>
                                                 <Typography className="admin-datagrid-empty">Không có dữ liệu</Typography>
                                             </Box>
@@ -210,8 +203,9 @@ export const ImportBatchList = ({ listHook }: ImportBatchListProps) => {
                                                 (sum, line) => sum + (line.declareQuantity || 0),
                                                 0
                                             );
-                                        const lineSummaryCompact = formatImportBatchLinesSummaryCompact(batch.lines);
-                                        const lineSummaryTooltip = formatImportBatchLinesSummaryTooltip(batch.lines);
+                                        const uniqueBatchTypes = Array.from(
+                                            new Set((batch.lines ?? []).map((line) => line.batchType).filter(Boolean))
+                                        );
                                         const missingStations = importBatchMissingStations(batch);
                                         const hasPending = batchHasPendingLines(batch);
 
@@ -264,36 +258,30 @@ export const ImportBatchList = ({ listHook }: ImportBatchListProps) => {
                                                         </span>
                                                     </Tooltip>
                                                 </TableCell>
+                                                <TableCell>
+                                                    <span className="admin-cell-text">{batch.createdBy || '—'}</span>
+                                                </TableCell>
                                                 <TableCell align="center">
                                                     <span className={`admin-status-badge ${getImportBatchStatusBadgeClass(batch.status)}`}>
                                                         {getImportBatchStatusLabel(batch.status)}
                                                     </span>
                                                 </TableCell>
-                                                <TableCell sx={{ maxWidth: 200 }}>
-                                                    {lineSummaryCompact ? (
-                                                        <Tooltip
-                                                            title={lineSummaryTooltip}
-                                                            slotProps={{
-                                                                tooltip: {
-                                                                    sx: {
-                                                                        maxWidth: 520,
-                                                                        whiteSpace: 'pre-line',
-                                                                        fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
-                                                                        fontSize: '0.75rem',
-                                                                    },
-                                                                },
-                                                            }}
-                                                        >
-                                                            <Typography
-                                                                className="admin-cell-text"
-                                                                noWrap
-                                                                sx={{ ...importBatchCodeMonospaceSx, maxWidth: 200, cursor: 'default' }}
-                                                            >
-                                                                {lineSummaryCompact}
-                                                            </Typography>
-                                                        </Tooltip>
+                                                <TableCell>
+                                                    {uniqueBatchTypes.length > 0 ? (
+                                                        <Stack direction="row" spacing={0.5} flexWrap="wrap">
+                                                            {uniqueBatchTypes.map((type) => (
+                                                                <span
+                                                                    key={type}
+                                                                    className={`admin-status-badge ${getBatchTypeBadgeClass(type)}`}
+                                                                >
+                                                                    {getBatchTypeLabel(type)}
+                                                                </span>
+                                                            ))}
+                                                        </Stack>
                                                     ) : (
-                                                        <span className="admin-cell-text">—</span>
+                                                        <span className="admin-status-badge admin-status-badge--success">
+                                                            Nhập mới
+                                                        </span>
                                                     )}
                                                 </TableCell>
                                                 <TableCell align="right">
@@ -305,19 +293,24 @@ export const ImportBatchList = ({ listHook }: ImportBatchListProps) => {
                                                     </span>
                                                 </TableCell>
                                                 <TableCell align="right">
-                                                    <IconButton
-                                                        size="small"
-                                                        aria-label="Thao tác"
-                                                        onClick={(e) => handleOpenMenu(e, batch)}
-                                                        className="admin-table-action"
-                                                        sx={{
-                                                            bgcolor: menuBatch?.id === batch.id && menuAnchor
-                                                                ? 'var(--palette-action-hover)'
-                                                                : 'transparent',
-                                                        }}
-                                                    >
-                                                        <MoreVertIcon fontSize="small" />
-                                                    </IconButton>
+                                                    <AdminRowActionsMenu
+                                                        items={[
+                                                            {
+                                                                id: 'view',
+                                                                label: 'Xem chi tiết',
+                                                                icon: 'view',
+                                                                onClick: () => handleViewDetail(batch.id),
+                                                            },
+                                                            {
+                                                                id: 'import',
+                                                                label: 'Nhập vé',
+                                                                icon: <ConfirmationNumberOutlinedIcon fontSize="small" />,
+                                                                hidden: !isImportBatchEditable(batch),
+                                                                permission: PERMISSIONS.TICKET.CREATE,
+                                                                onClick: () => handleAddTicket(batch),
+                                                            },
+                                                        ]}
+                                                    />
                                                 </TableCell>
                                             </TableRow>
                                         );
@@ -350,68 +343,12 @@ export const ImportBatchList = ({ listHook }: ImportBatchListProps) => {
                 </Box>
             </Card>
 
-            <Menu
-                anchorEl={menuAnchor}
-                open={Boolean(menuAnchor && menuBatch)}
-                onClose={handleCloseMenu}
-                anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-                transformOrigin={{ vertical: 'top', horizontal: 'right' }}
-                slotProps={{
-                    paper: {
-                        sx: {
-                            minWidth: 180,
-                            boxShadow: 'var(--customShadows-z20)',
-                            borderRadius: 'var(--shape-borderRadius-md)',
-                            py: 0.5,
-                        },
-                    },
-                }}
-            >
-                <MenuItem
-                    className="admin-menu-item"
-                    onClick={() => {
-                        if (menuBatch) handleViewDetail(menuBatch.id);
-                        handleCloseMenu();
-                    }}
-                >
-                    <ListItemIcon>
-                        <VisibilityOutlinedIcon fontSize="small" />
-                    </ListItemIcon>
-                    <ListItemText primary="Xem chi tiết" />
-                </MenuItem>
-                {menuBatch && isImportBatchEditable(menuBatch) && (
-                    <CanAccess permission={PERMISSIONS.IMPORT_BATCH.CREATE}>
-                        <MenuItem
-                            className="admin-menu-item"
-                            onClick={() => {
-                                if (menuBatch) handleEditBatch(menuBatch.id);
-                                handleCloseMenu();
-                            }}
-                        >
-                            <ListItemIcon>
-                                <EditOutlinedIcon fontSize="small" />
-                            </ListItemIcon>
-                            <ListItemText primary="Chỉnh sửa" />
-                        </MenuItem>
-                    </CanAccess>
-                )}
-                {menuBatch && isImportBatchEditable(menuBatch) && (
-                    <CanAccess permission={PERMISSIONS.TICKET.CREATE}>
-                        <MenuItem
-                            className="admin-menu-item"
-                            onClick={() => {
-                                if (menuBatch) handleAddTicket(menuBatch);
-                                handleCloseMenu();
-                            }}
-                        >
-                            <ListItemIcon>
-                                <ConfirmationNumberOutlinedIcon fontSize="small" />
-                            </ListItemIcon>
-                            <ListItemText primary="Nhập vé" />
-                        </MenuItem>
-                    </CanAccess>
-                )}
-            </Menu>
+            <ImportBatchLineImportHost
+                batchId={importTarget?.batchId ?? null}
+                lineId={importTarget?.lineId ?? null}
+                onClose={handleCloseImportDialog}
+                onSuccess={handleImportSuccess}
+            />
         </>
     );
 };

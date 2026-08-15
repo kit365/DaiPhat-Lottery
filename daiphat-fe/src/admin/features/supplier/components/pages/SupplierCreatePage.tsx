@@ -1,28 +1,49 @@
 "use client";
 
 import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
-import { Box, Stack, FormControlLabel, Switch } from '@mui/material';
+import {
+    Box,
+    Grid,
+} from '@mui/material';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useMemo, useState } from 'react';
-import { useForm, Controller } from 'react-hook-form';
+import { useMemo, useState, useEffect } from 'react';
+import { useForm } from 'react-hook-form';
 import { toast } from 'react-toastify';
 import { PageHeader } from '../../../../components/ui/PageHeader';
-import { CollapsibleCard } from '../../../../components/ui/CollapsibleCard';
-import { Button } from '../../../../components/ui/Button';
 import { ROUTES } from '../../../../constants/routes';
 import { useCreateSupplier } from '../../hooks/useSupplier';
 import { SupplierFormFields } from '../sections/SupplierFormFields';
-import { supplierFormSchema, SupplierFormValues, supplierFormDefaultValues } from '../../schemas/supplier.schema';
+import { SupplierSidebarPanel } from '../sections/SupplierSidebarPanel';
+import {
+    supplierFormSchema,
+    SupplierFormValues,
+    supplierFormDefaultValues,
+} from '../../schemas/supplier.schema';
 import {
     getMissingSupplierFields,
     scrollToFirstMissingField,
     SupplierActivationField,
 } from '../../utils/supplier-activation';
 
+/** Helper to generate code slug from Vietnamese supplier name */
+const generateSupplierCode = (name: string): string => {
+    const slug = name
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/đ/g, 'd')
+        .replace(/Đ/g, 'D')
+        .toUpperCase()
+        .replace(/[^A-Z0-9]/g, '_')
+        .replace(/_+/g, '_')
+        .replace(/^_|_$/g, '');
+    return slug.startsWith('NCC_') ? slug : slug ? `NCC_${slug}` : '';
+};
+
 export const SupplierCreatePage = () => {
     const router = useAdminRouter();
     const { mutateAsync, isPending } = useCreateSupplier();
     const [activationErrorsVisible, setActivationErrorsVisible] = useState(false);
+    const [userEditedCode, setUserEditedCode] = useState(false);
 
     const { control, handleSubmit, watch, setValue } = useForm<SupplierFormValues>({
         resolver: zodResolver(supplierFormSchema),
@@ -30,6 +51,18 @@ export const SupplierCreatePage = () => {
     });
 
     const watchedValues = watch();
+    const watchedName = watch('name');
+
+    // Auto generate code from name if user hasn't manually edited it
+    useEffect(() => {
+        if (!userEditedCode && watchedName) {
+            const autoCode = generateSupplierCode(watchedName);
+            if (autoCode) {
+                setValue('code', autoCode, { shouldValidate: true });
+            }
+        }
+    }, [watchedName, userEditedCode, setValue]);
+
     const missingFields = useMemo(() => {
         if (!activationErrorsVisible) {
             return [];
@@ -40,7 +73,8 @@ export const SupplierCreatePage = () => {
     const handleActiveToggle = (nextActive: boolean) => {
         if (!nextActive) {
             setActivationErrorsVisible(false);
-            return true;
+            setValue('isActive', false);
+            return;
         }
 
         const missing = getMissingSupplierFields(watchedValues);
@@ -48,11 +82,11 @@ export const SupplierCreatePage = () => {
             setActivationErrorsVisible(true);
             requestAnimationFrame(() => scrollToFirstMissingField(missing));
             toast.warning('Vui lòng hoàn tất thông tin bắt buộc trước khi kích hoạt nhà cung cấp.');
-            return false;
+            return;
         }
 
         setActivationErrorsVisible(false);
-        return true;
+        setValue('isActive', true);
     };
 
     const onSubmit = async (data: SupplierFormValues) => {
@@ -103,9 +137,9 @@ export const SupplierCreatePage = () => {
     };
 
     return (
-        <Box sx={{ maxWidth: 900, mx: 'auto' }}>
+        <Box sx={{ maxWidth: 1200, mx: 'auto', pb: 8 }}>
             <PageHeader
-                title="Thêm nhà cung cấp"
+                title="Thêm nhà cung cấp mới"
                 breadcrumbItems={[
                     { label: 'Vé số', to: ROUTES.ADMIN.TICKETS.LIST },
                     { label: 'Nhà cung cấp', to: ROUTES.ADMIN.SUPPLIER.LIST },
@@ -114,50 +148,29 @@ export const SupplierCreatePage = () => {
             />
 
             <form onSubmit={handleSubmit(onSubmit)} noValidate>
-                <CollapsibleCard title="Thông tin nhà cung cấp" expanded onToggle={() => undefined}>
-                    <Stack spacing={3} sx={{ p: 3 }}>
+                <Grid container spacing={3}>
+                    {/* Left Column: Form Detail Sections */}
+                    <Grid size={{ xs: 12, lg: 8 }}>
                         <SupplierFormFields
                             control={control}
                             missingFields={missingFields}
-                            onActiveToggle={handleActiveToggle}
-                            hideIsActive={true}
+                            isEdit={false}
+                            onUserEditedCode={() => setUserEditedCode(true)}
                         />
-                    </Stack>
-                </CollapsibleCard>
+                    </Grid>
 
-                <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mt: 3 }}>
-                    <Controller
-                        name="isActive"
-                        control={control}
-                        render={({ field }) => (
-                            <FormControlLabel
-                                control={
-                                    <Switch
-                                        checked={field.value}
-                                        onChange={(e) => {
-                                            const nextActive = e.target.checked;
-                                            if (nextActive && !handleActiveToggle(true)) {
-                                                return;
-                                            }
-                                            if (!nextActive) {
-                                                handleActiveToggle(false);
-                                            }
-                                            field.onChange(nextActive);
-                                        }}
-                                    />
-                                }
-                                label={field.value ? 'Hoạt động' : 'Ngừng hoạt động'}
-                            />
-                        )}
-                    />
-                    <Button
-                        type="submit"
-                        variant="contained"
-                        loading={isPending}
-                        label="Lưu"
-                        loadingLabel="Đang lưu..."
-                    />
-                </Stack>
+                    {/* Right Column: Sticky Sidebar Panel */}
+                    <Grid size={{ xs: 12, lg: 4 }}>
+                        <SupplierSidebarPanel
+                            values={watchedValues}
+                            onActiveToggle={handleActiveToggle}
+                            onSubmit={handleSubmit(onSubmit)}
+                            onCancel={() => router.push(ROUTES.ADMIN.SUPPLIER.LIST)}
+                            isPending={isPending}
+                            isEdit={false}
+                        />
+                    </Grid>
+                </Grid>
             </form>
         </Box>
     );

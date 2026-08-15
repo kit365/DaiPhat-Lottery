@@ -72,6 +72,12 @@ public enum ErrorCode {
     IMAGE_FILE_REQUIRED("SYS_007", "Vui lòng chọn một tệp hình ảnh.", HttpStatus.BAD_REQUEST),
     IMAGE_INVALID_TYPE("SYS_008", "Chỉ hỗ trợ tải lên các tệp định dạng hình ảnh.", HttpStatus.BAD_REQUEST),
     IMAGE_UPLOAD_FAILED("SYS_009", "Không thể tải ảnh lên. Vui lòng kiểm tra cấu hình lưu trữ hoặc thử lại.", HttpStatus.BAD_GATEWAY),
+    CONTRACT_TEMPLATE_NOT_FOUND("SYS_010", "Chưa cấu hình mẫu hợp đồng cho loại này.", HttpStatus.NOT_FOUND),
+    CONTRACT_NOT_FOUND("SYS_011", "Hợp đồng không tồn tại.", HttpStatus.NOT_FOUND),
+    CONTRACT_DEFAULT_REQUIRED("SYS_012", "Không thể xóa hợp đồng đang là mặc định. Hãy đặt mặc định cho bản khác trước.", HttpStatus.BAD_REQUEST),
+    CONTRACT_LAST_OF_TYPE("SYS_013", "Phải giữ lại ít nhất một hợp đồng cho mỗi loại.", HttpStatus.BAD_REQUEST),
+    CONTRACT_INVALID_TYPE("SYS_014", "Loại hợp đồng không hợp lệ.", HttpStatus.BAD_REQUEST),
+    CONTRACT_ARTICLES_REQUIRED("SYS_015", "Hợp đồng cần có ít nhất một điều khoản.", HttpStatus.BAD_REQUEST),
     PASSWORD_CONFIRM_MISMATCH("AUTH_030", "Xác nhận mật khẩu không khớp", HttpStatus.BAD_REQUEST),
     ACCESS_DENIED("AUTH_031", "Bạn không có quyền truy cập tài nguyên này.", HttpStatus.FORBIDDEN),
 
@@ -140,9 +146,21 @@ public enum ErrorCode {
     PRIZE_PAYOUT_REQUIRES_IN_PERSON("ORD_047", "Vé này bắt buộc đổi thưởng trực tiếp tại đại lý.", HttpStatus.BAD_REQUEST),
     PRIZE_PAYOUT_FOUR_EYES_REQUIRED("ORD_048", "Giao dịch từ ngưỡng thuế trở lên cần nhân viên khác xác nhận trả thưởng.", HttpStatus.BAD_REQUEST),
     PRIZE_PAYOUT_RECIPIENT_IDENTITY_REQUIRED("ORD_049", "Cần thu thập CCCD / tên người nhận trước khi tạo yêu cầu.", HttpStatus.BAD_REQUEST),
+    PRIZE_PAYOUT_CONTRACT_INCOMPLETE("ORD_050", "Cần chọn vé trúng và nhập họ tên, số CCCD người nhận để lập hợp đồng xác nhận trả thưởng.", HttpStatus.BAD_REQUEST),
+    PRIZE_PAYOUT_CONTRACT_DOCUMENT_INVALID_TYPE("ORD_051", "Chỉ chấp nhận file PDF, JPG hoặc PNG cho bản hợp đồng đã ký.", HttpStatus.BAD_REQUEST),
 
     // Lottery Errors
     // Lottery Product Errors
+    LOTTERY_STATION_CODE_EXISTED(
+            "LT_136",
+            "Mã nhà đài \"%s\" đã được dùng cho một nhà đài khác.",
+            HttpStatus.BAD_REQUEST
+    ),
+    LOTTERY_STATION_CODE_UNRESOLVABLE(
+            "LT_137",
+            "Không tạo được mã từ tên nhà đài. Vui lòng nhập mã thủ công.",
+            HttpStatus.BAD_REQUEST
+    ),
     LOTTERY_STATION_NOT_FOUND("LT_001", "Nhà đài không tồn tại.", HttpStatus.NOT_FOUND),
     LOTTERY_STATION_NAME_EXISTED("LT_002", "Tên nhà đài đã tồn tại.", HttpStatus.BAD_REQUEST),
     LOTTERY_STATION_INVALID_STATUS("LT_003", "Trạng thái sản phẩm không hợp lệ cho thao tác này.", HttpStatus.BAD_REQUEST),
@@ -423,6 +441,78 @@ public enum ErrorCode {
     IMPORT_BATCH_TICKET_DELETE_LINE_IMPORTED(
             "LT_101",
             "Không được xóa vé thuộc dòng phiếu nhập lô đã hoàn tất (IMPORTED).",
+            HttpStatus.BAD_REQUEST
+    ),
+
+    // Import batch file import (.csv / .xlsx)
+    IMPORT_BATCH_FILE_REQUIRED(
+            "LT_125",
+            "Vui lòng chọn tệp cần nhập.",
+            HttpStatus.BAD_REQUEST
+    ),
+    IMPORT_BATCH_FILE_UNSUPPORTED_FORMAT(
+            "LT_126",
+            "Chỉ hỗ trợ tệp .csv hoặc .xlsx.",
+            HttpStatus.BAD_REQUEST
+    ),
+    IMPORT_BATCH_FILE_TOO_LARGE(
+            "LT_127",
+            "Tệp vượt quá dung lượng cho phép (%d MB).",
+            HttpStatus.BAD_REQUEST
+    ),
+    IMPORT_BATCH_FILE_TOO_MANY_ROWS(
+            "LT_128",
+            "Tệp vượt quá số dòng cho phép (%d dòng).",
+            HttpStatus.BAD_REQUEST
+    ),
+    IMPORT_BATCH_FILE_UNREADABLE(
+            "LT_129",
+            "Không đọc được nội dung tệp. Vui lòng kiểm tra lại định dạng.",
+            HttpStatus.BAD_REQUEST
+    ),
+    IMPORT_BATCH_FILE_HEADER_NOT_FOUND(
+            "LT_130",
+            "Không tìm thấy dòng tiêu đề trong tệp.",
+            HttpStatus.BAD_REQUEST
+    ),
+    IMPORT_BATCH_FILE_COLUMN_NOT_FOUND(
+            "LT_131",
+            "Cột \"%s\" không tồn tại trong tệp.",
+            HttpStatus.BAD_REQUEST
+    ),
+    IMPORT_BATCH_FILE_DRAW_DATE_SOURCE_REQUIRED(
+            "LT_132",
+            "Cần chọn cột ngày quay hoặc chỉ định ngày quay mặc định.",
+            HttpStatus.BAD_REQUEST
+    ),
+    IMPORT_BATCH_FILE_ALREADY_IMPORTED(
+            "LT_133",
+            "Tệp này đã được dùng để tạo phiếu nhập cho ngày quay %s.",
+            HttpStatus.CONFLICT
+    ),
+    IMPORT_BATCH_FILE_CHANGED(
+            "LT_134",
+            "Tệp đã thay đổi so với lúc xem trước. Vui lòng xem trước lại.",
+            HttpStatus.CONFLICT
+    ),
+    IMPORT_BATCH_FILE_MAPPING_PROFILE_NOT_FOUND(
+            "LT_138",
+            "Cấu hình cột đã lưu không tồn tại.",
+            HttpStatus.NOT_FOUND
+    ),
+    IMPORT_BATCH_TICKET_LIST_IMAGE_TOO_LARGE(
+            "LT_139",
+            "Ảnh danh sách vé nhập vượt quá dung lượng cho phép (%d MB).",
+            HttpStatus.BAD_REQUEST
+    ),
+    IMPORT_BATCH_TICKET_LIST_IMAGE_TOO_MANY(
+            "LT_140",
+            "Số ảnh danh sách vé nhập vượt quá giới hạn cho phép (%d ảnh).",
+            HttpStatus.BAD_REQUEST
+    ),
+    IMPORT_BATCH_FILE_TICKET_COLUMNS_INCOMPLETE(
+            "LT_135",
+            "Nhập vé cần cả cột dãy số và cột sê-ri.",
             HttpStatus.BAD_REQUEST
     ),
 

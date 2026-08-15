@@ -29,6 +29,9 @@ public class SupplierSettlementApplicationMapper {
                 .totalPaidAmount(model.getTotalPaidAmount())
                 .remainingAmount(model.getRemainingAmount())
                 .supplierSettlementReceiptUrl(model.getSupplierSettlementReceiptUrl())
+                .paymentEvidenceUrls(model.getPaymentEvidenceUrls() == null
+                        ? java.util.List.of()
+                        : java.util.List.copyOf(model.getPaymentEvidenceUrls()))
                 .isReturnExpired(model.isReturnExpired())
                 .expiredReturnValue(model.getExpiredReturnValue())
                 .status(model.getStatus())

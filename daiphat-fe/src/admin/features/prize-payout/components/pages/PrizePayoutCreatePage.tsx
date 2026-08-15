@@ -62,6 +62,12 @@ import {
 
 type LookupMode = 'ORDER' | 'TRIPLE';
 
+const SIGNED_CONTRACT_ACCEPT = {
+    'image/jpeg': ['.jpg', '.jpeg'],
+    'image/png': ['.png'],
+    'application/pdf': ['.pdf'],
+} as const;
+
 const headerButtonSx = {
     height: 36,
     px: 2,
@@ -142,6 +148,7 @@ export const PrizePayoutCreatePage = () => {
     const [uploadingIdBack, setUploadingIdBack] = useState(false);
     const [uploadingTransferEvidence, setUploadingTransferEvidence] = useState(false);
     const [uploadingContract, setUploadingContract] = useState(false);
+    const [printingContract, setPrintingContract] = useState(false);
     const [manualConfirmed, setManualConfirmed] = useState(false);
     const [paymentMethod, setPaymentMethod] = useState<PrizePayoutPaymentMethod>('CASH');
     const [cashAmount, setCashAmount] = useState('');
@@ -206,6 +213,27 @@ export const PrizePayoutCreatePage = () => {
         needsManualConfirm,
         manualConfirmed,
     ]);
+
+    const canPrintContract = selectedItems.length > 0 && Boolean(recipientFullName.trim()) && isRecipientIdValid;
+
+    const handlePrintContract = async () => {
+        if (!canPrintContract) {
+            toast.error('Nhập họ tên và số CCCD người nhận trước khi in hợp đồng.');
+            return;
+        }
+        try {
+            setPrintingContract(true);
+            await prizePayoutAdminApi.openConfirmationContractPreview({
+                orderDetailIds: selectedItems.map((item) => item.orderDetailId),
+                recipientFullName: recipientFullName.trim(),
+                recipientIdNumber: recipientIdNumber.trim(),
+            });
+        } catch (error) {
+            toast.error(error instanceof Error ? error.message : 'Không mở được hợp đồng PDF');
+        } finally {
+            setPrintingContract(false);
+        }
+    };
 
     const transferReady =
         !!selectedBank
@@ -912,7 +940,24 @@ export const PrizePayoutCreatePage = () => {
                         {/* Section 4: Hợp đồng xác nhận trả thưởng (Placed in Left Column to perfectly equalize height) */}
                         {selectedItems.length > 0 && (
                             <SectionCard title="4. Hợp đồng xác nhận trả thưởng" icon="solar:document-bold-duotone">
-                                <Box>
+                                <Stack spacing={1.5}>
+                                    <Alert severity="info" sx={{ borderRadius: '10px' }}>
+                                        In hợp đồng từ hệ thống (cùng thông tin pháp lý Bên A với hợp đồng cộng tác bán vé số),
+                                        đưa khách ký, rồi tải bản đã ký (PDF/ảnh).
+                                    </Alert>
+                                    <Button
+                                        variant="outlined"
+                                        startIcon={
+                                            printingContract
+                                                ? <CircularProgress size={16} color="inherit" />
+                                                : <Icon icon="solar:printer-bold-duotone" />
+                                        }
+                                        disabled={!canPrintContract || printingContract || createMutation.isPending}
+                                        onClick={() => void handlePrintContract()}
+                                        sx={{ textTransform: 'none', fontWeight: 700, borderRadius: '8px', alignSelf: 'flex-start' }}
+                                    >
+                                        {printingContract ? 'Đang tạo hợp đồng...' : 'Xem / In hợp đồng'}
+                                    </Button>
                                     <UploadSingleFile
                                         value={confirmationContractUrl}
                                         onChange={setConfirmationContractUrl}
@@ -920,16 +965,17 @@ export const PrizePayoutCreatePage = () => {
                                         autoUpload
                                         onUploadingChange={setUploadingContract}
                                         disabled={uploadingContract || createMutation.isPending}
-                                        label="Hợp đồng xác nhận trả thưởng"
+                                        label="Bản hợp đồng đã ký"
                                         required
                                         compact
+                                        accept={SIGNED_CONTRACT_ACCEPT}
                                     />
                                     {confirmationContractUrl && (
-                                        <Box sx={{ mt: 1, maxHeight: 160, overflow: 'hidden', borderRadius: 1 }}>
+                                        <Box sx={{ mt: 0.5, maxHeight: 160, overflow: 'hidden', borderRadius: 1 }}>
                                             <TransferEvidencePreview imageUrl={confirmationContractUrl} title="Hợp đồng" showCaption />
                                         </Box>
                                     )}
-                                </Box>
+                                </Stack>
                             </SectionCard>
                         )}
                     </Stack>

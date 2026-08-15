@@ -1,5 +1,6 @@
 package com.daiphat.coreapi.application.dto.request.lotteries;
 
+import com.daiphat.coreapi.domain.model.enums.lottery.InputSource;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
@@ -22,6 +23,9 @@ public record BulkCreateLotteryTicketsRequest(
         @NotEmpty(message = "Phải có ít nhất một dãy số")
         List<CreateLotteryTicketNumberSectionRequest> tickets,
 
-        Boolean isAutoSave
+        Boolean isAutoSave,
+
+        /** How these serials were entered; defaults to MANUAL when absent. */
+        InputSource inputSource
 ) {
 }

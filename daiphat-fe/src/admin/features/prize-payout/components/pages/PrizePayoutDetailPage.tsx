@@ -16,6 +16,7 @@ import {
     DialogTitle,
     Divider,
     Grid,
+    CircularProgress,
     FormControl,
     FormControlLabel,
     Radio,
@@ -239,6 +240,7 @@ export const PrizePayoutDetailPage = () => {
     const [rejectReason, setRejectReason] = useState('');
     const [selectedRejectQuickReplyIndex, setSelectedRejectQuickReplyIndex] = useState<number | null>(null);
     const [uploading, setUploading] = useState(false);
+    const [printingContract, setPrintingContract] = useState(false);
 
     const detail = data?.data;
 
@@ -659,17 +661,70 @@ export const PrizePayoutDetailPage = () => {
                             </Card>
                         )}
 
-                        {detail.confirmationContractUrl && (
+                        {detail.confirmationContractUrl ? (
                             <Card sx={{ p: 3, ...cardSx }}>
                                 <CardSectionTitle
                                     icon="solar:document-text-bold-duotone"
                                     title="Hợp đồng xác nhận trả thưởng"
                                 />
-                                <TransferEvidencePreview
-                                    imageUrl={detail.confirmationContractUrl}
-                                    title=""
-                                    showCaption={false}
+                                <Stack spacing={1.5}>
+                                    <Button
+                                        variant="outlined"
+                                        startIcon={
+                                            printingContract
+                                                ? <CircularProgress size={16} color="inherit" />
+                                                : <Icon icon="solar:printer-bold-duotone" />
+                                        }
+                                        disabled={printingContract}
+                                        onClick={async () => {
+                                            try {
+                                                setPrintingContract(true);
+                                                await prizePayoutAdminApi.openConfirmationContractPdf(detail.id);
+                                            } catch (error) {
+                                                toast.error(error instanceof Error ? error.message : 'Không mở được hợp đồng PDF');
+                                            } finally {
+                                                setPrintingContract(false);
+                                            }
+                                        }}
+                                        sx={{ textTransform: 'none', fontWeight: 700, borderRadius: '8px', alignSelf: 'flex-start' }}
+                                    >
+                                        {printingContract ? 'Đang tạo hợp đồng...' : 'Xem / In hợp đồng hệ thống'}
+                                    </Button>
+                                    <TransferEvidencePreview
+                                        imageUrl={detail.confirmationContractUrl}
+                                        title=""
+                                        showCaption={false}
+                                    />
+                                </Stack>
+                            </Card>
+                        ) : (
+                            <Card sx={{ p: 3, ...cardSx }}>
+                                <CardSectionTitle
+                                    icon="solar:document-text-bold-duotone"
+                                    title="Hợp đồng xác nhận trả thưởng"
                                 />
+                                <Button
+                                    variant="outlined"
+                                    startIcon={
+                                        printingContract
+                                            ? <CircularProgress size={16} color="inherit" />
+                                            : <Icon icon="solar:printer-bold-duotone" />
+                                    }
+                                    disabled={printingContract}
+                                    onClick={async () => {
+                                        try {
+                                            setPrintingContract(true);
+                                            await prizePayoutAdminApi.openConfirmationContractPdf(detail.id);
+                                        } catch (error) {
+                                            toast.error(error instanceof Error ? error.message : 'Không mở được hợp đồng PDF');
+                                        } finally {
+                                            setPrintingContract(false);
+                                        }
+                                    }}
+                                    sx={{ textTransform: 'none', fontWeight: 700, borderRadius: '8px' }}
+                                >
+                                    {printingContract ? 'Đang tạo hợp đồng...' : 'Xem / In hợp đồng hệ thống'}
+                                </Button>
                             </Card>
                         )}
                     </Stack>

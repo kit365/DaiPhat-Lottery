@@ -99,4 +99,70 @@ class ReturnBatchSummaryCalculatorTest {
         assertThat(batchCaptor.getValue().getTotalQuantity()).isEqualTo(3);
         assertThat(batchCaptor.getValue().getTotalReturnValue()).isEqualByComparingTo("28000.000");
     }
+
+    @Test
+    @DisplayName("unattached open lines keep eligible unsold qty after another line is attached")
+    void recalculate_mixedAttachedAndEligibleLines() {
+        ReturnBatchModel batch = ReturnBatchModel.builder()
+                .id(1L)
+                .lotterySupplierId(7L)
+                .drawDate(DRAW_DATE)
+                .status(ReturnBatchStatus.INSPECTING)
+                .build();
+        ReturnBatchLineModel inspected = ReturnBatchLineModel.builder()
+                .id(10L)
+                .returnBatchId(1L)
+                .lotteryStationId(100L)
+                .status(com.daiphat.coreapi.domain.model.enums.lottery.ReturnBatchLineStatus.INSPECTED)
+                .totalQuantity(0)
+                .totalReturnValue(BigDecimal.ZERO)
+                .build();
+        ReturnBatchLineModel pending = ReturnBatchLineModel.builder()
+                .id(11L)
+                .returnBatchId(1L)
+                .lotteryStationId(200L)
+                .status(com.daiphat.coreapi.domain.model.enums.lottery.ReturnBatchLineStatus.PENDING)
+                .totalQuantity(0)
+                .totalReturnValue(BigDecimal.ZERO)
+                .build();
+
+        when(returnBatchRepositoryPort.findById(1L)).thenReturn(Optional.of(batch));
+        when(returnBatchRepositoryPort.findLinesByBatchId(1L)).thenReturn(List.of(inspected, pending));
+        when(lotteryTicketSerialRepositoryPort.countByReturnBatchLineId(10L)).thenReturn(2L);
+        when(lotteryTicketSerialRepositoryPort.countByReturnBatchLineId(11L)).thenReturn(0L);
+        when(lotteryTicketSerialRepositoryPort.findAllByReturnBatchLineId(10L)).thenReturn(List.of(
+                com.daiphat.coreapi.domain.model.lotteries.LotteryTicketSerialModel.builder()
+                        .id(1L)
+                        .importBatchLineId(50L)
+                        .status(LotteryTicketSerialStatus.IN_STOCK)
+                        .build(),
+                com.daiphat.coreapi.domain.model.lotteries.LotteryTicketSerialModel.builder()
+                        .id(2L)
+                        .importBatchLineId(50L)
+                        .status(LotteryTicketSerialStatus.EXPIRED)
+                        .build()
+        ));
+        when(importBatchLineRepositoryPort.findById(50L)).thenReturn(Optional.of(
+                ImportBatchLineModel.builder().id(50L).importCost(new BigDecimal("9500.000")).build()
+        ));
+        when(importBatchLineRepositoryPort.findEligibleBySupplierStationAndDrawDate(7L, 200L, DRAW_DATE))
+                .thenReturn(List.of(
+                        ImportBatchLineModel.builder()
+                                .id(51L)
+                                .lotteryStationId(200L)
+                                .importCost(new BigDecimal("9000.000"))
+                                .build()
+                ));
+        when(lotteryTicketSerialRepositoryPort.countReturnEligibleByImportBatchLineId(51L)).thenReturn(4L);
+        when(returnBatchRepositoryPort.saveLine(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(returnBatchRepositoryPort.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        calculator.recalculate(1L);
+
+        ArgumentCaptor<ReturnBatchLineModel> lineCaptor = ArgumentCaptor.forClass(ReturnBatchLineModel.class);
+        verify(returnBatchRepositoryPort, org.mockito.Mockito.times(2)).saveLine(lineCaptor.capture());
+        assertThat(lineCaptor.getAllValues())
+                .anyMatch(line -> line.getId() == 10L && line.getTotalQuantity() == 2)
+                .anyMatch(line -> line.getId() == 11L && line.getTotalQuantity() == 4);
+    }
 }

@@ -13,6 +13,7 @@ import {
     getImportBatchesWithoutLines,
     getEligibleImportBatchStations,
     getImportBatchTimePolicy,
+    getImportBatchFileJobs,
     getImportBatchLineEntryTickets,
     getImportBatchReductionTickets,
     pauseImportBatchLine,
@@ -29,6 +30,33 @@ import type {
 import { QUERY_KEYS, importBatchQueryKeys } from '../constants/queryKeys';
 import type { ImportBatchImportMode } from '../utils/batchTypeLabels';
 import { QUERY_STALE_TIMES, selectApiDataOrNull } from '@/shared/react-query';
+
+/**
+ * History of file-import runs. Paged server-side because the list only grows.
+ */
+export const useImportBatchFileJobs = (enabled = true) => {
+    const [page, setPage] = useState(1);
+    const [size, setSize] = useState(10);
+
+    const query = useQuery({
+        queryKey: [QUERY_KEYS.IMPORT_BATCH_FILE_JOBS, page, size],
+        queryFn: () => getImportBatchFileJobs({ page, size }),
+        enabled,
+        placeholderData: keepPreviousData,
+        staleTime: 10_000,
+    });
+
+    return {
+        jobs: query.data?.data?.recordList ?? [],
+        pagination: (query.data?.data as any)?.pagination,
+        isLoading: query.isLoading,
+        refetch: query.refetch,
+        page,
+        size,
+        setPage,
+        setLimit: setSize,
+    };
+};
 
 export const useActiveImportBatchDraft = (enabled = true) => {
     return useQuery({

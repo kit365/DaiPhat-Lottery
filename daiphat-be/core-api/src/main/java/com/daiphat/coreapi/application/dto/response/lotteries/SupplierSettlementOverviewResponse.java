@@ -11,6 +11,7 @@ public record SupplierSettlementOverviewResponse(
         List<ImportBatchResponse> importBatches,
         List<ReturnBatchResponse> returnBatches,
         List<SettlementStationInventoryResponse> inventoryByStation,
+        List<SettlementStationPricingResponse> stationPricing,
         List<SupplierSettlementAdjustmentResponse> adjustments
 ) {
 }

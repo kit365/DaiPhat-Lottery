@@ -128,6 +128,7 @@ export const convertCreateFormToEditDraft = (
         typeof createValues.invoiceEvidenceUrl === 'string'
             ? createValues.invoiceEvidenceUrl.trim()
             : '',
+    ticketListImageUrls: (createValues.ticketListImageUrls ?? []).filter(Boolean),
     lines: (createValues.lines ?? [])
         .map((line) => ({
             lotteryStationId: toPositiveId(line.lotteryStationId),
@@ -166,6 +167,10 @@ export const transferCreateFormToEditDraft = (
                     ? priorEditDraft.invoiceEvidenceUrl
                     : '') ||
                 '',
+            ticketListImageUrls:
+                (createDraft.ticketListImageUrls?.length ?? 0) > 0
+                    ? createDraft.ticketListImageUrls
+                    : (priorEditDraft.ticketListImageUrls ?? []),
             lines: priorEditDraft.lines
                 .filter((line) => line.id && !line.removed)
                 .map((line) => ({
@@ -201,6 +206,7 @@ export const buildFormValuesFromBatch = (
         importMode: batch.importMode ?? 'IN_DAY',
         totalDeclareQuantity: batch.totalDeclareQuantity ?? 0,
         invoiceEvidenceUrl: batch.invoiceEvidenceUrl ?? '',
+        ticketListImageUrls: batch.ticketListImageUrls ?? [],
         lines: mappedLines.length > 0 ? mappedLines : [emptyLine()],
     };
 };
@@ -287,6 +293,7 @@ export const mergeImportBatchEditDraftWithServer = (
                 ? serverValues.invoiceEvidenceUrl
                 : '') ||
             '',
+        ticketListImageUrls: draft.ticketListImageUrls ?? serverValues.ticketListImageUrls ?? [],
         lines,
     };
 };

@@ -1,15 +1,21 @@
 "use client";
 
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 
 import { useQueryClient } from '@tanstack/react-query';
 import { AppToast } from '../../../../utils/toast.util';
 import { chatService } from '../services/chatService';
-import { ADMIN_CHAT_CONVERSATIONS_KEY, adminChatCustomerTimelineKey, adminChatDetailKey } from './useChat';
-import { Conversation } from '../../../../types/chat.type';
+import {
+    ADMIN_CHAT_CONVERSATIONS_KEY,
+    adminChatCustomerTimelineKey,
+    adminChatDetailKey,
+    mergeCustomerTimelineMessage,
+    useConversations,
+} from './useChat';
+import { Conversation, ConversationStatusEnum, MessageSenderRole, ChatConversationSocketEvent } from '../../../../types/chat.type';
+import { resolveStatusAfterMessage } from '../components/utils';
 
 import { useWebSocket } from '../../../../hooks/useWebSocket';
-import { ChatConversationSocketEvent } from '../../../../types/chat.type';
 import {
     ChatSocketMessageEvent,
     ChatSocketMessagePayload,
@@ -246,3 +252,106 @@ export const useChatOperatorSocket = ({
 
     return { connect };
 };
+
+const mapInboxSocketMessage = (payload: ChatSocketMessageEvent) => ({
+    id: payload.id ?? Date.now(),
+    senderId: payload.senderId,
+    senderType: payload.senderType || MessageSenderRole.CUSTOMER,
+    conversationId: payload.conversationId,
+    content: payload.content?.trim() || '',
+    type: payload.type || 'TEXT',
+    createdAt: payload.createdAt || new Date().toISOString(),
+    isRead: false,
+});
+
+/**
+ * Subscribe to every open inbox thread so a second customer's messages still
+ * land while staff is looking at another conversation.
+ */
+export const useAdminChatInboxSocket = ({
+    enabled = true,
+    selectedConversationId = null,
+}: {
+    enabled?: boolean;
+    selectedConversationId?: number | null;
+} = {}) => {
+    const queryClient = useQueryClient();
+    const { data: conversations = [] } = useConversations();
+    const selectedIdRef = useRef(selectedConversationId);
+
+    useEffect(() => {
+        selectedIdRef.current = selectedConversationId;
+    }, [selectedConversationId]);
+
+    const conversationIds = useMemo(
+        () =>
+            Array.from(
+                new Set(
+                    conversations
+                        .filter((conversation) => conversation.status !== ConversationStatusEnum.CLOSED)
+                        .map((conversation) => conversation.id)
+                )
+            ),
+        [conversations]
+    );
+
+    const handleInboxMessage = useCallback(
+        (payload: ChatSocketMessageEvent) => {
+            const incoming = mapInboxSocketMessage(payload);
+            const cached =
+                queryClient.getQueryData<Conversation[]>(ADMIN_CHAT_CONVERSATIONS_KEY) ?? [];
+            const match = cached.find((conversation) => conversation.id === incoming.conversationId);
+            const customerId = match?.customerId;
+            if (!customerId) {
+                queryClient.invalidateQueries({ queryKey: ADMIN_CHAT_CONVERSATIONS_KEY });
+                return;
+            }
+
+            queryClient.setQueryData(adminChatCustomerTimelineKey(customerId), (prev) =>
+                mergeCustomerTimelineMessage(prev as never, incoming as never)
+            );
+
+            const selectedConversation = cached.find(
+                (conversation) => conversation.id === selectedIdRef.current
+            );
+            const isViewingThisThread =
+                selectedIdRef.current === incoming.conversationId
+                || (!!selectedConversation?.customerId
+                    && selectedConversation.customerId === customerId);
+            queryClient.setQueryData<Conversation[]>(ADMIN_CHAT_CONVERSATIONS_KEY, (prev = []) =>
+                prev.map((conversation) => {
+                    if (conversation.id !== incoming.conversationId) {
+                        return conversation;
+                    }
+                    const unreadBump =
+                        incoming.senderType === MessageSenderRole.CUSTOMER && !isViewingThisThread
+                            ? (conversation.unreadCount ?? 0) + 1
+                            : conversation.unreadCount;
+                    return {
+                        ...conversation,
+                        status: resolveStatusAfterMessage(conversation, incoming.senderType),
+                        updatedAt: incoming.createdAt,
+                        lastMessage: {
+                            id: incoming.id,
+                            senderId: incoming.senderId ?? '',
+                            senderType: incoming.senderType,
+                            conversationId: incoming.conversationId,
+                            content: incoming.content,
+                            type: incoming.type,
+                            createdAt: incoming.createdAt,
+                        },
+                        unreadCount: unreadBump,
+                    };
+                })
+            );
+        },
+        [queryClient]
+    );
+
+    useChatSocket({
+        additionalConversationIds: conversationIds,
+        onMessage: handleInboxMessage,
+        enabled: enabled && conversationIds.length > 0,
+    });
+};
+

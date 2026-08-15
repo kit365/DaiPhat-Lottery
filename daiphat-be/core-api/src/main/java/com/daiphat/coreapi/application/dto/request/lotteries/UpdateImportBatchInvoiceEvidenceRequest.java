@@ -1,11 +1,10 @@
 package com.daiphat.coreapi.application.dto.request.lotteries;
 
-import jakarta.validation.constraints.NotBlank;
-
 /**
- * Attach (or replace only when missing) invoice evidence URL on an import batch.
+ * Attach invoice evidence URL on an import batch, or clear it when blank/null
+ * (used by settlement matching to replace a previously uploaded receipt).
  */
 public record UpdateImportBatchInvoiceEvidenceRequest(
-        @NotBlank String invoiceEvidenceUrl
+        String invoiceEvidenceUrl
 ) {
 }

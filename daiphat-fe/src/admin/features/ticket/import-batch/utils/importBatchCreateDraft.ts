@@ -17,6 +17,7 @@ export const normalizeCreateDraftValues = (
     importMode: values.importMode ?? 'IN_DAY',
     totalDeclareQuantity: Number(values.totalDeclareQuantity) || 0,
     invoiceEvidenceUrl: serializeInvoiceEvidenceForDraft(values.invoiceEvidenceUrl),
+    ticketListImageUrls: (values.ticketListImageUrls ?? []).filter(Boolean),
     lines: (values.lines ?? []).map((line) => ({
         ...line,
         lotteryStationId: Number(line.lotteryStationId) || 0,

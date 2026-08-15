@@ -22,6 +22,7 @@ public record ImportBatchResponse(
         Long supplierSettlementId,
         ImportBatchImportMode importMode,
         String invoiceEvidenceUrl,
+        List<String> ticketListImageUrls,
         UUID importedBy,
         LocalDateTime importedAt,
         ImportBatchStatus status,

@@ -132,6 +132,18 @@ export const returnBatchColumnsConfig: GridColDef[] = [
         ),
     },
     {
+        field: 'returnedBy',
+        headerName: 'Người thực hiện',
+        flex: 1,
+        minWidth: 140,
+        sortable: true,
+        renderCell: (params: GridRenderCellParams<ReturnBatch>) => (
+            <Box sx={{ display: 'flex', alignItems: 'center', height: '100%' }}>
+                <span className="admin-cell-text">{params.row.returnedBy || '—'}</span>
+            </Box>
+        ),
+    },
+    {
         field: 'totalQuantity',
         headerName: 'Số lượng',
         type: 'number',
@@ -146,6 +158,32 @@ export const returnBatchColumnsConfig: GridColDef[] = [
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
                 <Typography variant="body2" sx={{ fontWeight: 600, color: '#334155' }}>
                     {new Intl.NumberFormat('vi-VN').format(params.row.totalQuantity ?? 0)}{' '}
+                    <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>vé</span>
+                </Typography>
+            </Box>
+        ),
+    },
+    {
+        field: 'remainingInspectableQuantity',
+        headerName: 'Vé ế còn lại',
+        type: 'number',
+        width: 130,
+        minWidth: 120,
+        maxWidth: 150,
+        flex: 0,
+        align: 'center',
+        headerAlign: 'center',
+        sortable: false,
+        renderCell: (params: GridRenderCellParams<ReturnBatch>) => (
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+                <Typography
+                    variant="body2"
+                    sx={{
+                        fontWeight: 700,
+                        color: (params.row.remainingInspectableQuantity ?? 0) > 0 ? '#c2410c' : '#64748b',
+                    }}
+                >
+                    {new Intl.NumberFormat('vi-VN').format(params.row.remainingInspectableQuantity ?? 0)}{' '}
                     <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>vé</span>
                 </Typography>
             </Box>

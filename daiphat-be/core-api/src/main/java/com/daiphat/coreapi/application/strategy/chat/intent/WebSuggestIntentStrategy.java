@@ -47,8 +47,9 @@ public class WebSuggestIntentStrategy implements ChatIntentHandlerStrategy {
                 ChatTicketInventoryService.DEFAULT_LIMIT,
                 excludeIds
         );
+        boolean suggestAgain = !excludeIds.isEmpty();
         ChatTicketInventoryService.TicketInventoryReply reply =
-                chatTicketInventoryService.formatReply(tickets, null, false);
+                chatTicketInventoryService.formatReply(tickets, null, false, null, suggestAgain);
         return new ChatIntentOutcome.BotReply(
                 reply.content(),
                 reply.displayContent(),

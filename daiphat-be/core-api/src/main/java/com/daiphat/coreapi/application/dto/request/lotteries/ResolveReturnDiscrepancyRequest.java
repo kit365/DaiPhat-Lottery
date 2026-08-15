@@ -9,7 +9,9 @@ import java.util.List;
 /**
  * Resolve return discrepancy.
  * Shortfall: {@code serialIds} + {@code resolution} EXPIRED|LOST|DAMAGED|VOIDED.
- * Excess: {@code excessSerialNumbers} validated then attached to EXCESS_SUPPLIER_RETURN batch.
+ * Excess: {@code excessSerialNumbers} are validated then attached to an EXCESS_SUPPLIER_RETURN batch.
+ * When no eligible GOOD serial remains, an empty excess list may be confirmed as an audited,
+ * non-serialised return discrepancy; this never creates or attaches ticket serials.
  */
 public record ResolveReturnDiscrepancyRequest(
         List<Long> serialIds,

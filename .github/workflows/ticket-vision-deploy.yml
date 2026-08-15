@@ -1,0 +1,37 @@
+name: DaiPhat Ticket Vision Deploy
+
+# Separate from ai-deploy.yml on purpose: this image carries torch,
+# paddlepaddle and easyocr, so it is far slower and larger to build than
+# chat-bot's. Sharing one workflow would rebuild it on every chat-bot change.
+# The shared packages (contracts/, infra/, libs/) are listed here too --
+# ticket-vision imports them, so a change there does affect this image.
+
+on:
+  push:
+    branches:
+      - feature/dp-5-infs
+    paths:
+      - "daiphat-ai/services/ticket-vision/**"
+      - "daiphat-ai/contracts/**"
+      - "daiphat-ai/infra/**"
+      - "daiphat-ai/libs/**"
+      - ".github/workflows/ticket-vision-deploy.yml"
+      - ".github/workflows/component-deploy.yml"
+  workflow_dispatch:
+    inputs:
+      source_ref:
+        description: Git ref to build and deploy
+        required: true
+        default: feature/dp-5-infs
+        type: choice
+        options:
+          - feature/dp-5-infs
+          - main
+
+jobs:
+  deploy-ticket-vision:
+    uses: ./.github/workflows/component-deploy.yml
+    with:
+      component: ticket-vision
+      source_ref: ${{ inputs.source_ref || github.ref_name }}
+    secrets: inherit
