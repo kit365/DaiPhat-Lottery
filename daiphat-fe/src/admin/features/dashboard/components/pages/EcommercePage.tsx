@@ -24,6 +24,7 @@ import DashboardCard from "@/admin/components/dashboard/DashboardCard";
 import { ROUTES } from "@/admin/constants/routes";
 import { useAuthStore } from "@/stores/useAuthStore";
 import Chart from "@/components/ApexChartCompat";
+import type { ApexOptions } from "apexcharts";
 import { useEcommerceOverview } from "@/admin/features/dashboard/hooks/useDashboard";
 import type {
     AdminEcommerceNamedCount,
@@ -115,8 +116,8 @@ const EmptyCard = ({ title, message }: { title?: string; message: string }) => (
     </DashboardCard>
 );
 
-const donutOptions = (labels: string[], colors: string[], unit: string, totalLabel: string, totalValue: string) => ({
-    chart: { type: "donut" as const, toolbar: { show: false } },
+const donutOptions = (labels: string[], colors: string[], unit: string, totalLabel: string, totalValue: string): ApexOptions => ({
+    chart: { type: "donut", toolbar: { show: false } },
     labels,
     dataLabels: { enabled: false },
     legend: { position: "bottom" as const, fontSize: "12px", fontWeight: 600 },
@@ -235,7 +236,7 @@ const InventoryRiskBarChart = ({ data }: { data: AdminEcommerceStationRisk[] }) 
     }
 
     const chartHeight = Math.max(280, data.length * 72);
-    const chartOptions = {
+    const chartOptions: ApexOptions = {
         chart: { type: "bar", toolbar: { show: false }, fontFamily: "inherit" },
         plotOptions: { bar: { horizontal: true, barHeight: "60%", borderRadius: 6 } },
         dataLabels: { enabled: false },
@@ -343,7 +344,7 @@ const DailyRevenueChart = ({ data }: { data: AdminEcommerceTrendPoint[] }) => {
         return <EmptyCard title="Doanh thu 14 ngày" message="Chưa có giao dịch hoàn tất" />;
     }
 
-    const chartOptions = {
+    const chartOptions: ApexOptions = {
         chart: { type: "area", toolbar: { show: false }, fontFamily: "inherit" },
         xaxis: {
             categories: data.map((point) => point.date),
@@ -391,7 +392,7 @@ const TopStationsChart = ({ data }: { data: AdminEcommerceTopStation[] }) => {
         return <EmptyCard title="Đài bán chạy" message="Chưa có vé bán theo đài" />;
     }
 
-    const chartOptions = {
+    const chartOptions: ApexOptions = {
         chart: { type: "bar", toolbar: { show: false }, fontFamily: "inherit" },
         plotOptions: { bar: { borderRadius: 8, columnWidth: "46%", distributed: true } },
         xaxis: {

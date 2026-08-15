@@ -23,6 +23,7 @@ import { useRoles } from "../../../role/hooks/useRole";
 import { AdminAccountProfileForm } from "../sections/AdminAccountProfileForm";
 import { AccountResetPasswordModal } from "../sections/AccountResetPasswordModal";
 import { UserOrderHistory } from "../sections/UserOrderHistory";
+import type { UpdateUserRequest } from "../../types/user.types";
 
 type PageMode = "edit" | "detail";
 type AccountKind = "staff" | "customer";
@@ -126,8 +127,8 @@ export const AdminAccountFormPage = ({
     };
 
     const onSubmit = (data: AccountFormValues) => {
-        const payload: Record<string, unknown> = { ...data };
-        delete payload.avatar;
+        const { avatar: _avatar, ...rest } = data;
+        const payload: UpdateUserRequest = { ...rest };
         if (!isStaff) {
             delete payload.roles;
         }
