@@ -1,12 +1,14 @@
 "use client";
 
 import AddIcon from '@mui/icons-material/Add';
+import UploadFileOutlinedIcon from '@mui/icons-material/UploadFileOutlined';
 import AssignmentOutlinedIcon from '@mui/icons-material/AssignmentOutlined';
 import CheckCircleOutlinedIcon from '@mui/icons-material/CheckCircleOutlined';
 import HourglassEmptyOutlinedIcon from '@mui/icons-material/HourglassEmptyOutlined';
 import PaymentsOutlinedIcon from '@mui/icons-material/PaymentsOutlined';
 import ConfirmationNumberOutlinedIcon from '@mui/icons-material/ConfirmationNumberOutlined';
-import { Box, Card, Stack, Typography } from '@mui/material';
+import { Box, Card, Stack, Tab, Tabs, Typography } from '@mui/material';
+import { useState } from 'react';
 import { useAdminRouter } from '@/admin/hooks/useAdminRouter';
 import { Breadcrumb } from '../../../../../components/ui/Breadcrumb';
 import { Title } from '../../../../../components/ui/Title';
@@ -16,6 +18,8 @@ import { PERMISSIONS } from '../../../../../constants/permission.constants';
 import { prefixAdmin, ROUTES } from '../../../../../constants/routes';
 import { formatImportCost } from '../../utils/importCostCalculator';
 import { useImportBatchList } from '../../hooks/useImportBatch';
+import { ImportBatchFileImportDialog } from '../sections/ImportBatchFileImportDialog';
+import { ImportBatchFileJobList } from '../sections/ImportBatchFileJobList';
 import { ImportBatchList } from '../sections/ImportBatchList';
 import { IncompleteImportBatchNotification } from '../sections/IncompleteImportBatchNotification';
 import { MissingStationImportBatchNotification } from '../sections/MissingStationImportBatchNotification';
@@ -24,6 +28,8 @@ export const ImportBatchListPage = () => {
     const router = useAdminRouter();
     const listHook = useImportBatchList();
     const { batches, pagination } = listHook;
+    const [fileImportOpen, setFileImportOpen] = useState(false);
+    const [tab, setTab] = useState<'BATCHES' | 'FILE_JOBS'>('BATCHES');
 
     // Calculate metrics
     const totalCount = pagination?.totalRecords || batches.length || 0;
@@ -68,6 +74,16 @@ export const ImportBatchListPage = () => {
                 </div>
                 <CanAccess permission={PERMISSIONS.IMPORT_BATCH.CREATE}>
                     <LoadingButton
+                        onClick={() => setFileImportOpen(true)}
+                        label="Nhập từ tệp"
+                        startIcon={<UploadFileOutlinedIcon />}
+                        variant="outlined"
+                        sx={{
+                            minHeight: '2.25rem',
+                            padding: 'var(--shape-borderRadius-sm) calc(2 * var(--spacing))',
+                        }}
+                    />
+                    <LoadingButton
                         onClick={() => router.push(ROUTES.ADMIN.IMPORT_BATCH.CREATE)}
                         label="Khai báo phiếu nhập"
                         startIcon={<AddIcon />}
@@ -88,6 +104,17 @@ export const ImportBatchListPage = () => {
                 </CanAccess>
             </Stack>
 
+            <Tabs
+                value={tab}
+                onChange={(_, next) => setTab(next)}
+                sx={{ mb: 2.5, borderBottom: '1px solid #e2e8f0' }}
+            >
+                <Tab value="BATCHES" label="Danh sách phiếu nhập" />
+                <Tab value="FILE_JOBS" label="Lịch sử nhập từ tệp" />
+            </Tabs>
+
+            {tab === 'BATCHES' && (
+                <>
             {/* Metric KPI Cards - 5 Balanced Executive Cards */}
             <Box
                 sx={{
@@ -301,6 +328,28 @@ export const ImportBatchListPage = () => {
 
             {/* List Table Section */}
             <ImportBatchList listHook={listHook} />
+                </>
+            )}
+
+            {tab === 'FILE_JOBS' && (
+                <Card
+                    elevation={0}
+                    sx={{
+                        borderRadius: '16px',
+                        border: '1px solid #e2e8f0',
+                        bgcolor: '#fff',
+                        p: 1,
+                    }}
+                >
+                    <ImportBatchFileJobList />
+                </Card>
+            )}
+
+            <ImportBatchFileImportDialog
+                open={fileImportOpen}
+                onClose={() => setFileImportOpen(false)}
+                onImported={() => listHook.refetch()}
+            />
         </Box>
     );
 };
