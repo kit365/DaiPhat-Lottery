@@ -1,3 +1,15 @@
+/**
+ * Axios dùng chung toàn app (`apiApp`).
+ * 1. Tạo instance: baseURL, timeout, cookie (withCredentials).
+ * 2. Request: gắn Bearer, bỏ Content-Type khi upload FormData.
+ * 3. Response: refresh token khi 401 (hàng đợi, tránh gọi refresh song song),
+ *    toast lỗi tập trung, xóa session khi hết hạn.
+ *
+ * Không phải React Query. QueryClient chỉ cache/retry;
+ * mọi HTTP đều đi qua đây nên toast global nằm interceptor, không nằm QueryCache.
+ *
+ * Gọi API: `skipGlobalErrorToast: true` trên config nếu poll/public — tránh spam toast.
+ */
 import axios, { AxiosError, InternalAxiosRequestConfig } from "axios"
 import { useAuthStore } from "../stores/useAuthStore"
 import { API_PREFIX, API_VERSION } from "./api.constants"
@@ -6,12 +18,13 @@ import Cookies from "js-cookie"
 import { STORAGE_KEYS } from "../constants/storage.constants"
 import { resolveAccessToken } from "./authHeaders"
 
-// In dev (npm run dev), use empty BASE_URL so requests go through Vite/Next proxy.
-// This makes them same-origin → browser sends HttpOnly cookies (incl. refresh_token).
-// In production, VITE_API_BASE_URL / NEXT_PUBLIC_API_BASE_URL is set to the actual backend URL.
+/*
+ * Có NEXT_PUBLIC_API_BASE_URL → Axios gọi thẳng URL đó.
+ * Không có / rỗng → "" (same-origin /api) → Next rewrite sang Spring (BACKEND_UPSTREAM).
+ */
 const getBaseUrl = () => {
     if (typeof process !== "undefined" && process.env) {
-        return process.env.NEXT_PUBLIC_API_BASE_URL || process.env.VITE_API_BASE_URL || "";
+        return process.env.NEXT_PUBLIC_API_BASE_URL || "";
     }
     return "";
 };
@@ -20,8 +33,7 @@ const API_ROOT = `${BASE_URL}${API_PREFIX}${API_VERSION}`
 
 const apiApp = axios.create({
     baseURL: API_ROOT,
-    // Auth guards depend on /users/me. Without a deadline a stalled proxy or
-    // backend connection leaves the whole admin area on its loading screen.
+    // /users/me không được treo vô hạn — admin sẽ kẹt màn loading.
     timeout: 15_000,
     withCredentials: true,
     headers: {
@@ -32,10 +44,11 @@ const apiApp = axios.create({
 
 type ApiRequestConfig = InternalAxiosRequestConfig & {
     _retry?: boolean;
+    /** Không toast (poll, public, refresh). */
     skipGlobalErrorToast?: boolean;
 };
 
-// Request Interceptor: Attach Token (skip public auth endpoints)
+/** Gắn token; bỏ qua login/register/refresh. */
 apiApp.interceptors.request.use((config) => {
     const url = config.url || "";
     const isPublicAuth =
@@ -51,7 +64,7 @@ apiApp.interceptors.request.use((config) => {
         if (token) {
             config.headers.Authorization = `Bearer ${token}`;
         } else {
-            // Drop stale `Bearer undefined` from cookie-only withAuth helpers.
+            // Tránh header `Bearer undefined` từ helper cookie-only.
             const existing = String(config.headers.Authorization || "");
             if (!existing || existing.includes("undefined") || existing.includes("null")) {
                 if (typeof config.headers.delete === "function") {
@@ -63,9 +76,7 @@ apiApp.interceptors.request.use((config) => {
         }
     }
 
-    // Instance default is application/json. For FormData uploads we must clear
-    // Content-Type so the browser/axios can set multipart/form-data with boundary.
-    // Setting "multipart/form-data" manually (without boundary) causes Spring 400s.
+    // Upload FormData: xóa Content-Type để browser tự set multipart + boundary. Set tay sẽ 400.
     if (typeof FormData !== "undefined" && config.data instanceof FormData) {
         const headers = config.headers as { delete?: (name: string) => void } & Record<string, unknown>;
         if (typeof headers.delete === "function") {
@@ -85,8 +96,10 @@ interface PendingRequest {
 }
 
 let isRefreshing = false;
+/** Các request 401 trong lúc đang refresh — chờ token mới rồi gọi lại. */
 let failedQueue: PendingRequest[] = [];
 
+/** API bắt buộc đăng nhập — 403 thì coi như hết phiên, không chỉ toast. */
 const AUTH_REQUIRED_PATHS = [
     "/users/me",
     "/notifications/me",
@@ -102,6 +115,7 @@ const clearAuthSession = () => {
     Cookies.remove(STORAGE_KEYS.REFRESH_TOKEN, { path: "/" });
 };
 
+/** Login / refresh — không chạy vòng refresh token. */
 const isAuthEndpoint = (url?: string) => {
     if (!url) {
         return false;
@@ -110,6 +124,7 @@ const isAuthEndpoint = (url?: string) => {
     return url.includes("/auth/login") || url.includes("/auth/refresh-token");
 };
 
+/** Đổi/reset mật khẩu thành công → xóa session hiện tại. */
 const revokesCurrentSession = (url?: string) => {
     if (!url) {
         return false;
@@ -126,7 +141,7 @@ const isAuthRequiredRequest = (url?: string) => {
     return AUTH_REQUIRED_PATHS.some((path) => url.includes(path));
 };
 
-/** Public read-only endpoints should degrade silently (branding, static config, etc.). */
+/** GET public (branding, config) — fail im lặng, không toast. */
 const isPublicReadEndpoint = (url?: string) => {
     if (!url) {
         return false;
@@ -152,7 +167,6 @@ const persistAccessToken = (accessToken: string, expiresIn?: number) => {
     });
 
     Cookies.set(STORAGE_KEYS.TOKEN, accessToken, {
-        // Keep cookie at least as long as the JWT; never use sub-minute TTL for the FE cookie.
         expires: Math.max(ttlSeconds, 60) / 86400,
         path: "/"
     });
@@ -169,7 +183,7 @@ const processQueue = (error: unknown, token: string | null = null) => {
     failedQueue = [];
 };
 
-// Response Interceptor: Handle Global Errors & 401
+/** Thành công: đổi mật khẩu thì logout. Lỗi: 401 refresh + toast theo status. */
 apiApp.interceptors.response.use(
     (response) => {
         if (revokesCurrentSession(response.config.url)) {
@@ -193,15 +207,14 @@ apiApp.interceptors.response.use(
             const message = (response.data as { message?: string } | undefined)?.message || "Đã có lỗi xảy ra từ máy chủ!";
 
             if (status === 401 && originalRequest && !originalRequest._retry) {
-                // Background / optional reads should fail quietly without refresh storms or logout.
+                // Poll/public 401: không refresh, không logout.
                 if (skipToast) {
                     return Promise.reject(error);
                 }
 
-                // Skip refresh logic for auth endpoints (login, refresh-token itself)
+                // Login/refresh 401: trả lỗi BE, không vòng refresh.
                 if (isAuthEndpoint(originalRequest.url)) {
-                    // For login endpoint: just show the real error from backend
-                    // Don't clear session, don't redirect, don't show "session expired"
+                    // Sai mật khẩu: không xóa session. Refresh fail: xóa session.
                     if (originalRequest.url?.includes('/auth/refresh-token')) {
                         clearAuthSession();
                     }
@@ -246,7 +259,6 @@ apiApp.interceptors.response.use(
                         })
                         .catch((err) => {
                             processQueue(err, null);
-                            // Missing/invalid refresh cookie used to 500 and spam "server error" toasts
                             handleExpiredSession(false);
                             reject(err);
                         })
@@ -267,7 +279,7 @@ apiApp.interceptors.response.use(
 
             switch (status) {
                 case 401: {
-                    // Don't clear session or show session expired for auth endpoints
+                    // Tới đây = đã retry refresh rồi vẫn 401.
                     if (!isAuthEndpoint(originalRequest?.url)) {
                         handleExpiredSession();
                     }

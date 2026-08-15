@@ -12,12 +12,8 @@ const withBundleAnalyzer = (config: NextConfig): NextConfig => {  if (process.en
   return config;
 };
 
-// Dev API calls use a relative base URL (same-origin) so HttpOnly cookies work.
-// Proxy /api/* to the Spring backend (defaults to local core-api).
-const backendProxyTarget =
-  process.env.BACKEND_UPSTREAM ||
-  process.env.VITE_DEV_PROXY_TARGET ||
-  'http://localhost:8080';
+// Proxy /api/* → Spring. Không có trong .env local thì dùng 8080.
+const backendProxyTarget = process.env.BACKEND_UPSTREAM || 'http://localhost:8080';
 
 const normalizedBackendProxyTarget = backendProxyTarget.startsWith('http')
   ? backendProxyTarget
@@ -70,6 +66,7 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  // Nhờ Proxy để Next gửi dữ liệu sang BE thật
   async rewrites() {
     return [
       {

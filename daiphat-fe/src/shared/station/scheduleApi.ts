@@ -58,7 +58,6 @@ const getBackendBase = () => {
     const upstream =
         process.env.BACKEND_UPSTREAM ||
         process.env.NEXT_PUBLIC_API_BASE_URL ||
-        process.env.VITE_API_BASE_URL ||
         'http://localhost:8080';
     return upstream.replace(/\/$/, '');
 };

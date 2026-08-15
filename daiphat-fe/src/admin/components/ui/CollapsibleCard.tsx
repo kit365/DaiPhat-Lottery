@@ -7,10 +7,11 @@ import {
     IconButton,
     Stack,
 } from "@mui/material";
+import type { ReactNode } from "react";
 import { ArrowIcon } from "../../assets/icons";
 
 type Props = {
-    title: string;
+    title: ReactNode;
     subheader?: string;
     expanded: boolean;
     onToggle: () => void;
@@ -38,7 +39,7 @@ export const CollapsibleCard = ({
                 subheader={subheader}
                 onClick={collapsible ? onToggle : undefined}
                 slotProps={{
-                    title: { sx: { fontWeight: 700, fontSize: "1.125rem", color: "#0f172a" } },
+                    title: { component: "div", sx: { fontWeight: 700, fontSize: "1.125rem", color: "#0f172a" } },
                     subheader: {
                         sx: { color: "#637381", fontSize: "0.875rem", mt: 0.5 },
                     },
