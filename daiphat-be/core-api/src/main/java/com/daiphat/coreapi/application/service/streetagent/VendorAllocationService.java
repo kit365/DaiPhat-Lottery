@@ -750,7 +750,7 @@ public class VendorAllocationService implements VendorAllocationServicePort {
                     .filter(serial -> serial.getStatus() == AllocationSerialStatus.RETURNED)
                     .count();
             line.applyQuantityAndUnitCost(accepted, batch.getFaceValueSnapshot());
-            line.setStatus(accepted > 0 ? ReturnBatchLineStatus.SUCCESS : ReturnBatchLineStatus.PENDING);
+            line.setStatus(accepted > 0 ? ReturnBatchLineStatus.INSPECTED : ReturnBatchLineStatus.PENDING);
             returnBatchRepositoryPort.saveLine(line);
             totalQuantity += accepted;
             totalValue = totalValue.add(line.getTotalReturnValue());

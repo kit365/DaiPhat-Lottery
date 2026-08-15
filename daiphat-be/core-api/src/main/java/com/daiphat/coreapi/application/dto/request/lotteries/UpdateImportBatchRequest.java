@@ -11,6 +11,7 @@ public record UpdateImportBatchRequest(
         @NotNull Long supplierId,
         @NotNull Integer totalDeclareQuantity,
         String invoiceEvidenceUrl,
+        List<String> ticketListImageUrls,
         @Valid List<UpdateImportBatchLineRequest> lines,
         List<Long> removedTicketIds,
         /**

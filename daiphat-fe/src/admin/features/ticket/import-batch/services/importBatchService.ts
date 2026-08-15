@@ -1,4 +1,5 @@
 import { apiApp } from '../../../../../api';
+import { withAuthHeaders } from '../../../../../api/authHeaders';
 import { ApiResponse } from '../../../../../types/api.type';
 import type { ImportBatchImportMode } from '../utils/batchTypeLabels';
 import type {
@@ -6,6 +7,14 @@ import type {
     ImportBatch,
     ImportBatchClassificationPreview,
     ImportBatchEligibleStationsResult,
+    ImportBatchFileCommitPayload,
+    ImportBatchFileConfig,
+    ImportBatchFileImportResult,
+    ImportBatchFileJob,
+    ImportBatchFileInspectResult,
+    ImportBatchFileMapping,
+    ImportBatchFileMappingProfile,
+    ImportBatchFilePreviewResult,
     ImportBatchListParams,
     ImportBatchReductionTicketsResult,
     ImportBatchLineEntryTicketsResult,
@@ -86,6 +95,36 @@ export const attachImportBatchInvoiceEvidence = async (
         `${BASE_URL}/${id}/invoice-evidence`,
         { invoiceEvidenceUrl },
         {
+            skipGlobalErrorToast: true,
+        }
+    );
+    return response.data;
+};
+
+export const uploadImportBatchTicketListImage = async (file: File): Promise<string> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await apiApp.post(`${BASE_URL}/ticket-list-images/upload`, formData, {
+        ...withAuthHeaders(),
+        timeout: 60_000,
+        skipGlobalErrorToast: true,
+    });
+    const url = response.data?.data?.url;
+    if (!url) {
+        throw new Error(response.data?.message || 'Không nhận được URL ảnh từ server');
+    }
+    return url;
+};
+
+export const attachTicketListImages = async (
+    id: number | string,
+    urls: string[]
+): Promise<ApiResponse<ImportBatch>> => {
+    const response = await apiApp.post(
+        `${BASE_URL}/${id}/ticket-list-images`,
+        { urls },
+        {
+            ...withAuthHeaders(),
             skipGlobalErrorToast: true,
         }
     );
@@ -202,4 +241,167 @@ export const getImportBatchTypeOptions = async (): Promise<
 > => {
     const response = await apiApp.get(`${BASE_URL}/batch-types`);
     return response.data;
+};
+
+/* ------------------------------------------------------------------ *
+ * Creating import batches from a supplier .csv / .xlsx file
+ * ------------------------------------------------------------------ */
+
+const FILE_IMPORT_URL = `${BASE_URL}/file-import`;
+
+/** The rules the importer will apply, shown in the dialog before uploading. */
+export const getImportBatchFileConfig = async (): Promise<ImportBatchFileConfig> => {
+    const response = await apiApp.get(`${FILE_IMPORT_URL}/config`, {
+        ...withAuthHeaders(),
+        skipGlobalErrorToast: true,
+    });
+    return response.data?.data;
+};
+
+export const updateImportBatchFileConfig = async (payload: {
+    maxFileSizeMb?: number;
+    maxRows?: number;
+    serialSeparator?: string;
+    storeOriginalFile?: boolean;
+    allowPartialImport?: boolean;
+    fieldAliases?: Record<string, string[]>;
+}): Promise<ImportBatchFileConfig> => {
+    const response = await apiApp.put(`${FILE_IMPORT_URL}/config`, payload, withAuthHeaders());
+    return response.data?.data;
+};
+
+/** History of file-import runs, newest first. */
+export const getImportBatchFileJobs = async (params?: {
+    page?: number;
+    size?: number;
+    supplierId?: number;
+}): Promise<ApiResponse<{ recordList: ImportBatchFileJob[] }>> => {
+    const response = await apiApp.get(`${FILE_IMPORT_URL}/jobs`, {
+        ...withAuthHeaders(),
+        params,
+        skipGlobalErrorToast: true,
+    });
+    return response.data;
+};
+
+/** Step 1: read the header layout and get a suggested column mapping. */
+export const inspectImportBatchFile = async (
+    file: File,
+    supplierId?: number
+): Promise<ApiResponse<ImportBatchFileInspectResult>> => {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const response = await apiApp.post(`${FILE_IMPORT_URL}/inspect`, formData, {
+        ...withAuthHeaders(),
+        params: supplierId ? { supplierId } : undefined,
+        skipGlobalErrorToast: true,
+    });
+    return response.data;
+};
+
+/** Step 2: resolve every row against the system. Writes nothing. */
+export const previewImportBatchFile = async (
+    file: File,
+    payload: { supplierId: number; mapping: ImportBatchFileMapping }
+): Promise<ApiResponse<ImportBatchFilePreviewResult>> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    // The request part must be sent as JSON so Spring can bind it as a DTO.
+    formData.append(
+        'request',
+        new Blob([JSON.stringify(payload)], { type: 'application/json' })
+    );
+
+    const response = await apiApp.post(`${FILE_IMPORT_URL}/preview`, formData, {
+        ...withAuthHeaders(),
+        skipGlobalErrorToast: true,
+    });
+    return response.data;
+};
+
+/**
+ * Step 3: create one batch per selected draw date, plus its tickets when the file
+ * carries them. The file is re-sent so the backend re-resolves it rather than
+ * trusting the preview held here.
+ */
+export const commitImportBatchFile = async (
+    file: File,
+    payload: ImportBatchFileCommitPayload
+): Promise<ApiResponse<ImportBatchFileImportResult>> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append(
+        'request',
+        new Blob([JSON.stringify(payload)], { type: 'application/json' })
+    );
+
+    const response = await apiApp.post(FILE_IMPORT_URL, formData, {
+        ...withAuthHeaders(),
+        skipGlobalErrorToast: true,
+    });
+    return response.data;
+};
+
+/** Downloads a batch as CSV in the same schema the importer accepts. */
+export const exportImportBatchFile = async (importBatchId: number | string): Promise<void> => {
+    const response = await apiApp.get(`${FILE_IMPORT_URL}/export/${importBatchId}`, {
+        ...withAuthHeaders(),
+        responseType: 'blob',
+        skipGlobalErrorToast: true,
+    });
+
+    const disposition = String(response.headers?.['content-disposition'] ?? '');
+    const match = disposition.match(/filename\*?=(?:UTF-8'')?"?([^";]+)"?/i);
+    const fileName = match ? decodeURIComponent(match[1]) : `phieu-nhap-${importBatchId}.csv`;
+
+    const url = URL.createObjectURL(new Blob([response.data], { type: 'text/csv;charset=utf-8;' }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+};
+
+/** Column mappings remembered per supplier and file layout. */
+export const getImportBatchFileMappingProfiles = async (
+    supplierId?: number
+): Promise<ImportBatchFileMappingProfile[]> => {
+    const response = await apiApp.get(`${FILE_IMPORT_URL}/mapping-profiles`, {
+        ...withAuthHeaders(),
+        params: supplierId ? { supplierId } : undefined,
+        skipGlobalErrorToast: true,
+    });
+    return response.data?.data ?? [];
+};
+
+export const deleteImportBatchFileMappingProfile = async (id: number): Promise<void> => {
+    await apiApp.delete(`${FILE_IMPORT_URL}/mapping-profiles/${id}`, {
+        ...withAuthHeaders(),
+        skipGlobalErrorToast: true,
+    });
+};
+
+export const saveImportBatchFileMappingProfile = async (payload: {
+    supplierId: number;
+    headerSignature: string;
+    mapping: ImportBatchFileMapping;
+}): Promise<void> => {
+    await apiApp.post(`${FILE_IMPORT_URL}/mapping-profiles`, payload, {
+        ...withAuthHeaders(),
+        skipGlobalErrorToast: true,
+    });
+};
+
+/** Teaches the resolver a supplier's spelling of a station name. */
+export const saveLotteryStationAlias = async (payload: {
+    rawName: string;
+    lotteryStationId: number;
+}): Promise<void> => {
+    await apiApp.post(`${FILE_IMPORT_URL}/station-aliases`, payload, {
+        ...withAuthHeaders(),
+        skipGlobalErrorToast: true,
+    });
 };

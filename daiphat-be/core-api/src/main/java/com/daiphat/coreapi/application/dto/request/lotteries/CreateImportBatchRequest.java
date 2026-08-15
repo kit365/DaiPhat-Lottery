@@ -22,6 +22,8 @@ public record CreateImportBatchRequest(
 
         String invoiceEvidenceUrl,
 
+        List<String> ticketListImageUrls,
+
         String note,
 
         /**

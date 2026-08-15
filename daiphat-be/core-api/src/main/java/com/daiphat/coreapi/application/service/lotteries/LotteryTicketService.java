@@ -86,6 +86,7 @@ public class LotteryTicketService implements LotteryTicketServicePort {
     private final ImportBatchLineRepositoryPort importBatchLineRepositoryPort;
     private final ImportBatchDraftExpiryService importBatchDraftExpiryService;
     private final SupplierSettlementServicePort supplierSettlementServicePort;
+    private final ReturnBatchImportSyncService returnBatchImportSyncService;
     private final LotteryStationServicePort lotteryStationServicePort;
     private final LotteryTicketApplicationMapper lotteryTicketApplicationMapper;
     private final LotteryTicketSerialServicePort lotteryTicketSerialService;
@@ -137,7 +138,8 @@ public class LotteryTicketService implements LotteryTicketServicePort {
                         serialReq,
                         importedById,
                         importBatchId,
-                        importBatchLineId
+                        importBatchLineId,
+                        request.inputSource()
                 )
         );
 
@@ -183,6 +185,7 @@ public class LotteryTicketService implements LotteryTicketServicePort {
                             .numbers(section.numbers())
                             .serials(section.serials())
                             .isAutoSave(request.isAutoSave())
+                            .inputSource(request.inputSource())
                             .build(),
                     importedById
             ));
@@ -1038,6 +1041,10 @@ public class LotteryTicketService implements LotteryTicketServicePort {
         if (batchJustCompleted && !isAutoSaveTriggered) {
             refreshedBatch.getActiveLines().forEach(line ->
                     activateImportBatchLineTickets(line.getId())
+            );
+            returnBatchImportSyncService.refreshOpenPrimarySupplierReturn(
+                    refreshedBatch.getSupplierId(),
+                    refreshedBatch.getDrawDate()
             );
             ticket = getTicketOrThrow(ticket.getId());
             syncStationInventory(ticket.getStationId());
