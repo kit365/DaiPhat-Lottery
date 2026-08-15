@@ -2,6 +2,7 @@ package com.daiphat.coreapi.infrastructure.adapter.out.lotteries.settlement.pers
 
 import com.daiphat.coreapi.application.port.out.lotteries.SupplierSettlementAdjustmentRepositoryPort;
 import com.daiphat.coreapi.domain.model.enums.lottery.SupplierSettlementAdjustmentGroupType;
+import com.daiphat.coreapi.domain.model.enums.lottery.SupplierSettlementAdjustmentReasonCode;
 import com.daiphat.coreapi.domain.model.lotteries.SupplierSettlementAdjustmentModel;
 import com.daiphat.coreapi.infrastructure.persistence.entity.lotteries.SupplierSettlementAdjustmentEntity;
 import com.daiphat.coreapi.infrastructure.persistence.entity.lotteries.SupplierSettlementEntity;
@@ -43,6 +44,21 @@ public class SupplierSettlementAdjustmentRepositoryAdapter implements SupplierSe
                 repository.save(row);
             }
         }
+    }
+
+    @Override
+    public void deleteBySettlementIdAndGroupTypeAndReasonCode(
+            Long settlementId,
+            SupplierSettlementAdjustmentGroupType groupType,
+            SupplierSettlementAdjustmentReasonCode reasonCode
+    ) {
+        LocalDateTime now = LocalDateTime.now();
+        repository.findBySupplierSettlement_IdAndDeletedAtIsNull(settlementId).stream()
+                .filter(row -> row.getGroupType() == groupType && row.getReasonCode() == reasonCode)
+                .forEach(row -> {
+                    row.setDeletedAt(now);
+                    repository.save(row);
+                });
     }
 
     @Override

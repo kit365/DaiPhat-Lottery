@@ -28,7 +28,7 @@ import dayjs from 'dayjs';
 import { useAdminRouter } from '@/admin/hooks/useAdminRouter';
 import { ROUTES } from '../../../../../constants/routes';
 import { useImportBatchDetail } from '../../../import-batch/hooks/useImportBatch';
-import { formatImportCost } from '../../../import-batch/utils/importCostCalculator';
+import { formatSettlementMoney } from '../../utils/settlementCashflow';
 import { getImportBatchStatusLabel } from '../../../import-batch/utils/batchTypeLabels';
 import { useReturnBatchDetail } from '../../../return-batch/hooks/useReturnBatch';
 import { getReturnBatchStatusLabel } from '../../../return-batch/utils/returnBatchLabels';
@@ -96,8 +96,8 @@ const resolveStationStatus = (
             kind: 'RETURN_EXCESS',
             color: returnResolved ? 'info' : 'error',
             label: returnResolved
-                ? `Thừa trả ${m.excessReturn.toLocaleString('vi-VN')} vé (đã lập phiếu thừa)`
-                : `Thừa trả ${m.excessReturn.toLocaleString('vi-VN')} vé — quét sê-ri / phiếu nhập trả thừa`,
+                ? `Hệ thống ghi thiếu trả ${m.excessReturn.toLocaleString('vi-VN')} vé (đã lập phiếu bổ sung)`
+                : `Hệ thống ghi thiếu trả ${m.excessReturn.toLocaleString('vi-VN')} vé — quét sê-ri / phiếu trả bổ sung`,
         };
     }
 
@@ -107,8 +107,8 @@ const resolveStationStatus = (
                 kind: 'RETURN_SHORTFALL',
                 color: returnResolved ? 'info' : 'error',
                 label: returnResolved
-                    ? `Thiếu trả ${m.returnShortfall.toLocaleString('vi-VN')} vé (đã xử lý LOST/hỏng/hủy)`
-                    : `Thiếu trả ${m.returnShortfall.toLocaleString('vi-VN')} vé — LOST / hỏng / hủy`,
+                    ? `Hệ thống ghi thừa trả ${m.returnShortfall.toLocaleString('vi-VN')} vé (đã xử lý LOST/hỏng/hủy)`
+                    : `Hệ thống ghi thừa trả ${m.returnShortfall.toLocaleString('vi-VN')} vé — LOST / hỏng / hủy`,
             };
         }
         return {
@@ -130,7 +130,7 @@ const resolveStationStatus = (
         return {
             kind: 'RETURN_EXCESS',
             color: returnResolved ? 'info' : 'warning',
-            label: returnResolved ? 'Đã ghi nhận trả thừa' : 'Kỳ đang có trả thừa — kiểm tra sê-ri',
+            label: returnResolved ? 'Đã ghi nhận bổ sung trả' : 'Hệ thống đang ghi thiếu trả — kiểm tra sê-ri',
         };
     }
 
@@ -372,9 +372,9 @@ const AllStationsTable = ({
                 </Table>
             </TableContainer>
             <Typography variant="caption" color="text.secondary" sx={{ px: 0.5 }}>
-                Tồn GOOD = vé còn trong kho, chưa gắn phiếu trả. Dự kiến trả = tồn GOOD. Δ Trả &gt; 0 là thừa trả
-                (phiếu EXCESS); Δ Trả &lt; 0 là còn phải trả hoặc thiếu trả (xử lý LOST / hỏng / hủy). Vé thiếu nhập
-                được ghi LOST trên phiếu ADJUSTMENT.
+                Tồn GOOD = vé còn trong kho, chưa gắn phiếu trả. Dự kiến trả = tồn GOOD. Δ Trả &gt; 0 nghĩa là thực tế trả nhiều hơn hệ thống ghi nhận
+                (bổ sung phiếu EXCESS); Δ Trả &lt; 0 nghĩa là hệ thống ghi nhận trả nhiều hơn thực tế (xử lý LOST / hỏng / hủy). Vé hệ thống ghi thừa nhập
+                được xử lý LOST trên phiếu ADJUSTMENT.
             </Typography>
         </Stack>
     );
@@ -480,10 +480,10 @@ const ImportBatchTabPanel = ({
                                     {(line.totalQuantity ?? 0).toLocaleString('vi-VN')}
                                 </TableCell>
                                 <TableCell align="right">
-                                    {formatImportCost(line.importCost)} VNĐ
+                                    {formatSettlementMoney(line.importCost)} VNĐ
                                 </TableCell>
                                 <TableCell align="right" sx={{ fontWeight: 700 }}>
-                                    {formatImportCost(line.totalCostValue ?? line.declaredCostValue)} VNĐ
+                                    {formatSettlementMoney(line.totalCostValue ?? line.declaredCostValue)} VNĐ
                                 </TableCell>
                                 <TableCell>{line.status || '—'}</TableCell>
                             </TableRow>
@@ -509,7 +509,7 @@ const ImportBatchTabPanel = ({
                                 </TableCell>
                                 <TableCell />
                                 <TableCell align="right" sx={{ fontWeight: 800, fontSize: '0.85rem' }}>
-                                    {formatImportCost(sumValue)} VNĐ
+                                    {formatSettlementMoney(sumValue)} VNĐ
                                 </TableCell>
                                 <TableCell />
                             </TableRow>
@@ -607,7 +607,7 @@ const ReturnBatchTabPanel = ({
                                     {(line.totalQuantity ?? 0).toLocaleString('vi-VN')}
                                 </TableCell>
                                 <TableCell align="right" sx={{ fontWeight: 700 }}>
-                                    {formatImportCost(line.totalReturnValue)} VNĐ
+                                    {formatSettlementMoney(line.totalReturnValue)} VNĐ
                                 </TableCell>
                                 <TableCell>
                                     {line.statusLabel || line.status || '—'}
@@ -634,7 +634,7 @@ const ReturnBatchTabPanel = ({
                                     {sumQty.toLocaleString('vi-VN')}
                                 </TableCell>
                                 <TableCell align="right" sx={{ fontWeight: 800, fontSize: '0.85rem' }}>
-                                    {formatImportCost(sumValue)} VNĐ
+                                    {formatSettlementMoney(sumValue)} VNĐ
                                 </TableCell>
                                 <TableCell />
                             </TableRow>
@@ -724,7 +724,7 @@ export const SettlementReconciliationTabs = ({
                 <Typography variant="caption" color="text.secondary">
                     Tổng phải trả NCC còn lại:{' '}
                     <strong style={{ color: '#dc2626' }}>
-                        {formatImportCost(remainingPayableAmount)} VNĐ
+                        {formatSettlementMoney(remainingPayableAmount)} VNĐ
                     </strong>
                 </Typography>
             </Box>
@@ -837,13 +837,13 @@ export const SettlementReconciliationTabs = ({
                             <Chip
                                 size="small"
                                 color="info"
-                                label={`${importBatches.length} phiếu nhập · HT ${systemImport.toLocaleString('vi-VN')} vé · ${formatImportCost(sumImportVal)} VNĐ`}
+                                label={`${importBatches.length} phiếu nhập · HT ${systemImport.toLocaleString('vi-VN')} vé · ${formatSettlementMoney(sumImportVal)} VNĐ`}
                                 sx={{ fontWeight: 700 }}
                             />
                             <Chip
                                 size="small"
                                 color="warning"
-                                label={`${returnBatches.length} phiếu trả · HT ${systemReturn.toLocaleString('vi-VN')} vé · ${formatImportCost(sumReturnVal)} VNĐ`}
+                                label={`${returnBatches.length} phiếu trả · HT ${systemReturn.toLocaleString('vi-VN')} vé · ${formatSettlementMoney(sumReturnVal)} VNĐ`}
                                 sx={{ fontWeight: 700 }}
                             />
                             {actualImport != null && (
@@ -861,8 +861,8 @@ export const SettlementReconciliationTabs = ({
                                         importDelta === 0
                                             ? `Nhập thực tế = hệ thống (${actualImport.toLocaleString('vi-VN')})`
                                             : importDelta != null && importDelta < 0
-                                              ? `Thiếu nhập ${Math.abs(importDelta).toLocaleString('vi-VN')} vé${settlement?.importDiscrepancyResolved ? ' · đã LOST' : ''}`
-                                              : `Thừa nhập ${Math.abs(importDelta ?? 0).toLocaleString('vi-VN')} vé${settlement?.importDiscrepancyResolved ? ' · đã ghi nhận' : ''}`
+                                              ? `Hệ thống ghi thừa nhập ${Math.abs(importDelta).toLocaleString('vi-VN')} vé${settlement?.importDiscrepancyResolved ? ' · đã xử lý' : ''}`
+                                              : `Hệ thống ghi thiếu nhập ${Math.abs(importDelta ?? 0).toLocaleString('vi-VN')} vé${settlement?.importDiscrepancyResolved ? ' · đã ghi nhận' : ''}`
                                     }
                                     sx={{ fontWeight: 800 }}
                                 />
@@ -882,8 +882,8 @@ export const SettlementReconciliationTabs = ({
                                         returnDelta === 0
                                             ? `Trả thực tế = hệ thống (${actualReturn.toLocaleString('vi-VN')})`
                                             : returnDelta != null && returnDelta < 0
-                                              ? `Thiếu trả ${Math.abs(returnDelta).toLocaleString('vi-VN')} vé${settlement?.returnDiscrepancyResolved ? ' · đã xử lý' : ' · LOST/hỏng/hủy'}`
-                                              : `Thừa trả ${Math.abs(returnDelta ?? 0).toLocaleString('vi-VN')} vé${settlement?.returnDiscrepancyResolved ? ' · phiếu thừa' : ''}`
+                                              ? `Hệ thống ghi thừa trả ${Math.abs(returnDelta).toLocaleString('vi-VN')} vé${settlement?.returnDiscrepancyResolved ? ' · đã xử lý' : ' · LOST/hỏng/hủy'}`
+                                              : `Hệ thống ghi thiếu trả ${Math.abs(returnDelta ?? 0).toLocaleString('vi-VN')} vé${settlement?.returnDiscrepancyResolved ? ' · đã bổ sung' : ''}`
                                     }
                                     sx={{ fontWeight: 800 }}
                                 />

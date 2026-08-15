@@ -70,6 +70,8 @@ public interface SupplierSettlementRepositoryPort {
 
     List<SettlementResolvableSerialRow> findImportResolvableSerialsBySettlementId(Long settlementId);
 
+    List<SettlementImportedSerialRow> findImportedSerialsForFileCheck(Long settlementId);
+
     /** Next value from {@code supplier_settlement_code_seq} for unique DS- codes. */
     long nextSettlementCodeSequence();
 }
