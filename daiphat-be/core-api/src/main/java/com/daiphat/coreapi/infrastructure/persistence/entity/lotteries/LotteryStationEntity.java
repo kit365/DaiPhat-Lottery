@@ -31,6 +31,10 @@ public class LotteryStationEntity extends BaseEntity {
     @Column(nullable = false, length = 100)
     private String name;
 
+    /** Stable business code carried by exported files and matched on import. */
+    @Column(length = 20)
+    private String code;
+
     @Column(length = 100)
     private String province;
 

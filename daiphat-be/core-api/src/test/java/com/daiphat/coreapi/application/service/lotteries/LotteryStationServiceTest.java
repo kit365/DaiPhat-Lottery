@@ -32,6 +32,7 @@ import com.daiphat.coreapi.domain.model.enums.lottery.MatchFrom;
 import com.daiphat.coreapi.domain.model.enums.lottery.PrizeLevel;
 import com.daiphat.coreapi.domain.model.enums.lottery.SyncAction;
 import com.daiphat.coreapi.domain.model.lotteries.LotteryRegionModel;
+import com.daiphat.coreapi.shared.util.LotteryStationCodeGenerator;
 import com.daiphat.coreapi.domain.model.lotteries.LotteryStationModel;
 import com.daiphat.coreapi.domain.model.lotteries.LotteryTicketModel;
 import com.daiphat.coreapi.domain.model.lotteries.PrizeStructureModel;
@@ -106,6 +107,9 @@ class LotteryStationServiceTest {
                 lotteryTicketRepositoryPort,
                 prizeStructureRepositoryPort,
                 lotteryStationApplicationMapper,
+                // Real generator rather than a mock: station codes are pure string
+                // derivation, so stubbing them would only hide the actual rules.
+                new LotteryStationCodeGenerator(),
                 storagePort,
                 eventPublisher
         );

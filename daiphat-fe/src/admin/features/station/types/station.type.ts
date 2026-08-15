@@ -4,9 +4,12 @@ export interface Station {
     id: number;
     _id?: number | string;
     name: string;
+    /** Stable business code carried by exported files and matched on import. */
+    code?: string;
     province?: string;
     region?: string;
     price?: number;
+    commissionRate?: number;
     drawDays?: string[] | string;
     drawTime?: string;
     drawSchedule?: string;
@@ -35,6 +38,8 @@ export interface StationQueryParams extends BaseQueryParams {
 
 export interface CreateStationRequest {
     name: string;
+    /** Leave blank to have the backend derive it from the name. */
+    code?: string;
     province?: string;
     region?: string;
     price?: number;
@@ -61,6 +66,8 @@ export interface SyncStationPreviewParams {
 export interface SyncStationConfirmItem {
     name: string;
     canonicalName: string;
+    /** Leave blank to have the backend derive it from the name. */
+    code?: string | null;
     drawDays: string[];
     drawTime: string;
     commissionRate: number | null;

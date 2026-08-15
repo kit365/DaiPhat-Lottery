@@ -15,6 +15,8 @@ public record ConfirmSyncLotteryStationItem(
         String name,
         @NotBlank(message = "Tên chuẩn nhà đài không được để trống.")
         String canonicalName,
+        /** Leave blank to have the system derive it from the name. */
+        String code,
         @NotEmpty(message = "Ngày quay không được để trống.")
         List<String> drawDays,
         @NotBlank(message = "Giờ quay không được để trống.")

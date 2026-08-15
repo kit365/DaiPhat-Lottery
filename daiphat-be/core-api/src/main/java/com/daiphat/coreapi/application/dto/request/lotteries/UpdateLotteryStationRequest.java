@@ -13,6 +13,8 @@ import java.util.List;
 public record UpdateLotteryStationRequest(
         String name,
 
+        String code,
+
         String province,
         String region,
 

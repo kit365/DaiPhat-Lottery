@@ -26,6 +26,8 @@ public class LotteryStationModel {
 
     private Long id;
     private String name;
+    /** Stable business code carried by exported files and matched on import. */
+    private String code;
     private String province;
     private LotteryRegionModel region;
 

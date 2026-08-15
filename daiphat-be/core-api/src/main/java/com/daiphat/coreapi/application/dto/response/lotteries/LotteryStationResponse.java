@@ -15,6 +15,7 @@ import java.util.UUID;
 public record LotteryStationResponse(
         Long id,
         String name,
+        String code,
         String province,
         String region,
         String type,
