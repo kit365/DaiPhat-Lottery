@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <title th:text="'Báo cáo đối soát ' + ${report.settlementCode}">Báo cáo đối soát nhà cung cấp</title>
+    <style>
+        @page { size: A4; margin: 16mm 14mm 16mm 14mm; }
+        * { box-sizing: border-box; }
+        body { color: #17212b; font-family: 'Noto Sans'; font-size: 10pt; line-height: 1.45; margin: 0; }
+        .bold, strong, h1, h2, th { font-family: 'Noto Sans Bold'; font-weight: normal; }
+        .document-header { display: table; width: 100%; margin-bottom: 14px; }
+        .brand { display: table-cell; vertical-align: middle; width: 68%; }
+        .brand-logo { float: left; height: 38px; margin-right: 10px; max-width: 104px; object-fit: contain; }
+        .brand-name { font-family: 'Noto Sans Bold'; font-size: 13pt; }
+        .brand-meta { color: #4b5563; font-size: 8pt; }
+        .report-code { display: table-cell; text-align: right; vertical-align: middle; font-size: 9pt; }
+        h1 { font-size: 15pt; margin: 8px 0 4px; text-align: center; text-transform: uppercase; }
+        .subtitle { margin: 0 0 16px; text-align: center; color: #4b5563; }
+        h2 { border-bottom: 1px solid #cfd8dc; font-size: 10.5pt; margin: 16px 0 8px; padding-bottom: 3px; text-transform: uppercase; }
+        .info-table, .data-table { border-collapse: collapse; margin: 6px 0; width: 100%; }
+        .info-table th, .info-table td, .data-table th, .data-table td {
+            border: 1px solid #aeb8c0; padding: 5px 7px; vertical-align: top; word-wrap: break-word;
+        }
+        .info-table th { background: #f3f6f8; text-align: left; width: 32%; }
+        .data-table th { background: #f3f6f8; font-size: 8.5pt; text-align: left; }
+        .data-table td { font-size: 8.5pt; }
+        .num { text-align: right; white-space: nowrap; }
+        .kpi { display: table; width: 100%; margin: 8px 0 4px; }
+        .kpi-cell { display: table-cell; width: 25%; padding: 6px 8px; border: 1px solid #dbe3ea; background: #f8fafc; }
+        .kpi-label { color: #64748b; font-size: 7.5pt; text-transform: uppercase; }
+        .kpi-value { font-family: 'Noto Sans Bold'; font-size: 11pt; margin-top: 2px; }
+        .kpi-sub { color: #64748b; font-size: 8pt; }
+        .note { color: #4b5563; font-size: 8.5pt; font-style: italic; margin-top: 14px; }
+        .muted { color: #64748b; }
+    </style>
+</head>
+<body>
+<div class="document-header">
+    <div class="brand">
+        <img class="brand-logo" th:if="${!#strings.isEmpty(report.siteLogoUrl)}" th:src="${report.siteLogoUrl}" alt="Logo"/>
+        <div class="brand-name" th:text="${report.siteName}">ĐẠI PHÁT</div>
+        <div class="brand-meta" th:text="${report.siteAddress}">Địa chỉ</div>
+        <div class="brand-meta"><span th:text="${report.sitePhone}">SĐT</span> · <span th:text="${report.siteEmail}">Email</span></div>
+    </div>
+    <div class="report-code">
+        <div class="bold">Mã báo cáo</div>
+        <div th:text="${report.reportCode}">BC-DS-001</div>
+        <div th:text="'Ngày xuất: ' + ${report.issuedDate}">Ngày xuất</div>
+    </div>
+</div>
+
+<h1>Báo cáo đối soát nhà cung cấp</h1>
+<p class="subtitle">Kiểm tra &amp; đối soát thông tin nhập — trả vé số</p>
+
+<h2>Thông tin kỳ đối soát</h2>
+<table class="info-table">
+    <tr><th>Nhà cung cấp</th><td><span th:text="${report.supplierName}">NCC</span> · <span th:text="${report.supplierCode}">—</span></td></tr>
+    <tr><th>Mã đối soát</th><td th:text="${report.settlementCode}">DS-001</td></tr>
+    <tr><th>Kỳ đối soát</th><td th:text="${report.periodLabel}">01/01/2026 — 01/01/2026</td></tr>
+    <tr><th>Trạng thái / giai đoạn</th><td><span th:text="${report.statusLabel}">OPEN</span> · <span th:text="${report.phaseLabel}">Hoàn tất</span></td></tr>
+</table>
+
+<h2>Số lượng vé</h2>
+<table class="data-table">
+    <thead>
+    <tr>
+        <th></th>
+        <th class="num">Hệ thống</th>
+        <th class="num">Thực tế</th>
+        <th class="num">Chênh lệch</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr>
+        <td>Vé nhập</td>
+        <td class="num" th:text="${report.importQtySystem}">0</td>
+        <td class="num" th:text="${report.importQtyActual}">0</td>
+        <td class="num" th:text="${report.importQtyDiff}">0</td>
+    </tr>
+    <tr>
+        <td>Vé trả</td>
+        <td class="num" th:text="${report.returnQtySystem}">0</td>
+        <td class="num" th:text="${report.returnQtyActual}">0</td>
+        <td class="num" th:text="${report.returnQtyDiff}">0</td>
+    </tr>
+    </tbody>
+</table>
+
+<h2>Giá trị tiền</h2>
+<table class="data-table">
+    <thead>
+    <tr>
+        <th></th>
+        <th class="num">Hệ thống</th>
+        <th class="num">Thực tế</th>
+        <th class="num">Chênh lệch</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr>
+        <td>Tổng tiền nhập</td>
+        <td class="num" th:text="${report.importValueSystem}">0</td>
+        <td class="num" th:text="${report.importValueActual}">0</td>
+        <td class="num" th:text="${report.importValueDiff}">0</td>
+    </tr>
+    <tr>
+        <td>Tổng tiền trả</td>
+        <td class="num" th:text="${report.returnValueSystem}">0</td>
+        <td class="num" th:text="${report.returnValueActual}">0</td>
+        <td class="num" th:text="${report.returnValueDiff}">0</td>
+    </tr>
+    </tbody>
+</table>
+
+<table class="info-table" style="margin-top:10px">
+    <tr><th>Tạm tính ban đầu</th><td class="num" th:text="${report.initialEstimatedValue}">0</td></tr>
+    <tr><th>Sau chênh lệch</th><td class="num" th:text="${report.finalSettlementValue}">0</td></tr>
+    <tr><th>Tiền chênh lệch</th><td class="num" th:text="${report.settlementDifferenceAmount}">0</td></tr>
+    <tr><th>Giá trị thực trả từ biên lai</th><td class="num" th:text="${report.actualPaidAmount}">0</td></tr>
+    <tr><th>Chênh lệch còn lại</th><td class="num" th:text="${report.remainingDifference}">0</td></tr>
+    <tr><th>Ảnh thanh toán NCC</th><td th:text="${report.paymentEvidenceCount}">0 ảnh</td></tr>
+</table>
+
+<h2>Giá tiền từng lô nhập</h2>
+<table class="data-table" th:if="${!#lists.isEmpty(report.importLots)}">
+    <thead>
+    <tr>
+        <th>Mã lô</th>
+        <th>Ngày</th>
+        <th>Trạng thái</th>
+        <th class="num">SL</th>
+        <th class="num">Đơn giá</th>
+        <th class="num">Thành tiền</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr th:each="lot : ${report.importLots}">
+        <td th:text="${lot.code}">IB-001</td>
+        <td th:text="${lot.drawDate}">—</td>
+        <td th:text="${lot.statusLabel}">—</td>
+        <td class="num" th:text="${lot.quantity}">0</td>
+        <td class="num" th:text="${lot.unitPrice}">0</td>
+        <td class="num" th:text="${lot.amount}">0</td>
+    </tr>
+    </tbody>
+</table>
+<p class="muted" th:if="${#lists.isEmpty(report.importLots)}">Không có lô nhập trong kỳ.</p>
+
+<h2>Phiếu trả</h2>
+<table class="data-table" th:if="${!#lists.isEmpty(report.returnLots)}">
+    <thead>
+    <tr>
+        <th>Mã phiếu</th>
+        <th>Ngày</th>
+        <th>Trạng thái</th>
+        <th class="num">SL</th>
+        <th class="num">Thành tiền</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr th:each="lot : ${report.returnLots}">
+        <td th:text="${lot.code}">RB-001</td>
+        <td th:text="${lot.drawDate}">—</td>
+        <td th:text="${lot.statusLabel}">—</td>
+        <td class="num" th:text="${lot.quantity}">0</td>
+        <td class="num" th:text="${lot.amount}">0</td>
+    </tr>
+    </tbody>
+</table>
+<p class="muted" th:if="${#lists.isEmpty(report.returnLots)}">Không có phiếu trả trong kỳ.</p>
+
+<h2 th:if="${!#lists.isEmpty(report.stations)}">Giá vốn theo nhà đài</h2>
+<table class="data-table" th:if="${!#lists.isEmpty(report.stations)}">
+    <thead>
+    <tr>
+        <th>Nhà đài</th>
+        <th class="num">SL nhập</th>
+        <th class="num">Giá nhập</th>
+        <th class="num">HH</th>
+        <th class="num">Giá sau HH</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr th:each="row : ${report.stations}">
+        <td th:text="${row.stationName}">Đài</td>
+        <td class="num" th:text="${row.importedQuantity}">0</td>
+        <td class="num" th:text="${row.importCost}">0</td>
+        <td class="num" th:text="${row.commissionRate}">0%</td>
+        <td class="num" th:text="${row.netUnitPrice}">0</td>
+    </tr>
+    </tbody>
+</table>
+
+<h2 th:if="${!#lists.isEmpty(report.adjustments)}">Điều chỉnh phát sinh</h2>
+<table class="data-table" th:if="${!#lists.isEmpty(report.adjustments)}">
+    <thead>
+    <tr>
+        <th>Khoản</th>
+        <th>Ghi chú</th>
+        <th class="num">Số tiền</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr th:each="row : ${report.adjustments}">
+        <td th:text="${row.name}">Phí</td>
+        <td th:text="${row.note}">—</td>
+        <td class="num" th:text="${row.amount}">0</td>
+    </tr>
+    </tbody>
+</table>
+
+<p class="note">Báo cáo được xuất từ hệ thống đối soát Đại Phát. Ảnh thanh toán nhà cung cấp được lưu trên kỳ đối soát và không nhúng vào file PDF.</p>
+</body>
+</html>
