@@ -15,10 +15,10 @@ import {
     Link,
     Stack,
     ThemeProvider,
+    Tooltip,
     Typography,
     createTheme,
     useTheme,
-    Chip,
 } from '@mui/material';
 import { Icon } from '@/admin/components/ui/AdminIcon';
 import dayjs from 'dayjs';
@@ -27,8 +27,17 @@ import { SpinnerLoading } from '@/admin/components/ui/SpinnerLoading';
 import { CanAccess } from '@/admin/components/auth/CanAccess';
 import { PERMISSIONS } from '@/admin/constants/permission.constants';
 import { prefixAdmin } from '@/admin/constants/routes';
-import { RefundStatusStepper } from '@/client/components/refund/RefundStatusStepper';
-import { RefundStatusBadge } from '@/client/components/refund/RefundStatusBadge';
+import DashboardCard from '@/admin/components/dashboard/DashboardCard';
+import { AdminStatusBadge } from '@/admin/components/ui/AdminStatusBadge';
+import {
+    getOrderStatusBadge,
+    getOrderStatusAdminBadgeModifier,
+} from '@/shared/components/StatusBadge/orderStatusMap';
+import { RefundStatusStepper } from '../RefundStatusStepper';
+import {
+    getRefundStatusAdminBadgeModifier,
+    getRefundStatusLabel,
+} from '../../utils/refundStatusBadge.util';
 import {
     isRefundProcessingActionable,
     isRefundTransferComplete,
@@ -281,12 +290,15 @@ export const RefundDetailPage = () => {
                 />
 
                 {/* Stepper */}
-                <Card sx={{ p: 3, mb: 3, ...cardSx }}>
+                <DashboardCard sx={{ p: 3, mb: 3 }}>
+                    <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 2.5 }}>
+                        Tiến trình hoàn tiền
+                    </Typography>
                     <RefundStatusStepper
                         status={refund.status}
                         requestRole={refund.requestRole}
                     />
-                </Card>
+                </DashboardCard>
 
                 <ProcessingDeadlineCard
                     status={refund.status}
@@ -311,7 +323,10 @@ export const RefundDetailPage = () => {
                                 <Grid container spacing={3}>
                                     <Grid size={{ xs: 12, sm: 6, md: 3 }}>
                                         <FieldLabel>Trạng thái</FieldLabel>
-                                        <RefundStatusBadge status={refund.status} />
+                                        <AdminStatusBadge
+                                            label={getRefundStatusLabel(refund.status)}
+                                            modifier={getRefundStatusAdminBadgeModifier(refund.status)}
+                                        />
                                     </Grid>
                                     <Grid size={{ xs: 12, sm: 6, md: 3 }}>
                                         <FieldLabel>Số tiền hoàn</FieldLabel>
@@ -428,17 +443,9 @@ export const RefundDetailPage = () => {
                                             </Grid>
                                             <Grid size={{ xs: 12, sm: 6, md: 4 }}>
                                                 <FieldLabel>Trạng thái đơn hàng</FieldLabel>
-                                                <Chip
-                                                    label={(detail.orderSummary as any).status}
-                                                    size="small"
-                                                    sx={{
-                                                        fontWeight: 700,
-                                                        height: 24,
-                                                        fontSize: '0.75rem',
-                                                        borderRadius: '6px',
-                                                        color: 'var(--palette-info-dark)',
-                                                        bgcolor: 'var(--palette-info-lighter)',
-                                                    }}
+                                                <AdminStatusBadge
+                                                    label={getOrderStatusBadge((detail.orderSummary as any).status).label}
+                                                    modifier={getOrderStatusAdminBadgeModifier((detail.orderSummary as any).status)}
                                                 />
                                             </Grid>
                                             <Grid size={{ xs: 12, sm: 6, md: 4 }}>
@@ -581,7 +588,7 @@ export const RefundDetailPage = () => {
                                         ({detail.refundTickets?.length || 0} vé)
                                     </Typography>
                                 </Stack>
-                                <Box sx={{ px: 0, pb: 0 }}>
+                                <Box sx={{ px: 3, pb: 3 }}>
                                     <RefundTicketsTable tickets={detail.refundTickets} />
                                 </Box>
                             </Card>
@@ -595,7 +602,7 @@ export const RefundDetailPage = () => {
                             <Card sx={{ p: 3, ...cardSx }}>
                                 <CardSectionTitle
                                     icon="solar:user-bold"
-                                    title="Thông tin khách hàng"
+                                    title="Khách hàng"
                                 />
                                 <Stack
                                     direction="row"
@@ -635,16 +642,21 @@ export const RefundDetailPage = () => {
                                             </Typography>
                                         )}
                                         {detail.customerSummary.email && (
-                                            <Typography
-                                                variant="body2"
-                                                sx={{
-                                                    color: 'var(--palette-text-primary)',
-                                                    fontWeight: 500,
-                                                    wordBreak: 'break-all',
-                                                }}
-                                            >
-                                                {detail.customerSummary.email}
-                                            </Typography>
+                                            <Tooltip title={detail.customerSummary.email} placement="top">
+                                                <Typography
+                                                    variant="body2"
+                                                    noWrap
+                                                    sx={{
+                                                        color: 'var(--palette-text-primary)',
+                                                        fontWeight: 500,
+                                                        overflow: 'hidden',
+                                                        textOverflow: 'ellipsis',
+                                                        maxWidth: '100%',
+                                                    }}
+                                                >
+                                                    {detail.customerSummary.email}
+                                                </Typography>
+                                            </Tooltip>
                                         )}
                                         {!detail.customerSummary.phone &&
                                             !detail.customerSummary.email && (
@@ -687,7 +699,7 @@ export const RefundDetailPage = () => {
                             <Card sx={{ p: 3, ...cardSx }}>
                                 <CardSectionTitle
                                     icon="solar:gallery-bold-duotone"
-                                    title="Minh chứng & giao dịch"
+                                    title="Giao dịch"
                                 />
                                 {refund.payoutTransaction?.paymentEvidenceUrl ? (
                                     <Box sx={{ mb: 2.5 }}>

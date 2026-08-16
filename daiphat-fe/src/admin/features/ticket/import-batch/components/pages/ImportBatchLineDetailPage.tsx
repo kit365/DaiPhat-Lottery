@@ -71,6 +71,7 @@ import {
 } from '../../utils/cancelTicketSelection';
 import { isSerialIncidentEligible } from '../../utils/serialIncidentWorkflow';
 import { isLineIncomplete, isLinePaused } from '../../utils/importBatchProgress';
+import { AdminLuckyDisplay } from '@/shared/lucky-number';
 
 const asSerials = (serials: unknown): any[] => (Array.isArray(serials) ? serials : []);
 
@@ -237,9 +238,11 @@ const CollapsibleRow = ({
                     <span className="admin-cell-text">{index + 1}</span>
                 </TableCell>
                 <TableCell onClick={toggleOpen}>
-                    <Typography className="admin-cell-title" sx={ticketNumberSx}>
-                        {ticket.numbers}
-                    </Typography>
+                    <AdminLuckyDisplay
+                        value={ticket.numbers}
+                        ticket
+                        sx={{ fontWeight: 700 }}
+                    />
                 </TableCell>
                 <TableCell onClick={toggleOpen}>
                     <span className="admin-cell-text">
@@ -300,9 +303,11 @@ const CollapsibleRow = ({
                                   <span className="admin-cell-text">{`${index + 1}.${serialIndex + 1}`}</span>
                               </TableCell>
                               <TableCell onClick={handleSerialToggle}>
-                                  <Typography className="admin-cell-text" sx={ticketNumberSx}>
-                                      {ticket.numbers}
-                                  </Typography>
+                                  <AdminLuckyDisplay
+                                      value={ticket.numbers}
+                                      ticket
+                                      sx={{ fontWeight: 600, fontSize: '0.875rem' }}
+                                  />
                               </TableCell>
                               <TableCell onClick={handleSerialToggle}>
                                   <Typography className="admin-cell-title" sx={ticketNumberSx}>

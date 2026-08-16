@@ -53,6 +53,7 @@ import {
 } from '@/admin/features/prize-payout/hooks/usePrizePayoutManagement';
 import { UploadSingleFile } from '@/admin/components/upload/UploadSingleFile';
 import { AppToast as toast } from '@/utils/toast.util';
+import { AdminLuckyDisplay } from '@/shared/lucky-number';
 
 const REJECT_REASON_QUICK_REPLIES = [
     'Số tài khoản không hợp lệ. Vui lòng kiểm tra và gửi lại yêu cầu.',
@@ -103,19 +104,6 @@ function CardSectionTitle({
         </Stack>
     );
 }
-
-const splitTicketNumbers = (numbers?: string): string[] => {
-    const digits = (numbers || '').replace(/\D/g, '');
-    if (!digits) return [];
-    if (digits.length % 2 === 0 && digits.length >= 2 && digits.length <= 12) {
-        const pairs: string[] = [];
-        for (let i = 0; i < digits.length; i += 2) {
-            pairs.push(digits.slice(i, i + 2));
-        }
-        return pairs;
-    }
-    return digits.split('');
-};
 
 const formatCardNumber = (accountNumber?: string) => {
     if (!accountNumber) return '•••• •••• ••••';
@@ -286,7 +274,6 @@ export const PrizePayoutDetailPage = () => {
     const isPending = detail.status === PrizePayoutRequestStatus.PENDING;
     const isApproved = detail.status === PrizePayoutRequestStatus.APPROVED;
     const canReject = isPending || isApproved;
-    const numberParts = splitTicketNumbers(detail.numbers);
     const transferAmountToPay = resolveTransferAmount(detail);
     const needsTransferDisplay =
         detail.channel === 'ONLINE'
@@ -566,18 +553,7 @@ export const PrizePayoutDetailPage = () => {
                                 <Grid size={{ xs: 12 }}>
                                     <FieldLabel icon="solar:hashtag-square-bold-duotone">Dãy số trên vé</FieldLabel>
                                     <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mt: 0.5 }}>
-                                        {numberParts.length > 0 ? (
-                                            numberParts.map((num, i) => (
-                                                <div
-                                                    key={`${num}-${i}`}
-                                                    className="w-9 h-9 rounded-xl bg-gradient-to-b from-amber-300 via-amber-400 to-amber-500 text-amber-950 shadow-xs border border-amber-300 font-black text-sm flex items-center justify-center tracking-tight"
-                                                >
-                                                    {num}
-                                                </div>
-                                            ))
-                                        ) : (
-                                            <FieldValue>{detail.numbers || '—'}</FieldValue>
-                                        )}
+                                        <AdminLuckyDisplay value={detail.numbers} ticket sx={{ fontWeight: 800, fontSize: '1.125rem' }} />
                                     </Stack>
                                 </Grid>
 

@@ -3,8 +3,8 @@ import { GridColDef, GridRenderCellParams } from '@mui/x-data-grid';
 import Avatar from '@mui/material/Avatar';
 import Typography from '@mui/material/Typography';
 import Stack from '@mui/material/Stack';
-import { UserStatus, STATUS_COLORS, STATUS_LABELS } from '../../../../../types/user.type';
 import { AdminRowActionsMenu } from '../../../../components/ui/AdminRowActionsMenu';
+import { UserStatusBadge } from '../UserStatusBadge';
 
 export const getColumnsConfig = (
     onEdit: (id: string) => void,
@@ -69,34 +69,11 @@ export const getColumnsConfig = (
             width: 140,
             headerAlign: 'center',
             align: 'center',
-            renderCell: (params: GridRenderCellParams) => {
-                const status = params.value as string;
-                const colorKey = STATUS_COLORS[status] || 'default';
-                const label = STATUS_LABELS[status] || status;
-                // Use span with same styling as blog status badge
-                return (
-                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', height: '100%' }}>
-                        <span
-                            className="minimal__label__root"
-                            style={{
-                                height: '24px',
-                                minWidth: '24px',
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                padding: '2px 6px',
-                                fontSize: '0.75rem',
-                                fontWeight: 700,
-                                borderRadius: '6px',
-                                color: `var(--palette-${colorKey}-dark)`,
-                                backgroundColor: `rgba(var(--palette-${colorKey}-mainChannel) / calc(var(--opacity-soft-bg) * 100%))`,
-                            }}
-                        >
-                            {label}
-                        </span>
-                    </Box>
-                );
-            },
+            renderCell: (params: GridRenderCellParams) => (
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', height: '100%' }}>
+                    <UserStatusBadge status={params.value as string} />
+                </Box>
+            ),
         },
         {
             field: 'actions',

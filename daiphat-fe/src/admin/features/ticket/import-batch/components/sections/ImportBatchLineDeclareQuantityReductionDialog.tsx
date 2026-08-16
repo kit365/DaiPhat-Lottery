@@ -34,6 +34,7 @@ import {
     formatViInteger,
     parseNonNegativeIntegerInput,
 } from '../../../../supplier';
+import { AdminLuckyDisplay } from '@/shared/lucky-number';
 
 export type LineDeclareRedistributionRow = {
     id: number;
@@ -400,7 +401,9 @@ export const ImportBatchLineDeclareQuantityReductionDialog = ({
                                                             onChange={() => toggleTicket(ticket)}
                                                         />
                                                     </TableCell>
-                                                    <TableCell>{ticket.numbers || '—'}</TableCell>
+                                                    <TableCell>
+                                                        <AdminLuckyDisplay value={ticket.numbers} ticket />
+                                                    </TableCell>
                                                     <TableCell>
                                                         {ticket.serialNumber || '—'}
                                                     </TableCell>

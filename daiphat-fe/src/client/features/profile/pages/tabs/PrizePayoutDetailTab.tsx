@@ -18,6 +18,7 @@ import {
 import { PrizePayoutStatusStepper } from '../../../../components/prize-payout/PrizePayoutStatusStepper';
 import { TransferEvidencePreview } from '@/admin/features/refund/components/TransferEvidencePreview';
 import { PrizePayoutRequestModal } from '../../../../components/prize-payout/PrizePayoutRequestModal';
+import { LuckyNumber } from '../../../../components/ui/LuckyNumber';
 import { PrizePayoutComplaintButton } from '../../../../components/support/PrizePayoutComplaintButton';
 import { PurchasedTicket } from '../../../../../types/lottery-ticket.type';
 import { AppToast as toast } from '../../../../../utils/toast.util';
@@ -178,7 +179,9 @@ export const PrizePayoutDetailTab = () => {
                     <div className="flex justify-between border-b border-dashed border-[#E5E8EB] pb-2">
                         <span className="text-[#637381]">Dãy số / Giải</span>
                         <span className="font-medium">
-                            {payout.numbers} · {payout.prizeDisplayName || payout.prizeCode}
+                            <LuckyNumber value={payout.numbers} ticket className="font-medium" />
+                            {' · '}
+                            {payout.prizeDisplayName || payout.prizeCode}
                         </span>
                     </div>
                 </div>

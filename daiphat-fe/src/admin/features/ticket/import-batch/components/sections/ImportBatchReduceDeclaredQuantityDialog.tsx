@@ -31,6 +31,7 @@ import type {
     ImportBatchReductionTicket,
 } from '../../types/importBatch.type';
 import { sumSelectedTicketSerialCount } from '../../utils/importBatchDeclareQuantityReduction';
+import { AdminLuckyDisplay } from '@/shared/lucky-number';
 
 interface ImportBatchReduceDeclaredQuantityDialogProps {
     open: boolean;
@@ -209,7 +210,9 @@ export const ImportBatchReduceDeclaredQuantityDialog = ({
                                                                     }
                                                                 />
                                                             </TableCell>
-                                                            <TableCell>{ticket.numbers || '—'}</TableCell>
+                                                            <TableCell>
+                                                                <AdminLuckyDisplay value={ticket.numbers} ticket />
+                                                            </TableCell>
                                                             <TableCell>{ticket.serialNumber || '—'}</TableCell>
                                                             <TableCell align="right">
                                                                 {ticket.serialCount.toLocaleString('vi-VN')}

@@ -61,6 +61,7 @@ import {
     buildSerialStatusFilterOptions,
     buildSerialConditionFilterOptions,
 } from "../../constants/serial-status-filter.config";
+import { AdminLuckyDisplay } from "@/shared/lucky-number";
 
 dayjs.locale("vi");
 
@@ -347,18 +348,17 @@ export const TicketDetailPage = () => {
                             }}
                         >
                             <ConfirmationNumberOutlinedIcon sx={{ color: "#2563eb", mr: 1, fontSize: 28 }} />
-                            <Typography
+                            <AdminLuckyDisplay
+                                value={ticketDetail.numbers}
+                                ticket
                                 sx={{
-                                    fontFamily: "monospace",
                                     fontSize: { xs: "1.5rem", md: "1.875rem" },
                                     fontWeight: 900,
                                     letterSpacing: "0.12em",
                                     color: "#0f172a",
                                     lineHeight: 1,
                                 }}
-                            >
-                                {ticketDetail.numbers || "— — — — — —"}
-                            </Typography>
+                            />
                         </Box>
 
                         {/* Station Tag */}
@@ -671,18 +671,16 @@ export const TicketDetailPage = () => {
                                     <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 0.5, fontWeight: 600 }}>
                                         Dãy số dự thưởng
                                     </Typography>
-                                    <Typography
-                                        variant="body2"
+                                    <AdminLuckyDisplay
+                                        value={ticketDetail.numbers}
+                                        ticket
                                         sx={{
                                             fontWeight: 800,
-                                            fontFamily: "monospace",
                                             fontSize: "1rem",
                                             letterSpacing: "0.06em",
                                             color: "#0f172a",
                                         }}
-                                    >
-                                        {ticketDetail.numbers || "—"}
-                                    </Typography>
+                                    />
                                 </Box>
 
                                 <Box>

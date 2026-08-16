@@ -142,7 +142,7 @@ export const ImportBatchDetailPage = () => {
 
     const progress = batch ? getImportBatchProgress(batch) : { percent: 0, imported: 0, declared: 0 };
     const isCompleted = progress.declared > 0 && progress.imported >= progress.declared;
-
+    
     const cancelledReasonText =
         batch?.status === 'CANCELLED' ? formatImportBatchCancelReason(batch.cancelReason) : undefined;
 
@@ -244,9 +244,9 @@ export const ImportBatchDetailPage = () => {
                                                         color: '#94a3b8',
                                                     },
                                                 }}
-                                            >
-                                                Nhập vé vào phiếu
-                                            </Button>
+                                    >
+                                        Nhập vé vào phiếu
+                                    </Button>
                                         </span>
                                     </Tooltip>
                                 </CanAccess>
@@ -309,7 +309,7 @@ export const ImportBatchDetailPage = () => {
                     )}
 
                     {/* Unsaved draft warning */}
-                    {hasUnsavedDraft && (
+            {hasUnsavedDraft && (
                         <Alert
                             icon={<InfoOutlinedIcon sx={{ color: '#0284c7' }} />}
                             severity="info"
@@ -322,8 +322,8 @@ export const ImportBatchDetailPage = () => {
                             }}
                         >
                             Phiếu nhập lô đang có bản nháp chỉnh sửa chưa lưu trên thiết bị này. Nội dung nháp cục bộ sẽ được khôi phục khi bạn mở màn hình chỉnh sửa.
-                        </Alert>
-                    )}
+                </Alert>
+            )}
 
                     {/* Section 1: Top Metadata Info Strip */}
                     <Paper
@@ -699,8 +699,8 @@ export const ImportBatchDetailPage = () => {
                                         color: isCompleted ? '#15803d' : '#c2410c',
                                         border: `1px solid ${isCompleted ? '#bbf7d0' : '#fed7aa'}`,
                                     }}
-                                />
-                            </Stack>
+                        />
+                    </Stack>
                         </Box>
 
                         {/* Table */}
@@ -874,7 +874,7 @@ export const ImportBatchDetailPage = () => {
                                                                 <VisibilityOutlinedIcon fontSize="small" />
                                                             </IconButton>
                                                         </Tooltip>
-                                                    </Stack>
+                    </Stack>
                                                 </TableCell>
                                             </TableRow>
                                         );
@@ -900,7 +900,7 @@ export const ImportBatchDetailPage = () => {
                         {(batch.invoiceEvidenceUrl || batch.note) && (
                         <Grid container spacing={2.5}>
                             {/* Ghi chú phiếu nhập */}
-                            {batch.note && (
+                    {batch.note && (
                                 <Grid size={{ xs: 12, md: batch.invoiceEvidenceUrl ? 6 : 12 }}>
                                     <Paper
                                         elevation={0}
@@ -937,7 +937,7 @@ export const ImportBatchDetailPage = () => {
                             )}
 
                             {/* Ảnh biên lai */}
-                            {batch.invoiceEvidenceUrl && (
+                    {batch.invoiceEvidenceUrl && (
                                 <Grid size={{ xs: 12, md: batch.note ? 6 : 12 }}>
                                     <Paper
                                         elevation={0}
@@ -953,38 +953,38 @@ export const ImportBatchDetailPage = () => {
                                             <ReceiptLongOutlinedIcon sx={{ color: '#ea580c', fontSize: '1.3rem' }} />
                                             <Typography variant="subtitle2" fontWeight={800} color="#0f172a">
                                                 Ảnh biên lai phiếu nhập
-                                            </Typography>
+                            </Typography>
                                         </Stack>
-                                        <ImagePreview
-                                            src={batch.invoiceEvidenceUrl}
-                                            alt="Ảnh biên lai"
+                            <ImagePreview
+                                src={batch.invoiceEvidenceUrl}
+                                alt="Ảnh biên lai"
                                             dialogTitle="Ảnh biên lai phiếu nhập"
-                                            infoItems={[
-                                                {
-                                                    label: 'Mã phiếu',
-                                                    value: formatImportBatchHeaderCode(batch.batchCode, batch.id),
-                                                },
-                                                {
-                                                    label: 'Ngày quay',
-                                                    value: batch.drawDate
-                                                        ? dayjs(batch.drawDate).format('DD/MM/YYYY')
-                                                        : '—',
-                                                },
-                                                {
-                                                    label: 'Nhà cung cấp',
-                                                    value: batch.supplierName || '—',
-                                                },
-                                                {
-                                                    label: 'Loại nhập',
-                                                    value: getImportModeLabel(batch.importMode),
-                                                },
-                                            ]}
-                                            thumbnailSx={{
+                                infoItems={[
+                                    {
+                                        label: 'Mã phiếu',
+                                        value: formatImportBatchHeaderCode(batch.batchCode, batch.id),
+                                    },
+                                    {
+                                        label: 'Ngày quay',
+                                        value: batch.drawDate
+                                            ? dayjs(batch.drawDate).format('DD/MM/YYYY')
+                                            : '—',
+                                    },
+                                    {
+                                        label: 'Nhà cung cấp',
+                                        value: batch.supplierName || '—',
+                                    },
+                                    {
+                                        label: 'Loại nhập',
+                                        value: getImportModeLabel(batch.importMode),
+                                    },
+                                ]}
+                                thumbnailSx={{
                                                 maxWidth: 280,
-                                                maxHeight: 180,
+                                    maxHeight: 180,
                                                 borderRadius: '12px',
                                                 border: '1px solid #e2e8f0',
-                                                objectFit: 'contain',
+                                    objectFit: 'contain',
                                                 bgcolor: '#f8fafc',
                                             }}
                                         />
@@ -1045,7 +1045,7 @@ export const ImportBatchDetailPage = () => {
                                             }}
                                         />
                                     ))}
-                                </Box>
+                        </Box>
                             </Paper>
                         )}
                         </Stack>

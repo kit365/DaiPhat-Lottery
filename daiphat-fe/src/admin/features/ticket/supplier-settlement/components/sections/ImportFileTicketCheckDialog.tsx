@@ -33,6 +33,7 @@ import type {
     SettlementImportFileCheckStatus,
     SettlementImportFileCheckTicket,
 } from '../../types/supplierSettlement.type';
+import { AdminLuckyDisplay } from '@/shared/lucky-number';
 
 interface ImportFileTicketCheckDialogProps {
     open: boolean;
@@ -298,7 +299,9 @@ export const ImportFileTicketCheckDialog = ({
                                             {rowsForTab.map((row, index) => (
                                                 <TableRow key={`${row.serialNumber}-${row.lotteryStationId}-${index}`}>
                                                     <TableCell sx={{ fontFamily: 'ui-monospace, monospace' }}>{row.serialNumber}</TableCell>
-                                                    <TableCell>{row.numbers || '—'}</TableCell>
+                                                    <TableCell>
+                                                        <AdminLuckyDisplay value={row.numbers} ticket />
+                                                    </TableCell>
                                                     <TableCell>{row.stationName || 'Chưa phân đài'}</TableCell>
                                                     <TableCell>{row.importBatchCode || (row.importBatchId ? `#${row.importBatchId}` : '—')}</TableCell>
                                                     <TableCell>{row.sourceFileName || '—'}</TableCell>

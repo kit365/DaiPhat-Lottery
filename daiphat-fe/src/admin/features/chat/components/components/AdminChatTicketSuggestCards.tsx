@@ -6,6 +6,7 @@ import {
   formatTicketDrawDate,
   formatTicketPrice,
 } from '../../../../../client/utils/ticketSuggestToken.util';
+import { AdminLuckyDisplay } from '@/shared/lucky-number';
 
 export interface AdminChatTicketSuggestCardsProps {
   tickets: ChatSuggestedTicket[];
@@ -44,18 +45,17 @@ export const AdminChatTicketSuggestCards = ({ tickets }: AdminChatTicketSuggestC
             boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
           }}
         >
-          <Typography
+          <AdminLuckyDisplay
+            value={ticket.numbers}
+            ticket
             sx={{
-              fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
               fontWeight: 700,
               fontSize: '1.25rem',
               letterSpacing: '0.06em',
               lineHeight: 1.1,
               color: 'text.primary',
             }}
-          >
-            {ticket.numbers}
-          </Typography>
+          />
           <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.75, lineHeight: 1.35 }}>
             {ticket.stationName || '—'}
           </Typography>
