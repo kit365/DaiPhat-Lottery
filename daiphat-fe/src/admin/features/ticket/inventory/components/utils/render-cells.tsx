@@ -14,6 +14,7 @@ import { formatImportBatchCode } from '../../../import-batch/utils/importBatchCo
 import { getTicketStatusLabel, normalizeTicketStatus } from '../../constants/ticket-status.config';
 import { AdminRowActionsMenu } from '../../../../../components/ui/AdminRowActionsMenu';
 import { AdminStatusBadge } from '../../../../../components/ui/AdminStatusBadge';
+import { AdminLuckyDisplay } from '@/shared/lucky-number';
 
 dayjs.locale('vi');
 
@@ -45,7 +46,17 @@ export const RenderTicketCell = (params: GridRenderCellParams) => {
                     '&:hover': { color: '#2563eb' },
                 }}
             >
-                {numbers || 'N/A'}
+                <AdminLuckyDisplay
+                    value={numbers}
+                    ticket
+                    sx={{
+                        fontSize: '1.05rem',
+                        letterSpacing: '0.06em',
+                        color: 'inherit',
+                        fontWeight: 800,
+                        lineHeight: 1.2,
+                    }}
+                />
             </Link>
             <Typography variant="caption" sx={{ color: '#64748b', fontSize: '0.75rem', fontWeight: 600 }}>
                 Số lượng: <Box component="span" sx={{ color: '#ea580c', fontWeight: 800 }}>{quantity ?? 0}</Box> vé

@@ -8,6 +8,7 @@ import AssignmentTurnedInIcon from "@mui/icons-material/AssignmentTurnedIn";
 import Typography from "@mui/material/Typography";
 import Stack from "@mui/material/Stack";
 import { AdminRowActionsMenu } from "../../../../components/ui/AdminRowActionsMenu";
+import { AdminStatusBadge } from "../../../../components/ui/AdminStatusBadge";
 import { STATUS_LABELS } from "./constants";
 import { formatCoverageAreaDisplay } from "../../constants/coverageAreas";
 import { formatVendorHandoverLimit } from "../../utils/format";
@@ -105,30 +106,19 @@ export const getColumnsConfig = (
         align: "center",
         renderCell: (params: GridRenderCellParams) => {
             const status = params.value as string;
-            let colorKey: "success" | "warning" | "default" = "default";
-            if (status === "ACTIVE") colorKey = "success";
-            else if (status === "PENDING") colorKey = "warning";
 
             return (
                 <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", width: "100%", height: "100%" }}>
-                    <span
-                        className="minimal__label__root"
-                        style={{
-                            height: "24px",
-                            minWidth: "24px",
-                            display: "inline-flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            padding: "2px 6px",
-                            fontSize: "0.75rem",
-                            fontWeight: 700,
-                            borderRadius: "6px",
-                            color: `var(--palette-${colorKey}-dark)`,
-                            backgroundColor: `rgba(var(--palette-${colorKey}-mainChannel) / calc(var(--opacity-soft-bg) * 100%))`,
-                        }}
-                    >
-                        {STATUS_LABELS[status] || status || "—"}
-                    </span>
+                    <AdminStatusBadge
+                        label={STATUS_LABELS[status] || status || "—"}
+                        modifier={
+                            status === "ACTIVE"
+                                ? "admin-status-badge--success"
+                                : status === "PENDING"
+                                  ? "admin-status-badge--pending"
+                                  : "admin-status-badge--draft"
+                        }
+                    />
                 </Box>
             );
         },

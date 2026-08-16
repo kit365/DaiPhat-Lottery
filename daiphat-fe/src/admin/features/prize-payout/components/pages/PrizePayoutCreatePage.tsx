@@ -46,6 +46,12 @@ import {
 } from '@/types/prize-payout.type';
 import { VietQrBankResponse } from '@/types/refund.type';
 import { useGetBanks } from '@/client/hooks/useBankAccount';
+import {
+    BANK_ACCOUNT_NO_INVALID_MESSAGE,
+    BANK_ACCOUNT_NO_MAX_LENGTH,
+    sanitizeBankAccountNoInput,
+    validateBankAccountNo,
+} from '@/shared/bank-account/bankAccountNoValidation';
 import { Station } from '@/admin/features/station/types/station.type';
 import { TransferEvidencePreview } from '@/admin/features/refund/components/TransferEvidencePreview';
 import { UploadSingleFile } from '@/admin/components/upload/UploadSingleFile';
@@ -137,6 +143,7 @@ export const PrizePayoutCreatePage = () => {
 
     const [selectedBank, setSelectedBank] = useState<VietQrBankResponse | null>(null);
     const [bankAccountNumber, setBankAccountNumber] = useState('');
+    const [bankAccountNumberError, setBankAccountNumberError] = useState<string | null>(null);
     const [accountHolderName, setAccountHolderName] = useState('');
     const [transferEvidenceUrl, setTransferEvidenceUrl] = useState('');
     const [confirmationContractUrl, setConfirmationContractUrl] = useState('');
@@ -238,6 +245,7 @@ export const PrizePayoutCreatePage = () => {
     const transferReady =
         !!selectedBank
         && !!bankAccountNumber.trim()
+        && !validateBankAccountNo(bankAccountNumber)
         && !!accountHolderName.trim();
 
     const parsedCashAmount = parseInt(cashAmount.replace(/\D/g, ''), 10) || 0;
@@ -249,6 +257,7 @@ export const PrizePayoutCreatePage = () => {
 
     const applySuggestedBankAccount = (acc: (typeof suggestedBankAccounts)[0]) => {
         setBankAccountNumber(acc.bankAccountNo || '');
+        setBankAccountNumberError(null);
         setAccountHolderName((acc.bankAccountName || '').toUpperCase());
         if (acc.bankName) {
             const found = banks.find((b) =>
@@ -457,7 +466,9 @@ export const PrizePayoutCreatePage = () => {
             }
         }
         if (needsBankFields && !transferReady) {
-            toast.error('Nhập đầy đủ thông tin chuyển khoản');
+            const accountNoError = validateBankAccountNo(bankAccountNumber);
+            setBankAccountNumberError(accountNoError);
+            toast.error(accountNoError || 'Nhập đầy đủ thông tin chuyển khoản');
             return;
         }
         if (needsBankFields && !transferEvidenceUrl.trim()) {
@@ -1175,11 +1186,26 @@ export const PrizePayoutCreatePage = () => {
                                             <TextField
                                                 label="Số tài khoản *"
                                                 value={bankAccountNumber}
-                                                onChange={(e) => setBankAccountNumber(e.target.value.replace(/\D/g, '').slice(0, 20))}
+                                                onChange={(e) => {
+                                                    setBankAccountNumber(sanitizeBankAccountNoInput(e.target.value));
+                                                    if (bankAccountNumberError) {
+                                                        setBankAccountNumberError(null);
+                                                    }
+                                                }}
+                                                onBlur={() => {
+                                                    if (bankAccountNumber.trim()) {
+                                                        setBankAccountNumberError(validateBankAccountNo(bankAccountNumber));
+                                                    }
+                                                }}
                                                 fullWidth
                                                 size="small"
-                                                inputProps={{ inputMode: 'numeric', pattern: '[0-9]*', maxLength: 20 }}
-                                                helperText="Chỉ nhập số"
+                                                error={!!bankAccountNumberError}
+                                                inputProps={{
+                                                    inputMode: 'numeric',
+                                                    pattern: '[0-9]*',
+                                                    maxLength: BANK_ACCOUNT_NO_MAX_LENGTH,
+                                                }}
+                                                helperText={bankAccountNumberError || BANK_ACCOUNT_NO_INVALID_MESSAGE}
                                             />
                                             <TextField
                                                 label="Chủ tài khoản *"

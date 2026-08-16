@@ -188,6 +188,7 @@ export const AdminAccountFormPage = ({
                     isSaving={isSaving}
                     roles={roles}
                     showRoles={isStaff}
+                    mode={mode}
                     title={copy.cardTitle}
                     subheader={copy.subheader}
                     onAvatarFile={handleAvatarFile}

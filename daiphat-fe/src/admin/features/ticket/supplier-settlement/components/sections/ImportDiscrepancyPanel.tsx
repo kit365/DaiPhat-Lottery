@@ -59,6 +59,7 @@ import type {
 import { formatSettlementMoney } from '../../utils/settlementCashflow';
 import { ImportFileTicketCheckDialog } from './ImportFileTicketCheckDialog';
 import { ImportTicketListImagesDialog } from './ImportTicketListImagesDialog';
+import { AdminLuckyDisplay } from '@/shared/lucky-number';
 
 interface ImportDiscrepancyPanelProps {
     settlementId?: string | number;
@@ -1029,7 +1030,12 @@ export const ImportDiscrepancyPanel = ({
                                     <Chip
                                         key={idx}
                                         size="small"
-                                        label={`${r.numbers} / ${r.serialNumber}`}
+                                        label={
+                                            <>
+                                                <AdminLuckyDisplay value={r.numbers} ticket component="span" />
+                                                {` / ${r.serialNumber}`}
+                                            </>
+                                        }
                                         onDelete={() => setExcessRows((rows) => rows.filter((_, i) => i !== idx))}
                                         sx={{ fontWeight: 700 }}
                                     />

@@ -85,6 +85,7 @@ import {
 } from '../../utils/importBatchFileTemplate';
 import { useEligibleImportBatchStations } from '../../hooks/useImportBatch';
 import { useImportBatchIntakeGate } from '../../hooks/useImportBatchIntakeGate';
+import { AdminLuckyDisplay } from '@/shared/lucky-number';
 
 type ImportBatchFileImportDialogProps = {
     open: boolean;
@@ -1222,7 +1223,10 @@ const AnomalyTable = ({ anomalies, mapping, busy, onChooseStation }: AnomalyTabl
                                     <TableCell>{rawDrawDate || '—'}</TableCell>
                                     <TableCell sx={{ fontWeight: 600, color: '#0f172a' }}>{rawStation || '—'}</TableCell>
                                     <TableCell sx={{ fontWeight: 700 }}>
-                                        {(mapping?.numbersColumn ? row.rawValues[mapping.numbersColumn] : row.numbers) || '—'}
+                                        <AdminLuckyDisplay
+                                            value={(mapping?.numbersColumn ? row.rawValues[mapping.numbersColumn] : row.numbers) || ''}
+                                            ticket
+                                        />
                                     </TableCell>
                                     <TableCell align="right" sx={{ fontWeight: 700 }}>{rawQuantity || '—'}</TableCell>
                                     <TableCell>
@@ -1558,9 +1562,7 @@ const PreviewRow = ({
                 </TableCell>
                 {importsTickets && (
                     <TableCell>
-                        <Typography variant="body2" fontWeight={800} color="#0f172a">
-                            {row.numbers ?? '—'}
-                        </Typography>
+                        <AdminLuckyDisplay value={row.numbers} ticket sx={{ fontWeight: 800, color: '#0f172a' }} />
                     </TableCell>
                 )}
                 <TableCell align="right" sx={{ fontWeight: 700 }}>{row.declareQuantity ?? '—'}</TableCell>
@@ -1593,7 +1595,8 @@ const PreviewRow = ({
                         <Collapse in={expanded} timeout="auto" unmountOnExit>
                             <Box sx={{ my: 1.5, ml: 4, mr: 1, p: 2, bgcolor: '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
                                 <Typography variant="caption" fontWeight={800} color="#0f172a" sx={{ mb: 1, display: 'block' }}>
-                                    Danh sách {serials.length} vé sê-ri của dãy số {row.numbers}:
+                                    Danh sách {serials.length} vé sê-ri của dãy số{' '}
+                                    <AdminLuckyDisplay value={row.numbers} ticket component="span" />:
                                 </Typography>
                                 <Table size="small">
                                     <TableHead sx={{ bgcolor: '#ffffff' }}>

@@ -1072,6 +1072,7 @@ input:-webkit-autofill:active {
     line-height: 1;
     height: 24px;
     min-height: 24px;
+    max-height: 24px;
     font-size: 0.6875rem;
     font-weight: 700;
     padding: 0 8px;
@@ -1118,6 +1119,27 @@ input:-webkit-autofill:active {
 .admin-status-badge--success {
     background-color: var(--palette-success-lighter);
     color: var(--palette-success-dark);
+}
+
+.status-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    height: 24px;
+    min-height: 24px;
+    max-height: 24px;
+    padding: 0 8px;
+    border-radius: 6px;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    line-height: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    vertical-align: middle;
 }
 
 .MuiTableCell-root:has(.admin-status-badge-host),

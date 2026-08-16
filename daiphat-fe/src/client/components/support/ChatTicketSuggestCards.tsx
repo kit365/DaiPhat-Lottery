@@ -8,6 +8,7 @@ import {
   addPublicTicketToCart,
   isTicketAtCartLimit,
 } from '../../utils/ticketCart.util';
+import { LuckyNumber } from '../ui/LuckyNumber';
 
 export interface ChatTicketSuggestCardsProps {
   tickets: ChatSuggestedTicket[];
@@ -71,7 +72,7 @@ export const ChatTicketSuggestCards = ({
             className="shrink-0 w-[148px] bg-white rounded-2xl border border-slate-200 shadow-sm px-3 py-3 flex flex-col gap-2"
           >
             <div className="font-mono font-bold text-[22px] leading-none tracking-wider text-[#212B36] tabular-nums">
-              {ticket.numbers}
+              <LuckyNumber value={ticket.numbers} ticket className="text-[22px] tracking-wider" />
             </div>
             <div className="text-[11px] leading-snug text-slate-500">
               <div className="truncate">{ticket.stationName || '—'}</div>
