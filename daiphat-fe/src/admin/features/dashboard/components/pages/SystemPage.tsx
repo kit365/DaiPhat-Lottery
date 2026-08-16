@@ -1,10 +1,8 @@
 "use client";
 
 import { Grid, Box, Typography, Button, Stack, Table, TableBody, TableCell, TableHead, TableRow, TableContainer } from "@mui/material";
-import { useAuthStore } from "@/stores/useAuthStore";
 import { Icon } from '@/admin/components/ui/AdminIcon';
 import DashboardCard from "@/admin/components/dashboard/DashboardCard";
-import WelcomeWidget from "@/admin/components/dashboard/WelcomeWidget";
 import SummaryWidget from "@/admin/components/dashboard/SummaryWidget";
 import { ImportBatchDraftBanner } from "@/admin/features/ticket/import-batch";
 
@@ -135,8 +133,6 @@ const RecentEventsTimeline = () => {
 }
 
 export const SystemPage = () => {
-    const { user } = useAuthStore();
-
     return (
         <>
             <Box sx={{ width: '100%', mb: 0, px: 0 }}>
@@ -144,38 +140,6 @@ export const SystemPage = () => {
             </Box>
 
             <Grid container spacing={3}>
-                <Grid size={{ xs: 12 }}>
-                    <WelcomeWidget
-                        title={`Tổng quan hệ thống\n${user?.fullName || 'Quản trị viên'}`}
-                        description="Trung tâm điều hành hoạt động kinh doanh vé số. Theo dõi tình trạng kho vé, đại lý, đối soát và các tác vụ vận hành hệ thống hằng ngày."
-                        action={
-                            <Button
-                                variant="contained"
-                                sx={{
-                                    fontFamily: '"Public Sans Variable", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol"',
-                                    fontWeight: 700,
-                                    fontSize: '0.875rem',
-                                    textTransform: 'none',
-                                    bgcolor: 'var(--palette-primary-main)',
-                                    color: 'var(--palette-primary-contrastText)',
-                                    boxShadow: 'none',
-                                    py: '6px',
-                                    px: '12px',
-                                    minHeight: '36px',
-                                    lineHeight: 1.71429,
-                                    borderRadius: 'var(--shape-borderRadius)',
-                                    '&:hover': {
-                                        bgcolor: 'var(--palette-primary-dark)',
-                                        boxShadow: 'none',
-                                    },
-                                }}
-                            >
-                                Xem báo cáo
-                            </Button>
-                        }
-                    />
-                </Grid>
-
                 {/* KPI Cards */}
                 {KPI_DATA.map((kpi, index) => (
                     <Grid key={index} size={{ xs: 12, sm: 6, md: 3 }}>

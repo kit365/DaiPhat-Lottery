@@ -96,8 +96,9 @@ export const useDeleteTicket = () => {
 
     return useMutation({
         mutationFn: deleteTicket,
-        onSuccess: () => {
+        onSuccess: (_data, id) => {
             queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.TICKETS] });
+            queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.TICKET_DETAIL, id] });
         },
     });
 };
@@ -137,14 +138,26 @@ export const useScanExpiredTickets = () => {
 };
 
 export const useUploadTicketImage = () => {
+    const queryClient = useQueryClient();
+
     return useMutation({
         mutationFn: ({ id, file }: { id: string | number; file: File }) => uploadTicketImage(id, file),
+        onSuccess: (_data, variables) => {
+            queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.TICKET_DETAIL, variables.id] });
+            queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.TICKETS] });
+        },
     });
 };
 
 
 export const useUploadTicketSerialImage = () => {
+    const queryClient = useQueryClient();
+
     return useMutation({
         mutationFn: ({ id, file }: { id: string | number; file: File }) => uploadTicketSerialImage(id, file),
+        onSuccess: (_data, variables) => {
+            queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.TICKET_DETAIL, variables.id] });
+            queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.TICKETS] });
+        },
     });
 };

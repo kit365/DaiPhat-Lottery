@@ -73,9 +73,6 @@ const registerAdminPageChunkLoaders = () => {
         [ROUTES.ADMIN.DASHBOARD.STATISTICS.ORDERS, () => import('@/admin/features/dashboard/components/statistics/OrderStatisticsPage')],
         ['/admin/dashboard/statistics/staff', () => import('@/admin/features/dashboard/components/statistics/StaffStatisticsPage')],
         [ROUTES.ADMIN.PROFILE, () => import('@/admin/features/users/components/pages/ProfilePage')],
-        ['/admin/department/list', () => import('@/admin/features/hr/components/pages/DepartmentListPage')],
-        ['/admin/shift/list', () => import('@/admin/features/hr/components/pages/ShiftListPage')],
-        ['/admin/schedule-calendar', () => import('@/admin/features/hr/components/pages/ScheduleCalendarPage')],
     ];
 
     loaders.forEach(([path, loader]) => registerAdminPageChunkLoader(path, loader));

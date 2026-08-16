@@ -4,7 +4,7 @@
  *
  * Luồng:
  *
- *   UI  →  React Query (nếu có)  →  apiApp
+ *   UI  →  React Query (AbortSignal khi unmount / đổi queryKey)  →  apiApp
  *                                      │
  *                    có NEXT_PUBLIC_API_BASE_URL  →  gọi thẳng BE (local đừng set)
  *                    không có                     →  /api cùng origin FE
@@ -28,6 +28,7 @@
  */
 
 import axios, { AxiosError, InternalAxiosRequestConfig } from "axios"
+import { peekQueryAbortSignal } from "@/shared/react-query/bindQueryAbortSignal"
 import { useAuthStore } from "../stores/useAuthStore"
 import { API_PREFIX, API_VERSION } from "./api.constants"
 import { AppToast } from "../utils/toast.util"
@@ -77,6 +78,13 @@ apiApp.interceptors.request.use((config) => {
                     delete (config.headers as Record<string, unknown>).Authorization;
                 }
             }
+        }
+    }
+
+    if (!config.signal) {
+        const querySignal = peekQueryAbortSignal();
+        if (querySignal) {
+            config.signal = querySignal;
         }
     }
 

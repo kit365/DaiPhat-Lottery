@@ -1,15 +1,16 @@
 "use client";
 
 import { StrictMode, useState } from 'react';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClientProvider } from '@tanstack/react-query';
 import { ToastContainer } from 'react-toastify';
 import { AuthInitializer } from '../components/auth/AuthInitializer';
-import { MUTATION_RETRY, QUERY_GC_TIME, QUERY_STALE_TIMES, queryRetryDelay, shouldRetryQuery } from '@/shared/react-query/queryPolicies';
+import { createAppQueryClient } from '@/shared/react-query/createAppQueryClient';
+import { MUTATION_RETRY, QUERY_GC_TIME, QUERY_STALE_TIMES, shouldRetryQuery } from '@/shared/react-query/queryPolicies';
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(
     () =>
-      new QueryClient({
+      createAppQueryClient({
         defaultOptions: {
           queries: {
             staleTime: QUERY_STALE_TIMES.default,
@@ -17,7 +18,6 @@ export function Providers({ children }: { children: React.ReactNode }) {
             refetchOnWindowFocus: false,
             throwOnError: false,
             retry: shouldRetryQuery,
-            retryDelay: queryRetryDelay,
           },
           mutations: {
             throwOnError: false,

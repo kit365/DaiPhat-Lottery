@@ -7,8 +7,13 @@ import { PrizeStructureResponse, PrizeStructureSyncRequest } from '../types/priz
 import { getPrizeStructuresByRegion, replacePrizeStructures, syncPrizeStructures } from '../services/prizeStructureService';
 
 export const useSyncPrizeStructure = () => {
+    const queryClient = useQueryClient();
+
     return useMutation({
         mutationFn: (data: PrizeStructureSyncRequest) => syncPrizeStructures(data),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.PRIZE_STRUCTURES] });
+        },
     });
 };
 

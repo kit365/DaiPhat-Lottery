@@ -14,7 +14,7 @@ import { isAxiosError } from 'axios';
  *   GET /me, KQXS đang live, count “của tôi” khi đang thao tác.
  *
  * badge (30s) Số sidebar / banner, poll nhẹ:
- *   GET pending-count, open-ticket-count, chat waiting, draft-banner, staffing snippet.
+ *   GET pending-count, open-ticket-count, chat waiting, draft-banner.
  *
  */
 export const QUERY_STALE_TIMES = {
@@ -38,9 +38,8 @@ export const detailQueryDefaults = {
     refetchOnMount: 'always' as const,
 } as const;
 
-const QUERY_RETRY_LIMIT = 3;
 
-export const getQueryErrorStatus = (error: unknown): number | undefined => {
+const getQueryErrorStatus = (error: unknown): number | undefined => {
     if (isAxiosError(error)) {
         return error.response?.status;
     }
@@ -50,7 +49,11 @@ export const getQueryErrorStatus = (error: unknown): number | undefined => {
 /**
  * useQuery: không retry lỗi client (401/403/404/4xx).
  * Retry 5xx, 408, 429 và mất mạng — tối đa 3 lần.
+ * 
+ * useMutation: không retry
  */
+const QUERY_RETRY_LIMIT = 3;
+
 export const shouldRetryQuery = (failureCount: number, error: unknown): boolean => {
     const status = getQueryErrorStatus(error);
 
@@ -66,9 +69,4 @@ export const shouldRetryQuery = (failureCount: number, error: unknown): boolean 
     return failureCount < QUERY_RETRY_LIMIT;
 };
 
-/** Exponential backoff, cap 30s — cùng công thức mặc định của React Query. */
-export const queryRetryDelay = (attemptIndex: number): number =>
-    Math.min(1000 * 2 ** attemptIndex, 30_000);
-
-/** useMutation: fail 1 lần là xong. `false` và `0` tương đương. */
 export const MUTATION_RETRY = false as const;

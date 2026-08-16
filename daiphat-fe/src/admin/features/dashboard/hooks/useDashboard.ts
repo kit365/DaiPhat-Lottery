@@ -1,18 +1,9 @@
 "use client";
 
 import { useQuery } from '@tanstack/react-query';
-import { getStaffingStatus, getEcommerceOverview, EMPTY_ECOMMERCE_OVERVIEW } from '@/admin/features/dashboard/services/dashboardService';
+import { getEcommerceOverview, EMPTY_ECOMMERCE_OVERVIEW } from '@/admin/features/dashboard/services/dashboardService';
 import { dashboardQueryKeys } from '@/admin/features/dashboard/constants/queryKeys';
 import { QUERY_STALE_TIMES } from '@/shared/react-query';
-
-export const useStaffingStatusToday = (date: string) => {
-    return useQuery({
-        queryKey: dashboardQueryKeys.staffingStatus(date),
-        queryFn: () => getStaffingStatus(date),
-        refetchInterval: 300_000,
-        staleTime: QUERY_STALE_TIMES.badge,
-    });
-};
 
 export const useEcommerceOverview = () => {
     return useQuery({
@@ -24,4 +15,3 @@ export const useEcommerceOverview = () => {
         staleTime: QUERY_STALE_TIMES.badge,
     });
 };
-

@@ -4,7 +4,6 @@ import path from 'path';
 const targets = [
   'src/admin/features/refund',
   'src/admin/features/prize-payout',
-  'src/admin/features/hr',
   'src/admin/features/review',
   'src/admin/features/dashboard',
   'src/admin/features/settings',

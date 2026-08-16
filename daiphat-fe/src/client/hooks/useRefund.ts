@@ -55,6 +55,8 @@ export const useCreateRefund = () => {
             if (response.success) {
                 toast.success(response.message || 'Tạo yêu cầu hoàn tiền thành công');
                 queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.CLIENT_MY_REFUNDS] });
+                queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.CLIENT_MY_ORDERS] });
+                queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.CLIENT_ORDER_REFUND_ELIGIBILITY] });
                 // Notification được tạo async sau commit — chỉ refresh một lần sau delay.
                 window.setTimeout(() => {
                     queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.CLIENT_NOTIFICATIONS] });
@@ -84,6 +86,7 @@ export const useCreateOrderRefund = () => {
                 queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.CLIENT_MY_REFUNDS] });
                 queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.CLIENT_MY_ORDERS] });
                 queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.CLIENT_MY_ORDER_DETAIL] });
+                queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.CLIENT_ORDER_REFUND_ELIGIBILITY] });
                 // Notification được tạo async sau commit — chỉ refresh một lần sau delay.
                 window.setTimeout(() => {
                     queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.CLIENT_NOTIFICATIONS] });
