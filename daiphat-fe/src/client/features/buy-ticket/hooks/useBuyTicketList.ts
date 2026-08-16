@@ -1,7 +1,7 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { listQueryDefaults } from '@/shared/react-query/queryPolicies';
+import { listQueryDefaults } from '@/shared/react-query';
 import {
     buyTicketListQueryKey,
     type BuyTicketListQueryParams,

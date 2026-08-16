@@ -3,7 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-toastify';
 import { prizePayoutAdminApi } from "@/admin/features/prize-payout/services/prizePayoutService";
-import { QUERY_KEYS } from '@/constants/queryKeys';
+import { QUERY_KEYS } from '@/admin/features/prize-payout/constants/queryKeys';
 import {
     CompletePrizePayoutRequest,
     CreateStaffPrizePayoutBatchRequest,

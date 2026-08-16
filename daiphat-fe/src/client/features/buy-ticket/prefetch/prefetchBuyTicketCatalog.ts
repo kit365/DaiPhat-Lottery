@@ -122,7 +122,7 @@ export const prefetchBuyTicketCatalogForDrawDates = async (
 
     const stations = await queryClient
         .ensureQueryData({
-            queryKey: ['public-stations-by-draw-date', normalizedDates] as const,
+            queryKey: publicStationsQueryKeys.byDrawDate(normalizedDates),
             queryFn: () => getPublicStationsByDrawDate(normalizedDates),
         })
         .catch((): PublicStationSchedule[] => []);

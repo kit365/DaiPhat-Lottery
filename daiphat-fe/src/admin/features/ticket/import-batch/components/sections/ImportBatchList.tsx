@@ -1,17 +1,10 @@
 "use client";
 
-import MoreVertIcon from '@mui/icons-material/MoreVert';
-import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
 import ConfirmationNumberOutlinedIcon from '@mui/icons-material/ConfirmationNumberOutlined';
 import {
     Box,
     Card,
     CircularProgress,
-    IconButton,
-    ListItemIcon,
-    ListItemText,
-    Menu,
-    MenuItem,
     Stack,
     Table,
     TableBody,
@@ -27,7 +20,9 @@ import dayjs from 'dayjs';
 import { useCallback, useState } from 'react';
 import { toast } from 'react-toastify';
 import { useAdminRouter } from '@/admin/hooks/useAdminRouter';
-import { CanAccess } from '../../../../../components/auth/CanAccess';
+import { useActiveSuppliers } from '../../../../supplier';
+import { useImportBatchIntakeGate } from '../../hooks/useImportBatchIntakeGate';
+import { AdminRowActionsMenu } from '../../../../../components/ui/AdminRowActionsMenu';
 import { PERMISSIONS } from '../../../../../constants/permission.constants';
 import { ROUTES } from '../../../../../constants/routes';
 import { ImportBatchLineImportHost } from '../../../inventory/components/sections/ImportBatchLineImportHost';
@@ -67,6 +62,8 @@ type ImportBatchListProps = {
 export const ImportBatchList = ({ listHook }: ImportBatchListProps) => {
     const router = useAdminRouter();
     const { settings, setSettings } = useSettings();
+    const { data: activeSuppliers = [] } = useActiveSuppliers();
+    const { evaluate: evaluateIntake } = useImportBatchIntakeGate();
     const {
         batches,
         pagination,
@@ -79,8 +76,6 @@ export const ImportBatchList = ({ listHook }: ImportBatchListProps) => {
         setPage,
         setLimit,
     } = listHook;
-    const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null);
-    const [menuBatch, setMenuBatch] = useState<ImportBatch | null>(null);
     const [importTarget, setImportTarget] = useState<{ batchId: number; lineId: string } | null>(null);
 
     const page = (filters.page ?? 1) - 1;
@@ -100,22 +95,18 @@ export const ImportBatchList = ({ listHook }: ImportBatchListProps) => {
         setSearch('');
     };
 
-    const handleOpenMenu = (event: React.MouseEvent<HTMLElement>, batch: ImportBatch) => {
-        setMenuAnchor(event.currentTarget);
-        setMenuBatch(batch);
-    };
-
-    const handleCloseMenu = () => {
-        setMenuAnchor(null);
-        setMenuBatch(null);
-    };
-
     const handleViewDetail = useCallback(
         (batchId: number) => router.push(ROUTES.ADMIN.IMPORT_BATCH.DETAIL(batchId)),
         [router]
     );
 
     const handleAddTicket = useCallback((batch: ImportBatch) => {
+        const supplier = activeSuppliers.find((entry) => entry.id === batch.supplierId);
+        const intake = evaluateIntake(supplier, batch.drawDate);
+        if (intake.blocked || intake.notYetAllowed) {
+            return;
+        }
+
         const firstLine = findFirstIncompleteLine(batch);
         if (firstLine?.id != null) {
             setImportTarget({ batchId: batch.id, lineId: String(firstLine.id) });
@@ -128,7 +119,7 @@ export const ImportBatchList = ({ listHook }: ImportBatchListProps) => {
         }
         toast.info('Không còn dòng nào cần nhập vé. Mở chi tiết phiếu để kiểm tra.');
         router.push(ROUTES.ADMIN.IMPORT_BATCH.DETAIL(batch.id));
-    }, [router]);
+    }, [activeSuppliers, evaluateIntake, router]);
 
     const handleCloseImportDialog = useCallback(() => {
         setImportTarget(null);
@@ -227,6 +218,12 @@ export const ImportBatchList = ({ listHook }: ImportBatchListProps) => {
                                         );
                                         const missingStations = importBatchMissingStations(batch);
                                         const hasPending = batchHasPendingLines(batch);
+                                        const batchSupplier = activeSuppliers.find(
+                                            (entry) => entry.id === batch.supplierId
+                                        );
+                                        const batchIntake = evaluateIntake(batchSupplier, batch.drawDate);
+                                        const importTicketBlocked =
+                                            batchIntake.blocked || batchIntake.notYetAllowed;
 
                                         return (
                                             <TableRow key={batch.id} hover>
@@ -312,19 +309,28 @@ export const ImportBatchList = ({ listHook }: ImportBatchListProps) => {
                                                     </span>
                                                 </TableCell>
                                                 <TableCell align="right">
-                                                    <IconButton
-                                                        size="small"
-                                                        aria-label="Thao tác"
-                                                        onClick={(e) => handleOpenMenu(e, batch)}
-                                                        className="admin-table-action"
-                                                        sx={{
-                                                            bgcolor: menuBatch?.id === batch.id && menuAnchor
-                                                                ? 'var(--palette-action-hover)'
-                                                                : 'transparent',
-                                                        }}
-                                                    >
-                                                        <MoreVertIcon fontSize="small" />
-                                                    </IconButton>
+                                                    <AdminRowActionsMenu
+                                                        items={[
+                                                            {
+                                                                id: 'view',
+                                                                label: 'Xem chi tiết',
+                                                                icon: 'view',
+                                                                onClick: () => handleViewDetail(batch.id),
+                                                            },
+                                                            {
+                                                                id: 'import',
+                                                                label: 'Nhập vé',
+                                                                icon: <ConfirmationNumberOutlinedIcon fontSize="small" />,
+                                                                hidden: !isImportBatchEditable(batch),
+                                                                permission: PERMISSIONS.TICKET.CREATE,
+                                                                disabled: importTicketBlocked,
+                                                                disabledTitle:
+                                                                    batchIntake.tooltipTitle ??
+                                                                    'Không thể nhập vé lúc này.',
+                                                                onClick: () => handleAddTicket(batch),
+                                                            },
+                                                        ]}
+                                                    />
                                                 </TableCell>
                                             </TableRow>
                                         );
@@ -356,53 +362,6 @@ export const ImportBatchList = ({ listHook }: ImportBatchListProps) => {
                     />
                 </Box>
             </Card>
-
-            <Menu
-                anchorEl={menuAnchor}
-                open={Boolean(menuAnchor && menuBatch)}
-                onClose={handleCloseMenu}
-                anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-                transformOrigin={{ vertical: 'top', horizontal: 'right' }}
-                slotProps={{
-                    paper: {
-                        sx: {
-                            minWidth: 180,
-                            boxShadow: 'var(--customShadows-z20)',
-                            borderRadius: 'var(--shape-borderRadius-md)',
-                            py: 0.5,
-                        },
-                    },
-                }}
-            >
-                <MenuItem
-                    className="admin-menu-item"
-                    onClick={() => {
-                        if (menuBatch) handleViewDetail(menuBatch.id);
-                        handleCloseMenu();
-                    }}
-                >
-                    <ListItemIcon>
-                        <VisibilityOutlinedIcon fontSize="small" />
-                    </ListItemIcon>
-                    <ListItemText primary="Xem chi tiết" />
-                </MenuItem>
-                {menuBatch && isImportBatchEditable(menuBatch) && (
-                    <CanAccess permission={PERMISSIONS.TICKET.CREATE}>
-                        <MenuItem
-                            className="admin-menu-item"
-                            onClick={() => {
-                                if (menuBatch) handleAddTicket(menuBatch);
-                                handleCloseMenu();
-                            }}
-                        >
-                            <ListItemIcon>
-                                <ConfirmationNumberOutlinedIcon fontSize="small" />
-                            </ListItemIcon>
-                            <ListItemText primary="Nhập vé" />
-                        </MenuItem>
-                    </CanAccess>
-                )}
-            </Menu>
 
             <ImportBatchLineImportHost
                 batchId={importTarget?.batchId ?? null}

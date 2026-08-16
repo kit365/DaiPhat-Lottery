@@ -312,6 +312,54 @@ export const adminTheme = createTheme({
                 },
             }
         },
+        MuiDialog: {
+            defaultProps: {
+                fullWidth: true,
+            },
+            styleOverrides: {
+                paper: {
+                    padding: 0,
+                    borderRadius: "16px",
+                    boxShadow: "var(--customShadows-dialog, 0px 24px 48px -8px rgba(0, 0, 0, 0.16))",
+                    backgroundColor: "#FFFFFF",
+                    overflow: "hidden",
+                },
+            },
+        },
+        MuiDialogTitle: {
+            styleOverrides: {
+                root: {
+                    margin: 0,
+                    padding: "20px 24px 16px",
+                    fontWeight: 700,
+                    fontSize: "1.125rem",
+                    lineHeight: 1.5,
+                    borderBottom: "1px solid var(--palette-divider)",
+                    backgroundColor: "#FFFFFF",
+                },
+            },
+        },
+        MuiDialogContent: {
+            styleOverrides: {
+                root: {
+                    padding: "24px 24px 8px",
+                    backgroundColor: "#FFFFFF",
+                    "&.MuiDialogContent-dividers": {
+                        padding: "24px",
+                    },
+                },
+            },
+        },
+        MuiDialogActions: {
+            styleOverrides: {
+                root: {
+                    padding: "20px 24px",
+                    gap: "12px",
+                    borderTop: "1px solid var(--palette-divider)",
+                    backgroundColor: "#FFFFFF",
+                },
+            },
+        },
         MuiMenu: {
             defaultProps: {
                 PaperProps: {
@@ -366,6 +414,16 @@ export const adminTheme = createTheme({
                     padding: '6px',
                     marginBottom: '4px',
                     borderRadius: "var(--shape-borderRadius-sm)",
+                },
+            },
+        },
+        MuiTableCell: {
+            styleOverrides: {
+                root: {
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    verticalAlign: 'middle',
                 },
             },
         },
@@ -472,7 +530,16 @@ export const adminTheme = createTheme({
                     '& .MuiDataGrid-withBorderColor': { borderColor: 'var(--palette-background-neutral)' },
                     
                     '& .MuiDataGrid-cell': {
-                        color: 'inherit', fontSize: "0.875rem", display: 'flex', alignItems: 'center',
+                        color: 'inherit',
+                        fontSize: "0.875rem",
+                        display: 'flex',
+                        alignItems: 'center',
+                        overflow: 'hidden',
+                        minWidth: 0,
+                        '& > *': {
+                            minWidth: 0,
+                            maxWidth: '100%',
+                        },
                     },
 
                     '& .MuiDataGrid-row:hover, & .MuiDataGrid-row.Mui-hovered': {

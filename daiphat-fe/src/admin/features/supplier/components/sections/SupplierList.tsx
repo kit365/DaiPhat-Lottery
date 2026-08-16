@@ -17,7 +17,7 @@ import {
 } from '../../../../shared/data-grid';
 import { columnsConfig, columnsInitialState } from '../configs/column.config';
 import { SupplierToolbar } from './SupplierToolbar';
-import { DATA_GRID_LOCALE_VN } from '../../../../../shared/components/DataTable/localeText.config';
+import { DATA_GRID_LOCALE_VN } from "@/admin/components/data-grid/localeText.config";
 import type { useSupplierList } from '../../hooks/useSupplier';
 
 declare module '@mui/x-data-grid' {

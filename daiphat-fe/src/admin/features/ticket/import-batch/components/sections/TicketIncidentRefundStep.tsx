@@ -23,7 +23,7 @@ import { useQueries } from '@tanstack/react-query';
 import { getOrderDetail } from '../../../../orders/services/orderService';
 import { OrderStatusBadge } from '@/shared/components/StatusBadge';
 import { prefixAdmin } from '../../../../../constants/routes';
-import { orderDetailRefundPrepQueryKey } from '@/constants/queryKeys';
+import { orderDetailRefundPrepQueryKey } from '../../constants/queryKeys';
 import { OrderDetailStatus } from '../../../../../../types/order.type';
 import {
     formatRefundCurrency,

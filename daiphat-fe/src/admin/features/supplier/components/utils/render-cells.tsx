@@ -7,6 +7,7 @@ import { ROUTES } from '../../../../constants/routes';
 import { PERMISSIONS } from '../../../../constants/permission.constants';
 import { useAuthStore } from '../../../../../stores/useAuthStore';
 import { AdminRowActionsMenu } from '../../../../components/ui/AdminRowActionsMenu';
+import { AdminStatusBadge } from '../../../../components/ui/AdminStatusBadge';
 import { getSupplierStatusLabel, getSupplierTypeLabel } from '../../utils/supplierLabels';
 
 export const RenderNameCell = (params: GridRenderCellParams) => {
@@ -39,7 +40,7 @@ export const RenderStatusCell = (params: GridRenderCellParams) => {
     const label = getSupplierStatusLabel(isActive);
     const modifier = isActive ? 'admin-status-badge--active' : 'admin-status-badge--inactive';
 
-    return <span className={`admin-status-badge ${modifier}`}>{label}</span>;
+    return <AdminStatusBadge label={label} modifier={modifier} />;
 };
 
 export const RenderActionsCell = (params: GridRenderCellParams) => {

@@ -66,6 +66,7 @@ import { getMetricChipSx } from "@/admin/utils/badge";
 import { useVendorSettingsDefaults } from "../../hooks/useVendorSettingsDefaults";
 import { ConfirmVendorDepositDialog } from "../ConfirmVendorDepositDialog";
 import { AdminTicketCard } from "../../../../components/ui/AdminTicketCard";
+import { AdminLuckyDisplay } from "@/shared/lucky-number";
 import { StationCapacityBadges } from "../sections/StationCapacityBadges";
 import { AdminDatePicker } from "../../../../components/ui/AdminDatePicker";
 import { VendorAllocationStationDrawer } from "../sections/VendorAllocationStationDrawer";
@@ -786,7 +787,13 @@ export const VendorAllocationPage = () => {
                             ) : undefined
                         }
                     >
-                        Phiếu {draftBatch.batchCode} đang giữ {draftBatch.allocatedQuantity} vé. Hết hạn giữ chỗ sau <strong>{countdown}</strong>
+                        Phiếu {draftBatch.batchCode} đang giữ{" "}
+                        <AdminLuckyDisplay
+                            component="span"
+                            value={`${draftBatch.allocatedQuantity} vé`}
+                            fontWeight={700}
+                        />
+                        . Hết hạn giữ chỗ sau <strong>{countdown}</strong>
                         {isExpired ? " (đã hết hạn)." : "."}
                     </Alert>
                 )}
@@ -844,8 +851,9 @@ export const VendorAllocationPage = () => {
                             <AdminDatePicker
                                 label="Ngày kinh doanh"
                                 value={businessDate}
+                                required
                                 onChange={(next) => {
-                                    if (next && next < minBusinessDate) return;
+                                    if (!next || next < minBusinessDate) return;
                                     setBusinessDate(next);
                                 }}
                                 min={minBusinessDate}
@@ -925,7 +933,13 @@ export const VendorAllocationPage = () => {
                                             whiteSpace: "nowrap",
                                         }}
                                     >
-                                        Đã chọn {totalSelected}/{suggestion?.allowedQuantity ?? 0}:
+                                        Đã chọn{" "}
+                                        <AdminLuckyDisplay
+                                            component="span"
+                                            value={`${totalSelected}/${suggestion?.allowedQuantity ?? 0}`}
+                                            fontWeight={700}
+                                        />
+                                        :
                                     </Typography>
                                     <DisabledWithTooltip
                                         title={selectionModeDisabledReason}
@@ -1060,16 +1074,50 @@ export const VendorAllocationPage = () => {
                                 )}
                             </Stack>
                             {suggestion.shortfallQuantity > 0 && (
-                                <Alert severity="warning">
-                                    <Stack spacing={0.25}>
-                                        <Typography variant="body2">
-                                            Chỉ có thể bàn giao {suggestion.allowedQuantity}/{suggestion.requestedQuantity} vé.
-                                        </Typography>
-                                        {suggestionReasonMessages.map((message) => (
-                                            <Typography key={message} variant="body2">{message}</Typography>
-                                        ))}
+                                <Alert severity="warning" sx={{ alignItems: "flex-start" }}>
+                                    <Stack spacing={1.25} sx={{ width: "100%", minWidth: 0 }}>
+                                        <Stack spacing={0.5}>
+                                            <Typography variant="body2">
+                                                Chỉ có thể bàn giao{" "}
+                                                <AdminLuckyDisplay
+                                                    component="span"
+                                                    value={`${suggestion.allowedQuantity}/${suggestion.requestedQuantity} vé`}
+                                                    fontWeight={700}
+                                                />
+                                                .
+                                            </Typography>
+                                            {suggestionReasonMessages.map((message) => (
+                                                <Typography key={message} variant="body2">
+                                                    {message}
+                                                </Typography>
+                                            ))}
+                                        </Stack>
+                                        <FormControlLabel
+                                            sx={{
+                                                m: 0,
+                                                alignItems: "flex-start",
+                                                gap: 1,
+                                                "& .MuiCheckbox-root": { p: 0.25, mt: 0.125 },
+                                            }}
+                                            control={
+                                                <Checkbox
+                                                    size="small"
+                                                    checked={acceptShortfall}
+                                                    onChange={(_, checked) => setAcceptShortfall(checked)}
+                                                />
+                                            }
+                                            label={
+                                                <Typography variant="body2" component="span">
+                                                    Đồng ý bàn giao{" "}
+                                                    <AdminLuckyDisplay
+                                                        component="span"
+                                                        value={`${suggestion.allowedQuantity}/${suggestion.requestedQuantity} vé`}
+                                                        fontWeight={700}
+                                                    />
+                                                </Typography>
+                                            }
+                                        />
                                     </Stack>
-                                    <FormControlLabel sx={{ display: "block", mt: 0.5 }} control={<Checkbox checked={acceptShortfall} onChange={(_, checked) => setAcceptShortfall(checked)} />} label={`Đồng ý bàn giao ${suggestion.allowedQuantity}/${suggestion.requestedQuantity} vé`} />
                                 </Alert>
                             )}
                         </Stack>

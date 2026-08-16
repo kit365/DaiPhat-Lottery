@@ -6,6 +6,9 @@ export interface IncidentTicketDisplay {
     drawDate?: string;
     /** Order-detail lifecycle status (ACTIVE, REFUND_PENDING, ...). */
     status?: string;
+    statusDisplayName?: string;
+    lotteryTicketId?: number | string;
+    lotteryTicketSerialId?: number | string;
     /** Physical serial status (PROXY_HOLDING, SOLD, ...). */
     serialStatus?: string;
     serialStatusDisplayName?: string;

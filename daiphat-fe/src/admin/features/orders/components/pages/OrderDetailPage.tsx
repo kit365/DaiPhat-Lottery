@@ -28,7 +28,12 @@ import dayjs from "dayjs";
 import { PageHeader } from "../../../../components/ui/PageHeader";
 import { SpinnerLoading } from "../../../../components/ui/SpinnerLoading";
 import { useOrderDetail, useUpdateOrderStatus } from "../../hooks/useOrder";
-import { OrderStatus, resolveLotteryTicketSerialStatusBadge } from "../../../../../types/order.type";
+import {
+    OrderStatus,
+    getOrderDetailStatusAdminBadgeModifier,
+    resolveOrderDetailStatusBadge,
+} from "../../../../../types/order.type";
+import { resolveLotteryTicketSerialAdminBadge } from "../../utils/lotteryTicketSerialAdminBadge.util";
 import { toast } from "react-toastify";
 import { prefixAdmin } from "../../../../constants/routes";
 import { confirmAction } from "../../../../utils/swal";
@@ -37,9 +42,10 @@ import { PERMISSIONS } from "../../../../constants/permission.constants";
 import { OrderInspectionSection } from "../sections/OrderInspectionSection";
 import { OrderHandoverConfirmDialog } from "../sections/OrderHandoverConfirmDialog";
 import { OrderSteppersCard } from "../sections/OrderSteppersCard";
-import { getOrderStatusBadge } from '../../utils/orderStatusBadge';
-import { OrderDetailStatusBadge, OrderStatusBadge } from '@/shared/components/StatusBadge';
-import { resolveOrderPaymentMethodLabel } from "../../../../../utils/orderPayment.util";
+import { getOrderStatusBadge, getOrderStatusAdminBadgeModifier } from '@/shared/components/StatusBadge/orderStatusMap';
+import { AdminStatusBadge } from '../../../../components/ui/AdminStatusBadge';
+import { AdminLuckyDisplay } from '@/shared/lucky-number';
+import { resolveOrderPaymentMethodLabel } from '@/admin/features/orders/utils/orderPayment.util';
 
 const PAYMENT_STATUS_OPTIONS: { [key: string]: { label: string; color: string; bg: string } } = {
     unpaid: { label: "Chưa thanh toán", color: "var(--palette-error-dark)", bg: "var(--palette-error-lighter)" },
@@ -314,7 +320,10 @@ export const OrderDetailPage = () => {
 
                                 <Grid size={{ xs: 12, sm: 6, md: 1.5 }}>
                                     <Typography variant="caption" sx={{ color: 'var(--palette-text-disabled)', display: 'block', mb: 1 }}>Trạng thái</Typography>
-                                    <OrderStatusBadge status={order.status} />
+                                    <AdminStatusBadge
+                                        label={getOrderStatusBadge(order.status).label}
+                                        modifier={getOrderStatusAdminBadgeModifier(order.status)}
+                                    />
                                 </Grid>
                             </Grid>
 
@@ -361,7 +370,6 @@ export const OrderDetailPage = () => {
                             <Card sx={{ borderRadius: 'var(--shape-borderRadius-lg)', boxShadow: 'var(--customShadows-card)' }}>
                                 <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ pt: 3, px: 3, pb: 3 }}>
                                     <Stack direction="row" spacing={1} alignItems="center">
-                                        <Icon icon="solar:ticket-bold-duotone" width={24} style={{ color: 'var(--palette-success-main)' }} />
                                         <Typography sx={{ fontSize: '1.125rem', fontWeight: 700, color: 'var(--palette-text-primary)' }}>Danh sách vé</Typography>
                                         <Typography variant="body2" sx={{ color: 'var(--palette-text-secondary)', ml: 1 }}>({order.orderDetails?.length || 0} vé)</Typography>
                                     </Stack>
@@ -384,7 +392,6 @@ export const OrderDetailPage = () => {
                                                 <TableCell align="center" sx={{ color: 'var(--palette-text-secondary)', fontWeight: 600, borderBottom: 'none' }}>Vé số</TableCell>
                                                 <TableCell sx={{ color: 'var(--palette-text-secondary)', fontWeight: 600, borderBottom: 'none' }}>Đài</TableCell>
                                                 <TableCell sx={{ color: 'var(--palette-text-secondary)', fontWeight: 600, borderBottom: 'none' }}>Ngày xổ</TableCell>
-                                                <TableCell sx={{ color: 'var(--palette-text-secondary)', fontWeight: 600, borderBottom: 'none' }}>Loại vé</TableCell>
                                                 <TableCell sx={{ color: 'var(--palette-text-secondary)', fontWeight: 600, borderBottom: 'none' }}>Giá</TableCell>
                                                 <TableCell sx={{ color: 'var(--palette-text-secondary)', fontWeight: 600, borderBottom: 'none' }}>Trạng thái</TableCell>
                                                 <TableCell sx={{ color: 'var(--palette-text-secondary)', fontWeight: 600, borderBottom: 'none' }}>Hoạt động</TableCell>
@@ -409,38 +416,52 @@ export const OrderDetailPage = () => {
                                                     detail.ticketConditionDisplayName
                                                     || allocatedSerial?.ticketConditionDisplayName
                                                     || null;
-                                                const serialBadge = resolveLotteryTicketSerialStatusBadge(
+                                                const serialBadge = resolveLotteryTicketSerialAdminBadge(
                                                     serialStatus,
                                                     serialStatusLabel,
                                                     ticketCondition,
                                                     ticketConditionLabel
                                                 );
+                                                const activityBadge = resolveOrderDetailStatusBadge(
+                                                    detail.status,
+                                                    detail.statusDisplayName
+                                                );
 
                                                 return (
                                                 <TableRow key={detail.id || detail.lotteryTicketSerialId || detail.serialNumber} sx={{ '&:last-child td, &:last-child th': { border: 0 } }}>
                                                     <TableCell align="center">
-                                                        <Stack direction="row" spacing={1} alignItems="center" justifyContent="center">
-                                                            <Avatar variant="rounded" sx={{ width: 32, height: 32, bgcolor: '#ee1314', color: 'white' }}>
-                                                                <Icon icon="solar:ticket-bold-duotone" width={20} />
-                                                            </Avatar>
-                                                            <Box sx={{ textAlign: 'left' }}>
-                                                                <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'var(--palette-text-primary)' }}>
-                                                                    {detail.numbers || detail.lotteryTicket?.numbers || detail.lotteryTicket?.symbol || detail.lotteryTicket?.ticketNumber || 'N/A'}
+                                                        <Box>
+                                                            <AdminLuckyDisplay
+                                                                value={
+                                                                    detail.numbers
+                                                                    || detail.lotteryTicket?.numbers
+                                                                    || detail.lotteryTicket?.symbol
+                                                                    || detail.lotteryTicket?.ticketNumber
+                                                                }
+                                                                ticket
+                                                                fontSize="0.875rem"
+                                                                fontWeight={700}
+                                                                letterSpacing="0.06em"
+                                                                sx={{ color: 'var(--palette-text-primary)' }}
+                                                            />
+                                                            {(detail.serialNumber
+                                                                || detail.replacedByTicketSerial?.serialNumber
+                                                                || detail.replaceTicketSerial?.serialNumber
+                                                                || detail.lotteryTicketSerial?.serialNumber) && (
+                                                                <Typography
+                                                                    variant="caption"
+                                                                    color="text.secondary"
+                                                                    component="div"
+                                                                    sx={{ mt: 0.25, lineHeight: 1.4, wordBreak: 'break-all' }}
+                                                                >
+                                                                    SN: {detail.serialNumber
+                                                                        || detail.replacedByTicketSerial?.serialNumber
+                                                                        || detail.replaceTicketSerial?.serialNumber
+                                                                        || detail.lotteryTicketSerial?.serialNumber}
+                                                                    {detail.replacedByTicketSerialId || detail.replacedByTicketSerial || detail.replaceTicketSerial ? ' (đã thay)' : ''}
                                                                 </Typography>
-                                                                {(detail.serialNumber
-                                                                    || detail.replacedByTicketSerial?.serialNumber
-                                                                    || detail.replaceTicketSerial?.serialNumber
-                                                                    || detail.lotteryTicketSerial?.serialNumber) && (
-                                                                    <Typography variant="caption" color="text.secondary">
-                                                                        SN: {detail.serialNumber
-                                                                            || detail.replacedByTicketSerial?.serialNumber
-                                                                            || detail.replaceTicketSerial?.serialNumber
-                                                                            || detail.lotteryTicketSerial?.serialNumber}
-                                                                        {detail.replacedByTicketSerialId || detail.replacedByTicketSerial || detail.replaceTicketSerial ? ' (đã thay)' : ''}
-                                                                    </Typography>
-                                                                )}
-                                                            </Box>
-                                                        </Stack>
+                                                            )}
+                                                        </Box>
                                                     </TableCell>
                                                     <TableCell>
                                                         <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'var(--palette-text-primary)' }}>
@@ -453,17 +474,6 @@ export const OrderDetailPage = () => {
                                                                 ? dayjs(detail.drawDate || detail.lotteryTicket?.drawDate).format("DD/MM/YYYY")
                                                                 : 'N/A'}
                                                         </Typography>
-                                                        <Typography variant="caption" sx={{ color: 'var(--palette-text-disabled)' }}>
-                                                            {(detail.drawDate || detail.lotteryTicket?.drawDate)
-                                                                ? dayjs(detail.drawDate || detail.lotteryTicket?.drawDate).locale('vi').format("dddd")
-                                                                : 'N/A'}
-                                                        </Typography>
-                                                    </TableCell>
-
-                                                    <TableCell>
-                                                        <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'var(--palette-text-primary)' }}>
-                                                            Vé thường
-                                                        </Typography>
                                                     </TableCell>
 
                                                     <TableCell>
@@ -471,22 +481,17 @@ export const OrderDetailPage = () => {
                                                             {(detail.price || 10000).toLocaleString('vi-VN')}đ
                                                         </Typography>
                                                     </TableCell>
-                                                    <TableCell>
-                                                        <Chip
+                                                    <TableCell align="center">
+                                                        <AdminStatusBadge
                                                             label={serialBadge.label}
-                                                            size="small"
-                                                            sx={{
-                                                                fontWeight: 700,
-                                                                height: 24,
-                                                                fontSize: '0.75rem',
-                                                                borderRadius: '6px',
-                                                                color: serialBadge.color,
-                                                                bgcolor: serialBadge.bgcolor,
-                                                            }}
+                                                            modifier={serialBadge.modifier}
                                                         />
                                                     </TableCell>
-                                                    <TableCell>
-                                                        <OrderDetailStatusBadge status={detail.status} />
+                                                    <TableCell align="center">
+                                                        <AdminStatusBadge
+                                                            label={activityBadge.label}
+                                                            modifier={getOrderDetailStatusAdminBadgeModifier(detail.status)}
+                                                        />
                                                     </TableCell>
                                                 </TableRow>
                                                 );

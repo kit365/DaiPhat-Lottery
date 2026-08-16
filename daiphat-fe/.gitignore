@@ -1,32 +1,7 @@
-# Files and folders to ignore
-PRD.md
-stitch_daiphat_2/
-.vercel
 node_modules/
 .next/
 tsconfig.tsbuildinfo
 *.log
 
-tsconfig.tsbuildinfo
-
-# design-sync (claude.ai/design)
-.ds-sync/
-.ds-entry.tsx
-ds-bundle/
-.design-sync/.cache/
-.design-sync/learnings/
-.design-sync/node_modules
-
-# Claude Code personal overrides
-.claude/settings.local.json
-
-# design-sync (claude.ai/design)
-.ds-sync/
-.ds-entry.tsx
-ds-bundle/
-.design-sync/.cache/
-.design-sync/learnings/
-.design-sync/node_modules
-
-# Claude Code personal overrides
+# Claude Code local overrides
 .claude/settings.local.json

@@ -40,7 +40,7 @@ import { UploadSingleFile } from '../../../../../components/upload/UploadSingleF
 import { uploadAdminImage } from '@/admin/shared/services/upload.service';
 import { ImportBatchTicketListImagesField } from '../sections/ImportBatchTicketListImagesField';
 import { prefixAdmin, ROUTES } from '../../../../../constants/routes';
-import { useCreateImportBatch, useEligibleImportBatchStations, useImportBatchTimePolicy } from '../../hooks/useImportBatch';
+import { useCreateImportBatch, useEligibleImportBatchStations } from '../../hooks/useImportBatch';
 import { useActiveSuppliers } from '../../../../supplier';
 import { formatSupplierTime } from '../../../../supplier/utils/supplierTimeFields';
 import { createImportBatchSchema, CreateImportBatchFormValues } from '../../schemas/importBatch.schema';
@@ -50,12 +50,10 @@ import { ImportBatchLineRow } from '../sections/ImportBatchLineRow';
 import {
     getDefaultInitialDrawDate,
     getDrawDateInputBounds,
-    isBeforeSupplierImportAllowFrom,
     isDrawDateToday,
-    isInReturnCutOffWarningWindow,
-    isReturnCutOffPassed,
     resolveImportModeLock,
 } from '../../utils/importBatchDrawDate';
+import { useImportBatchIntakeGate } from '../../hooks/useImportBatchIntakeGate';
 import { ImportBatchDeclaredQuantityProgress } from '../sections/ImportBatchDeclaredQuantityProgress';
 import {
     declaredQuantitiesMatch,
@@ -133,7 +131,8 @@ export const ImportBatchCreatePage = () => {
     const invoiceEvidenceUrl = useWatch({ control, name: 'invoiceEvidenceUrl' });
     const ticketListImageUrls = useWatch({ control, name: 'ticketListImageUrls' }) ?? [];
     const lines = useWatch({ control, name: 'lines' }) ?? [];
-    const [nowTick, setNowTick] = useState(() => dayjs());
+
+    const { evaluate: evaluateIntake } = useImportBatchIntakeGate();
 
     const { data: stationsResult, isLoading: isLoadingStations } = useEligibleImportBatchStations(
         drawDate,
@@ -143,8 +142,6 @@ export const ImportBatchCreatePage = () => {
     const blockedStations = stationsResult?.blocked ?? [];
     const drawDateBounds = getDrawDateInputBounds();
     const { data: activeSuppliers = [], isLoading: isLoadingSuppliers } = useActiveSuppliers();
-    const { data: timePolicy } = useImportBatchTimePolicy();
-    const returnBufferMinutes = timePolicy?.returnBufferMinutes ?? 45;
     const { mutateAsync: createAsync, isPending } = useCreateImportBatch();
     const [isSaving, setIsSaving] = useState(false);
     const [isReceiptUploading, setIsReceiptUploading] = useState(false);
@@ -292,29 +289,17 @@ export const ImportBatchCreatePage = () => {
         [activeSuppliers, supplierId]
     );
 
-    const isImportAllowBlocked =
-        !!selectedSupplier &&
-        isBeforeSupplierImportAllowFrom(selectedSupplier.importAllowFrom, nowTick);
+    const intakeGate = useMemo(
+        () => evaluateIntake(selectedSupplier, drawDate),
+        [evaluateIntake, selectedSupplier, drawDate]
+    );
 
-    const isReturnCutOffBlocked =
-        !!selectedSupplier &&
-        isDrawDateToday(drawDate) &&
-        isReturnCutOffPassed(selectedSupplier.returnCutOffTime, nowTick);
-
-    const isReturnCutOffWarning =
-        !!selectedSupplier &&
-        isDrawDateToday(drawDate) &&
-        !isReturnCutOffBlocked &&
-        isInReturnCutOffWarningWindow(
-            selectedSupplier.returnCutOffTime,
-            returnBufferMinutes,
-            nowTick
-        );
-
+    const isImportAllowBlocked = intakeGate.notYetAllowed;
+    const isReturnCutOffBlocked = intakeGate.blocked;
+    const isReturnCutOffWarning = intakeGate.warning;
     const isFormBlocked = isImportAllowBlocked || isReturnCutOffBlocked;
     const canShowBatchFields = !isImportAllowBlocked && !isReturnCutOffBlocked;
 
-    // When a supplier is selected or time ticks, if today's cutoff has passed, automatically set drawDate to tomorrow
     useEffect(() => {
         if (!formInitialized || !selectedSupplier) {
             return;
@@ -322,21 +307,13 @@ export const ImportBatchCreatePage = () => {
         const currentDrawDate = getValues('drawDate');
         if (
             isDrawDateToday(currentDrawDate) &&
-            isReturnCutOffPassed(selectedSupplier.returnCutOffTime, nowTick)
+            evaluateIntake(selectedSupplier, currentDrawDate).blocked
         ) {
             setValue('drawDate', dayjs().add(1, 'day').format('YYYY-MM-DD'), {
                 shouldValidate: true,
             });
         }
-    }, [selectedSupplier, formInitialized, getValues, nowTick, setValue]);
-
-    useEffect(() => {
-        if (!isImportAllowBlocked && !isReturnCutOffWarning) {
-            return;
-        }
-        const timer = window.setInterval(() => setNowTick(dayjs()), 15_000);
-        return () => window.clearInterval(timer);
-    }, [isImportAllowBlocked, isReturnCutOffWarning]);
+    }, [selectedSupplier, formInitialized, getValues, evaluateIntake, setValue]);
 
     const importModeLock = useMemo(() => resolveImportModeLock(drawDate), [drawDate]);
 
@@ -496,7 +473,10 @@ export const ImportBatchCreatePage = () => {
             if (isImportAllowBlocked) {
                 toast.error('Chưa đến giờ cho phép nhập vé của nhà cung cấp đã chọn.');
             } else {
-                toast.error('Đã qua giờ chốt trả vé của nhà cung cấp. Không thể tạo phiếu nhập lô mới.');
+                toast.error(
+                    intakeGate.message ??
+                        'Đã qua giờ cho phép nhập lô. Không thể tạo phiếu nhập lô mới cho kỳ quay hôm nay.'
+                );
             }
             return;
         }
@@ -837,9 +817,8 @@ export const ImportBatchCreatePage = () => {
                                     {isReturnCutOffBlocked && (
                                         <Grid size={{ xs: 12 }}>
                                             <Alert severity="error" sx={{ borderRadius: '10px' }}>
-                                                Đã qua giờ chốt trả vé của nhà cung cấp này (
-                                                {formatSupplierTime(selectedSupplier?.returnCutOffTime)}).
-                                                Không thể tạo phiếu nhập lô mới cho kỳ quay hôm nay.
+                                                {intakeGate.message}
+                                                {' '}
                                                 Vui lòng chọn ngày quay ngày mai hoặc đợi kỳ quay khác.
                                             </Alert>
                                         </Grid>
@@ -848,9 +827,10 @@ export const ImportBatchCreatePage = () => {
                                     {isReturnCutOffWarning && (
                                         <Grid size={{ xs: 12 }}>
                                             <Alert severity="warning" sx={{ borderRadius: '10px' }}>
-                                                Sắp đến giờ chốt trả vé (
-                                                {formatSupplierTime(selectedSupplier?.returnCutOffTime)}).
-                                                Vui lòng cân nhắc trước khi tiếp tục tạo phiếu nhập lô.
+                                                Sắp đến giờ kiểm vé chuẩn bị trả (
+                                                {intakeGate.inspectionStartLabel ?? '—'}).
+                                                Sau mốc này sẽ không thể nhập thêm vé cho kỳ quay hôm nay
+                                                (giờ chốt trả vé: {intakeGate.returnCutOffLabel ?? '—'}).
                                             </Alert>
                                         </Grid>
                                     )}

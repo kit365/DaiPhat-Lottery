@@ -148,15 +148,10 @@ export const ImportBatchFileConfigDialog = ({
                 </Stack>
 
                 <IconButton
-                    size="small"
                     onClick={onClose}
-                    sx={{
-                        color: '#94a3b8',
-                        bgcolor: '#f8fafc',
-                        border: '1px solid #e2e8f0',
-                        borderRadius: '10px',
-                        '&:hover': { bgcolor: '#f1f5f9', color: '#334155' },
-                    }}
+                    aria-label="Đóng"
+                    size="small"
+                    sx={{ color: 'text.secondary', flexShrink: 0 }}
                 >
                     <CloseIcon fontSize="small" />
                 </IconButton>

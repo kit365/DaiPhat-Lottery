@@ -1,6 +1,4 @@
-// Middleware để bảo vệ route admin và auth
-// Chỉ cho phép access khi có token
-// Tránh mount UI rồi không có token, uổng
+// Middleware để bảo vệ route admin và auth trước khi vô mount UI rồi mới check trong Zustand có token không
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 

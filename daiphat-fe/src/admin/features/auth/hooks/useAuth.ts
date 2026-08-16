@@ -12,13 +12,13 @@ import {
     isRestrictedAdminRoleCode,
     persistAdminAccessToken,
 } from "@/admin/lib/adminSession.utils";
-import { authService } from "../services/auth.service";
-import { userService } from "../services/user.service";
+import { authService } from '@/shared/auth/services/auth.service';
+import { userService } from '@/shared/auth/services/user.service';
 import { useAuthStore } from "@/stores/useAuthStore";
 import { toast } from "react-toastify";
 import { ROUTES } from "@/admin/constants/routes";
 import { USER_ROLES } from "@/constants/role.constants";
-import { LoginResponse } from "../types/auth.type";
+import { LoginResponse } from '@/shared/auth/types/auth.type';
 import { LoginFormValues } from "@/admin/features/auth/schemas/login.schema";
 import { STORAGE_KEYS } from "@/constants/storage.constants";
 import { QUERY_KEYS } from "@/constants/queryKeys";

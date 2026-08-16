@@ -10,7 +10,7 @@ type SiteLogoProps = {
 };
 
 /**
- * Logo thương hiệu từ SITE_LOGO_URL (admin). Chỉ render khi DB đã có URL.
+ * Logo thương hiệu: SITE_LOGO_URL từ cấu hình, fallback ảnh client (ibb).
  */
 export const SiteLogo = ({
     className = 'w-10 h-10',

@@ -31,7 +31,6 @@ const nextConfig: NextConfig = {
       '@mui/icons-material',
       '@mui/x-data-grid',
       '@mui/x-date-pickers',
-      '@fullcalendar/react',
       'lucide-react',
       'framer-motion',
       'dayjs',

@@ -39,6 +39,7 @@ import {
     toUiTailRangeLabel,
 } from '../../utils/buyTicketFilter.util';
 import { PublicLotteryTicket } from '../../../types/lottery-ticket.type';
+import { LuckyNumber } from '../../components/ui/LuckyNumber';
 
 dayjs.locale('vi');
 
@@ -1155,7 +1156,9 @@ export const BuyTicketPage = () => {
                                                                                         : 'bg-[#F8FAFC] text-[#0F172A] border-[#E2E8F0] hover:bg-[#ee1314] hover:text-white hover:border-[#ee1314] hover:shadow-md hover:shadow-[#ee1314]/20'
                                                                                 }`}
                                                                             >
-                                                                                {ticket.numbers}
+                                                                                {ticket.numbers ? (
+                                                                                    <LuckyNumber value={String(ticket.numbers)} ticket />
+                                                                                ) : null}
                                                                             </button>
                                                                         );
                                                                     })}
@@ -1235,7 +1238,9 @@ export const BuyTicketPage = () => {
                                                     </div>
 
                                                     {/* Number */}
-                                                    <div className="font-black text-[20px] text-[#212B36] tracking-tight mb-1.5 leading-none">{num}</div>
+                                                    <div className="font-black text-[20px] text-[#212B36] tracking-tight mb-1.5 leading-none">
+                                                        <LuckyNumber value={String(num)} ticket className="text-[20px] tracking-tight" />
+                                                    </div>
 
                                                     {/* Price */}
                                                     <div className="font-bold text-[#ee1314] text-[14px]">{(ticket.price || 10000).toLocaleString('vi-VN')}đ</div>

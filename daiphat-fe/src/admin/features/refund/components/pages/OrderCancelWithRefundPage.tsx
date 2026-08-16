@@ -35,8 +35,12 @@ import { prefixAdmin } from '@/admin/constants/routes';
 import { SpinnerLoading } from '@/admin/components/ui/SpinnerLoading';
 import { useOrderDetail } from '@/admin/features/orders/hooks/useOrder';
 import { useCancelOrderWithRefund } from '@/admin/features/refund/hooks/useRefundManagement';
-import { OrderStatus } from '@/types/order.type';
-import { OrderDetailStatusBadge } from '@/shared/components/StatusBadge';
+import {
+    OrderStatus,
+    getOrderDetailStatusAdminBadgeModifier,
+    resolveOrderDetailStatusBadge,
+} from '@/types/order.type';
+import { AdminStatusBadge } from '@/admin/components/ui/AdminStatusBadge';
 import {
     ORDER_CANCEL_REASON_DEFAULTS,
     calculateOrderRefundAmount,
@@ -913,6 +917,10 @@ export function OrderCancelWithRefundPage() {
                                             const isReporting =
                                                 ticket.id != null && expandedTicketId === ticket.id;
                                             const hasStartedFilling = !!state?.faultedBy;
+                                            const activityBadge = resolveOrderDetailStatusBadge(
+                                                ticket.status,
+                                                ticket.statusDisplayName
+                                            );
 
                                             return (
                                                 <React.Fragment key={ticket.id}>
@@ -1047,8 +1055,11 @@ export function OrderCancelWithRefundPage() {
                                                                 đ
                                                             </Typography>
                                                         </TableCell>
-                                                        <TableCell>
-                                                            <OrderDetailStatusBadge status={ticket.status} />
+                                                        <TableCell align="center">
+                                                            <AdminStatusBadge
+                                                                label={activityBadge.label}
+                                                                modifier={getOrderDetailStatusAdminBadgeModifier(ticket.status)}
+                                                            />
                                                         </TableCell>
                                                         {cancelType === 'OUT_OF_STOCK_INCIDENT' && (
                                                             <TableCell align="right">

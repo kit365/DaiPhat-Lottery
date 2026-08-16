@@ -9,6 +9,8 @@ import { useRegions } from '../../../region/hooks/useRegion';
 import { useStations } from '../../../station/hooks/useStation';
 import { QUERY_KEYS as IMPORT_BATCH_QUERY_KEYS } from '../../import-batch/constants/queryKeys';
 import { useImportBatchDetail, useImportBatchLineEntryTickets } from '../../import-batch/hooks/useImportBatch';
+import { useImportBatchIntakeGate } from '../../import-batch/hooks/useImportBatchIntakeGate';
+import { useActiveSuppliers } from '../../../supplier';
 import type { ImportBatchLine } from '../../import-batch/types/importBatch.type';
 import {
     getImportBatchLineCancelledAlertMessage,
@@ -105,12 +107,21 @@ export const useImportBatchLineImportForm = ({
     const { data: importBatchDetail, isLoading: isBatchLoading } = useImportBatchDetail(
         enabled ? batchId || undefined : undefined
     );
+    const { data: activeSuppliers = [] } = useActiveSuppliers();
+    const { evaluate: evaluateIntake } = useImportBatchIntakeGate();
 
     const resolvedBatch =
         importBatchDetail && batchId && String(importBatchDetail.id) === String(batchId)
             ? importBatchDetail
             : null;
     const batchLines = resolvedBatch?.lines ?? [];
+    const intakeGate = useMemo(() => {
+        if (!resolvedBatch?.supplierId || !resolvedBatch.drawDate) {
+            return null;
+        }
+        const supplier = activeSuppliers.find((entry) => entry.id === resolvedBatch.supplierId);
+        return evaluateIntake(supplier, resolvedBatch.drawDate);
+    }, [activeSuppliers, evaluateIntake, resolvedBatch]);
 
     const { data: providersRes } = useStations({ limit: 1000 });
     const providers = (providersRes as { data?: { recordList?: Array<{ id?: number; _id?: number; name?: string; region?: string }> } })?.data?.recordList || [];
@@ -699,6 +710,11 @@ export const useImportBatchLineImportForm = ({
             return;
         }
 
+        if (intakeGate?.blocked || intakeGate?.notYetAllowed) {
+            toast.error(intakeGate.message ?? 'Không thể nhập vé vào phiếu này lúc này.');
+            return;
+        }
+
         if (isLineCancelled(selectedLine)) {
             toast.error(getImportBatchLineCancelledAlertMessage(selectedLine.cancelReason));
             return;
@@ -826,6 +842,7 @@ export const useImportBatchLineImportForm = ({
         resolvedBatch,
         batchLines,
         dialogLine,
+        intakeGate,
         isBatchLoading,
         isPending,
         resolveStationName,

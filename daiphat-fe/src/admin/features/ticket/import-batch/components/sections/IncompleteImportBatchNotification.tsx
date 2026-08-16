@@ -1,35 +1,49 @@
 "use client";
 
 import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import WarningAmberOutlinedIcon from '@mui/icons-material/WarningAmberOutlined';
 import ArrowForwardOutlinedIcon from '@mui/icons-material/ArrowForwardOutlined';
-import { Alert, Box, Button, Chip, Stack, Typography } from '@mui/material';
+import { Alert, Button, Chip, Stack, Typography } from '@mui/material';
+import dayjs from 'dayjs';
+import { useActiveSuppliers } from '../../../../supplier';
 import { ROUTES } from '../../../../../constants/routes';
 import { useIncompleteImportBatches } from '../../hooks/useImportBatch';
+import { useImportBatchIntakeGate } from '../../hooks/useImportBatchIntakeGate';
 import { useStations } from '../../../../station/hooks/useStation';
 import { formatImportBatchHeaderCode } from '../../utils/importBatchCode';
-import { getImportModeNotificationLabel, getImportModeBadgeClass } from '../../utils/batchTypeLabels';
+import { getImportModeNotificationLabel } from '../../utils/batchTypeLabels';
 import { ImportBatchNotificationDetailDialog } from './ImportBatchNotificationDetailDialog';
 import type { ImportBatch } from '../../types/importBatch.type';
-import dayjs from 'dayjs';
 
 export const IncompleteImportBatchNotification = () => {
     const router = useAdminRouter();
     const [detailOpen, setDetailOpen] = useState(false);
     const { data: batches = [], isLoading } = useIncompleteImportBatches();
+    const { data: activeSuppliers = [] } = useActiveSuppliers();
+    const { evaluate: evaluateIntake } = useImportBatchIntakeGate();
     const { data: providersRes } = useStations({ limit: 1000 });
     const providers = (providersRes as any)?.data?.recordList || [];
+
+    const actionableBatches = useMemo(
+        () =>
+            batches.filter((batch) => {
+                const supplier = activeSuppliers.find((entry) => entry.id === batch.supplierId);
+                const intake = evaluateIntake(supplier, batch.drawDate);
+                return !intake.blocked;
+            }),
+        [activeSuppliers, batches, evaluateIntake]
+    );
 
     const resolveStationName = (stationId: number) =>
         providers.find((p: any) => String(p.id || p._id) === String(stationId))?.name || `Đài #${stationId}`;
 
-    if (isLoading || batches.length === 0) {
+    if (isLoading || actionableBatches.length === 0) {
         return null;
     }
 
-    const isSingle = batches.length === 1;
-    const singleBatch = isSingle ? batches[0] : null;
+    const isSingle = actionableBatches.length === 1;
+    const singleBatch = isSingle ? actionableBatches[0] : null;
 
     const handleSingleClick = () => {
         if (singleBatch) {
@@ -101,7 +115,7 @@ export const IncompleteImportBatchNotification = () => {
                         </>
                     ) : (
                         <Typography variant="body2" fontWeight={600} color="#9a3412">
-                            Có <strong>{batches.length}</strong> phiếu nhập lô chưa hoàn tất cần xử lý tiếp.
+                            Có <strong>{actionableBatches.length}</strong> phiếu nhập lô chưa hoàn tất cần xử lý tiếp.
                         </Typography>
                     )}
                 </Stack>
@@ -151,7 +165,7 @@ export const IncompleteImportBatchNotification = () => {
                             '&:hover': { bgcolor: '#c2410c' },
                         }}
                     >
-                        Xem danh sách {batches.length} lô
+                        Xem danh sách {actionableBatches.length} lô
                     </Button>
                 )}
             </Alert>
@@ -159,8 +173,8 @@ export const IncompleteImportBatchNotification = () => {
             {/* Popup dialog for multiple incomplete batches */}
             <ImportBatchNotificationDetailDialog
                 open={detailOpen}
-                title={`Danh sách ${batches.length} phiếu nhập lô chưa hoàn tất`}
-                batches={batches}
+                title={`Danh sách ${actionableBatches.length} phiếu nhập lô chưa hoàn tất`}
+                batches={actionableBatches}
                 actionType="continue-import"
                 resolveStationName={resolveStationName}
                 onClose={() => setDetailOpen(false)}

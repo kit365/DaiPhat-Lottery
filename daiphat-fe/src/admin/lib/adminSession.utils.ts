@@ -1,7 +1,8 @@
 import type { QueryClient } from "@tanstack/react-query";
 
 import type { GetMeResponse } from '@/shared/auth/types/auth.type';
-import { persistAccessToken, clearJsAuthCookies } from '@/api/authHeaders';
+import { persistAccessToken } from '@/api/authHeaders';
+import { endAuthSession } from '@/api/endAuthSession';
 import { QUERY_KEYS } from "@/constants/queryKeys";
 import { USER_ROLES } from "@/constants/role.constants";
 import { useAuthStore } from "@/stores/useAuthStore";
@@ -18,8 +19,7 @@ export function persistAdminAccessToken(accessToken: string, expiresIn?: number)
 }
 
 export function clearAdminAuthSession(): void {
-    useAuthStore.getState().logout();
-    clearJsAuthCookies();
+    endAuthSession();
 }
 
 export function seedAdminMeQuery(queryClient: QueryClient, token: string, user: User): void {
@@ -45,7 +45,6 @@ export function completeAdminLoginSession(
 export function syncUserFromMeResponse(
     response: GetMeResponse | undefined,
     set: (state: Partial<{ user: User | null }>) => void,
-    logout: () => void,
 ): void {
     if (!response || !useAuthStore.getState().token) {
         return;
@@ -63,7 +62,7 @@ export function syncUserFromMeResponse(
     }
 
     if (!isSuccess) {
-        logout();
+        endAuthSession();
     }
 }
 

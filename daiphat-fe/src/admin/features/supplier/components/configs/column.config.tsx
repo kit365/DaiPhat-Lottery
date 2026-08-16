@@ -42,6 +42,8 @@ export const columnsConfig: GridColDef[] = [
         headerName: 'Trạng thái',
         flex: 0.8,
         minWidth: 130,
+        align: 'center',
+        headerAlign: 'center',
         renderCell: RenderStatusCell,
     },
     {
