@@ -34,6 +34,7 @@ import 'package:daiphat_mobile/src/features/profile/presentation/views/prize_pay
 import 'package:daiphat_mobile/src/features/profile/presentation/views/prize_payout_detail_view.dart';
 import 'package:daiphat_mobile/src/features/profile/presentation/views/complaints_view.dart';
 import 'package:daiphat_mobile/src/features/profile/presentation/views/complaint_detail_view.dart';
+import 'package:daiphat_mobile/src/features/profile/presentation/views/security_view.dart';
 import 'package:daiphat_mobile/src/features/admin/presentation/views/admin_scan_view.dart';
 import 'package:daiphat_mobile/src/features/admin/presentation/viewmodels/admin_scan_viewmodel.dart';
 import 'package:daiphat_mobile/src/features/fortune/presentation/views/fortune_cast_view.dart';
@@ -142,13 +143,21 @@ GoRouter createAppRouter({
             profileViewModel,
             notificationViewModel,
           ),
-          _route(
-            AppRoute.profile,
-            loginViewModel,
-            registerViewModel,
-            forgotPasswordViewModel,
-            profileViewModel,
-            notificationViewModel,
+          GoRoute(
+            path: AppRoute.profile.path,
+            name: AppRoute.profile.name,
+            builder: (context, state) => ProfileView(
+              viewModel: profileViewModel,
+              notificationViewModel: notificationViewModel,
+            ),
+            routes: [
+              GoRoute(
+                path: 'security',
+                name: AppRoute.security.name,
+                parentNavigatorKey: rootNavigatorKey,
+                builder: (context, state) => const SecurityView(),
+              ),
+            ],
           ),
         ],
       ),
@@ -452,6 +461,8 @@ Widget _buildRoute(
         viewModel: profileViewModel,
         notificationViewModel: notificationViewModel,
       );
+    case AppRoute.security:
+      return const SecurityView();
     case AppRoute.profileEdit:
       return ProfileEditView(viewModel: profileViewModel);
     case AppRoute.profileDetail:

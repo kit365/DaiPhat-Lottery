@@ -869,23 +869,13 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
             Icons.security_outlined,
             'Bảo mật',
             iconColor: const Color(0xFF242424),
+            onTap: () => context.pushNamed(AppRoute.security.name),
           ),
           _buildListItem(
             Icons.headset_mic_outlined,
             'Khiếu nại / Hỗ trợ',
             iconColor: const Color(0xFF242424),
             onTap: () => context.push(AppRoute.complaints.path),
-          ),
-          _buildListItem(
-            Icons.help_outline,
-            'Trung tâm hỗ trợ',
-            iconColor: const Color(0xFF242424),
-            onTap: () => context.push(AppRoute.complaints.path),
-          ),
-          _buildListItem(
-            Icons.info_outline,
-            'Giới thiệu về Đại Phát',
-            iconColor: const Color(0xFF242424),
           ),
           _buildListItem(
             Icons.logout,

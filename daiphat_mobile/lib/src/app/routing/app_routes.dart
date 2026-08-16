@@ -23,6 +23,7 @@ enum AppRoute {
   bankAccounts,
   notifications,
   notificationSettings,
+  security,
   myTickets,
   myTicketDetail,
   myOrders,
@@ -82,6 +83,8 @@ extension AppRouteDefinition on AppRoute {
         return '/notifications';
       case AppRoute.notificationSettings:
         return '/profile/notification-settings';
+      case AppRoute.security:
+        return '/profile/security';
       case AppRoute.myTickets:
         return '/profile/tickets';
       case AppRoute.myTicketDetail:
@@ -147,6 +150,8 @@ extension AppRouteDefinition on AppRoute {
         return 'notifications';
       case AppRoute.notificationSettings:
         return 'notification_settings';
+      case AppRoute.security:
+        return 'security';
       case AppRoute.myTickets:
         return 'my_tickets';
       case AppRoute.myTicketDetail:
@@ -185,6 +190,7 @@ extension AppRouteDefinition on AppRoute {
       case AppRoute.bankAccounts:
       case AppRoute.notifications:
       case AppRoute.notificationSettings:
+      case AppRoute.security:
       case AppRoute.myTickets:
       case AppRoute.myTicketDetail:
       case AppRoute.myOrders:
