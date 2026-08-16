@@ -26,6 +26,7 @@ class AuthApiService {
     final response = await _apiClient.post(
       '$_baseAuth/login',
       data: request.toJson(),
+      includeAuth: false,
     );
 
     final apiResponse = ApiResponse<AuthToken>.fromJson(

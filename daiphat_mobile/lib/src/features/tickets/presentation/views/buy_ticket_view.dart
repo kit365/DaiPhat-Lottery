@@ -82,10 +82,10 @@ class _BuyTicketViewState extends ConsumerState<BuyTicketView> {
       return;
     }
 
-    if (ticket.dayFilter == TicketDayFilter.tomorrow &&
+    if (ticket.dayFilter == TicketDayFilter.today &&
         SellableDrawDate.isTodayDrawPassed()) {
       AppToast.error(
-        'Đã quá 16:15, không thể mua vé cho ngày mai. Vui lòng quay lại sau.',
+        'Đã quá 16:15, không thể mua vé cho hôm nay. Vui lòng chọn vé ngày mai.',
       );
       return;
     }
@@ -225,12 +225,6 @@ class _LoadedView extends StatelessWidget {
                 isTomorrowSellClosed: state.isTomorrowSellClosed,
                 onSelectToday: () => viewModel.selectDay(TicketDayFilter.today),
                 onSelectTomorrow: () {
-                  if (state.isTomorrowSellClosed) {
-                    AppToast.error(
-                      'Đã quá 16:15, không thể mua vé cho ngày mai. Vui lòng quay lại sau.',
-                    );
-                    return;
-                  }
                   viewModel.selectDay(TicketDayFilter.tomorrow);
                 },
               ),
@@ -1401,11 +1395,11 @@ class _TicketDetailViewState extends ConsumerState<TicketDetailView> {
     );
   }
 
-  bool _blockTomorrowSaleIfClosed(LotteryTicketListItem ticket) {
-    if (ticket.dayFilter == TicketDayFilter.tomorrow &&
+  bool _blockTodaySaleIfClosed(LotteryTicketListItem ticket) {
+    if (ticket.dayFilter == TicketDayFilter.today &&
         SellableDrawDate.isTodayDrawPassed()) {
       AppToast.error(
-        'Đã quá 16:15, không thể mua vé cho ngày mai. Vui lòng quay lại sau.',
+        'Đã quá 16:15, không thể mua vé cho hôm nay. Vui lòng chọn vé ngày mai.',
       );
       return true;
     }
@@ -1417,7 +1411,7 @@ class _TicketDetailViewState extends ConsumerState<TicketDetailView> {
       goToLogin(context, redirectPath: AppRoute.buyTicket.path);
       return;
     }
-    if (_blockTomorrowSaleIfClosed(ticket)) return;
+    if (_blockTodaySaleIfClosed(ticket)) return;
 
     final maxStock = ticket.quantity > 0 ? ticket.quantity : 1;
     final currentQty =
@@ -1446,7 +1440,7 @@ class _TicketDetailViewState extends ConsumerState<TicketDetailView> {
       goToLogin(context, redirectPath: AppRoute.checkout.path);
       return;
     }
-    if (_blockTomorrowSaleIfClosed(ticket)) return;
+    if (_blockTodaySaleIfClosed(ticket)) return;
 
     // Thanh toán riêng tờ vé đang chọn — không thêm vào / không xoá giỏ hàng.
     ref.read(buyNowItemsProvider.notifier).start([_buildCartItem(ticket)]);

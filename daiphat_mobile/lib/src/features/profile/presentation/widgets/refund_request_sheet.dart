@@ -13,6 +13,7 @@ import 'package:daiphat_mobile/src/features/profile/presentation/widgets/bank_ac
 import 'package:daiphat_mobile/src/features/profile/presentation/widgets/bank_search_screen.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
 import 'package:daiphat_mobile/src/shared/utils/app_toast.dart';
+import 'package:daiphat_mobile/src/shared/utils/api_error_message.dart';
 
 class RefundRequestSheet extends StatefulWidget {
   final OrderResponse order;
@@ -199,24 +200,34 @@ class _RefundRequestSheetState extends State<RefundRequestSheet> {
       AppToast.info('Vui lòng chọn tài khoản nhận hoàn');
       return;
     }
-    if (_isRefundBlocked) return;
-
-    setState(() => _isSubmitting = true);
-    final ok = await widget.onSubmit(
-      CreateOrderRefundRequest(
-        refundReason: reason,
-        bankAccountId: _selectedBankAccountId!,
-      ),
-    );
-    if (!mounted) return;
-    setState(() => _isSubmitting = false);
-
-    if (ok) {
-      Navigator.of(context).pop(true);
+    if (_isRefundBlocked) {
+      AppToast.error(
+        _eligibility?.reason ??
+            'Đơn hàng không đủ điều kiện hủy và hoàn tiền.',
+      );
       return;
     }
 
-    AppToast.error('Gửi yêu cầu hoàn tiền thất bại');
+    setState(() => _isSubmitting = true);
+    try {
+      final ok = await widget.onSubmit(
+        CreateOrderRefundRequest(
+          refundReason: reason,
+          bankAccountId: _selectedBankAccountId!,
+        ),
+      );
+      if (!mounted) return;
+      if (ok) {
+        Navigator.of(context).pop(true);
+        return;
+      }
+      AppToast.error('Gửi yêu cầu hoàn tiền thất bại. Vui lòng thử lại.');
+    } catch (e) {
+      if (!mounted) return;
+      AppToast.error(toUserFacingApiMessage(e));
+    } finally {
+      if (mounted) setState(() => _isSubmitting = false);
+    }
   }
 
   @override

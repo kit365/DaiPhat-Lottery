@@ -78,8 +78,8 @@ class BuyTicketState {
 
   bool get isTodaySellClosed => SellableDrawDate.isTodayDrawPassed();
 
-  /// Sau 16:15 VN không còn mở bán vé ngày mai (khớp BE ORD_050).
-  bool get isTomorrowSellClosed => SellableDrawDate.isTodayDrawPassed();
+  /// Ngày mai luôn mở bán (khớp web: sau 16:15 vẫn mua được vé ngày mai).
+  bool get isTomorrowSellClosed => false;
 
   List<String> get provinces => <String>{
     'Tat ca dai',
@@ -152,8 +152,10 @@ class BuyTicketViewModel extends AsyncNotifier<BuyTicketState> {
       ref.read(lotteryTicketRepositoryProvider);
 
   TicketDayFilter _defaultDayFilter() {
-    // Sau 16:15: hôm nay đã đóng và ngày mai cũng không bán — giữ tab hôm nay.
-    return TicketDayFilter.today;
+    // Khớp web: trước 16:15 → hôm nay; sau 16:15 → ngày mai.
+    return SellableDrawDate.isTodayDrawPassed()
+        ? TicketDayFilter.tomorrow
+        : TicketDayFilter.today;
   }
 
   String _drawDateIsoFor(TicketDayFilter day) {
@@ -167,11 +169,10 @@ class BuyTicketViewModel extends AsyncNotifier<BuyTicketState> {
     String selectedProvince = 'Tat ca dai',
     TicketDayFilter selectedDay = TicketDayFilter.today,
   }) async {
-    // Sau 16:15 không cho chọn / tải vé ngày mai.
+    // Sau 16:15 không còn bán vé hôm nay → chuyển sang ngày mai.
     var day = selectedDay;
-    if (day == TicketDayFilter.tomorrow &&
-        SellableDrawDate.isTodayDrawPassed()) {
-      day = TicketDayFilter.today;
+    if (day == TicketDayFilter.today && SellableDrawDate.isTodayDrawPassed()) {
+      day = TicketDayFilter.tomorrow;
     }
 
     final trimmedSearch = searchQuery.trim();
@@ -209,11 +210,8 @@ class BuyTicketViewModel extends AsyncNotifier<BuyTicketState> {
   Future<void> selectDay(TicketDayFilter day) async {
     final current = state.asData?.value;
     if (current == null) return;
+    // Sau 16:15 không mở bán vé hôm nay; ngày mai vẫn mua được.
     if (day == TicketDayFilter.today && SellableDrawDate.isTodayDrawPassed()) {
-      return;
-    }
-    if (day == TicketDayFilter.tomorrow &&
-        SellableDrawDate.isTodayDrawPassed()) {
       return;
     }
     if (day == current.selectedDay) return;
