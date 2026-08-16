@@ -1,11 +1,10 @@
 import { apiApp } from "./index";
 import {
-    clearJsAuthCookies,
     hydrateAccessTokenFromCookie,
     persistAccessToken,
     resolveAccessToken,
 } from "./authHeaders";
-import { useAuthStore } from "../stores/useAuthStore";
+import { endAuthSession } from "./endAuthSession";
 
 type RefreshBody = {
     data?: {
@@ -49,8 +48,7 @@ export const restoreAccessSessionIfNeeded = () => {
             if (newAccess) {
                 persistAccessToken(newAccess, expiresIn);
             } else {
-                useAuthStore.getState().logout();
-                clearJsAuthCookies();
+                endAuthSession();
             }
         } catch {
             // Interceptor refresh-fail đã xóa session.

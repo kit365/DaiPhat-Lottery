@@ -18,7 +18,12 @@ class LoginViewModel extends ChangeNotifier {
 
   User? _user;
   User? get user => _user;
-  bool get isAuthenticated => _user != null || _authRepository.isAuthenticated;
+  bool get isAuthenticated => _authRepository.isAuthenticated;
+
+  void onLoggedOut() {
+    _user = null;
+    notifyListeners();
+  }
 
   Future<bool> login(String username, String password) async {
     _isLoading = true;

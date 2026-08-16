@@ -29,7 +29,7 @@ import type {
 } from '../types/importBatch.type';
 import { QUERY_KEYS, importBatchQueryKeys } from '../constants/queryKeys';
 import type { ImportBatchImportMode } from '../utils/batchTypeLabels';
-import { QUERY_STALE_TIMES, selectApiDataOrNull } from '@/shared/react-query';
+import { QUERY_STALE_TIMES } from '@/shared/react-query';
 
 /**
  * History of file-import runs. Paged server-side because the list only grows.
@@ -362,6 +362,6 @@ export const useImportBatchReductionTickets = (batchId: number, enabled: boolean
         queryKey: importBatchQueryKeys.reductionTickets(batchId),
         queryFn: () => getImportBatchReductionTickets(batchId),
         enabled: enabled && !!batchId,
-        select: selectApiDataOrNull,
+        select: (res) => res.data ?? null,
     });
 };

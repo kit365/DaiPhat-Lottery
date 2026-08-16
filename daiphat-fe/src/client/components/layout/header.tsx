@@ -23,9 +23,10 @@ import { Skeleton } from "../../../components/ui/Skeleton";
 import { AppToast as toast } from "../../../utils/toast.util";
 import { createNavBannerPrefetchHandlers } from "../../utils/prefetchImagesWhenIdle";
 import { shouldPrefetchClientNavRoute } from "../../utils/clientNavPrefetch";
-import { CLIENT_LOGO, PROVINCE_ICON_FALLBACK } from "../../constants/clientBannerAssets";
+import { PROVINCE_ICON_FALLBACK } from "../../constants/clientBannerAssets";
 import { useSiteBranding } from "@/client/hooks/useSiteBranding";
 import { SiteLogo } from "@/client/components/layout/SiteLogo";
+import { LuckyNumber } from "@/client/components/ui/LuckyNumber";
 
 const navItems = [
   { label: "Trang chủ", to: ROUTES.PUBLIC.HOME, icon: Home },
@@ -263,7 +264,9 @@ export const Header = () => {
                                     </button>
                                 </div>
                                 <div className="flex items-center justify-between mt-1">
-                                    <div className="text-[15px] font-black text-[#ee1314] tracking-wide">{item.numbers}</div>
+                                    <div className="text-[15px] font-black text-[#ee1314] tracking-wide">
+                                        <LuckyNumber value={item.numbers} ticket className="tracking-wide" />
+                                    </div>
                                     <div className="flex items-center gap-5">
                                         <div className="text-[13px] text-[#212B36]">x {item.quantity}</div>
                                         <div className="text-[13px] font-bold text-[#212B36] w-[60px] text-right">{(item.price).toLocaleString('vi-VN')} đ</div>

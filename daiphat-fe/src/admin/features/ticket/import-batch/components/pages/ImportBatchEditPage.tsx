@@ -19,6 +19,7 @@ import {
     TableRow,
     TextField,
     ThemeProvider,
+    Tooltip,
     Typography,
     createTheme,
     useTheme,
@@ -44,6 +45,7 @@ import {
     useResumeImportBatchLine,
     useUpdateImportBatch,
 } from '../../hooks/useImportBatch';
+import { useImportBatchIntakeGate } from '../../hooks/useImportBatchIntakeGate';
 import { attachTicketListImages, exportImportBatchFile } from '../../services/importBatchService';
 import { ImportBatchLineImportHost } from '../../../inventory/components/sections/ImportBatchLineImportHost';
 import { useImportBatchEditDraft } from '../../hooks/useImportBatchEditDraft';
@@ -167,6 +169,7 @@ export const ImportBatchEditPage = () => {
     const { mutateAsync: pauseLineAsync, isPending: isPausePending } = usePauseImportBatchLine();
     const { mutateAsync: resumeLineAsync, isPending: isResumePending } = useResumeImportBatchLine();
     const { data: activeSuppliers = [], isLoading: isLoadingSuppliers } = useActiveSuppliers();
+    const { evaluate: evaluateIntake } = useImportBatchIntakeGate();
     const { data: providersRes } = useStations({ limit: 1000 });
     const providers = useMemo(
         () => (providersRes as { data?: { recordList?: Array<{ id?: number; _id?: number; name?: string }> } })?.data?.recordList ?? [],
@@ -1072,7 +1075,15 @@ export const ImportBatchEditPage = () => {
     }
 
     const batchCodeLabel = formatImportBatchHeaderCode(batch.batchCode, batch.id);
-    const canImportTickets = hasTicketImportEligibleLines(batch);
+    const intakeGate = useMemo(() => {
+        if (!batch.supplierId || !batch.drawDate) {
+            return null;
+        }
+        const supplier = activeSuppliers.find((entry) => entry.id === batch.supplierId);
+        return evaluateIntake(supplier, batch.drawDate);
+    }, [activeSuppliers, batch, evaluateIntake]);
+    const showImportTicketsButton = hasTicketImportEligibleLines(batch);
+    const importTicketsBlocked = !!intakeGate?.blocked || !!intakeGate?.notYetAllowed;
 
     return (
         <ThemeProvider theme={localTheme}>
@@ -1101,20 +1112,31 @@ export const ImportBatchEditPage = () => {
                             >
                                 Xuất tệp
                             </Button>
-                            {canImportTickets && (
+                            {showImportTicketsButton && (
                                 <CanAccess permission={PERMISSIONS.TICKET.CREATE}>
-                                    <Button
-                                        variant="contained"
-                                        startIcon={<ConfirmationNumberOutlinedIcon />}
-                                        onClick={() => {
-                                            const firstLine = findFirstIncompleteLine(batch);
-                                            if (firstLine?.id != null) {
-                                                setImportLineId(String(firstLine.id));
-                                            }
-                                        }}
+                                    <Tooltip
+                                        title={
+                                            importTicketsBlocked
+                                                ? intakeGate?.tooltipTitle ?? 'Không thể nhập vé lúc này.'
+                                                : ''
+                                        }
                                     >
-                                        Nhập vé vào phiếu
-                                    </Button>
+                                        <span>
+                                            <Button
+                                                variant="contained"
+                                                disabled={importTicketsBlocked}
+                                                startIcon={<ConfirmationNumberOutlinedIcon />}
+                                                onClick={() => {
+                                                    const firstLine = findFirstIncompleteLine(batch);
+                                                    if (firstLine?.id != null) {
+                                                        setImportLineId(String(firstLine.id));
+                                                    }
+                                                }}
+                                            >
+                                                Nhập vé vào phiếu
+                                            </Button>
+                                        </span>
+                                    </Tooltip>
                                 </CanAccess>
                             )}
                         </Stack>
@@ -1125,6 +1147,18 @@ export const ImportBatchEditPage = () => {
                     <Alert severity="info" sx={{ mb: 2 }}>
                         Phiếu nhập lô đang được chỉnh sửa và chưa được lưu. Nội dung nháp cục bộ đã
                         được khôi phục tự động.
+                    </Alert>
+                )}
+
+                {intakeGate?.blocked && (
+                    <Alert severity="error" sx={{ mb: 2 }}>
+                        {intakeGate.message}
+                    </Alert>
+                )}
+
+                {intakeGate?.notYetAllowed && (
+                    <Alert severity="warning" sx={{ mb: 2 }}>
+                        {intakeGate.message}
                     </Alert>
                 )}
 

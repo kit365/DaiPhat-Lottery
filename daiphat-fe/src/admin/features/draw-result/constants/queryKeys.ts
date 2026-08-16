@@ -1,15 +1,8 @@
-import { createQueryKeyScope } from '@/shared/react-query/createQueryKeys';
+import { QUERY_KEYS } from '@/constants/queryKeys';
 
-const scope = createQueryKeyScope('draw-result');
-
-export const QUERY_KEYS = {
-    LOTTERY_RESULTS: 'lottery-results',
-    LOTTERY_RESULTS_LIVE: 'lottery-results-live',
-    LOTTERY_RESULT_DETAILS: 'lottery-result-details',
-} as const;
+export { QUERY_KEYS };
 
 export const drawResultQueryKeys = {
-    scope,
     all: () => [QUERY_KEYS.LOTTERY_RESULTS] as const,
     list: (filter?: unknown) => [QUERY_KEYS.LOTTERY_RESULTS, filter] as const,
     liveBoard: (filter: {

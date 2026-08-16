@@ -130,22 +130,26 @@ export const AdminMetricCard = ({
             }}
         >
             <Box sx={{ flexGrow: 1, minWidth: 0 }}>
-                <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'var(--palette-text-secondary)' }}>
+                <Typography variant="subtitle2" noWrap sx={{ fontWeight: 600, color: 'var(--palette-text-secondary)' }}>
                     {title}
                 </Typography>
-                <Typography
-                    sx={{
-                        mt: 1.5,
-                        mb: subtitle || hasTrend ? 1 : 0,
-                        fontSize: '2rem',
-                        fontWeight: 600,
-                        fontFamily: 'Barlow, sans-serif',
-                        lineHeight: 1.2,
-                        wordBreak: 'break-word',
-                    }}
-                >
-                    {value}
-                </Typography>
+                <Tooltip title={value} disableHoverListener={value.length < 14} enterDelay={300}>
+                    <Typography
+                        sx={{
+                            mt: 1.5,
+                            mb: subtitle || hasTrend ? 1 : 0,
+                            fontSize: { xs: '1.5rem', sm: '2rem' },
+                            fontWeight: 600,
+                            fontFamily: 'Barlow, sans-serif',
+                            lineHeight: 1.2,
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                        }}
+                    >
+                        {value}
+                    </Typography>
+                </Tooltip>
                 {subtitle ? (
                     <Typography variant="body2" sx={{ color: 'var(--palette-text-secondary)', fontWeight: 500 }}>
                         {subtitle}

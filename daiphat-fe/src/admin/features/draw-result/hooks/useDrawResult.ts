@@ -4,7 +4,7 @@ import { useMemo } from 'react';
 import { useMutation, useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { getAllLotteryResults, getLotteryResultDetails, getLotteryResultsManagementBoard, syncLotteryResults } from '../services/drawResultService';
 import { DrawResultFilter, SyncDrawResultsRequest } from '../types/draw-result';
-import { drawResultQueryKeys } from '../constants/queryKeys';
+import { QUERY_KEYS, drawResultQueryKeys } from '../constants/queryKeys';
 import { detailQueryDefaults, listQueryDefaults } from '@/shared/react-query';
 
 export const useLotteryResults = (filter: DrawResultFilter) => {
@@ -78,8 +78,10 @@ export const useSyncLotteryResults = () => {
 
     return useMutation({
         mutationFn: (request: SyncDrawResultsRequest) => syncLotteryResults(request),
-        onSuccess: () => queryClient.invalidateQueries({
-            queryKey: drawResultQueryKeys.liveAll(),
-        }),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: drawResultQueryKeys.liveAll() });
+            queryClient.invalidateQueries({ queryKey: drawResultQueryKeys.all() });
+            queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.LOTTERY_RESULT_DETAILS] });
+        },
     });
 };

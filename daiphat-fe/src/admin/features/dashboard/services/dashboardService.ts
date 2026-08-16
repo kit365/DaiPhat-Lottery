@@ -409,14 +409,6 @@ export const getDetailedOrderStats = async (_startDate?: string, _endDate?: stri
 export const getDetailedStaffStats = async (_startDate?: string, _endDate?: string) =>
     mockSuccess(ECOMMERCE_STATS);
 
-export const getStaffingStatus = async (date?: string) => {
-    const response = await apiApp.get(`${BASE_URL}/staffing-status`, {
-        params: { date },
-        skipGlobalErrorToast: true,
-    });
-    return response.data as ApiResponse<unknown>;
-};
-
 /**
  * KPI cards for ecommerce + revenue report.
  * Backend currently exposes only {@code GET /admin/dashboard/ecommerce/summary}

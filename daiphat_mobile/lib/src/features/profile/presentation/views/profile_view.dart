@@ -208,7 +208,8 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
                                     ),
                                   ),
                                   clipBehavior: Clip.antiAlias,
-                                  child: avatarUrl != null && avatarUrl.isNotEmpty
+                                  child:
+                                      avatarUrl != null && avatarUrl.isNotEmpty
                                       ? Image.network(
                                           avatarUrl,
                                           fit: BoxFit.cover,
@@ -757,12 +758,14 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
   }
 
   Widget _buildUtilitiesSection(BuildContext context) {
+    final showOcrScan = viewModel.user?.isAdmin == true;
+
     return _buildCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Tiện ích & Quản trị',
+            'Tiện ích',
             style: GoogleFonts.publicSans(
               fontSize: 16,
               fontWeight: FontWeight.w700,
@@ -770,27 +773,36 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
             ),
           ),
           const SizedBox(height: 16),
-          Row(
-            children: [
-              _buildUtilityItemIcon(
-                Icons.qr_code_scanner_rounded,
-                'Quét vé OCR',
-                onTap: () => context.push(AppRoute.adminScan.path),
-              ),
-              const SizedBox(width: 10),
-              _buildUtilityItemIcon(
-                Icons.notifications_active_outlined,
-                'Thông báo',
-                onTap: () => context.push(AppRoute.notifications.path),
-              ),
-              const SizedBox(width: 10),
-              _buildUtilityItemIcon(Icons.auto_fix_high, 'Gieo quẻ'),
-              const SizedBox(width: 10),
-              _buildUtilityItemIcon(
-                Icons.calendar_month_outlined,
-                'Lịch mở thưởng',
-              ),
-            ],
+          IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (showOcrScan) ...[
+                  _buildUtilityItemIcon(
+                    Icons.qr_code_scanner_rounded,
+                    'Quét vé OCR',
+                    onTap: () => context.push(AppRoute.adminScan.path),
+                  ),
+                  const SizedBox(width: 10),
+                ],
+                _buildUtilityItemIcon(
+                  Icons.notifications_active_outlined,
+                  'Thông báo',
+                  onTap: () => context.push(AppRoute.notifications.path),
+                ),
+                const SizedBox(width: 10),
+                _buildUtilityItemIcon(
+                  Icons.auto_fix_high,
+                  'Gieo quẻ',
+                  onTap: () => context.push(AppRoute.fortune.path),
+                ),
+                const SizedBox(width: 10),
+                _buildUtilityItemIcon(
+                  Icons.calendar_month_outlined,
+                  'Lịch mở thưởng',
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -807,6 +819,7 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
         onTap: onTap,
         borderRadius: BorderRadius.circular(14),
         child: Container(
+          width: double.infinity,
           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 11),
           decoration: BoxDecoration(
             color: Colors.white,
@@ -825,13 +838,19 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
                 child: Icon(icon, color: AppColors.primary, size: 23),
               ),
               const SizedBox(height: 8),
-              Text(
-                label,
-                textAlign: TextAlign.center,
-                style: GoogleFonts.publicSans(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w500,
-                  color: AppColors.textMain,
+              SizedBox(
+                height: 28,
+                child: Text(
+                  label,
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.publicSans(
+                    fontSize: 11,
+                    height: 1.25,
+                    fontWeight: FontWeight.w500,
+                    color: AppColors.textMain,
+                  ),
                 ),
               ),
             ],
@@ -865,23 +884,13 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
             Icons.security_outlined,
             'Bảo mật',
             iconColor: const Color(0xFF242424),
+            onTap: () => context.pushNamed(AppRoute.security.name),
           ),
           _buildListItem(
             Icons.headset_mic_outlined,
             'Khiếu nại / Hỗ trợ',
             iconColor: const Color(0xFF242424),
             onTap: () => context.push(AppRoute.complaints.path),
-          ),
-          _buildListItem(
-            Icons.help_outline,
-            'Trung tâm hỗ trợ',
-            iconColor: const Color(0xFF242424),
-            onTap: () => context.push(AppRoute.complaints.path),
-          ),
-          _buildListItem(
-            Icons.info_outline,
-            'Giới thiệu về Đại Phát',
-            iconColor: const Color(0xFF242424),
           ),
           _buildListItem(
             Icons.logout,

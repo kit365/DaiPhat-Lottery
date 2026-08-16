@@ -1,9 +1,14 @@
+"use client";
+
 import React from "react";
 import { Badge, Box, Typography, Stack, Chip, Button } from "@mui/material";
 import ConfirmationNumberOutlinedIcon from "@mui/icons-material/ConfirmationNumberOutlined";
 import AutoAwesomeOutlinedIcon from "@mui/icons-material/AutoAwesomeOutlined";
 
 import { adminCountBadgeSx } from "@/admin/utils/badge";
+import { LuckyTicketNumber } from "@/admin/features/street-agent/components/LuckyTicketNumber";
+import { useLuckyPatternConfigs } from "@/admin/features/street-agent/hooks/useLuckyPattern";
+import { luckyBadgeColor } from "@/admin/features/street-agent/utils/luckyNumberHighlight";
 
 export interface AdminTicketCardProps {
     ticketNumbers: string;
@@ -66,6 +71,7 @@ export const AdminTicketCard: React.FC<AdminTicketCardProps> = ({
     actionLabel,
     disabled,
 }) => {
+    const { data: luckyPatterns = [] } = useLuckyPatternConfigs();
     const isLuckyTicket = Boolean(isLucky || (luckyBadges && luckyBadges.length > 0));
     const resolvedActionLabel = actionLabel || "Chọn";
     const showTicketIcon = ["Đổi vé", "Chọn", "Chọn serial", "Ẩn serial"].includes(resolvedActionLabel);
@@ -117,20 +123,15 @@ export const AdminTicketCard: React.FC<AdminTicketCardProps> = ({
                 }}
             >
                 <Box sx={{ pl: isLuckyTicket ? 0.5 : 0 }}>
-                    <Typography
-                        variant="h6"
+                    <LuckyTicketNumber
+                        value={ticketNumbers}
+                        fontSize="1.25rem"
                         sx={{
-                            fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
-                            fontWeight: 800,
-                            fontSize: "1.25rem",
-                            lineHeight: 1.1,
-                            letterSpacing: "0.06em",
+                            display: "block",
                             color: "text.primary",
                             pr: quantity > 0 ? 2 : 0,
                         }}
-                    >
-                        {ticketNumbers}
-                    </Typography>
+                    />
                     <Typography
                         variant="caption"
                         sx={{
@@ -159,14 +160,22 @@ export const AdminTicketCard: React.FC<AdminTicketCardProps> = ({
                                 sx={luckyPrimaryChipSx}
                             />
                         ) : null}
-                        {luckyBadges?.map((badge, index) => (
+                        {luckyBadges?.map((badge, index) => {
+                            const color = luckyBadgeColor(badge, luckyPatterns);
+                            return (
                             <Chip
                                 key={`${badge}-${index}`}
                                 size="small"
                                 label={badge}
-                                sx={luckyBadgeChipSx}
+                                sx={{
+                                    ...luckyBadgeChipSx,
+                                    bgcolor: `${color}22`,
+                                    color,
+                                    border: `1px solid ${color}59`,
+                                }}
                             />
-                        ))}
+                            );
+                        })}
                     </Stack>
                 ) : null}
 

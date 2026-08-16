@@ -12,7 +12,7 @@ import {
     styled,
 } from "@mui/material";
 import { getColumnsConfig, columnsInitialState } from "../configs/column.config";
-import { DATA_GRID_LOCALE_VN } from "../../../../../shared/components/DataTable/localeText.config";
+import { DATA_GRID_LOCALE_VN } from "@/admin/components/data-grid/localeText.config";
 import { useStreetAgentProfileStatusCounts, useStreetAgentProfiles } from "../../hooks/useStreetAgent";
 import { ROUTES } from "../../../../constants/routes";
 import { STATUS_OPTIONS } from "../configs/constants";

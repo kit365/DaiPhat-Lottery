@@ -1,4 +1,7 @@
-import { StatRibbonCard, StatRibbonCardsGrid } from '@/admin/components/ui/StatRibbonCard';
+import Inventory2OutlinedIcon from '@mui/icons-material/Inventory2Outlined';
+import ShoppingCartOutlinedIcon from '@mui/icons-material/ShoppingCartOutlined';
+import WarningAmberOutlinedIcon from '@mui/icons-material/WarningAmberOutlined';
+import { AdminKpiCard, AdminKpiCardsGrid } from '@/admin/components/ui/AdminKpiCard';
 import type { SupplierSettlementKpis } from '../../types/supplierSettlement.type';
 
 interface Props {
@@ -20,31 +23,31 @@ export const SettlementKpiCards = ({ kpis, hasHandedOver, isExpired }: Props) =>
         kpis.totalDamagedTickets + kpis.totalLostTickets + kpis.totalVoidedTickets;
 
     return (
-        <StatRibbonCardsGrid>
-            <StatRibbonCard
+        <AdminKpiCardsGrid columns={{ xs: 1, sm: 2, md: 2, xl: 4 }}>
+            <AdminKpiCard
                 value={kpis.totalImportedTickets.toLocaleString('vi-VN')}
                 label="Tổng vé nhập"
-                icon="solar:box-bold-duotone"
-                color="cyan"
+                icon={<Inventory2OutlinedIcon fontSize="small" />}
+                tone="cyan"
             />
-            <StatRibbonCard
+            <AdminKpiCard
                 value={kpis.totalSoldTickets.toLocaleString('vi-VN')}
                 label="Đã bán"
-                icon="solar:cart-large-2-bold-duotone"
-                color="orange"
+                icon={<ShoppingCartOutlinedIcon fontSize="small" />}
+                tone="amber"
             />
-            <StatRibbonCard
+            <AdminKpiCard
                 value={remainingValue.toLocaleString('vi-VN')}
                 label={remainingLabel}
-                icon="solar:home-2-bold-duotone"
-                color="green"
+                icon={<Inventory2OutlinedIcon fontSize="small" />}
+                tone="green"
             />
-            <StatRibbonCard
+            <AdminKpiCard
                 value={incidentTotal.toLocaleString('vi-VN')}
                 label={`Tổng vé sự cố · ${kpis.totalDamagedTickets} hỏng · ${kpis.totalLostTickets} lạc · ${kpis.totalVoidedTickets} hủy`}
-                icon="solar:danger-triangle-bold-duotone"
-                color="red"
+                icon={<WarningAmberOutlinedIcon fontSize="small" />}
+                tone="rose"
             />
-        </StatRibbonCardsGrid>
+        </AdminKpiCardsGrid>
     );
 };

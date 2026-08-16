@@ -14,7 +14,7 @@ import {
     dataGridStyles,
     filterPanelStyles,
 } from '../../../../../shared/data-grid';
-import { DATA_GRID_LOCALE_VN } from '../../../../../../shared/components/DataTable/localeText.config';
+import { DATA_GRID_LOCALE_VN } from "@/admin/components/data-grid/localeText.config";
 import type { useReturnBatchList } from '../../hooks/useReturnBatch';
 import type { ReturnBatchStatus } from '../../types/returnBatch.type';
 import { ReturnBatchToolbar } from './ReturnBatchToolbar';

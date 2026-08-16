@@ -1,8 +1,13 @@
 import type { User } from '@/types/user.type';
 import type { ApiResponse } from '@/types/api.type';
 
-export interface LoginResponse extends ApiResponse<{
-    access_token: string;
+export interface LoginRequest {
+    username: string;
+    password: string;
+    rememberMe?: boolean;
+}
+
+export interface LoginResponse extends ApiResponse<{    access_token: string;
     accessToken?: string;
     expires_in?: number;
     expiresIn?: number;

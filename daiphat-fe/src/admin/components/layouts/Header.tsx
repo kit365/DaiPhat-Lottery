@@ -21,10 +21,10 @@ import { useState } from "react";
 import { toast } from 'react-toastify';
 import { motion } from "framer-motion";
 import { useAuthStore } from "../../../stores/useAuthStore";
-import { authService } from "@/admin/features/auth/services/auth.service";
+import { authService } from "@/shared/auth/services/auth.service";
 import { ROUTES } from "../../constants/routes";
 import { NotificationPopover } from "./NotificationPopover";
-import { clearJsAuthCookies } from "@/api/authHeaders";
+import { endAuthSession } from "@/api/endAuthSession";
 
 interface Props {
     window?: () => Window;
@@ -59,7 +59,7 @@ function ElevationScroll(props: Props) {
 
 export const Header = () => {
     const router = useAdminRouter();
-    const { user, logout: logoutStore } = useAuthStore();
+    const { user } = useAuthStore();
     const [anchorElUser, setAnchorElUser] = useState<HTMLButtonElement | null>(null);
     const [hoveredItem, setHoveredItem] = useState<string | null>(null);
     const [isLoggingOut, setIsLoggingOut] = useState(false);
@@ -84,8 +84,7 @@ export const Header = () => {
         } catch (error) {
             console.error("Logout error:", error);
         } finally {
-            logoutStore();
-            clearJsAuthCookies();
+            endAuthSession();
             handleCloseUser();
             toast.success("Đăng xuất thành công!");
             router.replace(ROUTES.ADMIN.AUTH.LOGIN);

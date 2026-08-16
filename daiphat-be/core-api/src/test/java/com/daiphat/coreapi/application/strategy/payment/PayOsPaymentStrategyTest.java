@@ -79,6 +79,7 @@ class PayOsPaymentStrategyTest {
 
         assertThat(order.getStatus()).isEqualTo(OrderStatus.PREPARING);
         assertThat(transaction.getStatus()).isEqualTo(TransactionStatus.COMPLETED);
+        assertThat(transaction.getPaidAt()).isNotNull();
         assertThat(transaction.getPaymentRef()).isEqualTo("PAYOS_TXN_01");
     }
 

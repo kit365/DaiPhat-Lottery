@@ -64,7 +64,21 @@ class _MainLayoutState extends State<MainLayout> {
     );
   }
 
-  void _goToNotifications() {
+  void _goToBlog() {
+    if (_sidePage != _ShellSidePage.blog) {
+      setState(() => _sidePage = _ShellSidePage.blog);
+    }
+    _pageController.animateToPage(
+      0,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+    );
+  }
+
+  void _goToNotifications(BuildContext context) {
+    if (!widget.loginViewModel.isAuthenticated) {
+      return;
+    }
     if (_sidePage != _ShellSidePage.notifications) {
       setState(() => _sidePage = _ShellSidePage.notifications);
     }
@@ -78,42 +92,45 @@ class _MainLayoutState extends State<MainLayout> {
   int _getNavIndex(BuildContext context) {
     switch (_sidePage) {
       case _ShellSidePage.blog:
-        return -1;
+        return 0;
       case _ShellSidePage.notifications:
-        return 3;
+        return 4;
       case _ShellSidePage.main:
         final location = GoRouterState.of(context).uri.path;
         if (location.startsWith(AppRoute.buyTicket.path)) {
-          return 1;
-        }
-        if (location.startsWith(AppRoute.checkTicket.path)) {
           return 2;
         }
-        if (location.startsWith(AppRoute.profile.path)) {
-          return 4;
+        if (location.startsWith(AppRoute.checkTicket.path)) {
+          return 3;
         }
-        return 0;
+        if (location.startsWith(AppRoute.profile.path)) {
+          return 5;
+        }
+        return 1;
     }
   }
 
   void _onNavTap(int index, BuildContext context) {
     switch (index) {
       case 0:
-        _goToMain();
-        context.go(AppRoute.home.path);
+        _goToBlog();
         break;
       case 1:
         _goToMain();
-        context.go(AppRoute.buyTicket.path);
+        context.go(AppRoute.home.path);
         break;
       case 2:
         _goToMain();
-        context.go(AppRoute.checkTicket.path);
+        context.go(AppRoute.buyTicket.path);
         break;
       case 3:
-        _goToNotifications();
+        _goToMain();
+        context.go(AppRoute.checkTicket.path);
         break;
       case 4:
+        _goToNotifications(context);
+        break;
+      case 5:
         _goToMain();
         if (widget.loginViewModel.isAuthenticated) {
           context.go(AppRoute.profile.path);
@@ -132,7 +149,16 @@ class _MainLayoutState extends State<MainLayout> {
       body: PageView(
         controller: _pageController,
         physics: const BouncingScrollPhysics(),
-        onPageChanged: _syncSidePage,
+        onPageChanged: (index) {
+          if (index == 2 && !widget.loginViewModel.isAuthenticated) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (!mounted) return;
+              _pageController.jumpToPage(1);
+            });
+            return;
+          }
+          _syncSidePage(index);
+        },
         children: [
           BlogScreen(
             key: const ValueKey('shell-blog'),
@@ -156,10 +182,14 @@ class _MainLayoutState extends State<MainLayout> {
         ],
       ),
       bottomNavigationBar: ListenableBuilder(
-        listenable: widget.notificationViewModel,
+        listenable: Listenable.merge([
+          widget.notificationViewModel,
+          widget.loginViewModel,
+        ]),
         builder: (context, _) => _AnimatedBottomNavigation(
           selectedIndex: navIndex,
           notificationBadge: widget.notificationViewModel.unreadCount,
+          showNotifications: widget.loginViewModel.isAuthenticated,
           onTap: (index) => _onNavTap(index, context),
         ),
       ),
@@ -172,13 +202,20 @@ class _AnimatedBottomNavigation extends StatelessWidget {
     required this.selectedIndex,
     required this.onTap,
     this.notificationBadge = 0,
+    this.showNotifications = true,
   });
 
   final int selectedIndex;
   final ValueChanged<int> onTap;
   final int notificationBadge;
+  final bool showNotifications;
 
   static const _items = <({String label, IconData icon, IconData activeIcon})>[
+    (
+      label: 'Tin tức',
+      icon: Icons.article_outlined,
+      activeIcon: Icons.article_rounded,
+    ),
     (
       label: 'Trang chủ',
       icon: Icons.home_outlined,
@@ -212,7 +249,7 @@ class _AnimatedBottomNavigation extends StatelessWidget {
 
     return Container(
       height: 70 + bottomInset,
-      padding: EdgeInsets.fromLTRB(8, 7, 8, bottomInset),
+      padding: EdgeInsets.fromLTRB(4, 7, 4, bottomInset),
       decoration: const BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
@@ -228,14 +265,15 @@ class _AnimatedBottomNavigation extends StatelessWidget {
       child: Row(
         children: [
           for (var index = 0; index < _items.length; index++)
-            Expanded(
-              child: _AnimatedNavItem(
-                item: _items[index],
-                selected: selectedIndex == index,
-                badge: index == 3 ? notificationBadge : 0,
-                onTap: () => onTap(index),
+            if (index != 4 || showNotifications)
+              Expanded(
+                child: _AnimatedNavItem(
+                  item: _items[index],
+                  selected: selectedIndex == index,
+                  badge: index == 4 ? notificationBadge : 0,
+                  onTap: () => onTap(index),
+                ),
               ),
-            ),
         ],
       ),
     );
@@ -280,7 +318,7 @@ class _AnimatedNavItem extends StatelessWidget {
                 AnimatedContainer(
                   duration: const Duration(milliseconds: 280),
                   curve: Curves.easeOutCubic,
-                  width: selected ? 48 : 36,
+                  width: selected ? 42 : 32,
                   height: 31,
                   decoration: BoxDecoration(
                     color: Color.lerp(
@@ -299,7 +337,7 @@ class _AnimatedNavItem extends StatelessWidget {
                         Icon(
                           selected ? item.activeIcon : item.icon,
                           color: activeColor,
-                          size: 22 + (2 * value),
+                          size: 20 + (2 * value),
                         ),
                         if (badge > 0)
                           Positioned(
@@ -341,7 +379,7 @@ class _AnimatedNavItem extends StatelessWidget {
                 AnimatedDefaultTextStyle(
                   duration: const Duration(milliseconds: 220),
                   style: TextStyle(
-                    fontSize: 10,
+                    fontSize: 9.5,
                     height: 1,
                     color: activeColor,
                     fontWeight: selected ? FontWeight.w700 : FontWeight.w500,

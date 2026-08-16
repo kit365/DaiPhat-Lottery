@@ -126,7 +126,14 @@ public class OrderModel {
     }
 
     public void cancelAfterPaymentForRefund(String cancelReason, OrderCancelType cancelType) {
-        ensureOrderType(OrderType.ONLINE);
+        cancelPaidFulfillmentForRefund(cancelReason, cancelType);
+    }
+
+    /**
+     * Customer/staff refund cancel for PAID / PREPARING / PENDING_PICKUP.
+     * Does not require ONLINE vs DIRECT — PayOS online orders are PREPARING after pay.
+     */
+    public void cancelPaidFulfillmentForRefund(String cancelReason, OrderCancelType cancelType) {
         ensurePaidFulfillmentStatus();
         cancel(cancelReason, true, cancelType);
     }

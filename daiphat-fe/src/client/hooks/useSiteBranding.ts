@@ -1,3 +1,4 @@
+import { CLIENT_FAVICON, CLIENT_LOGO } from '@/client/constants/clientBannerAssets';
 import { usePublicSystemConfigValues } from './usePublicSystemConfigValues';
 
 /** Branding + contact công khai (header / footer / auth). Chỉ giữ key thực sự dùng. */
@@ -24,9 +25,9 @@ export const SITE_PUBLIC_DEFAULTS: Record<SitePublicKey, string> = {
     SITE_SLOGAN: 'TÀI LỘC - MAY MẮN - THỊNH VƯỢNG',
     SITE_INTRO:
         'Đại Phát - Hệ thống xổ số kiến thiết uy tín hàng đầu Việt Nam. Nhanh chóng, minh bạch, bảo mật và luôn đồng hành cùng bạn trên hành trình may mắn.',
-    /** Không fallback ảnh cứng — chỉ hiện logo khi admin đã cấu hình SITE_LOGO_URL. */
-    SITE_LOGO_URL: '',
-    SITE_FAVICON_URL: '',
+    /** Logo mặc định = ảnh client (ibb). Admin cấu hình SITE_LOGO_URL thì ghi đè. */
+    SITE_LOGO_URL: CLIENT_FAVICON || CLIENT_LOGO,
+    SITE_FAVICON_URL: CLIENT_FAVICON || CLIENT_LOGO,
     SITE_PHONE: '',
     SITE_EMAIL: '',
     SITE_ADDRESS: '',

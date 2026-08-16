@@ -94,4 +94,22 @@ class OrderModelRefundDetailStatusTest {
         assertThat(alreadyPending.getStatus()).isEqualTo(OrderDetailStatus.REFUND_PENDING);
         assertThat(stillActive.getStatus()).isEqualTo(OrderDetailStatus.REFUND_PENDING);
     }
+
+    @Test
+    @DisplayName("cancelPaidFulfillmentForRefund works for PREPARING without order type")
+    void cancelPaidFulfillmentForRefund_preparingWithoutType() {
+        OrderDetailModel detail = OrderDetailModel.builder()
+                .status(OrderDetailStatus.ACTIVE)
+                .price(BigDecimal.TEN)
+                .build();
+        OrderModel order = OrderModel.builder()
+                .status(OrderStatus.PREPARING)
+                .orderDetails(new ArrayList<>(List.of(detail)))
+                .build();
+
+        order.cancelPaidFulfillmentForRefund("Khách hoàn tiền", null);
+
+        assertThat(order.getStatus()).isEqualTo(OrderStatus.CANCELLED);
+        assertThat(detail.getStatus()).isEqualTo(OrderDetailStatus.REFUND_PENDING);
+    }
 }

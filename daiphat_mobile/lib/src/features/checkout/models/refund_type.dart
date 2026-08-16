@@ -23,7 +23,7 @@ class UserBankAccountResponse {
 
   factory UserBankAccountResponse.fromJson(Map<String, dynamic> json) {
     return UserBankAccountResponse(
-      id: json['id'] as int? ?? 0,
+      id: (json['id'] as num?)?.toInt() ?? 0,
       bankName: json['bankName']?.toString() ?? '',
       bankLogo: json['bankLogo']?.toString(),
       bankBin: json['bankBin']?.toString() ?? '',
@@ -147,6 +147,9 @@ class OrderRefundEligibilityResponse {
   final String? orderCreatedAt;
   final List<RefundEligibleTicketItem> refundTickets;
   final int? totalRefundAmount;
+  final int? maxRefundRequestsPerDay;
+  final int? refundRequestsSubmittedToday;
+  final bool dailyLimitReached;
 
   const OrderRefundEligibilityResponse({
     required this.eligible,
@@ -162,6 +165,9 @@ class OrderRefundEligibilityResponse {
     this.orderTotalAmount,
     this.orderCreatedAt,
     this.totalRefundAmount,
+    this.maxRefundRequestsPerDay,
+    this.refundRequestsSubmittedToday,
+    this.dailyLimitReached = false,
   });
 
   factory OrderRefundEligibilityResponse.fromJson(Map<String, dynamic> json) {
@@ -169,23 +175,36 @@ class OrderRefundEligibilityResponse {
     return OrderRefundEligibilityResponse(
       eligible: json['eligible'] as bool? ?? false,
       reason: json['reason']?.toString(),
-      remainingSeconds: json['remainingSeconds'] as int?,
-      graceMinutes: json['graceMinutes'] as int? ?? 0,
+      remainingSeconds: (json['remainingSeconds'] as num?)?.toInt(),
+      graceMinutes: (json['graceMinutes'] as num?)?.toInt() ?? 0,
       refundDeadlineAt: json['refundDeadlineAt']?.toString(),
       paymentSuccessAt: json['paymentSuccessAt']?.toString(),
       orderId: json['orderId']?.toString(),
       orderCode: json['orderCode']?.toString(),
       orderStatus: json['orderStatus']?.toString(),
-      orderTotalAmount: json['orderTotalAmount'] as int?,
+      orderTotalAmount: (json['orderTotalAmount'] as num?)?.toInt(),
       orderCreatedAt: json['orderCreatedAt']?.toString(),
       refundTickets: tickets
           .map(
             (e) => RefundEligibleTicketItem.fromJson(e as Map<String, dynamic>),
           )
           .toList(),
-      totalRefundAmount: json['totalRefundAmount'] as int?,
+      totalRefundAmount: (json['totalRefundAmount'] as num?)?.toInt(),
+      maxRefundRequestsPerDay:
+          (json['maxRefundRequestsPerDay'] as num?)?.toInt(),
+      refundRequestsSubmittedToday:
+          (json['refundRequestsSubmittedToday'] as num?)?.toInt(),
+      dailyLimitReached: json['dailyLimitReached'] as bool? ?? false,
     );
   }
+}
+
+/// Format còn lại kiểu web: `MM phút SS giây`.
+String formatRefundCountdown(int totalSeconds) {
+  final seconds = totalSeconds < 0 ? 0 : totalSeconds;
+  final minutes = seconds ~/ 60;
+  final secs = seconds % 60;
+  return '${minutes.toString().padLeft(2, '0')} phút ${secs.toString().padLeft(2, '0')} giây';
 }
 
 int computeRefundSecondsLeft({

@@ -9,6 +9,7 @@ import '../dto/verify_otp_request.dart';
 import '../dto/reset_password_request.dart';
 import 'package:daiphat_mobile/src/features/profile/data/dto/update_profile_request.dart';
 import '../models/auth_token.dart';
+import '../models/password_policy.dart';
 import '../models/user.dart';
 import 'package:daiphat_mobile/src/shared/network/api_response.dart';
 
@@ -26,6 +27,7 @@ class AuthApiService {
     final response = await _apiClient.post(
       '$_baseAuth/login',
       data: request.toJson(),
+      includeAuth: false,
     );
 
     final apiResponse = ApiResponse<AuthToken>.fromJson(
@@ -144,6 +146,32 @@ class AuthApiService {
     );
     final apiResponse = ApiResponse.fromJson(response, null);
     if (!apiResponse.isSuccess) throw ApiException(apiResponse.message);
+  }
+
+  Future<PasswordPolicy> getPasswordPolicy() async {
+    final response = await _apiClient.get(
+      '$_baseAuth/password-policy',
+      includeAuth: false,
+    );
+
+    final apiResponse = ApiResponse<PasswordPolicy>.fromJson(
+      response,
+      (json) => PasswordPolicy.fromJson(json as Map<String, dynamic>),
+    );
+
+    if (!apiResponse.isSuccess) {
+      throw ApiException(
+        apiResponse.message.isNotEmpty
+            ? apiResponse.message
+            : 'Không thể lấy chính sách mật khẩu.',
+      );
+    }
+
+    if (apiResponse.data == null) {
+      throw const ApiException('Dữ liệu chính sách mật khẩu trống.');
+    }
+
+    return apiResponse.data!;
   }
 }
 

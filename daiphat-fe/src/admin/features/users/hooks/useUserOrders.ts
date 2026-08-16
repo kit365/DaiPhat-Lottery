@@ -2,7 +2,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { getOrders } from '@/admin/features/orders/services/orderService';
-import { userOrdersQueryKey } from '@/constants/queryKeys';
+import { userOrdersQueryKey } from '@/admin/features/users/constants/queryKeys';
 import type { ApiResponse, PageResponse } from '@/types/api.type';
 import type { OrderFilterParams, OrderResponse } from '@/types/order.type';
 import { listQueryDefaults } from '@/shared/react-query';

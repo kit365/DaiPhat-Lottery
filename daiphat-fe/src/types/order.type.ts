@@ -66,19 +66,61 @@ export const ORDER_DETAIL_STATUS_BADGE: Record<
     },
 };
 
-export function resolveOrderDetailStatusBadge(status?: string | null) {
+export function resolveOrderDetailStatusBadge(
+    status?: string | null,
+    statusDisplayName?: string | null
+) {
     if (!status) {
-        return ORDER_DETAIL_STATUS_BADGE[OrderDetailStatus.ACTIVE];
+        const badge = ORDER_DETAIL_STATUS_BADGE[OrderDetailStatus.ACTIVE];
+        return statusDisplayName ? { ...badge, label: statusDisplayName } : badge;
     }
     const key = status as OrderDetailStatus;
-    return ORDER_DETAIL_STATUS_BADGE[key] ?? {
-        label: status,
+    const badge = ORDER_DETAIL_STATUS_BADGE[key];
+    if (badge) {
+        return statusDisplayName ? { ...badge, label: statusDisplayName } : badge;
+    }
+    return {
+        label: statusDisplayName || status,
         bg: 'bg-[rgba(145,158,171,0.16)]',
         text: 'text-[#637381]',
         color: 'var(--palette-text-secondary, #637381)',
         bgcolor: 'var(--palette-action-selected, rgba(145, 158, 171, 0.16))',
     };
 }
+
+export function getOrderDetailStatusAdminBadgeModifier(status?: string | null): string {
+    switch (status) {
+        case OrderDetailStatus.ACTIVE:
+        case 'ACTIVE':
+            return 'admin-status-badge--success';
+        case OrderDetailStatus.INACTIVE:
+        case 'INACTIVE':
+            return 'admin-status-badge--inactive';
+        case OrderDetailStatus.REFUND_PENDING:
+        case 'REFUND_PENDING':
+            return 'admin-status-badge--pending';
+        case OrderDetailStatus.REFUNDED:
+        case 'REFUNDED':
+            return 'admin-status-badge--active';
+        default:
+            return 'admin-status-badge--draft';
+    }
+}
+
+const SERIAL_STATUS_LABELS: Record<string, string> = {
+    IN_STOCK: 'Trong kho',
+    RESERVED: 'Đang giữ chỗ',
+    PROXY_HOLDING: 'Đại lý giữ hộ',
+    SOLD: 'Đã bán',
+    EXPIRED: 'Hết hạn',
+};
+
+const TICKET_CONDITION_LABELS: Record<string, string> = {
+    GOOD: 'Tốt',
+    DAMAGED: 'Hỏng',
+    LOST: 'Thất lạc',
+    VOIDED: 'Đã hủy',
+};
 
 /** Badge for lottery-ticket-serial status shown on order-detail lists. */
 export function resolveLotteryTicketSerialStatusBadge(
@@ -112,21 +154,6 @@ export function resolveLotteryTicketSerialStatusBadge(
             return { label, color: '#64748b', bgcolor: '#f1f5f9' };
     }
 }
-
-const SERIAL_STATUS_LABELS: Record<string, string> = {
-    IN_STOCK: 'Trong kho',
-    RESERVED: 'Đang giữ chỗ',
-    PROXY_HOLDING: 'Đại lý giữ hộ',
-    SOLD: 'Đã bán',
-    EXPIRED: 'Hết hạn',
-};
-
-const TICKET_CONDITION_LABELS: Record<string, string> = {
-    GOOD: 'Tốt',
-    DAMAGED: 'Hỏng',
-    LOST: 'Thất lạc',
-    VOIDED: 'Đã hủy',
-};
 
 export interface OrderTicketItemRequest {
     lotteryTicketId: number;

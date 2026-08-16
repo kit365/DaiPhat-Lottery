@@ -31,7 +31,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "react-toastify";
 import { LazyDataGrid } from "@/admin/shared/data-grid/LazyDataGrid";
 import { dataGridStyles } from "@/admin/shared/data-grid";
-import { DATA_GRID_LOCALE_VN } from "@/shared/components/DataTable/localeText.config";
+import { DATA_GRID_LOCALE_VN } from "@/admin/components/data-grid/localeText.config";
 import { Button } from "@/admin/components/ui/Button";
 import { CanAccess } from "@/admin/components/auth/CanAccess";
 import { DeleteIcon, EditIcon } from "@/admin/assets/icons";

@@ -7,6 +7,7 @@ export function resolveOrderDetailTicketDisplay(detail: any): IncidentTicketDisp
     const rawId = detail?.id;
     const id = rawId != null && Number.isFinite(Number(rawId)) ? Number(rawId) : null;
     const status = detail?.status as string | undefined;
+    const statusDisplayName = detail?.statusDisplayName as string | undefined;
     const ticket = detail?.lotteryTicket || detail?.ticket || {};
     const replacementSerial =
         detail?.replacedByTicketSerial ||
@@ -15,6 +16,16 @@ export function resolveOrderDetailTicketDisplay(detail: any): IncidentTicketDisp
     const originalSerial = detail?.ticketSerial || detail?.lotteryTicketSerial || null;
     const effectiveSerial = replacementSerial || originalSerial;
     const allocatedSerial = Array.isArray(detail?.allocatedSerials) ? detail.allocatedSerials[0] : null;
+    const lotteryTicketSerialId =
+        detail?.lotteryTicketSerialId ||
+        allocatedSerial?.id ||
+        effectiveSerial?.id ||
+        detail?.serialId;
+    const lotteryTicketId =
+        detail?.lotteryTicketId ||
+        detail?.ticketId ||
+        ticket?.id ||
+        allocatedSerial?.ticketId;
 
     const numbers =
         detail?.numbers ||
@@ -83,6 +94,9 @@ export function resolveOrderDetailTicketDisplay(detail: any): IncidentTicketDisp
         stationName,
         drawDate,
         status,
+        statusDisplayName,
+        lotteryTicketId,
+        lotteryTicketSerialId,
         serialStatus,
         serialStatusDisplayName,
         ticketCondition,

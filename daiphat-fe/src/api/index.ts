@@ -4,7 +4,7 @@
  *
  * Luồng:
  *
- *   UI  →  React Query (nếu có)  →  apiApp
+ *   UI  →  React Query (AbortSignal khi unmount / đổi queryKey)  →  apiApp
  *                                      │
  *                    có NEXT_PUBLIC_API_BASE_URL  →  gọi thẳng BE (local đừng set)
  *                    không có                     →  /api cùng origin FE
@@ -28,10 +28,11 @@
  */
 
 import axios, { AxiosError, InternalAxiosRequestConfig } from "axios"
-import { useAuthStore } from "../stores/useAuthStore"
+import { peekQueryAbortSignal } from "@/shared/react-query/queryAbort"
 import { API_PREFIX, API_VERSION } from "./api.constants"
 import { AppToast } from "../utils/toast.util"
-import { persistAccessToken, resolveAccessToken, clearJsAuthCookies } from "./authHeaders"
+import { persistAccessToken, resolveAccessToken } from "./authHeaders"
+import { endAuthSession } from "./endAuthSession"
 
 const getBaseUrl = () => {
     if (typeof process !== "undefined" && process.env) {
@@ -80,6 +81,13 @@ apiApp.interceptors.request.use((config) => {
         }
     }
 
+    if (!config.signal) {
+        const querySignal = peekQueryAbortSignal();
+        if (querySignal) {
+            config.signal = querySignal;
+        }
+    }
+
     // Upload FormData: xóa Content-Type để browser tự set multipart + boundary.
     if (typeof FormData !== "undefined" && config.data instanceof FormData) {
         const headers = config.headers as { delete?: (name: string) => void } & Record<string, unknown>;
@@ -113,8 +121,7 @@ const AUTH_REQUIRED_PATHS = [
 ];
 
 const clearAuthSession = () => {
-    useAuthStore.getState().logout();
-    clearJsAuthCookies();
+    endAuthSession();
 };
 
 const isAuthRequiredRequest = (url?: string) => {

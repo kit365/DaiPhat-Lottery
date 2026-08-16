@@ -49,8 +49,14 @@ import {
 import { Icon } from '@/admin/components/ui/AdminIcon';
 import { UploadFiles } from '../../../../components/ui/UploadFiles';
 import dayjs from 'dayjs';
-import { resolveLotteryTicketSerialStatusBadge } from '../../../../../types/order.type';
-import { OrderDetailStatusBadge, StatusBadge } from '@/shared/components/StatusBadge';
+import {
+    getOrderDetailStatusAdminBadgeModifier,
+    resolveOrderDetailStatusBadge,
+} from '../../../../../types/order.type';
+import { resolveLotteryTicketSerialAdminBadge } from '../../utils/lotteryTicketSerialAdminBadge.util';
+import { AdminStatusBadge } from '../../../../components/ui/AdminStatusBadge';
+import { AdminLuckyDisplay } from '@/shared/lucky-number';
+import { LazyReportSerialFaultPane } from '../../../ticket/import-batch/components/sections/LazyReportSerialFaultPane';
 import type { IncidentTicketDisplay } from '../../types/incidentTicket.type';
 import { resolveOrderDetailTicketDisplay } from '../../utils/resolveOrderDetailTicketDisplay';
 import { prefixAdmin, ROUTES } from '../../../../constants/routes';
@@ -199,6 +205,7 @@ export function OrderInspectionSection({
     const [isSubmittingRefund, setIsSubmittingRefund] = useState(false);
     const [refundReason, setRefundReason] = useState('');
     const [selectedRefundReasonSuggestion, setSelectedRefundReasonSuggestion] = useState('');
+    const [reportFaultTicket, setReportFaultTicket] = useState<IncidentTicketDisplay | null>(null);
 
     const tickets = useMemo(
         () => (orderDetails || []).map(resolveOrderDetailTicketDisplay),
@@ -285,10 +292,28 @@ export function OrderInspectionSection({
         });
     }, [tickets, orderId]);
 
+    const handleReportFaultClick = (ticket: IncidentTicketDisplay) => {
+        if (ticket.isAlreadyFaultReported || !ticket.isIncidentEligible || ticket.id == null) {
+            return;
+        }
+        if (!ticket.lotteryTicketSerialId) {
+            toast.error('Không tìm thấy thông tin sê-ri vé để báo lỗi');
+            return;
+        }
+        setReportFaultTicket(ticket);
+    };
+
     const handleReplaceTicketClick = (ticket: IncidentTicketDisplay) => {
         if (ticket.isAlreadyFaultReported || !ticket.isIncidentEligible || ticket.id == null) {
             return;
         }
+        const candidates = availableReplacements[ticket.id];
+        const hasRep = Array.isArray(candidates) && candidates.length > 0;
+        if (!hasRep) {
+            handleReportFaultClick(ticket);
+            return;
+        }
+
         const ticketId = ticket.id;
         if (expandedRow === ticketId) {
             setExpandedRow(null);
@@ -521,7 +546,7 @@ export function OrderInspectionSection({
 
         return (
             <TableRow>
-                <TableCell colSpan={7} sx={{ p: 0, borderBottom: 'none' }}>
+                <TableCell colSpan={6} sx={{ p: 0, borderBottom: 'none' }}>
                     <Collapse in={expandedRow === ticketId} timeout="auto" unmountOnExit>
                         <Box sx={{ p: { xs: 2.5, md: 3 }, bgcolor: 'var(--palette-background-neutral)', borderRadius: '0 0 12px 12px', mb: 2, border: '1px solid var(--palette-divider)', borderTop: 'none' }}>
                             <Stack spacing={3} sx={{ maxWidth: hasReplacementCandidates ? '100%' : 960, mx: 'auto', width: '100%' }}>
@@ -960,7 +985,6 @@ export function OrderInspectionSection({
                                         <TableCell align="center" sx={{ color: 'var(--palette-text-secondary)', fontWeight: 600, borderBottom: 'none' }}>Vé số</TableCell>
                                         <TableCell sx={{ color: 'var(--palette-text-secondary)', fontWeight: 600, borderBottom: 'none' }}>Đài</TableCell>
                                         <TableCell sx={{ color: 'var(--palette-text-secondary)', fontWeight: 600, borderBottom: 'none' }}>Ngày xổ</TableCell>
-                                        <TableCell sx={{ color: 'var(--palette-text-secondary)', fontWeight: 600, borderBottom: 'none' }}>Loại vé</TableCell>
                                         <TableCell sx={{ color: 'var(--palette-text-secondary)', fontWeight: 600, borderBottom: 'none' }}>Giá</TableCell>
                                         <TableCell sx={{ color: 'var(--palette-text-secondary)', fontWeight: 600, borderBottom: 'none' }}>Trạng thái</TableCell>
                                         <TableCell align="right" sx={{ color: 'var(--palette-text-secondary)', fontWeight: 600, borderBottom: 'none' }}>Thao tác</TableCell>
@@ -969,7 +993,7 @@ export function OrderInspectionSection({
                                 <TableBody>
                                     {tickets.length === 0 && (
                                         <TableRow>
-                                            <TableCell colSpan={7} align="center" sx={{ py: 4 }}>
+                                            <TableCell colSpan={6} align="center" sx={{ py: 4 }}>
                                                 <Typography variant="body2" color="text.secondary">
                                                     Không có vé trong đơn
                                                 </Typography>
@@ -978,11 +1002,15 @@ export function OrderInspectionSection({
                                     )}
                                     {tickets.map((ticket) => {
                                         const disabled = !ticket.isIncidentEligible || ticket.id == null;
-                                        const serialBadge = resolveLotteryTicketSerialStatusBadge(
+                                        const serialBadge = resolveLotteryTicketSerialAdminBadge(
                                             ticket.serialStatus,
                                             ticket.serialStatusDisplayName,
                                             ticket.ticketCondition,
                                             ticket.ticketConditionDisplayName
+                                        );
+                                        const activityBadge = resolveOrderDetailStatusBadge(
+                                            ticket.status,
+                                            ticket.statusDisplayName
                                         );
                                         const candidates = ticket.id != null ? availableReplacements[ticket.id] : undefined;
                                         const isLoading = ticket.id != null && candidates === undefined;
@@ -999,38 +1027,26 @@ export function OrderInspectionSection({
                                                     sx={{ opacity: disabled ? 0.55 : 1, '&:last-child td, &:last-child th': { border: 0 } }}
                                                 >
                                                     <TableCell align="center">
-                                                        <Stack direction="row" spacing={1.5} alignItems="center" justifyContent="center">
-                                                            {ticket.ticketImg ? (
-                                                                <Box
-                                                                    component="img"
-                                                                    src={ticket.ticketImg}
-                                                                    alt={`Vé ${ticket.numbers}`}
-                                                                    sx={{
-                                                                        width: 32,
-                                                                        height: 32,
-                                                                        objectFit: 'contain',
-                                                                        borderRadius: '4px',
-                                                                        bgcolor: 'rgba(0,0,0,0.02)',
-                                                                        boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
-                                                                        border: '1px solid var(--palette-divider)'
-                                                                    }}
-                                                                />
-                                                            ) : (
-                                                                <Avatar variant="rounded" sx={{ width: 32, height: 32, bgcolor: '#ee1314', color: 'white' }}>
-                                                                    <Icon icon="solar:ticket-bold-duotone" width={20} />
-                                                                </Avatar>
-                                                            )}
-                                                            <Box sx={{ textAlign: 'left' }}>
-                                                                <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'var(--palette-text-primary)' }}>
-                                                                    {ticket.numbers}
+                                                        <Box sx={{ textAlign: 'center' }}>
+                                                            <AdminLuckyDisplay
+                                                                value={ticket.numbers}
+                                                                ticket
+                                                                fontSize="0.875rem"
+                                                                fontWeight={700}
+                                                                letterSpacing="0.06em"
+                                                                sx={{ color: 'var(--palette-text-primary)' }}
+                                                            />
+                                                            {ticket.serialNumber && (
+                                                                <Typography
+                                                                    variant="caption"
+                                                                    color="text.secondary"
+                                                                    component="div"
+                                                                    sx={{ mt: 0.25, lineHeight: 1.4, wordBreak: 'break-all' }}
+                                                                >
+                                                                    SN: {ticket.serialNumber}
                                                                 </Typography>
-                                                                {ticket.serialNumber && (
-                                                                    <Typography variant="caption" color="text.secondary">
-                                                                        SN: {ticket.serialNumber}
-                                                                    </Typography>
-                                                                )}
-                                                            </Box>
-                                                        </Stack>
+                                                            )}
+                                                        </Box>
                                                     </TableCell>
                                                     <TableCell>
                                                         <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'var(--palette-text-primary)' }}>
@@ -1041,14 +1057,6 @@ export function OrderInspectionSection({
                                                         <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'var(--palette-text-primary)' }}>
                                                             {ticket.drawDate ? dayjs(ticket.drawDate).format('DD/MM/YYYY') : 'N/A'}
                                                         </Typography>
-                                                        <Typography variant="caption" sx={{ color: 'var(--palette-text-disabled)' }}>
-                                                            {ticket.drawDate ? dayjs(ticket.drawDate).locale('vi').format('dddd') : 'N/A'}
-                                                        </Typography>
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'var(--palette-text-primary)' }}>
-                                                            {ticket.ticketType === '—' ? 'Vé thường' : ticket.ticketType}
-                                                        </Typography>
                                                     </TableCell>
                                                     <TableCell>
                                                         <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'var(--palette-text-primary)' }}>
@@ -1057,12 +1065,14 @@ export function OrderInspectionSection({
                                                     </TableCell>
                                                     <TableCell>
                                                         <Stack spacing={0.5} alignItems="flex-start">
-                                                            <StatusBadge
+                                                            <AdminStatusBadge
                                                                 label={serialBadge.label}
-                                                                color={serialBadge.color}
-                                                                bg={serialBadge.bgcolor}
+                                                                modifier={serialBadge.modifier}
                                                             />
-                                                            <OrderDetailStatusBadge status={ticket.status} />
+                                                            <AdminStatusBadge
+                                                                label={activityBadge.label}
+                                                                modifier={getOrderDetailStatusAdminBadgeModifier(ticket.status)}
+                                                            />
                                                         </Stack>
                                                     </TableCell>
                                                     <TableCell align="right">
@@ -1108,13 +1118,13 @@ export function OrderInspectionSection({
                                                                     </Typography>
                                                                     <Button
                                                                         size="small"
-                                                                        variant={isReplacing ? "contained" : (hasStartedFilling ? "contained" : "outlined")}
-                                                                        color={hasStartedFilling && !isReplacing ? "warning" : "error"}
+                                                                        variant="outlined"
+                                                                        color="error"
                                                                         disabled={disabled}
-                                                                        onClick={() => ticket.id != null && handleReplaceTicketClick(ticket)}
+                                                                        onClick={() => handleReportFaultClick(ticket)}
                                                                         sx={{ textTransform: 'none', py: 0.25, minWidth: 'auto', fontSize: '0.75rem', borderRadius: '6px', boxShadow: 'none' }}
                                                                     >
-                                                                        {isReplacing ? "Đóng" : (hasStartedFilling ? "Đã báo lỗi" : "Báo lỗi")}
+                                                                        Báo lỗi
                                                                     </Button>
                                                                 </>
                                                             )}
@@ -1135,7 +1145,7 @@ export function OrderInspectionSection({
                                                         </Stack>
                                                     </TableCell>
                                                 </TableRow>
-                                                {ticket.id != null && !alreadyFaultReported && renderReplacementForm(ticket)}
+                                                {ticket.id != null && !alreadyFaultReported && hasRep && renderReplacementForm(ticket)}
                                             </React.Fragment>
                                         );
                                     })}
@@ -1725,6 +1735,55 @@ export function OrderInspectionSection({
                     </Button>
                 </DialogActions>
             </Dialog>
+
+            {reportFaultTicket && (
+                <Dialog
+                    open
+                    onClose={() => setReportFaultTicket(null)}
+                    maxWidth="lg"
+                    fullWidth
+                    PaperProps={{
+                        className: 'admin-theme',
+                        sx: {
+                            borderRadius: '16px',
+                            maxHeight: '90vh',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            overflow: 'hidden',
+                        },
+                    }}
+                >
+                    <DialogContent sx={{ p: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+                        <LazyReportSerialFaultPane
+                            serials={[
+                                {
+                                    id: reportFaultTicket.lotteryTicketSerialId!,
+                                    serialNumber: reportFaultTicket.serialNumber || '',
+                                    status: reportFaultTicket.serialStatus || 'RESERVED',
+                                    ticketCondition: reportFaultTicket.ticketCondition,
+                                    ticketId: reportFaultTicket.lotteryTicketId,
+                                    ticketNumbers: reportFaultTicket.numbers,
+                                    ticketStatus: reportFaultTicket.status,
+                                    reservedByOrderId: orderId,
+                                },
+                            ]}
+                            ticketNumbers={reportFaultTicket.numbers}
+                            ticketId={reportFaultTicket.lotteryTicketId}
+                            importBatchLineId={0}
+                            stationId={reportFaultTicket.stationId}
+                            drawDate={reportFaultTicket.drawDate}
+                            defaultCancelMode="SERIAL"
+                            onCancel={() => setReportFaultTicket(null)}
+                            onSuccess={() => {
+                                setReportFaultTicket(null);
+                                if (onSuccess) {
+                                    onSuccess();
+                                }
+                            }}
+                        />
+                    </DialogContent>
+                </Dialog>
+            )}
         </Card>
     );
 }

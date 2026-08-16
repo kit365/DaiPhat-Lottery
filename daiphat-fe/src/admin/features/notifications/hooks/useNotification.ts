@@ -10,7 +10,7 @@ import {
 } from '../services/notificationService';
 import type { GetNotificationsParams } from '../types/notification.type';
 import { QUERY_KEYS } from '../constants/queryKeys';
-import { QUERY_KEYS as GLOBAL_QUERY_KEYS } from '@/constants/queryKeys';
+import { QUERY_KEYS as ADMIN_QUERY_KEYS } from '@/admin/constants/queryKeys';
 import { AppToast as toast } from '../../../../utils/toast.util';
 import { useAuthStore } from '../../../../stores/useAuthStore';
 import { hasPermission } from '../../../utils/permission.util';
@@ -72,7 +72,7 @@ export const useMarkAsRead = () => {
         mutationFn: (id: string) => markAsRead(id),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.NOTIFICATIONS] });
-            queryClient.invalidateQueries({ queryKey: [GLOBAL_QUERY_KEYS.ADMIN_BADGES] });
+            queryClient.invalidateQueries({ queryKey: [ADMIN_QUERY_KEYS.ADMIN_BADGES] });
         },
     });
 };
@@ -83,7 +83,7 @@ export const useMarkAllAsRead = () => {
         mutationFn: () => markAllAsRead(),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.NOTIFICATIONS] });
-            queryClient.invalidateQueries({ queryKey: [GLOBAL_QUERY_KEYS.ADMIN_BADGES] });
+            queryClient.invalidateQueries({ queryKey: [ADMIN_QUERY_KEYS.ADMIN_BADGES] });
             toast.success('Đã đánh dấu tất cả là đã đọc');
         },
     });
@@ -95,7 +95,7 @@ export const useDeleteNotification = () => {
         mutationFn: (id: string) => deleteNotification(id),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.NOTIFICATIONS] });
-            queryClient.invalidateQueries({ queryKey: [GLOBAL_QUERY_KEYS.ADMIN_BADGES] });
+            queryClient.invalidateQueries({ queryKey: [ADMIN_QUERY_KEYS.ADMIN_BADGES] });
             toast.success('Đã xóa thông báo đã đọc');
         },
     });
@@ -107,7 +107,7 @@ export const useDeleteAllNotifications = () => {
         mutationFn: () => deleteAllNotifications(),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.NOTIFICATIONS] });
-            queryClient.invalidateQueries({ queryKey: [GLOBAL_QUERY_KEYS.ADMIN_BADGES] });
+            queryClient.invalidateQueries({ queryKey: [ADMIN_QUERY_KEYS.ADMIN_BADGES] });
             toast.success('Đã xóa tất cả thông báo đã đọc');
         },
     });

@@ -35,13 +35,15 @@ class SellableDrawDate {
   static String tomorrowIsoVn([DateTime? now]) => toIsoDate(tomorrowVn(now));
 
   /// true khi đã tới/qua giờ xổ hôm nay (vé hôm nay không còn bán).
+  /// Vé ngày mai vẫn bán được — khớp FE web `sellableDrawDate.util.ts`.
   static bool isTodayDrawPassed([DateTime? now]) {
     final vn = vietnamNow(now);
     final minutes = vn.hour * 60 + vn.minute;
     return minutes >= defaultDrawHour * 60 + defaultDrawMinute;
   }
 
-  /// Ngày quay mặc định khi mở “vé đang bán”.
+  /// Ngày quay mặc định khi mở “vé đang bán”:
+  /// trước 16:15 → hôm nay; sau 16:15 → ngày mai.
   static String defaultSellableDrawDateIso([DateTime? now]) {
     return isTodayDrawPassed(now) ? tomorrowIsoVn(now) : todayIsoVn(now);
   }
