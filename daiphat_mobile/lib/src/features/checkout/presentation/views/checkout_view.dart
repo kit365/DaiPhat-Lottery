@@ -158,6 +158,9 @@ class _CheckoutViewState extends ConsumerState<CheckoutView> {
         ),
         backgroundColor: Colors.white,
         foregroundColor: const Color(0xFF15213B),
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        surfaceTintColor: Colors.transparent,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
           onPressed: () => context.pop(),
