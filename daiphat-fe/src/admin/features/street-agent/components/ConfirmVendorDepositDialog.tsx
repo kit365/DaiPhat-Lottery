@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Alert, CircularProgress, InputAdornment, Stack, TextField, Typography } from '@mui/material';
+import { useEffect, useState, type ReactNode } from "react";
+import { Alert, Box, CircularProgress, InputAdornment, Stack, TextField, Typography } from '@mui/material';
 import { toast } from "react-toastify";
 import { Button } from "../../../components/ui/Button";
 import { AdminDialog } from "../../../components/ui/AdminDialog";
@@ -10,7 +10,8 @@ import {
     useVendorConfirmationQuote,
 } from "../hooks/useVendorAllocation";
 import { StreetAgentProfile, VendorAllocationBatch } from "../types/street-agent.type";
-import { formatCurrency, formatDateTime } from "../utils/format";
+import { AdminLuckyDisplay } from "@/shared/lucky-number";
+import { formatCommission, formatCurrency, formatDateTime } from "../utils/format";
 
 const formatVndInput = (digits: string) => {
     if (!digits) return "";
@@ -27,6 +28,49 @@ const fieldSx = {
         fontSize: "0.875rem",
     },
 };
+
+const breakdownRowSx = {
+    display: "grid",
+    gridTemplateColumns: { xs: "1fr", sm: "minmax(0, 1.2fr) minmax(0, 1fr)" },
+    gap: 1,
+    alignItems: "baseline",
+};
+
+const DepositBreakdownRow = ({
+    label,
+    value,
+    description,
+    emphasize = false,
+}: {
+    label: ReactNode;
+    value: ReactNode;
+    description?: ReactNode;
+    emphasize?: boolean;
+}) => (
+    <Box>
+        <Box sx={breakdownRowSx}>
+            <Typography
+                variant="body2"
+                color={emphasize ? "text.primary" : "text.secondary"}
+                sx={{ fontWeight: emphasize ? 700 : 500 }}
+            >
+                {label}
+            </Typography>
+            <Typography
+                variant="body2"
+                textAlign={{ xs: "left", sm: "right" }}
+                sx={{ fontWeight: emphasize ? 700 : 600, fontVariantNumeric: "tabular-nums" }}
+            >
+                {value}
+            </Typography>
+        </Box>
+        {description ? (
+            <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.25 }}>
+                {description}
+            </Typography>
+        ) : null}
+    </Box>
+);
 
 const getApiErrorMessage = (error: any, fallback: string) =>
     error?.response?.data?.message || fallback;
@@ -146,7 +190,11 @@ export const ConfirmVendorDepositDialog = ({
                 <Stack spacing={2}>
                     <Typography variant="body2" color="text.secondary">
                         Phiếu <strong>{batch?.batchCode || "—"}</strong> ·{" "}
-                        {quote?.allocatedQuantity ?? batch?.allocatedQuantity ?? 0} vé
+                        <AdminLuckyDisplay
+                            component="span"
+                            value={`${quote?.allocatedQuantity ?? batch?.allocatedQuantity ?? 0} vé`}
+                            fontWeight={700}
+                        />
                         {profile
                             ? ` · ${`${profile.lastName || ""} ${profile.firstName || ""}`.trim()}`
                             : ""}
@@ -154,7 +202,12 @@ export const ConfirmVendorDepositDialog = ({
 
                     {quote?.effectiveHandoverDeadlineAt ? (
                         <Typography variant="body2" sx={{ fontWeight: 700, color: "text.primary" }}>
-                            Hạn cuối có thể giao vé trước {formatDateTime(quote.effectiveHandoverDeadlineAt)}
+                            Hạn cuối có thể giao vé trước{" "}
+                            <AdminLuckyDisplay
+                                component="span"
+                                value={formatDateTime(quote.effectiveHandoverDeadlineAt)}
+                                fontWeight={700}
+                            />
                         </Typography>
                     ) : null}
 
@@ -173,21 +226,83 @@ export const ConfirmVendorDepositDialog = ({
                         >
                             {quoteErrorMessage}
                         </Alert>
-                    ) : (
+                    ) : quote ? (
                         <>
-                            <TextField
-                                label="Cọc cần thu"
-                                value={
-                                    requiredAmount == null
-                                        ? "—"
-                                        : formatCurrency(requiredAmount)
-                                }
-                                InputProps={{ readOnly: true }}
-                                sx={fieldSx}
-                                fullWidth
-                            />
+                            <Box
+                                sx={{
+                                    p: 2,
+                                    borderRadius: "var(--shape-borderRadius)",
+                                    border: "1px solid",
+                                    borderColor: "divider",
+                                    bgcolor: "action.hover",
+                                }}
+                            >
+                                <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5 }}>
+                                    Cách tính tiền cọc
+                                </Typography>
+                                <Stack spacing={1.25}>
+                                    <DepositBreakdownRow
+                                        label="Giá bán cho người bán vé số"
+                                        value={
+                                            <AdminLuckyDisplay
+                                                component="span"
+                                                value={`${formatCurrency(quote.vendorUnitPrice)}/vé`}
+                                            />
+                                        }
+                                        description="Giá vendor chốt tại thời điểm xác nhận bàn giao."
+                                    />
+                                    <DepositBreakdownRow
+                                        label="Tỷ lệ tiền cọc"
+                                        value={
+                                            <AdminLuckyDisplay
+                                                component="span"
+                                                value={formatCommission(quote.depositRate)}
+                                            />
+                                        }
+                                        description="Phần trăm trên tổng giá trị vé giao trong phiếu này."
+                                    />
+                                    <DepositBreakdownRow
+                                        label="Công thức"
+                                        value={
+                                            <AdminLuckyDisplay
+                                                component="span"
+                                                value={`${quote.allocatedQuantity} × ${formatCurrency(quote.vendorUnitPrice)} × ${formatCommission(quote.depositRate)} = ${formatCurrency(quote.depositRequiredAmount)}`}
+                                                fontWeight={700}
+                                            />
+                                        }
+                                        description="Số vé × giá vendor × % cọc = cọc cần thu."
+                                        emphasize
+                                    />
+                                </Stack>
+                            </Box>
+
+                            <Box>
+                                <Typography
+                                    variant="caption"
+                                    color="text.secondary"
+                                    sx={{ display: "block", mb: 0.75, fontWeight: 500 }}
+                                >
+                                    Cọc cần thu
+                                </Typography>
+                                <Box
+                                    sx={{
+                                        px: 1.75,
+                                        py: 1.25,
+                                        borderRadius: "var(--shape-borderRadius)",
+                                        border: "1px solid",
+                                        borderColor: "divider",
+                                        bgcolor: "background.paper",
+                                    }}
+                                >
+                                    <AdminLuckyDisplay
+                                        value={formatCurrency(requiredAmount)}
+                                        fontSize="1rem"
+                                        fontWeight={800}
+                                    />
+                                </Box>
+                            </Box>
                         </>
-                    )}
+                    ) : null}
 
                     <TextField
                         label="Tiền thực nhận *"

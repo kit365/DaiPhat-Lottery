@@ -46,6 +46,8 @@ import { CanAccess } from '../../../../../components/auth/CanAccess';
 import { PERMISSIONS } from '../../../../../constants/permission.constants';
 import { prefixAdmin, ROUTES } from '../../../../../constants/routes';
 import { useImportBatchDetail } from '../../hooks/useImportBatch';
+import { useImportBatchIntakeGate } from '../../hooks/useImportBatchIntakeGate';
+import { useActiveSuppliers } from '../../../../supplier';
 import { exportImportBatchFile } from '../../services/importBatchService';
 import { toast } from 'react-toastify';
 import { useStations } from '../../../../station/hooks/useStation';
@@ -90,6 +92,8 @@ export const ImportBatchDetailPage = () => {
     const { can } = usePermissions();
     const { data: batch, isLoading, refetch } = useImportBatchDetail(id);
     const { data: providersRes } = useStations({ limit: 1000 });
+    const { data: activeSuppliers = [] } = useActiveSuppliers();
+    const { evaluate: evaluateIntake } = useImportBatchIntakeGate();
     const providers = (providersRes as any)?.data?.recordList || [];
     const [importLineId, setImportLineId] = useState<string | null>(null);
 
@@ -125,7 +129,15 @@ export const ImportBatchDetailPage = () => {
     const totalImportedQuantity = batch?.totalImportedQuantity ?? 0;
     const totalImportedCostValue = batch?.totalImportedCostValue ?? 0;
     const canEditBatch = batch ? isImportBatchEditable(batch) : false;
-    const canImportTickets = batch ? hasTicketImportEligibleLines(batch) : false;
+    const intakeGate = useMemo(() => {
+        if (!batch?.supplierId || !batch.drawDate) {
+            return null;
+        }
+        const supplier = activeSuppliers.find((entry) => entry.id === batch.supplierId);
+        return evaluateIntake(supplier, batch.drawDate);
+    }, [activeSuppliers, batch, evaluateIntake]);
+    const showImportTicketsButton = batch ? hasTicketImportEligibleLines(batch) : false;
+    const importTicketsBlocked = !!intakeGate?.blocked || !!intakeGate?.notYetAllowed;
     const hasUnsavedDraft = id ? hasUnsavedImportBatchEditDraft(id) : false;
 
     const progress = batch ? getImportBatchProgress(batch) : { percent: 0, imported: 0, declared: 0 };
@@ -198,30 +210,45 @@ export const ImportBatchDetailPage = () => {
                                 </Button>
                             )}
 
-                            {canImportTickets && (
+                            {showImportTicketsButton && (
                                 <CanAccess permission={PERMISSIONS.TICKET.CREATE}>
-                                    <Button
-                                        variant="contained"
-                                        startIcon={<ConfirmationNumberOutlinedIcon />}
-                                        onClick={() => {
-                                            const firstLine = findFirstIncompleteLine(batch);
-                                            if (firstLine?.id != null) {
-                                                setImportLineId(String(firstLine.id));
-                                            }
-                                        }}
-                                        sx={{
-                                            textTransform: 'none',
-                                            fontWeight: 800,
-                                            borderRadius: '10px',
-                                            bgcolor: '#0f172a',
-                                            color: '#ffffff',
-                                            px: 2.5,
-                                            boxShadow: '0 4px 12px rgba(15, 23, 42, 0.15)',
-                                            '&:hover': { bgcolor: '#1e293b' },
-                                        }}
+                                    <Tooltip
+                                        title={
+                                            importTicketsBlocked
+                                                ? intakeGate?.tooltipTitle ?? 'Không thể nhập vé lúc này.'
+                                                : ''
+                                        }
                                     >
-                                        Nhập vé vào phiếu
-                                    </Button>
+                                        <span>
+                                            <Button
+                                                variant="contained"
+                                                disabled={importTicketsBlocked}
+                                                startIcon={<ConfirmationNumberOutlinedIcon />}
+                                                onClick={() => {
+                                                    const firstLine = findFirstIncompleteLine(batch);
+                                                    if (firstLine?.id != null) {
+                                                        setImportLineId(String(firstLine.id));
+                                                    }
+                                                }}
+                                                sx={{
+                                                    textTransform: 'none',
+                                                    fontWeight: 800,
+                                                    borderRadius: '10px',
+                                                    bgcolor: '#0f172a',
+                                                    color: '#ffffff',
+                                                    px: 2.5,
+                                                    boxShadow: '0 4px 12px rgba(15, 23, 42, 0.15)',
+                                                    '&:hover': { bgcolor: '#1e293b' },
+                                                    '&.Mui-disabled': {
+                                                        bgcolor: '#e2e8f0',
+                                                        color: '#94a3b8',
+                                                    },
+                                                }}
+                                            >
+                                                Nhập vé vào phiếu
+                                            </Button>
+                                        </span>
+                                    </Tooltip>
                                 </CanAccess>
                             )}
                         </Stack>
@@ -247,6 +274,18 @@ export const ImportBatchDetailPage = () => {
                     {batch.status === 'CANCELLED' && (
                         <Alert severity="error" sx={{ borderRadius: '12px', fontWeight: 600 }}>
                             {getImportBatchCancelledAlertMessage(batch.cancelReason)}
+                        </Alert>
+                    )}
+
+                    {canEditBatch && intakeGate?.blocked && (
+                        <Alert severity="error" sx={{ borderRadius: '12px', fontWeight: 600 }}>
+                            {intakeGate.message}
+                        </Alert>
+                    )}
+
+                    {canEditBatch && intakeGate?.notYetAllowed && (
+                        <Alert severity="warning" sx={{ borderRadius: '12px', fontWeight: 600 }}>
+                            {intakeGate.message}
                         </Alert>
                     )}
 
@@ -778,27 +817,40 @@ export const ImportBatchDetailPage = () => {
                                                 {/* Actions */}
                                                 <TableCell align="center">
                                                     <Stack direction="row" spacing={0.5} justifyContent="center" alignItems="center">
-                                                        {canImportTickets && !lineComplete && line.status !== 'CANCELLED' && (
-                                                            <Tooltip title="Nhập vé cho đài này">
-                                                                <Button
-                                                                    size="small"
-                                                                    variant="outlined"
-                                                                    onClick={() => setImportLineId(String(line.id))}
-                                                                    sx={{
-                                                                        minWidth: 0,
-                                                                        px: 1.25,
-                                                                        py: 0.25,
-                                                                        fontSize: '0.75rem',
-                                                                        fontWeight: 700,
-                                                                        textTransform: 'none',
-                                                                        borderRadius: '8px',
-                                                                        color: '#0f172a',
-                                                                        borderColor: '#cbd5e1',
-                                                                        '&:hover': { bgcolor: '#f1f5f9' },
-                                                                    }}
-                                                                >
-                                                                    Nhập vé
-                                                                </Button>
+                                                        {showImportTicketsButton && !lineComplete && line.status !== 'CANCELLED' && (
+                                                            <Tooltip
+                                                                title={
+                                                                    importTicketsBlocked
+                                                                        ? intakeGate?.tooltipTitle ?? 'Không thể nhập vé lúc này.'
+                                                                        : 'Nhập vé cho đài này'
+                                                                }
+                                                            >
+                                                                <span>
+                                                                    <Button
+                                                                        size="small"
+                                                                        variant="outlined"
+                                                                        disabled={importTicketsBlocked}
+                                                                        onClick={() => setImportLineId(String(line.id))}
+                                                                        sx={{
+                                                                            minWidth: 0,
+                                                                            px: 1.25,
+                                                                            py: 0.25,
+                                                                            fontSize: '0.75rem',
+                                                                            fontWeight: 700,
+                                                                            textTransform: 'none',
+                                                                            borderRadius: '8px',
+                                                                            color: '#0f172a',
+                                                                            borderColor: '#cbd5e1',
+                                                                            '&:hover': { bgcolor: '#f1f5f9' },
+                                                                            '&.Mui-disabled': {
+                                                                                color: '#94a3b8',
+                                                                                borderColor: '#e2e8f0',
+                                                                            },
+                                                                        }}
+                                                                    >
+                                                                        Nhập vé
+                                                                    </Button>
+                                                                </span>
                                                             </Tooltip>
                                                         )}
 

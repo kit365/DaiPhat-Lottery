@@ -23,7 +23,7 @@ import {
 import { TicketToolbar } from './TicketToolbar';
 import { columnsConfig, columnsInitialState } from '../configs/column.config';
 import { buildCancelSelectColumn } from '../configs/cancelSelectColumn.config';
-import { DATA_GRID_LOCALE_VN } from '../../../../../../shared/components/DataTable/localeText.config';
+import { DATA_GRID_LOCALE_VN } from "@/admin/components/data-grid/localeText.config";
 import type { useTicketInventory } from '../../hooks/useTicketInventory';
 import { useCancelTicketSelection } from '../../../import-batch/hooks/useCancelTicketSelection';
 import { LazyReportSerialFaultPane } from '../../../import-batch/components/sections/LazyReportSerialFaultPane';

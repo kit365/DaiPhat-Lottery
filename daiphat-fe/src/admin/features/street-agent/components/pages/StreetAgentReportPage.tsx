@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type ReactNode } from 'react';
+import { useMemo, useState } from 'react';
 import {
     Alert,
     Box,
@@ -24,8 +24,9 @@ import type { GridColDef, GridSortModel } from '@mui/x-data-grid';
 import { toast } from 'react-toastify';
 import { PageHeader } from '@/admin/components/ui/PageHeader';
 import { Button } from '@/admin/components/ui/Button';
+import { AdminKpiCard, AdminKpiCardsGrid } from '@/admin/components/ui/AdminKpiCard';
 import { LazyDataGrid, dataGridContainerStyles, dataGridStyles } from '@/admin/shared/data-grid';
-import { DATA_GRID_LOCALE_VN } from '@/shared/components/DataTable/localeText.config';
+import { DATA_GRID_LOCALE_VN } from "@/admin/components/data-grid/localeText.config";
 import { ROUTES } from '@/admin/constants/routes';
 import {
     useExportStreetAgentReport,
@@ -38,6 +39,7 @@ import {
     StreetAgentReportStation,
     StreetAgentReportStatus,
 } from '../../types/street-agent.type';
+import { formatKpiAmount } from '@/admin/utils/currency';
 import { formatCurrency, formatPercent } from '../../utils/format';
 import {
     buildDateRangeSelection,
@@ -55,12 +57,24 @@ type TableState = {
     direction: 'asc' | 'desc';
 };
 
-const KPI_CARD_SX = {
-    p: 2.25,
-    borderRadius: '16px',
-    border: '1px solid #e2e8f0',
-    bgcolor: '#fff',
-    boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
+const REPORT_GRID_SX = {
+    ...dataGridStyles,
+    '& .MuiDataGrid-columnHeaderTitle': {
+        fontSize: '0.8125rem',
+        fontWeight: 600,
+    },
+    '& .MuiDataGrid-cell': {
+        fontSize: '0.8125rem',
+        py: 1,
+    },
+    '& .MuiDataGrid-cell[data-field="agentName"], & .MuiDataGrid-cell[data-field="stationName"]': {
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
+        whiteSpace: 'nowrap',
+    },
+    '& .MuiDataGrid-row': {
+        minHeight: '44px !important',
+    },
 } as const;
 
 const todayApiDate = () => dayjs().format('YYYY-MM-DD');
@@ -69,73 +83,6 @@ const initialRange = () => {
     const today = todayApiDate();
     return { from: today, to: today };
 };
-
-function KpiCard({
-    label,
-    value,
-    icon,
-    iconBg,
-    iconColor,
-    accent,
-}: {
-    label: string;
-    value: string;
-    icon: ReactNode;
-    iconBg: string;
-    iconColor: string;
-    accent?: boolean;
-}) {
-    return (
-        <Card
-            elevation={0}
-            sx={{
-                ...KPI_CARD_SX,
-                ...(accent
-                    ? {
-                          border: '1px solid #dcfce7',
-                          bgcolor: '#f0fdf4',
-                      }
-                    : null),
-            }}
-        >
-            <Stack direction="row" alignItems="center" spacing={1.75}>
-                <Box
-                    sx={{
-                        width: 44,
-                        height: 44,
-                        borderRadius: '12px',
-                        bgcolor: accent ? '#dcfce7' : iconBg,
-                        color: accent ? '#166534' : iconColor,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        flexShrink: 0,
-                    }}
-                >
-                    {icon}
-                </Box>
-                <Box sx={{ minWidth: 0 }}>
-                    <Typography
-                        variant="caption"
-                        fontWeight={accent ? 700 : 600}
-                        color={accent ? '#166534' : '#64748b'}
-                        display="block"
-                    >
-                        {label}
-                    </Typography>
-                    <Typography
-                        variant="h6"
-                        fontWeight={800}
-                        color={accent ? '#15803d' : '#0f172a'}
-                        sx={{ mt: 0.25, overflowWrap: 'anywhere' }}
-                    >
-                        {value}
-                    </Typography>
-                </Box>
-            </Stack>
-        </Card>
-    );
-}
 
 function GridEmptyState({
     loading,
@@ -266,21 +213,35 @@ export const StreetAgentReportPage = () => {
     };
 
     const agentColumns = useMemo<GridColDef<StreetAgentReportAgent>[]>(() => [
-        { field: 'agentName', headerName: 'Người bán vé', minWidth: 220, flex: 1 },
-        { field: 'allocatedQuantity', headerName: 'Đã giao', width: 115, align: 'right', headerAlign: 'right' },
-        { field: 'soldQuantity', headerName: 'Đã bán', width: 110, align: 'right', headerAlign: 'right' },
-        { field: 'returnedQuantity', headerName: 'Đã trả', width: 110, align: 'right', headerAlign: 'right' },
-        { field: 'grossSales', headerName: 'Doanh thu', width: 150, align: 'right', headerAlign: 'right', valueFormatter: (value) => formatCurrency(value) },
-        { field: 'commissionPayable', headerName: 'Hoa hồng phải trả', width: 180, align: 'right', headerAlign: 'right', valueFormatter: (value) => formatCurrency(value) },
-        { field: 'agentCashRemitted', headerName: 'Tiền người bán giao lại', width: 190, align: 'right', headerAlign: 'right', valueFormatter: (value) => formatCurrency(value) },
-        { field: 'sellThroughRate', headerName: 'Tỷ lệ bán', width: 130, align: 'right', headerAlign: 'right', valueFormatter: (value) => formatPercent(value, 2) },
+        {
+            field: 'agentName',
+            headerName: 'Người bán vé',
+            width: 148,
+            minWidth: 132,
+            maxWidth: 168,
+            flex: 0,
+        },
+        { field: 'allocatedQuantity', headerName: 'Đã giao', flex: 1, minWidth: 96, align: 'center', headerAlign: 'center' },
+        { field: 'soldQuantity', headerName: 'Đã bán', flex: 1, minWidth: 92, align: 'center', headerAlign: 'center' },
+        { field: 'returnedQuantity', headerName: 'Đã trả', flex: 1, minWidth: 92, align: 'center', headerAlign: 'center' },
+        { field: 'grossSales', headerName: 'Doanh thu', flex: 1, minWidth: 128, align: 'center', headerAlign: 'center', valueFormatter: (value) => formatCurrency(value) },
+        { field: 'commissionPayable', headerName: 'Hoa hồng phải trả', flex: 1, minWidth: 148, align: 'center', headerAlign: 'center', valueFormatter: (value) => formatCurrency(value) },
+        { field: 'agentCashRemitted', headerName: 'Tiền người bán giao lại', flex: 1, minWidth: 168, align: 'center', headerAlign: 'center', valueFormatter: (value) => formatCurrency(value) },
+        { field: 'sellThroughRate', headerName: 'Tỷ lệ bán', flex: 1, minWidth: 108, align: 'center', headerAlign: 'center', valueFormatter: (value) => formatPercent(value, 2) },
     ], []);
     const stationColumns = useMemo<GridColDef<StreetAgentReportStation>[]>(() => [
-        { field: 'stationName', headerName: 'Đài xổ số', minWidth: 240, flex: 1 },
-        { field: 'allocatedQuantity', headerName: 'Đã giao', width: 125, align: 'right', headerAlign: 'right' },
-        { field: 'soldQuantity', headerName: 'Đã bán', width: 120, align: 'right', headerAlign: 'right' },
-        { field: 'returnedQuantity', headerName: 'Đã trả', width: 120, align: 'right', headerAlign: 'right' },
-        { field: 'sellThroughRate', headerName: 'Tỷ lệ bán', width: 140, align: 'right', headerAlign: 'right', valueFormatter: (value) => formatPercent(value, 2) },
+        {
+            field: 'stationName',
+            headerName: 'Đài xổ số',
+            width: 148,
+            minWidth: 132,
+            maxWidth: 168,
+            flex: 0,
+        },
+        { field: 'allocatedQuantity', headerName: 'Đã giao', flex: 1, minWidth: 100, align: 'center', headerAlign: 'center' },
+        { field: 'soldQuantity', headerName: 'Đã bán', flex: 1, minWidth: 96, align: 'center', headerAlign: 'center' },
+        { field: 'returnedQuantity', headerName: 'Đã trả', flex: 1, minWidth: 96, align: 'center', headerAlign: 'center' },
+        { field: 'sellThroughRate', headerName: 'Tỷ lệ bán', flex: 1, minWidth: 112, align: 'center', headerAlign: 'center', valueFormatter: (value) => formatPercent(value, 2) },
     ], []);
 
     const summary = overviewQuery.data?.summary;
@@ -365,71 +326,56 @@ export const StreetAgentReportPage = () => {
                 ) : null}
             </Stack>
 
-            <Box
-                sx={{
-                    display: 'grid',
-                    gridTemplateColumns: {
-                        xs: '1fr',
-                        sm: 'repeat(2, 1fr)',
-                        md: 'repeat(3, 1fr)',
-                        lg: 'repeat(4, 1fr)',
-                    },
-                    gap: 2,
-                    mb: 3,
-                    width: '100%',
-                }}
-            >
-                <KpiCard
+            <AdminKpiCardsGrid columns={{ xs: 1, sm: 2, md: 3, xl: 4 }}>
+                <AdminKpiCard
                     label="Đã giao"
                     value={quantityOrDash(summary?.allocatedQuantity)}
                     icon={<ConfirmationNumberOutlinedIcon fontSize="small" />}
-                    iconBg="#eff6ff"
-                    iconColor="#2563eb"
+                    tone="blue"
                 />
-                <KpiCard
+                <AdminKpiCard
                     label="Đã bán"
                     value={quantityOrDash(summary?.soldQuantity)}
                     icon={<AssessmentOutlinedIcon fontSize="small" />}
-                    iconBg="#fffbeb"
-                    iconColor="#d97706"
+                    tone="amber"
                 />
-                <KpiCard
+                <AdminKpiCard
                     label="Đã trả"
                     value={quantityOrDash(summary?.returnedQuantity)}
                     icon={<ReplayOutlinedIcon fontSize="small" />}
-                    iconBg="#f1f5f9"
-                    iconColor="#334155"
+                    tone="slate"
                 />
-                <KpiCard
+                <AdminKpiCard
                     label="Doanh thu"
-                    value={formatCurrency(summary?.grossSales)}
+                    value={formatKpiAmount(summary?.grossSales)}
+                    valueTitle={formatCurrency(summary?.grossSales)}
                     icon={<PaidOutlinedIcon fontSize="small" />}
-                    iconBg="#dcfce7"
-                    iconColor="#166534"
                     accent
+                    valueSize="compact"
                 />
-                <KpiCard
+                <AdminKpiCard
                     label="Hoa hồng phải trả"
-                    value={formatCurrency(summary?.commissionPayable)}
+                    value={formatKpiAmount(summary?.commissionPayable)}
+                    valueTitle={formatCurrency(summary?.commissionPayable)}
                     icon={<AccountBalanceWalletOutlinedIcon fontSize="small" />}
-                    iconBg="#fff7ed"
-                    iconColor="#c2410c"
+                    tone="orange"
+                    valueSize="compact"
                 />
-                <KpiCard
+                <AdminKpiCard
                     label="Tiền người bán giao lại"
-                    value={formatCurrency(summary?.agentCashRemitted)}
+                    value={formatKpiAmount(summary?.agentCashRemitted)}
+                    valueTitle={formatCurrency(summary?.agentCashRemitted)}
                     icon={<PaidOutlinedIcon fontSize="small" />}
-                    iconBg="#ecfeff"
-                    iconColor="#0891b2"
+                    tone="cyan"
+                    valueSize="compact"
                 />
-                <KpiCard
+                <AdminKpiCard
                     label="Tỷ lệ bán"
                     value={formatPercent(summary?.sellThroughRate, 2)}
                     icon={<PercentOutlinedIcon fontSize="small" />}
-                    iconBg="#fef2f2"
-                    iconColor="#dc2626"
+                    tone="rose"
                 />
-            </Box>
+            </AdminKpiCardsGrid>
 
             <Card elevation={0} className="admin-datagrid-card">
                 <Tabs
@@ -487,7 +433,7 @@ export const StreetAgentReportPage = () => {
                             pageSizeOptions={[10, 20, 50]}
                             disableRowSelectionOnClick
                             className="admin-datagrid"
-                            sx={dataGridStyles}
+                            sx={REPORT_GRID_SX}
                         />
                     ) : (
                         <LazyDataGrid<StreetAgentReportStation>
@@ -521,7 +467,7 @@ export const StreetAgentReportPage = () => {
                             pageSizeOptions={[10, 20, 50]}
                             disableRowSelectionOnClick
                             className="admin-datagrid"
-                            sx={dataGridStyles}
+                            sx={REPORT_GRID_SX}
                         />
                     )}
                 </Box>

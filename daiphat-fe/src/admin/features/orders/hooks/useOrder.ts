@@ -11,8 +11,9 @@ import {
 } from "../services/orderService";
 import { OrderFilterParams } from '../../../../types/order.type';
 import { QUERY_KEYS } from '../constants/queryKeys';
-import { QUERY_KEYS as GLOBAL_QUERY_KEYS } from '../../../../constants/queryKeys';
 import { QUERY_KEYS as TICKET_QUERY_KEYS } from '../../ticket/inventory/constants/queryKeys';
+import { QUERY_KEYS as NOTIFICATION_QUERY_KEYS } from '../../notifications/constants/queryKeys';
+import { QUERY_KEYS as REFUND_QUERY_KEYS } from '../../refund/constants/queryKeys';
 import { getSystemConfigs } from '../../system-config/services/systemConfigService';
 import { ConfigType } from '../../system-config/types/system-config';
 import { SYSTEM_CONFIG_KEYS } from '../../system-config/hooks/useSystemConfig';
@@ -161,7 +162,7 @@ export const useUpdateOrderStatus = () => {
         onSuccess: (_data, variables) => {
             queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.ORDERS] });
             queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.ORDER_DETAIL, variables.id] });
-            queryClient.invalidateQueries({ queryKey: [GLOBAL_QUERY_KEYS.ADMIN_NOTIFICATIONS] });
+            queryClient.invalidateQueries({ queryKey: [NOTIFICATION_QUERY_KEYS.NOTIFICATIONS] });
         },
     });
 };
@@ -184,7 +185,7 @@ export const usePreparingOrderCount = () => {
     const canView = Boolean(token) && Boolean(user) && hasPermission(user, PERMISSIONS.ORDER.VIEW);
 
     const onlineQuery = useQuery({
-        queryKey: [GLOBAL_QUERY_KEYS.ADMIN_ORDERS, 'preparing-count', 'ONLINE'],
+        queryKey: [QUERY_KEYS.ORDERS, 'preparing-count', 'ONLINE'],
         queryFn: () => getOrders(
             { page: 1, size: 1, orderType: 'ONLINE' },
             { skipGlobalErrorToast: true }
@@ -201,7 +202,7 @@ export const usePreparingOrderCount = () => {
     });
 
     const directQuery = useQuery({
-        queryKey: [GLOBAL_QUERY_KEYS.ADMIN_ORDERS, 'preparing-count', 'DIRECT'],
+        queryKey: [QUERY_KEYS.ORDERS, 'preparing-count', 'DIRECT'],
         queryFn: () => getOrders(
             { page: 1, size: 1, orderType: 'DIRECT' },
             { skipGlobalErrorToast: true }
@@ -337,7 +338,7 @@ export const useOrderDrawCutoff = (preparingCount = 0) => {
 
 export const useOrderRefundsForInspection = (orderId?: string, enabled = false) => {
     return useQuery({
-        queryKey: [GLOBAL_QUERY_KEYS.ADMIN_REFUNDS, { orderId, page: 1, limit: 20 }],
+        queryKey: [REFUND_QUERY_KEYS.ADMIN_REFUNDS, { orderId, page: 1, limit: 20 }],
         queryFn: () => refundAdminApi.getStaffRefunds({ orderId, page: 1, limit: 20 }),
         enabled: !!orderId && enabled,
         staleTime: QUERY_STALE_TIMES.badge,

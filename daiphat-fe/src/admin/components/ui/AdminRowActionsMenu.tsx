@@ -2,7 +2,7 @@
 
 import { useState, type MouseEvent, type ReactNode } from "react";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
-import { Box, IconButton, ListItemIcon, Menu, MenuItem } from "@mui/material";
+import { Box, IconButton, ListItemIcon, Menu, MenuItem, Tooltip } from "@mui/material";
 import type { SxProps, Theme } from "@mui/material/styles";
 import { CanAccess } from "../auth/CanAccess";
 import {
@@ -20,6 +20,7 @@ export type AdminRowActionsMenuItem = {
     hidden?: boolean;
     danger?: boolean;
     disabled?: boolean;
+    disabledTitle?: string;
     permission?: string;
     anyOf?: string[];
     sx?: SxProps<Theme>;
@@ -102,7 +103,12 @@ export const AdminRowActionsMenu = ({
                     }
                     disabled={item.disabled}
                     sx={getMenuItemSx(item.sx)}
-                    onClick={() => handleItemClick(item.onClick)}
+                    onClick={() => {
+                        if (item.disabled) {
+                            return;
+                        }
+                        handleItemClick(item.onClick);
+                    }}
                 >
                     {item.icon ? (
                         <ListItemIcon sx={MENU_ITEM_ICON_SX}>
@@ -119,15 +125,24 @@ export const AdminRowActionsMenu = ({
                 </MenuItem>
             );
 
+            const wrappedMenuItem =
+                item.disabled && item.disabledTitle ? (
+                    <Tooltip title={item.disabledTitle} placement="left" arrow>
+                        <span>{menuItem}</span>
+                    </Tooltip>
+                ) : (
+                    menuItem
+                );
+
             if (item.permission || item.anyOf) {
                 return (
                     <CanAccess key={item.id} permission={item.permission} anyOf={item.anyOf}>
-                        {menuItem}
+                        {wrappedMenuItem}
                     </CanAccess>
                 );
             }
 
-            return menuItem;
+            return wrappedMenuItem;
         });
 
     return (

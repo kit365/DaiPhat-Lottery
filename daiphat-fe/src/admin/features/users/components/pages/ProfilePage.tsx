@@ -16,8 +16,8 @@ import { AxiosError } from "axios";
 import { Button } from '../../../../components/ui/Button';
 import * as zod from "zod";
 import { useAuthStore } from "../../../../../stores/useAuthStore";
-import { authService } from "@/admin/features/auth/services/auth.service";
-import { PasswordPolicy } from "@/admin/features/auth/types/auth.type";
+import { authService } from "@/shared/auth/services/auth.service";
+import { PasswordPolicy } from "@/shared/auth/types/auth.type";
 
 const passwordSchema = zod.object({
     currentPassword: zod.string().min(1, "Vui lòng nhập mật khẩu hiện tại"),

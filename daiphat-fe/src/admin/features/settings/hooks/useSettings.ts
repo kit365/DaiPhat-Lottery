@@ -10,6 +10,7 @@ import {
     fetchGeneralSettings,
     saveGeneralSettings,
 } from "../services/generalSettingService";
+import { QUERY_KEYS } from "@/constants/queryKeys";
 import {
     parsePageJson,
     saveStaticPage,
@@ -64,8 +65,8 @@ export const useUpdateSettingGeneral = () => {
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: SYSTEM_CONFIG_KEYS.all });
-            queryClient.invalidateQueries({ queryKey: ["public-system-config"] });
-            queryClient.invalidateQueries({ queryKey: ["public-system-config-batch"] });
+            queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.PUBLIC_SYSTEM_CONFIG] });
+            queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.PUBLIC_SYSTEM_CONFIG_BATCH] });
             toast.success("Cập nhật cài đặt thành công");
         },
         onError: (error: unknown) => {

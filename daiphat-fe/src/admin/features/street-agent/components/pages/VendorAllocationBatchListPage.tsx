@@ -16,7 +16,7 @@ import {
     dataGridStyles,
     filterPanelStyles,
 } from "../../../../shared/data-grid";
-import { DATA_GRID_LOCALE_VN } from "../../../../../shared/components/DataTable/localeText.config";
+import { DATA_GRID_LOCALE_VN } from "@/admin/components/data-grid/localeText.config";
 import { toast } from "react-toastify";
 import { Breadcrumb } from "../../../../components/ui/Breadcrumb";
 import { Title } from "../../../../components/ui/Title";

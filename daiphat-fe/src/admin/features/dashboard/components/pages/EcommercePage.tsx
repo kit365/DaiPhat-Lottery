@@ -21,7 +21,7 @@ import SummaryWidget from "@/admin/components/dashboard/SummaryWidget";
 import { useRouter } from "next/navigation";
 import DashboardCard from "@/admin/components/dashboard/DashboardCard";
 import { ROUTES } from "@/admin/constants/routes";
-import { EllipsisText } from "@/shared/components/EllipsisText";
+import { EllipsisText } from "@/admin/components/ui/EllipsisText";
 import Chart from "@/components/ApexChartCompat";
 import type { ApexOptions } from "apexcharts";
 import { useEcommerceOverview } from "@/admin/features/dashboard/hooks/useDashboard";

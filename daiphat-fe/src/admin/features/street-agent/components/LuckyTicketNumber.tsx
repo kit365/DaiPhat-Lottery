@@ -2,8 +2,7 @@
 
 import { useMemo } from "react";
 import { Box, Typography, type SxProps, type Theme } from "@mui/material";
-import { useLuckyPatternConfigs } from "../hooks/useLuckyPattern";
-import { highlightLuckyDigits } from "../utils/luckyNumberHighlight";
+import { highlightLuckyDigits, useLuckyPatternConfigs } from "@/shared/lucky-number";
 
 const MONO = "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace";
 
@@ -57,3 +56,5 @@ export const LuckyTicketNumber = ({
         </Typography>
     );
 };
+
+export { AdminLuckyDisplay as LuckyDisplay } from "@/shared/lucky-number";

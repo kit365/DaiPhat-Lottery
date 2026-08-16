@@ -1,14 +1,11 @@
+/** Barrel React Query dùng chung — import từ đây thay vì @tanstack trực tiếp. */
 export { createQueryKeyScope } from './createQueryKeys';
-export { createAppQueryClient } from './createAppQueryClient';
 export {
+    createAppQueryClient,
     QUERY_STALE_TIMES,
-    QUERY_GC_TIME,
     listQueryDefaults,
     detailQueryDefaults,
-    shouldRetryQuery,
-    MUTATION_RETRY,
-} from './queryPolicies';
-export { selectApiData, selectApiDataOrNull } from './selectors';
+} from './createAppQueryClient';
 
 export {
     HydrationBoundary,

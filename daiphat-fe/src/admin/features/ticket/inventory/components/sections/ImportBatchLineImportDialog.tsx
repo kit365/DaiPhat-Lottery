@@ -69,6 +69,8 @@ type ImportBatchLineImportDialogProps = {
     missingImageCount?: number;
     onConfirmMissingImageSubmit?: () => void;
     onCancelMissingImageSubmit?: () => void;
+    importIntakeBlocked?: boolean;
+    importIntakeBlockedMessage?: string;
 };
 
 const InfoItem = ({
@@ -149,6 +151,8 @@ export const ImportBatchLineImportDialog = ({
     missingImageCount = 0,
     onConfirmMissingImageSubmit,
     onCancelMissingImageSubmit,
+    importIntakeBlocked = false,
+    importIntakeBlockedMessage,
 }: ImportBatchLineImportDialogProps) => {
     const { isSubmitted } = useFormState({ control });
     const watchedSections = useWatch({ control, name: 'ticketSections' });
@@ -167,7 +171,8 @@ export const ImportBatchLineImportDialog = ({
             batchStatus === 'PARTIALLY_IMPORTED') &&
         !progress.isComplete &&
         !lineCancelled &&
-        !linePaused;
+        !linePaused &&
+        !importIntakeBlocked;
 
     const dialogRemainingQuota = Math.max(
         0,
@@ -279,6 +284,12 @@ export const ImportBatchLineImportDialog = ({
                 {linePaused && (
                     <Alert severity="warning" sx={{ mb: 1.5, py: 0.5 }} icon={<PauseCircleOutlineIcon />}>
                         {IMPORT_BATCH_LINE_PAUSED_ENTRY_MESSAGE}
+                    </Alert>
+                )}
+
+                {importIntakeBlocked && importIntakeBlockedMessage && (
+                    <Alert severity="error" sx={{ mb: 1.5, py: 0.5 }}>
+                        {importIntakeBlockedMessage}
                     </Alert>
                 )}
 

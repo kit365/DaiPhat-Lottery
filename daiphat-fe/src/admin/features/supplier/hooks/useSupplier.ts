@@ -18,7 +18,6 @@ import type {
 import { QUERY_KEYS } from '../constants/queryKeys';
 import { useServerPagination } from '../../../shared/data-grid/useServerPagination';
 import type { ApiResponse, PageResponse } from '@/types/api.type';
-import { selectApiData } from '@/shared/react-query';
 
 type SuppliersQueryOptions = Omit<
     UseQueryOptions<
@@ -34,7 +33,7 @@ export const useSuppliers = (params?: SupplierListParams, options?: SuppliersQue
     return useQuery({
         queryKey: [QUERY_KEYS.SUPPLIERS, params],
         queryFn: () => getSuppliers(params),
-        select: (res: ApiResponse<PageResponse<LotterySupplier>>) => selectApiData(res),
+        select: (res: ApiResponse<PageResponse<LotterySupplier>>) => res.data,
         ...options,
     });
 };
@@ -53,7 +52,7 @@ export const useSupplierDetail = (id?: string | number) => {
         queryKey: [QUERY_KEYS.SUPPLIER_DETAIL, id],
         queryFn: () => getSupplierById(id!),
         enabled: !!id,
-        select: (res: ApiResponse<LotterySupplier>) => selectApiData(res) ?? null,
+        select: (res: ApiResponse<LotterySupplier>) => res.data ?? null,
     });
 };
 

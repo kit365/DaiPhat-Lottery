@@ -16,7 +16,7 @@ import { Button } from '../../../../components/ui/Button';
 import { CanAccess } from "../../../../components/auth/CanAccess";
 import { ROUTES } from "../../../../constants/routes";
 import { PERMISSIONS } from "../../../../constants/permission.constants";
-import { DATA_GRID_LOCALE_VN } from "../../../../../shared/components/DataTable/localeText.config";
+import { DATA_GRID_LOCALE_VN } from "@/admin/components/data-grid/localeText.config";
 import { dataGridStyles } from "../../../../shared/data-grid";
 import { EditIcon } from "../../../../assets/icons";
 import {

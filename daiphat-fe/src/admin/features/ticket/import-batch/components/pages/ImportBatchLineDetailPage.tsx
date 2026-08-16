@@ -4,6 +4,7 @@ import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
 import { useRouteParams } from "@/hooks/useRouteParams";
 import React from 'react';
 import {
+    Alert,
     Box,
     Button,
     Card,
@@ -22,6 +23,7 @@ import {
     TableContainer,
     TableHead,
     TableRow,
+    Tooltip,
     Typography,
 } from '@mui/material';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
@@ -42,6 +44,8 @@ import { LazyReportSerialFaultPane } from '../sections/LazyReportSerialFaultPane
 import { TicketImportProgressTrack } from '../sections/TicketImportProgressTrack';
 import { ImportBatchLineImportHost } from '../../../inventory/components/sections/ImportBatchLineImportHost';
 import { useImportBatchDetail, useImportBatchLineEntryTickets } from '../../hooks/useImportBatch';
+import { useImportBatchIntakeGate } from '../../hooks/useImportBatchIntakeGate';
+import { useActiveSuppliers } from '../../../../supplier';
 import { CanAccess } from '../../../../../components/auth/CanAccess';
 import { PERMISSIONS } from '../../../../../constants/permission.constants';
 import { Button as LoadingButton } from '../../../../../components/ui/Button';
@@ -365,6 +369,8 @@ export const ImportBatchLineDetailPage = ({
 
     const { data: batch, isLoading: isBatchLoading, refetch: refetchBatch } = useImportBatchDetail(id);
     const { data: providersRes } = useStations({ limit: 1000 });
+    const { data: activeSuppliers = [] } = useActiveSuppliers();
+    const { evaluate: evaluateIntake } = useImportBatchIntakeGate();
     const providers = (providersRes as any)?.data?.recordList || [];
 
     const resolveStationName = (stationId: number) =>
@@ -542,7 +548,18 @@ export const ImportBatchLineDetailPage = ({
         queryClient.invalidateQueries({ queryKey: [IMPORT_BATCH_QUERY_KEYS.IMPORT_BATCH_DETAIL] });
     };
 
-    const canImportTickets = !!line && isLineIncomplete(line) && !isLinePaused(line);
+    const intakeGate = React.useMemo(() => {
+        if (!batch?.supplierId || !batch.drawDate) {
+            return null;
+        }
+        const supplier = activeSuppliers.find((entry) => entry.id === batch.supplierId);
+        return evaluateIntake(supplier, batch.drawDate);
+    }, [activeSuppliers, batch, evaluateIntake]);
+
+    const showImportTicketsButton =
+        !!line && isLineIncomplete(line) && !isLinePaused(line);
+    const importTicketsBlocked = !!intakeGate?.blocked || !!intakeGate?.notYetAllowed;
+    const canImportTickets = showImportTicketsButton && !importTicketsBlocked;
 
     React.useEffect(() => {
         if (autoOpenedImportRef.current || !canImportTickets || isTicketsLoading) {
@@ -640,15 +657,26 @@ export const ImportBatchLineDetailPage = ({
                 }
                 action={
                     <Stack direction="row" spacing={1}>
-                        {canImportTickets && (
+                        {showImportTicketsButton && (
                             <CanAccess permission={PERMISSIONS.TICKET.CREATE}>
-                                <LoadingButton
-                                    variant="contained"
-                                    className="btn-primary-admin"
-                                    label="Nhập vé"
-                                    startIcon={<ConfirmationNumberOutlinedIcon />}
-                                    onClick={() => setIsImportDialogOpen(true)}
-                                />
+                                <Tooltip
+                                    title={
+                                        importTicketsBlocked
+                                            ? intakeGate?.tooltipTitle ?? 'Không thể nhập vé lúc này.'
+                                            : ''
+                                    }
+                                >
+                                    <span>
+                                        <LoadingButton
+                                            variant="contained"
+                                            className="btn-primary-admin"
+                                            label="Nhập vé"
+                                            disabled={importTicketsBlocked}
+                                            startIcon={<ConfirmationNumberOutlinedIcon />}
+                                            onClick={() => setIsImportDialogOpen(true)}
+                                        />
+                                    </span>
+                                </Tooltip>
                             </CanAccess>
                         )}
                         <Button
@@ -661,6 +689,12 @@ export const ImportBatchLineDetailPage = ({
                     </Stack>
                 }
             />
+
+            {(intakeGate?.blocked || intakeGate?.notYetAllowed) && (
+                <Alert severity={intakeGate.blocked ? 'error' : 'warning'} sx={{ mb: 2 }}>
+                    {intakeGate.message}
+                </Alert>
+            )}
 
             <Card elevation={0} className="admin-datagrid-card">
                 <Box

@@ -39,7 +39,7 @@ const isHardAuthFailure = (error: unknown): boolean => {
  */
 export function AdminSessionProvider({ children }: { children: ReactNode }) {
     const router = useAdminRouter();
-    const { token, isHydrated, set, logout } = useAuthStore();
+    const { token, isHydrated, set } = useAuthStore();
     const getMeQuery = useAdminMeQuery();
 
     useEffect(() => {
@@ -50,8 +50,8 @@ export function AdminSessionProvider({ children }: { children: ReactNode }) {
     }, [isHydrated, token]);
 
     useEffect(() => {
-        syncUserFromMeResponse(getMeQuery.data, set, logout);
-    }, [getMeQuery.data, set, logout]);
+        syncUserFromMeResponse(getMeQuery.data, set);
+    }, [getMeQuery.data, set]);
 
     useEffect(() => {
         if (!getMeQuery.isError || !isHardAuthFailure(getMeQuery.error)) {

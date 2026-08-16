@@ -28,7 +28,7 @@ export const useStationsByDrawDate = (drawDate?: string | string[]) => {
           : [];
 
     return useQuery({
-        queryKey: ['public-stations-by-draw-date', drawDates] as const,
+        queryKey: publicStationsQueryKeys.byDrawDate(drawDates),
         queryFn: () => getPublicStationsByDrawDate(drawDates),
         enabled: drawDates.length > 0,
         placeholderData: keepPreviousData,

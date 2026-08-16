@@ -6,7 +6,6 @@
   "scripts": {
     "dev": "next dev -p 5173",
     "dev:turbo": "next dev --turbo -p 5173",
-    "dev:clean": "node ./scripts/clean-next.mjs && next dev -p 5173",
     "build": "next build",
     "start": "next start -p 5173",
     "lint": "next lint"

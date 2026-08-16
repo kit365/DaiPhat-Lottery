@@ -4,14 +4,12 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowLeft, Check, Eye, EyeOff, Lock, Mail, ShieldCheck } from "lucide-react";
-import Cookies from "js-cookie";
-import { useQueryClient } from "@tanstack/react-query";
 import { useForgotPassword } from "@/shared/auth/hooks/useForgotPassword";
 import { PasswordStrengthMeter } from "../../../components/auth/PasswordStrengthMeter";
 import { AppToast as toast } from "../../../../utils/toast.util";
-import { STORAGE_KEYS } from "../../../../constants/storage.constants";
 import { useAuthStore } from "../../../../stores/useAuthStore";
 import { authService } from "@/shared/auth/services/auth.service";
+import { endAuthSession } from "@/api/endAuthSession";
 
 const STEPS = {
     EMAIL: "EMAIL",
@@ -24,8 +22,7 @@ type Step = keyof typeof STEPS;
 
 export const ForgotPasswordPage = () => {
     const router = useRouter();
-    const queryClient = useQueryClient();
-    const { token, logout } = useAuthStore();
+    const { token } = useAuthStore();
     const [step, setStep] = useState<Step>(STEPS.EMAIL);
     const [email, setEmail] = useState("");
     const [emailError, setEmailError] = useState("");
@@ -49,15 +46,12 @@ export const ForgotPasswordPage = () => {
             } catch (error) {
                 console.error("Lỗi tự động đăng xuất khi đặt lại mật khẩu:", error);
             }
-            logout();
-            Cookies.remove(STORAGE_KEYS.TOKEN, { path: "/" });
-            Cookies.remove(STORAGE_KEYS.REFRESH_TOKEN, { path: "/" });
-            queryClient.clear();
+            endAuthSession();
             toast.info("Phiên làm việc đã được đóng để đặt lại mật khẩu.");
         };
 
         closeSession();
-    }, [token, logout, queryClient]);
+    }, [token]);
 
     useEffect(() => {
         if (countdown <= 0) return;
@@ -128,10 +122,7 @@ export const ForgotPasswordPage = () => {
         }, {
             onSuccess: (response) => {
                 if (response.isSuccess || response.success) {
-                    logout();
-                    Cookies.remove(STORAGE_KEYS.TOKEN, { path: "/" });
-                    Cookies.remove(STORAGE_KEYS.REFRESH_TOKEN, { path: "/" });
-                    queryClient.clear();
+                    endAuthSession();
                     setStep(STEPS.SUCCESS);
                 }
             },

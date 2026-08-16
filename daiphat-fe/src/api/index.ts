@@ -28,11 +28,11 @@
  */
 
 import axios, { AxiosError, InternalAxiosRequestConfig } from "axios"
-import { peekQueryAbortSignal } from "@/shared/react-query/bindQueryAbortSignal"
-import { useAuthStore } from "../stores/useAuthStore"
+import { peekQueryAbortSignal } from "@/shared/react-query/queryAbort"
 import { API_PREFIX, API_VERSION } from "./api.constants"
 import { AppToast } from "../utils/toast.util"
-import { persistAccessToken, resolveAccessToken, clearJsAuthCookies } from "./authHeaders"
+import { persistAccessToken, resolveAccessToken } from "./authHeaders"
+import { endAuthSession } from "./endAuthSession"
 
 const getBaseUrl = () => {
     if (typeof process !== "undefined" && process.env) {
@@ -121,8 +121,7 @@ const AUTH_REQUIRED_PATHS = [
 ];
 
 const clearAuthSession = () => {
-    useAuthStore.getState().logout();
-    clearJsAuthCookies();
+    endAuthSession();
 };
 
 const isAuthRequiredRequest = (url?: string) => {

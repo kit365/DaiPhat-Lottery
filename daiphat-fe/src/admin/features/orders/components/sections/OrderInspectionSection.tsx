@@ -49,8 +49,13 @@ import {
 import { Icon } from '@/admin/components/ui/AdminIcon';
 import { UploadFiles } from '../../../../components/ui/UploadFiles';
 import dayjs from 'dayjs';
-import { resolveLotteryTicketSerialStatusBadge } from '../../../../../types/order.type';
-import { OrderDetailStatusBadge, StatusBadge } from '@/shared/components/StatusBadge';
+import {
+    getOrderDetailStatusAdminBadgeModifier,
+    resolveLotteryTicketSerialStatusBadge,
+    resolveOrderDetailStatusBadge,
+} from '../../../../../types/order.type';
+import { StatusBadge } from '@/shared/components/StatusBadge';
+import { AdminStatusBadge } from '../../../../components/ui/AdminStatusBadge';
 import type { IncidentTicketDisplay } from '../../types/incidentTicket.type';
 import { resolveOrderDetailTicketDisplay } from '../../utils/resolveOrderDetailTicketDisplay';
 import { prefixAdmin, ROUTES } from '../../../../constants/routes';
@@ -984,6 +989,10 @@ export function OrderInspectionSection({
                                             ticket.ticketCondition,
                                             ticket.ticketConditionDisplayName
                                         );
+                                        const activityBadge = resolveOrderDetailStatusBadge(
+                                            ticket.status,
+                                            ticket.statusDisplayName
+                                        );
                                         const candidates = ticket.id != null ? availableReplacements[ticket.id] : undefined;
                                         const isLoading = ticket.id != null && candidates === undefined;
                                         const hasRep = ticket.id != null && !isLoading && !!candidates && candidates.length > 0;
@@ -1062,7 +1071,10 @@ export function OrderInspectionSection({
                                                                 color={serialBadge.color}
                                                                 bg={serialBadge.bgcolor}
                                                             />
-                                                            <OrderDetailStatusBadge status={ticket.status} />
+                                                            <AdminStatusBadge
+                                                                label={activityBadge.label}
+                                                                modifier={getOrderDetailStatusAdminBadgeModifier(ticket.status)}
+                                                            />
                                                         </Stack>
                                                     </TableCell>
                                                     <TableCell align="right">

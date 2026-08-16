@@ -22,6 +22,7 @@ import {
   CLIENT_PAGE_BACKGROUND,
   PROVINCE_ICON_FALLBACK,
 } from '../../constants/clientBannerAssets';
+import { LuckyNumber } from '../../components/ui/LuckyNumber';
 
 const CART_TICKET_GRID =
     'lg:grid lg:grid-cols-[32px_88px_minmax(0,2.4fr)_120px_120px_132px_72px]';
@@ -185,7 +186,9 @@ export const CartPage = () => {
 
                                             {/* Vé số */}
                                             <div className="flex w-full items-center justify-center text-center">
-                                                <div className="font-bold text-[16px] text-[#212B36] tracking-tight">{item.numbers}</div>
+                                                <div className="font-bold text-[16px] text-[#212B36] tracking-tight">
+                                                    <LuckyNumber value={item.numbers} ticket className="tracking-tight" />
+                                                </div>
                                             </div>
 
                                             {/* Đài & Ngày quay */}

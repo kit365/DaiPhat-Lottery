@@ -1,4 +1,16 @@
-/** Query key factory — prefix `all` để invalidate theo scope. */
+/**
+ * Factory query key theo scope — dùng khi feature có nhiều list/detail
+ * và cần invalidateQueries theo prefix.
+ *
+ * Ví dụ scope = 'import-batch':
+ *   all          → ['import-batch']           invalidate cả feature
+ *   lists()      → ['import-batch', 'list']    mọi list
+ *   list(params) → ['import-batch', 'list', …]  một list cụ thể
+ *   details()    → ['import-batch', 'detail']  mọi detail
+ *   detail(id)   → ['import-batch', 'detail', id]
+ *
+ * Key đơn giản (vd. client-me) viết tay trong constants/queryKeys.ts là đủ.
+ */
 export const createQueryKeyScope = (scope: string) => {
     const all = [scope] as const;
 

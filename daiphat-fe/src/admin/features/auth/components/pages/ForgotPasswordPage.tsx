@@ -18,12 +18,10 @@ import {
     CheckCircleOutline as CheckIcon
 } from "@mui/icons-material";
 import { AppToast as toast } from "@/utils/toast.util";
-import { useForgotPassword } from "@/admin/features/auth/hooks/use-forgot-password";
+import { useForgotPassword } from "@/shared/auth/hooks/useForgotPassword";
 import { PasswordRequirementList } from "@/admin/components/auth/PasswordRequirementList";
 import { useAuthStore } from "@/stores/useAuthStore";
-import Cookies from "js-cookie";
-import { STORAGE_KEYS } from "@/constants/storage.constants";
-import { useQueryClient } from "@tanstack/react-query";
+import { endAuthSession } from "@/api/endAuthSession";
 
 const STEPS = {
     EMAIL: "EMAIL",
@@ -46,19 +44,15 @@ export const ForgotPasswordPage = () => {
     const [countdown, setCountdown] = useState(0);
     const [isPasswordFocused, setIsPasswordFocused] = useState(false);
 
-    const { logout, token } = useAuthStore();
-    const queryClient = useQueryClient();
+    const { token } = useAuthStore();
 
     // Auto logout if already logged in to prevent active session leakage
     useEffect(() => {
         if (token) {
-            logout();
-            Cookies.remove(STORAGE_KEYS.TOKEN, { path: '/' });
-            Cookies.remove(STORAGE_KEYS.REFRESH_TOKEN, { path: '/' });
-            queryClient.clear();
+            endAuthSession();
             toast.info("Phiên làm việc đã được đóng để đặt lại mật khẩu.");
         }
-    }, [token, logout, queryClient]);
+    }, [token]);
 
     const { requestOtp, verifyOtp, resetPassword, usePasswordPolicy, isPending } = useForgotPassword();
     const { data: passwordPolicy } = usePasswordPolicy();
@@ -172,10 +166,7 @@ export const ForgotPasswordPage = () => {
             onSuccess: (res) => {
                 if (res.isSuccess || res.success) {
                     // Fully invalidate and clear active session on password reset
-                    logout();
-                    Cookies.remove(STORAGE_KEYS.TOKEN, { path: '/' });
-                    Cookies.remove(STORAGE_KEYS.REFRESH_TOKEN, { path: '/' });
-                    queryClient.clear();
+                    endAuthSession();
                     
                     setStep(STEPS.SUCCESS);
                 }

@@ -15,8 +15,8 @@ import {
     uploadTicketSerialImage
 } from '../services/ticketService';
 import { ApiResponse } from '../../../../../types/api.type';
-import { QUERY_KEYS as GLOBAL_QUERY_KEYS } from '../../../../../constants/queryKeys';
 import { QUERY_KEYS } from '../constants/queryKeys';
+import { QUERY_KEYS as IMPORT_BATCH_QUERY_KEYS } from '../../import-batch/constants/queryKeys';
 
 /** List vé theo params — cùng pattern `useStations(params)`. */
 export const useTickets = (params?: any, options?: any) => {
@@ -50,10 +50,10 @@ export const useCreateTicket = () => {
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.TICKETS] });
-            queryClient.invalidateQueries({ queryKey: [GLOBAL_QUERY_KEYS.IMPORT_BATCH_LIST] });
-            queryClient.invalidateQueries({ queryKey: [GLOBAL_QUERY_KEYS.IMPORT_BATCH_DETAIL] });
-            queryClient.invalidateQueries({ queryKey: [GLOBAL_QUERY_KEYS.IMPORT_BATCH_INCOMPLETE] });
-            queryClient.invalidateQueries({ queryKey: [GLOBAL_QUERY_KEYS.IMPORT_BATCH_ACTIVE_DRAFT] });
+            queryClient.invalidateQueries({ queryKey: [IMPORT_BATCH_QUERY_KEYS.IMPORT_BATCH_LIST] });
+            queryClient.invalidateQueries({ queryKey: [IMPORT_BATCH_QUERY_KEYS.IMPORT_BATCH_DETAIL] });
+            queryClient.invalidateQueries({ queryKey: [IMPORT_BATCH_QUERY_KEYS.IMPORT_BATCH_INCOMPLETE] });
+            queryClient.invalidateQueries({ queryKey: [IMPORT_BATCH_QUERY_KEYS.IMPORT_BATCH_ACTIVE_DRAFT] });
         },
     });
 };
@@ -68,12 +68,12 @@ export const useBulkCreateTickets = () => {
             }),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.TICKETS] });
-            queryClient.invalidateQueries({ queryKey: [GLOBAL_QUERY_KEYS.IMPORT_BATCH_LIST] });
-            queryClient.invalidateQueries({ queryKey: [GLOBAL_QUERY_KEYS.IMPORT_BATCH_DETAIL] });
-            queryClient.invalidateQueries({ queryKey: [GLOBAL_QUERY_KEYS.IMPORT_BATCH_INCOMPLETE] });
-            queryClient.invalidateQueries({ queryKey: [GLOBAL_QUERY_KEYS.IMPORT_BATCH_ACTIVE_DRAFT] });
+            queryClient.invalidateQueries({ queryKey: [IMPORT_BATCH_QUERY_KEYS.IMPORT_BATCH_LIST] });
+            queryClient.invalidateQueries({ queryKey: [IMPORT_BATCH_QUERY_KEYS.IMPORT_BATCH_DETAIL] });
+            queryClient.invalidateQueries({ queryKey: [IMPORT_BATCH_QUERY_KEYS.IMPORT_BATCH_INCOMPLETE] });
+            queryClient.invalidateQueries({ queryKey: [IMPORT_BATCH_QUERY_KEYS.IMPORT_BATCH_ACTIVE_DRAFT] });
             queryClient.invalidateQueries({
-                queryKey: [GLOBAL_QUERY_KEYS.IMPORT_BATCH_LINE_ENTRY_TICKETS],
+                queryKey: [IMPORT_BATCH_QUERY_KEYS.IMPORT_BATCH_LINE_ENTRY_TICKETS],
             });
         },
     });
