@@ -283,7 +283,7 @@ class WebSocketService {
 
     private resolveEndpoint(): string {
         const configuredBaseUrl = (typeof process !== 'undefined' && process.env)
-            ? (process.env.NEXT_PUBLIC_WS_BASE_URL || process.env.NEXT_PUBLIC_API_BASE_URL || process.env.VITE_WS_BASE_URL || process.env.VITE_API_BASE_URL)
+            ? (process.env.NEXT_PUBLIC_WS_BASE_URL || process.env.NEXT_PUBLIC_API_BASE_URL)
             : undefined;
         const runtimeBaseUrl = configuredBaseUrl
             || (typeof window !== 'undefined' ? window.location.origin : DEFAULT_WS_SERVER_URL);

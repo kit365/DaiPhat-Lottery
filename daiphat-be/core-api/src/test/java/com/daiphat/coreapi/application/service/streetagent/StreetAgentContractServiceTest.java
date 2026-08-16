@@ -1,15 +1,18 @@
 package com.daiphat.coreapi.application.service.streetagent;
 
 import com.daiphat.coreapi.application.dto.document.ContractPdfDocument;
+import com.daiphat.coreapi.application.port.out.contract.ContractRepositoryPort;
 import com.daiphat.coreapi.application.port.out.document.ContractPdfRendererPort;
 import com.daiphat.coreapi.application.port.out.settings.SystemConfigRepositoryPort;
 import com.daiphat.coreapi.application.port.out.streetagent.StreetAgentProfileRepositoryPort;
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
+import com.daiphat.coreapi.domain.model.enums.contract.ContractType;
 import com.daiphat.coreapi.domain.model.enums.settings.SystemConfigEnum;
 import com.daiphat.coreapi.domain.model.settings.SystemConfigModel;
 import com.daiphat.coreapi.domain.model.streetagent.StreetAgentProfileModel;
 import com.daiphat.coreapi.infrastructure.adapter.out.document.ThymeleafStreetAgentContractHtmlRenderer;
+import com.daiphat.coreapi.infrastructure.config.data.ContractSeedCatalog;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -41,6 +44,8 @@ class StreetAgentContractServiceTest {
     @Mock
     private StreetAgentProfileRepositoryPort profileRepositoryPort;
     @Mock
+    private ContractRepositoryPort contractRepositoryPort;
+    @Mock
     private SystemConfigRepositoryPort systemConfigRepositoryPort;
     private SpringTemplateEngine templateEngine;
     @Mock
@@ -53,6 +58,7 @@ class StreetAgentContractServiceTest {
         templateEngine = templateEngine();
         service = new StreetAgentContractService(
                 profileRepositoryPort,
+                contractRepositoryPort,
                 systemConfigRepositoryPort,
                 new ThymeleafStreetAgentContractHtmlRenderer(templateEngine),
                 contractPdfRendererPort);
@@ -63,6 +69,8 @@ class StreetAgentContractServiceTest {
     void generatePdf_usesProfileAndSystemSettings() {
         byte[] pdf = "%PDF-1.7".getBytes(java.nio.charset.StandardCharsets.US_ASCII);
         when(profileRepositoryPort.findById(PROFILE_ID)).thenReturn(Optional.of(completeProfile()));
+        when(contractRepositoryPort.findDefaultByType(ContractType.STREET_AGENT_SALES))
+                .thenReturn(Optional.of(ContractSeedCatalog.salesTemplate()));
         when(systemConfigRepositoryPort.findActiveByConfigKey(anyString())).thenReturn(Optional.empty());
         when(systemConfigRepositoryPort.findActiveByConfigKey(SystemConfigEnum.SITE_NAME.name()))
                 .thenReturn(Optional.of(config(SystemConfigEnum.SITE_NAME, "Đại Phát Lottery")));

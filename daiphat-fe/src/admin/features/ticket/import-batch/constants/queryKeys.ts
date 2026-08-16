@@ -14,6 +14,7 @@ export const QUERY_KEYS = {
     IMPORT_BATCH_WITHOUT_LINES: 'import-batch-without-lines',
     IMPORT_BATCH_REDUCTION_TICKETS: 'import-batch-reduction-tickets',
     IMPORT_BATCH_LINE_ENTRY_TICKETS: 'import-batch-line-entry-tickets',
+    IMPORT_BATCH_FILE_JOBS: 'import-batch-file-jobs',
 } as const;
 
 /** Typed query key builders — ưu tiên dùng trong hooks. */

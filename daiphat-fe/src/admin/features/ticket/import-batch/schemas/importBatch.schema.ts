@@ -30,6 +30,7 @@ export const createImportBatchSchema = z
             .number()
             .min(1, 'Tổng số lượng khai báo phiếu nhập lô phải lớn hơn 0'),
         invoiceEvidenceUrl: invoiceEvidenceSchema,
+        ticketListImageUrls: z.array(z.string()).optional(),
         note: z.string().optional(),
         lines: z.array(importBatchLineSchema),
     })
@@ -72,10 +73,11 @@ export const createImportBatchSchema = z
             stationIds.add(line.lotteryStationId);
         });
 
+        // IN_DAY create: receipt card is shown — require File or uploaded URL (resolve uploads File at submit).
         if (data.importMode === 'IN_DAY' && !hasInvoiceEvidence(data.invoiceEvidenceUrl)) {
             ctx.addIssue({
                 code: z.ZodIssueCode.custom,
-                message: 'Vui lòng chọn ảnh biên lai.',
+                message: 'Vui lòng tải ảnh biên lai thành công trước khi xác nhận.',
                 path: ['invoiceEvidenceUrl'],
             });
         }
@@ -161,6 +163,7 @@ export const updateImportBatchSchema = z
             .number()
             .min(1, 'Tổng số lượng khai báo phiếu nhập lô phải lớn hơn 0'),
         invoiceEvidenceUrl: invoiceEvidenceSchema,
+        ticketListImageUrls: z.array(z.string()).optional(),
         importMode: z.enum(['IN_DAY', 'POST_DRAW_SUPPLEMENT']),
         drawDate: z.string().min(1),
         lines: z.array(updateImportBatchLineSchema),

@@ -14,6 +14,7 @@ import org.springframework.stereotype.Component;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 @Component
@@ -66,6 +67,17 @@ public class LotteryStationRepositoryAdapter implements LotteryStationRepository
     }
 
     @Override
+    public List<LotteryStationModel> findByIds(Collection<Long> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return List.of();
+        }
+        return lotteryStationRepository.findAllById(ids).stream()
+                .filter(entity -> entity.getDeletedAt() == null)
+                .map(lotteryStationPersistenceMapper::toDomain)
+                .toList();
+    }
+
+    @Override
     public List<LotteryStationModel> findByNextDrawDate(LocalDate drawDate) {
         return lotteryStationRepository.findByNextDrawDateAndDeletedAtIsNull(drawDate).stream()
                 .map(lotteryStationPersistenceMapper::toDomain)
@@ -83,6 +95,30 @@ public class LotteryStationRepositoryAdapter implements LotteryStationRepository
     @Override
     public boolean existsByName(String name) {
         return lotteryStationRepository.existsByNameAndDeletedAtIsNull(name);
+    }
+
+    @Override
+    public boolean existsByCode(String code) {
+        return code != null && lotteryStationRepository.existsByCodeAndDeletedAtIsNull(code);
+    }
+
+    @Override
+    public boolean existsByCodeExcluding(String code, Long excludeStationId) {
+        if (code == null) {
+            return false;
+        }
+        return excludeStationId == null
+                ? lotteryStationRepository.existsByCodeAndDeletedAtIsNull(code)
+                : lotteryStationRepository.existsByCodeAndIdNotAndDeletedAtIsNull(code, excludeStationId);
+    }
+
+    @Override
+    public Optional<LotteryStationModel> findByCode(String code) {
+        if (code == null) {
+            return Optional.empty();
+        }
+        return lotteryStationRepository.findByCodeAndDeletedAtIsNull(code)
+                .map(lotteryStationPersistenceMapper::toDomain);
     }
 
     @Override

@@ -6,10 +6,14 @@ import lombok.RequiredArgsConstructor;
 @Getter
 @RequiredArgsConstructor
 public enum ReturnBatchLineStatus {
-    PENDING("Đang đợi đi trả vé"),
-    SUCCESS("Trả vé thành công"),
-    REJECTED_BY_SUPPLIER("Nhà cung cấp từ chối"),
-    PULLED_FOR_SALE("Đã lấy bán trong lúc trả");
+    PENDING("Chờ kiểm tra"),
+    INSPECTING("Đang kiểm tra"),
+    INSPECTED("Đã kiểm tra");
 
     private final String label;
+
+    /** Line can still receive / remove serials during batch inspection. */
+    public boolean isOpenForInspection() {
+        return this == PENDING || this == INSPECTING;
+    }
 }

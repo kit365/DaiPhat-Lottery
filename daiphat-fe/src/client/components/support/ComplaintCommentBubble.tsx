@@ -57,10 +57,10 @@ export const ComplaintCommentBubble: React.FC<ComplaintCommentBubbleProps> = ({
                             alt="Tệp đính kèm"
                             sx={{
                                 display: 'block',
-                                maxWidth: 220,
-                                maxHeight: 220,
-                                width: 'auto',
-                                height: 'auto',
+                                width: '100px !important',
+                                height: '100px !important',
+                                maxWidth: '100px !important',
+                                maxHeight: '100px !important',
                                 objectFit: 'cover',
                                 borderRadius: '12px',
                                 border: '1px solid rgba(145,158,171,0.24)',

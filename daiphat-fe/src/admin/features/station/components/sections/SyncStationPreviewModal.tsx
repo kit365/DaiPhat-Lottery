@@ -51,6 +51,8 @@ export interface SyncPreviewParams {
 interface PreviewItem {
     name: string;
     canonicalName: string;
+    /** Existing code when the station is already known, otherwise a suggestion. */
+    code: string | null;
     province: string;
     region: string;
     drawDays: string[];
@@ -136,6 +138,7 @@ export const SyncStationPreviewModal: React.FC<SyncStationPreviewModalProps> = (
 
     const [commissionRates, setCommissionRates] = useState<Record<string, number | null | string>>({});
     const [bulkCommissionRate, setBulkCommissionRate] = useState<string>('');
+    const [stationCodes, setStationCodes] = useState<Record<string, string>>({});
 
     useEffect(() => {
         if (!open || previewItems.length === 0) {
@@ -147,6 +150,7 @@ export const SyncStationPreviewModal: React.FC<SyncStationPreviewModalProps> = (
         });
         setCommissionRates(initial);
         setBulkCommissionRate('');
+        setStationCodes({});
     }, [open, previewData]);
 
     const handleApplyBulkCommission = () => {
@@ -184,8 +188,11 @@ export const SyncStationPreviewModal: React.FC<SyncStationPreviewModalProps> = (
             drawDays: normalizeDrawDays(item.drawDays),
             drawTime: formatDrawTime(item.drawTime),
             editedCommissionRate: commissionRates[item.canonicalName] ?? null,
+            // The backend suggests a free code; the operator may overwrite it before
+            // confirming, which is why it is editable state rather than display only.
+            editedCode: stationCodes[item.canonicalName] ?? item.code ?? '',
         })),
-        [previewItems, commissionRates]
+        [previewItems, commissionRates, stationCodes]
     );
 
     const missingCommissionStations = rows.filter(
@@ -205,6 +212,7 @@ export const SyncStationPreviewModal: React.FC<SyncStationPreviewModalProps> = (
         return newStationRows.map((row) => ({
             name: row.name,
             canonicalName: row.canonicalName,
+            code: row.editedCode?.trim() || null,
             drawDays: row.drawDays,
             drawTime: row.drawTime,
             commissionRate: isValidCommissionRate(row.editedCommissionRate)
@@ -345,6 +353,7 @@ export const SyncStationPreviewModal: React.FC<SyncStationPreviewModalProps> = (
                         <TableHead>
                             <TableRow>
                                 <TableCell>Tên nhà đài</TableCell>
+                                <TableCell width={130}>Mã đài</TableCell>
                                 <TableCell>Miền</TableCell>
                                 <TableCell>Tỉnh/TP</TableCell>
                                 <TableCell>Ngày quay</TableCell>
@@ -357,6 +366,23 @@ export const SyncStationPreviewModal: React.FC<SyncStationPreviewModalProps> = (
                                 return (
                                     <TableRow key={row.canonicalName} sx={{ opacity: isExisting ? 0.5 : 1 }}>
                                         <TableCell>{row.name}</TableCell>
+                                        <TableCell>
+                                            <TextField
+                                                size="small"
+                                                value={row.editedCode}
+                                                disabled={isExisting}
+                                                placeholder="VD: TG"
+                                                onChange={(event) =>
+                                                    setStationCodes((current) => ({
+                                                        ...current,
+                                                        [row.canonicalName]: event.target.value
+                                                            .toUpperCase()
+                                                            .replace(/[^A-Z0-9_-]/g, ''),
+                                                    }))
+                                                }
+                                                inputProps={{ maxLength: 20 }}
+                                            />
+                                        </TableCell>
                                         <TableCell>{REGION_LABELS[row.region] || row.region}</TableCell>
                                         <TableCell>{row.province}</TableCell>
                                         <TableCell>{formatDrawSchedule(row)}</TableCell>

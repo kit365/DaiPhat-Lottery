@@ -17,16 +17,10 @@ export const formatVendorHandoverLimit = (value?: number | null) => {
     return `${new Intl.NumberFormat("vi-VN").format(value)} vé/phiếu`;
 };
 
-export const formatConfidencePoints = (score?: number | null, tier?: string | null) => {
-    if (score == null && !tier) return "—";
-    const points =
-        score == null
-            ? null
-            : score <= 1
-              ? Math.round(score * 100)
-              : Math.round(score);
-    const pointsLabel = points == null ? "—" : `${points} điểm`;
-    return tier ? `${pointsLabel} · ${tier}` : pointsLabel;
+export const formatConfidencePoints = (score?: number | null, _tier?: string | null) => {
+    if (score == null) return "—";
+    const points = score <= 1 ? Math.round(score * 100) : Math.round(score);
+    return `${points} điểm`;
 };
 
 /** ISO `YYYY-MM-DD` → display `DD/MM/YYYY` (DateRangePicker / UI). */

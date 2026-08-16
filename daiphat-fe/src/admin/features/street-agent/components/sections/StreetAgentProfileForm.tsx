@@ -176,7 +176,6 @@ export const StreetAgentProfileForm = ({
     depositBalance,
     statusChip,
     confidenceScore,
-    confidenceTier,
     onUploadSignedDocument,
     onViewSignedDocument,
     isUploadingSignedDocument = false,
@@ -285,7 +284,7 @@ export const StreetAgentProfileForm = ({
                 <ReadOnlyRow label="Cọc đang giữ" value={formatVnd(depositBalance ?? 0)} />
                 <ReadOnlyRow
                     label="Điểm tin cậy"
-                    value={formatConfidencePoints(confidenceScore, confidenceTier)}
+                    value={formatConfidencePoints(confidenceScore)}
                 />
             </Box>
         ) : null;

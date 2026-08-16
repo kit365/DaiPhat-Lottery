@@ -41,6 +41,8 @@ public class SupplierSettlementModel {
     private BigDecimal remainingAmount = BigDecimal.ZERO;
     private String supplierSettlementReceiptUrl;
     @Builder.Default
+    private List<String> paymentEvidenceUrls = new ArrayList<>();
+    @Builder.Default
     private boolean isReturnExpired = false;
     @Builder.Default
     private BigDecimal expiredReturnValue = BigDecimal.ZERO;
@@ -189,6 +191,13 @@ public class SupplierSettlementModel {
 
     public boolean hasUnresolvedDiscrepancies() {
         return needsImportResolution() || needsReturnResolution() || needsUnitPriceResolution();
+    }
+
+    public boolean hasPaymentEvidence() {
+        if (paymentEvidenceUrls == null || paymentEvidenceUrls.isEmpty()) {
+            return false;
+        }
+        return paymentEvidenceUrls.stream().anyMatch(url -> url != null && !url.isBlank());
     }
 
     public boolean hasReturnQuantityShortfall() {

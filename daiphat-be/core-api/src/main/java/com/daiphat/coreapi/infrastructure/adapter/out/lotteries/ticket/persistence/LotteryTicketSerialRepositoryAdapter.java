@@ -261,6 +261,19 @@ public class LotteryTicketSerialRepositoryAdapter implements LotteryTicketSerial
     }
 
     @Override
+    public long countReturnEligibleForSupplierAndDrawDate(
+            Long supplierId,
+            java.time.LocalDate drawDate,
+            Collection<Long> stationIds
+    ) {
+        boolean stationIdsEmpty = stationIds == null || stationIds.isEmpty();
+        Collection<Long> ids = stationIdsEmpty ? List.of(-1L) : stationIds;
+        return lotteryTicketSerialRepository.countReturnEligibleForSupplierAndDrawDate(
+                supplierId, drawDate, ids, stationIdsEmpty
+        );
+    }
+
+    @Override
     public List<SettlementStationInventoryRow> aggregateInventoryByStationForSettlement(Long settlementId) {
         if (settlementId == null) {
             return List.of();

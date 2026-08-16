@@ -13,6 +13,8 @@ public record SettlementResolvableSerialResponse(
         LotteryTicketSerialStatus status,
         TicketCondition ticketCondition,
         String stationName,
-        BigDecimal importCost
+        BigDecimal importCost,
+        Long importBatchId,
+        String importBatchCode
 ) {
 }

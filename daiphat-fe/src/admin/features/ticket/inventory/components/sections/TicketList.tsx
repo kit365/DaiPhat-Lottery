@@ -10,6 +10,7 @@ import CircularProgress from '@mui/material/CircularProgress';
 import Dialog from '@mui/material/Dialog';
 import DialogContent from '@mui/material/DialogContent';
 import { useMemo } from 'react';
+import dayjs from 'dayjs';
 import { useQueryClient } from '@tanstack/react-query';
 import {
     IGridSettings,
@@ -27,6 +28,13 @@ import type { useTicketInventory } from '../../hooks/useTicketInventory';
 import { useCancelTicketSelection } from '../../../import-batch/hooks/useCancelTicketSelection';
 import { LazyReportSerialFaultPane } from '../../../import-batch/components/sections/LazyReportSerialFaultPane';
 import { QUERY_KEYS } from '../../constants/queryKeys';
+
+const toIsoDate = (d?: string) => {
+    if (!d) return undefined;
+    if (/^\d{4}-\d{2}-\d{2}$/.test(d)) return d;
+    const parsed = dayjs(d, ['DD/MM/YYYY', 'YYYY-MM-DD'], true);
+    return parsed.isValid() ? parsed.format('YYYY-MM-DD') : d;
+};
 
 declare module '@mui/x-data-grid' {
     interface ToolbarPropsOverrides {
@@ -153,7 +161,7 @@ export const TicketList = ({
                                 onClearFilters: clearFilters,
                                 onSearchChange: setSearchFilter,
                                 onDateRangeChange: ({ startDate, endDate }: { startDate: string; endDate: string }) =>
-                                    setDateRangeFilter(startDate || undefined, endDate || undefined),
+                                    setDateRangeFilter(toIsoDate(startDate), toIsoDate(endDate)),
                                 cancelSelectedCount: cancelSelection.selectedSerials.length,
                                 onCancelTicketsClick: cancelSelection.openReportDialog,
                             } as any,

@@ -25,6 +25,7 @@ public record SupplierSettlementResponse(
         BigDecimal totalPaidAmount,
         BigDecimal remainingAmount,
         String supplierSettlementReceiptUrl,
+        List<String> paymentEvidenceUrls,
         Boolean isReturnExpired,
         BigDecimal expiredReturnValue,
         SupplierSettlementStatus status,

@@ -12,16 +12,11 @@ const withBundleAnalyzer = (config: NextConfig): NextConfig => {  if (process.en
   return config;
 };
 
-// Dev API calls use a relative base URL (same-origin) so HttpOnly cookies work.
-// Proxy /api/* to the Spring backend (defaults to local core-api).
-const backendProxyTarget =
-  process.env.BACKEND_UPSTREAM ||
-  process.env.VITE_DEV_PROXY_TARGET ||
-  'http://localhost:8080';
-
-const normalizedBackendProxyTarget = backendProxyTarget.startsWith('http')
-  ? backendProxyTarget
-  : `http://${backendProxyTarget}`;
+// Proxy /api/* → Spring. Docker: BACKEND_UPSTREAM=backend; local mặc định 8080.
+const backendOrigin = (() => {
+  const raw = process.env.BACKEND_UPSTREAM || 'http://localhost:8080';
+  return `${raw.startsWith('http') ? raw : `http://${raw}`}`.replace(/\/$/, '');
+})();
 
 const nextConfig: NextConfig = {
   output: 'standalone',
@@ -70,15 +65,16 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  // Browser gọi /api, /uploads trên origin FE → Next rewrite sang Spring.
   async rewrites() {
     return [
       {
         source: '/api/:path*',
-        destination: `${normalizedBackendProxyTarget.replace(/\/$/, '')}/api/:path*`,
+        destination: `${backendOrigin}/api/:path*`,
       },
       {
         source: '/uploads/:path*',
-        destination: `${normalizedBackendProxyTarget.replace(/\/$/, '')}/uploads/:path*`,
+        destination: `${backendOrigin}/uploads/:path*`,
       },
     ];
   },

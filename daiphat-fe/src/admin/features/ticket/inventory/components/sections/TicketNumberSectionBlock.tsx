@@ -261,65 +261,71 @@ export const TicketNumberSectionBlock = ({
                             <Controller
                                 name={`ticketSections.${sectionIndex}.quantity`}
                                 control={control}
-                                render={({ field, fieldState }) => (
-                                    <>
-                                        <TextField
-                                            {...field}
-                                            value={field.value ?? 1}
-                                            label="SL"
-                                            type="number"
-                                            size="small"
-                                            fullWidth
-                                            disabled={!canEdit}
-                                            error={shouldShowFieldError(fieldState, isSubmitted)}
-                                            helperText={
-                                                compact
-                                                    ? undefined
-                                                    : getVisibleFieldErrorMessage(fieldState, isSubmitted)
-                                            }
-                                            sx={compact ? compactHeaderFieldSx : undefined}
-                                            inputProps={{
-                                                min: 1,
-                                                max: maxQuantity,
-                                                inputMode: 'numeric',
-                                                style: { textAlign: 'center' },
-                                            }}
-                                            onChange={(event) => {
-                                                const raw = parseInt(event.target.value, 10);
-                                                const nextQty = Number.isFinite(raw)
-                                                    ? Math.min(maxQuantity, Math.max(1, raw))
-                                                    : 1;
-                                                field.onChange(nextQty);
-                                                replace(
-                                                    buildSerialsForQuantity(
-                                                        watchedSerials ?? [],
-                                                        nextQty
-                                                    )
-                                                );
-                                            }}
-                                        />
-                                        {compact &&
-                                            shouldShowFieldError(fieldState, isSubmitted) &&
-                                            getVisibleFieldErrorMessage(fieldState, isSubmitted) && (
-                                                <Typography
-                                                    variant="caption"
-                                                    color="error"
-                                                    sx={{
-                                                        display: 'block',
-                                                        mt: 0.25,
-                                                        fontSize: '0.625rem',
-                                                        lineHeight: 1.2,
-                                                    }}
-                                                >
-                                                    {getVisibleFieldErrorMessage(fieldState, isSubmitted)}
-                                                </Typography>
-                                            )}
-                                    </>
-                                )}
+                                render={({ field, fieldState }) => {
+                                    const qtyValue = field.value ?? 1;
+                                    const isQuantityUnderFilled = qtyValue < filledSerialCount;
+                                    const hasError = isQuantityUnderFilled || shouldShowFieldError(fieldState, isSubmitted);
+                                    const errorMsg = isQuantityUnderFilled
+                                        ? `SL (${qtyValue}) < ${filledSerialCount} sê-ri đã nhập. Vui lòng xóa bớt dòng sê-ri thừa.`
+                                        : getVisibleFieldErrorMessage(fieldState, isSubmitted);
+
+                                    return (
+                                        <Box>
+                                            <TextField
+                                                {...field}
+                                                value={qtyValue}
+                                                label="SL"
+                                                type="number"
+                                                size="small"
+                                                fullWidth
+                                                disabled={!canEdit}
+                                                error={Boolean(hasError)}
+                                                helperText={compact ? undefined : errorMsg}
+                                                sx={compact ? compactHeaderFieldSx : undefined}
+                                                inputProps={{
+                                                    min: 1,
+                                                    max: maxQuantity,
+                                                    inputMode: 'numeric',
+                                                    style: { textAlign: 'center' },
+                                                }}
+                                                onChange={(event) => {
+                                                    const raw = parseInt(event.target.value, 10);
+                                                    const nextQty = Number.isFinite(raw)
+                                                        ? Math.min(maxQuantity, Math.max(1, raw))
+                                                        : 1;
+                                                    field.onChange(nextQty);
+                                                    if (nextQty >= filledSerialCount) {
+                                                        replace(
+                                                            buildSerialsForQuantity(
+                                                                watchedSerials ?? [],
+                                                                nextQty
+                                                            )
+                                                        );
+                                                    }
+                                                }}
+                                            />
+                                        </Box>
+                                    );
+                                }}
                             />
                         </Box>
                     )}
                 </Stack>
+                {compact && (useWatch({ control, name: `ticketSections.${sectionIndex}.quantity` }) ?? 1) < filledSerialCount && (
+                    <Typography
+                        variant="caption"
+                        color="error"
+                        sx={{
+                            display: 'block',
+                            mt: 0.75,
+                            fontSize: '0.725rem',
+                            lineHeight: 1.3,
+                            fontWeight: 700,
+                        }}
+                    >
+                        ⚠ Số lượng vé ({useWatch({ control, name: `ticketSections.${sectionIndex}.quantity` }) ?? 1}) nhỏ hơn {filledSerialCount} số sê-ri đã nhập. Vui lòng bấm biểu tượng thùng rác để xóa dòng sê-ri thừa.
+                    </Typography>
+                )}
             </Box>
 
             <Collapse in={serialsExpanded}>
@@ -352,6 +358,7 @@ export const TicketNumberSectionBlock = ({
                         {fields.map((item, serialIndex) => {
                             const serialPersisted = isPersistedSerial(watchedSerials?.[serialIndex]);
                             const serialEditable = canEdit && !serialPersisted;
+                            const canDeleteRow = fields.length > 1 && !serialPersisted && canEdit;
 
                             return (
                                 <Stack
@@ -372,7 +379,7 @@ export const TicketNumberSectionBlock = ({
                                     >
                                         <Typography
                                             component="span"
-                                            sx={{ fontSize: '0.75rem', lineHeight: 1 }}
+                                            sx={{ fontSize: '0.75rem', lineHeight: 1, fontWeight: 700, color: '#64748b' }}
                                         >
                                             {serialIndex + 1}
                                         </Typography>
@@ -416,6 +423,28 @@ export const TicketNumberSectionBlock = ({
                                             disabled={!serialEditable}
                                         />
                                     </Box>
+
+                                    {canDeleteRow && (
+                                        <IconButton
+                                            size="small"
+                                            color="error"
+                                            aria-label={`Xóa dòng sê-ri ${serialIndex + 1}`}
+                                            onClick={() => {
+                                                remove(serialIndex);
+                                                onRemoveSerial?.(sectionIndex, serialIndex);
+                                            }}
+                                            sx={{
+                                                p: 0.25,
+                                                width: 28,
+                                                height: 28,
+                                                color: '#ef4444',
+                                                flexShrink: 0,
+                                                '&:hover': { bgcolor: '#fee2e2' },
+                                            }}
+                                        >
+                                            <DeleteOutlineIcon sx={{ fontSize: '1.15rem' }} />
+                                        </IconButton>
+                                    )}
                                 </Stack>
                             );
                         })}

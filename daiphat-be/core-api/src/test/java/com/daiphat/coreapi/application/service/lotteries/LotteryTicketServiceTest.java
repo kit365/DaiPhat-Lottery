@@ -55,6 +55,7 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.lenient;
@@ -121,6 +122,9 @@ class LotteryTicketServiceTest {
     private com.daiphat.coreapi.application.port.in.lotteries.SupplierSettlementServicePort supplierSettlementServicePort;
 
     @Mock
+    private ReturnBatchImportSyncService returnBatchImportSyncService;
+
+    @Mock
     private com.daiphat.coreapi.application.port.out.order.OrderRepositoryPort orderRepositoryPort;
 
     @Mock
@@ -145,6 +149,7 @@ class LotteryTicketServiceTest {
                 importBatchLineRepositoryPort,
                 importBatchDraftExpiryService,
                 supplierSettlementServicePort,
+                returnBatchImportSyncService,
                 lotteryStationServicePort,
                 lotteryTicketApplicationMapper,
                 lotteryTicketSerialService,
@@ -974,7 +979,9 @@ class LotteryTicketServiceTest {
         LotteryTicketResponse response = lotteryTicketService.create(createRequest, IMPORTED_BY_ID);
 
         assertThat(response).isNotNull();
-        verify(lotteryTicketSerialService).upsertSerialForTicket(any(), any(), eq(IMPORTED_BY_ID), eq(IMPORT_BATCH_ID), eq(IMPORT_BATCH_LINE_ID));
+        // The request carries no input source, so serials keep the manual default.
+        verify(lotteryTicketSerialService).upsertSerialForTicket(
+                any(), any(), eq(IMPORTED_BY_ID), eq(IMPORT_BATCH_ID), eq(IMPORT_BATCH_LINE_ID), isNull());
         verify(lotteryTicketRepositoryPort, org.mockito.Mockito.atLeastOnce()).save(any());
     }
 

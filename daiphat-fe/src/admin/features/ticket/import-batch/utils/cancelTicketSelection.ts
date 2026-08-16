@@ -27,7 +27,7 @@ export const getCancelFlowTicketStatusLabel = (status?: string | null, statusDis
         case 'EXPIRED':
             return 'Hết hạn';
         default:
-            return status || '—';
+            return typeof status === 'string' && status ? status : '—';
     }
 };
 
@@ -100,7 +100,7 @@ export const buildCancelFlowStatusFilterOptions = (
             ticketFilterValues.add(filterValue);
         }
 
-        (ticket.serials || []).forEach((serial) => {
+        (Array.isArray(ticket.serials) ? ticket.serials : []).forEach((serial) => {
             const normalizedStatus = normalizeTicketStatus(serial.status);
             if (normalizedStatus) {
                 serialStatuses.add(normalizedStatus);

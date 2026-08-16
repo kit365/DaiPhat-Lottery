@@ -12,7 +12,6 @@ import { userService } from "@/admin/features/auth/services/user.service";
 import { toast } from "react-toastify";
 import { ROUTES } from "@/admin/constants/routes";
 import { PERMISSIONS } from "@/admin/constants/permission.constants";
-import { LogoAdmin } from "@/assets/admin/logo";
 import { useAdminSession } from "@/admin/context/AdminSessionProvider";
 import { useForgotPassword } from "@/admin/features/auth/hooks/use-forgot-password";
 import { motion } from "framer-motion";

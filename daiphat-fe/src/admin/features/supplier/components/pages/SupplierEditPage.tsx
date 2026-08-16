@@ -2,19 +2,30 @@
 
 import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
 import { useRouteParams } from "@/hooks/useRouteParams";
-import { Box, Stack, Typography, FormControlLabel, Switch } from '@mui/material';
+import { useSearchParams } from 'next/navigation';
+import {
+    Box,
+    Grid,
+    Stack,
+    Typography,
+} from '@mui/material';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useEffect, useMemo, useState } from 'react';
-import { useForm, Controller } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 import { toast } from 'react-toastify';
 import { PageHeader } from '../../../../components/ui/PageHeader';
 import { SpinnerLoading } from '../../../../components/ui/SpinnerLoading';
 import { CollapsibleCard } from '../../../../components/ui/CollapsibleCard';
-import { Button } from '../../../../components/ui/Button';
 import { ROUTES } from '../../../../constants/routes';
 import { useSupplierDetail, useUpdateSupplier } from '../../hooks/useSupplier';
 import { SupplierFormFields } from '../sections/SupplierFormFields';
-import { supplierFormSchema, SupplierFormValues, supplierFormDefaultValues } from '../../schemas/supplier.schema';
+import { SupplierSidebarPanel } from '../sections/SupplierSidebarPanel';
+import { SupplierImportFileFieldsPanel } from '../sections/SupplierImportFileFieldsPanel';
+import {
+    supplierFormSchema,
+    SupplierFormValues,
+    supplierFormDefaultValues,
+} from '../../schemas/supplier.schema';
 import {
     getMissingSupplierFields,
     scrollToFirstMissingField,
@@ -23,10 +34,13 @@ import {
 
 export const SupplierEditPage = () => {
     const { id } = useRouteParams();
+    const searchParams = useSearchParams();
+    const focusImportFields = searchParams.get('focus') === 'import-file-fields';
     const router = useAdminRouter();
     const { data: supplier, isLoading } = useSupplierDetail(id);
     const { mutateAsync, isPending } = useUpdateSupplier();
     const [activationErrorsVisible, setActivationErrorsVisible] = useState(false);
+    const [importFieldsExpanded, setImportFieldsExpanded] = useState(focusImportFields);
 
     const { control, handleSubmit, reset, watch, setValue } = useForm<SupplierFormValues>({
         resolver: zodResolver(supplierFormSchema),
@@ -74,7 +88,8 @@ export const SupplierEditPage = () => {
     const handleActiveToggle = (nextActive: boolean) => {
         if (!nextActive) {
             setActivationErrorsVisible(false);
-            return true;
+            setValue('isActive', false);
+            return;
         }
 
         const missing = getMissingSupplierFields(watchedValues);
@@ -82,11 +97,11 @@ export const SupplierEditPage = () => {
             setActivationErrorsVisible(true);
             requestAnimationFrame(() => scrollToFirstMissingField(missing));
             toast.warning('Vui lòng hoàn tất thông tin bắt buộc trước khi kích hoạt nhà cung cấp.');
-            return false;
+            return;
         }
 
         setActivationErrorsVisible(false);
-        return true;
+        setValue('isActive', true);
     };
 
     const onSubmit = async (data: SupplierFormValues) => {
@@ -126,8 +141,7 @@ export const SupplierEditPage = () => {
                 toast.error(res.message || 'Cập nhật nhà cung cấp thất bại.');
             }
         } catch (err: any) {
-            const message =
-                err?.response?.data?.message || err?.message || 'Cập nhật nhà cung cấp thất bại.';
+            const message = err?.response?.data?.message || err?.message || 'Cập nhật nhà cung cấp thất bại.';
             const missing = err?.response?.data?.data?.missingFields;
             if (Array.isArray(missing)) {
                 setActivationErrorsVisible(true);
@@ -140,74 +154,68 @@ export const SupplierEditPage = () => {
         }
     };
 
+    if (isLoading) {
+        return <SpinnerLoading />;
+    }
+
+    if (!supplier) {
+        return (
+            <Box display="flex" justifyContent="center" alignItems="center" minHeight={320}>
+                <Typography color="text.secondary">Không tìm thấy thông tin nhà cung cấp.</Typography>
+            </Box>
+        );
+    }
+
     return (
-        <Box sx={{ maxWidth: 900, mx: 'auto' }}>
+        <Box sx={{ maxWidth: 1200, mx: 'auto', pb: 8 }}>
             <PageHeader
-                title={`Sửa nhà cung cấp #${supplier?.id ?? id}`}
+                title={`Chỉnh sửa: ${supplier.name}`}
                 breadcrumbItems={[
                     { label: 'Vé số', to: ROUTES.ADMIN.TICKETS.LIST },
                     { label: 'Nhà cung cấp', to: ROUTES.ADMIN.SUPPLIER.LIST },
-                    { label: `Sửa #${supplier?.id ?? id}` },
+                    { label: supplier.name, to: ROUTES.ADMIN.SUPPLIER.DETAIL(supplier.id) },
+                    { label: 'Chỉnh sửa' },
                 ]}
             />
 
-            {isLoading ? (
-                <SpinnerLoading />
-            ) : !supplier ? (
-                <Box sx={{ p: 3 }}>
-                    <Typography>Không tìm thấy nhà cung cấp.</Typography>
-                </Box>
-            ) : (
-                <>
-
             <form onSubmit={handleSubmit(onSubmit)} noValidate>
-                <CollapsibleCard title="Thông tin nhà cung cấp" expanded onToggle={() => undefined}>
-                    <Stack spacing={3} sx={{ p: 3 }}>
-                        <SupplierFormFields
-                            control={control}
-                            missingFields={missingFields}
-                            onActiveToggle={handleActiveToggle}
-                            hideIsActive={true}
-                        />
-                    </Stack>
-                </CollapsibleCard>
-
-                <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mt: 3 }}>
-                    <Controller
-                        name="isActive"
-                        control={control}
-                        render={({ field }) => (
-                            <FormControlLabel
-                                control={
-                                    <Switch
-                                        checked={field.value}
-                                        onChange={(e) => {
-                                            const nextActive = e.target.checked;
-                                            if (nextActive && !handleActiveToggle(true)) {
-                                                return;
-                                            }
-                                            if (!nextActive) {
-                                                handleActiveToggle(false);
-                                            }
-                                            field.onChange(nextActive);
-                                        }}
-                                    />
-                                }
-                                label={field.value ? 'Hoạt động' : 'Ngừng hoạt động'}
+                <Grid container spacing={3}>
+                    {/* Left Column: Form Sections + Excel Mapping Config */}
+                    <Grid size={{ xs: 12, lg: 8 }}>
+                        <Stack spacing={3}>
+                            <SupplierFormFields
+                                control={control}
+                                missingFields={missingFields}
+                                isEdit={true}
                             />
-                        )}
-                    />
-                    <Button
-                        type="submit"
-                        variant="contained"
-                        loading={isPending}
-                        label="Lưu thay đổi"
-                        loadingLabel="Đang lưu..."
-                    />
-                </Stack>
+
+                            {/* Collapsible Card: Excel Header Recognition Aliases */}
+                            <CollapsibleCard
+                                title="Cấu hình nhận diện cột File Excel (Dùng chung)"
+                                subheader="Tùy chỉnh từ khóa nhận diện cột tự động khi tải lên file nhập vé"
+                                expanded={importFieldsExpanded}
+                                onToggle={() => setImportFieldsExpanded(!importFieldsExpanded)}
+                            >
+                                <Box sx={{ p: 2.5 }}>
+                                    <SupplierImportFileFieldsPanel autoFocus={focusImportFields} />
+                                </Box>
+                            </CollapsibleCard>
+                        </Stack>
+                    </Grid>
+
+                    {/* Right Column: Sticky Sidebar Panel */}
+                    <Grid size={{ xs: 12, lg: 4 }}>
+                        <SupplierSidebarPanel
+                            values={watchedValues}
+                            onActiveToggle={handleActiveToggle}
+                            onSubmit={handleSubmit(onSubmit)}
+                            onCancel={() => router.push(ROUTES.ADMIN.SUPPLIER.LIST)}
+                            isPending={isPending}
+                            isEdit={true}
+                        />
+                    </Grid>
+                </Grid>
             </form>
-                </>
-            )}
         </Box>
     );
 };

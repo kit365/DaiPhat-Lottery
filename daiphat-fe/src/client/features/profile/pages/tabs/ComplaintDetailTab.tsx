@@ -65,7 +65,7 @@ export const ComplaintDetailTab = () => {
             'Huỷ khiếu nại'
         );
         if (confirmed) {
-            closeMutation.mutate(ticketId);
+            closeMutation.mutate({ id: ticketId, intent: 'cancel' });
         }
     };
 
@@ -112,8 +112,8 @@ export const ComplaintDetailTab = () => {
     })();
 
     return (
-        <div className="flex flex-col gap-5">
-            <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+        <div className="flex flex-col gap-4 lg:h-[calc(100dvh-188px)]">
+            <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 shrink-0">
                 <div className="min-w-0">
                     <button
                         type="button"
@@ -154,7 +154,9 @@ export const ComplaintDetailTab = () => {
                             disabled={closeMutation.isPending}
                             className="h-9 px-4 rounded-xl border border-[#ee1314]/30 bg-white text-[#ee1314] font-semibold text-[13px] hover:bg-[#FFF4F4] cursor-pointer disabled:opacity-50"
                         >
-                            {closeMutation.isPending ? 'Đang huỷ…' : 'Huỷ khiếu nại'}
+                            {closeMutation.isPending && closeMutation.variables?.intent === 'cancel'
+                                ? 'Đang huỷ…'
+                                : 'Huỷ khiếu nại'}
                         </button>
                     )}
                 </div>
@@ -164,7 +166,7 @@ export const ComplaintDetailTab = () => {
                 ticket.status === TicketStatus.CLOSED ||
                 ticket.status === TicketStatus.REJECTED) && (
                 <div
-                    className={`rounded-xl px-4 py-3 text-[13px] leading-relaxed ${
+                    className={`shrink-0 rounded-xl px-4 py-3 text-[13px] leading-relaxed ${
                         ticket.status === TicketStatus.REJECTED
                             ? 'bg-[#FFF4F4] text-[#454F5B]'
                             : ticket.status === TicketStatus.RESOLVED
@@ -202,8 +204,8 @@ export const ComplaintDetailTab = () => {
                 </div>
             )}
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
-                <section className="bg-white rounded-[20px] p-5 sm:p-6 border border-[#E5E8EB] shadow-[0_2px_12px_rgb(0,0,0,0.03)]">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start lg:items-stretch lg:flex-1 lg:min-h-0">
+                <section className="bg-white rounded-[20px] p-5 sm:p-6 border border-[#E5E8EB] shadow-[0_2px_12px_rgb(0,0,0,0.03)] lg:overflow-y-auto lg:min-h-0">
                     <h2 className="text-[15px] font-bold text-[#212B36] mb-1">Thông tin khiếu nại</h2>
                     <dl>
                         <Field label="Danh mục">{categoryName}</Field>
@@ -269,6 +271,9 @@ export const ComplaintDetailTab = () => {
                             Không thể chỉnh sửa thông tin ở trạng thái hiện tại.
                         </p>
                     )}
+                    <p className="text-[12px] text-[#919EAB] tabular-nums mt-4">
+                        Cập nhật {format(new Date(ticket.updatedAt), 'dd/MM/yyyy HH:mm')}
+                    </p>
                 </section>
 
                 <ComplaintTimelineChat
@@ -277,13 +282,9 @@ export const ComplaintDetailTab = () => {
                     hideCommentIds={
                         ticket.resolvedReasonId != null ? [ticket.resolvedReasonId] : undefined
                     }
-                    className="lg:min-h-[560px]"
+                    className="h-[min(70dvh,640px)] lg:h-full lg:min-h-0"
                 />
             </div>
-
-            <p className="text-[12px] text-[#919EAB] tabular-nums">
-                Cập nhật {format(new Date(ticket.updatedAt), 'dd/MM/yyyy HH:mm')}
-            </p>
 
             {canEdit && (
                 <ComplaintFormModal

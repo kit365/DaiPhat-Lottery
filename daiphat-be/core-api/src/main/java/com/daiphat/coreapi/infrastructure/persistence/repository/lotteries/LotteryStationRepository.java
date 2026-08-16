@@ -33,6 +33,12 @@ public interface LotteryStationRepository
 
     boolean existsByNameAndDeletedAtIsNull(String name);
 
+    boolean existsByCodeAndDeletedAtIsNull(String code);
+
+    boolean existsByCodeAndIdNotAndDeletedAtIsNull(String code, Long id);
+
+    Optional<LotteryStationEntity> findByCodeAndDeletedAtIsNull(String code);
+
     boolean existsByNameAndIdNotAndDeletedAtIsNull(String name, Long id);
 
     @EntityGraph(attributePaths = "region")

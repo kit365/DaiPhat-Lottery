@@ -5,6 +5,7 @@ import com.daiphat.coreapi.application.dto.response.lotteries.SupplierSettlement
 import com.daiphat.coreapi.application.mapper.lotteries.ImportBatchApplicationMapper;
 import com.daiphat.coreapi.application.mapper.lotteries.ReturnBatchApplicationMapper;
 import com.daiphat.coreapi.application.mapper.lotteries.SupplierSettlementApplicationMapper;
+import com.daiphat.coreapi.application.port.in.lotteries.ImportBatchFileImportServicePort;
 import com.daiphat.coreapi.application.port.in.lotteries.LotteryTicketSerialServicePort;
 import com.daiphat.coreapi.application.port.out.lotteries.ImportBatchRepositoryPort;
 import com.daiphat.coreapi.application.port.out.lotteries.LotterySupplierRepositoryPort;
@@ -14,6 +15,7 @@ import com.daiphat.coreapi.application.port.out.lotteries.SupplierSettlementAdju
 import com.daiphat.coreapi.application.port.out.lotteries.SupplierSettlementRepositoryPort;
 import com.daiphat.coreapi.application.port.in.notification.NotificationServicePort;
 import com.daiphat.coreapi.application.port.out.user.UserRepositoryPort;
+import com.daiphat.coreapi.domain.model.enums.lottery.SupplierSettlementReconciliationPhase;
 import com.daiphat.coreapi.domain.model.enums.lottery.SupplierSettlementStatus;
 import com.daiphat.coreapi.domain.model.enums.user.UserStatus;
 import com.daiphat.coreapi.domain.model.UserModel;
@@ -28,11 +30,13 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.beans.factory.ObjectProvider;
 
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.ZoneId;
 import java.util.List;
@@ -77,6 +81,8 @@ class SupplierSettlementServiceTest {
     private NotificationServicePort notificationService;
     @Mock
     private UserRepositoryPort userRepositoryPort;
+    @Mock
+    private ObjectProvider<ImportBatchFileImportServicePort> importBatchFileImportService;
     @Mock
     private Clock clock;
 
@@ -165,7 +171,7 @@ class SupplierSettlementServiceTest {
     }
 
     @Test
-    @DisplayName("before inspection complete, remaining payable stays 0 even when import value is set")
+    @DisplayName("before handover, remaining payable is import value minus paid")
     void recalculate_beforeInspection_remainingIsZero() {
         SupplierSettlementModel settlement = SupplierSettlementModel.builder()
                 .id(5L)
@@ -178,7 +184,6 @@ class SupplierSettlementServiceTest {
                 .thenReturn(new BigDecimal("9500.5"));
         when(supplierSettlementRepositoryPort.sumPreparedReturnValueBySettlementId(5L))
                 .thenReturn(BigDecimal.ZERO);
-        when(supplierSettlementRepositoryPort.existsCompletedInspectionReturnBatch(5L)).thenReturn(false);
         when(supplierSettlementRepositoryPort.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
         supplierSettlementService.recalculateTotalImportValue(5L);
@@ -186,7 +191,7 @@ class SupplierSettlementServiceTest {
         ArgumentCaptor<SupplierSettlementModel> captor = ArgumentCaptor.forClass(SupplierSettlementModel.class);
         verify(supplierSettlementRepositoryPort).save(captor.capture());
         assertThat(captor.getValue().getTotalImportValue()).isEqualByComparingTo("9500.500");
-        assertThat(captor.getValue().getRemainingAmount()).isEqualByComparingTo(BigDecimal.ZERO);
+        assertThat(captor.getValue().getRemainingAmount()).isEqualByComparingTo("9400.500");
     }
 
     @Test
@@ -202,7 +207,6 @@ class SupplierSettlementServiceTest {
                 .thenReturn(new BigDecimal("10000.000"));
         when(supplierSettlementRepositoryPort.sumPreparedReturnValueBySettlementId(5L))
                 .thenReturn(new BigDecimal("1500.250"));
-        when(supplierSettlementRepositoryPort.existsCompletedInspectionReturnBatch(5L)).thenReturn(true);
         when(supplierSettlementRepositoryPort.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
         supplierSettlementService.recalculateTotalReturnValue(5L);
@@ -213,6 +217,65 @@ class SupplierSettlementServiceTest {
         assertThat(captor.getValue().getTotalReturnValue()).isEqualByComparingTo("1500.250");
         // remaining = 10000 - 1500.250 - 500 = 7999.750
         assertThat(captor.getValue().getRemainingAmount()).isEqualByComparingTo("7999.750");
+    }
+
+    @Test
+    @DisplayName("handover after matching confirm still refreshes system return qty/value")
+    void recalculate_afterMatchingConfirm_refreshesSystemReturnTotals() {
+        SupplierSettlementModel settlement = SupplierSettlementModel.builder()
+                .id(5L)
+                .status(SupplierSettlementStatus.OPEN)
+                .reconciliationPhase(SupplierSettlementReconciliationPhase.DISCREPANCY_DETECTED)
+                .matchingConfirmedAt(LocalDateTime.of(2026, 8, 14, 10, 0))
+                .systemReturnQuantity(0)
+                .systemReturnValue(BigDecimal.ZERO)
+                .actualReturnTicketQuantity(0)
+                .totalPaidAmount(BigDecimal.ZERO)
+                .build();
+        when(supplierSettlementRepositoryPort.findById(5L)).thenReturn(Optional.of(settlement));
+        when(supplierSettlementRepositoryPort.sumImportedCostValueBySettlementId(5L))
+                .thenReturn(new BigDecimal("7684.000"));
+        when(supplierSettlementRepositoryPort.sumPreparedReturnValueBySettlementId(5L))
+                .thenReturn(new BigDecimal("1020.000"));
+        when(supplierSettlementRepositoryPort.countImportedTicketsBySettlementId(5L)).thenReturn(904L);
+        when(supplierSettlementRepositoryPort.countPreparedReturnTicketsBySettlementId(5L)).thenReturn(120L);
+        when(supplierSettlementRepositoryPort.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        supplierSettlementService.recalculateTotalReturnValue(5L);
+
+        ArgumentCaptor<SupplierSettlementModel> captor = ArgumentCaptor.forClass(SupplierSettlementModel.class);
+        verify(supplierSettlementRepositoryPort).save(captor.capture());
+        assertThat(captor.getValue().getSystemImportQuantity()).isEqualTo(904);
+        assertThat(captor.getValue().getSystemReturnQuantity()).isEqualTo(120);
+        assertThat(captor.getValue().getSystemReturnValue()).isEqualByComparingTo("1020.000");
+        assertThat(captor.getValue().getActualReturnTicketQuantity()).isZero();
+    }
+
+    @Test
+    @DisplayName("completed settlement keeps frozen matching system return snapshot")
+    void recalculate_completedSettlement_keepsSystemReturnSnapshot() {
+        SupplierSettlementModel settlement = SupplierSettlementModel.builder()
+                .id(5L)
+                .status(SupplierSettlementStatus.OPEN)
+                .reconciliationPhase(SupplierSettlementReconciliationPhase.COMPLETED)
+                .matchingConfirmedAt(LocalDateTime.of(2026, 8, 14, 10, 0))
+                .systemReturnQuantity(0)
+                .systemReturnValue(BigDecimal.ZERO)
+                .totalPaidAmount(BigDecimal.ZERO)
+                .build();
+        when(supplierSettlementRepositoryPort.findById(5L)).thenReturn(Optional.of(settlement));
+        when(supplierSettlementRepositoryPort.sumImportedCostValueBySettlementId(5L))
+                .thenReturn(new BigDecimal("7684.000"));
+        when(supplierSettlementRepositoryPort.sumPreparedReturnValueBySettlementId(5L))
+                .thenReturn(new BigDecimal("1020.000"));
+        when(supplierSettlementRepositoryPort.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        supplierSettlementService.recalculateTotalReturnValue(5L);
+
+        ArgumentCaptor<SupplierSettlementModel> captor = ArgumentCaptor.forClass(SupplierSettlementModel.class);
+        verify(supplierSettlementRepositoryPort).save(captor.capture());
+        assertThat(captor.getValue().getSystemReturnQuantity()).isZero();
+        verify(supplierSettlementRepositoryPort, never()).countPreparedReturnTicketsBySettlementId(any());
     }
 
     @Test
@@ -245,7 +308,6 @@ class SupplierSettlementServiceTest {
         when(supplierSettlementRepositoryPort.findById(5L)).thenReturn(Optional.of(settlement));
         when(supplierSettlementRepositoryPort.sumImportedCostValueBySettlementId(5L)).thenReturn(BigDecimal.ZERO);
         when(supplierSettlementRepositoryPort.sumPreparedReturnValueBySettlementId(5L)).thenReturn(BigDecimal.ZERO);
-        when(supplierSettlementRepositoryPort.existsCompletedInspectionReturnBatch(5L)).thenReturn(false);
         when(supplierSettlementRepositoryPort.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
         when(supplierSettlementApplicationMapper.toResponse(any())).thenReturn(settlementResponse);
         when(importBatchRepositoryPort.findBySupplierSettlementId(5L)).thenReturn(List.of());

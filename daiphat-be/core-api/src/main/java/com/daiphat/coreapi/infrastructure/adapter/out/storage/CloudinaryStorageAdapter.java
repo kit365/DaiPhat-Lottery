@@ -83,7 +83,7 @@ public class CloudinaryStorageAdapter implements StoragePort {
                     (String) result.get("secure_url")
             );
         } catch (IOException e) {
-            throw new DomainException(ErrorCode.INTERNAL_SERVER_ERROR, e);
+            throw new DomainException(ErrorCode.IMAGE_UPLOAD_FAILED, e);
         }
     }
 

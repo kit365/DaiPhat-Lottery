@@ -38,8 +38,7 @@ public interface SupplierSettlementRepository
     BigDecimal sumImportedCostValueBySettlementId(@Param("settlementId") Long settlementId);
 
     /**
-     * Import cost of tickets prepared for return (linked via returnBatchLineId to a settlement's return batches).
-     * Does not wait for return-line {@code SUCCESS} / full supplier handover.
+     * Import cost of tickets handed over (or received) by the supplier, linked through a settlement's return batches.
      */
     @Query("""
             SELECT COALESCE(SUM(ibl.importCost), 0)
@@ -54,8 +53,8 @@ public interface SupplierSettlementRepository
               AND b.deletedAt IS NULL
               AND ibl.deletedAt IS NULL
               AND b.status IN (
-                  com.daiphat.coreapi.domain.model.enums.lottery.ReturnBatchStatus.PENDING_HANDOVER,
-                  com.daiphat.coreapi.domain.model.enums.lottery.ReturnBatchStatus.HANDED_OVER
+                  com.daiphat.coreapi.domain.model.enums.lottery.ReturnBatchStatus.HANDED_OVER,
+                  com.daiphat.coreapi.domain.model.enums.lottery.ReturnBatchStatus.RECEIVED
               )
               AND s.status IN (
                   com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus.IN_STOCK,
@@ -71,8 +70,8 @@ public interface SupplierSettlementRepository
             WHERE b.supplierSettlementId = :settlementId
               AND b.deletedAt IS NULL
               AND b.status IN (
-                  com.daiphat.coreapi.domain.model.enums.lottery.ReturnBatchStatus.PENDING_HANDOVER,
-                  com.daiphat.coreapi.domain.model.enums.lottery.ReturnBatchStatus.HANDED_OVER
+                  com.daiphat.coreapi.domain.model.enums.lottery.ReturnBatchStatus.HANDED_OVER,
+                  com.daiphat.coreapi.domain.model.enums.lottery.ReturnBatchStatus.RECEIVED
               )
             """)
     boolean existsCompletedInspectionReturnBatch(@Param("settlementId") Long settlementId);
@@ -155,8 +154,8 @@ public interface SupplierSettlementRepository
               AND l.deletedAt IS NULL
               AND b.deletedAt IS NULL
               AND b.status IN (
-                  com.daiphat.coreapi.domain.model.enums.lottery.ReturnBatchStatus.PENDING_HANDOVER,
-                  com.daiphat.coreapi.domain.model.enums.lottery.ReturnBatchStatus.HANDED_OVER
+                  com.daiphat.coreapi.domain.model.enums.lottery.ReturnBatchStatus.HANDED_OVER,
+                  com.daiphat.coreapi.domain.model.enums.lottery.ReturnBatchStatus.RECEIVED
               )
               AND s.status IN (
                   com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus.IN_STOCK,
@@ -204,8 +203,9 @@ public interface SupplierSettlementRepository
     java.util.List<Object[]> findPreparedReturnSerialRowsBySettlementId(@Param("settlementId") Long settlementId);
 
     /**
-     * IN_STOCK + GOOD serials for import discrepancy resolution.
-     * Columns: serialId, serialNumber, status, ticketCondition, stationName, importCost
+     * IN_STOCK + GOOD serials for import discrepancy resolution / inventory browse.
+     * Columns: serialId, serialNumber, status, ticketCondition, stationName, importCost,
+     *          importBatchId, importBatchCode
      */
     @Query("""
             SELECT s.id,
@@ -213,7 +213,9 @@ public interface SupplierSettlementRepository
                    s.status,
                    s.ticketCondition,
                    st.name,
-                   ibl.importCost
+                   ibl.importCost,
+                   ib.id,
+                   ib.batchCode
             FROM LotteryTicketSerialEntity s
             JOIN s.importBatchLine ibl
             JOIN ibl.importBatch ib
@@ -226,9 +228,35 @@ public interface SupplierSettlementRepository
               AND t.deletedAt IS NULL
               AND s.status = com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus.IN_STOCK
               AND s.ticketCondition = com.daiphat.coreapi.domain.model.enums.lottery.TicketCondition.GOOD
-            ORDER BY st.name ASC, s.serialNumber ASC
+            ORDER BY ib.id ASC, st.name ASC, s.serialNumber ASC
             """)
     java.util.List<Object[]> findImportResolvableSerialRowsBySettlementId(@Param("settlementId") Long settlementId);
+
+    /**
+     * Every imported serial of the settlement (not only IN_STOCK/GOOD), for file vs system check.
+     * Columns: serialId, serialNumber, numbers, lotteryStationId, stationName, importBatchId, importBatchCode
+     */
+    @Query("""
+            SELECT s.id,
+                   s.serialNumber,
+                   t.numbers,
+                   st.id,
+                   st.name,
+                   ib.id,
+                   ib.batchCode
+            FROM LotteryTicketSerialEntity s
+            JOIN s.importBatchLine ibl
+            JOIN ibl.importBatch ib
+            JOIN s.ticket t
+            JOIN t.station st
+            WHERE ib.supplierSettlementId = :settlementId
+              AND s.deletedAt IS NULL
+              AND ibl.deletedAt IS NULL
+              AND ib.deletedAt IS NULL
+              AND t.deletedAt IS NULL
+            ORDER BY ib.id ASC, st.name ASC, s.serialNumber ASC
+            """)
+    java.util.List<Object[]> findImportedSerialRowsForFileCheck(@Param("settlementId") Long settlementId);
 
     @Query(value = "SELECT nextval('supplier_settlement_code_seq')", nativeQuery = true)
     long nextSettlementCodeSequence();

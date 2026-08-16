@@ -19,12 +19,17 @@ import type {
     SettlementAdjustmentReasonCode,
     SupplierSettlementAdjustment,
 } from '../../types/supplierSettlement.type';
-import { formatImportCost } from '../../../import-batch/utils/importCostCalculator';
+import {
+    formatSettlementMoney,
+    formatSignedCashflow,
+    toAgencyCashflow,
+    toSupplierPayableDelta,
+} from '../../utils/settlementCashflow';
 
 const MONETARY_REASONS: Array<{ value: SettlementAdjustmentReasonCode; label: string }> = [
-    { value: 'SHIPPING_FEE', label: 'Phí vận chuyển (+)' },
-    { value: 'LATE_PENALTY', label: 'Phạt chậm (+)' },
-    { value: 'DISCOUNT', label: 'Chiết khấu / giảm trừ (−)' },
+    { value: 'SHIPPING_FEE', label: 'Phí vận chuyển (−)' },
+    { value: 'LATE_PENALTY', label: 'Phạt chậm (−)' },
+    { value: 'DISCOUNT', label: 'Chiết khấu / giảm trừ (+)' },
     { value: 'ROUNDING', label: 'Làm tròn (±)' },
     { value: 'OTHER', label: 'Khác (±)' },
 ];
@@ -33,6 +38,7 @@ interface Props {
     adjustments: SupplierSettlementAdjustment[];
     receiptUrl?: string | null;
     submitting?: boolean;
+    readOnly?: boolean;
     onAdd: (payload: { amount: number; reasonCode: SettlementAdjustmentReasonCode; note: string }) => void;
 }
 
@@ -40,9 +46,10 @@ export const SettlementMonetaryAdjustmentPanel = ({
     adjustments,
     receiptUrl,
     submitting,
+    readOnly,
     onAdd,
 }: Props) => {
-    const locked = !receiptUrl || !String(receiptUrl).trim();
+    const locked = Boolean(readOnly) || !receiptUrl || !String(receiptUrl).trim();
     const [amount, setAmount] = useState('');
     const [reasonCode, setReasonCode] = useState<SettlementAdjustmentReasonCode>('SHIPPING_FEE');
     const [note, setNote] = useState('');
@@ -61,15 +68,16 @@ export const SettlementMonetaryAdjustmentPanel = ({
                 Điều chỉnh thanh toán (SETTLEMENT)
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                Dương = tăng phải trả NCC · Âm = giảm phải trả. Không ghi đè giá trị ước tính ban đầu.
+                Dương (+) = đại lý dư / giảm chi · Âm (−) = đại lý mất tiền / phát sinh chi phí. Không ghi đè giá trị ước tính ban đầu.
             </Typography>
 
-            {locked && (
+            {locked && !readOnly && (
                 <Alert severity="warning" sx={{ mb: 2, borderRadius: '12px' }}>
                     Kỳ đối soát đang khóa điều chỉnh tiền cho đến khi Admin tải biên lai đối soát.
                 </Alert>
             )}
 
+            {!readOnly && (
             <Stack spacing={1.5} sx={{ mb: 2.5, opacity: locked ? 0.55 : 1, pointerEvents: locked ? 'none' : 'auto' }}>
                 <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
                     <TextField
@@ -111,7 +119,7 @@ export const SettlementMonetaryAdjustmentPanel = ({
                         disabled={!canSubmit || !!submitting}
                         onClick={() =>
                             onAdd({
-                                amount: parsedAmount,
+                                amount: toSupplierPayableDelta(parsedAmount),
                                 reasonCode,
                                 note: note.trim(),
                             })
@@ -122,6 +130,7 @@ export const SettlementMonetaryAdjustmentPanel = ({
                     </Button>
                 </Box>
             </Stack>
+            )}
 
             <Typography variant="subtitle2" fontWeight={700} sx={{ mb: 1 }}>
                 Lịch sử điều chỉnh tiền ({settlementRows.length})
@@ -146,7 +155,7 @@ export const SettlementMonetaryAdjustmentPanel = ({
                                 {row.reasonCode === 'OTHER' && row.customName
                                     ? row.customName
                                     : (row.reasonLabel || row.reasonCode)}
-                                : {formatImportCost(Number(row.amount))} VNĐ
+                                : {formatSignedCashflow(toAgencyCashflow(row.amount), formatSettlementMoney)} VNĐ
                             </Typography>
                             {row.note && (
                                 <Typography variant="caption" color="text.secondary">

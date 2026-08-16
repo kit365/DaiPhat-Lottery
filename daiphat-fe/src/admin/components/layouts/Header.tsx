@@ -24,8 +24,7 @@ import { useAuthStore } from "../../../stores/useAuthStore";
 import { authService } from "@/admin/features/auth/services/auth.service";
 import { ROUTES } from "../../constants/routes";
 import { NotificationPopover } from "./NotificationPopover";
-import { STORAGE_KEYS } from "../../../constants/storage.constants";
-import Cookies from "js-cookie";
+import { clearJsAuthCookies } from "@/api/authHeaders";
 
 interface Props {
     window?: () => Window;
@@ -86,8 +85,7 @@ export const Header = () => {
             console.error("Logout error:", error);
         } finally {
             logoutStore();
-            Cookies.remove(STORAGE_KEYS.TOKEN, { path: '/' });
-            Cookies.remove(STORAGE_KEYS.REFRESH_TOKEN, { path: '/' });
+            clearJsAuthCookies();
             handleCloseUser();
             toast.success("Đăng xuất thành công!");
             router.replace(ROUTES.ADMIN.AUTH.LOGIN);

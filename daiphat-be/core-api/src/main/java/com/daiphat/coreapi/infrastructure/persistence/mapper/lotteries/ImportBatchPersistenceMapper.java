@@ -40,6 +40,7 @@ public interface ImportBatchPersistenceMapper {
     @Mapping(target = "supplierSettlementId")
     @Mapping(target = "importMode")
     @Mapping(target = "invoiceEvidenceUrl")
+    @Mapping(target = "ticketListImageUrls")
     @Mapping(target = "importedAt")
     @Mapping(target = "status")
     @Mapping(target = "lineCount")

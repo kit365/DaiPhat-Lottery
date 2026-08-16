@@ -11,7 +11,8 @@ import {
     MapPin, 
     Ticket, 
     ChevronDown, 
-    Check 
+    Check,
+    Clock
 } from 'lucide-react';
 import { lotteryStationService } from '../../services/lotteryStationService';
 import { LotteryStationDraw } from '../../types/lottery';
@@ -368,7 +369,9 @@ export const QuickCheckTicketBanner: React.FC<QuickCheckTicketBannerProps> = ({ 
                                 ) : !checkResult?.resultAvailable ? (
                                     /* Result not available state */
                                     <div className="bg-slate-50 border border-slate-200/60 rounded-xl p-6 text-center flex flex-col items-center gap-2">
-                                        <span className="text-[28px] filter grayscale mb-1">⏳</span>
+                                        <span className="mb-1 flex h-11 w-11 items-center justify-center rounded-full bg-slate-200/80 text-slate-500">
+                                            <Clock className="h-5 w-5" strokeWidth={2.2} />
+                                        </span>
                                         <h4 className="text-[13px] font-bold text-slate-700">Chưa có kết quả</h4>
                                         <p className="text-[11px] text-slate-500 leading-relaxed">
                                             Kết quả xổ số đài này ngày {checkResult?.drawDate ? new Date(checkResult.drawDate).toLocaleDateString('vi-VN') : 'đã chọn'} chưa được cập nhật. Vui lòng quay lại sau!
@@ -377,7 +380,9 @@ export const QuickCheckTicketBanner: React.FC<QuickCheckTicketBannerProps> = ({ 
                                 ) : (
                                     /* Losing state */
                                     <div className="bg-slate-50 border border-slate-200/60 rounded-xl p-6 text-center flex flex-col items-center gap-2">
-                                        <span className="text-[28px] filter grayscale mb-1">🍀</span>
+                                        <span className="mb-1 flex h-11 w-11 items-center justify-center rounded-full bg-slate-200/80 text-slate-500">
+                                            <Ticket className="h-5 w-5" strokeWidth={2.2} />
+                                        </span>
                                         <h4 className="text-[13px] font-bold text-slate-700">Rất tiếc, chưa trúng giải</h4>
                                         <p className="text-[11px] text-slate-500 leading-relaxed">
                                             Vé số của bạn không trùng với giải nào lần này. Chúc bạn may mắn lần sau!
@@ -399,7 +404,7 @@ export const QuickCheckTicketBanner: React.FC<QuickCheckTicketBannerProps> = ({ 
                                 {/* 2-Column Fields Grid */}
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 relative z-50">
                                     {/* Station Dropdown */}
-                                    <div className="flex flex-col gap-1.5 relative">
+                                    <div className="flex flex-col gap-1.5 relative order-2">
                                         <label className="text-[13px] font-bold text-slate-700">Chọn đài</label>
                                         <div className="relative" ref={stationDropdownRef}>
                                             <button 
@@ -475,7 +480,7 @@ export const QuickCheckTicketBanner: React.FC<QuickCheckTicketBannerProps> = ({ 
                                     </div>
 
                                     {/* Datepicker Select */}
-                                    <div className="flex flex-col gap-1.5 relative">
+                                    <div className="flex flex-col gap-1.5 relative order-1">
                                         <label className="text-[13px] font-bold text-slate-700">Chọn ngày</label>
                                         <div className="relative" ref={datePickerRef}>
                                             <button 
@@ -508,7 +513,7 @@ export const QuickCheckTicketBanner: React.FC<QuickCheckTicketBannerProps> = ({ 
                                                     initial={{ opacity: 0, y: 8 }}
                                                     animate={{ opacity: 1, y: 0 }}
                                                     exit={{ opacity: 0, y: 8 }}
-                                                    className="absolute right-0 top-full mt-1 bg-white border border-slate-100 rounded-xl shadow-[0_12px_32px_rgba(0,0,0,0.12)] z-50 w-[270px] p-3"
+                                                    className="absolute left-0 top-full mt-1 bg-white border border-slate-100 rounded-xl shadow-[0_12px_32px_rgba(0,0,0,0.12)] z-50 w-[270px] p-3"
                                                 >
                                                     {/* Month header navigation */}
                                                     <div className="flex items-center justify-between mb-2.5 px-0.5">
@@ -564,14 +569,14 @@ export const QuickCheckTicketBanner: React.FC<QuickCheckTicketBannerProps> = ({ 
                                                                         setIsDatePickerOpen(false);
                                                                         setFieldErrors((prev) => ({ ...prev, date: undefined }));
                                                                     }}
-                                                                    className={`py-1 rounded-lg font-semibold transition-all border-none bg-transparent cursor-pointer ${
-                                                                        isSelected 
-                                                                            ? 'bg-[#ee1314] text-white font-bold' 
-                                                                            : isToday 
-                                                                                ? 'text-[#ee1314] font-bold hover:bg-slate-50' 
-                                                                                : isCurrentMonth 
-                                                                                    ? 'text-slate-700 hover:bg-slate-50' 
-                                                                                    : 'text-slate-300 hover:bg-slate-50'
+                                                                    className={`py-1 rounded-lg font-semibold transition-all cursor-pointer border-none ${
+                                                                        isSelected
+                                                                            ? 'bg-[#ee1314] text-white font-bold'
+                                                                            : isToday
+                                                                                ? 'bg-transparent text-[#ee1314] font-bold hover:bg-slate-50'
+                                                                                : isCurrentMonth
+                                                                                    ? 'bg-transparent text-slate-700 hover:bg-slate-50'
+                                                                                    : 'bg-transparent text-slate-300 hover:bg-slate-50'
                                                                     }`}
                                                                 >
                                                                     {cell.day}

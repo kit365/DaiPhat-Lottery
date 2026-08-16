@@ -15,6 +15,8 @@ import java.util.List;
 public record LotteryStationSyncPreviewItemResponse(
         String name,
         String canonicalName,
+        /** Existing code when the station is already known, otherwise a suggestion. */
+        String code,
         String province,
         String region,
         List<DayOfWeek> drawDays,

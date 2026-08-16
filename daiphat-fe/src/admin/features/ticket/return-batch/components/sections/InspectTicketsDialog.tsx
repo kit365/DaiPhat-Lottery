@@ -20,6 +20,7 @@ import {
 } from '../../hooks/useReturnBatch';
 import type { InspectableReturnSerial, ReturnDeliveryMode } from '../../types/returnBatch.type';
 import { RETURN_BATCH_INSPECTION_EXPIRED_MESSAGE } from '../../types/returnBatch.type';
+import { isReturnSelectableSerial } from '../../utils/returnInspectableSerial';
 
 interface Props {
     open: boolean;
@@ -37,13 +38,6 @@ const showInspectionExpiredPopup = () =>
         confirmButtonColor: '#1C252E',
         confirmButtonText: 'OK',
     });
-
-const isReturnSelectableSerial = (serial: InspectableReturnSerial): boolean => {
-    if (serial.status !== 'IN_STOCK') return false;
-    // Physical faults are tracked on ticketCondition (status stays IN_STOCK).
-    if (isFaultyTicketCondition(serial.ticketCondition)) return false;
-    return true;
-};
 
 const toCancelSelectedSerial = (serial: InspectableReturnSerial): CancelSelectedSerial => ({
     id: serial.serialId,
@@ -573,7 +567,7 @@ export const InspectTicketsDialog = ({
                         >
                             <Stack direction="row" spacing={1} alignItems="center">
                                 <Chip
-                                    label={`${inStockCount} vé kho`}
+                                    label={`${inStockCount} vé ế còn lại`}
                                     color="primary"
                                     size="small"
                                     sx={{ fontWeight: 700, borderRadius: '6px' }}

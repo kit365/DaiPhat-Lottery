@@ -104,6 +104,7 @@ export interface SupplierSettlement {
     unitPriceDiscrepancyResolved?: boolean;
     recalculatedTotalPaidAmount?: number | null;
     reconciliationNote?: string | null;
+    paymentEvidenceUrls?: string[] | null;
     matchingConfirmedAt?: string | null;
     completedAt?: string | null;
     transactionId?: number | null;
@@ -142,6 +143,15 @@ export interface SettlementStationInventory {
     returnValue: number;
 }
 
+export interface SettlementStationPricing {
+    lotteryStationId: number;
+    lotteryStationName?: string | null;
+    importedQuantity: number;
+    importCost: number;
+    commissionRate: number;
+    netUnitPrice: number;
+}
+
 export interface SettlementOverviewImportBatch {
     id: number;
     batchCode?: string | null;
@@ -153,6 +163,7 @@ export interface SettlementOverviewImportBatch {
     totalDeclareQuantity?: number | null;
     totalDeclaredCostValue?: number | null;
     invoiceEvidenceUrl?: string | null;
+    ticketListImageUrls?: string[] | null;
     receiptImageUrl?: string | null;
     evidenceUrl?: string | null;
 }
@@ -168,6 +179,10 @@ export interface SettlementOverviewReturnBatch {
     supplierName?: string | null;
     returnReceiptUrl?: string | null;
     returnEvidenceUrl?: string | null;
+    returnCutOffTime?: string | null;
+    returnCutOffAt?: string | null;
+    inspectionExpired?: boolean;
+    minutesUntilCutoff?: number | null;
 }
 
 export interface SupplierSettlementOverview {
@@ -176,6 +191,7 @@ export interface SupplierSettlementOverview {
     importBatches: SettlementOverviewImportBatch[];
     returnBatches: SettlementOverviewReturnBatch[];
     inventoryByStation: SettlementStationInventory[];
+    stationPricing?: SettlementStationPricing[];
     adjustments?: SupplierSettlementAdjustment[];
 }
 
@@ -186,6 +202,50 @@ export interface SettlementResolvableSerial {
     ticketCondition?: string | null;
     stationName?: string | null;
     importCost?: number | null;
+    importBatchId?: number | null;
+    importBatchCode?: string | null;
+}
+
+export type SettlementImportFileCheckStatus = 'PARSED' | 'NO_FILE' | 'DOWNLOAD_FAILED' | 'PARSE_FAILED';
+
+export interface SettlementImportFileCheckFile {
+    importBatchId: number;
+    importBatchCode?: string | null;
+    fileName?: string | null;
+    originalFileUrl?: string | null;
+    status: SettlementImportFileCheckStatus;
+    errorMessage?: string | null;
+}
+
+export interface SettlementImportFileCheckTicket {
+    serialId?: number | null;
+    serialNumber: string;
+    numbers?: string | null;
+    lotteryStationId?: number | null;
+    stationName?: string | null;
+    importBatchId?: number | null;
+    importBatchCode?: string | null;
+    sourceFileName?: string | null;
+}
+
+export interface SettlementImportFileCheckStationSummary {
+    lotteryStationId?: number | null;
+    stationName?: string | null;
+    fileQty: number;
+    systemQty: number;
+    onlyInSystemQty: number;
+    onlyInFileQty: number;
+}
+
+export interface SettlementImportFileCheck {
+    files: SettlementImportFileCheckFile[];
+    fileTickets: SettlementImportFileCheckTicket[];
+    systemTickets: SettlementImportFileCheckTicket[];
+    matchedCount: number;
+    onlyInSystem: SettlementImportFileCheckTicket[];
+    onlyInFile: SettlementImportFileCheckTicket[];
+    stationSummaries: SettlementImportFileCheckStationSummary[];
+    importsTickets: boolean;
 }
 
 export interface SettlementMatchingAdditionalCost {
@@ -216,6 +276,8 @@ export interface ResolveImportDiscrepancyPayload {
     markResolved: boolean;
     missingPlaceholders?: Array<{ lotteryStationId: number; quantity: number }>;
     excessTickets?: Array<{ lotteryStationId: number; numbers: string; serialNumber: string }>;
+    /** Required when ticketCondition is DAMAGED. */
+    damagedEvidenceUrl?: string | null;
 }
 
 export interface ResolveReturnDiscrepancyPayload {

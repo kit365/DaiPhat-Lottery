@@ -54,7 +54,8 @@ public class LotteryTicketSerialService implements LotteryTicketSerialServicePor
             CreateLotteryTicketSerialRequest request,
             UUID importedById,
             Long importBatchId,
-            Long importBatchLineId
+            Long importBatchLineId,
+            InputSource inputSource
     ) {
         String normalizedSerial = request.serialNumber().trim();
         if (lotteryTicketSerialRepositoryPort.existsByTicketIdAndSerialNumber(ticket.getId(), normalizedSerial)) {
@@ -69,7 +70,7 @@ public class LotteryTicketSerialService implements LotteryTicketSerialServicePor
                 .serialNumber(normalizedSerial)
                 .stationId(ticket.getStationId())
                 .drawDate(ticket.getDrawDate())
-                .inputSource(InputSource.MANUAL)
+                .inputSource(inputSource == null ? InputSource.MANUAL : inputSource)
                 .replacedForTicketId(request.replacedForTicketId())
                 .build();
         serial.initializeImport(importedById);

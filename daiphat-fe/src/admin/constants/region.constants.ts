@@ -53,9 +53,3 @@ export const REGION_DATA: Record<string, string[]> = {
     "Đà Lạt (Lâm Đồng)"
   ]
 };
-
-export const REGION_OPTIONS = [
-  { value: 'MIEN_BAC', label: 'Miền Bắc' },
-  { value: 'MIEN_TRUNG', label: 'Miền Trung' },
-  { value: 'MIEN_NAM', label: 'Miền Nam' },
-];

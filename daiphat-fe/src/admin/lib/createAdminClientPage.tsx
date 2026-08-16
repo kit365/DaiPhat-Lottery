@@ -9,7 +9,7 @@ import { SpinnerLoading } from "@/admin/components/ui/SpinnerLoading";
 
 type AdminClientPageOptions =
     | {
-          component: ComponentType;
+          component: ComponentType<any>;
           permission?: string;
           permissions?: string[];
           loader?: never;
@@ -59,7 +59,7 @@ export function createAdminClientPage(options: AdminClientPageOptions) {
     if ("component" in options && options.component) {
         const Component = options.component;
 
-        return function ClientPage() {
+        return function ClientPage(props: Record<string, unknown>) {
             return (
                 <PermissionGuard
                     permission={permission}
@@ -67,7 +67,7 @@ export function createAdminClientPage(options: AdminClientPageOptions) {
                     fallback={guardFallback}
                 >
                     <AdminNavigationComplete />
-                    <Component />
+                    <Component {...props} />
                 </PermissionGuard>
             );
         };
@@ -75,14 +75,14 @@ export function createAdminClientPage(options: AdminClientPageOptions) {
 
     const FeaturePage = createLazyFeaturePage(options.loader, options.exportName);
 
-    return function ClientPage() {
+    return function ClientPage(props: Record<string, unknown>) {
         return (
             <PermissionGuard
                 permission={permission}
                 permissions={permissions}
                 fallback={guardFallback}
             >
-                <FeaturePage />
+                <FeaturePage {...props} />
             </PermissionGuard>
         );
     };

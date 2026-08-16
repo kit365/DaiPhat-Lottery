@@ -27,6 +27,7 @@ public record ReturnBatchResponse(
         com.daiphat.coreapi.domain.model.enums.lottery.ReturnDeliveryMode deliveryMode,
         String deliveryModeLabel,
         Integer totalQuantity,
+        Integer remainingInspectableQuantity,
         BigDecimal totalReturnValue,
         UUID returnedBy,
         LocalDateTime returnedAt,
