@@ -37,6 +37,7 @@ import com.daiphat.coreapi.domain.model.orders.OrderDetailModel;
 import com.daiphat.coreapi.domain.model.orders.OrderModel;
 import com.daiphat.coreapi.domain.model.orders.TransactionModel;
 import com.daiphat.coreapi.domain.valueobject.Phone;
+import com.daiphat.coreapi.shared.util.DrawScheduleUtils;
 import com.daiphat.coreapi.shared.util.EnumOptionUtils;
 import com.daiphat.coreapi.shared.util.SortUtils;
 import lombok.RequiredArgsConstructor;
@@ -353,7 +354,8 @@ public class OrderService implements OrderServicePort {
                 .refundEligible(refundEvaluation.eligible())
                 .refundRemainingSeconds(refundEvaluation.remainingSeconds())
                 .refundGraceMinutes(refundEvaluation.graceMinutes())
-                .refundPaymentSuccessAt(refundEvaluation.paymentSuccessAt())
+                .refundPaymentSuccessAt(DrawScheduleUtils.toVietnamOffset(refundEvaluation.paymentSuccessAt()))
+                .refundDeadlineAt(DrawScheduleUtils.toVietnamOffset(refundEvaluation.refundDeadlineAt()))
                 .complaintEligibility(orderComplaintEligibilityService.evaluateOrder(order, LocalDateTime.now(java.time.ZoneId.of("Asia/Ho_Chi_Minh"))))
                 .build();
     }
@@ -385,7 +387,8 @@ public class OrderService implements OrderServicePort {
                 .refundEligible(refundEvaluation.eligible())
                 .refundRemainingSeconds(refundEvaluation.remainingSeconds())
                 .refundGraceMinutes(refundEvaluation.graceMinutes())
-                .refundPaymentSuccessAt(refundEvaluation.paymentSuccessAt())
+                .refundPaymentSuccessAt(DrawScheduleUtils.toVietnamOffset(refundEvaluation.paymentSuccessAt()))
+                .refundDeadlineAt(DrawScheduleUtils.toVietnamOffset(refundEvaluation.refundDeadlineAt()))
                 .complaintEligibility(orderComplaintEligibilityService.evaluateOrder(order, LocalDateTime.now(java.time.ZoneId.of("Asia/Ho_Chi_Minh"))))
                 .build();
     }

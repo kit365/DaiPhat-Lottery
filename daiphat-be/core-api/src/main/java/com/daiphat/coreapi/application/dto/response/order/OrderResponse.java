@@ -6,8 +6,11 @@ import com.daiphat.coreapi.domain.model.enums.order.OrderStatus;
 import com.daiphat.coreapi.domain.model.enums.order.OrderType;
 import lombok.Builder;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
+
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -36,7 +39,10 @@ public record OrderResponse(
         Boolean refundEligible,
         Long refundRemainingSeconds,
         Integer refundGraceMinutes,
-        LocalDateTime refundPaymentSuccessAt,
+        @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ssXXX")
+        OffsetDateTime refundPaymentSuccessAt,
+        @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ssXXX")
+        OffsetDateTime refundDeadlineAt,
         com.daiphat.coreapi.application.dto.response.support.OrderComplaintEligibilityResponse complaintEligibility
 ) {
 }

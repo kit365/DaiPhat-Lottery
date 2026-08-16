@@ -6,6 +6,7 @@ import { CreateOnlineOrderRequest, GetMyOrdersParams } from '../../types/order.t
 import { AppToast as toast } from '../../utils/toast.util';
 import { QUERY_KEYS } from '../../constants/queryKeys';
 import { buyTicketQueryKeys } from '../features/buy-ticket/constants/queryKeys';
+import { toUserFacingApiMessage } from '../utils/apiErrorMessage.util';
 
 export const useCreateOnlineOrder = () => {
     const queryClient = useQueryClient();
@@ -14,7 +15,10 @@ export const useCreateOnlineOrder = () => {
         mutationFn: (data: CreateOnlineOrderRequest) => orderService.createOnlineOrder(data),
         onSuccess: (response) => {
             if (!response.success) {
-                toast.error(response.message || 'Có lỗi xảy ra khi tạo đơn hàng');
+                toast.error(
+                    toUserFacingApiMessage(response.message) ||
+                        'Có lỗi xảy ra khi tạo đơn hàng'
+                );
                 return;
             }
             queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.CLIENT_MY_ORDERS] });
@@ -23,8 +27,9 @@ export const useCreateOnlineOrder = () => {
             queryClient.invalidateQueries({ queryKey: buyTicketQueryKeys.all });
         },
         onError: (error: any) => {
-            const message = error?.response?.data?.message || error.message || 'Lỗi kết nối đến máy chủ';
-            toast.error(message);
+            const message =
+                error?.response?.data?.message || error.message || 'Lỗi kết nối đến máy chủ';
+            toast.error(toUserFacingApiMessage(message));
         }
     });
 };

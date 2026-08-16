@@ -28,6 +28,7 @@ class AppDependencies {
   static Future<AppDependencies> create() async {
     final documentsDirectory = await getApplicationDocumentsDirectory();
     final cookieJar = PersistCookieJar(
+      ignoreExpires: true,
       storage: FileStorage('${documentsDirectory.path}/.cookies'),
     );
     final tokenStorage = await AuthTokenStorage.create();
@@ -40,6 +41,7 @@ class AppDependencies {
     );
     apiClient.resolveAccessToken = tokenStorage.getAccessToken;
     apiClient.onAccessTokenRefreshed = tokenStorage.saveAccessToken;
+    apiClient.onSessionExpired = authRepository.logout;
     await authRepository.restoreSession();
 
     if (authRepository.isAuthenticated) {

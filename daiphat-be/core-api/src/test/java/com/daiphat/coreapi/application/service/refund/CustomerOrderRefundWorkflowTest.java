@@ -16,6 +16,7 @@ import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
 import com.daiphat.coreapi.domain.model.enums.notification.NotificationReferenceType;
 import com.daiphat.coreapi.domain.model.enums.order.OrderStatus;
+import com.daiphat.coreapi.domain.model.enums.order.OrderType;
 import com.daiphat.coreapi.domain.model.enums.order.refund.RefundRequestStatus;
 import com.daiphat.coreapi.domain.model.enums.settings.SystemConfigEnum;
 import com.daiphat.coreapi.domain.model.enums.transaction.TransactionStatus;
@@ -83,7 +84,10 @@ class CustomerOrderRefundWorkflowTest {
     @BeforeEach
     void setUp() {
         OrderRefundGraceService graceService = new OrderRefundGraceService(
-                systemConfigRepositoryPort, refundRequestRepositoryPort, transactionRepositoryPort);
+                systemConfigRepositoryPort,
+                refundRequestRepositoryPort,
+                new com.daiphat.coreapi.application.service.order.OrderPaymentSuccessTimeResolver(
+                        transactionRepositoryPort));
         OrderRefundPolicyService policyService = new OrderRefundPolicyService(
                 systemConfigRepositoryPort, refundRequestRepositoryPort, new OrderRefundProperties());
 
@@ -192,6 +196,7 @@ class CustomerOrderRefundWorkflowTest {
                 .id(orderId)
                 .userId(customerId)
                 .orderCode("ORD-WF-001")
+                .orderType(OrderType.ONLINE)
                 .status(OrderStatus.PAID)
                 .totalAmount(BigDecimal.valueOf(20000))
                 .createdAt(LocalDateTime.now().minusHours(2))
