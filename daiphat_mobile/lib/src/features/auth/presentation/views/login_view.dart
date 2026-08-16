@@ -6,7 +6,6 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:daiphat_mobile/src/app/routing/app_routes.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
 import 'package:daiphat_mobile/src/shared/utils/app_toast.dart';
-import 'package:daiphat_mobile/src/shared/utils/auth_navigation.dart';
 import 'package:daiphat_mobile/src/features/auth/presentation/viewmodels/login_viewmodel.dart';
 
 class LoginView extends StatefulWidget {
@@ -54,8 +53,7 @@ class _LoginViewState extends State<LoginView> {
     }
 
     AppToast.success('Đăng nhập thành công');
-    final redirect = resolvePostLoginRedirect(context);
-    context.go(redirect ?? AppRoute.home.path);
+    context.go(AppRoute.home.path);
   }
 
   @override

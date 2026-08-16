@@ -58,7 +58,7 @@ class AppDependencies {
     final loginViewModel = LoginViewModel(authRepository);
     final registerViewModel = RegisterViewModel(authRepository);
     final forgotPasswordViewModel = ForgotPasswordViewModel(authRepository);
-    final profileViewModel = ProfileViewModel(authRepository);
+    final profileViewModel = ProfileViewModel(authRepository, loginViewModel);
     final notificationViewModel = NotificationViewModel(
       NotificationRepository(NotificationApiService(apiClient)),
     );

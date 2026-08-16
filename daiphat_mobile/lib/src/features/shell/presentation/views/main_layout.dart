@@ -7,7 +7,6 @@ import 'package:daiphat_mobile/src/features/blog/presentation/views/blog_screen.
 import 'package:daiphat_mobile/src/features/notifications/presentation/viewmodels/notification_viewmodel.dart';
 import 'package:daiphat_mobile/src/features/notifications/presentation/views/notification_view.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
-import 'package:daiphat_mobile/src/shared/utils/auth_navigation.dart';
 
 enum _ShellSidePage { main, blog, notifications }
 
@@ -78,7 +77,6 @@ class _MainLayoutState extends State<MainLayout> {
 
   void _goToNotifications(BuildContext context) {
     if (!widget.loginViewModel.isAuthenticated) {
-      goToLogin(context, redirectPath: AppRoute.notifications.path);
       return;
     }
     if (_sidePage != _ShellSidePage.notifications) {
@@ -156,7 +154,6 @@ class _MainLayoutState extends State<MainLayout> {
             WidgetsBinding.instance.addPostFrameCallback((_) {
               if (!mounted) return;
               _pageController.jumpToPage(1);
-              goToLogin(context, redirectPath: AppRoute.notifications.path);
             });
             return;
           }
@@ -185,10 +182,14 @@ class _MainLayoutState extends State<MainLayout> {
         ],
       ),
       bottomNavigationBar: ListenableBuilder(
-        listenable: widget.notificationViewModel,
+        listenable: Listenable.merge([
+          widget.notificationViewModel,
+          widget.loginViewModel,
+        ]),
         builder: (context, _) => _AnimatedBottomNavigation(
           selectedIndex: navIndex,
           notificationBadge: widget.notificationViewModel.unreadCount,
+          showNotifications: widget.loginViewModel.isAuthenticated,
           onTap: (index) => _onNavTap(index, context),
         ),
       ),
@@ -201,11 +202,13 @@ class _AnimatedBottomNavigation extends StatelessWidget {
     required this.selectedIndex,
     required this.onTap,
     this.notificationBadge = 0,
+    this.showNotifications = true,
   });
 
   final int selectedIndex;
   final ValueChanged<int> onTap;
   final int notificationBadge;
+  final bool showNotifications;
 
   static const _items = <({String label, IconData icon, IconData activeIcon})>[
     (
@@ -262,14 +265,15 @@ class _AnimatedBottomNavigation extends StatelessWidget {
       child: Row(
         children: [
           for (var index = 0; index < _items.length; index++)
-            Expanded(
-              child: _AnimatedNavItem(
-                item: _items[index],
-                selected: selectedIndex == index,
-                badge: index == 4 ? notificationBadge : 0,
-                onTap: () => onTap(index),
+            if (index != 4 || showNotifications)
+              Expanded(
+                child: _AnimatedNavItem(
+                  item: _items[index],
+                  selected: selectedIndex == index,
+                  badge: index == 4 ? notificationBadge : 0,
+                  onTap: () => onTap(index),
+                ),
               ),
-            ),
         ],
       ),
     );

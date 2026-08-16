@@ -100,7 +100,9 @@ GoRouter createAppRouter({
 
       final path = state.uri.path;
       if (path != AppRoute.login.path &&
-          (path == AppRoute.cart.path || path == AppRoute.checkout.path) &&
+          (path == AppRoute.cart.path ||
+              path == AppRoute.checkout.path ||
+              path == AppRoute.notifications.path) &&
           !loginViewModel.isAuthenticated) {
         return Uri(
           path: AppRoute.login.path,

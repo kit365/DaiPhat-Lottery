@@ -2374,37 +2374,37 @@ class _BuyTicketHeader extends StatelessWidget {
               ),
               Consumer(
                 builder: (context, ref, _) {
-                  final count = ref.watch(cartTicketCountProvider);
-                  return _HeaderSquareButton(
-                    icon: Icons.shopping_cart_outlined,
-                    onTap: onOpenCart,
-                    badgeCount: count,
-                  );
-                },
-              ),
-              Consumer(
-                builder: (context, ref, _) {
                   final isAuthenticated =
                       (ref.watch(apiClientProvider).accessToken ?? '').isNotEmpty;
                   if (!isAuthenticated) {
-                    return const SizedBox.shrink();
+                    return const SizedBox(width: 42);
                   }
-                  return Padding(
-                    padding: const EdgeInsets.only(left: 9),
-                    child: _HeaderSquareButton(
-                      icon: Icons.chat_bubble_outline_rounded,
-                      onTap: () {
-                        Navigator.of(context).push(
-                          MaterialPageRoute<void>(
-                            builder: (_) => ChatScreen(
-                              isAuthenticated: true,
-                              isActive: true,
-                              onBack: () => Navigator.of(context).pop(),
-                            ),
-                          ),
-                        );
-                      },
-                    ),
+                  final count = ref.watch(cartTicketCountProvider);
+                  return Row(
+                    children: [
+                      _HeaderSquareButton(
+                        icon: Icons.shopping_cart_outlined,
+                        onTap: onOpenCart,
+                        badgeCount: count,
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.only(left: 9),
+                        child: _HeaderSquareButton(
+                          icon: Icons.chat_bubble_outline_rounded,
+                          onTap: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute<void>(
+                                builder: (_) => ChatScreen(
+                                  isAuthenticated: true,
+                                  isActive: true,
+                                  onBack: () => Navigator.of(context).pop(),
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    ],
                   );
                 },
               ),
