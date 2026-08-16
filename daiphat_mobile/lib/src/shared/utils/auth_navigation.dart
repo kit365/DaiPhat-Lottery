@@ -77,8 +77,3 @@ void requireAuthOrGoLoginWithViewModel(
   }
   goToLogin(context, redirectPath: redirectPath);
 }
-
-String? resolvePostLoginRedirect(BuildContext context) {
-  final redirect = GoRouterState.of(context).uri.queryParameters['redirect'];
-  return isSafeRedirect(redirect) ? redirect : null;
-}

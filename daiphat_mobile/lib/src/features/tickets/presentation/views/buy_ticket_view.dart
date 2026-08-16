@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:shimmer/shimmer.dart';
 
 import 'package:daiphat_mobile/src/app/routing/app_routes.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
@@ -60,8 +61,6 @@ class BuyTicketView extends ConsumerStatefulWidget {
 }
 
 class _BuyTicketViewState extends ConsumerState<BuyTicketView> {
-  bool _showHardcodedTicket = true;
-
   @override
   void initState() {
     super.initState();
@@ -87,12 +86,6 @@ class _BuyTicketViewState extends ConsumerState<BuyTicketView> {
       searchQuery: number,
       drawDateIso: drawDate,
     );
-  }
-
-  void _toggleHardcodedTicket() {
-    setState(() {
-      _showHardcodedTicket = !_showHardcodedTicket;
-    });
   }
 
   void _openTicketDetail(BuildContext context, LotteryTicketListItem ticket) {
@@ -179,8 +172,6 @@ class _BuyTicketViewState extends ConsumerState<BuyTicketView> {
       body: Column(
         children: [
           _BuyTicketHeader(
-            showHardcodedTicket: _showHardcodedTicket,
-            onToggleDemo: _toggleHardcodedTicket,
             onBack: () => context.go(AppRoute.home.path),
             onOpenCart: () => requireAuthOrGoLoginWithRef(
               context,
@@ -194,12 +185,11 @@ class _BuyTicketViewState extends ConsumerState<BuyTicketView> {
               data: (data) => _LoadedView(
                 state: data,
                 viewModel: viewModel,
-                showHardcodedTicket: _showHardcodedTicket,
                 onOpenDetail: (ticket) => _openTicketDetail(context, ticket),
                 onBuyNow: (ticket) =>
                     _addToCart(context, ticket, openCheckout: true),
               ),
-              loading: () => const _LoadingState(),
+              loading: () => const _BuyTicketSkeleton(),
               error: (error, _) => _ErrorState(
                 message: error.toString(),
                 onRetry: () {
@@ -221,111 +211,147 @@ String _detailDateLabel(LotteryTicketListItem ticket) {
   return '${DateFormat('dd/MM/yyyy').format(ticket.drawDate)} ($label)';
 }
 
-class _LoadedView extends StatelessWidget {
+class _LoadedView extends StatefulWidget {
   const _LoadedView({
     required this.state,
     required this.viewModel,
-    required this.showHardcodedTicket,
     required this.onOpenDetail,
     required this.onBuyNow,
   });
 
   final BuyTicketState state;
   final BuyTicketViewModel viewModel;
-  final bool showHardcodedTicket;
   final ValueChanged<LotteryTicketListItem> onOpenDetail;
   final ValueChanged<LotteryTicketListItem> onBuyNow;
 
   @override
-  Widget build(BuildContext context) {
-    final tickets = state.filteredTickets;
-    final demoTicket = _buildHardcodedTicket(state.selectedDay);
+  State<_LoadedView> createState() => _LoadedViewState();
+}
 
-    return ListView(
-      padding: EdgeInsets.zero,
-      children: [
-        _BuyTicketShowcase(
-          initialValue: state.searchQuery,
-          onChanged: viewModel.updateSearchQuery,
-        ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              _DaySegmentedControl(
-                selectedDay: state.selectedDay,
-                isTodaySellClosed: state.isTodaySellClosed,
-                isTomorrowSellClosed: state.isTomorrowSellClosed,
-                onSelectToday: () => viewModel.selectDay(TicketDayFilter.today),
-                onSelectTomorrow: () {
-                  viewModel.selectDay(TicketDayFilter.tomorrow);
-                },
-              ),
-              const SizedBox(height: 18),
-              _ProvinceFilterStrip(
-                provinces: state.provinces,
-                selectedProvince: state.selectedProvince,
-                onSelectProvince: viewModel.selectProvince,
-              ),
-              const SizedBox(height: 22),
-              if (showHardcodedTicket) ...[
-                const _DemoTicketBanner(),
-                const SizedBox(height: 24),
-              ],
-              _TicketSectionHeader(
-                title: 'Danh sách vé đang mở bán',
-                count: tickets.length + (showHardcodedTicket ? 1 : 0),
-              ),
-              const SizedBox(height: 12),
-              if (showHardcodedTicket)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 14),
-                  child: _TicketCard(
-                    ticket: demoTicket,
-                    isDemo: true,
-                    onTap: () => onOpenDetail(demoTicket),
-                    onBuyNow: () => onBuyNow(demoTicket),
-                  ),
-                ),
-              AnimatedSwitcher(
-                duration: const Duration(milliseconds: 320),
-                switchInCurve: Curves.easeOutCubic,
-                switchOutCurve: Curves.easeInCubic,
-                transitionBuilder: (child, animation) {
-                  final offset = Tween<Offset>(
-                    begin: const Offset(0.04, 0),
-                    end: Offset.zero,
-                  ).animate(animation);
-                  return FadeTransition(
-                    opacity: animation,
-                    child: SlideTransition(position: offset, child: child),
-                  );
-                },
-                child: Column(
-                  key: ValueKey(
-                    '${state.selectedDay.name}|${state.selectedProvince}|${tickets.length}',
-                  ),
-                  children: [
-                    ...tickets.map(
-                      (ticket) => Padding(
-                        padding: const EdgeInsets.only(bottom: 14),
-                        child: _TicketCard(
-                          ticket: ticket,
-                          onTap: () => onOpenDetail(ticket),
-                          onBuyNow: () => onBuyNow(ticket),
-                        ),
-                      ),
-                    ),
-                    if (tickets.isEmpty && !showHardcodedTicket)
-                      const _EmptyState(),
-                  ],
-                ),
-              ),
-            ],
+class _LoadedViewState extends State<_LoadedView> {
+  final _scrollController = ScrollController();
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(_onScroll);
+  }
+
+  @override
+  void dispose() {
+    _scrollController
+      ..removeListener(_onScroll)
+      ..dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (!_scrollController.hasClients) return;
+    final position = _scrollController.position;
+    if (position.pixels >= position.maxScrollExtent - 240) {
+      widget.viewModel.loadMore();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final state = widget.state;
+    final viewModel = widget.viewModel;
+    final tickets = state.filteredTickets;
+    final listCount = state.isListLoading
+        ? 0
+        : (tickets.isNotEmpty
+            ? tickets.length
+            : (state.totalElements > 0 ? state.totalElements : 0));
+
+    return RawScrollbar(
+      controller: _scrollController,
+      thumbVisibility: true,
+      trackVisibility: true,
+      thickness: 4,
+      radius: const Radius.circular(999),
+      thumbColor: const Color(0x66C90F1D),
+      trackColor: const Color(0x14C90F1D),
+      trackBorderColor: Colors.transparent,
+      padding: const EdgeInsets.only(right: 2, top: 4, bottom: 4),
+      child: ListView(
+        controller: _scrollController,
+        padding: EdgeInsets.zero,
+        children: [
+          _BuyTicketShowcase(
+            initialValue: state.searchQuery,
+            onChanged: viewModel.updateSearchQuery,
           ),
-        ),
-      ],
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _DaySegmentedControl(
+                  selectedDay: state.selectedDay,
+                  isTodaySellClosed: state.isTodaySellClosed,
+                  isTomorrowSellClosed: state.isTomorrowSellClosed,
+                  onSelectToday: () =>
+                      viewModel.selectDay(TicketDayFilter.today),
+                  onSelectTomorrow: () {
+                    viewModel.selectDay(TicketDayFilter.tomorrow);
+                  },
+                ),
+                const SizedBox(height: 18),
+                _ProvinceFilterStrip(
+                  provinces: state.provinces,
+                  selectedProvince: state.selectedProvince,
+                  onSelectProvince: viewModel.selectProvince,
+                ),
+                const SizedBox(height: 22),
+                _TicketSectionHeader(
+                  title: 'Danh sách vé đang mở bán',
+                  count: listCount,
+                ),
+                const SizedBox(height: 12),
+                if (state.isListLoading)
+                  const _TicketListSkeleton(count: 6)
+                else ...[
+                  AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 320),
+                    switchInCurve: Curves.easeOutCubic,
+                    switchOutCurve: Curves.easeInCubic,
+                    transitionBuilder: (child, animation) {
+                      final offset = Tween<Offset>(
+                        begin: const Offset(0.04, 0),
+                        end: Offset.zero,
+                      ).animate(animation);
+                      return FadeTransition(
+                        opacity: animation,
+                        child: SlideTransition(position: offset, child: child),
+                      );
+                    },
+                    child: Column(
+                      key: ValueKey(
+                        '${state.selectedDay.name}|${state.selectedProvince}|${state.searchQuery}',
+                      ),
+                      children: [
+                        ...tickets.map(
+                          (ticket) => Padding(
+                            padding: const EdgeInsets.only(bottom: 14),
+                            child: _TicketCard(
+                              ticket: ticket,
+                              onTap: () => widget.onOpenDetail(ticket),
+                              onBuyNow: () => widget.onBuyNow(ticket),
+                            ),
+                          ),
+                        ),
+                        if (tickets.isEmpty) const _EmptyState(),
+                      ],
+                    ),
+                  ),
+                  if (state.isLoadingMore) const _TicketListSkeleton(count: 2),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -433,34 +459,6 @@ class _BuyTicketShowcase extends StatelessWidget {
   }
 }
 
-LotteryTicketListItem _buildHardcodedTicket(TicketDayFilter selectedDay) {
-  final now = DateTime.now();
-  final baseDate = DateTime(now.year, now.month, now.day);
-  final drawDate = selectedDay == TicketDayFilter.today
-      ? baseDate
-      : baseDate.add(const Duration(days: 1));
-  final dayLabel = selectedDay == TicketDayFilter.today
-      ? 'Hôm nay'
-      : 'Ngày mai';
-
-  return LotteryTicketListItem(
-    id: -999,
-    displayName: 'Ve UI mau',
-    code: '123456',
-    shortName: 'UI',
-    dateLabel: '$dayLabel - ${DateFormat('dd/MM/yyyy').format(drawDate)}',
-    dayFilter: selectedDay,
-    drawDate: drawDate,
-    status: 'IN_STOCK',
-    statusDisplayName: 'Demo',
-    stationName: 'Ve hardcode de canh chinh UI',
-    serialNumber: 'UI-000001',
-    batchCode: 'DEMO',
-    imageUrl: null,
-    price: 10000,
-  );
-}
-
 LotteryTicketListItem _buildHardcodedTicketDetail(
   LotteryTicketListItem baseTicket,
 ) {
@@ -480,38 +478,6 @@ LotteryTicketListItem _buildHardcodedTicketDetail(
     imageUrl: baseTicket.imageUrl,
     price: 10000,
   );
-}
-
-class _DemoTicketBanner extends StatelessWidget {
-  const _DemoTicketBanner();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 18),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFFE27A),
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: const Color(0xFFE4BF44)),
-      ),
-      child: const Row(
-        children: [
-          Icon(Icons.info_outline_rounded, size: 24, color: Color(0xFF161616)),
-          SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              'Lưu ý: Đây là vé demo trải nghiệm hệ thống.',
-              style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w500,
-                color: Color(0xFF161616),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 }
 
 class _SearchField extends StatefulWidget {
@@ -536,8 +502,12 @@ class _SearchFieldState extends State<_SearchField> {
   @override
   void didUpdateWidget(covariant _SearchField oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.initialValue != _controller.text) {
-      _controller.text = widget.initialValue;
+    if (widget.initialValue != oldWidget.initialValue &&
+        widget.initialValue != _controller.text) {
+      _controller.value = TextEditingValue(
+        text: widget.initialValue,
+        selection: TextSelection.collapsed(offset: widget.initialValue.length),
+      );
     }
   }
 
@@ -1135,13 +1105,11 @@ class _TicketCard extends StatelessWidget {
     required this.ticket,
     required this.onTap,
     required this.onBuyNow,
-    this.isDemo = false,
   });
 
   final LotteryTicketListItem ticket;
   final VoidCallback onTap;
   final VoidCallback onBuyNow;
-  final bool isDemo;
 
   @override
   Widget build(BuildContext context) {
@@ -1159,7 +1127,7 @@ class _TicketCard extends StatelessWidget {
             children: [
               Padding(
                 padding: const EdgeInsets.all(9),
-                child: _TicketThumb(ticket: ticket, isDemo: isDemo),
+                child: _TicketThumb(ticket: ticket),
               ),
               Expanded(
                 child: Padding(
@@ -1292,10 +1260,9 @@ class _DashedLinePainter extends CustomPainter {
 }
 
 class _TicketThumb extends StatelessWidget {
-  const _TicketThumb({required this.ticket, required this.isDemo});
+  const _TicketThumb({required this.ticket});
 
   final LotteryTicketListItem ticket;
-  final bool isDemo;
 
   @override
   Widget build(BuildContext context) {
@@ -1314,32 +1281,27 @@ class _TicketThumb extends StatelessWidget {
           ? CachedNetworkImage(
               imageUrl: ticket.imageUrl!,
               fit: BoxFit.cover,
-              errorWidget: (_, _, _) => _TicketThumbFallback(
-                shortName: ticket.shortName,
-                isDemo: isDemo,
-              ),
+              errorWidget: (_, _, _) =>
+                  _TicketThumbFallback(shortName: ticket.shortName),
             )
-          : _TicketThumbFallback(shortName: ticket.shortName, isDemo: isDemo),
+          : _TicketThumbFallback(shortName: ticket.shortName),
     );
   }
 }
 
 class _TicketThumbFallback extends StatelessWidget {
-  const _TicketThumbFallback({required this.shortName, required this.isDemo});
+  const _TicketThumbFallback({required this.shortName});
 
   final String shortName;
-  final bool isDemo;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: isDemo
-              ? const [Color(0xFFFFE4B8), Color(0xFFF8B94C)]
-              : const [Color(0xFFFFF1EF), Color(0xFFFFD5C8)],
+          colors: [Color(0xFFFFF1EF), Color(0xFFFFD5C8)],
         ),
       ),
       child: Center(
@@ -2179,13 +2141,142 @@ class _TicketBadgeFallback extends StatelessWidget {
   }
 }
 
-class _LoadingState extends StatelessWidget {
-  const _LoadingState();
+class _BuyTicketSkeleton extends StatelessWidget {
+  const _BuyTicketSkeleton();
 
   @override
   Widget build(BuildContext context) {
-    return const Center(
-      child: CircularProgressIndicator(color: AppColors.primary),
+    return ListView(
+      padding: EdgeInsets.zero,
+      physics: const NeverScrollableScrollPhysics(),
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 18),
+          child: Column(
+            children: [
+              _ShimmerBox(height: 50, radius: 999),
+              const SizedBox(height: 14),
+              const _ShimmerBox(height: 194, radius: 22),
+            ],
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const _ShimmerBox(height: 48, radius: 16),
+              const SizedBox(height: 18),
+              const _ShimmerBox(height: 52, radius: 18),
+              const SizedBox(height: 22),
+              Row(
+                children: [
+                  const _ShimmerBox(width: 4, height: 24, radius: 999),
+                  const SizedBox(width: 8),
+                  const _ShimmerBox(width: 180, height: 18, radius: 8),
+                  const Spacer(),
+                  const _ShimmerBox(width: 64, height: 14, radius: 8),
+                ],
+              ),
+              const SizedBox(height: 12),
+              const _TicketListSkeleton(count: 5),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _TicketListSkeleton extends StatelessWidget {
+  const _TicketListSkeleton({this.count = 4});
+
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: List.generate(
+        count,
+        (index) => const Padding(
+          padding: EdgeInsets.only(bottom: 14),
+          child: _TicketCardSkeleton(),
+        ),
+      ),
+    );
+  }
+}
+
+class _TicketCardSkeleton extends StatelessWidget {
+  const _TicketCardSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 108,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFF1E3E0)),
+      ),
+      padding: const EdgeInsets.all(9),
+      child: Row(
+        children: [
+          const _ShimmerBox(width: 90, height: 90, radius: 14),
+          const SizedBox(width: 12),
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                _ShimmerBox(width: 110, height: 12, radius: 6),
+                SizedBox(height: 10),
+                _ShimmerBox(width: 150, height: 24, radius: 8),
+                SizedBox(height: 10),
+                _ShimmerBox(width: 120, height: 12, radius: 6),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          const Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              SizedBox(height: 4),
+              _ShimmerBox(width: 64, height: 14, radius: 6),
+              Spacer(),
+              _ShimmerBox(width: 76, height: 35, radius: 999),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ShimmerBox extends StatelessWidget {
+  const _ShimmerBox({
+    this.width,
+    required this.height,
+    this.radius = 12,
+  });
+
+  final double? width;
+  final double height;
+  final double radius;
+
+  @override
+  Widget build(BuildContext context) {
+    return Shimmer.fromColors(
+      baseColor: const Color(0xFFE9E2E1),
+      highlightColor: const Color(0xFFF7F3F2),
+      child: Container(
+        width: width,
+        height: height,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(radius),
+        ),
+      ),
     );
   }
 }
@@ -2242,14 +2333,10 @@ class _ErrorState extends StatelessWidget {
 
 class _BuyTicketHeader extends StatelessWidget {
   const _BuyTicketHeader({
-    required this.showHardcodedTicket,
-    required this.onToggleDemo,
     required this.onBack,
     required this.onOpenCart,
   });
 
-  final bool showHardcodedTicket;
-  final VoidCallback onToggleDemo;
   final VoidCallback onBack;
   final VoidCallback onOpenCart;
 
@@ -2285,46 +2372,39 @@ class _BuyTicketHeader extends StatelessWidget {
                   ),
                 ),
               ),
-              _HeaderSquareButton(
-                icon: showHardcodedTicket
-                    ? Icons.visibility_rounded
-                    : Icons.visibility_off_rounded,
-                onTap: onToggleDemo,
-              ),
-              const SizedBox(width: 9),
-              Consumer(
-                builder: (context, ref, _) {
-                  final count = ref.watch(cartTicketCountProvider);
-                  return _HeaderSquareButton(
-                    icon: Icons.shopping_cart_outlined,
-                    onTap: onOpenCart,
-                    badgeCount: count,
-                  );
-                },
-              ),
               Consumer(
                 builder: (context, ref, _) {
                   final isAuthenticated =
                       (ref.watch(apiClientProvider).accessToken ?? '').isNotEmpty;
                   if (!isAuthenticated) {
-                    return const SizedBox.shrink();
+                    return const SizedBox(width: 42);
                   }
-                  return Padding(
-                    padding: const EdgeInsets.only(left: 9),
-                    child: _HeaderSquareButton(
-                      icon: Icons.chat_bubble_outline_rounded,
-                      onTap: () {
-                        Navigator.of(context).push(
-                          MaterialPageRoute<void>(
-                            builder: (_) => ChatScreen(
-                              isAuthenticated: true,
-                              isActive: true,
-                              onBack: () => Navigator.of(context).pop(),
-                            ),
-                          ),
-                        );
-                      },
-                    ),
+                  final count = ref.watch(cartTicketCountProvider);
+                  return Row(
+                    children: [
+                      _HeaderSquareButton(
+                        icon: Icons.shopping_cart_outlined,
+                        onTap: onOpenCart,
+                        badgeCount: count,
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.only(left: 9),
+                        child: _HeaderSquareButton(
+                          icon: Icons.chat_bubble_outline_rounded,
+                          onTap: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute<void>(
+                                builder: (_) => ChatScreen(
+                                  isAuthenticated: true,
+                                  isActive: true,
+                                  onBack: () => Navigator.of(context).pop(),
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    ],
                   );
                 },
               ),
