@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:shimmer/shimmer.dart';
 
 import 'package:daiphat_mobile/src/app/routing/app_routes.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
@@ -199,7 +200,7 @@ class _BuyTicketViewState extends ConsumerState<BuyTicketView> {
                 onBuyNow: (ticket) =>
                     _addToCart(context, ticket, openCheckout: true),
               ),
-              loading: () => const _LoadingState(),
+              loading: () => const _BuyTicketSkeleton(),
               error: (error, _) => _ErrorState(
                 message: error.toString(),
                 onRetry: () {
@@ -221,7 +222,7 @@ String _detailDateLabel(LotteryTicketListItem ticket) {
   return '${DateFormat('dd/MM/yyyy').format(ticket.drawDate)} ($label)';
 }
 
-class _LoadedView extends StatelessWidget {
+class _LoadedView extends StatefulWidget {
   const _LoadedView({
     required this.state,
     required this.viewModel,
@@ -237,31 +238,77 @@ class _LoadedView extends StatelessWidget {
   final ValueChanged<LotteryTicketListItem> onBuyNow;
 
   @override
+  State<_LoadedView> createState() => _LoadedViewState();
+}
+
+class _LoadedViewState extends State<_LoadedView> {
+  final _scrollController = ScrollController();
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(_onScroll);
+  }
+
+  @override
+  void dispose() {
+    _scrollController
+      ..removeListener(_onScroll)
+      ..dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (!_scrollController.hasClients) return;
+    final position = _scrollController.position;
+    if (position.pixels >= position.maxScrollExtent - 240) {
+      widget.viewModel.loadMore();
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final state = widget.state;
+    final viewModel = widget.viewModel;
     final tickets = state.filteredTickets;
     final demoTicket = _buildHardcodedTicket(state.selectedDay);
+    final listCount = state.isListLoading
+        ? 0
+        : tickets.length + (widget.showHardcodedTicket ? 1 : 0);
 
-    return ListView(
-      padding: EdgeInsets.zero,
-      children: [
-        _BuyTicketShowcase(
-          initialValue: state.searchQuery,
-          onChanged: viewModel.updateSearchQuery,
-        ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              _DaySegmentedControl(
-                selectedDay: state.selectedDay,
-                isTodaySellClosed: state.isTodaySellClosed,
-                isTomorrowSellClosed: state.isTomorrowSellClosed,
-                onSelectToday: () => viewModel.selectDay(TicketDayFilter.today),
-                onSelectTomorrow: () {
-                  viewModel.selectDay(TicketDayFilter.tomorrow);
-                },
-              ),
+    return RawScrollbar(
+      controller: _scrollController,
+      thumbVisibility: true,
+      trackVisibility: true,
+      thickness: 4,
+      radius: const Radius.circular(999),
+      thumbColor: const Color(0x66C90F1D),
+      trackColor: const Color(0x14C90F1D),
+      trackBorderColor: Colors.transparent,
+      padding: const EdgeInsets.only(right: 2, top: 4, bottom: 4),
+      child: ListView(
+        controller: _scrollController,
+        padding: EdgeInsets.zero,
+        children: [
+          _BuyTicketShowcase(
+            initialValue: state.searchQuery,
+            onChanged: viewModel.updateSearchQuery,
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _DaySegmentedControl(
+                  selectedDay: state.selectedDay,
+                  isTodaySellClosed: state.isTodaySellClosed,
+                  isTomorrowSellClosed: state.isTomorrowSellClosed,
+                  onSelectToday: () =>
+                      viewModel.selectDay(TicketDayFilter.today),
+                  onSelectTomorrow: () {
+                    viewModel.selectDay(TicketDayFilter.tomorrow);
+                  },
+                ),
               const SizedBox(height: 18),
               _ProvinceFilterStrip(
                 provinces: state.provinces,
@@ -269,63 +316,71 @@ class _LoadedView extends StatelessWidget {
                 onSelectProvince: viewModel.selectProvince,
               ),
               const SizedBox(height: 22),
-              if (showHardcodedTicket) ...[
+              if (widget.showHardcodedTicket) ...[
                 const _DemoTicketBanner(),
                 const SizedBox(height: 24),
               ],
               _TicketSectionHeader(
                 title: 'Danh sách vé đang mở bán',
-                count: tickets.length + (showHardcodedTicket ? 1 : 0),
+                count: listCount > 0
+                    ? listCount
+                    : (state.totalElements > 0 ? state.totalElements : 0),
               ),
               const SizedBox(height: 12),
-              if (showHardcodedTicket)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 14),
-                  child: _TicketCard(
-                    ticket: demoTicket,
-                    isDemo: true,
-                    onTap: () => onOpenDetail(demoTicket),
-                    onBuyNow: () => onBuyNow(demoTicket),
+              if (state.isListLoading)
+                const _TicketListSkeleton(count: 6)
+              else ...[
+                if (widget.showHardcodedTicket)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 14),
+                    child: _TicketCard(
+                      ticket: demoTicket,
+                      isDemo: true,
+                      onTap: () => widget.onOpenDetail(demoTicket),
+                      onBuyNow: () => widget.onBuyNow(demoTicket),
+                    ),
                   ),
-                ),
-              AnimatedSwitcher(
-                duration: const Duration(milliseconds: 320),
-                switchInCurve: Curves.easeOutCubic,
-                switchOutCurve: Curves.easeInCubic,
-                transitionBuilder: (child, animation) {
-                  final offset = Tween<Offset>(
-                    begin: const Offset(0.04, 0),
-                    end: Offset.zero,
-                  ).animate(animation);
-                  return FadeTransition(
-                    opacity: animation,
-                    child: SlideTransition(position: offset, child: child),
-                  );
-                },
-                child: Column(
-                  key: ValueKey(
-                    '${state.selectedDay.name}|${state.selectedProvince}|${tickets.length}',
-                  ),
-                  children: [
-                    ...tickets.map(
-                      (ticket) => Padding(
-                        padding: const EdgeInsets.only(bottom: 14),
-                        child: _TicketCard(
-                          ticket: ticket,
-                          onTap: () => onOpenDetail(ticket),
-                          onBuyNow: () => onBuyNow(ticket),
+                AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 320),
+                  switchInCurve: Curves.easeOutCubic,
+                  switchOutCurve: Curves.easeInCubic,
+                  transitionBuilder: (child, animation) {
+                    final offset = Tween<Offset>(
+                      begin: const Offset(0.04, 0),
+                      end: Offset.zero,
+                    ).animate(animation);
+                    return FadeTransition(
+                      opacity: animation,
+                      child: SlideTransition(position: offset, child: child),
+                    );
+                  },
+                  child: Column(
+                    key: ValueKey(
+                      '${state.selectedDay.name}|${state.selectedProvince}|${state.searchQuery}',
+                    ),
+                    children: [
+                      ...tickets.map(
+                        (ticket) => Padding(
+                          padding: const EdgeInsets.only(bottom: 14),
+                          child: _TicketCard(
+                            ticket: ticket,
+                            onTap: () => widget.onOpenDetail(ticket),
+                            onBuyNow: () => widget.onBuyNow(ticket),
+                          ),
                         ),
                       ),
-                    ),
-                    if (tickets.isEmpty && !showHardcodedTicket)
-                      const _EmptyState(),
-                  ],
+                      if (tickets.isEmpty && !widget.showHardcodedTicket)
+                        const _EmptyState(),
+                    ],
+                  ),
                 ),
-              ),
+                if (state.isLoadingMore) const _TicketListSkeleton(count: 2),
+              ],
             ],
           ),
         ),
-      ],
+        ],
+      ),
     );
   }
 }
@@ -536,8 +591,12 @@ class _SearchFieldState extends State<_SearchField> {
   @override
   void didUpdateWidget(covariant _SearchField oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.initialValue != _controller.text) {
-      _controller.text = widget.initialValue;
+    if (widget.initialValue != oldWidget.initialValue &&
+        widget.initialValue != _controller.text) {
+      _controller.value = TextEditingValue(
+        text: widget.initialValue,
+        selection: TextSelection.collapsed(offset: widget.initialValue.length),
+      );
     }
   }
 
@@ -2179,13 +2238,142 @@ class _TicketBadgeFallback extends StatelessWidget {
   }
 }
 
-class _LoadingState extends StatelessWidget {
-  const _LoadingState();
+class _BuyTicketSkeleton extends StatelessWidget {
+  const _BuyTicketSkeleton();
 
   @override
   Widget build(BuildContext context) {
-    return const Center(
-      child: CircularProgressIndicator(color: AppColors.primary),
+    return ListView(
+      padding: EdgeInsets.zero,
+      physics: const NeverScrollableScrollPhysics(),
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 18),
+          child: Column(
+            children: [
+              _ShimmerBox(height: 50, radius: 999),
+              const SizedBox(height: 14),
+              const _ShimmerBox(height: 194, radius: 22),
+            ],
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const _ShimmerBox(height: 48, radius: 16),
+              const SizedBox(height: 18),
+              const _ShimmerBox(height: 52, radius: 18),
+              const SizedBox(height: 22),
+              Row(
+                children: [
+                  const _ShimmerBox(width: 4, height: 24, radius: 999),
+                  const SizedBox(width: 8),
+                  const _ShimmerBox(width: 180, height: 18, radius: 8),
+                  const Spacer(),
+                  const _ShimmerBox(width: 64, height: 14, radius: 8),
+                ],
+              ),
+              const SizedBox(height: 12),
+              const _TicketListSkeleton(count: 5),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _TicketListSkeleton extends StatelessWidget {
+  const _TicketListSkeleton({this.count = 4});
+
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: List.generate(
+        count,
+        (index) => const Padding(
+          padding: EdgeInsets.only(bottom: 14),
+          child: _TicketCardSkeleton(),
+        ),
+      ),
+    );
+  }
+}
+
+class _TicketCardSkeleton extends StatelessWidget {
+  const _TicketCardSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 108,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFF1E3E0)),
+      ),
+      padding: const EdgeInsets.all(9),
+      child: Row(
+        children: [
+          const _ShimmerBox(width: 90, height: 90, radius: 14),
+          const SizedBox(width: 12),
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                _ShimmerBox(width: 110, height: 12, radius: 6),
+                SizedBox(height: 10),
+                _ShimmerBox(width: 150, height: 24, radius: 8),
+                SizedBox(height: 10),
+                _ShimmerBox(width: 120, height: 12, radius: 6),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          const Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              SizedBox(height: 4),
+              _ShimmerBox(width: 64, height: 14, radius: 6),
+              Spacer(),
+              _ShimmerBox(width: 76, height: 35, radius: 999),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ShimmerBox extends StatelessWidget {
+  const _ShimmerBox({
+    this.width,
+    required this.height,
+    this.radius = 12,
+  });
+
+  final double? width;
+  final double height;
+  final double radius;
+
+  @override
+  Widget build(BuildContext context) {
+    return Shimmer.fromColors(
+      baseColor: const Color(0xFFE9E2E1),
+      highlightColor: const Color(0xFFF7F3F2),
+      child: Container(
+        width: width,
+        height: height,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(radius),
+        ),
+      ),
     );
   }
 }
