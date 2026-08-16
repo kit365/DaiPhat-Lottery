@@ -7,7 +7,7 @@ import Box from '@mui/material/Box';
 import CircularProgress from '@mui/material/CircularProgress';
 import { getColumnsConfig, columnsInitialState } from '../configs/column.config';
 import { BlogCategoryToolbar } from './BlogCategoryToolbar';
-import { DATA_GRID_LOCALE_VN } from "../../../../../shared/components/DataTable/localeText.config";
+import { DATA_GRID_LOCALE_VN } from "@/admin/components/data-grid/localeText.config";
 import { dataGridStyles } from "../../../../shared/data-grid";
 import { useBlogCategories } from "../../hooks/useBlogCategory";
 

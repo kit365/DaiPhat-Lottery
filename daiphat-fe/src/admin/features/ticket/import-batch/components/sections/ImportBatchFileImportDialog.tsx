@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useCallback } from 'react';
 import DownloadOutlinedIcon from '@mui/icons-material/DownloadOutlined';
 import FactCheckOutlinedIcon from '@mui/icons-material/FactCheckOutlined';
 import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined';
@@ -49,6 +49,8 @@ import {
 } from '@mui/material';
 import dayjs from 'dayjs';
 import { toast } from 'react-toastify';
+import { ADMIN_DIALOG_ACTIONS_SX } from '../../../../../components/ui/AdminConfirmDialog';
+import { Button as LoadingButton } from '../../../../../components/ui/Button';
 import { useActiveSuppliers } from '../../../../supplier';
 import {
     commitImportBatchFile,
@@ -82,6 +84,7 @@ import {
     downloadImportBatchFileTemplate,
 } from '../../utils/importBatchFileTemplate';
 import { useEligibleImportBatchStations } from '../../hooks/useImportBatch';
+import { useImportBatchIntakeGate } from '../../hooks/useImportBatchIntakeGate';
 
 type ImportBatchFileImportDialogProps = {
     open: boolean;
@@ -127,6 +130,7 @@ export const ImportBatchFileImportDialog = ({
     onImported,
 }: ImportBatchFileImportDialogProps) => {
     const { data: activeSuppliers = [] } = useActiveSuppliers();
+    const { evaluate: evaluateIntake } = useImportBatchIntakeGate();
     // Pre-fills the downloadable template with the stations actually drawing today,
     // so the operator can type straight into it instead of looking codes up.
     const { data: eligibleStations } = useEligibleImportBatchStations(
@@ -147,6 +151,25 @@ export const ImportBatchFileImportDialog = ({
     const [configOpen, setConfigOpen] = useState(false);
     const [pricingOpen, setPricingOpen] = useState(false);
     const [profileRefreshToken, setProfileRefreshToken] = useState(0);
+
+    const selectedSupplier = useMemo(
+        () => activeSuppliers.find((supplier) => supplier.id === supplierId),
+        [activeSuppliers, supplierId]
+    );
+    const todayDrawDate = dayjs().format('YYYY-MM-DD');
+    const todayIntake = useMemo(
+        () => evaluateIntake(selectedSupplier, todayDrawDate),
+        [evaluateIntake, selectedSupplier, todayDrawDate]
+    );
+    const isDrawDateIntakeBlocked = useCallback(
+        (drawDate?: string | null) => {
+            if (!drawDate || !selectedSupplier) {
+                return false;
+            }
+            return evaluateIntake(selectedSupplier, drawDate).blocked;
+        },
+        [evaluateIntake, selectedSupplier]
+    );
 
     /**
      * The same station can be flagged on several draw dates; the correction is
@@ -240,7 +263,10 @@ export const ImportBatchFileImportDialog = ({
             setPreview(result);
             setMapping(result.appliedMapping);
             setSelectedDates(
-                result.groups.filter(isGroupSelectable).map((group) => group.drawDate as string)
+                result.groups
+                    .filter(isGroupSelectable)
+                    .map((group) => group.drawDate as string)
+                    .filter((drawDate) => !isDrawDateIntakeBlocked(drawDate))
             );
             setStep(2);
         } catch {
@@ -275,6 +301,14 @@ export const ImportBatchFileImportDialog = ({
         }
         if (selectedDates.length === 0) {
             toast.warning('Chưa chọn ngày quay nào để tạo phiếu.');
+            return;
+        }
+        const blockedDates = selectedDates.filter((drawDate) => isDrawDateIntakeBlocked(drawDate));
+        if (blockedDates.length > 0) {
+            toast.error(
+                evaluateIntake(selectedSupplier, blockedDates[0]).message ??
+                    'Đã qua giờ cho phép nhập lô cho kỳ quay hôm nay.'
+            );
             return;
         }
 
@@ -358,13 +392,14 @@ export const ImportBatchFileImportDialog = ({
     return (
         <Dialog
             open={open}
-            onClose={handleClose}
+            onClose={busy ? undefined : handleClose}
             maxWidth="lg"
             fullWidth
             PaperProps={{
+                className: 'admin-theme',
                 sx: {
-                    borderRadius: '20px',
-                    boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+                    borderRadius: '16px',
+                    boxShadow: 'var(--customShadows-dialog, 0px 24px 48px -8px rgba(0, 0, 0, 0.16))',
                     border: '1px solid #e2e8f0',
                     overflow: 'hidden',
                 },
@@ -372,68 +407,72 @@ export const ImportBatchFileImportDialog = ({
         >
             {/* Header */}
             <DialogTitle
+                component="div"
                 sx={{
-                    px: 3,
-                    py: 2.5,
+                    m: 0,
+                    px: 2.5,
+                    py: 2,
                     borderBottom: '1px solid #f1f5f9',
                     bgcolor: '#ffffff',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between',
+                    gap: 1.5,
                 }}
             >
-                <Stack direction="row" spacing={1.75} alignItems="center">
+                <Stack direction="row" spacing={1.25} alignItems="center">
                     <Box
                         sx={{
-                            width: 44,
-                            height: 44,
-                            borderRadius: '12px',
+                            width: 36,
+                            height: 36,
+                            borderRadius: '10px',
                             bgcolor: '#fef2f2',
                             color: '#FF3030',
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
-                            boxShadow: '0 2px 8px rgba(255, 48, 48, 0.15)',
                         }}
                     >
-                        <UploadFileOutlinedIcon fontSize="medium" />
+                        <UploadFileOutlinedIcon fontSize="small" />
                     </Box>
                     <Box>
-                        <Typography variant="h6" fontWeight={800} sx={{ color: '#0f172a', lineHeight: 1.2 }}>
+                        <Typography variant="subtitle1" fontWeight={800} sx={{ color: '#0f172a', lineHeight: 1.2 }}>
                             Nhập lô vé từ tệp
                         </Typography>
-                        <Typography variant="body2" color="text.secondary" sx={{ mt: 0.25, fontSize: '0.85rem' }}>
-                            Tải lên tệp Excel (.xlsx) hoặc CSV để tự động tạo phiếu và nhập kho vé
+                        <Typography variant="caption" color="text.secondary">
+                            Excel (.xlsx) hoặc CSV
                         </Typography>
                     </Box>
                 </Stack>
 
                 <IconButton
-                    size="small"
                     onClick={handleClose}
                     disabled={busy}
-                    sx={{
-                        color: '#94a3b8',
-                        bgcolor: '#f8fafc',
-                        border: '1px solid #e2e8f0',
-                        borderRadius: '10px',
-                        '&:hover': { bgcolor: '#f1f5f9', color: '#334155' },
-                    }}
+                    aria-label="Đóng"
+                    size="small"
+                    sx={{ color: 'text.secondary', flexShrink: 0 }}
                 >
                     <CloseIcon fontSize="small" />
                 </IconButton>
             </DialogTitle>
 
-            <DialogContent sx={{ p: { xs: 2.5, md: 3.5 }, bgcolor: '#f8fafc' }}>
+            <DialogContent
+                sx={{
+                    px: { xs: 2, md: 2.5 },
+                    pb: { xs: 2, md: 2.5 },
+                    pt: '20px !important',
+                    bgcolor: '#f8fafc',
+                }}
+            >
                 {/* Stepper */}
                 <Box
                     sx={{
-                        mb: 3.5,
-                        p: 2.5,
+                        mb: 2,
+                        px: { xs: 1, sm: 2 },
+                        py: 1.5,
                         bgcolor: '#ffffff',
-                        borderRadius: '16px',
+                        borderRadius: '12px',
                         border: '1px solid #e2e8f0',
-                        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)',
                     }}
                 >
                     <Stepper activeStep={step} connector={<CustomStepConnector />}>
@@ -472,8 +511,9 @@ export const ImportBatchFileImportDialog = ({
                                         <Typography
                                             variant="body2"
                                             sx={{
-                                                fontWeight: isActive ? 800 : 600,
+                                                fontWeight: isActive ? 700 : 500,
                                                 color: isActive ? '#0f172a' : '#64748b',
+                                                fontSize: { xs: '0.75rem', sm: '0.8125rem' },
                                             }}
                                         >
                                             {label}
@@ -487,243 +527,216 @@ export const ImportBatchFileImportDialog = ({
 
                 {/* ── STEP 0: Chọn tệp & Nhà cung cấp ── */}
                 {step === 0 && (
-                    <Stack spacing={3}>
-                        {/* Information Guidelines Card */}
-                        <Box
+                    <Stack spacing={2}>
+                        <Alert
+                            severity="info"
+                            icon={<InfoOutlinedIcon fontSize="small" />}
                             sx={{
-                                p: 2.5,
-                                borderRadius: '16px',
-                                bgcolor: '#eff6ff',
-                                border: '1px solid #bfdbfe',
-                                display: 'flex',
-                                gap: 2,
-                                alignItems: 'flex-start',
+                                borderRadius: '10px',
+                                py: 0.75,
+                                '& .MuiAlert-message': { fontSize: '0.8125rem', lineHeight: 1.5 },
                             }}
                         >
-                            <Box
-                                sx={{
-                                    color: '#2563eb',
-                                    p: 0.75,
-                                    bgcolor: '#dbeafe',
-                                    borderRadius: '10px',
-                                    display: 'flex',
-                                }}
-                            >
-                                <InfoOutlinedIcon fontSize="small" />
-                            </Box>
-                            <Box sx={{ flex: 1 }}>
-                                <Typography variant="subtitle2" fontWeight={800} color="#1e40af" sx={{ mb: 0.5 }}>
-                                    Lưu ý quan trọng khi nhập tệp
-                                </Typography>
-                                <Typography variant="body2" color="#1e3a8a" sx={{ fontSize: '0.875rem', lineHeight: 1.6 }}>
-                                    • <b>Phạm vi ngày quay:</b> Hệ thống chỉ tạo phiếu cho những ngày trong phạm vi cho phép (hôm nay và ngày mai). Các ngày khác sẽ được bỏ qua và có thể tải lại vào ngày tiếp theo.<br />
-                                    • <b>Chế độ nhập vé:</b> Nếu tệp có cột <b>dãy số</b> và <b>danh sách sê-ri</b> (phân cách bằng dấu <b>;</b>), hệ thống sẽ tạo phiếu và nhập luôn vé vào kho. Nếu chỉ có cột <b>số lượng</b> thì hệ thống sẽ tạo phiếu khai báo trước.
-                                </Typography>
-                            </Box>
-                        </Box>
+                            Chỉ nhập kỳ quay <strong>hôm nay</strong> và <strong>ngày mai</strong>.
+                            Tệp có dãy số + sê-ri sẽ nhập vé luôn; chỉ có số lượng thì tạo phiếu khai báo trước.
+                        </Alert>
 
-                        {/* Supplier Selection */}
                         <Paper
                             elevation={0}
                             sx={{
-                                p: 3,
-                                borderRadius: '16px',
+                                p: 2,
+                                borderRadius: '12px',
                                 border: '1px solid #e2e8f0',
                                 bgcolor: '#ffffff',
                             }}
                         >
-                            <Typography variant="subtitle2" fontWeight={800} color="#0f172a" sx={{ mb: 2 }}>
-                                1. Chọn nhà cung cấp *
-                            </Typography>
-                            <TextField
-                                select
-                                required
-                                label="Nhà cung cấp"
-                                value={supplierId || ''}
-                                onChange={(event) => setSupplierId(Number(event.target.value))}
-                                fullWidth
-                                sx={{
-                                    '& .MuiOutlinedInput-root': {
-                                        borderRadius: '12px',
-                                        bgcolor: '#ffffff',
-                                    },
-                                }}
-                            >
-                                {activeSuppliers.map((supplier) => (
-                                    <MenuItem key={supplier.id} value={supplier.id}>
-                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                            <Typography fontWeight={600}>{supplier.name}</Typography>
-                                            <Chip size="small" label={supplier.code} sx={{ height: 22, fontSize: '0.75rem' }} />
-                                        </Box>
-                                    </MenuItem>
-                                ))}
-                            </TextField>
+                            <Stack spacing={2}>
+                                <TextField
+                                    select
+                                    required
+                                    size="small"
+                                    label="Nhà cung cấp"
+                                    value={supplierId || ''}
+                                    onChange={(event) => setSupplierId(Number(event.target.value))}
+                                    fullWidth
+                                    sx={{
+                                        '& .MuiOutlinedInput-root': {
+                                            borderRadius: '10px',
+                                            bgcolor: '#ffffff',
+                                        },
+                                    }}
+                                >
+                                    {activeSuppliers.map((supplier) => (
+                                        <MenuItem key={supplier.id} value={supplier.id}>
+                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                                <Typography fontWeight={600} fontSize="0.875rem">
+                                                    {supplier.name}
+                                                </Typography>
+                                                <Chip
+                                                    size="small"
+                                                    label={supplier.code}
+                                                    sx={{ height: 20, fontSize: '0.7rem' }}
+                                                />
+                                            </Box>
+                                        </MenuItem>
+                                    ))}
+                                </TextField>
 
-                            <Box sx={{ mt: 2 }}>
-                                <ImportBatchFileMappingProfilePanel
-                                    supplierId={supplierId}
-                                    refreshToken={profileRefreshToken}
-                                />
-                            </Box>
-                        </Paper>
-
-                        {/* File Upload Zone */}
-                        <Paper
-                            elevation={0}
-                            sx={{
-                                p: 3,
-                                borderRadius: '16px',
-                                border: '1px solid #e2e8f0',
-                                bgcolor: '#ffffff',
-                            }}
-                        >
-                            <Typography variant="subtitle2" fontWeight={800} color="#0f172a" sx={{ mb: 2 }}>
-                                2. Tải lên tệp dữ liệu *
-                            </Typography>
-
-                            <Box
-                                component="label"
-                                sx={{
-                                    border: '2px dashed #cbd5e1',
-                                    borderRadius: '16px',
-                                    p: 4,
-                                    display: 'flex',
-                                    flexDirection: 'column',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    bgcolor: file ? '#f0fdf4' : !supplierId ? '#f8fafc' : '#f8fafc',
-                                    cursor: !supplierId || busy ? 'not-allowed' : 'pointer',
-                                    opacity: !supplierId ? 0.6 : 1,
-                                    transition: 'all 0.2s',
-                                    textAlign: 'center',
-                                    '&:hover': !supplierId || busy ? {} : {
-                                        borderColor: '#FF3030',
-                                        bgcolor: '#fef2f2',
-                                    },
-                                }}
-                            >
-                                <input
-                                    hidden
-                                    type="file"
-                                    accept={IMPORT_BATCH_FILE_ACCEPT}
-                                    disabled={!supplierId || busy}
-                                    onChange={(event) =>
-                                        handleFileChosen(event.target.files?.[0] ?? null)
-                                    }
-                                />
-
-                                {busy ? (
-                                    <Stack alignItems="center" spacing={1.5}>
-                                        <CircularProgress size={36} sx={{ color: '#FF3030' }} />
-                                        <Typography variant="body2" fontWeight={700} color="#475569">
-                                            Đang phân tích tệp dữ liệu...
-                                        </Typography>
-                                    </Stack>
-                                ) : file ? (
-                                    <Stack alignItems="center" spacing={1}>
-                                        <Box
-                                            sx={{
-                                                width: 52,
-                                                height: 52,
-                                                borderRadius: '14px',
-                                                bgcolor: '#dcfce7',
-                                                color: '#16a34a',
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                justifyContent: 'center',
-                                            }}
-                                        >
-                                            <InsertDriveFileOutlinedIcon fontSize="large" />
-                                        </Box>
-                                        <Typography variant="subtitle1" fontWeight={800} color="#0f172a">
-                                            {file.name}
-                                        </Typography>
-                                        <Typography variant="caption" color="text.secondary">
-                                            {(file.size / 1024).toFixed(1)} KB · Nhấn để đổi tệp khác
-                                        </Typography>
-                                    </Stack>
-                                ) : (
-                                    <Stack alignItems="center" spacing={1.5}>
-                                        <Box
-                                            sx={{
-                                                width: 56,
-                                                height: 56,
-                                                borderRadius: '16px',
-                                                bgcolor: '#fee2e2',
-                                                color: '#FF3030',
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                justifyContent: 'center',
-                                            }}
-                                        >
-                                            <CloudUploadOutlinedIcon fontSize="large" />
-                                        </Box>
-                                        <Box>
-                                            <Typography variant="subtitle1" fontWeight={800} color="#0f172a">
-                                                {!supplierId ? 'Vui lòng chọn nhà cung cấp trước' : 'Kéo thả tệp hoặc bấm vào đây để chọn'}
-                                            </Typography>
-                                            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                                                Hỗ trợ định dạng Microsoft Excel (.xlsx) hoặc CSV (.csv)
-                                            </Typography>
-                                        </Box>
-                                    </Stack>
+                                {(todayIntake.blocked || todayIntake.notYetAllowed) && (
+                                    <Alert severity={todayIntake.blocked ? 'error' : 'warning'} sx={{ py: 0 }}>
+                                        {todayIntake.message}
+                                    </Alert>
                                 )}
-                            </Box>
 
-                            {/* Template & Helper Buttons */}
-                            <Stack
-                                direction="row"
-                                spacing={1.5}
-                                alignItems="center"
-                                flexWrap="wrap"
-                                sx={{ mt: 2.5, pt: 2, borderTop: '1px solid #f1f5f9' }}
-                            >
-                                <Typography variant="caption" fontWeight={700} color="text.secondary">
-                                    Tệp mẫu chuẩn:
-                                </Typography>
-                                <Button
-                                    variant="outlined"
-                                    size="small"
-                                    startIcon={<DownloadOutlinedIcon />}
-                                    onClick={() =>
-                                        void downloadImportBatchFileTemplate(
-                                            (eligibleStations?.eligible ?? []).map((station) => ({
-                                                name: station.name,
-                                                price: station.price,
-                                                commissionRate: station.commissionRate,
-                                            }))
-                                        )
-                                    }
+                                <Box
+                                    component="label"
                                     sx={{
+                                        border: '1.5px dashed #cbd5e1',
                                         borderRadius: '10px',
-                                        textTransform: 'none',
-                                        fontWeight: 700,
-                                        fontSize: '0.8125rem',
-                                        borderColor: '#cbd5e1',
-                                        color: '#334155',
-                                        '&:hover': { borderColor: '#94a3b8', bgcolor: '#f8fafc' },
+                                        px: 2,
+                                        py: 1.75,
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: 1.5,
+                                        bgcolor: file ? '#f0fdf4' : '#f8fafc',
+                                        cursor: !supplierId || busy ? 'not-allowed' : 'pointer',
+                                        opacity: !supplierId ? 0.55 : 1,
+                                        transition: 'border-color 0.2s, background-color 0.2s',
+                                        '&:hover': !supplierId || busy
+                                            ? {}
+                                            : { borderColor: '#FF3030', bgcolor: '#fef2f2' },
                                     }}
                                 >
-                                    Mẫu nhập vé chi tiết
-                                </Button>
+                                    <input
+                                        hidden
+                                        type="file"
+                                        accept={IMPORT_BATCH_FILE_ACCEPT}
+                                        disabled={!supplierId || busy}
+                                        onChange={(event) =>
+                                            handleFileChosen(event.target.files?.[0] ?? null)
+                                        }
+                                    />
 
-                                <Box sx={{ flex: 1 }} />
+                                    {busy ? (
+                                        <>
+                                            <CircularProgress size={22} sx={{ color: '#FF3030', flexShrink: 0 }} />
+                                            <Typography variant="body2" fontWeight={600} color="#475569">
+                                                Đang phân tích tệp...
+                                            </Typography>
+                                        </>
+                                    ) : file ? (
+                                        <>
+                                            <Box
+                                                sx={{
+                                                    width: 36,
+                                                    height: 36,
+                                                    borderRadius: '8px',
+                                                    bgcolor: '#dcfce7',
+                                                    color: '#16a34a',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center',
+                                                    flexShrink: 0,
+                                                }}
+                                            >
+                                                <InsertDriveFileOutlinedIcon fontSize="small" />
+                                            </Box>
+                                            <Box sx={{ minWidth: 0 }}>
+                                                <Typography
+                                                    variant="body2"
+                                                    fontWeight={700}
+                                                    color="#0f172a"
+                                                    noWrap
+                                                >
+                                                    {file.name}
+                                                </Typography>
+                                                <Typography variant="caption" color="text.secondary">
+                                                    {(file.size / 1024).toFixed(1)} KB · Bấm để đổi tệp
+                                                </Typography>
+                                            </Box>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Box
+                                                sx={{
+                                                    width: 36,
+                                                    height: 36,
+                                                    borderRadius: '8px',
+                                                    bgcolor: '#fee2e2',
+                                                    color: '#FF3030',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center',
+                                                    flexShrink: 0,
+                                                }}
+                                            >
+                                                <CloudUploadOutlinedIcon fontSize="small" />
+                                            </Box>
+                                            <Box sx={{ minWidth: 0 }}>
+                                                <Typography variant="body2" fontWeight={700} color="#0f172a">
+                                                    {!supplierId
+                                                        ? 'Chọn nhà cung cấp trước khi tải tệp'
+                                                        : 'Chọn tệp Excel (.xlsx) hoặc CSV'}
+                                                </Typography>
+                                                <Typography variant="caption" color="text.secondary">
+                                                    Kéo thả hoặc bấm để chọn từ máy
+                                                </Typography>
+                                            </Box>
+                                        </>
+                                    )}
+                                </Box>
 
-                                <Button
-                                    variant="text"
-                                    size="small"
-                                    startIcon={<SettingsOutlinedIcon />}
-                                    onClick={() => setConfigOpen(true)}
-                                    sx={{
-                                        borderRadius: '10px',
-                                        textTransform: 'none',
-                                        fontWeight: 700,
-                                        color: '#64748b',
-                                        '&:hover': { bgcolor: '#f1f5f9' },
-                                    }}
+                                <Stack
+                                    direction="row"
+                                    spacing={1}
+                                    alignItems="center"
+                                    flexWrap="wrap"
+                                    useFlexGap
                                 >
-                                    Xem quy tắc đọc tệp
-                                </Button>
+                                    <Button
+                                        variant="outlined"
+                                        size="small"
+                                        startIcon={<DownloadOutlinedIcon />}
+                                        onClick={() =>
+                                            void downloadImportBatchFileTemplate(
+                                                (eligibleStations?.eligible ?? []).map((station) => ({
+                                                    name: station.name,
+                                                    price: station.price,
+                                                    commissionRate: station.commissionRate,
+                                                }))
+                                            )
+                                        }
+                                        sx={{
+                                            borderRadius: '8px',
+                                            textTransform: 'none',
+                                            fontWeight: 600,
+                                            fontSize: '0.8125rem',
+                                        }}
+                                    >
+                                        Tải mẫu tệp
+                                    </Button>
+                                    <Button
+                                        variant="text"
+                                        size="small"
+                                        startIcon={<SettingsOutlinedIcon />}
+                                        onClick={() => setConfigOpen(true)}
+                                        sx={{
+                                            textTransform: 'none',
+                                            fontWeight: 600,
+                                            fontSize: '0.8125rem',
+                                            color: '#64748b',
+                                        }}
+                                    >
+                                        Quy tắc đọc tệp
+                                    </Button>
+                                </Stack>
+
+                                {supplierId > 0 && (
+                                    <ImportBatchFileMappingProfilePanel
+                                        supplierId={supplierId}
+                                        refreshToken={profileRefreshToken}
+                                    />
+                                )}
                             </Stack>
                         </Paper>
                     </Stack>
@@ -1061,108 +1074,50 @@ export const ImportBatchFileImportDialog = ({
             </DialogContent>
 
             {/* Footer Actions */}
-            <DialogActions
-                sx={{
-                    px: 3,
-                    py: 2.25,
-                    borderTop: '1px solid #e2e8f0',
-                    bgcolor: '#ffffff',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                }}
-            >
-                <Button
-                    onClick={handleClose}
-                    disabled={busy}
-                    sx={{
-                        textTransform: 'none',
-                        fontWeight: 700,
-                        color: '#64748b',
-                        borderRadius: '10px',
-                        px: 2.5,
-                        '&:hover': { bgcolor: '#f1f5f9' },
-                    }}
-                >
-                    Hủy bỏ
-                </Button>
+            <DialogActions sx={ADMIN_DIALOG_ACTIONS_SX}>
+                {step === 1 && (
+                    <>
+                        <LoadingButton
+                            variant="outlined"
+                            color="inherit"
+                            onClick={() => setStep(0)}
+                            disabled={busy}
+                            startIcon={<ArrowBackIcon />}
+                            label="Chọn lại tệp"
+                        />
+                        <LoadingButton
+                            variant="contained"
+                            className="btn-primary-admin"
+                            onClick={() => runPreview()}
+                            disabled={!mappingReady}
+                            loading={busy}
+                            endIcon={!busy ? <ArrowForwardIcon /> : undefined}
+                            label="Xem trước"
+                        />
+                    </>
+                )}
 
-                <Stack direction="row" spacing={1.5}>
-                    {step === 1 && (
-                        <>
-                            <Button
-                                onClick={() => setStep(0)}
-                                disabled={busy}
-                                startIcon={<ArrowBackIcon />}
-                                sx={{
-                                    textTransform: 'none',
-                                    fontWeight: 700,
-                                    color: '#334155',
-                                    borderRadius: '10px',
-                                    px: 2.5,
-                                    border: '1px solid #cbd5e1',
-                                }}
-                            >
-                                Chọn lại tệp
-                            </Button>
-                            <Button
-                                variant="contained"
-                                onClick={() => runPreview()}
-                                disabled={busy || !mappingReady}
-                                endIcon={busy ? <CircularProgress size={16} color="inherit" /> : <ArrowForwardIcon />}
-                                sx={{
-                                    textTransform: 'none',
-                                    fontWeight: 800,
-                                    borderRadius: '10px',
-                                    px: 3,
-                                    bgcolor: '#FF3030',
-                                    color: '#ffffff',
-                                    boxShadow: '0 4px 12px rgba(255, 48, 48, 0.25)',
-                                    '&:hover': { bgcolor: '#e02828' },
-                                }}
-                            >
-                                Xem trước
-                            </Button>
-                        </>
-                    )}
-
-                    {step === 2 && (
-                        <>
-                            <Button
-                                onClick={() => setStep(1)}
-                                disabled={busy}
-                                startIcon={<ArrowBackIcon />}
-                                sx={{
-                                    textTransform: 'none',
-                                    fontWeight: 700,
-                                    color: '#334155',
-                                    borderRadius: '10px',
-                                    px: 2.5,
-                                    border: '1px solid #cbd5e1',
-                                }}
-                            >
-                                Sửa gán cột
-                            </Button>
-                            <Button
-                                variant="contained"
-                                onClick={handleCommit}
-                                disabled={busy || selectedDates.length === 0}
-                                startIcon={busy ? <CircularProgress size={16} color="inherit" /> : <CheckCircleIcon />}
-                                sx={{
-                                    textTransform: 'none',
-                                    fontWeight: 800,
-                                    borderRadius: '10px',
-                                    px: 3.5,
-                                    bgcolor: '#FF3030',
-                                    color: '#ffffff',
-                                    boxShadow: '0 4px 12px rgba(255, 48, 48, 0.25)',
-                                    '&:hover': { bgcolor: '#e02828' },
-                                }}
-                            >
-                                Tạo {selectedDates.length} phiếu nhập
-                            </Button>
-                        </>
-                    )}
-                </Stack>
+                {step === 2 && (
+                    <>
+                        <LoadingButton
+                            variant="outlined"
+                            color="inherit"
+                            onClick={() => setStep(1)}
+                            disabled={busy}
+                            startIcon={<ArrowBackIcon />}
+                            label="Sửa gán cột"
+                        />
+                        <LoadingButton
+                            variant="contained"
+                            className="btn-primary-admin"
+                            onClick={handleCommit}
+                            disabled={selectedDates.length === 0 || selectedDates.some(isDrawDateIntakeBlocked)}
+                            loading={busy}
+                            startIcon={!busy ? <CheckCircleIcon /> : undefined}
+                            label={`Tạo ${selectedDates.length} phiếu nhập`}
+                        />
+                    </>
+                )}
             </DialogActions>
 
             <ImportBatchFileConfigDialog

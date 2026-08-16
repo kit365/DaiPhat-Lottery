@@ -5,10 +5,12 @@ import CheckCircleOutlinedIcon from '@mui/icons-material/CheckCircleOutlined';
 import ConfirmationNumberOutlinedIcon from '@mui/icons-material/ConfirmationNumberOutlined';
 import HourglassEmptyOutlinedIcon from '@mui/icons-material/HourglassEmptyOutlined';
 import PaymentsOutlinedIcon from '@mui/icons-material/PaymentsOutlined';
-import { Box, Card, Stack, Typography } from '@mui/material';
+import { Box } from '@mui/material';
+import { AdminKpiCard, AdminKpiCardsGrid } from '@/admin/components/ui/AdminKpiCard';
 import { Breadcrumb } from '../../../../../components/ui/Breadcrumb';
 import { Title } from '../../../../../components/ui/Title';
 import { prefixAdmin, ROUTES } from '../../../../../constants/routes';
+import { formatKpiAmount } from '@/admin/utils/currency';
 import { formatImportCost } from '../../../import-batch/utils/importCostCalculator';
 import { useReturnBatchList } from '../../hooks/useReturnBatch';
 import { ReturnBatchList } from '../sections/ReturnBatchList';
@@ -50,216 +52,40 @@ export const ReturnBatchListPage = () => {
             {/* Reminder Banner (if any batch is urgent/in inspection window) */}
             <ReturnBatchReminderBanner batches={batches} />
 
-            {/* Metric KPI Cards - 5 Balanced Executive Cards */}
-            <Box
-                sx={{
-                    display: 'grid',
-                    gridTemplateColumns: {
-                        xs: '1fr',
-                        sm: 'repeat(2, 1fr)',
-                        md: 'repeat(3, 1fr)',
-                        lg: 'repeat(5, 1fr)',
-                    },
-                    gap: 2,
-                    mb: 3,
-                    width: '100%',
-                }}
-            >
-                {/* 1. Tổng phiếu trả */}
-                <Card
-                    elevation={0}
-                    sx={{
-                        p: 2.25,
-                        borderRadius: '16px',
-                        border: '1px solid #e2e8f0',
-                        bgcolor: '#fff',
-                        boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
-                    }}
-                >
-                    <Stack direction="row" alignItems="center" spacing={1.75}>
-                        <Box
-                            sx={{
-                                width: 44,
-                                height: 44,
-                                borderRadius: '12px',
-                                bgcolor: '#eff6ff',
-                                color: '#2563eb',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                flexShrink: 0,
-                            }}
-                        >
-                            <AssignmentOutlinedIcon fontSize="small" />
-                        </Box>
-                        <Box sx={{ minWidth: 0 }}>
-                            <Typography variant="caption" fontWeight={600} color="#64748b" display="block">
-                                Tổng phiếu trả
-                            </Typography>
-                            <Typography variant="h6" fontWeight={800} color="#0f172a" sx={{ mt: 0.25 }}>
-                                {totalCount}
-                            </Typography>
-                        </Box>
-                    </Stack>
-                </Card>
-
-                {/* 2. Chờ kiểm tra vé */}
-                <Card
-                    elevation={0}
-                    sx={{
-                        p: 2.25,
-                        borderRadius: '16px',
-                        border: '1px solid #e2e8f0',
-                        bgcolor: '#fff',
-                        boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
-                    }}
-                >
-                    <Stack direction="row" alignItems="center" spacing={1.75}>
-                        <Box
-                            sx={{
-                                width: 44,
-                                height: 44,
-                                borderRadius: '12px',
-                                bgcolor: '#fffbeb',
-                                color: '#d97706',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                flexShrink: 0,
-                            }}
-                        >
-                            <HourglassEmptyOutlinedIcon fontSize="small" />
-                        </Box>
-                        <Box sx={{ minWidth: 0 }}>
-                            <Typography variant="caption" fontWeight={600} color="#64748b" display="block">
-                                Chờ kiểm tra vé
-                            </Typography>
-                            <Typography variant="h6" fontWeight={800} color="#d97706" sx={{ mt: 0.25 }}>
-                                {pendingInspectionCount}
-                            </Typography>
-                        </Box>
-                    </Stack>
-                </Card>
-
-                {/* 3. Đã bàn giao */}
-                <Card
-                    elevation={0}
-                    sx={{
-                        p: 2.25,
-                        borderRadius: '16px',
-                        border: '1px solid #e2e8f0',
-                        bgcolor: '#fff',
-                        boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
-                    }}
-                >
-                    <Stack direction="row" alignItems="center" spacing={1.75}>
-                        <Box
-                            sx={{
-                                width: 44,
-                                height: 44,
-                                borderRadius: '12px',
-                                bgcolor: '#f0fdf4',
-                                color: '#16a34a',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                flexShrink: 0,
-                            }}
-                        >
-                            <CheckCircleOutlinedIcon fontSize="small" />
-                        </Box>
-                        <Box sx={{ minWidth: 0 }}>
-                            <Typography variant="caption" fontWeight={600} color="#64748b" display="block">
-                                Đã bàn giao
-                            </Typography>
-                            <Typography variant="h6" fontWeight={800} color="#16a34a" sx={{ mt: 0.25 }}>
-                                {handedOverCount}
-                            </Typography>
-                        </Box>
-                    </Stack>
-                </Card>
-
-                {/* 4. Tổng vé trả lại */}
-                <Card
-                    elevation={0}
-                    sx={{
-                        p: 2.25,
-                        borderRadius: '16px',
-                        border: '1px solid #e2e8f0',
-                        bgcolor: '#fff',
-                        boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
-                    }}
-                >
-                    <Stack direction="row" alignItems="center" spacing={1.75}>
-                        <Box
-                            sx={{
-                                width: 44,
-                                height: 44,
-                                borderRadius: '12px',
-                                bgcolor: '#f0f9ff',
-                                color: '#0284c7',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                flexShrink: 0,
-                            }}
-                        >
-                            <ConfirmationNumberOutlinedIcon fontSize="small" />
-                        </Box>
-                        <Box sx={{ minWidth: 0 }}>
-                            <Typography variant="caption" fontWeight={600} color="#64748b" display="block">
-                                Vé trả lại (trang)
-                            </Typography>
-                            <Typography variant="h6" fontWeight={800} color="#0284c7" sx={{ mt: 0.25 }}>
-                                {totalPageQuantity.toLocaleString('vi-VN')}
-                            </Typography>
-                        </Box>
-                    </Stack>
-                </Card>
-
-                {/* 5. Trị giá trả vé */}
-                <Card
-                    elevation={0}
-                    sx={{
-                        p: 2.25,
-                        borderRadius: '16px',
-                        border: '1px solid #bbf7d0',
-                        bgcolor: '#f0fdf4',
-                        boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
-                    }}
-                >
-                    <Stack direction="row" alignItems="center" spacing={1.75}>
-                        <Box
-                            sx={{
-                                width: 44,
-                                height: 44,
-                                borderRadius: '12px',
-                                bgcolor: '#dcfce7',
-                                color: '#059669',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                flexShrink: 0,
-                            }}
-                        >
-                            <PaymentsOutlinedIcon fontSize="small" />
-                        </Box>
-                        <Box sx={{ minWidth: 0, flex: 1 }}>
-                            <Typography variant="caption" fontWeight={700} color="#166534" display="block">
-                                Trị giá trả vé
-                            </Typography>
-                            <Typography
-                                variant="h6"
-                                fontWeight={800}
-                                color="#059669"
-                                sx={{ mt: 0.25, fontSize: { lg: '1rem', xl: '1.1rem' }, lineHeight: 1.2 }}
-                            >
-                                {formatImportCost(totalPageReturnValue)} VNĐ
-                            </Typography>
-                        </Box>
-                    </Stack>
-                </Card>
-            </Box>
+            <AdminKpiCardsGrid columns={{ xs: 1, sm: 2, md: 3, xl: 5 }}>
+                <AdminKpiCard
+                    label="Tổng phiếu trả"
+                    value={String(totalCount)}
+                    icon={<AssignmentOutlinedIcon fontSize="small" />}
+                    tone="blue"
+                />
+                <AdminKpiCard
+                    label="Chờ kiểm tra vé"
+                    value={String(pendingInspectionCount)}
+                    icon={<HourglassEmptyOutlinedIcon fontSize="small" />}
+                    tone="amber"
+                />
+                <AdminKpiCard
+                    label="Đã bàn giao"
+                    value={String(handedOverCount)}
+                    icon={<CheckCircleOutlinedIcon fontSize="small" />}
+                    tone="green"
+                />
+                <AdminKpiCard
+                    label="Vé trả lại"
+                    value={totalPageQuantity.toLocaleString('vi-VN')}
+                    icon={<ConfirmationNumberOutlinedIcon fontSize="small" />}
+                    tone="cyan"
+                />
+                <AdminKpiCard
+                    label="Trị giá trả vé"
+                    value={formatKpiAmount(totalPageReturnValue)}
+                    valueTitle={`${formatImportCost(totalPageReturnValue)} VNĐ`}
+                    icon={<PaymentsOutlinedIcon fontSize="small" />}
+                    accent
+                    valueSize="compact"
+                />
+            </AdminKpiCardsGrid>
 
             {/* List Table Section */}
             <ReturnBatchList listHook={listHook} />

@@ -2,10 +2,16 @@ import type {
     GridColDef,
 } from '@mui/x-data-grid';
 import { LazyDataGrid } from '@/admin/shared/data-grid/LazyDataGrid';
+import AssignmentOutlinedIcon from '@mui/icons-material/AssignmentOutlined';
+import Inventory2OutlinedIcon from '@mui/icons-material/Inventory2Outlined';
+import PaymentsOutlinedIcon from '@mui/icons-material/PaymentsOutlined';
+import ReplayOutlinedIcon from '@mui/icons-material/ReplayOutlined';
+import WarningAmberOutlinedIcon from '@mui/icons-material/WarningAmberOutlined';
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import Typography from '@mui/material/Typography';
 import CircularProgress from '@mui/material/CircularProgress';
+import { AdminKpiCard, AdminKpiCardsGrid } from '@/admin/components/ui/AdminKpiCard';
 import { SortAscendingIcon, SortDescendingIcon, UnsortedIcon } from '../../../../../assets/icons';
 import {
     IGridSettings,
@@ -20,7 +26,8 @@ import {
 } from '../../../../../shared/data-grid';
 import { columnsConfig, columnsInitialState } from '../configs/column.config';
 import { SupplierSettlementToolbar } from './SupplierSettlementToolbar';
-import { DATA_GRID_LOCALE_VN } from '../../../../../../shared/components/DataTable/localeText.config';
+import { DATA_GRID_LOCALE_VN } from "@/admin/components/data-grid/localeText.config";
+import { formatKpiAmount } from '@/admin/utils/currency';
 import { formatImportCost } from '../../../import-batch/utils/importCostCalculator';
 import type { useSupplierSettlementList } from '../../hooks/useSupplierSettlement';
 import type { SupplierSettlementStatus } from '../../types/supplierSettlement.type';
@@ -88,110 +95,55 @@ export const SupplierSettlementList = ({
                 expiredItems={expiredItems}
             />
 
-            <Box
-                sx={{
-                    display: 'grid',
-                    gridTemplateColumns: {
-                        xs: '1fr',
-                        sm: 'repeat(2, 1fr)',
-                        md: expiredCount > 0 ? 'repeat(5, 1fr)' : 'repeat(4, 1fr)',
-                    },
-                    gap: 2,
-                    width: '100%',
+            <AdminKpiCardsGrid
+                columns={{
+                    xs: 1,
+                    sm: 2,
+                    md: expiredCount > 0 ? 3 : 2,
+                    xl: expiredCount > 0 ? 5 : 4,
                 }}
             >
-                <Card
-                    elevation={0}
-                    sx={{
-                        p: 2.5,
-                        borderRadius: '16px',
-                        bgcolor: '#ffffff',
-                        border: '1px solid #e2e8f0',
-                        boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
-                    }}
-                >
-                    <Typography variant="caption" fontWeight={600} color="#64748b" display="block">
-                        Số kỳ đối soát
-                    </Typography>
-                    <Typography variant="h5" fontWeight={800} color="#0f172a" sx={{ mt: 0.5 }}>
-                        {pagination?.totalRecords || 0}
-                    </Typography>
-                </Card>
-
-                <Card
-                    elevation={0}
-                    sx={{
-                        p: 2.5,
-                        borderRadius: '16px',
-                        bgcolor: '#ffffff',
-                        border: '1px solid #e2e8f0',
-                        boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
-                    }}
-                >
-                    <Typography variant="caption" fontWeight={600} color="#64748b" display="block">
-                        Tổng giá trị nhập
-                    </Typography>
-                    <Typography variant="h5" fontWeight={800} color="#0f172a" sx={{ mt: 0.5 }}>
-                        {formatImportCost(totalImportSum)} VNĐ
-                    </Typography>
-                </Card>
-
-                <Card
-                    elevation={0}
-                    sx={{
-                        p: 2.5,
-                        borderRadius: '16px',
-                        bgcolor: '#ffffff',
-                        border: '1px solid #e2e8f0',
-                        boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
-                    }}
-                >
-                    <Typography variant="caption" fontWeight={600} color="#64748b" display="block">
-                        Tổng giá trị trả
-                    </Typography>
-                    <Typography variant="h5" fontWeight={800} color="#0f172a" sx={{ mt: 0.5 }}>
-                        {formatImportCost(totalReturnSum)} VNĐ
-                    </Typography>
-                </Card>
-
-                <Card
-                    elevation={0}
-                    sx={{
-                        p: 2.5,
-                        borderRadius: '16px',
-                        bgcolor: '#f0fdf4',
-                        border: '1px solid #bbf7d0',
-                        boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
-                    }}
-                >
-                    <Typography variant="caption" fontWeight={700} color="#166534" display="block">
-                        Còn phải trả NCC
-                    </Typography>
-                    <Typography variant="h5" fontWeight={800} color="#15803d" sx={{ mt: 0.5 }}>
-                        {formatImportCost(remainingSum)} VNĐ
-                    </Typography>
-                </Card>
-
+                <AdminKpiCard
+                    label="Số kỳ đối soát"
+                    value={String(pagination?.totalRecords || 0)}
+                    icon={<AssignmentOutlinedIcon fontSize="small" />}
+                    tone="blue"
+                />
+                <AdminKpiCard
+                    label="Tổng giá trị nhập"
+                    value={formatKpiAmount(totalImportSum)}
+                    valueTitle={`${formatImportCost(totalImportSum)} VNĐ`}
+                    icon={<Inventory2OutlinedIcon fontSize="small" />}
+                    tone="cyan"
+                    valueSize="compact"
+                />
+                <AdminKpiCard
+                    label="Tổng giá trị trả"
+                    value={formatKpiAmount(totalReturnSum)}
+                    valueTitle={`${formatImportCost(totalReturnSum)} VNĐ`}
+                    icon={<ReplayOutlinedIcon fontSize="small" />}
+                    tone="slate"
+                    valueSize="compact"
+                />
+                <AdminKpiCard
+                    label="Còn phải trả NCC"
+                    value={formatKpiAmount(remainingSum)}
+                    valueTitle={`${formatImportCost(remainingSum)} VNĐ`}
+                    icon={<PaymentsOutlinedIcon fontSize="small" />}
+                    accent
+                    valueSize="compact"
+                />
                 {expiredCount > 0 && (
-                    <Card
-                        elevation={0}
-                        sx={{
-                            p: 2.5,
-                            borderRadius: '16px',
-                            bgcolor: '#fef2f2',
-                            border: '1.5px solid #fecaca',
-                            boxShadow: '0 2px 8px 0 rgba(239, 68, 68, 0.1)',
-                        }}
-                    >
-                        <Typography variant="caption" fontWeight={800} color="#dc2626" display="flex" alignItems="center" gap={0.5}>
-                            <span>🔴 Quá hạn trả vé ({expiredCount} kỳ)</span>
-                        </Typography>
-                        <Typography variant="h5" fontWeight={800} color="#991b1b" sx={{ mt: 0.5 }}>
-                            {formatImportCost(totalExpiredSum)} VNĐ
-                        </Typography>
-                    </Card>
+                    <AdminKpiCard
+                        label={`Quá hạn trả vé (${expiredCount} kỳ)`}
+                        value={formatKpiAmount(totalExpiredSum)}
+                        valueTitle={`${formatImportCost(totalExpiredSum)} VNĐ`}
+                        icon={<WarningAmberOutlinedIcon fontSize="small" />}
+                        tone="rose"
+                        valueSize="compact"
+                    />
                 )}
-            </Box>
+            </AdminKpiCardsGrid>
 
             <Card
                 elevation={0}

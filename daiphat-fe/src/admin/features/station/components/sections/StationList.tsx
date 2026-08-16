@@ -17,7 +17,7 @@ import {
 } from '../../../../shared/data-grid';
 import { StationToolbar } from './StationToolbar';
 import { columnsConfig, columnsInitialState } from '../configs/column.config';
-import { DATA_GRID_LOCALE_VN } from '../../../../../shared/components/DataTable/localeText.config';
+import { DATA_GRID_LOCALE_VN } from "@/admin/components/data-grid/localeText.config";
 import { useStations } from '../../hooks/useStation';
 import { StationListFilters } from '../../types/station.type';
 

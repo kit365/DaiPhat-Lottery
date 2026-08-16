@@ -6,7 +6,6 @@
   "scripts": {
     "dev": "next dev -p 5173",
     "dev:turbo": "next dev --turbo -p 5173",
-    "dev:clean": "node ./scripts/clean-next.mjs && next dev -p 5173",
     "build": "next build",
     "start": "next start -p 5173",
     "lint": "next lint"
@@ -18,11 +17,6 @@
     "@dnd-kit/utilities": "^3.2.2",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
-    "@fullcalendar/daygrid": "^6.1.20",
-    "@fullcalendar/interaction": "^6.1.20",
-    "@fullcalendar/list": "^6.1.20",
-    "@fullcalendar/react": "^6.1.20",
-    "@fullcalendar/timegrid": "^6.1.20",
     "@hookform/resolvers": "^5.2.2",
     "@mui/icons-material": "^7.3.2",
     "@mui/material": "^7.3.2",

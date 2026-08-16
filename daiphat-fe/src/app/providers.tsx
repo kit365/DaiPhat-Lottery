@@ -1,36 +1,25 @@
 "use client";
 
 import { StrictMode, useState } from 'react';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClientProvider } from '@tanstack/react-query';
 import { ToastContainer } from 'react-toastify';
 import { AuthInitializer } from '../components/auth/AuthInitializer';
-import { MUTATION_RETRY, QUERY_GC_TIME, QUERY_STALE_TIMES, queryRetryDelay, shouldRetryQuery } from '@/shared/react-query/queryPolicies';
+import { createAppQueryClient } from '@/shared/react-query/createAppQueryClient';
+import { registerAppQueryClient } from '@/api/endAuthSession';
+import { LuckyPatternPrefetcher } from '@/shared/lucky-number/LuckyPatternPrefetcher';
 
 export function Providers({ children }: { children: React.ReactNode }) {
-  const [queryClient] = useState(
-    () =>
-      new QueryClient({
-        defaultOptions: {
-          queries: {
-            staleTime: QUERY_STALE_TIMES.default,
-            gcTime: QUERY_GC_TIME,
-            refetchOnWindowFocus: false,
-            throwOnError: false,
-            retry: shouldRetryQuery,
-            retryDelay: queryRetryDelay,
-          },
-          mutations: {
-            throwOnError: false,
-            retry: MUTATION_RETRY,
-          },
-        },
-      })
-  );
+  const [queryClient] = useState(() => {
+    const client = createAppQueryClient();
+    registerAppQueryClient(client);
+    return client;
+  });
 
   return (
     <StrictMode>
       <QueryClientProvider client={queryClient}>
         <AuthInitializer />
+        <LuckyPatternPrefetcher />
         {children}
         <ToastContainer
             position="top-right"

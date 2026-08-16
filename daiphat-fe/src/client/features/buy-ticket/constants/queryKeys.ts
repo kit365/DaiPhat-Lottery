@@ -1,6 +1,8 @@
+/** Query key buy-ticket — dùng createQueryKeyScope để invalidate theo prefix. */
 import { createQueryKeyScope } from '@/shared/react-query/createQueryKeys';
+import { QUERY_KEYS } from '@/constants/queryKeys';
 
-export const buyTicketQueryKeys = createQueryKeyScope('public-buy-ticket');
+export const buyTicketQueryKeys = createQueryKeyScope(QUERY_KEYS.PUBLIC_BUY_TICKET);
 
 export type BuyTicketListQueryParams = {
     stationIds: string[];

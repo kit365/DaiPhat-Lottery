@@ -1,7 +1,3 @@
-import { createQueryKeyScope } from '@/shared/react-query/createQueryKeys';
-
-const scope = createQueryKeyScope('import-batch');
-
 /** Stable string tokens — dùng cho invalidate prefix. */
 export const QUERY_KEYS = {
     IMPORT_BATCH_ACTIVE_DRAFT: 'import-batch-active-draft',
@@ -15,11 +11,14 @@ export const QUERY_KEYS = {
     IMPORT_BATCH_REDUCTION_TICKETS: 'import-batch-reduction-tickets',
     IMPORT_BATCH_LINE_ENTRY_TICKETS: 'import-batch-line-entry-tickets',
     IMPORT_BATCH_FILE_JOBS: 'import-batch-file-jobs',
+    ORDER_DETAIL_REFUND_PREP: 'order-detail-refund-prep',
 } as const;
+
+export const orderDetailRefundPrepQueryKey = (orderId: string) =>
+    [QUERY_KEYS.ORDER_DETAIL_REFUND_PREP, orderId] as const;
 
 /** Typed query key builders — ưu tiên dùng trong hooks. */
 export const importBatchQueryKeys = {
-    scope,
     activeDraft: () => [QUERY_KEYS.IMPORT_BATCH_ACTIVE_DRAFT] as const,
     list: (params?: unknown) => [QUERY_KEYS.IMPORT_BATCH_LIST, params] as const,
     draftBanner: () => [QUERY_KEYS.IMPORT_BATCH_LIST, 'draft-banner'] as const,

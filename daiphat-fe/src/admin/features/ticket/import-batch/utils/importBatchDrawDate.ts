@@ -97,6 +97,87 @@ export const isDrawDateWithinAllowedRange = (drawDate?: string) => {
     return isDrawDateToday(drawDate) || isTomorrowDrawDate(drawDate);
 };
 
+const DEFAULT_RETURN_CUTOFF_TIME = '14:30';
+
+export { DEFAULT_RETURN_CUTOFF_TIME };
+
+/** Clock time when ticket intake closes (return cut-off minus buffer). */
+export const resolveInspectionStartTime = (
+    returnCutOffTime?: string,
+    returnBufferMinutes = 45,
+    now: Dayjs = dayjs()
+): Dayjs | null => {
+    const cutoff = parseClockTime(returnCutOffTime);
+    if (!cutoff || returnBufferMinutes <= 0) {
+        return null;
+    }
+    const todayCutoff = now
+        .hour(cutoff.hour())
+        .minute(cutoff.minute())
+        .second(0)
+        .millisecond(0);
+    return todayCutoff.subtract(returnBufferMinutes, 'minute');
+};
+
+/**
+ * Whether new tickets may no longer be imported for today's draw date.
+ * Mirrors backend SupplierTicketIntakeWindowPolicy.isIntakeClosed.
+ */
+export const isImportIntakeClosed = (
+    returnCutOffTime?: string,
+    drawDate?: string,
+    returnBufferMinutes = 45,
+    now: Dayjs = dayjs()
+) => {
+    if (!drawDate || !isDrawDateToday(drawDate)) {
+        return false;
+    }
+    const inspectionStart = resolveInspectionStartTime(returnCutOffTime, returnBufferMinutes, now);
+    if (!inspectionStart) {
+        return false;
+    }
+    return !now.isBefore(inspectionStart);
+};
+
+export const buildImportIntakeClosedMessage = ({
+    supplierName,
+    returnCutOffTime,
+    returnBufferMinutes = 45,
+    drawDate,
+    now = dayjs(),
+}: {
+    supplierName?: string | null;
+    returnCutOffTime?: string | null;
+    returnBufferMinutes?: number;
+    drawDate?: string | null;
+    now?: Dayjs;
+}) => {
+    const inspectionStart = resolveInspectionStartTime(
+        returnCutOffTime ?? undefined,
+        returnBufferMinutes,
+        now
+    );
+    const inspectionLabel = inspectionStart?.format('HH:mm') ?? '—';
+    const cutoffLabel = (returnCutOffTime ?? DEFAULT_RETURN_CUTOFF_TIME).trim().slice(0, 5);
+    const drawLabel = drawDate ? dayjs(drawDate).format('DD/MM/YYYY') : '—';
+    return `Từ ${inspectionLabel} không được nhập lô cho kỳ quay ${drawLabel} (NCC: ${supplierName || '—'}). Giờ chốt trả vé: ${cutoffLabel}.`;
+};
+
+export const buildImportIntakeBlockedTooltip = ({
+    inspectionStartLabel,
+    returnCutOffLabel,
+    drawDate,
+}: {
+    inspectionStartLabel?: string | null;
+    returnCutOffLabel?: string | null;
+    drawDate?: string | null;
+}) => {
+    const drawLabel = drawDate ? dayjs(drawDate).format('DD/MM/YYYY') : 'hôm nay';
+    const fromTime = inspectionStartLabel ?? '—';
+    const cutoffTime = returnCutOffLabel ?? '—';
+    return `Đã quá giờ nhập lô. Từ ${fromTime} không được nhập vé cho kỳ quay ${drawLabel}. Giờ chốt trả vé: ${cutoffTime}.`;
+};
+
 /** True when current clock is at or after the supplier's return cut-off time. */
 export const isReturnCutOffPassed = (returnCutOffTime?: string, now: Dayjs = dayjs()) => {
     const cutoff = parseClockTime(returnCutOffTime);
@@ -139,13 +220,13 @@ export const isInReturnCutOffWarningWindow = (
  */
 export const getDefaultInitialDrawDate = (
     returnCutOffTime?: string,
+    returnBufferMinutes = 45,
     now: Dayjs = dayjs()
 ): string => {
-    const cutoffPassed = returnCutOffTime
-        ? isReturnCutOffPassed(returnCutOffTime, now)
-        : isReturnCutOffPassed('14:30', now);
+    const cutoff = returnCutOffTime?.trim() || DEFAULT_RETURN_CUTOFF_TIME;
+    const intakeClosed = isImportIntakeClosed(cutoff, now.format('YYYY-MM-DD'), returnBufferMinutes, now);
 
-    if (cutoffPassed) {
+    if (intakeClosed) {
         return now.add(1, 'day').format('YYYY-MM-DD');
     }
     return now.format('YYYY-MM-DD');

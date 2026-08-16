@@ -31,5 +31,3 @@ export default function imageLoader({ src, width, quality }: ImageLoaderProps): 
 
   return src;
 }
-
-export const cloudinaryLoader = imageLoader;

@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useRef } from "react";
 
 import {
     Alert,
@@ -20,17 +20,25 @@ import {
     AccordionSummary,
     AccordionDetails,
     IconButton,
+    FormControlLabel,
+    Tooltip,
 } from "@mui/material";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import ChevronRightIcon from "@mui/icons-material/ChevronRight";
+import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
+import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
+import HighlightOffIcon from "@mui/icons-material/HighlightOff";
+import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
 import { Button } from "../../../../components/ui/Button";
-import { AdminTicketCard } from "../../../../components/ui/AdminTicketCard";
+import { AdminDialog } from "../../../../components/ui/AdminDialog";
+import { AdminStatusBadge } from "../../../../components/ui/AdminStatusBadge";
 import {
     StreetAgentProfile,
     VendorAllocationAllocatedSerial,
     VendorAllocationBatch,
     VendorSettlementPreview,
 } from "../../types/street-agent.type";
-import { ALLOCATION_BATCH_STATUS_LABELS } from "../configs/constants";
+import { LuckyTicketNumber } from "../LuckyTicketNumber";
 import {
     formatCommission,
     formatCurrency,
@@ -41,6 +49,7 @@ import {
     VENDOR_LATE_RETURN_POLICY_LABELS,
     VendorLateReturnPolicyValue,
 } from "../../hooks/useVendorSettingsDefaults";
+import { ALLOCATION_BATCH_STATUS_LABELS } from "../configs/constants";
 import { BADGE_COLOR_PALETTE } from "@/admin/utils/badge";
 
 const fieldSx = {
@@ -69,10 +78,22 @@ const timingBadgeSx = (late: boolean) => {
     };
 };
 
-export const DetailRow = ({ label, value, description, valueColor = "text.primary" }: { label: React.ReactNode; value: React.ReactNode; description?: React.ReactNode; valueColor?: string }) => (
+export const DetailRow = ({
+    label,
+    value,
+    description,
+    valueColor = "text.primary",
+    labelWeight = 400,
+}: {
+    label: React.ReactNode;
+    value: React.ReactNode;
+    description?: React.ReactNode;
+    valueColor?: string;
+    labelWeight?: number;
+}) => (
     <Stack spacing={0.25}>
         <Stack direction="row" justifyContent="space-between" alignItems="flex-start" gap={1}>
-            <Typography variant="body2" color="text.secondary">
+            <Typography variant="body2" color="text.secondary" sx={{ fontWeight: labelWeight }}>
                 {label}
             </Typography>
             <Typography variant="body2" fontWeight={500} color={valueColor} textAlign="right">
@@ -222,6 +243,40 @@ export const VendorBatchDepositSnapshotSection = ({
     </Stack>
 );
 
+const ReceiptRow = ({
+    label,
+    value,
+    deduct = false,
+    total = false,
+}: {
+    label: React.ReactNode;
+    value: React.ReactNode;
+    deduct?: boolean;
+    total?: boolean;
+}) => (
+    <Stack direction="row" justifyContent="space-between" alignItems="baseline" gap={2} sx={{ pt: total ? 1.5 : 0 }}>
+        <Typography
+            variant="body2"
+            color={total ? "text.primary" : "text.secondary"}
+            sx={{ fontWeight: total ? 700 : 400 }}
+        >
+            {label}
+        </Typography>
+        <Typography
+            variant="body2"
+            textAlign="right"
+            sx={{
+                fontWeight: total ? 700 : 500,
+                fontSize: total ? "1rem" : "0.875rem",
+                color: deduct ? "error.main" : "text.primary",
+                fontVariantNumeric: "tabular-nums",
+            }}
+        >
+            {value}
+        </Typography>
+    </Stack>
+);
+
 export const VendorSettlementBreakdown = ({
     allocatedQuantity,
     returnedQuantity,
@@ -239,6 +294,11 @@ export const VendorSettlementBreakdown = ({
     latePolicySnapshot,
     netCashDueFromVendor,
     netCashPayableToVendor,
+    faceValue,
+    vendorUnitPrice,
+    commissionRate,
+    depositRate,
+    depositHeld,
 }: {
     allocatedQuantity?: number | null;
     returnedQuantity?: number | null;
@@ -256,124 +316,161 @@ export const VendorSettlementBreakdown = ({
     latePolicySnapshot?: string | null;
     netCashDueFromVendor?: number | null;
     netCashPayableToVendor?: number | null;
+    faceValue?: number | null;
+    vendorUnitPrice?: number | null;
+    commissionRate?: number | null;
+    depositRate?: number | null;
+    depositHeld?: number | null;
 }) => {
-    // Show the net cash movement as the primary operational amount. The
-    // accounting accordion keeps the gross in/out values for reconciliation.
+    const [helpOpen, setHelpOpen] = useState(false);
     const netCashDue = netCashDueFromVendor ?? 0;
     const netCashToVendor = netCashPayableToVendor ?? 0;
-    // 0 sold + payable = deposit refund only — don't frame it as "paying the seller".
+    const sold = soldQuantity ?? 0;
+    const allocated = allocatedQuantity ?? 0;
+    const returned = returnedQuantity ?? 0;
+    const unit = vendorUnitPrice ?? 0;
+    const isForcePurchase = (forcedPurchaseAmount ?? 0) > 0;
+    const soldQtyForLine = isForcePurchase ? allocated : sold;
+    const vendorSoldAmount = isForcePurchase ? (forcedPurchaseAmount ?? 0) : unit * sold;
     const isDepositRefundOnly =
         netCashToVendor > 0
-        && (soldQuantity ?? 0) === 0
+        && sold === 0
         && (commissionPayable ?? 0) === 0
         && (depositRefundAmount ?? 0) > 0;
 
+    const headline = netCashDue > 0
+        ? { label: "Người bán còn phải trả", amount: netCashDue }
+        : isDepositRefundOnly
+            ? { label: "Hoàn cọc", amount: netCashToVendor }
+            : netCashToVendor > 0
+                ? { label: "Cần trả người bán", amount: netCashToVendor }
+                : { label: "Thanh toán", amount: 0 };
+
     return (
-        <Stack spacing={1}>
-            {netCashDue > 0 ? (
-                <DetailRow
-                    label="Người bán vé số cần nộp"
-                    value={formatCurrency(netCashDue)}
-                    valueColor="error.main"
-                />
-            ) : isDepositRefundOnly ? (
-                <DetailRow
-                    label="Hoàn lại tiền cọc"
-                    value={formatCurrency(netCashToVendor)}
-                    valueColor="success.main"
-                />
-            ) : netCashToVendor > 0 ? (
-                <DetailRow
-                    label="Cần trả người bán vé số"
-                    value={formatCurrency(netCashToVendor)}
-                    valueColor="success.main"
-                />
-            ) : (
-                <DetailRow label="Tiền mặt phát sinh" value="Không phát sinh" valueColor="text.secondary" />
-            )}
-            <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ py: 0.5 }}>
-                <Typography variant="body2" color="text.secondary">
-                    Đúng hạn / trễ
-                </Typography>
+        <Stack spacing={1.5}>
+            <Stack direction="row" justifyContent="space-between" alignItems="center">
                 {late == null ? (
-                    <Typography variant="body2">—</Typography>
+                    <Box />
                 ) : (
-                    <Chip
-                        size="small"
-                        label={late ? "Trễ hạn" : "Đúng hạn"}
-                        sx={timingBadgeSx(late)}
-                    />
+                    <Chip size="small" label={late ? "Trễ hạn" : "Đúng hạn"} sx={timingBadgeSx(late)} />
                 )}
+                <Tooltip title="Chi tiết cách tính">
+                    <IconButton size="small" aria-label="Chi tiết cách tính" onClick={() => setHelpOpen(true)}>
+                        <HelpOutlineIcon sx={{ fontSize: 18, color: "text.secondary" }} />
+                    </IconButton>
+                </Tooltip>
             </Stack>
 
-            <Accordion elevation={0} disableGutters variant="outlined" sx={{ '&:before': { display: 'none' }, mt: 1 }}>
-                <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={{ px: 2, minHeight: 40, '& .MuiAccordionSummary-content': { my: 0 } }}>
-                    <Typography variant="body2" fontWeight={600}>Chi tiết hạch toán (Dành cho đối soát)</Typography>
-                </AccordionSummary>
-                <AccordionDetails sx={{ px: 2, pt: 0, pb: 2 }}>
-                    <Stack spacing={1}>
-                        <DetailRow label="Tổng vé giao" value={String(allocatedQuantity ?? "—")} />
-                        <DetailRow label="Vé đã trả" value={String(returnedQuantity ?? "—")} />
-                        <DetailRow label="Vé được tính đã bán" value={String(soldQuantity ?? "—")} />
+            <Stack spacing={1}>
+                {(() => {
+                    const soldLine =
+                        soldQtyForLine > 0 && unit > 0
+                            ? `${soldQtyForLine} × ${formatCurrency(unit)}`
+                            : vendorSoldAmount > 0
+                                ? formatCurrency(vendorSoldAmount)
+                                : null;
+                    const soldLabel = isForcePurchase ? "Ép mua" : "Vé đã bán";
+                    const cọcHoàn = (depositRefundAmount ?? 0) > 0 ? (depositRefundAmount ?? 0) : 0;
+                    const cọcTrừ = (depositAppliedAmount ?? 0) > 0 ? (depositAppliedAmount ?? 0) : 0;
+                    const cọcHiện = cọcHoàn || cọcTrừ;
+                    const wePayVendor = netCashToVendor > 0;
 
-                        <DetailRow label="Tiền người bán vé số giao lại" value={formatCurrency(grossCashRemitted)} />
-                        <DetailRow label="Hoa hồng người bán vé số" value={formatCurrency(commissionPayable)} />
+                    if (wePayVendor) {
+                        return (
+                            <>
+                                {cọcHiện > 0 ? (
+                                    <ReceiptRow label="Cọc" value={formatCurrency(cọcHiện)} />
+                                ) : null}
+                                {soldLine ? (
+                                    <ReceiptRow label={soldLabel} value={`−${soldLine}`} deduct />
+                                ) : null}
+                                {(depositExcessRefundAmount ?? 0) > 0 ? (
+                                    <ReceiptRow label="Cọc dư" value={formatCurrency(depositExcessRefundAmount)} />
+                                ) : null}
+                            </>
+                        );
+                    }
 
+                    return (
+                        <>
+                            {soldLine ? <ReceiptRow label={soldLabel} value={soldLine} /> : null}
+                            {cọcHiện > 0 ? (
+                                <ReceiptRow label="Cọc" value={`−${formatCurrency(cọcHiện)}`} deduct />
+                            ) : null}
+                            {(depositExcessRefundAmount ?? 0) > 0 ? (
+                                <ReceiptRow label="Cọc dư hoàn" value={formatCurrency(depositExcessRefundAmount)} />
+                            ) : null}
+                        </>
+                    );
+                })()}
+
+                <ReceiptRow label={headline.label} value={formatCurrency(headline.amount)} total />
+            </Stack>
+
+            <AdminDialog
+                open={helpOpen}
+                title="Chi tiết cách tính"
+                onClose={() => setHelpOpen(false)}
+                actions={<Button variant="outlined" color="inherit" onClick={() => setHelpOpen(false)} label="Đóng" />}
+            >
+                <Stack spacing={1.25}>
+                    <DetailRow
+                        labelWeight={700}
+                        label="Vé giao / nhận trả / tính bán"
+                        value={`${allocated} / ${returned} / ${sold}`}
+                        description="Vé từ chối nhận trả hoặc không mang về được tính đã bán."
+                    />
+                    {unit > 0 ? (
                         <DetailRow
-                            label="Tiền công ty thực thu"
-                            value={formatCurrency(agencyNetSalesAmount)}
-                            valueColor={(agencyNetSalesAmount ?? 0) > 0 ? "text.primary" : "text.secondary"}
+                            labelWeight={700}
+                            label="Giá bán cho người bán vé số"
+                            value={`${formatCurrency(unit)}/tờ`}
+                            description={[
+                                faceValue != null ? `Mệnh giá ${formatCurrency(faceValue)}/tờ` : null,
+                                commissionRate != null ? `hoa hồng ${formatCommission(commissionRate)}` : null,
+                                "chốt lúc bàn giao (cấu hình Giá bán cho người bán vé số / Tỷ lệ hoa hồng).",
+                            ].filter(Boolean).join(" · ")}
                         />
-                        <DetailRow label="Cọc được hoàn" value={formatCurrency(depositRefundAmount)} />
-
-                        {(depositForfeitedAmount ?? 0) > 0 && (
-                            <DetailRow
-                                label="Cọc bị giữ"
-                                value={formatCurrency(depositForfeitedAmount)}
-                                valueColor="error.main"
-                            />
-                        )}
-                        {(depositAppliedAmount ?? 0) > 0 && (
-                            <DetailRow
-                                label="Cọc cấn trừ"
-                                value={formatCurrency(depositAppliedAmount)}
-                                valueColor="text.primary"
-                            />
-                        )}
-                        {(depositExcessRefundAmount ?? 0) > 0 && (
-                            <DetailRow
-                                label="Cọc dư hoàn lại"
-                                value={formatCurrency(depositExcessRefundAmount)}
-                                valueColor="text.primary"
-                            />
-                        )}
-                        {(forcedPurchaseAmount ?? 0) > 0 && (
-                            <DetailRow
-                                label="Giá trị force purchase"
-                                value={formatCurrency(forcedPurchaseAmount)}
-                                valueColor="error.main"
-                            />
-                        )}
-
-                        {(additionalAmountDue ?? 0) > 0 && (
-                            <DetailRow
-                                label="Khoản phải thu thêm"
-                                value={formatCurrency(additionalAmountDue)}
-                                valueColor="error.main"
-                            />
-                        )}
-
-                        {latePolicySnapshot && (
-                            <DetailRow label="Policy nếu trả trễ" value={latePolicyLabel(latePolicySnapshot)} />
-                        )}
-                    </Stack>
-                </AccordionDetails>
-            </Accordion>
+                    ) : null}
+                    {vendorSoldAmount > 0 ? (
+                        <DetailRow
+                            labelWeight={700}
+                            label={soldQtyForLine > 0 && unit > 0 ? `${soldQtyForLine} × ${formatCurrency(unit)}` : "Tiền theo giá người bán"}
+                            value={formatCurrency(vendorSoldAmount)}
+                            description={isForcePurchase
+                                ? `Policy trả trễ: ${latePolicyLabel(latePolicySnapshot)}. Tính mua toàn bộ tờ đã giao.`
+                                : "Người bán chịu theo giá vendor, không phải giá bán lẻ."}
+                        />
+                    ) : null}
+                    {(depositRefundAmount ?? 0) > 0 || (depositAppliedAmount ?? 0) > 0 ? (
+                        <DetailRow
+                            labelWeight={700}
+                            label="Tiền cọc đã thu khi giao"
+                            value={formatCurrency(depositHeld ?? depositRefundAmount ?? depositAppliedAmount)}
+                            description={[
+                                depositRate != null ? `Tỷ lệ cọc ${formatCommission(depositRate)}` : null,
+                                "cấu hình Tỷ lệ tiền cọc.",
+                                late ? "Trễ hạn nên không hoàn." : "Đúng hạn nên trừ vào số phải nộp.",
+                            ].filter(Boolean).join(" ")}
+                        />
+                    ) : null}
+                    {(depositForfeitedAmount ?? 0) > 0 ? (
+                        <DetailRow
+                            labelWeight={700}
+                            label="Cọc bị giữ"
+                            value={formatCurrency(depositForfeitedAmount)}
+                            description={`Policy trả trễ: ${latePolicyLabel(latePolicySnapshot)}.`}
+                        />
+                    ) : null}
+                    <Divider />
+                    <DetailRow labelWeight={700} label={headline.label} value={formatCurrency(headline.amount)} />
+                </Stack>
+            </AdminDialog>
         </Stack>
     );
 };
 
-export const mapPreviewToBreakdown = (preview: VendorSettlementPreview) => ({
+export const mapPreviewToBreakdown = (preview: VendorSettlementPreview, batch?: VendorAllocationBatch) => ({
     allocatedQuantity: preview.allocatedQuantity,
     returnedQuantity: preview.returnedQuantity,
     soldQuantity: preview.soldQuantity,
@@ -391,163 +488,144 @@ export const mapPreviewToBreakdown = (preview: VendorSettlementPreview) => ({
     latePolicySnapshot: preview.latePolicySnapshot,
     netCashDueFromVendor: preview.netCashDueFromVendor,
     netCashPayableToVendor: preview.netCashPayableToVendor,
+    faceValue: batch?.faceValueSnapshot,
+    vendorUnitPrice: batch?.vendorUnitPriceSnapshot,
+    commissionRate: preview.commissionRateSnapshot ?? batch?.commissionRateSnapshot,
+    depositRate: batch?.depositRateSnapshot,
+    depositHeld: batch?.depositReceivedAmount,
 });
 
-/**
- * Compact counter confirmation. The values are all server-calculated; this
- * component only explains the final movement in the order an operator checks
- * it, without duplicating the generic accounting breakdown.
- */
 export const VendorSettlementConfirmationSummary = ({
     preview,
+    batch,
 }: {
     preview: VendorSettlementPreview;
+    batch?: VendorAllocationBatch;
+}) => <VendorSettlementBreakdown {...mapPreviewToBreakdown(preview, batch)} />;
+
+const isReturnableSerial = (status?: string) =>
+    status === "HANDED_OVER" || status === "RETURN_PENDING_INSPECTION";
+
+const MONO = "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace";
+const ACTIVE_ROW_BG = "rgba(255, 48, 48, 0.06)";
+const ACTIVE_ROW_HOVER_BG = "rgba(255, 48, 48, 0.1)";
+const LUCKY_ROW_BG = "rgba(255, 171, 0, 0.08)";
+const checkboxSx = { p: 0.5, color: "#919EAB", "&.Mui-checked": { color: "#FF3030" } };
+const headCellSx = {
+    bgcolor: "#F4F6F8",
+    color: "text.secondary",
+    fontWeight: 700,
+    fontSize: "0.75rem",
+    whiteSpace: "nowrap" as const,
+    borderBottom: "1px solid #F4F6F8",
+};
+
+const UncontrolledSearchField = ({
+    placeholder,
+    onSearch,
+}: {
+    placeholder: string;
+    onSearch: (query: string) => void;
 }) => {
-    const isDue = preview.netCashDueFromVendor > 0;
-    const isPayable = preview.netCashPayableToVendor > 0;
-    const isDepositRefundOnly =
-        isPayable
-        && preview.soldQuantity === 0
-        && preview.commissionPayable === 0
-        && preview.depositRefundAmount > 0;
-    const commissionRateLabel =
-        preview.commissionRateSnapshot == null
-            ? ""
-            : ` (${(preview.commissionRateSnapshot * 100).toLocaleString("vi-VN", {
-                  maximumFractionDigits: 2,
-              })}%)`;
-    const timingRow = (
-        <Stack direction="row" justifyContent="space-between" alignItems="center">
-            <Typography variant="body2" color="text.secondary">
-                Đúng hạn / trễ
-            </Typography>
-            <Chip
-                size="small"
-                label={preview.late ? "Trễ hạn" : "Đúng hạn"}
-                sx={timingBadgeSx(preview.late)}
-            />
-        </Stack>
-    );
+    const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     return (
-        <Stack spacing={1.25} sx={{ pt: 1 }}>
-            {isDue ? (
+        <TextField
+            size="small"
+            fullWidth
+            defaultValue=""
+            placeholder={placeholder}
+            sx={fieldSx}
+            onChange={(e) => {
+                const value = e.target.value;
+                if (timerRef.current) clearTimeout(timerRef.current);
+                timerRef.current = setTimeout(() => onSearch(value), 200);
+            }}
+        />
+    );
+};
+
+const RejectReturnDialog = ({
+    serial,
+    initialReason,
+    onClose,
+    onConfirm,
+}: {
+    serial: VendorAllocationAllocatedSerial | null;
+    initialReason: string;
+    onClose: () => void;
+    onConfirm: (reason: string) => void;
+}) => {
+    const inputRef = useRef<HTMLInputElement | HTMLTextAreaElement | null>(null);
+    const [emptyError, setEmptyError] = useState(false);
+
+    const handleClose = () => {
+        setEmptyError(false);
+        onClose();
+    };
+
+    const handleConfirm = () => {
+        const reason = (inputRef.current?.value ?? "").trim();
+        if (!reason) {
+            setEmptyError(true);
+            inputRef.current?.focus();
+            return;
+        }
+        setEmptyError(false);
+        onConfirm(reason);
+    };
+
+    return (
+        <AdminDialog
+            open={Boolean(serial)}
+            title="Từ chối nhận trả"
+            onClose={handleClose}
+            actions={
                 <>
-                    <DetailRow
-                        label="Tiền hàng người bán vé số giao lại"
-                        value={formatCurrency(preview.grossCashRemitted)}
-                    />
-                    <DetailRow
-                        label={`Hoa hồng người bán vé số${commissionRateLabel}`}
-                        value={`−${formatCurrency(preview.commissionPayable)}`}
-                        valueColor="success.main"
-                    />
-                    {preview.depositRefundAmount > 0 && (
-                        <DetailRow
-                            label="Trừ cọc được hoàn lại"
-                            value={`−${formatCurrency(preview.depositRefundAmount)}`}
-                            valueColor="success.main"
-                        />
-                    )}
-                    {preview.depositForfeitedAmount > 0 && (
-                        <DetailRow
-                            label="Cọc bị giữ lại"
-                            value={formatCurrency(preview.depositForfeitedAmount)}
-                            valueColor="warning.main"
-                        />
-                    )}
-                    {(preview.depositAppliedAmount ?? 0) > 0 && (
-                        <DetailRow
-                            label="Cọc cấn trừ vào tiền phải nộp"
-                            value={`−${formatCurrency(preview.depositAppliedAmount)}`}
-                            valueColor="success.main"
-                        />
-                    )}
-                    {(preview.depositExcessRefundAmount ?? 0) > 0 && (
-                        <DetailRow
-                            label="Cọc dư hoàn lại"
-                            value={formatCurrency(preview.depositExcessRefundAmount)}
-                            valueColor="success.main"
-                        />
-                    )}
-                    {timingRow}
-                    <Divider />
-                    <DetailRow
-                        label="Tổng tiền cần nộp"
-                        value={formatCurrency(preview.netCashDueFromVendor)}
-                        valueColor="error.main"
-                    />
+                    <Button variant="outlined" color="inherit" onClick={handleClose} label="Hủy" />
+                    <Button color="error" label="Xác nhận từ chối" onClick={handleConfirm} />
                 </>
-            ) : isDepositRefundOnly ? (
-                <>
-                    <Typography variant="body2" color="text.secondary">
-                        Đã trả đủ vé · không phát sinh bán — hoàn lại toàn bộ tiền cọc đã thu.
-                    </Typography>
-                    <DetailRow
-                        label="Cọc được hoàn lại"
-                        value={formatCurrency(preview.depositRefundAmount)}
-                        valueColor="success.main"
+            }
+        >
+            <Stack spacing={2}>
+                {serial ? (
+                    <Box>
+                        <LuckyTicketNumber value={serial.ticketNumbers} fontSize="1rem" fontWeight={700} letterSpacing="0.04em" />
+                        <Typography variant="body2" color="text.secondary" sx={{ fontFamily: MONO, fontSize: "0.75rem" }}>
+                            {serial.serialNumber} · {serial.stationName}
+                        </Typography>
+                    </Box>
+                ) : null}
+                {serial ? (
+                    <TextField
+                        key={`${serial.serialId}-${initialReason}`}
+                        autoFocus
+                        fullWidth
+                        multiline
+                        minRows={3}
+                        label="Lý do từ chối"
+                        placeholder="Ví dụ: tờ rách, sai seri, không khớp số..."
+                        defaultValue={initialReason}
+                        inputRef={inputRef}
+                        error={emptyError}
+                        helperText={emptyError ? "Nhập lý do trước khi xác nhận." : undefined}
+                        onInput={() => {
+                            if (emptyError) setEmptyError(false);
+                        }}
+                        sx={fieldSx}
                     />
-                    {timingRow}
-                    <Divider />
-                    <DetailRow
-                        label="Tổng hoàn lại tiền cọc"
-                        value={formatCurrency(preview.netCashPayableToVendor)}
-                        valueColor="success.main"
-                    />
-                </>
-            ) : isPayable ? (
-                <>
-                    {preview.commissionPayable > 0 && (
-                        <DetailRow
-                            label={`Hoa hồng người bán vé số${commissionRateLabel}`}
-                            value={formatCurrency(preview.commissionPayable)}
-                            valueColor="success.main"
-                        />
-                    )}
-                    {preview.depositRefundAmount > 0 && (
-                        <DetailRow
-                            label="Cọc được hoàn lại"
-                            value={formatCurrency(preview.depositRefundAmount)}
-                            valueColor="success.main"
-                        />
-                    )}
-                    {(preview.depositExcessRefundAmount ?? 0) > 0 && (
-                        <DetailRow
-                            label="Cọc dư hoàn lại"
-                            value={formatCurrency(preview.depositExcessRefundAmount)}
-                            valueColor="success.main"
-                        />
-                    )}
-                    {timingRow}
-                    <Divider />
-                    <DetailRow
-                        label="Tổng tiền thực trả người bán vé số"
-                        value={formatCurrency(preview.netCashPayableToVendor)}
-                        valueColor="success.main"
-                    />
-                </>
-            ) : (
-                <>
-                    <Typography variant="body2" color="text.secondary">
-                        Không phát sinh tiền mặt.
-                    </Typography>
-                    {timingRow}
-                </>
-            )}
-        </Stack>
+                ) : null}
+            </Stack>
+        </AdminDialog>
     );
 };
 
 export const VendorBatchReturnEntrySection = ({
     batch,
     canEdit,
-    scanInput,
-    setScanInput,
     selectedSerialIds,
     setSelectedSerialIds,
     isSubmittingReturns,
-    onScanSubmit,
     onSubmitReturns,
     onSelectAllReturnable,
     canConfirmNoReturn,
@@ -555,26 +633,16 @@ export const VendorBatchReturnEntrySection = ({
 }: {
     batch: VendorAllocationBatch;
     canEdit: boolean;
-    scanInput: string;
-    setScanInput: (value: string) => void;
     selectedSerialIds: number[];
     setSelectedSerialIds: (ids: number[] | ((prev: number[]) => number[])) => void;
     isSubmittingReturns: boolean;
-    onScanSubmit: () => void;
     onSubmitReturns: () => void;
     onSelectAllReturnable: () => void;
     canConfirmNoReturn: boolean;
     onConfirmNoReturn: () => void;
 }) => {
     const [searchFilter, setSearchFilter] = useState("");
-    const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
-
-    const toggleGroup = (key: string) => {
-        setExpandedGroups((prev) => ({
-            ...prev,
-            [key]: !prev[key],
-        }));
-    };
+    const [activeGroupKey, setActiveGroupKey] = useState<string | null>(null);
 
     const groupedSerials = useMemo(() => {
         const query = searchFilter.toLowerCase().trim();
@@ -583,42 +651,46 @@ export const VendorBatchReturnEntrySection = ({
         (batch.serials || []).forEach((s) => {
             const matches =
                 !query ||
-                s.ticketNumbers.toLowerCase().includes(query) ||
-                s.serialNumber.toLowerCase().includes(query) ||
+                (s.ticketNumbers || "").toLowerCase().includes(query) ||
+                (s.serialNumber || "").toLowerCase().includes(query) ||
                 String(s.serialId).includes(query) ||
                 (s.allocationStatus && s.allocationStatus.toLowerCase().includes(query));
 
             if (!matches) return;
 
             const key = `${s.stationId}-${s.ticketNumbers}`;
-            if (!groups.has(key)) {
-                groups.set(key, []);
-            }
+            if (!groups.has(key)) groups.set(key, []);
             groups.get(key)!.push(s);
         });
 
         return Array.from(groups.entries()).map(([key, serials]) => {
             const first = serials[0];
+            const returnable = serials.filter((s) => isReturnableSerial(s.allocationStatus));
             return {
                 key,
-                stationId: first.stationId,
                 stationName: first.stationName,
                 ticketNumbers: first.ticketNumbers,
-                faceValue: first.faceValue,
                 isLucky: first.lucky,
-                luckyBadges: first.luckyBadges,
                 serials,
+                returnable,
             };
         });
     }, [batch.serials, searchFilter]);
 
     useEffect(() => {
-        if (!searchFilter.trim()) return;
-        setExpandedGroups(Object.fromEntries(groupedSerials.map((group) => [group.key, true])));
-    }, [groupedSerials, searchFilter]);
+        if (groupedSerials.length === 0) {
+            setActiveGroupKey(null);
+            return;
+        }
+        if (!activeGroupKey || !groupedSerials.some((g) => g.key === activeGroupKey)) {
+            setActiveGroupKey(groupedSerials[0].key);
+        }
+    }, [groupedSerials, activeGroupKey]);
+
+    const activeGroup = groupedSerials.find((g) => g.key === activeGroupKey) ?? groupedSerials[0] ?? null;
 
     const toggleSerial = (serial: VendorAllocationAllocatedSerial) => {
-        if (serial.allocationStatus !== "HANDED_OVER" && serial.allocationStatus !== "RETURN_PENDING_INSPECTION") return;
+        if (!canEdit || !isReturnableSerial(serial.allocationStatus)) return;
         setSelectedSerialIds((prev) =>
             prev.includes(serial.serialId)
                 ? prev.filter((id) => id !== serial.serialId)
@@ -626,258 +698,288 @@ export const VendorBatchReturnEntrySection = ({
         );
     };
 
-    const handedOverCount = (batch.serials || []).filter(
-        (serial) => serial.allocationStatus === "HANDED_OVER"
-    ).length;
+    const toggleGroup = (serials: VendorAllocationAllocatedSerial[]) => {
+        const returnable = serials.filter((s) => isReturnableSerial(s.allocationStatus));
+        if (returnable.length === 0) return;
+        const allSelected = returnable.every((s) => selectedSerialIds.includes(s.serialId));
+        setSelectedSerialIds((prev) => {
+            if (allSelected) {
+                const drop = new Set(returnable.map((s) => s.serialId));
+                return prev.filter((id) => !drop.has(id));
+            }
+            const next = new Set(prev);
+            returnable.forEach((s) => next.add(s.serialId));
+            return Array.from(next);
+        });
+    };
+
+    const handedOverCount = (batch.serials || []).filter((serial) => serial.allocationStatus === "HANDED_OVER").length;
     const pendingInspectionCount = (batch.serials || []).filter(
         (serial) => serial.allocationStatus === "RETURN_PENDING_INSPECTION"
     ).length;
     const returnableCount = handedOverCount + pendingInspectionCount;
+    const selectedCount = selectedSerialIds.length;
+    const activeReturnable = activeGroup?.returnable ?? [];
+    const activeSelected = activeReturnable.filter((s) => selectedSerialIds.includes(s.serialId)).length;
+    const allActiveChecked = activeReturnable.length > 0 && activeSelected === activeReturnable.length;
+    const someActiveChecked = activeSelected > 0 && !allActiveChecked;
 
     return (
-        <Stack spacing={1.5}>
-            {canEdit ? (
-                <>
-                    <Alert severity="info" sx={{ py: 0.5 }}>
-                        Chọn đầy đủ vé người bán trả. Bấm <strong>Tiếp tục kiểm nhận</strong> để lưu danh sách và sang bước chốt kết quả.
-                    </Alert>
-                    <TextField
-                        label="Nhập / quét serial"
-                        value={scanInput}
-                        onChange={(e) => setScanInput(e.target.value)}
-                        onKeyDown={(e) => {
-                            if (e.key === "Enter") {
-                                e.preventDefault();
-                                onScanSubmit();
-                            }
-                        }}
-                        helperText="Nhập serialNumber hoặc mã vé rồi Enter. Có thể chọn hoặc bỏ chọn vé đang giữ và vé chờ kiểm nhận."
-                        sx={fieldSx}
-                        fullWidth
-                        size="small"
+        <Stack spacing={2}>
+            <Stack
+                direction={{ xs: "column", md: "row" }}
+                spacing={1.5}
+                alignItems={{ md: "center" }}
+                justifyContent="space-between"
+            >
+                <Box>
+                    <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+                        Chọn tờ người bán mang trả
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                        Chọn số vé bên trái, tick serial bên phải.
+                    </Typography>
+                </Box>
+                {!canEdit ? (
+                    <AdminStatusBadge
+                        label={`Đã chọn ${selectedCount}/${returnableCount} tờ`}
+                        modifier={selectedCount > 0 ? "admin-status-badge--pending" : "admin-status-badge--draft"}
                     />
-                    <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-                        <Button
-                            size="small"
-                            variant="outlined"
-                            onClick={onSelectAllReturnable}
-                            disabled={!(batch.serials || []).some(s => s.allocationStatus === "HANDED_OVER" || s.allocationStatus === "RETURN_PENDING_INSPECTION")}
-                        >
-                            Chọn tất cả
+                ) : null}
+            </Stack>
+
+            {canEdit ? (
+                <Stack direction={{ xs: "column", sm: "row" }} spacing={1} alignItems={{ sm: "center" }}>
+                    <UncontrolledSearchField
+                        placeholder="Tìm số vé hoặc serial..."
+                        onSearch={setSearchFilter}
+                    />
+                    <Stack direction="row" spacing={1} flexShrink={0}>
+                        <Button size="small" variant="outlined" onClick={onSelectAllReturnable} disabled={returnableCount === 0}>
+                            Chọn hết
                         </Button>
-                        <Button
-                            size="small"
-                            variant="outlined"
-                            disabled={selectedSerialIds.length === 0}
-                            onClick={() => setSelectedSerialIds([])}
-                        >
+                        <Button size="small" variant="outlined" disabled={selectedCount === 0} onClick={() => setSelectedSerialIds([])}>
                             Bỏ chọn
                         </Button>
                     </Stack>
-                </>
+                </Stack>
             ) : (
                 <Alert severity="info" sx={{ py: 0.5 }}>
                     Bạn chỉ có quyền xem — không thể gửi trả vé.
                 </Alert>
             )}
 
-            <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ pt: 1 }}>
-                <Typography variant="subtitle2">
-                    Serial ({batch.serials?.length || 0})
-                </Typography>
-            </Stack>
-
-            <TextField
-                size="small"
-                fullWidth
-                placeholder="Lọc số vé, serial, trạng thái..."
-                value={searchFilter}
-                onChange={(e) => setSearchFilter(e.target.value)}
-                sx={fieldSx}
-            />
-            <Stack spacing={2} sx={{ mt: 2 }}>
-                {groupedSerials.map((group) => {
-                    const isExpanded = expandedGroups[group.key];
-                    const pendingCount = group.serials.filter((s) => s.allocationStatus === "RETURN_PENDING_INSPECTION").length;
-                    const returnedCount = group.serials.filter((s) => s.allocationStatus === "RETURNED").length;
-                    const handedOverCount = group.serials.filter((s) => s.allocationStatus === "HANDED_OVER").length;
-                    const soldCount = group.serials.filter((s) => s.allocationStatus === "SOLD").length;
-                    const rejectedCount = group.serials.filter((s) => s.allocationStatus === "RETURN_REJECTED").length;
-
-                    return (
-                        <Box key={group.key} sx={{ border: "1px solid", borderColor: "divider", borderRadius: 2, p: 2 }}>
-                            <Stack direction={{ xs: "column", sm: "row" }} spacing={3} alignItems="flex-start">
-                                <AdminTicketCard
-                                    ticketNumbers={group.ticketNumbers}
-                                    stationName={group.stationName}
-                                    faceValue={group.faceValue}
-                                    quantity={group.serials.length}
-                                    isLucky={group.isLucky}
-                                    luckyBadges={group.luckyBadges}
-                                    onClickAction={() => toggleGroup(group.key)}
-                                    actionLabel={isExpanded ? "Ẩn serial" : "Chọn serial"}
-                                />
-
-                                <Stack spacing={1} sx={{ pt: 1, flex: 1 }}>
-                                    {canEdit && (
-                                        <Typography variant="caption" color="text.secondary">
-                                            Bấm “Chọn serial” để tick từng tờ; có thể lọc serial ở ô tìm kiếm bên dưới.
-                                        </Typography>
-                                    )}
-                                    <Typography variant="body2" color="text.secondary">Trạng thái vé trong nhóm:</Typography>
-                                    <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-                                        {handedOverCount > 0 && <Chip label={`${handedOverCount} đang giữ`} size="small" color="default" />}
-                                        {pendingCount > 0 && <Chip label={`${pendingCount} chờ kiểm`} size="small" color="warning" />}
-                                        {returnedCount > 0 && <Chip label={`${returnedCount} đã trả`} size="small" color="success" />}
-                                        {soldCount > 0 && <Chip label={`${soldCount} đã bán`} size="small" color="info" variant="outlined" />}
-                                        {rejectedCount > 0 && <Chip label={`${rejectedCount} bị từ chối`} size="small" color="error" variant="outlined" />}
-                                        {handedOverCount === 0 && pendingCount === 0 && returnedCount === 0 && soldCount === 0 && rejectedCount === 0 && (
-                                            <Chip label="Không có serial hoạt động" size="small" color="default" variant="outlined" />
-                                        )}
-                                    </Stack>
-                                </Stack>
-                            </Stack>
-
-                            {isExpanded && (
-                                <Box sx={{ mt: 3, mx: -2, borderTop: "1px solid", borderColor: "divider" }}>
-                                    <TableContainer>
-                                        <Table size="small">
-                                            <TableHead>
-                                                <TableRow>
-                                                    {canEdit && (
-                                                        <TableCell padding="checkbox" />
-                                                    )}
-                                                    <TableCell>Serial</TableCell>
-                                                    <TableCell>Trạng thái</TableCell>
-                                                </TableRow>
-                                            </TableHead>
-                                            <TableBody>
-                                                {group.serials.map((s) => {
-                                                    const selectable = s.allocationStatus === "HANDED_OVER" || s.allocationStatus === "RETURN_PENDING_INSPECTION";
-                                                    const pendingSelected = selectedSerialIds.includes(s.serialId);
-                                                    const returned = s.allocationStatus === "RETURNED";
-                                                    const pendingInspection = s.allocationStatus === "RETURN_PENDING_INSPECTION";
-                                                    const rejected = s.allocationStatus === "RETURN_REJECTED";
-
-                                                    return (
-                                                        <TableRow
-                                                            key={s.serialId}
-                                                            hover={canEdit && selectable}
-                                                            selected={pendingSelected}
-                                                            onClick={() => canEdit && toggleSerial(s)}
-                                                            sx={{
-                                                                cursor: canEdit && selectable ? "pointer" : "default",
-                                                                opacity: !selectable && !returned && !pendingInspection && !rejected ? 0.55 : 1,
-                                                            }}
-                                                        >
-                                                            {canEdit && (
-                                                                <TableCell padding="checkbox" sx={{ pl: 3 }}>
-                                                                    <Checkbox
-                                                                        size="small"
-                                                                        checked={pendingSelected}
-                                                                        disabled={!selectable}
-                                                                        inputProps={{
-                                                                            "aria-label": `Chọn serial ${s.serialNumber}`,
-                                                                        }}
-                                                                        onChange={() => toggleSerial(s)}
-                                                                        onClick={(e) => e.stopPropagation()}
-                                                                    />
-                                                                </TableCell>
-                                                            )}
-                                                            <TableCell sx={{ pl: canEdit ? undefined : 3, fontFamily: "monospace" }}>
-                                                                {s.serialNumber}
-                                                            </TableCell>
-                                                            <TableCell>
-                                                                <Stack spacing={0.25}>
-                                                                    <Chip
-                                                                        size="small"
-                                                                        label={
-                                                                            returned ? "Đã trả"
-                                                                                : pendingInspection ? "Chờ kiểm nhận"
-                                                                                : rejected ? "Từ chối nhận"
-                                                                                : pendingSelected ? "Chờ gửi trả"
-                                                                                : s.allocationStatus === "HANDED_OVER" ? "Đang giữ"
-                                                                                : s.allocationStatus === "SOLD" ? "Đã bán"
-                                                                                : s.allocationStatus
-                                                                        }
-                                                                        color={
-                                                                            returned ? "success"
-                                                                                : rejected ? "error"
-                                                                                : pendingSelected ? "warning"
-                                                                                : "default"
-                                                                        }
-                                                                        variant="outlined"
-                                                                        sx={{ width: 'fit-content' }}
-                                                                    />
-                                                                    {s.returnedAt && (
-                                                                        <Typography variant="caption" color="text.secondary">
-                                                                            {formatDateTime(s.returnedAt)}
-                                                                        </Typography>
-                                                                    )}
-                                                                    {rejected && s.returnRejectionReason && (
-                                                                        <Typography variant="caption" color="error.main">
-                                                                            {s.returnRejectionReason}
-                                                                        </Typography>
-                                                                    )}
-                                                                </Stack>
-                                                            </TableCell>
-                                                        </TableRow>
-                                                    );
-                                                })}
-                                            </TableBody>
-                                        </Table>
-                                    </TableContainer>
-                                </Box>
+            <Box
+                sx={{
+                    display: "flex",
+                    flexDirection: { xs: "column", md: "row" },
+                    border: "1px solid #F4F6F8",
+                    borderRadius: "16px",
+                    overflow: "hidden",
+                    minHeight: { md: 420 },
+                }}
+            >
+                <TableContainer sx={{ flex: 1, minWidth: 0, maxHeight: { md: 520 } }}>
+                    <Table stickyHeader size="small" sx={{ "--TableCell-stickyHeader-background": "#F4F6F8" }}>
+                        <TableHead>
+                            <TableRow>
+                                <TableCell sx={headCellSx}>Số vé</TableCell>
+                                <TableCell sx={headCellSx}>Đài</TableCell>
+                                <TableCell align="center" sx={headCellSx}>Đã chọn</TableCell>
+                                <TableCell align="center" sx={headCellSx}>Có thể trả</TableCell>
+                                <TableCell sx={{ ...headCellSx, width: 40 }} />
+                            </TableRow>
+                        </TableHead>
+                        <TableBody>
+                            {groupedSerials.length === 0 && (
+                                <TableRow>
+                                    <TableCell colSpan={5} sx={{ py: 6, textAlign: "center", color: "text.secondary" }}>
+                                        Không tìm thấy số vé khớp.
+                                    </TableCell>
+                                </TableRow>
                             )}
-                        </Box>
-                    );
-                })}
-                {groupedSerials.length === 0 && (
-                    <Typography variant="body2" color="text.secondary" sx={{ py: 2, textAlign: "center" }}>
-                        Không tìm thấy serial phù hợp.
-                    </Typography>
-                )}
-            </Stack>
+                            {groupedSerials.map((group, index) => {
+                                const selectedInGroup = group.returnable.filter((s) =>
+                                    selectedSerialIds.includes(s.serialId)
+                                ).length;
+                                const isActive = activeGroup?.key === group.key;
 
-            {canEdit && (
+                                return (
+                                    <TableRow
+                                        key={group.key}
+                                        onClick={() => setActiveGroupKey(group.key)}
+                                        sx={{
+                                            cursor: "pointer",
+                                            bgcolor: isActive
+                                                ? ACTIVE_ROW_BG
+                                                : group.isLucky
+                                                  ? LUCKY_ROW_BG
+                                                  : index % 2 === 0
+                                                    ? "#F9FAFB"
+                                                    : "#FFFFFF",
+                                            boxShadow: isActive ? "inset 3px 0 0 #FF3030" : "none",
+                                            "&:hover": {
+                                                bgcolor: isActive ? `${ACTIVE_ROW_HOVER_BG} !important` : "#F4F6F8 !important",
+                                            },
+                                            "& td": { borderBottom: "1px dashed #F4F6F8" },
+                                        }}
+                                    >
+                                        <TableCell>
+                                            <LuckyTicketNumber value={group.ticketNumbers} />
+                                            {group.isLucky ? (
+                                                <Typography variant="caption" sx={{ color: "#B76E00", fontWeight: 700 }}>
+                                                    Số đẹp
+                                                </Typography>
+                                            ) : null}
+                                        </TableCell>
+                                        <TableCell>
+                                            <Typography variant="body2" noWrap title={group.stationName} sx={{ maxWidth: 140 }}>
+                                                {group.stationName}
+                                            </Typography>
+                                        </TableCell>
+                                        <TableCell align="center">
+                                            <Typography variant="body2" sx={{ fontWeight: 700 }}>
+                                                {selectedInGroup}
+                                            </Typography>
+                                        </TableCell>
+                                        <TableCell align="center">
+                                            <Typography variant="body2" color="text.secondary">
+                                                {group.returnable.length}
+                                            </Typography>
+                                        </TableCell>
+                                        <TableCell align="right" sx={{ pr: 1.5 }}>
+                                            <ChevronRightIcon sx={{ fontSize: 20, color: isActive ? "#FF3030" : "#919EAB" }} />
+                                        </TableCell>
+                                    </TableRow>
+                                );
+                            })}
+                        </TableBody>
+                    </Table>
+                </TableContainer>
+
                 <Box
-                    sx={(theme) => ({
-                        position: "sticky",
-                        bottom: { xs: 8, md: 16 },
-                        zIndex: theme.zIndex.appBar - 1,
-                        mx: { xs: -1, md: -2 },
-                        mb: { xs: -1, md: -2 },
-                        px: { xs: 1, md: 2 },
-                        pt: 1,
-                        pb: "calc(8px + env(safe-area-inset-bottom))",
-                        backgroundColor: "rgba(255, 255, 255, 0.94)",
-                        borderTop: "1px solid",
-                        borderColor: "divider",
-                        boxShadow: "0 -6px 16px rgba(15, 23, 42, 0.08)",
-                        backdropFilter: "blur(8px)",
-                    })}
+                    sx={{
+                        width: { xs: "100%", md: 320 },
+                        flexShrink: 0,
+                        borderLeft: { md: "1px solid #F4F6F8" },
+                        borderTop: { xs: "1px solid #F4F6F8", md: "none" },
+                        display: "flex",
+                        flexDirection: "column",
+                        minHeight: { xs: 240, md: 0 },
+                        bgcolor: "#FAFBFC",
+                    }}
                 >
-                    {returnableCount > 0 && (
+                    {activeGroup ? (
+                        <>
+                            <Box sx={{ px: 2, py: 2, borderBottom: "1px solid #F4F6F8", flexShrink: 0 }}>
+                                <LuckyTicketNumber value={activeGroup.ticketNumbers} fontSize="1rem" />
+                                <Typography variant="caption" color="text.secondary">
+                                    Đã chọn {activeSelected} / {activeReturnable.length} seri
+                                </Typography>
+                            </Box>
+                            <Box sx={{ flex: 1, overflow: "auto", px: 1.5, py: 1, maxHeight: { md: 440 } }}>
+                                {canEdit && activeReturnable.length > 0 ? (
+                                    <FormControlLabel
+                                        control={
+                                            <Checkbox
+                                                checked={allActiveChecked}
+                                                indeterminate={someActiveChecked}
+                                                onChange={() => toggleGroup(activeGroup.serials)}
+                                                sx={checkboxSx}
+                                            />
+                                        }
+                                        label={
+                                            <Typography sx={{ fontSize: "0.8125rem", fontWeight: 700 }}>
+                                                Chọn tất cả
+                                            </Typography>
+                                        }
+                                        sx={{
+                                            m: 0,
+                                            mb: 0.75,
+                                            width: "100%",
+                                            px: 0.75,
+                                            py: 0.5,
+                                            borderRadius: 1,
+                                            bgcolor: allActiveChecked ? ACTIVE_ROW_BG : "transparent",
+                                        }}
+                                    />
+                                ) : null}
+                                {activeGroup.serials.map((serial) => {
+                                    const isPicked = selectedSerialIds.includes(serial.serialId);
+                                    const selectable = canEdit && isReturnableSerial(serial.allocationStatus);
+
+                                    return (
+                                        <FormControlLabel
+                                            key={serial.serialId}
+                                            disabled={!selectable}
+                                            control={
+                                                <Checkbox
+                                                    checked={isPicked}
+                                                    onChange={() => toggleSerial(serial)}
+                                                    sx={checkboxSx}
+                                                />
+                                            }
+                                            label={
+                                                <Typography
+                                                    sx={{
+                                                        fontFamily: MONO,
+                                                        fontSize: "0.75rem",
+                                                        fontWeight: 400,
+                                                        lineHeight: 1.4,
+                                                        wordBreak: "break-all",
+                                                    }}
+                                                >
+                                                    {serial.serialNumber}
+                                                </Typography>
+                                            }
+                                            sx={{
+                                                m: 0,
+                                                mb: 0.25,
+                                                width: "100%",
+                                                px: 0.75,
+                                                py: 0.5,
+                                                borderRadius: 1,
+                                                opacity: selectable || isPicked ? 1 : 0.5,
+                                                bgcolor: isPicked ? ACTIVE_ROW_BG : "transparent",
+                                                alignItems: "center",
+                                                "& .MuiFormControlLabel-label": { flex: 1, minWidth: 0, mt: 0 },
+                                                "&:hover": selectable
+                                                    ? { bgcolor: isPicked ? ACTIVE_ROW_HOVER_BG : "rgba(145, 158, 171, 0.08)" }
+                                                    : undefined,
+                                            }}
+                                        />
+                                    );
+                                })}
+                            </Box>
+                        </>
+                    ) : (
+                        <Box sx={{ p: 3, textAlign: "center", color: "text.secondary" }}>
+                            <Typography variant="body2">Chọn một số vé bên trái để xem seri.</Typography>
+                        </Box>
+                    )}
+                </Box>
+            </Box>
+
+            {canEdit && (selectedCount > 0 || canConfirmNoReturn) ? (
+                <Stack direction="row" justifyContent="flex-end">
+                    {selectedCount > 0 ? (
                         <Button
-                            fullWidth
                             loading={isSubmittingReturns}
-                            label={`Tiếp tục kiểm nhận (${selectedSerialIds.length})`}
+                            label={`Tiếp tục kiểm nhận (${selectedCount})`}
                             loadingLabel="Đang lưu..."
                             onClick={onSubmitReturns}
                         />
-                    )}
-                    {canConfirmNoReturn && (
+                    ) : (
                         <Button
-                            fullWidth
                             variant="outlined"
                             color="warning"
                             loading={isSubmittingReturns}
-                            label="Xác nhận không có vé trả"
+                            label="Không có vé trả"
                             onClick={onConfirmNoReturn}
                         />
                     )}
-                </Box>
-            )}
+                </Stack>
+            ) : null}
         </Stack>
     );
 };
@@ -890,6 +992,8 @@ export const VendorBatchSettlementSection = ({
     isFetchingPreview,
     previewErrorMessage,
     isSettling,
+    canReopenInspection,
+    onReopenInspection,
     onEnablePreview,
     onSettle,
 }: {
@@ -900,6 +1004,8 @@ export const VendorBatchSettlementSection = ({
     isFetchingPreview: boolean;
     previewErrorMessage?: string | null;
     isSettling: boolean;
+    canReopenInspection?: boolean;
+    onReopenInspection?: () => void;
     onEnablePreview: () => void;
     onSettle: () => void;
 }) => {
@@ -910,6 +1016,24 @@ export const VendorBatchSettlementSection = ({
     const previewReady = Boolean(settlementPreview && !isLoadingPreview && !isFetchingPreview);
     const previewLoading = previewEnabled && !previewReady && (isLoadingPreview || isFetchingPreview);
 
+    const settledNet = (() => {
+        const forced = batch.forcedPurchaseAmount ?? 0;
+        if (forced > 0) {
+            return {
+                netCashDueFromVendor: batch.additionalAmountDue ?? 0,
+                netCashPayableToVendor: batch.depositExcessRefundAmount ?? 0,
+            };
+        }
+        const gross = batch.grossCashRemitted ?? 0;
+        const commission = batch.commissionPayable ?? 0;
+        const refund = batch.depositRefundAmount ?? 0;
+        const excess = batch.depositExcessRefundAmount ?? 0;
+        const net = gross - commission - refund - excess;
+        return net >= 0
+            ? { netCashDueFromVendor: net, netCashPayableToVendor: 0 }
+            : { netCashDueFromVendor: 0, netCashPayableToVendor: Math.abs(net) };
+    })();
+
     return (
         <Stack spacing={2}>
             {previewErrorMessage && <Alert severity="error">{previewErrorMessage}</Alert>}
@@ -917,7 +1041,7 @@ export const VendorBatchSettlementSection = ({
             {previewLoading ? (
                 <Typography color="text.secondary">Đang tải số liệu quyết toán...</Typography>
             ) : settlementPreview && !isSettled ? (
-                <VendorSettlementBreakdown {...mapPreviewToBreakdown(settlementPreview)} />
+                <VendorSettlementBreakdown {...mapPreviewToBreakdown(settlementPreview, batch)} />
             ) : isSettled ? (
                 <VendorSettlementBreakdown
                     allocatedQuantity={batch.allocatedQuantity}
@@ -928,36 +1052,36 @@ export const VendorBatchSettlementSection = ({
                     agencyNetSalesAmount={batch.agencyNetSalesAmount}
                     depositRefundAmount={batch.depositRefundAmount}
                     depositForfeitedAmount={batch.depositForfeitedAmount}
+                    depositAppliedAmount={batch.depositAppliedAmount}
+                    depositExcessRefundAmount={batch.depositExcessRefundAmount}
                     forcedPurchaseAmount={batch.forcedPurchaseAmount}
                     additionalAmountDue={batch.additionalAmountDue}
                     late={batch.status === "LATE_SETTLED"}
                     latePolicySnapshot={batch.latePolicySnapshot}
+                    faceValue={batch.faceValueSnapshot}
+                    vendorUnitPrice={batch.vendorUnitPriceSnapshot}
+                    commissionRate={batch.commissionRateSnapshot}
+                    depositRate={batch.depositRateSnapshot}
+                    depositHeld={batch.depositReceivedAmount}
+                    {...settledNet}
                 />
             ) : (
                 <Typography color="text.secondary">Chưa có dữ liệu quyết toán.</Typography>
             )}
 
             {!isSettled && (
-                <Box
-                    sx={(theme) => ({
-                        position: "sticky",
-                        bottom: { xs: 8, md: 16 },
-                        zIndex: theme.zIndex.appBar - 1,
-                        mx: { xs: -1, md: -2 },
-                        mb: { xs: -1, md: -2 },
-                        px: { xs: 1, md: 2 },
-                        pt: 1,
-                        pb: "calc(8px + env(safe-area-inset-bottom))",
-                        backgroundColor: "rgba(255, 255, 255, 0.94)",
-                        borderTop: "1px solid",
-                        borderColor: "divider",
-                        boxShadow: "0 -6px 16px rgba(15, 23, 42, 0.08)",
-                        backdropFilter: "blur(8px)",
-                    })}
-                >
+                <Stack direction="row" justifyContent="flex-end" spacing={1} flexWrap="wrap" useFlexGap>
+                    {canReopenInspection ? (
+                        <Button
+                            size="small"
+                            variant="outlined"
+                            color="warning"
+                            label="Mở lại kiểm nhận"
+                            onClick={onReopenInspection}
+                        />
+                    ) : null}
                     {canSettle && previewReady ? (
                         <Button
-                            fullWidth
                             loading={isSettling}
                             label="Xác nhận quyết toán"
                             loadingLabel="Đang quyết toán..."
@@ -965,14 +1089,13 @@ export const VendorBatchSettlementSection = ({
                         />
                     ) : (
                         <Button
-                            fullWidth
                             loading={previewLoading}
                             label="Tính lại quyết toán"
                             loadingLabel="Đang tính..."
                             onClick={onEnablePreview}
                         />
                     )}
-                </Box>
+                </Stack>
             )}
         </Stack>
     );
@@ -996,90 +1119,190 @@ export const VendorBatchInspectionSection = ({
     isConfirmingInspection: boolean;
     onConfirmInspection: () => void;
 }) => {
-    const stagedSerials = (batch.serials || []).filter(s => s.allocationStatus === "RETURN_PENDING_INSPECTION");
-    const unreturnedCount = batch.returnWorkflow?.unreturnedQuantity || 0;
+    const stagedSerials = (batch.serials || []).filter((s) => s.allocationStatus === "RETURN_PENDING_INSPECTION");
     const canConfirm = batch.returnWorkflow?.canConfirmInspection ?? false;
+    const rejectedCount = rejectedInspectionSerialIds.length;
+    const acceptedCount = Math.max(0, stagedSerials.length - rejectedCount);
 
-    const toggleReject = (id: number) => {
-        setRejectedInspectionSerialIds(prev =>
-            prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+    const [rejectTarget, setRejectTarget] = useState<VendorAllocationAllocatedSerial | null>(null);
+
+    const openRejectDialog = (serial: VendorAllocationAllocatedSerial) => {
+        setRejectTarget(serial);
+    };
+
+    const closeRejectDialog = () => {
+        setRejectTarget(null);
+    };
+
+    const confirmReject = (reason: string) => {
+        if (!rejectTarget) return;
+        setRejectedInspectionSerialIds((prev) =>
+            prev.includes(rejectTarget.serialId) ? prev : [...prev, rejectTarget.serialId]
         );
+        setInspectionNotes((prev) => ({ ...prev, [rejectTarget.serialId]: reason }));
+        closeRejectDialog();
+    };
+
+    const acceptAgain = (serialId: number) => {
+        setRejectedInspectionSerialIds((prev) => prev.filter((id) => id !== serialId));
+        setInspectionNotes((prev) => {
+            const next = { ...prev };
+            delete next[serialId];
+            return next;
+        });
     };
 
     return (
         <Stack spacing={2}>
+            <Stack direction={{ xs: "column", sm: "row" }} spacing={1} alignItems={{ sm: "center" }} justifyContent="space-between">
+                <Typography variant="body2" color="text.secondary">
+                    Mặc định mọi tờ đều <strong>chấp nhận trả</strong>. Chỉ bấm <strong>Từ chối trả</strong> khi tờ không nhận được.
+                </Typography>
+                <Stack direction="row" spacing={0.75}>
+                    <AdminStatusBadge
+                        label={`${acceptedCount} chấp nhận`}
+                        modifier="admin-status-badge--success"
+                    />
+                    <AdminStatusBadge
+                        label={`${rejectedCount} từ chối`}
+                        modifier={rejectedCount > 0 ? "admin-status-badge--inactive" : "admin-status-badge--draft"}
+                    />
+                </Stack>
+            </Stack>
 
-
-            <Typography variant="body2" color="text.secondary">
-                Tick chọn vé nếu muốn <strong>từ chối nhận trả</strong>. Vé không bị tick sẽ được ngầm hiểu là <strong>chấp nhận</strong>.
-            </Typography>
-
-            <TableContainer sx={{ border: "1px solid", borderColor: "divider", borderRadius: 1 }}>
+            <TableContainer
+                sx={{
+                    border: "1px solid #F4F6F8",
+                    borderRadius: "16px",
+                    overflow: "hidden",
+                }}
+            >
                 <Table size="small">
                     <TableHead>
                         <TableRow>
-                            {canConfirm && <TableCell padding="checkbox" />}
-                            <TableCell>Serial</TableCell>
-                            <TableCell>Trạng thái</TableCell>
+                            <TableCell sx={headCellSx}>Số vé</TableCell>
+                            <TableCell sx={headCellSx}>Seri</TableCell>
+                            <TableCell sx={headCellSx}>Đài</TableCell>
+                            <TableCell sx={headCellSx} align="center">Trạng thái</TableCell>
+                            <TableCell sx={headCellSx}>Lý do</TableCell>
+                            {canConfirm ? <TableCell sx={headCellSx} align="center">Thao tác</TableCell> : null}
                         </TableRow>
                     </TableHead>
                     <TableBody>
-                        {stagedSerials.map(s => {
+                        {stagedSerials.map((s, index) => {
                             const isRejected = rejectedInspectionSerialIds.includes(s.serialId);
+                            const reason = (inspectionNotes[s.serialId] || "").trim();
+
                             return (
-                                <TableRow key={s.serialId} hover={canConfirm} selected={isRejected}>
-                                    {canConfirm && (
-                                        <TableCell padding="checkbox">
-                                            <Checkbox
-                                                size="small"
-                                                color="error"
-                                                checked={isRejected}
-                                                onChange={() => toggleReject(s.serialId)}
-                                            />
-                                        </TableCell>
-                                    )}
-                                    <TableCell sx={{ fontFamily: "monospace", pl: canConfirm ? undefined : 2 }}>
-                                        {s.serialNumber}
+                                <TableRow
+                                    key={s.serialId}
+                                    sx={{
+                                        bgcolor: isRejected
+                                            ? "rgba(255, 86, 48, 0.04)"
+                                            : index % 2 === 0
+                                              ? "#F9FAFB"
+                                              : "#FFFFFF",
+                                        "& td": { borderBottom: "1px dashed #F4F6F8", py: 1.25 },
+                                    }}
+                                >
+                                    <TableCell>
+                                        <LuckyTicketNumber value={s.ticketNumbers} fontSize="0.875rem" fontWeight={700} letterSpacing="0.04em" />
                                     </TableCell>
                                     <TableCell>
+                                        <Typography sx={{ fontFamily: MONO, fontSize: "0.75rem", fontWeight: 400 }}>
+                                            {s.serialNumber}
+                                        </Typography>
+                                    </TableCell>
+                                    <TableCell>
+                                        <Typography variant="body2" noWrap title={s.stationName} sx={{ maxWidth: 140 }}>
+                                            {s.stationName}
+                                        </Typography>
+                                    </TableCell>
+                                    <TableCell align="center">
                                         {isRejected ? (
-                                            <TextField
-                                                size="small"
-                                                placeholder="Lý do từ chối (Bắt buộc)..."
-                                                fullWidth
-                                                value={inspectionNotes[s.serialId] || ""}
-                                                onChange={(e) => setInspectionNotes(prev => ({ ...prev, [s.serialId]: e.target.value }))}
-                                                sx={fieldSx}
-                                            />
+                                            <AdminStatusBadge label="Từ chối" modifier="admin-status-badge--inactive" />
                                         ) : (
-                                            <Typography variant="body2" color="success.main">Chấp nhận trả</Typography>
+                                            <AdminStatusBadge label="Chấp nhận trả" modifier="admin-status-badge--success" />
                                         )}
                                     </TableCell>
+                                    <TableCell sx={{ maxWidth: 220 }}>
+                                        <Typography variant="body2" color={reason ? "text.primary" : "text.secondary"} noWrap title={reason || undefined}>
+                                            {reason || "—"}
+                                        </Typography>
+                                    </TableCell>
+                                    {canConfirm ? (
+                                        <TableCell align="center" sx={{ width: 88, px: 0.5 }}>
+                                            <Stack direction="row" spacing={0.25} justifyContent="center">
+                                                {isRejected ? (
+                                                    <>
+                                                        <Tooltip title="Sửa lý do">
+                                                            <IconButton
+                                                                size="small"
+                                                                aria-label="Sửa lý do"
+                                                                onClick={() => openRejectDialog(s)}
+                                                                sx={{ color: "text.secondary" }}
+                                                            >
+                                                                <EditOutlinedIcon fontSize="small" />
+                                                            </IconButton>
+                                                        </Tooltip>
+                                                        <Tooltip title="Chấp nhận lại">
+                                                            <IconButton
+                                                                size="small"
+                                                                aria-label="Chấp nhận lại"
+                                                                onClick={() => acceptAgain(s.serialId)}
+                                                                sx={{ color: "#22C55E" }}
+                                                            >
+                                                                <CheckCircleOutlineIcon fontSize="small" />
+                                                            </IconButton>
+                                                        </Tooltip>
+                                                    </>
+                                                ) : (
+                                                    <Tooltip title="Từ chối trả">
+                                                        <IconButton
+                                                            size="small"
+                                                            aria-label="Từ chối trả"
+                                                            onClick={() => openRejectDialog(s)}
+                                                            sx={{ color: "#FF5630" }}
+                                                        >
+                                                            <HighlightOffIcon fontSize="small" />
+                                                        </IconButton>
+                                                    </Tooltip>
+                                                )}
+                                            </Stack>
+                                        </TableCell>
+                                    ) : null}
                                 </TableRow>
                             );
                         })}
                         {stagedSerials.length === 0 && (
                             <TableRow>
-                                <TableCell colSpan={3} align="center">Không có vé nào chờ kiểm nhận.</TableCell>
+                                <TableCell colSpan={canConfirm ? 6 : 5} align="center" sx={{ py: 6, color: "text.secondary" }}>
+                                    Không có vé nào chờ kiểm nhận.
+                                </TableCell>
                             </TableRow>
                         )}
                     </TableBody>
                 </Table>
             </TableContainer>
 
-            <Box sx={{ position: "sticky", bottom: 0, pt: 1, pb: 2, bgcolor: "background.paper", borderTop: "1px solid", borderColor: "divider", zIndex: 10, mx: -2, px: 2 }}>
-                {canConfirm && (
+            {canConfirm ? (
+                <Stack direction="row" justifyContent="flex-end">
                     <Button
-                        fullWidth
-                        variant="contained"
                         loading={isConfirmingInspection}
                         label="Chốt kết quả nhận trả"
                         loadingLabel="Đang chốt..."
                         onClick={onConfirmInspection}
-                        disabled={stagedSerials.length === 0 || rejectedInspectionSerialIds.some(id => !(inspectionNotes[id] || "").trim())}
+                        disabled={stagedSerials.length === 0}
                     />
-                )}
-            </Box>
+                </Stack>
+            ) : null}
+
+            <RejectReturnDialog
+                serial={rejectTarget}
+                initialReason={rejectTarget ? inspectionNotes[rejectTarget.serialId] || "" : ""}
+                onClose={closeRejectDialog}
+                onConfirm={confirmReject}
+            />
         </Stack>
     );
 };

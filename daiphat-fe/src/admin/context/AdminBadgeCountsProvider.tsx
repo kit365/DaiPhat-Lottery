@@ -9,7 +9,7 @@ import {
     getAdminDashboardBadges,
     type AdminDashboardBadgeCounts,
 } from "@/admin/services/adminBadgeService";
-import { QUERY_KEYS } from "@/constants/queryKeys";
+import { QUERY_KEYS } from "@/admin/constants/queryKeys";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import { isChatConversationSocketEvent } from "@/services/websocket/websocket.service";

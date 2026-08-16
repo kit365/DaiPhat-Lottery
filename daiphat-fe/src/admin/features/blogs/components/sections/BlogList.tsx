@@ -9,7 +9,7 @@ import type { GridColDef } from '@mui/x-data-grid';
 import { LazyDataGrid } from '@/admin/shared/data-grid/LazyDataGrid';
 import { SortAscendingIcon, SortDescendingIcon, UnsortedIcon, EyeIcon } from "../../../../assets/icons";
 import { prefixAdmin } from "../../../../constants/routes";
-import { DATA_GRID_LOCALE_VN } from "../../../../../shared/components/DataTable/localeText.config";
+import { DATA_GRID_LOCALE_VN } from "@/admin/components/data-grid/localeText.config";
 import { dataGridStyles } from "../../../../shared/data-grid";
 import { AdminRowActionsMenu, type AdminRowActionsMenuItem } from "../../../../components/ui/AdminRowActionsMenu";
 

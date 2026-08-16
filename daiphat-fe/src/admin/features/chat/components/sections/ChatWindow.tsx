@@ -44,6 +44,12 @@ import {
 } from '../../../../../client/utils/ticketSuggestToken.util';
 import { AdminChatTicketSuggestCards } from '../components/AdminChatTicketSuggestCards';
 import { Button } from '../../../../components/ui/Button';
+import {
+    ADMIN_DIALOG_ACTIONS_SX,
+    ADMIN_DIALOG_CONTENT_SX,
+    ADMIN_DIALOG_PAPER_SX,
+    ADMIN_DIALOG_TITLE_SX,
+} from '../../../../components/ui/AdminConfirmDialog';
 import { Icon } from '@/admin/components/ui/AdminIcon';
 import { useCallback, useRef, useEffect, useLayoutEffect, useState, useMemo } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
@@ -1054,9 +1060,9 @@ export const ChatWindow = ({ conversationId, onToggleDetails }: ChatWindowProps)
                 maxWidth="sm"
                 fullWidth
                 scroll="paper"
-                sx={{ '& .MuiDialog-paper': { maxHeight: '80vh' } }}
+                PaperProps={{ className: "admin-theme", sx: { ...ADMIN_DIALOG_PAPER_SX, maxHeight: '80vh' } }}
             >
-                <DialogTitle sx={{ pb: 1, fontWeight: 700, fontSize: '1.25rem', pr: 2 }}>
+                <DialogTitle sx={{ ...ADMIN_DIALOG_TITLE_SX, pr: 2 }}>
                     <Stack direction="row" alignItems="center" justifyContent="space-between" gap={2}>
                         Lịch sử chat với AI
                         <Button
@@ -1074,7 +1080,7 @@ export const ChatWindow = ({ conversationId, onToggleDetails }: ChatWindowProps)
                         </Button>
                     </Stack>
                 </DialogTitle>
-                <DialogContent sx={{ py: '16px !important' }}>
+                <DialogContent sx={ADMIN_DIALOG_CONTENT_SX}>
                     {activeConversation?.handoffSummary && (
                         <Box
                             sx={{
@@ -1125,10 +1131,16 @@ export const ChatWindow = ({ conversationId, onToggleDetails }: ChatWindowProps)
                     )}
                 </DialogContent>
             </Dialog>
-            <Dialog open={closeDialogOpen} onClose={() => setCloseDialogOpen(false)} maxWidth="xs" fullWidth>
-                <DialogTitle sx={{ pb: 1, fontWeight: 700, fontSize: '1.25rem' }}>Đóng hội thoại</DialogTitle>
-                <DialogContent sx={{ py: '20px !important' }}>
-                    <FormControl fullWidth sx={{ mt: 1 }}>
+            <Dialog
+                open={closeDialogOpen}
+                onClose={() => setCloseDialogOpen(false)}
+                maxWidth="xs"
+                fullWidth
+                PaperProps={{ className: "admin-theme", sx: ADMIN_DIALOG_PAPER_SX }}
+            >
+                <DialogTitle sx={ADMIN_DIALOG_TITLE_SX}>Đóng hội thoại</DialogTitle>
+                <DialogContent sx={ADMIN_DIALOG_CONTENT_SX}>
+                    <FormControl fullWidth>
                         <InputLabel id="close-reason-label">Lý do đóng</InputLabel>
                         <Select
                             labelId="close-reason-label"
@@ -1144,22 +1156,14 @@ export const ChatWindow = ({ conversationId, onToggleDetails }: ChatWindowProps)
                         </Select>
                     </FormControl>
                 </DialogContent>
-                <DialogActions sx={{ pt: 2, px: 3, pb: 2 }}>
+                <DialogActions sx={ADMIN_DIALOG_ACTIONS_SX}>
                     <Button
                         onClick={() => setCloseDialogOpen(false)}
                         variant="outlined"
                         color="inherit"
                         disabled={closeMutation.isPending}
-                        sx={{
-                            borderRadius: '8px',
-                            textTransform: 'none',
-                            fontWeight: 700,
-                            px: 3,
-                            py: 1,
-                        }}
-                    >
-                        Hủy
-                    </Button>
+                        label="Quay lại"
+                    />
                     <Button
                         onClick={() => void confirmCloseConversation()}
                         loading={closeMutation.isPending}

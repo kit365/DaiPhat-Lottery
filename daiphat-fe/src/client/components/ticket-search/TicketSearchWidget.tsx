@@ -24,6 +24,7 @@ import {
 } from '../../utils/sellableDrawDate.util';
 import { ClientDatePicker } from '../ui/ClientDatePicker';
 import { ClientStationSelect } from '../ui/ClientStationSelect';
+import { LuckyNumber } from '../ui/LuckyNumber';
 
 export const TicketSearchWidget: React.FC = () => {
     const [search, setSearch] = useState('');
@@ -154,7 +155,7 @@ export const TicketSearchWidget: React.FC = () => {
                                 >
                                     <div>
                                         <div className="text-[14px] font-black text-[#ee1314] tracking-wider">
-                                            {ticket.numbers}
+                                            <LuckyNumber value={ticket.numbers} ticket className="tracking-wider" />
                                         </div>
                                         <div className="text-[11px] text-[#637381]">
                                             {ticket.stationName} • Còn {stock} vé

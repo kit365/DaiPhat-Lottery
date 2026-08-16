@@ -3,10 +3,7 @@
 import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
 import { useCallback, useMemo, useState } from "react";
 import { useQueries } from "@tanstack/react-query";
-import {
-    Alert, Box, Card, Dialog, DialogActions, DialogContent,
-    DialogTitle,
-} from "@mui/material";
+import { Alert, Box, Card, Typography } from "@mui/material";
 import { DataGrid } from "@mui/x-data-grid";
 import { SortAscendingIcon, SortDescendingIcon, UnsortedIcon } from "../../../../assets/icons";
 import {
@@ -19,11 +16,12 @@ import {
     dataGridStyles,
     filterPanelStyles,
 } from "../../../../shared/data-grid";
-import { DATA_GRID_LOCALE_VN } from "../../../../../shared/components/DataTable/localeText.config";
+import { DATA_GRID_LOCALE_VN } from "@/admin/components/data-grid/localeText.config";
 import { toast } from "react-toastify";
 import { Breadcrumb } from "../../../../components/ui/Breadcrumb";
 import { Title } from "../../../../components/ui/Title";
 import { Button } from "../../../../components/ui/Button";
+import { AdminConfirmDialog } from "../../../../components/ui/AdminConfirmDialog";
 import { ROUTES } from "../../../../constants/routes";
 import { PERMISSIONS } from "../../../../constants/permission.constants";
 import { usePermissions } from "../../../../hooks/usePermission";
@@ -327,40 +325,34 @@ export const VendorAllocationBatchListPage = () => {
                 }}
             />
 
-            <Dialog open={!!cancelId} onClose={() => setCancelId(null)}>
-                <DialogTitle>Hủy phiếu nháp?</DialogTitle>
-                <DialogContent>
+            <AdminConfirmDialog
+                open={!!cancelId}
+                title="Hủy phiếu nháp?"
+                loading={isCancelling}
+                confirmColor="error"
+                confirmLabel="Hủy phiếu"
+                confirmLoadingLabel="Đang hủy..."
+                onClose={() => setCancelId(null)}
+                onConfirm={handleCancel}
+            >
+                <Typography variant="body2" color="text.secondary">
                     Vé đang giữ sẽ được nhả về kho. Thao tác không hoàn tác.
-                </DialogContent>
-                <DialogActions>
-                    <Button onClick={() => setCancelId(null)}>Đóng</Button>
-                    <Button
-                        loading={isCancelling}
-                        color="error"
-                        variant="contained"
-                        onClick={handleCancel}
-                    >
-                        Hủy phiếu
-                    </Button>
-                </DialogActions>
-            </Dialog>
+                </Typography>
+            </AdminConfirmDialog>
 
-            <Dialog open={!!returnSessionId} onClose={() => setReturnSessionId(null)}>
-                <DialogTitle>Mở phiên trả vé?</DialogTitle>
-                <DialogContent>
+            <AdminConfirmDialog
+                open={!!returnSessionId}
+                title="Mở phiên trả vé?"
+                loading={isOpeningReturn}
+                confirmLabel="Mở phiên trả"
+                confirmLoadingLabel="Đang mở..."
+                onClose={() => setReturnSessionId(null)}
+                onConfirm={() => returnSessionId && handleOpenReturnSession(returnSessionId)}
+            >
+                <Typography variant="body2" color="text.secondary">
                     Phiếu sẽ chuyển sang trạng thái đang trả vé để quét serial trả về.
-                </DialogContent>
-                <DialogActions>
-                    <Button onClick={() => setReturnSessionId(null)}>Đóng</Button>
-                    <Button
-                        loading={isOpeningReturn}
-                        variant="contained"
-                        onClick={() => returnSessionId && handleOpenReturnSession(returnSessionId)}
-                    >
-                        Mở phiên trả
-                    </Button>
-                </DialogActions>
-            </Dialog>
+                </Typography>
+            </AdminConfirmDialog>
 
         </Box>
     );

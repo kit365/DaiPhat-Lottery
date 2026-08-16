@@ -1,4 +1,5 @@
 import { Chip, Stack, Tooltip } from "@mui/material";
+import { AdminLuckyDisplay } from "@/shared/lucky-number";
 
 import { BADGE_COLOR_PALETTE, getMetricChipSx } from "@/admin/utils/badge";
 
@@ -8,6 +9,13 @@ type StationCapacityBadgesProps = {
     luckyQuantity?: number;
 };
 
+const capacityLabel = (prefix: string, value: number) => (
+    <>
+        {prefix}
+        <AdminLuckyDisplay component="span" value={String(value)} fontWeight={700} />
+    </>
+);
+
 export const StationCapacityBadges = ({
     vendorCapacity,
     agencyReserve,
@@ -16,19 +24,19 @@ export const StationCapacityBadges = ({
     <Stack direction="row" flexWrap="wrap" gap={0.75} useFlexGap>
         <Chip
             size="small"
-            label={`Có thể giao: ${vendorCapacity}`}
+            label={capacityLabel("Có thể giao: ", vendorCapacity)}
             sx={getMetricChipSx("success")}
         />
         <Chip
             size="small"
-            label={`Chừa quầy: ${agencyReserve}`}
+            label={capacityLabel("Chừa quầy: ", agencyReserve)}
             sx={getMetricChipSx("info")}
         />
         {luckyQuantity > 0 && (
             <Tooltip title="Số đẹp không tính vào capacity vendor (đã trừ trước khi chừa quầy)">
                 <Chip
                     size="small"
-                    label={`Số đẹp: ${luckyQuantity}`}
+                    label={capacityLabel("Số đẹp: ", luckyQuantity)}
                     sx={{
                         height: 26,
                         fontWeight: 700,

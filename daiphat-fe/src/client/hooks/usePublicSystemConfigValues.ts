@@ -1,9 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { getPublicSystemConfigsByKeys } from '@/client/services/systemConfigService';
-
-/** Shared query key — one cache entry per key set. */
-export const publicSystemConfigBatchQueryKey = (keys: readonly string[]) =>
-    ['public-system-config-batch', ...keys] as const;
+import { publicSystemConfigBatchQueryKey } from '@/constants/queryKeys';
 
 export const usePublicSystemConfigValues = <T extends string>(
     keys: readonly T[],

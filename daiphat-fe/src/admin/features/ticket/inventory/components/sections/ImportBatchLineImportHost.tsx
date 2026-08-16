@@ -38,6 +38,7 @@ export const ImportBatchLineImportHost = ({
         missingImageCount,
         onConfirmMissingImageSubmit,
         onCancelMissingImageSubmit,
+        intakeGate,
     } = useImportBatchLineImportForm({
         batchId: batchId ? String(batchId) : null,
         activeLineId: lineId,
@@ -69,6 +70,8 @@ export const ImportBatchLineImportHost = ({
             missingImageCount={missingImageCount}
             onConfirmMissingImageSubmit={onConfirmMissingImageSubmit}
             onCancelMissingImageSubmit={onCancelMissingImageSubmit}
+            importIntakeBlocked={!!intakeGate?.blocked || !!intakeGate?.notYetAllowed}
+            importIntakeBlockedMessage={intakeGate?.message ?? undefined}
         />
     );
 };

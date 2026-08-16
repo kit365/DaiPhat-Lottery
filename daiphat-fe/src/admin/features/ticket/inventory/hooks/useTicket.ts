@@ -15,8 +15,8 @@ import {
     uploadTicketSerialImage
 } from '../services/ticketService';
 import { ApiResponse } from '../../../../../types/api.type';
-import { QUERY_KEYS as GLOBAL_QUERY_KEYS } from '../../../../../constants/queryKeys';
 import { QUERY_KEYS } from '../constants/queryKeys';
+import { QUERY_KEYS as IMPORT_BATCH_QUERY_KEYS } from '../../import-batch/constants/queryKeys';
 
 /** List vé theo params — cùng pattern `useStations(params)`. */
 export const useTickets = (params?: any, options?: any) => {
@@ -50,10 +50,10 @@ export const useCreateTicket = () => {
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.TICKETS] });
-            queryClient.invalidateQueries({ queryKey: [GLOBAL_QUERY_KEYS.IMPORT_BATCH_LIST] });
-            queryClient.invalidateQueries({ queryKey: [GLOBAL_QUERY_KEYS.IMPORT_BATCH_DETAIL] });
-            queryClient.invalidateQueries({ queryKey: [GLOBAL_QUERY_KEYS.IMPORT_BATCH_INCOMPLETE] });
-            queryClient.invalidateQueries({ queryKey: [GLOBAL_QUERY_KEYS.IMPORT_BATCH_ACTIVE_DRAFT] });
+            queryClient.invalidateQueries({ queryKey: [IMPORT_BATCH_QUERY_KEYS.IMPORT_BATCH_LIST] });
+            queryClient.invalidateQueries({ queryKey: [IMPORT_BATCH_QUERY_KEYS.IMPORT_BATCH_DETAIL] });
+            queryClient.invalidateQueries({ queryKey: [IMPORT_BATCH_QUERY_KEYS.IMPORT_BATCH_INCOMPLETE] });
+            queryClient.invalidateQueries({ queryKey: [IMPORT_BATCH_QUERY_KEYS.IMPORT_BATCH_ACTIVE_DRAFT] });
         },
     });
 };
@@ -68,12 +68,12 @@ export const useBulkCreateTickets = () => {
             }),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.TICKETS] });
-            queryClient.invalidateQueries({ queryKey: [GLOBAL_QUERY_KEYS.IMPORT_BATCH_LIST] });
-            queryClient.invalidateQueries({ queryKey: [GLOBAL_QUERY_KEYS.IMPORT_BATCH_DETAIL] });
-            queryClient.invalidateQueries({ queryKey: [GLOBAL_QUERY_KEYS.IMPORT_BATCH_INCOMPLETE] });
-            queryClient.invalidateQueries({ queryKey: [GLOBAL_QUERY_KEYS.IMPORT_BATCH_ACTIVE_DRAFT] });
+            queryClient.invalidateQueries({ queryKey: [IMPORT_BATCH_QUERY_KEYS.IMPORT_BATCH_LIST] });
+            queryClient.invalidateQueries({ queryKey: [IMPORT_BATCH_QUERY_KEYS.IMPORT_BATCH_DETAIL] });
+            queryClient.invalidateQueries({ queryKey: [IMPORT_BATCH_QUERY_KEYS.IMPORT_BATCH_INCOMPLETE] });
+            queryClient.invalidateQueries({ queryKey: [IMPORT_BATCH_QUERY_KEYS.IMPORT_BATCH_ACTIVE_DRAFT] });
             queryClient.invalidateQueries({
-                queryKey: [GLOBAL_QUERY_KEYS.IMPORT_BATCH_LINE_ENTRY_TICKETS],
+                queryKey: [IMPORT_BATCH_QUERY_KEYS.IMPORT_BATCH_LINE_ENTRY_TICKETS],
             });
         },
     });
@@ -96,8 +96,9 @@ export const useDeleteTicket = () => {
 
     return useMutation({
         mutationFn: deleteTicket,
-        onSuccess: () => {
+        onSuccess: (_data, id) => {
             queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.TICKETS] });
+            queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.TICKET_DETAIL, id] });
         },
     });
 };
@@ -137,14 +138,26 @@ export const useScanExpiredTickets = () => {
 };
 
 export const useUploadTicketImage = () => {
+    const queryClient = useQueryClient();
+
     return useMutation({
         mutationFn: ({ id, file }: { id: string | number; file: File }) => uploadTicketImage(id, file),
+        onSuccess: (_data, variables) => {
+            queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.TICKET_DETAIL, variables.id] });
+            queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.TICKETS] });
+        },
     });
 };
 
 
 export const useUploadTicketSerialImage = () => {
+    const queryClient = useQueryClient();
+
     return useMutation({
         mutationFn: ({ id, file }: { id: string | number; file: File }) => uploadTicketSerialImage(id, file),
+        onSuccess: (_data, variables) => {
+            queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.TICKET_DETAIL, variables.id] });
+            queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.TICKETS] });
+        },
     });
 };
