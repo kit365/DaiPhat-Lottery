@@ -2,17 +2,15 @@ package com.daiphat.coreapi.application.service.support;
 
 import com.daiphat.coreapi.application.dto.response.support.OrderComplaintEligibilityResponse;
 import com.daiphat.coreapi.application.port.out.order.OrderRepositoryPort;
-import com.daiphat.coreapi.application.port.out.order.TransactionRepositoryPort;
 import com.daiphat.coreapi.application.port.out.settings.SystemConfigRepositoryPort;
+import com.daiphat.coreapi.application.service.order.OrderPaymentSuccessTimeResolver;
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
 import com.daiphat.coreapi.domain.model.enums.order.OrderCancelType;
 import com.daiphat.coreapi.domain.model.enums.order.OrderStatus;
 import com.daiphat.coreapi.domain.model.enums.settings.SystemConfigEnum;
 import com.daiphat.coreapi.domain.model.enums.support.TicketRefType;
-import com.daiphat.coreapi.domain.model.enums.transaction.TransactionStatus;
 import com.daiphat.coreapi.domain.model.orders.OrderModel;
-import com.daiphat.coreapi.domain.model.orders.TransactionModel;
 import com.daiphat.coreapi.domain.model.settings.SystemConfigModel;
 import com.daiphat.coreapi.domain.model.support.TicketCategoryModel;
 import lombok.RequiredArgsConstructor;
@@ -25,8 +23,6 @@ import java.time.LocalTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
-import java.util.Comparator;
-import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 
@@ -56,7 +52,7 @@ public class OrderComplaintEligibilityService {
             CATEGORY_CANCELLED_OUT_OF_STOCK);
 
     private final OrderRepositoryPort orderRepositoryPort;
-    private final TransactionRepositoryPort transactionRepositoryPort;
+    private final OrderPaymentSuccessTimeResolver paymentSuccessTimeResolver;
     private final SystemConfigRepositoryPort systemConfigRepositoryPort;
 
     public OrderComplaintEligibilityResponse evaluate(UUID orderId, UUID customerId) {
@@ -347,31 +343,7 @@ public class OrderComplaintEligibilityService {
     }
 
     private LocalDateTime resolvePaymentSuccessTime(OrderModel order) {
-        if (order.getTransactions() != null && !order.getTransactions().isEmpty()) {
-            LocalDateTime fromTx = order.getTransactions().stream()
-                    .filter(tx -> tx.getStatus() == TransactionStatus.COMPLETED)
-                    .map(this::resolveTransactionPaymentTime)
-                    .filter(Objects::nonNull)
-                    .max(Comparator.naturalOrder())
-                    .orElse(null);
-            if (fromTx != null) {
-                return fromTx;
-            }
-        }
-        if (order.getId() != null) {
-            return transactionRepositoryPort.findLatestPaymentSuccessAt(order.getId()).orElse(null);
-        }
-        return null;
-    }
-
-    private LocalDateTime resolveTransactionPaymentTime(TransactionModel transaction) {
-        if (transaction.getPaidAt() != null) {
-            return transaction.getPaidAt();
-        }
-        if (transaction.getUpdatedAt() != null) {
-            return transaction.getUpdatedAt();
-        }
-        return transaction.getCreatedAt();
+        return paymentSuccessTimeResolver.resolve(order).orElse(null);
     }
 
     int getStatusDelayComplaintMinutes() {

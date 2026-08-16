@@ -8,6 +8,8 @@ import 'package:intl/intl.dart';
 import 'package:daiphat_mobile/src/app/routing/app_routes.dart';
 import 'package:daiphat_mobile/src/features/checkout/models/order_type.dart';
 import 'package:daiphat_mobile/src/features/checkout/presentation/providers/checkout_provider.dart';
+import 'package:daiphat_mobile/src/features/checkout/models/refund_type.dart';
+import 'package:daiphat_mobile/src/features/profile/data/models/refund_request.dart';
 import 'package:daiphat_mobile/src/features/profile/presentation/providers/profile_providers.dart';
 import 'package:daiphat_mobile/src/features/profile/presentation/widgets/refund_request_sheet.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
@@ -41,6 +43,7 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
     _viewModel = OrderDetailViewModel(
       orderService: ref.read(orderServiceProvider),
       transactionService: ref.read(transactionServiceProvider),
+      refundService: ref.read(refundServiceProvider),
       orderId: widget.orderId,
     );
   }
@@ -147,11 +150,8 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
           backgroundColor: const Color(0xFFF8F9FA),
           appBar: _buildAppBar(order),
           body: _buildBody(order),
-          bottomNavigationBar: _viewModel.isPendingPayment
-              ? _buildBottomPayBar()
-              : (_viewModel.isCancellable || _viewModel.isRefundable)
-                  ? _buildBottomActionBar()
-                  : null,
+          bottomNavigationBar:
+              _viewModel.isPendingPayment ? _buildBottomPayBar() : null,
         );
       },
     );
@@ -251,7 +251,7 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
           16,
           16,
           16,
-          (_viewModel.isPendingPayment || _viewModel.isCancellable || _viewModel.isRefundable) ? 100 : 32,
+          _viewModel.isPendingPayment ? 100 : 32,
         ),
         child: Column(
           children: [
@@ -268,6 +268,8 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
             _buildTicketsCard(order),
             const SizedBox(height: 14),
             _buildPaymentCard(order),
+            const SizedBox(height: 14),
+            _buildRefundSection(order),
             const SizedBox(height: 14),
             _buildGuarantees(),
           ],
@@ -1243,68 +1245,398 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
     );
   }
 
-  // ── Bottom Action Bar (Cancel / Refund) ──────────────────────────────────
+  // ── Hủy đơn & hoàn tiền (khớp web OrderDetailTab) ─────────────────────────
 
-  Future<void> _handleCancelOrder() async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Hủy đơn hàng'),
-        content: const Text('Bạn có chắc muốn hủy đơn hàng này không?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Không'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: TextButton.styleFrom(foregroundColor: AppColors.primary),
-            child: const Text('Hủy đơn'),
-          ),
-        ],
-      ),
-    );
-    if (confirmed != true || !mounted) return;
-    final ok = await _viewModel.cancelOrder();
-    if (!mounted) return;
-    if (ok) {
-      AppToast.success('Đã hủy đơn hàng thành công');
-    } else {
-      AppToast.error('Hủy đơn thất bại, vui lòng thử lại');
+  Widget _buildRefundSection(OrderResponse order) {
+    final pending = _viewModel.pendingFullOrderRefund;
+    if (pending != null) {
+      return _buildPendingRefundCard(pending);
     }
+
+    if (_viewModel.isRefundCandidate && _viewModel.isLoadingEligibility) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF9FAFB),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: const Color(0xFFE5E8EB)),
+        ),
+        child: Row(
+          children: [
+            const SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: AppColors.textMuted,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Text(
+              'Đang kiểm tra điều kiện hủy đơn...',
+              style: GoogleFonts.publicSans(
+                fontSize: 13,
+                color: AppColors.textMuted,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (_viewModel.showRefundAction) {
+      return _buildRefundActionCard(order);
+    }
+
+    if (_viewModel.showRefundUnavailable) {
+      return _buildRefundUnavailableCard();
+    }
+
+    return const SizedBox.shrink();
   }
 
-  // ignore: unused_element
-  Future<void> _handleRequestRefund() async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Yêu cầu hoàn tiền'),
-        content: const Text('Bạn có chắc muốn yêu cầu hoàn tiền cho đơn hàng này không?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Không'),
+  Widget _buildRefundActionCard(OrderResponse order) {
+    final low = _viewModel.isRefundLowTime;
+    final grace =
+        _viewModel.eligibility?.graceMinutes ?? order.refundGraceMinutes ?? 30;
+    final submitted =
+        _viewModel.eligibility?.refundRequestsSubmittedToday ?? 0;
+    final maxPerDay = _viewModel.eligibility?.maxRefundRequestsPerDay;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: low ? const Color(0xFFFFF9F3) : const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: low ? const Color(0x40FFB020) : const Color(0xFFE5E8EB),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: low ? const Color(0xFFFFF4E5) : Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: low
+                      ? null
+                      : Border.all(color: const Color(0xFFE5E8EB)),
+                ),
+                child: Icon(
+                  Icons.replay_rounded,
+                  size: 18,
+                  color: low ? const Color(0xFFB76E00) : AppColors.textMuted,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Hủy đơn & hoàn tiền',
+                      style: GoogleFonts.publicSans(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textMain,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Bạn có thể yêu cầu hoàn tiền trong $grace phút kể từ khi thanh toán.',
+                      style: GoogleFonts.publicSans(
+                        fontSize: 12,
+                        color: AppColors.textMuted,
+                        height: 1.4,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: TextButton.styleFrom(foregroundColor: AppColors.primary),
-            child: const Text('Hoàn tiền'),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed:
+                      _viewModel.isRefunding ? null : _showRefundRequestSheet,
+                  icon: _viewModel.isRefunding
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Icon(Icons.replay_rounded, size: 16),
+                  label: Text(
+                    'Yêu cầu hoàn tiền',
+                    style: GoogleFonts.publicSans(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Container(
+                constraints: const BoxConstraints(minWidth: 116),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                decoration: BoxDecoration(
+                  color:
+                      low ? const Color(0xFFFFF9F3) : const Color(0xFFF0F5FF),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: low
+                        ? const Color(0x66FFB020)
+                        : const Color(0x332065D1),
+                  ),
+                ),
+                child: Column(
+                  children: [
+                    Text(
+                      low ? 'SẮP HẾT HẠN' : 'CÒN LẠI',
+                      style: GoogleFonts.publicSans(
+                        fontSize: 9,
+                        fontWeight: FontWeight.w600,
+                        color:
+                            low ? const Color(0xFFB76E00) : AppColors.textMuted,
+                        letterSpacing: 0.4,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      formatRefundCountdown(_viewModel.refundSecondsLeft),
+                      style: GoogleFonts.publicSans(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                        color: low
+                            ? const Color(0xFFB76E00)
+                            : const Color(0xFF2065D1),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          const Divider(height: 1, color: Color(0xFFE5E8EB)),
+          const SizedBox(height: 10),
+          Text(
+            'Số yêu cầu hôm nay: $submitted/${maxPerDay ?? '—'}',
+            style: GoogleFonts.publicSans(
+              fontSize: 12,
+              color: AppColors.textMuted,
+            ),
           ),
         ],
       ),
     );
-    if (confirmed != true || !mounted) return;
-    final ok = false;
-    await _showRefundRequestSheet();
-    return;
-    // ignore: dead_code
-    if (!mounted) return;
-    if (ok) {
-      AppToast.success('Yêu cầu hoàn tiền đã được gửi');
-    } else {
-      AppToast.error('Hoàn tiền thất bại, vui lòng thử lại');
-    }
+  }
+
+  Widget _buildRefundUnavailableCard() {
+    final eligibility = _viewModel.eligibility;
+    final submitted = eligibility?.refundRequestsSubmittedToday ?? 0;
+    final maxPerDay = eligibility?.maxRefundRequestsPerDay;
+    final reason = (_viewModel.isRefundExpired && eligibility?.eligible == true)
+        ? 'Đã hết thời gian yêu cầu hoàn tiền cho đơn hàng này.'
+        : eligibility?.reason;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF9FAFB),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE5E8EB)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFFE5E8EB)),
+                ),
+                child: const Icon(
+                  Icons.info_outline_rounded,
+                  size: 18,
+                  color: AppColors.textMuted,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Hủy đơn & hoàn tiền',
+                      style: GoogleFonts.publicSans(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textMain,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Số yêu cầu hôm nay: $submitted/${maxPerDay ?? '—'}',
+                      style: GoogleFonts.publicSans(
+                        fontSize: 12,
+                        color: AppColors.textMuted,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: null,
+              icon: const Icon(Icons.replay_rounded, size: 14),
+              label: Text(
+                'Yêu cầu hoàn tiền',
+                style: GoogleFonts.publicSans(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              style: ElevatedButton.styleFrom(
+                disabledBackgroundColor: const Color(0xFFC4CDD5),
+                disabledForegroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+          ),
+          if (reason != null && reason.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            const Divider(height: 1, color: Color(0xFFE5E8EB)),
+            const SizedBox(height: 10),
+            Text(
+              reason,
+              style: GoogleFonts.publicSans(
+                fontSize: 13,
+                color: AppColors.textMuted,
+                height: 1.4,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPendingRefundCard(RefundRequestResponse refund) {
+    final waitingTransfer = refund.status == RefundRequestStatus.readyToPay;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF9F3),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0x40FFB020)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: const Color(0xFFFFF4E5),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Icon(
+              Icons.schedule_rounded,
+              size: 18,
+              color: Color(0xFFB76E00),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  waitingTransfer
+                      ? 'Đang chờ chuyển khoản'
+                      : 'Yêu cầu đang chờ duyệt',
+                  style: GoogleFonts.publicSans(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textMain,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  waitingTransfer
+                      ? 'Yêu cầu hoàn tiền đã được duyệt và đang chờ chuyển khoản.'
+                      : 'Yêu cầu hủy đơn & hoàn tiền của bạn đang được xử lý.',
+                  style: GoogleFonts.publicSans(
+                    fontSize: 12,
+                    color: AppColors.textMuted,
+                    height: 1.4,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          OutlinedButton(
+            onPressed: () => context.pushNamed(
+              AppRoute.refundDetail.name,
+              pathParameters: {'id': '${refund.id}'},
+            ),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.textMain,
+              side: const BorderSide(color: Color(0xFFDFE3E8)),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            child: Text(
+              'Xem chi tiết',
+              style: GoogleFonts.publicSans(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _showRefundRequestSheet() async {
@@ -1327,94 +1659,7 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
     );
 
     if (result != true || !mounted) return;
-
-    AppToast.success('Yêu cầu hoàn tiền đã được gửi');
-  }
-
-  Widget _buildBottomActionBar() {
-    final isBusy = _viewModel.isCancelling || _viewModel.isRefunding;
-    final showCancel = _viewModel.isCancellable;
-    final showRefund = _viewModel.isRefundable;
-    return Container(
-      padding: EdgeInsets.fromLTRB(
-          16, 12, 16, 12 + MediaQuery.of(context).padding.bottom),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        border: const Border(top: BorderSide(color: Color(0xFFEEEEEE))),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.08),
-            blurRadius: 16,
-            offset: const Offset(0, -4),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          if (showCancel)
-          Expanded(
-            child: OutlinedButton.icon(
-              onPressed: isBusy ? null : _handleCancelOrder,
-              icon: _viewModel.isCancelling
-                  ? const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(
-                          strokeWidth: 2, color: AppColors.primary),
-                    )
-                  : const Icon(Icons.cancel_outlined, size: 18),
-              label: Text(
-                'Hủy đơn',
-                style: GoogleFonts.publicSans(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: AppColors.primary,
-                side: const BorderSide(color: AppColors.primary),
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
-                ),
-              ),
-            ),
-          ),
-          if (showCancel && showRefund) const SizedBox(width: 12),
-          if (showRefund)
-          Expanded(
-            child: ElevatedButton.icon(
-              onPressed: isBusy ? null : _showRefundRequestSheet,
-              icon: _viewModel.isRefunding
-                  ? const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(
-                          strokeWidth: 2, color: Colors.white),
-                    )
-                  : const Icon(Icons.currency_exchange_rounded, size: 18),
-              label: Text(
-                'Hoàn tiền',
-                style: GoogleFonts.publicSans(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                elevation: 2,
-                shadowColor: AppColors.primary.withValues(alpha: 0.3),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
+    AppToast.success('Yêu cầu hoàn tiền đã được gửi và đang chờ duyệt');
   }
 
   // ── Bottom Pay Bar ────────────────────────────────────────────────────────

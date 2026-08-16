@@ -55,7 +55,8 @@ public interface TransactionRepository extends JpaRepository<TransactionEntity, 
             FROM transactions
             WHERE order_id = :orderId
               AND status = 'COMPLETED'
-              AND type <> 'REFUND'
+              AND type IS DISTINCT FROM 'REFUND'
+              AND transaction_type IS DISTINCT FROM 'ORDER_REFUND'
             ORDER BY COALESCE(paid_at, updated_at, created_at) DESC
             LIMIT 1
             """, nativeQuery = true)

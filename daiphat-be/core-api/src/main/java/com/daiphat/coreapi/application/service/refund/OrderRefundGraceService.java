@@ -1,24 +1,22 @@
 package com.daiphat.coreapi.application.service.refund;
 
-import com.daiphat.coreapi.application.port.out.order.TransactionRepositoryPort;
 import com.daiphat.coreapi.application.port.out.refund.RefundRequestRepositoryPort;
 import com.daiphat.coreapi.application.port.out.settings.SystemConfigRepositoryPort;
+import com.daiphat.coreapi.application.service.order.OrderPaymentSuccessTimeResolver;
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
 import com.daiphat.coreapi.domain.model.enums.order.OrderStatus;
 import com.daiphat.coreapi.domain.model.enums.settings.SystemConfigEnum;
-import com.daiphat.coreapi.domain.model.enums.transaction.TransactionStatus;
 import com.daiphat.coreapi.domain.model.orders.OrderModel;
-import com.daiphat.coreapi.domain.model.orders.TransactionModel;
 import com.daiphat.coreapi.domain.model.settings.SystemConfigModel;
+import com.daiphat.coreapi.shared.util.DrawScheduleUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
-import java.util.Comparator;
+import java.time.ZonedDateTime;
 import java.util.EnumSet;
-import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
@@ -33,7 +31,7 @@ public class OrderRefundGraceService {
 
     private final SystemConfigRepositoryPort systemConfigRepositoryPort;
     private final RefundRequestRepositoryPort refundRequestRepositoryPort;
-    private final TransactionRepositoryPort transactionRepositoryPort;
+    private final OrderPaymentSuccessTimeResolver paymentSuccessTimeResolver;
 
     public RefundGraceEvaluation evaluate(OrderModel order) {
         int graceMinutes = getGraceMinutes();
@@ -55,7 +53,7 @@ public class OrderRefundGraceService {
             return ineligible(ALREADY_REQUESTED_REASON, graceMinutes, null, null);
         }
 
-        LocalDateTime paymentSuccessAt = resolvePaymentSuccessTime(order);
+        LocalDateTime paymentSuccessAt = paymentSuccessTimeResolver.resolve(order).orElse(null);
         if (paymentSuccessAt == null) {
             return ineligible("Không xác định được thời gian thanh toán đơn hàng.", graceMinutes, null, null);
         }
@@ -99,40 +97,10 @@ public class OrderRefundGraceService {
         return new RefundGraceEvaluation(false, reason, 0L, graceMinutes, deadline, paymentSuccessAt);
     }
 
-    /**
-     * Grace window anchor: latest COMPLETED transaction payment time.
-     * Falls back to transaction updated/created timestamps when paid_at is missing.
-     */
-    private LocalDateTime resolvePaymentSuccessTime(OrderModel order) {
-        if (order.getTransactions() != null && !order.getTransactions().isEmpty()) {
-            LocalDateTime fromTx = order.getTransactions().stream()
-                    .filter(tx -> tx.getStatus() == TransactionStatus.COMPLETED)
-                    .map(this::resolveTransactionPaymentTime)
-                    .filter(Objects::nonNull)
-                    .max(Comparator.naturalOrder())
-                    .orElse(null);
-            if (fromTx != null) {
-                return fromTx;
-            }
-        }
-        if (order.getId() != null) {
-            return transactionRepositoryPort.findLatestPaymentSuccessAt(order.getId()).orElse(null);
-        }
-        return null;
-    }
-
-    private LocalDateTime resolveTransactionPaymentTime(TransactionModel transaction) {
-        if (transaction.getPaidAt() != null) {
-            return transaction.getPaidAt();
-        }
-        if (transaction.getUpdatedAt() != null) {
-            return transaction.getUpdatedAt();
-        }
-        return transaction.getCreatedAt();
-    }
-
     private long computeRemainingSeconds(LocalDateTime deadline) {
-        return Math.max(Duration.between(LocalDateTime.now(), deadline).toSeconds(), 0L);
+        ZonedDateTime now = DrawScheduleUtils.nowVn();
+        ZonedDateTime deadlineVn = deadline.atZone(DrawScheduleUtils.VIETNAM_ZONE);
+        return Math.max(Duration.between(now, deadlineVn).getSeconds(), 0L);
     }
 
     private int parseGraceMinutes(String rawValue) {
@@ -155,5 +123,8 @@ public class OrderRefundGraceService {
             LocalDateTime refundDeadlineAt,
             LocalDateTime paymentSuccessAt
     ) {
+        public boolean openWindow() {
+            return eligible && remainingSeconds != null && remainingSeconds > 0;
+        }
     }
 }

@@ -7,6 +7,7 @@ import 'package:daiphat_mobile/src/features/blog/presentation/views/blog_screen.
 import 'package:daiphat_mobile/src/features/notifications/presentation/viewmodels/notification_viewmodel.dart';
 import 'package:daiphat_mobile/src/features/notifications/presentation/views/notification_view.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
+import 'package:daiphat_mobile/src/shared/utils/auth_navigation.dart';
 
 enum _ShellSidePage { main, blog, notifications }
 
@@ -64,7 +65,11 @@ class _MainLayoutState extends State<MainLayout> {
     );
   }
 
-  void _goToNotifications() {
+  void _goToNotifications(BuildContext context) {
+    if (!widget.loginViewModel.isAuthenticated) {
+      goToLogin(context, redirectPath: AppRoute.notifications.path);
+      return;
+    }
     if (_sidePage != _ShellSidePage.notifications) {
       setState(() => _sidePage = _ShellSidePage.notifications);
     }
@@ -111,7 +116,7 @@ class _MainLayoutState extends State<MainLayout> {
         context.go(AppRoute.checkTicket.path);
         break;
       case 3:
-        _goToNotifications();
+        _goToNotifications(context);
         break;
       case 4:
         _goToMain();
@@ -132,7 +137,17 @@ class _MainLayoutState extends State<MainLayout> {
       body: PageView(
         controller: _pageController,
         physics: const BouncingScrollPhysics(),
-        onPageChanged: _syncSidePage,
+        onPageChanged: (index) {
+          if (index == 2 && !widget.loginViewModel.isAuthenticated) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (!mounted) return;
+              _pageController.jumpToPage(1);
+              goToLogin(context, redirectPath: AppRoute.notifications.path);
+            });
+            return;
+          }
+          _syncSidePage(index);
+        },
         children: [
           BlogScreen(
             key: const ValueKey('shell-blog'),

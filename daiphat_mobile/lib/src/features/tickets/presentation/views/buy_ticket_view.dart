@@ -11,6 +11,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:daiphat_mobile/src/app/routing/app_routes.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
 import 'package:daiphat_mobile/src/shared/utils/app_toast.dart';
+import 'package:daiphat_mobile/src/shared/utils/auth_navigation.dart';
 import 'package:daiphat_mobile/src/features/cart/models/cart_item_model.dart';
 import 'package:daiphat_mobile/src/features/cart/providers/cart_provider.dart';
 import 'package:daiphat_mobile/src/features/chat/presentation/views/chat_screen.dart';
@@ -45,7 +46,14 @@ String _compactPrice(int? price) {
 }
 
 class BuyTicketView extends ConsumerStatefulWidget {
-  const BuyTicketView({super.key});
+  const BuyTicketView({
+    super.key,
+    this.ticketNumber,
+    this.drawDate,
+  });
+
+  final String? ticketNumber;
+  final String? drawDate;
 
   @override
   ConsumerState<BuyTicketView> createState() => _BuyTicketViewState();
@@ -53,6 +61,33 @@ class BuyTicketView extends ConsumerStatefulWidget {
 
 class _BuyTicketViewState extends ConsumerState<BuyTicketView> {
   bool _showHardcodedTicket = true;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _applyQuery());
+  }
+
+  @override
+  void didUpdateWidget(covariant BuyTicketView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.ticketNumber != widget.ticketNumber ||
+        oldWidget.drawDate != widget.drawDate) {
+      _applyQuery();
+    }
+  }
+
+  void _applyQuery() {
+    final number = widget.ticketNumber?.trim() ?? '';
+    final drawDate = widget.drawDate?.trim();
+    if (number.isEmpty && (drawDate == null || drawDate.isEmpty)) {
+      return;
+    }
+    ref.read(buyTicketViewModelProvider.notifier).applyQuery(
+      searchQuery: number,
+      drawDateIso: drawDate,
+    );
+  }
 
   void _toggleHardcodedTicket() {
     setState(() {
@@ -71,10 +106,20 @@ class _BuyTicketViewState extends ConsumerState<BuyTicketView> {
     LotteryTicketListItem ticket, {
     bool openCheckout = false,
   }) {
-    if (ticket.dayFilter == TicketDayFilter.tomorrow &&
+    if (!readIsAuthenticated(ref)) {
+      goToLogin(
+        context,
+        redirectPath: openCheckout
+            ? AppRoute.checkout.path
+            : AppRoute.buyTicket.path,
+      );
+      return;
+    }
+
+    if (ticket.dayFilter == TicketDayFilter.today &&
         SellableDrawDate.isTodayDrawPassed()) {
       AppToast.error(
-        'Đã quá 16:15, không thể mua vé cho ngày mai. Vui lòng quay lại sau.',
+        'Đã quá 16:15, không thể mua vé cho hôm nay. Vui lòng chọn vé ngày mai.',
       );
       return;
     }
@@ -115,7 +160,12 @@ class _BuyTicketViewState extends ConsumerState<BuyTicketView> {
     AppToast.show(
       'Đã thêm ${ticket.code} vào giỏ hàng',
       actionLabel: 'Xem giỏ hàng',
-      onAction: () => context.push('/cart'),
+      onAction: () => requireAuthOrGoLoginWithRef(
+        context,
+        ref,
+        redirectPath: AppRoute.cart.path,
+        onAuthenticated: () => context.push(AppRoute.cart.path),
+      ),
     );
   }
 
@@ -132,7 +182,12 @@ class _BuyTicketViewState extends ConsumerState<BuyTicketView> {
             showHardcodedTicket: _showHardcodedTicket,
             onToggleDemo: _toggleHardcodedTicket,
             onBack: () => context.go(AppRoute.home.path),
-            onOpenCart: () => context.push('/cart'),
+            onOpenCart: () => requireAuthOrGoLoginWithRef(
+              context,
+              ref,
+              redirectPath: AppRoute.cart.path,
+              onAuthenticated: () => context.push(AppRoute.cart.path),
+            ),
           ),
           Expanded(
             child: state.when(
@@ -204,12 +259,6 @@ class _LoadedView extends StatelessWidget {
                 isTomorrowSellClosed: state.isTomorrowSellClosed,
                 onSelectToday: () => viewModel.selectDay(TicketDayFilter.today),
                 onSelectTomorrow: () {
-                  if (state.isTomorrowSellClosed) {
-                    AppToast.error(
-                      'Đã quá 16:15, không thể mua vé cho ngày mai. Vui lòng quay lại sau.',
-                    );
-                    return;
-                  }
                   viewModel.selectDay(TicketDayFilter.tomorrow);
                 },
               ),
@@ -1380,11 +1429,11 @@ class _TicketDetailViewState extends ConsumerState<TicketDetailView> {
     );
   }
 
-  bool _blockTomorrowSaleIfClosed(LotteryTicketListItem ticket) {
-    if (ticket.dayFilter == TicketDayFilter.tomorrow &&
+  bool _blockTodaySaleIfClosed(LotteryTicketListItem ticket) {
+    if (ticket.dayFilter == TicketDayFilter.today &&
         SellableDrawDate.isTodayDrawPassed()) {
       AppToast.error(
-        'Đã quá 16:15, không thể mua vé cho ngày mai. Vui lòng quay lại sau.',
+        'Đã quá 16:15, không thể mua vé cho hôm nay. Vui lòng chọn vé ngày mai.',
       );
       return true;
     }
@@ -1392,7 +1441,11 @@ class _TicketDetailViewState extends ConsumerState<TicketDetailView> {
   }
 
   void _addToCart(LotteryTicketListItem ticket) {
-    if (_blockTomorrowSaleIfClosed(ticket)) return;
+    if (!readIsAuthenticated(ref)) {
+      goToLogin(context, redirectPath: AppRoute.buyTicket.path);
+      return;
+    }
+    if (_blockTodaySaleIfClosed(ticket)) return;
 
     final maxStock = ticket.quantity > 0 ? ticket.quantity : 1;
     final currentQty =
@@ -1407,12 +1460,21 @@ class _TicketDetailViewState extends ConsumerState<TicketDetailView> {
     AppToast.show(
       'Đã thêm vé ${ticket.code} vào giỏ hàng.',
       actionLabel: 'Xem giỏ hàng',
-      onAction: () => context.push(AppRoute.cart.path),
+      onAction: () => requireAuthOrGoLoginWithRef(
+        context,
+        ref,
+        redirectPath: AppRoute.cart.path,
+        onAuthenticated: () => context.push(AppRoute.cart.path),
+      ),
     );
   }
 
   void _buyNow(LotteryTicketListItem ticket) {
-    if (_blockTomorrowSaleIfClosed(ticket)) return;
+    if (!readIsAuthenticated(ref)) {
+      goToLogin(context, redirectPath: AppRoute.checkout.path);
+      return;
+    }
+    if (_blockTodaySaleIfClosed(ticket)) return;
 
     // Thanh toán riêng tờ vé đang chọn — không thêm vào / không xoá giỏ hàng.
     ref.read(buyNowItemsProvider.notifier).start([_buildCartItem(ticket)]);
