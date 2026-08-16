@@ -34,7 +34,15 @@ class _CheckoutViewState extends ConsumerState<CheckoutView> {
     // Xóa giờ nhận vé cũ còn sót trong provider khi vào lại màn hình.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      ref.read(checkoutProvider.notifier).clearExpectedPickupAt();
+      final notifier = ref.read(checkoutProvider.notifier);
+      notifier.clearExpectedPickupAt();
+      // Mặc định ngay để nút chốt đơn không bị khóa khi API enum lỗi.
+      notifier.setSelectedReceiveType('COUNTER_PICKUP');
+      notifier.setSelectedTransactionType('ONLINE');
+      notifier.loadUserProfile();
+      // Bỏ cache lỗi 401 cũ (nếu có) và tải lại danh mục.
+      ref.invalidate(receiveTypesProvider);
+      ref.invalidate(transactionTypesProvider);
     });
   }
 
@@ -126,9 +134,6 @@ class _CheckoutViewState extends ConsumerState<CheckoutView> {
     // Init form fields once
     if (!_initialLoadDone) {
       _initialLoadDone = true;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        ref.read(checkoutProvider.notifier).loadUserProfile();
-      });
     }
     // Sync controllers with state
     _initFromState(checkoutState);
@@ -207,9 +212,25 @@ class _CheckoutViewState extends ConsumerState<CheckoutView> {
                       child: CircularProgressIndicator(strokeWidth: 2),
                     ),
                   ),
-                  error: (e, _) => Text(
-                    'Lỗi tải dữ liệu: $e',
-                    style: const TextStyle(color: Colors.red, fontSize: 13),
+                  error: (e, _) => Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Không tải được danh mục, dùng mặc định nhận tại quầy.',
+                        style: TextStyle(
+                          color: Colors.orange.shade800,
+                          fontSize: 13,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      _buildReceiveTypeSelector(
+                        defaultReceiveTypes,
+                        checkoutState.selectedReceiveType ?? 'COUNTER_PICKUP',
+                        (val) => ref
+                            .read(checkoutProvider.notifier)
+                            .setSelectedReceiveType(val),
+                      ),
+                    ],
                   ),
                 ),
                 const SizedBox(height: 24),
@@ -225,17 +246,20 @@ class _CheckoutViewState extends ConsumerState<CheckoutView> {
                           (t) => t.value != 'REFUND' && t.value != 'OFFLINE',
                         )
                         .toList();
+                    final effectiveTypes = paymentTypes.isNotEmpty
+                        ? paymentTypes
+                        : defaultTransactionTypes;
                     // Tự chọn mặc định nếu chưa chọn hoặc đang giữ OFFLINE đã bị ẩn.
                     final current = checkoutState.selectedTransactionType;
                     final needDefault = current == null ||
                         current == 'OFFLINE' ||
-                        !paymentTypes.any((t) => t.value == current);
-                    if (needDefault && paymentTypes.isNotEmpty) {
+                        !effectiveTypes.any((t) => t.value == current);
+                    if (needDefault && effectiveTypes.isNotEmpty) {
                       final online =
-                          paymentTypes.where((t) => t.value == 'ONLINE');
+                          effectiveTypes.where((t) => t.value == 'ONLINE');
                       final def = online.isNotEmpty
                           ? online.first.value
-                          : paymentTypes.first.value;
+                          : effectiveTypes.first.value;
                       WidgetsBinding.instance.addPostFrameCallback((_) {
                         ref
                             .read(checkoutProvider.notifier)
@@ -243,7 +267,7 @@ class _CheckoutViewState extends ConsumerState<CheckoutView> {
                       });
                     }
                     return _buildPaymentMethodSelector(
-                      paymentTypes,
+                      effectiveTypes,
                       checkoutState.selectedTransactionType,
                       (val) => ref
                           .read(checkoutProvider.notifier)
@@ -257,9 +281,25 @@ class _CheckoutViewState extends ConsumerState<CheckoutView> {
                       child: CircularProgressIndicator(strokeWidth: 2),
                     ),
                   ),
-                  error: (e, _) => Text(
-                    'Lỗi tải dữ liệu: $e',
-                    style: const TextStyle(color: Colors.red, fontSize: 13),
+                  error: (e, _) => Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Không tải được danh mục, dùng mặc định chuyển khoản.',
+                        style: TextStyle(
+                          color: Colors.orange.shade800,
+                          fontSize: 13,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      _buildPaymentMethodSelector(
+                        defaultTransactionTypes,
+                        checkoutState.selectedTransactionType ?? 'ONLINE',
+                        (val) => ref
+                            .read(checkoutProvider.notifier)
+                            .setSelectedTransactionType(val),
+                      ),
+                    ],
                   ),
                 ),
                 const SizedBox(height: 24),

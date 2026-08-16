@@ -784,7 +784,11 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
                 onTap: () => context.push(AppRoute.notifications.path),
               ),
               const SizedBox(width: 10),
-              _buildUtilityItemIcon(Icons.auto_fix_high, 'Gieo quẻ'),
+              _buildUtilityItemIcon(
+                Icons.auto_fix_high,
+                'Gieo quẻ',
+                onTap: () => context.push(AppRoute.fortune.path),
+              ),
               const SizedBox(width: 10),
               _buildUtilityItemIcon(
                 Icons.calendar_month_outlined,

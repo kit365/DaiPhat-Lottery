@@ -53,7 +53,10 @@ class OrderComplaintEligibilityServiceTest {
     @BeforeEach
     void setUp() {
         service = new OrderComplaintEligibilityService(
-                orderRepositoryPort, transactionRepositoryPort, systemConfigRepositoryPort);
+                orderRepositoryPort,
+                new com.daiphat.coreapi.application.service.order.OrderPaymentSuccessTimeResolver(
+                        transactionRepositoryPort),
+                systemConfigRepositoryPort);
         lenient().when(systemConfigRepositoryPort.findActiveByConfigKey(
                         SystemConfigEnum.ORDER_STATUS_DELAY_COMPLAINT_MINUTES.name()))
                 .thenReturn(Optional.of(SystemConfigModel.builder().configValue("15").build()));

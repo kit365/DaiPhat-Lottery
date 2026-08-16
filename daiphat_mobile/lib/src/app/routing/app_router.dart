@@ -36,6 +36,7 @@ import 'package:daiphat_mobile/src/features/profile/presentation/views/complaint
 import 'package:daiphat_mobile/src/features/profile/presentation/views/complaint_detail_view.dart';
 import 'package:daiphat_mobile/src/features/admin/presentation/views/admin_scan_view.dart';
 import 'package:daiphat_mobile/src/features/admin/presentation/viewmodels/admin_scan_viewmodel.dart';
+import 'package:daiphat_mobile/src/features/fortune/presentation/views/fortune_cast_view.dart';
 import 'app_routes.dart';
 
 final rootNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'root');
@@ -93,6 +94,16 @@ GoRouter createAppRouter({
             if (queryParams.containsKey('cancel'))
               'cancel': queryParams['cancel']!,
           },
+        ).toString();
+      }
+
+      final path = state.uri.path;
+      if (path != AppRoute.login.path &&
+          (path == AppRoute.cart.path || path == AppRoute.checkout.path) &&
+          !loginViewModel.isAuthenticated) {
+        return Uri(
+          path: AppRoute.login.path,
+          queryParameters: {'redirect': state.uri.toString()},
         ).toString();
       }
 
@@ -341,6 +352,14 @@ GoRouter createAppRouter({
         profileViewModel,
         notificationViewModel,
       ),
+      _route(
+        AppRoute.fortune,
+        loginViewModel,
+        registerViewModel,
+        forgotPasswordViewModel,
+        profileViewModel,
+        notificationViewModel,
+      ),
     ],
   );
 }
@@ -391,7 +410,11 @@ Widget _buildRoute(
     case AppRoute.forgotPassword:
       return ForgotPasswordView(viewModel: forgotPasswordViewModel);
     case AppRoute.buyTicket:
-      return const BuyTicketView();
+      return BuyTicketView(
+        ticketNumber: state.uri.queryParameters['ticketNumber'] ??
+            state.uri.queryParameters['search'],
+        drawDate: state.uri.queryParameters['drawDate'],
+      );
     case AppRoute.checkTicket:
       return const CheckTicketView();
     case AppRoute.cart:
@@ -483,5 +506,7 @@ Widget _buildRoute(
       return ComplaintDetailView(ticketId: id);
     case AppRoute.adminScan:
       return AdminScanView(viewModel: AdminScanViewModel());
+    case AppRoute.fortune:
+      return FortuneCastView(profileViewModel: profileViewModel);
   }
 }

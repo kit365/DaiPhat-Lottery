@@ -9,6 +9,7 @@ import 'package:daiphat_mobile/src/features/auth/presentation/viewmodels/login_v
 import 'package:daiphat_mobile/src/features/chat/presentation/views/chat_screen.dart';
 import 'package:daiphat_mobile/src/features/notifications/presentation/viewmodels/notification_viewmodel.dart';
 import 'package:daiphat_mobile/src/features/cart/providers/cart_provider.dart';
+import 'package:daiphat_mobile/src/shared/utils/auth_navigation.dart';
 
 class HomeHeader extends StatelessWidget {
   final LoginViewModel loginViewModel;
@@ -87,7 +88,12 @@ class HomeHeader extends StatelessWidget {
             builder: (context, ref, child) {
               final cartItemCount = ref.watch(cartTicketCountProvider);
               return GestureDetector(
-                onTap: () => context.pushNamed(AppRoute.cart.name),
+                onTap: () => requireAuthOrGoLoginWithViewModel(
+                  context,
+                  loginViewModel,
+                  redirectPath: AppRoute.cart.path,
+                  onAuthenticated: () => context.pushNamed(AppRoute.cart.name),
+                ),
                 child: Stack(
                   children: [
                     _iconBtn(Icons.shopping_cart_outlined),

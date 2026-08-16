@@ -18,14 +18,13 @@ import com.daiphat.coreapi.application.service.refund.OrderRefundPolicyService.P
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
 import com.daiphat.coreapi.domain.model.enums.order.OrderCancelType;
-import com.daiphat.coreapi.domain.model.enums.order.OrderStatus;
-import com.daiphat.coreapi.domain.model.enums.order.OrderType;
 import com.daiphat.coreapi.domain.model.enums.order.refund.RefundRequestRole;
 import com.daiphat.coreapi.domain.model.enums.order.refund.RefundType;
 import com.daiphat.coreapi.domain.model.orders.OrderDetailModel;
 import com.daiphat.coreapi.domain.model.orders.OrderModel;
 import com.daiphat.coreapi.domain.model.refund.RefundRequestModel;
 import com.daiphat.coreapi.domain.model.refund.UserBankAccountModel;
+import com.daiphat.coreapi.shared.util.DrawScheduleUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
@@ -122,8 +121,8 @@ public class OrderRefundService implements OrderRefundServicePort {
                 reason,
                 grace.remainingSeconds(),
                 grace.graceMinutes(),
-                grace.refundDeadlineAt(),
-                grace.paymentSuccessAt(),
+                DrawScheduleUtils.toVietnamOffset(grace.refundDeadlineAt()),
+                DrawScheduleUtils.toVietnamOffset(grace.paymentSuccessAt()),
                 order.getId(),
                 order.getOrderCode(),
                 order.getStatus() != null ? order.getStatus().name() : null,
@@ -160,15 +159,7 @@ public class OrderRefundService implements OrderRefundServicePort {
     }
 
     private void cancelOrderForCustomerRefund(OrderModel order, String cancelReason) {
-        if (order.getOrderType() == OrderType.DIRECT) {
-            order.cancelDirectOrderForRefund(cancelReason, OrderCancelType.CUSTOMER_REQUEST);
-            return;
-        }
-        if (order.getStatus() == OrderStatus.PAID) {
-            order.cancelByCustomerRefund(cancelReason, OrderCancelType.CUSTOMER_REQUEST);
-            return;
-        }
-        order.cancelAfterPaymentForRefund(cancelReason, OrderCancelType.CUSTOMER_REQUEST);
+        order.cancelPaidFulfillmentForRefund(cancelReason, OrderCancelType.CUSTOMER_REQUEST);
     }
 
     private void releaseSoldTickets(OrderModel order) {
