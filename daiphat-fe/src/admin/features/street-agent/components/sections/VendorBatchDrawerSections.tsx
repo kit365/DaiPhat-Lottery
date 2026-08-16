@@ -49,6 +49,7 @@ import {
     VENDOR_LATE_RETURN_POLICY_LABELS,
     VendorLateReturnPolicyValue,
 } from "../../hooks/useVendorSettingsDefaults";
+import { ALLOCATION_BATCH_STATUS_LABELS } from "../configs/constants";
 import { BADGE_COLOR_PALETTE } from "@/admin/utils/badge";
 
 const fieldSx = {

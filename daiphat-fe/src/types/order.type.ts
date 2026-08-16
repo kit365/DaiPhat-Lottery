@@ -107,6 +107,21 @@ export function getOrderDetailStatusAdminBadgeModifier(status?: string | null): 
     }
 }
 
+const SERIAL_STATUS_LABELS: Record<string, string> = {
+    IN_STOCK: 'Trong kho',
+    RESERVED: 'Đang giữ chỗ',
+    PROXY_HOLDING: 'Đại lý giữ hộ',
+    SOLD: 'Đã bán',
+    EXPIRED: 'Hết hạn',
+};
+
+const TICKET_CONDITION_LABELS: Record<string, string> = {
+    GOOD: 'Tốt',
+    DAMAGED: 'Hỏng',
+    LOST: 'Thất lạc',
+    VOIDED: 'Đã hủy',
+};
+
 /** Badge for lottery-ticket-serial status shown on order-detail lists. */
 export function resolveLotteryTicketSerialStatusBadge(
     status?: string | null,
@@ -139,21 +154,6 @@ export function resolveLotteryTicketSerialStatusBadge(
             return { label, color: '#64748b', bgcolor: '#f1f5f9' };
     }
 }
-
-const SERIAL_STATUS_LABELS: Record<string, string> = {
-    IN_STOCK: 'Trong kho',
-    RESERVED: 'Đang giữ chỗ',
-    PROXY_HOLDING: 'Đại lý giữ hộ',
-    SOLD: 'Đã bán',
-    EXPIRED: 'Hết hạn',
-};
-
-const TICKET_CONDITION_LABELS: Record<string, string> = {
-    GOOD: 'Tốt',
-    DAMAGED: 'Hỏng',
-    LOST: 'Thất lạc',
-    VOIDED: 'Đã hủy',
-};
 
 export interface OrderTicketItemRequest {
     lotteryTicketId: number;

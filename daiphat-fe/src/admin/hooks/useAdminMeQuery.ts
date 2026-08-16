@@ -2,6 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { userService } from '@/shared/auth/services/user.service';
+import type { GetMeResponse } from '@/shared/auth/types/auth.type';
 import { QUERY_KEYS } from "@/constants/queryKeys";
 import { useAuthStore } from "@/stores/useAuthStore";
 
@@ -9,9 +10,9 @@ import { useAuthStore } from "@/stores/useAuthStore";
 export function useAdminMeQuery() {
     const token = useAuthStore((state) => state.token);
 
-    return useQuery({
+    return useQuery<GetMeResponse, Error>({
         queryKey: [QUERY_KEYS.AUTH_ME, token],
-        queryFn: userService.getMe,
+        queryFn: () => userService.getMe(),
         enabled: Boolean(token),
         retry: false,
         staleTime: 1000 * 60 * 10,
