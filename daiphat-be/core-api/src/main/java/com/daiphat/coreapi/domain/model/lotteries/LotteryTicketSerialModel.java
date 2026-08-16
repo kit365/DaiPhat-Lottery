@@ -164,7 +164,16 @@ public class LotteryTicketSerialModel {
     }
 
     public void returnSoldToStock() {
-        if (this.status != LotteryTicketSerialStatus.SOLD) {
+        // Customer refund during PREPARING still holds PROXY_HOLDING, not SOLD.
+        if (this.status == LotteryTicketSerialStatus.IN_STOCK) {
+            this.reservedAt = null;
+            this.reservationExpiresAt = null;
+            this.reservedByOrderId = null;
+            return;
+        }
+        if (this.status != LotteryTicketSerialStatus.SOLD
+                && this.status != LotteryTicketSerialStatus.PROXY_HOLDING
+                && this.status != LotteryTicketSerialStatus.RESERVED) {
             throw new DomainException(ErrorCode.LOTTERY_TICKET_INVALID_STATUS);
         }
         this.status = LotteryTicketSerialStatus.IN_STOCK;

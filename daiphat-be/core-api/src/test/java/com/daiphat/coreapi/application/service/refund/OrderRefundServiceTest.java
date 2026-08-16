@@ -75,7 +75,8 @@ class OrderRefundServiceTest {
         orderRefundGraceService = new OrderRefundGraceService(
                 systemConfigRepositoryPort,
                 refundRequestRepositoryPort,
-                transactionRepositoryPort);
+                new com.daiphat.coreapi.application.service.order.OrderPaymentSuccessTimeResolver(
+                        transactionRepositoryPort));
 
         OrderRefundProperties refundProperties = new OrderRefundProperties();
         orderRefundPolicyService = new OrderRefundPolicyService(
@@ -125,6 +126,26 @@ class OrderRefundServiceTest {
         assertThat(refundCaptor.getValue().getStatus()).isEqualTo(RefundRequestStatus.READY_TO_PAY);
 
         verify(orderRepositoryPort).save(any());
+        verify(lotteryTicketServicePort, atLeastOnce()).returnSoldTicketForOrder(any());
+        assertThat(order.getStatus()).isEqualTo(OrderStatus.CANCELLED);
+    }
+
+    @Test
+    @DisplayName("refundPaidOrder: PREPARING without orderType still cancels for refund")
+    void refundPaidOrder_preparingWithoutOrderType() {
+        OrderModel order = orderBuilder(OrderStatus.PREPARING).orderType(null).build();
+        UserBankAccountModel bankAccount = UserBankAccountModel.builder().id(5L).userId(customerId).build();
+
+        when(orderRepositoryPort.findByIdWithLock(orderId)).thenReturn(Optional.of(order));
+        when(refundRequestRepositoryPort.existsLinkedOrderDetailByOrderId(orderId)).thenReturn(false);
+        when(userBankAccountRepositoryPort.findByIdAndUserId(5L, customerId)).thenReturn(Optional.of(bankAccount));
+        when(refundRequestRepositoryPort.save(any(RefundRequestModel.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(refundApplicationMapper.toRefundResponse(any(), any())).thenReturn(null);
+
+        orderRefundService.refundPaidOrder(
+                orderId, customerId, new CreateOrderRefundRequest("Đổi ý", 5L));
+
+        assertThat(order.getStatus()).isEqualTo(OrderStatus.CANCELLED);
         verify(lotteryTicketServicePort, atLeastOnce()).returnSoldTicketForOrder(any());
     }
 
@@ -387,6 +408,9 @@ class OrderRefundServiceTest {
         assertThat(response.dailyLimitReached()).isTrue();
         assertThat(response.maxRefundRequestsPerDay()).isEqualTo(3);
         assertThat(response.refundRequestsSubmittedToday()).isEqualTo(3L);
+        assertThat(response.remainingSeconds()).isPositive();
+        assertThat(response.paymentSuccessAt()).isNotNull();
+        assertThat(response.refundDeadlineAt()).isNotNull();
     }
 
     private OrderModel.OrderModelBuilder orderBuilder(OrderStatus status) {

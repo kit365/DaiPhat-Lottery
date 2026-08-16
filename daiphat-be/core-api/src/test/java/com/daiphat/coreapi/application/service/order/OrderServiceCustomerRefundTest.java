@@ -69,7 +69,8 @@ class OrderServiceCustomerRefundTest {
         OrderRefundGraceService orderRefundGraceService = new OrderRefundGraceService(
                 systemConfigRepositoryPort,
                 refundRequestRepositoryPort,
-                transactionRepositoryPort);
+                new com.daiphat.coreapi.application.service.order.OrderPaymentSuccessTimeResolver(
+                        transactionRepositoryPort));
 
         orderService = new OrderService(
                 orderRepositoryPort,
@@ -115,6 +116,9 @@ class OrderServiceCustomerRefundTest {
         OrderResponse orderResponse = response.getRecordList().getFirst();
         assertThat(orderResponse.refundEligible()).isTrue();
         assertThat(orderResponse.refundRemainingSeconds()).isPositive();
-        assertThat(orderResponse.refundPaymentSuccessAt()).isEqualTo(paidAt);
+        assertThat(orderResponse.refundPaymentSuccessAt())
+                .isEqualTo(paidAt.atZone(java.time.ZoneId.of("Asia/Ho_Chi_Minh")).toOffsetDateTime());
+        assertThat(orderResponse.refundDeadlineAt())
+                .isEqualTo(paidAt.plusMinutes(30).atZone(java.time.ZoneId.of("Asia/Ho_Chi_Minh")).toOffsetDateTime());
     }
 }
