@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:daiphat_mobile/src/shared/network/api_client.dart';
 import 'package:daiphat_mobile/src/shared/network/api_exception.dart';
 import 'package:daiphat_mobile/src/shared/storage/auth_token_storage.dart';
@@ -28,6 +30,20 @@ class AuthRepository {
     }
 
     _apiClient.setAccessToken(accessToken);
+    unawaited(_clearStaleSessionIfNeeded());
+  }
+
+  Future<void> _clearStaleSessionIfNeeded() async {
+    try {
+      final user = await _apiService.getCurrentUser();
+      _currentUser = user.copyWith(accessToken: _tokenStorage.getAccessToken() ?? '');
+    } on ApiException catch (error) {
+      if (error.statusCode == 401 || error.statusCode == 403) {
+        await logout();
+      }
+    } catch (_) {
+      // Network hiccup at startup — keep token; protected APIs will retry later.
+    }
   }
 
   Future<User> login(String username, String password) async {

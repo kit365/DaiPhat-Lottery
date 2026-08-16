@@ -96,6 +96,16 @@ GoRouter createAppRouter({
         ).toString();
       }
 
+      final path = state.uri.path;
+      if (path != AppRoute.login.path &&
+          (path == AppRoute.cart.path || path == AppRoute.checkout.path) &&
+          !loginViewModel.isAuthenticated) {
+        return Uri(
+          path: AppRoute.login.path,
+          queryParameters: {'redirect': state.uri.toString()},
+        ).toString();
+      }
+
       return null; // No redirect
     },
     routes: [
