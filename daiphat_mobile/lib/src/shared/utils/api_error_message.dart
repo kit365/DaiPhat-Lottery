@@ -47,6 +47,16 @@ String toUserFacingApiMessage(Object error) {
     return 'Vé đã chọn chưa sẵn sàng bán. Vui lòng chọn vé khác.';
   }
 
+  if (raw.contains('Birth year is required') || raw.contains('FRT_001')) {
+    return 'Vui lòng nhập ngày sinh để gieo quẻ.';
+  }
+  if (raw.contains('Birth year is invalid') || raw.contains('FRT_002')) {
+    return 'Ngày sinh không hợp lệ.';
+  }
+  if (raw.contains('No sellable ticket endings') || raw.contains('FRT_003')) {
+    return 'Hôm nay chưa có đuôi vé để gieo quẻ. Vui lòng thử lại sau.';
+  }
+
   return raw;
 }
 

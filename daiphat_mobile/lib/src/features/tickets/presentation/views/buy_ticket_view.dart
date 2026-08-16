@@ -46,7 +46,14 @@ String _compactPrice(int? price) {
 }
 
 class BuyTicketView extends ConsumerStatefulWidget {
-  const BuyTicketView({super.key});
+  const BuyTicketView({
+    super.key,
+    this.ticketNumber,
+    this.drawDate,
+  });
+
+  final String? ticketNumber;
+  final String? drawDate;
 
   @override
   ConsumerState<BuyTicketView> createState() => _BuyTicketViewState();
@@ -54,6 +61,33 @@ class BuyTicketView extends ConsumerStatefulWidget {
 
 class _BuyTicketViewState extends ConsumerState<BuyTicketView> {
   bool _showHardcodedTicket = true;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _applyQuery());
+  }
+
+  @override
+  void didUpdateWidget(covariant BuyTicketView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.ticketNumber != widget.ticketNumber ||
+        oldWidget.drawDate != widget.drawDate) {
+      _applyQuery();
+    }
+  }
+
+  void _applyQuery() {
+    final number = widget.ticketNumber?.trim() ?? '';
+    final drawDate = widget.drawDate?.trim();
+    if (number.isEmpty && (drawDate == null || drawDate.isEmpty)) {
+      return;
+    }
+    ref.read(buyTicketViewModelProvider.notifier).applyQuery(
+      searchQuery: number,
+      drawDateIso: drawDate,
+    );
+  }
 
   void _toggleHardcodedTicket() {
     setState(() {

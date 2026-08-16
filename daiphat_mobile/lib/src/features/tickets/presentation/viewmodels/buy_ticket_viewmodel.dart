@@ -226,6 +226,34 @@ class BuyTicketViewModel extends AsyncNotifier<BuyTicketState> {
     );
   }
 
+  Future<void> applyQuery({
+    String searchQuery = '',
+    String? drawDateIso,
+  }) async {
+    var day = _defaultDayFilter();
+    final iso = drawDateIso?.trim() ?? '';
+    if (iso.isNotEmpty) {
+      final today = SellableDrawDate.todayIsoVn();
+      final tomorrow = SellableDrawDate.tomorrowIsoVn();
+      if (iso.startsWith(tomorrow)) {
+        day = TicketDayFilter.tomorrow;
+      } else if (iso.startsWith(today) &&
+          !SellableDrawDate.isTodayDrawPassed()) {
+        day = TicketDayFilter.today;
+      } else {
+        day = TicketDayFilter.tomorrow;
+      }
+    }
+
+    state = const AsyncLoading();
+    state = await AsyncValue.guard(
+      () => _load(
+        searchQuery: searchQuery.trim(),
+        selectedDay: day,
+      ),
+    );
+  }
+
   Future<void> refresh() async {
     final current = state.asData?.value;
     state = const AsyncLoading();
