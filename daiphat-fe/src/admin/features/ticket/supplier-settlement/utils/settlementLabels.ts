@@ -72,6 +72,12 @@ export const getReconciliationPhaseLabel = (
     }
 };
 
+export const SUPPLIER_SETTLEMENT_DISCREPANCY_TYPES: SupplierSettlementDiscrepancyType[] = [
+    'IMPORT_UNIT_PRICE',
+    'IMPORT_QUANTITY',
+    'RETURN_QUANTITY',
+];
+
 export const getDiscrepancyTypeLabel = (
     type?: SupplierSettlementDiscrepancyType | null
 ): string => {
@@ -97,6 +103,31 @@ const signedItem = (
     }
     const direction: SupplierSettlementDiscrepancyDirection = difference > 0 ? 'POSITIVE' : 'NEGATIVE';
     return { type, direction, difference, unit };
+};
+
+/** Live discrepancy items while typing matching actuals (same enum as BE). */
+export const buildLiveDiscrepancyItems = (params: {
+    unitPriceDiff: number;
+    importQtyDiff: number;
+    returnQtyDiff: number;
+    detectUnitPrice: boolean;
+    detectImportQty: boolean;
+    detectReturnQty: boolean;
+}): SettlementDiscrepancyItem[] => {
+    const items: SettlementDiscrepancyItem[] = [];
+    if (params.detectUnitPrice) {
+        const item = signedItem('IMPORT_UNIT_PRICE', params.unitPriceDiff, 'VND');
+        if (item) items.push(item);
+    }
+    if (params.detectImportQty) {
+        const item = signedItem('IMPORT_QUANTITY', params.importQtyDiff, 'TICKET');
+        if (item) items.push(item);
+    }
+    if (params.detectReturnQty) {
+        const item = signedItem('RETURN_QUANTITY', params.returnQtyDiff, 'TICKET');
+        if (item) items.push(item);
+    }
+    return items;
 };
 
 export const weightedStationNetUnitPrice = (
@@ -187,6 +218,33 @@ export const resolveLiveSystemReturnQuantity = (
     return Math.max(snapshot, handedOver);
 };
 
+/** Live imported qty: snapshot, inventory-by-station, or import-batch header totals (whichever is highest). */
+export const resolveLiveSystemImportQuantity = (
+    settlement?: { systemImportQuantity?: number | null } | null,
+    importBatches?: Array<{
+        totalImportedQuantity?: number | null;
+        totalDeclareQuantity?: number | null;
+    }> | null,
+    inventoryByStation?: Array<{ importedQuantity?: number | null }> | null
+): number => {
+    const snapshot = Number(settlement?.systemImportQuantity ?? 0) || 0;
+    const fromInventory = (inventoryByStation || []).reduce(
+        (sum, row) => sum + (Number(row.importedQuantity) || 0),
+        0
+    );
+    const fromBatches = (importBatches || []).reduce((sum, batch) => {
+        const imported = Number(batch.totalImportedQuantity);
+        const declared = Number(batch.totalDeclareQuantity);
+        const qty = Number.isFinite(imported) && imported > 0
+            ? imported
+            : Number.isFinite(declared) && declared > 0
+              ? declared
+              : 0;
+        return sum + qty;
+    }, 0);
+    return Math.max(snapshot, fromInventory, fromBatches);
+};
+
 /**
  * Lock return matching until every non-cancelled related return-batch from BE
  * has reached Đã bàn giao (or later). No open return-batch → not locked.
@@ -203,7 +261,7 @@ export const isReturnReconciliationLocked = (
     return activeBatches.some((batch) => !isReturnBatchHandedOver(batch.status));
 };
 
-/** True when locked and no active return-batch has been handed over yet. */
+/** True when locked and no active return-batch has been handed over yet (status-only). */
 export const isReturnMatchingForfeitedToAgent = (
     returnBatches?: Array<{ status?: string | null }> | null
 ): boolean => {
@@ -214,6 +272,187 @@ export const isReturnMatchingForfeitedToAgent = (
         (batch) => batch.status && batch.status !== 'CANCELLED'
     );
     return activeBatches.every((batch) => !isReturnBatchHandedOver(batch.status));
+};
+
+export type ReturnOverdueContext = {
+    isReturnExpired?: boolean | null;
+    periodTo?: string | null;
+    periodFrom?: string | null;
+    supplierReturnCutOffTime?: string | null;
+};
+
+/**
+ * Past return cutoff AND at least one active return-batch is not yet HANDED_OVER/RECEIVED.
+ * Remaining inventory cannot be returned; agent bears the cost.
+ */
+export const isReturnMatchingOverdueUnhanded = (
+    settlement?: ReturnOverdueContext | null,
+    returnBatches?: Array<{
+        status?: string | null;
+        drawDate?: string | null;
+        returnCutOffTime?: string | null;
+        returnCutOffAt?: string | null;
+        inspectionExpired?: boolean | null;
+    }> | null
+): boolean => {
+    if (!isReturnReconciliationLocked(returnBatches)) {
+        return false;
+    }
+    if (settlement?.isReturnExpired) {
+        return true;
+    }
+    const activeBatches = (returnBatches || []).filter(
+        (batch) => batch.status && batch.status !== 'CANCELLED'
+    );
+    const fallbackDate = settlement?.periodTo || settlement?.periodFrom || null;
+    if (activeBatches.length === 0) {
+        return isReturnBatchOverdue(null, settlement?.supplierReturnCutOffTime, fallbackDate);
+    }
+    return activeBatches.some(
+        (batch) =>
+            !isReturnBatchHandedOver(batch.status)
+            && isReturnBatchOverdue(batch, settlement?.supplierReturnCutOffTime, fallbackDate)
+    );
+};
+
+export type ReturnMatchingLockBlocker = {
+    batchId?: number | null;
+    batchCode: string;
+    status: string;
+    message: string;
+};
+
+export type ReturnMatchingLockDetails = {
+    /** Non-cancelled return batches still waiting (inspection / handover). */
+    locked: boolean;
+    /**
+     * Block return matching inputs / discrepancy actions:
+     * pending return-batch handling, all CANCELLED, or return period expired.
+     */
+    inputsLocked: boolean;
+    overdue: boolean;
+    /** Non-cancelled return batches linked to the settlement. */
+    hasActiveReturnBatches: boolean;
+    /** Any linked return batch, including CANCELLED. */
+    hasAnyReturnBatches: boolean;
+    /** Linked batches exist but every one is CANCELLED. */
+    allCancelled: boolean;
+    cancelledBatchCodes: string[];
+    blockers: ReturnMatchingLockBlocker[];
+    /** Single summary line for tooltips / short alerts. */
+    summaryMessage: string;
+    /** Info banner when there is nothing active to reconcile on the return side. */
+    emptyStateMessage: string | null;
+};
+
+const returnBatchDisplayCode = (batch: {
+    id?: number | null;
+    batchCode?: string | null;
+}): string => batch.batchCode?.trim() || (batch.id != null ? `#${batch.id}` : 'phiếu trả');
+
+/** Status-specific lock copy for a single non-handed-over return batch. */
+export const getReturnBatchLockMessage = (
+    status?: string | null,
+    batchCode?: string
+): string => {
+    const code = batchCode || 'phiếu trả';
+    switch (status) {
+        case 'PENDING_INSPECTION':
+            return `Phiếu ${code} đang chờ kiểm tra vé — chưa thể đối chiếu / xử lý chênh lệch trả.`;
+        case 'INSPECTING':
+            return `Phiếu ${code} đang kiểm tra vé — hoàn tất kiểm tra rồi bàn giao trước khi tiếp tục.`;
+        case 'PENDING_HANDOVER':
+            return `Phiếu ${code} đã kiểm tra nhưng chưa bàn giao NCC — hoàn tất bàn giao trước khi tiếp tục.`;
+        default:
+            return `Phiếu ${code} chưa hoàn tất bàn giao — chưa thể đối chiếu / xử lý chênh lệch trả.`;
+    }
+};
+
+/**
+ * Lock details for matching + discrepancy UI: per-batch blockers and overdue override copy.
+ */
+export const getReturnMatchingLockDetails = (
+    returnBatches?: Array<{
+        id?: number | null;
+        batchCode?: string | null;
+        status?: string | null;
+        drawDate?: string | null;
+        returnCutOffTime?: string | null;
+        returnCutOffAt?: string | null;
+        inspectionExpired?: boolean | null;
+    }> | null,
+    overdueContext?: ReturnOverdueContext | null,
+    cutOffTimeDisplay?: string | null
+): ReturnMatchingLockDetails => {
+    const allBatches = (returnBatches || []).filter((batch) => Boolean(batch?.status));
+    const cancelledBatches = allBatches.filter((batch) => batch.status === 'CANCELLED');
+    const activeBatches = allBatches.filter((batch) => batch.status !== 'CANCELLED');
+    const pendingBatches = activeBatches.filter((batch) => !isReturnBatchHandedOver(batch.status));
+    const locked = pendingBatches.length > 0;
+    const expired = Boolean(overdueContext?.isReturnExpired);
+    const allCancelled = allBatches.length > 0 && activeBatches.length === 0;
+    const inputsLocked = locked || allCancelled || expired;
+    const overdue = locked
+        ? isReturnMatchingOverdueUnhanded(overdueContext, returnBatches)
+        : expired;
+    const cancelledBatchCodes = cancelledBatches.map((batch) => returnBatchDisplayCode(batch));
+
+    const blockers: ReturnMatchingLockBlocker[] = pendingBatches.map((batch) => {
+        const batchCode = returnBatchDisplayCode(batch);
+        const status = String(batch.status || '');
+        return {
+            batchId: batch.id,
+            batchCode,
+            status,
+            message: getReturnBatchLockMessage(status, batchCode),
+        };
+    });
+
+    let summaryMessage = '';
+    if (overdue || expired) {
+        summaryMessage = cutOffTimeDisplay
+            ? `Đã quá giờ trả vé (chốt ${cutOffTimeDisplay}). Các vé còn tồn kho không được trả và đại lý phải chịu khoản này.`
+            : 'Đã quá giờ trả vé. Các vé còn tồn kho không được trả và đại lý phải chịu khoản này.';
+    } else if (allCancelled) {
+        summaryMessage =
+            cancelledBatchCodes.length > 0
+                ? `Các phiếu trả đã hủy (${cancelledBatchCodes.join(', ')}) — không thể nhập điều chỉnh SL trả.`
+                : 'Các phiếu trả đã hủy — không thể nhập điều chỉnh SL trả.';
+    } else if (blockers.length === 1) {
+        summaryMessage = blockers[0].message;
+    } else if (blockers.length > 1) {
+        summaryMessage = `Có ${blockers.length} phiếu trả chưa sẵn sàng để đối chiếu / xử lý chênh lệch trả.`;
+    }
+
+    let emptyStateMessage: string | null = null;
+    if (!locked && activeBatches.length === 0) {
+        if (allCancelled) {
+            const codes = cancelledBatchCodes.join(', ');
+            emptyStateMessage =
+                `Có ${cancelledBatches.length} phiếu trả trong kỳ nhưng tất cả đã hủy`
+                + (codes ? ` (${codes})` : '')
+                + (expired || overdue
+                    ? ' do quá hạn trả.'
+                    : '.')
+                + ' SL trả hệ thống = 0 (chỉ tính phiếu đã bàn giao / đã nhận). Ô nhập SL trả bị khóa — không thể điều chỉnh.';
+        } else if (!expired) {
+            emptyStateMessage =
+                'Không có phiếu trả gắn với kỳ đối soát này — SL trả hệ thống = 0. Có thể nhập thực tế SL trả nếu cần đối chiếu.';
+        }
+    }
+
+    return {
+        locked,
+        inputsLocked,
+        overdue,
+        hasActiveReturnBatches: activeBatches.length > 0,
+        hasAnyReturnBatches: allBatches.length > 0,
+        allCancelled,
+        cancelledBatchCodes,
+        blockers,
+        summaryMessage,
+        emptyStateMessage,
+    };
 };
 
 /** Normalize LocalTime JSON (string, [h, m], or { hour, minute }) to "HH:mm". */
@@ -292,14 +531,16 @@ export const getDiscrepancyItemLabel = (item: SettlementDiscrepancyItem): string
     const diff = Number(item.difference ?? 0);
     const signed = `${diff > 0 ? '+' : ''}${item.unit === 'VND' ? diff.toLocaleString('vi-VN') : diff.toLocaleString('vi-VN')}`;
     if (item.type === 'IMPORT_QUANTITY') {
+        // difference = actual − system: dương = HT thiếu ghi nhận nhập; âm = HT thừa ghi nhận nhập
         return item.direction === 'NEGATIVE'
-            ? `Hệ thống ghi thừa nhập · âm (${signed} vé)`
-            : `Hệ thống ghi thiếu nhập · dương (${signed} vé)`;
+            ? `Thừa nhập · âm (${signed} vé)`
+            : `Thiếu nhập · dương (${signed} vé)`;
     }
     if (item.type === 'RETURN_QUANTITY') {
+        // difference = actual − system: dương = thừa trả; âm = thiếu trả
         return item.direction === 'NEGATIVE'
-            ? `Hệ thống ghi thừa trả · âm (${signed} vé)`
-            : `Hệ thống ghi thiếu trả · dương (${signed} vé)`;
+            ? `Thiếu trả · âm (${signed} vé)`
+            : `Thừa trả · dương (${signed} vé)`;
     }
     return item.direction === 'NEGATIVE'
         ? `Giảm giá · âm (${signed} VNĐ/vé)`

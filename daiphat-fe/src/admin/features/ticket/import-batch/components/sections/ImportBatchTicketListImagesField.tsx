@@ -11,6 +11,11 @@ import { useImportBatchTicketListImageLimits } from '../../hooks/useImportBatchT
 interface ImportBatchTicketListImagesFieldProps {
     value?: string[];
     onChange: (urls: string[]) => void;
+    /** When true, keep files local (blob preview) — do not upload until parent confirms. */
+    deferUpload?: boolean;
+    /** Full local File list when deferUpload is enabled. */
+    onLocalFilesChange?: (files: File[]) => void;
+    localFiles?: File[];
     disabled?: boolean;
     compact?: boolean;
     required?: boolean;
@@ -19,15 +24,19 @@ interface ImportBatchTicketListImagesFieldProps {
 export const ImportBatchTicketListImagesField = ({
     value,
     onChange,
+    deferUpload = false,
+    onLocalFilesChange,
+    localFiles,
     disabled,
     compact,
     required,
 }: ImportBatchTicketListImagesFieldProps) => {
     const urls = value ?? [];
+    const files = localFiles ?? [];
     const { maxCount, maxSizeMb } = useImportBatchTicketListImageLimits();
     const [uploadingCount, setUploadingCount] = useState(0);
     const isUploading = uploadingCount > 0;
-    const remaining = Math.max(0, maxCount - urls.length);
+    const remaining = Math.max(0, maxCount - (deferUpload ? files.length : urls.length));
 
     const onDrop = useCallback(
         async (acceptedFiles: File[]) => {
@@ -47,7 +56,8 @@ export const ImportBatchTicketListImagesField = ({
                 return;
             }
 
-            const slots = Math.max(0, maxCount - urls.length);
+            const currentCount = deferUpload ? files.length : urls.length;
+            const slots = Math.max(0, maxCount - currentCount);
             if (slots <= 0) {
                 AppToast.error(`Chỉ được tải tối đa ${maxCount} ảnh danh sách vé nhập.`);
                 return;
@@ -56,6 +66,17 @@ export const ImportBatchTicketListImagesField = ({
             const toUpload = sized.slice(0, slots);
             if (sized.length > slots) {
                 AppToast.error(`Chỉ được tải tối đa ${maxCount} ảnh danh sách vé nhập.`);
+            }
+
+            if (deferUpload) {
+                const nextFiles = [...files, ...toUpload];
+                const nextPreviews = [
+                    ...urls,
+                    ...toUpload.map((file) => URL.createObjectURL(file)),
+                ];
+                onLocalFilesChange?.(nextFiles);
+                onChange(nextPreviews);
+                return;
             }
 
             setUploadingCount((count) => count + toUpload.length);
@@ -80,7 +101,7 @@ export const ImportBatchTicketListImagesField = ({
                 setUploadingCount((count) => Math.max(0, count - toUpload.length));
             }
         },
-        [disabled, maxCount, maxSizeMb, onChange, urls]
+        [deferUpload, disabled, files, maxCount, maxSizeMb, onChange, onLocalFilesChange, urls]
     );
 
     const { getRootProps, getInputProps, isDragActive } = useDropzone({
@@ -91,7 +112,15 @@ export const ImportBatchTicketListImagesField = ({
     });
 
     const handleRemove = (urlToRemove: string) => {
-        onChange(urls.filter((url) => url !== urlToRemove));
+        const idx = urls.indexOf(urlToRemove);
+        const nextUrls = urls.filter((url) => url !== urlToRemove);
+        onChange(nextUrls);
+        if (deferUpload && idx >= 0) {
+            if (urlToRemove.startsWith('blob:')) {
+                URL.revokeObjectURL(urlToRemove);
+            }
+            onLocalFilesChange?.(files.filter((_, i) => i !== idx));
+        }
     };
 
     return (

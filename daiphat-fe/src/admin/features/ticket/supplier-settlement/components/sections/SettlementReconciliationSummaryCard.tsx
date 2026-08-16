@@ -52,6 +52,7 @@ import {
     getDiscrepancyItemLabel,
     getDetectedDiscrepancyItems,
     isReturnBatchHandedOver,
+    isReturnMatchingOverdueUnhanded,
     resolveLiveSystemReturnQuantity,
     weightedStationNetUnitPrice,
 } from '../../utils/settlementLabels';
@@ -318,8 +319,14 @@ export const SettlementReconciliationSummaryCard = ({
     const paymentDiff =
         actualPaid != null && finalVal != null ? toAgencyCashflow(actualPaid - finalVal) : null;
 
-    const isReturnForfeited =
-        Boolean(settlement.isReturnExpired) && actualReturnQty === 0 && systemReturnQty >= 0;
+    const isReturnForfeited = isReturnMatchingOverdueUnhanded(
+        {
+            isReturnExpired: settlement.isReturnExpired,
+            periodTo: settlement.periodTo,
+            periodFrom: settlement.periodFrom,
+        },
+        returnBatches
+    ) || (Boolean(settlement.isReturnExpired) && actualReturnQty === 0);
 
     const handedOverReturnQty = returnBatches
         .filter((batch) => isReturnBatchHandedOver(batch.status))
@@ -1037,7 +1044,7 @@ export const SettlementReconciliationSummaryCard = ({
                                                 Chênh lệch so với tạm tính · {getAgencyCashflowLabel(differenceAmount)}
                                             </Typography>
                                             <Typography variant="caption" sx={{ color: differenceTone.color, opacity: 0.85 }}>
-                                                = Sau chênh lệch − tạm tính ban đầu
+                                                = Chênh lệch sau đối soát − tạm tính ban đầu
                                             </Typography>
                                         </Box>
                                     </Stack>
@@ -1110,10 +1117,10 @@ export const SettlementReconciliationSummaryCard = ({
                                             </Typography>
                                             <Typography variant="caption" color="#64748b" sx={{ display: 'block' }}>
                                                 {actualPaid == null
-                                                    ? 'Chưa nhập giá trị biên lai'
+                                                    ? 'Chưa nhập số tiền cần trả thực tế'
                                                     : isSupplierRefund
-                                                      ? 'Giá trị NCC hoàn / ghi có từ biên lai'
-                                                      : 'Giá trị thực trả từ biên lai'}
+                                                      ? 'Số tiền NCC hoàn / ghi có thực tế'
+                                                      : 'Số tiền cần trả thực tế'}
                                             </Typography>
                                             <Typography fontWeight={800} sx={{ mt: 0.25 }}>
                                                 {actualPaid == null ? '—' : `${formatSettlementMoney(Math.abs(actualPaid))} VNĐ`}

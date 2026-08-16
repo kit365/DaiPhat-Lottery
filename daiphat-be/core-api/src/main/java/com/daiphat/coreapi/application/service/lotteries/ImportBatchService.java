@@ -204,6 +204,9 @@ public class ImportBatchService implements ImportBatchServicePort {
         header.setSupplierSettlementId(settlement.getId());
 
         ImportBatchModel saved = importBatchRepositoryPort.save(header);
+        if (saved.getSupplierSettlementId() != null) {
+            supplierSettlementServicePort.recalculateTotalImportValue(saved.getSupplierSettlementId());
+        }
         return importBatchApplicationMapper.toResponse(saved, lateImportWarning, warnings);
     }
 
@@ -250,6 +253,9 @@ public class ImportBatchService implements ImportBatchServicePort {
         batch.setUpdatedAt(now);
 
         ImportBatchModel saved = importBatchRepositoryPort.save(batch);
+        if (saved.getSupplierSettlementId() != null) {
+            supplierSettlementServicePort.recalculateTotalImportValue(saved.getSupplierSettlementId());
+        }
         return importBatchApplicationMapper.toResponse(saved);
     }
 

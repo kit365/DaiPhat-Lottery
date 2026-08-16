@@ -86,14 +86,37 @@ const buildDrafts = (rows: SettlementStationPricing[]): Record<number, StationDr
 interface Props {
     rows: SettlementStationPricing[];
     disabled?: boolean;
-    onWeightedChange: (payload: { systemNet: number; actualNet: number; complete: boolean }) => void;
+    /** When true, do not persist station master pricing until parent confirms matching. */
+    deferPersist?: boolean;
+    onWeightedChange: (payload: {
+        systemNet: number;
+        actualNet: number;
+        complete: boolean;
+        priceMismatchStations: Array<{
+            lotteryStationId: number;
+            lotteryStationName: string;
+            systemImportCost: number;
+            actualImportCost: number;
+        }>;
+        commissionMismatchStations: Array<{
+            lotteryStationId: number;
+            lotteryStationName: string;
+            systemCommissionRate: number;
+            actualCommissionRate: number;
+        }>;
+    }) => void;
+    onPendingPricingChange?: (
+        items: Array<{ lotteryStationId: number; importCost: number; commissionRate: number }>
+    ) => void;
     onStationsUpdated?: () => void;
 }
 
 export const MatchingStationPricingTable = ({
     rows,
     disabled = false,
+    deferPersist = false,
     onWeightedChange,
+    onPendingPricingChange,
     onStationsUpdated,
 }: Props) => {
     const queryClient = useQueryClient();
@@ -130,11 +153,29 @@ export const MatchingStationPricingTable = ({
         let complete = rows.length > 0;
         const priceMismatch: SettlementStationPricing[] = [];
         const commissionMismatch: SettlementStationPricing[] = [];
+        const priceMismatchStations: Array<{
+            lotteryStationId: number;
+            lotteryStationName: string;
+            systemImportCost: number;
+            actualImportCost: number;
+        }> = [];
+        const commissionMismatchStations: Array<{
+            lotteryStationId: number;
+            lotteryStationName: string;
+            systemCommissionRate: number;
+            actualCommissionRate: number;
+        }> = [];
+        let systemImportCostSum = 0;
+        let systemCommissionSum = 0;
+        let actualImportCostSum = 0;
+        let actualCommissionSum = 0;
 
         rows.forEach((row) => {
             const qty = row.importedQuantity || 0;
             const systemNet = roundMoney(row.netUnitPrice || 0);
             systemNetSum += systemNet * qty;
+            systemImportCostSum += Number(row.importCost || 0) * qty;
+            systemCommissionSum += Number(row.commissionRate || 0) * qty;
             const draft = drafts[row.lotteryStationId];
             const actualPrice = parsePriceInput(draft?.importCost ?? '');
             const actualRate = parseCommissionRate(draft?.commissionPercent ?? '');
@@ -144,11 +185,26 @@ export const MatchingStationPricingTable = ({
                 return;
             }
             actualNetSum += roundMoney(actualNet) * qty;
+            actualImportCostSum += actualPrice * qty;
+            actualCommissionSum += actualRate * qty;
+            const stationName = row.lotteryStationName || `Đài #${row.lotteryStationId}`;
             if (!nearlyEqual(actualPrice, Number(row.importCost || 0), 0.5)) {
                 priceMismatch.push(row);
+                priceMismatchStations.push({
+                    lotteryStationId: row.lotteryStationId,
+                    lotteryStationName: stationName,
+                    systemImportCost: roundMoney(row.importCost),
+                    actualImportCost: roundMoney(actualPrice),
+                });
             }
             if (!nearlyEqual(actualRate, Number(row.commissionRate || 0))) {
                 commissionMismatch.push(row);
+                commissionMismatchStations.push({
+                    lotteryStationId: row.lotteryStationId,
+                    lotteryStationName: stationName,
+                    systemCommissionRate: Number(row.commissionRate || 0),
+                    actualCommissionRate: actualRate,
+                });
             }
         });
 
@@ -156,9 +212,15 @@ export const MatchingStationPricingTable = ({
             totalQty,
             systemNet: totalQty > 0 ? roundMoney(systemNetSum / totalQty) : 0,
             actualNet: totalQty > 0 && complete ? roundMoney(actualNetSum / totalQty) : 0,
+            systemImportCostAvg: totalQty > 0 ? roundMoney(systemImportCostSum / totalQty) : 0,
+            systemCommissionAvg: totalQty > 0 ? systemCommissionSum / totalQty : 0,
+            actualImportCostAvg: totalQty > 0 && complete ? roundMoney(actualImportCostSum / totalQty) : 0,
+            actualCommissionAvg: totalQty > 0 && complete ? actualCommissionSum / totalQty : 0,
             complete,
             priceMismatch,
             commissionMismatch,
+            priceMismatchStations,
+            commissionMismatchStations,
         };
     }, [rows, drafts]);
 
@@ -167,8 +229,40 @@ export const MatchingStationPricingTable = ({
             systemNet: computed.systemNet,
             actualNet: computed.actualNet,
             complete: computed.complete,
+            priceMismatchStations: computed.priceMismatchStations,
+            commissionMismatchStations: computed.commissionMismatchStations,
         });
-    }, [computed.actualNet, computed.complete, computed.systemNet, onWeightedChange]);
+    }, [
+        computed.actualNet,
+        computed.complete,
+        computed.systemNet,
+        computed.priceMismatchStations,
+        computed.commissionMismatchStations,
+        onWeightedChange,
+    ]);
+
+    useEffect(() => {
+        if (!onPendingPricingChange) return;
+        const items: Array<{ lotteryStationId: number; importCost: number; commissionRate: number }> = [];
+        rows.forEach((row) => {
+            const draft = drafts[row.lotteryStationId];
+            const importCost = parsePriceInput(draft?.importCost ?? '');
+            const commissionRate = parseCommissionRate(draft?.commissionPercent ?? '');
+            if (!Number.isFinite(importCost) || importCost <= 0 || !Number.isFinite(commissionRate)) {
+                return;
+            }
+            const priceDiff = !nearlyEqual(importCost, Number(row.importCost || 0), 0.5);
+            const rateDiff = !nearlyEqual(commissionRate, Number(row.commissionRate || 0));
+            if (priceDiff || rateDiff) {
+                items.push({
+                    lotteryStationId: row.lotteryStationId,
+                    importCost,
+                    commissionRate,
+                });
+            }
+        });
+        onPendingPricingChange(items);
+    }, [drafts, onPendingPricingChange, rows]);
 
     const updateDraft = (stationId: number, patch: Partial<StationDraft>) => {
         setDrafts((prev) => ({
@@ -274,8 +368,8 @@ export const MatchingStationPricingTable = ({
                         />
                     )}
 
-                    {/* Nút sửa hoa hồng đài lệch - CHỈ HIỂN THỊ KHI CÓ CHÊNH LỆCH */}
-                    {computed.commissionMismatch.length > 0 && (
+                    {/* Nút sửa hoa hồng đài lệch — ẩn khi deferPersist */}
+                    {!deferPersist && computed.commissionMismatch.length > 0 && (
                         <Button
                             size="small"
                             variant="outlined"
@@ -299,8 +393,8 @@ export const MatchingStationPricingTable = ({
                         </Button>
                     )}
 
-                    {/* Nút sửa giá nhập đài lệch - CHỈ HIỂN THỊ KHI CÓ CHÊNH LỆCH */}
-                    {computed.priceMismatch.length > 0 && (
+                    {/* Nút sửa giá nhập đài lệch — ẩn khi deferPersist */}
+                    {!deferPersist && computed.priceMismatch.length > 0 && (
                         <Button
                             size="small"
                             variant="outlined"
@@ -322,6 +416,20 @@ export const MatchingStationPricingTable = ({
                         >
                             Sửa giá nhập đài lệch ({computed.priceMismatch.length})
                         </Button>
+                    )}
+                    {deferPersist && (computed.commissionMismatch.length > 0 || computed.priceMismatch.length > 0) && (
+                        <Chip
+                            size="small"
+                            label="Giá/HH chỉnh trên form — lưu khi xác nhận đối chiếu"
+                            sx={{
+                                bgcolor: '#eff6ff',
+                                color: '#1d4ed8',
+                                fontWeight: 700,
+                                fontSize: '0.7rem',
+                                border: '1px solid #bfdbfe',
+                                height: 28,
+                            }}
+                        />
                     )}
                 </Stack>
             </Stack>
@@ -482,25 +590,44 @@ export const MatchingStationPricingTable = ({
                             );
                         })}
 
-                        {/* Hàng tổng cộng & đơn giá bình quân */}
-                        {rows.length > 1 && (
-                            <TableRow sx={{ bgcolor: '#f8fafc', borderTop: '2px solid #cbd5e1' }}>
-                                <TableCell sx={{ fontWeight: 800, color: '#1e293b', fontSize: '0.8rem', textTransform: 'uppercase', borderRight: '1px solid #f1f5f9' }}>
+                        {/* Hàng bình quân gia quyền cả kỳ */}
+                        {rows.length > 0 && (
+                            <TableRow sx={{ bgcolor: '#f1f5f9', borderTop: '2px solid #94a3b8' }}>
+                                <TableCell sx={{ fontWeight: 800, color: '#1e293b', fontSize: '0.8rem', borderRight: '1px solid #e2e8f0' }}>
                                     Bình quân kỳ này
+                                    <Typography variant="caption" display="block" color="#64748b" sx={{ fontSize: '0.65rem', fontWeight: 600, textTransform: 'none' }}>
+                                        Gia quyền theo SL nhập
+                                    </Typography>
                                 </TableCell>
                                 <TableCell align="right" sx={{ fontWeight: 800, color: '#0f172a', fontSize: '0.825rem', borderRight: '1px solid #e2e8f0' }}>
                                     {computed.totalQty.toLocaleString('vi-VN')}
                                 </TableCell>
-                                <TableCell colSpan={2} align="right" sx={{ color: '#64748b', fontSize: '0.75rem', fontStyle: 'italic' }}>
-                                    Đơn giá vốn BQ hệ thống:
+                                <TableCell align="right" sx={{ fontWeight: 700, color: '#475569', fontSize: '0.8rem' }}>
+                                    {formatMoney(computed.systemImportCostAvg)}
                                 </TableCell>
-                                <TableCell align="right" sx={{ fontWeight: 800, color: '#0f172a', fontSize: '0.875rem', borderRight: '1px solid #cbd5e1' }}>
+                                <TableCell align="right" sx={{ fontWeight: 700, color: '#475569', fontSize: '0.8rem' }}>
+                                    {formatCommissionPercent(computed.systemCommissionAvg)}%
+                                </TableCell>
+                                <TableCell align="right" sx={{ fontWeight: 800, color: '#0f172a', fontSize: '0.85rem', borderRight: '1px solid #cbd5e1' }}>
                                     {formatMoney(computed.systemNet)}
                                 </TableCell>
-                                <TableCell colSpan={2} align="right" sx={{ color: '#1e40af', fontSize: '0.75rem', fontStyle: 'italic', bgcolor: '#eff6ff' }}>
-                                    Đơn giá vốn BQ thực tế:
+                                <TableCell align="right" sx={{ fontWeight: 700, color: '#1e40af', fontSize: '0.8rem', bgcolor: '#eff6ff' }}>
+                                    {computed.complete ? formatMoney(computed.actualImportCostAvg) : '—'}
                                 </TableCell>
-                                <TableCell align="right" sx={{ fontWeight: 800, color: '#166534', fontSize: '0.9rem', bgcolor: '#eff6ff' }}>
+                                <TableCell align="right" sx={{ fontWeight: 700, color: '#1e40af', fontSize: '0.8rem', bgcolor: '#eff6ff' }}>
+                                    {computed.complete ? `${formatCommissionPercent(computed.actualCommissionAvg)}%` : '—'}
+                                </TableCell>
+                                <TableCell
+                                    align="right"
+                                    sx={{
+                                        fontWeight: 800,
+                                        fontSize: '0.9rem',
+                                        bgcolor: '#eff6ff',
+                                        color: computed.actualNet && computed.systemNet && !nearlyEqual(computed.actualNet, computed.systemNet, 0.5)
+                                            ? '#b45309'
+                                            : '#166534',
+                                    }}
+                                >
                                     {computed.actualNet ? formatMoney(computed.actualNet) : '—'}
                                 </TableCell>
                             </TableRow>

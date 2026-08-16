@@ -74,7 +74,41 @@ export const useConfirmSettlementMatching = (id?: string | number) => {
     const queryClient = useQueryClient();
     return useMutation({
         mutationFn: (payload: ConfirmSettlementMatchingPayload) => confirmSettlementMatching(id!, payload),
-        onSuccess: () => invalidateSettlement(queryClient, id),
+        onSuccess: (res) => {
+            const updated = res?.data;
+            const cacheKey = [QUERY_KEYS.SUPPLIER_SETTLEMENT_OVERVIEW, String(id)];
+            if (updated) {
+                queryClient.setQueryData(cacheKey, (old: any) => {
+                    if (!old || typeof old !== 'object') {
+                        return old;
+                    }
+                    // Cache stores ApiResponse<Overview>; `select` unwraps `.data`.
+                    if (old.data?.settlement) {
+                        return {
+                            ...old,
+                            data: {
+                                ...old.data,
+                                settlement: {
+                                    ...old.data.settlement,
+                                    ...updated,
+                                },
+                            },
+                        };
+                    }
+                    if (old.settlement) {
+                        return {
+                            ...old,
+                            settlement: {
+                                ...old.settlement,
+                                ...updated,
+                            },
+                        };
+                    }
+                    return old;
+                });
+            }
+            invalidateSettlement(queryClient, id);
+        },
     });
 };
 

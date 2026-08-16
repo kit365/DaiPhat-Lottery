@@ -27,6 +27,8 @@ interface Props {
     difference?: number;
     loading?: boolean;
     submitting?: boolean;
+    /** Block resolve actions when return-batches are not yet handed over. */
+    disabled?: boolean;
     onResolve: (payload: {
         excessSerialNumbers: string[];
         reasonCode: SettlementAdjustmentReasonCode;
@@ -40,6 +42,7 @@ export const ExcessReturnTicketsPanel = ({
     difference,
     loading,
     submitting,
+    disabled = false,
     onResolve,
 }: Props) => {
     const [selectedIds, setSelectedIds] = useState<number[]>([]);
@@ -173,6 +176,7 @@ export const ExcessReturnTicketsPanel = ({
                 onChange={(event) => setNote(event.target.value)}
                 fullWidth
                 size="small"
+                disabled={disabled}
                 placeholder="Biên bản bàn giao, người giao, ghi chú..."
                 sx={{ mb: 1.5 }}
             />
@@ -180,9 +184,10 @@ export const ExcessReturnTicketsPanel = ({
             <Box display="flex" justifyContent="flex-end">
                 <Button
                     variant="contained"
-                    disabled={!canConfirm || !!submitting}
+                    disabled={disabled || !canConfirm || !!submitting}
                     startIcon={<CheckCircleOutlinedIcon />}
-                    onClick={() =>
+                    onClick={() => {
+                        if (disabled) return;
                         onResolve({
                             excessSerialNumbers: isExactQuantity
                                 ? selectedSerials.map((serial) => serial.serialNumber)
@@ -190,11 +195,13 @@ export const ExcessReturnTicketsPanel = ({
                             reasonCode: 'EXCESS_RETURN',
                             note: note.trim() || undefined,
                             markResolved: true,
-                        })
-                    }
+                        });
+                    }}
                     sx={{ textTransform: 'none', fontWeight: 700, borderRadius: '10px' }}
                 >
-                    {submitting
+                    {disabled
+                        ? 'Chưa thể xử lý — phiếu trả chưa sẵn sàng'
+                        : submitting
                         ? 'Đang lưu...'
                         : hasInsufficientEligibleSerials
                         ? 'Xác nhận bổ sung trả (không gắn sê-ri)'
