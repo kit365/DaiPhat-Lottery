@@ -5,6 +5,7 @@ import com.daiphat.coreapi.domain.model.enums.order.OrderType;
 import com.daiphat.coreapi.domain.model.enums.order.TicketDrawResultStatus;
 import com.daiphat.coreapi.domain.model.enums.payout.PrizePayoutOwnershipVerificationLevel;
 import com.daiphat.coreapi.domain.model.enums.payout.PrizePayoutTicketOrigin;
+import com.daiphat.coreapi.domain.model.enums.payout.PrizeRedemptionZone;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -42,6 +43,10 @@ public record PrizePayoutLookupItem(
         String matchFrom,
         Integer matchDigits,
         boolean alreadyRequested,
-        SerialPayoutState payoutState
+        SerialPayoutState payoutState,
+        LocalDate customerRedemptionDeadline,
+        LocalDate issuerRedemptionDeadline,
+        PrizeRedemptionZone redemptionZone,
+        Integer daysRemainingToIssuer
 ) {
 }
