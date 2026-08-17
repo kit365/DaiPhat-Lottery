@@ -127,8 +127,9 @@ export const NotificationDropdown = () => {
   }, [fetchNextPage, hasNextPage, isFetchingNextPage, isError, isFetchNextPageError]);
 
   return (
-    <div className="absolute top-full right-0 mt-2 w-[400px] bg-white rounded-2xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.15)] border border-[#E5E8EB] opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-[1100]">
-      <div className="p-4 flex items-center justify-between border-b border-[#E5E8EB]">
+    <div className="absolute top-full right-0 pt-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-[1100]">
+      <div className="w-[400px] bg-white rounded-2xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.15)] border border-[#E5E8EB] overflow-hidden">
+        <div className="p-4 flex items-center justify-between border-b border-[#E5E8EB]">
         <div className="flex items-center gap-2">
           <h4 className={HEADER_DROPDOWN_TITLE_CLASS}>Thông báo</h4>
           {unreadCount > 0 && (
@@ -286,6 +287,7 @@ export const NotificationDropdown = () => {
         >
           Xem tất cả thông báo <ChevronRight size={16} />
         </Link>
+      </div>
       </div>
     </div>
   );

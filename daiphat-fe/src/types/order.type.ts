@@ -58,11 +58,12 @@ export enum OrderDetailStatus {
     ACTIVE = 'ACTIVE',
     INACTIVE = 'INACTIVE',
     REFUND_PENDING = 'REFUND_PENDING',
-    REFUNDED = 'REFUNDED'
+    REFUNDED = 'REFUNDED',
+    CANCELLED = 'CANCELLED'
 }
 
 export const ORDER_DETAIL_STATUS_LABELS: Record<OrderDetailStatus, string> = {
-    [OrderDetailStatus.PROXY_HOLDING]: 'Công ty đang giữ vé',
+    [OrderDetailStatus.PROXY_HOLDING]: 'Vé đang tại quầy',
     [OrderDetailStatus.HANDOVER_IN_PROGRESS]: 'Đang bàn giao',
     [OrderDetailStatus.HANDED_OVER]: 'Đã bàn giao',
     [OrderDetailStatus.REJECTED_BY_CUSTOMER]: 'Khách từ chối nhận',
@@ -70,6 +71,7 @@ export const ORDER_DETAIL_STATUS_LABELS: Record<OrderDetailStatus, string> = {
     [OrderDetailStatus.INACTIVE]: 'Không còn hiệu lực',
     [OrderDetailStatus.REFUND_PENDING]: 'Chờ hoàn tiền',
     [OrderDetailStatus.REFUNDED]: 'Đã hoàn tiền',
+    [OrderDetailStatus.CANCELLED]: 'Đã huỷ',
 };
 
 export const ORDER_DETAIL_STATUS_BADGE: Record<
@@ -132,6 +134,13 @@ export const ORDER_DETAIL_STATUS_BADGE: Record<
         color: 'var(--palette-info-dark, #006C9C)',
         bgcolor: 'var(--palette-info-lighter, #CAFDF5)',
     },
+    [OrderDetailStatus.CANCELLED]: {
+        label: ORDER_DETAIL_STATUS_LABELS[OrderDetailStatus.CANCELLED],
+        bg: 'bg-[#FFE9D5]',
+        text: 'text-[#B71D18]',
+        color: 'var(--palette-error-dark, #B71D18)',
+        bgcolor: 'var(--palette-error-lighter, #FFE9D5)',
+    },
 };
 
 export function resolveOrderDetailStatusBadge(
@@ -170,6 +179,7 @@ export function getOrderDetailStatusAdminBadgeModifier(status?: string | null): 
         case 'ACTIVE':
             return 'admin-status-badge--success';
         case OrderDetailStatus.INACTIVE:
+        case OrderDetailStatus.CANCELLED:
         case 'INACTIVE':
             return 'admin-status-badge--inactive';
         case OrderDetailStatus.REFUND_PENDING:

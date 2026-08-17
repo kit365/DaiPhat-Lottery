@@ -81,12 +81,21 @@ export const upsertLuckyPatternConfigSchema = z
         active: z.boolean().optional().nullable(),
     })
     .superRefine((data, ctx) => {
-        if (data.patternType === "EXACT" && !data.exactNumbers?.trim()) {
-            ctx.addIssue({
-                code: z.ZodIssueCode.custom,
-                message: "Vui lòng nhập số khớp chính xác",
-                path: ["exactNumbers"],
-            });
+        if (data.patternType === "EXACT") {
+            const exactStr = data.exactNumbers?.trim() || "";
+            if (!exactStr) {
+                ctx.addIssue({
+                    code: z.ZodIssueCode.custom,
+                    message: "Vui lòng nhập số khớp chính xác",
+                    path: ["exactNumbers"],
+                });
+            } else if (!/^\d{5,6}$/.test(exactStr)) {
+                ctx.addIssue({
+                    code: z.ZodIssueCode.custom,
+                    message: "Số khớp chính xác phải từ 5 đến 6 chữ số",
+                    path: ["exactNumbers"],
+                });
+            }
         }
         if (data.patternType === "DIGIT_MATCH") {
             if (!data.matchDigits?.trim()) {

@@ -584,7 +584,7 @@ export const OrderDetailTab = () => {
                                     >
                                         <div className="flex flex-col sm:flex-row sm:items-center gap-3 min-w-0">
                                             <span className="font-bold text-[16px] text-[#212B36] tracking-tight shrink-0 tabular-nums">
-                                                <LuckyNumber value={numbers} ticket className="text-[16px] tracking-tight" />
+                                                <LuckyNumber value={numbers} ticket className="text-[16px] tracking-tight" badgePlacement="above" />
                                             </span>
                                             <div className="flex flex-col min-w-0 sm:border-l sm:border-[#E5E8EB] sm:pl-4">
                                                 <div className="flex items-center gap-2 min-w-0 flex-wrap">

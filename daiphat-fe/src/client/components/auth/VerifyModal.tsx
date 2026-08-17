@@ -3,13 +3,15 @@
 import { useEffect, useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuthStore } from "../../../stores/useAuthStore";
+import { useRouter } from "next/navigation";
 import { authService } from "@/shared/auth/services/auth.service";
 import CloseIcon from '@mui/icons-material/Close';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import { VERIFY_MODAL_BACKGROUND } from '@/client/constants/clientBannerAssets';
 
 export const VerifyContent = () => {
-    const { verificationToken, closeVerifyModal, openLoginModal } = useAuthStore();
+    const router = useRouter();
+    const { verificationToken, closeVerifyModal } = useAuthStore();
     const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
     const [message, setMessage] = useState('Đang xác thực tài khoản của bạn...');
     const hasCalled = useRef(false);
@@ -106,7 +108,7 @@ export const VerifyContent = () => {
                             <button
                                 onClick={() => {
                                     closeVerifyModal();
-                                    openLoginModal();
+                                    router.push("/login");
                                 }}
                                 className="w-[85%] max-w-[300px] h-[50px] bg-[#df1b1c] text-white font-bold text-[16px] rounded-[12px] shadow-[0_8px_20px_rgba(217,29,30,0.3)] transition-all hover:bg-[#b91819] hover:shadow-[0_8px_25px_rgba(217,29,30,0.4)] active:scale-95 flex items-center justify-center gap-2 cursor-pointer mt-2"
                             >

@@ -44,6 +44,8 @@ export const useRecomputeLuckyPatterns = () => {
             queryClient.invalidateQueries({ queryKey: LUCKY_PATTERN_QUERY_KEY });
             queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.VENDOR_ALLOCATION_CANDIDATES] });
             queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.VENDOR_ALLOCATION_SUGGESTION] });
+            queryClient.invalidateQueries({ queryKey: ['tickets'] });
+            queryClient.invalidateQueries({ queryKey: ['public-buy-ticket'] });
         },
     });
 };
