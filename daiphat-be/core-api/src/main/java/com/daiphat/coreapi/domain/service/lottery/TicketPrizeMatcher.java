@@ -55,7 +55,8 @@ public final class TicketPrizeMatcher {
             case EXACT -> ticketNumber.equals(winningNumber);
             case LAST -> matchesLastDigits(ticketNumber, winningNumber, matchDigits);
             case ANY -> ticketNumber.contains(winningNumber) || winningNumber.contains(ticketNumber);
-            case SPECIAL_CONSOLATION_1, SPECIAL_CONSOLATION_2 -> false;
+            case SPECIAL_CONSOLATION_1 -> matchesSubSpecial(ticketNumber, winningNumber);
+            case SPECIAL_CONSOLATION_2 -> matchesConsolation(ticketNumber, winningNumber);
         };
     }
 
@@ -66,5 +67,31 @@ public final class TicketPrizeMatcher {
         }
         return ticketNumber.substring(ticketNumber.length() - digits)
                 .equals(winningNumber.substring(winningNumber.length() - digits));
+    }
+
+    /** Sai số đầu, 5 số còn lại đúng theo giải đặc biệt. */
+    private static boolean matchesSubSpecial(String ticketNumber, String winningNumber) {
+        if (ticketNumber.length() != winningNumber.length() || winningNumber.length() < 2) {
+            return false;
+        }
+        return ticketNumber.charAt(0) != winningNumber.charAt(0)
+                && ticketNumber.substring(1).equals(winningNumber.substring(1));
+    }
+
+    /** Đúng số đầu, sai đúng 1 số trong 5 số còn lại so với giải đặc biệt. */
+    private static boolean matchesConsolation(String ticketNumber, String winningNumber) {
+        if (ticketNumber.length() != winningNumber.length() || winningNumber.length() < 2) {
+            return false;
+        }
+        if (ticketNumber.charAt(0) != winningNumber.charAt(0)) {
+            return false;
+        }
+        int diffCount = 0;
+        for (int i = 1; i < winningNumber.length(); i++) {
+            if (ticketNumber.charAt(i) != winningNumber.charAt(i)) {
+                diffCount++;
+            }
+        }
+        return diffCount == 1;
     }
 }
