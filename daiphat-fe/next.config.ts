@@ -21,10 +21,10 @@ const backendOrigin = (() => {
 const nextConfig: NextConfig = {
   output: 'standalone',
   compress: true,
-  experimental: {    // Keep visited pages' RSC payload in the router cache so back-navigation is instant.
+  experimental: {    // No App Router client cache — pages are SSR or CSR via React Query.
     staleTimes: {
-      dynamic: 30,
-      static: 180,
+      dynamic: 0,
+      static: 0,
     },
     optimizePackageImports: [
       '@mui/material',

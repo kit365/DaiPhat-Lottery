@@ -7,6 +7,10 @@ import com.daiphat.coreapi.application.dto.request.order.CreateDirectOrderReques
 import com.daiphat.coreapi.application.dto.request.order.DirectOrderTransactionRequest;
 import com.daiphat.coreapi.application.dto.request.order.CreateOnlineOrderRequest;
 import com.daiphat.coreapi.application.dto.request.order.OrderTicketItemRequest;
+import com.daiphat.coreapi.application.dto.request.order.ConfirmOrderHandoverRequest;
+import com.daiphat.coreapi.application.dto.request.order.OrderHandoverItemRequest;
+import com.daiphat.coreapi.application.dto.storage.StorageResult;
+import com.daiphat.coreapi.application.dto.storage.UploadRequest;
 import com.daiphat.coreapi.application.dto.response.lotteries.LotteryTicketResponse;
 import com.daiphat.coreapi.application.dto.response.order.OrderDetailAllocatedSerialResponse;
 import com.daiphat.coreapi.application.dto.response.order.OrderDetailResponse;
@@ -19,6 +23,7 @@ import com.daiphat.coreapi.application.port.in.lotteries.LotteryTicketServicePor
 import com.daiphat.coreapi.application.port.in.user.UserLookupServicePort;
 import com.daiphat.coreapi.application.port.out.order.PaymentCountdownCachePort;
 import com.daiphat.coreapi.application.port.out.order.OrderRepositoryPort;
+import com.daiphat.coreapi.application.port.out.file.StoragePort;
 import com.daiphat.coreapi.application.service.refund.OrderRefundGraceService;
 import com.daiphat.coreapi.application.service.refund.OrderRefundGraceService.RefundGraceEvaluation;
 import com.daiphat.coreapi.application.service.support.OrderComplaintEligibilityService;
@@ -27,10 +32,12 @@ import com.daiphat.coreapi.application.strategy.payment.PaymentGatewayStrategyFa
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
 import com.daiphat.coreapi.domain.model.enums.order.detail.OrderDetailStatus;
+import com.daiphat.coreapi.domain.model.enums.order.detail.OrderDetailHandoverDecision;
 import com.daiphat.coreapi.domain.model.enums.order.OrderReceiveType;
 import com.daiphat.coreapi.domain.model.enums.order.OrderStatus;
 import com.daiphat.coreapi.domain.model.enums.order.OrderType;
 import com.daiphat.coreapi.domain.model.enums.transaction.TransactionStatus;
+import com.daiphat.coreapi.domain.model.enums.transaction.TransactionBusinessType;
 import com.daiphat.coreapi.domain.model.enums.transaction.TransactionType;
 import com.daiphat.coreapi.domain.model.lotteries.LotteryTicketSerialModel;
 import com.daiphat.coreapi.domain.model.orders.OrderDetailModel;
@@ -40,6 +47,7 @@ import com.daiphat.coreapi.domain.valueobject.Phone;
 import com.daiphat.coreapi.shared.util.DrawScheduleUtils;
 import com.daiphat.coreapi.shared.util.EnumOptionUtils;
 import com.daiphat.coreapi.shared.util.SortUtils;
+import com.daiphat.coreapi.shared.util.StorageUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
@@ -79,6 +87,7 @@ public class OrderService implements OrderServicePort {
     private final OrderRefundGraceService orderRefundGraceService;
     private final PaymentTimeoutConfigService paymentTimeoutConfigService;
     private final OrderComplaintEligibilityService orderComplaintEligibilityService;
+    private final StoragePort storagePort;
 
     @Override
     @Transactional
@@ -218,6 +227,152 @@ public class OrderService implements OrderServicePort {
     }
 
     @Override
+    @Transactional
+    public StorageResult uploadHandoverEvidence(UUID orderId, UploadRequest request, UUID operatorId) {
+        ensureUserExists(operatorId);
+        OrderModel order = getOrderWithLockOrThrow(orderId);
+        if (order.getStatus() == OrderStatus.PENDING_PAYMENT || order.getStatus() == OrderStatus.CANCELLED) {
+            throw new DomainException(ErrorCode.ORDER_INVALID_STATUS);
+        }
+        StorageUtils.validateImageUpload(request);
+        StorageResult result = storagePort.upload(new UploadRequest(
+                request.data(), request.fileName(), request.contentType(), "orders/handover"));
+        order.setHandoverEvidenceUrl(result.url());
+        orderRepositoryPort.save(order);
+        return result;
+    }
+
+    @Override
+    @Transactional
+    public OrderResponse submitPaymentTimeoutComplaint(UUID orderId, UploadRequest request, UUID customerId) {
+        ensureUserExists(customerId);
+        OrderModel order = getOrderWithLockOrThrow(orderId);
+        if (!customerId.equals(order.getUserId())) {
+            throw new DomainException(ErrorCode.ACCESS_DENIED);
+        }
+        StorageUtils.validateImageUpload(request);
+        StorageResult proof = storagePort.upload(new UploadRequest(
+                request.data(), request.fileName(), request.contentType(), "orders/payment-complaints"));
+        LocalDateTime now = LocalDateTime.now(java.time.ZoneId.of("Asia/Ho_Chi_Minh"));
+        order.submitPaymentTimeoutComplaint(proof.url(), now);
+        OrderModel saved = orderRepositoryPort.save(order);
+        publishCustomerOrderStatusChanged(saved);
+        eventPublisher.publishEvent(new com.daiphat.coreapi.application.event.OrderPaymentComplaintSubmittedEvent(
+                saved.getId(), saved.getOrderCode()));
+        return toCustomerOrderResponse(saved);
+    }
+
+    @Override
+    @Transactional
+    public OrderResponse reviewPaymentTimeoutComplaint(UUID orderId, boolean approved, String reason, UUID operatorId) {
+        ensureUserExists(operatorId);
+        OrderModel order = getOrderWithLockOrThrow(orderId);
+        LocalDateTime now = LocalDateTime.now(java.time.ZoneId.of("Asia/Ho_Chi_Minh"));
+
+        if (approved) {
+            BigDecimal outstanding = order.getTotalAmount().subtract(order.getCompletedTransactionAmount());
+            if (outstanding.signum() <= 0) {
+                throw new DomainException(ErrorCode.TRANSACTION_INVALID_STATUS);
+            }
+            TransactionModel verifiedPayment = TransactionModel.builder()
+                    .orderId(order.getId())
+                    .type(TransactionType.ONLINE)
+                    .transactionType(TransactionBusinessType.ORDER_PAYMENT)
+                    .amount(outstanding)
+                    .build();
+            verifiedPayment.initializeForCreate();
+            verifiedPayment.markPaymentComplaintVerified(
+                    operatorId,
+                    order.getPaymentComplaintEvidenceUrl(),
+                    "Xác minh thanh toán timeout bởi nhân viên.",
+                    now);
+            if (order.getTransactions() == null) {
+                order.setTransactions(new ArrayList<>());
+            }
+            order.getTransactions().add(verifiedPayment);
+            if (!order.isFullyPaid()) {
+                throw new DomainException(ErrorCode.TRANSACTION_INVALID_STATUS);
+            }
+            order.approvePaymentTimeoutComplaint(now);
+            restoreVerifiedTimeoutOrderTickets(order);
+            order.setPaymentComplaintResolvedBy(operatorId);
+        } else {
+            order.rejectPaymentTimeoutComplaint(reason, now);
+            order.setPaymentComplaintResolvedBy(operatorId);
+        }
+
+        OrderModel saved = orderRepositoryPort.save(order);
+        publishCustomerOrderStatusChanged(saved);
+        if (approved) {
+            eventPublisher.publishEvent(com.daiphat.coreapi.application.event.OrderPaidForProcessingEvent.builder()
+                    .orderId(saved.getId()).orderCode(saved.getOrderCode()).build());
+        }
+        return toEnrichedOrderResponse(saved);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public long countPendingPaymentTimeoutComplaints() {
+        return orderRepositoryPort.countOrdersByStatus(
+                OrderStatus.PAYMENT_COMPLAINT_PENDING, List.of(), List.of(), null, null, null);
+    }
+
+    @Override
+    @Transactional
+    public OrderResponse confirmOnlineOrderHandover(
+            UUID orderId,
+            ConfirmOrderHandoverRequest request,
+            UUID operatorId
+    ) {
+        ensureUserExists(operatorId);
+        OrderModel order = getOrderWithLockOrThrow(orderId);
+        if (order.getOrderType() != OrderType.ONLINE || order.getStatus() != OrderStatus.PENDING_PICKUP) {
+            throw new DomainException(ErrorCode.ORDER_INVALID_STATUS);
+        }
+        if (request == null || request.items() == null || request.items().isEmpty()) {
+            throw new DomainException(ErrorCode.INVALID_INPUT);
+        }
+
+        Map<Long, OrderDetailModel> detailsById = order.getOrderDetails().stream()
+                .filter(detail -> detail.getStatus() == OrderDetailStatus.HANDOVER_IN_PROGRESS)
+                .collect(java.util.stream.Collectors.toMap(OrderDetailModel::getId, detail -> detail));
+        if (detailsById.size() != request.items().size()) {
+            throw new DomainException(ErrorCode.INVALID_INPUT, "Mỗi vé trong phiếu phải được xác nhận đúng một lần.");
+        }
+
+        boolean hasHandedOver = request.items().stream()
+                .anyMatch(item -> item.decision() == OrderDetailHandoverDecision.HANDED_OVER);
+        String evidenceUrl = normalizeOptional(request.handoverEvidenceUrl());
+        if (evidenceUrl != null) {
+            StorageUtils.validateImageEvidenceUrl(evidenceUrl);
+            order.setHandoverEvidenceUrl(evidenceUrl);
+        }
+        if (hasHandedOver) {
+            StorageUtils.validateImageEvidenceUrl(order.getHandoverEvidenceUrl());
+        }
+
+        LocalDateTime now = LocalDateTime.now(java.time.ZoneId.of("Asia/Ho_Chi_Minh"));
+        for (OrderHandoverItemRequest item : request.items()) {
+            if (item == null || item.orderDetailId() == null || item.decision() == null) {
+                throw new DomainException(ErrorCode.INVALID_INPUT);
+            }
+            OrderDetailModel detail = detailsById.get(item.orderDetailId());
+            if (detail == null || detail.getStatus() != OrderDetailStatus.HANDOVER_IN_PROGRESS) {
+                throw new DomainException(ErrorCode.ORDER_DETAIL_INVALID_STATUS);
+            }
+            if (item.decision() == OrderDetailHandoverDecision.HANDED_OVER) {
+                detail.markHandedOver(operatorId, now);
+            } else {
+                detail.markRejectedByCustomer(item.reason(), operatorId, now);
+            }
+        }
+        order.completeOnlineOrder(operatorId);
+        OrderModel saved = orderRepositoryPort.save(order);
+        publishCustomerOrderStatusChanged(saved);
+        return toEnrichedOrderResponse(saved);
+    }
+
+    @Override
     @Transactional(readOnly = true)
     public PageResponse<OrderResponse> getOrders(
             int page,
@@ -345,6 +500,12 @@ public class OrderService implements OrderServicePort {
                 .cancelledAt(base.cancelledAt())
                 .cancelReason(base.cancelReason())
                 .cancelType(base.cancelType())
+                .handoverEvidenceUrl(base.handoverEvidenceUrl())
+                .paymentComplaintEvidenceUrl(base.paymentComplaintEvidenceUrl())
+                .paymentComplaintSubmittedAt(base.paymentComplaintSubmittedAt())
+                .paymentComplaintResolvedAt(base.paymentComplaintResolvedAt())
+                .paymentComplaintResolvedBy(base.paymentComplaintResolvedBy())
+                .paymentComplaintResolutionReason(base.paymentComplaintResolutionReason())
                 .actualPickedUpAt(base.actualPickedUpAt())
                 .pickedUpBy(base.pickedUpBy())
                 .orderDetails(enrichOrderDetails(order.getOrderDetails()))
@@ -378,6 +539,12 @@ public class OrderService implements OrderServicePort {
                 .cancelledAt(base.cancelledAt())
                 .cancelReason(base.cancelReason())
                 .cancelType(base.cancelType())
+                .handoverEvidenceUrl(base.handoverEvidenceUrl())
+                .paymentComplaintEvidenceUrl(base.paymentComplaintEvidenceUrl())
+                .paymentComplaintSubmittedAt(base.paymentComplaintSubmittedAt())
+                .paymentComplaintResolvedAt(base.paymentComplaintResolvedAt())
+                .paymentComplaintResolvedBy(base.paymentComplaintResolvedBy())
+                .paymentComplaintResolutionReason(base.paymentComplaintResolutionReason())
                 .actualPickedUpAt(base.actualPickedUpAt())
                 .pickedUpBy(base.pickedUpBy())
                 .orderDetails(base.orderDetails())
@@ -513,6 +680,11 @@ public class OrderService implements OrderServicePort {
                             .price(base.price())
                             .quantity(detail.getEffectiveQuantity())
                             .status(base.status())
+                            .rejectionReason(base.rejectionReason())
+                            .rejectedAt(base.rejectedAt())
+                            .rejectedBy(base.rejectedBy())
+                            .handedOverAt(base.handedOverAt())
+                            .handedOverBy(base.handedOverBy())
                             .hasReplacement(hasRep)
                             .allocatedSerialIds(allocatedIds)
                             .allocatedSerials(allocatedSerials)
@@ -558,7 +730,6 @@ public class OrderService implements OrderServicePort {
             case PREPARING -> order.markPreparing();
             case PENDING_PICKUP -> {
                 order.markPendingPickup();
-                finalizeSoldSerialsAfterInspection(order);
             }
             case COMPLETED -> {
                 if (order.getOrderType() == OrderType.DIRECT) {
@@ -568,39 +739,10 @@ public class OrderService implements OrderServicePort {
                 }
             }
             case CANCELLED -> cancelOrderFromAdmin(order, reason);
-            case PENDING_PAYMENT -> throw new DomainException(ErrorCode.ORDER_INVALID_STATUS);
+            case PENDING_PAYMENT, PAYMENT_COMPLAINT_PENDING -> throw new DomainException(ErrorCode.ORDER_INVALID_STATUS);
         }
     }
 
-    /**
-     * After staff finishes PREPARING inspection, lock allocated serials as SOLD
-     * (they were PROXY_HOLDING since payment so incident/replace could still run).
-     */
-    private void finalizeSoldSerialsAfterInspection(OrderModel order) {
-        if (order.getOrderDetails() == null) {
-            return;
-        }
-        for (OrderDetailModel detail : order.getOrderDetails()) {
-            if (detail.getStatus() != OrderDetailStatus.ACTIVE) {
-                continue;
-            }
-            Long serialId = detail.getReplacedByTicketSerialId() != null
-                    ? detail.getReplacedByTicketSerialId()
-                    : detail.getLotteryTicketSerialId();
-            if (serialId == null && detail.getAllocatedSerialIds() != null && !detail.getAllocatedSerialIds().isEmpty()) {
-                serialId = detail.getAllocatedSerialIds().getFirst();
-            }
-            if (serialId == null) {
-                continue;
-            }
-            try {
-                lotteryTicketServicePort.markSoldForOrder(serialId);
-            } catch (DomainException ex) {
-                log.warn("Could not finalize SOLD for serial {} on order {}: {}",
-                        serialId, order.getId(), ex.getMessage());
-            }
-        }
-    }
 
     private void cancelOrderFromAdmin(OrderModel order, String reason) {
         String effectiveReason = reason != null && !reason.isBlank()
@@ -655,6 +797,25 @@ public class OrderService implements OrderServicePort {
             return;
         }
         order.getOrderDetails().forEach(detail -> lotteryTicketServicePort.releaseReservationForOrder(detail.getLotteryTicketSerialId()));
+    }
+
+    /**
+     * A timeout released the serial back to inventory. Once staff verifies the
+     * payment proof, atomically consume that same serial again and restore its
+     * handover lifecycle. If another order already took it, markSoldForOrder
+     * rejects the transaction rather than silently handing over the wrong ticket.
+     */
+    private void restoreVerifiedTimeoutOrderTickets(OrderModel order) {
+        if (order.getOrderDetails() == null) {
+            return;
+        }
+        order.getOrderDetails().forEach(detail -> {
+            Long serialId = detail.getReplacedByTicketSerialId() != null
+                    ? detail.getReplacedByTicketSerialId()
+                    : detail.getLotteryTicketSerialId();
+            lotteryTicketServicePort.markSoldForOrder(serialId);
+            detail.markProxyHolding();
+        });
     }
 
     private void clearPendingPaymentCountdownIfResolved(OrderModel order) {
@@ -904,6 +1065,11 @@ public class OrderService implements OrderServicePort {
 
     private OrderModel getOrderOrThrow(UUID orderId) {
         return orderRepositoryPort.findById(orderId)
+                .orElseThrow(() -> new DomainException(ErrorCode.ORDER_NOT_FOUND));
+    }
+
+    private OrderModel getOrderWithLockOrThrow(UUID orderId) {
+        return orderRepositoryPort.findByIdWithLock(orderId)
                 .orElseThrow(() -> new DomainException(ErrorCode.ORDER_NOT_FOUND));
     }
 

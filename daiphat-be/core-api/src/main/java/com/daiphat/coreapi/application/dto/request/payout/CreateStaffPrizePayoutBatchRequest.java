@@ -23,7 +23,9 @@ public record CreateStaffPrizePayoutBatchRequest(
         java.math.BigDecimal cashAmount,
         Boolean manualOwnershipConfirmed,
         @Size(max = 500) String transferEvidenceUrl,
-        @Size(max = 500) String confirmationContractUrl
+        @Size(max = 500) String confirmationContractUrl,
+        /** Required when any ticket is past customer redemption deadline but still within issuer deadline. */
+        Boolean acknowledgeLateRedemption
 ) {
     public record BatchItem(@NotNull Long orderDetailId) {
     }

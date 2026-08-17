@@ -66,11 +66,12 @@ export const chatService = {
         return payload.data.map(mapConversation);
     },
 
-    getConversationDetail: async (
+        getConversationDetail: async (
         conversationId: number
-    ): Promise<{ conversation: Conversation; messages: Message[] }> => {
+    ): Promise<{ conversation: Conversation; messages: Message[]; context?: ConversationDetailResponse['context'] }> => {
         const response = await apiApp.get<ApiResponse<ConversationDetailResponse>>(
-            `${BASE_URL}/management/${conversationId}`
+            `${BASE_URL}/management/${conversationId}`,
+            { skipGlobalErrorToast: true }
         );
         const payload = response.data;
 
@@ -85,12 +86,28 @@ export const chatService = {
         return {
             conversation: mapConversation(payload.data.conversation),
             messages,
+            context: payload.data.context ?? null,
         };
+    },
+
+    getPreviousSessionMessages: async (conversationId: number): Promise<Message[]> => {
+        const response = await apiApp.get<ApiResponse<ChatMessageResponse[]>>(
+            `${BASE_URL}/management/${conversationId}/previous-session-messages`,
+            { skipGlobalErrorToast: true }
+        );
+        const payload = response.data;
+
+        if (!payload.success || !payload.data) {
+            throw new Error(payload.message || 'Không thể tải phiên hỗ trợ trước');
+        }
+
+        return payload.data.map(mapMessage);
     },
 
     getPreHandoffMessages: async (conversationId: number): Promise<Message[]> => {
         const response = await apiApp.get<ApiResponse<ChatMessageResponse[]>>(
-            `${BASE_URL}/management/${conversationId}/pre-handoff-messages`
+            `${BASE_URL}/management/${conversationId}/pre-handoff-messages`,
+            { skipGlobalErrorToast: true }
         );
         const payload = response.data;
 
@@ -103,7 +120,9 @@ export const chatService = {
 
     assignToMe: async (conversationId: number): Promise<ConversationDetailResponse> => {
         const response = await apiApp.post<ApiResponse<ConversationDetailResponse>>(
-            `${BASE_URL}/management/${conversationId}/assign/me`
+            `${BASE_URL}/management/${conversationId}/assign/me`,
+            undefined,
+            { skipGlobalErrorToast: true }
         );
         const payload = response.data;
 

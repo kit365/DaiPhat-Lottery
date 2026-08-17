@@ -19,6 +19,8 @@ import {
     CircularProgress,
     FormControl,
     FormControlLabel,
+    IconButton,
+    Link,
     Radio,
     RadioGroup,
     Stack,
@@ -36,13 +38,16 @@ import { prefixAdmin } from '@/admin/constants/routes';
 import { PrizePayoutStatusBadge } from '@/client/components/prize-payout/PrizePayoutStatusBadge';
 import { TransferEvidencePreview } from '@/admin/features/refund/components/TransferEvidencePreview';
 import {
+    ContractDocumentViewerDialog,
+    mapContractPdfErrorMessage,
+} from '@/admin/shared/contracts';
+import {
     formatPrizePayoutCurrency,
     PrizePayoutPaymentMethod,
     PrizePayoutRequestStatus,
-    PRIZE_PAYOUT_CHANNEL_LABELS,
     PRIZE_PAYOUT_PAYMENT_METHOD_LABELS,
-    PRIZE_PAYOUT_TICKET_ORIGIN_LABELS,
     PRIZE_PAYOUT_VERIFICATION_LABELS,
+    resolvePrizePayoutOrderTypeLabel,
 } from '@/types/prize-payout.type';
 import { prizePayoutAdminApi } from "@/admin/features/prize-payout/services/prizePayoutService";
 import {
@@ -54,6 +59,7 @@ import {
 import { UploadSingleFile } from '@/admin/components/upload/UploadSingleFile';
 import { AppToast as toast } from '@/utils/toast.util';
 import { AdminLuckyDisplay } from '@/shared/lucky-number';
+import CloseIcon from '@mui/icons-material/Close';
 
 const REJECT_REASON_QUICK_REPLIES = [
     'Số tài khoản không hợp lệ. Vui lòng kiểm tra và gửi lại yêu cầu.',
@@ -67,14 +73,11 @@ const cardSx = {
     boxShadow: 'var(--customShadows-card)',
 } as const;
 
-function FieldLabel({ children, icon }: { children: ReactNode; icon?: string }) {
+function FieldLabel({ children }: { children: ReactNode }) {
     return (
-        <Stack direction="row" alignItems="center" spacing={0.75} sx={{ mb: 0.5 }}>
-            {icon && <Icon icon={icon} width={15} style={{ color: 'var(--palette-text-disabled)' }} />}
-            <Typography variant="caption" sx={{ color: 'var(--palette-text-disabled)', fontWeight: 600 }}>
-                {children}
-            </Typography>
-        </Stack>
+        <Typography variant="caption" sx={{ color: 'var(--palette-text-disabled)', fontWeight: 600, display: 'block', mb: 0.5 }}>
+            {children}
+        </Typography>
     );
 }
 
@@ -86,30 +89,40 @@ function FieldValue({ children, sx }: { children: ReactNode; sx?: object }) {
     );
 }
 
-function CardSectionTitle({
-    icon,
-    iconColor = 'var(--palette-success-main)',
-    title,
-}: {
-    icon: string;
-    iconColor?: string;
-    title: string;
-}) {
+function CardSectionTitle({ title }: { title: string }) {
     return (
-        <Stack direction="row" alignItems="center" spacing={1.5} sx={{ mb: 2.5 }}>
-            <Icon icon={icon} width={24} style={{ color: iconColor }} />
-            <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: 'var(--palette-text-primary)' }}>
-                {title}
+        <Typography sx={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--palette-text-primary)', mb: 2 }}>
+            {title}
+        </Typography>
+    );
+}
+
+function InfoRow({ label, value, mono }: { label: string; value: ReactNode; mono?: boolean }) {
+    return (
+        <Stack
+            direction="row"
+            justifyContent="space-between"
+            alignItems="baseline"
+            spacing={2}
+            sx={{ py: 1.25, borderBottom: '1px dashed', borderColor: 'divider' }}
+        >
+            <Typography variant="body2" color="text.secondary" sx={{ flexShrink: 0 }}>
+                {label}
+            </Typography>
+            <Typography
+                variant="body2"
+                sx={{
+                    fontWeight: 600,
+                    textAlign: 'right',
+                    fontFamily: mono ? 'monospace' : undefined,
+                    fontVariantNumeric: 'tabular-nums',
+                }}
+            >
+                {value}
             </Typography>
         </Stack>
     );
 }
-
-const formatCardNumber = (accountNumber?: string) => {
-    if (!accountNumber) return '•••• •••• ••••';
-    const clean = accountNumber.replace(/\s+/g, '');
-    return clean.match(/.{1,4}/g)?.join(' ') || accountNumber;
-};
 
 function resolveTransferAmount(detail: {
     paymentMethod?: PrizePayoutPaymentMethod | null;
@@ -131,63 +144,15 @@ function resolveTransferAmount(detail: {
     return net;
 }
 
-function TransferAmountBanner({
-    amount,
-    onCopy,
-    compact = false,
-}: {
-    amount: number;
-    onCopy?: () => void;
-    compact?: boolean;
-}) {
+function DialogAmountHint({ label, amount }: { label: string; amount: number }) {
     return (
-        <Box
-            sx={{
-                p: compact ? 1.75 : 2.25,
-                mb: 2,
-                borderRadius: '12px',
-                bgcolor: 'rgba(46, 125, 50, 0.08)',
-                border: '1px solid rgba(46, 125, 50, 0.28)',
-            }}
-        >
-            <Typography
-                variant="caption"
-                sx={{
-                    fontWeight: 800,
-                    letterSpacing: '0.06em',
-                    textTransform: 'uppercase',
-                    color: 'var(--palette-success-dark)',
-                    display: 'block',
-                    mb: 0.5,
-                }}
-            >
-                Số tiền cần chuyển khoản
+        <Box sx={{ p: 2, mb: 2, borderRadius: '10px', border: '1px solid', borderColor: 'divider', bgcolor: 'background.neutral' }}>
+            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, display: 'block', mb: 0.5 }}>
+                {label}
             </Typography>
-            <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={1}>
-                <Typography
-                    sx={{
-                        fontWeight: 900,
-                        fontSize: compact ? '1.55rem' : '1.85rem',
-                        lineHeight: 1.15,
-                        color: 'var(--palette-success-dark)',
-                        fontVariantNumeric: 'tabular-nums',
-                    }}
-                >
-                    {formatPrizePayoutCurrency(amount)}
-                </Typography>
-                {onCopy && (
-                    <Button
-                        size="small"
-                        variant="outlined"
-                        color="success"
-                        startIcon={<Icon icon="solar:copy-bold-duotone" width={15} />}
-                        onClick={onCopy}
-                        sx={{ fontWeight: 700, textTransform: 'none', borderRadius: '8px', flexShrink: 0 }}
-                    >
-                        Sao chép
-                    </Button>
-                )}
-            </Stack>
+            <Typography sx={{ fontWeight: 800, fontSize: '1.35rem', fontVariantNumeric: 'tabular-nums' }}>
+                {formatPrizePayoutCurrency(amount)}
+            </Typography>
         </Box>
     );
 }
@@ -229,8 +194,25 @@ export const PrizePayoutDetailPage = () => {
     const [selectedRejectQuickReplyIndex, setSelectedRejectQuickReplyIndex] = useState<number | null>(null);
     const [uploading, setUploading] = useState(false);
     const [printingContract, setPrintingContract] = useState(false);
+    const [viewSignedOpen, setViewSignedOpen] = useState(false);
 
     const detail = data?.data;
+
+    const handlePrintSystemContract = async () => {
+        if (!detail) return;
+        try {
+            setPrintingContract(true);
+            await prizePayoutAdminApi.openConfirmationContractPdf(detail.id);
+        } catch (error) {
+            toast.error(
+                mapContractPdfErrorMessage(
+                    error instanceof Error ? error.message : undefined,
+                ),
+            );
+        } finally {
+            setPrintingContract(false);
+        }
+    };
 
     const copyToClipboard = async (text?: string, message?: string) => {
         if (!text) return;
@@ -301,6 +283,66 @@ export const PrizePayoutDetailPage = () => {
         boxShadow: 'none',
     };
 
+    const buildTransferCopyText = () =>
+        [
+            detail.customerName ? `Khách hàng: ${detail.customerName}` : null,
+            `Ngân hàng: ${detail.bankName || '—'}`,
+            `STK: ${detail.bankAccountNumber || '—'}`,
+            `Chủ TK: ${detail.accountHolderName || '—'}`,
+            needsTransferDisplay ? `Số tiền CK: ${formatPrizePayoutCurrency(transferAmountToPay)}` : null,
+        ]
+            .filter(Boolean)
+            .join('\n');
+
+    const resolvedCashAmount =
+        detail.paymentMethod === 'CASH'
+            ? Number(detail.cashAmount ?? detail.netAmount ?? 0)
+            : detail.paymentMethod === 'COMBINED'
+              ? Number(detail.cashAmount ?? 0)
+              : 0;
+    const resolvedTransferAmount =
+        detail.paymentMethod === 'TRANSFER'
+            ? Number(detail.transferAmount ?? detail.netAmount ?? 0)
+            : detail.paymentMethod === 'COMBINED'
+              ? Number(
+                    detail.transferAmount
+                    ?? Math.max(0, Number(detail.netAmount || 0) - Number(detail.cashAmount || 0))
+                )
+              : transferAmountToPay;
+
+    const orderDetailPath = detail.orderId ? `/${prefixAdmin}/order/detail/${detail.orderId}` : null;
+    const customerDetailPath = detail.customerId ? `/${prefixAdmin}/account-user/detail/${detail.customerId}` : null;
+    const detailLinkSx = {
+        fontWeight: 700,
+        color: 'var(--palette-primary-main)',
+        textDecoration: 'underline',
+        cursor: 'pointer',
+    } as const;
+
+    const closeRejectDialog = () => {
+        if (rejectMutation.isPending) return;
+        setRejectOpen(false);
+        setRejectReason('');
+        setSelectedRejectQuickReplyIndex(null);
+    };
+
+    const dialogActionsSx = {
+        px: 3,
+        pb: 3,
+        pt: 2,
+        gap: 1.5,
+        borderTop: '1px solid',
+        borderColor: 'divider',
+    } as const;
+
+    const dialogCancelButtonSx = {
+        minWidth: 96,
+        height: 40,
+        fontWeight: 700,
+        textTransform: 'none',
+        borderRadius: '10px',
+    } as const;
+
     return (
         <motion.div
             initial={{ opacity: 0, y: 8 }}
@@ -363,84 +405,70 @@ export const PrizePayoutDetailPage = () => {
                             </Button>
                         )}
                     </CanAccess>
-                    <Button
-                        variant="outlined"
-                        onClick={() => router.push(backPath)}
-                        startIcon={<Icon icon="eva:arrow-back-fill" />}
-                        sx={{
-                            ...headerButtonSx,
-                            color: 'var(--palette-text-primary)',
-                            borderColor: 'var(--palette-divider)',
-                        }}
-                    >
-                        {backLabel}
-                    </Button>
                 </Stack>
                 }
             />
 
-            {/* 2-Column Main Layout Grid */}
             <Grid container spacing={2.5}>
-                {/* Left Column: Ticket & Payout Summary */}
                 <Grid size={{ xs: 12, md: 8 }}>
                     <Stack spacing={2.5}>
                         <Card sx={{ p: 3, ...cardSx }}>
-                            <CardSectionTitle icon="solar:ticket-bold-duotone" title="Thông tin vé & Tiền thưởng" />
+                            <CardSectionTitle title="Thông tin vé & tiền thưởng" />
 
-                            {/* Key Stats Row */}
-                            <Grid container spacing={2} sx={{ mb: 2.5, p: 2, bgcolor: 'var(--palette-background-neutral)', borderRadius: '12px' }}>
-                                <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-                                    <FieldLabel icon="solar:info-circle-bold-duotone">Trạng thái</FieldLabel>
-                                    <PrizePayoutStatusBadge status={detail.status} />
+                            <Box sx={{ mb: 2.5 }}>
+                                <InfoRow label="Giá trị giải" value={formatPrizePayoutCurrency(detail.grossAmount)} />
+                                <InfoRow label="Hoa hồng đại lý" value={formatPrizePayoutCurrency(detail.commissionAmount)} />
+                                <InfoRow
+                                    label="Thực nhận"
+                                    value={formatPrizePayoutCurrency(detail.netAmount ?? detail.grossAmount)}
+                                />
+                                {detail.paymentMethod === 'COMBINED' ? (
+                                    <>
+                                        <InfoRow label="Tiền mặt" value={formatPrizePayoutCurrency(resolvedCashAmount)} />
+                                        <InfoRow label="Chuyển khoản" value={formatPrizePayoutCurrency(resolvedTransferAmount)} />
+                                    </>
+                                ) : detail.paymentMethod === 'CASH' ? (
+                                    <InfoRow label="Tiền mặt" value={formatPrizePayoutCurrency(resolvedCashAmount)} />
+                                ) : detail.paymentMethod === 'TRANSFER' ? (
+                                    <InfoRow label="Chuyển khoản" value={formatPrizePayoutCurrency(resolvedTransferAmount)} />
+                                ) : null}
+                            </Box>
+
+                            <Divider sx={{ mb: 2.5, borderStyle: 'dashed' }} />
+
+                            <Grid container spacing={2} sx={{ mb: 2.5 }}>
+                                <Grid size={{ xs: 6, sm: 4 }}>
+                                    <FieldLabel>Mã đơn hàng</FieldLabel>
+                                    {orderDetailPath && detail.orderCode ? (
+                                        <Link
+                                            component="button"
+                                            variant="subtitle2"
+                                            onClick={() => router.push(orderDetailPath)}
+                                            sx={{
+                                                ...detailLinkSx,
+                                                p: 0,
+                                                border: 0,
+                                                bgcolor: 'transparent',
+                                                textAlign: 'left',
+                                            }}
+                                        >
+                                            {detail.orderCode}
+                                        </Link>
+                                    ) : (
+                                        <FieldValue>{detail.orderCode || '—'}</FieldValue>
+                                    )}
                                 </Grid>
-                                <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-                                    <FieldLabel icon="solar:wallet-money-bold-duotone">Giá trị giải</FieldLabel>
-                                    <Typography variant="subtitle1" sx={{ fontWeight: 900, color: 'var(--palette-error-main)' }}>
-                                        {formatPrizePayoutCurrency(detail.grossAmount)}
-                                    </Typography>
-                                </Grid>
-                                <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-                                    <FieldLabel icon="solar:bill-list-bold-duotone">Thực nhận</FieldLabel>
-                                    <Typography variant="subtitle1" sx={{ fontWeight: 900, color: 'var(--palette-success-main)' }}>
-                                        {formatPrizePayoutCurrency(detail.netAmount ?? detail.grossAmount)}
-                                    </Typography>
-                                </Grid>
-                                <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-                                    <FieldLabel icon="solar:document-text-bold-duotone">Mã đơn hàng</FieldLabel>
-                                    <FieldValue>{detail.orderCode || '—'}</FieldValue>
-                                </Grid>
-                                <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-                                    <FieldLabel icon="solar:calendar-bold-duotone">Ngày tạo</FieldLabel>
+                                <Grid size={{ xs: 6, sm: 4 }}>
+                                    <FieldLabel>Ngày tạo</FieldLabel>
                                     <FieldValue>
                                         {detail.createdAt ? dayjs(detail.createdAt).format('DD/MM/YYYY HH:mm') : '—'}
                                     </FieldValue>
                                 </Grid>
-                            </Grid>
-
-                            <Grid container spacing={2} sx={{ mb: 2.5 }}>
-                                <Grid size={{ xs: 6, sm: 3 }}>
-                                    <FieldLabel>Thuế TNCN</FieldLabel>
-                                    <FieldValue>{formatPrizePayoutCurrency(detail.taxAmount)}</FieldValue>
+                                <Grid size={{ xs: 6, sm: 4 }}>
+                                    <FieldLabel>Loại đơn</FieldLabel>
+                                    <FieldValue>{resolvePrizePayoutOrderTypeLabel(detail)}</FieldValue>
                                 </Grid>
-                                <Grid size={{ xs: 6, sm: 3 }}>
-                                    <FieldLabel>Hoa hồng</FieldLabel>
-                                    <FieldValue>{formatPrizePayoutCurrency(detail.commissionAmount)}</FieldValue>
-                                </Grid>
-                                <Grid size={{ xs: 6, sm: 3 }}>
-                                    <FieldLabel>Kênh</FieldLabel>
-                                    <FieldValue>
-                                        {detail.channel ? PRIZE_PAYOUT_CHANNEL_LABELS[detail.channel] : '—'}
-                                    </FieldValue>
-                                </Grid>
-                                <Grid size={{ xs: 6, sm: 3 }}>
-                                    <FieldLabel>Nguồn vé</FieldLabel>
-                                    <FieldValue>
-                                        {detail.ticketOrigin
-                                            ? PRIZE_PAYOUT_TICKET_ORIGIN_LABELS[detail.ticketOrigin]
-                                            : '—'}
-                                    </FieldValue>
-                                </Grid>
-                                <Grid size={{ xs: 6, sm: 3 }}>
+                                <Grid size={{ xs: 6, sm: 4 }}>
                                     <FieldLabel>Xác minh</FieldLabel>
                                     <FieldValue>
                                         {detail.ownershipVerificationLevel
@@ -448,7 +476,7 @@ export const PrizePayoutDetailPage = () => {
                                             : '—'}
                                     </FieldValue>
                                 </Grid>
-                                <Grid size={{ xs: 6, sm: 3 }}>
+                                <Grid size={{ xs: 6, sm: 4 }}>
                                     <FieldLabel>Thanh toán</FieldLabel>
                                     <FieldValue>
                                         {detail.paymentMethod
@@ -456,135 +484,65 @@ export const PrizePayoutDetailPage = () => {
                                             : '—'}
                                     </FieldValue>
                                 </Grid>
-                                {detail.paymentMethod === 'COMBINED' ? (
-                                    <>
-                                        <Grid size={{ xs: 6, sm: 3 }}>
-                                            <FieldLabel>Tiền mặt</FieldLabel>
-                                            <Typography
-                                                variant="subtitle2"
-                                                sx={{ fontWeight: 700, color: 'var(--palette-warning-dark)' }}
-                                            >
-                                                {formatPrizePayoutCurrency(detail.cashAmount)}
-                                            </Typography>
-                                        </Grid>
-                                        <Grid size={{ xs: 6, sm: 3 }}>
-                                            <FieldLabel>Chuyển khoản</FieldLabel>
-                                            <Typography
-                                                sx={{
-                                                    fontWeight: 900,
-                                                    fontSize: '1.2rem',
-                                                    lineHeight: 1.2,
-                                                    color: 'var(--palette-success-dark)',
-                                                    fontVariantNumeric: 'tabular-nums',
-                                                }}
-                                            >
-                                                {formatPrizePayoutCurrency(
-                                                    detail.transferAmount
-                                                    ?? Math.max(
-                                                        0,
-                                                        Number(detail.netAmount || 0) - Number(detail.cashAmount || 0)
-                                                    )
-                                                )}
-                                            </Typography>
-                                        </Grid>
-                                    </>
-                                ) : detail.paymentMethod === 'CASH' ? (
-                                    <Grid size={{ xs: 6, sm: 3 }}>
-                                        <FieldLabel>Tiền mặt</FieldLabel>
-                                        <FieldValue>
-                                            {formatPrizePayoutCurrency(detail.cashAmount ?? detail.netAmount)}
-                                        </FieldValue>
-                                    </Grid>
-                                ) : detail.paymentMethod === 'TRANSFER' ? (
-                                    <Grid size={{ xs: 12, sm: 6 }}>
-                                        <FieldLabel>Chuyển khoản</FieldLabel>
-                                        <Typography
-                                            sx={{
-                                                fontWeight: 900,
-                                                fontSize: '1.35rem',
-                                                lineHeight: 1.2,
-                                                color: 'var(--palette-success-dark)',
-                                                fontVariantNumeric: 'tabular-nums',
-                                            }}
-                                        >
-                                            {formatPrizePayoutCurrency(
-                                                detail.transferAmount ?? detail.netAmount
-                                            )}
-                                        </Typography>
-                                    </Grid>
-                                ) : null}
                             </Grid>
 
-                            {/* Detailed Info Grid */}
-                            <Grid container spacing={2}>
-                                <Grid size={{ xs: 12, sm: 6, md: 4 }}>
-                                    <FieldLabel icon="solar:user-bold-duotone">Khách hàng</FieldLabel>
-                                    <Stack direction="row" alignItems="center" spacing={1}>
-                                        <FieldValue>{detail.customerName || '—'}</FieldValue>
-                                        {detail.customerName && (
-                                            <button
-                                                type="button"
-                                                onClick={() => copyToClipboard(detail.customerName, 'Đã sao chép tên khách hàng')}
-                                                className="text-slate-400 hover:text-slate-700 bg-transparent border-none cursor-pointer"
-                                                title="Sao chép tên"
-                                            >
-                                                <Icon icon="solar:copy-bold-duotone" width={14} />
-                                            </button>
-                                        )}
-                                    </Stack>
-                                </Grid>
+                            <Divider sx={{ mb: 2.5, borderStyle: 'dashed' }} />
 
-                                <Grid size={{ xs: 12, sm: 6, md: 4 }}>
-                                    <FieldLabel icon="solar:map-point-bold-duotone">Đài / Ngày quay</FieldLabel>
+                            <Grid container spacing={2}>
+                                <Grid size={{ xs: 12, sm: 6 }}>
+                                    <FieldLabel>Đài / Ngày quay</FieldLabel>
                                     <FieldValue>
                                         {detail.stationName || '—'}
                                         {detail.drawDate ? ` · ${dayjs(detail.drawDate).format('DD/MM/YYYY')}` : ''}
                                     </FieldValue>
                                 </Grid>
-
-                                <Grid size={{ xs: 12, sm: 6, md: 4 }}>
-                                    <FieldLabel icon="solar:cup-star-bold-duotone">Giải trúng</FieldLabel>
-                                    <Box className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg bg-amber-50 text-amber-900 border border-amber-200/80 font-black text-xs">
-                                        <Icon icon="solar:crown-bold-duotone" width={14} className="text-amber-600" />
-                                        <span>{detail.prizeDisplayName || detail.prizeCode || '—'}</span>
-                                    </Box>
+                                <Grid size={{ xs: 12, sm: 6 }}>
+                                    <FieldLabel>Giải trúng</FieldLabel>
+                                    <FieldValue>{detail.prizeDisplayName || detail.prizeCode || '—'}</FieldValue>
                                 </Grid>
-
                                 <Grid size={{ xs: 12 }}>
-                                    <FieldLabel icon="solar:hashtag-square-bold-duotone">Dãy số trên vé</FieldLabel>
-                                    <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mt: 0.5 }}>
-                                        <AdminLuckyDisplay value={detail.numbers} ticket sx={{ fontWeight: 800, fontSize: '1.125rem' }} />
-                                    </Stack>
+                                    <FieldLabel>Dãy số trên vé</FieldLabel>
+                                    <AdminLuckyDisplay value={detail.numbers} ticket sx={{ fontWeight: 700, fontSize: '1rem' }} />
                                 </Grid>
 
                                 {(detail.recipientFullName || detail.recipientIdNumber) && (
                                     <>
                                         <Grid size={{ xs: 12, sm: 6 }}>
-                                            <FieldLabel icon="solar:user-id-bold-duotone">Người nhận</FieldLabel>
+                                            <FieldLabel>Người nhận</FieldLabel>
                                             <FieldValue>{detail.recipientFullName || '—'}</FieldValue>
                                         </Grid>
                                         <Grid size={{ xs: 12, sm: 6 }}>
-                                            <FieldLabel icon="solar:card-bold-duotone">CCCD (masked)</FieldLabel>
+                                            <FieldLabel>CCCD (masked)</FieldLabel>
                                             <FieldValue>{detail.recipientIdNumber || '—'}</FieldValue>
                                         </Grid>
                                         {detail.recipientIdImageUrl || detail.recipientIdImageBackUrl ? (
                                             <Grid size={{ xs: 12 }}>
-                                                <FieldLabel icon="solar:gallery-bold-duotone">Ảnh CCCD</FieldLabel>
-                                                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mt: 1 }}>
+                                                <FieldLabel>Ảnh CCCD</FieldLabel>
+                                                <Stack direction="row" spacing={2} sx={{ mt: 1 }}>
                                                     {detail.recipientIdImageUrl && (
-                                                        <Box sx={{ flex: 1 }}>
-                                                            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700 }}>
+                                                        <Box>
+                                                            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, display: 'block', mb: 0.75 }}>
                                                                 Mặt trước
                                                             </Typography>
-                                                            <TransferEvidencePreview imageUrl={detail.recipientIdImageUrl} />
+                                                            <TransferEvidencePreview
+                                                                compact
+                                                                imageUrl={detail.recipientIdImageUrl}
+                                                                title="CCCD mặt trước"
+                                                                showCaption={false}
+                                                            />
                                                         </Box>
                                                     )}
                                                     {detail.recipientIdImageBackUrl && (
-                                                        <Box sx={{ flex: 1 }}>
-                                                            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700 }}>
+                                                        <Box>
+                                                            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, display: 'block', mb: 0.75 }}>
                                                                 Mặt sau
                                                             </Typography>
-                                                            <TransferEvidencePreview imageUrl={detail.recipientIdImageBackUrl} />
+                                                            <TransferEvidencePreview
+                                                                compact
+                                                                imageUrl={detail.recipientIdImageBackUrl}
+                                                                title="CCCD mặt sau"
+                                                                showCaption={false}
+                                                            />
                                                         </Box>
                                                     )}
                                                 </Stack>
@@ -594,11 +552,11 @@ export const PrizePayoutDetailPage = () => {
                                 )}
 
                                 <Grid size={{ xs: 12, sm: 6 }}>
-                                    <FieldLabel icon="solar:user-bold-duotone">Người tạo yêu cầu</FieldLabel>
+                                    <FieldLabel>Người tạo yêu cầu</FieldLabel>
                                     <FieldValue>{detail.createdBy || '—'}</FieldValue>
                                 </Grid>
                                 <Grid size={{ xs: 12, sm: 6 }}>
-                                    <FieldLabel icon="solar:check-circle-bold-duotone">Người hoàn tất</FieldLabel>
+                                    <FieldLabel>Người hoàn tất</FieldLabel>
                                     <FieldValue>{detail.completedBy || '—'}</FieldValue>
                                 </Grid>
                             </Grid>
@@ -609,199 +567,190 @@ export const PrizePayoutDetailPage = () => {
                             <Alert severity="error" sx={{ borderRadius: '12px' }}>
                                 <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.5 }}>
                                     {detail.status === PrizePayoutRequestStatus.MANUAL_RESOLUTION
-                                        ? 'Yêu cầu đã khóa online'
+                                        ? 'Yêu cầu đã khóa trực tuyến'
                                         : 'Lý do từ chối yêu cầu'}
                                 </Typography>
                                 <Typography variant="body2">{detail.rejectReason}</Typography>
                                 {detail.channel === 'ONLINE' && (
                                     <Typography variant="caption" sx={{ display: 'block', mt: 1, color: 'text.secondary' }}>
-                                        Số lần từ chối online: {detail.rejectCount ?? 0} /{' '}
+                                        Số lần từ chối trực tuyến: {detail.rejectCount ?? 0} /{' '}
                                         {detail.maxOnlineRejectRetry ?? 3}
                                     </Typography>
                                 )}
                             </Alert>
                         )}
 
-                        {/* Evidence Card */}
-                        {detail.transferEvidenceUrl && (
-                            <Card sx={{ p: 3, ...cardSx }}>
-                                <CardSectionTitle
-                                    icon="solar:receipt-item-bold-duotone"
-                                    title="Biên lai chuyển khoản đã tải lên"
-                                />
-                                <TransferEvidencePreview
-                                    imageUrl={detail.transferEvidenceUrl}
-                                    title=""
-                                    showCaption={false}
-                                />
-                            </Card>
-                        )}
-
-                        {detail.confirmationContractUrl ? (
-                            <Card sx={{ p: 3, ...cardSx }}>
-                                <CardSectionTitle
-                                    icon="solar:document-text-bold-duotone"
-                                    title="Hợp đồng xác nhận trả thưởng"
-                                />
-                                <Stack spacing={1.5}>
-                                    <Button
-                                        variant="outlined"
-                                        startIcon={
-                                            printingContract
-                                                ? <CircularProgress size={16} color="inherit" />
-                                                : <Icon icon="solar:printer-bold-duotone" />
-                                        }
-                                        disabled={printingContract}
-                                        onClick={async () => {
-                                            try {
-                                                setPrintingContract(true);
-                                                await prizePayoutAdminApi.openConfirmationContractPdf(detail.id);
-                                            } catch (error) {
-                                                toast.error(error instanceof Error ? error.message : 'Không mở được hợp đồng PDF');
-                                            } finally {
-                                                setPrintingContract(false);
-                                            }
-                                        }}
-                                        sx={{ textTransform: 'none', fontWeight: 700, borderRadius: '8px', alignSelf: 'flex-start' }}
-                                    >
-                                        {printingContract ? 'Đang tạo hợp đồng...' : 'Xem / In hợp đồng hệ thống'}
-                                    </Button>
-                                    <TransferEvidencePreview
-                                        imageUrl={detail.confirmationContractUrl}
-                                        title=""
-                                        showCaption={false}
-                                    />
-                                </Stack>
-                            </Card>
-                        ) : (
-                            <Card sx={{ p: 3, ...cardSx }}>
-                                <CardSectionTitle
-                                    icon="solar:document-text-bold-duotone"
-                                    title="Hợp đồng xác nhận trả thưởng"
-                                />
-                                <Button
-                                    variant="outlined"
-                                    startIcon={
-                                        printingContract
-                                            ? <CircularProgress size={16} color="inherit" />
-                                            : <Icon icon="solar:printer-bold-duotone" />
-                                    }
-                                    disabled={printingContract}
-                                    onClick={async () => {
-                                        try {
-                                            setPrintingContract(true);
-                                            await prizePayoutAdminApi.openConfirmationContractPdf(detail.id);
-                                        } catch (error) {
-                                            toast.error(error instanceof Error ? error.message : 'Không mở được hợp đồng PDF');
-                                        } finally {
-                                            setPrintingContract(false);
-                                        }
-                                    }}
-                                    sx={{ textTransform: 'none', fontWeight: 700, borderRadius: '8px' }}
-                                >
-                                    {printingContract ? 'Đang tạo hợp đồng...' : 'Xem / In hợp đồng hệ thống'}
-                                </Button>
-                            </Card>
-                        )}
                     </Stack>
                 </Grid>
 
-                {/* Right Column: Bank Account & Transfer Details Card */}
                 <Grid size={{ xs: 12, md: 4 }}>
-                    <Card sx={{ p: 3, ...cardSx }}>
-                        <CardSectionTitle
-                            icon="solar:card-bold-duotone"
-                            iconColor="var(--palette-primary-main)"
-                            title="Tài khoản nhận thưởng"
-                        />
+                    <Stack spacing={2.5}>
+                        {detail.channel === 'IN_PERSON' && (
+                            <Card sx={{ p: 3, ...cardSx }}>
+                                <CardSectionTitle title="Hợp đồng trả thưởng" />
+                                <Stack spacing={1.25}>
+                                    <Button
+                                        variant="outlined"
+                                        size="medium"
+                                        fullWidth
+                                        disabled={printingContract}
+                                        onClick={() => void handlePrintSystemContract()}
+                                        sx={{
+                                            height: 38,
+                                            borderRadius: '10px',
+                                            fontWeight: 700,
+                                            textTransform: 'none',
+                                        }}
+                                    >
+                                        {printingContract ? 'Đang tạo hợp đồng...' : 'Xem / In hợp đồng'}
+                                    </Button>
+                                    {detail.confirmationContractUrl && (
+                                        <Button
+                                            variant="contained"
+                                            size="medium"
+                                            fullWidth
+                                            onClick={() => setViewSignedOpen(true)}
+                                            sx={{
+                                                height: 38,
+                                                borderRadius: '10px',
+                                                fontWeight: 700,
+                                                textTransform: 'none',
+                                                boxShadow: 'none',
+                                            }}
+                                        >
+                                            Xem bản đã ký
+                                        </Button>
+                                    )}
+                                </Stack>
+                                {detail.confirmationContractUrl && (
+                                    <Box sx={{ mt: 2 }}>
+                                        <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, display: 'block', mb: 0.75 }}>
+                                            Ảnh hợp đồng
+                                        </Typography>
+                                        <TransferEvidencePreview
+                                            compact
+                                            imageUrl={detail.confirmationContractUrl}
+                                            title="Hợp đồng trả thưởng"
+                                            showCaption={false}
+                                        />
+                                    </Box>
+                                )}
+                            </Card>
+                        )}
 
-                        {needsTransferDisplay && (
-                            <TransferAmountBanner
-                                amount={transferAmountToPay}
-                                onCopy={() =>
-                                    copyToClipboard(
-                                        String(Math.round(transferAmountToPay)),
-                                        'Đã sao chép số tiền chuyển khoản'
+                        <Card sx={{ p: 3, ...cardSx }}>
+                            <CardSectionTitle title="Khách hàng" />
+                            <InfoRow
+                                label="Họ tên"
+                                value={
+                                    customerDetailPath && detail.customerName ? (
+                                        <Link
+                                            component="button"
+                                            variant="body2"
+                                            onClick={() => router.push(customerDetailPath)}
+                                            sx={{
+                                                ...detailLinkSx,
+                                                p: 0,
+                                                border: 0,
+                                                bgcolor: 'transparent',
+                                                fontSize: 'inherit',
+                                            }}
+                                        >
+                                            {detail.customerName}
+                                        </Link>
+                                    ) : (
+                                        detail.customerName || '—'
                                     )
                                 }
                             />
-                        )}
+                            <InfoRow label="Mã yêu cầu" value={detail.requestCode} />
+                            {customerDetailPath && (
+                                <Button
+                                    fullWidth
+                                    variant="outlined"
+                                    onClick={() => router.push(customerDetailPath)}
+                                    sx={{
+                                        mt: 2,
+                                        height: 38,
+                                        borderRadius: '10px',
+                                        fontWeight: 700,
+                                        textTransform: 'none',
+                                        color: 'var(--palette-text-primary)',
+                                        borderColor: 'var(--palette-divider)',
+                                    }}
+                                >
+                                    Hồ sơ khách hàng
+                                </Button>
+                            )}
+                        </Card>
 
-                        {/* Premium Metallic Bank Card Container */}
-                        <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-zinc-900 text-white rounded-2xl p-4 mb-4 shadow-md border border-slate-700 flex flex-col justify-between gap-3">
-                            <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-1.5">
-                                    <Icon icon="solar:banknotes-bold-duotone" width={18} className="text-amber-400" />
-                                    <span className="font-extrabold text-xs text-slate-200 tracking-wide uppercase">
-                                        {detail.bankName || 'Ngân hàng nhận'}
-                                    </span>
-                                </div>
-                                <Icon icon="solar:sim-card-bold-duotone" width={20} className="text-slate-400" />
-                            </div>
+                        <Card sx={{ p: 3, ...cardSx }}>
+                            <CardSectionTitle title="Chuyển khoản" />
+                            <InfoRow label="Ngân hàng" value={detail.bankName || '—'} />
+                            <InfoRow label="Số tài khoản" value={detail.bankAccountNumber || '—'} mono />
+                            <InfoRow label="Chủ tài khoản" value={detail.accountHolderName || '—'} />
+                            {needsTransferDisplay && (
+                                <InfoRow
+                                    label="Số tiền CK"
+                                    value={formatPrizePayoutCurrency(transferAmountToPay)}
+                                />
+                            )}
+                            {detail.transferEvidenceUrl && (
+                                <Stack
+                                    direction="row"
+                                    justifyContent="space-between"
+                                    alignItems="center"
+                                    spacing={2}
+                                    sx={{ py: 1.25, borderBottom: '1px dashed', borderColor: 'divider' }}
+                                >
+                                    <Typography variant="body2" color="text.secondary">
+                                        Biên lai
+                                    </Typography>
+                                    <TransferEvidencePreview
+                                        compact
+                                        imageUrl={detail.transferEvidenceUrl}
+                                        title="Biên lai chuyển khoản"
+                                        showCaption={false}
+                                        infoItems={[
+                                            { label: 'Mã yêu cầu', value: detail.requestCode || '—' },
+                                            {
+                                                label: 'Số tiền CK',
+                                                value: formatPrizePayoutCurrency(transferAmountToPay),
+                                            },
+                                            {
+                                                label: 'Thời gian',
+                                                value: detail.completedAt
+                                                    ? dayjs(detail.completedAt).format('DD/MM/YYYY HH:mm')
+                                                    : '—',
+                                            },
+                                        ]}
+                                    />
+                                </Stack>
+                            )}
 
-                            <div className="flex flex-col gap-0.5">
-                                <span className="text-[9.5px] uppercase tracking-widest text-slate-400 font-bold">Số tài khoản</span>
-                                <div className="flex items-center justify-between gap-1">
-                                    <span className="text-base md:text-lg font-mono font-black tracking-wider text-amber-300">
-                                        {formatCardNumber(detail.bankAccountNumber)}
-                                    </span>
-                                    <button
-                                        type="button"
-                                        onClick={() => copyToClipboard(detail.bankAccountNumber, 'Đã sao chép số tài khoản')}
-                                        className="px-2 py-1 bg-white/10 hover:bg-white/20 text-amber-300 font-bold rounded-lg text-xs transition-colors border-none cursor-pointer flex items-center gap-1"
-                                    >
-                                        <Icon icon="solar:copy-bold-duotone" width={13} />
-                                        <span>Sao chép</span>
-                                    </button>
-                                </div>
-                            </div>
+                            <Button
+                                variant="outlined"
+                                size="medium"
+                                fullWidth
+                                onClick={() => copyToClipboard(buildTransferCopyText(), 'Đã sao chép thông tin chuyển khoản')}
+                                sx={{
+                                    mt: 2,
+                                    height: 38,
+                                    borderRadius: '10px',
+                                    fontWeight: 700,
+                                    textTransform: 'none',
+                                }}
+                            >
+                                Sao chép thông tin CK
+                            </Button>
 
-                            <div className="pt-2 border-t border-slate-700/70 flex flex-col">
-                                <span className="text-[9px] uppercase tracking-widest text-slate-400 font-bold">Chủ tài khoản</span>
-                                <span className="text-xs font-black tracking-wider text-slate-100 uppercase">
-                                    {detail.accountHolderName || '—'}
-                                </span>
-                            </div>
-                        </div>
-
-                        {/* Copy All Button */}
-                        <Button
-                            variant="outlined"
-                            size="medium"
-                            fullWidth
-                            startIcon={<Icon icon="solar:copy-bold-duotone" />}
-                            onClick={() => {
-                                const text = [
-                                    `Ngân hàng: ${detail.bankName}`,
-                                    `STK: ${detail.bankAccountNumber}`,
-                                    `Chủ TK: ${detail.accountHolderName}`,
-                                    `Số tiền CK: ${formatPrizePayoutCurrency(
-                                        detail.transferAmount ?? detail.netAmount ?? detail.grossAmount
-                                    )}`,
-                                ].join('\n');
-                                copyToClipboard(text, 'Đã sao chép đầy đủ thông tin chuyển khoản');
-                            }}
-                            sx={{
-                                height: 38,
-                                borderRadius: '10px',
-                                fontWeight: 700,
-                                textTransform: 'none',
-                                color: 'var(--palette-text-primary)',
-                                borderColor: 'var(--palette-divider)',
-                            }}
-                        >
-                            Sao chép toàn bộ thông tin
-                        </Button>
-
-                        {isPending && (
-                            <>
-                                <Divider sx={{ my: 2.5, borderStyle: 'dashed' }} />
-                                <Alert severity="warning" sx={{ borderRadius: '10px', fontSize: '0.75rem', py: 0.5 }}>
-                                    Kiểm tra thông tin chuyển khoản trước khi hoàn tất (trả thưởng tại quầy không bắt buộc chủ TK khớp tên KH).
-                                </Alert>
-                            </>
-                        )}
-                    </Card>
+                            {isPending && (
+                                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 2, lineHeight: 1.5 }}>
+                                    Kiểm tra thông tin trước khi hoàn tất. Trả thưởng tại quầy không bắt buộc chủ TK khớp tên khách.
+                                </Typography>
+                            )}
+                        </Card>
+                    </Stack>
                 </Grid>
             </Grid>
 
@@ -810,51 +759,13 @@ export const PrizePayoutDetailPage = () => {
                 <DialogTitle sx={{ fontWeight: 800, fontSize: '1rem' }}>Xác nhận trả thưởng</DialogTitle>
                 <DialogContent>
                     {showTransferInCompleteDialog && (
-                        <TransferAmountBanner
-                            amount={dialogTransferAmount}
-                            onCopy={() =>
-                                copyToClipboard(
-                                    String(Math.round(dialogTransferAmount)),
-                                    'Đã sao chép số tiền chuyển khoản'
-                                )
-                            }
-                        />
+                        <DialogAmountHint label="Số tiền cần chuyển khoản" amount={dialogTransferAmount} />
                     )}
                     {paymentMethod === 'CASH' && detail.channel !== 'ONLINE' && (
-                        <Box
-                            sx={{
-                                p: 2.25,
-                                mb: 2,
-                                borderRadius: '12px',
-                                bgcolor: 'rgba(237, 108, 2, 0.08)',
-                                border: '1px solid rgba(237, 108, 2, 0.28)',
-                            }}
-                        >
-                            <Typography
-                                variant="caption"
-                                sx={{
-                                    fontWeight: 800,
-                                    letterSpacing: '0.06em',
-                                    textTransform: 'uppercase',
-                                    color: 'var(--palette-warning-dark)',
-                                    display: 'block',
-                                    mb: 0.5,
-                                }}
-                            >
-                                Số tiền chi tiền mặt
-                            </Typography>
-                            <Typography
-                                sx={{
-                                    fontWeight: 900,
-                                    fontSize: '1.85rem',
-                                    lineHeight: 1.15,
-                                    color: 'var(--palette-warning-dark)',
-                                    fontVariantNumeric: 'tabular-nums',
-                                }}
-                            >
-                                {formatPrizePayoutCurrency(detail.cashAmount ?? detail.netAmount)}
-                            </Typography>
-                        </Box>
+                        <DialogAmountHint
+                            label="Số tiền chi tiền mặt"
+                            amount={Number(detail.cashAmount ?? detail.netAmount ?? 0)}
+                        />
                     )}
                     <FormControl sx={{ mb: 2, mt: 0.5 }}>
                         <Typography variant="caption" sx={{ fontWeight: 700, mb: 1, color: 'text.secondary' }}>
@@ -866,7 +777,7 @@ export const PrizePayoutDetailPage = () => {
                                     Chuyển khoản
                                 </Typography>
                                 <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 0.5 }}>
-                                    Yêu cầu online chỉ hoàn tất bằng chuyển khoản (không hỗ trợ tiền mặt / kết hợp).
+                                    Yêu cầu trực tuyến chỉ hoàn tất bằng chuyển khoản (không hỗ trợ tiền mặt / kết hợp).
                                 </Typography>
                             </>
                         ) : (
@@ -902,11 +813,11 @@ export const PrizePayoutDetailPage = () => {
                     )}
                     {(detail.channel === 'ONLINE' || paymentMethod === 'TRANSFER' || paymentMethod === 'COMBINED') ? (
                         <>
-                            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                                {detail.channel !== 'ONLINE' && paymentMethod === 'COMBINED'
-                                    ? 'Xác nhận đã chi phần tiền mặt và tải biên lai phần chuyển khoản.'
-                                    : 'Tải ảnh biên lai chuyển khoản thành công trước khi hoàn tất xử lý.'}
-                            </Typography>
+                            {detail.channel !== 'ONLINE' && paymentMethod === 'COMBINED' && (
+                                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                                    Xác nhận đã chi phần tiền mặt và tải biên lai phần chuyển khoản.
+                                </Typography>
+                            )}
                             <UploadSingleFile
                                 value={evidenceUrl}
                                 onChange={setEvidenceUrl}
@@ -965,16 +876,34 @@ export const PrizePayoutDetailPage = () => {
             {/* Dialog Reject Reason */}
             <Dialog
                 open={rejectOpen}
-                onClose={() => {
-                    setRejectOpen(false);
-                    setRejectReason('');
-                    setSelectedRejectQuickReplyIndex(null);
-                }}
+                onClose={closeRejectDialog}
                 maxWidth="sm"
                 fullWidth
+                PaperProps={{
+                    className: 'admin-theme',
+                    sx: { borderRadius: '16px' },
+                }}
             >
-                <DialogTitle sx={{ fontWeight: 800, color: 'error.main', fontSize: '1rem' }}>Từ chối yêu cầu trả thưởng</DialogTitle>
-                <DialogContent>
+                <DialogTitle
+                    sx={{
+                        pb: 1,
+                        pr: 6,
+                        fontWeight: 700,
+                        fontSize: '1.125rem',
+                        color: 'text.primary',
+                    }}
+                >
+                    Từ chối yêu cầu trả thưởng
+                    <IconButton
+                        aria-label="Đóng"
+                        onClick={closeRejectDialog}
+                        disabled={rejectMutation.isPending}
+                        sx={{ position: 'absolute', right: 12, top: 12 }}
+                    >
+                        <CloseIcon fontSize="small" />
+                    </IconButton>
+                </DialogTitle>
+                <DialogContent dividers sx={{ pt: 2.5, pb: 3 }}>
                     {detail.channel === 'ONLINE' && (() => {
                         const maxRetry = detail.maxOnlineRejectRetry ?? 3;
                         const currentRejects = detail.rejectCount ?? 0;
@@ -983,19 +912,20 @@ export const PrizePayoutDetailPage = () => {
                         return (
                             <Alert
                                 severity={willLock ? 'error' : 'warning'}
-                                sx={{ mb: 2, borderRadius: '12px' }}
+                                sx={{ mb: 2.5, borderRadius: '10px' }}
                             >
                                 {willLock
-                                    ? `Đây là lần từ chối thứ ${nextCount}/${maxRetry}. Sau khi xác nhận, khách sẽ không gửi được yêu cầu online nữa và phải đến đại lý.`
-                                    : `Sau khi từ chối: ${nextCount}/${maxRetry} lần. Đến ${maxRetry} lần sẽ khóa trả thưởng online.`}
+                                    ? `Đây là lần từ chối thứ ${nextCount}/${maxRetry}. Sau khi xác nhận, khách sẽ không gửi được yêu cầu trực tuyến nữa và phải đến đại lý.`
+                                    : `Sau khi từ chối: ${nextCount}/${maxRetry} lần. Đến ${maxRetry} lần sẽ khóa trả thưởng trực tuyến.`}
                             </Alert>
                         );
                     })()}
                     <TextField
                         fullWidth
                         multiline
-                        minRows={3}
-                        label="Lý do từ chối *"
+                        minRows={4}
+                        label="Lý do từ chối"
+                        required
                         value={rejectReason}
                         onChange={(e) => {
                             const nextValue = e.target.value;
@@ -1007,16 +937,15 @@ export const PrizePayoutDetailPage = () => {
                                 setSelectedRejectQuickReplyIndex(null);
                             }
                         }}
-                        sx={{ mt: 1 }}
+                        disabled={rejectMutation.isPending}
                         helperText="Lý do này sẽ hiển thị cho khách hàng trên trang chi tiết trả thưởng."
                     />
 
-                    <Box sx={{ mt: 1.5 }}>
+                    <Box sx={{ mt: 2.5 }}>
                         <Typography
-                            variant="caption"
+                            variant="subtitle2"
                             color="text.secondary"
-                            fontWeight={700}
-                            sx={{ display: 'block', mb: 1 }}
+                            sx={{ display: 'block', mb: 1.25, fontWeight: 700 }}
                         >
                             Gợi ý nội dung
                         </Typography>
@@ -1029,6 +958,7 @@ export const PrizePayoutDetailPage = () => {
                                         label={reply}
                                         size="small"
                                         clickable
+                                        disabled={rejectMutation.isPending}
                                         color={selected ? 'error' : 'default'}
                                         variant={selected ? 'filled' : 'outlined'}
                                         onClick={() => {
@@ -1039,11 +969,12 @@ export const PrizePayoutDetailPage = () => {
                                             maxWidth: '100%',
                                             height: 'auto',
                                             py: 0.75,
+                                            borderRadius: '10px',
                                             '& .MuiChip-label': {
                                                 display: 'block',
                                                 whiteSpace: 'normal',
                                                 textAlign: 'left',
-                                                lineHeight: 1.35,
+                                                lineHeight: 1.4,
                                                 py: 0.25,
                                             },
                                         }}
@@ -1053,39 +984,53 @@ export const PrizePayoutDetailPage = () => {
                         </Stack>
                     </Box>
                 </DialogContent>
-                <DialogActions sx={{ px: 3, pb: 2 }}>
+                <DialogActions sx={dialogActionsSx}>
                     <Button
-                        onClick={() => {
-                            setRejectOpen(false);
-                            setRejectReason('');
-                            setSelectedRejectQuickReplyIndex(null);
-                        }}
-                        sx={{ fontWeight: 700 }}
+                        variant="outlined"
+                        color="inherit"
+                        onClick={closeRejectDialog}
+                        disabled={rejectMutation.isPending}
+                        sx={dialogCancelButtonSx}
                     >
                         Hủy
                     </Button>
                     <Button
-                        color="error"
                         variant="contained"
+                        color="error"
                         disabled={!rejectReason.trim() || rejectMutation.isPending}
-                        sx={{ fontWeight: 800 }}
                         onClick={() => {
                             rejectMutation.mutate(
                                 { id: requestId, data: { reason: rejectReason.trim() } },
                                 {
                                     onSuccess: () => {
-                                        setRejectOpen(false);
-                                        setRejectReason('');
-                                        setSelectedRejectQuickReplyIndex(null);
+                                        closeRejectDialog();
                                     },
                                 }
                             );
                         }}
+                        sx={{
+                            minWidth: 148,
+                            height: 40,
+                            fontWeight: 700,
+                            textTransform: 'none',
+                            borderRadius: '10px',
+                            boxShadow: 'none',
+                        }}
                     >
-                        Từ chối yêu cầu
+                        {rejectMutation.isPending ? 'Đang xử lý...' : 'Từ chối yêu cầu'}
                     </Button>
                 </DialogActions>
             </Dialog>
+
+            {detail.channel === 'IN_PERSON' && (
+                <ContractDocumentViewerDialog
+                    open={viewSignedOpen}
+                    url={detail.confirmationContractUrl}
+                    title="Bản hợp đồng đã ký"
+                    fileName={detail.requestCode ? `Hop-dong-da-ky-${detail.requestCode}` : undefined}
+                    onClose={() => setViewSignedOpen(false)}
+                />
+            )}
         </motion.div>
     );
 };

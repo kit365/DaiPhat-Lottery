@@ -9,13 +9,33 @@ import java.util.List;
  * @param rows           data rows below the header row
  * @param appliedCharset charset actually used to decode the file (null for .xlsx)
  * @param appliedDelimiter delimiter actually used (null for .xlsx)
+ * @param preamble       non-blank rows sitting above the header row. A business
+ *                       delivery note opens with a letterhead and a party block
+ *                       before the table starts; those rows are not data, but they
+ *                       carry who issued the file, so they are kept rather than
+ *                       skipped
  */
 public record TabularTable(
         List<String> headers,
         List<TabularRow> rows,
         String appliedCharset,
-        String appliedDelimiter
+        String appliedDelimiter,
+        List<List<String>> preamble
 ) {
+
+    public TabularTable {
+        preamble = preamble == null ? List.of() : List.copyOf(preamble);
+    }
+
+    /** A file whose table starts on the first row, so there is no letterhead. */
+    public TabularTable(
+            List<String> headers,
+            List<TabularRow> rows,
+            String appliedCharset,
+            String appliedDelimiter
+    ) {
+        this(headers, rows, appliedCharset, appliedDelimiter, List.of());
+    }
 
     public static String positionalKey(int columnIndex) {
         return "COL:" + columnIndex;

@@ -57,6 +57,8 @@ export const useConversations = () => {
     return useQuery({
         queryKey: ADMIN_CHAT_CONVERSATIONS_KEY,
         queryFn: chatService.getConversations,
+        refetchOnWindowFocus: true,
+        refetchInterval: 12_000,
     });
 };
 
@@ -110,6 +112,7 @@ export const useAssignConversation = () => {
             queryClient.setQueryData(adminChatDetailKey(conversationId), {
                 conversation,
                 messages,
+                context: detail.context ?? null,
             });
 
             const assignedCustomerId = conversation.customerId;
@@ -127,8 +130,17 @@ export const useAssignConversation = () => {
             }
             toast.success('Nhận hội thoại thành công.');
         },
-        onError: (error: { message?: string }) => {
-            toast.error(error?.message || 'Không thể nhận hội thoại.');
+        onError: (error: { message?: string; response?: { data?: { message?: string; errorCode?: string } } }) => {
+            const code = error?.response?.data?.errorCode;
+            const backendMessage = error?.response?.data?.message;
+            if (code === 'CHT_016' || backendMessage?.includes('đang hỗ trợ một khách hàng')) {
+                toast.error(
+                    backendMessage
+                    || 'Bạn đang hỗ trợ một khách hàng khác. Hãy đóng hoặc trả hội thoại hiện tại trước khi nhận khách mới.'
+                );
+                return;
+            }
+            toast.error(error?.message || backendMessage || 'Không thể nhận hội thoại.');
         },
     });
 };
@@ -145,8 +157,11 @@ export const useCloseConversation = () => {
             reason: ConversationCloseReason;
         }) => chatService.close(conversationId, reason),
         onSuccess: (detail, { conversationId }) => {
+            queryClient.setQueryData<Conversation[]>(ADMIN_CHAT_CONVERSATIONS_KEY, (prev = []) =>
+                (prev ?? []).filter((item) => item.id !== conversationId)
+            );
+            queryClient.removeQueries({ queryKey: adminChatDetailKey(conversationId) });
             queryClient.invalidateQueries({ queryKey: ADMIN_CHAT_CONVERSATIONS_KEY });
-            queryClient.setQueryData(adminChatDetailKey(conversationId), detail);
             const customerId = detail.conversation?.customerId;
             if (customerId) {
                 queryClient.invalidateQueries({ queryKey: adminChatCustomerTimelineKey(customerId) });

@@ -15,6 +15,7 @@ public record ConversationResponse(
         UUID customerId,
         UUID assignedOperatorId,
         String assignedOperatorName,
+        String customerName,
         LocalDateTime customerLastReadAt,
         LocalDateTime operatorLastReadAt,
         Integer unreadCount,

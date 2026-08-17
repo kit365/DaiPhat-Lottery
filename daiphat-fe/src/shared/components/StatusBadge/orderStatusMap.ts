@@ -47,6 +47,13 @@ export const ORDER_STATUS_BADGE: Record<string, StatusBadgeTone> = {
         activeColor: 'var(--palette-error-contrastText, #FFFFFF)',
         activeBg: 'var(--palette-error-main, #FF5630)',
     },
+    [OrderStatus.PAYMENT_COMPLAINT_PENDING]: {
+        label: 'Chờ xác minh thanh toán',
+        color: 'var(--palette-warning-dark, #B76E00)',
+        bg: 'var(--palette-warning-lighter, #FFF5CC)',
+        activeColor: 'var(--palette-warning-contrastText, #1C252E)',
+        activeBg: 'var(--palette-warning-main, #FFAB00)',
+    },
 };
 
 const FALLBACK: StatusBadgeTone = {
@@ -74,6 +81,8 @@ export const getOrderStatusAdminBadgeModifier = (status?: string | null): string
             return 'admin-status-badge--success';
         case OrderStatus.CANCELLED:
             return 'admin-status-badge--inactive';
+        case OrderStatus.PAYMENT_COMPLAINT_PENDING:
+            return 'admin-status-badge--pending';
         default:
             return '';
     }

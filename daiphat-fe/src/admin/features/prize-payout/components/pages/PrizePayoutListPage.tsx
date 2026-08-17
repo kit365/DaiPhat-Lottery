@@ -1,6 +1,8 @@
-import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
-import { Button } from '@mui/material';
-import { Icon } from '@/admin/components/ui/AdminIcon';
+"use client";
+
+import AddIcon from '@mui/icons-material/Add';
+import { useAdminRouter } from '@/admin/hooks/useAdminRouter';
+import { Button } from '@/admin/components/ui/Button';
 import { PageHeader } from '@/admin/components/ui/PageHeader';
 import { CanAccess } from '@/admin/components/auth/CanAccess';
 import { PERMISSIONS } from '@/admin/constants/permission.constants';
@@ -15,21 +17,19 @@ export const PrizePayoutListPage = () => {
             <PageHeader
                 title="Quản lý trả thưởng"
                 breadcrumbItems={[
-                            { label: 'Bảng điều khiển', to: `/${prefixAdmin}` },
-                            { label: 'Trả thưởng' },
-                        ]}
+                    { label: 'Bảng điều khiển', to: `/${prefixAdmin}` },
+                    { label: 'Trả thưởng' },
+                ]}
                 action={
                     <CanAccess permission={PERMISSIONS.PRIZE_PAYOUT.PROCESS}>
-                    <Button
-                        variant="contained"
-                        color="success"
-                        startIcon={<Icon icon="solar:add-circle-bold-duotone" />}
-                        onClick={() => router.push(`/${prefixAdmin}/prize-payouts/create`)}
-                        sx={{ height: 36, fontWeight: 700, textTransform: 'none', borderRadius: '8px' }}
-                    >
-                        Tạo tại quầy
-                    </Button>
-                </CanAccess>
+                        <Button
+                            onClick={() => router.push(`/${prefixAdmin}/prize-payouts/create`)}
+                            className="btn-primary-admin"
+                            variant="contained"
+                            startIcon={<AddIcon />}
+                            label="Tạo tại quầy"
+                        />
+                    </CanAccess>
                 }
             />
             <PrizePayoutList />

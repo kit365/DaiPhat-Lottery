@@ -23,7 +23,9 @@ export const menuOverviewData = [
         Icon: SettingsIcon,
         label: "Hệ thống",
         path: ROUTES.ADMIN.DASHBOARD.SYSTEM,
-        permission: PERMISSIONS.DASHBOARD.SYSTEM
+        permission: PERMISSIONS.DASHBOARD.SYSTEM,
+        // Tạm ẩn dashboard hệ thống khỏi sidebar; route và quyền vẫn được giữ.
+        hidden: true,
     },
 
     {
@@ -38,7 +40,9 @@ export const menuOverviewData = [
         Icon: ArticleIcon,
         label: "Doanh thu & Đối soát",
         path: ROUTES.ADMIN.REPORTS.REVENUE,
-        permission: PERMISSIONS.DASHBOARD.ECOMMERCE
+        permission: PERMISSIONS.DASHBOARD.ECOMMERCE,
+        // Tạm ẩn dashboard doanh thu/đối soát khỏi sidebar; route không bị xóa.
+        hidden: true,
     },
 ];
 
@@ -134,7 +138,7 @@ export const menuManagementData = [
         permission: PERMISSIONS.ORDER.VIEW,
         children: [
             { id: "list", label: "Danh sách đơn", path: ROUTES.ADMIN.ORDERS.LIST, permission: PERMISSIONS.ORDER.VIEW, badge: 'orders-online-preparing' },
-            { id: "create-counter", label: "Đơn tại quầy", path: ROUTES.ADMIN.ORDERS.CREATE_COUNTER, permission: PERMISSIONS.ORDER.CREATE, badge: 'orders-direct-preparing' },
+            { id: "create-counter", label: "Tạo đơn tại quầy", path: ROUTES.ADMIN.ORDERS.CREATE_COUNTER, permission: PERMISSIONS.ORDER.CREATE, badge: 'orders-direct-preparing' },
         ]
     },
     {

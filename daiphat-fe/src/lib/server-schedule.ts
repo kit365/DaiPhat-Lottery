@@ -18,7 +18,7 @@ export async function fetchPublicScheduleServer(
             url.searchParams.set('region', params.region);
         }
 
-        const response = await fetch(url.toString(), { next: { revalidate: 300 } });
+        const response = await fetch(url.toString(), { cache: 'no-store' });
         if (!response.ok) {
             return [];
         }

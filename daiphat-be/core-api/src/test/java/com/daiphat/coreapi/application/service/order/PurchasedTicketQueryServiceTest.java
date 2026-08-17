@@ -124,6 +124,27 @@ class PurchasedTicketQueryServiceTest {
         assertThat(response.getRecordList().getFirst().matchedPrizeCode()).isEqualTo("G8");
     }
 
+    @Test
+    @DisplayName("getMyTickets: rejected line does not inherit order-level pickup time")
+    void getMyTickets_rejectedLine_doesNotExposePickupTime() {
+        OrderDetailEntity detail = buildDetail("399968", LocalDate.now().plusDays(1));
+        detail.setStatus(OrderDetailStatus.REJECTED_BY_CUSTOMER);
+        detail.setRejectedAt(LocalDateTime.of(2026, 8, 17, 23, 28, 11));
+        detail.getOrder().setActualPickedUpAt(LocalDateTime.of(2026, 8, 17, 23, 28, 11));
+
+        when(purchasedTicketQueryRepositoryPort.findPurchasedTickets(any(Specification.class), any(PageRequest.class)))
+                .thenReturn(new PageImpl<>(List.of(detail)));
+
+        PageResponse<PurchasedTicketResponse> response = service.getMyTickets(
+                USER_ID, 1, 10, null, null, null, null, null, "createdAt", "desc");
+
+        PurchasedTicketResponse ticket = response.getRecordList().getFirst();
+        assertThat(ticket.orderDetailStatus()).isEqualTo(OrderDetailStatus.REJECTED_BY_CUSTOMER);
+        assertThat(ticket.actualPickedUpAt()).isNull();
+        assertThat(ticket.handedOverAt()).isNull();
+        assertThat(ticket.rejectedAt()).isEqualTo(LocalDateTime.of(2026, 8, 17, 23, 28, 11));
+    }
+
     private OrderDetailEntity buildDetail(String numbers, LocalDate drawDate) {
         LotteryStationEntity station = LotteryStationEntity.builder().id(1L).name("TP.HCM").build();
         LotteryTicketEntity ticket = LotteryTicketEntity.builder()
@@ -153,7 +174,7 @@ class PurchasedTicketQueryServiceTest {
                 .order(order)
                 .lotteryTicketSerial(serial)
                 .price(BigDecimal.valueOf(10000))
-                .status(OrderDetailStatus.ACTIVE)
+                .status(OrderDetailStatus.HANDOVER_IN_PROGRESS)
                 .build();
     }
 }

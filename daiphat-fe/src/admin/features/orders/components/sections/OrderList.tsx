@@ -5,6 +5,7 @@ import { useState, SyntheticEvent } from "react";
 import React from 'react';
 import {
     Box,
+    Button,
     Card,
     Tabs,
     Tab,
@@ -21,6 +22,7 @@ import {
     Stack,
     Avatar,
     Chip,
+    Alert,
 } from "@mui/material";
 import { Icon } from '@/admin/components/ui/AdminIcon';
 import dayjs from "dayjs";
@@ -28,13 +30,18 @@ import { toast } from "react-toastify";
 import { confirmAction } from "../../../../utils/swal";
 import { formatVnd } from '../../../../utils/currency';
 import { prefixAdmin } from "../../../../constants/routes";
-import { useAdminOrderList, useUpdateOrderStatus } from "../../hooks/useOrder";
+import { useAdminOrderList, usePendingPaymentTimeoutComplaintCount, useUpdateOrderStatus } from "../../hooks/useOrder";
 import { OrderToolbar } from './OrderToolbar';
 import { useSettings } from '../../../../shared/data-grid';
 import { useOrderDrawCutoff } from '../../hooks/useOrder';
 import { OrderCutoffReminderBanner } from './OrderCutoffReminderBanner';
 import { OrderHandoverConfirmDialog } from './OrderHandoverConfirmDialog';
-import { OrderStatus } from '../../../../../types/order.type';
+import {
+    OrderStatus,
+    getOrderTypeLabel,
+    ORDER_TYPE_CHIP_STYLES,
+    OrderType,
+} from '@/types/order.type';
 import { ORDER_STATUS_TABS } from '../../constants/orderStatus.constants';
 import {
     getOrderStatusAdminBadgeModifier,
@@ -54,7 +61,6 @@ export const OrderList = () => {
     const [tabStatus, setTabStatus] = useState('all');
     const [selected, setSelected] = useState<string[]>([]);
     const [openRows, setOpenRows] = useState<string[]>([]);
-    const [handoverOrderId, setHandoverOrderId] = useState<string | null>(null);
 
     const {
         orders,
@@ -78,6 +84,12 @@ export const OrderList = () => {
         setPage(1);
     };
 
+    const openPendingPaymentComplaints = () => {
+        setTabStatus(OrderStatus.PAYMENT_COMPLAINT_PENDING);
+        setFilter('status', [OrderStatus.PAYMENT_COMPLAINT_PENDING]);
+        setPage(1);
+    };
+
     const handleChangePage = (_event: unknown, newPage: number) => {
         setPage(newPage + 1);
     };
@@ -87,6 +99,8 @@ export const OrderList = () => {
     };
 
     const { mutate: updateStatus } = useUpdateOrderStatus();
+    const { data: pendingComplaintCountResponse } = usePendingPaymentTimeoutComplaintCount();
+    const pendingComplaintCount = Number(pendingComplaintCountResponse?.data ?? 0);
 
     const handleStatusUpdate = (id: string, status: string) => {
         const update = () => {
@@ -96,7 +110,9 @@ export const OrderList = () => {
         };
 
         if (status === 'COMPLETED') {
-            setHandoverOrderId(id);
+            // Handover now requires line-level decisions and evidence. Keep the
+            // list action as navigation so staff cannot bypass that workspace.
+            router.push(`/${prefixAdmin}/order/detail/${id}`);
         } else if (status === 'PENDING_PICKUP') {
             confirmAction(
                 "Chuyển sang Chờ nhận vé?",
@@ -130,6 +146,16 @@ export const OrderList = () => {
                 icon: <Icon icon="solar:wallet-money-bold" width={18} />,
                 onClick: () => handleStatusUpdate(row.id, 'PAID'),
                 sx: { color: 'var(--palette-success-main)' },
+            });
+        }
+
+        if (row.status === OrderStatus.PAYMENT_COMPLAINT_PENDING) {
+            items.push({
+                id: 'review-payment-complaint',
+                label: 'Xác minh chứng từ',
+                icon: <Icon icon="solar:document-check-bold" width={18} />,
+                onClick: () => handleViewDetail(row.id),
+                sx: { color: 'var(--palette-warning-dark)' },
             });
         }
 
@@ -224,6 +250,23 @@ export const OrderList = () => {
                 preparingCount={preparingCount}
                 visible={showReminderBanner}
             />
+            {pendingComplaintCount > 0 && (
+                <Alert
+                    severity="warning"
+                    action={
+                        <Button
+                            size="small"
+                            onClick={openPendingPaymentComplaints}
+                            sx={{ textTransform: 'none', fontWeight: 700 }}
+                        >
+                            Xem yêu cầu
+                        </Button>
+                    }
+                    sx={{ mb: 2, borderRadius: 2, alignItems: 'center' }}
+                >
+                    Có {pendingComplaintCount} yêu cầu xác minh chứng từ thanh toán đang chờ xử lý.
+                </Alert>
+            )}
             <Card elevation={0} className="admin-datagrid-card" sx={{ height: 'auto' }}>
             <Tabs
                 value={tabStatus}
@@ -397,22 +440,38 @@ export const OrderList = () => {
 
                                             <TableCell sx={{ borderBottom: '1px dashed var(--palette-background-neutral)' }}>
                                                 {(() => {
-                                                    const typeMap: any = {
-                                                        'ONLINE': { label: 'Online', color: 'var(--palette-info-dark)', bg: 'var(--palette-info-lighter)' },
-                                                        'DIRECT': { label: 'Tại quầy', color: 'var(--palette-warning-dark)', bg: 'var(--palette-warning-lighter)' }
-                                                    };
-                                                    const tInfo = typeMap[row.orderType] || { label: row.orderType, color: 'var(--palette-text-disabled)', bg: 'var(--palette-background-neutral)' };
+                                                    const orderType =
+                                                        row.orderType === OrderType.DIRECT
+                                                            ? OrderType.DIRECT
+                                                            : row.orderType === OrderType.ONLINE
+                                                              ? OrderType.ONLINE
+                                                              : null;
+                                                    if (!orderType) {
+                                                        return (
+                                                            <Chip
+                                                                label={row.orderType || '—'}
+                                                                size="small"
+                                                                sx={{
+                                                                    borderRadius: 'var(--shape-borderRadius-sm)',
+                                                                    fontWeight: 700,
+                                                                    fontSize: '0.6875rem',
+                                                                    height: '24px',
+                                                                }}
+                                                            />
+                                                        );
+                                                    }
+                                                    const chipStyle = ORDER_TYPE_CHIP_STYLES[orderType];
                                                     return (
                                                         <Chip
-                                                            label={tInfo.label}
+                                                            label={getOrderTypeLabel(orderType)}
                                                             size="small"
                                                             sx={{
-                                                                borderRadius: "var(--shape-borderRadius-sm)",
+                                                                borderRadius: 'var(--shape-borderRadius-sm)',
                                                                 fontWeight: 700,
                                                                 fontSize: '0.6875rem',
-                                                                color: tInfo.color,
-                                                                bgcolor: tInfo.bg,
-                                                                height: '24px'
+                                                                color: chipStyle.color,
+                                                                bgcolor: chipStyle.bgcolor,
+                                                                height: '24px',
                                                             }}
                                                         />
                                                     );
@@ -489,17 +548,6 @@ export const OrderList = () => {
             />
         </Card>
 
-            <OrderHandoverConfirmDialog
-                open={Boolean(handoverOrderId)}
-                onClose={() => setHandoverOrderId(null)}
-                onConfirm={() => {
-                    if (!handoverOrderId) return;
-                    updateStatus(
-                        { id: handoverOrderId, status: OrderStatus.COMPLETED },
-                        { onSuccess: () => toast.success("Cập nhật thành công") }
-                    );
-                }}
-            />
         </>
     );
 };

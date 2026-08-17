@@ -169,9 +169,17 @@ class _CheckoutViewState extends ConsumerState<CheckoutView> {
       body: Column(
         children: [
           Expanded(
-            child: ListView(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
-              children: [
+            child: RefreshIndicator(
+              color: AppColors.primary,
+              onRefresh: () async {
+                ref.invalidate(receiveTypesProvider);
+                ref.invalidate(transactionTypesProvider);
+                await ref.read(checkoutProvider.notifier).loadUserProfile();
+              },
+              child: ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+                children: [
                 // ─── 1. DANH SÁCH VÉ ──────────────────────────
                 _buildSectionTitle('1. Danh sách vé', number: 1),
                 const SizedBox(height: 10),
@@ -370,6 +378,7 @@ class _CheckoutViewState extends ConsumerState<CheckoutView> {
               ],
             ),
           ),
+          ),
 
           // ─── BOTTOM BAR ─────────────────────────────────────
           _buildBottomBar(
@@ -496,7 +505,6 @@ class _CheckoutViewState extends ConsumerState<CheckoutView> {
           CheckoutDateTimePicker(
             value: state.expectedPickupAt,
             errorText: timeError,
-            onInfoTap: _showPickupTimeInfo,
             onChanged: (iso) {
               ref.read(checkoutProvider.notifier).setExpectedPickupAt(iso);
             },
@@ -522,39 +530,6 @@ class _CheckoutViewState extends ConsumerState<CheckoutView> {
             textInputAction: TextInputAction.done,
             minLines: 1,
             maxLines: 3,
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showPickupTimeInfo() {
-    showDialog<void>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text(
-          'Thời gian nhận vé',
-          style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18),
-        ),
-        content: const Text(
-          'Vui lòng chọn giờ bạn dự kiến đến quầy nhận vé.\n\n'
-          '• Giờ chọn: 5, 6, 7, 8.\n'
-          '• Hôm nay: chỉ buổi sáng (AM).\n'
-          '• Ngày mai: có thể chọn AM hoặc PM.\n'
-          '• Giờ nhận phải sau thời điểm hiện tại ít nhất 15 phút.\n'
-          '• Thời gian chọn theo khung 15 phút (00 / 15 / 30 / 45).',
-          style: TextStyle(fontSize: 14, height: 1.5),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text(
-              'Đã hiểu',
-              style: TextStyle(
-                color: AppColors.primary,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
           ),
         ],
       ),

@@ -48,6 +48,10 @@ import {
 } from '@/shared/components/StatusBadge/orderStatusMap';
 import { AdminLuckyDisplay } from '@/shared/lucky-number';
 import {
+    TICKET_NUMBERS_LABEL,
+    TICKET_SERIAL_PREFIX,
+} from '@/constants/ticketDisplay.constants';
+import {
     ORDER_CANCEL_REASON_DEFAULTS,
     calculateOrderRefundAmount,
     type StaffCancelOrderWithRefundRequest,
@@ -356,7 +360,8 @@ export function OrderCancelWithRefundPage() {
                                             borderRadius: 1,
                                         }}
                                     >
-                                        Bộ số <AdminLuckyDisplay value={ticket.numbers} ticket component="span" />
+                                        {TICKET_NUMBERS_LABEL}{' '}
+                                        <AdminLuckyDisplay value={ticket.numbers} ticket component="span" />
                                     </Box>
                                     {ticket.serialNumber && (
                                         <Box

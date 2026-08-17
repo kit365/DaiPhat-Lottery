@@ -30,7 +30,6 @@ import { DATA_GRID_LOCALE_VN } from "@/admin/components/data-grid/localeText.con
 import { formatKpiAmount } from '@/admin/utils/currency';
 import { formatImportCost } from '../../../import-batch/utils/importCostCalculator';
 import type { useSupplierSettlementList } from '../../hooks/useSupplierSettlement';
-import type { SupplierSettlementStatus } from '../../types/supplierSettlement.type';
 
 declare module '@mui/x-data-grid' {
     interface ToolbarPropsOverrides {
@@ -42,6 +41,7 @@ declare module '@mui/x-data-grid' {
 import { useEffect } from 'react';
 import { AppToast } from '../../../../../../utils/toast.util';
 import { ExpiredReturnSettlementBanner } from './ExpiredReturnSettlementBanner';
+import { PaymentDueReminderBanner } from './PaymentDueReminderBanner';
 
 export const SupplierSettlementList = ({
     listHook,
@@ -76,9 +76,7 @@ export const SupplierSettlementList = ({
         0
     );
 
-
-
-    if (error) {
+if (error) {
         return (
             <Box sx={{ py: 5, textAlign: 'center', color: 'var(--palette-error-main)', fontSize: '1.125rem' }}>
                 Lỗi khi tải danh sách đối soát nhà cung cấp. Vui lòng thử lại.
@@ -88,6 +86,8 @@ export const SupplierSettlementList = ({
 
     return (
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, width: '100%' }}>
+            <PaymentDueReminderBanner settlements={sourceData} />
+
             {/* Top Executive Warning Alert Banner if any settlement is return expired */}
             <ExpiredReturnSettlementBanner
                 expiredCount={expiredCount}

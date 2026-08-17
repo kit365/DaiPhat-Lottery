@@ -95,7 +95,7 @@ class OrderIncidentTicketServiceTest {
                 .id(10L)
                 .lotteryTicketId(100L)
                 .lotteryTicketSerialId(1L)
-                .status(OrderDetailStatus.ACTIVE)
+                .status(OrderDetailStatus.HANDOVER_IN_PROGRESS)
                 .price(BigDecimal.TEN)
                 .allocatedSerialIds(new ArrayList<>(List.of(1L)))
                 .build();
@@ -121,7 +121,7 @@ class OrderIncidentTicketServiceTest {
                 .id(2L)
                 .ticketId(100L)
                 .serialNumber("NEW-002")
-                .status(LotteryTicketSerialStatus.PROXY_HOLDING)
+                .status(LotteryTicketSerialStatus.SOLD)
                 .ticketCondition(com.daiphat.coreapi.domain.model.enums.lottery.TicketCondition.GOOD)
                 .build();
 
@@ -134,7 +134,7 @@ class OrderIncidentTicketServiceTest {
         when(lotteryTicketSerialRepositoryPort.findAllByTicketId(100L))
                 .thenReturn(List.of(oldSerial, replacement));
         when(lotteryTicketSerialRepositoryPort.save(any())).thenAnswer(inv -> inv.getArgument(0));
-        when(lotteryTicketSerialServicePort.markProxyHoldingForPaidOrder(2L, orderId)).thenReturn(heldReplacement);
+        when(lotteryTicketSerialServicePort.getByIdOrThrow(2L)).thenReturn(heldReplacement);
         when(orderRepositoryPort.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
         HandleOrderTicketIncidentResponse response = service.handleIncidents(
@@ -159,7 +159,7 @@ class OrderIncidentTicketServiceTest {
         OrderDetailModel detail = OrderDetailModel.builder()
                 .id(10L)
                 .lotteryTicketSerialId(1L)
-                .status(OrderDetailStatus.ACTIVE)
+                .status(OrderDetailStatus.HANDOVER_IN_PROGRESS)
                 .price(BigDecimal.TEN)
                 .build();
         OrderModel order = OrderModel.builder()

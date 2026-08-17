@@ -15,6 +15,7 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Entity
 @EntityListeners(AuditingEntityListener.class)
@@ -68,6 +69,21 @@ public class OrderDetailEntity {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private OrderDetailStatus status;
+
+    @Column(name = "rejection_reason", length = 500)
+    private String rejectionReason;
+
+    @Column(name = "rejected_at")
+    private LocalDateTime rejectedAt;
+
+    @Column(name = "rejected_by")
+    private UUID rejectedBy;
+
+    @Column(name = "handed_over_at")
+    private LocalDateTime handedOverAt;
+
+    @Column(name = "handed_over_by")
+    private UUID handedOverBy;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "refund_request_id")

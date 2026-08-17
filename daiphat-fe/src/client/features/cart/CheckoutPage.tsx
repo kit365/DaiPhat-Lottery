@@ -20,7 +20,6 @@ import { validateAndSyncCartStock } from '../../utils/cartStock.util';
 import { PaymentQrDialog } from '../../components/payment/PaymentQrDialog';
 import {
   CLIENT_PAGE_BACKGROUND,
-  PROVINCE_ICON_FALLBACK,
 } from '../../constants/clientBannerAssets';
 import { Breadcrumb } from '../../components/ui/Breadcrumb';
 import { LuckyNumber } from '../../components/ui/LuckyNumber';
@@ -41,7 +40,7 @@ export const CheckoutPage = () => {
         removeBuyNowItem,
         applyBuyNowPurchaseToCart,
     } = useCartStore();
-    const { token, openLoginModal } = useAuthStore();
+    const { token, isHydrated, openLoginModal } = useAuthStore();
     const { user } = useAuth();
 
     // Khoá chế độ mua ngay theo thời điểm vào trang — tránh mất phiên khi clear buyNow sau đặt đơn.
@@ -103,12 +102,13 @@ export const CheckoutPage = () => {
     }, [user]);
 
     React.useEffect(() => {
+        if (!isHydrated) return;
         if (!token) {
             toast.error("Vui lòng đăng nhập để tiếp tục thanh toán");
             openLoginModal();
             router.replace('/cart');
         }
-    }, [token, router, openLoginModal]);
+    }, [isHydrated, token, router, openLoginModal]);
 
     React.useEffect(() => {
         // Mua ngay: không validate/đẩy về giỏ theo giỏ chính — tránh mất phiên mua ngay.
@@ -394,17 +394,14 @@ export const CheckoutPage = () => {
                                         {/* Vé số */}
                                         <div className="flex w-full items-center justify-center text-center">
                                             <div className="font-bold text-[16px] text-[#212B36] tracking-tight">
-                                                <LuckyNumber value={item.numbers} ticket className="tracking-tight" />
+                                                <LuckyNumber value={item.numbers} ticket badgePlacement="above" className="tracking-tight" />
                                             </div>
                                         </div>
 
                                         {/* Đài & Ngày quay */}
                                         <div className="flex flex-col items-start gap-1">
-                                            <div className="flex items-center gap-2">
-                                                <img src={item.provinceIcon || PROVINCE_ICON_FALLBACK} alt="Logo" className="w-5 h-5 rounded-full border border-gray-200" />
-                                                <span className="font-bold text-[13px] text-[#212B36]">{item.province}</span>
-                                            </div>
-                                            <div className="flex items-center gap-1.5 text-[12px] text-[#637381] pl-7">
+                                            <span className="font-bold text-[13px] text-[#212B36]">{item.province}</span>
+                                            <div className="flex items-center gap-1.5 text-[12px] text-[#637381]">
                                                 <span className="font-medium text-[#212B36]">{item.date}</span>
                                                 <span>•</span>
                                                 <span>{item.time}</span>

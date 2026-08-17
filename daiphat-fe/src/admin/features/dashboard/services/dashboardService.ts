@@ -30,12 +30,6 @@ export interface AdminEcommerceStationRisk {
     risk: 'CAO' | 'TRUNG BÌNH' | 'THẤP' | string;
 }
 
-export interface AdminEcommerceVendorRisk {
-    vendorName: string;
-    heldQuantity: number;
-    status: string;
-}
-
 export interface AdminEcommerceRecentOrder {
     id: string;
     orderCode: string;
@@ -74,7 +68,6 @@ export interface AdminEcommerceOverview {
     topStations: AdminEcommerceTopStation[];
     topCustomers: AdminEcommerceTopCustomer[];
     inventoryRisks: AdminEcommerceStationRisk[];
-    vendorRisks: AdminEcommerceVendorRisk[];
     recentOrders: AdminEcommerceRecentOrder[];
 }
 
@@ -97,7 +90,6 @@ export const EMPTY_ECOMMERCE_OVERVIEW: AdminEcommerceOverview = {
     topStations: [],
     topCustomers: [],
     inventoryRisks: [],
-    vendorRisks: [],
     recentOrders: [],
 };
 
@@ -135,7 +127,6 @@ const normalizeOverview = (raw?: Partial<AdminEcommerceOverview> | null): AdminE
         totalSpent: toNumber(customer.totalSpent),
     })),
     inventoryRisks: raw?.inventoryRisks ?? [],
-    vendorRisks: raw?.vendorRisks ?? [],
     recentOrders: raw?.recentOrders ?? [],
 });
 
@@ -453,7 +444,5 @@ export interface StationTicketRiskItem {
 export const getActionItems = async () => mockSuccess<unknown[]>([]);
 
 export const getInventoryRisks = async () => mockSuccess<StationTicketRiskItem[]>([]);
-
-export const getVendorRisks = async () => mockSuccess<unknown[]>([]);
 
 export const getReconciliations = async () => mockSuccess<unknown[]>([]);

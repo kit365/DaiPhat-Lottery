@@ -13,11 +13,13 @@ import 'package:daiphat_mobile/src/app/routing/app_routes.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
 import 'package:daiphat_mobile/src/shared/utils/app_toast.dart';
 import 'package:daiphat_mobile/src/shared/utils/auth_navigation.dart';
+import 'package:daiphat_mobile/src/shared/widgets/brand_scrollbar.dart';
 import 'package:daiphat_mobile/src/features/cart/models/cart_item_model.dart';
 import 'package:daiphat_mobile/src/features/cart/providers/cart_provider.dart';
 import 'package:daiphat_mobile/src/features/chat/presentation/views/chat_screen.dart';
 import 'package:daiphat_mobile/src/shared/providers/api_providers.dart';
 import '../viewmodels/buy_ticket_viewmodel.dart';
+import '../widgets/ticket_search_filter_sheet.dart';
 import '../../utils/sellable_draw_date.dart';
 
 String _formatTicketPrice(int? price) {
@@ -51,10 +53,12 @@ class BuyTicketView extends ConsumerStatefulWidget {
     super.key,
     this.ticketNumber,
     this.drawDate,
+    this.stationName,
   });
 
   final String? ticketNumber;
   final String? drawDate;
+  final String? stationName;
 
   @override
   ConsumerState<BuyTicketView> createState() => _BuyTicketViewState();
@@ -71,7 +75,8 @@ class _BuyTicketViewState extends ConsumerState<BuyTicketView> {
   void didUpdateWidget(covariant BuyTicketView oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.ticketNumber != widget.ticketNumber ||
-        oldWidget.drawDate != widget.drawDate) {
+        oldWidget.drawDate != widget.drawDate ||
+        oldWidget.stationName != widget.stationName) {
       _applyQuery();
     }
   }
@@ -79,12 +84,16 @@ class _BuyTicketViewState extends ConsumerState<BuyTicketView> {
   void _applyQuery() {
     final number = widget.ticketNumber?.trim() ?? '';
     final drawDate = widget.drawDate?.trim();
-    if (number.isEmpty && (drawDate == null || drawDate.isEmpty)) {
+    final station = widget.stationName?.trim() ?? '';
+    if (number.isEmpty &&
+        (drawDate == null || drawDate.isEmpty) &&
+        station.isEmpty) {
       return;
     }
     ref.read(buyTicketViewModelProvider.notifier).applyQuery(
       searchQuery: number,
       drawDateIso: drawDate,
+      stationName: station.isEmpty ? null : station,
     );
   }
 
@@ -264,23 +273,28 @@ class _LoadedViewState extends State<_LoadedView> {
             ? tickets.length
             : (state.totalElements > 0 ? state.totalElements : 0));
 
-    return RawScrollbar(
+    return BrandScrollbar(
       controller: _scrollController,
-      thumbVisibility: true,
-      trackVisibility: true,
-      thickness: 4,
-      radius: const Radius.circular(999),
-      thumbColor: const Color(0x66C90F1D),
-      trackColor: const Color(0x14C90F1D),
-      trackBorderColor: Colors.transparent,
-      padding: const EdgeInsets.only(right: 2, top: 4, bottom: 4),
-      child: ListView(
-        controller: _scrollController,
-        padding: EdgeInsets.zero,
-        children: [
+      child: RefreshIndicator(
+        color: AppColors.primary,
+        onRefresh: () => widget.viewModel.refresh(),
+        child: ListView(
+          controller: _scrollController,
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: EdgeInsets.zero,
+          children: [
           _BuyTicketShowcase(
             initialValue: state.searchQuery,
+            filterCount: state.searchFilter.count,
             onChanged: viewModel.updateSearchQuery,
+            onOpenFilter: () async {
+              final applied = await showTicketSearchFilterSheet(
+                context: context,
+                initial: state.searchFilter,
+              );
+              if (applied == null) return;
+              await viewModel.applySearchFilter(applied);
+            },
           ),
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
@@ -328,7 +342,7 @@ class _LoadedViewState extends State<_LoadedView> {
                     },
                     child: Column(
                       key: ValueKey(
-                        '${state.selectedDay.name}|${state.selectedProvince}|${state.searchQuery}',
+                        '${state.selectedDay.name}|${state.selectedProvince}|${state.searchQuery}|${state.searchFilter.signature}',
                       ),
                       children: [
                         ...tickets.map(
@@ -352,6 +366,7 @@ class _LoadedViewState extends State<_LoadedView> {
           ),
         ],
       ),
+      ),
     );
   }
 }
@@ -359,11 +374,15 @@ class _LoadedViewState extends State<_LoadedView> {
 class _BuyTicketShowcase extends StatelessWidget {
   const _BuyTicketShowcase({
     required this.initialValue,
+    required this.filterCount,
     required this.onChanged,
+    required this.onOpenFilter,
   });
 
   final String initialValue;
+  final int filterCount;
   final ValueChanged<String> onChanged;
+  final VoidCallback onOpenFilter;
 
   static const double _topPadding = 8;
   static const double _searchBannerGap = 14;
@@ -446,7 +465,9 @@ class _BuyTicketShowcase extends StatelessWidget {
                 ),
                 child: _SearchField(
                   initialValue: initialValue,
+                  filterCount: filterCount,
                   onChanged: onChanged,
+                  onOpenFilter: onOpenFilter,
                 ),
               ),
               const SizedBox(height: _searchBannerGap),
@@ -481,10 +502,17 @@ LotteryTicketListItem _buildHardcodedTicketDetail(
 }
 
 class _SearchField extends StatefulWidget {
-  const _SearchField({required this.initialValue, required this.onChanged});
+  const _SearchField({
+    required this.initialValue,
+    required this.filterCount,
+    required this.onChanged,
+    required this.onOpenFilter,
+  });
 
   final String initialValue;
+  final int filterCount;
   final ValueChanged<String> onChanged;
+  final VoidCallback onOpenFilter;
 
   @override
   State<_SearchField> createState() => _SearchFieldState();
@@ -536,10 +564,19 @@ class _SearchFieldState extends State<_SearchField> {
           color: Color(0xFF5D3F3C),
           size: 24,
         ),
-        suffixIcon: const Icon(
-          Icons.tune_rounded,
-          color: Color(0xFFC51A27),
-          size: 21,
+        suffixIcon: IconButton(
+          onPressed: widget.onOpenFilter,
+          tooltip: 'Bộ lọc khoảng số',
+          icon: Badge(
+            isLabelVisible: widget.filterCount > 0,
+            label: Text('${widget.filterCount}'),
+            backgroundColor: AppColors.primary,
+            child: const Icon(
+              Icons.tune_rounded,
+              color: Color(0xFFC51A27),
+              size: 21,
+            ),
+          ),
         ),
         filled: true,
         fillColor: Colors.white,
@@ -1500,58 +1537,69 @@ class _TicketDetailViewState extends ConsumerState<TicketDetailView> {
           child: Column(
             children: [
               Expanded(
-                child: ListView(
-                  padding: const EdgeInsets.fromLTRB(16, 14, 16, 20),
-                  children: [
-                    _DetailHeroCard(
-                      ticket: resolvedTicket,
-                      dateText: _detailDateWithWeekday(resolvedTicket),
-                    ),
-                    const SizedBox(height: 14),
-                    _DetailSectionCard(
-                      icon: Icons.confirmation_number_outlined,
-                      title: 'Thông tin vé số',
-                      children: [
-                        _DetailInfoRow(
-                          icon: Icons.storefront_outlined,
-                          label: 'Sản phẩm',
-                          value: resolvedTicket.titleText,
-                        ),
-                        _DetailInfoRow(
-                          icon: Icons.location_on_outlined,
-                          label: 'Đài quay',
-                          value: resolvedTicket.stationDisplayText,
-                          showChevron: true,
-                          onTap: () => _openStationTickets(resolvedTicket),
-                        ),
-                        _DetailInfoRow(
-                          icon: Icons.calendar_month_outlined,
-                          label: 'Ngày quay thưởng',
-                          value: _detailDate(resolvedTicket),
-                        ),
-                        _DetailInfoRow(
-                          icon: Icons.qr_code_2_rounded,
-                          label: 'Serial',
-                          value: resolvedTicket.serialNumber ?? '-',
-                          onTap: resolvedTicket.serialNumber == null
-                              ? null
-                              : () => _copyToClipboard(
-                                  resolvedTicket.serialNumber!,
-                                  'Đã sao chép serial vé.',
-                                ),
-                        ),
-                        _DetailInfoRow(
-                          icon: Icons.sell_outlined,
-                          label: 'Giá tiền',
-                          value: _formatTicketPrice(resolvedTicket.price),
-                          highlight: true,
-                          isLast: true,
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 14),
-                    const _DetailNoteBox(),
-                  ],
+                child: RefreshIndicator(
+                  color: AppColors.primary,
+                  onRefresh: () async {
+                    if (widget.ticket.id < 0) return;
+                    ref.invalidate(lotteryTicketDetailProvider(widget.ticket.id));
+                    await ref.read(
+                      lotteryTicketDetailProvider(widget.ticket.id).future,
+                    );
+                  },
+                  child: ListView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: const EdgeInsets.fromLTRB(16, 14, 16, 20),
+                    children: [
+                      _DetailHeroCard(
+                        ticket: resolvedTicket,
+                        dateText: _detailDateWithWeekday(resolvedTicket),
+                      ),
+                      const SizedBox(height: 14),
+                      _DetailSectionCard(
+                        icon: Icons.confirmation_number_outlined,
+                        title: 'Thông tin vé số',
+                        children: [
+                          _DetailInfoRow(
+                            icon: Icons.storefront_outlined,
+                            label: 'Sản phẩm',
+                            value: resolvedTicket.titleText,
+                          ),
+                          _DetailInfoRow(
+                            icon: Icons.location_on_outlined,
+                            label: 'Đài quay',
+                            value: resolvedTicket.stationDisplayText,
+                            showChevron: true,
+                            onTap: () => _openStationTickets(resolvedTicket),
+                          ),
+                          _DetailInfoRow(
+                            icon: Icons.calendar_month_outlined,
+                            label: 'Ngày quay thưởng',
+                            value: _detailDate(resolvedTicket),
+                          ),
+                          _DetailInfoRow(
+                            icon: Icons.qr_code_2_rounded,
+                            label: 'Serial',
+                            value: resolvedTicket.serialNumber ?? '-',
+                            onTap: resolvedTicket.serialNumber == null
+                                ? null
+                                : () => _copyToClipboard(
+                                    resolvedTicket.serialNumber!,
+                                    'Đã sao chép serial vé.',
+                                  ),
+                          ),
+                          _DetailInfoRow(
+                            icon: Icons.sell_outlined,
+                            label: 'Giá tiền',
+                            value: _formatTicketPrice(resolvedTicket.price),
+                            highlight: true,
+                            isLast: true,
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 14),
+                      const _DetailNoteBox(),
+                    ],
+                  ),
                 ),
               ),
               if (ticketDetailAsync.isLoading)

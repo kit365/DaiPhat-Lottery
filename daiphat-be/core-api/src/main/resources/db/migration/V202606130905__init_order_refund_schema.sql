@@ -9,25 +9,36 @@ CREATE TABLE IF NOT EXISTS orders (
     order_type VARCHAR(20) NOT NULL,
     receive_type VARCHAR(30) NOT NULL,
     total_amount DECIMAL(15, 0) NOT NULL,
-    status VARCHAR(20) NOT NULL,
+    status VARCHAR(40) NOT NULL,
     expected_pickup_at TIMESTAMP,
     cancelled_at TIMESTAMP,
     cancel_reason VARCHAR(500),
     cancel_type VARCHAR(50),
     actual_picked_up_at TIMESTAMP,
     picked_up_by UUID,
+    handover_evidence_url VARCHAR(500),
+    payment_complaint_evidence_url VARCHAR(500),
+    payment_complaint_submitted_at TIMESTAMP,
+    payment_complaint_resolved_at TIMESTAMP,
+    payment_complaint_resolved_by UUID,
+    payment_complaint_resolution_reason VARCHAR(500),
     created_at TIMESTAMP,
     updated_at TIMESTAMP,
     created_by VARCHAR(255),
     last_modified_by VARCHAR(255),
     CONSTRAINT uk_orders_order_code UNIQUE (order_code),
     CONSTRAINT fk_orders_user FOREIGN KEY (user_id) REFERENCES users (id),
-    CONSTRAINT fk_orders_picked_up_by FOREIGN KEY (picked_up_by) REFERENCES users (id)
+    CONSTRAINT fk_orders_picked_up_by FOREIGN KEY (picked_up_by) REFERENCES users (id),
+    CONSTRAINT fk_orders_payment_complaint_resolved_by
+        FOREIGN KEY (payment_complaint_resolved_by) REFERENCES users (id)
 );
 
 CREATE INDEX IF NOT EXISTS idx_orders_user_id ON orders(user_id);
 CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status);
 CREATE INDEX IF NOT EXISTS idx_orders_order_type ON orders(order_type);
+CREATE INDEX IF NOT EXISTS idx_orders_payment_complaint_pending
+    ON orders (payment_complaint_submitted_at)
+    WHERE status = 'PAYMENT_COMPLAINT_PENDING';
 
 -- Create order_details table
 CREATE TABLE IF NOT EXISTS order_details (
@@ -40,6 +51,11 @@ CREATE TABLE IF NOT EXISTS order_details (
     quantity INTEGER NOT NULL DEFAULT 1,
     price DECIMAL(15, 0) NOT NULL,
     status VARCHAR(20) NOT NULL,
+    rejection_reason VARCHAR(500),
+    rejected_at TIMESTAMP,
+    rejected_by UUID,
+    handed_over_at TIMESTAMP,
+    handed_over_by UUID,
     created_at TIMESTAMP,
     updated_at TIMESTAMP,
     created_by VARCHAR(255),
@@ -57,6 +73,18 @@ CREATE INDEX IF NOT EXISTS idx_order_details_status ON order_details(status);
 CREATE INDEX IF NOT EXISTS idx_order_details_ticket_serial_id ON order_details(lottery_ticket_serial_id);
 CREATE INDEX IF NOT EXISTS idx_order_details_lottery_ticket_id ON order_details(lottery_ticket_id);
 CREATE INDEX IF NOT EXISTS idx_order_details_refund_request_id ON order_details(refund_request_id);
+
+COMMENT ON COLUMN orders.handover_evidence_url IS
+    'Photo or receipt captured by staff when at least one paid ticket is handed to the customer.';
+
+COMMENT ON COLUMN orders.payment_complaint_evidence_url IS
+    'Image proof submitted by customer after SYSTEM_PAYMENT_TIMEOUT cancellation.';
+
+COMMENT ON COLUMN orders.payment_complaint_resolution_reason IS
+    'Mandatory staff reason when a payment-timeout complaint is rejected.';
+
+COMMENT ON COLUMN order_details.rejection_reason IS
+    'Mandatory staff reason when a paid ticket is rejected by the customer at handover.';
 
 CREATE TABLE IF NOT EXISTS order_detail_serials (
     id BIGSERIAL PRIMARY KEY,

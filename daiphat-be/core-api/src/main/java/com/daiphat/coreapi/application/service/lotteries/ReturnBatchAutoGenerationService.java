@@ -200,8 +200,10 @@ public class ReturnBatchAutoGenerationService {
             LocalDateTime now,
             int bufferMinutes
     ) {
-        LocalDateTime triggerAt = LocalDateTime.of(drawDate, returnCutOffTime)
-                .minusMinutes(Math.max(0, bufferMinutes));
+        // buffer = 0 → allow preparing / auto-create from start of draw day.
+        LocalDateTime triggerAt = bufferMinutes <= 0
+                ? LocalDateTime.of(drawDate, LocalTime.MIN)
+                : LocalDateTime.of(drawDate, returnCutOffTime).minusMinutes(bufferMinutes);
         return !now.isBefore(triggerAt);
     }
 

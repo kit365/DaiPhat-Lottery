@@ -6,7 +6,6 @@ import com.daiphat.coreapi.application.mapper.settings.SystemConfigApplicationMa
 import com.daiphat.coreapi.application.port.in.streetagent.VendorConfidenceServicePort;
 import com.daiphat.coreapi.application.port.out.settings.SystemConfigCachePort;
 import com.daiphat.coreapi.application.port.out.settings.SystemConfigRepositoryPort;
-import com.daiphat.coreapi.application.service.lotteries.SupplierPaymentCutOffSyncService;
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
 import com.daiphat.coreapi.domain.model.enums.settings.ConfigType;
@@ -48,9 +47,6 @@ class SystemConfigServiceTest {
 
     @Spy
     private SystemConfigApplicationMapper systemConfigApplicationMapper = new SystemConfigApplicationMapper();
-
-    @Mock
-    private SupplierPaymentCutOffSyncService supplierPaymentCutOffSyncService;
 
     @InjectMocks
     private SystemConfigService systemConfigService;
@@ -173,21 +169,20 @@ class SystemConfigServiceTest {
             assertThat(response.configValue()).isEqualTo("45");
             assertThat(response.description()).isEqualTo("Updated grace");
             verify(systemConfigCachePort).evict("ORDER_CANCEL_GRACE_MIN");
-            verify(supplierPaymentCutOffSyncService, never()).syncAllSuppliers();
         }
 
         @Test
-        void syncsSupplierPaymentCutoff_whenVerificationDeadlineUpdated() {
+        void updatesSettlementBufferWithoutSyncingSuppliers() {
             SystemConfigModel existing = SystemConfigModel.builder()
                     .id(3L)
-                    .configKey("VERIFICATION_DEADLINE")
-                    .configValue("17:00")
-                    .configType(ConfigType.TICKET_RETURN)
-                    .dataType(DataType.TIME)
-                    .description("Hạn chót đối chiếu")
-                    .configName("Hạn chót đối chiếu")
-                    .unit("HH:mm")
-                    .validationRules("{\"min\":\"00:00\",\"max\":\"23:59\"}")
+                    .configKey("SETTLEMENT_BUFFER_TIME")
+                    .configValue("120")
+                    .configType(ConfigType.SETTLEMENT_SETTING)
+                    .dataType(DataType.INT)
+                    .description("Thời gian đệm trước thanh toán")
+                    .configName("Thời gian đệm trước thanh toán")
+                    .unit("phút")
+                    .validationRules("{\"min\":0,\"max\":1440}")
                     .isEditable(true)
                     .isActive(true)
                     .build();
@@ -196,10 +191,9 @@ class SystemConfigServiceTest {
 
             systemConfigService.update(
                     3L,
-                    new UpdateSystemConfigRequest("Hạn chót đối chiếu", "17:30", "Updated"));
+                    new UpdateSystemConfigRequest("Thời gian đệm trước thanh toán", "90", "Updated"));
 
-            verify(systemConfigCachePort).evict("VERIFICATION_DEADLINE");
-            verify(supplierPaymentCutOffSyncService).syncAllSuppliers();
+            verify(systemConfigCachePort).evict("SETTLEMENT_BUFFER_TIME");
         }
 
         @Test

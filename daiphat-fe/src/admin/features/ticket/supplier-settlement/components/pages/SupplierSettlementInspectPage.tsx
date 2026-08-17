@@ -34,6 +34,7 @@ import { Button as LoadingButton } from '../../../../../components/ui/Button';
 import { Title } from '../../../../../components/ui/Title';
 import { ROUTES } from '../../../../../constants/routes';
 import { formatSettlementMoney, formatSignedCashflow, toAgencyCashflow } from '../../utils/settlementCashflow';
+import { clearMatchingActualsDraft } from '../../utils/clearMatchingActualsDraft';
 import {
     useAddSettlementMonetaryAdjustment,
     useCompleteSettlementReconciliation,
@@ -53,6 +54,7 @@ import {
     getDetectedDiscrepancyItems,
     getDiscrepancyItemLabel,
     getReconciliationPhaseLabel,
+    getReturnMatchingLockDetails,
     weightedStationNetUnitPrice,
 } from '../../utils/settlementLabels';
 import { ExcessReturnTicketsPanel } from '../sections/ExcessReturnTicketsPanel';
@@ -66,6 +68,7 @@ import { SettlementCompletionDashboard } from '../sections/SettlementCompletionD
 import { SettlementPaymentEvidencePanel } from '../sections/SettlementPaymentEvidencePanel';
 import { SettlementReconciliationSummaryCard } from '../sections/SettlementReconciliationSummaryCard';
 import { SettlementReconciliationTabs } from '../sections/SettlementReconciliationTabs';
+import { ReconciliationWindowNoticeBanner } from '../sections/ReconciliationWindowNoticeBanner';
 
 const formatDate = (dStr?: string) => {
     if (!dStr) return '';
@@ -95,6 +98,16 @@ export const SupplierSettlementInspectPage = () => {
     const inventoryByStation = overview?.inventoryByStation || [];
     const stationPricing = overview?.stationPricing || [];
     const afterCommissionUnitPrice = weightedStationNetUnitPrice(stationPricing);
+
+    const returnLockDetails = useMemo(
+        () =>
+            getReturnMatchingLockDetails(returnBatches, {
+                isReturnExpired: settlement?.isReturnExpired,
+                periodTo: settlement?.periodTo,
+                periodFrom: settlement?.periodFrom,
+            }),
+        [returnBatches, settlement?.isReturnExpired, settlement?.periodTo, settlement?.periodFrom]
+    );
 
     const phase = settlement?.reconciliationPhase || 'MATCHING';
     const detectedItems = getDetectedDiscrepancyItems(settlement, { afterCommissionUnitPrice });
@@ -168,6 +181,9 @@ export const SupplierSettlementInspectPage = () => {
     const canRematch = phase !== 'MATCHING' && phase !== 'COMPLETED' && settlement.status !== 'CLOSED';
     const showMatchingForm = phase === 'MATCHING' || isEditingMatching;
     const showPostMatchingContent = phase !== 'MATCHING' && !isEditingMatching;
+    const reconciliationLocked = settlement.inReconciliationWindow === false
+        && settlement.status !== 'CLOSED'
+        && phase !== 'COMPLETED';
 
     return (
         <Box sx={{ width: '100%', pb: 5 }}>
@@ -201,6 +217,14 @@ export const SupplierSettlementInspectPage = () => {
                 </div>
             </div>
 
+            {reconciliationLocked && (
+                <ReconciliationWindowNoticeBanner
+                    reconciliationWindowStartAt={settlement.reconciliationWindowStartAt}
+                    settlementBufferMinutes={settlement.settlementBufferMinutes}
+                    variant="inspect"
+                />
+            )}
+
             <Paper
                 elevation={0}
                 sx={{
@@ -232,7 +256,7 @@ export const SupplierSettlementInspectPage = () => {
 
 
                 {showMatchingForm && (
-                    <Box sx={{ mb: 3 }}>
+                    <Box sx={{ mb: 3, pointerEvents: reconciliationLocked ? 'none' : 'auto', opacity: reconciliationLocked ? 0.55 : 1 }}>
                         {isEditingMatching && phase !== 'MATCHING' && (
                             <Alert severity="info" sx={{ mb: 2, borderRadius: '12px' }}>
                                 Bạn đang chỉnh lại số liệu đã nhập. Sau khi xác nhận, hệ thống sẽ đối chiếu lại và làm mới kết quả chênh lệch.
@@ -240,6 +264,7 @@ export const SupplierSettlementInspectPage = () => {
                             </Alert>
                         )}
                         <MatchingActualsForm
+                            key={`matching-form-${settlement.id}-${settlement.matchingConfirmedAt ?? 'draft'}-${isEditingMatching ? 'edit' : 'new'}`}
                             settlement={settlement}
                             importBatches={importBatches}
                             returnBatches={returnBatches}
@@ -247,6 +272,7 @@ export const SupplierSettlementInspectPage = () => {
                             stationPricing={stationPricing}
                             inventoryByStation={inventoryByStation}
                             isSubmitting={confirmMatching.isPending}
+                            onCancelEdit={isEditingMatching && phase !== 'MATCHING' ? () => setIsEditingMatching(false) : undefined}
                             onReceiptUploaded={() => {
                                 void refetch();
                             }}
@@ -254,34 +280,19 @@ export const SupplierSettlementInspectPage = () => {
                                 void refetch();
                             }}
                             onZoomImage={setZoomImage}
-                            onConfirm={(payload) => {
-                                confirmMatching.mutate(payload, {
-                                    onSuccess: () => {
-                                        setIsEditingMatching(false);
-                                        AppToast.success('Đã xác nhận đối chiếu số liệu.');
-                                    },
-                                    onError: (err: any) => {
-                                        const status = err?.response?.status;
-                                        if (status >= 500) {
-                                            return;
-                                        }
-                                        AppToast.error(err?.response?.data?.message || 'Đối chiếu thất bại.');
-                                    },
-                                });
+                            onConfirm={async (payload) => {
+                                try {
+                                    await confirmMatching.mutateAsync(payload);
+                                    setIsEditingMatching(false);
+                                    AppToast.success('Đã xác nhận đối chiếu số liệu.');
+                                } catch (err: any) {
+                                    AppToast.error(
+                                        err?.response?.data?.message || err?.message || 'Đối chiếu thất bại.'
+                                    );
+                                    throw err;
+                                }
                             }}
                         />
-                        {isEditingMatching && phase !== 'MATCHING' && (
-                            <Stack direction="row" justifyContent="flex-end" sx={{ mt: 1.5 }}>
-                                <Button
-                                    variant="text"
-                                    disabled={confirmMatching.isPending}
-                                    onClick={() => setIsEditingMatching(false)}
-                                    sx={{ textTransform: 'none', fontWeight: 600, color: '#64748b' }}
-                                >
-                                    Hủy chỉnh sửa
-                                </Button>
-                            </Stack>
-                        )}
                     </Box>
                 )}
 
@@ -395,14 +406,50 @@ export const SupplierSettlementInspectPage = () => {
                             </Box>
                         )}
 
+                        {needsReturn && returnLockDetails.inputsLocked && (
+                            <Alert
+                                severity={returnLockDetails.overdue || returnLockDetails.allCancelled ? 'error' : 'warning'}
+                                icon={<WarningAmberOutlinedIcon />}
+                                sx={{ mb: 2, borderRadius: '12px', fontWeight: 600 }}
+                            >
+                                {returnLockDetails.overdue || returnLockDetails.allCancelled ? (
+                                    <>
+                                        {returnLockDetails.summaryMessage} Không thể xử lý chênh lệch trả khi phiếu đã quá hạn / hủy.
+                                    </>
+                                ) : returnLockDetails.blockers.length <= 1 ? (
+                                    <>
+                                        {returnLockDetails.summaryMessage || returnLockDetails.blockers[0]?.message}
+                                    </>
+                                ) : (
+                                    <Box component="div">
+                                        <Typography variant="body2" fontWeight={700} sx={{ mb: 0.75 }}>
+                                            {returnLockDetails.summaryMessage}
+                                        </Typography>
+                                        <Box component="ul" sx={{ m: 0, pl: 2.25 }}>
+                                            {returnLockDetails.blockers.map((blocker) => (
+                                                <Box component="li" key={`${blocker.batchCode}-${blocker.status}`} sx={{ mb: 0.35 }}>
+                                                    <Typography variant="body2">{blocker.message}</Typography>
+                                                </Box>
+                                            ))}
+                                        </Box>
+                                    </Box>
+                                )}
+                            </Alert>
+                        )}
+
                         {needsReturn && returnShortfall && (
-                            <Box sx={{ mb: 2 }}>
+                            <Box sx={{ mb: 2, opacity: returnLockDetails.inputsLocked ? 0.72 : 1 }}>
                                 <MissingReturnTicketsPanel
                                     serials={missingReturnQuery.data || []}
                                     difference={Number(returnItem?.difference ?? 0)}
                                     loading={missingReturnQuery.isLoading}
                                     submitting={resolveReturn.isPending}
+                                    disabled={returnLockDetails.inputsLocked}
                                     onResolve={(payload) => {
+                                        if (returnLockDetails.inputsLocked) {
+                                            AppToast.warning(returnLockDetails.summaryMessage || 'Phiếu trả chưa sẵn sàng.');
+                                            return;
+                                        }
                                         resolveReturn.mutate(payload, {
                                             onSuccess: () => AppToast.success('Đã cập nhật xử lý vé trả thiếu.'),
                                             onError: (err: any) =>
@@ -414,13 +461,18 @@ export const SupplierSettlementInspectPage = () => {
                         )}
 
                         {needsReturn && returnExcess && (
-                            <Box sx={{ mb: 2 }}>
+                            <Box sx={{ mb: 2, opacity: returnLockDetails.inputsLocked ? 0.72 : 1 }}>
                                 <ExcessReturnTicketsPanel
                                     serials={importTicketsQuery.data || []}
                                     difference={Number(returnItem?.difference ?? 0)}
                                     loading={importTicketsQuery.isLoading}
                                     submitting={resolveReturn.isPending}
+                                    disabled={returnLockDetails.inputsLocked}
                                     onResolve={(payload) => {
+                                        if (returnLockDetails.inputsLocked) {
+                                            AppToast.warning(returnLockDetails.summaryMessage || 'Phiếu trả chưa sẵn sàng.');
+                                            return;
+                                        }
                                         resolveReturn.mutate(payload, {
                                             onSuccess: () => AppToast.success('Đã ghi nhận vé bổ sung trả.'),
                                             onError: (err: any) =>
@@ -505,7 +557,7 @@ export const SupplierSettlementInspectPage = () => {
                         }}>
                             <Box sx={{ p: 2, borderRadius: '12px', bgcolor: '#f8fafc', border: '1px solid #f1f5f9' }}>
                                 <Typography variant="caption" color="text.secondary" fontWeight={600} display="block" sx={{ mb: 0.5, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                                    {Number(settlement.finalSettlementValue ?? 0) < 0 ? 'NCC hoàn / ghi có (Thực tế)' : 'Sau chênh lệch (Thực tế)'}
+                                    {Number(settlement.finalSettlementValue ?? 0) < 0 ? 'NCC hoàn / ghi có (sau đối soát)' : 'Chênh lệch sau đối soát'}
                                 </Typography>
                                 <Typography variant="h6" fontWeight={800} color="#0f172a">
                                     {Number(settlement.finalSettlementValue ?? 0) < 0 ? `+${formatSettlementMoney(Math.abs(Number(settlement.finalSettlementValue ?? 0)))}` : formatSettlementMoney(Number(settlement.finalSettlementValue ?? 0))} <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>VNĐ</span>
@@ -514,7 +566,7 @@ export const SupplierSettlementInspectPage = () => {
                             
                             <Box sx={{ p: 2, borderRadius: '12px', bgcolor: '#eff6ff', border: '1px solid #dbeafe' }}>
                                 <Typography variant="caption" color="#1d4ed8" fontWeight={600} display="block" sx={{ mb: 0.5, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                                    {Number(settlement.actualPaidAmount ?? 0) < 0 ? 'Giá trị NCC hoàn / ghi có từ biên lai' : 'Giá trị thực trả từ biên lai'}
+                                    {Number(settlement.actualPaidAmount ?? 0) < 0 ? 'Số tiền NCC hoàn / ghi có thực tế' : 'Số tiền cần trả thực tế'}
                                 </Typography>
                                 <Typography variant="h6" fontWeight={800} color="#1e40af">
                                     {settlement.actualPaidAmount != null
@@ -538,7 +590,7 @@ export const SupplierSettlementInspectPage = () => {
 
                         {phase === 'PAYMENT_DISCREPANCY' && (
                             <Alert severity="error" icon={<WarningAmberOutlinedIcon />} sx={{ mb: 2.5, borderRadius: '10px', fontWeight: 600 }}>
-                                Giá trị thực trả từ biên lai không khớp Sau chênh lệch. Không thể hoàn tất đối soát
+                                Số tiền cần trả thực tế không khớp Chênh lệch sau đối soát. Không thể hoàn tất đối soát
                                 cho đến khi hai số này trùng khớp hoặc được rà soát theo quy trình chênh lệch thanh toán.
                             </Alert>
                         )}
@@ -650,7 +702,7 @@ export const SupplierSettlementInspectPage = () => {
                 </DialogTitle>
                 <DialogContent sx={{ px: 3, pt: 2.5 }}>
                     <Typography variant="body2" color="text.secondary" sx={{ mb: 2, lineHeight: 1.7 }}>
-                        Hệ thống so sánh Sau chênh lệch (tính tự động) với Giá trị thực trả từ biên lai. Chỉ khi hai số khớp và đã có ảnh thanh toán NCC mới hoàn tất đối soát.
+                        Hệ thống so sánh Chênh lệch sau đối soát (tính tự động) với Số tiền cần trả thực tế. Chỉ khi hai số khớp và đã có ảnh thanh toán NCC mới hoàn tất đối soát.
                     </Typography>
                     <Paper variant="outlined" sx={{ p: 2, borderRadius: '12px', bgcolor: '#f8fafc' }}>
                         <Stack spacing={1}>
@@ -667,7 +719,7 @@ export const SupplierSettlementInspectPage = () => {
                                 </Typography>
                             </Stack>
                             <Stack direction="row" justifyContent="space-between">
-                                <Typography variant="body2" color="text.secondary">{Number(settlement.finalSettlementValue ?? 0) < 0 ? 'NCC hoàn / ghi có' : 'Sau chênh lệch'}</Typography>
+                                <Typography variant="body2" color="text.secondary">{Number(settlement.finalSettlementValue ?? 0) < 0 ? 'NCC hoàn / ghi có' : 'Chênh lệch sau đối soát'}</Typography>
                                 <Typography variant="body2" fontWeight={700}>
                                     {Number(settlement.finalSettlementValue ?? 0) < 0 ? `+${formatSettlementMoney(Math.abs(Number(settlement.finalSettlementValue ?? 0)))}` : formatSettlementMoney(Number(settlement.finalSettlementValue ?? 0))} VNĐ
                                 </Typography>
@@ -681,7 +733,7 @@ export const SupplierSettlementInspectPage = () => {
                                 </Typography>
                             </Stack>
                             <Stack direction="row" justifyContent="space-between">
-                                <Typography variant="body2" color="text.secondary">{Number(settlement.actualPaidAmount ?? 0) < 0 ? 'Giá trị NCC hoàn / ghi có từ biên lai' : 'Giá trị thực trả từ biên lai'}</Typography>
+                                <Typography variant="body2" color="text.secondary">{Number(settlement.actualPaidAmount ?? 0) < 0 ? 'Số tiền NCC hoàn / ghi có thực tế' : 'Số tiền cần trả thực tế'}</Typography>
                                 <Typography variant="body2" fontWeight={700}>
                                     {formatSettlementMoney(Math.abs(Number(settlement.actualPaidAmount ?? 0)))} VNĐ
                                 </Typography>
@@ -717,6 +769,9 @@ export const SupplierSettlementInspectPage = () => {
                                     if (result?.completed) {
                                         AppToast.success(result.message || 'Đã hoàn tất đối soát.');
                                         setConfirmOpen(false);
+                                        if (id != null) {
+                                            void clearMatchingActualsDraft(id);
+                                        }
                                     } else {
                                         AppToast.error(result?.message || 'Còn chênh lệch thanh toán.');
                                         setConfirmOpen(false);

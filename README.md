@@ -1,107 +1,146 @@
-# DaiPhat Lottery Platform
+# DaiPhat Lottery System
 
-DaiPhat is deployed as three application images:
+An enterprise omnichannel lottery management and distribution system designed for traditional and digital lottery operations, supporting retail customers, administrators/staff, street ticket vendors, and an integrated AI assistant.
 
-- `daiphat-be`: Spring Boot 3 / Java 21 Core API.
-- `daiphat-fe`: React/Vite static bundle served by Nginx.
-- `daiphat-ai`: FastAPI intent classification and chat response service.
+---
 
-Production runs on one VPS with Docker Compose. PostgreSQL, Redis, the three application containers, the public Nginx proxy, Certbot, Dozzle and encrypted database backup are isolated with Docker networks. Only ports 80 and 443 are public; the AI service is reachable only by the backend.
+## 🏛️ System Architecture
 
-## Local development stack
+The system is designed with a Modular Monolith backend architecture integrated with specialized microservices:
 
-Runtime secrets remain in ignored local files and GitHub Actions Secrets.
+* **`daiphat-be` (Core API)**:
+  * **Runtime & Framework**: Java 21, Spring Boot 3.4, Gradle.
+  * **Databases & Cache**: PostgreSQL 16 (Transactional Data), Redis 7 (Caching, Token Blacklist & Session Store), MongoDB (Audit Logs & Chat History).
+  * **Schema Management**: Flyway Database Migration.
+  * **Security**: Spring Security with JWT (HttpOnly Cookie) and RBAC (Role-Based Access Control) matrix.
+  * **Realtime**: WebSocket / STOMP for live notifications and chat.
+
+* **`daiphat-fe` (Web Portal)**:
+  * **Runtime & Framework**: Next.js 15 (App Router), React 19, TypeScript.
+  * **UI & Styling**: Material UI (MUI), Emotion, Tailwind CSS.
+  * **State & Data Fetching**: TanStack React Query, Zustand, Axios.
+  * **Portals**: Customer Web (Browsing, Purchasing, Draw Results, Prize Claims) and Admin/Staff Portal (Ticket Inventory, Order Fulfillment, Street Agent Allocation, Financial Reconciliation).
+
+* **`daiphat-ai` (AI Assistant Service)**:
+  * **Runtime & Framework**: Python 3.11, FastAPI, Uvicorn.
+  * **AI & NLP**: Google Gemini API, LangChain.
+  * **Features**: Customer intent classification, lottery statistics consultation, and automated 24/7 customer support.
+
+* **`daiphat_mobile` (Mobile Application)**:
+  * **Framework**: Flutter / Dart.
+  * **Target**: Mobile app for Street Vendors (Ticket allocation, handover, on-the-go reconciliation) and end-users.
+
+---
+
+## 📋 Prerequisites
+
+Ensure the following dependencies are installed on your development machine:
+
+* **Docker & Docker Compose** (v24.0+)
+* **Java Development Kit (JDK)**: Java 21 (Eclipse Temurin or OpenJDK)
+* **Node.js**: v20.x or higher & npm
+* **Python**: Python 3.10+ (for AI service)
+* **Flutter SDK**: 3.24+ (for mobile app development)
+
+---
+
+## 🚀 Quick Start (Docker Compose)
+
+### 1. Configure Environment Variables
+Copy or create the `.env` file at the repository root:
 
 ```bash
-# Use the single ignored local environment file at the repository root:
-# .env
+# Ensure .env exists with required local credentials
+cp .env.example .env
+```
+
+### 2. Start Full Stack
+Start all infrastructure services, Core API, Web Portal, and AI service:
+
+```bash
 docker compose up -d --build
 ```
 
-Local endpoints:
+---
 
-- Frontend: `http://localhost:5173`
-- Backend/Swagger: `http://localhost:8080/swagger-ui/index.html`
-- PostgreSQL: `localhost:5434`
-- Redis: `localhost:6380`
-- AI health/docs: `http://localhost:8000/health`, `http://localhost:8000/docs`
+## 💻 Manual Local Development
 
-Before pushing a deployable commit, run the clean-snapshot preflight:
+### 1. Infrastructure Services (Database & Cache)
+```bash
+docker compose up -d postgres-db redis mongo
+```
+
+### 2. Backend Core API (`daiphat-be`)
+```bash
+cd daiphat-be/core-api
+
+# Run Spring Boot application
+./gradlew bootRun
+```
+* **Swagger API Documentation**: `http://localhost:8080/swagger-ui/index.html`
+
+### 3. Frontend Web Portal (`daiphat-fe`)
+```bash
+cd daiphat-fe
+
+# Install dependencies
+npm install
+
+# Start Next.js development server
+npm run dev
+```
+* **Web Portal URL**: `http://localhost:5173` (or configured dev port)
+
+### 4. AI Service (`daiphat-ai`)
+```bash
+cd daiphat-ai
+
+# Setup Python virtual environment
+python3 -m venv .venv
+source .venv/bin/activate # On Windows: .venv\Scripts\activate
+pip install -r requirements.txt
+
+# Start FastAPI server
+uvicorn main:app --reload --port 8000
+```
+* **Interactive API Docs**: `http://localhost:8000/docs`
+
+---
+
+## 🌐 Ports & Service Endpoints
+
+| Service | Local Endpoint | Description |
+| :--- | :--- | :--- |
+| **Frontend Web** | `http://localhost:5173` | Customer & Admin Web Portal |
+| **Backend Core API** | `http://localhost:8080` | Core RESTful API & WebSocket |
+| **Swagger UI** | `http://localhost:8080/swagger-ui/index.html` | Interactive API Documentation |
+| **AI FastAPI Service** | `http://localhost:8000` | AI Chatbot & Intent Engine |
+| **PostgreSQL** | `localhost:5434` (mapped) | Main Relational Database |
+| **Redis** | `localhost:6380` (mapped) | Session, Cache & Locks |
+| **MongoDB** | `localhost:27018` (mapped) | Chat History & System Logs |
+
+---
+
+## 🛠️ Database Schema Management (Flyway)
+
+Database migrations are managed automatically using **Flyway**:
+* Migration Scripts Location: `daiphat-be/core-api/src/main/resources/db/migration/`
+* Naming Convention: `V<YYYYMMDDHHmm>__<description>.sql`
+* *Rule*: Never modify existing migrations that have already been applied to any target environment.
+
+---
+
+## 🧪 Testing & Quality Assurance
 
 ```bash
+# Frontend TypeScript & Lint Check
+cd daiphat-fe
+npx tsc --noEmit
+
+# Backend Unit & Integration Tests
+cd daiphat-be/core-api
+./gradlew test
+
+# Preflight Deployment Check
 scripts/preflight-deploy.sh
 ```
-
-The preflight builds the exact committed tree, starts all three images with PostgreSQL and Redis, then verifies AI health, frontend, backend readiness and the frontend-to-backend proxy.
-
-The frontend test suite is active in CI. The backend production package is compiled in CI, while the legacy backend test suite remains a known debt because several old tests still reference domain packages removed during the monolith migration.
-
-## Production deployment phases
-
-### 1. Bootstrap through the INF branch
-
-1. Commit infrastructure separately from unrelated feature work.
-2. Run `scripts/preflight-deploy.sh` locally.
-3. Push `feature/dp-5-infs`.
-4. In GitHub Actions, run **DaiPhat Infrastructure Deploy** once, then run **DaiPhat Backend Deploy**, **DaiPhat Frontend Deploy** and **DaiPhat AI Deploy** with `source_ref=feature/dp-5-infs`.
-5. Verify the new VPS over HTTP by IP before pointing DNS.
-
-### 2. Enable the domain and HTTPS
-
-After the domain A/AAAA record points to the VPS:
-
-```bash
-cd "$VPS_DEPLOY_PATH"
-scripts/bootstrap-tls.sh example.com admin@example.com
-```
-
-Nginx switches to the HTTPS template only after a valid certificate exists. Certbot renews certificates automatically.
-
-### 3. Lock releases to main
-
-After bootstrap is stable, merge to `main` and run the relevant component workflow manually with `source_ref=main`. Each verified FE, BE or AI image receives an immutable commit tag; that component's moving `prod` tag is updated only after its VPS healthcheck succeeds.
-
-## GitHub Secrets
-
-Existing secrets:
-
-- `DOCKER_USERNAME`, `DOCKER_PASSWORD`
-- `ENV_FILE_CONTENT`
-- `VPS_HOST`, `VPS_USER`, `VPS_SSH_KEY`, `VPS_DEPLOY_PATH`
-
-No additional content secret is required. `ENV_FILE_CONTENT` contains the complete ignored `.env.prod` file, including backend runtime, `VITE_*` build variables, the Dozzle username and bcrypt hash, PostgreSQL, Redis and Restic credentials. The workflow extracts only `VITE_*` for the frontend build, generates Dozzle's `users.yml` from the existing hash, then writes the complete runtime file to the VPS with restrictive permissions.
-
-## Database migrations and backup
-
-Flyway is the only schema manager and Hibernate `ddl-auto` remains `none`. Every environment uses the same ordered migration set and its own `flyway_schema_history`; never create migrations named for dev/UAT/prod and never edit a migration already applied to production.
-
-Every backend or full infrastructure deploy creates a PostgreSQL dump before starting a new backend image. Restic currently stores encrypted snapshots in the persistent VPS backup directory; its repository can later be changed to S3-compatible storage through `ENV_FILE_CONTENT`. A failed backup stops the deployment. A component failure restores that component's previous image and never attempts to reverse a database migration.
-
-Useful production commands:
-
-```bash
-docker compose --env-file .env.prod --env-file .deploy.env -f docker-compose.prod.yml ps
-docker compose --env-file .env.prod --env-file .deploy.env -f docker-compose.prod.yml logs -f backend frontend nginx
-docker compose --env-file .env.prod --env-file .deploy.env -f docker-compose.prod.yml run --rm db-backup run
-```
-
-Never run `docker compose down -v` against production because it removes persistent data volumes.
-
-## Container logs with Dozzle
-
-Dozzle is mounted at `/dozzle/` after HTTPS is enabled. It uses file-based authentication, disables container actions/shell/MCP, and reaches Docker through a read-only socket proxy. Before TLS is active, access it only through an SSH tunnel:
-
-```bash
-ssh -L 9999:127.0.0.1:9999 "$VPS_USER@$VPS_HOST"
-```
-
-Then open `http://127.0.0.1:9999/dozzle/`. The deploy workflow generates the protected `users.yml` from these entries in `ENV_FILE_CONTENT`:
-
-```env
-DOZZLE_AUTH_USERNAME=admin
-DOZZLE_AUTH_PASSWORD_HASH=$2y$...
-```
-
-Only the bcrypt hash is stored; the plaintext Dozzle password is not sent to GitHub or the VPS.
-
-Portainer is intentionally not included: it grants much broader container-management privileges, while Dozzle covers the current read-only log requirement.

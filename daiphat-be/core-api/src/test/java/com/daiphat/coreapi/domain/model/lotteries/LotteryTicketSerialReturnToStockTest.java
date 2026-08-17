@@ -12,10 +12,10 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class LotteryTicketSerialReturnToStockTest {
 
     @Test
-    @DisplayName("returnSoldToStock: PROXY_HOLDING after PayOS can return to IN_STOCK")
+    @DisplayName("returnSoldToStock: SOLD after PayOS can return to IN_STOCK")
     void returnSoldToStock_proxyHolding() {
         LotteryTicketSerialModel serial = LotteryTicketSerialModel.builder()
-                .status(LotteryTicketSerialStatus.PROXY_HOLDING)
+                .status(LotteryTicketSerialStatus.SOLD)
                 .build();
 
         serial.returnSoldToStock();

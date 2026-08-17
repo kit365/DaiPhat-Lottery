@@ -16,4 +16,6 @@ public interface SystemConfigRepository extends JpaRepository<SystemConfigEntity
     Optional<SystemConfigEntity> findByIdAndIsActiveTrue(Long id);
 
     Optional<SystemConfigEntity> findByConfigKeyAndIsActiveTrue(String configKey);
+
+    Optional<SystemConfigEntity> findByConfigKey(String configKey);
 }

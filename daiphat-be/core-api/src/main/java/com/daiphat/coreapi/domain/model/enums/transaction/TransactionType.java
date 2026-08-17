@@ -8,7 +8,7 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public enum TransactionType implements LabeledEnum {
     OFFLINE("Tiền mặt"),
-    ONLINE("Chuyển khoản / thanh toán online"),
+    ONLINE("Chuyển khoản / thanh toán trực tuyến"),
     REFUND("Hoàn tiền");
 
     private final String label;

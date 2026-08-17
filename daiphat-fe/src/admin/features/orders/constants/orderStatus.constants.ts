@@ -22,5 +22,6 @@ export const ORDER_STATUS_TABS: OrderStatusTab[] = [
         OrderStatus.PENDING_PICKUP,
         OrderStatus.COMPLETED,
         OrderStatus.CANCELLED,
+        OrderStatus.PAYMENT_COMPLAINT_PENDING,
     ].map((value) => ({ value, ...ORDER_STATUS_BADGE[value] })),
 ];

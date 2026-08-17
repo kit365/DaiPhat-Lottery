@@ -259,7 +259,7 @@ export const SettlementCompletionDashboard = ({
                 </Grid>
                 <Grid size={{ xs: 12, sm: 6, md: 3 }}>
                     <MoneyTile
-                        label={finalVal < 0 ? 'NCC hoàn / ghi có' : 'Sau chênh lệch'}
+                        label={finalVal < 0 ? 'NCC hoàn / ghi có' : 'Chênh lệch sau đối soát'}
                         value={formatSettlementMoney(Math.abs(finalVal))}
                         tone="blue"
                     />
@@ -274,13 +274,13 @@ export const SettlementCompletionDashboard = ({
                 </Grid>
                 <Grid size={{ xs: 12, sm: 6, md: 3 }}>
                     <MoneyTile
-                        label={actualPaid != null && actualPaid < 0 ? 'Thực trả (NCC hoàn)' : 'Thực trả từ biên lai'}
+                        label={actualPaid != null && actualPaid < 0 ? 'Số tiền NCC hoàn thực tế' : 'Số tiền cần trả thực tế'}
                         value={actualPaid != null ? formatSettlementMoney(Math.abs(actualPaid)) : '—'}
                         hint={
                             remainingDiff == null
                                 ? undefined
                                 : remainingDiff === 0
-                                  ? 'Khớp sau chênh lệch'
+                                  ? 'Khớp chênh lệch sau đối soát'
                                   : `Còn lệch ${formatSettlementMoney(remainingDiff)} VNĐ`
                         }
                         tone={remainingDiff === 0 ? 'green' : remainingDiff == null ? 'neutral' : 'rose'}

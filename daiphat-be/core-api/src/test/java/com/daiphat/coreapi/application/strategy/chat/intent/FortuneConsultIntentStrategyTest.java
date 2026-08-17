@@ -6,6 +6,7 @@ import com.daiphat.coreapi.application.dto.chat.intent.ChatIntentOutcome;
 import com.daiphat.coreapi.application.dto.response.chat.ChatClassifyResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.LotteryTicketResponse;
 import com.daiphat.coreapi.application.port.in.chat.ChatAiPort;
+import com.daiphat.coreapi.application.service.chat.fortune.DestinyNumberInterpreter;
 import com.daiphat.coreapi.application.service.chat.fortune.DreamFortuneInterpreter;
 import com.daiphat.coreapi.application.service.chat.ticket.ChatTicketInventoryService;
 import com.daiphat.coreapi.domain.model.chat.ConversationModel;

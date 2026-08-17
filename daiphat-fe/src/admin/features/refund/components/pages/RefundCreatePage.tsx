@@ -30,6 +30,10 @@ import dayjs from 'dayjs';
 import { prefixAdmin } from '@/admin/constants/routes';
 import { handleOrderTicketIncidents, updateOrderStatus } from '@/admin/features/orders/services/orderService';
 import { AdminLuckyDisplay } from '@/shared/lucky-number';
+import {
+    TICKET_NUMBERS_LABEL,
+    TICKET_SERIAL_PREFIX,
+} from '@/constants/ticketDisplay.constants';
 
 /** Quick suggestions for staff refund reason (UI-only; not persisted separately). */
 const STAFF_REFUND_REASON_SUGGESTIONS = [
@@ -347,8 +351,7 @@ export function RefundCreatePage() {
                         <Table size="small">
                             <TableHead>
                                 <TableRow sx={{ bgcolor: 'var(--palette-background-neutral)' }}>
-                                    <TableCell sx={{ fontWeight: 600 }}>Bộ số</TableCell>
-                                    <TableCell sx={{ fontWeight: 600 }}>Serial</TableCell>
+                                    <TableCell sx={{ fontWeight: 600 }}>{TICKET_NUMBERS_LABEL}</TableCell>
                                     <TableCell sx={{ fontWeight: 600 }}>Đài</TableCell>
                                     <TableCell sx={{ fontWeight: 600 }}>Ngày xổ</TableCell>
                                     <TableCell sx={{ fontWeight: 600 }}>Lý do sự cố</TableCell>
@@ -367,10 +370,19 @@ export function RefundCreatePage() {
                                         }}
                                     >
                                         <TableCell sx={{ fontWeight: 700 }}>
-                                            <AdminLuckyDisplay value={t.numbers} ticket />
-                                        </TableCell>
-                                        <TableCell sx={{ fontFamily: 'monospace', fontSize: '0.75rem' }}>
-                                            {t.serialNumber}
+                                            <Box>
+                                                <AdminLuckyDisplay value={t.numbers} ticket />
+                                                {t.serialNumber && (
+                                                    <Typography
+                                                        variant="caption"
+                                                        color="text.secondary"
+                                                        component="div"
+                                                        sx={{ mt: 0.25, lineHeight: 1.4, wordBreak: 'break-all' }}
+                                                    >
+                                                        {TICKET_SERIAL_PREFIX}: {t.serialNumber}
+                                                    </Typography>
+                                                )}
+                                            </Box>
                                         </TableCell>
                                         <TableCell>{t.stationName}</TableCell>
                                         <TableCell>

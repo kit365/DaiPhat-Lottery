@@ -104,6 +104,10 @@ export interface CreateImportBatchPayload {
 export interface ImportBatchEligibleStation {
     lotteryStationId: number;
     name: string;
+    /** Business code; the exact-match column of an import file. */
+    code?: string;
+    /** "Thứ 2, Thứ 6 · 16:15" — printed on the delivery note beside the station. */
+    drawSchedule?: string;
     resolvedBatchType: ImportBatchType;
     price?: number;
     commissionRate?: number;
@@ -335,6 +339,38 @@ export interface ImportBatchFileGroup {
     rows: ImportBatchFileRow[];
     /** Non-empty means the group is blocked until station pricing is reconciled. */
     pricingMismatches?: ImportBatchFilePricingMismatch[];
+    /** Stations in the file whose weekly schedule excludes this draw date. */
+    scheduleMismatches?: ImportBatchFileScheduleMismatch[];
+}
+
+export type BackendDayOfWeek =
+    | 'MONDAY'
+    | 'TUESDAY'
+    | 'WEDNESDAY'
+    | 'THURSDAY'
+    | 'FRIDAY'
+    | 'SATURDAY'
+    | 'SUNDAY';
+
+/**
+ * A station the file names on a weekday its schedule does not cover.
+ *
+ * <p>Distinct from "station not found": the station is real, so the usual fix is
+ * to correct its schedule rather than the file — which is why the current and
+ * required weekdays both come back.
+ */
+export interface ImportBatchFileScheduleMismatch {
+    lotteryStationId: number;
+    stationName: string;
+    stationCode?: string;
+    /** DD/MM/YYYY. */
+    drawDate: string;
+    currentDrawDays: BackendDayOfWeek[];
+    requiredDrawDays: BackendDayOfWeek[];
+    /** Current plus required — adds a day rather than dropping the existing ones. */
+    suggestedDrawDays: BackendDayOfWeek[];
+    /** False when the station is switched off, which is a different repair. */
+    active: boolean;
 }
 
 /**
@@ -355,6 +391,29 @@ export interface ImportBatchFilePricingMismatch {
     importCostInFile?: number;
     importCostExpected?: number;
     importCostMismatch: boolean;
+}
+
+/**
+ * One identifying field read out of the file's letterhead and compared with the
+ * selected supplier. `blocking` marks the identifiers that pin down a legal
+ * entity — a disagreement there stops the import, while a changed contact person
+ * only warns.
+ */
+export interface ImportBatchFileSupplierIdentityField {
+    field: string;
+    label: string;
+    valueInFile?: string;
+    valueInSystem?: string;
+    matched: boolean;
+    blocking: boolean;
+}
+
+/** Whether the party named in the file is the supplier chosen in the dialog. */
+export interface ImportBatchFileSupplierIdentity {
+    /** False for files from older templates, which carry no letterhead. */
+    declared: boolean;
+    mismatched: boolean;
+    fields: ImportBatchFileSupplierIdentityField[];
 }
 
 export interface ImportBatchFileInspectResult {
@@ -379,6 +438,7 @@ export interface ImportBatchFilePreviewResult {
     importableRows: number;
     skippedRows: number;
     errorRows: number;
+    supplierIdentity?: ImportBatchFileSupplierIdentity;
     groups: ImportBatchFileGroup[];
 }
 
@@ -415,6 +475,15 @@ export interface ImportBatchFileCommitPayload {
     mapping: ImportBatchFileMapping;
     drawDates: string[];
     forceCreateDrawDates?: string[];
+    /** Shared invoice/receipt file URL (image or document). */
+    invoiceEvidenceUrl?: string | null;
+    /** Extra ticket-list evidence URLs (images or documents). */
+    ticketListImageUrls?: string[] | null;
+    /**
+     * When true (default), also attach the imported CSV/XLSX as ticket-list evidence
+     * on each created batch.
+     */
+    useOriginalFileAsTicketListEvidence?: boolean;
 }
 
 /** A column mapping remembered for one supplier and one file layout. */

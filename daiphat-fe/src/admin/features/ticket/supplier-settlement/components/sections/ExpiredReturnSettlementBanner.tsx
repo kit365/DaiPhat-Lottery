@@ -6,7 +6,6 @@ import ReportProblemOutlinedIcon from '@mui/icons-material/ReportProblemOutlined
 import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
 import CloseIcon from '@mui/icons-material/Close';
 import {
-    Alert,
     Box,
     Button,
     Card,
@@ -74,33 +73,106 @@ export const ExpiredReturnSettlementBanner = ({
 
     return (
         <>
-            <Alert
-                severity="error"
-                icon={<ReportProblemOutlinedIcon fontSize="inherit" />}
-                sx={{ py: 0.75, alignItems: 'center' }}
-                action={
+            <Paper
+                elevation={0}
+                sx={{
+                    mb: 2.5,
+                    p: { xs: 1.75, sm: 2 },
+                    borderRadius: '14px',
+                    border: '1px solid #fecaca',
+                    bgcolor: '#fff1f2',
+                    background: 'linear-gradient(135deg, #fff1f2 0%, #fff7ed 100%)',
+                    boxShadow: '0 2px 8px rgba(220, 38, 38, 0.05)',
+                    display: 'flex',
+                    alignItems: { xs: 'flex-start', sm: 'center' },
+                    justifyContent: 'space-between',
+                    flexWrap: { xs: 'wrap', md: 'nowrap' },
+                    gap: 2,
+                }}
+            >
+                <Stack direction="row" spacing={1.75} alignItems="flex-start" sx={{ flex: 1 }}>
+                    <Box
+                        sx={{
+                            width: 42,
+                            height: 42,
+                            borderRadius: '10px',
+                            bgcolor: '#fee2e2',
+                            color: '#dc2626',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            flexShrink: 0,
+                            boxShadow: '0 1px 3px rgba(220, 38, 38, 0.12)',
+                        }}
+                    >
+                        <ReportProblemOutlinedIcon sx={{ fontSize: '1.35rem' }} />
+                    </Box>
+
+                    <Box sx={{ flex: 1 }}>
+                        <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" sx={{ mb: 0.5 }}>
+                            <Typography variant="subtitle2" fontWeight={800} color="#0f172a" sx={{ fontSize: '0.925rem' }}>
+                                {customTitle || 'Có kỳ đối soát quá hạn trả vé'}
+                            </Typography>
+                            <Chip
+                                size="small"
+                                label={`${expiredCount} kỳ`}
+                                sx={{
+                                    bgcolor: '#fee2e2',
+                                    color: '#b91c1c',
+                                    fontWeight: 700,
+                                    fontSize: '0.725rem',
+                                    border: '1px solid #fecaca',
+                                    height: 24,
+                                }}
+                            />
+                            {totalExpiredValue > 0 && (
+                                <Chip
+                                    size="small"
+                                    label={`Đọng ${formatImportCost(totalExpiredValue)} VNĐ`}
+                                    sx={{
+                                        bgcolor: '#ffedd5',
+                                        color: '#c2410c',
+                                        fontWeight: 700,
+                                        fontSize: '0.725rem',
+                                        border: '1px solid #fed7aa',
+                                        height: 24,
+                                    }}
+                                />
+                            )}
+                        </Stack>
+
+                        <Typography variant="body2" color="#475569" sx={{ fontSize: '0.825rem', lineHeight: 1.5 }}>
+                            {customDescription ||
+                                'Một số kỳ đã quá hạn trả vé và còn giá trị đọng cần xử lý. Vui lòng kiểm tra chi tiết từng kỳ để hoàn tất trả vé / đối soát sớm, tránh ảnh hưởng công nợ với nhà cung cấp.'}
+                        </Typography>
+                    </Box>
+                </Stack>
+
+                <Box sx={{ alignSelf: { xs: 'flex-start', sm: 'center' }, flexShrink: 0 }}>
                     <Button
-                        color="inherit"
                         size="small"
+                        variant="outlined"
+                        color="error"
+                        startIcon={<VisibilityOutlinedIcon sx={{ fontSize: '1rem !important' }} />}
                         onClick={handleActionClick}
-                        sx={{ fontWeight: 700, whiteSpace: 'nowrap', flexShrink: 0 }}
+                        sx={{
+                            textTransform: 'none',
+                            fontWeight: 700,
+                            borderRadius: '999px',
+                            px: 1.5,
+                            bgcolor: '#ffffff',
+                            borderColor: '#fecaca',
+                            color: '#b91c1c',
+                            '&:hover': {
+                                borderColor: '#f87171',
+                                bgcolor: '#fef2f2',
+                            },
+                        }}
                     >
                         Xem chi tiết
                     </Button>
-                }
-            >
-                <Typography variant="body2" component="span">
-                    Có <strong>{expiredCount}</strong> kỳ đối soát <strong>quá hạn trả vé</strong>
-                    {totalExpiredValue > 0 ? (
-                        <>
-                            {' '}
-                            — giá trị đọng{' '}
-                            <strong>{formatImportCost(totalExpiredValue)} VNĐ</strong>
-                        </>
-                    ) : null}
-                    . Vui lòng kiểm tra và xử lý sớm.
-                </Typography>
-            </Alert>
+                </Box>
+            </Paper>
 
             {/* Modal danh sách các kỳ quá hạn trả vé */}
             <Dialog

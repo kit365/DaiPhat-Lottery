@@ -31,7 +31,7 @@ import axios, { AxiosError, InternalAxiosRequestConfig } from "axios"
 import { peekQueryAbortSignal } from "@/shared/react-query/queryAbort"
 import { API_PREFIX, API_VERSION } from "./api.constants"
 import { AppToast } from "../utils/toast.util"
-import { persistAccessToken, resolveAccessToken } from "./authHeaders"
+import { persistAccessToken, persistRefreshTokenFallback, resolveAccessToken } from "./authHeaders"
 import { endAuthSession } from "./endAuthSession"
 
 const getBaseUrl = () => {
@@ -183,9 +183,22 @@ const isAuthEndpoint = (url?: string) => {
     return url.includes("/auth/login") || url.includes("/auth/refresh-token");
 };
 
+/** Login / Google / refresh: lưu refresh_token JS path=/ khi BE trả trong body. */
+const captureRefreshTokenFromAuthResponse = (url: string | undefined, payload: unknown) => {
+    if (!url) return;
+    const isAuthTokenResponse =
+        url.includes("/auth/login") ||
+        url.includes("/auth/google") ||
+        url.includes("/auth/refresh-token");
+    if (!isAuthTokenResponse) return;
+    const data = (payload as { data?: { refreshToken?: string; refresh_token?: string } } | undefined)?.data;
+    persistRefreshTokenFallback(data?.refreshToken || data?.refresh_token);
+};
+
 // --- Response: refresh 401 + toast ---
 apiApp.interceptors.response.use(
     (response) => {
+        captureRefreshTokenFromAuthResponse(response.config.url, response.data);
         if (revokesCurrentSession(response.config.url)) {
             clearAuthSession();
         }
@@ -207,11 +220,8 @@ apiApp.interceptors.response.use(
             const message = (response.data as { message?: string } | undefined)?.message || "Đã có lỗi xảy ra từ máy chủ!";
 
             // Access token hết hạn: refresh 1 lần rồi gửi lại request.
+            // skipGlobalErrorToast chỉ tắt toast — vẫn refresh (poll /me, thông báo…).
             if (status === 401 && originalRequest && !originalRequest._retry) {
-                if (skipToast) {
-                    return Promise.reject(error);
-                }
-
                 if (isAuthEndpoint(originalRequest.url)) {
                     // login fail = nhập lại. refresh fail = bắt login lại.
                     if (originalRequest.url?.includes('/auth/refresh-token')) {
@@ -249,6 +259,9 @@ apiApp.interceptors.response.use(
 
                             if (newAccessToken) {
                                 persistAccessToken(newAccessToken, expiresIn);
+                                persistRefreshTokenFallback(
+                                    data?.data?.refreshToken || data?.data?.refresh_token
+                                );
                                 processQueue(null, newAccessToken);
                                 originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
                                 resolve(apiApp(originalRequest));

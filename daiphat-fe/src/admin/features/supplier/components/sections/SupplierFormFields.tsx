@@ -278,6 +278,7 @@ export const SupplierFormFields = ({
     const defaultCostVal = useWatch({ control, name: 'defaultImportCost' });
 
     const minReturnCutOffTime = importAllowFromVal ? dayjs(`2000-01-01T${importAllowFromVal}`) : undefined;
+    const minPaymentCutOffTime = returnCutOffTimeVal ? dayjs(`2000-01-01T${returnCutOffTimeVal}`) : undefined;
 
     const numericCost = Number(defaultCostVal) || 0;
     const discountAmount = numericCost > 0 && numericCost < 10000 ? 10000 - numericCost : 0;
@@ -1019,12 +1020,12 @@ export const SupplierFormFields = ({
                             />
                         </Box>
 
-                        {/* Step 3: Payment cut-off time */}
+                        {/* Step 3: Payment cut-off time (per supplier) */}
                         <Box>
                             <Stack direction="row" spacing={0.75} alignItems="center" sx={{ mb: 1 }}>
                                 <Chip
                                     size="small"
-                                    label="3. Giờ đối soát"
+                                    label="3. Giờ thanh toán"
                                     sx={{ height: 20, fontSize: '0.65rem', fontWeight: 800, bgcolor: '#dcfce7', color: '#15803d' }}
                                 />
                             </Stack>
@@ -1033,10 +1034,12 @@ export const SupplierFormFields = ({
                                 control={control}
                                 render={({ field, fieldState }) => (
                                     <AdminTimePicker
-                                        label="Giờ đối soát & thanh toán"
+                                        label="Giờ thanh toán NCC *"
                                         value={field.value ? dayjs(`2000-01-01T${field.value}`) : null}
-                                        readOnly
-                                        disabled
+                                        minTime={minPaymentCutOffTime}
+                                        onChange={(newValue) => {
+                                            field.onChange(newValue ? newValue.format('HH:mm') : '');
+                                        }}
                                         localeText={{ cancelButtonLabel: 'Hủy' }}
                                         slotProps={{
                                             textField: {
@@ -1044,9 +1047,9 @@ export const SupplierFormFields = ({
                                                 error: !!fieldState.error,
                                                 helperText:
                                                     fieldState.error?.message ||
-                                                    'Khung giờ chốt đối soát hàng ngày',
+                                                    'Hạn thanh toán riêng của nhà cung cấp (đối soát dựa theo giờ này)',
                                                 InputLabelProps: { shrink: true },
-                                                sx: { '& .MuiOutlinedInput-root': { borderRadius: '10px', bgcolor: '#f1f5f9' } },
+                                                sx: { '& .MuiOutlinedInput-root': { borderRadius: '10px', bgcolor: '#fff' } },
                                             },
                                         }}
                                     />
@@ -1059,7 +1062,7 @@ export const SupplierFormFields = ({
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, px: 1 }}>
                         <InfoOutlinedIcon sx={{ fontSize: 16, color: '#94a3b8' }} />
                         <Typography variant="caption" color="text.secondary">
-                            Hạn chót trả vé ế bắt buộc phải sau giờ mở nhận vé để đảm bảo chu trình phân phối và hoàn trả diễn ra hợp lệ.
+                            Hạn trả vé phải sau giờ mở nhận vé; giờ thanh toán NCC phải sau hạn trả vé. Thời gian đệm đối soát / nhắc thanh toán lấy theo giờ thanh toán của từng NCC.
                         </Typography>
                     </Box>
                 </Stack>

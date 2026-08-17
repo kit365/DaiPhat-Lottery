@@ -72,7 +72,7 @@ public enum ErrorCode {
     IMAGE_FILE_REQUIRED("SYS_007", "Vui lòng chọn một tệp hình ảnh.", HttpStatus.BAD_REQUEST),
     IMAGE_INVALID_TYPE("SYS_008", "Chỉ hỗ trợ tải lên các tệp định dạng hình ảnh.", HttpStatus.BAD_REQUEST),
     IMAGE_UPLOAD_FAILED("SYS_009", "Không thể tải ảnh lên. Vui lòng kiểm tra cấu hình lưu trữ hoặc thử lại.", HttpStatus.BAD_GATEWAY),
-    CONTRACT_TEMPLATE_NOT_FOUND("SYS_010", "Chưa cấu hình mẫu hợp đồng cho loại này.", HttpStatus.NOT_FOUND),
+    CONTRACT_TEMPLATE_NOT_FOUND("SYS_010", "Chưa cấu hình mẫu hợp đồng mặc định. Vào Cài đặt → Hợp đồng để tạo hoặc đặt mặc định.", HttpStatus.NOT_FOUND),
     CONTRACT_NOT_FOUND("SYS_011", "Hợp đồng không tồn tại.", HttpStatus.NOT_FOUND),
     CONTRACT_DEFAULT_REQUIRED("SYS_012", "Không thể xóa hợp đồng đang là mặc định. Hãy đặt mặc định cho bản khác trước.", HttpStatus.BAD_REQUEST),
     CONTRACT_LAST_OF_TYPE("SYS_013", "Phải giữ lại ít nhất một hợp đồng cho mỗi loại.", HttpStatus.BAD_REQUEST),
@@ -112,7 +112,7 @@ public enum ErrorCode {
     INVALID_PICKUP_TIME("ORD_012", "Thời gian hẹn lấy vé không hợp lệ.", HttpStatus.BAD_REQUEST),
     INVALID_TRANSACTION_AMOUNT("ORD_013", "Số tiền thanh toán không hợp lệ.", HttpStatus.BAD_REQUEST),
     TRANSACTION_SELECTION_REQUIRED("ORD_014", "Cần chỉ định giao dịch thanh toán.", HttpStatus.BAD_REQUEST),
-    ONLINE_PAYMENT_MIN_AMOUNT("ORD_015", "Số tiền thanh toán online phải từ 10.000đ.", HttpStatus.BAD_REQUEST),
+    ONLINE_PAYMENT_MIN_AMOUNT("ORD_015", "Số tiền thanh toán trực tuyến phải từ 10.000đ.", HttpStatus.BAD_REQUEST),
     USER_BANK_ACCOUNT_NOT_FOUND("ORD_016", "Tài khoản ngân hàng không tồn tại.", HttpStatus.NOT_FOUND),
     USER_BANK_ACCOUNT_ACCESS_DENIED("ORD_017", "Bạn không có quyền truy cập tài khoản ngân hàng này.", HttpStatus.FORBIDDEN),
     USER_BANK_ACCOUNT_INVALID_BIN("ORD_018", "Mã BIN ngân hàng không hợp lệ hoặc chưa được VietQR hỗ trợ.", HttpStatus.BAD_REQUEST),
@@ -148,6 +148,18 @@ public enum ErrorCode {
     PRIZE_PAYOUT_RECIPIENT_IDENTITY_REQUIRED("ORD_049", "Cần thu thập CCCD / tên người nhận trước khi tạo yêu cầu.", HttpStatus.BAD_REQUEST),
     PRIZE_PAYOUT_CONTRACT_INCOMPLETE("ORD_050", "Cần chọn vé trúng và nhập họ tên, số CCCD người nhận để lập hợp đồng xác nhận trả thưởng.", HttpStatus.BAD_REQUEST),
     PRIZE_PAYOUT_CONTRACT_DOCUMENT_INVALID_TYPE("ORD_051", "Chỉ chấp nhận file PDF, JPG hoặc PNG cho bản hợp đồng đã ký.", HttpStatus.BAD_REQUEST),
+    PRIZE_PAYOUT_CUSTOMER_REDEMPTION_EXPIRED(
+            "ORD_052",
+            "Đã hết hạn đổi thưởng dành cho khách. Vui lòng mang vé đến đại lý nếu còn trong hạn lĩnh nhà đài.",
+            HttpStatus.BAD_REQUEST),
+    PRIZE_PAYOUT_ISSUER_REDEMPTION_EXPIRED(
+            "ORD_053",
+            "Đã quá hạn lĩnh thưởng với nhà đài — không thể trả thưởng cho vé này.",
+            HttpStatus.BAD_REQUEST),
+    PRIZE_PAYOUT_LATE_REDEMPTION_ACK_REQUIRED(
+            "ORD_054",
+            "Vé đã quá hạn đổi thưởng của khách. Cần xác nhận ưu tiên mang đi lĩnh trước hạn nhà đài.",
+            HttpStatus.BAD_REQUEST),
 
     // Lottery Errors
     // Lottery Product Errors
@@ -277,6 +289,16 @@ public enum ErrorCode {
     RETURN_BATCH_INSPECTION_EXPIRED(
             "LT_120",
             "The inspection period for this Return Batch has expired. Please return to the Return Batch List page.",
+            HttpStatus.CONFLICT
+    ),
+    RETURN_BATCH_INSPECTION_NOT_OPEN(
+            "LT_142",
+            "Chưa đến giờ chuẩn bị/kiểm tra vé trả. Vui lòng đợi đến mốc thời gian đệm trả vé.",
+            HttpStatus.CONFLICT
+    ),
+    SUPPLIER_SETTLEMENT_RECONCILIATION_NOT_OPEN(
+            "LT_143",
+            "Chưa đến giờ đối soát. Vui lòng đợi đến mốc thời gian đệm trước thanh toán NCC.",
             HttpStatus.CONFLICT
     ),
     IMPORT_BATCH_SUPPLIER_REQUIRED("LT_080", "Nhà cung cấp không được để trống.", HttpStatus.BAD_REQUEST),
@@ -510,6 +532,11 @@ public enum ErrorCode {
             "Số ảnh danh sách vé nhập vượt quá giới hạn cho phép (%d ảnh).",
             HttpStatus.BAD_REQUEST
     ),
+    IMPORT_BATCH_EVIDENCE_INVALID_TYPE(
+            "LT_141",
+            "Chỉ hỗ trợ tải lên ảnh, PDF, Excel (.xlsx/.xls) hoặc CSV cho biên lai / danh sách vé nhập.",
+            HttpStatus.BAD_REQUEST
+    ),
     IMPORT_BATCH_FILE_TICKET_COLUMNS_INCOMPLETE(
             "LT_135",
             "Nhập vé cần cả cột dãy số và cột sê-ri.",
@@ -705,6 +732,11 @@ public enum ErrorCode {
             "CHT_015",
             "Bạn đang tạm hạn chế gặp nhân viên do hội thoại trước bị đánh dấu spam. Vui lòng gửi Khiếu nại/Hỗ trợ hoặc thử lại sau.",
             HttpStatus.TOO_MANY_REQUESTS
+    ),
+    CONVERSATION_OPERATOR_AT_CAPACITY(
+            "CHT_016",
+            "Bạn đang hỗ trợ một khách hàng khác. Hãy đóng hoặc trả hội thoại hiện tại trước khi nhận khách mới.",
+            HttpStatus.CONFLICT
     ),
 
     // System Config Errors

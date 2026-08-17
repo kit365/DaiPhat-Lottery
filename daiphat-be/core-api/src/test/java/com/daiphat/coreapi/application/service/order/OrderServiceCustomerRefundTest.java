@@ -10,6 +10,7 @@ import com.daiphat.coreapi.application.port.in.user.UserLookupServicePort;
 import com.daiphat.coreapi.application.port.out.order.OrderRepositoryPort;
 import com.daiphat.coreapi.application.port.out.order.PaymentCountdownCachePort;
 import com.daiphat.coreapi.application.port.out.order.TransactionRepositoryPort;
+import com.daiphat.coreapi.application.port.out.file.StoragePort;
 import com.daiphat.coreapi.application.port.out.refund.RefundRequestRepositoryPort;
 import com.daiphat.coreapi.application.port.out.settings.SystemConfigRepositoryPort;
 import com.daiphat.coreapi.application.service.refund.OrderRefundGraceService;
@@ -59,6 +60,7 @@ class OrderServiceCustomerRefundTest {
     private final RefundRequestRepositoryPort refundRequestRepositoryPort = mock(RefundRequestRepositoryPort.class);
     private final TransactionRepositoryPort transactionRepositoryPort = mock(TransactionRepositoryPort.class);
     private final PaymentTimeoutConfigService paymentTimeoutConfigService = mock(PaymentTimeoutConfigService.class);
+    private final StoragePort storagePort = mock(StoragePort.class);
 
     private OrderServicePort orderService;
     private final UUID customerId = UUID.randomUUID();
@@ -83,7 +85,8 @@ class OrderServiceCustomerRefundTest {
                 eventPublisher,
                 orderRefundGraceService,
                 paymentTimeoutConfigService,
-                org.mockito.Mockito.mock(com.daiphat.coreapi.application.service.support.OrderComplaintEligibilityService.class));
+                org.mockito.Mockito.mock(com.daiphat.coreapi.application.service.support.OrderComplaintEligibilityService.class),
+                storagePort);
 
         when(systemConfigRepositoryPort.findActiveByConfigKey(SystemConfigEnum.ORDER_CANCEL_GRACE_MIN.name()))
                 .thenReturn(Optional.of(SystemConfigModel.builder().configValue("30").build()));

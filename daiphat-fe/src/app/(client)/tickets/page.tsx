@@ -3,14 +3,14 @@ import { dehydrate, HydrationBoundary } from '@/shared/react-query';
 import { createAppQueryClient } from '@/shared/react-query/createAppQueryClient';
 
 import { BuyTicketPage } from '@/client/features/buy-ticket/BuyTicketPage';
-import { prefetchBuyTicketCatalog } from '@/client/features/buy-ticket/prefetch/prefetchBuyTicketCatalog';
+
 import {
     getPublicStationsToday,
     getPublicStationsTomorrow,
 } from '@/shared/station/scheduleApi';
 import { publicStationsQueryKeys } from '@/constants/queryKeys';
 
-export const revalidate = 60;
+export const dynamic = 'force-dynamic';
 
 export default async function TicketsPage() {
     const queryClient = createAppQueryClient();
@@ -27,7 +27,6 @@ export default async function TicketsPage() {
             }),
         ]);
 
-        await prefetchBuyTicketCatalog(queryClient);
     } catch {
         // Backend may be down during CI/build. The client hydrates and fetches on its own.
     }

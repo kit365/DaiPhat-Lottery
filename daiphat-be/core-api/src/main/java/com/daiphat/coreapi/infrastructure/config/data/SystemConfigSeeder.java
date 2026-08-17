@@ -28,6 +28,8 @@ public class SystemConfigSeeder {
     @EventListener(ApplicationReadyEvent.class)
     @Transactional
     public void syncConfigsWithEnum() {
+        migrateLegacyConfigKeys();
+
         Set<String> enumKeys = Arrays.stream(SystemConfigEnum.values())
                 .map(Enum::name)
                 .collect(Collectors.toSet());
@@ -87,6 +89,8 @@ public class SystemConfigSeeder {
         }
 
         int deactivated = 0;
+        // Refresh after inserts / renames so deactivation sees current keys.
+        dbConfigs = configRepository.findAll();
         for (SystemConfigEntity dbConfig : dbConfigs) {
             if (!enumKeys.contains(dbConfig.getConfigKey()) && Boolean.TRUE.equals(dbConfig.getIsActive())) {
                 dbConfig.setIsActive(false);
@@ -103,6 +107,40 @@ public class SystemConfigSeeder {
                 defaultsFilled,
                 deactivated
         );
+    }
+
+    /**
+     * Renames legacy keys in-place so live values are preserved across enum renames.
+     */
+    private void migrateLegacyConfigKeys() {
+        deactivateLegacyConfigKey("PAYMENT_CUTOFF_TIME");
+        deactivateLegacyConfigKey("RECONCILIATION_START");
+        deactivateLegacyConfigKey("VERIFICATION_DEADLINE");
+        bumpDefaultIfUnchanged("RETURN_REMINDER_TIME", "15", "10");
+    }
+
+    /**
+     * Updates a shipped default when the live value still equals the previous product default.
+     */
+    private void bumpDefaultIfUnchanged(String configKey, String previousDefault, String newDefault) {
+        configRepository.findByConfigKey(configKey).ifPresent(config -> {
+            String value = config.getConfigValue();
+            if (value != null && value.trim().equals(previousDefault)) {
+                config.setConfigValue(newDefault);
+                configRepository.save(config);
+                log.info("System: Updated {} default {} → {}.", configKey, previousDefault, newDefault);
+            }
+        });
+    }
+
+    private void deactivateLegacyConfigKey(String legacyKey) {
+        configRepository.findByConfigKey(legacyKey).ifPresent(legacy -> {
+            if (Boolean.TRUE.equals(legacy.getIsActive())) {
+                legacy.setIsActive(false);
+                configRepository.save(legacy);
+                log.info("System: Deactivated legacy system_config key {}.", legacyKey);
+            }
+        });
     }
 
     /**

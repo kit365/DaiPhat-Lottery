@@ -7,6 +7,7 @@ import java.util.List;
 @Builder
 public record ConversationDetailResponse(
         ConversationResponse conversation,
-        List<MessageResponse> messages
+        List<MessageResponse> messages,
+        StaffConversationContextResponse context
 ) {
 }

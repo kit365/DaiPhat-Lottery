@@ -74,7 +74,7 @@ public class LotteryTicketSerialIncidentService {
         if (priorStatus == LotteryTicketSerialStatus.IN_STOCK) {
             handleInternalInventoryAfterFault(faultedSerial, request, actorId);
         } else if (priorStatus == LotteryTicketSerialStatus.RESERVED
-                || priorStatus == LotteryTicketSerialStatus.PROXY_HOLDING) {
+                || priorStatus == LotteryTicketSerialStatus.SOLD) {
             handleActiveTransactionAfterFault(
                     faultedSerial,
                     priorStatus,
@@ -141,7 +141,7 @@ public class LotteryTicketSerialIncidentService {
     /**
      * After the faulted serial is already marked DAMAGED/LOST, returns true when the order
      * has no remaining allocated serials still holding stock for delivery
-     * (RESERVED / PROXY_HOLDING / SOLD).
+     * (RESERVED / SOLD).
      */
     private boolean isLastActiveAllocatedSerialOnOrder(
             LotteryTicketSerialModel faultedSerial,
@@ -167,7 +167,7 @@ public class LotteryTicketSerialIncidentService {
         }
 
         for (OrderDetailModel detail : order.getOrderDetails()) {
-            if (detail.getStatus() != OrderDetailStatus.ACTIVE) {
+            if (!detail.isAwaitingHandover()) {
                 continue;
             }
             for (Long serialId : resolveAllocatedSerialIds(detail)) {
@@ -180,7 +180,6 @@ public class LotteryTicketSerialIncidentService {
                 }
                 LotteryTicketSerialStatus status = serial.getStatus();
                 if (status == LotteryTicketSerialStatus.RESERVED
-                        || status == LotteryTicketSerialStatus.PROXY_HOLDING
                         || status == LotteryTicketSerialStatus.SOLD) {
                     return false;
                 }
@@ -219,8 +218,8 @@ public class LotteryTicketSerialIncidentService {
             UUID orderId = priorOrderId != null ? priorOrderId : orderDetail.getOrderId();
             if (priorStatus == LotteryTicketSerialStatus.RESERVED && orderId != null) {
                 replacement.assumeReservedForOrder(orderId, priorReservationExpiresAt);
-            } else if (priorStatus == LotteryTicketSerialStatus.PROXY_HOLDING && orderId != null) {
-                replacement.assumeProxyHolding(orderId);
+            } else if (priorStatus == LotteryTicketSerialStatus.SOLD && orderId != null) {
+                replacement.sellOnline();
             }
         }
 
@@ -320,7 +319,7 @@ public class LotteryTicketSerialIncidentService {
         }
         Set<Long> ticketIdsToSync = new HashSet<>();
         for (OrderDetailModel detail : order.getOrderDetails()) {
-            if (detail.getStatus() != OrderDetailStatus.ACTIVE) {
+            if (!detail.isAwaitingHandover()) {
                 continue;
             }
             for (Long serialId : resolveAllocatedSerialIds(detail)) {

@@ -216,7 +216,7 @@ export const ImportBatchLineRow = memo(function ImportBatchLineRow({
                 },
             }}
         >
-            <TableCell sx={{ width: '22%', minWidth: 140 }}>
+            <TableCell sx={{ width: '28%' }}>
                 {!showStationSelect ? (
                     <Typography variant="body2" sx={{ fontWeight: 500, lineHeight: 1.5 }}>
                         {displayStationName}
@@ -276,12 +276,12 @@ export const ImportBatchLineRow = memo(function ImportBatchLineRow({
                     />
                 )}
             </TableCell>
-            <TableCell sx={{ width: 100, whiteSpace: 'nowrap' }}>
+            <TableCell sx={{ width: 110, whiteSpace: 'nowrap' }}>
                 <Typography variant="body2">
                     {drawDate ? dayjs(drawDate).format('DD/MM/YYYY') : '—'}
                 </Typography>
             </TableCell>
-            <TableCell align="center" sx={{ width: 168, whiteSpace: 'nowrap' }}>
+            <TableCell align="center" sx={{ width: 140, whiteSpace: 'nowrap' }}>
                 <Box sx={{ display: 'flex', justifyContent: 'center' }}>
                     {batchType ? (
                         <AdminStatusBadge
@@ -316,7 +316,7 @@ export const ImportBatchLineRow = memo(function ImportBatchLineRow({
                     ) : null}
                 </TableCell>
             )}
-            <TableCell sx={{ width: 112, overflow: 'visible' }}>
+            <TableCell sx={{ width: 120, overflow: 'visible' }}>
                 {readOnly || declareQuantityReadOnly ? (
                     <Typography variant="body2" sx={{ lineHeight: 1.5 }}>
                         {declareQuantity.toLocaleString('vi-VN')}
@@ -383,7 +383,7 @@ export const ImportBatchLineRow = memo(function ImportBatchLineRow({
                     />
                 )}
             </TableCell>
-            <TableCell align="center" sx={{ width: 148 }}>
+            <TableCell align="center" sx={{ width: 130 }}>
                 <Typography variant="body2" sx={{ lineHeight: 1.5, textAlign: 'center' }} title="Tính từ giá bán × (1 − hoa hồng đài)">
                     {formatVnd(importCost)}
                 </Typography>
@@ -393,7 +393,7 @@ export const ImportBatchLineRow = memo(function ImportBatchLineRow({
                     render={({ field }) => <input type="hidden" {...field} value={field.value ?? ''} />}
                 />
             </TableCell>
-            <TableCell align="right" sx={{ width: 108, whiteSpace: 'nowrap' }}>
+            <TableCell align="right" sx={{ width: 130, whiteSpace: 'nowrap' }}>
                 <Typography variant="body2" sx={{ fontWeight: 600, lineHeight: 1.5 }}>
                     {formatVnd(lineTotal)}
                 </Typography>
@@ -403,7 +403,7 @@ export const ImportBatchLineRow = memo(function ImportBatchLineRow({
                 align="center"
                 sx={{
                     width:
-                        canPause || canResume || canAdjustDeclareQuantity || canRemove
+                        canPause || canResume || canAdjustDeclareQuantity
                             ? 260
                             : 48,
                     px: 0.5,

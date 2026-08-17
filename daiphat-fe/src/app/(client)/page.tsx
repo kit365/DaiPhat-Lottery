@@ -5,7 +5,7 @@ import { CLIENT_PAGE_BACKGROUND } from '@/client/constants/clientBannerAssets';
 import { HomePage } from '@/client/features/home/HomePage';
 import { fetchHomeInitialData } from '@/lib/server-lottery';
 
-export const revalidate = 30;
+export const dynamic = 'force-dynamic';
 
 export default async function Home() {
     preload(CLIENT_PAGE_BACKGROUND, { as: 'image' });

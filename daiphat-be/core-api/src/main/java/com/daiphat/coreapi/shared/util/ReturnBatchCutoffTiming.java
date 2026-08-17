@@ -29,7 +29,11 @@ public final class ReturnBatchCutoffTiming {
         if (cutoff == null) {
             return null;
         }
-        return cutoff.minusMinutes(Math.max(0, bufferMinutes));
+        // buffer = 0 → open immediately from start of draw day (until cutoff).
+        if (bufferMinutes <= 0) {
+            return LocalDateTime.of(drawDate, LocalTime.MIN);
+        }
+        return cutoff.minusMinutes(bufferMinutes);
     }
 
     public static LocalDateTime reminderTriggerAt(
@@ -57,6 +61,13 @@ public final class ReturnBatchCutoffTiming {
         return !now.isBefore(cutoff);
     }
 
+    /**
+     * Open when {@code now} is in {@code [windowStart, cutoff)}.
+     * <ul>
+     *   <li>{@code bufferMinutes > 0}: windowStart = cutoff − buffer</li>
+     *   <li>{@code bufferMinutes <= 0}: windowStart = 00:00 of draw date (allow anytime until cutoff)</li>
+     * </ul>
+     */
     public static boolean isInInspectionWindow(
             LocalDate drawDate,
             LocalTime returnCutOffTime,

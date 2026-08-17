@@ -262,8 +262,10 @@ class LotteryTicketServiceTest {
                 .build();
 
         lenient().when(lotteryTicketSerialService.findAllByTicketId(any())).thenReturn(List.of());
+        lenient().when(lotteryTicketSerialService.findAllByTicketIds(any())).thenReturn(List.of());
         lenient().when(lotteryTicketSerialService.findFirstByTicketId(any())).thenReturn(Optional.empty());
         lenient().when(lotteryTicketSerialService.findRepresentativeSerialsByTicketIds(any())).thenReturn(Map.of());
+        lenient().when(lotteryTicketSerialService.countSerialsByTicketIds(any())).thenReturn(Map.of());
         lenient().when(lotteryTicketSerialService.countAvailableSerialsByTicketIds(any())).thenReturn(Map.of());
         lenient().when(lotteryTicketApplicationMapper.toResponseDetail(any(), anyList(), nullable(String.class), nullable(String.class), anyInt()))
                 .thenReturn(mappedResponse);
@@ -370,6 +372,7 @@ class LotteryTicketServiceTest {
                 any(PageRequest.class), eq(stationB), eq(List.of(stationB)), any(), any(), any(), any(), any(), any()))
                 .thenReturn(new PageImpl<>(List.of(ticketB1, ticketB2), PageRequest.of(0, 5), 30));
         when(lotteryTicketSerialService.findRepresentativeSerialsByTicketIds(anyList())).thenReturn(Map.of());
+        when(lotteryTicketSerialService.findAllByTicketIds(any())).thenReturn(List.of());
         when(lotteryTicketSerialService.countSerialsByTicketIds(anyList())).thenReturn(Map.of());
         when(lotteryTicketApplicationMapper.toResponse(any(), any(), any(), any(), anyInt())).thenReturn(mappedResponse);
 
@@ -1364,7 +1367,7 @@ class LotteryTicketServiceTest {
     // ============================================================
 
     @Test
-    @DisplayName("[DP-XXX] expireDueTickets: Bỏ qua vé chưa hết hạn và phát sự kiện khi có serial PROXY_HOLDING")
+    @DisplayName("[DP-XXX] expireDueTickets: Bỏ qua vé chưa hết hạn và phát sự kiện khi có serial SOLD")
     void expireDueTickets_coversBranches() {
         LotteryTicketModel notExpired = new LotteryTicketModel();
         notExpired.setId(101L);
@@ -1382,8 +1385,6 @@ class LotteryTicketServiceTest {
         when(lotteryTicketRepositoryPort.findExpirableTickets(any(), any()))
                 .thenReturn(List.of(notExpired, expiredWithProxySerials));
         when(lotteryStationServicePort.getModelById(PRODUCT_ID)).thenReturn(productModel);
-        when(lotteryTicketSerialService.countByStatuses(
-                eq(102L), eq(List.of(LotteryTicketSerialStatus.PROXY_HOLDING)))).thenReturn(1L);
         when(lotteryTicketRepositoryPort.save(any())).thenAnswer(i -> i.getArgument(0));
 
         int count = lotteryTicketService.expireDueTickets();
@@ -1393,11 +1394,7 @@ class LotteryTicketServiceTest {
         verify(lotteryTicketSerialService).expireActiveSerials(102L);
         verify(lotteryTicketRepositoryPort, times(1)).save(expiredWithProxySerials);
 
-        ArgumentCaptor<LotteryTicketProxyExpiredEvent> eventCaptor =
-                ArgumentCaptor.forClass(LotteryTicketProxyExpiredEvent.class);
-        verify(applicationEventPublisher).publishEvent(eventCaptor.capture());
-        assertThat(eventCaptor.getValue().ticketId()).isEqualTo(102L);
-        assertThat(eventCaptor.getValue().ticketNumber()).isEqualTo(NUMBERS);
+        verify(applicationEventPublisher, never()).publishEvent(any());
     }
 
     @Test
@@ -1552,13 +1549,11 @@ class LotteryTicketServiceTest {
     }
 
     @Test
-    @DisplayName("[DP-325] EXPIRE_DUE_TICKETS: Không phát sự kiện proxy khi không có serial PROXY_HOLDING")
-    void expireDueTickets_withoutProxySerials_doesNotPublishEvent() {
+    @DisplayName("[DP-325] EXPIRE_DUE_TICKETS: không phát sự kiện bàn giao cũ")
+    void expireDueTickets_doesNotPublishLegacyHandoverEvent() {
         productModel.setDrawTime(LocalTime.MIN);
         when(lotteryTicketRepositoryPort.findExpirableTickets(any(), anyList())).thenReturn(List.of(existingModel));
         when(lotteryStationServicePort.getModelById(PRODUCT_ID)).thenReturn(productModel);
-        when(lotteryTicketSerialService.countByStatuses(
-                eq(TICKET_ID), eq(List.of(LotteryTicketSerialStatus.PROXY_HOLDING)))).thenReturn(0L);
         when(lotteryTicketRepositoryPort.save(any())).thenReturn(savedModel);
 
         int count = lotteryTicketService.expireDueTickets();

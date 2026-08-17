@@ -31,10 +31,11 @@
         .ticket-table .num { text-align: right; white-space: nowrap; }
         .article { margin-top: 13px; page-break-inside: avoid; }
         .article-title { font-family: 'Noto Sans Bold'; margin-bottom: 3px; }
-        ol { margin: 4px 0 4px 20px; padding-left: 12px; }
-        li { margin: 3px 0; }
+        ol, ul { margin: 4px 0 8px 18px; padding-left: 14px; }
+        li { margin: 4px 0; }
+        ul.policy-list { list-style: disc; margin-top: 2px; margin-bottom: 10px; }
+        ul.policy-list li { margin: 5px 0; }
         .prewrap { white-space: pre-wrap; }
-        .note { color: #4b5563; font-size: 8.5pt; font-style: italic; margin-top: 18px; }
         .signatures { display: table; margin-top: 42px; page-break-inside: avoid; width: 100%; }
         .signature { display: table-cell; text-align: center; width: 50%; }
         .signature-space { height: 92px; }
@@ -126,8 +127,6 @@
     </p>
     </th:block>
 </div>
-
-<p class="note" th:text="${contract.footerNote}">Bản PDF này là bản dự thảo/in từ hệ thống, dùng cùng khung pháp lý với hợp đồng cộng tác bán vé số. Bản đã ký (scan PDF/ảnh) được lưu trên yêu cầu trả thưởng.</p>
 
 <div class="signatures">
     <div class="signature"><div class="party-title" th:text="${contract.partyASignatureLabel}">ĐẠI DIỆN BÊN A</div><div th:text="${contract.siteLegalRepresentativeTitle}">(Chức danh)</div><div class="signature-space"></div><div class="bold" th:text="${contract.siteLegalRepresentative}">Họ tên người đại diện</div></div>

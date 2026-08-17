@@ -8,7 +8,6 @@ import com.daiphat.coreapi.application.port.in.settings.SystemConfigServicePort;
 import com.daiphat.coreapi.application.port.in.streetagent.VendorConfidenceServicePort;
 import com.daiphat.coreapi.application.port.out.settings.SystemConfigCachePort;
 import com.daiphat.coreapi.application.port.out.settings.SystemConfigRepositoryPort;
-import com.daiphat.coreapi.application.service.lotteries.SupplierPaymentCutOffSyncService;
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
 import com.daiphat.coreapi.domain.model.enums.settings.ConfigType;
@@ -28,7 +27,6 @@ import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -38,16 +36,10 @@ public class SystemConfigService implements SystemConfigServicePort {
     /** Safety-net TTL; successful updates always evict immediately. */
     static final Duration CACHE_TTL = Duration.ofMinutes(15);
 
-    private static final Set<String> PAYMENT_CUTOFF_CONFIG_KEYS = Set.of(
-            SystemConfigEnum.VERIFICATION_DEADLINE.name(),
-            SystemConfigEnum.SETTLEMENT_BUFFER_TIME.name()
-    );
-
     private final SystemConfigRepositoryPort systemConfigRepositoryPort;
     private final SystemConfigCachePort systemConfigCachePort;
     private final SystemConfigApplicationMapper systemConfigApplicationMapper;
     private final VendorConfidenceServicePort vendorConfidenceServicePort;
-    private final SupplierPaymentCutOffSyncService supplierPaymentCutOffSyncService;
 
     @Override
     @Transactional(readOnly = true)
@@ -93,16 +85,13 @@ public class SystemConfigService implements SystemConfigServicePort {
         if (confidenceKey) {
             validateVendorConfidenceCrossFields(model, request.configValue());
         }
+        validatePrizeRedemptionCrossFields(model.getConfigKey(), request.configValue());
         systemConfigApplicationMapper.merge(request, model);
         SystemConfigModel saved = systemConfigRepositoryPort.save(model);
 
         systemConfigCachePort.evict(saved.getConfigKey());
         if (confidenceKey) {
             vendorConfidenceServicePort.recalculateAllProfiles();
-        }
-
-        if (PAYMENT_CUTOFF_CONFIG_KEYS.contains(saved.getConfigKey())) {
-            supplierPaymentCutOffSyncService.syncAllSuppliers();
         }
 
         log.info("Updated system config id={} key={}", saved.getId(), saved.getConfigKey());
@@ -218,5 +207,37 @@ public class SystemConfigService implements SystemConfigServicePort {
             current.put(candidate, value);
         }
         VendorConfidencePolicyValidator.validateUpdate(key, updatedValue, current);
+    }
+
+    private void validatePrizeRedemptionCrossFields(String configKey, String updatedValue) {
+        if (!SystemConfigEnum.PRIZE_REDEMPTION_OFFICIAL_DEADLINE_DAYS.name().equals(configKey)
+                && !SystemConfigEnum.PRIZE_REDEMPTION_BUFFER_DAYS.name().equals(configKey)) {
+            return;
+        }
+        int official;
+        int buffer;
+        try {
+            if (SystemConfigEnum.PRIZE_REDEMPTION_OFFICIAL_DEADLINE_DAYS.name().equals(configKey)) {
+                official = Integer.parseInt(updatedValue.trim());
+                buffer = Integer.parseInt(readConfigOrDefault(SystemConfigEnum.PRIZE_REDEMPTION_BUFFER_DAYS));
+            } else {
+                buffer = Integer.parseInt(updatedValue.trim());
+                official = Integer.parseInt(readConfigOrDefault(SystemConfigEnum.PRIZE_REDEMPTION_OFFICIAL_DEADLINE_DAYS));
+            }
+        } catch (NumberFormatException ex) {
+            throw new DomainException(ErrorCode.SYSTEM_CONFIG_VALUE_INVALID);
+        }
+        if (buffer >= official) {
+            throw new DomainException(
+                    ErrorCode.SYSTEM_CONFIG_VALUE_INVALID,
+                    "Số ngày đệm hạn đổi thưởng phải nhỏ hơn hạn lĩnh nhà đài.");
+        }
+    }
+
+    private String readConfigOrDefault(SystemConfigEnum key) {
+        return systemConfigRepositoryPort.findActiveByConfigKey(key.name())
+                .map(SystemConfigModel::getConfigValue)
+                .filter(v -> v != null && !v.isBlank())
+                .orElse(key.getDefaultValue());
     }
 }

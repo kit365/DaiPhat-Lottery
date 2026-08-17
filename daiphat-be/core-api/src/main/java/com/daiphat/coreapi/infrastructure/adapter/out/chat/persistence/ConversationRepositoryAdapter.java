@@ -9,6 +9,7 @@ import com.daiphat.coreapi.infrastructure.persistence.entity.chat.ConversationEn
 import com.daiphat.coreapi.infrastructure.persistence.mapper.chat.ChatPersistenceMapper;
 import com.daiphat.coreapi.infrastructure.persistence.repository.chat.ConversationRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
@@ -182,6 +183,26 @@ public class ConversationRepositoryAdapter implements ConversationRepositoryPort
                         customerId,
                         beforeCreatedAt
                 )
+                .map(chatPersistenceMapper::toConversationDomain);
+    }
+
+    @Override
+    public long countLiveAssignments(UUID operatorId) {
+        if (operatorId == null) {
+            return 0L;
+        }
+        return conversationRepository.countByDeletedAtIsNullAndAssignedOperator_IdAndStatusIn(
+                operatorId,
+                ConversationModel.LIVE_ASSIGNMENT_STATUSES
+        );
+    }
+
+    @Override
+    public Optional<ConversationModel> findNextWaitingForOperatorForUpdate(Long excludeConversationId) {
+        return conversationRepository
+                .findWaitingForOperatorQueueForUpdate(excludeConversationId, PageRequest.of(0, 1))
+                .stream()
+                .findFirst()
                 .map(chatPersistenceMapper::toConversationDomain);
     }
 
