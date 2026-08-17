@@ -279,6 +279,16 @@ public enum ErrorCode {
             "The inspection period for this Return Batch has expired. Please return to the Return Batch List page.",
             HttpStatus.CONFLICT
     ),
+    RETURN_BATCH_INSPECTION_NOT_OPEN(
+            "LT_142",
+            "Chưa đến giờ chuẩn bị/kiểm tra vé trả. Vui lòng đợi đến mốc thời gian đệm trả vé.",
+            HttpStatus.CONFLICT
+    ),
+    SUPPLIER_SETTLEMENT_RECONCILIATION_NOT_OPEN(
+            "LT_143",
+            "Chưa đến giờ đối soát. Vui lòng đợi đến mốc thời gian đệm trước thanh toán NCC.",
+            HttpStatus.CONFLICT
+    ),
     IMPORT_BATCH_SUPPLIER_REQUIRED("LT_080", "Nhà cung cấp không được để trống.", HttpStatus.BAD_REQUEST),
     IMPORT_BATCH_NO_SUPPLIER_CONFIGURED(
             "LT_084",
@@ -508,6 +518,11 @@ public enum ErrorCode {
     IMPORT_BATCH_TICKET_LIST_IMAGE_TOO_MANY(
             "LT_140",
             "Số ảnh danh sách vé nhập vượt quá giới hạn cho phép (%d ảnh).",
+            HttpStatus.BAD_REQUEST
+    ),
+    IMPORT_BATCH_EVIDENCE_INVALID_TYPE(
+            "LT_141",
+            "Chỉ hỗ trợ tải lên ảnh, PDF, Excel (.xlsx/.xls) hoặc CSV cho biên lai / danh sách vé nhập.",
             HttpStatus.BAD_REQUEST
     ),
     IMPORT_BATCH_FILE_TICKET_COLUMNS_INCOMPLETE(

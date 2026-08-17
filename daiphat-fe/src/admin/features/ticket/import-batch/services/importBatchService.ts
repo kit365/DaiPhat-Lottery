@@ -101,6 +101,22 @@ export const attachImportBatchInvoiceEvidence = async (
     return response.data;
 };
 
+/** Upload invoice/receipt evidence (image, PDF, Excel, or CSV). */
+export const uploadImportBatchInvoiceEvidence = async (file: File): Promise<string> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await apiApp.post(`${BASE_URL}/invoice-evidence/upload`, formData, {
+        ...withAuthHeaders(),
+        timeout: 60_000,
+        skipGlobalErrorToast: true,
+    });
+    const url = response.data?.data?.url;
+    if (!url) {
+        throw new Error(response.data?.message || 'Không nhận được URL tệp biên lai từ server');
+    }
+    return url;
+};
+
 export const uploadImportBatchTicketListImage = async (file: File): Promise<string> => {
     const formData = new FormData();
     formData.append('file', file);
@@ -111,7 +127,7 @@ export const uploadImportBatchTicketListImage = async (file: File): Promise<stri
     });
     const url = response.data?.data?.url;
     if (!url) {
-        throw new Error(response.data?.message || 'Không nhận được URL ảnh từ server');
+        throw new Error(response.data?.message || 'Không nhận được URL tệp danh sách vé từ server');
     }
     return url;
 };
@@ -343,7 +359,14 @@ export const commitImportBatchFile = async (
     return response.data;
 };
 
-/** Downloads a batch as CSV in the same schema the importer accepts. */
+/**
+ * Downloads a batch as the .xlsx delivery note: letterhead, both parties, the
+ * station summary and the tickets, in the same schema the importer accepts — so
+ * the file can be edited in Excel and uploaded straight back.
+ */
+export const XLSX_MIME =
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+
 export const exportImportBatchFile = async (importBatchId: number | string): Promise<void> => {
     const response = await apiApp.get(`${FILE_IMPORT_URL}/export/${importBatchId}`, {
         ...withAuthHeaders(),
@@ -353,9 +376,9 @@ export const exportImportBatchFile = async (importBatchId: number | string): Pro
 
     const disposition = String(response.headers?.['content-disposition'] ?? '');
     const match = disposition.match(/filename\*?=(?:UTF-8'')?"?([^";]+)"?/i);
-    const fileName = match ? decodeURIComponent(match[1]) : `phieu-nhap-${importBatchId}.csv`;
+    const fileName = match ? decodeURIComponent(match[1]) : `phieu-nhap-${importBatchId}.xlsx`;
 
-    const url = URL.createObjectURL(new Blob([response.data], { type: 'text/csv;charset=utf-8;' }));
+    const url = URL.createObjectURL(new Blob([response.data], { type: XLSX_MIME }));
     const link = document.createElement('a');
     link.href = url;
     link.download = fileName;

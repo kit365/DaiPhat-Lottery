@@ -273,6 +273,11 @@ public class LotteryTicketSerialService implements LotteryTicketSerialServicePor
     }
 
     @Override
+    public List<LotteryTicketSerialModel> findAllByTicketIds(Collection<Long> ticketIds) {
+        return lotteryTicketSerialRepositoryPort.findAllByTicketIds(ticketIds);
+    }
+
+    @Override
     public long countByImportBatchLineId(Long importBatchLineId) {
         return lotteryTicketSerialRepositoryPort.countByImportBatchLineId(importBatchLineId);
     }

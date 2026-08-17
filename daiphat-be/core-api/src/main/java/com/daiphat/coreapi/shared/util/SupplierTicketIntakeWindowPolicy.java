@@ -33,6 +33,7 @@ public class SupplierTicketIntakeWindowPolicy {
     /**
      * Clock time the ticket sweep begins, or {@code null} when the supplier has no
      * cut-off configured and therefore never closes.
+     * When return buffer is {@code 0}, intake stays open until the cut-off itself.
      */
     public LocalTime inspectionStartTime(LotterySupplierModel supplier) {
         if (supplier == null || supplier.getReturnCutOffTime() == null) {

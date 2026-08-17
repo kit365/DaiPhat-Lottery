@@ -1,6 +1,7 @@
 package com.daiphat.coreapi.application.port.in.lotteries;
 
 import com.daiphat.coreapi.application.dto.request.lotteries.CreateLotterySupplierRequest;
+import com.daiphat.coreapi.application.dto.request.lotteries.UpdateLotterySupplierProfileRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.UpdateLotterySupplierRequest;
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.LotterySupplierResponse;
@@ -11,6 +12,9 @@ public interface LotterySupplierServicePort {
     LotterySupplierResponse create(CreateLotterySupplierRequest request);
 
     LotterySupplierResponse update(Long id, UpdateLotterySupplierRequest request);
+
+    /** Corrects only the identifying details, leaving timing rules alone. */
+    LotterySupplierResponse updateProfile(UpdateLotterySupplierProfileRequest request);
 
     LotterySupplierResponse getById(Long id);
 

@@ -1,6 +1,7 @@
 package com.daiphat.coreapi.application.service.lotteries;
 
 import com.daiphat.coreapi.application.dto.request.lotteries.BulkUpdateLotteryStationPricingRequest;
+import com.daiphat.coreapi.application.dto.request.lotteries.UpdateLotteryStationScheduleRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.ConfirmSyncLotteryStationItem;
 import com.daiphat.coreapi.application.dto.request.lotteries.ConfirmSyncLotteryStationsRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.CreateLotteryStationRequest;
@@ -326,6 +327,44 @@ public class LotteryStationService implements LotteryStationServicePort {
                     saved.getId(), saved.getPrice(), saved.getCommissionRate());
         }
         return updated;
+    }
+
+    /**
+     * Corrects a station's weekly draw schedule and nothing else.
+     *
+     * <p>Reached from the file-import preview, where a file names a station on a
+     * weekday its schedule does not cover - almost always because the schedule went
+     * stale, not because the delivery is wrong. Only drawDays and drawTime move, so
+     * a screen that never loaded the price or region cannot blank them.
+     *
+     * <p>nextDrawDate is derived from the schedule, so it is recomputed here rather
+     * than left pointing at a date the station no longer draws on.
+     */
+    @Override
+    @Transactional
+    public LotteryStationResponse updateSchedule(UpdateLotteryStationScheduleRequest request) {
+        LotteryStationModel model = getProductOrThrow(request.lotteryStationId());
+
+        List<DayOfWeek> drawDays = request.drawDays().stream()
+                .filter(Objects::nonNull)
+                .distinct()
+                .sorted()
+                .toList();
+        if (drawDays.isEmpty()) {
+            throw new DomainException(ErrorCode.INVALID_INPUT,
+                    "Phải chọn ít nhất một ngày quay trong tuần.");
+        }
+
+        model.setDrawDays(new ArrayList<>(drawDays));
+        if (request.drawTime() != null) {
+            model.setDrawTime(request.drawTime());
+        }
+        model.setNextDrawDate(resolveNextDrawDate(model));
+
+        LotteryStationModel saved = lotteryStationRepositoryPort.save(model);
+        log.info("Updated station schedule id={} drawDays={} drawTime={}",
+                saved.getId(), saved.getDrawDays(), saved.getDrawTime());
+        return lotteryStationApplicationMapper.toResponse(saved);
     }
 
     private boolean isActiveStation(LotteryStationModel model) {

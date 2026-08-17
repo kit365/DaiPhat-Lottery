@@ -158,6 +158,9 @@ class _CheckoutViewState extends ConsumerState<CheckoutView> {
         ),
         backgroundColor: Colors.white,
         foregroundColor: const Color(0xFF15213B),
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        surfaceTintColor: Colors.transparent,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
           onPressed: () => context.pop(),
@@ -166,9 +169,17 @@ class _CheckoutViewState extends ConsumerState<CheckoutView> {
       body: Column(
         children: [
           Expanded(
-            child: ListView(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
-              children: [
+            child: RefreshIndicator(
+              color: AppColors.primary,
+              onRefresh: () async {
+                ref.invalidate(receiveTypesProvider);
+                ref.invalidate(transactionTypesProvider);
+                await ref.read(checkoutProvider.notifier).loadUserProfile();
+              },
+              child: ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+                children: [
                 // ─── 1. DANH SÁCH VÉ ──────────────────────────
                 _buildSectionTitle('1. Danh sách vé', number: 1),
                 const SizedBox(height: 10),
@@ -366,6 +377,7 @@ class _CheckoutViewState extends ConsumerState<CheckoutView> {
                 const SizedBox(height: 8),
               ],
             ),
+          ),
           ),
 
           // ─── BOTTOM BAR ─────────────────────────────────────

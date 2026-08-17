@@ -12,6 +12,7 @@ import 'package:daiphat_mobile/src/features/profile/data/models/purchased_ticket
 import 'package:daiphat_mobile/src/features/profile/presentation/providers/profile_providers.dart';
 import 'package:daiphat_mobile/src/features/profile/presentation/widgets/prize_payout_request_sheet.dart';
 import 'package:daiphat_mobile/src/features/profile/utils/ticket_display_utils.dart';
+import 'package:daiphat_mobile/src/features/profile/utils/rebuy_ticket.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
 import 'package:daiphat_mobile/src/shared/utils/app_toast.dart';
 
@@ -109,6 +110,8 @@ class _TicketDetailBody extends ConsumerWidget {
             ],
             const SizedBox(height: 16),
             _buildViewDrawResultButton(context, ref),
+            const SizedBox(height: 10),
+            _buildRebuyButton(context),
           ],
         ),
       ),
@@ -132,6 +135,30 @@ class _TicketDetailBody extends ConsumerWidget {
           foregroundColor: AppColors.textMain,
           backgroundColor: const Color(0xFFF1F5F9),
           side: BorderSide.none,
+          padding: const EdgeInsets.symmetric(vertical: 14),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRebuyButton(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      child: FilledButton.icon(
+        onPressed: () => openRebuyTicket(context, ticket),
+        icon: const Icon(Icons.add_shopping_cart_rounded, size: 18),
+        label: Text(
+          'Mua lại bộ số này',
+          style: GoogleFonts.publicSans(
+            fontWeight: FontWeight.w800,
+            fontSize: 14,
+          ),
+        ),
+        style: FilledButton.styleFrom(
+          backgroundColor: AppColors.primary,
           padding: const EdgeInsets.symmetric(vertical: 14),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),

@@ -26,6 +26,8 @@ import com.daiphat.coreapi.application.dto.response.lotteries.ImportBatchFilePre
 import com.daiphat.coreapi.application.dto.response.lotteries.ImportBatchFileRowResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.ImportBatchFileStationSuggestionResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.ImportBatchFilePricingMismatchResponse;
+import com.daiphat.coreapi.application.dto.response.lotteries.ImportBatchFileScheduleMismatchResponse;
+import com.daiphat.coreapi.application.dto.response.lotteries.ImportBatchFileSupplierIdentityResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.ImportBatchFileStationSummaryResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.ImportBatchLineResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.ImportBatchResponse;
@@ -45,6 +47,7 @@ import com.daiphat.coreapi.application.dto.storage.UploadRequest;
 import com.daiphat.coreapi.application.port.out.file.RemoteFilePort;
 import com.daiphat.coreapi.application.port.out.file.StoragePort;
 import com.daiphat.coreapi.domain.model.enums.lottery.SettlementImportFileCheckStatus;
+import com.daiphat.coreapi.application.port.out.lotteries.LotterySupplierRepositoryPort;
 import com.daiphat.coreapi.application.port.out.lotteries.LotteryStationRepositoryPort;
 import com.daiphat.coreapi.application.port.out.lotteries.LotteryTicketRepositoryPort;
 import com.daiphat.coreapi.application.port.out.lotteries.LotteryTicketSerialRepositoryPort;
@@ -70,16 +73,22 @@ import com.daiphat.coreapi.infrastructure.persistence.repository.lotteries.Impor
 import com.daiphat.coreapi.infrastructure.persistence.repository.lotteries.ImportBatchFileImportLogRepository;
 import com.daiphat.coreapi.infrastructure.persistence.repository.lotteries.ImportBatchFileMappingProfileRepository;
 import com.daiphat.coreapi.infrastructure.persistence.repository.lotteries.LotteryStationAliasRepository;
+import com.daiphat.coreapi.application.dto.lotteries.ImportBatchDocument;
+import com.daiphat.coreapi.application.port.in.user.UserLookupServicePort;
+import com.daiphat.coreapi.shared.util.BusinessDocumentIssuer;
 import com.daiphat.coreapi.shared.util.CsvWriter;
+import com.daiphat.coreapi.shared.util.ImportBatchDocumentWriter;
 import com.daiphat.coreapi.shared.util.ImportBatchDrawDateWindowPolicy;
 import com.daiphat.coreapi.shared.util.ImportBatchFileCellParser;
 import com.daiphat.coreapi.shared.util.ImportBatchFileMappingDetector;
 import com.daiphat.coreapi.shared.util.ImportBatchStationEligibilityResolver;
+import com.daiphat.coreapi.shared.util.LotteryDrawScheduleFormatter;
 import com.daiphat.coreapi.shared.util.ImportBatchTypeResolver;
 import com.daiphat.coreapi.shared.util.ImportCostCalculator;
 import com.daiphat.coreapi.shared.util.LotteryStationCodeGenerator;
 import com.daiphat.coreapi.shared.util.LotteryStationNameResolver;
 import com.daiphat.coreapi.shared.util.ImportBatchFilePricingComparator;
+import com.daiphat.coreapi.shared.util.SupplierIdentityScanner;
 import com.daiphat.coreapi.shared.util.SupplierTicketIntakeWindowPolicy;
 import com.daiphat.coreapi.shared.util.VietnameseTextNormalizer;
 import com.daiphat.coreapi.shared.util.tabular.TabularFileParser;
@@ -101,6 +110,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.Clock;
+import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -117,6 +127,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * Turns a supplier's .csv / .xlsx delivery note into import batches and, when the
@@ -147,12 +158,22 @@ public class ImportBatchFileImportService implements ImportBatchFileImportServic
 
     private static final DateTimeFormatter DATE_DISPLAY = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
+    private static final DateTimeFormatter DATE_TIME_DISPLAY =
+            DateTimeFormatter.ofPattern("HH:mm dd/MM/yyyy");
+
+    private static final DateTimeFormatter TIME_DISPLAY = DateTimeFormatter.ofPattern("HH:mm");
+
     private final TabularFileParser tabularFileParser;
     private final ImportBatchFileMappingDetector mappingDetector;
     private final LotteryStationNameResolver stationNameResolver;
     private final ImportBatchDrawDateWindowPolicy drawDateWindowPolicy;
     private final SupplierTicketIntakeWindowPolicy intakeWindowPolicy;
     private final ImportBatchFilePricingComparator pricingComparator;
+    private final SupplierIdentityScanner supplierIdentityScanner;
+    private final LotterySupplierRepositoryPort lotterySupplierRepositoryPort;
+    private final ImportBatchDocumentWriter documentWriter;
+    private final BusinessDocumentIssuer businessDocumentIssuer;
+    private final UserLookupServicePort userLookupServicePort;
     private final ImportBatchTypeResolver importBatchTypeResolver;
     private final ImportBatchStationEligibilityResolver stationEligibilityResolver;
     private final LotteryStationServicePort lotteryStationServicePort;
@@ -182,8 +203,20 @@ public class ImportBatchFileImportService implements ImportBatchFileImportServic
     public ImportBatchFileInspectResponse inspect(byte[] content, String fileName, Long supplierId) {
         ImportBatchFileConfig config = importBatchFileConfigService.get();
         guardFileSize(content, config);
-        TabularTable table = tabularFileParser.parse(
+        Map<String, List<String>> aliases = mappingDetector.resolveAliases(config.fieldAliases());
+
+        // A business delivery note opens with a letterhead, so the first row of the
+        // file is often a company name rather than the column labels. Parse once to
+        // see the whole file, find the row that actually names the columns, then
+        // parse again from there so headers and rows line up.
+        TabularTable firstPass = tabularFileParser.parse(
                 content, fileName, new TabularParseOptions(null, null, null, config.maxRows()));
+        final int headerRowIndex = mappingDetector.detectHeaderRowIndex(firstPass, aliases);
+        final TabularTable table = headerRowIndex == 0
+                ? firstPass
+                : tabularFileParser.parse(
+                        content, fileName,
+                        new TabularParseOptions(headerRowIndex, null, null, config.maxRows()));
 
         String headerSignature = mappingDetector.headerSignature(table.headers());
         Optional<ImportBatchFileMappingProfileEntity> profile = supplierId == null
@@ -191,10 +224,9 @@ public class ImportBatchFileImportService implements ImportBatchFileImportServic
                 : mappingProfileRepository.findBySupplierIdAndHeaderSignatureAndDeletedAtIsNull(
                         supplierId, headerSignature);
 
-        Map<String, List<String>> aliases = mappingDetector.resolveAliases(config.fieldAliases());
         ImportBatchFileMappingRequest suggested = profile
                 .flatMap(this::readMapping)
-                .orElseGet(() -> mappingDetector.detect(table, aliases));
+                .orElseGet(() -> mappingDetector.detect(table, aliases, headerRowIndex));
 
         return ImportBatchFileInspectResponse.builder()
                 .detectedHeaders(table.headers())
@@ -378,6 +410,9 @@ public class ImportBatchFileImportService implements ImportBatchFileImportServic
         Set<String> seenSerials = new HashSet<>();
 
         for (TabularRow row : table.rows()) {
+            if (isTrailerRow(row, mapping)) {
+                break;
+            }
             PendingRow pending = readRow(row, mapping);
             LocalDate rowDate = pending.drawDate() != null ? pending.drawDate() : drawDate;
             if (!drawDate.equals(rowDate)) {
@@ -518,8 +553,8 @@ public class ImportBatchFileImportService implements ImportBatchFileImportServic
                 .appliedMapping(appliedMapping(request.mapping(), resolution.table()))
                 .detectedHeaders(resolution.table().headers())
                 .fileHash(mappingDetector.sha256(content))
-                .windowFrom(drawDateWindowPolicy.from(now))
-                .windowTo(drawDateWindowPolicy.to(now))
+                .windowFrom(drawDateWindowPolicy.fileImportFrom(now))
+                .windowTo(drawDateWindowPolicy.fileImportTo(now))
                 .importsTickets(request.mapping().importsTickets())
                 .totalRows(allRows.size())
                 .importableRows((int) allRows.stream().filter(ImportBatchFileRowResponse::isImportable).count())
@@ -527,6 +562,7 @@ public class ImportBatchFileImportService implements ImportBatchFileImportServic
                         .filter(row -> row.status() == ImportBatchFileRowStatus.SKIPPED).count())
                 .errorRows((int) allRows.stream()
                         .filter(row -> row.status() == ImportBatchFileRowStatus.ERROR).count())
+                .supplierIdentity(resolution.supplierIdentity())
                 .groups(resolution.groups())
                 .build();
     }
@@ -612,7 +648,10 @@ public class ImportBatchFileImportService implements ImportBatchFileImportServic
 
         ImportBatchResponse batch;
         try {
-            batch = importBatchServicePort.create(toCreateRequest(request, group, supplier), operatorId);
+            batch = importBatchServicePort.create(
+                    toCreateRequest(request, group, supplier, evidence),
+                    operatorId
+            );
         } catch (DomainException e) {
             log.warn("File import could not create the batch for drawDate={}: {}", drawDate, e.getMessage());
             return failure(drawDate, e.getErrorCode().getCode(), e.getMessage());
@@ -650,7 +689,8 @@ public class ImportBatchFileImportService implements ImportBatchFileImportServic
     private CreateImportBatchRequest toCreateRequest(
             ImportBatchFileImportCommitRequest request,
             ImportBatchFileGroupResponse group,
-            LotterySupplierModel supplier
+            LotterySupplierModel supplier,
+            StorageResult originalFileEvidence
     ) {
         List<CreateImportBatchLineRequest> lines = group.stations().stream()
                 .map(station -> CreateImportBatchLineRequest.builder()
@@ -660,12 +700,35 @@ public class ImportBatchFileImportService implements ImportBatchFileImportServic
                         .build())
                 .toList();
 
+        List<String> ticketListUrls = new ArrayList<>();
+        if (request.ticketListImageUrls() != null) {
+            request.ticketListImageUrls().stream()
+                    .filter(url -> url != null && !url.isBlank())
+                    .map(String::trim)
+                    .forEach(ticketListUrls::add);
+        }
+        if (request.shouldUseOriginalFileAsTicketListEvidence()
+                && originalFileEvidence != null
+                && originalFileEvidence.url() != null
+                && !originalFileEvidence.url().isBlank()) {
+            String originalUrl = originalFileEvidence.url().trim();
+            if (!ticketListUrls.contains(originalUrl)) {
+                ticketListUrls.add(originalUrl);
+            }
+        }
+
+        String invoiceUrl = request.invoiceEvidenceUrl() == null || request.invoiceEvidenceUrl().isBlank()
+                ? null
+                : request.invoiceEvidenceUrl().trim();
+
         return CreateImportBatchRequest.builder()
                 .drawDate(group.drawDate())
                 .supplierId(supplier.getId())
                 .importMode(group.importMode())
                 .totalDeclareQuantity(group.totalDeclareQuantity())
                 .forceCreate(request.isForced(group.drawDate()))
+                .invoiceEvidenceUrl(invoiceUrl)
+                .ticketListImageUrls(ticketListUrls.isEmpty() ? null : ticketListUrls)
                 .lines(lines)
                 .build();
     }
@@ -762,11 +825,19 @@ public class ImportBatchFileImportService implements ImportBatchFileImportServic
                 mapping.headerRowIndex(), mapping.delimiter(), mapping.charset(), config.maxRows()));
         validateMapping(table, mapping);
 
+        // Read before any row is: a file belonging to another supplier would import
+        // cleanly and only reveal itself at settlement, against the wrong company.
+        ImportBatchFileSupplierIdentityResponse supplierIdentity =
+                supplierIdentityScanner.scan(table.preamble(), supplier);
+
         Map<String, Long> aliasIndex = loadAliasIndex();
 
         Map<LocalDate, List<PendingRow>> byDrawDate = new LinkedHashMap<>();
         List<PendingRow> undated = new ArrayList<>();
         for (TabularRow row : table.rows()) {
+            if (isTrailerRow(row, mapping)) {
+                break;
+            }
             PendingRow pending = readRow(row, mapping);
             if (pending.drawDate() == null) {
                 undated.add(pending);
@@ -779,13 +850,37 @@ public class ImportBatchFileImportService implements ImportBatchFileImportServic
                 .sorted(Map.Entry.comparingByKey())
                 .map(entry -> buildGroup(
                         entry.getKey(), entry.getValue(), mapping, supplier, aliasIndex, now,
-                        operatorId, config))
+                        operatorId, config, supplierIdentity))
                 .collect(Collectors.toCollection(ArrayList::new));
         if (!undated.isEmpty()) {
             groups.add(buildUndatedGroup(undated, mapping));
         }
 
-        return new ImportBatchFileResolution(table, groups);
+        return new ImportBatchFileResolution(table, groups, supplierIdentity);
+    }
+
+    /**
+     * True once the data table has ended.
+     *
+     * <p>A business delivery note closes with a totals line and a block of
+     * signature boxes. Those sit in the same columns as the tickets, so the parser
+     * hands them over as ordinary rows; read as data they become errors, and with
+     * partial import turned off a single one would hold back the whole draw date.
+     *
+     * <p>A row naming no station at all cannot be a ticket - the station is what a
+     * batch line is keyed by - so the table is treated as finished there.
+     */
+    private boolean isTrailerRow(TabularRow row, ImportBatchFileMappingRequest mapping) {
+        return isBlankColumn(row, mapping.stationColumn())
+                && isBlankColumn(row, mapping.stationCodeColumn());
+    }
+
+    private boolean isBlankColumn(TabularRow row, String column) {
+        if (column == null || column.isBlank()) {
+            return true;
+        }
+        String value = row.get(column);
+        return value == null || value.isBlank();
     }
 
     private PendingRow readRow(TabularRow row, ImportBatchFileMappingRequest mapping) {
@@ -863,12 +958,13 @@ public class ImportBatchFileImportService implements ImportBatchFileImportServic
             Map<String, Long> aliasIndex,
             LocalDateTime now,
             UUID operatorId,
-            ImportBatchFileConfig config
+            ImportBatchFileConfig config,
+            ImportBatchFileSupplierIdentityResponse supplierIdentity
     ) {
-        if (!drawDateWindowPolicy.contains(drawDate, now)) {
+        if (!drawDateWindowPolicy.containsForFileImport(drawDate, now)) {
             // The file legitimately covers dates that are not importable yet;
             // resolving stations for them would be wasted work.
-            return outOfWindowGroup(drawDate, rows);
+            return outOfWindowGroup(drawDate, rows, now);
         }
 
         ImportBatchImportMode importMode = ImportBatchImportMode.IN_DAY;
@@ -888,7 +984,8 @@ public class ImportBatchFileImportService implements ImportBatchFileImportServic
                 ? config.serialSeparator()
                 : mapping.serialSeparator();
         GroupContext context = new GroupContext(
-                drawDate, importMode, candidates, stationsById, aliasIndex, now, serialSeparator);
+                drawDate, importMode, candidates, stationsById, aliasIndex, now, serialSeparator,
+                offScheduleStationsByName(stationsById));
         List<ImportBatchFileRowResponse> resolved = new ArrayList<>();
         for (PendingRow row : rows) {
             resolved.add(mapping.importsTickets()
@@ -900,6 +997,25 @@ public class ImportBatchFileImportService implements ImportBatchFileImportServic
         List<ImportBatchFileIssueResponse> groupIssues = new ArrayList<>();
         ImportBatchFileGroupStatus status = ImportBatchFileGroupStatus.IMPORTABLE;
 
+        // Checked ahead of the time windows: if the file belongs to someone else,
+        // whose intake hours it falls inside is the wrong question to answer.
+        if (supplierIdentity.mismatched()) {
+            groupIssues.add(ImportBatchFileIssueResponse.of(
+                    ImportBatchFileIssueCode.SUPPLIER_IDENTITY_MISMATCH,
+                    null,
+                    supplierIdentityScanner.mismatchMessage(supplierIdentity, supplier),
+                    List.of()));
+            status = ImportBatchFileGroupStatus.BLOCKED;
+        } else if (!supplierIdentity.declared()) {
+            // Only a warning: files from older templates carry no letterhead, and
+            // rejecting them would break every supplier still sending one.
+            groupIssues.add(ImportBatchFileIssueResponse.of(
+                    ImportBatchFileIssueCode.SUPPLIER_IDENTITY_NOT_DECLARED,
+                    null,
+                    String.format("Tệp không ghi thông tin nhà cung cấp nên không đối chiếu được với %s.",
+                            supplier.getName()),
+                    List.of()));
+        }
         if (isBeforeSupplierImportAllowFrom(supplier, now)) {
             groupIssues.add(ImportBatchFileIssueResponse.of(
                     ImportBatchFileIssueCode.SUPPLIER_IMPORT_NOT_ALLOWED,
@@ -928,6 +1044,19 @@ public class ImportBatchFileImportService implements ImportBatchFileImportServic
                     describePricingMismatches(pricingMismatches),
                     List.of()));
             status = ImportBatchFileGroupStatus.BLOCKED;
+        }
+
+        // Rows have been resolved by now, so any off-schedule station has been
+        // recorded. Surfaced at group level as well as per row: one banner is
+        // actionable, a hundred identical row warnings are not.
+        List<ImportBatchFileScheduleMismatchResponse> scheduleMismatches =
+                List.copyOf(context.scheduleMismatches().values());
+        if (!scheduleMismatches.isEmpty()) {
+            groupIssues.add(ImportBatchFileIssueResponse.of(
+                    ImportBatchFileIssueCode.STATION_SCHEDULE_MISMATCH,
+                    null,
+                    describeScheduleMismatches(scheduleMismatches, drawDate),
+                    List.of()));
         }
 
         if (stations.isEmpty()) {
@@ -974,18 +1103,61 @@ public class ImportBatchFileImportService implements ImportBatchFileImportServic
                 .groupIssues(groupIssues)
                 .rows(resolved)
                 .pricingMismatches(pricingMismatches)
+                .scheduleMismatches(scheduleMismatches)
                 .build();
     }
 
-    private ImportBatchFileGroupResponse outOfWindowGroup(LocalDate drawDate, List<PendingRow> rows) {
+    /**
+     * Every station except the ones already drawing on this date, keyed by
+     * canonical name.
+     *
+     * <p>Only consulted after the day's candidates have failed to match, so the
+     * cost is paid once per draw date and never changes which station a good file
+     * resolves to. Ambiguous names are dropped rather than guessed: two stations
+     * sharing a canonical name would make the diagnosis a coin toss.
+     */
+    private Map<String, LotteryStationModel> offScheduleStationsByName(
+            Map<Long, LotteryStationModel> alreadyScheduled
+    ) {
+        Map<String, LotteryStationModel> byName = new HashMap<>();
+        Set<String> ambiguous = new HashSet<>();
+
+        for (LotteryStationModel station : lotteryStationRepositoryPort.findAll()) {
+            if (station.getId() == null || alreadyScheduled.containsKey(station.getId())) {
+                continue;
+            }
+            for (String form : VietnameseTextNormalizer.stationNameForms(station.getName())) {
+                if (form.isEmpty() || ambiguous.contains(form)) {
+                    continue;
+                }
+                LotteryStationModel existing = byName.putIfAbsent(form, station);
+                if (existing != null && !existing.getId().equals(station.getId())) {
+                    byName.remove(form);
+                    ambiguous.add(form);
+                }
+            }
+        }
+        return byName;
+    }
+
+    private ImportBatchFileGroupResponse outOfWindowGroup(
+            LocalDate drawDate,
+            List<PendingRow> rows,
+            LocalDateTime now
+    ) {
+        ImportBatchFileIssueResponse issue = ImportBatchFileIssueResponse.of(
+                ImportBatchFileIssueCode.DRAW_DATE_OUT_OF_WINDOW,
+                null,
+                outOfWindowMessage(drawDate, now),
+                List.of());
+
         List<ImportBatchFileRowResponse> rowResponses = rows.stream()
                 .map(row -> ImportBatchFileRowResponse.builder()
                         .rowNumber(row.rowNumber())
                         .rawValues(row.rawValues())
                         .drawDate(drawDate)
                         .status(ImportBatchFileRowStatus.SKIPPED)
-                        .issues(List.of(ImportBatchFileIssueResponse.of(
-                                ImportBatchFileIssueCode.DRAW_DATE_OUT_OF_WINDOW)))
+                        .issues(List.of(issue))
                         .build())
                 .toList();
 
@@ -997,10 +1169,29 @@ public class ImportBatchFileImportService implements ImportBatchFileImportServic
                 .totalDeclaredCostValue(BigDecimal.ZERO)
                 .ticketCount(0)
                 .stations(List.of())
-                .groupIssues(List.of(ImportBatchFileIssueResponse.of(
-                        ImportBatchFileIssueCode.DRAW_DATE_OUT_OF_WINDOW)))
+                .groupIssues(List.of(issue))
                 .rows(rowResponses)
                 .build();
+    }
+
+    /**
+     * Says which side of today the draw date falls on. "Out of window" alone
+     * leaves the operator guessing whether to wait, re-export, or give up.
+     */
+    private String outOfWindowMessage(LocalDate drawDate, LocalDateTime now) {
+        LocalDate today = now.toLocalDate();
+        if (drawDate.isBefore(today)) {
+            return String.format(
+                    "Ngày quay %s đã qua. Nhập vé từ tệp chỉ áp dụng cho ngày quay hôm nay (%s). "
+                            + "Vé còn sót của ngày đã qua chỉ được bù khi đối soát nhà cung cấp, "
+                            + "do quản trị viên tạo phiếu bổ sung từ màn hình đối soát.",
+                    drawDate.format(DATE_DISPLAY), today.format(DATE_DISPLAY));
+        }
+        return String.format(
+                "Ngày quay %s chưa tới. Nhập vé từ tệp chỉ áp dụng cho ngày quay hôm nay (%s); "
+                        + "hãy tải lại đúng tệp này vào ngày %s.",
+                drawDate.format(DATE_DISPLAY), today.format(DATE_DISPLAY),
+                drawDate.format(DATE_DISPLAY));
     }
 
     /** Declaration-only file: one row is a station and the count it delivered. */
@@ -1136,6 +1327,20 @@ public class ImportBatchFileImportService implements ImportBatchFileImportServic
             LotteryStationNameResolver.Match match = stationNameResolver.resolve(
                     row.stationText(), context.candidates(), context.aliasIndex());
             if (!match.isResolved()) {
+                // Candidates are only the stations drawing that day, so a station
+                // that exists but is off-schedule fails to match and would be
+                // reported as unknown. Look again across every station before
+                // saying the file names something the system has never heard of.
+                LotteryStationModel offSchedule = VietnameseTextNormalizer
+                        .stationNameForms(row.stationText()).stream()
+                        .map(context.offScheduleByName()::get)
+                        .filter(Objects::nonNull)
+                        .findFirst()
+                        .orElse(null);
+                if (offSchedule != null) {
+                    issues.add(offScheduleIssue(offSchedule, context));
+                    return StationResolution.unresolved();
+                }
                 issues.add(stationIssue(match, context.drawDate()));
                 return StationResolution.unresolved();
             }
@@ -1144,7 +1349,13 @@ public class ImportBatchFileImportService implements ImportBatchFileImportServic
 
         LotteryStationModel station = context.stationsById().get(stationId);
         if (station == null) {
-            issues.add(ImportBatchFileIssueResponse.of(ImportBatchFileIssueCode.STATION_NOT_ELIGIBLE));
+            // Resolved to a real station that is not drawing on this date: say
+            // which of the two reasons applies, and hand back enough for the
+            // operator to fix the schedule from the preview.
+            LotteryStationModel known = lotteryStationRepositoryPort.findById(stationId).orElse(null);
+            issues.add(known == null
+                    ? ImportBatchFileIssueResponse.of(ImportBatchFileIssueCode.STATION_NOT_ELIGIBLE)
+                    : offScheduleIssue(known, context));
             return StationResolution.unresolved();
         }
 
@@ -1172,6 +1383,79 @@ public class ImportBatchFileImportService implements ImportBatchFileImportServic
                 RegionLength.of(station),
                 true
         );
+    }
+
+    /**
+     * Explains why a station the system does know cannot take this draw date, and
+     * records it so the group can offer a repair.
+     *
+     * <p>Two different faults land here. A switched-off station is an
+     * administrative decision and only the administrator should reverse it. A
+     * schedule that omits this weekday is usually stale data - the station really
+     * does draw that day now - so the weekday the file implies is reported back
+     * and the operator corrects the schedule from the preview.
+     */
+    private ImportBatchFileIssueResponse offScheduleIssue(
+            LotteryStationModel station,
+            GroupContext context
+    ) {
+        DayOfWeek requiredDay = context.drawDate().getDayOfWeek();
+        String dayLabel = LotteryDrawScheduleFormatter.dayLabel(requiredDay);
+        String schedule = LotteryDrawScheduleFormatter.describe(station);
+        boolean active = station.isActive() && !station.isDeleted();
+
+        context.scheduleMismatches().putIfAbsent(station.getId(), buildScheduleMismatch(
+                station, context.drawDate(), requiredDay, active));
+
+        if (!active) {
+            return ImportBatchFileIssueResponse.of(
+                    ImportBatchFileIssueCode.STATION_INACTIVE,
+                    null,
+                    String.format("Nhà đài %s đang ngừng hoạt động nên không nhập vé được.",
+                            station.getName()),
+                    List.of());
+        }
+
+        return ImportBatchFileIssueResponse.of(
+                ImportBatchFileIssueCode.STATION_SCHEDULE_MISMATCH,
+                null,
+                String.format(
+                        "Ngày quay %s là %s, nhưng lịch quay của đài %s đang là %s. "
+                                + "Hãy sửa lịch quay của đài nếu đài thực sự có quay vào %s.",
+                        context.drawDate().format(DATE_DISPLAY),
+                        dayLabel,
+                        station.getName(),
+                        schedule.isBlank() ? "chưa thiết lập" : schedule,
+                        dayLabel),
+                List.of());
+    }
+
+    private ImportBatchFileScheduleMismatchResponse buildScheduleMismatch(
+            LotteryStationModel station,
+            LocalDate drawDate,
+            DayOfWeek requiredDay,
+            boolean active
+    ) {
+        List<DayOfWeek> current = station.getDrawDays() == null
+                ? List.of()
+                : station.getDrawDays().stream().sorted().toList();
+        // Adding rather than replacing: a station that already serves other days
+        // must keep them, or fixing one import silently breaks those dates.
+        List<DayOfWeek> suggested = Stream.concat(current.stream(), Stream.of(requiredDay))
+                .distinct()
+                .sorted()
+                .toList();
+
+        return ImportBatchFileScheduleMismatchResponse.builder()
+                .lotteryStationId(station.getId())
+                .stationName(station.getName())
+                .stationCode(station.getCode())
+                .drawDate(drawDate.format(DATE_DISPLAY))
+                .currentDrawDays(current)
+                .requiredDrawDays(List.of(requiredDay))
+                .suggestedDrawDays(suggested)
+                .active(active)
+                .build();
     }
 
     /**
@@ -1203,7 +1487,10 @@ public class ImportBatchFileImportService implements ImportBatchFileImportServic
             return null;
         }
         if (!context.stationsById().containsKey(stationId)) {
-            issues.add(ImportBatchFileIssueResponse.of(ImportBatchFileIssueCode.STATION_NOT_ELIGIBLE));
+            LotteryStationModel known = lotteryStationRepositoryPort.findById(stationId).orElse(null);
+            issues.add(known == null
+                    ? ImportBatchFileIssueResponse.of(ImportBatchFileIssueCode.STATION_NOT_ELIGIBLE)
+                    : offScheduleIssue(known, context));
             return null;
         }
         return stationId;
@@ -1599,6 +1886,27 @@ public class ImportBatchFileImportService implements ImportBatchFileImportServic
         return message.toString();
     }
 
+    /** Names every station whose schedule blocks this draw date, and the fix. */
+    private String describeScheduleMismatches(
+            List<ImportBatchFileScheduleMismatchResponse> mismatches,
+            LocalDate drawDate
+    ) {
+        String dayLabel = LotteryDrawScheduleFormatter.dayLabel(drawDate.getDayOfWeek());
+        String stations = mismatches.stream()
+                .map(item -> item.active()
+                        ? String.format("%s (đang quay %s)", item.stationName(),
+                        item.currentDrawDays().isEmpty()
+                                ? "chưa thiết lập"
+                                : LotteryDrawScheduleFormatter.dayLabels(item.currentDrawDays()))
+                        : String.format("%s (ngừng hoạt động)", item.stationName()))
+                .collect(Collectors.joining("; "));
+
+        return String.format(
+                "Ngày quay %s là %s, nhưng %d nhà đài trong tệp không có lịch quay vào thứ này: %s. "
+                        + "Nếu các đài này thực sự có quay, hãy sửa lịch quay rồi xem trước lại.",
+                drawDate.format(DATE_DISPLAY), dayLabel, mismatches.size(), stations);
+    }
+
     private List<ImportBatchFileStationSummaryResponse> summarizeStations(
             List<ImportBatchFileRowResponse> rows,
             Map<Long, LotteryStationModel> stationsById
@@ -1659,8 +1967,8 @@ public class ImportBatchFileImportService implements ImportBatchFileImportServic
                 .storeOriginalFile(config.storeOriginalFile())
                 .allowPartialImport(config.allowPartialImport())
                 .allowedExtensions(List.of("csv", "xlsx"))
-                .drawDateWindowFrom(drawDateWindowPolicy.from(now))
-                .drawDateWindowTo(drawDateWindowPolicy.to(now))
+                .drawDateWindowFrom(drawDateWindowPolicy.fileImportFrom(now))
+                .drawDateWindowTo(drawDateWindowPolicy.fileImportTo(now))
                 .supportedDateFormats(List.of(
                         "dd/MM/yyyy", "d/M/yyyy", "dd-MM-yyyy", "yyyy-MM-dd", "số serial Excel"))
                 // Spelt out because the panel has to explain the whole behaviour,
@@ -1890,43 +2198,172 @@ public class ImportBatchFileImportService implements ImportBatchFileImportServic
     @Transactional(readOnly = true)
     public ImportBatchFileExportResponse export(Long importBatchId) {
         ImportBatchResponse batch = importBatchServicePort.getById(importBatchId);
+        ImportBatchDocument document = assembleDocument(batch);
+
+        return ImportBatchFileExportResponse.builder()
+                .fileName(exportFileName(batch))
+                .content(documentWriter.write(document))
+                .carriesTickets(!document.tickets().isEmpty())
+                .build();
+    }
+
+    /**
+     * Gathers everything the exported document names, resolving each reference
+     * once.
+     *
+     * <p>A delivery note is only worth filing if it says who handed the tickets
+     * over, who received them, and who booked them in - so the supplier record and
+     * the operator's user record are read here rather than left as ids.
+     */
+    private ImportBatchDocument assembleDocument(ImportBatchResponse batch) {
         String drawDate = batch.drawDate().format(DATE_DISPLAY);
 
-        List<List<String>> ticketRows = new ArrayList<>();
-        List<List<String>> declarationRows = new ArrayList<>();
+        List<ImportBatchDocument.StationLine> stations = new ArrayList<>();
+        List<ImportBatchDocument.TicketLine> tickets = new ArrayList<>();
 
         for (ImportBatchLineResponse line : batch.lines()) {
             LotteryStationModel station =
                     lotteryStationServicePort.findModelById(line.lotteryStationId()).orElse(null);
             String code = station == null ? "" : Optional.ofNullable(station.getCode()).orElse("");
             String name = station == null ? "" : station.getName();
+            BigDecimal salePrice = station == null ? null : station.getPrice();
+            BigDecimal commissionPercent = station == null || station.getCommissionRate() == null
+                    ? null
+                    : station.getCommissionRate().multiply(BigDecimal.valueOf(100));
 
-            declarationRows.add(List.of(code, name, drawDate,
-                    String.valueOf(Optional.ofNullable(line.declareQuantity()).orElse(0))));
+            int declared = Optional.ofNullable(line.declareQuantity()).orElse(0);
+            int imported = Optional.ofNullable(line.totalQuantity()).orElse(0);
+
+            stations.add(new ImportBatchDocument.StationLine(
+                    code,
+                    name,
+                    drawDate,
+                    LotteryDrawScheduleFormatter.describe(station),
+                    line.batchType() == null ? "" : line.batchType().getLabel(),
+                    line.status() == null ? "" : line.status().getLabel(),
+                    describeProgress(imported, declared),
+                    declared,
+                    imported,
+                    salePrice,
+                    commissionPercent,
+                    line.importCost(),
+                    line.totalCostValue() != null ? line.totalCostValue() : line.declaredCostValue()
+            ));
 
             lotteryTicketServicePort.listEntryTicketsByImportBatchLine(line.id()).tickets()
-                    .forEach(ticket -> ticket.serials().forEach(serial -> ticketRows.add(List.of(
-                            code,
-                            name,
-                            drawDate,
-                            ticket.numbers(),
-                            serial.serialNumber(),
-                            Optional.ofNullable(serial.ticketImg()).orElse("")
-                    ))));
+                    .forEach(ticket -> ticket.serials().forEach(serial -> tickets.add(
+                            new ImportBatchDocument.TicketLine(
+                                    code,
+                                    name,
+                                    drawDate,
+                                    ticket.numbers(),
+                                    serial.serialNumber(),
+                                    Optional.ofNullable(serial.ticketImg()).orElse(""),
+                                    line.importCost(),
+                                    salePrice,
+                                    commissionPercent
+                            ))));
         }
 
-        // A batch with no tickets yet can only be described as a declaration, and
-        // that file must round-trip too - hence two shapes rather than blank cells.
-        boolean carriesTickets = !ticketRows.isEmpty();
-        String content = carriesTickets
-                ? CsvWriter.toCsv(TICKET_EXPORT_HEADERS, ticketRows)
-                : CsvWriter.toCsv(DECLARATION_EXPORT_HEADERS, declarationRows);
+        return new ImportBatchDocument(
+                new ImportBatchDocument.Header(
+                        batch.batchCode(),
+                        drawDate,
+                        describeBatchType(batch),
+                        batch.status() == null ? "" : batch.status().getLabel(),
+                        batch.importMode() == null ? "" : batch.importMode().getLabel(),
+                        formatMoment(batch.importedAt()),
+                        formatMoment(batch.createdAt()),
+                        formatMoment(batch.completedAt()),
+                        batch.note()
+                ),
+                issuerParty(),
+                supplierParty(batch.supplierId(), batch.supplierName()),
+                importingOperator(batch.importedBy()),
+                new ImportBatchDocument.Totals(
+                        Optional.ofNullable(batch.totalDeclareQuantity()).orElse(0),
+                        Optional.ofNullable(batch.totalImportedQuantity()).orElse(0),
+                        Optional.ofNullable(batch.totalDeclaredCostValue()).orElse(BigDecimal.ZERO),
+                        Optional.ofNullable(batch.totalImportedCostValue()).orElse(BigDecimal.ZERO),
+                        stations.size()
+                ),
+                List.copyOf(stations),
+                List.copyOf(tickets)
+        );
+    }
 
-        return ImportBatchFileExportResponse.builder()
-                .fileName(exportFileName(batch))
-                .content(content)
-                .carriesTickets(carriesTickets)
-                .build();
+    /**
+     * The batch as a whole has no type - each line carries its own. They almost
+     * always agree, so the shared value is named and a mixed batch says so rather
+     * than silently reporting the first line's type as the batch's.
+     */
+    private String describeBatchType(ImportBatchResponse batch) {
+        List<String> distinct = batch.lines().stream()
+                .map(ImportBatchLineResponse::batchType)
+                .filter(Objects::nonNull)
+                .map(ImportBatchType::getLabel)
+                .distinct()
+                .toList();
+        if (distinct.isEmpty()) {
+            return "";
+        }
+        return distinct.size() == 1 ? distinct.getFirst() : String.join(" + ", distinct);
+    }
+
+    private String describeProgress(int imported, int declared) {
+        if (declared <= 0) {
+            return imported > 0 ? String.valueOf(imported) : "—";
+        }
+        return String.format("%d/%d (%d%%)", imported, declared,
+                Math.round(imported * 100.0 / declared));
+    }
+
+    private ImportBatchDocument.Party issuerParty() {
+        BusinessDocumentIssuer.Issuer issuer = businessDocumentIssuer.resolve();
+        return new ImportBatchDocument.Party(
+                issuer.legalName(), null, issuer.taxCode(), issuer.representative(),
+                issuer.phone(), issuer.email(), issuer.address());
+    }
+
+    /**
+     * Falls back to the name denormalised onto the batch when the supplier record
+     * is gone: a deleted supplier must not make an old delivery note unprintable.
+     */
+    private ImportBatchDocument.Party supplierParty(Long supplierId, String fallbackName) {
+        // Read straight from the repository, not through getActiveModelById: an old
+        // batch belonging to a since-deactivated supplier must still print.
+        LotterySupplierModel supplier = supplierId == null
+                ? null
+                : lotterySupplierRepositoryPort.findById(supplierId).orElse(null);
+        if (supplier == null) {
+            return new ImportBatchDocument.Party(
+                    fallbackName, null, null, null, null, null, null);
+        }
+        return new ImportBatchDocument.Party(
+                supplier.getName(),
+                supplier.getCode(),
+                supplier.getTaxCode(),
+                supplier.getContactName(),
+                supplier.getContactPhone(),
+                supplier.getContactEmail(),
+                supplier.getAddress());
+    }
+
+    private ImportBatchDocument.Operator importingOperator(UUID operatorId) {
+        if (operatorId == null) {
+            return new ImportBatchDocument.Operator(null, null, null, null);
+        }
+        return userLookupServicePort.findById(operatorId)
+                .map(user -> new ImportBatchDocument.Operator(
+                        user.getFullName(),
+                        user.getRole() == null ? null : user.getRole().getName(),
+                        user.getPhoneNumber(),
+                        user.getEmail()))
+                .orElseGet(() -> new ImportBatchDocument.Operator(null, null, null, null));
+    }
+
+    private String formatMoment(LocalDateTime moment) {
+        return moment == null ? null : moment.format(DATE_TIME_DISPLAY);
     }
 
     /**
@@ -1960,7 +2397,7 @@ public class ImportBatchFileImportService implements ImportBatchFileImportServic
 
     private String exportFileName(ImportBatchResponse batch) {
         String code = Optional.ofNullable(batch.batchCode()).orElse("PN-" + batch.id());
-        return "phieu-nhap-" + code.replaceAll("[^A-Za-z0-9._-]", "-") + ".csv";
+        return "phieu-nhap-" + code.replaceAll("[^A-Za-z0-9._-]", "-") + ".xlsx";
     }
 
     // ------------------------------------------------------- learned data
@@ -2241,6 +2678,14 @@ public class ImportBatchFileImportService implements ImportBatchFileImportServic
             Map<String, Long> aliasIndex,
             LocalDateTime now,
             String serialSeparator,
+            /**
+             * Active stations NOT drawing on this date, keyed by canonical name.
+             * Lets a name that fails to match the day's candidates be recognised as
+             * a real station with the wrong schedule, rather than as an unknown one.
+             */
+            Map<String, LotteryStationModel> offScheduleByName,
+            /** Filled while resolving rows; one entry per offending station. */
+            Map<Long, ImportBatchFileScheduleMismatchResponse> scheduleMismatches,
             Map<Long, Integer> firstRowByStation,
             Map<TicketKey, Integer> firstRowByTicket,
             Set<String> seenSerials
@@ -2255,6 +2700,22 @@ public class ImportBatchFileImportService implements ImportBatchFileImportServic
                 String serialSeparator
         ) {
             this(drawDate, importMode, candidates, stationsById, aliasIndex, now, serialSeparator,
+                    Map.of(), new LinkedHashMap<>(),
+                    new HashMap<>(), new HashMap<>(), new HashSet<>());
+        }
+
+        GroupContext(
+                LocalDate drawDate,
+                ImportBatchImportMode importMode,
+                List<LotteryStationNameResolver.Candidate> candidates,
+                Map<Long, LotteryStationModel> stationsById,
+                Map<String, Long> aliasIndex,
+                LocalDateTime now,
+                String serialSeparator,
+                Map<String, LotteryStationModel> offScheduleByName
+        ) {
+            this(drawDate, importMode, candidates, stationsById, aliasIndex, now, serialSeparator,
+                    offScheduleByName, new LinkedHashMap<>(),
                     new HashMap<>(), new HashMap<>(), new HashSet<>());
         }
     }

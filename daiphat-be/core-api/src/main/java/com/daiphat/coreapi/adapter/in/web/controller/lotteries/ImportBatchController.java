@@ -83,11 +83,20 @@ public class ImportBatchController {
         );
     }
 
+    @PostMapping(value = "/invoice-evidence/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("hasAnyAuthority('importBatch:create')")
+    public ApiResponse<StorageResult> uploadInvoiceEvidence(@RequestPart("file") MultipartFile file) {
+        return ApiResponse.success(
+                "Tải tệp biên lai phiếu nhập thành công.",
+                importBatchServicePort.uploadInvoiceEvidence(StorageUtils.toUploadRequest(file))
+        );
+    }
+
     @PostMapping(value = "/ticket-list-images/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @PreAuthorize("hasAnyAuthority('importBatch:create')")
     public ApiResponse<StorageResult> uploadTicketListImage(@RequestPart("file") MultipartFile file) {
         return ApiResponse.success(
-                "Tải ảnh danh sách vé nhập thành công.",
+                "Tải tệp danh sách vé nhập thành công.",
                 importBatchServicePort.uploadTicketListImage(StorageUtils.toUploadRequest(file))
         );
     }

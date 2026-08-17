@@ -1,6 +1,5 @@
 "use client";
 
-import ReportProblemIcon from '@mui/icons-material/ReportProblem';
 import { Toolbar, Box, Button, Badge, SvgIcon } from '@mui/material';
 import { useMemo, type Dispatch, type SetStateAction } from 'react';
 import { IGridSettings, JiraFilter } from '../../../../../shared/data-grid';
@@ -29,8 +28,6 @@ interface ToolbarProps {
     onClearFilters: () => void;
     onSearchChange: (search: string) => void;
     onDateRangeChange?: (range: { startDate: string; endDate: string }) => void;
-    cancelSelectedCount?: number;
-    onCancelTicketsClick?: () => void;
 }
 
 export const TicketToolbar = ({
@@ -42,8 +39,6 @@ export const TicketToolbar = ({
     onClearFilters,
     onSearchChange,
     onDateRangeChange,
-    cancelSelectedCount = 0,
-    onCancelTicketsClick,
 }: ToolbarProps) => {
     const { data: stationsData } = useStations({ limit: 1000 });
 
@@ -123,17 +118,6 @@ export const TicketToolbar = ({
                         </Button>
                     )}
                 />
-                {cancelSelectedCount > 0 && onCancelTicketsClick && (
-                    <Button
-                        variant="contained"
-                        size="small"
-                        color="error"
-                        onClick={onCancelTicketsClick}
-                        startIcon={<ReportProblemIcon />}
-                    >
-                        Huỷ vé ({cancelSelectedCount})
-                    </Button>
-                )}
                 <Columns />
                 <ExportButton />
                 <SettingsList settings={settings} onSettingsChange={onSettingsChange} />

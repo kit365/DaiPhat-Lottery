@@ -11,6 +11,8 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.Optional;
 
@@ -29,37 +31,42 @@ class SupplierPaymentCutOffCalculatorTest {
     private SupplierPaymentCutOffCalculator calculator;
 
     @Test
-    @DisplayName("calculate uses verification deadline + buffer minutes")
-    void calculate_addsBuffer() {
-        when(systemConfigRepositoryPort.findActiveByConfigKey(SystemConfigEnum.VERIFICATION_DEADLINE.name()))
-                .thenReturn(Optional.of(SystemConfigModel.builder()
-                        .configKey(SystemConfigEnum.VERIFICATION_DEADLINE.name())
-                        .configValue("17:00")
-                        .build()));
+    @DisplayName("reconciliation start is payment cut-off minus buffer")
+    void resolveReconciliationStart_subtractsBuffer() {
         when(systemConfigRepositoryPort.findActiveByConfigKey(SystemConfigEnum.SETTLEMENT_BUFFER_TIME.name()))
                 .thenReturn(Optional.of(SystemConfigModel.builder()
                         .configKey(SystemConfigEnum.SETTLEMENT_BUFFER_TIME.name())
                         .configValue("120")
                         .build()));
 
-        assertThat(calculator.calculate()).isEqualTo(LocalTime.of(19, 0));
+        assertThat(calculator.resolveReconciliationStart(LocalTime.of(19, 0))).isEqualTo(LocalTime.of(17, 0));
     }
 
     @Test
-    @DisplayName("addBufferSameDay rejects wrap past midnight")
-    void addBufferSameDay_rejectsOvernight() {
-        assertThatThrownBy(() -> SupplierPaymentCutOffCalculator.addBufferSameDay(LocalTime.of(23, 0), 120))
-                .isInstanceOf(DomainException.class);
-    }
-
-    @Test
-    @DisplayName("falls back to enum defaults when configs missing")
-    void calculate_usesDefaults() {
-        when(systemConfigRepositoryPort.findActiveByConfigKey(SystemConfigEnum.VERIFICATION_DEADLINE.name()))
-                .thenReturn(Optional.empty());
+    @DisplayName("buffer 0 opens reconciliation from start of day")
+    void isReconciliationWindowOpen_zeroBuffer() {
         when(systemConfigRepositoryPort.findActiveByConfigKey(SystemConfigEnum.SETTLEMENT_BUFFER_TIME.name()))
-                .thenReturn(Optional.empty());
+                .thenReturn(Optional.of(SystemConfigModel.builder()
+                        .configKey(SystemConfigEnum.SETTLEMENT_BUFFER_TIME.name())
+                        .configValue("0")
+                        .build()));
 
-        assertThat(calculator.calculate()).isEqualTo(LocalTime.of(19, 0));
+        assertThat(calculator.isReconciliationWindowOpen(
+                LocalDate.of(2026, 8, 16),
+                LocalTime.of(19, 0),
+                LocalDateTime.of(2026, 8, 16, 8, 0)
+        )).isTrue();
+        assertThat(calculator.isReconciliationWindowOpen(
+                LocalDate.of(2026, 8, 16),
+                LocalTime.of(19, 0),
+                LocalDateTime.of(2026, 8, 15, 23, 59)
+        )).isFalse();
+    }
+
+    @Test
+    @DisplayName("subtractBufferSameDay rejects wrap before midnight")
+    void subtractBufferSameDay_rejectsOvernight() {
+        assertThatThrownBy(() -> SupplierPaymentCutOffCalculator.subtractBufferSameDay(LocalTime.of(1, 0), 120))
+                .isInstanceOf(DomainException.class);
     }
 }

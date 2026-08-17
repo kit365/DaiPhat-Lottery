@@ -55,6 +55,7 @@ public record CreateLotterySupplierRequest(
         @JsonFormat(pattern = "HH:mm")
         LocalTime returnCutOffTime,
 
+        @NotNull(message = "Giờ thanh toán NCC không được để trống")
         @JsonFormat(pattern = "HH:mm")
         LocalTime paymentCutOffTime,
 

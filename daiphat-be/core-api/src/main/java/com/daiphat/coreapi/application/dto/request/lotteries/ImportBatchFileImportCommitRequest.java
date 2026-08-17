@@ -20,6 +20,10 @@ import java.util.List;
  *
  * @param drawDates            draw dates the operator ticked; one batch per date
  * @param forceCreateDrawDates dates to create even though an editable batch already exists
+ * @param invoiceEvidenceUrl   shared invoice/receipt file URL (image or document)
+ * @param ticketListImageUrls  extra ticket-list evidence URLs (images or documents)
+ * @param useOriginalFileAsTicketListEvidence when true, also attach the imported CSV/XLSX
+ *                                            as ticket-list evidence on each created batch
  */
 @Builder
 public record ImportBatchFileImportCommitRequest(
@@ -36,10 +40,20 @@ public record ImportBatchFileImportCommitRequest(
         @NotEmpty(message = "Chưa chọn ngày quay nào để tạo phiếu")
         List<LocalDate> drawDates,
 
-        List<LocalDate> forceCreateDrawDates
+        List<LocalDate> forceCreateDrawDates,
+
+        String invoiceEvidenceUrl,
+
+        List<String> ticketListImageUrls,
+
+        Boolean useOriginalFileAsTicketListEvidence
 ) {
 
     public boolean isForced(LocalDate drawDate) {
         return forceCreateDrawDates != null && forceCreateDrawDates.contains(drawDate);
+    }
+
+    public boolean shouldUseOriginalFileAsTicketListEvidence() {
+        return useOriginalFileAsTicketListEvidence == null || useOriginalFileAsTicketListEvidence;
     }
 }

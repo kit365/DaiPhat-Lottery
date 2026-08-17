@@ -43,6 +43,22 @@ export type UpdateLotterySupplierPayload = CreateLotterySupplierPayload & {
     isActive: boolean;
 };
 
+/**
+ * The identifying details only — no intake hours, payment terms, type or active
+ * flag. Used by the quick correction offered when an uploaded file's letterhead
+ * disagrees with the supplier record.
+ */
+export interface UpdateLotterySupplierProfilePayload {
+    supplierId: number;
+    name: string;
+    code: string;
+    contactName?: string;
+    contactPhone: string;
+    contactEmail?: string;
+    address?: string;
+    taxCode?: string;
+}
+
 export interface SupplierListParams {
     page?: number;
     size?: number;

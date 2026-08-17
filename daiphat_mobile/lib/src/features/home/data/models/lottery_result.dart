@@ -80,18 +80,23 @@ class LotteryResult {
         LotteryPrizeRow(label: 'Giai tam', values: prizes.eighth, highlight: true),
       ];
 
-  List<LotoRowData> get lotoRows {
-    final allNumbers = <String>[
-      prizes.special,
-      prizes.first,
-      prizes.second,
-      ...prizes.third,
-      ...prizes.fourth,
-      ...prizes.fifth,
-      ...prizes.sixth,
-      ...prizes.seventh,
-      ...prizes.eighth,
-    ].where((value) => value.trim().isNotEmpty).toList();
+  Iterable<String> get allPrizeNumbers => <String>[
+        prizes.special,
+        prizes.first,
+        prizes.second,
+        ...prizes.third,
+        ...prizes.fourth,
+        ...prizes.fifth,
+        ...prizes.sixth,
+        ...prizes.seventh,
+        ...prizes.eighth,
+      ].where((value) => value.trim().isNotEmpty);
+
+  List<LotoRowData> get lotoRows => calculateLotoRows(allPrizeNumbers);
+}
+
+List<LotoRowData> calculateLotoRows(Iterable<String> numbers) {
+    final allNumbers = numbers.toList();
 
     final asHead = <String, Map<String, int>>{};
     final asTail = <String, Map<String, int>>{};
@@ -120,7 +125,6 @@ class LotteryResult {
         tails: _formatLotoCounts(asHead[focus]!),
       );
     });
-  }
 }
 
 class LotteryResultSummaryApiResponse {

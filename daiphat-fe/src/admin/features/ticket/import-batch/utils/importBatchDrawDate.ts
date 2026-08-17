@@ -214,6 +214,28 @@ export const isInReturnCutOffWarningWindow = (
 };
 
 /**
+ * True when ticket intake is closed for today's draw — same rule as BE
+ * ({@code returnCutOffTime − RETURN_BUFFER}).
+ */
+export const isTicketIntakeClosed = (
+    returnCutOffTime?: string,
+    returnBufferMinutes = 45,
+    now: Dayjs = dayjs()
+) => {
+    const cutoff = parseClockTime(returnCutOffTime);
+    if (!cutoff) {
+        return false;
+    }
+    const todayCutoff = now
+        .hour(cutoff.hour())
+        .minute(cutoff.minute())
+        .second(0)
+        .millisecond(0);
+    const inspectionStart = todayCutoff.subtract(Math.max(0, returnBufferMinutes), 'minute');
+    return now.isSame(inspectionStart) || now.isAfter(inspectionStart);
+};
+
+/**
  * Resolves the default draw date for a new import batch:
  * If the cutoff time for today has passed, defaults to tomorrow.
  * Otherwise, defaults to today.

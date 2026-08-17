@@ -3,6 +3,7 @@ package com.daiphat.coreapi.adapter.in.web.controller.lotteries;
 import com.daiphat.coreapi.adapter.in.web.constants.ApiConstants;
 import com.daiphat.coreapi.adapter.in.web.response.ApiResponse;
 import com.daiphat.coreapi.application.dto.request.lotteries.CreateLotterySupplierRequest;
+import com.daiphat.coreapi.application.dto.request.lotteries.UpdateLotterySupplierProfileRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.UpdateLotterySupplierRequest;
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.LotterySupplierResponse;
@@ -55,6 +56,20 @@ public class LotterySupplierController {
                 null,
                 lotterySupplierServicePort.getAll(page, size, search, isActive, sortBy, direction)
         );
+    }
+
+    /**
+     * Fixes identifying details from the file-import preview, which is where a
+     * stale phone number or address surfaces — hence importBatch:create is
+     * accepted alongside supplier:edit. Timing rules are not reachable here.
+     */
+    @PutMapping("/profile")
+    @PreAuthorize("hasAnyAuthority('supplier:edit', 'importBatch:create')")
+    public ApiResponse<LotterySupplierResponse> updateProfile(
+            @Valid @RequestBody UpdateLotterySupplierProfileRequest request) {
+        return ApiResponse.success(
+                "Đã cập nhật thông tin nhà cung cấp.",
+                lotterySupplierServicePort.updateProfile(request));
     }
 
     @PutMapping("/{id}")

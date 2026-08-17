@@ -53,7 +53,8 @@ public interface SupplierSettlementServicePort {
     int updateExpiredSettlements();
 
     /**
-     * Transition OPEN settlements past VERIFICATION_DEADLINE with missing receipt to RECEIPT_OVERDUE
+     * Transition OPEN settlements past supplier {@code paymentCutOffTime} that are still
+     * unfinished (not CLOSED) to RECEIPT_OVERDUE and notify admins of late payment.
      * and notify Admin once (idempotent via status gate).
      */
     int markReceiptOverdueSettlements();

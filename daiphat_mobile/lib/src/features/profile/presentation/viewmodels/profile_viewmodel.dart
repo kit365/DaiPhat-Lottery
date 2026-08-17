@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:daiphat_mobile/src/features/auth/data/models/user.dart';
 import 'package:daiphat_mobile/src/features/auth/data/repositories/auth_repository.dart';
+import 'package:daiphat_mobile/src/features/auth/presentation/viewmodels/login_viewmodel.dart';
 import 'package:daiphat_mobile/src/features/profile/data/dto/update_profile_request.dart';
 import 'package:daiphat_mobile/src/shared/network/api_exception.dart';
 
 class ProfileViewModel extends ChangeNotifier {
   final AuthRepository _authRepository;
+  final LoginViewModel _loginViewModel;
 
-  ProfileViewModel(this._authRepository) {
+  ProfileViewModel(this._authRepository, this._loginViewModel) {
     // Automatically load when created
     loadUser();
   }
@@ -93,6 +95,7 @@ class ProfileViewModel extends ChangeNotifier {
 
   Future<void> logout() async {
     await _authRepository.logout();
+    _loginViewModel.onLoggedOut();
     notifyListeners();
   }
 }

@@ -40,8 +40,6 @@ declare module '@mui/x-data-grid' {
     interface ToolbarPropsOverrides {
         settings: IGridSettings;
         onSettingsChange: import('react').Dispatch<import('react').SetStateAction<IGridSettings>>;
-        cancelSelectedCount?: number;
-        onCancelTicketsClick?: () => void;
     }
 }
 
@@ -73,17 +71,24 @@ export const TicketList = ({
     const cancelSelection = externalCancelSelection || internalCancelSelection;
 
     const columns = useMemo<GridColDef[]>(
-        () => [
-            buildCancelSelectColumn({
-                selectedSerials: cancelSelection.selectedSerials,
-                totalCancelableSerialsCount: cancelSelection.totalCancelableSerialsCount,
-                onSelectAll: cancelSelection.handleSelectAll,
-                onSelectTicket: cancelSelection.handleSelectTicket,
-                getTicketSelectionState: cancelSelection.getTicketSelectionState,
-            }),
-            ...columnsConfig,
-        ],
+        () => {
+            if (!cancelSelection.isCancelMode) {
+                return columnsConfig;
+            }
+
+            return [
+                buildCancelSelectColumn({
+                    selectedSerials: cancelSelection.selectedSerials,
+                    totalCancelableSerialsCount: cancelSelection.totalCancelableSerialsCount,
+                    onSelectAll: cancelSelection.handleSelectAll,
+                    onSelectTicket: cancelSelection.handleSelectTicket,
+                    getTicketSelectionState: cancelSelection.getTicketSelectionState,
+                }),
+                ...columnsConfig,
+            ];
+        },
         [
+            cancelSelection.isCancelMode,
             cancelSelection.selectedSerials,
             cancelSelection.totalCancelableSerialsCount,
             cancelSelection.handleSelectAll,
@@ -94,7 +99,7 @@ export const TicketList = ({
 
     const handleReportSuccess = () => {
         cancelSelection.closeReportDialog();
-        cancelSelection.clearSelection();
+        cancelSelection.exitCancelMode();
         queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.TICKETS] });
     };
 
@@ -162,8 +167,6 @@ export const TicketList = ({
                                 onSearchChange: setSearchFilter,
                                 onDateRangeChange: ({ startDate, endDate }: { startDate: string; endDate: string }) =>
                                     setDateRangeFilter(toIsoDate(startDate), toIsoDate(endDate)),
-                                cancelSelectedCount: cancelSelection.selectedSerials.length,
-                                onCancelTicketsClick: cancelSelection.openReportDialog,
                             } as any,
                         }}
                         localeText={DATA_GRID_LOCALE_VN}

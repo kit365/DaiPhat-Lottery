@@ -34,9 +34,11 @@ import 'package:daiphat_mobile/src/features/profile/presentation/views/prize_pay
 import 'package:daiphat_mobile/src/features/profile/presentation/views/prize_payout_detail_view.dart';
 import 'package:daiphat_mobile/src/features/profile/presentation/views/complaints_view.dart';
 import 'package:daiphat_mobile/src/features/profile/presentation/views/complaint_detail_view.dart';
+import 'package:daiphat_mobile/src/features/profile/presentation/views/security_view.dart';
 import 'package:daiphat_mobile/src/features/admin/presentation/views/admin_scan_view.dart';
 import 'package:daiphat_mobile/src/features/admin/presentation/viewmodels/admin_scan_viewmodel.dart';
 import 'package:daiphat_mobile/src/features/fortune/presentation/views/fortune_cast_view.dart';
+import 'package:daiphat_mobile/src/features/schedule/presentation/views/schedule_view.dart';
 import 'app_routes.dart';
 
 final rootNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'root');
@@ -99,7 +101,9 @@ GoRouter createAppRouter({
 
       final path = state.uri.path;
       if (path != AppRoute.login.path &&
-          (path == AppRoute.cart.path || path == AppRoute.checkout.path) &&
+          (path == AppRoute.cart.path ||
+              path == AppRoute.checkout.path ||
+              path == AppRoute.notifications.path) &&
           !loginViewModel.isAuthenticated) {
         return Uri(
           path: AppRoute.login.path,
@@ -142,13 +146,21 @@ GoRouter createAppRouter({
             profileViewModel,
             notificationViewModel,
           ),
-          _route(
-            AppRoute.profile,
-            loginViewModel,
-            registerViewModel,
-            forgotPasswordViewModel,
-            profileViewModel,
-            notificationViewModel,
+          GoRoute(
+            path: AppRoute.profile.path,
+            name: AppRoute.profile.name,
+            builder: (context, state) => ProfileView(
+              viewModel: profileViewModel,
+              notificationViewModel: notificationViewModel,
+            ),
+            routes: [
+              GoRoute(
+                path: 'security',
+                name: AppRoute.security.name,
+                parentNavigatorKey: rootNavigatorKey,
+                builder: (context, state) => const SecurityView(),
+              ),
+            ],
           ),
         ],
       ),
@@ -360,6 +372,14 @@ GoRouter createAppRouter({
         profileViewModel,
         notificationViewModel,
       ),
+      _route(
+        AppRoute.schedule,
+        loginViewModel,
+        registerViewModel,
+        forgotPasswordViewModel,
+        profileViewModel,
+        notificationViewModel,
+      ),
     ],
   );
 }
@@ -414,6 +434,7 @@ Widget _buildRoute(
         ticketNumber: state.uri.queryParameters['ticketNumber'] ??
             state.uri.queryParameters['search'],
         drawDate: state.uri.queryParameters['drawDate'],
+        stationName: state.uri.queryParameters['station'],
       );
     case AppRoute.checkTicket:
       return const CheckTicketView();
@@ -452,6 +473,8 @@ Widget _buildRoute(
         viewModel: profileViewModel,
         notificationViewModel: notificationViewModel,
       );
+    case AppRoute.security:
+      return const SecurityView();
     case AppRoute.profileEdit:
       return ProfileEditView(viewModel: profileViewModel);
     case AppRoute.profileDetail:
@@ -508,5 +531,7 @@ Widget _buildRoute(
       return AdminScanView(viewModel: AdminScanViewModel());
     case AppRoute.fortune:
       return FortuneCastView(profileViewModel: profileViewModel);
+    case AppRoute.schedule:
+      return const ScheduleView();
   }
 }

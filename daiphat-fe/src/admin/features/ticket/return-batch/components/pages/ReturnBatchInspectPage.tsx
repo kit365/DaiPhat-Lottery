@@ -263,7 +263,23 @@ export const ReturnBatchInspectPage = () => {
     const confirmInspection = useConfirmReturnInspection();
 
     const inspectionExpired = Boolean(batch?.inspectionExpired || batch?.status === 'CANCELLED');
-    const mutationsBlocked = inspectionExpired;
+    const inspectionNotOpen = Boolean(batch && !inspectionExpired && batch.inInspectionWindow === false);
+    const mutationsBlocked = inspectionExpired || inspectionNotOpen;
+
+    useEffect(() => {
+        if (!batch || isBatchLoading) {
+            return;
+        }
+        if (inspectionExpired) {
+            toast.warning('Đã quá hạn trả vé. Chỉ có thể xem chi tiết phiếu trả.');
+            router.replace(ROUTES.ADMIN.RETURN_BATCH.DETAIL(batch.id));
+            return;
+        }
+        if (inspectionNotOpen) {
+            toast.info('Chưa đến giờ chuẩn bị/kiểm tra vé trả.');
+            router.replace(ROUTES.ADMIN.RETURN_BATCH.DETAIL(batch.id));
+        }
+    }, [batch, isBatchLoading, inspectionExpired, inspectionNotOpen, router]);
 
     const [deliveryMode, setDeliveryMode] = useState<ReturnDeliveryMode>('RETAILER_DELIVERS');
     const [selectedSerialIds, setSelectedSerialIds] = useState<Set<number>>(new Set());

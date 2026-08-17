@@ -219,6 +219,18 @@ class ReturnBatchAutoGenerationServiceTest {
     }
 
     @Test
+    @DisplayName("buffer 0 opens from start of draw day")
+    void isPastAutoCreateTrigger_zeroBuffer() {
+        LocalDateTime earlyMorning = LocalDateTime.of(DRAW_DATE, LocalTime.of(0, 0));
+        LocalDateTime beforeDay = LocalDateTime.of(DRAW_DATE.minusDays(1), LocalTime.of(23, 59));
+
+        assertThat(ReturnBatchAutoGenerationService.isPastAutoCreateTrigger(
+                LocalTime.of(16, 0), DRAW_DATE, earlyMorning, 0)).isTrue();
+        assertThat(ReturnBatchAutoGenerationService.isPastAutoCreateTrigger(
+                LocalTime.of(16, 0), DRAW_DATE, beforeDay, 0)).isFalse();
+    }
+
+    @Test
     @DisplayName("enriches PENDING batch with missing stations on rerun")
     void generate_enrichesMissingStations() {
         when(lotterySupplierRepositoryPort.findAllActive()).thenReturn(List.of(minhChinh));
