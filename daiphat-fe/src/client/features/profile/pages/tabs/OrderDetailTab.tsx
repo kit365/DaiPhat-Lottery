@@ -464,7 +464,7 @@ export const OrderDetailTab = () => {
                         <div className="flex flex-col gap-1.5">
                             <span className="text-[13px] font-medium text-[#637381]">Loại đơn</span>
                             <span className="text-[14px] font-medium text-[#212B36] min-h-[26px] flex items-center">
-                                {order.orderType === 'ONLINE' ? 'Mua online' : 'Mua trực tiếp'}
+                                {order.orderType === 'ONLINE' ? 'Mua trực tuyến' : 'Mua trực tiếp'}
                             </span>
                         </div>
                         <div className="flex flex-col gap-1.5 sm:items-end">
@@ -496,13 +496,13 @@ export const OrderDetailTab = () => {
                             <span className="text-[14px] font-medium text-[#212B36]">
                                 {(() => {
                                     if (!order.transactions || order.transactions.length === 0) {
-                                        return order.orderType === 'DIRECT' ? 'Thanh toán tiền mặt' : 'Thanh toán online';
+                                        return order.orderType === 'DIRECT' ? 'Thanh toán tiền mặt' : 'Thanh toán trực tuyến';
                                     }
                                     const types = new Set(order.transactions.map((t: any) => t.type));
                                     if (types.has('OFFLINE') && types.has('ONLINE')) {
-                                        return 'Tiền mặt & Online';
+                                        return 'Tiền mặt & Trực tuyến';
                                     }
-                                    return types.has('OFFLINE') ? 'Thanh toán tiền mặt' : 'Thanh toán online';
+                                    return types.has('OFFLINE') ? 'Thanh toán tiền mặt' : 'Thanh toán trực tuyến';
                                 })()}
                             </span>
                         </div>

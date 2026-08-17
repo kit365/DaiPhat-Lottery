@@ -61,7 +61,7 @@ public class OrderController {
             @AuthenticationPrincipal AuthenticatedUserPrincipal principal) {
         log.info("REST request to create online order by user: {}", principal.getId());
         OrderModel order = orderServicePort.createOnlineOrder(request, principal.getId());
-        return ApiResponse.success("Tạo đơn hàng online thành công.", orderApplicationMapper.toResponse(order));
+        return ApiResponse.success("Tạo đơn hàng trực tuyến thành công.", orderApplicationMapper.toResponse(order));
     }
 
     @PostMapping("/direct")
