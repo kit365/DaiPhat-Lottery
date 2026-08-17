@@ -87,7 +87,6 @@ const ADJUSTMENT_REASON_LABELS: Record<SettlementAdjustmentReasonCode, string> =
     SHIPPING_FEE: 'Phí vận chuyển',
     LATE_PENALTY: 'Phạt chậm',
     DISCOUNT: 'Chiết khấu / giảm trừ',
-    ROUNDING: 'Làm tròn',
     OTHER: 'Khác',
 };
 

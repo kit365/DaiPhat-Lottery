@@ -329,14 +329,28 @@ class SupplierSettlementServiceTest {
         assertThat(overview.kpis().remainingPayableAmount()).isEqualByComparingTo(BigDecimal.ZERO);
     }
 
+    /** A supplier whose money is due at 17:00 on the settlement day. */
+    private LotterySupplierModel supplierWithPaymentCutOff(LocalTime paymentCutOff) {
+        return LotterySupplierModel.builder()
+                .id(9L)
+                .name("Minh Chính")
+                .paymentCutOffTime(paymentCutOff)
+                .build();
+    }
+
     @Test
-    @DisplayName("markReceiptOverdue transitions OPEN past verification deadline without receipt")
+    @DisplayName("markReceiptOverdue transitions OPEN past that supplier's own payment cut-off")
     void markReceiptOverdue_marksOnce() {
+        // The deadline is not a fixed hour any more: it is this supplier's
+        // paymentCutOffTime on the settlement day, so the supplier record is what
+        // decides, and 17:01 is one minute past it.
         fixedClock(LocalDate.of(2026, 8, 8), LocalTime.of(17, 1));
-        when(supplierPaymentCutOffCalculator.resolveVerificationDeadline()).thenReturn(LocalTime.of(17, 0));
+        when(lotterySupplierRepositoryPort.findById(9L))
+                .thenReturn(Optional.of(supplierWithPaymentCutOff(LocalTime.of(17, 0))));
 
         SupplierSettlementModel overdueCandidate = SupplierSettlementModel.builder()
                 .id(21L)
+                .lotterySupplierId(9L)
                 .supplierName("Minh Chính")
                 .supplierSettlementCode("DS-20260808-0001")
                 .periodFrom(LocalDate.of(2026, 8, 8))
@@ -361,24 +375,28 @@ class SupplierSettlementServiceTest {
     }
 
     @Test
-    @DisplayName("markReceiptOverdue skips settlements that already have receipt or are before deadline")
+    @DisplayName("markReceiptOverdue skips settlements before the cut-off or with no supplier to read it from")
     void markReceiptOverdue_skipsNonCandidates() {
         fixedClock(LocalDate.of(2026, 8, 8), LocalTime.of(16, 0));
-        when(supplierPaymentCutOffCalculator.resolveVerificationDeadline()).thenReturn(LocalTime.of(17, 0));
+        when(lotterySupplierRepositoryPort.findById(9L))
+                .thenReturn(Optional.of(supplierWithPaymentCutOff(LocalTime.of(17, 0))));
 
-        SupplierSettlementModel withReceipt = SupplierSettlementModel.builder()
+        // An hour before this supplier's cut-off: still in time to pay.
+        SupplierSettlementModel beforeDeadline = SupplierSettlementModel.builder()
                 .id(22L)
+                .lotterySupplierId(9L)
                 .periodFrom(LocalDate.of(2026, 8, 8))
-                .supplierSettlementReceiptUrl("https://cdn.example/receipt.jpg")
                 .status(SupplierSettlementStatus.OPEN)
                 .build();
-        SupplierSettlementModel beforeDeadline = SupplierSettlementModel.builder()
+        // No supplier linked, so there is no cut-off to judge it against; marking
+        // it overdue would be an accusation the data cannot support.
+        SupplierSettlementModel withoutSupplier = SupplierSettlementModel.builder()
                 .id(23L)
                 .periodFrom(LocalDate.of(2026, 8, 8))
                 .status(SupplierSettlementStatus.OPEN)
                 .build();
         when(supplierSettlementRepositoryPort.findByStatus(SupplierSettlementStatus.OPEN))
-                .thenReturn(List.of(withReceipt, beforeDeadline));
+                .thenReturn(List.of(beforeDeadline, withoutSupplier));
 
         int updated = supplierSettlementService.markReceiptOverdueSettlements();
 

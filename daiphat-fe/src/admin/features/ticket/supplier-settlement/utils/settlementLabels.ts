@@ -20,7 +20,7 @@ export const getSupplierSettlementStatusLabel = (
         return 'Đang mở';
     }
     if (status === 'RECEIPT_OVERDUE') {
-        return 'Quá hạn biên lai';
+        return 'Trễ hạn thanh toán';
     }
     if (status === 'CLOSED') {
         return 'Đã chốt';

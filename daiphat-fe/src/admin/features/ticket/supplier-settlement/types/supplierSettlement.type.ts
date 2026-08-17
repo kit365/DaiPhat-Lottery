@@ -22,7 +22,6 @@ export type SettlementAdjustmentReasonCode =
     | 'SHIPPING_FEE'
     | 'LATE_PENALTY'
     | 'DISCOUNT'
-    | 'ROUNDING'
     | 'OTHER';
 
 export type SettlementAdjustmentGroupType = 'IMPORT' | 'RETURN' | 'SETTLEMENT';
@@ -111,6 +110,10 @@ export interface SupplierSettlement {
     paidAt?: string | null;
     createdAt?: string | null;
     updatedAt?: string | null;
+    settlementBufferMinutes?: number | null;
+    paymentCutOffTime?: string | null;
+    reconciliationWindowStartAt?: string | null;
+    inReconciliationWindow?: boolean | null;
 }
 
 export interface SupplierSettlementKpis {

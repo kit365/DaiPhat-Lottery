@@ -34,6 +34,7 @@ import { Button as LoadingButton } from '../../../../../components/ui/Button';
 import { Title } from '../../../../../components/ui/Title';
 import { ROUTES } from '../../../../../constants/routes';
 import { formatSettlementMoney, formatSignedCashflow, toAgencyCashflow } from '../../utils/settlementCashflow';
+import { clearMatchingActualsDraft } from '../../utils/clearMatchingActualsDraft';
 import {
     useAddSettlementMonetaryAdjustment,
     useCompleteSettlementReconciliation,
@@ -67,6 +68,7 @@ import { SettlementCompletionDashboard } from '../sections/SettlementCompletionD
 import { SettlementPaymentEvidencePanel } from '../sections/SettlementPaymentEvidencePanel';
 import { SettlementReconciliationSummaryCard } from '../sections/SettlementReconciliationSummaryCard';
 import { SettlementReconciliationTabs } from '../sections/SettlementReconciliationTabs';
+import { ReconciliationWindowNoticeBanner } from '../sections/ReconciliationWindowNoticeBanner';
 
 const formatDate = (dStr?: string) => {
     if (!dStr) return '';
@@ -179,6 +181,9 @@ export const SupplierSettlementInspectPage = () => {
     const canRematch = phase !== 'MATCHING' && phase !== 'COMPLETED' && settlement.status !== 'CLOSED';
     const showMatchingForm = phase === 'MATCHING' || isEditingMatching;
     const showPostMatchingContent = phase !== 'MATCHING' && !isEditingMatching;
+    const reconciliationLocked = settlement.inReconciliationWindow === false
+        && settlement.status !== 'CLOSED'
+        && phase !== 'COMPLETED';
 
     return (
         <Box sx={{ width: '100%', pb: 5 }}>
@@ -212,6 +217,14 @@ export const SupplierSettlementInspectPage = () => {
                 </div>
             </div>
 
+            {reconciliationLocked && (
+                <ReconciliationWindowNoticeBanner
+                    reconciliationWindowStartAt={settlement.reconciliationWindowStartAt}
+                    settlementBufferMinutes={settlement.settlementBufferMinutes}
+                    variant="inspect"
+                />
+            )}
+
             <Paper
                 elevation={0}
                 sx={{
@@ -243,7 +256,7 @@ export const SupplierSettlementInspectPage = () => {
 
 
                 {showMatchingForm && (
-                    <Box sx={{ mb: 3 }}>
+                    <Box sx={{ mb: 3, pointerEvents: reconciliationLocked ? 'none' : 'auto', opacity: reconciliationLocked ? 0.55 : 1 }}>
                         {isEditingMatching && phase !== 'MATCHING' && (
                             <Alert severity="info" sx={{ mb: 2, borderRadius: '12px' }}>
                                 Bạn đang chỉnh lại số liệu đã nhập. Sau khi xác nhận, hệ thống sẽ đối chiếu lại và làm mới kết quả chênh lệch.
@@ -259,6 +272,7 @@ export const SupplierSettlementInspectPage = () => {
                             stationPricing={stationPricing}
                             inventoryByStation={inventoryByStation}
                             isSubmitting={confirmMatching.isPending}
+                            onCancelEdit={isEditingMatching && phase !== 'MATCHING' ? () => setIsEditingMatching(false) : undefined}
                             onReceiptUploaded={() => {
                                 void refetch();
                             }}
@@ -279,18 +293,6 @@ export const SupplierSettlementInspectPage = () => {
                                 }
                             }}
                         />
-                        {isEditingMatching && phase !== 'MATCHING' && (
-                            <Stack direction="row" justifyContent="flex-end" sx={{ mt: 1.5 }}>
-                                <Button
-                                    variant="text"
-                                    disabled={confirmMatching.isPending}
-                                    onClick={() => setIsEditingMatching(false)}
-                                    sx={{ textTransform: 'none', fontWeight: 600, color: '#64748b' }}
-                                >
-                                    Hủy chỉnh sửa
-                                </Button>
-                            </Stack>
-                        )}
                     </Box>
                 )}
 
@@ -767,6 +769,9 @@ export const SupplierSettlementInspectPage = () => {
                                     if (result?.completed) {
                                         AppToast.success(result.message || 'Đã hoàn tất đối soát.');
                                         setConfirmOpen(false);
+                                        if (id != null) {
+                                            void clearMatchingActualsDraft(id);
+                                        }
                                     } else {
                                         AppToast.error(result?.message || 'Còn chênh lệch thanh toán.');
                                         setConfirmOpen(false);

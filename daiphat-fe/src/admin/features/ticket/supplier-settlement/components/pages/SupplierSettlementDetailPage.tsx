@@ -1,10 +1,23 @@
 "use client";
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
 import { useRouteParams } from "@/hooks/useRouteParams";
-import { Box, Card, Typography } from '@mui/material';
+import {
+    Alert,
+    Box,
+    Button as MuiButton,
+    Card,
+    Dialog,
+    DialogActions,
+    DialogContent,
+    DialogTitle,
+    Stack,
+    Typography,
+} from '@mui/material';
+import AssignmentReturnOutlinedIcon from '@mui/icons-material/AssignmentReturnOutlined';
 import dayjs from 'dayjs';
+import { toast } from 'react-toastify';
 import { PageHeader } from '../../../../../components/ui/PageHeader';
 import { SpinnerLoading } from '../../../../../components/ui/SpinnerLoading';
 import { AdminStatusBadge } from '../../../../../components/ui/AdminStatusBadge';
@@ -14,8 +27,12 @@ import { useSupplierSettlementList, useSupplierSettlementOverview } from '../../
 import {
     getSupplierSettlementStatusLabel,
     getSupplierSettlementStatusModifier,
+    isReturnBatchHandedOver,
 } from '../../utils/settlementLabels';
+import { getReturnBatchStatusLabel } from '../../../return-batch/utils/returnBatchLabels';
 import { ExpiredReturnSettlementBanner } from '../sections/ExpiredReturnSettlementBanner';
+import { PendingReturnBatchBanner, resolveReturnBatchPath } from '../sections/PendingReturnBatchBanner';
+import { ReconciliationWindowNoticeBanner } from '../sections/ReconciliationWindowNoticeBanner';
 import { SettlementConsolidatedDetails } from '../sections/SettlementConsolidatedDetails';
 import { SettlementKpiCards } from '../sections/SettlementKpiCards';
 import { SettlementOverviewSummary } from '../sections/SettlementOverviewSummary';
@@ -31,9 +48,48 @@ export const SupplierSettlementDetailPage = () => {
     const { id } = useRouteParams();
     const { data: overview, isLoading, isError } = useSupplierSettlementOverview(id);
     const { allSettlements } = useSupplierSettlementList();
+    const [pendingReturnConfirmOpen, setPendingReturnConfirmOpen] = useState(false);
 
     const settlement = overview?.settlement;
     const isExpired = Boolean(settlement?.isReturnExpired);
+    const canStartReconciliation =
+        settlement?.status !== 'CLOSED' &&
+        settlement?.reconciliationPhase !== 'COMPLETED' &&
+        Boolean(settlement?.inReconciliationWindow);
+
+    const pendingReturnBatches = useMemo(
+        () =>
+            (overview?.returnBatches || []).filter(
+                (batch) =>
+                    Boolean(batch?.status) &&
+                    batch.status !== 'CANCELLED' &&
+                    !isReturnBatchHandedOver(batch.status)
+            ),
+        [overview?.returnBatches]
+    );
+    const hasPendingReturnBatches = pendingReturnBatches.length > 0;
+
+    const goToInspect = () => {
+        router.push(ROUTES.ADMIN.SUPPLIER_SETTLEMENT.INSPECT(id || ''));
+    };
+
+    const handleStartReconciliation = () => {
+        if (!settlement) {
+            return;
+        }
+        if (!canStartReconciliation) {
+            const startLabel = settlement.reconciliationWindowStartAt
+                ? dayjs(settlement.reconciliationWindowStartAt).format('HH:mm DD/MM/YYYY')
+                : 'khung giờ mở đối soát';
+            toast.warning(`Chưa đến thời gian mở đối soát (dự kiến mở lúc ${startLabel}).`);
+            return;
+        }
+        if (hasPendingReturnBatches) {
+            setPendingReturnConfirmOpen(true);
+            return;
+        }
+        goToInspect();
+    };
 
     const expiredItems = useMemo(
         () => (allSettlements.length > 0 ? allSettlements.filter((s: any) => s.isReturnExpired) : []),
@@ -73,6 +129,7 @@ export const SupplierSettlementDetailPage = () => {
         ? dayjs(settlement.periodFrom).format('DD/MM/YYYY')
         : '—';
     const periodTo = settlement.periodTo ? dayjs(settlement.periodTo).format('DD/MM/YYYY') : '—';
+    const primaryPendingBatch = pendingReturnBatches[0];
 
     return (
         <div className="admin-list-page">
@@ -114,15 +171,28 @@ export const SupplierSettlementDetailPage = () => {
                 }
                 breadcrumbItems={breadcrumbItems}
                 action={
-                    <Button
-                        variant="contained"
-                        className="btn-primary-admin"
-                        onClick={() => router.push(ROUTES.ADMIN.SUPPLIER_SETTLEMENT.INSPECT(id || ''))}
-                    >
-                        Tiến hành kiểm tra
-                    </Button>
+                    settlement?.status !== 'CLOSED' && settlement?.reconciliationPhase !== 'COMPLETED' ? (
+                        <Button
+                            variant="contained"
+                            className="btn-primary-admin"
+                            disabled={!canStartReconciliation}
+                            onClick={handleStartReconciliation}
+                        >
+                            Tiến hành kiểm tra
+                        </Button>
+                    ) : undefined
                 }
             />
+
+            {settlement?.status !== 'CLOSED' &&
+                settlement?.reconciliationPhase !== 'COMPLETED' &&
+                settlement?.inReconciliationWindow === false && (
+                    <ReconciliationWindowNoticeBanner
+                        reconciliationWindowStartAt={settlement.reconciliationWindowStartAt}
+                        settlementBufferMinutes={settlement.settlementBufferMinutes}
+                        variant="detail"
+                    />
+                )}
 
             {(isExpired || expiredCount > 0) && (
                 <ExpiredReturnSettlementBanner
@@ -135,6 +205,10 @@ export const SupplierSettlementDetailPage = () => {
                     expiredItems={expiredItems.length > 0 ? expiredItems : [settlement]}
                     currentSettlementId={Number(id)}
                 />
+            )}
+
+            {hasPendingReturnBatches && (
+                <PendingReturnBatchBanner pendingBatches={pendingReturnBatches} />
             )}
 
             <Card elevation={0} sx={cardSx}>
@@ -162,6 +236,72 @@ export const SupplierSettlementDetailPage = () => {
                 importBatches={overview.importBatches || []}
                 returnBatches={overview.returnBatches || []}
             />
+
+            <Dialog
+                open={pendingReturnConfirmOpen}
+                onClose={() => setPendingReturnConfirmOpen(false)}
+                maxWidth="xs"
+                fullWidth
+                PaperProps={{ sx: { borderRadius: '14px' } }}
+            >
+                <DialogTitle sx={{ fontWeight: 800, pr: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <AssignmentReturnOutlinedIcon color="warning" />
+                    Phiếu trả chưa hoàn tất
+                </DialogTitle>
+                <DialogContent>
+                    <Alert severity="warning" sx={{ mb: 1.5, borderRadius: '10px' }}>
+                        {pendingReturnBatches.length === 1
+                            ? `Phiếu ${primaryPendingBatch?.batchCode || `#${primaryPendingBatch?.id}`} đang ở trạng thái ${getReturnBatchStatusLabel(primaryPendingBatch?.status as any, primaryPendingBatch?.statusLabel)}.`
+                            : `Có ${pendingReturnBatches.length} phiếu trả trong kỳ chưa hoàn tất kiểm tra hoặc bàn giao NCC.`}
+                    </Alert>
+                    <Typography variant="body2" color="text.secondary">
+                        Nên xử lý phiếu trả trước để số liệu đối soát chính xác hơn. Bạn có thể mở phiếu trả ngay, hoặc vẫn tiếp tục vào màn hình đối soát.
+                    </Typography>
+                    {pendingReturnBatches.length > 1 && (
+                        <Stack spacing={0.75} sx={{ mt: 1.5 }}>
+                            {pendingReturnBatches.map((batch) => (
+                                <Typography key={batch.id} variant="caption" sx={{ fontWeight: 600 }}>
+                                    · {batch.batchCode || `#${batch.id}`} —{' '}
+                                    {getReturnBatchStatusLabel(batch.status as any, batch.statusLabel)}
+                                </Typography>
+                            ))}
+                        </Stack>
+                    )}
+                </DialogContent>
+                <DialogActions sx={{ px: 3, pb: 2, gap: 1, flexWrap: 'wrap' }}>
+                    <MuiButton
+                        variant="text"
+                        color="inherit"
+                        onClick={() => setPendingReturnConfirmOpen(false)}
+                        sx={{ textTransform: 'none', fontWeight: 600 }}
+                    >
+                        Đóng
+                    </MuiButton>
+                    <MuiButton
+                        variant="outlined"
+                        color="warning"
+                        onClick={() => {
+                            setPendingReturnConfirmOpen(false);
+                            if (primaryPendingBatch) {
+                                router.push(resolveReturnBatchPath(primaryPendingBatch));
+                            }
+                        }}
+                        sx={{ textTransform: 'none', fontWeight: 700 }}
+                    >
+                        Xem phiếu trả
+                    </MuiButton>
+                    <MuiButton
+                        variant="contained"
+                        onClick={() => {
+                            setPendingReturnConfirmOpen(false);
+                            goToInspect();
+                        }}
+                        sx={{ textTransform: 'none', fontWeight: 700 }}
+                    >
+                        Tiếp tục đối soát
+                    </MuiButton>
+                </DialogActions>
+            </Dialog>
         </div>
     );
 };

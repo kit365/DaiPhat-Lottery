@@ -30,7 +30,6 @@ const MONETARY_REASONS: Array<{ value: SettlementAdjustmentReasonCode; label: st
     { value: 'SHIPPING_FEE', label: 'Phí vận chuyển (−)' },
     { value: 'LATE_PENALTY', label: 'Phạt chậm (−)' },
     { value: 'DISCOUNT', label: 'Chiết khấu / giảm trừ (+)' },
-    { value: 'ROUNDING', label: 'Làm tròn (±)' },
     { value: 'OTHER', label: 'Khác (±)' },
 ];
 
