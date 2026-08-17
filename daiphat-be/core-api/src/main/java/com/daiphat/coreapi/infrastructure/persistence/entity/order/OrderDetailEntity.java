@@ -67,7 +67,7 @@ public class OrderDetailEntity {
     private BigDecimal price;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 20)
+    @Column(nullable = false, length = 40)
     private OrderDetailStatus status;
 
     @Column(name = "rejection_reason", length = 500)
