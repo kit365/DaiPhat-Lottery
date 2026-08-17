@@ -1,3 +1,4 @@
+# Production compose definition for DaiPhat Lottery Platform
 name: daiphat-prod
 
 x-dozzle-infrastructure-labels: &dozzle-infrastructure-labels
