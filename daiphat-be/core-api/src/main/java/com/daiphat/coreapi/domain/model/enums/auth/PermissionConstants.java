@@ -43,6 +43,7 @@ public final class PermissionConstants {
     public static final String SYSTEM = ":system";
     public static final String ANALYTICS = ":analytics";
     public static final String ECOMMERCE = ":ecommerce";
+    public static final String STAFF = ":staff";
     public static final String APPROVE = ":approve";
     public static final String REJECT = ":reject";
     public static final String PROCESS = ":process";

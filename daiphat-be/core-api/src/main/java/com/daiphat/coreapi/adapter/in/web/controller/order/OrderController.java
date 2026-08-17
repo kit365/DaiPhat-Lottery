@@ -7,6 +7,10 @@ import com.daiphat.coreapi.application.dto.request.refund.CreateOrderRefundReque
 import com.daiphat.coreapi.application.dto.request.order.CreateDirectOrderRequest;
 import com.daiphat.coreapi.application.dto.request.order.CreateOnlineOrderRequest;
 import com.daiphat.coreapi.application.dto.request.order.UpdateOrderStatusRequest;
+import com.daiphat.coreapi.application.dto.request.order.ConfirmOrderHandoverRequest;
+import com.daiphat.coreapi.application.dto.request.order.ReviewPaymentTimeoutComplaintRequest;
+import com.daiphat.coreapi.application.dto.storage.StorageResult;
+import com.daiphat.coreapi.shared.util.StorageUtils;
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.response.order.EnumOptionResponse;
 import com.daiphat.coreapi.application.dto.response.order.OrderResponse;
@@ -32,6 +36,8 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.http.MediaType;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -61,7 +67,7 @@ public class OrderController {
             @AuthenticationPrincipal AuthenticatedUserPrincipal principal) {
         log.info("REST request to create online order by user: {}", principal.getId());
         OrderModel order = orderServicePort.createOnlineOrder(request, principal.getId());
-        return ApiResponse.success("Tạo đơn hàng online thành công.", orderApplicationMapper.toResponse(order));
+        return ApiResponse.success("Tạo đơn hàng trực tuyến thành công.", orderApplicationMapper.toResponse(order));
     }
 
     @PostMapping("/direct")
@@ -121,6 +127,58 @@ public class OrderController {
                 "Cập nhật trạng thái đơn hàng thành công.",
                 orderServicePort.updateOrderStatus(id, request.status(), request.reason(), principal.getId())
         );
+    }
+
+    @PostMapping(value = "/{id}/handover/evidence", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("hasAuthority('order:edit')")
+    public ApiResponse<StorageResult> uploadHandoverEvidence(
+            @PathVariable java.util.UUID id,
+            @RequestPart("file") MultipartFile file,
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal) {
+        return ApiResponse.success(
+                "Đã tải ảnh bằng chứng bàn giao.",
+                orderServicePort.uploadHandoverEvidence(id, StorageUtils.toUploadRequest(file), principal.getId()));
+    }
+
+    @PostMapping("/{id}/handover")
+    @PreAuthorize("hasAuthority('order:edit')")
+    public ApiResponse<OrderResponse> confirmHandover(
+            @PathVariable java.util.UUID id,
+            @Valid @RequestBody ConfirmOrderHandoverRequest request,
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal) {
+        return ApiResponse.success(
+                "Đã chốt kết quả bàn giao vé.",
+                orderServicePort.confirmOnlineOrderHandover(id, request, principal.getId()));
+    }
+
+    @PostMapping(value = "/my-orders/{id}/payment-timeout-complaint", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("isAuthenticated()")
+    public ApiResponse<OrderResponse> submitPaymentTimeoutComplaint(
+            @PathVariable java.util.UUID id,
+            @RequestPart("file") MultipartFile file,
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal) {
+        return ApiResponse.success(
+                "Đã gửi chứng từ thanh toán. Cửa hàng sẽ kiểm tra và phản hồi.",
+                orderServicePort.submitPaymentTimeoutComplaint(id, StorageUtils.toUploadRequest(file), principal.getId()));
+    }
+
+    @PostMapping("/{id}/payment-timeout-complaint/review")
+    @PreAuthorize("hasAuthority('order:edit')")
+    public ApiResponse<OrderResponse> reviewPaymentTimeoutComplaint(
+            @PathVariable java.util.UUID id,
+            @Valid @RequestBody ReviewPaymentTimeoutComplaintRequest request,
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal) {
+        return ApiResponse.success(
+                request.approved() ? "Đã xác minh thanh toán cho đơn hàng." : "Đã từ chối chứng từ thanh toán.",
+                orderServicePort.reviewPaymentTimeoutComplaint(id, request.approved(), request.reason(), principal.getId()));
+    }
+
+    @GetMapping("/payment-timeout-complaints/pending-count")
+    @PreAuthorize("hasAuthority('order:view')")
+    public ApiResponse<Long> countPendingPaymentTimeoutComplaints() {
+        return ApiResponse.success(
+                "Lấy số yêu cầu xác minh thanh toán đang chờ xử lý thành công.",
+                orderServicePort.countPendingPaymentTimeoutComplaints());
     }
 
     @GetMapping

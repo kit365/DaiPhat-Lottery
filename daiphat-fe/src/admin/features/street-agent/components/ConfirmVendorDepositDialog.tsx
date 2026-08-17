@@ -170,7 +170,7 @@ export const ConfirmVendorDepositDialog = ({
         <AdminDialog
             open={open}
             title="Xác nhận bàn giao & nhận cọc"
-            maxWidth="sm"
+            maxWidth="md"
             disableClose={isPending}
             onClose={onClose}
             actions={

@@ -278,6 +278,8 @@ public class LotteryStationService implements LotteryStationServicePort {
         }
 
         lotteryStationApplicationMapper.updateModel(model, request);
+        // Explicitly apply nullable override so edit form can clear back to global (null).
+        model.setPrizeRedemptionOfficialDeadlineDays(request.prizeRedemptionOfficialDeadlineDays());
         if (request.region() != null) {
             model.setRegion(resolveRegion(request.region()));
         }

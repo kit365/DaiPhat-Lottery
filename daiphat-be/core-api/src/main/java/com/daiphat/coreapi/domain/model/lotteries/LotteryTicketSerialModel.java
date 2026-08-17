@@ -118,20 +118,6 @@ public class LotteryTicketSerialModel {
      * Keeps {@code reservedByOrderId} so incident/replace still works during PREPARING.
      * Final {@link #sellOnline()} happens when the order moves to PENDING_PICKUP.
      */
-    public void confirmPaidProxyHolding(UUID orderId) {
-        if (this.status != LotteryTicketSerialStatus.IN_STOCK
-                && this.status != LotteryTicketSerialStatus.RESERVED) {
-            throw new DomainException(ErrorCode.LOTTERY_TICKET_INVALID_STATUS);
-        }
-        if (this.status == LotteryTicketSerialStatus.IN_STOCK && !isAvailableForSale()) {
-            throw new DomainException(ErrorCode.LOTTERY_TICKET_INVALID_STATUS);
-        }
-        if (orderId == null) {
-            throw new DomainException(ErrorCode.INVALID_INPUT, "Thiếu mã đơn khi xác nhận giữ hộ vé đã thanh toán.");
-        }
-        assumeProxyHolding(orderId);
-    }
-
     public void sellOnline() {
         ensureNotLockedForPayout();
         // Idempotent: legacy payment already set SOLD before PENDING_PICKUP.
@@ -144,8 +130,7 @@ public class LotteryTicketSerialModel {
             return;
         }
         if (this.status != LotteryTicketSerialStatus.IN_STOCK
-                && this.status != LotteryTicketSerialStatus.RESERVED
-                && this.status != LotteryTicketSerialStatus.PROXY_HOLDING) {
+                && this.status != LotteryTicketSerialStatus.RESERVED) {
             throw new DomainException(ErrorCode.LOTTERY_TICKET_INVALID_STATUS);
         }
         if (this.status == LotteryTicketSerialStatus.IN_STOCK && !isAvailableForSale()) {
@@ -164,7 +149,6 @@ public class LotteryTicketSerialModel {
     }
 
     public void returnSoldToStock() {
-        // Customer refund during PREPARING still holds PROXY_HOLDING, not SOLD.
         if (this.status == LotteryTicketSerialStatus.IN_STOCK) {
             this.reservedAt = null;
             this.reservationExpiresAt = null;
@@ -172,7 +156,6 @@ public class LotteryTicketSerialModel {
             return;
         }
         if (this.status != LotteryTicketSerialStatus.SOLD
-                && this.status != LotteryTicketSerialStatus.PROXY_HOLDING
                 && this.status != LotteryTicketSerialStatus.RESERVED) {
             throw new DomainException(ErrorCode.LOTTERY_TICKET_INVALID_STATUS);
         }
@@ -184,8 +167,7 @@ public class LotteryTicketSerialModel {
 
     public void expire() {
         if (this.status != LotteryTicketSerialStatus.IN_STOCK
-                && this.status != LotteryTicketSerialStatus.RESERVED
-                && this.status != LotteryTicketSerialStatus.PROXY_HOLDING) {
+                && this.status != LotteryTicketSerialStatus.RESERVED) {
             throw new DomainException(ErrorCode.LOTTERY_TICKET_INVALID_STATUS);
         }
         this.status = LotteryTicketSerialStatus.EXPIRED;
@@ -219,8 +201,7 @@ public class LotteryTicketSerialModel {
     }
 
     public boolean isActiveTransactionIncidentStatus() {
-        return this.status == LotteryTicketSerialStatus.RESERVED
-                || this.status == LotteryTicketSerialStatus.PROXY_HOLDING;
+        return this.status == LotteryTicketSerialStatus.RESERVED;
     }
 
     public boolean isIncidentMutableStatus() {
@@ -266,13 +247,6 @@ public class LotteryTicketSerialModel {
         this.reservedAt = LocalDateTime.now();
         this.reservationExpiresAt = expiresAt;
         this.reservedByOrderId = orderId;
-    }
-
-    public void assumeProxyHolding(UUID orderId) {
-        this.status = LotteryTicketSerialStatus.PROXY_HOLDING;
-        this.reservedByOrderId = orderId;
-        this.reservedAt = null;
-        this.reservationExpiresAt = null;
     }
 
     public boolean isEditableStatus() {

@@ -624,7 +624,7 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
 
   Widget _buildOrderInfoCard(OrderResponse order) {
     final orderType = order.orderType == 'ONLINE'
-        ? 'Online'
+        ? 'Trực tuyến'
         : order.orderType == 'DIRECT'
             ? 'Tại quầy'
             : '-';

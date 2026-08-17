@@ -147,7 +147,10 @@ class PrizePayoutConfirmationContractServiceTest {
                 .contains("S800049")
                 .contains("4.950.000 đ")
                 .contains("Cam kết nhận thưởng theo đúng chủ sở hữu vé.")
-                .contains("Thuế TNCN 10%")
+                .contains("Thuế TNCN:")
+                .contains("10%")
+                .contains("policy-list")
+                .contains("Hoa hồng đại lý")
                 .doesNotContain("In hợp đồng");
         assertThat(result.content()).isEqualTo(pdf);
         assertThat(result.fileName()).startsWith("hop-dong-xac-nhan-tra-thuong-HD-TT-20260815-");

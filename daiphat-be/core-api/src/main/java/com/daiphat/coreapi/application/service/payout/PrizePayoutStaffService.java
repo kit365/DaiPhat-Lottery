@@ -30,6 +30,7 @@ import com.daiphat.coreapi.domain.model.enums.order.TicketDrawResultStatus;
 import com.daiphat.coreapi.domain.model.enums.payout.PrizePayoutChannel;
 import com.daiphat.coreapi.domain.model.enums.payout.PrizePayoutPaymentMethod;
 import com.daiphat.coreapi.domain.model.enums.payout.PrizePayoutRequestStatus;
+import com.daiphat.coreapi.domain.model.enums.payout.PrizeRedemptionZone;
 import com.daiphat.coreapi.domain.model.enums.transaction.TransactionBusinessType;
 import com.daiphat.coreapi.domain.model.enums.transaction.TransactionStatus;
 import com.daiphat.coreapi.domain.model.enums.transaction.TransactionType;
@@ -76,6 +77,9 @@ public class PrizePayoutStaffService implements PrizePayoutStaffServicePort {
             "image/jpg",
             "image/png"
     );
+
+    /** Smallest practical VND cash note for counter payouts. */
+    private static final BigDecimal CASH_DENOMINATION_VND = new BigDecimal("1000");
 
     private final PrizePayoutRequestRepositoryPort prizePayoutRequestRepositoryPort;
     private final TransactionRepositoryPort transactionRepositoryPort;
@@ -239,7 +243,8 @@ public class PrizePayoutStaffService implements PrizePayoutStaffServicePort {
                 request.cashAmount(),
                 request.manualOwnershipConfirmed(),
                 request.transferEvidenceUrl(),
-                request.confirmationContractUrl());
+                request.confirmationContractUrl(),
+                request.acknowledgeLateRedemption());
         PrizePayoutBatchCreateResponse response = createInPersonBatch(staffId, batch);
         return response.claims().get(0);
     }
@@ -273,7 +278,8 @@ public class PrizePayoutStaffService implements PrizePayoutStaffServicePort {
             if (detail.getOrder() == null) {
                 throw new DomainException(ErrorCode.PRIZE_PAYOUT_NOT_ELIGIBLE, "Không tìm thấy đơn gốc của vé.");
             }
-            prizePayoutEligibilityService.validateStaffInPersonCreate(detail, serial);
+            prizePayoutEligibilityService.validateStaffInPersonCreate(
+                    detail, serial, Boolean.TRUE.equals(request.acknowledgeLateRedemption()));
             details.add(detail);
         }
 
@@ -486,11 +492,22 @@ public class PrizePayoutStaffService implements PrizePayoutStaffServicePort {
                     ErrorCode.INVALID_INPUT,
                     "Tiền mặt không được vượt quá tổng thực nhận.");
         }
+        requireCashDenomination(cashAmountInput);
         if (cashAmountInput.compareTo(netAmount) == 0) {
             return new PaymentSplit(PrizePayoutPaymentMethod.CASH, netAmount, BigDecimal.ZERO);
         }
         BigDecimal transfer = netAmount.subtract(cashAmountInput);
         return new PaymentSplit(PrizePayoutPaymentMethod.COMBINED, cashAmountInput, transfer);
+    }
+
+    /** Counter cash must be at least 1.000đ and a multiple of 1.000đ (smallest note). */
+    private static void requireCashDenomination(BigDecimal cashAmount) {
+        if (cashAmount.compareTo(CASH_DENOMINATION_VND) < 0
+                || cashAmount.remainder(CASH_DENOMINATION_VND).compareTo(BigDecimal.ZERO) != 0) {
+            throw new DomainException(
+                    ErrorCode.INVALID_INPUT,
+                    "Số tiền mặt phải là bội số của 1.000đ (tối thiểu 1.000đ).");
+        }
     }
 
     private static PrizePayoutPaymentMethod normalizeClaimMethod(BigDecimal cash, BigDecimal transfer) {
@@ -588,7 +605,7 @@ public class PrizePayoutStaffService implements PrizePayoutStaffServicePort {
             if (method != null && method != PrizePayoutPaymentMethod.TRANSFER) {
                 throw new DomainException(
                         ErrorCode.INVALID_INPUT,
-                        "Yêu cầu trả thưởng online chỉ hỗ trợ chuyển khoản.");
+                        "Yêu cầu trả thưởng trực tuyến chỉ hỗ trợ chuyển khoản.");
             }
             method = PrizePayoutPaymentMethod.TRANSFER;
         }
@@ -757,6 +774,22 @@ public class PrizePayoutStaffService implements PrizePayoutStaffServicePort {
                 ? match.ticketNumbers()
                 : (ticket != null ? ticket.getNumbers() : null);
 
+        LocalDate customerDeadline = null;
+        LocalDate issuerDeadline = null;
+        PrizeRedemptionZone redemptionZone = null;
+        Integer daysRemainingToIssuer = null;
+        if (drawDate != null) {
+            try {
+                var deadlines = prizePayoutEligibilityService.resolveRedemptionDeadlines(detail, serial);
+                customerDeadline = deadlines.customerDeadlineDate();
+                issuerDeadline = deadlines.issuerDeadlineDate();
+                redemptionZone = deadlines.zone();
+                daysRemainingToIssuer = deadlines.daysRemainingToIssuer();
+            } catch (DomainException ignored) {
+                // Lookup still returns the ticket; create will enforce deadlines.
+            }
+        }
+
         return new PrizePayoutLookupItem(
                 detail.getId(),
                 serial.getId(),
@@ -789,7 +822,11 @@ public class PrizePayoutStaffService implements PrizePayoutStaffServicePort {
                 match.matchFrom(),
                 match.matchDigits(),
                 alreadyRequested,
-                payoutState);
+                payoutState,
+                customerDeadline,
+                issuerDeadline,
+                redemptionZone,
+                daysRemainingToIssuer);
     }
 
     private PrizePayoutPreviewResponse toPreviewFromLookup(PrizePayoutLookupItem item) {

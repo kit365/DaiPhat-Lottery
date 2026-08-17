@@ -43,6 +43,9 @@ public class LotteryStationModel {
     private LocalTime drawTime;
     private LocalDate nextDrawDate;
 
+    /** Nullable override of global official redemption days; null = system default. */
+    private Integer prizeRedemptionOfficialDeadlineDays;
+
     // Legacy column kept for future use; not used in current workflow.
     @Builder.Default
     private LotteryStationStatus status = LotteryStationStatus.INACTIVE;

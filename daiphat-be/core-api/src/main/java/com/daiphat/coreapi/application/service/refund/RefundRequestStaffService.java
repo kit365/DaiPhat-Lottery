@@ -223,7 +223,7 @@ public class RefundRequestStaffService implements RefundRequestStaffServicePort 
                 continue;
             }
             // Partial-inspection refunds may still be ACTIVE if an older orphan row was repaired.
-            if (detail.getStatus() == OrderDetailStatus.ACTIVE) {
+            if (detail.getStatus() == OrderDetailStatus.HANDOVER_IN_PROGRESS) {
                 detail.markRefundPending();
             }
             detail.markRefunded();
@@ -341,7 +341,7 @@ public class RefundRequestStaffService implements RefundRequestStaffServicePort 
         List<OrderDetailModel> activeDetails = order.getOrderDetails() == null
                 ? List.of()
                 : order.getOrderDetails().stream()
-                        .filter(d -> d.getStatus() == OrderDetailStatus.ACTIVE)
+                        .filter(d -> d.getStatus() == OrderDetailStatus.HANDOVER_IN_PROGRESS)
                         .toList();
         if (activeDetails.isEmpty()) {
             throw new DomainException(ErrorCode.INVALID_INPUT, "Đơn hàng không còn vé hiệu lực để hủy.");
@@ -852,7 +852,7 @@ public class RefundRequestStaffService implements RefundRequestStaffServicePort 
             for (OrderDetailModel detail : order.getOrderDetails()) {
                 if (noReplacementDetailIds.contains(detail.getId())) {
                     detail.setRefundRequestId(refundRequest.getId());
-                    if (detail.getStatus() == OrderDetailStatus.ACTIVE) {
+                    if (detail.getStatus() == OrderDetailStatus.HANDOVER_IN_PROGRESS) {
                         detail.markRefundPending();
                     }
                 }
@@ -864,7 +864,7 @@ public class RefundRequestStaffService implements RefundRequestStaffServicePort 
         }
 
         boolean remainingActiveDetails = order.getOrderDetails() != null
-                && order.getOrderDetails().stream().anyMatch(d -> d.getStatus() == OrderDetailStatus.ACTIVE);
+                && order.getOrderDetails().stream().anyMatch(d -> d.getStatus() == OrderDetailStatus.HANDOVER_IN_PROGRESS);
 
         // Keep order alive when only some tickets are refunded; advance PREPARING → PENDING_PICKUP
         // so remaining tickets can be handed over. Never cancel the order here.
@@ -895,7 +895,7 @@ public class RefundRequestStaffService implements RefundRequestStaffServicePort 
             return;
         }
         for (OrderDetailModel detail : order.getOrderDetails()) {
-            if (detail.getStatus() != OrderDetailStatus.ACTIVE) {
+            if (detail.getStatus() != OrderDetailStatus.HANDOVER_IN_PROGRESS) {
                 continue;
             }
             Long serialId = detail.getReplacedByTicketSerialId() != null

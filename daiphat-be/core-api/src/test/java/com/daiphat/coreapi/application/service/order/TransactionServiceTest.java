@@ -269,7 +269,7 @@ OrderModel order = OrderModel.builder()
         transactionService.processGatewayCallback(PaymentGateway.PAYOS, MOCK_PAYLOAD_STR);
 
         verify(gatewayStrategy).handleSuccess(order, transaction, callbackResult);
-        verify(lotteryTicketServicePort).markProxyHoldingForPaidOrder(101L, orderId);
+        verify(lotteryTicketServicePort).markSoldForOrder(101L);
         verify(orderRepositoryPort).save(order);
     }
 
@@ -461,7 +461,7 @@ OrderModel order = OrderModel.builder()
 
         assertThat(result).isSameAs(order);
         verify(gatewayStrategy).handleSuccess(eq(order), eq(transaction), any(GatewayCallbackResult.class));
-        verify(lotteryTicketServicePort).markProxyHoldingForPaidOrder(101L, orderId);
+        verify(lotteryTicketServicePort).markSoldForOrder(101L);
         verify(paymentAttemptCachePort).clearFailureAttempts(22L);
         verify(applicationEventPublisher, atLeastOnce()).publishEvent(any(Object.class));
     }

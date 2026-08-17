@@ -33,7 +33,7 @@ export const PrizePayoutStatusStepper: React.FC<PrizePayoutStatusStepperProps> =
                 <div>
                     <h3 className="text-[#C62828] font-bold text-[16px]">Cần xử lý tại đại lý</h3>
                     <p className="text-[#637381] text-[14px] mt-1 leading-relaxed">
-                        Yêu cầu trả thưởng online đã bị từ chối {attempts}/{maxRetry} lần. Vui lòng mang CCCD và vé đến
+                        Yêu cầu trả thưởng trực tuyến đã bị từ chối {attempts}/{maxRetry} lần. Vui lòng mang CCCD và vé đến
                         đại lý đổi thưởng hoặc liên hệ CSKH.
                     </p>
                 </div>

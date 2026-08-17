@@ -1280,7 +1280,7 @@ public class SupplierSettlementService implements SupplierSettlementServicePort 
             if ("EXPIRED".equals(resolution)) {
                 if (serial.getStatus() == LotteryTicketSerialStatus.IN_STOCK
                         || serial.getStatus() == LotteryTicketSerialStatus.RESERVED
-                        || serial.getStatus() == LotteryTicketSerialStatus.PROXY_HOLDING) {
+                        || serial.getStatus() == LotteryTicketSerialStatus.SOLD) {
                     serial.expire();
                     lotteryTicketSerialRepositoryPort.save(serial);
                 }

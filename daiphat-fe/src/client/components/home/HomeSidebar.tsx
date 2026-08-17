@@ -43,7 +43,7 @@ export const HomeSidebar: React.FC<HomeSidebarProps> = ({ showLoto, setShowLoto,
         <div className="relative z-10 space-y-3 max-w-[65%]">
           <div className="space-y-1">
             <p className="text-[11px] font-bold text-white uppercase tracking-[0.1em] font-client-display drop-shadow-[0_2px_2px_rgba(0,0,0,0.8)]">
-              Mua vé số online
+              Mua vé số trực tuyến
             </p>
             <h3 className="text-[20px] font-black text-white leading-[1.1] uppercase font-client-main drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
               SĂN LỘC VÀNG<br />

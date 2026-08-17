@@ -158,6 +158,10 @@ export const StationEditPage = () => {
                         ? detailRes.drawDays.split(",").map((d) => d.trim()).filter(Boolean)
                         : [],
                 drawTime: detailRes.drawTime || "16:15",
+                prizeRedemptionOfficialDeadlineDays:
+                    detailRes.prizeRedemptionOfficialDeadlineDays != null
+                        ? detailRes.prizeRedemptionOfficialDeadlineDays
+                        : "",
                 image: detailRes.image || detailRes.avatar || detailRes.thumbnailUrl || "",
                 displayOrder: detailRes.displayOrder || 0,
             });
@@ -168,6 +172,11 @@ export const StationEditPage = () => {
         const payload = {
             ...data,
             image: typeof data.image === 'string' ? data.image : (detailRes?.image || ""),
+            prizeRedemptionOfficialDeadlineDays:
+                data.prizeRedemptionOfficialDeadlineDays === ""
+                || data.prizeRedemptionOfficialDeadlineDays == null
+                    ? null
+                    : Number(data.prizeRedemptionOfficialDeadlineDays),
         };
 
         update({ id: id!, data: payload }, {
@@ -496,6 +505,28 @@ export const StationEditPage = () => {
                                                             }
                                                         }
                                                     }}
+                                                />
+                                            )}
+                                        />
+                                    </Box>
+                                    <Box sx={{ gridColumn: { xs: "span 12", md: "span 6" } }}>
+                                        <Controller
+                                            name="prizeRedemptionOfficialDeadlineDays"
+                                            control={control}
+                                            render={({ field, fieldState }) => (
+                                                <TextField
+                                                    {...field}
+                                                    value={field.value ?? ""}
+                                                    onChange={(e) => field.onChange(e.target.value)}
+                                                    label="Hạn lĩnh nhà đài (ngày)"
+                                                    placeholder="Mặc định hệ thống (30)"
+                                                    helperText={
+                                                        fieldState.error?.message
+                                                        || "Để trống = dùng cấu hình hệ thống. Override khi đài này khác hạn chuẩn."
+                                                    }
+                                                    error={!!fieldState.error}
+                                                    fullWidth
+                                                    inputProps={{ inputMode: "numeric" }}
                                                 />
                                             )}
                                         />

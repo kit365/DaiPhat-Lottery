@@ -12,6 +12,8 @@ export interface Station {
     commissionRate?: number;
     drawDays?: string[] | string;
     drawTime?: string;
+    /** Nullable override of global issuer redemption days. */
+    prizeRedemptionOfficialDeadlineDays?: number | null;
     drawSchedule?: string;
     thumbnailUrl?: string;
     avatar?: string;
@@ -45,6 +47,7 @@ export interface CreateStationRequest {
     price?: number;
     drawDays: string[];
     drawTime: string;
+    prizeRedemptionOfficialDeadlineDays?: number | null;
     image?: string;
     description?: string;
     status?: string;

@@ -157,7 +157,16 @@ export interface PrizePayoutLookupItem {
     alreadyRequested?: boolean;
     /** Serial payout lock state from BE (NONE | PAYOUT_PENDING | PAID_OUT). */
     payoutState?: SerialPayoutState;
+    customerRedemptionDeadline?: string | null;
+    issuerRedemptionDeadline?: string | null;
+    redemptionZone?: PrizeRedemptionZone | null;
+    daysRemainingToIssuer?: number | null;
 }
+
+export type PrizeRedemptionZone =
+    | 'WITHIN_CUSTOMER'
+    | 'PAST_CUSTOMER_URGENT'
+    | 'PAST_ISSUER_LOCKED';
 
 export interface PrizePayoutLookupResponse {
     items: PrizePayoutLookupItem[];
@@ -192,6 +201,7 @@ export interface CreateStaffPrizePayoutRequest {
     manualOwnershipConfirmed?: boolean;
     transferEvidenceUrl?: string;
     confirmationContractUrl?: string;
+    acknowledgeLateRedemption?: boolean;
 }
 
 export interface CreateStaffPrizePayoutBatchRequest {
@@ -209,6 +219,7 @@ export interface CreateStaffPrizePayoutBatchRequest {
     manualOwnershipConfirmed?: boolean;
     transferEvidenceUrl?: string;
     confirmationContractUrl?: string;
+    acknowledgeLateRedemption?: boolean;
 }
 
 
@@ -259,12 +270,12 @@ export const PRIZE_PAYOUT_STATUS_MAP: Record<
 };
 
 export const PRIZE_PAYOUT_CHANNEL_LABELS: Record<PrizePayoutChannel, string> = {
-    ONLINE: 'Online',
+    ONLINE: 'Trực tuyến',
     IN_PERSON: 'Tại quầy',
 };
 
 export const PRIZE_PAYOUT_TICKET_ORIGIN_LABELS: Record<PrizePayoutTicketOrigin, string> = {
-    INTERNAL_ONLINE: 'Vé online',
+    INTERNAL_ONLINE: 'Vé trực tuyến',
     INTERNAL_OFFLINE: 'Vé mua tại quầy',
 };
 
@@ -296,8 +307,8 @@ export function resolvePrizePayoutOrderTypeLabel(
 
 export const PRIZE_PAYOUT_VERIFICATION_LABELS: Record<PrizePayoutOwnershipVerificationLevel, string> = {
     AUTO_MATCHED: 'Đã xác minh hệ thống',
-    CUSTOMER_LINKED: 'Vé quầy — có KH trên đơn',
-    MANUAL_ONLY: 'Vé quầy — không KH / xác minh thủ công',
+    CUSTOMER_LINKED: 'Vé tại quầy — có KH trên đơn',
+    MANUAL_ONLY: 'Vé tại quầy — không KH / xác minh thủ công',
 };
 
 export const PRIZE_PAYOUT_PAYMENT_METHOD_LABELS: Record<PrizePayoutPaymentMethod, string> = {
@@ -477,8 +488,11 @@ export const resolveTicketPayoutDisplay = (
 
 export const canRequestPrizePayout = (ticket: PurchasedTicket) => {
     const status = ticket.activePayoutStatus as PrizePayoutRequestStatus | undefined;
+    const withinCustomerWindow = ticket.redemptionZone == null
+        || ticket.redemptionZone === 'WITHIN_CUSTOMER';
     return ticket.drawResultStatus === 'WON'
         && ticket.canClaimOnline === true
+        && withinCustomerWindow
         && ticket.serialStatus != null
         && PAYOUT_ELIGIBLE_SERIAL_STATUSES.includes(ticket.serialStatus)
         && (ticket.payoutState == null || ticket.payoutState === 'NONE')
@@ -502,7 +516,24 @@ export const getPrizePayoutIneligibilityMessage = (ticket: PurchasedTicket): str
         return null;
     }
     if (status === PrizePayoutRequestStatus.MANUAL_RESOLUTION) {
-        return 'Yêu cầu trả thưởng online đã bị từ chối quá số lần cho phép — vui lòng đến đại lý đổi thưởng.';
+        return 'Yêu cầu trả thưởng trực tuyến đã bị từ chối quá số lần cho phép — vui lòng đến đại lý đổi thưởng.';
+    }
+    if (ticket.redemptionZone === 'PAST_ISSUER_LOCKED') {
+        return 'Đã hết hạn trả thưởng — không thể đổi thưởng.';
+    }
+    if (ticket.redemptionZone === 'PAST_CUSTOMER_URGENT') {
+        const days = ticket.daysRemainingToIssuer;
+        if (days != null && days >= 0) {
+            const dayLabel = days === 0
+                ? 'hôm nay'
+                : days === 1
+                    ? '1 ngày'
+                    : `${days} ngày`;
+            return days === 0
+                ? 'Đã hết hạn đổi thưởng trực tuyến. Vui lòng mang vé đến đại lý trong hôm nay trước khi hết hạn chính thức.'
+                : `Đã hết hạn đổi thưởng trực tuyến. Vui lòng mang vé đến đại lý trong ${dayLabel} tới (còn hạn lĩnh nhà đài).`;
+        }
+        return 'Đã hết hạn đổi thưởng trực tuyến. Vui lòng mang vé đến đại lý nếu còn trong hạn lĩnh nhà đài.';
     }
     if (ticket.canClaimOnline === false || ticket.claimChannel === 'IN_PERSON') {
         return 'Vé này bắt buộc đổi thưởng trực tiếp tại đại lý.';

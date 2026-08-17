@@ -77,12 +77,6 @@ export const DEMO_ECOMMERCE_OVERVIEW: AdminEcommerceOverview = {
         { stationId: "4", stationName: "Bến Tre", drawDate: "2026-08-18", sellableQuantity: 18, vendorHeldQuantity: 40, risk: "CAO" },
         { stationId: "5", stationName: "Vũng Tàu", drawDate: "2026-08-17", sellableQuantity: 95, vendorHeldQuantity: 22, risk: "THẤP" },
     ],
-    vendorRisks: [
-        { vendorName: "Đại lý Hùng Phát", heldQuantity: 86, status: "Cần xử lý" },
-        { vendorName: "Đại lý Minh Ngọc", heldQuantity: 54, status: "Chờ kiểm" },
-        { vendorName: "Đại lý Ánh Dương", heldQuantity: 41, status: "Đang giữ vé" },
-        { vendorName: "Đại lý Phú An", heldQuantity: 28, status: "Đang giữ vé" },
-    ],
     recentOrders: [
         { id: "1", orderCode: "DP-24081", customerName: "Nguyễn Văn A", total: 1_250_000, status: "Hoàn tất", createdAt: hoursAgo(1) },
         { id: "2", orderCode: "DP-24082", customerName: "Trần Thị B", total: 850_000, status: "Đang chuẩn bị vé", createdAt: hoursAgo(3) },

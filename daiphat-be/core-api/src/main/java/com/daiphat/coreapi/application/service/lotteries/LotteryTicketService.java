@@ -14,7 +14,6 @@ import com.daiphat.coreapi.application.dto.response.lotteries.ImportBatchLineEnt
 import com.daiphat.coreapi.application.dto.response.lotteries.ImportBatchReductionTicketResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.LotteryTicketResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.LotteryTicketSerialResponse;
-import com.daiphat.coreapi.application.event.LotteryTicketProxyExpiredEvent;
 import com.daiphat.coreapi.application.mapper.lotteries.LotteryTicketApplicationMapper;
 import com.daiphat.coreapi.application.port.in.lotteries.LotteryStationServicePort;
 import com.daiphat.coreapi.application.port.in.lotteries.LotteryTicketSerialServicePort;
@@ -77,8 +76,6 @@ public class LotteryTicketService implements LotteryTicketServicePort {
             );
     private static final List<LotteryTicketSerialStatus> SOLD_SERIAL_STATUSES =
             List.of(LotteryTicketSerialStatus.SOLD);
-    private static final List<LotteryTicketSerialStatus> PROXY_HELD_SERIAL_STATUSES =
-            List.of(LotteryTicketSerialStatus.PROXY_HOLDING);
 
     private final LotteryTicketRepositoryPort lotteryTicketRepositoryPort;
     private final LotteryTicketSerialRepositoryPort lotteryTicketSerialRepositoryPort;
@@ -777,14 +774,6 @@ public class LotteryTicketService implements LotteryTicketServicePort {
 
     @Override
     @Transactional
-    public void markProxyHoldingForPaidOrder(Long ticketSerialId, UUID orderId) {
-        LotteryTicketSerialModel serial = lotteryTicketSerialService.getByIdOrThrow(ticketSerialId);
-        lotteryTicketSerialService.markProxyHoldingForPaidOrder(ticketSerialId, orderId);
-        recomputeTicketAggregate(serial.getTicketId());
-    }
-
-    @Override
-    @Transactional
     public void releaseReservationForOrder(Long ticketSerialId) {
         LotteryTicketSerialModel serial = lotteryTicketSerialService.getByIdOrThrow(ticketSerialId);
         LotteryTicketModel ticket = getTicketOrThrow(serial.getTicketId());
@@ -811,19 +800,10 @@ public class LotteryTicketService implements LotteryTicketServicePort {
             if (!ticket.isExpired(station.getDrawTime())) {
                 continue;
             }
-            // Proxy holding is tracked per serial, so capture it before the serials expire.
-            boolean hadProxyHeldSerials =
-                    lotteryTicketSerialService.countByStatuses(ticket.getId(), PROXY_HELD_SERIAL_STATUSES) > 0;
             lotteryTicketSerialService.expireActiveSerials(ticket.getId());
             ticket.expire();
             lotteryTicketRepositoryPort.save(ticket);
             syncStationInventory(ticket.getStationId());
-            if (hadProxyHeldSerials) {
-                eventPublisher.publishEvent(LotteryTicketProxyExpiredEvent.builder()
-                        .ticketId(ticket.getId())
-                        .ticketNumber(ticket.getNumbers())
-                        .build());
-            }
             expiredCount++;
         }
         return expiredCount;

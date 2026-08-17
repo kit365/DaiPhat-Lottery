@@ -40,6 +40,7 @@ import {
 
 type StatusTab = 'Tất cả' | 'Chờ quay số' | 'Trúng thưởng' | 'Không trúng';
 type WonRedeemSubFilter = 'ALL' | 'UNREDEEMED' | 'REDEEMED';
+type UnredeemedClaimFilter = 'ONLINE' | 'COUNTER';
 
 const STATUS_TAB_TO_API: Record<StatusTab, TicketDrawResultStatus | undefined> = {
     'Tất cả': undefined,
@@ -53,6 +54,14 @@ const WON_REDEEM_SUB_FILTERS: { key: WonRedeemSubFilter; label: string }[] = [
     { key: 'UNREDEEMED', label: 'Chưa đổi thưởng' },
     { key: 'REDEEMED', label: 'Đã đổi thưởng' },
 ];
+
+const UNREDEEMED_CLAIM_FILTERS: { key: UnredeemedClaimFilter; label: string }[] = [
+    { key: 'ONLINE', label: 'Trực tuyến' },
+    { key: 'COUNTER', label: 'Tại quầy' },
+];
+
+const ISSUER_LOCKED_SORT_SCORE = 1_000_000;
+const UNREDEEMED_FETCH_SIZE = 500;
 
 const STATUS_UI: Record<
     TicketDrawResultStatus,
@@ -245,6 +254,182 @@ const getGroupStatusBadge = (group: PurchasedTicketGroup) => {
 /** Always "Thứ 2, dd/mm/yyyy" — never English Monday from dayjs `dddd`. */
 const formatDrawDate = formatVietnameseDrawDate;
 
+const MS_PER_DAY = 86_400_000;
+
+/** Calendar days from today (VN) until a draw-date deadline (today = 0). */
+function calendarDaysUntilDeadline(deadline?: string | null): number | null {
+    const iso = normalizeDrawDateIso(deadline);
+    if (!iso) return null;
+    const todayMs = Date.parse(`${todayIsoVn()}T00:00:00+07:00`);
+    const deadlineMs = Date.parse(`${iso}T00:00:00+07:00`);
+    if (!Number.isFinite(todayMs) || !Number.isFinite(deadlineMs)) return null;
+    return Math.round((deadlineMs - todayMs) / MS_PER_DAY);
+}
+
+function resolveIssuerDaysRemaining(ticket: PurchasedTicket): number | null {
+    if (ticket.daysRemainingToIssuer != null) return ticket.daysRemainingToIssuer;
+    return calendarDaysUntilDeadline(ticket.issuerRedemptionDeadline);
+}
+
+function formatDaysRemainingLabel(days: number, channel: 'online' | 'counter'): string {
+    const suffix = channel === 'online' ? 'đổi trực tuyến' : 'đổi tại quầy';
+    if (days === 0) return `Hết hạn ${suffix} trong hôm nay`;
+    if (days === 1) return `Còn 1 ngày ${suffix}`;
+    return `Còn ${days} ngày ${suffix}`;
+}
+
+/**
+ * WITHIN: "Còn X ngày đổi trực tuyến" + date.
+ * URGENT: "Còn X ngày đổi tại quầy" + date (no "Hết hạn trực tuyến / Hạn chính thức").
+ * LOCKED: fully expired.
+ */
+function resolveCustomerRedemptionRemaining(ticket: PurchasedTicket): {
+    primary: string;
+    secondary: string;
+    tone: 'ok' | 'soon' | 'expired';
+} | null {
+    if (!ticket.customerRedemptionDeadline && !ticket.issuerRedemptionDeadline) return null;
+
+    const issuerUntil = ticket.issuerRedemptionDeadline
+        ? formatDrawDate(ticket.issuerRedemptionDeadline)
+        : null;
+    const issuerDays = resolveIssuerDaysRemaining(ticket);
+
+    if (ticket.redemptionZone === 'PAST_ISSUER_LOCKED') {
+        return {
+            primary: 'Hết hạn trả thưởng',
+            secondary: issuerUntil ?? '',
+            tone: 'expired',
+        };
+    }
+
+    const customerDays = calendarDaysUntilDeadline(ticket.customerRedemptionDeadline);
+    const expiredOnline = ticket.redemptionZone === 'PAST_CUSTOMER_URGENT'
+        || (customerDays != null && customerDays < 0);
+
+    if (expiredOnline) {
+        if (issuerDays != null && issuerDays >= 0) {
+            return {
+                primary: formatDaysRemainingLabel(issuerDays, 'counter'),
+                secondary: issuerUntil ?? '',
+                tone: issuerDays <= 3 ? 'soon' : 'ok',
+            };
+        }
+        return {
+            primary: 'Hết hạn trả thưởng',
+            secondary: issuerUntil ?? '',
+            tone: 'expired',
+        };
+    }
+
+    const until = ticket.customerRedemptionDeadline
+        ? formatDrawDate(ticket.customerRedemptionDeadline)
+        : '';
+    if (customerDays != null) {
+        return {
+            primary: formatDaysRemainingLabel(customerDays, 'online'),
+            secondary: until,
+            tone: customerDays <= 7 ? 'soon' : 'ok',
+        };
+    }
+    return { primary: until, secondary: '', tone: 'ok' };
+}
+
+function isWithinCustomerWindow(ticket: PurchasedTicket) {
+    return ticket.redemptionZone == null || ticket.redemptionZone === 'WITHIN_CUSTOMER';
+}
+
+/** Vé còn hạn khách và đi kênh online (kể cả đang chờ duyệt). */
+function isOnlineUnredeemedClaim(ticket: PurchasedTicket) {
+    if (ticket.drawResultStatus !== 'WON') return false;
+    if (!isWithinCustomerWindow(ticket)) return false;
+    return ticket.canClaimOnline === true || ticket.claimChannel === 'ONLINE';
+}
+
+function isCounterUnredeemedClaim(ticket: PurchasedTicket) {
+    return ticket.drawResultStatus === 'WON' && !isOnlineUnredeemedClaim(ticket);
+}
+
+function isPrizeRedeemed(ticket: PurchasedTicket) {
+    return ticket.payoutState === 'PAID_OUT' || ticket.activePayoutStatus === 'COMPLETED';
+}
+
+/**
+ * List order for winning tickets:
+ *  0  still unredeemed, within 7 days of customer deadline (soonest first)
+ * 50  hết hạn đổi online — still counter-eligible (least overdue / nearest date first)
+ * 100 still unredeemed, more than 7 days left
+ * 200 hết hạn trả thưởng (issuer locked) — always last among unredeemed
+ * 300 already redeemed
+ */
+function redemptionListRank(ticket: PurchasedTicket) {
+    if (ticket.drawResultStatus === 'PENDING_DRAW') return 150;
+    if (ticket.drawResultStatus === 'LOST') return 350;
+    if (ticket.drawResultStatus !== 'WON') return 400;
+    if (isPrizeRedeemed(ticket)) return 300;
+    if (ticket.redemptionZone === 'PAST_ISSUER_LOCKED') return 200;
+    const days = calendarDaysUntilDeadline(ticket.customerRedemptionDeadline);
+    const expiredOnline = ticket.redemptionZone === 'PAST_CUSTOMER_URGENT'
+        || (days != null && days < 0);
+    if (expiredOnline) return 50;
+    if (days != null && days <= 7) return 0;
+    return 100;
+}
+
+function dateSortValue(iso?: string | null) {
+    if (!iso) return ISSUER_LOCKED_SORT_SCORE;
+    const ms = Date.parse(iso);
+    return Number.isFinite(ms) ? ms : ISSUER_LOCKED_SORT_SCORE;
+}
+
+function redemptionListTieBreak(ticket: PurchasedTicket) {
+    const customerDays = calendarDaysUntilDeadline(ticket.customerRedemptionDeadline);
+    const issuerDays = resolveIssuerDaysRemaining(ticket);
+    const rank = redemptionListRank(ticket);
+    if (rank === 50) {
+        // Urgent: soonest issuer deadline first.
+        return issuerDays == null ? ISSUER_LOCKED_SORT_SCORE : issuerDays;
+    }
+    if (rank === 0 || rank === 100) {
+        return customerDays == null ? ISSUER_LOCKED_SORT_SCORE - 1 : customerDays;
+    }
+    if (rank === 200) {
+        return issuerDays == null ? 0 : issuerDays;
+    }
+    if (rank === 150) {
+        return dateSortValue(normalizeDrawDateIso(ticket.drawDate));
+    }
+    return -dateSortValue(ticket.purchasedAt);
+}
+
+function compareRedemptionUrgency(a: PurchasedTicket, b: PurchasedTicket) {
+    const byRank = redemptionListRank(a) - redemptionListRank(b);
+    if (byRank !== 0) return byRank;
+    const byTie = redemptionListTieBreak(a) - redemptionListTieBreak(b);
+    if (byTie !== 0) return byTie;
+    return (a.serialNumber || a.numbers).localeCompare(b.serialNumber || b.numbers, 'vi');
+}
+
+function sortGroupsByRedemptionUrgency(groups: PurchasedTicketGroup[]) {
+    return groups
+        .map((group) => ({
+            ...group,
+            serials: [...group.serials].sort(compareRedemptionUrgency),
+        }))
+        .sort((left, right) => {
+            const leftHead = left.serials[0];
+            const rightHead = right.serials[0];
+            if (!leftHead || !rightHead) return 0;
+            return compareRedemptionUrgency(leftHead, rightHead);
+        });
+}
+
+const REMAINING_TONE_CLASS: Record<'ok' | 'soon' | 'expired', string> = {
+    ok: 'text-slate-900',
+    soon: 'text-amber-700',
+    expired: 'text-rose-600',
+};
+
 const ticketKey = (ticket: PurchasedTicket) =>
     `${ticket.orderId}-${ticket.ticketId}-${ticket.serialNumber || ticket.numbers}`;
 
@@ -260,6 +445,7 @@ export const TicketsTab = () => {
     const [page, setPage] = useState(1);
     const [activeTab, setActiveTab] = useState<StatusTab>('Tất cả');
     const [wonRedeemFilter, setWonRedeemFilter] = useState<WonRedeemSubFilter>('ALL');
+    const [unredeemedClaimFilter, setUnredeemedClaimFilter] = useState<UnredeemedClaimFilter>('ONLINE');
     const [searchCode, setSearchCode] = useState('');
     const [fromDate, setFromDate] = useState('');
     const [toDate, setToDate] = useState('');
@@ -273,6 +459,9 @@ export const TicketsTab = () => {
     const todayIso = todayIsoVn();
     const pageSize = 10;
     const apiStatus = STATUS_TAB_TO_API[activeTab];
+    const clientUnredeemedView = activeTab === 'Trúng thưởng' && wonRedeemFilter === 'UNREDEEMED';
+    const clientUrgencySortView = activeTab === 'Tất cả'
+        || (activeTab === 'Trúng thưởng' && wonRedeemFilter !== 'REDEEMED');
     const redeemedParam =
         activeTab === 'Trúng thưởng' && wonRedeemFilter !== 'ALL'
             ? wonRedeemFilter === 'REDEEMED'
@@ -280,8 +469,8 @@ export const TicketsTab = () => {
     const hasInvalidDateRange = Boolean(fromDate && toDate && fromDate > toDate);
 
     const { data, isLoading, isFetching, isError, error, refetch } = usePurchasedTicketLookup({
-        page,
-        size: pageSize,
+        page: clientUrgencySortView ? 1 : page,
+        size: clientUrgencySortView ? UNREDEEMED_FETCH_SIZE : pageSize,
         status: apiStatus,
         redeemed: redeemedParam,
         fromDate: fromDate || undefined,
@@ -294,14 +483,37 @@ export const TicketsTab = () => {
     });
 
     const tickets = (data?.data?.recordList ?? []) as PurchasedTicket[];
-    const ticketGroups = useMemo(() => buildTicketGroups(tickets), [tickets]);
+    const ticketGroups = useMemo(() => {
+        const source = clientUnredeemedView
+            ? tickets.filter((ticket) =>
+                unredeemedClaimFilter === 'ONLINE'
+                    ? isOnlineUnredeemedClaim(ticket)
+                    : isCounterUnredeemedClaim(ticket)
+            )
+            : tickets;
+        const groups = buildTicketGroups(source);
+        return clientUrgencySortView ? sortGroupsByRedemptionUrgency(groups) : groups;
+    }, [tickets, clientUnredeemedView, clientUrgencySortView, unredeemedClaimFilter]);
+
+    const pagedTicketGroups = useMemo(() => {
+        if (!clientUrgencySortView) return ticketGroups;
+        const from = (page - 1) * pageSize;
+        return ticketGroups.slice(from, from + pageSize);
+    }, [ticketGroups, clientUrgencySortView, page, pageSize]);
+
+    const pagination = normalizePagination(data?.data?.pagination, page, pageSize);
+    const totalPages = clientUrgencySortView
+        ? Math.max(1, Math.ceil(ticketGroups.length / pageSize))
+        : pagination.totalPages;
+    const totalRecords = clientUrgencySortView ? ticketGroups.length : pagination.totalRecords;
 
     useEffect(() => {
-        setExpandedGroupKeys(new Set(ticketGroups.map((group) => group.key)));
-    }, [ticketGroups]);
-    const pagination = normalizePagination(data?.data?.pagination, page, pageSize);
-    const totalPages = pagination.totalPages;
-    const totalRecords = pagination.totalRecords;
+        setExpandedGroupKeys(new Set(pagedTicketGroups.map((group) => group.key)));
+    }, [pagedTicketGroups]);
+
+    useEffect(() => {
+        if (page > totalPages) setPage(1);
+    }, [page, totalPages]);
 
     const ticketTabs: StatusTab[] = ['Tất cả', 'Chờ quay số', 'Trúng thưởng', 'Không trúng'];
 
@@ -362,6 +574,7 @@ export const TicketsTab = () => {
         const isWon = selectedTicket.drawResultStatus === 'WON';
         const isEligibleForPayout = canRequestPrizePayout(selectedTicket);
         const ineligibilityReason = !isEligibleForPayout ? getPrizePayoutIneligibilityMessage(selectedTicket) : null;
+        const redemptionRemaining = isWon ? resolveCustomerRedemptionRemaining(selectedTicket) : null;
         const drawDateIso = selectedTicketDrawDateIso;
         const matchedStationId = matchedStationForSelectedTicket?.id ?? matchedStationForSelectedTicket?._id;
         const resultLookupUrl = (() => {
@@ -482,6 +695,23 @@ export const TicketsTab = () => {
                                         </>
                                     )}
 
+                                    {redemptionRemaining && (
+                                        <>
+                                            <div className="h-[1px] bg-slate-200/60"></div>
+                                            <div className="flex items-start justify-between gap-3 text-[14px]">
+                                                <span className="text-slate-500 font-medium">Thời gian còn lại đổi thưởng</span>
+                                                <span className={`font-bold text-right ${REMAINING_TONE_CLASS[redemptionRemaining.tone]}`}>
+                                                    {redemptionRemaining.primary}
+                                                    {redemptionRemaining.secondary ? (
+                                                        <span className="block text-[12px] font-semibold text-slate-500 mt-0.5">
+                                                            {redemptionRemaining.secondary}
+                                                        </span>
+                                                    ) : null}
+                                                </span>
+                                            </div>
+                                        </>
+                                    )}
+
                                     {isWon && selectedTicket.payoutState && (
                                         <>
                                             <div className="h-[1px] bg-slate-200/60"></div>
@@ -550,8 +780,13 @@ export const TicketsTab = () => {
                                 ? `/profile/prize-payouts/${selectedTicket.activePayoutRequestId}`
                                 : null;
 
+                                const remainingBannerLine = redemptionRemaining
+                                ? redemptionRemaining.tone === 'expired'
+                                    ? redemptionRemaining.primary
+                                    : `${redemptionRemaining.primary}${redemptionRemaining.secondary ? ` (${redemptionRemaining.secondary.toLowerCase()})` : ''}.`
+                                : null;
                             const congratulationCopy = isEligibleForPayout
-                                ? 'Bạn có thể gửi yêu cầu trả thưởng online. Tiền sẽ được chuyển sau khi nhân viên duyệt.'
+                                ? `Bạn có thể gửi yêu cầu trả thưởng trực tuyến. Tiền sẽ được chuyển sau khi nhân viên duyệt.${remainingBannerLine ? ` ${remainingBannerLine}` : ''}`
                                 : isPayoutCompleted
                                     ? 'Yêu cầu trả thưởng đã được duyệt và hoàn tất.'
                                     : isPayoutInProgress
@@ -787,34 +1022,68 @@ export const TicketsTab = () => {
                 )}
 
                 {activeTab === 'Trúng thưởng' && (
-                    <div className="flex items-center gap-2 px-4 md:px-5 py-3 border-b border-slate-100 bg-amber-50/45 overflow-x-auto no-scrollbar">
-                        <span className="text-[12px] font-black text-amber-800/80 uppercase tracking-wide whitespace-nowrap mr-1">
-                            Lọc đổi thưởng:
-                        </span>
-                        {WON_REDEEM_SUB_FILTERS.map((item) => {
-                            const isActive = wonRedeemFilter === item.key;
-                            return (
-                                <button
-                                    key={item.key}
-                                    type="button"
-                                    onClick={() => {
-                                        setWonRedeemFilter(item.key);
-                                        setPage(1);
-                                    }}
-                                    className={`px-3 py-1.5 rounded-full text-[12.5px] font-extrabold whitespace-nowrap border transition-all cursor-pointer ${
-                                        isActive
-                                            ? item.key === 'REDEEMED'
-                                                ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm'
-                                                : item.key === 'UNREDEEMED'
-                                                    ? 'bg-violet-600 text-white border-violet-600 shadow-sm'
-                                                    : 'bg-amber-600 text-white border-amber-600 shadow-sm'
-                                            : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300 hover:text-slate-900'
-                                    }`}
-                                >
-                                    {item.label}
-                                </button>
-                            );
-                        })}
+                    <div className="flex flex-col gap-2 px-4 md:px-5 py-3 border-b border-slate-100 bg-amber-50/45">
+                        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
+                            <span className="text-[12px] font-black text-amber-800/80 uppercase tracking-wide whitespace-nowrap mr-1">
+                                Lọc đổi thưởng:
+                            </span>
+                            {WON_REDEEM_SUB_FILTERS.map((item) => {
+                                const isActive = wonRedeemFilter === item.key;
+                                return (
+                                    <button
+                                        key={item.key}
+                                        type="button"
+                                        onClick={() => {
+                                            setWonRedeemFilter(item.key);
+                                            if (item.key === 'UNREDEEMED') {
+                                                setUnredeemedClaimFilter('ONLINE');
+                                            }
+                                            setPage(1);
+                                        }}
+                                        className={`px-3 py-1.5 rounded-full text-[12.5px] font-extrabold whitespace-nowrap border transition-all cursor-pointer ${
+                                            isActive
+                                                ? item.key === 'REDEEMED'
+                                                    ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm'
+                                                    : item.key === 'UNREDEEMED'
+                                                        ? 'bg-violet-600 text-white border-violet-600 shadow-sm'
+                                                        : 'bg-amber-600 text-white border-amber-600 shadow-sm'
+                                                : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300 hover:text-slate-900'
+                                        }`}
+                                    >
+                                        {item.label}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                        {wonRedeemFilter === 'UNREDEEMED' && (
+                            <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
+                                <span className="text-[11px] font-black text-slate-500 uppercase tracking-wide whitespace-nowrap mr-1">
+                                    Kênh:
+                                </span>
+                                {UNREDEEMED_CLAIM_FILTERS.map((item) => {
+                                    const isActive = unredeemedClaimFilter === item.key;
+                                    return (
+                                        <button
+                                            key={item.key}
+                                            type="button"
+                                            onClick={() => {
+                                                setUnredeemedClaimFilter(item.key);
+                                                setPage(1);
+                                            }}
+                                            className={`px-3 py-1 rounded-full text-[12px] font-bold whitespace-nowrap border transition-all cursor-pointer ${
+                                                isActive
+                                                    ? item.key === 'ONLINE'
+                                                        ? 'bg-sky-600 text-white border-sky-600 shadow-sm'
+                                                        : 'bg-slate-800 text-white border-slate-800 shadow-sm'
+                                                    : 'bg-white/80 text-slate-600 border-slate-200 hover:border-slate-300 hover:text-slate-900'
+                                            }`}
+                                        >
+                                            {item.label}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        )}
                     </div>
                 )}
 
@@ -841,23 +1110,37 @@ export const TicketsTab = () => {
                             <i className="fa-solid fa-circle-notch fa-spin text-[32px] text-red-600"></i>
                             <span>Đang tải danh sách vé số...</span>
                         </div>
-                    ) : tickets.length === 0 ? (
+                    ) : (clientUnredeemedView ? ticketGroups.length === 0 : tickets.length === 0) ? (
                         <div className="py-20 text-center text-slate-500 flex flex-col items-center justify-center">
                             <div className="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 text-[28px] mb-4">
                                 <i className="fa-solid fa-ticket-simple"></i>
                             </div>
-                            <p className="font-extrabold text-[16px] text-slate-800 m-0">Chưa tìm thấy vé số nào</p>
-                            <p className="text-[13px] mt-1 text-slate-400">Vé bạn mua hoặc tìm kiếm sẽ xuất hiện tại đây.</p>
+                            <p className="font-extrabold text-[16px] text-slate-800 m-0">
+                                {clientUnredeemedView
+                                    ? unredeemedClaimFilter === 'ONLINE'
+                                        ? 'Không có vé đổi thưởng trực tuyến'
+                                        : 'Không có vé đổi thưởng tại quầy'
+                                    : 'Chưa tìm thấy vé số nào'}
+                            </p>
+                            <p className="text-[13px] mt-1 text-slate-400">
+                                {clientUnredeemedView
+                                    ? unredeemedClaimFilter === 'ONLINE'
+                                        ? 'Vé còn hạn đổi trực tuyến sẽ hiện ở đây, sắp theo hạn gần nhất.'
+                                        : 'Vé cần mang ra đại lý (kể cả đã hết hạn trực tuyến) sẽ hiện ở đây.'
+                                    : 'Vé bạn mua hoặc tìm kiếm sẽ xuất hiện tại đây.'}
+                            </p>
+                            {!clientUnredeemedView && (
                             <Link
                                 href={ROUTES.PUBLIC.TICKETS}
                                 className="inline-flex mt-4 px-6 py-2.5 bg-gradient-to-r from-red-600 to-rose-600 text-white font-extrabold rounded-xl text-[14px] no-underline shadow-md shadow-red-600/20 hover:brightness-110 transition-all"
                             >
                                 Mua vé ngay
                             </Link>
+                            )}
                         </div>
                     ) : (
                         <AnimatePresence mode="popLayout">
-                            {ticketGroups.map((group, index) => {
+                            {pagedTicketGroups.map((group, index) => {
                                 const isExpanded = expandedGroupKeys.has(group.key);
                                 const hasWonSerial = group.wonSerialCount > 0;
 
@@ -1026,11 +1309,21 @@ export const TicketsTab = () => {
                                                                         key={ticketKey(serial)}
                                                                         className="grid grid-cols-1 md:grid-cols-[minmax(0,1.5fr)_minmax(120px,0.8fr)_minmax(110px,0.7fr)_minmax(228px,auto)] gap-3 md:gap-4 md:items-center rounded-xl border border-slate-200/80 bg-white px-3.5 py-3 shadow-xs"
                                                                     >
-                                                                        <div className="min-w-0 flex items-center">
+                                                                        <div className="min-w-0 flex flex-col gap-0.5 justify-center">
                                                                             <span className="text-[13px] font-bold text-red-600 font-mono tracking-tight break-all">
                                                                                 {TICKET_SERIAL_PREFIX}:{' '}
                                                                                 {serial.serialNumber || serial.numbers}
                                                                             </span>
+                                                                            {isWon && (() => {
+                                                                                const remaining = resolveCustomerRedemptionRemaining(serial);
+                                                                                if (!remaining) return null;
+                                                                                return (
+                                                                                    <span className={`text-[11px] font-semibold ${REMAINING_TONE_CLASS[remaining.tone]}`}>
+                                                                                        {remaining.primary}
+                                                                                        {remaining.secondary ? ` · ${remaining.secondary}` : ''}
+                                                                                    </span>
+                                                                                );
+                                                                            })()}
                                                                         </div>
 
                                                                         <div className="flex items-center md:justify-center">

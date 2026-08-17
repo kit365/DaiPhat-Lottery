@@ -84,6 +84,11 @@ export interface PurchasedTicket {
     actualPickedUpAt?: string | null;
     claimChannel?: 'ONLINE' | 'IN_PERSON';
     canClaimOnline?: boolean;
+    customerRedemptionDeadline?: string | null;
+    /** Official station/issuer deadline — last day redeemable at counter. */
+    issuerRedemptionDeadline?: string | null;
+    redemptionZone?: 'WITHIN_CUSTOMER' | 'PAST_CUSTOMER_URGENT' | 'PAST_ISSUER_LOCKED' | null;
+    daysRemainingToIssuer?: number | null;
 }
 
 export type PublicLotteryTicketPage = PageResponse<PublicLotteryTicket>;

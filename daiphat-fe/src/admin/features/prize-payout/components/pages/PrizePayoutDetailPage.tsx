@@ -38,6 +38,10 @@ import { prefixAdmin } from '@/admin/constants/routes';
 import { PrizePayoutStatusBadge } from '@/client/components/prize-payout/PrizePayoutStatusBadge';
 import { TransferEvidencePreview } from '@/admin/features/refund/components/TransferEvidencePreview';
 import {
+    ContractDocumentViewerDialog,
+    mapContractPdfErrorMessage,
+} from '@/admin/shared/contracts';
+import {
     formatPrizePayoutCurrency,
     PrizePayoutPaymentMethod,
     PrizePayoutRequestStatus,
@@ -190,8 +194,25 @@ export const PrizePayoutDetailPage = () => {
     const [selectedRejectQuickReplyIndex, setSelectedRejectQuickReplyIndex] = useState<number | null>(null);
     const [uploading, setUploading] = useState(false);
     const [printingContract, setPrintingContract] = useState(false);
+    const [viewSignedOpen, setViewSignedOpen] = useState(false);
 
     const detail = data?.data;
+
+    const handlePrintSystemContract = async () => {
+        if (!detail) return;
+        try {
+            setPrintingContract(true);
+            await prizePayoutAdminApi.openConfirmationContractPdf(detail.id);
+        } catch (error) {
+            toast.error(
+                mapContractPdfErrorMessage(
+                    error instanceof Error ? error.message : undefined,
+                ),
+            );
+        } finally {
+            setPrintingContract(false);
+        }
+    };
 
     const copyToClipboard = async (text?: string, message?: string) => {
         if (!text) return;
@@ -288,17 +309,6 @@ export const PrizePayoutDetailPage = () => {
                     ?? Math.max(0, Number(detail.netAmount || 0) - Number(detail.cashAmount || 0))
                 )
               : transferAmountToPay;
-
-    const handleOpenContract = async () => {
-        try {
-            setPrintingContract(true);
-            await prizePayoutAdminApi.openConfirmationContractPdf(detail.id);
-        } catch (error) {
-            toast.error(error instanceof Error ? error.message : 'Không mở được hợp đồng PDF');
-        } finally {
-            setPrintingContract(false);
-        }
-    };
 
     const orderDetailPath = detail.orderId ? `/${prefixAdmin}/order/detail/${detail.orderId}` : null;
     const customerDetailPath = detail.customerId ? `/${prefixAdmin}/account-user/detail/${detail.customerId}` : null;
@@ -557,13 +567,13 @@ export const PrizePayoutDetailPage = () => {
                             <Alert severity="error" sx={{ borderRadius: '12px' }}>
                                 <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.5 }}>
                                     {detail.status === PrizePayoutRequestStatus.MANUAL_RESOLUTION
-                                        ? 'Yêu cầu đã khóa online'
+                                        ? 'Yêu cầu đã khóa trực tuyến'
                                         : 'Lý do từ chối yêu cầu'}
                                 </Typography>
                                 <Typography variant="body2">{detail.rejectReason}</Typography>
                                 {detail.channel === 'ONLINE' && (
                                     <Typography variant="caption" sx={{ display: 'block', mt: 1, color: 'text.secondary' }}>
-                                        Số lần từ chối online: {detail.rejectCount ?? 0} /{' '}
+                                        Số lần từ chối trực tuyến: {detail.rejectCount ?? 0} /{' '}
                                         {detail.maxOnlineRejectRetry ?? 3}
                                     </Typography>
                                 )}
@@ -575,37 +585,58 @@ export const PrizePayoutDetailPage = () => {
 
                 <Grid size={{ xs: 12, md: 4 }}>
                     <Stack spacing={2.5}>
-                        <Card sx={{ p: 3, ...cardSx }}>
-                            <CardSectionTitle title="Hợp đồng trả thưởng" />
-                            <Button
-                                variant="outlined"
-                                size="medium"
-                                fullWidth
-                                disabled={printingContract}
-                                onClick={handleOpenContract}
-                                sx={{
-                                    height: 38,
-                                    borderRadius: '10px',
-                                    fontWeight: 700,
-                                    textTransform: 'none',
-                                }}
-                            >
-                                {printingContract ? 'Đang tạo hợp đồng...' : 'Xem / In hợp đồng'}
-                            </Button>
-                            {detail.confirmationContractUrl && (
-                                <Box sx={{ mt: 2 }}>
-                                    <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, display: 'block', mb: 0.75 }}>
-                                        Ảnh hợp đồng
-                                    </Typography>
-                                    <TransferEvidencePreview
-                                        compact
-                                        imageUrl={detail.confirmationContractUrl}
-                                        title="Hợp đồng trả thưởng"
-                                        showCaption={false}
-                                    />
-                                </Box>
-                            )}
-                        </Card>
+                        {detail.channel === 'IN_PERSON' && (
+                            <Card sx={{ p: 3, ...cardSx }}>
+                                <CardSectionTitle title="Hợp đồng trả thưởng" />
+                                <Stack spacing={1.25}>
+                                    <Button
+                                        variant="outlined"
+                                        size="medium"
+                                        fullWidth
+                                        disabled={printingContract}
+                                        onClick={() => void handlePrintSystemContract()}
+                                        sx={{
+                                            height: 38,
+                                            borderRadius: '10px',
+                                            fontWeight: 700,
+                                            textTransform: 'none',
+                                        }}
+                                    >
+                                        {printingContract ? 'Đang tạo hợp đồng...' : 'Xem / In hợp đồng'}
+                                    </Button>
+                                    {detail.confirmationContractUrl && (
+                                        <Button
+                                            variant="contained"
+                                            size="medium"
+                                            fullWidth
+                                            onClick={() => setViewSignedOpen(true)}
+                                            sx={{
+                                                height: 38,
+                                                borderRadius: '10px',
+                                                fontWeight: 700,
+                                                textTransform: 'none',
+                                                boxShadow: 'none',
+                                            }}
+                                        >
+                                            Xem bản đã ký
+                                        </Button>
+                                    )}
+                                </Stack>
+                                {detail.confirmationContractUrl && (
+                                    <Box sx={{ mt: 2 }}>
+                                        <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, display: 'block', mb: 0.75 }}>
+                                            Ảnh hợp đồng
+                                        </Typography>
+                                        <TransferEvidencePreview
+                                            compact
+                                            imageUrl={detail.confirmationContractUrl}
+                                            title="Hợp đồng trả thưởng"
+                                            showCaption={false}
+                                        />
+                                    </Box>
+                                )}
+                            </Card>
+                        )}
 
                         <Card sx={{ p: 3, ...cardSx }}>
                             <CardSectionTitle title="Khách hàng" />
@@ -746,7 +777,7 @@ export const PrizePayoutDetailPage = () => {
                                     Chuyển khoản
                                 </Typography>
                                 <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 0.5 }}>
-                                    Yêu cầu online chỉ hoàn tất bằng chuyển khoản (không hỗ trợ tiền mặt / kết hợp).
+                                    Yêu cầu trực tuyến chỉ hoàn tất bằng chuyển khoản (không hỗ trợ tiền mặt / kết hợp).
                                 </Typography>
                             </>
                         ) : (
@@ -884,8 +915,8 @@ export const PrizePayoutDetailPage = () => {
                                 sx={{ mb: 2.5, borderRadius: '10px' }}
                             >
                                 {willLock
-                                    ? `Đây là lần từ chối thứ ${nextCount}/${maxRetry}. Sau khi xác nhận, khách sẽ không gửi được yêu cầu online nữa và phải đến đại lý.`
-                                    : `Sau khi từ chối: ${nextCount}/${maxRetry} lần. Đến ${maxRetry} lần sẽ khóa trả thưởng online.`}
+                                    ? `Đây là lần từ chối thứ ${nextCount}/${maxRetry}. Sau khi xác nhận, khách sẽ không gửi được yêu cầu trực tuyến nữa và phải đến đại lý.`
+                                    : `Sau khi từ chối: ${nextCount}/${maxRetry} lần. Đến ${maxRetry} lần sẽ khóa trả thưởng trực tuyến.`}
                             </Alert>
                         );
                     })()}
@@ -990,6 +1021,16 @@ export const PrizePayoutDetailPage = () => {
                     </Button>
                 </DialogActions>
             </Dialog>
+
+            {detail.channel === 'IN_PERSON' && (
+                <ContractDocumentViewerDialog
+                    open={viewSignedOpen}
+                    url={detail.confirmationContractUrl}
+                    title="Bản hợp đồng đã ký"
+                    fileName={detail.requestCode ? `Hop-dong-da-ky-${detail.requestCode}` : undefined}
+                    onClose={() => setViewSignedOpen(false)}
+                />
+            )}
         </motion.div>
     );
 };

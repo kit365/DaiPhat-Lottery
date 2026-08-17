@@ -20,7 +20,7 @@ import { todayIsoVn } from '../../../../utils/sellableDrawDate.util';
 import { format } from 'date-fns';
 
 const ORDER_TYPE_MAP: Record<OrderType, { label: string, icon: string }> = {
-    [OrderType.ONLINE]: { label: 'Online', icon: 'fa-solid fa-desktop' },
+    [OrderType.ONLINE]: { label: 'Trực tuyến', icon: 'fa-solid fa-desktop' },
     [OrderType.DIRECT]: { label: 'Tại quầy', icon: 'fa-solid fa-store' }
 };
 
@@ -34,7 +34,7 @@ const ORDER_SORT_OPTIONS = [
 
 const ORDER_TYPE_FILTER_OPTIONS = [
     { value: '', label: 'Tất cả loại đơn' },
-    { value: OrderType.ONLINE, label: 'Online (Đặt qua app)' },
+    { value: OrderType.ONLINE, label: 'Trực tuyến (Đặt qua app)' },
     { value: OrderType.DIRECT, label: 'Tại quầy (Staff tạo)' },
 ];
 
@@ -205,7 +205,8 @@ export const OrdersTab = () => {
         { value: OrderStatus.PREPARING, label: 'Đang chuẩn bị vé' },
         { value: OrderStatus.PENDING_PICKUP, label: 'Chờ nhận vé' },
         { value: OrderStatus.COMPLETED, label: 'Đã hoàn thành' },
-        { value: OrderStatus.CANCELLED, label: 'Đã huỷ' }
+        { value: OrderStatus.CANCELLED, label: 'Đã huỷ' },
+        { value: OrderStatus.PAYMENT_COMPLAINT_PENDING, label: 'Chờ xác minh thanh toán' }
     ];
 
     const getOrderTypeDisplay = (type: OrderType) => {

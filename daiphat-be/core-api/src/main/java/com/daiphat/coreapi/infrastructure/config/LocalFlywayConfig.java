@@ -23,9 +23,20 @@ public class LocalFlywayConfig {
             try {
                 flyway.migrate();
             } catch (FlywayException ex) {
+                if (!shouldRepair(ex)) {
+                    throw ex;
+                }
                 flyway.repair();
                 flyway.migrate();
             }
         };
+    }
+
+    /** Repair checksum / leftover failed history only - not SQL errors in a new script. */
+    private static boolean shouldRepair(FlywayException ex) {
+        String message = String.valueOf(ex.getMessage()).toLowerCase();
+        return message.contains("checksum")
+                || message.contains("failed migration")
+                || message.contains("migration checksum mismatch");
     }
 }

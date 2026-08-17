@@ -64,6 +64,13 @@ public class LotteryStationEntity extends BaseEntity {
     @Column(name = "next_draw_date")
     private LocalDate nextDrawDate;
 
+    /**
+     * Optional override of global {@code PRIZE_REDEMPTION_OFFICIAL_DEADLINE_DAYS}.
+     * Null means use the system default.
+     */
+    @Column(name = "prize_redemption_official_deadline_days")
+    private Integer prizeRedemptionOfficialDeadlineDays;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     @Builder.Default
