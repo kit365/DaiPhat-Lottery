@@ -8,6 +8,7 @@ COPY package*.json ./
 RUN --mount=type=cache,target=/root/.npm npm ci
 
 COPY . .
+RUN mkdir -p public
 ARG VITE_ENV_HASH=local
 ENV BACKEND_UPSTREAM=backend
 RUN --mount=type=secret,id=env_file,required=false \
