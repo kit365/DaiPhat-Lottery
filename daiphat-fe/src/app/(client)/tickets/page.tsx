@@ -10,7 +10,7 @@ import {
 } from '@/shared/station/scheduleApi';
 import { publicStationsQueryKeys } from '@/constants/queryKeys';
 
-export const revalidate = 60;
+export const dynamic = 'force-dynamic';
 
 export default async function TicketsPage() {
     const queryClient = createAppQueryClient();

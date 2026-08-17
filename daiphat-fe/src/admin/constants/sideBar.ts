@@ -134,7 +134,7 @@ export const menuManagementData = [
         permission: PERMISSIONS.ORDER.VIEW,
         children: [
             { id: "list", label: "Danh sách đơn", path: ROUTES.ADMIN.ORDERS.LIST, permission: PERMISSIONS.ORDER.VIEW, badge: 'orders-online-preparing' },
-            { id: "create-counter", label: "Đơn tại quầy", path: ROUTES.ADMIN.ORDERS.CREATE_COUNTER, permission: PERMISSIONS.ORDER.CREATE, badge: 'orders-direct-preparing' },
+            { id: "create-counter", label: "Tạo đơn tại quầy", path: ROUTES.ADMIN.ORDERS.CREATE_COUNTER, permission: PERMISSIONS.ORDER.CREATE, badge: 'orders-direct-preparing' },
         ]
     },
     {
