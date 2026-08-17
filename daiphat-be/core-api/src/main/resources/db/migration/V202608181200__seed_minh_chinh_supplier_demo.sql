@@ -91,11 +91,12 @@ DECLARE
     v_eligible_ids    bigint[];
     v_attach_n        int;
     v_attach_id       bigint;
+    v_region_id       bigint;
 BEGIN
     v_now := (CURRENT_TIMESTAMP AT TIME ZONE v_tz);
     v_today := v_now::date;
 
-    -- Guards -----------------------------------------------------------------
+    -- Ensure actor user exists -----------------------------------------------
     SELECT id INTO v_actor_id
     FROM users
     WHERE deleted_at IS NULL
@@ -103,21 +104,92 @@ BEGIN
     LIMIT 1;
 
     IF v_actor_id IS NULL THEN
-        RAISE NOTICE
-            'MC_SEED: no user found. Skipping seed on fresh database.';
-        RETURN;
+        INSERT INTO users (
+            id, role_id, username, email, phone, first_name, last_name,
+            status, is_email_verified, has_password, created_by, last_modified_by
+        ) VALUES (
+            gen_random_uuid(),
+            (SELECT id FROM roles WHERE code = 'ROLE_ADMIN' LIMIT 1),
+            'system_admin_seed',
+            'admin@daiphat.id.vn',
+            '0900000001',
+            'System',
+            'Admin',
+            'ACTIVE',
+            TRUE,
+            FALSE,
+            'SYSTEM',
+            'SYSTEM'
+        )
+        ON CONFLICT (username) DO UPDATE SET updated_at = NOW()
+        RETURNING id INTO v_actor_id;
+
+        IF v_actor_id IS NULL THEN
+            SELECT id INTO v_actor_id FROM users WHERE username = 'system_admin_seed' LIMIT 1;
+        END IF;
     END IF;
 
-    IF NOT EXISTS (
-        SELECT 1
-        FROM lottery_stations
-        WHERE deleted_at IS NULL
-          AND is_active = TRUE
-    ) THEN
-        RAISE NOTICE
-            'MC_SEED: no active lottery_stations. Skipping seed on fresh database.';
-        RETURN;
+    -- Ensure Southern Region & Stations exist --------------------------------
+    SELECT id INTO v_region_id FROM lottery_regions WHERE code = 'MIEN_NAM' LIMIT 1;
+    IF v_region_id IS NULL THEN
+        INSERT INTO lottery_regions (code, name, type, min_number, max_number, station_count)
+        VALUES ('MIEN_NAM', 'Miền Nam', 'TRADITIONAL', 0, 999999, 21)
+        ON CONFLICT (code) DO NOTHING
+        RETURNING id INTO v_region_id;
+
+        IF v_region_id IS NULL THEN
+            SELECT id INTO v_region_id FROM lottery_regions WHERE code = 'MIEN_NAM' LIMIT 1;
+        END IF;
     END IF;
+
+    -- Ensure Southern Stations exist
+    INSERT INTO lottery_stations (
+        name, code, province, region_id, price, commission_rate, is_active, draw_days, draw_time, status
+    ) VALUES
+        ('Hồ Chí Minh', 'TPHCM', 'Hồ Chí Minh', v_region_id, 10000, 0.0500, TRUE, '["MONDAY", "SATURDAY"]'::jsonb, '16:15:00', 'ACTIVE'),
+        ('Đồng Tháp', 'DT', 'Đồng Tháp', v_region_id, 10000, 0.0500, TRUE, '["MONDAY"]'::jsonb, '16:15:00', 'ACTIVE'),
+        ('Cà Mau', 'CM', 'Cà Mau', v_region_id, 10000, 0.0500, TRUE, '["MONDAY"]'::jsonb, '16:15:00', 'ACTIVE'),
+        ('Bến Tre', 'BT', 'Bến Tre', v_region_id, 10000, 0.0500, TRUE, '["TUESDAY"]'::jsonb, '16:15:00', 'ACTIVE'),
+        ('Vũng Tàu', 'VT', 'Vũng Tàu', v_region_id, 10000, 0.0500, TRUE, '["TUESDAY"]'::jsonb, '16:15:00', 'ACTIVE'),
+        ('Bạc Liêu', 'BL', 'Bạc Liêu', v_region_id, 10000, 0.0500, TRUE, '["TUESDAY"]'::jsonb, '16:15:00', 'ACTIVE'),
+        ('Đồng Nai', 'DN', 'Đồng Nai', v_region_id, 10000, 0.0500, TRUE, '["WEDNESDAY"]'::jsonb, '16:15:00', 'ACTIVE'),
+        ('Cần Thơ', 'CT', 'Cần Thơ', v_region_id, 10000, 0.0500, TRUE, '["WEDNESDAY"]'::jsonb, '16:15:00', 'ACTIVE'),
+        ('Sóc Trăng', 'ST', 'Sóc Trăng', v_region_id, 10000, 0.0500, TRUE, '["WEDNESDAY"]'::jsonb, '16:15:00', 'ACTIVE'),
+        ('Tây Ninh', 'TN', 'Tây Ninh', v_region_id, 10000, 0.0500, TRUE, '["THURSDAY"]'::jsonb, '16:15:00', 'ACTIVE'),
+        ('An Giang', 'AG', 'An Giang', v_region_id, 10000, 0.0500, TRUE, '["THURSDAY"]'::jsonb, '16:15:00', 'ACTIVE'),
+        ('Bình Thuận', 'BTH', 'Bình Thuận', v_region_id, 10000, 0.0500, TRUE, '["THURSDAY"]'::jsonb, '16:15:00', 'ACTIVE'),
+        ('Vĩnh Long', 'VL', 'Vĩnh Long', v_region_id, 10000, 0.0500, TRUE, '["FRIDAY"]'::jsonb, '16:15:00', 'ACTIVE'),
+        ('Bình Dương', 'BD', 'Bình Dương', v_region_id, 10000, 0.0500, TRUE, '["FRIDAY"]'::jsonb, '16:15:00', 'ACTIVE'),
+        ('Trà Vinh', 'TV', 'Trà Vinh', v_region_id, 10000, 0.0500, TRUE, '["FRIDAY"]'::jsonb, '16:15:00', 'ACTIVE'),
+        ('Long An', 'LA', 'Long An', v_region_id, 10000, 0.0500, TRUE, '["SATURDAY"]'::jsonb, '16:15:00', 'ACTIVE'),
+        ('Bình Phước', 'BP', 'Bình Phước', v_region_id, 10000, 0.0500, TRUE, '["SATURDAY"]'::jsonb, '16:15:00', 'ACTIVE'),
+        ('Hậu Giang', 'HG', 'Hậu Giang', v_region_id, 10000, 0.0500, TRUE, '["SATURDAY"]'::jsonb, '16:15:00', 'ACTIVE'),
+        ('Tiền Giang', 'TG', 'Tiền Giang', v_region_id, 10000, 0.0500, TRUE, '["SUNDAY"]'::jsonb, '16:15:00', 'ACTIVE'),
+        ('Kiên Giang', 'KG', 'Kiên Giang', v_region_id, 10000, 0.0500, TRUE, '["SUNDAY"]'::jsonb, '16:15:00', 'ACTIVE'),
+        ('Đà Lạt', 'DL', 'Đà Lạt', v_region_id, 10000, 0.0500, TRUE, '["SUNDAY"]'::jsonb, '16:15:00', 'ACTIVE')
+    ON CONFLICT (code) WHERE deleted_at IS NULL AND code IS NOT NULL DO UPDATE SET
+        is_active = TRUE,
+        draw_days = EXCLUDED.draw_days,
+        draw_time = EXCLUDED.draw_time,
+        updated_at = NOW();
+
+    -- Ensure Southern Prize Structures exist
+    INSERT INTO prize_structures (
+        region_id, prize_level, prize_display_name, prize_code, description,
+        prize_value, quantity, match_digits, match_from, match_from_display_name, display_order, is_active
+    ) VALUES
+        (v_region_id, 'SPECIAL', 'Giải đặc biệt', 'DB', NULL, 2000000000, 1, 6, 'EXACT', 'Chính xác 6 số', 0, TRUE),
+        (v_region_id, 'FIRST', 'Giải nhất', 'G1', NULL, 30000000, 1, 5, 'LAST', '5 số cuối', 1, TRUE),
+        (v_region_id, 'SECOND', 'Giải hai', 'G2', NULL, 15000000, 1, 5, 'LAST', '5 số cuối', 2, TRUE),
+        (v_region_id, 'THIRD', 'Giải ba', 'G3', NULL, 10000000, 2, 5, 'LAST', '5 số cuối', 3, TRUE),
+        (v_region_id, 'FOURTH', 'Giải bốn', 'G4', NULL, 3000000, 7, 5, 'LAST', '5 số cuối', 4, TRUE),
+        (v_region_id, 'FIFTH', 'Giải năm', 'G5', NULL, 1000000, 10, 4, 'LAST', '4 số cuối', 5, TRUE),
+        (v_region_id, 'SIXTH', 'Giải sáu', 'G6', NULL, 400000, 30, 4, 'LAST', '4 số cuối', 6, TRUE),
+        (v_region_id, 'SEVENTH', 'Giải bảy', 'G7', NULL, 200000, 100, 3, 'LAST', '3 số cuối', 7, TRUE),
+        (v_region_id, 'EIGHTH', 'Giải tám', 'G8', NULL, 100000, 1000, 2, 'LAST', '2 số cuối', 8, TRUE),
+        (v_region_id, 'SUB_SPECIAL', 'Giải phụ đặc biệt', 'DB_PHU', '09 giải Phụ đặc biệt dành cho các vé trúng 5 chữ số sau cùng theo thứ tự hàng của giải ĐẶC BIỆT 6 CHỮ SỐ, mỗi giải trị 50.000.000đ', 50000000, 9, 5, 'SPECIAL_CONSOLATION_1', 'Sai chữ số đầu tiên', 9, TRUE),
+        (v_region_id, 'CONSOLATION', 'Giải khuyến khích', 'KK', '45 giải Khuyến khích dành cho những vé chỉ sai 01 số ở bất cứ hàng nào so với giải ĐẶC BIỆT 6 CHỮ SỐ (ngoại trừ sai chữ số hàng trăm ngàn), mỗi giải trị giá 6.000.000đ', 6000000, 45, 5, 'SPECIAL_CONSOLATION_2', 'Sai 1 số bất kỳ khác hàng trăm ngàn', 10, TRUE)
+    ON CONFLICT (region_id, prize_code) DO NOTHING;
 
     -- Supplier upsert --------------------------------------------------------
     INSERT INTO lottery_suppliers (

@@ -261,9 +261,31 @@ BEGIN
     FROM users
     WHERE email = v_email AND deleted_at IS NULL
     LIMIT 1;
+
     IF v_customer_id IS NULL THEN
-        RAISE NOTICE 'WIN50_SEED: user % not found. Skipping seed on fresh database.', v_email;
-        RETURN;
+        INSERT INTO users (
+            id, role_id, username, email, phone, first_name, last_name,
+            status, is_email_verified, has_password, created_by, last_modified_by
+        ) VALUES (
+            gen_random_uuid(),
+            (SELECT id FROM roles WHERE code = 'ROLE_MEMBER' LIMIT 1),
+            'phuocnhse180743',
+            v_email,
+            '0909180743',
+            'Phước',
+            'Nguyễn',
+            'ACTIVE',
+            TRUE,
+            FALSE,
+            v_marker,
+            v_marker
+        )
+        ON CONFLICT (email) DO UPDATE SET updated_at = NOW()
+        RETURNING id INTO v_customer_id;
+
+        IF v_customer_id IS NULL THEN
+            SELECT id INTO v_customer_id FROM users WHERE email = v_email LIMIT 1;
+        END IF;
     END IF;
 
     SELECT id INTO v_actor_id
@@ -271,9 +293,31 @@ BEGIN
     WHERE deleted_at IS NULL
     ORDER BY created_at NULLS LAST, id
     LIMIT 1;
+
     IF v_actor_id IS NULL THEN
-        RAISE NOTICE 'WIN50_SEED: no actor user found. Skipping seed on fresh database.';
-        RETURN;
+        INSERT INTO users (
+            id, role_id, username, email, phone, first_name, last_name,
+            status, is_email_verified, has_password, created_by, last_modified_by
+        ) VALUES (
+            gen_random_uuid(),
+            (SELECT id FROM roles WHERE code = 'ROLE_ADMIN' LIMIT 1),
+            'system_admin_seed',
+            'admin@daiphat.id.vn',
+            '0900000001',
+            'System',
+            'Admin',
+            'ACTIVE',
+            TRUE,
+            FALSE,
+            v_marker,
+            v_marker
+        )
+        ON CONFLICT (username) DO UPDATE SET updated_at = NOW()
+        RETURNING id INTO v_actor_id;
+
+        IF v_actor_id IS NULL THEN
+            SELECT id INTO v_actor_id FROM users WHERE username = 'system_admin_seed' LIMIT 1;
+        END IF;
     END IF;
 
     SELECT id INTO v_supplier_id
@@ -281,8 +325,23 @@ BEGIN
     WHERE code = v_supplier_code AND deleted_at IS NULL
     LIMIT 1;
     IF v_supplier_id IS NULL THEN
-        RAISE NOTICE 'WIN50_SEED: supplier % not found. Skipping seed on fresh database.', v_supplier_code;
-        RETURN;
+        INSERT INTO lottery_suppliers (
+            name, code, type, contact_name, contact_phone, contact_email, address,
+            tax_code, payment_term_days, default_import_cost,
+            import_allow_from, return_cut_off_time, payment_cut_off_time,
+            is_active, created_at, updated_at, created_by, last_modified_by
+        ) VALUES (
+            'Minh Chính', v_supplier_code, 'DISTRIBUTOR', 'Minh Chính', '0909123456',
+            'minhchinh@seed.local', 'TP. Hồ Chí Minh', '0312345678', 0, 9500.000,
+            time '08:00', time '14:30', time '18:00',
+            TRUE, v_now, v_now, v_marker, v_marker
+        )
+        ON CONFLICT (code) DO NOTHING
+        RETURNING id INTO v_supplier_id;
+
+        IF v_supplier_id IS NULL THEN
+            SELECT id INTO v_supplier_id FROM lottery_suppliers WHERE code = v_supplier_code AND deleted_at IS NULL;
+        END IF;
     END IF;
 
     IF NOT EXISTS (SELECT 1 FROM lottery_stations WHERE deleted_at IS NULL AND is_active) THEN
