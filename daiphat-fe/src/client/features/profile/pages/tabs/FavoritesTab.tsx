@@ -1,6 +1,7 @@
 "use client";
 
 import React from 'react';
+import { LuckyNumber } from '../../../../components/ui/LuckyNumber';
 
 export const FavoritesTab = () => {
     const favorites = [
@@ -121,9 +122,7 @@ export const FavoritesTab = () => {
                                     <span className="text-[11px] text-[#637381] mb-1">Dãy số</span>
                                     <div className="flex items-center gap-3 flex-wrap">
                                         {fav.numbers.map((num, i) => (
-                                            <span key={i} className="text-[15px] font-black" style={{ color: fav.color }}>
-                                                {num}
-                                            </span>
+                                            <LuckyNumber key={i} value={num} ticket className="text-[15px] font-black" />
                                         ))}
                                     </div>
                                 </div>

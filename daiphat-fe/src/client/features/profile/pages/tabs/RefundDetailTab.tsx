@@ -25,15 +25,13 @@ import {
     UNAVAILABLE_REFERENCE_MESSAGE,
 } from '../../../../components/notification/UnavailableReferenceState';
 import { QUERY_KEYS } from '../../../../../constants/queryKeys';
-import { TICKET_IMAGE_FALLBACK } from '../../../../constants/clientBannerAssets';
 import { ClientSelect } from '../../../../components/ui/ClientSelect';
+import { LuckyNumber } from '../../../../components/ui/LuckyNumber';
 
 const REFUND_TYPE_LABELS: Record<RefundType, string> = {
     [RefundType.FULL_ORDER]: 'Hoàn cả đơn',
     [RefundType.ORDER_DETAIL]: 'Hoàn từng vé'
 };
-
-const FALLBACK_TICKET_IMG = TICKET_IMAGE_FALLBACK;
 
 function resolveIncidentReason(
     serialStatus?: string | null,
@@ -89,6 +87,7 @@ export const RefundDetailTab = () => {
     const bankAccount = refund?.bankAccount;
     const isWaitingForBankInfo = refund?.status === RefundRequestStatus.WAITING_FOR_INFO;
     const isBankRetryRequest = Boolean(isWaitingForBankInfo && (refund?.retryCount ?? 0) > 0);
+    const isTransferComplete = isRefundTransferComplete(refund?.status ?? RefundRequestStatus.READY_TO_PAY);
 
     const editableCurrentAccount = useMemo(() => {
         if (!isWaitingForBankInfo) return null;
@@ -143,7 +142,58 @@ export const RefundDetailTab = () => {
                 <RefundComplaintButton refund={refund} variant="button" />
             </div>
 
-            {refund.status !== RefundRequestStatus.MANUAL_RESOLUTION && (
+            {isTransferComplete && (
+                <div className="flex items-center gap-2.5 rounded-xl border border-[#A6E9C8] bg-[#E4F8ED] px-3.5 py-2.5">
+                    <i className="fa-solid fa-circle-check text-[#118D57] text-[15px] shrink-0" />
+                    <div className="min-w-0 flex-1">
+                        <p className="text-[13px] font-bold text-[#118D57] leading-snug">
+                            Đã chuyển khoản hoàn tiền thành công
+                        </p>
+                        {refund.payoutTransaction?.paidAt && (
+                            <p className="text-[12px] text-[#637381] mt-0.5 leading-snug">
+                                {format(new Date(refund.payoutTransaction.paidAt), 'dd/MM/yyyy HH:mm')}
+                                {refund.payoutTransaction.note
+                                    ? ` · ${refund.payoutTransaction.note}`
+                                    : ''}
+                            </p>
+                        )}
+                    </div>
+                    {refund.payoutTransaction?.paymentEvidenceUrl ? (
+                        <div className="flex items-center gap-1.5 shrink-0">
+                            <span className="text-[11px] font-bold text-[#118D57] leading-none">
+                                Biên lai
+                            </span>
+                            <TransferEvidencePreview
+                                mini
+                                title="Biên lai chuyển khoản"
+                                showCaption={false}
+                                imageUrl={refund.payoutTransaction.paymentEvidenceUrl}
+                                infoItems={[
+                                    {
+                                        label: 'Mã yêu cầu',
+                                        value: `#${refund.id}`,
+                                    },
+                                    {
+                                        label: 'Số tiền hoàn',
+                                        value: `${Number(refund.refundAmount || 0).toLocaleString('vi-VN')}đ`,
+                                    },
+                                    {
+                                        label: 'Thời gian',
+                                        value: refund.payoutTransaction.paidAt
+                                            ? format(
+                                                  new Date(refund.payoutTransaction.paidAt),
+                                                  'dd/MM/yyyy HH:mm'
+                                              )
+                                            : '—',
+                                    },
+                                ]}
+                            />
+                        </div>
+                    ) : null}
+                </div>
+            )}
+
+            {refund.status !== RefundRequestStatus.MANUAL_RESOLUTION && !isTransferComplete && (
                 <RefundStatusStepper
                     status={refund.status}
                     requestRole={refund.requestRole}
@@ -246,24 +296,17 @@ export const RefundDetailTab = () => {
                                                 key={ticket.orderDetailId ?? index}
                                                 className="rounded-2xl border border-[#E5E8EB] bg-[#FCFCFD] p-4 flex flex-col gap-3"
                                             >
-                                                <div className="flex items-start gap-3">
-                                                    <div className="w-[72px] h-[46px] rounded-lg shrink-0 overflow-hidden border border-[#E5E8EB] bg-white">
-                                                        <img
-                                                            src={ticket.ticketImg || FALLBACK_TICKET_IMG}
-                                                            alt={`Vé ${ticket.stationName || ''}`}
-                                                            className="w-full h-full object-cover mix-blend-multiply"
-                                                        />
-                                                    </div>
-                                                    <div className="min-w-0 flex-1">
-                                                        <p className="text-[17px] font-bold text-[#212B36] tracking-tight">
-                                                            {ticket.numbers || '—'}
+                                                <div className="min-w-0">
+                                                    <LuckyNumber
+                                                        value={ticket.numbers}
+                                                        ticket
+                                                        className="text-[17px] font-bold tracking-tight text-[#212B36]"
+                                                    />
+                                                    {ticket.serialNumber && (
+                                                        <p className="text-[12px] text-[#637381] font-mono mt-0.5 break-all">
+                                                            SN: {ticket.serialNumber}
                                                         </p>
-                                                        {ticket.serialNumber && (
-                                                            <p className="text-[12px] text-[#637381] font-mono mt-0.5">
-                                                                SN: {ticket.serialNumber}
-                                                            </p>
-                                                        )}
-                                                    </div>
+                                                    )}
                                                 </div>
 
                                                 <div className="grid grid-cols-2 gap-3 text-[13px]">
@@ -501,55 +544,6 @@ export const RefundDetailTab = () => {
                     ) : null}
                 </div>
             </div>
-
-            {isRefundTransferComplete(refund.status) && (
-                <div className="bg-[#E4F8ED] rounded-[20px] p-6 lg:p-8 border border-[#1CD162]/20 flex flex-col gap-4">
-                    <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-[#1CD162] text-white flex items-center justify-center text-lg shrink-0">
-                            <i className="fa-solid fa-check"></i>
-                        </div>
-                        <h3 className="text-[18px] font-bold text-[#212B36]">Đã chuyển khoản</h3>
-                    </div>
-                    {refund.payoutTransaction?.paidAt && (
-                        <p className="text-[14px] text-[#637381]">
-                            Thời gian: {format(new Date(refund.payoutTransaction.paidAt), 'dd/MM/yyyy HH:mm')}
-                        </p>
-                    )}
-                    {refund.payoutTransaction?.note && (
-                        <p className="text-[14px] text-[#637381]">
-                            Ghi chú: {refund.payoutTransaction.note}
-                        </p>
-                    )}
-                    {refund.payoutTransaction?.paymentEvidenceUrl ? (
-                        <div className="mt-1 bg-white rounded-2xl p-4 border border-[#E5E8EB]">
-                            <TransferEvidencePreview
-                                imageUrl={refund.payoutTransaction.paymentEvidenceUrl}
-                                infoItems={[
-                                    {
-                                        label: 'Mã yêu cầu',
-                                        value: `#${refund.id}`,
-                                    },
-                                    {
-                                        label: 'Số tiền hoàn',
-                                        value: `${Number(refund.refundAmount || 0).toLocaleString('vi-VN')}đ`,
-                                    },
-                                    {
-                                        label: 'Thời gian',
-                                        value: refund.payoutTransaction.paidAt
-                                            ? format(
-                                                  new Date(refund.payoutTransaction.paidAt),
-                                                  'dd/MM/yyyy HH:mm'
-                                              )
-                                            : '—',
-                                    },
-                                ]}
-                            />
-                        </div>
-                    ) : (
-                        <p className="text-[14px] text-[#637381]">Chưa có ảnh biên lai chuyển khoản.</p>
-                    )}
-                </div>
-            )}
 
             {refund.reviewedAt && (
                 <div className="text-center text-[13px] text-[#919EAB]">

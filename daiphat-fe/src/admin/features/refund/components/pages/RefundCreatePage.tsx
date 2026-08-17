@@ -29,6 +29,7 @@ import { toast } from 'react-toastify';
 import dayjs from 'dayjs';
 import { prefixAdmin } from '@/admin/constants/routes';
 import { handleOrderTicketIncidents, updateOrderStatus } from '@/admin/features/orders/services/orderService';
+import { AdminLuckyDisplay } from '@/shared/lucky-number';
 
 /** Quick suggestions for staff refund reason (UI-only; not persisted separately). */
 const STAFF_REFUND_REASON_SUGGESTIONS = [
@@ -365,7 +366,9 @@ export function RefundCreatePage() {
                                                 : 'transparent',
                                         }}
                                     >
-                                        <TableCell sx={{ fontWeight: 700 }}>{t.numbers}</TableCell>
+                                        <TableCell sx={{ fontWeight: 700 }}>
+                                            <AdminLuckyDisplay value={t.numbers} ticket />
+                                        </TableCell>
                                         <TableCell sx={{ fontFamily: 'monospace', fontSize: '0.75rem' }}>
                                             {t.serialNumber}
                                         </TableCell>

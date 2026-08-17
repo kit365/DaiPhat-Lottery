@@ -439,13 +439,13 @@ export const BuyTicketPage = () => {
     const drawDateFilter = selectedDates.map(resolveDrawDateToken).join(',');
     const activeFilterCount = countActiveTicketFilters(appliedFilters);
     const { data: ticketsRes, isLoading: isLoadingTickets, isFetching: isFetchingTickets } = useBuyTicketList({
-        stationIds: selectedStationIdsForQuery,
-        drawDate: drawDateFilter,
-        search: appliedSearch || undefined,
-        searches: appliedFilters.searches.length > 0 ? appliedFilters.searches : undefined,
-        tailRanges: appliedFilters.tailRanges.length > 0 ? appliedFilters.tailRanges : undefined,
-        numberTypes: appliedFilters.numberTypes.length > 0 ? appliedFilters.numberTypes : undefined,
-    });
+                stationIds: selectedStationIdsForQuery,
+                drawDate: drawDateFilter,
+                search: appliedSearch || undefined,
+                searches: appliedFilters.searches.length > 0 ? appliedFilters.searches : undefined,
+                tailRanges: appliedFilters.tailRanges.length > 0 ? appliedFilters.tailRanges : undefined,
+                numberTypes: appliedFilters.numberTypes.length > 0 ? appliedFilters.numberTypes : undefined,
+            });
     const availableTickets = Array.isArray(ticketsRes?.data?.recordList)
         ? ticketsRes.data.recordList
         : [];
@@ -939,7 +939,7 @@ export const BuyTicketPage = () => {
                                                                                             : 'border-[#E2E8F0] text-[#1E293B] bg-white hover:border-[#ee1314]/50'
                                                                                     }`}
                                                                                 >
-                                                                                    <span>{num}</span>
+                                                                                    <LuckyNumber value={num} ticket className="text-[13.5px]" />
                                                                                     <button
                                                                                         type="button"
                                                                                         onClick={(e) => {
@@ -973,7 +973,7 @@ export const BuyTicketPage = () => {
                                                                             onClick={() => addFavoriteNumber(num)}
                                                                             className="h-9 px-3.5 rounded-xl border border-[#E2E8F0] text-[#334155] hover:text-[#ee1314] hover:border-[#ee1314]/40 hover:bg-[#FFF4F4] text-[13.5px] font-bold bg-[#F8FAFC] flex items-center justify-center cursor-pointer transition-all shadow-xs active:scale-95"
                                                                         >
-                                                                            {num}
+                                                                            <LuckyNumber value={num} ticket className="text-[13.5px] font-bold" />
                                                                         </button>
                                                                     ))}
                                                                 </div>
@@ -1308,8 +1308,8 @@ export const BuyTicketPage = () => {
                                     {selectedNumbers.length > 0 ? (
                                         <div className="flex flex-wrap gap-2 justify-end pl-4">
                                             {selectedNumbers.map(num => (
-                                                <div key={num} className="bg-[#FFF4F4] text-[#ee1314] px-2.5 py-1 rounded-lg text-[14px] font-bold tracking-[1px] border border-[#FFEBEE] shadow-sm">
-                                                    {num}
+                                                <div key={num} className="bg-[#FFF4F4] px-2.5 py-1 rounded-lg text-[14px] font-bold tracking-[1px] border border-[#FFEBEE] shadow-sm">
+                                                    <LuckyNumber value={num} ticket className="text-[14px] tracking-[1px]" />
                                                 </div>
                                             ))}
                                         </div>

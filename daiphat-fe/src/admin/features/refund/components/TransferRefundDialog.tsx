@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react';
 import {
     Alert,
     Box,
-    Button,
     Card,
     CardContent,
     CardHeader,
@@ -26,6 +25,7 @@ import {
     Tooltip,
     Typography,
 } from '@mui/material';
+import { Button } from '@/admin/components/ui/Button';
 import { Icon } from '@/admin/components/ui/AdminIcon';
 import { toast } from 'react-toastify';
 import { UploadSingleFile } from '@/admin/components/upload/UploadSingleFile';
@@ -169,6 +169,7 @@ export const TransferRefundDialog = ({
                 maxWidth="md"
                 fullWidth
                 PaperProps={{
+                    className: 'admin-theme',
                     sx: {
                         maxHeight: '90vh',
                     },
@@ -403,18 +404,45 @@ export const TransferRefundDialog = ({
                         </Box>
                     )}
                 </DialogContent>
-                <DialogActions sx={{ px: 3, py: 2 }}>
-                    <Button onClick={handleClose} disabled={busy}>
-                        Hủy
-                    </Button>
+                <DialogActions
+                    sx={{
+                        px: 3,
+                        pb: 3,
+                        pt: 1.5,
+                        gap: 1,
+                        borderTop: '1px solid var(--palette-divider)',
+                    }}
+                >
+                    <Button
+                        onClick={handleClose}
+                        color="inherit"
+                        variant="outlined"
+                        className="btn-outlined-admin"
+                        disabled={busy}
+                        label="Hủy"
+                        sx={{ minWidth: 96 }}
+                    />
                     <Button
                         onClick={handleConfirmTransfer}
-                        color="primary"
                         variant="contained"
-                        disabled={!canConfirmTransfer}
-                    >
-                        {loading ? 'Đang xác nhận...' : 'Xác nhận chuyển khoản'}
-                    </Button>
+                        className="btn-primary-admin"
+                        disabled={!canConfirmTransfer || busy}
+                        loading={loading}
+                        loadingLabel="Đang xác nhận..."
+                        label="Xác nhận chuyển khoản"
+                        sx={{
+                            minWidth: 168,
+                            backgroundColor: '#1C252E !important',
+                            color: '#FFFFFF !important',
+                            '&:hover': {
+                                backgroundColor: '#454F5B !important',
+                            },
+                            '&.Mui-disabled': {
+                                backgroundColor: 'rgba(145, 158, 171, 0.24) !important',
+                                color: 'rgba(145, 158, 171, 0.8) !important',
+                            },
+                        }}
+                    />
                 </DialogActions>
             </Dialog>
 
@@ -423,6 +451,7 @@ export const TransferRefundDialog = ({
                 onClose={() => !bankUpdateLoading && setConfirmBankUpdateOpen(false)}
                 maxWidth="xs"
                 fullWidth
+                PaperProps={{ className: 'admin-theme' }}
             >
                 <DialogTitle>Xác nhận gửi yêu cầu</DialogTitle>
                 <DialogContent>
@@ -436,21 +465,37 @@ export const TransferRefundDialog = ({
                         </Box>
                     </DialogContentText>
                 </DialogContent>
-                <DialogActions>
+                <DialogActions
+                    sx={{
+                        px: 3,
+                        pb: 3,
+                        pt: 1.5,
+                        gap: 1,
+                        borderTop: '1px solid var(--palette-divider)',
+                    }}
+                >
                     <Button
                         onClick={() => setConfirmBankUpdateOpen(false)}
+                        color="inherit"
+                        variant="outlined"
+                        className="btn-outlined-admin"
                         disabled={bankUpdateLoading}
-                    >
-                        Quay lại
-                    </Button>
+                        label="Quay lại"
+                        sx={{ minWidth: 96 }}
+                    />
                     <Button
                         variant="contained"
                         color={willBecomeManual ? 'error' : 'warning'}
                         onClick={handleConfirmBankUpdate}
                         disabled={bankUpdateLoading}
-                    >
-                        {bankUpdateLoading ? 'Đang gửi...' : 'Xác nhận gửi'}
-                    </Button>
+                        loading={bankUpdateLoading}
+                        loadingLabel="Đang gửi..."
+                        label="Xác nhận gửi"
+                        sx={{
+                            minWidth: 128,
+                            boxShadow: 'none !important',
+                        }}
+                    />
                 </DialogActions>
             </Dialog>
         </>

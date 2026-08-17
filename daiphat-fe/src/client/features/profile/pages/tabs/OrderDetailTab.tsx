@@ -25,6 +25,7 @@ import { OrderComplaintButton } from '../../../../components/support/OrderCompla
 import { useGetOrderRefundEligibility } from '../../../../hooks/useRefund';
 import { useRefundCountdown } from '../../../../hooks/useRefundCountdown';
 import { format } from 'date-fns';
+import { LuckyNumber } from '../../../../components/ui/LuckyNumber';
 
 const OrderStepper = ({ order }: { order: any }) => {
     const currentStatus = order?.status;
@@ -561,7 +562,7 @@ export const OrderDetailTab = () => {
                                     >
                                         <div className="flex flex-col sm:flex-row sm:items-center gap-3 min-w-0">
                                             <span className="font-bold text-[16px] text-[#212B36] tracking-tight shrink-0 tabular-nums">
-                                                {numbers}
+                                                <LuckyNumber value={numbers} ticket className="text-[16px] tracking-tight" />
                                             </span>
                                             <div className="flex flex-col min-w-0 sm:border-l sm:border-[#E5E8EB] sm:pl-4">
                                                 <div className="flex items-center gap-2 min-w-0 flex-wrap">

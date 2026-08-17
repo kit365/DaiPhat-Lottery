@@ -1,11 +1,12 @@
 "use client";
 
 import { Control, Controller } from "react-hook-form";
-import { Box, MenuItem, Stack, TextField } from "@mui/material";
+import { Box, MenuItem, Stack, TextField, Typography } from "@mui/material";
 import { CollapsibleCard } from "../../../../components/ui/CollapsibleCard";
 import { Button } from "../../../../components/ui/Button";
 import { UserAvatarUploader } from "./UserAvatarUploader";
 import { UserStatus } from "../../../../../types/user.type";
+import { UserStatusBadge } from "../UserStatusBadge";
 
 type RoleOption = { code: string; name: string };
 
@@ -16,6 +17,7 @@ type Props = {
     isSaving?: boolean;
     roles?: RoleOption[];
     showRoles?: boolean;
+    mode?: "edit" | "detail";
     title?: string;
     subheader?: string;
     onAvatarFile: (file: File, previewUrl: string) => void;
@@ -30,6 +32,7 @@ export const AdminAccountProfileForm = ({
     isSaving,
     roles = [],
     showRoles = true,
+    mode = "edit",
     title = "Thông tin nhân viên",
     subheader = "Thông tin cơ bản của tài khoản quản trị.",
     onAvatarFile,
@@ -136,17 +139,32 @@ export const AdminAccountProfileForm = ({
                         name="status"
                         control={control}
                         render={({ field }) => (
-                            <TextField
-                                {...field}
-                                value={field.value || UserStatus.ACTIVE}
-                                label="Trạng thái"
-                                select
-                                fullWidth
-                            >
-                                <MenuItem value={UserStatus.ACTIVE} sx={{ fontSize: "0.875rem" }}>Hoạt động</MenuItem>
-                                <MenuItem value={UserStatus.LOCKED} sx={{ fontSize: "0.875rem" }}>Tạm dừng</MenuItem>
-                                <MenuItem value={UserStatus.BANNED} sx={{ fontSize: "0.875rem" }}>Bị cấm</MenuItem>
-                            </TextField>
+                            mode === "detail" ? (
+                                <Box sx={{ display: "flex", flexDirection: "column", gap: 0.75 }}>
+                                    <Typography
+                                        variant="caption"
+                                        sx={{ color: "var(--palette-text-secondary)", fontWeight: 600, fontSize: "0.75rem" }}
+                                    >
+                                        Trạng thái
+                                    </Typography>
+                                    <Box sx={{ display: "flex", alignItems: "center", minHeight: 40 }}>
+                                        <UserStatusBadge status={field.value || UserStatus.ACTIVE} />
+                                    </Box>
+                                </Box>
+                            ) : (
+                                <TextField
+                                    {...field}
+                                    value={field.value || UserStatus.ACTIVE}
+                                    label="Trạng thái"
+                                    select
+                                    size="small"
+                                    fullWidth
+                                >
+                                    <MenuItem value={UserStatus.ACTIVE} sx={{ fontSize: "0.875rem" }}>Hoạt động</MenuItem>
+                                    <MenuItem value={UserStatus.LOCKED} sx={{ fontSize: "0.875rem" }}>Tạm dừng</MenuItem>
+                                    <MenuItem value={UserStatus.BANNED} sx={{ fontSize: "0.875rem" }}>Bị cấm</MenuItem>
+                                </TextField>
+                            )
                         )}
                     />
                 </Box>

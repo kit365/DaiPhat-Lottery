@@ -52,6 +52,7 @@ import { CounterPaymentQrDialog } from '../sections/CounterPaymentQrDialog';
 import { CreateDirectOrderRequest, OrderReceiveType, DirectOrderTransactionRequest } from '../../../../../types/order.type';
 import { PaymentResult } from '../../../../../types/transaction.type';
 import { toast } from 'react-toastify';
+import { AdminLuckyDisplay } from '@/shared/lucky-number';
 import { useSearchCustomers } from '../../../users/hooks/useUsers';
 import {
     defaultSellableDrawDate,
@@ -659,9 +660,11 @@ export const CounterOrderCreatePage = () => {
                                                         sx={{ '&:hover': { bgcolor: 'var(--palette-action-hover)' } }}
                                                     >
                                                         <TableCell sx={{ borderBottom: '1px dashed var(--palette-background-neutral)' }}>
-                                                            <Typography sx={{ fontWeight: 800, fontSize: '1rem', color: 'var(--palette-text-primary)' }}>
-                                                                {row.numbers}
-                                                            </Typography>
+                                                            <AdminLuckyDisplay
+                                                                value={row.numbers}
+                                                                ticket
+                                                                sx={{ fontWeight: 800, fontSize: '1rem', color: 'var(--palette-text-primary)' }}
+                                                            />
                                                         </TableCell>
                                                         <TableCell sx={{ borderBottom: '1px dashed var(--palette-background-neutral)', fontSize: '0.875rem', color: 'var(--palette-text-primary)' }}>
                                                             {row.drawDate || '-'}
@@ -766,7 +769,9 @@ export const CounterOrderCreatePage = () => {
                                             
                                             return (
                                                 <TableRow key={id}>
-                                                    <TableCell sx={{ borderBottom: '1px dashed var(--palette-background-neutral)', fontWeight: 600 }}>{ticketNumber}</TableCell>
+                                                    <TableCell sx={{ borderBottom: '1px dashed var(--palette-background-neutral)', fontWeight: 600 }}>
+                                                        <AdminLuckyDisplay value={ticketNumber} ticket />
+                                                    </TableCell>
                                                     <TableCell sx={{ borderBottom: '1px dashed var(--palette-background-neutral)' }}>
                                                         <Typography variant="body2" sx={{ fontWeight: 600 }}>{stationName}</Typography>
                                                         <Typography variant="caption" sx={{ color: 'text.secondary' }}>{drawDate}</Typography>

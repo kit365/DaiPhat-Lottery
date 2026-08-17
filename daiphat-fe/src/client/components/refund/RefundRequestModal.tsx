@@ -23,6 +23,7 @@ import {
 import { AppToast } from '../../../utils/toast.util';
 import { ClientSelect } from '../ui/ClientSelect';
 import { OrderStatusBadge } from '@/shared/components/StatusBadge';
+import { LuckyNumber } from '../ui/LuckyNumber';
 
 interface RefundRequestModalProps {
     isOpen: boolean;
@@ -382,7 +383,7 @@ export const RefundRequestModal: React.FC<RefundRequestModalProps> = ({ isOpen, 
                                                         Vé số
                                                     </span>
                                                     <span className="text-[14px] font-bold text-[#212B36]">
-                                                        {ticket.numbers || '—'}
+                                                        <LuckyNumber value={ticket.numbers} ticket className="text-[14px]" />
                                                     </span>
                                                 </div>
                                                 <div className="flex justify-between sm:block mb-1 sm:mb-0">

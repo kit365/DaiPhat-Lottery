@@ -56,7 +56,6 @@ import {
 import { resolveLotteryTicketSerialAdminBadge } from '../../utils/lotteryTicketSerialAdminBadge.util';
 import { AdminStatusBadge } from '../../../../components/ui/AdminStatusBadge';
 import { AdminLuckyDisplay } from '@/shared/lucky-number';
-import { LazyReportSerialFaultPane } from '../../../ticket/import-batch/components/sections/LazyReportSerialFaultPane';
 import type { IncidentTicketDisplay } from '../../types/incidentTicket.type';
 import { resolveOrderDetailTicketDisplay } from '../../utils/resolveOrderDetailTicketDisplay';
 import { prefixAdmin, ROUTES } from '../../../../constants/routes';
@@ -83,6 +82,7 @@ export interface RefundOrderInfo {
 }
 
 interface OrderInspectionSectionProps {
+    open: boolean;
     orderCode?: string;
     orderId: string;
     orderDetails: any[];
@@ -188,6 +188,7 @@ interface TicketReplacementState {
 }
 
 export function OrderInspectionSection({
+    open,
     orderCode,
     orderId,
     orderDetails,
@@ -285,6 +286,14 @@ export function OrderInspectionSection({
     }, [orderId]);
 
     useEffect(() => {
+        if (!open) {
+            setReplacements({});
+            setExpandedRow(null);
+            setReportFaultTicket(null);
+        }
+    }, [open]);
+
+    useEffect(() => {
         tickets.forEach(ticket => {
             if (ticket.id != null && !ticket.isAlreadyFaultReported) {
                 loadReplacements(ticket);
@@ -296,11 +305,46 @@ export function OrderInspectionSection({
         if (ticket.isAlreadyFaultReported || !ticket.isIncidentEligible || ticket.id == null) {
             return;
         }
-        if (!ticket.lotteryTicketSerialId) {
-            toast.error('Không tìm thấy thông tin sê-ri vé để báo lỗi');
-            return;
+        const ticketId = ticket.id;
+        if (!replacements[ticketId]) {
+            setReplacements((prev) => ({
+                ...prev,
+                [ticketId]: {
+                    faultedBy: '',
+                    damagedReason: '',
+                    damagedEvidenceUrl: '',
+                    damagedEvidenceFiles: [],
+                },
+            }));
         }
         setReportFaultTicket(ticket);
+    };
+
+    const handleConfirmReportFault = () => {
+        if (!reportFaultTicket?.id) return;
+        const ticketId = reportFaultTicket.id;
+        const state = replacements[ticketId];
+        if (!state?.faultedBy) {
+            toast.error('Vui lòng chọn loại lỗi');
+            return;
+        }
+        if (!state.damagedReason?.trim()) {
+            toast.error('Vui lòng nhập mô tả sự cố');
+            return;
+        }
+        if (state.faultedBy === 'DAMAGED') {
+            if (!state.damagedEvidenceFiles?.length) {
+                toast.error('Vui lòng tải ảnh minh chứng');
+                return;
+            }
+            const hasUnuploadedFiles = state.damagedEvidenceFiles.some((f: any) => f instanceof File);
+            if (hasUnuploadedFiles) {
+                toast.error('Vui lòng đợi ảnh minh chứng tải lên xong');
+                return;
+            }
+        }
+        setReportFaultTicket(null);
+        toast.success('Đã ghi nhận báo lỗi vé');
     };
 
     const handleReplaceTicketClick = (ticket: IncidentTicketDisplay) => {
@@ -553,7 +597,7 @@ export function OrderInspectionSection({
                             <Typography variant="subtitle2" sx={{ mb: 0, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: hasReplacementCandidates ? 'flex-start' : { xs: 'flex-start', md: 'center' }, gap: 1, flexWrap: 'wrap', textAlign: hasReplacementCandidates ? 'left' : { xs: 'left', md: 'center' } }}>
                                 Xử lý sự cố cho vé: 
                                 <Box component="span" sx={{ color: 'primary.main', bgcolor: 'primary.lighter', px: 1, py: 0.25, borderRadius: 1 }}>
-                                    Bộ số {ticket.numbers}
+                                    Bộ số <AdminLuckyDisplay value={ticket.numbers} ticket />
                                 </Box>
                                 {ticket.serialNumber && (
                                     <Box component="span" sx={{ color: 'text.secondary', fontSize: '0.8em', fontWeight: 500, bgcolor: 'action.hover', px: 1, py: 0.25, borderRadius: 1 }}>
@@ -701,7 +745,7 @@ export function OrderInspectionSection({
                                                                     <Box sx={{ flex: 1, minWidth: 0 }}>
                                                                         <Stack direction="row" justifyContent="space-between" alignItems="center" mb={0.5}>
                                                                             <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.primary' }}>
-                                                                                Bộ số: {ticket.numbers}
+                                                                                Bộ số: <AdminLuckyDisplay value={ticket.numbers} ticket component="span" />
                                                                             </Typography>
                                                                             <Box sx={{ 
                                                                                 px: 1, py: 0.25, borderRadius: 1, 
@@ -899,9 +943,22 @@ export function OrderInspectionSection({
     };
 
     return (
-        <Card sx={{ borderRadius: 'var(--shape-borderRadius-lg)', boxShadow: 'var(--customShadows-card)' }}>
-            <CardHeader
-                title={
+        <>
+            <Dialog
+                open={open}
+                onClose={onCancel}
+                maxWidth="lg"
+                fullWidth
+                PaperProps={{
+                    className: 'admin-theme',
+                    sx: {
+                        borderRadius: 'var(--shape-borderRadius-lg)',
+                        maxHeight: '92vh',
+                    },
+                }}
+            >
+            <DialogTitle component="div" sx={{ p: 3, pb: 2 }}>
+                <Stack direction="row" spacing={1.5} alignItems="center" justifyContent="space-between">
                     <Stack direction="row" spacing={1.5} alignItems="center">
                         <Box
                             sx={{
@@ -918,18 +975,21 @@ export function OrderInspectionSection({
                             <Icon icon="solar:magnifer-zoom-in-bold-duotone" width={22} />
                         </Box>
                         <Box>
-                            <Typography sx={{ fontWeight: 700, fontSize: '1.125rem' }}>
-                                Bắt đầu kiểm tra
+                            <Typography component="div" sx={{ fontWeight: 700, fontSize: '1.125rem' }}>
+                                Kiểm tra vé
                             </Typography>
-                            <Typography variant="body2" sx={{ color: 'var(--palette-text-secondary)' }}>
-                                Đơn {orderCode || orderId}
+                            <Typography component="div" variant="body2" sx={{ color: 'var(--palette-text-secondary)' }}>
+                                Đơn {orderCode || orderId} · {tickets.length} vé
                             </Typography>
                         </Box>
                     </Stack>
-                }
-            />
+                    <IconButton onClick={onCancel} size="small" aria-label="Đóng">
+                        <Icon icon="solar:close-circle-bold" />
+                    </IconButton>
+                </Stack>
+            </DialogTitle>
             <Divider />
-            <CardContent sx={{ p: 3 }}>
+            <DialogContent sx={{ p: 3 }}>
                 <Stack spacing={2.5}>
                     <Box>
                         <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }} spacing={1.5}>
@@ -1019,6 +1079,11 @@ export function OrderInspectionSection({
                                         const hasStartedFilling = ticket.id != null && !!replacements[ticket.id]?.faultedBy;
                                         const hasReplaced = ticket.id != null && !!replacements[ticket.id]?.newTicketId;
                                         const alreadyFaultReported = !!ticket.isAlreadyFaultReported;
+                                        const hasLocalFaultReport =
+                                            ticket.id != null
+                                            && !!replacements[ticket.id]?.faultedBy
+                                            && !!replacements[ticket.id]?.damagedReason
+                                            && !replacements[ticket.id]?.newTicketId;
 
                                         return (
                                             <React.Fragment key={ticket.id ?? ticket.numbers}>
@@ -1111,6 +1176,20 @@ export function OrderInspectionSection({
                                                                 >
                                                                     {isReplacing ? "Đóng" : (hasReplaced ? "Đã thay vé" : "Thay vé")}
                                                                 </Button>
+                                                            ) : hasLocalFaultReport ? (
+                                                                <Typography
+                                                                    variant="caption"
+                                                                    sx={{
+                                                                        color: 'var(--palette-error-dark)',
+                                                                        fontWeight: 800,
+                                                                        bgcolor: 'var(--palette-error-lighter)',
+                                                                        px: 1,
+                                                                        py: 0.5,
+                                                                        borderRadius: '6px',
+                                                                    }}
+                                                                >
+                                                                    Đã ghi nhận lỗi
+                                                                </Typography>
                                                             ) : (
                                                                 <>
                                                                     <Typography variant="caption" sx={{ color: 'var(--palette-text-secondary)', fontWeight: 600 }}>
@@ -1154,9 +1233,9 @@ export function OrderInspectionSection({
                         </TableContainer>
                     </Box>
                 </Stack>
-            </CardContent>
+            </DialogContent>
             <Divider />
-            <Box sx={{ p: 3, display: 'flex', justifyContent: 'flex-end', gap: 2 }}>
+            <DialogActions sx={{ p: 3, gap: 2 }}>
                 <Button
                     onClick={onCancel}
                     variant="outlined"
@@ -1198,7 +1277,8 @@ export function OrderInspectionSection({
                           ? 'Chuyển sang Chờ nhận vé & Tạo yêu cầu hoàn tiền'
                           : 'Chuyển sang "Chờ nhận vé"'}
                 </Button>
-            </Box>
+            </DialogActions>
+            </Dialog>
 
             {/* Pop-up Tạo yêu cầu hoàn tiền */}
             <Dialog
@@ -1215,6 +1295,7 @@ export function OrderInspectionSection({
                 }}
             >
                 <DialogTitle
+                    component="div"
                     sx={{
                         p: 3,
                         pb: 2,
@@ -1225,10 +1306,10 @@ export function OrderInspectionSection({
                     }}
                 >
                     <Box>
-                        <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                        <Typography component="div" variant="h6" sx={{ fontWeight: 700 }}>
                             Tạo yêu cầu hoàn tiền
                         </Typography>
-                        <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.5 }}>
+                        <Typography component="div" variant="body2" sx={{ color: 'text.secondary', mt: 0.5 }}>
                             Kiểm tra thông tin đơn hàng và vé sự cố trước khi xác nhận tạo yêu cầu.
                         </Typography>
                     </Box>
@@ -1437,7 +1518,7 @@ export function OrderInspectionSection({
                                                             )}
                                                         </TableCell>
                                                         <TableCell sx={{ fontWeight: 700 }}>
-                                                            {t.numbers}
+                                                            <AdminLuckyDisplay value={t.numbers} ticket />
                                                         </TableCell>
                                                         <TableCell
                                                             sx={{
@@ -1740,50 +1821,190 @@ export function OrderInspectionSection({
                 <Dialog
                     open
                     onClose={() => setReportFaultTicket(null)}
-                    maxWidth="lg"
+                    maxWidth="sm"
                     fullWidth
                     PaperProps={{
                         className: 'admin-theme',
-                        sx: {
-                            borderRadius: '16px',
-                            maxHeight: '90vh',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            overflow: 'hidden',
-                        },
+                        sx: { borderRadius: '16px' },
                     }}
                 >
-                    <DialogContent sx={{ p: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-                        <LazyReportSerialFaultPane
-                            serials={[
-                                {
-                                    id: reportFaultTicket.lotteryTicketSerialId!,
-                                    serialNumber: reportFaultTicket.serialNumber || '',
-                                    status: reportFaultTicket.serialStatus || 'RESERVED',
-                                    ticketCondition: reportFaultTicket.ticketCondition,
-                                    ticketId: reportFaultTicket.lotteryTicketId,
-                                    ticketNumbers: reportFaultTicket.numbers,
-                                    ticketStatus: reportFaultTicket.status,
-                                    reservedByOrderId: orderId,
-                                },
-                            ]}
-                            ticketNumbers={reportFaultTicket.numbers}
-                            ticketId={reportFaultTicket.lotteryTicketId}
-                            importBatchLineId={0}
-                            stationId={reportFaultTicket.stationId}
-                            drawDate={reportFaultTicket.drawDate}
-                            defaultCancelMode="SERIAL"
-                            onCancel={() => setReportFaultTicket(null)}
-                            onSuccess={() => {
-                                setReportFaultTicket(null);
-                                if (onSuccess) {
-                                    onSuccess();
-                                }
-                            }}
-                        />
+                    <DialogTitle component="div" sx={{ pb: 1 }}>
+                        <Typography component="div" variant="h6" sx={{ fontWeight: 700 }}>
+                            Báo lỗi vé
+                        </Typography>
+                        <Typography component="div" variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                            Kho không còn vé thay thế — vé này sẽ được ghi nhận để hoàn tiền sau.
+                        </Typography>
+                    </DialogTitle>
+                    <DialogContent dividers>
+                        <Stack spacing={2.5}>
+                            <Box
+                                sx={{
+                                    p: 2,
+                                    borderRadius: '12px',
+                                    bgcolor: 'var(--palette-background-neutral)',
+                                    border: '1px solid var(--palette-divider)',
+                                }}
+                            >
+                                <Grid container spacing={2}>
+                                    <Grid size={{ xs: 6 }}>
+                                        <InfoField
+                                            label="Bộ số"
+                                            value={<AdminLuckyDisplay value={reportFaultTicket.numbers} ticket />}
+                                            emphasize
+                                        />
+                                    </Grid>
+                                    <Grid size={{ xs: 6 }}>
+                                        <InfoField
+                                            label="Serial"
+                                            value={reportFaultTicket.serialNumber || '—'}
+                                        />
+                                    </Grid>
+                                    <Grid size={{ xs: 6 }}>
+                                        <InfoField label="Đài" value={reportFaultTicket.stationName || '—'} />
+                                    </Grid>
+                                    <Grid size={{ xs: 6 }}>
+                                        <InfoField
+                                            label="Ngày xổ"
+                                            value={
+                                                reportFaultTicket.drawDate
+                                                    ? dayjs(reportFaultTicket.drawDate).format('DD/MM/YYYY')
+                                                    : '—'
+                                            }
+                                        />
+                                    </Grid>
+                                </Grid>
+                            </Box>
+
+                            {reportFaultTicket.id != null && (
+                                <>
+                                    <Box>
+                                        <Typography variant="subtitle2" sx={{ mb: 1, color: 'text.secondary' }}>
+                                            Loại lỗi *
+                                        </Typography>
+                                        <ToggleButtonGroup
+                                            color="primary"
+                                            value={replacements[reportFaultTicket.id]?.faultedBy || ''}
+                                            exclusive
+                                            onChange={(_, value) => {
+                                                if (value !== null) {
+                                                    updateReplacement(reportFaultTicket.id!, 'faultedBy', value);
+                                                }
+                                            }}
+                                            fullWidth
+                                            sx={{
+                                                '& .MuiToggleButton-root': {
+                                                    flex: 1,
+                                                    textTransform: 'none',
+                                                    fontWeight: 600,
+                                                },
+                                            }}
+                                        >
+                                            <ToggleButton value="DAMAGED">Vé rách / Hư hỏng</ToggleButton>
+                                            <ToggleButton value="LOST">Thất lạc</ToggleButton>
+                                        </ToggleButtonGroup>
+                                    </Box>
+
+                                    {replacements[reportFaultTicket.id]?.faultedBy && (
+                                        <Box>
+                                            <Typography variant="subtitle2" sx={{ mb: 1, color: 'text.secondary' }}>
+                                                Mô tả sự cố *
+                                            </Typography>
+                                            <TextField
+                                                size="small"
+                                                fullWidth
+                                                multiline
+                                                minRows={2}
+                                                value={replacements[reportFaultTicket.id]?.damagedReason || ''}
+                                                onChange={(e) =>
+                                                    updateReplacement(
+                                                        reportFaultTicket.id!,
+                                                        'damagedReason',
+                                                        e.target.value
+                                                    )
+                                                }
+                                                placeholder="Mô tả ngắn gọn tình trạng vé..."
+                                            />
+                                            {quickReasons[replacements[reportFaultTicket.id]!.faultedBy] && (
+                                                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mt: 1 }}>
+                                                    {quickReasons[replacements[reportFaultTicket.id]!.faultedBy].map(
+                                                        (reason) => (
+                                                            <Typography
+                                                                key={reason}
+                                                                variant="caption"
+                                                                onClick={() =>
+                                                                    updateReplacement(
+                                                                        reportFaultTicket.id!,
+                                                                        'damagedReason',
+                                                                        reason
+                                                                    )
+                                                                }
+                                                                sx={{
+                                                                    cursor: 'pointer',
+                                                                    px: 1.25,
+                                                                    py: 0.75,
+                                                                    bgcolor: 'action.hover',
+                                                                    borderRadius: 1,
+                                                                    border: '1px solid var(--palette-divider)',
+                                                                    '&:hover': { bgcolor: 'action.selected' },
+                                                                }}
+                                                            >
+                                                                {reason}
+                                                            </Typography>
+                                                        )
+                                                    )}
+                                                </Box>
+                                            )}
+                                        </Box>
+                                    )}
+
+                                    {replacements[reportFaultTicket.id]?.faultedBy === 'DAMAGED' && (
+                                        <Box>
+                                            <Typography variant="subtitle2" sx={{ mb: 1, color: 'text.secondary' }}>
+                                                Ảnh minh chứng *
+                                            </Typography>
+                                            <UploadFiles
+                                                compact
+                                                files={replacements[reportFaultTicket.id]?.damagedEvidenceFiles || []}
+                                                onFilesChange={(files) => {
+                                                    updateReplacement(
+                                                        reportFaultTicket.id!,
+                                                        'damagedEvidenceFiles',
+                                                        files
+                                                    );
+                                                    const url = files.find((f) => typeof f === 'string');
+                                                    updateReplacement(
+                                                        reportFaultTicket.id!,
+                                                        'damagedEvidenceUrl',
+                                                        url || ''
+                                                    );
+                                                }}
+                                            />
+                                        </Box>
+                                    )}
+                                </>
+                            )}
+                        </Stack>
                     </DialogContent>
+                    <DialogActions sx={{ p: 2.5, gap: 1.5 }}>
+                        <Button
+                            variant="outlined"
+                            onClick={() => setReportFaultTicket(null)}
+                            sx={{ textTransform: 'none', fontWeight: 700, borderRadius: '8px' }}
+                        >
+                            Hủy
+                        </Button>
+                        <Button
+                            variant="contained"
+                            color="error"
+                            onClick={handleConfirmReportFault}
+                            sx={{ textTransform: 'none', fontWeight: 700, borderRadius: '8px', boxShadow: 'none' }}
+                        >
+                            Xác nhận báo lỗi
+                        </Button>
+                    </DialogActions>
                 </Dialog>
             )}
-        </Card>
+        </>
     );
 }

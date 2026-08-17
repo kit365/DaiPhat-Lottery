@@ -22,6 +22,7 @@ import dayjs from 'dayjs';
 import { useQueries } from '@tanstack/react-query';
 import { getOrderDetail } from '../../../../orders/services/orderService';
 import { OrderStatusBadge } from '@/shared/components/StatusBadge';
+import { AdminLuckyDisplay } from '@/shared/lucky-number';
 import { prefixAdmin } from '../../../../../constants/routes';
 import { orderDetailRefundPrepQueryKey } from '../../constants/queryKeys';
 import { OrderDetailStatus } from '../../../../../../types/order.type';
@@ -476,7 +477,7 @@ export const TicketIncidentRefundStep: React.FC<Props> = ({
                                             >
                                                 <Stack spacing={0.25}>
                                                     <Typography variant="body2" fontWeight={800}>
-                                                        Dãy số {line.numbers || '—'}
+                                                        Dãy số <AdminLuckyDisplay value={line.numbers} ticket component="span" />
                                                         {line.stationName ? ` · ${line.stationName}` : ''}
                                                     </Typography>
                                                     <Typography variant="caption" color="text.secondary">

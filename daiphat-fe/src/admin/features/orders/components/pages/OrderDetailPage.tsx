@@ -337,37 +337,8 @@ export const OrderDetailPage = () => {
                             </Box>
                         </Card>
 
-                        {/* Danh sách vé Card / Inspection Section */}
-                        {isInspectionStarted && order.status === OrderStatus.PREPARING ? (
-                            <OrderInspectionSection
-                                orderId={order.id}
-                                orderCode={order.orderCode}
-                                orderDetails={order.orderDetails || []}
-                                orderInfo={{
-                                    customerName:
-                                        order.name ||
-                                        (order as any).user?.fullName ||
-                                        'Khách vãng lai',
-                                    phone:
-                                        order.phone ||
-                                        (order as any).user?.phone ||
-                                        (order as any).user?.phoneNumber,
-                                    email: (order as any).user?.email,
-                                    status: order.status,
-                                    statusLabel: currentStatus.label,
-                                    paymentStatusLabel:
-                                        PAYMENT_STATUS_OPTIONS[paymentStatus]?.label ||
-                                        'Đã thanh toán',
-                                    createdAt: order.createdAt,
-                                    totalAmount: order.totalAmount,
-                                    orderType: order.orderType,
-                                }}
-                                onSuccess={() => refetch()}
-                                onCancel={() => setIsInspectionStarted(false)}
-                                onMoveToReadyForPickup={() => handleStatusChange(OrderStatus.PENDING_PICKUP)}
-                            />
-                        ) : (
-                            <Card sx={{ borderRadius: 'var(--shape-borderRadius-lg)', boxShadow: 'var(--customShadows-card)' }}>
+                        {/* Danh sách vé */}
+                        <Card sx={{ borderRadius: 'var(--shape-borderRadius-lg)', boxShadow: 'var(--customShadows-card)' }}>
                                 <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ pt: 3, px: 3, pb: 3 }}>
                                     <Stack direction="row" spacing={1} alignItems="center">
                                         <Typography sx={{ fontSize: '1.125rem', fontWeight: 700, color: 'var(--palette-text-primary)' }}>Danh sách vé</Typography>
@@ -512,6 +483,36 @@ export const OrderDetailPage = () => {
                                     </Stack>
                                 </Stack>
                             </Card>
+
+                        {order.status === OrderStatus.PREPARING && (
+                            <OrderInspectionSection
+                                open={isInspectionStarted}
+                                orderId={order.id}
+                                orderCode={order.orderCode}
+                                orderDetails={order.orderDetails || []}
+                                orderInfo={{
+                                    customerName:
+                                        order.name ||
+                                        (order as any).user?.fullName ||
+                                        'Khách vãng lai',
+                                    phone:
+                                        order.phone ||
+                                        (order as any).user?.phone ||
+                                        (order as any).user?.phoneNumber,
+                                    email: (order as any).user?.email,
+                                    status: order.status,
+                                    statusLabel: currentStatus.label,
+                                    paymentStatusLabel:
+                                        PAYMENT_STATUS_OPTIONS[paymentStatus]?.label ||
+                                        'Đã thanh toán',
+                                    createdAt: order.createdAt,
+                                    totalAmount: order.totalAmount,
+                                    orderType: order.orderType,
+                                }}
+                                onSuccess={() => refetch()}
+                                onCancel={() => setIsInspectionStarted(false)}
+                                onMoveToReadyForPickup={() => handleStatusChange(OrderStatus.PENDING_PICKUP)}
+                            />
                         )}
 
                     </Stack>

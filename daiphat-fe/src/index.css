@@ -50,6 +50,11 @@ body {
     text-overflow: ellipsis;
     white-space: nowrap;
   }
+
+  .status-badge {
+    max-height: 24px;
+    box-sizing: border-box;
+  }
 }
 
 .swal2-container {

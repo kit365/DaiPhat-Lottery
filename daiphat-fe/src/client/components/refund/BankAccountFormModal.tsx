@@ -3,6 +3,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { UserBankAccountResponse, VietQrBankResponse } from '../../../types/refund.type';
 import { useCreateBankAccount, useGetBanks, useUpdateBankAccount } from '../../hooks/useBankAccount';
+import {
+    sanitizeBankAccountNoInput,
+    validateBankAccountNo,
+    BANK_ACCOUNT_NO_INVALID_MESSAGE,
+    BANK_ACCOUNT_NO_MAX_LENGTH,
+} from '@/shared/bank-account/bankAccountNoValidation';
 import { AppToast } from '../../../utils/toast.util';
 
 const BANK_ACCOUNT_TERMS_TEXT =
@@ -28,6 +34,7 @@ export const BankAccountFormModal: React.FC<BankAccountFormModalProps> = ({
     const [bankSearch, setBankSearch] = useState('');
     const [selectedBank, setSelectedBank] = useState<VietQrBankResponse | null>(null);
     const [bankAccountNo, setBankAccountNo] = useState('');
+    const [bankAccountNoError, setBankAccountNoError] = useState<string | null>(null);
     const [bankAccountName, setBankAccountName] = useState('');
     const [isDefault, setIsDefault] = useState(false);
     const [agreedToRefundTerms, setAgreedToRefundTerms] = useState(false);
@@ -42,6 +49,7 @@ export const BankAccountFormModal: React.FC<BankAccountFormModalProps> = ({
 
         if (editingAccount) {
             setBankAccountNo(editingAccount.bankAccountNo);
+            setBankAccountNoError(null);
             setBankAccountName(editingAccount.bankAccountName);
             setIsDefault(editingAccount.isDefault);
             setAgreedToRefundTerms(false);
@@ -56,6 +64,7 @@ export const BankAccountFormModal: React.FC<BankAccountFormModalProps> = ({
         } else {
             setSelectedBank(null);
             setBankAccountNo('');
+            setBankAccountNoError(null);
             setBankAccountName('');
             setIsDefault(false);
             setAgreedToRefundTerms(false);
@@ -79,7 +88,11 @@ export const BankAccountFormModal: React.FC<BankAccountFormModalProps> = ({
         e.preventDefault();
 
         if (!selectedBank) return;
-        if (!bankAccountNo.trim() || !bankAccountName.trim()) return;
+
+        const accountNoError = validateBankAccountNo(bankAccountNo);
+        setBankAccountNoError(accountNoError);
+        if (accountNoError) return;
+        if (!bankAccountName.trim()) return;
 
         if (!agreedToRefundTerms) {
             AppToast.error('Bạn cần xác nhận cam kết thông tin tài khoản ngân hàng');
@@ -209,12 +222,32 @@ export const BankAccountFormModal: React.FC<BankAccountFormModalProps> = ({
                         <label className="text-[13px] font-bold text-[#454F5B]">Số tài khoản *</label>
                         <input
                             type="text"
+                            inputMode="numeric"
+                            autoComplete="off"
                             value={bankAccountNo}
-                            onChange={(e) => setBankAccountNo(e.target.value.replace(/\s/g, ''))}
+                            onChange={(e) => {
+                                setBankAccountNo(sanitizeBankAccountNoInput(e.target.value));
+                                if (bankAccountNoError) {
+                                    setBankAccountNoError(null);
+                                }
+                            }}
+                            onBlur={() => {
+                                if (bankAccountNo.trim()) {
+                                    setBankAccountNoError(validateBankAccountNo(bankAccountNo));
+                                }
+                            }}
                             placeholder="Nhập số tài khoản"
-                            className="w-full px-4 py-3 bg-white border border-[#E5E8EB] rounded-xl text-[14px] outline-none focus:border-[#ee1314] transition-colors"
+                            maxLength={BANK_ACCOUNT_NO_MAX_LENGTH}
+                            className={`w-full px-4 py-3 bg-white border rounded-xl text-[14px] outline-none transition-colors ${
+                                bankAccountNoError
+                                    ? 'border-[#ee1314] focus:border-[#ee1314]'
+                                    : 'border-[#E5E8EB] focus:border-[#ee1314]'
+                            }`}
                             required
                         />
+                        <p className={`text-[12px] ${bankAccountNoError ? 'text-[#ee1314]' : 'text-[#919EAB]'}`}>
+                            {bankAccountNoError || BANK_ACCOUNT_NO_INVALID_MESSAGE}
+                        </p>
                     </div>
 
                     <div className="flex flex-col gap-2">

@@ -9,6 +9,7 @@ import { useCreatePrizePayout } from '../../hooks/usePrizePayout';
 import { BankAccountFormModal } from '../refund/BankAccountFormModal';
 import { prizePayoutService } from '../../services/prizePayoutService';
 import dayjs from 'dayjs';
+import { LuckyNumber } from '../ui/LuckyNumber';
 
 interface PrizePayoutRequestModalProps {
     isOpen: boolean;
@@ -116,7 +117,7 @@ export const PrizePayoutRequestModal: React.FC<PrizePayoutRequestModalProps> = (
                             </div>
                             <div className="flex justify-between">
                                 <span className="text-[#637381]">Dãy số</span>
-                                <span className="font-bold tracking-wider">{ticket.numbers}</span>
+                                <LuckyNumber value={ticket.numbers} ticket className="font-bold tracking-wider" />
                             </div>
                             <div className="flex justify-between">
                                 <span className="text-[#637381]">Giải</span>
