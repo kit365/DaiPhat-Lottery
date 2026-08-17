@@ -30,8 +30,7 @@ export const UserToolbar = ({
                 label: 'Vai trò',
                 options: [
                     { value: RoleEnum.ADMIN, label: 'Admin' },
-                    { value: RoleEnum.MEMBER, label: 'Member' },
-                    { value: RoleEnum.STAFF_OPERATOR, label: 'Staff Operator' }
+                    { value: RoleEnum.STAFF_OPERATOR, label: 'Nhân viên vận hành' }
                 ]
             });
         }

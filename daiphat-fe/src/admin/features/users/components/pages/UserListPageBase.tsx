@@ -167,7 +167,14 @@ export const UserListPageBase = ({
                     filterName={queryParams.q || ''}
                     onFilterName={(value) => handleFilterChange('q', value)}
                     filterRoles={isClient ? undefined : (queryParams.roleIds || [])}
-                    onFilterRoles={isClient ? undefined : ((values) => handleFilterChange('roleIds', values))}
+                    onFilterRoles={
+                        isClient
+                            ? undefined
+                            : ((values) => handleFilterChange(
+                                'roleIds',
+                                values.length > 0 ? values : defaultRoleIds
+                            ))
+                    }
                     isClient={isClient}
                 />
                 <div style={{ height: 640, width: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
