@@ -203,7 +203,8 @@ public interface SupplierSettlementRepository
     java.util.List<Object[]> findPreparedReturnSerialRowsBySettlementId(@Param("settlementId") Long settlementId);
 
     /**
-     * IN_STOCK + GOOD serials for import discrepancy resolution / inventory browse.
+     * IN_STOCK|EXPIRED + GOOD serials not yet on a return batch, for import discrepancy
+     * resolution / excess-return selection / inventory browse.
      * Columns: serialId, serialNumber, status, ticketCondition, stationName, importCost,
      *          importBatchId, importBatchCode
      */
@@ -226,8 +227,13 @@ public interface SupplierSettlementRepository
               AND ibl.deletedAt IS NULL
               AND ib.deletedAt IS NULL
               AND t.deletedAt IS NULL
-              AND s.status = com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus.IN_STOCK
-              AND s.ticketCondition = com.daiphat.coreapi.domain.model.enums.lottery.TicketCondition.GOOD
+              AND s.returnBatchLineId IS NULL
+              AND s.status IN (
+                  com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus.IN_STOCK,
+                  com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus.EXPIRED
+              )
+              AND (s.ticketCondition IS NULL
+                   OR s.ticketCondition = com.daiphat.coreapi.domain.model.enums.lottery.TicketCondition.GOOD)
             ORDER BY ib.id ASC, st.name ASC, s.serialNumber ASC
             """)
     java.util.List<Object[]> findImportResolvableSerialRowsBySettlementId(@Param("settlementId") Long settlementId);

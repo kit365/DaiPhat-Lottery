@@ -44,35 +44,46 @@ public class SupplierTicketIntakeWindowPolicy {
     }
 
     /**
-     * Whether the supplier's counter has not opened yet.
+     * Instant the supplier starts accepting tickets for {@code drawDate}.
      *
-     * <p>Read against the clock right now, deliberately not against the draw
-     * date. {@code importAllowFrom} is the hour this supplier opens for business
-     * today; until it arrives nothing can be collected from them, whichever draw
-     * the tickets are for. Once it passes, tickets for a later draw may be taken
-     * in straight away — there is nothing to wait for.
-     *
-     * <p>The closing rule is the mirror image: it belongs to the draw date, so a
-     * batch for tomorrow stays open until tomorrow's sweep begins.
-     *
-     * @param drawDate accepted for symmetry with {@link #isIntakeClosed} and for
-     *                 the message; the decision does not depend on it
+     * <p>A morning receive hour (before 12:00) is the previous calendar morning:
+     * {@code importAllowFrom = 08:00} for draw 18/08 opens at 17/08 08:00. After
+     * noon and overnight into the draw day, staff can still import that draw.
+     * An afternoon receive hour stays on the draw date itself.
+     */
+    public LocalDateTime intakeOpenAt(LotterySupplierModel supplier, LocalDate drawDate) {
+        if (supplier == null || supplier.getImportAllowFrom() == null || drawDate == null) {
+            return null;
+        }
+        LocalTime allowFrom = supplier.getImportAllowFrom();
+        LocalDate openDate = allowFrom.isBefore(LocalTime.NOON)
+                ? drawDate.minusDays(1)
+                : drawDate;
+        return LocalDateTime.of(openDate, allowFrom);
+    }
+
+    /**
+     * Whether the supplier's counter has not opened yet for {@code drawDate}.
      */
     public boolean isBeforeIntakeOpen(LotterySupplierModel supplier, LocalDate drawDate, LocalDateTime now) {
-        if (supplier == null || supplier.getImportAllowFrom() == null) {
+        LocalDateTime openAt = intakeOpenAt(supplier, drawDate);
+        if (openAt == null || now == null) {
             return false;
         }
-        return now.toLocalTime().isBefore(supplier.getImportAllowFrom());
+        return now.isBefore(openAt);
     }
 
     /** Operator-facing reason, shared so both flows word the block identically. */
     public String notOpenMessage(LotterySupplierModel supplier, LocalDate drawDate) {
+        LocalDateTime openAt = intakeOpenAt(supplier, drawDate);
+        String fromLabel = openAt == null
+                ? "-"
+                : openAt.toLocalTime() + " ngày " + openAt.toLocalDate();
         return String.format(
-                "Chưa đến giờ nhận vé của nhà cung cấp %s (từ %s hôm nay). "
-                        + "Chưa thể nhập vé, kể cả cho kỳ quay %s.",
+                "Chưa đến giờ nhận vé của nhà cung cấp %s (từ %s). "
+                        + "Chưa thể nhập vé cho kỳ quay %s.",
                 supplier == null ? "-" : supplier.getName(),
-                supplier == null || supplier.getImportAllowFrom() == null
-                        ? "-" : supplier.getImportAllowFrom(),
+                fromLabel,
                 drawDate == null ? "-" : drawDate
         );
     }

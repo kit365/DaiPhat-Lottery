@@ -123,6 +123,11 @@ class SupplierSettlementReconciliationServiceTest {
         lenient().when(intakeWindowPolicy.isTicketChangeLocked(any(), any(), any())).thenReturn(false);
         lenient().when(lotteryStationRepositoryPort.findByNextDrawDate(any())).thenReturn(List.of());
         lenient().when(lotteryStationRepositoryPort.findAll()).thenReturn(List.of());
+        lenient().when(discrepancyInventoryHelper.mergeUnbackedAdjustmentInventory(any(), any()))
+                .thenAnswer(invocation -> {
+                    List<?> inventory = invocation.getArgument(1);
+                    return inventory != null ? inventory : List.of();
+                });
     }
 
     private void fixedNow() {
@@ -649,6 +654,33 @@ class SupplierSettlementReconciliationServiceTest {
     }
 
     @Test
+    @DisplayName("confirmMatching rejects actual return quantity above system return quantity")
+    void confirmMatching_rejectsActualReturnGreaterThanSystem() {
+        SupplierSettlementModel settlement = openSettlement();
+        stubConfirmMatchingPrerequisites(settlement, new BigDecimal("10000"));
+        when(supplierSettlementRepositoryPort.findById(10L)).thenReturn(Optional.of(settlement));
+        when(supplierSettlementRepositoryPort.countImportedTicketsBySettlementId(10L)).thenReturn(100L);
+        when(supplierSettlementRepositoryPort.countPreparedReturnTicketsBySettlementId(10L)).thenReturn(40L);
+
+        ConfirmSettlementMatchingRequest request = matchingRequest(
+                100,
+                new BigDecimal("1000000.000"),
+                42,
+                new BigDecimal("420000.000"),
+                new BigDecimal("10000.000"),
+                null,
+                new BigDecimal("580000.000"),
+                null
+        );
+
+        assertThatThrownBy(() -> supplierSettlementService.confirmMatching(10L, request, ACTOR))
+                .isInstanceOf(DomainException.class)
+                .extracting("internalMessage")
+                .asString()
+                .contains("không được lớn hơn số lượng vé trả hệ thống");
+    }
+
+    @Test
     @DisplayName("confirmMatching additional costs change final value but not frozen baseline")
     void confirmMatching_additionalCosts_updateFinalKeepInitial() {
         SupplierSettlementModel settlement = openSettlement();
@@ -851,7 +883,7 @@ class SupplierSettlementReconciliationServiceTest {
         );
 
         assertThat(result.completed()).isTrue();
-        assertThat(result.settlement().status()).isEqualTo(SupplierSettlementStatus.CLOSED);
+        assertThat(result.settlement().status()).isEqualTo(SupplierSettlementStatus.COMPLETED);
         assertThat(result.settlement().reconciliationPhase())
                 .isEqualTo(SupplierSettlementReconciliationPhase.COMPLETED);
         assertThat(settlement.getTotalPaidAmount()).isEqualByComparingTo("700.000");
@@ -1233,9 +1265,181 @@ class SupplierSettlementReconciliationServiceTest {
     }
 
     @Test
-    @DisplayName("resolveReturn excess serials create excess return receipt and mark resolved")
-    void resolveReturn_excessSerials_callsHelper() {
+    @DisplayName("resolveImport accepts mixed per-row ticket conditions")
+    void resolveImport_systemUnderstated_acceptsMixedRowConditions() {
         fixedNow();
+        SupplierSettlementModel settlement = SupplierSettlementModel.builder()
+                .id(10L)
+                .lotterySupplierId(3L)
+                .status(SupplierSettlementStatus.OPEN)
+                .reconciliationPhase(SupplierSettlementReconciliationPhase.DISCREPANCY_DETECTED)
+                .importQuantityMismatch(true)
+                .importDiscrepancyResolved(false)
+                .returnDiscrepancyResolved(true)
+                .discrepancyTypes(List.of(SupplierSettlementDiscrepancyType.IMPORT_QUANTITY))
+                .discrepancyItems(List.of(SettlementDiscrepancyItem.ofQuantity(
+                        SupplierSettlementDiscrepancyType.IMPORT_QUANTITY, 10
+                )))
+                .originalTicketUnitPrice(new BigDecimal("10000.000"))
+                .systemImportQuantity(100)
+                .actualTicketImportQuantity(110)
+                .build();
+        when(supplierSettlementRepositoryPort.findById(10L)).thenReturn(Optional.of(settlement));
+        when(discrepancyInventoryHelper.createLostPlaceholders(any(), any(), any(), eq(ACTOR), any(), any(), any(), any()))
+                .thenReturn(List.of(301L, 302L, 303L, 304L, 305L, 306L, 307L));
+        stubRecalculateAmountsBasics();
+        when(supplierSettlementRepositoryPort.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(supplierSettlementApplicationMapper.toResponse(any())).thenAnswer(inv -> {
+            SupplierSettlementModel m = inv.getArgument(0);
+            return SupplierSettlementResponse.builder()
+                    .id(m.getId())
+                    .reconciliationPhase(m.getReconciliationPhase())
+                    .importDiscrepancyResolved(m.isImportDiscrepancyResolved())
+                    .build();
+        });
+
+        ResolveImportDiscrepancyRequest request = new ResolveImportDiscrepancyRequest(
+                null,
+                null,
+                SupplierSettlementAdjustmentReasonCode.INSUFFICIENT_IMPORT,
+                null,
+                "mixed",
+                true,
+                List.of(
+                        new SettlementImportPlaceholderRequest(1L, 4, TicketCondition.UNDER_IMPORTED),
+                        new SettlementImportPlaceholderRequest(1L, 3, TicketCondition.DAMAGED),
+                        new SettlementImportPlaceholderRequest(2L, 3, TicketCondition.LOST)
+                ),
+                null,
+                "https://e.example/a.jpg"
+        );
+
+        SupplierSettlementResponse response = supplierSettlementService.resolveImportDiscrepancy(10L, request, ACTOR);
+        assertThat(response.importDiscrepancyResolved()).isTrue();
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<List<SettlementImportPlaceholderRequest>> placeholdersCaptor =
+                ArgumentCaptor.forClass(List.class);
+        verify(discrepancyInventoryHelper).createLostPlaceholders(
+                any(),
+                placeholdersCaptor.capture(),
+                any(),
+                eq(ACTOR),
+                any(),
+                any(),
+                eq("https://e.example/a.jpg"),
+                any()
+        );
+        assertThat(placeholdersCaptor.getValue())
+                .extracting(SettlementImportPlaceholderRequest::ticketCondition)
+                .containsExactly(
+                        TicketCondition.UNDER_IMPORTED,
+                        TicketCondition.DAMAGED,
+                        TicketCondition.LOST
+                );
+    }
+
+    @Test
+    @DisplayName("resolveImport rejects placeholder quantity that does not match the shortage")
+    void resolveImport_systemUnderstated_rejectsWrongPlaceholderTotal() {
+        fixedNow();
+        SupplierSettlementModel settlement = SupplierSettlementModel.builder()
+                .id(10L)
+                .lotterySupplierId(3L)
+                .status(SupplierSettlementStatus.OPEN)
+                .reconciliationPhase(SupplierSettlementReconciliationPhase.DISCREPANCY_DETECTED)
+                .importQuantityMismatch(true)
+                .importDiscrepancyResolved(false)
+                .returnDiscrepancyResolved(true)
+                .discrepancyTypes(List.of(SupplierSettlementDiscrepancyType.IMPORT_QUANTITY))
+                .discrepancyItems(List.of(SettlementDiscrepancyItem.ofQuantity(
+                        SupplierSettlementDiscrepancyType.IMPORT_QUANTITY, 10
+                )))
+                .originalTicketUnitPrice(new BigDecimal("10000.000"))
+                .systemImportQuantity(100)
+                .actualTicketImportQuantity(110)
+                .build();
+        when(supplierSettlementRepositoryPort.findById(10L)).thenReturn(Optional.of(settlement));
+
+        ResolveImportDiscrepancyRequest request = new ResolveImportDiscrepancyRequest(
+                null,
+                TicketCondition.UNDER_IMPORTED,
+                SupplierSettlementAdjustmentReasonCode.INSUFFICIENT_IMPORT,
+                null,
+                "wrong total",
+                true,
+                List.of(new SettlementImportPlaceholderRequest(1L, 4, TicketCondition.UNDER_IMPORTED)),
+                null,
+                null
+        );
+
+        assertThatThrownBy(() -> supplierSettlementService.resolveImportDiscrepancy(10L, request, ACTOR))
+                .isInstanceOf(DomainException.class)
+                .extracting(ex -> ((DomainException) ex).getInternalMessage())
+                .asString()
+                .contains("phải đúng 10");
+        verify(discrepancyInventoryHelper, never()).createLostPlaceholders(
+                any(), any(), any(), any(), any(), any(), any(), any()
+        );
+    }
+
+    @Test
+    @DisplayName("resolveImport marks resolved when all missing tickets are LOST without serials")
+    void resolveImport_allLost_marksResolvedWithoutSerials() {
+        fixedNow();
+        SupplierSettlementModel settlement = SupplierSettlementModel.builder()
+                .id(10L)
+                .lotterySupplierId(3L)
+                .status(SupplierSettlementStatus.OPEN)
+                .reconciliationPhase(SupplierSettlementReconciliationPhase.DISCREPANCY_DETECTED)
+                .importQuantityMismatch(true)
+                .importDiscrepancyResolved(false)
+                .returnDiscrepancyResolved(true)
+                .discrepancyTypes(List.of(SupplierSettlementDiscrepancyType.IMPORT_QUANTITY))
+                .discrepancyItems(List.of(SettlementDiscrepancyItem.ofQuantity(
+                        SupplierSettlementDiscrepancyType.IMPORT_QUANTITY, 10
+                )))
+                .originalTicketUnitPrice(new BigDecimal("10000.000"))
+                .systemImportQuantity(100)
+                .actualTicketImportQuantity(110)
+                .build();
+        when(supplierSettlementRepositoryPort.findById(10L)).thenReturn(Optional.of(settlement));
+        when(discrepancyInventoryHelper.createLostPlaceholders(any(), any(), any(), eq(ACTOR), any(), any(), any(), any()))
+                .thenReturn(List.of());
+        stubRecalculateAmountsBasics();
+        when(supplierSettlementAdjustmentRepositoryPort.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(supplierSettlementRepositoryPort.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(supplierSettlementApplicationMapper.toResponse(any())).thenAnswer(inv -> {
+            SupplierSettlementModel m = inv.getArgument(0);
+            return SupplierSettlementResponse.builder()
+                    .id(m.getId())
+                    .reconciliationPhase(m.getReconciliationPhase())
+                    .importDiscrepancyResolved(m.isImportDiscrepancyResolved())
+                    .build();
+        });
+
+        ResolveImportDiscrepancyRequest request = new ResolveImportDiscrepancyRequest(
+                null,
+                TicketCondition.LOST,
+                SupplierSettlementAdjustmentReasonCode.INSUFFICIENT_IMPORT,
+                null,
+                "all lost",
+                true,
+                List.of(new SettlementImportPlaceholderRequest(1L, 10, TicketCondition.LOST)),
+                null,
+                null
+        );
+
+        SupplierSettlementResponse response = supplierSettlementService.resolveImportDiscrepancy(10L, request, ACTOR);
+        assertThat(response.importDiscrepancyResolved()).isTrue();
+        ArgumentCaptor<SupplierSettlementAdjustmentModel> adjustmentCaptor =
+                ArgumentCaptor.forClass(SupplierSettlementAdjustmentModel.class);
+        verify(supplierSettlementAdjustmentRepositoryPort).save(adjustmentCaptor.capture());
+        assertThat(adjustmentCaptor.getValue().getLotteryTicketSerialId()).isNull();
+    }
+
+    @Test
+    @DisplayName("resolveReturn rejects excess return; rematch is required instead")
+    void resolveReturn_excessSerials_rejected() {
         SupplierSettlementModel settlement = SupplierSettlementModel.builder()
                 .id(10L)
                 .lotterySupplierId(3L)
@@ -1254,18 +1458,6 @@ class SupplierSettlementReconciliationServiceTest {
                 .actualReturnTicketQuantity(42)
                 .build();
         when(supplierSettlementRepositoryPort.findById(10L)).thenReturn(Optional.of(settlement));
-        when(discrepancyInventoryHelper.acceptExcessReturnSerials(any(), any(), any(), eq(ACTOR), any()))
-                .thenReturn(List.of(401L, 402L));
-        stubRecalculateAmountsBasics();
-        when(supplierSettlementRepositoryPort.save(any())).thenAnswer(inv -> inv.getArgument(0));
-        when(supplierSettlementApplicationMapper.toResponse(any())).thenAnswer(inv -> {
-            SupplierSettlementModel m = inv.getArgument(0);
-            return SupplierSettlementResponse.builder()
-                    .id(m.getId())
-                    .reconciliationPhase(m.getReconciliationPhase())
-                    .returnDiscrepancyResolved(m.isReturnDiscrepancyResolved())
-                    .build();
-        });
 
         ResolveReturnDiscrepancyRequest request = new ResolveReturnDiscrepancyRequest(
                 null,
@@ -1277,16 +1469,17 @@ class SupplierSettlementReconciliationServiceTest {
                 List.of("SN-A", "SN-B")
         );
 
-        SupplierSettlementResponse response = supplierSettlementService.resolveReturnDiscrepancy(10L, request, ACTOR);
-        assertThat(response.returnDiscrepancyResolved()).isTrue();
-        assertThat(response.reconciliationPhase())
-                .isEqualTo(SupplierSettlementReconciliationPhase.READY_FOR_RECALCULATION);
-        verify(discrepancyInventoryHelper).acceptExcessReturnSerials(any(), any(), any(), eq(ACTOR), any());
+        assertThatThrownBy(() -> supplierSettlementService.resolveReturnDiscrepancy(10L, request, ACTOR))
+                .isInstanceOf(DomainException.class)
+                .extracting("internalMessage")
+                .asString()
+                .contains("Không xử lý thừa trả");
+        verify(discrepancyInventoryHelper, never()).acceptExcessReturnSerials(any(), any(), any(), any(), any());
     }
 
     @Test
-    @DisplayName("resolveReturn excess without eligible serials records an audited non-serial resolution")
-    void resolveReturn_excessWithoutEligibleSerials_marksResolvedWithoutAttachingTickets() {
+    @DisplayName("resolveReturn excess without serials is also rejected")
+    void resolveReturn_excessWithoutEligibleSerials_rejected() {
         SupplierSettlementModel settlement = SupplierSettlementModel.builder()
                 .id(10L)
                 .lotterySupplierId(3L)
@@ -1301,17 +1494,8 @@ class SupplierSettlementReconciliationServiceTest {
                 )))
                 .build();
         when(supplierSettlementRepositoryPort.findById(10L)).thenReturn(Optional.of(settlement));
-        when(supplierSettlementRepositoryPort.save(any())).thenAnswer(inv -> inv.getArgument(0));
-        when(supplierSettlementApplicationMapper.toResponse(any())).thenAnswer(inv -> {
-            SupplierSettlementModel model = inv.getArgument(0);
-            return SupplierSettlementResponse.builder()
-                    .id(model.getId())
-                    .reconciliationPhase(model.getReconciliationPhase())
-                    .returnDiscrepancyResolved(model.isReturnDiscrepancyResolved())
-                    .build();
-        });
 
-        SupplierSettlementResponse response = supplierSettlementService.resolveReturnDiscrepancy(
+        assertThatThrownBy(() -> supplierSettlementService.resolveReturnDiscrepancy(
                 10L,
                 new ResolveReturnDiscrepancyRequest(
                         null,
@@ -1323,19 +1507,11 @@ class SupplierSettlementReconciliationServiceTest {
                         List.of()
                 ),
                 ACTOR
-        );
-
-        ArgumentCaptor<SupplierSettlementAdjustmentModel> adjustmentCaptor =
-                ArgumentCaptor.forClass(SupplierSettlementAdjustmentModel.class);
-        verify(supplierSettlementAdjustmentRepositoryPort).save(adjustmentCaptor.capture());
-        SupplierSettlementAdjustmentModel adjustment = adjustmentCaptor.getValue();
-        assertThat(response.returnDiscrepancyResolved()).isTrue();
-        assertThat(response.reconciliationPhase())
-                .isEqualTo(SupplierSettlementReconciliationPhase.READY_FOR_RECALCULATION);
-        assertThat(adjustment.getLotteryTicketSerialId()).isNull();
-        assertThat(adjustment.getReasonCode()).isEqualTo(SupplierSettlementAdjustmentReasonCode.EXCESS_RETURN);
-        assertThat(adjustment.getAmount()).isEqualByComparingTo("0.000");
-        assertThat(adjustment.getNote()).contains("không còn vé GOOD đủ điều kiện");
+        ))
+                .isInstanceOf(DomainException.class)
+                .extracting("internalMessage")
+                .asString()
+                .contains("Không xử lý thừa trả");
         verify(discrepancyInventoryHelper, never()).acceptExcessReturnSerials(any(), any(), any(), any(), any());
     }
 

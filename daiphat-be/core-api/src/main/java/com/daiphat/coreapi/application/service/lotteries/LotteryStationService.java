@@ -1,11 +1,13 @@
 package com.daiphat.coreapi.application.service.lotteries;
 
+import com.daiphat.coreapi.application.dto.request.lotteries.BulkUpdateLotteryStationCommissionRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.BulkUpdateLotteryStationPricingRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.UpdateLotteryStationScheduleRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.ConfirmSyncLotteryStationItem;
 import com.daiphat.coreapi.application.dto.request.lotteries.ConfirmSyncLotteryStationsRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.CreateLotteryStationRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.SyncLotteryStationsRequest;
+import com.daiphat.coreapi.application.dto.request.lotteries.UpdateLotteryStationCommissionItem;
 import com.daiphat.coreapi.application.dto.request.lotteries.UpdateLotteryStationPricingItem;
 import com.daiphat.coreapi.application.dto.request.lotteries.UpdateLotteryStationRequest;
 import com.daiphat.coreapi.application.dto.response.lotteries.LotteryStationSyncItemResponse;
@@ -327,6 +329,30 @@ public class LotteryStationService implements LotteryStationServicePort {
             updated.add(lotteryStationApplicationMapper.toResponse(saved));
             log.info("Updated station pricing id={} price={} commissionRate={}",
                     saved.getId(), saved.getPrice(), saved.getCommissionRate());
+        }
+        return updated;
+    }
+
+    /**
+     * Corrects station commission rates and nothing else.
+     *
+     * <p>Reached from settlement matching when the actual commission disagrees
+     * with the station master. {@code lottery_stations.price} is the sale price,
+     * not NCC import cost, so this path must not write it.
+     */
+    @Override
+    @Transactional
+    public List<LotteryStationResponse> updateCommissions(BulkUpdateLotteryStationCommissionRequest request) {
+        List<LotteryStationResponse> updated = new ArrayList<>();
+        for (UpdateLotteryStationCommissionItem item : request.items()) {
+            LotteryStationModel model = getProductOrThrow(item.lotteryStationId());
+            BigDecimal previousPrice = model.getPrice();
+            model.setCommissionRate(item.commissionRate());
+            LotteryStationModel saved = lotteryStationRepositoryPort.save(model);
+            recalculateInventory(saved);
+            updated.add(lotteryStationApplicationMapper.toResponse(saved));
+            log.info("Updated station commission id={} commissionRate={} salePriceUnchanged={}",
+                    saved.getId(), saved.getCommissionRate(), previousPrice);
         }
         return updated;
     }

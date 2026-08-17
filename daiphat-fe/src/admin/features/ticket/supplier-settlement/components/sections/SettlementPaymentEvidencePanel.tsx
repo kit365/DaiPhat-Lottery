@@ -83,12 +83,12 @@ export const SettlementPaymentEvidencePanel = ({
                 </Typography>
             </Stack>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                Chụp / tải ảnh xác nhận đã thanh toán cho NCC. Cần ít nhất 1 ảnh để đổi trạng thái kỳ đối soát sang hoàn tất (CLOSED).
+                Chụp / tải ảnh xác nhận đã thanh toán cho NCC. Cần ít nhất 1 ảnh để xác nhận đã thanh toán.
             </Typography>
 
             {images.length === 0 && !readOnly && (
                 <Alert severity="warning" sx={{ mb: 2, borderRadius: '12px' }}>
-                    Chưa có ảnh thanh toán. Không thể xác nhận hoàn tất đối soát khi thiếu minh chứng này.
+                    Chưa có ảnh thanh toán. Không thể xác nhận đã thanh toán khi thiếu minh chứng này.
                 </Alert>
             )}
 

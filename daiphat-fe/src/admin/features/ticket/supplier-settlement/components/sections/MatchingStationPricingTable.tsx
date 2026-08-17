@@ -6,6 +6,7 @@ import LocalOfferOutlinedIcon from '@mui/icons-material/LocalOfferOutlined';
 import {
     Alert,
     Box,
+    Button,
     Paper,
     Stack,
     Table,
@@ -20,6 +21,7 @@ import {
 import { computeImportCostFromStation } from '../../../import-batch/utils/importCostCalculator';
 import type { SettlementStationPricing } from '../../types/supplierSettlement.type';
 import { AdminStatusBadge } from '@/admin/components/ui/AdminStatusBadge';
+import { MatchingMasterPricingUpdateDialog } from './MatchingMasterPricingUpdateDialog';
 
 type StationDraft = {
     commissionPercent: string;
@@ -72,8 +74,11 @@ const buildDrafts = (rows: SettlementStationPricing[]): Record<number, StationDr
 interface Props {
     rows: SettlementStationPricing[];
     disabled?: boolean;
+    supplierId?: number | null;
+    supplierName?: string | null;
     actualImportPrice: number;
     onActualImportPriceChange: (value: number) => void;
+    onMasterDataUpdated?: () => void;
     onWeightedChange: (payload: {
         systemNet: number;
         actualNet: number;
@@ -97,12 +102,16 @@ interface Props {
 export const MatchingStationPricingTable = ({
     rows,
     disabled = false,
+    supplierId,
+    supplierName,
     actualImportPrice,
     onActualImportPriceChange,
+    onMasterDataUpdated,
     onWeightedChange,
 }: Props) => {
     const [drafts, setDrafts] = useState<Record<number, StationDraft>>(() => buildDrafts(rows));
     const [actualPriceInput, setActualPriceInput] = useState(() => formatPriceInput(actualImportPrice));
+    const [masterUpdateOpen, setMasterUpdateOpen] = useState(false);
 
     useEffect(() => {
         setDrafts((prev) => {
@@ -210,6 +219,12 @@ export const MatchingStationPricingTable = ({
             faceDiff,
         };
     }, [rows, drafts, actualImportPrice]);
+
+    useEffect(() => {
+        if (masterUpdateOpen && !computed.faceDiff && computed.commissionMismatchStations.length === 0) {
+            setMasterUpdateOpen(false);
+        }
+    }, [masterUpdateOpen, computed.faceDiff, computed.commissionMismatchStations.length]);
 
     const allMismatchedRows = useMemo(() => {
         return rows.filter((row) => {
@@ -321,10 +336,30 @@ export const MatchingStationPricingTable = ({
                             modifier="admin-status-badge--success"
                         />
                     ) : (
-                        <AdminStatusBadge
-                            label={`Có ${allMismatchedRows.length} đài có chênh lệch giá/HH`}
-                            modifier="admin-status-badge--pending"
-                        />
+                        <>
+                            <AdminStatusBadge
+                                label={`Có ${allMismatchedRows.length} đài có chênh lệch giá/HH`}
+                                modifier="admin-status-badge--pending"
+                            />
+                            <Button
+                                size="small"
+                                variant="contained"
+                                disabled={disabled}
+                                onClick={() => setMasterUpdateOpen(true)}
+                                sx={{
+                                    textTransform: 'none',
+                                    fontWeight: 800,
+                                    fontSize: '0.775rem',
+                                    borderRadius: '8px',
+                                    bgcolor: '#2563eb',
+                                    py: 0.4,
+                                    px: 1.5,
+                                    '&:hover': { bgcolor: '#1d4ed8' },
+                                }}
+                            >
+                                Cập nhật giá / HH hệ thống
+                            </Button>
+                        </>
                     )}
                 </Stack>
             </Stack>
@@ -617,9 +652,28 @@ export const MatchingStationPricingTable = ({
                     <strong>Công thức:</strong> Giá sau hoa hồng = Giá nhập × (1 − Tỉ lệ hoa hồng). Trang này luôn
                     tính live từ giá NCC và hoa hồng đài. Hệ thống snapshot giá nhập + HH lúc tạo kỳ đối soát để lưu DB;
                     đổi master sau này không làm lệch số đã chốt. Hoa hồng thực tế chỉ lưu trên kỳ đối soát, không ghi đè
-                    giá bán đài.
+                    giá bán đài. Khi lệch, dùng nút &quot;Cập nhật giá / HH hệ thống&quot; để ghi giá nhập NCC hoặc hoa hồng đài.
                 </Typography>
             </Box>
+
+            <MatchingMasterPricingUpdateDialog
+                open={masterUpdateOpen}
+                onClose={() => setMasterUpdateOpen(false)}
+                supplierId={supplierId}
+                supplierName={supplierName}
+                priceMismatch={
+                    computed.faceDiff
+                        ? {
+                            systemImportCost: systemFace,
+                            actualImportCost: roundMoney(actualImportPrice),
+                        }
+                        : null
+                }
+                commissionMismatches={computed.commissionMismatchStations}
+                onUpdated={() => {
+                    onMasterDataUpdated?.();
+                }}
+            />
         </Box>
     );
 };

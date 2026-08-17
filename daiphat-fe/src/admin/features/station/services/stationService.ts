@@ -183,6 +183,19 @@ export const bulkUpdateStationPricing = async (
     return response.data;
 };
 
+/**
+ * Corrects only station commission rates.
+ *
+ * Deliberately not bulkUpdateStationPricing: that writes lottery_stations.price
+ * (sale price). Matching uses NCC defaultImportCost and must not overwrite sale price.
+ */
+export const bulkUpdateStationCommissions = async (
+    items: Array<{ lotteryStationId: number; commissionRate: number }>
+): Promise<ApiResponse<Station[]>> => {
+    const response = await apiApp.put(`${BASE_URL}/commissions`, { items });
+    return response.data;
+};
+
 export const deleteStation = async (
     id: string | number
 ): Promise<ApiResponse<unknown>> => {

@@ -50,7 +50,10 @@ import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -284,13 +287,14 @@ public class ReturnBatchService implements ReturnBatchServicePort {
                         (a, b) -> a
                 ));
 
-        List<LotteryTicketSerialModel> serials =
-                lotteryTicketSerialRepositoryPort.findAllByIds(new HashSet<>(request.serialIds()));
-        if (serials.size() != new HashSet<>(request.serialIds()).size()) {
+        Set<Long> requestedIds = new HashSet<>(request.serialIds());
+        List<LotteryTicketSerialModel> serials = lotteryTicketSerialRepositoryPort.findAllByIds(requestedIds);
+        if (serials.size() != requestedIds.size()) {
             throw new DomainException(ErrorCode.RETURN_BATCH_SERIAL_NOT_ELIGIBLE);
         }
 
-        LocalDateTime now = LocalDateTime.now(clock);
+        Map<Long, LotteryTicketModel> ticketsById = loadTicketsIfStationOrDrawMissing(serials);
+        Map<Long, List<Long>> serialIdsByLine = new LinkedHashMap<>();
         Set<Long> touchedLineIds = new HashSet<>();
 
         for (LotteryTicketSerialModel serial : serials) {
@@ -304,24 +308,40 @@ public class ReturnBatchService implements ReturnBatchServicePort {
             if (serial.getReturnBatchLineId() != null) {
                 throw new DomainException(ErrorCode.RETURN_BATCH_SERIAL_NOT_ELIGIBLE);
             }
-            LotteryTicketModel ticket = lotteryTicketRepositoryPort.findById(serial.getTicketId())
-                    .orElseThrow(() -> new DomainException(ErrorCode.RETURN_BATCH_SERIAL_NOT_ELIGIBLE));
-            if (!Objects.equals(ticket.getDrawDate(), batch.getDrawDate())) {
+            Long stationId = serial.getStationId();
+            LocalDate drawDate = serial.getDrawDate();
+            if (stationId == null || drawDate == null) {
+                LotteryTicketModel ticket = ticketsById.get(serial.getTicketId());
+                if (ticket == null) {
+                    throw new DomainException(ErrorCode.RETURN_BATCH_SERIAL_NOT_ELIGIBLE);
+                }
+                stationId = ticket.getStationId();
+                drawDate = ticket.getDrawDate();
+            }
+            if (!Objects.equals(drawDate, batch.getDrawDate())) {
                 throw new DomainException(ErrorCode.RETURN_BATCH_SERIAL_NOT_ELIGIBLE);
             }
-            ReturnBatchLineModel line = lineByStation.get(ticket.getStationId());
-            if (line == null) {
+            ReturnBatchLineModel line = lineByStation.get(stationId);
+            if (line == null || line.getId() == null) {
                 throw new DomainException(ErrorCode.RETURN_BATCH_SERIAL_NOT_ELIGIBLE);
             }
             if (line.getStatus() == null || !line.getStatus().isOpenForInspection()) {
                 throw new DomainException(ErrorCode.RETURN_BATCH_LINE_INVALID_STATUS);
             }
-
-            serial.setReturnBatchLineId(line.getId());
-            // Return state is derived from returnBatchLineId + ReturnBatch status.
-            serial.setReturnedAt(null);
-            lotteryTicketSerialRepositoryPort.save(serial);
+            serialIdsByLine.computeIfAbsent(line.getId(), key -> new ArrayList<>()).add(serial.getId());
             touchedLineIds.add(line.getId());
+        }
+
+        LocalDateTime now = LocalDateTime.now(clock);
+        for (Map.Entry<Long, List<Long>> entry : serialIdsByLine.entrySet()) {
+            int assigned = lotteryTicketSerialRepositoryPort.assignToReturnBatchLine(
+                    entry.getKey(),
+                    entry.getValue(),
+                    now
+            );
+            if (assigned != entry.getValue().size()) {
+                throw new DomainException(ErrorCode.RETURN_BATCH_SERIAL_NOT_ELIGIBLE);
+            }
         }
 
         for (ReturnBatchLineModel line : lines) {
@@ -388,23 +408,17 @@ public class ReturnBatchService implements ReturnBatchServicePort {
         LocalDateTime now = LocalDateTime.now(clock);
         List<ReturnBatchLineModel> lines = returnBatchRepositoryPort.findLinesByBatchId(batchId);
         for (ReturnBatchLineModel line : lines) {
-            List<LotteryTicketSerialModel> serials =
-                    lotteryTicketSerialRepositoryPort.findAllByReturnBatchLineId(line.getId());
-            boolean anyReturned = false;
-            for (LotteryTicketSerialModel serial : serials) {
-                if (serial.getReturnBatchLineId() != null) {
-                    if (serial.getReturnedAt() == null) {
-                        serial.setReturnedAt(now);
-                    }
-                    lotteryTicketSerialRepositoryPort.save(serial);
-                    anyReturned = true;
-                }
+            if (line.getId() == null) {
+                continue;
             }
-            if (anyReturned) {
-                line.setStatus(ReturnBatchLineStatus.INSPECTED);
-                returnBatchRepositoryPort.saveLine(line);
-                recalculateLineAggregates(line);
+            long attached = lotteryTicketSerialRepositoryPort.countByReturnBatchLineId(line.getId());
+            if (attached <= 0) {
+                continue;
             }
+            lotteryTicketSerialRepositoryPort.stampReturnedAtByReturnBatchLineId(line.getId(), now);
+            line.setStatus(ReturnBatchLineStatus.INSPECTED);
+            returnBatchRepositoryPort.saveLine(line);
+            recalculateLineAggregates(line);
         }
         refreshBatchAggregates(batchId);
 
@@ -706,17 +720,42 @@ public class ReturnBatchService implements ReturnBatchServicePort {
         }
     }
 
+    private Map<Long, LotteryTicketModel> loadTicketsIfStationOrDrawMissing(List<LotteryTicketSerialModel> serials) {
+        Set<Long> ticketIds = new HashSet<>();
+        for (LotteryTicketSerialModel serial : serials) {
+            if (serial.getStationId() == null || serial.getDrawDate() == null) {
+                if (serial.getTicketId() != null) {
+                    ticketIds.add(serial.getTicketId());
+                }
+            }
+        }
+        if (ticketIds.isEmpty()) {
+            return Map.of();
+        }
+        Map<Long, LotteryTicketModel> byId = new HashMap<>();
+        for (LotteryTicketModel ticket : lotteryTicketRepositoryPort.findAllByIds(ticketIds)) {
+            if (ticket.getId() != null) {
+                byId.put(ticket.getId(), ticket);
+            }
+        }
+        return byId;
+    }
+
     private void recalculateLineAggregates(ReturnBatchLineModel line) {
         List<LotteryTicketSerialModel> serials =
                 lotteryTicketSerialRepositoryPort.findAllByReturnBatchLineId(line.getId());
         int qty = serials.size();
         BigDecimal total = BigDecimal.ZERO;
+        Map<Long, BigDecimal> costByImportLine = new HashMap<>();
         for (LotteryTicketSerialModel serial : serials) {
             BigDecimal unitCost = BigDecimal.ZERO;
             if (serial.getImportBatchLineId() != null) {
-                unitCost = importBatchLineRepositoryPort.findById(serial.getImportBatchLineId())
-                        .map(ImportBatchLineModel::getImportCost)
-                        .orElse(BigDecimal.ZERO);
+                unitCost = costByImportLine.computeIfAbsent(
+                        serial.getImportBatchLineId(),
+                        importLineId -> importBatchLineRepositoryPort.findById(importLineId)
+                                .map(ImportBatchLineModel::getImportCost)
+                                .orElse(BigDecimal.ZERO)
+                );
             }
             total = total.add(unitCost != null ? unitCost : BigDecimal.ZERO);
         }

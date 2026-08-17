@@ -1,3 +1,4 @@
+import { isAxiosError } from 'axios';
 import type {
     ImportBatchFileGroup,
     ImportBatchFileIssue,
@@ -5,6 +6,30 @@ import type {
     ImportBatchFileMapping,
     ImportBatchFileRow,
 } from '../types/importBatch.type';
+
+export const FILE_IMPORT_TIMEOUT_MESSAGE =
+    'Hệ thống đang tạo phiếu và vé từ tệp lâu hơn thời gian chờ. Hãy kiểm tra danh sách phiếu nhập trước khi gửi lại, tránh tạo trùng.';
+
+export const fileImportRequestErrorMessage = (error: unknown, fallback: string): string => {
+    if (
+        isAxiosError(error) &&
+        (error.code === 'ECONNABORTED' ||
+            error.code === 'ETIMEDOUT' ||
+            /timeout of \d+ms exceeded/i.test(error.message ?? ''))
+    ) {
+        return FILE_IMPORT_TIMEOUT_MESSAGE;
+    }
+    const fromApi = isAxiosError(error)
+        ? (error.response?.data as { message?: string } | undefined)?.message
+        : undefined;
+    if (fromApi?.trim()) {
+        return fromApi;
+    }
+    if (error instanceof Error && error.message.trim()) {
+        return error.message;
+    }
+    return fallback;
+};
 
 /** A draw date is only offered for import when it will produce at least one line. */
 export const isGroupSelectable = (group: ImportBatchFileGroup): boolean =>

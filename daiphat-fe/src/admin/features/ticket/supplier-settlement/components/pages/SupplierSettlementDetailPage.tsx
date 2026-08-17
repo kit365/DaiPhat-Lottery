@@ -53,7 +53,7 @@ export const SupplierSettlementDetailPage = () => {
     const settlement = overview?.settlement;
     const isExpired = Boolean(settlement?.isReturnExpired);
     const canStartReconciliation =
-        settlement?.status !== 'CLOSED' &&
+        settlement?.status !== 'COMPLETED' &&
         settlement?.reconciliationPhase !== 'COMPLETED' &&
         Boolean(settlement?.inReconciliationWindow);
 
@@ -171,7 +171,7 @@ export const SupplierSettlementDetailPage = () => {
                 }
                 breadcrumbItems={breadcrumbItems}
                 action={
-                    settlement?.status !== 'CLOSED' && settlement?.reconciliationPhase !== 'COMPLETED' ? (
+                    settlement?.status !== 'COMPLETED' && settlement?.reconciliationPhase !== 'COMPLETED' ? (
                         <Button
                             variant="contained"
                             className="btn-primary-admin"
@@ -184,7 +184,7 @@ export const SupplierSettlementDetailPage = () => {
                 }
             />
 
-            {settlement?.status !== 'CLOSED' &&
+            {settlement?.status !== 'COMPLETED' &&
                 settlement?.reconciliationPhase !== 'COMPLETED' &&
                 settlement?.inReconciliationWindow === false && (
                     <ReconciliationWindowNoticeBanner

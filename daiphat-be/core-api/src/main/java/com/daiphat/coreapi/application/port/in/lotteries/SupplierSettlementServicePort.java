@@ -86,7 +86,7 @@ public interface SupplierSettlementServicePort {
 
     /**
      * Replace the list of photos proving the supplier has been paid.
-     * Empty list clears all evidence. Not allowed after the settlement is CLOSED.
+     * Empty list clears all evidence. Not allowed after the settlement is COMPLETED (paid).
      */
     SupplierSettlementResponse updatePaymentEvidenceUrls(Long settlementId, List<String> paymentEvidenceUrls);
 

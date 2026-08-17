@@ -378,4 +378,120 @@ class ReturnBatchServiceTest {
         assertThat(result.get(0).ticketCondition()).isEqualTo(TicketCondition.GOOD);
         assertThat(result.get(0).returnBatchLineId()).isEqualTo(100L);
     }
+
+    @Test
+    @DisplayName("confirmInspection bulk-assigns serials and moves batch to PENDING_HANDOVER")
+    void confirmInspection_assignsSerialsInBulk() {
+        ReturnBatchModel batch = ReturnBatchModel.builder()
+                .id(10L)
+                .lotterySupplierId(7L)
+                .drawDate(DRAW_DATE)
+                .returnBatchType(ReturnBatchType.SUPPLIER_RETURN)
+                .supplierSettlementId(50L)
+                .status(ReturnBatchStatus.PENDING_INSPECTION)
+                .returnCutOffTime(java.time.LocalTime.of(18, 0))
+                .build();
+        ReturnBatchLineModel line = ReturnBatchLineModel.builder()
+                .id(100L)
+                .returnBatchId(10L)
+                .lotteryStationId(3L)
+                .status(ReturnBatchLineStatus.PENDING)
+                .build();
+        LotteryTicketSerialModel serial = LotteryTicketSerialModel.builder()
+                .id(501L)
+                .ticketId(80L)
+                .stationId(3L)
+                .drawDate(DRAW_DATE)
+                .status(LotteryTicketSerialStatus.IN_STOCK)
+                .ticketCondition(TicketCondition.GOOD)
+                .importBatchLineId(20L)
+                .build();
+
+        when(returnBatchRepositoryPort.findById(10L)).thenReturn(Optional.of(batch));
+        when(returnBatchRepositoryPort.findLinesByBatchId(10L)).thenReturn(List.of(line));
+        when(returnBatchRepositoryPort.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(returnBatchRepositoryPort.saveLine(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(lotteryTicketSerialRepositoryPort.findAllByIds(any())).thenReturn(List.of(serial));
+        when(lotteryTicketSerialRepositoryPort.assignToReturnBatchLine(eq(100L), any(), any()))
+                .thenReturn(1);
+        when(lotteryTicketSerialRepositoryPort.findAllByReturnBatchLineId(100L)).thenReturn(List.of(serial));
+        when(importBatchLineRepositoryPort.findById(20L)).thenReturn(Optional.of(
+                ImportBatchLineModel.builder().id(20L).importCost(new BigDecimal("10000")).build()
+        ));
+        when(importBatchConfigResolver.resolveReturnBufferMinutes()).thenReturn(60);
+        when(returnBatchAutoCancelService.cancelIfPastCutoff(any())).thenReturn(false);
+
+        ReturnBatchResponse response = returnBatchService.confirmInspection(
+                10L,
+                new com.daiphat.coreapi.application.dto.request.lotteries.ConfirmReturnInspectionRequest(
+                        com.daiphat.coreapi.domain.model.enums.lottery.ReturnDeliveryMode.RETAILER_DELIVERS,
+                        List.of(501L),
+                        null
+                ),
+                OPERATOR_ID
+        );
+
+        assertThat(response.status()).isEqualTo(ReturnBatchStatus.PENDING_HANDOVER);
+        verify(lotteryTicketSerialRepositoryPort).assignToReturnBatchLine(eq(100L), eq(List.of(501L)), any());
+        verify(lotteryTicketSerialRepositoryPort, org.mockito.Mockito.never()).save(any());
+        verify(supplierSettlementServicePort).recalculateTotalReturnValue(50L);
+    }
+
+    @Test
+    @DisplayName("confirmHandover stamps returnedAt in bulk instead of saving each serial")
+    void confirmHandover_stampsReturnedAtInBulk() {
+        ReturnBatchModel batch = ReturnBatchModel.builder()
+                .id(10L)
+                .lotterySupplierId(7L)
+                .drawDate(DRAW_DATE)
+                .returnBatchType(ReturnBatchType.SUPPLIER_RETURN)
+                .supplierSettlementId(50L)
+                .status(ReturnBatchStatus.PENDING_HANDOVER)
+                .returnCutOffTime(java.time.LocalTime.of(18, 0))
+                .build();
+        ReturnBatchLineModel line = ReturnBatchLineModel.builder()
+                .id(100L)
+                .returnBatchId(10L)
+                .lotteryStationId(3L)
+                .status(ReturnBatchLineStatus.INSPECTED)
+                .build();
+        LotteryTicketSerialModel serial = LotteryTicketSerialModel.builder()
+                .id(501L)
+                .ticketId(80L)
+                .stationId(3L)
+                .drawDate(DRAW_DATE)
+                .status(LotteryTicketSerialStatus.IN_STOCK)
+                .ticketCondition(TicketCondition.GOOD)
+                .importBatchLineId(20L)
+                .returnBatchLineId(100L)
+                .build();
+
+        when(returnBatchRepositoryPort.findById(10L)).thenReturn(Optional.of(batch));
+        when(returnBatchRepositoryPort.findLinesByBatchId(10L)).thenReturn(List.of(line));
+        when(returnBatchRepositoryPort.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(returnBatchRepositoryPort.saveLine(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(lotteryTicketSerialRepositoryPort.countByReturnBatchLineId(100L)).thenReturn(1L);
+        when(lotteryTicketSerialRepositoryPort.stampReturnedAtByReturnBatchLineId(eq(100L), any()))
+                .thenReturn(1);
+        when(lotteryTicketSerialRepositoryPort.findAllByReturnBatchLineId(100L)).thenReturn(List.of(serial));
+        when(importBatchLineRepositoryPort.findById(20L)).thenReturn(Optional.of(
+                ImportBatchLineModel.builder().id(20L).importCost(new BigDecimal("10000")).build()
+        ));
+        when(returnBatchAutoCancelService.cancelIfPastCutoff(any())).thenReturn(false);
+
+        ReturnBatchResponse response = returnBatchService.confirmHandover(
+                10L,
+                new com.daiphat.coreapi.application.dto.request.lotteries.ConfirmReturnHandoverRequest(
+                        null,
+                        "https://cdn.example.com/return-evidence.jpg",
+                        null
+                ),
+                OPERATOR_ID
+        );
+
+        assertThat(response.status()).isEqualTo(ReturnBatchStatus.HANDED_OVER);
+        verify(lotteryTicketSerialRepositoryPort).stampReturnedAtByReturnBatchLineId(eq(100L), any());
+        verify(lotteryTicketSerialRepositoryPort, org.mockito.Mockito.never()).save(any());
+        verify(supplierSettlementServicePort).recalculateTotalReturnValue(50L);
+    }
 }

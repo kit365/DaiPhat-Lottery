@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3 -c \"import cv2; print\\('cv2', cv2.__version__\\)\")",
+      "Bash(python3 -c \"import numpy; print\\('numpy', numpy.__version__\\)\")",
+      "Bash(python3 -c \"import fastapi; print\\('fastapi', fastapi.__version__\\)\")",
+      "Bash(python3 -c \"import pydantic; print\\('pydantic', pydantic.__version__\\)\")",
+      "Bash(python3 -c \"import rapidfuzz; print\\('rapidfuzz ok'\\)\")",
+      "Bash(python3 -c \"import pytest; print\\('pytest', pytest.__version__\\)\")",
+      "Bash(pip3 --version)",
+      "Bash(python3 -m pip --version)",
+      "Bash(python3 -m venv /tmp/testvenv)",
+      "Bash(/tmp/testvenv/bin/pip --version)",
+      "Bash(timeout 5 curl -sI https://pypi.org)",
+      "Bash(sudo -n apt-get install -y python3-pip python3-venv)",
+      "Bash(python3 -m ensurepip --user)",
+      "Read(//usr/bin/**)",
+      "Bash(apt list *)"
+    ]
+  }
+}

@@ -5,15 +5,14 @@ import ArrowBackOutlinedIcon from '@mui/icons-material/ArrowBackOutlined';
 import ArrowForwardOutlinedIcon from '@mui/icons-material/ArrowForwardOutlined';
 import CheckCircleOutlinedIcon from '@mui/icons-material/CheckCircleOutlined';
 import CloseIcon from '@mui/icons-material/Close';
+import PictureAsPdfOutlinedIcon from '@mui/icons-material/PictureAsPdfOutlined';
 import WarningAmberOutlinedIcon from '@mui/icons-material/WarningAmberOutlined';
-import CalculateOutlinedIcon from '@mui/icons-material/CalculateOutlined';
 import {
     Alert,
     Box,
     Button,
     CircularProgress,
     Dialog,
-    DialogActions,
     DialogContent,
     DialogTitle,
     IconButton,
@@ -29,14 +28,13 @@ import { useAdminRouter } from '@/admin/hooks/useAdminRouter';
 import { useRouteParams } from '@/hooks/useRouteParams';
 import { AppToast } from '../../../../../../utils/toast.util';
 import { Breadcrumb } from '../../../../../components/ui/Breadcrumb';
-import { Button as LoadingButton } from '../../../../../components/ui/Button';
 import { Title } from '../../../../../components/ui/Title';
 import { ROUTES } from '../../../../../constants/routes';
-import { formatSettlementMoney, formatSignedCashflow, toAgencyCashflow } from '../../utils/settlementCashflow';
 import { clearMatchingActualsDraft } from '../../utils/clearMatchingActualsDraft';
 import {
     useCompleteSettlementReconciliation,
     useConfirmSettlementMatching,
+    useDownloadSettlementReconciliationReport,
     useImportResolvableTickets,
     useMissingReturnTickets,
     useRecalculateSettlementReconciliation,
@@ -55,7 +53,6 @@ import {
     getReturnMatchingLockDetails,
     weightedStationNetUnitPrice,
 } from '../../utils/settlementLabels';
-import { ExcessReturnTicketsPanel } from '../sections/ExcessReturnTicketsPanel';
 import { ImportDiscrepancyPanel } from '../sections/ImportDiscrepancyPanel';
 import { UnitPriceDiscrepancyPanel } from '../sections/UnitPriceDiscrepancyPanel';
 import { MatchingActualsForm } from '../sections/MatchingActualsForm';
@@ -125,9 +122,9 @@ export const SupplierSettlementInspectPage = () => {
     const hasPendingDiscrepancies = needsUnitPrice || needsImport || needsReturn;
     const returnShortfall = returnItem?.direction === 'NEGATIVE';
     const returnExcess = returnItem?.direction === 'POSITIVE';
+    const showReturnLockBanner = needsReturn && returnShortfall && returnLockDetails.inputsLocked;
 
     const [zoomImage, setZoomImage] = useState<{ url: string; title: string } | null>(null);
-    const [confirmOpen, setConfirmOpen] = useState(false);
     /** Local UI: revisit matching form without marking settlement completed. */
     const [isEditingMatching, setIsEditingMatching] = useState(false);
     /** Local UI: return from Hoàn tất to bước xử lý chênh lệch. */
@@ -140,17 +137,11 @@ export const SupplierSettlementInspectPage = () => {
     const recalculate = useRecalculateSettlementReconciliation(id);
     const complete = useCompleteSettlementReconciliation(id);
     const updatePaymentEvidence = useUpdateSettlementPaymentEvidence(id);
+    const downloadReport = useDownloadSettlementReconciliationReport(id);
     const autoRecalcAttemptedRef = useRef(false);
 
-    const importTicketsQuery = useImportResolvableTickets(id, needsImport || (needsReturn && returnExcess));
+    const importTicketsQuery = useImportResolvableTickets(id, needsImport);
     const missingReturnQuery = useMissingReturnTickets(id, needsReturn && returnShortfall);
-
-    const remainingDiff = useMemo(() => {
-        if (settlement?.actualPaidAmount == null || settlement?.finalSettlementValue == null) {
-            return null;
-        }
-        return Math.abs(Number(settlement.actualPaidAmount) - Number(settlement.finalSettlementValue));
-    }, [settlement?.actualPaidAmount, settlement?.finalSettlementValue]);
 
     useEffect(() => {
         if (phase !== 'READY_FOR_RECALCULATION' || reviewingDiscrepancy || isEditingMatching) {
@@ -198,11 +189,12 @@ export const SupplierSettlementInspectPage = () => {
     const paymentEvidenceUrls = Array.isArray(settlement.paymentEvidenceUrls)
         ? settlement.paymentEvidenceUrls.filter(Boolean)
         : [];
-    const canRematch = phase !== 'MATCHING' && phase !== 'COMPLETED' && settlement.status !== 'CLOSED';
+    const paid = settlement.status === 'COMPLETED';
+    const canRematch = phase !== 'MATCHING' && phase !== 'COMPLETED' && !paid;
     const showMatchingForm = phase === 'MATCHING' || isEditingMatching;
     const showPostMatchingContent = phase !== 'MATCHING' && !isEditingMatching;
     const reconciliationLocked = settlement.inReconciliationWindow === false
-        && settlement.status !== 'CLOSED'
+        && !paid
         && phase !== 'COMPLETED';
 
     return (
@@ -317,9 +309,9 @@ export const SupplierSettlementInspectPage = () => {
 
                 {showPostMatchingContent && (
                     <Box sx={{ mb: 3 }}>
-                        {activeStep === 2 && phase === 'COMPLETED' && (
+                        {activeStep === 2 && paid && (
                             <Alert severity="success" icon={<CheckCircleOutlinedIcon />} sx={{ mb: 2.5, borderRadius: '12px' }}>
-                                Kỳ đối soát đã hoàn tất (CLOSED). Số liệu dưới đây là bản chốt của kỳ.
+                                Kỳ đối soát đã thanh toán. Số liệu dưới đây là bản chốt của kỳ.
                             </Alert>
                         )}
                         <SettlementReconciliationSummaryCard
@@ -386,6 +378,7 @@ export const SupplierSettlementInspectPage = () => {
                                     inventoryByStation={inventoryByStation}
                                     importBatches={importBatches}
                                     settlementReceiptUrl={settlement.supplierSettlementReceiptUrl}
+                                    drawDate={settlement.periodFrom}
                                     direction={importItem?.direction || 'NEGATIVE'}
                                     difference={Number(importItem?.difference ?? 0)}
                                     loading={importTicketsQuery.isLoading}
@@ -401,7 +394,7 @@ export const SupplierSettlementInspectPage = () => {
                             </Box>
                         )}
 
-                        {needsReturn && returnLockDetails.inputsLocked && (
+                        {showReturnLockBanner && (
                             <Alert
                                 severity={returnLockDetails.overdue || returnLockDetails.allCancelled ? 'error' : 'warning'}
                                 icon={<WarningAmberOutlinedIcon />}
@@ -456,26 +449,10 @@ export const SupplierSettlementInspectPage = () => {
                         )}
 
                         {needsReturn && returnExcess && (
-                            <Box sx={{ mb: 2, opacity: returnLockDetails.inputsLocked ? 0.72 : 1 }}>
-                                <ExcessReturnTicketsPanel
-                                    serials={importTicketsQuery.data || []}
-                                    difference={Number(returnItem?.difference ?? 0)}
-                                    loading={importTicketsQuery.isLoading}
-                                    submitting={resolveReturn.isPending}
-                                    disabled={returnLockDetails.inputsLocked}
-                                    onResolve={(payload) => {
-                                        if (returnLockDetails.inputsLocked) {
-                                            AppToast.warning(returnLockDetails.summaryMessage || 'Phiếu trả chưa sẵn sàng.');
-                                            return;
-                                        }
-                                        resolveReturn.mutate(payload, {
-                                            onSuccess: () => AppToast.success('Đã ghi nhận vé bổ sung trả.'),
-                                            onError: (err: any) =>
-                                                AppToast.error(err?.response?.data?.message || 'Xử lý trả thừa thất bại.'),
-                                        });
-                                    }}
-                                />
-                            </Box>
+                            <Alert severity="warning" sx={{ mb: 2, borderRadius: '12px' }}>
+                                Số lượng vé trả thực tế đang lớn hơn số lượng hệ thống. Hệ thống không xử lý thừa trả —
+                                hãy chỉnh lại đối chiếu số liệu và nhập số lượng trả bằng hoặc ít hơn số lượng hệ thống.
+                            </Alert>
                         )}
 
                         {needsReturn && !returnShortfall && !returnExcess && (
@@ -571,112 +548,90 @@ export const SupplierSettlementInspectPage = () => {
                 )}
 
                 {showPostMatchingContent && activeStep === 2 && (
-                    <SettlementPaymentEvidencePanel
-                        urls={paymentEvidenceUrls}
-                        readOnly={phase === 'COMPLETED'}
-                        saving={updatePaymentEvidence.isPending}
-                        onZoomImage={setZoomImage}
-                        onChange={async (nextUrls) => {
-                            await updatePaymentEvidence.mutateAsync(nextUrls);
-                        }}
-                    />
-                )}
-
-                {showPostMatchingContent && activeStep === 2 && (
-                    <Paper variant="outlined" sx={{ p: 2.5, borderRadius: '16px', mb: 3, borderColor: '#e2e8f0', bgcolor: '#ffffff', boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)' }}>
-                        <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 2 }}>
-                            <CalculateOutlinedIcon sx={{ color: '#2563eb', fontSize: '1.4rem' }} />
-                            <Typography variant="subtitle1" fontWeight={800} color="#0f172a">
-                                {phase === 'COMPLETED' ? 'Xác nhận hoàn tất' : 'Xác nhận hoàn tất đối soát'}
-                            </Typography>
-                        </Stack>
-
-                        <Box sx={{
-                            display: 'grid',
-                            gridTemplateColumns: { xs: '1fr', md: remainingDiff != null && phase !== 'READY_FOR_RECALCULATION' ? 'repeat(3, 1fr)' : 'repeat(2, 1fr)' },
-                            gap: 2,
-                            mb: 2.5
-                        }}>
-                            <Box sx={{ p: 2, borderRadius: '12px', bgcolor: '#f8fafc', border: '1px solid #f1f5f9' }}>
-                                <Typography variant="caption" color="text.secondary" fontWeight={600} display="block" sx={{ mb: 0.5, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                                    {Number(settlement.finalSettlementValue ?? 0) < 0 ? 'NCC hoàn / ghi có (sau đối soát)' : 'Chênh lệch sau đối soát'}
-                                </Typography>
-                                <Typography variant="h6" fontWeight={800} color="#0f172a">
-                                    {Number(settlement.finalSettlementValue ?? 0) < 0 ? `+${formatSettlementMoney(Math.abs(Number(settlement.finalSettlementValue ?? 0)))}` : formatSettlementMoney(Number(settlement.finalSettlementValue ?? 0))} <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>VNĐ</span>
-                                </Typography>
-                            </Box>
-                            
-                            <Box sx={{ p: 2, borderRadius: '12px', bgcolor: '#eff6ff', border: '1px solid #dbeafe' }}>
-                                <Typography variant="caption" color="#1d4ed8" fontWeight={600} display="block" sx={{ mb: 0.5, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                                    {Number(settlement.actualPaidAmount ?? 0) < 0 ? 'Số tiền NCC hoàn / ghi có thực tế' : 'Số tiền cần trả thực tế'}
-                                </Typography>
-                                <Typography variant="h6" fontWeight={800} color="#1e40af">
-                                    {settlement.actualPaidAmount != null
-                                        ? `${formatSettlementMoney(Math.abs(Number(settlement.actualPaidAmount)))}`
-                                        : '—'}
-                                    {settlement.actualPaidAmount != null && <span style={{ fontSize: '0.85rem', fontWeight: 600 }}> VNĐ</span>}
-                                </Typography>
-                            </Box>
-
-                            {remainingDiff != null && phase !== 'READY_FOR_RECALCULATION' && (
-                                <Box sx={{ p: 2, borderRadius: '12px', bgcolor: remainingDiff === 0 ? '#f0fdf4' : '#fef2f2', border: '1px solid', borderColor: remainingDiff === 0 ? '#bbf7d0' : '#fecaca' }}>
-                                    <Typography variant="caption" color={remainingDiff === 0 ? '#166534' : '#991b1b'} fontWeight={600} display="block" sx={{ mb: 0.5, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                                        Chênh lệch còn lại
-                                    </Typography>
-                                    <Typography variant="h6" fontWeight={800} color={remainingDiff === 0 ? '#15803d' : '#dc2626'}>
-                                        {formatSettlementMoney(remainingDiff)} <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>VNĐ</span>
-                                    </Typography>
-                                </Box>
+                    <>
+                        <SettlementPaymentEvidencePanel
+                            urls={paymentEvidenceUrls}
+                            readOnly={paid}
+                            saving={updatePaymentEvidence.isPending}
+                            onZoomImage={setZoomImage}
+                            onChange={async (nextUrls) => {
+                                await updatePaymentEvidence.mutateAsync(nextUrls);
+                            }}
+                        />
+                        <Stack
+                            direction="row"
+                            spacing={1.5}
+                            justifyContent="flex-end"
+                            flexWrap="wrap"
+                            useFlexGap
+                            sx={{ mb: 1 }}
+                        >
+                            {!paid && (
+                                <Button
+                                    variant="outlined"
+                                    startIcon={<ArrowBackOutlinedIcon />}
+                                    onClick={() => setReviewingDiscrepancy(true)}
+                                    sx={{ textTransform: 'none', fontWeight: 700, borderRadius: '10px', color: '#475569', borderColor: '#cbd5e1' }}
+                                >
+                                    Quay lại xử lý chênh lệch
+                                </Button>
                             )}
-                        </Box>
-
-                        {phase === 'PAYMENT_DISCREPANCY' && (
-                            <Alert severity="error" icon={<WarningAmberOutlinedIcon />} sx={{ mb: 2.5, borderRadius: '10px', fontWeight: 600 }}>
-                                Số tiền cần trả thực tế không khớp Chênh lệch sau đối soát. Không thể hoàn tất đối soát
-                                cho đến khi hai số này trùng khớp hoặc được rà soát theo quy trình chênh lệch thanh toán.
-                            </Alert>
-                        )}
-
-                        {phase !== 'COMPLETED' && paymentEvidenceUrls.length === 0 && (
-                            <Alert severity="warning" sx={{ mb: 2.5, borderRadius: '10px' }}>
-                                Cần tải ảnh đã thanh toán thành công cho nhà cung cấp trước khi xác nhận hoàn tất.
-                            </Alert>
-                        )}
-
-                        <Stack direction="row" spacing={1.5} justifyContent="flex-end" flexWrap="wrap">
-                            {phase !== 'COMPLETED' && (
-                                <>
-                                    <Button
-                                        variant="outlined"
-                                        startIcon={<ArrowBackOutlinedIcon />}
-                                        onClick={() => setReviewingDiscrepancy(true)}
-                                        sx={{ textTransform: 'none', fontWeight: 700, borderRadius: '10px', color: '#475569', borderColor: '#cbd5e1' }}
-                                    >
-                                        Quay lại xử lý chênh lệch
-                                    </Button>
-                                    <Button
-                                        variant="contained"
-                                        color="success"
-                                        disabled={
-                                            (phase !== 'RECALCULATED' && phase !== 'PAYMENT_DISCREPANCY')
-                                            || remainingDiff == null
-                                            || remainingDiff !== 0
-                                            || paymentEvidenceUrls.length === 0
-                                            || (
-                                                (phase === 'PAYMENT_DISCREPANCY'
-                                                    || (overview?.adjustments || []).some((a) => a.groupType === 'SETTLEMENT'))
-                                                && !String(settlement.supplierSettlementReceiptUrl || '').trim()
-                                            )
+                            <Button
+                                variant="outlined"
+                                startIcon={downloadReport.isPending ? <CircularProgress size={16} /> : <PictureAsPdfOutlinedIcon />}
+                                disabled={downloadReport.isPending}
+                                onClick={() =>
+                                    downloadReport.mutate(
+                                        `bao-cao-doi-soat-${settlement.supplierSettlementCode || settlement.id}.pdf`,
+                                        {
+                                            onError: (err: any) =>
+                                                AppToast.error(err?.message || err?.response?.data?.message || 'Tải PDF thất bại.'),
                                         }
-                                        onClick={() => setConfirmOpen(true)}
-                                        sx={{ textTransform: 'none', fontWeight: 800, borderRadius: '10px', bgcolor: '#16a34a', boxShadow: '0 2px 8px rgba(22, 163, 74, 0.25)', '&:hover': { bgcolor: '#15803d' } }}
-                                    >
-                                        Xác nhận hoàn tất đối soát
-                                    </Button>
-                                </>
+                                    )
+                                }
+                                sx={{ textTransform: 'none', fontWeight: 700, borderRadius: '10px' }}
+                            >
+                                {downloadReport.isPending ? 'Đang tạo PDF...' : 'Tải báo cáo PDF'}
+                            </Button>
+                            {!paid && (
+                                <Button
+                                    variant="contained"
+                                    color="success"
+                                    disabled={
+                                        paymentEvidenceUrls.length === 0
+                                        || complete.isPending
+                                        || phase === 'READY_FOR_RECALCULATION'
+                                    }
+                                    onClick={() => {
+                                        complete.mutate(undefined, {
+                                            onSuccess: (res) => {
+                                                const result = res.data;
+                                                if (result?.completed) {
+                                                    AppToast.success(result.message || 'Đã xác nhận thanh toán.');
+                                                    if (id != null) {
+                                                        void clearMatchingActualsDraft(id);
+                                                    }
+                                                } else {
+                                                    AppToast.error(result?.message || res.message || 'Chưa thể xác nhận thanh toán.');
+                                                }
+                                            },
+                                            onError: (err: any) =>
+                                                AppToast.error(err?.response?.data?.message || 'Xác nhận thanh toán thất bại.'),
+                                        });
+                                    }}
+                                    sx={{
+                                        textTransform: 'none',
+                                        fontWeight: 800,
+                                        borderRadius: '10px',
+                                        bgcolor: '#16a34a',
+                                        '&:hover': { bgcolor: '#15803d' },
+                                    }}
+                                >
+                                    {complete.isPending ? 'Đang xác nhận...' : 'Xác nhận đã thanh toán'}
+                                </Button>
                             )}
                         </Stack>
-                    </Paper>
+                    </>
                 )}
             </Paper>
 
@@ -691,108 +646,6 @@ export const SupplierSettlementInspectPage = () => {
                         <Box component="img" src={zoomImage.url} alt="" sx={{ width: '100%', borderRadius: '12px' }} />
                     )}
                 </DialogContent>
-            </Dialog>
-
-            <Dialog
-                open={confirmOpen}
-                onClose={() => !complete.isPending && setConfirmOpen(false)}
-                maxWidth="sm"
-                fullWidth
-                PaperProps={{ sx: { borderRadius: '16px' } }}
-            >
-                <DialogTitle sx={{ py: 2.5, px: 3, bgcolor: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
-                    <Stack direction="row" alignItems="center" justifyContent="space-between">
-                        <Typography variant="h6" fontWeight={800} sx={{ fontSize: '1.05rem' }}>
-                            Xác nhận hoàn tất đối soát
-                        </Typography>
-                        <IconButton size="small" disabled={complete.isPending} onClick={() => setConfirmOpen(false)}>
-                            <CloseIcon fontSize="small" />
-                        </IconButton>
-                    </Stack>
-                </DialogTitle>
-                <DialogContent sx={{ px: 3, pt: 2.5 }}>
-                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2, lineHeight: 1.7 }}>
-                        Hệ thống so sánh Chênh lệch sau đối soát (tính tự động) với Số tiền cần trả thực tế. Chỉ khi hai số khớp và đã có ảnh thanh toán NCC mới hoàn tất đối soát.
-                    </Typography>
-                    <Paper variant="outlined" sx={{ p: 2, borderRadius: '12px', bgcolor: '#f8fafc' }}>
-                        <Stack spacing={1}>
-                            <Stack direction="row" justifyContent="space-between">
-                                <Typography variant="body2" color="text.secondary">Mã đối soát</Typography>
-                                <Typography variant="body2" fontWeight={700}>
-                                    {settlement.supplierSettlementCode || `#${settlement.id}`}
-                                </Typography>
-                            </Stack>
-                            <Stack direction="row" justifyContent="space-between">
-                                <Typography variant="body2" color="text.secondary">Tạm tính ban đầu</Typography>
-                                <Typography variant="body2" fontWeight={700}>
-                                    {formatSettlementMoney(Number(settlement.initialEstimatedSettlementValue ?? 0))} VNĐ
-                                </Typography>
-                            </Stack>
-                            <Stack direction="row" justifyContent="space-between">
-                                <Typography variant="body2" color="text.secondary">{Number(settlement.finalSettlementValue ?? 0) < 0 ? 'NCC hoàn / ghi có' : 'Chênh lệch sau đối soát'}</Typography>
-                                <Typography variant="body2" fontWeight={700}>
-                                    {Number(settlement.finalSettlementValue ?? 0) < 0 ? `+${formatSettlementMoney(Math.abs(Number(settlement.finalSettlementValue ?? 0)))}` : formatSettlementMoney(Number(settlement.finalSettlementValue ?? 0))} VNĐ
-                                </Typography>
-                            </Stack>
-                            <Stack direction="row" justifyContent="space-between">
-                                <Typography variant="body2" color="text.secondary">Tác động dòng tiền đại lý</Typography>
-                                <Typography variant="body2" fontWeight={700}>
-                                    {settlement.settlementDifferenceAmount != null
-                                        ? `${formatSignedCashflow(toAgencyCashflow(Number(settlement.settlementDifferenceAmount)), formatSettlementMoney)} VNĐ`
-                                        : '—'}
-                                </Typography>
-                            </Stack>
-                            <Stack direction="row" justifyContent="space-between">
-                                <Typography variant="body2" color="text.secondary">{Number(settlement.actualPaidAmount ?? 0) < 0 ? 'Số tiền NCC hoàn / ghi có thực tế' : 'Số tiền cần trả thực tế'}</Typography>
-                                <Typography variant="body2" fontWeight={700}>
-                                    {formatSettlementMoney(Math.abs(Number(settlement.actualPaidAmount ?? 0)))} VNĐ
-                                </Typography>
-                            </Stack>
-                        </Stack>
-                    </Paper>
-                    <Alert
-                        severity="warning"
-                        icon={<WarningAmberOutlinedIcon />}
-                        sx={{ mt: 2, borderRadius: '10px', bgcolor: '#FEF3C7', color: '#78350F' }}
-                    >
-                        Hành động không thể hoàn tác.
-                    </Alert>
-                </DialogContent>
-                <DialogActions sx={{ px: 3, py: 2, bgcolor: '#f8fafc', borderTop: '1px solid #e2e8f0' }}>
-                    <Button
-                        variant="outlined"
-                        color="inherit"
-                        disabled={complete.isPending}
-                        onClick={() => setConfirmOpen(false)}
-                    >
-                        Hủy
-                    </Button>
-                    <LoadingButton
-                        variant="contained"
-                        loading={complete.isPending}
-                        label="Xác nhận hoàn tất"
-                        loadingLabel="Đang xử lý..."
-                        onClick={() => {
-                            complete.mutate(undefined, {
-                                onSuccess: (res) => {
-                                    const result = res?.data;
-                                    if (result?.completed) {
-                                        AppToast.success(result.message || 'Đã hoàn tất đối soát.');
-                                        setConfirmOpen(false);
-                                        if (id != null) {
-                                            void clearMatchingActualsDraft(id);
-                                        }
-                                    } else {
-                                        AppToast.error(result?.message || 'Còn chênh lệch thanh toán.');
-                                        setConfirmOpen(false);
-                                    }
-                                },
-                                onError: (err: any) =>
-                                    AppToast.error(err?.response?.data?.message || 'Hoàn tất thất bại.'),
-                            });
-                        }}
-                    />
-                </DialogActions>
             </Dialog>
         </Box>
     );

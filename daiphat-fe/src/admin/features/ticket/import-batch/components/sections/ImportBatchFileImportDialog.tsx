@@ -87,6 +87,7 @@ import { formatImportCost } from '../../utils/importCostCalculator';
 import {
     collectAnomalies,
     collectPreviewRowNotes,
+    fileImportRequestErrorMessage,
     formatPreviewIssueNote,
     groupPreviewTicketRows,
     hasDrawDateIssue,
@@ -851,8 +852,13 @@ export const ImportBatchFileImportDialog = ({
             if (result.profileMatched) {
                 toast.info('Đã áp dụng cấu hình cột đã lưu của nhà cung cấp này.');
             }
-        } catch {
-            toast.error('Không đọc được tệp. Vui lòng kiểm tra định dạng .csv hoặc .xlsx.');
+        } catch (err: unknown) {
+            toast.error(
+                fileImportRequestErrorMessage(
+                    err,
+                    'Không đọc được tệp. Vui lòng kiểm tra định dạng .csv hoặc .xlsx.'
+                )
+            );
         } finally {
             setBusy(false);
         }
@@ -881,8 +887,13 @@ export const ImportBatchFileImportDialog = ({
                 result.groups.filter(isGroupSelectable).map((group) => group.drawDate as string)
             );
             setStep(2);
-        } catch {
-            toast.error('Không xem trước được tệp. Vui lòng kiểm tra lại cấu hình cột.');
+        } catch (err: unknown) {
+            toast.error(
+                fileImportRequestErrorMessage(
+                    err,
+                    'Không xem trước được tệp. Vui lòng kiểm tra lại cấu hình cột.'
+                )
+            );
         } finally {
             setBusy(false);
         }
@@ -989,12 +1000,7 @@ export const ImportBatchFileImportDialog = ({
             reset();
             onClose();
         } catch (err: unknown) {
-            const message =
-                (err as { response?: { data?: { message?: string } }; message?: string })?.response?.data
-                    ?.message ||
-                (err as { message?: string })?.message ||
-                'Không tạo được phiếu nhập từ tệp.';
-            toast.error(message);
+            toast.error(fileImportRequestErrorMessage(err, 'Không tạo được phiếu nhập từ tệp.'));
         } finally {
             setBusy(false);
         }

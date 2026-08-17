@@ -1,6 +1,7 @@
 package com.daiphat.coreapi.application.service.lotteries;
 
 import com.daiphat.coreapi.application.dto.request.lotteries.CreateLotterySupplierRequest;
+import com.daiphat.coreapi.application.dto.request.lotteries.UpdateLotterySupplierDefaultImportCostRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.UpdateLotterySupplierProfileRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.UpdateLotterySupplierRequest;
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
@@ -111,6 +112,36 @@ public class LotterySupplierService implements LotterySupplierServicePort {
 
         LotterySupplierModel saved = lotterySupplierRepositoryPort.save(model);
         log.info("Updated supplier profile id={} code={}", saved.getId(), saved.getCode());
+        return lotterySupplierApplicationMapper.toResponse(saved);
+    }
+
+    /**
+     * Corrects a supplier's default import cost and nothing else.
+     *
+     * <p>Reached from settlement matching when the actual import price disagrees
+     * with the NCC master. Timing rules, identity and the active flag stay as they
+     * are; an active supplier stays active as long as the new cost still satisfies
+     * activation (it must be greater than zero).
+     */
+    @Override
+    @Transactional
+    public LotterySupplierResponse updateDefaultImportCost(
+            Long id,
+            UpdateLotterySupplierDefaultImportCostRequest request
+    ) {
+        LotterySupplierModel model = getModelOrThrow(id);
+        validateNonNegativeAmounts(null, request.defaultImportCost());
+        if (request.defaultImportCost().compareTo(BigDecimal.ZERO) <= 0) {
+            throw new DomainException(ErrorCode.LOTTERY_SUPPLIER_IMPORT_COST_INVALID);
+        }
+
+        model.setDefaultImportCost(request.defaultImportCost());
+        if (model.isActive()) {
+            model.requireActivationReady();
+        }
+
+        LotterySupplierModel saved = lotterySupplierRepositoryPort.save(model);
+        log.info("Updated supplier defaultImportCost id={} cost={}", saved.getId(), saved.getDefaultImportCost());
         return lotterySupplierApplicationMapper.toResponse(saved);
     }
 

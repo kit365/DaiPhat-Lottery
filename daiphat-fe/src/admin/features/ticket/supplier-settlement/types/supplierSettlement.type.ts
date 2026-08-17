@@ -1,4 +1,4 @@
-export type SupplierSettlementStatus = 'OPEN' | 'RECEIPT_OVERDUE' | 'CLOSED';
+export type SupplierSettlementStatus = 'OPEN' | 'RECEIPT_OVERDUE' | 'COMPLETED';
 
 export type SupplierSettlementReconciliationPhase =
     | 'MATCHING'
@@ -290,9 +290,13 @@ export interface ResolveImportDiscrepancyPayload {
     adjustmentAmount?: number | null;
     note?: string;
     markResolved: boolean;
-    missingPlaceholders?: Array<{ lotteryStationId: number; quantity: number }>;
+    missingPlaceholders?: Array<{
+        lotteryStationId: number;
+        quantity: number;
+        ticketCondition?: 'DAMAGED' | 'LOST' | 'VOIDED' | 'UNDER_IMPORTED';
+    }>;
     excessTickets?: Array<{ lotteryStationId: number; numbers: string; serialNumber: string }>;
-    /** Required when ticketCondition is DAMAGED. */
+    /** Required when any missing placeholder (or selected serial) is DAMAGED. */
     damagedEvidenceUrl?: string | null;
 }
 

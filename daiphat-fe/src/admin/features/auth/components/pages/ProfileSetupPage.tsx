@@ -138,7 +138,7 @@ export const ProfileSetupPage: React.FC = () => {
                         } 
                     });
 
-                    const destination = isAdmin ? ROUTES.ADMIN.DASHBOARD.ROOT : ROUTES.PUBLIC.HOME;
+                    const destination = isAdmin ? ROUTES.ADMIN.DASHBOARD.ECOMMERCE : ROUTES.PUBLIC.HOME;
                     router.replace(destination);
                 }
             } else {

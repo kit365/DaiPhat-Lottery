@@ -95,6 +95,8 @@ class SupplierSettlementServiceTest {
     private SupplierTicketIntakeWindowPolicy intakeWindowPolicy;
     @Mock
     private Clock clock;
+    @Mock
+    private SupplierSettlementDiscrepancyInventoryHelper discrepancyInventoryHelper;
 
     @InjectMocks
     private SupplierSettlementService supplierSettlementService;
@@ -107,6 +109,11 @@ class SupplierSettlementServiceTest {
         lenient().when(lotteryStationRepositoryPort.findByNextDrawDate(any())).thenReturn(List.of());
         lenient().when(lotteryStationRepositoryPort.findAll()).thenReturn(List.of());
         lenient().when(intakeWindowPolicy.isTicketChangeLocked(any(), any(), any())).thenReturn(false);
+        lenient().when(discrepancyInventoryHelper.mergeUnbackedAdjustmentInventory(any(), any()))
+                .thenAnswer(invocation -> {
+                    List<?> inventory = invocation.getArgument(1);
+                    return inventory != null ? inventory : List.of();
+                });
     }
 
     private void fixedClock(LocalDate date, LocalTime time) {

@@ -48,7 +48,11 @@ export const confirmReturnInspection = async (
     id: number | string,
     payload: ConfirmReturnInspectionPayload
 ): Promise<ApiResponse<ReturnBatch>> => {
-    const response = await apiApp.post(`${BASE_URL}/${id}/confirm-inspection`, payload, withAuthHeaders());
+    const response = await apiApp.post(`${BASE_URL}/${id}/confirm-inspection`, payload, {
+        ...withAuthHeaders(),
+        // Large leftover batches (1000+ serials) exceed the default 15s API timeout.
+        timeout: 120_000,
+    });
     return response.data;
 };
 
@@ -56,7 +60,11 @@ export const confirmReturnHandover = async (
     id: number | string,
     payload?: ConfirmReturnHandoverPayload
 ): Promise<ApiResponse<ReturnBatch>> => {
-    const response = await apiApp.post(`${BASE_URL}/${id}/confirm-handover`, payload ?? {}, withAuthHeaders());
+    const response = await apiApp.post(`${BASE_URL}/${id}/confirm-handover`, payload ?? {}, {
+        ...withAuthHeaders(),
+        // Stamping returnedAt on 1000+ serials exceeds the default 15s API timeout.
+        timeout: 120_000,
+    });
     return response.data;
 };
 

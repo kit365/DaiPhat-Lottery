@@ -11,7 +11,7 @@ import { ADMIN_BADGE_POLL_MS } from '../../../../hooks/adminBadgePoll';
 
 /**
  * Polls supplier settlement count for sidebar badge.
- * Counts records whose status is neither 'OPEN' nor 'CLOSED' (e.g. 'RECEIPT_OVERDUE', etc.).
+ * Counts records whose status is neither 'OPEN' nor 'COMPLETED' (e.g. 'RECEIPT_OVERDUE').
  */
 export const useSupplierSettlementAttentionCount = () => {
     const { user, token } = useAuthStore();
@@ -40,7 +40,7 @@ export const useSupplierSettlementAttentionCount = () => {
         const recordList = rawData.recordList || rawData.content || (Array.isArray(rawData) ? rawData : []);
         return recordList.filter((item: any) => {
             const status = String(item?.status || '').trim().toUpperCase();
-            return status && status !== 'OPEN' && status !== 'CLOSED';
+            return status && status !== 'OPEN' && status !== 'COMPLETED';
         }).length;
     }, [query.data?.data]);
 

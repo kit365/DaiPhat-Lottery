@@ -8,6 +8,7 @@ import {
     DEFAULT_RETURN_CUTOFF_TIME,
     isBeforeSupplierImportAllowFrom,
     isDrawDateToday,
+    resolveSupplierImportAllowFromAt,
     isImportIntakeClosed,
     isInReturnCutOffWarningWindow,
     resolveInspectionStartTime,
@@ -52,7 +53,11 @@ export const evaluateImportBatchIntake = (
     }
 
     const returnCutOffTime = supplier.returnCutOffTime?.trim() || DEFAULT_RETURN_CUTOFF_TIME;
-    const notYetAllowed = isBeforeSupplierImportAllowFrom(supplier.importAllowFrom ?? undefined, now);
+    const notYetAllowed = isBeforeSupplierImportAllowFrom(
+        supplier.importAllowFrom ?? undefined,
+        drawDate,
+        now
+    );
     const blocked =
         isDrawDateToday(drawDate) &&
         isImportIntakeClosed(returnCutOffTime, drawDate, returnBufferMinutes, now);
@@ -65,6 +70,10 @@ export const evaluateImportBatchIntake = (
     const inspectionStart = resolveInspectionStartTime(returnCutOffTime, returnBufferMinutes, now);
     const inspectionStartLabel = inspectionStart?.format('HH:mm') ?? null;
     const returnCutOffLabel = formatSupplierTime(returnCutOffTime);
+    const openAt = resolveSupplierImportAllowFromAt(supplier.importAllowFrom ?? undefined, drawDate);
+    const openLabel = openAt
+        ? `${formatSupplierTime(supplier.importAllowFrom)} ngày ${openAt.format('DD/MM/YYYY')}`
+        : formatSupplierTime(supplier.importAllowFrom);
 
     const blockedMessage = blocked
         ? buildImportIntakeClosedMessage({
@@ -80,7 +89,7 @@ export const evaluateImportBatchIntake = (
         blocked,
         notYetAllowed,
         warning,
-        message: blockedMessage ?? (notYetAllowed ? `Chưa đến giờ cho phép nhập vé của nhà cung cấp này (${formatSupplierTime(supplier.importAllowFrom)}).` : null),
+        message: blockedMessage ?? (notYetAllowed ? `Chưa đến giờ cho phép nhập vé của nhà cung cấp này (từ ${openLabel}).` : null),
         tooltipTitle: blocked
             ? buildImportIntakeBlockedTooltip({
                   inspectionStartLabel,
@@ -88,7 +97,7 @@ export const evaluateImportBatchIntake = (
                   drawDate,
               })
             : notYetAllowed
-              ? `Chưa đến giờ cho phép nhập vé (${formatSupplierTime(supplier.importAllowFrom)}).`
+              ? `Chưa đến giờ cho phép nhập vé (từ ${openLabel}).`
               : null,
         inspectionStartLabel,
         returnCutOffLabel,

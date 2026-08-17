@@ -73,9 +73,10 @@ export const MissingReturnTicketsPanel = ({
     const [selected, setSelected] = useState<number[]>([]);
     const [resolution, setResolution] = useState<'EXPIRED' | 'LOST' | 'DAMAGED' | 'VOIDED'>('LOST');
     const [reasonCode, setReasonCode] = useState<SettlementAdjustmentReasonCode>('LOST_DURING_RETURN');
-    const [amount, setAmount] = useState('');
     const [note, setNote] = useState('');
     const requiredQuantity = Math.abs(Number(difference ?? 0));
+    const remainingSlots = Math.max(0, requiredQuantity - selected.length);
+    const isAtSelectionLimit = remainingSlots === 0 && requiredQuantity > 0;
     const isSelectedQuantityExact = selected.length === requiredQuantity;
 
     // Filter & Search states
@@ -109,36 +110,61 @@ export const MissingReturnTicketsPanel = ({
     }, [serials, searchQuery, selectedStation]);
 
     const filteredIds = useMemo(() => filteredSerials.map((s) => s.serialId), [filteredSerials]);
+    const selectedInFilteredIds = useMemo(
+        () => filteredIds.filter((id) => selected.includes(id)),
+        [filteredIds, selected]
+    );
+    const unselectedFilteredIds = useMemo(
+        () => filteredIds.filter((id) => !selected.includes(id)),
+        [filteredIds, selected]
+    );
 
     const isAllFilteredSelected =
-        filteredIds.length > 0 && filteredIds.every((id) => selected.includes(id));
+        filteredIds.length > 0
+        && selectedInFilteredIds.length > 0
+        && selectedInFilteredIds.length === Math.min(filteredIds.length, requiredQuantity)
+        && (unselectedFilteredIds.length === 0 || isAtSelectionLimit);
     const isSomeFilteredSelected =
-        filteredIds.some((id) => selected.includes(id)) && !isAllFilteredSelected;
+        selectedInFilteredIds.length > 0 && !isAllFilteredSelected;
+    const headerSelectDisabled =
+        filteredIds.length === 0 || (isAtSelectionLimit && selectedInFilteredIds.length === 0);
 
     const toggleSelectAllFiltered = () => {
-        if (isAllFilteredSelected) {
-            setSelected((prev) => prev.filter((id) => !filteredIds.includes(id)));
-        } else {
-            setSelected((prev) => Array.from(new Set([...prev, ...filteredIds])));
+        if (headerSelectDisabled) {
+            return;
         }
+        if (selectedInFilteredIds.length > 0 && (isAtSelectionLimit || isAllFilteredSelected)) {
+            setSelected((prev) => prev.filter((id) => !filteredIds.includes(id)));
+            return;
+        }
+        setSelected((prev) => {
+            const remaining = Math.max(0, requiredQuantity - prev.length);
+            if (remaining === 0) {
+                return prev;
+            }
+            const toAdd = unselectedFilteredIds.filter((id) => !prev.includes(id)).slice(0, remaining);
+            return Array.from(new Set([...prev, ...toAdd]));
+        });
     };
 
     const toggle = (id: number) => {
-        setSelected((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+        setSelected((prev) => {
+            if (prev.includes(id)) {
+                return prev.filter((x) => x !== id);
+            }
+            if (requiredQuantity <= 0 || prev.length >= requiredQuantity) {
+                return prev;
+            }
+            return [...prev, id];
+        });
     };
 
-    // Calculate sum of return values / import costs for all selected tickets
     const selectedCostSum = useMemo(() => {
         return serials
             .filter((s) => selected.includes(s.serialId))
             .reduce((sum, s) => sum + Number(s.importCost || 0), 0);
     }, [serials, selected]);
-
-    const handleApplySelectedCost = () => {
-        if (selectedCostSum > 0) {
-            setAmount(formatNumberWithDots(selectedCostSum));
-        }
-    };
+    const amountDisplay = selected.length > 0 ? formatNumberWithDots(selectedCostSum) : '';
 
     return (
         <Paper
@@ -172,10 +198,10 @@ export const MissingReturnTicketsPanel = ({
                     </Box>
                     <Box>
                         <Typography variant="h6" fontWeight={800} color="#0f172a" sx={{ fontSize: '1.15rem', lineHeight: 1.3 }}>
-                            Xử lý hệ thống ghi thừa trả (âm)
+                            Xử lý thiếu trả
                         </Typography>
                         <Typography variant="body2" color="#64748b" sx={{ mt: 0.25 }}>
-                            Danh sách vé hệ thống đã ghi nhận trả nhưng không có trong kiểm đếm thực tế hoặc đã hết hạn.
+                            Thực tế trả ít hơn hệ thống. Chọn vé đang nằm trong phiếu trả nhưng không có trong kiểm đếm để ghi mất/hỏng/hủy — vé vẫn lưu vết trên phiếu, không còn tính là vé trả hợp lệ.
                         </Typography>
                     </Box>
                 </Stack>
@@ -299,12 +325,17 @@ export const MissingReturnTicketsPanel = ({
                 <Stack direction="row" spacing={1.5} alignItems="center" flexWrap="wrap">
                     <Typography variant="caption" fontWeight={600} color="#64748b">
                         Hiển thị: <strong>{filteredSerials.length}</strong> / {serials.length} vé
+                        {requiredQuantity > 0 && (
+                            <>
+                                {' · '}Còn chọn được <strong>{remainingSlots}</strong>/{requiredQuantity} vé thiếu trả
+                            </>
+                        )}
                     </Typography>
                     {selected.length > 0 && (
                         <Chip
                             size="small"
                             color="warning"
-                            label={`Đã chọn ${selected.length} vé (${formatSettlementMoney(selectedCostSum)} VNĐ)`}
+                            label={`Đã chọn ${selected.length}/${requiredQuantity} vé (${formatSettlementMoney(selectedCostSum)} VNĐ)`}
                             onDelete={() => setSelected([])}
                             sx={{ fontWeight: 700 }}
                         />
@@ -338,6 +369,7 @@ export const MissingReturnTicketsPanel = ({
                                             checked={isAllFilteredSelected}
                                             indeterminate={isSomeFilteredSelected}
                                             onChange={toggleSelectAllFiltered}
+                                            disabled={headerSelectDisabled}
                                             size="small"
                                         />
                                     </TableCell>
@@ -349,21 +381,27 @@ export const MissingReturnTicketsPanel = ({
                             <TableBody>
                                 {filteredSerials.map((s) => {
                                     const isRowSelected = selected.includes(s.serialId);
+                                    const rowDisabled = !isRowSelected && isAtSelectionLimit;
                                     return (
                                         <TableRow
                                             key={s.serialId}
-                                            hover
+                                            hover={!rowDisabled}
                                             selected={isRowSelected}
-                                            onClick={() => toggle(s.serialId)}
+                                            onClick={() => {
+                                                if (rowDisabled) return;
+                                                toggle(s.serialId);
+                                            }}
                                             sx={{
-                                                cursor: 'pointer',
+                                                cursor: rowDisabled ? 'not-allowed' : 'pointer',
+                                                opacity: rowDisabled ? 0.55 : 1,
                                                 '&.Mui-selected': { bgcolor: '#fff7ed !important' },
-                                                '&:hover': { bgcolor: '#f8fafc' },
+                                                '&:hover': { bgcolor: rowDisabled ? undefined : '#f8fafc' },
                                             }}
                                         >
                                             <TableCell padding="checkbox" onClick={(e) => e.stopPropagation()}>
                                                 <Checkbox
                                                     checked={isRowSelected}
+                                                    disabled={rowDisabled}
                                                     onChange={() => toggle(s.serialId)}
                                                     size="small"
                                                     color="warning"
@@ -480,24 +518,14 @@ export const MissingReturnTicketsPanel = ({
                             label="Số tiền thiệt hại / khấu trừ"
                             fullWidth
                             type="text"
-                            slotProps={{ htmlInput: { inputMode: 'numeric' } }}
-                            value={amount}
-                            onChange={(e) => {
-                                const raw = e.target.value.replace(/\D/g, '');
-                                setAmount(raw ? parseInt(raw, 10).toLocaleString('vi-VN') : '');
-                            }}
+                            value={amountDisplay}
                             helperText={
-                                selected.length > 0 && selectedCostSum > 0 ? (
-                                    <Box
-                                        component="span"
-                                        onClick={handleApplySelectedCost}
-                                        sx={{ color: '#ea580c', cursor: 'pointer', fontWeight: 700, textDecoration: 'underline' }}
-                                    >
-                                        Gợi ý: Điền tổng {formatSettlementMoney(selectedCostSum)} đ ({selected.length} vé)
-                                    </Box>
-                                ) : undefined
+                                selected.length > 0
+                                    ? `Tự tính theo ${selected.length} vé đã chọn (${formatSettlementMoney(selectedCostSum)} VNĐ)`
+                                    : 'Chọn vé trên danh sách để tự tính số tiền'
                             }
                             InputProps={{
+                                readOnly: true,
                                 endAdornment: (
                                     <InputAdornment position="end">
                                         <Typography variant="caption" fontWeight={700} color="#64748b">
@@ -509,7 +537,7 @@ export const MissingReturnTicketsPanel = ({
                             sx={{
                                 '& .MuiOutlinedInput-root': {
                                     borderRadius: '10px',
-                                    bgcolor: '#ffffff',
+                                    bgcolor: '#f8fafc',
                                 },
                             }}
                         />
@@ -547,7 +575,8 @@ export const MissingReturnTicketsPanel = ({
                     fontSize: '0.875rem',
                 }}
             >
-                Chọn đúng {requiredQuantity} vé đang có trong return-batch. Vé vẫn được giữ trong phiếu trả để lưu vết, nhưng sẽ không còn được tính là vé trả hợp lệ sau khi cập nhật ticketCondition.
+                Chọn đúng {requiredQuantity} vé đang có trong phiếu trả (thiếu trả). Chỉ được tick tối đa {requiredQuantity} vé;
+                muốn đổi vé thì bỏ tick vé cũ rồi chọn vé mới. Vé vẫn được giữ trong phiếu để lưu vết, nhưng sẽ không còn được tính là vé trả hợp lệ sau khi cập nhật tình trạng.
             </Alert>
 
             {/* Actions */}
@@ -558,7 +587,7 @@ export const MissingReturnTicketsPanel = ({
                     startIcon={<SaveOutlinedIcon />}
                     onClick={() => {
                         if (disabled) return;
-                        const parsedAmount = amount ? parseInt(amount.replace(/\D/g, ''), 10) : undefined;
+                        const parsedAmount = selected.length > 0 ? Math.round(selectedCostSum) : undefined;
                         onResolve({
                             serialIds: selected,
                             resolution,
@@ -586,7 +615,7 @@ export const MissingReturnTicketsPanel = ({
                     className="btn-primary-admin"
                     onClick={() => {
                         if (disabled) return;
-                        const parsedAmount = amount ? parseInt(amount.replace(/\D/g, ''), 10) : undefined;
+                        const parsedAmount = selected.length > 0 ? Math.round(selectedCostSum) : undefined;
                         onResolve({
                             serialIds: selected,
                             resolution,

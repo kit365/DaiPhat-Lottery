@@ -302,6 +302,12 @@ const parseWholeNumberInput = (val?: string | null): number => {
     return digits ? parseInt(digits, 10) : 0;
 };
 
+/** Caps a whole-number field so actual return qty cannot exceed the system return qty. */
+const capFormattedWholeNumber = (value: string, max: number): string => {
+    if (!value.trim()) return '';
+    return formatWholeNumberInput(Math.min(parseWholeNumberInput(value), Math.max(0, max)));
+};
+
 const isImageUrl = (url?: string): boolean => {
     if (!url) return false;
     const cleanUrl = url.split('?')[0].toLowerCase();
@@ -369,6 +375,7 @@ export const MatchingActualsForm = ({
     onCancelEdit,
     onZoomImage,
     onReceiptUploaded,
+    onStationsUpdated,
     onConfirm,
 }: MatchingActualsFormProps) => {
     const router = useAdminRouter();
@@ -710,7 +717,9 @@ export const MatchingActualsForm = ({
         if (overdueOrForfeit || !settlement.matchingConfirmedAt) {
             return formatWholeNumberInput(systemQty);
         }
-        return formatWholeNumberInput(settlement.actualReturnTicketQuantity ?? systemQty);
+        return formatWholeNumberInput(
+            Math.min(settlement.actualReturnTicketQuantity ?? systemQty, systemQty)
+        );
     });
     const [note, setNote] = useState(() =>
         settlement.matchingConfirmedAt ? (settlement.reconciliationNote || '') : ''
@@ -788,7 +797,7 @@ export const MatchingActualsForm = ({
                 formatWholeNumberInput(
                     overdueOrForfeit || draft
                         ? systemReturn
-                        : (settlement.actualReturnTicketQuantity ?? systemReturn)
+                        : Math.min(settlement.actualReturnTicketQuantity ?? systemReturn, systemReturn)
                 )
             );
             setNote(draft ? '' : (settlement.reconciliationNote || ''));
@@ -824,7 +833,12 @@ export const MatchingActualsForm = ({
                 }
                 if (draft.returnQty != null) {
                     returnQtyDirtyRef.current = true;
-                    setReturnQty(draft.returnQty);
+                    setReturnQty(
+                        capFormattedWholeNumber(
+                            draft.returnQty,
+                            resolveLiveSystemReturnQuantity(settlement, returnBatches)
+                        )
+                    );
                 }
                 if (draft.unitPrice != null) {
                     setUnitPrice(draft.unitPrice);
@@ -1085,6 +1099,21 @@ export const MatchingActualsForm = ({
         const pinned = formatWholeNumberInput(systemReturnQty);
         setReturnQty((prev) => (prev === pinned ? prev : pinned));
     }, [isReturnInputsLocked, systemReturnQty]);
+
+    // Cap actual return when system return qty shrinks (cannot exceed system).
+    useEffect(() => {
+        if (isReturnInputsLocked) {
+            return;
+        }
+        setReturnQty((prev) => {
+            const next = capFormattedWholeNumber(prev, systemReturnQty);
+            if (next === prev) {
+                return prev;
+            }
+            returnQtyRef.current = next;
+            return next;
+        });
+    }, [systemReturnQty, isReturnInputsLocked]);
 
     // Keep actual import in sync with live system qty when drafting (chưa xác nhận).
     // After confirm: adopt server actual when cache catches up, unless user has edited.
@@ -1393,6 +1422,11 @@ export const MatchingActualsForm = ({
         if (isUploadingReceipt || isUploadingImportReceipt || isUploadingTicketListImages) {
             items.push('Đợi tải ảnh chứng từ hoàn tất');
         }
+        if (!isReturnQtyEmpty && parsedReturnQty > systemReturnQty) {
+            items.push(
+                `Số lượng trả thực tế không được vượt quá ${systemReturnQty.toLocaleString('vi-VN')} vé (số lượng hệ thống)`
+            );
+        }
         return items;
     }, [
         hasAllRequiredInputs,
@@ -1408,6 +1442,9 @@ export const MatchingActualsForm = ({
         isUploadingReceipt,
         isUploadingImportReceipt,
         isUploadingTicketListImages,
+        isReturnQtyEmpty,
+        parsedReturnQty,
+        systemReturnQty,
     ]);
 
     const highlightActualPaid = isActualPaidEmpty;
@@ -1721,6 +1758,15 @@ export const MatchingActualsForm = ({
     const submitMatching = async () => {
         const liveImportQty = parseWholeNumberInput(importQtyRef.current);
         const liveReturnQty = parseWholeNumberInput(returnQtyRef.current);
+        if (liveReturnQty > systemReturnQty) {
+            const capped = formatWholeNumberInput(systemReturnQty);
+            returnQtyRef.current = capped;
+            setReturnQty(capped);
+            AppToast.warning(
+                `Số lượng vé trả thực tế không được lớn hơn số lượng trả hệ thống (${systemReturnQty.toLocaleString('vi-VN')} vé).`
+            );
+            return;
+        }
         const liveUnitPrice = parsedUnitPrice;
         const liveImportVal = scaleSettlementMoney(liveImportQty * liveUnitPrice);
         const liveReturnVal = scaleSettlementMoney(liveReturnQty * liveUnitPrice);
@@ -2153,14 +2199,14 @@ export const MatchingActualsForm = ({
                                         : isReturnMatching
                                           ? '#e2e8f0'
                                           : returnQtyDiff > 0
-                                            ? '#fecdd3'
+                                            ? '#bfdbfe'
                                             : '#fde68a',
                                     bgcolor: isReturnInputsLocked
                                         ? '#ffffff'
                                         : isReturnMatching
                                           ? '#ffffff'
                                           : returnQtyDiff > 0
-                                            ? '#fffbfc'
+                                            ? '#f8fbff'
                                             : '#fffdfa',
                                     transition: 'all 0.2s ease',
                                     height: '100%',
@@ -2217,7 +2263,7 @@ export const MatchingActualsForm = ({
                                     ) : returnQtyDiff > 0 ? (
                                         <AdminStatusBadge
                                             label={`Thừa trả (+${returnQtyDiff.toLocaleString('vi-VN')} vé)`}
-                                            modifier={getQtyDiffBadgeModifier(false, true)}
+                                            modifier="admin-status-badge--active"
                                         />
                                     ) : (
                                         <AdminStatusBadge
@@ -2279,15 +2325,15 @@ export const MatchingActualsForm = ({
                                         }
                                         : isPositive
                                         ? {
-                                            bg: '#fff1f2',
-                                            border: '#fecdd3',
-                                            textColor: '#be123c',
-                                            subColor: '#9f1239',
-                                            badgeBg: '#ffe4e6',
-                                            badgeColor: '#be123c',
-                                            badgeBorder: '#fecdd3',
+                                            bg: '#eff6ff',
+                                            border: '#bfdbfe',
+                                            textColor: '#1d4ed8',
+                                            subColor: '#1e40af',
+                                            badgeBg: '#dbeafe',
+                                            badgeColor: '#1d4ed8',
+                                            badgeBorder: '#93c5fd',
                                             badgeText: 'Thừa trả (+)',
-                                            icon: <TrendingUpOutlinedIcon sx={{ fontSize: '1.2rem', color: '#be123c' }} />,
+                                            icon: <TrendingUpOutlinedIcon sx={{ fontSize: '1.2rem', color: '#2563eb' }} />,
                                         }
                                         : {
                                             bg: '#fffbeb',
@@ -2325,7 +2371,13 @@ export const MatchingActualsForm = ({
                                                 </Typography>
                                                 <AdminStatusBadge
                                                     label={theme.badgeText}
-                                                    modifier={getQtyDiffBadgeModifier(isMatching, isPositive)}
+                                                    modifier={
+                                                        isMatching
+                                                            ? getQtyDiffBadgeModifier(true, false)
+                                                            : isPositive
+                                                              ? 'admin-status-badge--active'
+                                                              : getQtyDiffBadgeModifier(false, false)
+                                                    }
                                                 />
                                             </Stack>
                                             <Typography variant="body2" fontWeight={800} color={theme.textColor} sx={{ fontSize: '0.925rem' }}>
@@ -2359,18 +2411,22 @@ export const MatchingActualsForm = ({
                                             disabled={isReturnInputsLocked}
                                             slotProps={{ htmlInput: { inputMode: 'numeric' } }}
                                             value={returnQty}
-                                            error={!isReturnInputsLocked && isReturnQtyEmpty}
+                                            error={!isReturnInputsLocked && (isReturnQtyEmpty || parsedReturnQty > systemReturnQty)}
                                             helperText={
                                                 isReturnInputsLocked
                                                     ? undefined
                                                     : isReturnQtyEmpty
                                                       ? 'Bắt buộc nhập số lượng'
-                                                      : undefined
+                                                      : parsedReturnQty > systemReturnQty
+                                                        ? `Không được nhập nhiều hơn ${systemReturnQty.toLocaleString('vi-VN')} vé (số lượng trả hệ thống)`
+                                                        : `Tối đa ${systemReturnQty.toLocaleString('vi-VN')} vé (bằng hoặc ít hơn số lượng hệ thống)`
                                             }
                                             onChange={(e) => {
                                                 if (isReturnInputsLocked) return;
                                                 const raw = e.target.value.replace(/\D/g, '');
-                                                const formatted = raw ? parseInt(raw, 10).toLocaleString('vi-VN') : '';
+                                                const formatted = raw
+                                                    ? capFormattedWholeNumber(raw, systemReturnQty)
+                                                    : '';
                                                 returnQtyDirtyRef.current = true;
                                                 returnQtyRef.current = formatted;
                                                 setReturnQty(formatted);
@@ -2542,9 +2598,14 @@ export const MatchingActualsForm = ({
                         key={`station-pricing-${stationPricingHydrateKey}`}
                         rows={displayPricingRows}
                         disabled={Boolean(isSubmitting)}
+                        supplierId={settlement.lotterySupplierId}
+                        supplierName={settlement.supplierName || supplier?.name}
                         actualImportPrice={actualImportPrice}
                         onActualImportPriceChange={setActualImportPrice}
                         onWeightedChange={handleStationWeightedChange}
+                        onMasterDataUpdated={() => {
+                            onStationsUpdated?.();
+                        }}
                     />
                 </Paper>
 
@@ -3160,6 +3221,7 @@ export const MatchingActualsForm = ({
                                         return null;
                                     }
                                     const isPositive = item?.direction === 'POSITIVE';
+                                    const isExcessReturn = type === 'RETURN_QUANTITY' && isPositive;
                                     return (
                                         <Stack
                                             key={type}
@@ -3172,7 +3234,7 @@ export const MatchingActualsForm = ({
                                                 borderRadius: '10px',
                                                 bgcolor: '#ffffff',
                                                 border: '1px solid',
-                                                borderColor: isPositive ? '#fecdd3' : '#fed7aa',
+                                                borderColor: isExcessReturn ? '#bfdbfe' : isPositive ? '#fecdd3' : '#fed7aa',
                                                 boxShadow: '0 1px 3px rgba(0,0,0,0.02)',
                                             }}
                                         >
@@ -3222,7 +3284,11 @@ export const MatchingActualsForm = ({
                                             {item ? (
                                                 <AdminStatusBadge
                                                     label={getDiscrepancyItemLabel(item)}
-                                                    modifier={getDiscrepancyItemBadgeModifier(false, item.direction)}
+                                                    modifier={
+                                                        isExcessReturn
+                                                            ? 'admin-status-badge--active'
+                                                            : getDiscrepancyItemBadgeModifier(false, item.direction)
+                                                    }
                                                 />
                                             ) : (
                                                 <AdminStatusBadge

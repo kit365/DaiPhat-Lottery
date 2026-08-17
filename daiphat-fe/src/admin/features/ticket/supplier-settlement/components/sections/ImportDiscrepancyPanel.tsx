@@ -52,6 +52,7 @@ import ReceiptLongOutlinedIcon from '@mui/icons-material/ReceiptLongOutlined';
 import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
 import CloseIcon from '@mui/icons-material/Close';
 import { uploadAdminImage } from '@/admin/shared/services/upload.service';
+import { useStationsByDrawDate } from '@/admin/features/station/hooks/useStation';
 import { AppToast } from '../../../../../../utils/toast.util';
 import type {
     SettlementAdjustmentReasonCode,
@@ -67,6 +68,7 @@ interface ImportDiscrepancyPanelProps {
     inventoryByStation?: Array<{ lotteryStationId: number; lotteryStationName?: string | null; remainingQuantity?: number; importedQuantity?: number }>;
     importBatches?: SettlementOverviewImportBatch[];
     settlementReceiptUrl?: string | null;
+    drawDate?: string | null;
     loading?: boolean;
     submitting?: boolean;
     direction: 'POSITIVE' | 'NEGATIVE';
@@ -78,11 +80,32 @@ interface ImportDiscrepancyPanelProps {
         adjustmentAmount?: number;
         note?: string;
         markResolved: boolean;
-        missingPlaceholders?: Array<{ lotteryStationId: number; quantity: number }>;
+        missingPlaceholders?: Array<{
+            lotteryStationId: number;
+            quantity: number;
+            ticketCondition?: 'DAMAGED' | 'LOST' | 'VOIDED' | 'UNDER_IMPORTED';
+        }>;
         excessTickets?: Array<{ lotteryStationId: number; numbers: string; serialNumber: string }>;
         damagedEvidenceUrl?: string | null;
     }) => void;
 }
+
+type MissingTicketCondition = 'UNDER_IMPORTED' | 'DAMAGED' | 'LOST';
+type StationSplitQty = { underImported: string; damaged: string; lost: string };
+type AllocationStation = {
+    lotteryStationId: number;
+    lotteryStationName?: string | null;
+    remainingQuantity?: number;
+    importedQuantity?: number;
+    extra?: boolean;
+};
+
+const EMPTY_SPLIT: StationSplitQty = { underImported: '', damaged: '', lost: '' };
+
+const parseSplitQty = (raw?: string): number => {
+    const n = Number(String(raw || '').replace(/\D/g, ''));
+    return Number.isFinite(n) && n > 0 ? n : 0;
+};
 
 const formatNumberWithDots = (val?: number | string | null): string => {
     if (val === '' || val === null || val === undefined) return '';
@@ -105,6 +128,7 @@ export const ImportDiscrepancyPanel = ({
     inventoryByStation = [],
     importBatches = [],
     settlementReceiptUrl,
+    drawDate,
     loading,
     submitting,
     direction,
@@ -126,19 +150,62 @@ export const ImportDiscrepancyPanel = ({
     const [amount, setAmount] = useState('');
     const [note, setNote] = useState('');
 
-    // Missing placeholders: per-station qty + condition + evidence
-    const [missingQtyByStation, setMissingQtyByStation] = useState<Record<number, string>>({});
-    const [missingCondition, setMissingCondition] = useState<'LOST' | 'DAMAGED' | 'UNDER_IMPORTED'>('UNDER_IMPORTED');
+    // Missing placeholders: per-station qty split by condition
+    const [missingSplitByStation, setMissingSplitByStation] = useState<Record<number, StationSplitQty>>({});
+    const [extraStations, setExtraStations] = useState<AllocationStation[]>([]);
+    const [stationToAdd, setStationToAdd] = useState<number | ''>('');
     const [missingEvidenceUrl, setMissingEvidenceUrl] = useState('');
     const [uploadingEvidence, setUploadingEvidence] = useState(false);
+    const drawDateKey = drawDate ? String(drawDate).slice(0, 10) : undefined;
+    const { data: stationsByDrawDate } = useStationsByDrawDate(drawDateKey);
+    const stationsForDrawDate = Array.isArray(stationsByDrawDate) ? stationsByDrawDate : [];
+
+    const allocationStations = useMemo<AllocationStation[]>(() => {
+        const seen = new Set<number>();
+        const rows: AllocationStation[] = [];
+        inventoryByStation.forEach((s) => {
+            seen.add(s.lotteryStationId);
+            rows.push({ ...s, extra: false });
+        });
+        extraStations.forEach((s) => {
+            if (seen.has(s.lotteryStationId)) return;
+            seen.add(s.lotteryStationId);
+            rows.push({ ...s, extra: true });
+        });
+        return rows;
+    }, [inventoryByStation, extraStations]);
+
+    const addableStations = useMemo(
+        () =>
+            stationsForDrawDate.filter((station) => {
+                const id = Number(station.id ?? station._id);
+                return Number.isFinite(id) && !allocationStations.some((row) => row.lotteryStationId === id);
+            }),
+        [stationsForDrawDate, allocationStations]
+    );
 
     useEffect(() => {
-        setMissingQtyByStation((prev) => {
-            const next: Record<number, string> = {};
-            inventoryByStation.forEach((s) => {
-                next[s.lotteryStationId] = prev[s.lotteryStationId] ?? '';
+        setMissingSplitByStation((prev) => {
+            const next: Record<number, StationSplitQty> = {};
+            let changed = Object.keys(prev).length !== allocationStations.length;
+            allocationStations.forEach((s) => {
+                if (prev[s.lotteryStationId]) {
+                    next[s.lotteryStationId] = prev[s.lotteryStationId];
+                } else {
+                    next[s.lotteryStationId] = { ...EMPTY_SPLIT };
+                    changed = true;
+                }
             });
-            return next;
+            return changed ? next : prev;
+        });
+    }, [allocationStations]);
+
+    useEffect(() => {
+        setExtraStations((prev) => {
+            const next = prev.filter(
+                (s) => !inventoryByStation.some((row) => row.lotteryStationId === s.lotteryStationId)
+            );
+            return next.length === prev.length ? prev : next;
         });
     }, [inventoryByStation]);
 
@@ -291,13 +358,34 @@ export const ImportDiscrepancyPanel = ({
     };
 
     const missingPlaceholders = useMemo(() => {
-        return inventoryByStation
-            .map((s) => ({
-                lotteryStationId: s.lotteryStationId,
-                quantity: Number(missingQtyByStation[s.lotteryStationId] || 0),
-            }))
-            .filter((row) => row.quantity > 0);
-    }, [inventoryByStation, missingQtyByStation]);
+        const rows: Array<{ lotteryStationId: number; quantity: number; ticketCondition: MissingTicketCondition }> = [];
+        allocationStations.forEach((s) => {
+            const split = missingSplitByStation[s.lotteryStationId] || EMPTY_SPLIT;
+            const underImported = parseSplitQty(split.underImported);
+            const damaged = parseSplitQty(split.damaged);
+            const lost = parseSplitQty(split.lost);
+            if (underImported > 0) {
+                rows.push({ lotteryStationId: s.lotteryStationId, quantity: underImported, ticketCondition: 'UNDER_IMPORTED' });
+            }
+            if (damaged > 0) {
+                rows.push({ lotteryStationId: s.lotteryStationId, quantity: damaged, ticketCondition: 'DAMAGED' });
+            }
+            if (lost > 0) {
+                rows.push({ lotteryStationId: s.lotteryStationId, quantity: lost, ticketCondition: 'LOST' });
+            }
+        });
+        return rows;
+    }, [allocationStations, missingSplitByStation]);
+
+    const missingQtyByCondition = useMemo(() => {
+        const totals = { underImported: 0, damaged: 0, lost: 0 };
+        missingPlaceholders.forEach((row) => {
+            if (row.ticketCondition === 'UNDER_IMPORTED') totals.underImported += row.quantity;
+            if (row.ticketCondition === 'DAMAGED') totals.damaged += row.quantity;
+            if (row.ticketCondition === 'LOST') totals.lost += row.quantity;
+        });
+        return totals;
+    }, [missingPlaceholders]);
 
     const missingQtyEntered = useMemo(
         () => missingPlaceholders.reduce((sum, row) => sum + row.quantity, 0),
@@ -305,18 +393,11 @@ export const ImportDiscrepancyPanel = ({
     );
     const missingQtyRemaining = totalDiff - missingQtyEntered;
     const isMissingQtyExact = totalDiff > 0 && missingQtyEntered === totalDiff;
-    const needsMissingEvidence = missingCondition === 'DAMAGED';
+    const needsMissingEvidence = missingQtyByCondition.damaged > 0;
     const isValidMissing =
         isMissingQtyExact
         && missingPlaceholders.length > 0
         && (!needsMissingEvidence || Boolean(missingEvidenceUrl.trim()));
-
-    const missingConditionLabel =
-        missingCondition === 'DAMAGED'
-            ? 'hư hỏng / rách'
-            : missingCondition === 'UNDER_IMPORTED'
-              ? 'nhập thiếu'
-              : 'thất lạc / mất';
 
     const handleMissingEvidenceUpload = async (file?: File | null) => {
         if (!file) return;
@@ -332,9 +413,49 @@ export const ImportDiscrepancyPanel = ({
         }
     };
 
-    const setMissingStationQty = (stationId: number, raw: string) => {
+    const setMissingStationQty = (
+        stationId: number,
+        field: keyof StationSplitQty,
+        raw: string
+    ) => {
         const digits = raw.replace(/\D/g, '');
-        setMissingQtyByStation((prev) => ({ ...prev, [stationId]: digits }));
+        setMissingSplitByStation((prev) => ({
+            ...prev,
+            [stationId]: {
+                ...(prev[stationId] || EMPTY_SPLIT),
+                [field]: digits,
+            },
+        }));
+    };
+
+    const handleAddStation = () => {
+        const id = Number(stationToAdd);
+        if (!Number.isFinite(id) || id <= 0) return;
+        if (allocationStations.some((row) => row.lotteryStationId === id)) {
+            setStationToAdd('');
+            return;
+        }
+        const station = stationsForDrawDate.find((item) => Number(item.id ?? item._id) === id);
+        setExtraStations((prev) => [
+            ...prev,
+            {
+                lotteryStationId: id,
+                lotteryStationName: station?.name || `Đài #${id}`,
+                importedQuantity: 0,
+                remainingQuantity: 0,
+                extra: true,
+            },
+        ]);
+        setStationToAdd('');
+    };
+
+    const handleRemoveExtraStation = (stationId: number) => {
+        setExtraStations((prev) => prev.filter((s) => s.lotteryStationId !== stationId));
+        setMissingSplitByStation((prev) => {
+            const next = { ...prev };
+            delete next[stationId];
+            return next;
+        });
     };
 
     const tabSx = {
@@ -681,11 +802,11 @@ export const ImportDiscrepancyPanel = ({
                         </Box>
                         <Box>
                             <Typography variant="subtitle2" fontWeight={800} color="#991b1b" sx={{ fontSize: '0.9rem' }}>
-                                Phân bổ số lượng vé ghi thiếu theo từng nhà đài
+                                Phân bổ số lượng vé ghi thiếu theo từng nhà đài và tình trạng
                             </Typography>
                             <Typography variant="caption" color="#b91c1c" sx={{ fontSize: '0.8rem', display: 'block', mt: 0.25, lineHeight: 1.5 }}>
-                                Nhập số lượng vé hệ thống chưa ghi nhận cho từng nhà đài sao cho tổng đúng{' '}
-                                <strong>{totalDiff.toLocaleString('vi-VN')} vé</strong>. Chọn tình trạng vé và lý do ghi nhận trước khi xác nhận hoàn tất.
+                                Nhập số lượng theo nhà đài, tách thành Nhập thiếu / Hư hỏng / Thất thoát sao cho tổng đúng{' '}
+                                <strong>{totalDiff.toLocaleString('vi-VN')} vé</strong>. Vé thất thoát chỉ cộng số lượng lô điều chỉnh, không tạo vé-ma.
                             </Typography>
                         </Box>
                     </Box>
@@ -727,25 +848,58 @@ export const ImportDiscrepancyPanel = ({
                             />
                         </Stack>
 
-                        {inventoryByStation.length === 0 ? (
-                            <Alert severity="warning" sx={{ borderRadius: '10px' }}>
-                                Không có danh sách nhà đài / dòng nhập để phân bổ. Kiểm tra lại kỳ đối soát.
+                        {allocationStations.length === 0 ? (
+                            <Alert severity="warning" sx={{ borderRadius: '10px', mb: 2 }}>
+                                Không có danh sách nhà đài / dòng nhập để phân bổ. Thêm đài thuộc ngày quay bên dưới nếu cần.
                             </Alert>
                         ) : (
-                            <Paper variant="outlined" sx={{ borderRadius: '12px', overflow: 'hidden', borderColor: '#e2e8f0', mb: 2.5, bgcolor: '#ffffff' }}>
+                            <Paper variant="outlined" sx={{ borderRadius: '12px', overflow: 'auto', borderColor: '#e2e8f0', mb: 2, bgcolor: '#ffffff' }}>
                                 <Table size="small">
                                     <TableHead>
-                                        <TableRow sx={{ '& th': { bgcolor: '#f8fafc', fontWeight: 800, color: '#475569', fontSize: '0.78rem' } }}>
+                                        <TableRow sx={{ '& th': { bgcolor: '#f8fafc', fontWeight: 800, color: '#475569', fontSize: '0.75rem', whiteSpace: 'nowrap' } }}>
                                             <TableCell>NHÀ ĐÀI</TableCell>
-                                            <TableCell align="right">SL ĐÃ NHẬP (HỆ THỐNG)</TableCell>
-                                            <TableCell align="right">TỒN KHO HIỆN TẠI</TableCell>
-                                            <TableCell align="right" sx={{ width: 170 }}>SL BỔ SUNG (*)</TableCell>
+                                            <TableCell align="right">SL HỆ THỐNG</TableCell>
+                                            <TableCell align="right">TỒN KHO</TableCell>
+                                            <TableCell align="right">NHẬP THIẾU</TableCell>
+                                            <TableCell align="right">HƯ HỎNG / RÁCH</TableCell>
+                                            <TableCell align="right">THẤT THOÁT</TableCell>
+                                            <TableCell align="right">TỔNG BỔ SUNG</TableCell>
+                                            <TableCell sx={{ width: 48 }} />
                                         </TableRow>
                                     </TableHead>
                                     <TableBody>
-                                        {inventoryByStation.map((s) => {
-                                            const val = missingQtyByStation[s.lotteryStationId] ?? '';
-                                            const hasVal = Boolean(val && parseInt(val, 10) > 0);
+                                        {allocationStations.map((s) => {
+                                            const split = missingSplitByStation[s.lotteryStationId] || EMPTY_SPLIT;
+                                            const underImported = parseSplitQty(split.underImported);
+                                            const damaged = parseSplitQty(split.damaged);
+                                            const lost = parseSplitQty(split.lost);
+                                            const rowTotal = underImported + damaged + lost;
+                                            const hasVal = rowTotal > 0;
+                                            const qtyField = (field: keyof StationSplitQty, value: string, color: string) => (
+                                                <TextField
+                                                    size="small"
+                                                    value={value}
+                                                    onChange={(e) => setMissingStationQty(s.lotteryStationId, field, e.target.value)}
+                                                    placeholder="0"
+                                                    slotProps={{
+                                                        htmlInput: {
+                                                            inputMode: 'numeric',
+                                                            style: {
+                                                                textAlign: 'right',
+                                                                fontWeight: 800,
+                                                                color: parseSplitQty(value) > 0 ? color : '#0f172a',
+                                                            },
+                                                        },
+                                                    }}
+                                                    sx={{
+                                                        width: 92,
+                                                        '& .MuiOutlinedInput-root': {
+                                                            borderRadius: '8px',
+                                                            bgcolor: '#ffffff',
+                                                        },
+                                                    }}
+                                                />
+                                            );
                                             return (
                                                 <TableRow key={s.lotteryStationId} hover sx={{ bgcolor: hasVal ? '#fffbf5' : 'inherit' }}>
                                                     <TableCell>
@@ -763,31 +917,24 @@ export const ImportDiscrepancyPanel = ({
                                                             {(s.remainingQuantity ?? 0).toLocaleString('vi-VN')}
                                                         </Typography>
                                                     </TableCell>
+                                                    <TableCell align="right">{qtyField('underImported', split.underImported, '#2563eb')}</TableCell>
+                                                    <TableCell align="right">{qtyField('damaged', split.damaged, '#c2410c')}</TableCell>
+                                                    <TableCell align="right">{qtyField('lost', split.lost, '#dc2626')}</TableCell>
                                                     <TableCell align="right">
-                                                        <TextField
-                                                            size="small"
-                                                            value={val}
-                                                            onChange={(e) => setMissingStationQty(s.lotteryStationId, e.target.value)}
-                                                            placeholder="0"
-                                                            slotProps={{
-                                                                htmlInput: {
-                                                                    inputMode: 'numeric',
-                                                                    style: {
-                                                                        textAlign: 'right',
-                                                                        fontWeight: 800,
-                                                                        color: hasVal ? '#dc2626' : '#0f172a',
-                                                                    },
-                                                                },
-                                                            }}
-                                                            sx={{
-                                                                width: 130,
-                                                                '& .MuiOutlinedInput-root': {
-                                                                    borderRadius: '8px',
-                                                                    bgcolor: '#ffffff',
-                                                                    borderColor: hasVal ? '#fca5a5' : '#cbd5e1',
-                                                                },
-                                                            }}
-                                                        />
+                                                        <Typography variant="body2" fontWeight={800} color={hasVal ? '#dc2626' : '#64748b'}>
+                                                            {rowTotal.toLocaleString('vi-VN')}
+                                                        </Typography>
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        {s.extra ? (
+                                                            <IconButton
+                                                                size="small"
+                                                                aria-label="Gỡ đài"
+                                                                onClick={() => handleRemoveExtraStation(s.lotteryStationId)}
+                                                            >
+                                                                <CloseIcon fontSize="small" />
+                                                            </IconButton>
+                                                        ) : null}
                                                     </TableCell>
                                                 </TableRow>
                                             );
@@ -796,13 +943,22 @@ export const ImportDiscrepancyPanel = ({
                                     <TableFooter sx={{ bgcolor: '#f8fafc', borderTop: '2px solid #e2e8f0' }}>
                                         <TableRow>
                                             <TableCell sx={{ fontWeight: 800, fontSize: '0.82rem', color: '#334155' }}>
-                                                TỔNG CỘNG ({inventoryByStation.length} nhà đài)
+                                                TỔNG CỘNG ({allocationStations.length} nhà đài)
                                             </TableCell>
                                             <TableCell align="right" sx={{ fontWeight: 700, fontSize: '0.82rem', color: '#334155' }}>
-                                                {inventoryByStation.reduce((acc, s) => acc + (s.importedQuantity ?? 0), 0).toLocaleString('vi-VN')}
+                                                {allocationStations.reduce((acc, s) => acc + (s.importedQuantity ?? 0), 0).toLocaleString('vi-VN')}
                                             </TableCell>
                                             <TableCell align="right" sx={{ fontWeight: 700, fontSize: '0.82rem', color: '#64748b' }}>
-                                                {inventoryByStation.reduce((acc, s) => acc + (s.remainingQuantity ?? 0), 0).toLocaleString('vi-VN')}
+                                                {allocationStations.reduce((acc, s) => acc + (s.remainingQuantity ?? 0), 0).toLocaleString('vi-VN')}
+                                            </TableCell>
+                                            <TableCell align="right" sx={{ fontWeight: 800, fontSize: '0.82rem', color: '#2563eb' }}>
+                                                {missingQtyByCondition.underImported.toLocaleString('vi-VN')}
+                                            </TableCell>
+                                            <TableCell align="right" sx={{ fontWeight: 800, fontSize: '0.82rem', color: '#c2410c' }}>
+                                                {missingQtyByCondition.damaged.toLocaleString('vi-VN')}
+                                            </TableCell>
+                                            <TableCell align="right" sx={{ fontWeight: 800, fontSize: '0.82rem', color: '#dc2626' }}>
+                                                {missingQtyByCondition.lost.toLocaleString('vi-VN')}
                                             </TableCell>
                                             <TableCell
                                                 align="right"
@@ -812,34 +968,52 @@ export const ImportDiscrepancyPanel = ({
                                                     color: isMissingQtyExact ? '#16a34a' : missingQtyEntered > totalDiff ? '#dc2626' : '#d97706',
                                                 }}
                                             >
-                                                {missingQtyEntered.toLocaleString('vi-VN')} / {totalDiff.toLocaleString('vi-VN')} vé
+                                                {missingQtyEntered.toLocaleString('vi-VN')} / {totalDiff.toLocaleString('vi-VN')}
                                             </TableCell>
+                                            <TableCell />
                                         </TableRow>
                                     </TableFooter>
                                 </Table>
                             </Paper>
                         )}
 
+                        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.25} alignItems={{ xs: 'stretch', sm: 'center' }} sx={{ mb: 2.5 }}>
+                            <FormControl size="small" sx={{ minWidth: 240, flex: 1 }}>
+                                <InputLabel>Thêm nhà đài thuộc ngày quay</InputLabel>
+                                <Select
+                                    label="Thêm nhà đài thuộc ngày quay"
+                                    value={stationToAdd}
+                                    onChange={(e) => setStationToAdd(e.target.value as number | '')}
+                                    disabled={addableStations.length === 0}
+                                    sx={{ borderRadius: '10px', bgcolor: '#ffffff' }}
+                                >
+                                    {addableStations.map((station) => {
+                                        const id = Number(station.id ?? station._id);
+                                        return (
+                                            <MenuItem key={id} value={id}>
+                                                {station.name || `Đài #${id}`}
+                                            </MenuItem>
+                                        );
+                                    })}
+                                </Select>
+                            </FormControl>
+                            <Button
+                                variant="outlined"
+                                startIcon={<AddCircleOutlineIcon />}
+                                disabled={!stationToAdd}
+                                onClick={handleAddStation}
+                                sx={{ textTransform: 'none', fontWeight: 700, borderRadius: '10px', whiteSpace: 'nowrap' }}
+                            >
+                                Thêm đài
+                            </Button>
+                        </Stack>
+
                         <Typography variant="caption" fontWeight={800} color="#475569" sx={{ textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', mb: 1.5 }}>
-                            Thông tin tình trạng & lý do bổ sung
+                            Lý do bổ sung
                         </Typography>
 
                         <Grid container spacing={2}>
-                            <Grid size={{ xs: 12, md: 4 }}>
-                                <FormControl fullWidth size="small">
-                                    <InputLabel>Tình trạng vé (*)</InputLabel>
-                                    <Select
-                                        label="Tình trạng vé (*)"
-                                        value="UNDER_IMPORTED"
-                                        disabled
-                                        sx={{ borderRadius: '10px', bgcolor: '#ffffff' }}
-                                    >
-                                        <MenuItem value="UNDER_IMPORTED">Nhập thiếu</MenuItem>
-                                    </Select>
-                                </FormControl>
-                            </Grid>
-
-                            <Grid size={{ xs: 12, md: 4 }}>
+                            <Grid size={{ xs: 12, md: 6 }}>
                                 <FormControl fullWidth size="small">
                                     <InputLabel>Lý do ghi nhận</InputLabel>
                                     <Select
@@ -854,7 +1028,7 @@ export const ImportDiscrepancyPanel = ({
                                 </FormControl>
                             </Grid>
 
-                            <Grid size={{ xs: 12, md: 4 }}>
+                            <Grid size={{ xs: 12, md: 6 }}>
                                 <TextField
                                     label="Ghi chú / Diễn giải"
                                     size="small"
@@ -976,13 +1150,13 @@ export const ImportDiscrepancyPanel = ({
                             <Box>
                                 <Typography variant="subtitle2" fontWeight={800} color={isValidMissing ? '#15803d' : '#475569'}>
                                     {isValidMissing
-                                        ? `Đã phân bổ đủ ${missingQtyEntered.toLocaleString('vi-VN')} vé cho ${missingPlaceholders.length} nhà đài (${missingConditionLabel})`
+                                        ? `Đã phân bổ đủ ${missingQtyEntered.toLocaleString('vi-VN')} vé (${missingQtyByCondition.underImported} nhập thiếu, ${missingQtyByCondition.damaged} hư hỏng, ${missingQtyByCondition.lost} thất thoát)`
                                         : !isMissingQtyExact
                                           ? `Cần phân bổ đúng ${totalDiff.toLocaleString('vi-VN')} vé (hiện đã nhập ${missingQtyEntered.toLocaleString('vi-VN')} vé)`
                                           : 'Vui lòng đính kèm ảnh minh chứng cho vé hư hỏng / rách'}
                                 </Typography>
                                 <Typography variant="caption" color={isValidMissing ? '#166534' : '#64748b'}>
-                                    Hệ thống sẽ tạo các vé bổ sung theo từng nhà đài đã nhập số lượng &gt; 0 trong lô nhập điều chỉnh.
+                                    Lô điều chỉnh ghi đủ số lượng. Vé-ma chỉ tạo cho nhập thiếu / hư hỏng; thất thoát chỉ cộng số lượng theo đài.
                                 </Typography>
                             </Box>
                         </Stack>
@@ -994,10 +1168,10 @@ export const ImportDiscrepancyPanel = ({
                                 onResolve({
                                     reasonCode:
                                         reasonCode === 'OTHER' ? 'OTHER' : 'INSUFFICIENT_IMPORT',
-                                    ticketCondition: 'UNDER_IMPORTED',
-                                    note: note || `Bổ sung ${missingQtyEntered} vé hệ thống ghi thiếu (UNDER_IMPORTED)`,
+                                    note: note || `Bổ sung ${missingQtyEntered} vé hệ thống ghi thiếu (nhập thiếu ${missingQtyByCondition.underImported}, hư hỏng ${missingQtyByCondition.damaged}, thất thoát ${missingQtyByCondition.lost})`,
                                     markResolved: true,
                                     missingPlaceholders,
+                                    damagedEvidenceUrl: needsMissingEvidence ? missingEvidenceUrl.trim() : undefined,
                                 })
                             }
                             sx={{

@@ -93,7 +93,7 @@ export const useAuth = () => {
 
             const destination = !userInfo.hasPassword
                 ? ROUTES.ADMIN.AUTH.SETUP_PROFILE
-                : ROUTES.ADMIN.DASHBOARD.SYSTEM;
+                : ROUTES.ADMIN.DASHBOARD.ECOMMERCE;
 
             const loginToast = !userInfo.hasPassword
                 ? { type: "info" as const, message: "Vui lòng thiết lập mật khẩu cho lần đăng nhập đầu tiên." }
@@ -173,7 +173,7 @@ export const useAuth = () => {
                 const destination =
                     !userInfo.hasPassword || !userInfo.agreedToTerms
                         ? ROUTES.ADMIN.AUTH.SETUP_PROFILE
-                        : ROUTES.ADMIN.DASHBOARD.SYSTEM;
+                        : ROUTES.ADMIN.DASHBOARD.ECOMMERCE;
 
                 redirectAfterAuth(destination, {
                     type: "success",

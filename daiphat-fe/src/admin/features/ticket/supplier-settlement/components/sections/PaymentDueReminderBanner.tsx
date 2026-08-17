@@ -75,7 +75,7 @@ export const PaymentDueReminderBanner = ({ settlements }: PaymentDueReminderBann
 
         return (settlements || [])
             .filter((item) => {
-                if (!item || item.status === 'CLOSED' || item.paidAt) {
+                if (!item || item.status === 'COMPLETED' || item.paidAt) {
                     return false;
                 }
                 return item.periodFrom === today;

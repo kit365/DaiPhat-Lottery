@@ -62,6 +62,18 @@ public interface LotteryTicketSerialRepositoryPort {
 
     List<LotteryTicketSerialModel> findAllByIds(Collection<Long> ids);
 
+    /**
+     * Links eligible serials to a return-batch line in one UPDATE (avoids N+1 saves
+     * when confirming a large inspection).
+     */
+    int assignToReturnBatchLine(Long returnBatchLineId, Collection<Long> serialIds, java.time.LocalDateTime now);
+
+    /**
+     * Stamps {@code returnedAt} on serials already linked to a return line.
+     * One UPDATE at handover instead of saving each serial.
+     */
+    int stampReturnedAtByReturnBatchLineId(Long returnBatchLineId, java.time.LocalDateTime now);
+
     List<LotteryTicketSerialModel> findAllByReturnBatchLineId(Long returnBatchLineId);
 
     Optional<LotteryTicketSerialModel> findFirstBySerialNumber(String serialNumber);

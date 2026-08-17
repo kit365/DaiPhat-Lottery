@@ -57,7 +57,13 @@
     <tr><th>Nhà cung cấp</th><td><span th:text="${report.supplierName}">NCC</span> · <span th:text="${report.supplierCode}">—</span></td></tr>
     <tr><th>Mã đối soát</th><td th:text="${report.settlementCode}">DS-001</td></tr>
     <tr><th>Kỳ đối soát</th><td th:text="${report.periodLabel}">01/01/2026 — 01/01/2026</td></tr>
-    <tr><th>Trạng thái / giai đoạn</th><td><span th:text="${report.statusLabel}">OPEN</span> · <span th:text="${report.phaseLabel}">Hoàn tất</span></td></tr>
+    <tr><th>Trạng thái thanh toán</th><td>
+        <strong th:text="${report.paymentStatusLabel}">Chưa thanh toán</strong>
+        <span class="muted"> · </span>
+        <span th:text="${report.statusLabel}">OPEN</span>
+        <span class="muted"> · </span>
+        <span th:text="${report.phaseLabel}">Đối chiếu</span>
+    </td></tr>
 </table>
 
 <h2>Số lượng vé</h2>
@@ -113,13 +119,32 @@
 </table>
 
 <table class="info-table" style="margin-top:10px">
-    <tr><th>Tạm tính ban đầu</th><td class="num" th:text="${report.initialEstimatedValue}">0</td></tr>
-    <tr><th>Sau chênh lệch</th><td class="num" th:text="${report.finalSettlementValue}">0</td></tr>
-    <tr><th>Tiền chênh lệch</th><td class="num" th:text="${report.settlementDifferenceAmount}">0</td></tr>
+    <tr><th>Giá sau hoa hồng</th><td class="num" th:text="${report.unitPriceAfterCommission}">0</td></tr>
+    <tr><th>Vé nhập thực tế</th><td class="num" th:text="${report.importTicketMoney}">0</td></tr>
+    <tr><th>Trừ vé trả thực tế</th><td class="num" th:text="${report.returnTicketMoney}">0</td></tr>
+    <tr><th>Vé ròng</th><td class="num"><span th:text="${report.netTicketQuantity}">0</span> vé · <span th:text="${report.ticketNetMoney}">0</span></td></tr>
+    <tr><th>Chi phí phát sinh</th><td class="num" th:text="${report.additionalCostMoney}">0</td></tr>
+    <tr><th>Số tiền phải trả NCC</th><td class="num"><strong th:text="${report.payableMoney}">0</strong></td></tr>
+    <tr><th>Tạm tính hệ thống</th><td class="num" th:text="${report.initialEstimatedValue}">0</td></tr>
     <tr><th>Giá trị thực trả từ biên lai</th><td class="num" th:text="${report.actualPaidAmount}">0</td></tr>
-    <tr><th>Chênh lệch còn lại</th><td class="num" th:text="${report.remainingDifference}">0</td></tr>
-    <tr><th>Ảnh thanh toán NCC</th><td th:text="${report.paymentEvidenceCount}">0 ảnh</td></tr>
 </table>
+
+<h2>Trạng thái thanh toán</h2>
+<p th:if="${!report.paid}">
+    <strong>Chưa thanh toán.</strong> Báo cáo này được xuất khi kỳ đối soát còn mở. Ảnh biên lai sẽ xuất hiện sau khi xác nhận đã thanh toán.
+</p>
+<p th:if="${report.paid}">
+    <strong>Đã thanh toán.</strong> Ảnh biên lai đã thanh toán cho nhà cung cấp được đính kèm bên dưới.
+</p>
+
+<div th:if="${report.paid}">
+    <h2>Ảnh biên lai đã thanh toán</h2>
+    <p class="muted" th:if="${#lists.isEmpty(report.paymentEvidenceImages)}">Kỳ đã thanh toán nhưng không nhúng được ảnh biên lai vào PDF.</p>
+    <div th:each="src, iter : ${report.paymentEvidenceImages}" style="margin: 8px 0 14px;">
+        <div class="muted" th:text="'Ảnh ' + ${iter.count}">Ảnh 1</div>
+        <img th:src="${src}" alt="Biên lai thanh toán" style="max-width: 100%; max-height: 360px; border: 1px solid #cfd8dc;"/>
+    </div>
+</div>
 
 <h2>Giá tiền từng lô nhập</h2>
 <table class="data-table" th:if="${!#lists.isEmpty(report.importLots)}">
@@ -209,6 +234,6 @@
     </tbody>
 </table>
 
-<p class="note">Báo cáo được xuất từ hệ thống đối soát Đại Phát. Ảnh thanh toán nhà cung cấp được lưu trên kỳ đối soát và không nhúng vào file PDF.</p>
+<p class="note">Báo cáo được xuất từ hệ thống đối soát Đại Phát.</p>
 </body>
 </html>
