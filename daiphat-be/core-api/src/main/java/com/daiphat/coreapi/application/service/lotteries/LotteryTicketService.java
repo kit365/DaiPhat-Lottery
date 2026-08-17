@@ -326,17 +326,26 @@ public class LotteryTicketService implements LotteryTicketServicePort {
     ) {
         Map<Long, String> stationNameCache = new HashMap<>();
         List<Long> ticketIds = tickets.stream().map(LotteryTicketModel::getId).toList();
-        Map<Long, LotteryTicketSerialModel> serialsByTicketId =
+        Map<Long, LotteryTicketSerialModel> representativeByTicketId =
                 lotteryTicketSerialService.findRepresentativeSerialsByTicketIds(ticketIds);
         Map<Long, Long> serialQuantityByTicketId =
                 lotteryTicketSerialService.countSerialsByTicketIds(ticketIds);
+        Map<Long, List<LotteryTicketSerialModel>> serialsByTicketId = lotteryTicketSerialService
+                .findAllByTicketIds(ticketIds)
+                .stream()
+                .collect(Collectors.groupingBy(LotteryTicketSerialModel::getTicketId));
         List<LotteryTicketResponse> responses = tickets.stream()
-                .map(ticket -> mapToResponse(
-                        ticket,
-                        serialsByTicketId.get(ticket.getId()),
-                        stationNameCache,
-                        serialQuantityByTicketId.getOrDefault(ticket.getId(), 0L).intValue()
-                ))
+                .map(ticket -> {
+                    List<LotteryTicketSerialModel> ticketSerials =
+                            serialsByTicketId.getOrDefault(ticket.getId(), List.of());
+                    ticket.setSerials(ticketSerials);
+                    return mapToResponse(
+                            ticket,
+                            representativeByTicketId.get(ticket.getId()),
+                            stationNameCache,
+                            serialQuantityByTicketId.getOrDefault(ticket.getId(), 0L).intValue()
+                    );
+                })
                 .toList();
         return PageResponse.from(responses, totalElements, page, size);
     }
