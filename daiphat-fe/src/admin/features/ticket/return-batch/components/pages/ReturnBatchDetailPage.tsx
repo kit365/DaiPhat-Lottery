@@ -85,13 +85,13 @@ export const ReturnBatchDetailPage = () => {
     const [selectedStationName, setSelectedStationName] = useState<string | null>(null);
     const [handoverDialogOpen, setHandoverDialogOpen] = useState(false);
     const [handoverNote, setHandoverNote] = useState('');
-    const [returnEvidenceUrl, setReturnEvidenceUrl] = useState('');
+    const [returnEvidenceFile, setReturnEvidenceFile] = useState<File | null>(null);
     const [isEvidenceUploading, setIsEvidenceUploading] = useState(false);
     const [evidenceUploadError, setEvidenceUploadError] = useState<string | null>(null);
 
     const clearHandoverForm = () => {
         setHandoverNote('');
-        setReturnEvidenceUrl('');
+        setReturnEvidenceFile(null);
         setIsEvidenceUploading(false);
         setEvidenceUploadError(null);
     };
@@ -106,7 +106,7 @@ export const ReturnBatchDetailPage = () => {
         if (batch?.status && batch.status !== 'PENDING_HANDOVER') {
             setHandoverDialogOpen(false);
             setHandoverNote('');
-            setReturnEvidenceUrl('');
+            setReturnEvidenceFile(null);
             setIsEvidenceUploading(false);
             setEvidenceUploadError(null);
         }
@@ -137,7 +137,7 @@ export const ReturnBatchDetailPage = () => {
     }
 
     const canConfirmHandover =
-        isPersistableEvidenceUrl(returnEvidenceUrl) && !isEvidenceUploading && !confirmHandover.isPending;
+        returnEvidenceFile != null && !isEvidenceUploading && !confirmHandover.isPending;
     const remainingInspectable = batch.remainingInspectableQuantity ?? 0;
     const inspectedQuantity = Math.max(0, (batch.totalQuantity ?? 0) - remainingInspectable);
     const showInspectButton =
@@ -166,29 +166,8 @@ export const ReturnBatchDetailPage = () => {
         setHandoverDialogOpen(true);
     };
 
-    const uploadHandoverEvidence = async (file: File): Promise<string> => {
-        setEvidenceUploadError(null);
-        try {
-            // Prefer backend upload (Cloudinary server-side / local storage) — more reliable than
-            // browser-direct Cloudinary when NEXT_PUBLIC_* presets are missing.
-            const url = await uploadAdminImage(file);
-            if (!isPersistableEvidenceUrl(url)) {
-                throw new Error('Không nhận được URL ảnh hợp lệ từ Cloudinary.');
-            }
-            return url;
-        } catch (err: any) {
-            const message =
-                err?.response?.data?.message ||
-                err?.message ||
-                'Tải ảnh bằng chứng thất bại. Vui lòng thử lại.';
-            setEvidenceUploadError(message);
-            setReturnEvidenceUrl('');
-            throw new Error(message);
-        }
-    };
-
     const handleExecuteHandover = async () => {
-        if (!isPersistableEvidenceUrl(returnEvidenceUrl)) {
+        if (!returnEvidenceFile) {
             toast.error('Vui lòng tải lên ảnh bằng chứng trả vé trước khi xác nhận bàn giao.');
             return;
         }
@@ -197,18 +176,29 @@ export const ReturnBatchDetailPage = () => {
             return;
         }
         try {
+            setIsEvidenceUploading(true);
+            setEvidenceUploadError(null);
+            const uploadedUrl = await uploadAdminImage(returnEvidenceFile);
+            if (!uploadedUrl) {
+                throw new Error('Không nhận được URL ảnh hợp lệ.');
+            }
+
             await confirmHandover.mutateAsync({
                 id: batch.id,
                 payload: {
                     returnReceiptUrl: batch.returnReceiptUrl || undefined,
-                    returnEvidenceUrl: returnEvidenceUrl.trim(),
+                    returnEvidenceUrl: uploadedUrl,
                     note: handoverNote.trim() || undefined,
                 },
             });
             toast.success('Đã xác nhận bàn giao — sê-ri chuyển sang Đã trả.');
             closeHandoverDialog();
         } catch (err: any) {
-            toast.error(err?.response?.data?.message || 'Không thể xác nhận bàn giao.');
+            const message = err?.response?.data?.message || err?.message || 'Không thể xác nhận bàn giao hoặc lỗi tải ảnh.';
+            setEvidenceUploadError(message);
+            toast.error(message);
+        } finally {
+            setIsEvidenceUploading(false);
         }
     };
 
@@ -929,24 +919,20 @@ export const ReturnBatchDetailPage = () => {
                                 <Box component="span" sx={{ color: 'error.main' }}>*</Box>
                             </Typography>
                             <UploadSingleFile
-                                value={returnEvidenceUrl}
-                                onChange={(url) => {
-                                    const next = typeof url === 'string' ? url : '';
-                                    setReturnEvidenceUrl(next);
-                                    if (isPersistableEvidenceUrl(next)) {
-                                        setEvidenceUploadError(null);
-                                    }
+                                value={returnEvidenceFile}
+                                onChange={(file) => {
+                                    setReturnEvidenceFile(file instanceof File ? file : null);
+                                    setEvidenceUploadError(null);
                                 }}
                                 label="Tải lên ảnh bằng chứng trả vé"
-                                autoUpload
                                 required
-                                customUpload={uploadHandoverEvidence}
+                                useRawFile
                                 onUploadingChange={setIsEvidenceUploading}
                                 error={evidenceUploadError || undefined}
                             />
-                            {!returnEvidenceUrl && !isEvidenceUploading && !evidenceUploadError && (
+                            {!returnEvidenceFile && !isEvidenceUploading && !evidenceUploadError && (
                                 <Typography variant="caption" color="text.secondary" sx={{ mt: 0.75, display: 'block' }}>
-                                    Bắt buộc tải ảnh bằng chứng thành công trước khi xác nhận bàn giao.
+                                    Bắt buộc chọn ảnh bằng chứng trước khi xác nhận bàn giao.
                                 </Typography>
                             )}
                             {evidenceUploadError && (
