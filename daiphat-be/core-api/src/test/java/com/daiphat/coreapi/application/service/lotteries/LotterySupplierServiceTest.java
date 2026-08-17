@@ -70,6 +70,7 @@ class LotterySupplierServiceTest {
                 .isActive(false)
                 .importAllowFrom(LocalTime.of(8, 0))
                 .returnCutOffTime(LocalTime.of(14, 30))
+                .paymentCutOffTime(LocalTime.of(19, 0))
                 .build();
         LotterySupplierModel model = LotterySupplierModel.builder()
                 .name("Minh Chính")
@@ -93,7 +94,8 @@ class LotterySupplierServiceTest {
                 .build();
 
         when(lotterySupplierRepositoryPort.existsByCode("MINH_CHINH")).thenReturn(false);
-        when(supplierPaymentCutOffSyncService.requirePaymentCutOffForReturn(LocalTime.of(14, 30)))
+        when(supplierPaymentCutOffSyncService.requirePaymentCutOffAfterReturn(
+                LocalTime.of(19, 0), LocalTime.of(14, 30)))
                 .thenReturn(LocalTime.of(19, 0));
         when(lotterySupplierApplicationMapper.toModel(request)).thenReturn(model);
         when(lotterySupplierRepositoryPort.save(model)).thenReturn(saved);
@@ -117,6 +119,7 @@ class LotterySupplierServiceTest {
                 .isActive(true)
                 .importAllowFrom(LocalTime.of(8, 0))
                 .returnCutOffTime(LocalTime.of(14, 30))
+                .paymentCutOffTime(LocalTime.of(19, 0))
                 .build();
         LotterySupplierModel model = LotterySupplierModel.builder()
                 .name("Minh Chính")
@@ -126,7 +129,8 @@ class LotterySupplierServiceTest {
                 .build();
 
         when(lotterySupplierRepositoryPort.existsByCode("MINH_CHINH")).thenReturn(false);
-        when(supplierPaymentCutOffSyncService.requirePaymentCutOffForReturn(LocalTime.of(14, 30)))
+        when(supplierPaymentCutOffSyncService.requirePaymentCutOffAfterReturn(
+                LocalTime.of(19, 0), LocalTime.of(14, 30)))
                 .thenReturn(LocalTime.of(19, 0));
         when(lotterySupplierApplicationMapper.toModel(request)).thenReturn(model);
 
