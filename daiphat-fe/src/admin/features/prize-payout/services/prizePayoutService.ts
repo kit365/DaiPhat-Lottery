@@ -14,6 +14,7 @@ import type {
     RejectPrizePayoutRequest,
 } from '@/types/prize-payout.type';
 import type { UserBankAccountResponse } from '@/types/refund.type';
+import { mapContractPdfErrorMessage } from '@/admin/shared/contracts';
 
 const STAFF_BASE = '/staff/prize-payout-requests';
 
@@ -36,10 +37,18 @@ const openPdfBlob = async (blob: Blob, fileName: string): Promise<void> => {
         try {
             const parsed = JSON.parse(await blob.text());
             if (parsed?.message) message = parsed.message;
+            if (parsed?.errorCode) {
+                message = mapContractPdfErrorMessage(
+                    `${parsed.errorCode} ${parsed.message || ''}`,
+                    message,
+                );
+            } else {
+                message = mapContractPdfErrorMessage(message);
+            }
         } catch {
             // keep default
         }
-        throw new Error(message);
+        throw new Error(mapContractPdfErrorMessage(message));
     }
     const objectUrl = URL.createObjectURL(blob);
     const opened = window.open(objectUrl, '_blank');

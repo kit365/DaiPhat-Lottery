@@ -22,7 +22,7 @@ import java.util.UUID;
 public class PrizePayoutRequestModel {
 
     public static final String MANUAL_RESOLUTION_NOTE =
-            "Vượt quá số lần gửi yêu cầu trả thưởng online. Vui lòng mang CCCD và vé đến đại lý đổi thưởng hoặc liên hệ CSKH để được hỗ trợ!";
+            "Vượt quá số lần gửi yêu cầu trả thưởng trực tuyến. Vui lòng mang CCCD và vé đến đại lý đổi thưởng hoặc liên hệ CSKH để được hỗ trợ!";
 
     public static final String OUT_OF_SCOPE_TICKET_MESSAGE =
             "Không tìm thấy vé trong hệ thống DaiPhat — vé ngoài phạm vi hỗ trợ";

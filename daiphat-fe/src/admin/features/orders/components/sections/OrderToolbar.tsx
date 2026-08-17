@@ -14,7 +14,7 @@ import MenuItem from '@mui/material/MenuItem';
 import { toast } from "react-toastify";
 import { useRef, useState } from "react";
 import dayjs from "dayjs";
-import { OrderFilterParams } from "../../../../../types/order.type";
+import { OrderFilterParams, ORDER_TYPE_FILTER_OPTIONS } from "../../../../../types/order.type";
 
 const CustomViewColumnIcon = (props: any) => (
     <SvgIcon {...props} viewBox="0 0 24 24">
@@ -154,10 +154,10 @@ export const OrderToolbar = ({
             {
                 id: 'orderType',
                 label: "Loại đơn",
-                options: [
-                    { value: 'ONLINE', label: "Online" },
-                    { value: 'DIRECT', label: "Tại quầy" }
-                ]
+                options: ORDER_TYPE_FILTER_OPTIONS.map((option) => ({
+                    value: option.value,
+                    label: option.label,
+                })),
             },
             {
                 id: 'receiveType',

@@ -80,6 +80,7 @@ export const StationCreatePage = () => {
             drawDays: [],
             drawTime: "16:15",
             commissionRate: 0.1,
+            prizeRedemptionOfficialDeadlineDays: "",
         },
     });
 
@@ -132,6 +133,11 @@ export const StationCreatePage = () => {
         const payload = {
             ...data,
             image: "", // Image will be uploaded in the second step
+            prizeRedemptionOfficialDeadlineDays:
+                data.prizeRedemptionOfficialDeadlineDays === ""
+                || data.prizeRedemptionOfficialDeadlineDays == null
+                    ? null
+                    : Number(data.prizeRedemptionOfficialDeadlineDays),
         };
 
         create(payload, {
@@ -170,6 +176,7 @@ export const StationCreatePage = () => {
                             drawDays: [],
                             drawTime: "16:15",
                             commissionRate: 0.1,
+                            prizeRedemptionOfficialDeadlineDays: "",
                             displayOrder: 0,
                             image: "",
                         });
@@ -487,6 +494,28 @@ export const StationCreatePage = () => {
                                                             }
                                                         }
                                                     }}
+                                                />
+                                            )}
+                                        />
+                                    </Box>
+                                    <Box sx={{ gridColumn: { xs: "span 12", md: "span 6" } }}>
+                                        <Controller
+                                            name="prizeRedemptionOfficialDeadlineDays"
+                                            control={control}
+                                            render={({ field, fieldState }) => (
+                                                <TextField
+                                                    {...field}
+                                                    value={field.value ?? ""}
+                                                    onChange={(e) => field.onChange(e.target.value)}
+                                                    label="Hạn lĩnh nhà đài (ngày)"
+                                                    placeholder="Mặc định hệ thống (30)"
+                                                    helperText={
+                                                        fieldState.error?.message
+                                                        || "Để trống = dùng cấu hình hệ thống. Override khi đài này khác hạn chuẩn."
+                                                    }
+                                                    error={!!fieldState.error}
+                                                    fullWidth
+                                                    inputProps={{ inputMode: "numeric" }}
                                                 />
                                             )}
                                         />

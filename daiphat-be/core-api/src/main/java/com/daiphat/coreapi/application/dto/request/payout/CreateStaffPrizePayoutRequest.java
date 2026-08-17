@@ -21,6 +21,8 @@ public record CreateStaffPrizePayoutRequest(
         java.math.BigDecimal cashAmount,
         Boolean manualOwnershipConfirmed,
         @Size(max = 500) String transferEvidenceUrl,
-        @Size(max = 500) String confirmationContractUrl
+        @Size(max = 500) String confirmationContractUrl,
+        /** Required when ticket is past customer redemption deadline but still within issuer deadline. */
+        Boolean acknowledgeLateRedemption
 ) {
 }

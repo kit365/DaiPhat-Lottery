@@ -257,34 +257,40 @@ public class PrizePayoutConfirmationContractService implements PrizePayoutConfir
     }
 
     private String taxPolicy(PrizePayoutCalculationService.PrizePayoutCalcSettings settings) {
-        return "Thuế TNCN " + formatPercent(settings.taxRate())
-                + " trên phần giá trị giải vượt " + formatCurrency(settings.taxThreshold()) + ".";
+        return "<p><strong>Thuế TNCN:</strong> "
+                + formatPercent(settings.taxRate())
+                + " trên phần giá trị giải vượt "
+                + formatCurrency(settings.taxThreshold())
+                + ".</p>";
     }
 
     private String commissionPolicy(PrizePayoutCalculationService.PrizePayoutCalcSettings settings) {
         List<PrizePayoutCalculationService.CommissionTier> tiers = settings.commissionTiers();
         if (tiers == null || tiers.isEmpty()) {
-            return "Hoa hồng đại lý theo chính sách trả thưởng hiện hành.";
+            return "<p><strong>Hoa hồng đại lý:</strong> theo chính sách trả thưởng hiện hành.</p>";
         }
-        StringBuilder builder = new StringBuilder("Hoa hồng đại lý trên giá trị giải gốc: ");
+        StringBuilder builder = new StringBuilder();
+        builder.append("<p><strong>Hoa hồng đại lý</strong> trên giá trị giải gốc:</p>");
+        builder.append("<ul class=\"policy-list\">");
         BigDecimal previous = null;
-        for (int i = 0; i < tiers.size(); i++) {
-            PrizePayoutCalculationService.CommissionTier tier = tiers.get(i);
-            if (i > 0) {
-                builder.append("; ");
-            }
+        for (PrizePayoutCalculationService.CommissionTier tier : tiers) {
+            builder.append("<li>");
             if (tier.upTo() == null) {
-                builder.append("trên mức trên → ").append(formatPercent(tier.rate()));
+                if (previous == null) {
+                    builder.append("Mọi mức giá trị giải");
+                } else {
+                    builder.append("Trên ").append(formatCurrency(previous));
+                }
             } else if (previous == null) {
-                builder.append("đến ").append(formatCurrency(tier.upTo())).append(" → ").append(formatPercent(tier.rate()));
+                builder.append("Đến ").append(formatCurrency(tier.upTo()));
             } else {
-                builder.append("từ trên ").append(formatCurrency(previous))
-                        .append(" đến ").append(formatCurrency(tier.upTo()))
-                        .append(" → ").append(formatPercent(tier.rate()));
+                builder.append("Từ trên ").append(formatCurrency(previous))
+                        .append(" đến ").append(formatCurrency(tier.upTo()));
             }
+            builder.append(": <strong>").append(formatPercent(tier.rate())).append("</strong></li>");
             previous = tier.upTo();
         }
-        builder.append(".");
+        builder.append("</ul>");
         return builder.toString();
     }
 

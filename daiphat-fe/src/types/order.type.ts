@@ -18,6 +18,35 @@ export enum OrderType {
     ONLINE = 'ONLINE'
 }
 
+/** Nhãn loại đơn — đồng bộ admin order list, chi tiết đơn, trả thưởng. */
+export const ORDER_TYPE_LABELS: Record<OrderType, string> = {
+    [OrderType.ONLINE]: 'Trực tuyến',
+    [OrderType.DIRECT]: 'Tại quầy',
+};
+
+export const ORDER_TYPE_FILTER_OPTIONS = [
+    { value: OrderType.ONLINE, label: ORDER_TYPE_LABELS[OrderType.ONLINE] },
+    { value: OrderType.DIRECT, label: ORDER_TYPE_LABELS[OrderType.DIRECT] },
+] as const;
+
+export const ORDER_TYPE_CHIP_STYLES: Record<OrderType, { color: string; bgcolor: string }> = {
+    [OrderType.ONLINE]: {
+        color: 'var(--palette-info-dark)',
+        bgcolor: 'var(--palette-info-lighter)',
+    },
+    [OrderType.DIRECT]: {
+        color: 'var(--palette-warning-dark)',
+        bgcolor: 'var(--palette-warning-lighter)',
+    },
+};
+
+export function getOrderTypeLabel(value?: string | null): string {
+    if (!value) return '—';
+    if (value === OrderType.ONLINE) return ORDER_TYPE_LABELS[OrderType.ONLINE];
+    if (value === OrderType.DIRECT) return ORDER_TYPE_LABELS[OrderType.DIRECT];
+    return value;
+}
+
 export enum OrderDetailStatus {
     ACTIVE = 'ACTIVE',
     INACTIVE = 'INACTIVE',

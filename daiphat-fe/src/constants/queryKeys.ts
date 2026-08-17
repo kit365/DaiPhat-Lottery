@@ -7,6 +7,7 @@ export const QUERY_KEYS = {
     PUBLIC_STATIONS_TODAY: 'public-stations-today',
     PUBLIC_STATIONS_TOMORROW: 'public-stations-tomorrow',
     PUBLIC_STATIONS_BY_DRAW_DATE: 'public-stations-by-draw-date',
+    PUBLIC_SCHEDULE_ALL: 'public-schedule-all',
     PUBLIC_BUY_TICKET: 'public-buy-ticket',
     PUBLIC_SYSTEM_CONFIG: 'public-system-config',
     PUBLIC_SYSTEM_CONFIG_BATCH: 'public-system-config-batch',
@@ -57,6 +58,15 @@ export const publicStationsQueryKeys = {
         [QUERY_KEYS.PUBLIC_STATIONS_BY_DRAW_DATE, drawDates] as const,
 } as const;
 
+export const publicScheduleQueryKeys = {
+    all: (params?: {
+        region?: string;
+        stationId?: number;
+        stationIds?: number[];
+        drawDate?: string;
+    }) => [QUERY_KEYS.PUBLIC_SCHEDULE_ALL, params ?? {}] as const,
+} as const;
+
 /** Root queryKey giữ khi logout — catalog/config không gắn user. */
 export const LOGOUT_PERSIST_QUERY_ROOTS = new Set<string>([
     QUERY_KEYS.PUBLIC_SYSTEM_CONFIG,
@@ -65,6 +75,7 @@ export const LOGOUT_PERSIST_QUERY_ROOTS = new Set<string>([
     QUERY_KEYS.PUBLIC_STATIONS_TODAY,
     QUERY_KEYS.PUBLIC_STATIONS_TOMORROW,
     QUERY_KEYS.PUBLIC_STATIONS_BY_DRAW_DATE,
+    QUERY_KEYS.PUBLIC_SCHEDULE_ALL,
     QUERY_KEYS.PUBLIC_BLOG_CATEGORIES,
     QUERY_KEYS.PUBLIC_BLOG_POSTS,
     QUERY_KEYS.PUBLIC_BUY_TICKET,

@@ -351,7 +351,7 @@ export const Header = () => {
                     <div className="absolute -top-[6px] right-8 w-3 h-3 bg-white border-l border-t border-slate-100 rotate-45 pointer-events-none"></div>
                     
                     <div className="relative z-10">
-                        <Link href="/profile/overview" onClick={() => setIsProfileMenuOpen(false)} className="flex items-center gap-3 px-5 py-3 text-[14px] font-medium text-[#212B36] hover:bg-slate-50 hover:text-[#ee1314] transition-colors">
+                        <Link href="/profile/info" onClick={() => setIsProfileMenuOpen(false)} className="flex items-center gap-3 px-5 py-3 text-[14px] font-medium text-[#212B36] hover:bg-slate-50 hover:text-[#ee1314] transition-colors">
                         <i className="fa-solid fa-layer-group text-[15px] text-[#637381] w-5 text-center"></i>
                         <span>Tổng Quan</span>
                         </Link>

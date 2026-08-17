@@ -7,6 +7,7 @@ import com.daiphat.coreapi.domain.model.enums.order.OrderType;
 import com.daiphat.coreapi.domain.model.enums.order.TicketDrawResultStatus;
 import com.daiphat.coreapi.domain.model.enums.payout.PrizePayoutChannel;
 import com.daiphat.coreapi.domain.model.enums.payout.PrizePayoutRequestStatus;
+import com.daiphat.coreapi.domain.model.enums.payout.PrizeRedemptionZone;
 import lombok.Builder;
 
 import java.math.BigDecimal;
@@ -39,6 +40,13 @@ public record PurchasedTicketResponse(
         OrderReceiveType receiveType,
         LocalDateTime actualPickedUpAt,
         PrizePayoutChannel claimChannel,
-        boolean canClaimOnline
+        boolean canClaimOnline,
+        /** Online / customer-facing redemption deadline. */
+        LocalDate customerRedemptionDeadline,
+        /** Official station/issuer deadline — last day the ticket can still be redeemed at counter. */
+        LocalDate issuerRedemptionDeadline,
+        PrizeRedemptionZone redemptionZone,
+        /** Calendar days remaining until issuer deadline (0 when locked). */
+        Integer daysRemainingToIssuer
 ) {
 }

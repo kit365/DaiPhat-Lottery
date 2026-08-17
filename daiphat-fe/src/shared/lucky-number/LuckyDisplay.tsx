@@ -2,7 +2,6 @@
 
 import type { CSSProperties, ReactNode } from "react";
 import { Box, Typography, type SxProps, type Theme } from "@mui/material";
-import type { LuckyDigitSegment } from "./types";
 import { useLuckyDigitSegments } from "./useLuckyDigitSegments";
 
 const MONO = "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace";
@@ -19,25 +18,11 @@ export type LuckyDisplayProps = {
     letterSpacing?: string;
     component?: "span" | "div";
     fallback?: ReactNode;
+    /** Hide the small "Số đẹp" chip (parent frame already shows it). */
+    showBadge?: boolean;
+    /** Default: beside the number. Checkout uses `above`. */
+    badgePlacement?: "end" | "above";
 };
-
-const renderSegments = (
-    segments: LuckyDigitSegment[],
-    fontWeight: number,
-    style?: CSSProperties
-) =>
-    segments.map((segment, index) => (
-        <span
-            key={`${segment.text}-${index}`}
-            style={
-                segment.color
-                    ? { ...style, color: segment.color, fontWeight }
-                    : style
-            }
-        >
-            {segment.text}
-        </span>
-    ));
 
 /** Plain HTML span — client ticket numbers (same pattern config as admin). */
 export const ClientLuckyDisplay = ({
@@ -45,26 +30,55 @@ export const ClientLuckyDisplay = ({
     ticket = false,
     className,
     style,
-    fontWeight = 700,
     fallback = "—",
+    showBadge = true,
+    badgePlacement = "end",
 }: LuckyDisplayProps) => {
     const display = value == null || value === "" ? "" : String(value);
     const segments = useLuckyDigitSegments(display, { ticket });
+    const isLuckyTicket = ticket && segments.some((segment) => Boolean(segment.color));
 
     if (!display) {
         return <span className={className}>{fallback}</span>;
     }
 
+    const numberStyle: CSSProperties = {
+        fontVariantNumeric: "tabular-nums",
+        fontFeatureSettings: '"tnum"',
+        ...style,
+    };
+
+    if (!isLuckyTicket || !showBadge) {
+        return (
+            <span className={className} style={numberStyle}>
+                {display}
+            </span>
+        );
+    }
+
+    const badge = (
+        <span className="shrink-0 rounded px-1 py-px text-[9px] font-bold leading-none text-[#B76E00] bg-[#FFE082]">
+            Số đẹp
+        </span>
+    );
+
+    if (badgePlacement === "above") {
+        return (
+            <span className="inline-flex flex-col items-center gap-0.5">
+                {badge}
+                <span className={className} style={numberStyle}>
+                    {display}
+                </span>
+            </span>
+        );
+    }
+
     return (
-        <span
-            className={className}
-            style={{
-                fontVariantNumeric: "tabular-nums",
-                fontFeatureSettings: '"tnum"',
-                ...style,
-            }}
-        >
-            {renderSegments(segments, fontWeight, style)}
+        <span className="inline-flex items-center gap-1 align-middle">
+            <span className={className} style={numberStyle}>
+                {display}
+            </span>
+            {badge}
         </span>
     );
 };

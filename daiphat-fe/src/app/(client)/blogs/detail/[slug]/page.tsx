@@ -3,6 +3,8 @@ import { Suspense } from 'react';
 
 import { BlogDetailPage } from '@/client/features/blog';
 
+export const dynamic = 'force-dynamic';
+
 const backendBase = process.env.BACKEND_UPSTREAM || 'http://localhost:8080';
 
 export async function generateMetadata({
@@ -13,8 +15,8 @@ export async function generateMetadata({
   const { slug } = await params;
 
   try {
-    const response = await fetch(`${backendBase.replace(/\/$/, '')}/api/blogs/public/${slug}`, {
-      next: { revalidate: 300 },
+        const response = await fetch(`${backendBase.replace(/\/$/, '')}/api/blogs/public/${slug}`, {
+      cache: 'no-store',
     });
 
     if (!response.ok) {

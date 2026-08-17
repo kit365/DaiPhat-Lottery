@@ -802,8 +802,8 @@ public enum SystemConfigEnum {
             ConfigType.PAYOUT_SETTING,
             DataType.INT,
             "10000000",
-            "Giá trị giải tối đa khách được gửi yêu cầu trả thưởng online (VND)",
-            "Hạn mức trả thưởng online",
+            "Giá trị giải tối đa khách được gửi yêu cầu trả thưởng trực tuyến (VND)",
+            "Hạn mức trả thưởng trực tuyến",
             "VND",
             "{\"min\":0}",
             true
@@ -812,8 +812,8 @@ public enum SystemConfigEnum {
             ConfigType.PAYOUT_SETTING,
             DataType.INT,
             "3",
-            "Số lần tối đa yêu cầu trả thưởng online bị từ chối trước khi bắt buộc đổi thưởng tại đại lý",
-            "Số lần từ chối trả thưởng online tối đa",
+            "Số lần tối đa yêu cầu trả thưởng trực tuyến bị từ chối trước khi bắt buộc đổi thưởng tại đại lý",
+            "Số lần từ chối trả thưởng trực tuyến tối đa",
             "lần",
             "{\"min\":1,\"max\":20}",
             true
@@ -856,6 +856,26 @@ public enum SystemConfigEnum {
             "Điều khoản hợp đồng trả thưởng",
             null,
             "{\"allowEmpty\":true,\"maxLength\":4000}",
+            true
+    ),
+    PRIZE_REDEMPTION_OFFICIAL_DEADLINE_DAYS(
+            ConfigType.PAYOUT_SETTING,
+            DataType.INT,
+            "30",
+            "Số ngày hạn lĩnh thưởng với nhà đài kể từ ngày quay (hạn thật). Hạn khách = hạn này trừ số ngày đệm.",
+            "Hạn lĩnh nhà đài (ngày)",
+            "ngày",
+            "{\"min\":1,\"max\":365}",
+            true
+    ),
+    PRIZE_REDEMPTION_BUFFER_DAYS(
+            ConfigType.PAYOUT_SETTING,
+            DataType.INT,
+            "5",
+            "Số ngày đệm nội bộ trước hạn nhà đài. Hạn đổi thưởng hiển thị cho khách = hạn nhà đài − số ngày đệm. Phải nhỏ hơn hạn nhà đài.",
+            "Số ngày đệm hạn đổi thưởng",
+            "ngày",
+            "{\"min\":0,\"max\":364}",
             true
     ),
     /**

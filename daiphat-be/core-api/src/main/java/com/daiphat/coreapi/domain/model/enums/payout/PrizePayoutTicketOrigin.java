@@ -7,7 +7,7 @@ import lombok.RequiredArgsConstructor;
 @Getter
 @RequiredArgsConstructor
 public enum PrizePayoutTicketOrigin implements LabeledEnum {
-    INTERNAL_ONLINE("Vé mua online (đã lấy về)"),
+    INTERNAL_ONLINE("Vé mua trực tuyến (đã lấy về)"),
     INTERNAL_OFFLINE("Vé mua tại quầy");
 
     private final String displayName;
