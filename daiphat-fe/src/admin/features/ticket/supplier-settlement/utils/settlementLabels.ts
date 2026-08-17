@@ -43,6 +43,60 @@ export const getSupplierSettlementStatusModifier = (
     return '';
 };
 
+export const getReconciliationPhaseBadgeModifier = (
+    phase?: SupplierSettlementReconciliationPhase | null
+): string => {
+    switch (phase) {
+        case 'MATCHING':
+            return 'admin-status-badge--active';
+        case 'DISCREPANCY_DETECTED':
+        case 'RESOLVING_IMPORT_DISCREPANCY':
+        case 'RESOLVING_RETURN_DISCREPANCY':
+        case 'READY_FOR_RECALCULATION':
+            return 'admin-status-badge--pending';
+        case 'RECALCULATED':
+        case 'COMPLETED':
+            return 'admin-status-badge--success';
+        case 'PAYMENT_DISCREPANCY':
+            return 'admin-status-badge--inactive';
+        default:
+            return 'admin-status-badge--draft';
+    }
+};
+
+export const getMatchBadgeModifier = (ok: boolean): string =>
+    ok ? 'admin-status-badge--success' : 'admin-status-badge--pending';
+
+export const getDiscrepancyItemBadgeModifier = (
+    resolved: boolean,
+    direction?: SupplierSettlementDiscrepancyDirection | null
+): string => {
+    if (resolved) {
+        return 'admin-status-badge--success';
+    }
+    if (direction === 'NEGATIVE') {
+        return 'admin-status-badge--pending';
+    }
+    return 'admin-status-badge--inactive';
+};
+
+export const getQtyDiffBadgeModifier = (
+    matching: boolean,
+    positiveDiff: boolean,
+    empty?: boolean
+): string => {
+    if (empty) {
+        return 'admin-status-badge--draft';
+    }
+    if (matching) {
+        return 'admin-status-badge--success';
+    }
+    if (positiveDiff) {
+        return 'admin-status-badge--inactive';
+    }
+    return 'admin-status-badge--pending';
+};
+
 export const getReconciliationPhaseLabel = (
     phase?: SupplierSettlementReconciliationPhase | null,
     phaseLabel?: string | null
@@ -218,7 +272,7 @@ export const resolveLiveSystemReturnQuantity = (
     return Math.max(snapshot, handedOver);
 };
 
-/** Live imported qty: snapshot, inventory-by-station, or import-batch header totals (whichever is highest). */
+/** Live imported qty used as matching baseline — must match backend `countImportedTicketsBySettlementId` (non-VOIDED serials). */
 export const resolveLiveSystemImportQuantity = (
     settlement?: { systemImportQuantity?: number | null } | null,
     importBatches?: Array<{
@@ -234,15 +288,17 @@ export const resolveLiveSystemImportQuantity = (
     );
     const fromBatches = (importBatches || []).reduce((sum, batch) => {
         const imported = Number(batch.totalImportedQuantity);
-        const declared = Number(batch.totalDeclareQuantity);
-        const qty = Number.isFinite(imported) && imported > 0
-            ? imported
-            : Number.isFinite(declared) && declared > 0
-              ? declared
-              : 0;
-        return sum + qty;
+        return sum + (Number.isFinite(imported) && imported > 0 ? imported : 0);
     }, 0);
-    return Math.max(snapshot, fromInventory, fromBatches);
+    // Inventory already excludes VOIDED serials, same as confirmMatching.
+    // Declared qty and a stale snapshot can still be 1.500 after 12 tickets were voided.
+    if (fromInventory > 0) {
+        return fromInventory;
+    }
+    if (fromBatches > 0) {
+        return fromBatches;
+    }
+    return snapshot;
 };
 
 /**

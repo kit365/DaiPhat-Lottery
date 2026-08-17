@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import CloseIcon from '@mui/icons-material/Close';
 import ReportProblemIcon from '@mui/icons-material/ReportProblem';
 import UploadFileOutlinedIcon from '@mui/icons-material/UploadFileOutlined';
-import { Box, Button, Stack } from '@mui/material';
+import { Box, Button, Stack, Tooltip, Typography } from '@mui/material';
 import { useQueryClient } from '@tanstack/react-query';
 import { PageHeader } from '../../../../../components/ui/PageHeader';
 import { CanAccess } from '../../../../../components/auth/CanAccess';
@@ -17,6 +17,7 @@ import dayjs from 'dayjs';
 import { IncompleteImportBatchNotification } from '../../../import-batch/components/sections/IncompleteImportBatchNotification';
 import { ImportBatchFileImportDialog } from '../../../import-batch/components/sections/ImportBatchFileImportDialog';
 import { useCancelTicketSelection } from '../../../import-batch/hooks/useCancelTicketSelection';
+import { useTodayImportIntakeSummary } from '../../../import-batch/hooks/useImportBatchIntakeGate';
 
 export const TicketListPage = () => {
     const queryClient = useQueryClient();
@@ -30,6 +31,47 @@ export const TicketListPage = () => {
 
     const cancelSelection = useCancelTicketSelection(ticketHook.tickets);
     const hasSelectedSerials = cancelSelection.selectedSerials.length > 0;
+
+    const { allBlockedForToday } = useTodayImportIntakeSummary();
+
+    /**
+     * Why cancelling is unavailable, or null when it is available.
+     *
+     * <p>A ticket may only be cancelled while its draw date's stock is still on
+     * the shelf. Once the return sweep for that date begins the unsold tickets are
+     * being counted and boxed for the supplier, and once the date is past that
+     * count has been handed over — voiding one afterwards would contradict a
+     * figure both sides already signed for.
+     *
+     * <p>Judged from the rows actually on screen. The server decides per ticket,
+     * because the sweep time belongs to each ticket's own supplier; this only
+     * disables the button when every row in view is certainly beyond it, so the
+     * operator is never sent into a dialog that can only fail.
+     */
+    const cancelLockReason = useMemo(() => {
+        const drawDates: string[] = Array.from(
+            new Set<string>(
+                (ticketHook.tickets ?? [])
+                    .map((ticket) => (ticket.drawDate ? String(ticket.drawDate) : ''))
+                    .filter((value: string) => value.length > 0)
+            )
+        );
+        if (drawDates.length === 0) {
+            return null;
+        }
+
+        const stillAhead = drawDates.some((date) => dayjs(date).isAfter(todayIso, 'day'));
+        if (stillAhead) {
+            return null;
+        }
+        const includesToday = drawDates.some((date) => dayjs(date).isSame(todayIso, 'day'));
+        if (includesToday && !allBlockedForToday) {
+            return null;
+        }
+        return includesToday
+            ? 'Đã tới giờ kiểm vé để chuẩn bị trả nhà cung cấp — không hủy được vé của ngày quay hôm nay nữa.'
+            : 'Kỳ quay đã kết thúc và vé đã chốt trả nhà cung cấp — không hủy được vé của ngày quay đã qua.';
+    }, [ticketHook.tickets, allBlockedForToday, todayIso]);
 
     const handleFileImportSuccess = () => {
         queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.TICKETS] });
@@ -112,26 +154,48 @@ export const TicketListPage = () => {
                             </Button>
                         )}
 
-                        <Button
-                            variant="contained"
-                            color="error"
-                            size="small"
-                            startIcon={<ReportProblemIcon />}
-                            onClick={handleCancelPrimaryClick}
-                            sx={{
-                                minHeight: '2.4rem',
-                                textTransform: 'none',
-                                fontWeight: 800,
-                                borderRadius: '10px',
-                                boxShadow: hasSelectedSerials ? '0 4px 12px rgba(239, 68, 68, 0.25)' : 'none',
-                                py: 0.8,
-                                px: 2.2,
-                            }}
-                        >
-                            {hasSelectedSerials
-                                ? `Tiến hành hủy vé (${cancelSelection.selectedSerials.length})`
-                                : 'Hủy vé'}
-                        </Button>
+                        <Stack spacing={0.4} alignItems="flex-end">
+                            <Tooltip title={cancelLockReason ?? ''}>
+                                <span>
+                                    <Button
+                                        variant="contained"
+                                        color="error"
+                                        size="small"
+                                        disabled={Boolean(cancelLockReason)}
+                                        startIcon={<ReportProblemIcon />}
+                                        onClick={handleCancelPrimaryClick}
+                                        sx={{
+                                            minHeight: '2.4rem',
+                                            textTransform: 'none',
+                                            fontWeight: 800,
+                                            borderRadius: '10px',
+                                            boxShadow: hasSelectedSerials
+                                                ? '0 4px 12px rgba(239, 68, 68, 0.25)'
+                                                : 'none',
+                                            py: 0.8,
+                                            px: 2.2,
+                                        }}
+                                    >
+                                        {hasSelectedSerials
+                                            ? `Tiến hành hủy vé (${cancelSelection.selectedSerials.length})`
+                                            : 'Hủy vé'}
+                                    </Button>
+                                </span>
+                            </Tooltip>
+                            {cancelLockReason && (
+                                <Typography
+                                    variant="caption"
+                                    sx={{
+                                        color: '#b45309',
+                                        maxWidth: 320,
+                                        textAlign: 'right',
+                                        lineHeight: 1.35,
+                                    }}
+                                >
+                                    {cancelLockReason}
+                                </Typography>
+                            )}
+                        </Stack>
                     </Stack>
                 }
             />

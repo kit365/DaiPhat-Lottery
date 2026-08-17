@@ -79,10 +79,11 @@ public class SupplierSettlementDiscrepancyInventoryHelper {
         TicketCondition condition = ticketCondition != null ? ticketCondition : TicketCondition.LOST;
         if (condition != TicketCondition.LOST
                 && condition != TicketCondition.DAMAGED
-                && condition != TicketCondition.VOIDED) {
+                && condition != TicketCondition.VOIDED
+                && condition != TicketCondition.UNDER_IMPORTED) {
             throw new DomainException(
                     ErrorCode.INVALID_INPUT,
-                    "Tình trạng vé thiếu phải là LOST, DAMAGED hoặc VOIDED."
+                    "Tình trạng vé thiếu phải là LOST, DAMAGED, VOIDED hoặc UNDER_IMPORTED."
             );
         }
         if (condition == TicketCondition.DAMAGED
@@ -96,11 +97,13 @@ public class SupplierSettlementDiscrepancyInventoryHelper {
         String prefix = switch (condition) {
             case DAMAGED -> "DMG";
             case VOIDED -> "VOID";
+            case UNDER_IMPORTED -> "MISS";
             default -> "LOST";
         };
-        LotteryTicketSerialFaultedBy faultedBy = condition == TicketCondition.VOIDED
-                ? LotteryTicketSerialFaultedBy.DATA_ENTRY_FAULT
-                : LotteryTicketSerialFaultedBy.ISSUER_FAULT;
+        LotteryTicketSerialFaultedBy faultedBy =
+                condition == TicketCondition.VOIDED || condition == TicketCondition.UNDER_IMPORTED
+                        ? LotteryTicketSerialFaultedBy.DATA_ENTRY_FAULT
+                        : LotteryTicketSerialFaultedBy.ISSUER_FAULT;
         String reason = (reasonNote != null && !reasonNote.isBlank())
                 ? reasonNote.trim()
                 : "Settlement import discrepancy " + condition.name() + " placeholder";

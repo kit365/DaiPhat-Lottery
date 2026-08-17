@@ -188,6 +188,43 @@ class LotteryTicketSerialFaultTest {
         assertThat(serial.getStatus()).isEqualTo(LotteryTicketSerialStatus.IN_STOCK);
         assertThat(serial.getTicketCondition()).isEqualTo(TicketCondition.VOIDED);
         assertThat(serial.isAvailableForSale()).isFalse();
+        assertThat(serial.isVoided()).isTrue();
+        assertThat(serial.isVisibleInventory()).isFalse();
         assertThat(serial.isTerminalIncidentStatus()).isTrue();
+    }
+
+    @Test
+    @DisplayName("expire skips VOIDED serials so replaced tickets are not processed")
+    void expire_skipsVoided() {
+        LotteryTicketSerialModel serial = LotteryTicketSerialModel.builder()
+                .status(LotteryTicketSerialStatus.IN_STOCK)
+                .ticketCondition(TicketCondition.VOIDED)
+                .build();
+
+        serial.expire();
+
+        assertThat(serial.getStatus()).isEqualTo(LotteryTicketSerialStatus.IN_STOCK);
+        assertThat(serial.getTicketCondition()).isEqualTo(TicketCondition.VOIDED);
+    }
+
+    @Test
+    @DisplayName("reassignToTicket updates ticketId and clears replacedForTicketId")
+    void reassignToTicket_movesSerialWithoutClone() {
+        LotteryTicketSerialModel serial = LotteryTicketSerialModel.builder()
+                .id(10L)
+                .ticketId(1L)
+                .stationId(5L)
+                .serialNumber("SN-1")
+                .status(LotteryTicketSerialStatus.IN_STOCK)
+                .ticketCondition(TicketCondition.GOOD)
+                .replacedForTicketId(99L)
+                .build();
+
+        serial.reassignToTicket(2L, 5L, java.time.LocalDate.of(2026, 8, 17));
+
+        assertThat(serial.getTicketId()).isEqualTo(2L);
+        assertThat(serial.getSerialNumber()).isEqualTo("SN-1");
+        assertThat(serial.getTicketCondition()).isEqualTo(TicketCondition.GOOD);
+        assertThat(serial.getReplacedForTicketId()).isNull();
     }
 }

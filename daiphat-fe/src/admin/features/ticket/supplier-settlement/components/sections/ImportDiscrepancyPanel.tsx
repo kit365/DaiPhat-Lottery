@@ -8,6 +8,9 @@ import {
     ButtonBase,
     Checkbox,
     Chip,
+    Dialog,
+    DialogContent,
+    DialogTitle,
     Divider,
     FormControl,
     Grid,
@@ -22,6 +25,7 @@ import {
     Table,
     TableBody,
     TableCell,
+    TableFooter,
     TableHead,
     TableRow,
     Tabs,
@@ -43,12 +47,10 @@ import PostAddOutlinedIcon from '@mui/icons-material/PostAddOutlined';
 import FormatListBulletedOutlinedIcon from '@mui/icons-material/FormatListBulletedOutlined';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
-import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import PhotoCameraOutlinedIcon from '@mui/icons-material/PhotoCameraOutlined';
-import TrendingDownOutlinedIcon from '@mui/icons-material/TrendingDownOutlined';
-import TrendingUpOutlinedIcon from '@mui/icons-material/TrendingUpOutlined';
-import FolderOpenOutlinedIcon from '@mui/icons-material/FolderOpenOutlined';
-import CollectionsOutlinedIcon from '@mui/icons-material/CollectionsOutlined';
+import ReceiptLongOutlinedIcon from '@mui/icons-material/ReceiptLongOutlined';
+import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
+import CloseIcon from '@mui/icons-material/Close';
 import { uploadAdminImage } from '@/admin/shared/services/upload.service';
 import { AppToast } from '../../../../../../utils/toast.util';
 import type {
@@ -57,22 +59,21 @@ import type {
     SettlementResolvableSerial,
 } from '../../types/supplierSettlement.type';
 import { formatSettlementMoney } from '../../utils/settlementCashflow';
-import { ImportFileTicketCheckDialog } from './ImportFileTicketCheckDialog';
-import { ImportTicketListImagesDialog } from './ImportTicketListImagesDialog';
 import { AdminLuckyDisplay } from '@/shared/lucky-number';
+import { AdminStatusBadge } from '@/admin/components/ui/AdminStatusBadge';
 
 interface ImportDiscrepancyPanelProps {
-    settlementId?: string | number;
     serials: SettlementResolvableSerial[];
     inventoryByStation?: Array<{ lotteryStationId: number; lotteryStationName?: string | null; remainingQuantity?: number; importedQuantity?: number }>;
     importBatches?: SettlementOverviewImportBatch[];
+    settlementReceiptUrl?: string | null;
     loading?: boolean;
     submitting?: boolean;
     direction: 'POSITIVE' | 'NEGATIVE';
     difference?: number;
     onResolve: (payload: {
         serialIds?: number[];
-        ticketCondition?: 'DAMAGED' | 'LOST' | 'VOIDED' | null;
+        ticketCondition?: 'DAMAGED' | 'LOST' | 'VOIDED' | 'UNDER_IMPORTED' | null;
         reasonCode: SettlementAdjustmentReasonCode;
         adjustmentAmount?: number;
         note?: string;
@@ -90,11 +91,20 @@ const formatNumberWithDots = (val?: number | string | null): string => {
     return parseInt(digits, 10).toLocaleString('vi-VN');
 };
 
+const isLikelyImageUrl = (url?: string | null): boolean => {
+    if (!url) return false;
+    const path = url.split('?')[0].toLowerCase();
+    return /\.(png|jpe?g|gif|webp|bmp)$/i.test(path);
+};
+
+const importBatchReceiptUrl = (batch: SettlementOverviewImportBatch) =>
+    batch.invoiceEvidenceUrl || batch.receiptImageUrl || batch.evidenceUrl || '';
+
 export const ImportDiscrepancyPanel = ({
-    settlementId,
     serials,
     inventoryByStation = [],
     importBatches = [],
+    settlementReceiptUrl,
     loading,
     submitting,
     direction,
@@ -111,14 +121,14 @@ export const ImportDiscrepancyPanel = ({
     const [selected, setSelected] = useState<number[]>([]);
     const [condition, setCondition] = useState<'LOST' | 'DAMAGED' | 'VOIDED' | ''>('LOST');
     const [reasonCode, setReasonCode] = useState<SettlementAdjustmentReasonCode>(
-        isShortage ? 'MISSING_IMPORT' : 'EXCESS_IMPORT'
+        isShortage ? 'MISSING_IMPORT' : 'INSUFFICIENT_IMPORT'
     );
     const [amount, setAmount] = useState('');
     const [note, setNote] = useState('');
 
     // Missing placeholders: per-station qty + condition + evidence
     const [missingQtyByStation, setMissingQtyByStation] = useState<Record<number, string>>({});
-    const [missingCondition, setMissingCondition] = useState<'LOST' | 'DAMAGED' | 'VOIDED'>('LOST');
+    const [missingCondition, setMissingCondition] = useState<'LOST' | 'DAMAGED' | 'UNDER_IMPORTED'>('UNDER_IMPORTED');
     const [missingEvidenceUrl, setMissingEvidenceUrl] = useState('');
     const [uploadingEvidence, setUploadingEvidence] = useState(false);
 
@@ -146,8 +156,30 @@ export const ImportDiscrepancyPanel = ({
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedBatchKey, setSelectedBatchKey] = useState<string>('ALL');
     const [selectedStation, setSelectedStation] = useState<string>('ALL');
-    const [fileCheckOpen, setFileCheckOpen] = useState(false);
-    const [ticketListImagesOpen, setTicketListImagesOpen] = useState(false);
+    const [receiptPreview, setReceiptPreview] = useState<{ url: string; title: string } | null>(null);
+    const [receiptListOpen, setReceiptListOpen] = useState(false);
+
+    const importReceiptItems = useMemo(
+        () =>
+            importBatches
+                .map((batch) => ({
+                    id: batch.id,
+                    label: batch.batchCode || `Lô nhập #${batch.id}`,
+                    url: importBatchReceiptUrl(batch),
+                }))
+                .filter((item): item is { id: number; label: string; url: string } => Boolean(item.url)),
+        [importBatches]
+    );
+    const hasImportReceipt = importReceiptItems.length > 0;
+    const hasSettlementReceipt = Boolean(settlementReceiptUrl?.trim());
+
+    const openEvidence = (url: string, title: string) => {
+        if (isLikelyImageUrl(url)) {
+            setReceiptPreview({ url, title });
+            return;
+        }
+        window.open(url, '_blank', 'noopener,noreferrer');
+    };
 
     const batchTabs = useMemo(() => {
         const countById = new Map<number, number>();
@@ -282,8 +314,8 @@ export const ImportDiscrepancyPanel = ({
     const missingConditionLabel =
         missingCondition === 'DAMAGED'
             ? 'hư hỏng / rách'
-            : missingCondition === 'VOIDED'
-              ? 'hủy (sai sót nhập liệu)'
+            : missingCondition === 'UNDER_IMPORTED'
+              ? 'nhập thiếu'
               : 'thất lạc / mất';
 
     const handleMissingEvidenceUpload = async (file?: File | null) => {
@@ -352,13 +384,13 @@ export const ImportDiscrepancyPanel = ({
                             width: 44,
                             height: 44,
                             borderRadius: '12px',
-                            bgcolor: isShortage ? '#fff7ed' : '#f0fdf4',
-                            color: isShortage ? '#ea580c' : '#16a34a',
+                            bgcolor: isShortage ? '#fffbeb' : '#fef2f2',
+                            color: isShortage ? '#d97706' : '#dc2626',
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
                             flexShrink: 0,
-                            border: `1px solid ${isShortage ? '#fed7aa' : '#bbf7d0'}`,
+                            border: `1px solid ${isShortage ? '#fde68a' : '#fecaca'}`,
                         }}
                     >
                         <Inventory2OutlinedIcon sx={{ fontSize: '1.5rem' }} />
@@ -376,45 +408,62 @@ export const ImportDiscrepancyPanel = ({
                 </Stack>
 
                 <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
-                    {false && isShortage && (
-                        <>
-                        <Button
-                            variant="outlined"
-                            size="small"
-                            startIcon={<FolderOpenOutlinedIcon />}
-                            onClick={() => setFileCheckOpen(true)}
-                            sx={{ fontWeight: 700, textTransform: 'none' }}
-                        >
-                            Kiểm tra vé bằng tệp
-                        </Button>
-                        <Button
-                            variant="outlined"
-                            size="small"
-                            startIcon={<CollectionsOutlinedIcon />}
-                            onClick={() => setTicketListImagesOpen(true)}
-                            sx={{ fontWeight: 700, textTransform: 'none' }}
-                        >
-                            Xem ảnh danh sách lô vé nhập
-                        </Button>
-                        </>
-                    )}
-                    <Chip
-                    icon={
-                        isShortage ? (
-                            <TrendingDownOutlinedIcon style={{ fontSize: '0.95rem', color: '#be123c' }} />
-                        ) : (
-                            <TrendingUpOutlinedIcon style={{ fontSize: '0.95rem', color: '#15803d' }} />
-                        )
-                    }
-                    label={`${isShortage ? 'Hệ thống ghi thừa' : 'Hệ thống ghi thiếu'} ${totalDiff.toLocaleString('vi-VN')} vé`}
-                    sx={{
-                        fontWeight: 800,
-                        bgcolor: isShortage ? '#fff1f2' : '#f0fdf4',
-                        color: isShortage ? '#be123c' : '#15803d',
-                        border: `1px solid ${isShortage ? '#fecdd3' : '#bbf7d0'}`,
-                        py: 0.5,
-                        height: 28,
-                    }}
+                    <Tooltip
+                        title={
+                            hasImportReceipt
+                                ? 'Xem ảnh / file biên lai nhập'
+                                : 'Chưa có ảnh / file biên lai nhập'
+                        }
+                    >
+                        <span>
+                            <Button
+                                variant="outlined"
+                                size="small"
+                                disabled={!hasImportReceipt}
+                                startIcon={<ReceiptLongOutlinedIcon />}
+                                onClick={() => {
+                                    if (importReceiptItems.length === 1) {
+                                        openEvidence(
+                                            importReceiptItems[0].url,
+                                            `Biên lai nhập — ${importReceiptItems[0].label}`
+                                        );
+                                        return;
+                                    }
+                                    setReceiptListOpen(true);
+                                }}
+                                sx={{ fontWeight: 700, textTransform: 'none', borderRadius: '8px', bgcolor: '#ffffff' }}
+                            >
+                                Xem ảnh / file biên lai nhập
+                            </Button>
+                        </span>
+                    </Tooltip>
+                    <Tooltip
+                        title={
+                            hasSettlementReceipt
+                                ? 'Xem ảnh / file biên lai đối soát'
+                                : 'Chưa có ảnh / file biên lai đối soát'
+                        }
+                    >
+                        <span>
+                            <Button
+                                variant="outlined"
+                                size="small"
+                                disabled={!hasSettlementReceipt}
+                                startIcon={<DescriptionOutlinedIcon />}
+                                onClick={() => {
+                                    const url = settlementReceiptUrl?.trim();
+                                    if (!url) return;
+                                    openEvidence(url, 'Biên lai đối soát');
+                                }}
+                                sx={{ fontWeight: 700, textTransform: 'none', borderRadius: '8px', bgcolor: '#ffffff' }}
+                            >
+                                Xem ảnh / file biên lai đối soát
+                            </Button>
+                        </span>
+                    </Tooltip>
+                    <AdminStatusBadge
+                        label={`${isShortage ? 'Hệ thống ghi thừa' : 'Hệ thống ghi thiếu'} ${totalDiff.toLocaleString('vi-VN')} vé`}
+                        modifier={isShortage ? 'admin-status-badge--pending' : 'admin-status-badge--inactive'}
                     />
                 </Stack>
             </Stack>
@@ -607,8 +656,8 @@ export const ImportDiscrepancyPanel = ({
                         sx={{
                             p: 2,
                             borderRadius: '12px',
-                            bgcolor: '#fff7ed',
-                            border: '1px solid #ffedd5',
+                            bgcolor: '#fef2f2',
+                            border: '1px solid #fee2e2',
                             display: 'flex',
                             alignItems: 'flex-start',
                             gap: 1.5,
@@ -619,8 +668,8 @@ export const ImportDiscrepancyPanel = ({
                                 width: 32,
                                 height: 32,
                                 borderRadius: '8px',
-                                bgcolor: '#ffedd5',
-                                color: '#ea580c',
+                                bgcolor: '#fee2e2',
+                                color: '#dc2626',
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
@@ -631,13 +680,12 @@ export const ImportDiscrepancyPanel = ({
                             <InfoOutlinedIcon sx={{ fontSize: '1.2rem' }} />
                         </Box>
                         <Box>
-                            <Typography variant="subtitle2" fontWeight={800} color="#9a3412" sx={{ fontSize: '0.9rem' }}>
-                                Phân bổ số lượng hệ thống ghi thiếu theo từng nhà đài
+                            <Typography variant="subtitle2" fontWeight={800} color="#991b1b" sx={{ fontSize: '0.9rem' }}>
+                                Phân bổ số lượng vé ghi thiếu theo từng nhà đài
                             </Typography>
-                            <Typography variant="caption" color="#c2410c" sx={{ fontSize: '0.8rem', display: 'block', mt: 0.25, lineHeight: 1.5 }}>
-                                Nhập số lượng vé hệ thống chưa ghi nhận cho từng nhà đài (dòng nhập) sao cho tổng đúng{' '}
-                                <strong>{totalDiff.toLocaleString('vi-VN')} vé</strong>. Chọn tình trạng vé;
-                                nếu hư hỏng / rách bắt buộc đính kèm ảnh minh chứng trước khi hoàn tất.
+                            <Typography variant="caption" color="#b91c1c" sx={{ fontSize: '0.8rem', display: 'block', mt: 0.25, lineHeight: 1.5 }}>
+                                Nhập số lượng vé hệ thống chưa ghi nhận cho từng nhà đài sao cho tổng đúng{' '}
+                                <strong>{totalDiff.toLocaleString('vi-VN')} vé</strong>. Chọn tình trạng vé và lý do ghi nhận trước khi xác nhận hoàn tất.
                             </Typography>
                         </Box>
                     </Box>
@@ -659,19 +707,23 @@ export const ImportDiscrepancyPanel = ({
                             sx={{ mb: 2 }}
                         >
                             <Typography variant="caption" fontWeight={800} color="#475569" sx={{ textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                                Số lượng hệ thống ghi thiếu theo nhà đài
+                                Danh sách phân bổ theo nhà đài
                             </Typography>
-                            <Chip
-                                size="small"
-                                color={isMissingQtyExact ? 'success' : missingQtyEntered > totalDiff ? 'error' : 'warning'}
+                            <AdminStatusBadge
                                 label={`Đã nhập ${missingQtyEntered.toLocaleString('vi-VN')} / ${totalDiff.toLocaleString('vi-VN')} vé${
                                     missingQtyRemaining === 0
-                                        ? ''
+                                        ? ' · Đã đủ'
                                         : missingQtyRemaining > 0
-                                          ? ` · còn cần phân bổ ${missingQtyRemaining.toLocaleString('vi-VN')}`
-                                          : ` · vượt ${Math.abs(missingQtyRemaining).toLocaleString('vi-VN')}`
+                                          ? ` · Còn thiếu ${missingQtyRemaining.toLocaleString('vi-VN')} vé`
+                                          : ` · Vượt quá ${Math.abs(missingQtyRemaining).toLocaleString('vi-VN')} vé`
                                 }`}
-                                sx={{ fontWeight: 800 }}
+                                modifier={
+                                    isMissingQtyExact
+                                        ? 'admin-status-badge--success'
+                                        : missingQtyEntered > totalDiff
+                                          ? 'admin-status-badge--inactive'
+                                          : 'admin-status-badge--pending'
+                                }
                             />
                         </Stack>
 
@@ -680,56 +732,96 @@ export const ImportDiscrepancyPanel = ({
                                 Không có danh sách nhà đài / dòng nhập để phân bổ. Kiểm tra lại kỳ đối soát.
                             </Alert>
                         ) : (
-                            <Paper variant="outlined" sx={{ borderRadius: '12px', overflow: 'hidden', borderColor: '#e2e8f0', mb: 2.5 }}>
+                            <Paper variant="outlined" sx={{ borderRadius: '12px', overflow: 'hidden', borderColor: '#e2e8f0', mb: 2.5, bgcolor: '#ffffff' }}>
                                 <Table size="small">
                                     <TableHead>
-                                        <TableRow sx={{ '& th': { bgcolor: '#fff7ed', fontWeight: 800, color: '#9a3412', fontSize: '0.8rem' } }}>
+                                        <TableRow sx={{ '& th': { bgcolor: '#f8fafc', fontWeight: 800, color: '#475569', fontSize: '0.78rem' } }}>
                                             <TableCell>NHÀ ĐÀI</TableCell>
-                                            <TableCell align="right">SL NHẬP HT</TableCell>
-                                            <TableCell align="right">TỒN</TableCell>
-                                            <TableCell align="right" sx={{ width: 160 }}>SL BỔ SUNG (*)</TableCell>
+                                            <TableCell align="right">SL ĐÃ NHẬP (HỆ THỐNG)</TableCell>
+                                            <TableCell align="right">TỒN KHO HIỆN TẠI</TableCell>
+                                            <TableCell align="right" sx={{ width: 170 }}>SL BỔ SUNG (*)</TableCell>
                                         </TableRow>
                                     </TableHead>
                                     <TableBody>
-                                        {inventoryByStation.map((s) => (
-                                            <TableRow key={s.lotteryStationId} hover>
-                                                <TableCell>
-                                                    <Typography variant="body2" fontWeight={700}>
-                                                        {s.lotteryStationName || `Đài #${s.lotteryStationId}`}
-                                                    </Typography>
-                                                </TableCell>
-                                                <TableCell align="right">
-                                                    <Typography variant="caption" fontWeight={700} color="#64748b">
-                                                        {(s.importedQuantity ?? 0).toLocaleString('vi-VN')}
-                                                    </Typography>
-                                                </TableCell>
-                                                <TableCell align="right">
-                                                    <Typography variant="caption" fontWeight={700} color="#64748b">
-                                                        {(s.remainingQuantity ?? 0).toLocaleString('vi-VN')}
-                                                    </Typography>
-                                                </TableCell>
-                                                <TableCell align="right">
-                                                    <TextField
-                                                        size="small"
-                                                        value={missingQtyByStation[s.lotteryStationId] ?? ''}
-                                                        onChange={(e) => setMissingStationQty(s.lotteryStationId, e.target.value)}
-                                                        placeholder="0"
-                                                        slotProps={{ htmlInput: { inputMode: 'numeric', style: { textAlign: 'right', fontWeight: 800 } } }}
-                                                        sx={{
-                                                            width: 120,
-                                                            '& .MuiOutlinedInput-root': { borderRadius: '8px', bgcolor: '#ffffff' },
-                                                        }}
-                                                    />
-                                                </TableCell>
-                                            </TableRow>
-                                        ))}
+                                        {inventoryByStation.map((s) => {
+                                            const val = missingQtyByStation[s.lotteryStationId] ?? '';
+                                            const hasVal = Boolean(val && parseInt(val, 10) > 0);
+                                            return (
+                                                <TableRow key={s.lotteryStationId} hover sx={{ bgcolor: hasVal ? '#fffbf5' : 'inherit' }}>
+                                                    <TableCell>
+                                                        <Typography variant="body2" fontWeight={700} color="#0f172a">
+                                                            {s.lotteryStationName || `Đài #${s.lotteryStationId}`}
+                                                        </Typography>
+                                                    </TableCell>
+                                                    <TableCell align="right">
+                                                        <Typography variant="body2" fontWeight={600} color="#334155">
+                                                            {(s.importedQuantity ?? 0).toLocaleString('vi-VN')}
+                                                        </Typography>
+                                                    </TableCell>
+                                                    <TableCell align="right">
+                                                        <Typography variant="body2" fontWeight={600} color="#64748b">
+                                                            {(s.remainingQuantity ?? 0).toLocaleString('vi-VN')}
+                                                        </Typography>
+                                                    </TableCell>
+                                                    <TableCell align="right">
+                                                        <TextField
+                                                            size="small"
+                                                            value={val}
+                                                            onChange={(e) => setMissingStationQty(s.lotteryStationId, e.target.value)}
+                                                            placeholder="0"
+                                                            slotProps={{
+                                                                htmlInput: {
+                                                                    inputMode: 'numeric',
+                                                                    style: {
+                                                                        textAlign: 'right',
+                                                                        fontWeight: 800,
+                                                                        color: hasVal ? '#dc2626' : '#0f172a',
+                                                                    },
+                                                                },
+                                                            }}
+                                                            sx={{
+                                                                width: 130,
+                                                                '& .MuiOutlinedInput-root': {
+                                                                    borderRadius: '8px',
+                                                                    bgcolor: '#ffffff',
+                                                                    borderColor: hasVal ? '#fca5a5' : '#cbd5e1',
+                                                                },
+                                                            }}
+                                                        />
+                                                    </TableCell>
+                                                </TableRow>
+                                            );
+                                        })}
                                     </TableBody>
+                                    <TableFooter sx={{ bgcolor: '#f8fafc', borderTop: '2px solid #e2e8f0' }}>
+                                        <TableRow>
+                                            <TableCell sx={{ fontWeight: 800, fontSize: '0.82rem', color: '#334155' }}>
+                                                TỔNG CỘNG ({inventoryByStation.length} nhà đài)
+                                            </TableCell>
+                                            <TableCell align="right" sx={{ fontWeight: 700, fontSize: '0.82rem', color: '#334155' }}>
+                                                {inventoryByStation.reduce((acc, s) => acc + (s.importedQuantity ?? 0), 0).toLocaleString('vi-VN')}
+                                            </TableCell>
+                                            <TableCell align="right" sx={{ fontWeight: 700, fontSize: '0.82rem', color: '#64748b' }}>
+                                                {inventoryByStation.reduce((acc, s) => acc + (s.remainingQuantity ?? 0), 0).toLocaleString('vi-VN')}
+                                            </TableCell>
+                                            <TableCell
+                                                align="right"
+                                                sx={{
+                                                    fontWeight: 800,
+                                                    fontSize: '0.85rem',
+                                                    color: isMissingQtyExact ? '#16a34a' : missingQtyEntered > totalDiff ? '#dc2626' : '#d97706',
+                                                }}
+                                            >
+                                                {missingQtyEntered.toLocaleString('vi-VN')} / {totalDiff.toLocaleString('vi-VN')} vé
+                                            </TableCell>
+                                        </TableRow>
+                                    </TableFooter>
                                 </Table>
                             </Paper>
                         )}
 
                         <Typography variant="caption" fontWeight={800} color="#475569" sx={{ textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', mb: 1.5 }}>
-                            Tình trạng & lý do ghi nhận
+                            Thông tin tình trạng & lý do bổ sung
                         </Typography>
 
                         <Grid container spacing={2}>
@@ -738,19 +830,11 @@ export const ImportDiscrepancyPanel = ({
                                     <InputLabel>Tình trạng vé (*)</InputLabel>
                                     <Select
                                         label="Tình trạng vé (*)"
-                                        value={missingCondition}
-                                        onChange={(e) => {
-                                            const next = e.target.value as 'LOST' | 'DAMAGED' | 'VOIDED';
-                                            setMissingCondition(next);
-                                            if (next !== 'DAMAGED') {
-                                                setMissingEvidenceUrl('');
-                                            }
-                                        }}
+                                        value="UNDER_IMPORTED"
+                                        disabled
                                         sx={{ borderRadius: '10px', bgcolor: '#ffffff' }}
                                     >
-                                        <MenuItem value="LOST">Thất lạc / Mất vé</MenuItem>
-                                        <MenuItem value="DAMAGED">Hư hỏng / Rách</MenuItem>
-                                        <MenuItem value="VOIDED">Hủy do sai sót nhập liệu</MenuItem>
+                                        <MenuItem value="UNDER_IMPORTED">Nhập thiếu</MenuItem>
                                     </Select>
                                 </FormControl>
                             </Grid>
@@ -764,7 +848,7 @@ export const ImportDiscrepancyPanel = ({
                                         onChange={(e) => setReasonCode(e.target.value as SettlementAdjustmentReasonCode)}
                                         sx={{ borderRadius: '10px', bgcolor: '#ffffff' }}
                                     >
-                                        <MenuItem value="EXCESS_IMPORT">Số thực tế nhiều hơn hệ thống ghi nhận</MenuItem>
+                                        <MenuItem value="INSUFFICIENT_IMPORT">Nhập thiếu</MenuItem>
                                         <MenuItem value="OTHER">Lý do khác</MenuItem>
                                     </Select>
                                 </FormControl>
@@ -777,7 +861,7 @@ export const ImportDiscrepancyPanel = ({
                                     fullWidth
                                     value={note}
                                     onChange={(e) => setNote(e.target.value)}
-                                    placeholder="Biên bản giao nhận, người giao, ghi chú..."
+                                    placeholder="Nhập ghi chú hoặc biên bản đối soát (nếu có)..."
                                     sx={{
                                         '& .MuiOutlinedInput-root': {
                                             borderRadius: '10px',
@@ -864,8 +948,8 @@ export const ImportDiscrepancyPanel = ({
                         sx={{
                             p: 2,
                             borderRadius: '12px',
-                            bgcolor: isValidMissing ? '#fff7ed' : '#f8fafc',
-                            border: `1px solid ${isValidMissing ? '#fed7aa' : '#e2e8f0'}`,
+                            bgcolor: isValidMissing ? '#f0fdf4' : '#f8fafc',
+                            border: `1px solid ${isValidMissing ? '#bbf7d0' : '#e2e8f0'}`,
                             display: 'flex',
                             flexDirection: { xs: 'column', sm: 'row' },
                             alignItems: { xs: 'flex-start', sm: 'center' },
@@ -879,8 +963,8 @@ export const ImportDiscrepancyPanel = ({
                                     width: 36,
                                     height: 36,
                                     borderRadius: '8px',
-                                    bgcolor: isValidMissing ? '#ffedd5' : '#f1f5f9',
-                                    color: isValidMissing ? '#ea580c' : '#64748b',
+                                    bgcolor: isValidMissing ? '#dcfce7' : '#f1f5f9',
+                                    color: isValidMissing ? '#16a34a' : '#64748b',
                                     display: 'flex',
                                     alignItems: 'center',
                                     justifyContent: 'center',
@@ -890,15 +974,15 @@ export const ImportDiscrepancyPanel = ({
                                 <CheckCircleOutlinedIcon sx={{ fontSize: '1.25rem' }} />
                             </Box>
                             <Box>
-                                <Typography variant="subtitle2" fontWeight={800} color={isValidMissing ? '#9a3412' : '#64748b'}>
+                                <Typography variant="subtitle2" fontWeight={800} color={isValidMissing ? '#15803d' : '#475569'}>
                                     {isValidMissing
-                                        ? `Sẵn sàng tạo ${missingQtyEntered.toLocaleString('vi-VN')} vé hệ thống ghi thiếu (${missingConditionLabel}) cho ${missingPlaceholders.length} nhà đài`
+                                        ? `Đã phân bổ đủ ${missingQtyEntered.toLocaleString('vi-VN')} vé cho ${missingPlaceholders.length} nhà đài (${missingConditionLabel})`
                                         : !isMissingQtyExact
-                                          ? `Cần phân bổ đúng ${totalDiff.toLocaleString('vi-VN')} vé (hiện ${missingQtyEntered.toLocaleString('vi-VN')})`
+                                          ? `Cần phân bổ đúng ${totalDiff.toLocaleString('vi-VN')} vé (hiện đã nhập ${missingQtyEntered.toLocaleString('vi-VN')} vé)`
                                           : 'Vui lòng đính kèm ảnh minh chứng cho vé hư hỏng / rách'}
                                 </Typography>
-                                <Typography variant="caption" color={isValidMissing ? '#c2410c' : '#94a3b8'}>
-                                    Hệ thống tạo các vé bổ sung theo từng nhà đài đã nhập số lượng &gt; 0 trong import batch điều chỉnh.
+                                <Typography variant="caption" color={isValidMissing ? '#166534' : '#64748b'}>
+                                    Hệ thống sẽ tạo các vé bổ sung theo từng nhà đài đã nhập số lượng &gt; 0 trong lô nhập điều chỉnh.
                                 </Typography>
                             </Box>
                         </Stack>
@@ -908,25 +992,24 @@ export const ImportDiscrepancyPanel = ({
                             disabled={!isValidMissing || !!submitting || uploadingEvidence}
                             onClick={() =>
                                 onResolve({
-                                    reasonCode,
-                                    ticketCondition: missingCondition,
-                                    note: note || `Bổ sung ${missingQtyEntered} vé hệ thống ghi thiếu (${missingCondition})`,
+                                    reasonCode:
+                                        reasonCode === 'OTHER' ? 'OTHER' : 'INSUFFICIENT_IMPORT',
+                                    ticketCondition: 'UNDER_IMPORTED',
+                                    note: note || `Bổ sung ${missingQtyEntered} vé hệ thống ghi thiếu (UNDER_IMPORTED)`,
                                     markResolved: true,
                                     missingPlaceholders,
-                                    damagedEvidenceUrl: needsMissingEvidence ? missingEvidenceUrl : undefined,
                                 })
                             }
                             sx={{
-                                display: isShortage ? 'none' : 'inline-flex',
                                 textTransform: 'none',
                                 fontWeight: 800,
                                 borderRadius: '10px',
                                 px: 3,
                                 py: 1.1,
-                                bgcolor: '#ea580c',
-                                '&:hover': { bgcolor: '#c2410c' },
+                                bgcolor: '#dc2626',
+                                '&:hover': { bgcolor: '#b91c1c' },
                                 whiteSpace: 'nowrap',
-                                minWidth: 200,
+                                minWidth: 220,
                             }}
                         >
                             {submitting
@@ -1400,7 +1483,7 @@ export const ImportDiscrepancyPanel = ({
                                     >
                                         <MenuItem value="LOST">Thất lạc / Mất vé</MenuItem>
                                         <MenuItem value="DAMAGED">Vé bị rách / hỏng</MenuItem>
-                                        <MenuItem value="VOIDED">Hủy do sai sót nhập liệu</MenuItem>
+                                        <MenuItem value="VOIDED">Hủy vé thừa trên hệ thống</MenuItem>
                                     </Select>
                                 </FormControl>
                             </Grid>
@@ -1561,31 +1644,67 @@ export const ImportDiscrepancyPanel = ({
                     )}
                 </>
             )}
-            {isShortage && (
-                <>
-                <ImportFileTicketCheckDialog
-                    open={fileCheckOpen}
-                    settlementId={settlementId}
-                    onClose={() => setFileCheckOpen(false)}
-                    onApplyStationQuantities={(qtyByStation) => {
-                        setMissingQtyByStation((prev) => {
-                            const next = { ...prev };
-                            Object.entries(qtyByStation).forEach(([stationId, qty]) => {
-                                next[Number(stationId)] = qty > 0 ? String(qty) : '';
-                            });
-                            return next;
-                        });
-                        setMode('MISSING');
-                        setFileCheckOpen(false);
-                    }}
-                />
-                <ImportTicketListImagesDialog
-                    open={ticketListImagesOpen}
-                    importBatches={importBatches}
-                    onClose={() => setTicketListImagesOpen(false)}
-                />
-                </>
-            )}
+            <Dialog
+                open={Boolean(receiptPreview)}
+                onClose={() => setReceiptPreview(null)}
+                maxWidth="md"
+                fullWidth
+            >
+                <DialogTitle sx={{ pr: 6, fontWeight: 800 }}>
+                    {receiptPreview?.title || 'Biên lai'}
+                    <IconButton
+                        aria-label="Đóng"
+                        onClick={() => setReceiptPreview(null)}
+                        sx={{ position: 'absolute', right: 8, top: 8 }}
+                    >
+                        <CloseIcon />
+                    </IconButton>
+                </DialogTitle>
+                <DialogContent dividers>
+                    {receiptPreview?.url && (
+                        <Box
+                            component="img"
+                            src={receiptPreview.url}
+                            alt={receiptPreview.title}
+                            sx={{ width: '100%', maxHeight: '75vh', objectFit: 'contain', borderRadius: '8px' }}
+                        />
+                    )}
+                </DialogContent>
+            </Dialog>
+            <Dialog
+                open={receiptListOpen}
+                onClose={() => setReceiptListOpen(false)}
+                maxWidth="sm"
+                fullWidth
+            >
+                <DialogTitle sx={{ pr: 6, fontWeight: 800 }}>
+                    Biên lai nhập vé
+                    <IconButton
+                        aria-label="Đóng"
+                        onClick={() => setReceiptListOpen(false)}
+                        sx={{ position: 'absolute', right: 8, top: 8 }}
+                    >
+                        <CloseIcon />
+                    </IconButton>
+                </DialogTitle>
+                <DialogContent dividers>
+                    <Stack spacing={1.25}>
+                        {importReceiptItems.map((item) => (
+                            <Button
+                                key={item.id}
+                                variant="outlined"
+                                onClick={() => {
+                                    setReceiptListOpen(false);
+                                    openEvidence(item.url, `Biên lai nhập — ${item.label}`);
+                                }}
+                                sx={{ justifyContent: 'flex-start', textTransform: 'none', fontWeight: 700 }}
+                            >
+                                {item.label}
+                            </Button>
+                        ))}
+                    </Stack>
+                </DialogContent>
+            </Dialog>
         </Paper>
     );
 };

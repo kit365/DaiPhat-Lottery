@@ -6,7 +6,6 @@ import {
     Box,
     Button,
     Checkbox,
-    Chip,
     Paper,
     Stack,
     Table,
@@ -21,6 +20,7 @@ import AssignmentReturnOutlinedIcon from '@mui/icons-material/AssignmentReturnOu
 import CheckCircleOutlinedIcon from '@mui/icons-material/CheckCircleOutlined';
 import type { SettlementAdjustmentReasonCode, SettlementResolvableSerial } from '../../types/supplierSettlement.type';
 import { formatSettlementMoney } from '../../utils/settlementCashflow';
+import { AdminStatusBadge } from '@/admin/components/ui/AdminStatusBadge';
 
 interface Props {
     serials: SettlementResolvableSerial[];
@@ -89,13 +89,19 @@ export const ExcessReturnTicketsPanel = ({
                 <Typography variant="subtitle2" fontWeight={800} color="#0f172a">
                     Danh sách vé import-batch trong ngày
                 </Typography>
-                <Chip
-                    size="small"
-                    color={hasInsufficientEligibleSerials ? 'warning' : isExactQuantity ? 'success' : selectedIds.length > requiredQuantity ? 'error' : 'warning'}
+                <AdminStatusBadge
                     label={hasInsufficientEligibleSerials
                         ? `Không đủ điều kiện (${serials.length}/${requiredQuantity} vé)`
                         : `Đã chọn ${selectedIds.length}/${requiredQuantity} vé`}
-                    sx={{ fontWeight: 800 }}
+                    modifier={
+                        hasInsufficientEligibleSerials
+                            ? 'admin-status-badge--pending'
+                            : isExactQuantity
+                              ? 'admin-status-badge--success'
+                              : selectedIds.length > requiredQuantity
+                                ? 'admin-status-badge--inactive'
+                                : 'admin-status-badge--pending'
+                    }
                 />
             </Stack>
 

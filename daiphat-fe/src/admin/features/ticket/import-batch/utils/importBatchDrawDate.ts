@@ -99,7 +99,14 @@ export const isDrawDateWithinAllowedRange = (drawDate?: string) => {
 
 const DEFAULT_RETURN_CUTOFF_TIME = '14:30';
 
-export { DEFAULT_RETURN_CUTOFF_TIME };
+/**
+ * Fallback for system_config RETURN_BUFFER_TIME while the policy is still
+ * loading, or when it is missing. Named so the same figure is not spelled out
+ * separately in every caller that has to guess.
+ */
+const DEFAULT_RETURN_BUFFER_MINUTES = 45;
+
+export { DEFAULT_RETURN_CUTOFF_TIME, DEFAULT_RETURN_BUFFER_MINUTES };
 
 /** Clock time when ticket intake closes (return cut-off minus buffer). */
 export const resolveInspectionStartTime = (

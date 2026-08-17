@@ -78,7 +78,6 @@ import {
 import { ImportBatchTicketListImagesField } from '../../../import-batch/components/sections/ImportBatchTicketListImagesField';
 import { updateSupplierSettlementReceiptUrl } from '../../services/supplierSettlementService';
 import { deleteStoredFileByUrl } from '../../services/storageService';
-import { bulkUpdateStationPricing } from '@/admin/features/station/services/stationService';
 import {
     readMatchingActualsDraft,
     writeMatchingActualsDraft,
@@ -103,7 +102,9 @@ import { MatchingStationPricingTable } from './MatchingStationPricingTable';
 import {
     buildLiveDiscrepancyItems,
     getDiscrepancyItemLabel,
+    getDiscrepancyItemBadgeModifier,
     getDiscrepancyTypeLabel,
+    getQtyDiffBadgeModifier,
     getReturnBatchCutOffDisplay,
     getReturnMatchingLockDetails,
     isReturnBatchHandedOver,
@@ -115,6 +116,12 @@ import {
     SUPPLIER_SETTLEMENT_DISCREPANCY_TYPES,
 } from '../../utils/settlementLabels';
 import { formatSettlementMoney, scaleSettlementMoney } from '../../utils/settlementCashflow';
+import { AdminStatusBadge } from '@/admin/components/ui/AdminStatusBadge';
+import type { ReturnBatchStatus } from '../../../return-batch/types/returnBatch.type';
+import {
+    getReturnBatchStatusBadgeClass,
+    getReturnBatchStatusLabel,
+} from '../../../return-batch/utils/returnBatchLabels';
 
 /** Matching evidence: images + PDF / Excel / CSV (same as import-batch). */
 const MATCHING_EVIDENCE_ACCEPT =
@@ -247,6 +254,8 @@ interface MatchingActualsFormProps {
         reconciliationNote?: string;
         actualPaidAmount: number;
         additionalCosts?: SettlementMatchingAdditionalCost[];
+        actualTicketImportPrice: number;
+        stationCommissions?: Array<{ lotteryStationId: number; actualCommissionRate: number }>;
     }) => void | Promise<void>;
 }
 
@@ -360,12 +369,12 @@ export const MatchingActualsForm = ({
     onCancelEdit,
     onZoomImage,
     onReceiptUploaded,
-    onStationsUpdated,
     onConfirm,
 }: MatchingActualsFormProps) => {
     const router = useAdminRouter();
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [isDragging, setIsDragging] = useState(false);
+    const [isDraggingImportReceipt, setIsDraggingImportReceipt] = useState(false);
     const [isUploadingReceipt, setIsUploadingReceipt] = useState(false);
     const [isUploadingImportReceipt, setIsUploadingImportReceipt] = useState(false);
     const [isFlushingDraft, setIsFlushingDraft] = useState(false);
@@ -387,6 +396,16 @@ export const MatchingActualsForm = ({
     const [pendingStationPricing, setPendingStationPricing] = useState<
         Array<{ lotteryStationId: number; importCost: number; commissionRate: number }>
     >([]);
+    const [actualImportPrice, setActualImportPrice] = useState(() =>
+        Math.round(Number(
+            settlement.actualTicketImportPrice
+            || settlement.systemTicketImportPrice
+            || 10000
+        ))
+    );
+    const [stationCommissions, setStationCommissions] = useState<
+        Array<{ lotteryStationId: number; actualCommissionRate: number }>
+    >([]);
     const [isUploadingTicketListImages, setIsUploadingTicketListImages] = useState(false);
     const [importEvidenceTab, setImportEvidenceTab] = useState<'receipt' | 'ticketList'>('receipt');
     const [draftReady, setDraftReady] = useState(false);
@@ -400,21 +419,38 @@ export const MatchingActualsForm = ({
     const stationsForDrawDate = Array.isArray(stationsByDrawDate) ? stationsByDrawDate : [];
 
     const pricingRows = useMemo<SettlementStationPricing[]>(() => {
-        if (stationPricing.length > 0) {
-            return stationPricing.map((row) => ({
-                ...row,
-                importCost: Math.round(Number(row.importCost || 0)),
-                netUnitPrice: Math.round(Number(row.netUnitPrice || 0)),
-            }));
-        }
+        const liveSystemFace = Math.round(Number(supplier?.defaultImportCost || 10000));
+        const storedSystemFace = Math.round(Number(
+            settlement.systemTicketImportPrice
+            || liveSystemFace
+            || 10000
+        ));
+        const systemFace = isMatchingDraft ? liveSystemFace : storedSystemFace;
         const stationById = new Map(
             (stationsForDrawDate || []).map((station) => [Number(station.id ?? station._id), station])
         );
+        if (stationPricing.length > 0) {
+            return stationPricing.map((row) => {
+                const liveStation = stationById.get(Number(row.lotteryStationId));
+                const commissionRate = isMatchingDraft && liveStation?.commissionRate != null
+                    ? Number(liveStation.commissionRate)
+                    : Number(row.commissionRate || 0);
+                const importCost = systemFace;
+                const net = computeImportCostFromStation(importCost, commissionRate)
+                    ?? importCost * (1 - commissionRate);
+                return {
+                    ...row,
+                    importCost,
+                    commissionRate,
+                    netUnitPrice: Math.round(Number(net || 0)),
+                };
+            });
+        }
         return (inventoryByStation || [])
             .filter((row) => Number(row.importedQuantity || 0) > 0 && row.lotteryStationId != null)
             .map((row) => {
                 const station = stationById.get(Number(row.lotteryStationId));
-                const importCost = Math.round(Number(station?.price ?? 10000));
+                const importCost = systemFace;
                 const commissionRate = Number(station?.commissionRate ?? 0);
                 const net = computeImportCostFromStation(importCost, commissionRate) ?? importCost * (1 - commissionRate);
                 return {
@@ -424,35 +460,41 @@ export const MatchingActualsForm = ({
                     importCost,
                     commissionRate,
                     netUnitPrice: Math.round(net),
+                    actualCommissionRate: commissionRate,
                 };
             });
-    }, [stationPricing, inventoryByStation, stationsForDrawDate]);
+    }, [
+        stationPricing,
+        inventoryByStation,
+        stationsForDrawDate,
+        settlement.systemTicketImportPrice,
+        supplier?.defaultImportCost,
+        isMatchingDraft,
+    ]);
 
-    const displayPricingRows = useMemo<SettlementStationPricing[]>(() => {
-        if (!pendingStationPricing.length) {
-            return pricingRows;
+    const displayPricingRows = pricingRows;
+
+    useEffect(() => {
+        if (settlement.matchingConfirmedAt && settlement.actualTicketImportPrice) {
+            setActualImportPrice(Math.round(Number(settlement.actualTicketImportPrice)));
+            return;
         }
-        const overrideById = new Map(
-            pendingStationPricing.map((row) => [Number(row.lotteryStationId), row] as const)
-        );
-        return pricingRows.map((row) => {
-            const override = overrideById.get(Number(row.lotteryStationId));
-            if (!override) {
-                return row;
-            }
-            const importCost = Math.round(Number(override.importCost || 0));
-            const commissionRate = Number(override.commissionRate || 0);
-            const net =
-                computeImportCostFromStation(importCost, commissionRate) ??
-                importCost * (1 - commissionRate);
-            return {
-                ...row,
-                importCost,
-                commissionRate,
-                netUnitPrice: Math.round(net),
-            };
-        });
-    }, [pricingRows, pendingStationPricing]);
+        const face = Math.round(Number(
+            isMatchingDraft
+                ? (supplier?.defaultImportCost || pricingRows[0]?.importCost || 0)
+                : (settlement.systemTicketImportPrice || pricingRows[0]?.importCost || supplier?.defaultImportCost || 0)
+        ));
+        if (face > 0) {
+            setActualImportPrice((prev) => (prev === 10000 || prev === face ? face : prev));
+        }
+    }, [
+        settlement.matchingConfirmedAt,
+        settlement.actualTicketImportPrice,
+        settlement.systemTicketImportPrice,
+        pricingRows,
+        supplier?.defaultImportCost,
+        isMatchingDraft,
+    ]);
 
     const [stationNets, setStationNets] = useState({
         systemNet: 0,
@@ -487,7 +529,9 @@ export const MatchingActualsForm = ({
             systemCommissionRate: number;
             actualCommissionRate: number;
         }>;
+        stationCommissions: Array<{ lotteryStationId: number; actualCommissionRate: number }>;
     }) => {
+        setStationCommissions(payload.stationCommissions);
         setStationNets((prev) => {
             const samePrice =
                 prev.priceMismatchStations.length === payload.priceMismatchStations.length
@@ -680,6 +724,7 @@ export const MatchingActualsForm = ({
 
     /** True after the user edits SL nhập — blocks background refetch from overwriting the field. */
     const importQtyDirtyRef = useRef(false);
+    const returnQtyDirtyRef = useRef(false);
     const importQtyRef = useRef(importQty);
     importQtyRef.current = importQty;
     const returnQtyRef = useRef(returnQty);
@@ -719,6 +764,7 @@ export const MatchingActualsForm = ({
 
             setUnitPrice(formatWholeNumberInput(derivedUnitPrice));
             importQtyDirtyRef.current = false;
+            returnQtyDirtyRef.current = false;
             setImportQty(
                 formatWholeNumberInput(
                     !draft && settlement.actualTicketImportQuantity != null
@@ -777,6 +823,7 @@ export const MatchingActualsForm = ({
                     setImportQty(draft.importQty);
                 }
                 if (draft.returnQty != null) {
+                    returnQtyDirtyRef.current = true;
                     setReturnQty(draft.returnQty);
                 }
                 if (draft.unitPrice != null) {
@@ -793,6 +840,12 @@ export const MatchingActualsForm = ({
                 }
                 if (Array.isArray(draft.pendingStationPricing)) {
                     setPendingStationPricing(draft.pendingStationPricing);
+                    if (draft.pendingStationPricing[0]?.importCost) {
+                        setActualImportPrice(Math.round(Number(draft.pendingStationPricing[0].importCost)));
+                    }
+                }
+                if (draft.actualImportPrice != null && Number(draft.actualImportPrice) > 0) {
+                    setActualImportPrice(Math.round(Number(draft.actualImportPrice)));
                 }
                 if (draft.selectedImportId != null) {
                     setSelectedImportId(draft.selectedImportId);
@@ -871,7 +924,12 @@ export const MatchingActualsForm = ({
                 actualPaidAmount,
                 note,
                 additionalCostRows,
-                pendingStationPricing,
+                pendingStationPricing: stationCommissions.map((row) => ({
+                    lotteryStationId: row.lotteryStationId,
+                    importCost: actualImportPrice,
+                    commissionRate: row.actualCommissionRate,
+                })),
+                actualImportPrice,
                 selectedImportId,
                 importEvidenceTab,
                 nccReceiptUrl: isPersistableMatchingEvidenceUrl(receiptUrl) ? receiptUrl.trim() : '',
@@ -892,7 +950,8 @@ export const MatchingActualsForm = ({
         actualPaidAmount,
         note,
         additionalCostRows,
-        pendingStationPricing,
+        actualImportPrice,
+        stationCommissions,
         selectedImportId,
         importEvidenceTab,
         receiptUrl,
@@ -930,9 +989,6 @@ export const MatchingActualsForm = ({
         if (batch?.id != null && String(localImportReceiptById[batch.id] || '').trim()) {
             return localImportReceiptById[batch.id];
         }
-        if (isMatchingDraft) {
-            return '';
-        }
         return batch?.invoiceEvidenceUrl || batch?.receiptImageUrl || batch?.evidenceUrl || '';
     };
 
@@ -944,9 +1000,6 @@ export const MatchingActualsForm = ({
     const importBatchTicketListImages = (batch?: SettlementOverviewImportBatch | null): string[] => {
         if (batch?.id != null && localTicketListImagesById[batch.id]?.length) {
             return localTicketListImagesById[batch.id];
-        }
-        if (isMatchingDraft) {
-            return [];
         }
         return asStringUrlList(batch?.ticketListImageUrls);
     };
@@ -1274,17 +1327,17 @@ export const MatchingActualsForm = ({
 
     const ticketVarianceTone =
         !hasAllRequiredInputs || Math.abs(ticketValDiff) < 0.5
-            ? { bg: '#f8fafc', border: '#e2e8f0', color: '#475569', label: 'Khớp vé', icon: <TrendingFlatOutlinedIcon sx={{ fontSize: '1rem' }} /> }
+            ? { bg: '#f8fafc', border: '#e2e8f0', color: '#475569', label: 'Khớp vé', badgeModifier: 'admin-status-badge--success', icon: <TrendingFlatOutlinedIcon sx={{ fontSize: '1rem' }} /> }
             : ticketValDiff > 0
-                ? { bg: '#fff1f2', border: '#fecdd3', color: '#be123c', label: 'Tăng phải trả', icon: <TrendingUpOutlinedIcon sx={{ fontSize: '1rem' }} /> }
-                : { bg: '#f0fdf4', border: '#bbf7d0', color: '#15803d', label: 'Giảm phải trả', icon: <TrendingDownOutlinedIcon sx={{ fontSize: '1rem' }} /> };
+                ? { bg: '#fff1f2', border: '#fecdd3', color: '#be123c', label: 'Tăng phải trả', badgeModifier: 'admin-status-badge--inactive', icon: <TrendingUpOutlinedIcon sx={{ fontSize: '1rem' }} /> }
+                : { bg: '#f0fdf4', border: '#bbf7d0', color: '#15803d', label: 'Giảm phải trả', badgeModifier: 'admin-status-badge--success', icon: <TrendingDownOutlinedIcon sx={{ fontSize: '1rem' }} /> };
 
     const additionalCostTone =
         manualAdditionalCostTotal === 0
-            ? { bg: '#f8fafc', border: '#e2e8f0', color: '#64748b', label: '0 khoản' }
+            ? { bg: '#f8fafc', border: '#e2e8f0', color: '#64748b', label: '0 khoản', badgeModifier: 'admin-status-badge--draft' }
             : manualAdditionalCostTotal > 0
-                ? { bg: '#fff7ed', border: '#fed7aa', color: '#c2410c', label: `+${additionalCostRows.length} khoản` }
-                : { bg: '#eff6ff', border: '#bfdbfe', color: '#1d4ed8', label: `−${additionalCostRows.length} khoản` };
+                ? { bg: '#fff7ed', border: '#fed7aa', color: '#c2410c', label: `+${additionalCostRows.length} khoản`, badgeModifier: 'admin-status-badge--pending' }
+                : { bg: '#eff6ff', border: '#bfdbfe', color: '#1d4ed8', label: `−${additionalCostRows.length} khoản`, badgeModifier: 'admin-status-badge--active' };
 
     const differenceTone =
         !hasAllRequiredInputs || Math.abs(differenceAmount) < 0.5
@@ -1295,12 +1348,12 @@ export const MatchingActualsForm = ({
 
     const paidDiffTone =
         paymentRemainingDiff == null
-            ? { bg: '#f8fafc', border: '#e2e8f0', color: '#475569', label: 'Chưa nhập' }
+            ? { bg: '#f8fafc', border: '#e2e8f0', color: '#475569', label: 'Chưa nhập', badgeModifier: 'admin-status-badge--draft' }
             : isPaidMatching
-                ? { bg: '#f0fdf4', border: '#bbf7d0', color: '#15803d', label: 'Khớp 100%' }
+                ? { bg: '#f0fdf4', border: '#bbf7d0', color: '#15803d', label: 'Khớp 100%', badgeModifier: 'admin-status-badge--success' }
                 : paidDiff > 0
-                    ? { bg: '#fff1f2', border: '#fecdd3', color: '#be123c', label: 'Đại lý tính thiếu' }
-                    : { bg: '#eff6ff', border: '#bfdbfe', color: '#1d4ed8', label: 'Đại lý tính thừa' };
+                    ? { bg: '#fff1f2', border: '#fecdd3', color: '#be123c', label: 'Đại lý tính thiếu', badgeModifier: 'admin-status-badge--inactive' }
+                    : { bg: '#eff6ff', border: '#bfdbfe', color: '#1d4ed8', label: 'Đại lý tính thừa', badgeModifier: 'admin-status-badge--active' };
 
     // Quantity-only match for Nhập/Trả cards — unit-price variance is handled in pricing / tổng kết.
     const isImportMatching = !isImportQtyEmpty && parsedImportQty === systemImportQty;
@@ -1485,7 +1538,7 @@ export const MatchingActualsForm = ({
     };
 
     const handleUploadImportReceipt = async (file: File): Promise<string> => {
-        if (!selectedImport?.id) {
+        if (selectedImport == null || selectedImport.id == null) {
             AppToast.error('Không tìm thấy phiếu nhập lô để đính kèm biên lai.');
             throw new Error('Không tìm thấy phiếu nhập lô');
         }
@@ -1498,45 +1551,31 @@ export const MatchingActualsForm = ({
             setIsUploadingImportReceipt(true);
             const previousUrl = selectedImportReceiptUrl;
             const uploadedUrl = await uploadImportBatchInvoiceEvidence(file);
-            if (isMatchingDraft) {
-                try {
-                    await deleteMatchingCloudinaryUrl(previousUrl);
-                } catch {
-                    // ignore
-                }
-                if (previousUrl?.startsWith('blob:')) {
-                    URL.revokeObjectURL(previousUrl);
-                }
-                setPendingImportReceiptFileById((prev) => ({ ...prev, [selectedImport.id]: null }));
-                setLocalImportReceiptById((prev) => ({
-                    ...prev,
-                    [selectedImport.id]: uploadedUrl,
-                }));
-                AppToast.success(
-                    `Đã tải biên lai phiếu nhập ${selectedImport.batchCode || `#${selectedImport.id}`} lên Cloudinary.`
-                );
-                return uploadedUrl;
-            }
             const res = await attachImportBatchInvoiceEvidence(selectedImport.id, uploadedUrl);
-            if (res.success) {
-                try {
-                    await deleteMatchingCloudinaryUrl(previousUrl);
-                } catch {
-                    // ignore
-                }
-                setLocalImportReceiptById((prev) => ({
-                    ...prev,
-                    [selectedImport.id]: uploadedUrl,
-                }));
-                AppToast.success(
-                    `Đã tải lên biên lai phiếu nhập ${selectedImport.batchCode || `#${selectedImport.id}`}.`
-                );
-                onReceiptUploaded?.();
-                return uploadedUrl;
-            } else {
+            if (!res.success) {
                 AppToast.error(res.message || 'Lưu tệp biên lai phiếu nhập thất bại.');
                 throw new Error(res.message || 'Failed');
             }
+            if (previousUrl && previousUrl !== uploadedUrl) {
+                try {
+                    await deleteMatchingCloudinaryUrl(previousUrl);
+                } catch {
+                    // ignore
+                }
+            }
+            if (previousUrl?.startsWith('blob:')) {
+                URL.revokeObjectURL(previousUrl);
+            }
+            setPendingImportReceiptFileById((prev) => ({ ...prev, [selectedImport.id]: null }));
+            setLocalImportReceiptById((prev) => ({
+                ...prev,
+                [selectedImport.id]: uploadedUrl,
+            }));
+            AppToast.success(
+                `Đã tải biên lai phiếu nhập ${selectedImport.batchCode || `#${selectedImport.id}`} lên Cloudinary.`
+            );
+            onReceiptUploaded?.();
+            return uploadedUrl;
         } catch (err: any) {
             AppToast.error(
                 err?.response?.data?.message || err?.message || 'Có lỗi xảy ra khi tải tệp biên lai phiếu nhập lên Cloudinary.'
@@ -1548,51 +1587,29 @@ export const MatchingActualsForm = ({
     };
 
     const handleDeleteImportReceipt = async () => {
-        if (!selectedImport?.id) return;
-        if (isMatchingDraft) {
-            try {
-                setIsUploadingImportReceipt(true);
-                const previousUrl = selectedImportReceiptUrl;
-                try {
-                    await deleteMatchingCloudinaryUrl(previousUrl);
-                } catch (err: any) {
-                    AppToast.error(err?.response?.data?.message || 'Không xóa được tệp trên Cloudinary.');
-                    return;
-                }
-                if (previousUrl?.startsWith('blob:')) {
-                    URL.revokeObjectURL(previousUrl);
-                }
-                setPendingImportReceiptFileById((prev) => ({ ...prev, [selectedImport.id]: null }));
-                setLocalImportReceiptById((prev) => ({ ...prev, [selectedImport.id]: '' }));
-                AppToast.success(
-                    `Đã xóa biên lai phiếu nhập ${selectedImport.batchCode || `#${selectedImport.id}`} trên Cloudinary.`
-                );
-            } finally {
-                setIsUploadingImportReceipt(false);
-            }
-            return;
-        }
+        if (selectedImport == null || selectedImport.id == null) return;
+        const previousUrl = selectedImportReceiptUrl;
         try {
             setIsUploadingImportReceipt(true);
-            const previousUrl = selectedImportReceiptUrl;
             const res = await attachImportBatchInvoiceEvidence(selectedImport.id, '');
-            if (res.success) {
-                try {
-                    await deleteMatchingCloudinaryUrl(previousUrl);
-                } catch {
-                    // BE already hard-deletes on clear.
-                }
-                setLocalImportReceiptById((prev) => ({
-                    ...prev,
-                    [selectedImport.id]: '',
-                }));
-                AppToast.success(
-                    `Đã gỡ tệp biên lai phiếu nhập ${selectedImport.batchCode || `#${selectedImport.id}`}.`
-                );
-                onReceiptUploaded?.();
-            } else {
+            if (!res.success) {
                 AppToast.error(res.message || 'Gỡ tệp biên lai phiếu nhập thất bại.');
+                return;
             }
+            try {
+                await deleteMatchingCloudinaryUrl(previousUrl);
+            } catch {
+                // BE already hard-deletes on clear.
+            }
+            if (previousUrl?.startsWith('blob:')) {
+                URL.revokeObjectURL(previousUrl);
+            }
+            setPendingImportReceiptFileById((prev) => ({ ...prev, [selectedImport.id]: null }));
+            setLocalImportReceiptById((prev) => ({ ...prev, [selectedImport.id]: '' }));
+            AppToast.success(
+                `Đã xóa biên lai phiếu nhập ${selectedImport.batchCode || `#${selectedImport.id}`} trên Cloudinary.`
+            );
+            onReceiptUploaded?.();
         } catch (err: any) {
             AppToast.error(err?.response?.data?.message || 'Có lỗi xảy ra khi gỡ tệp biên lai phiếu nhập.');
         } finally {
@@ -1601,19 +1618,26 @@ export const MatchingActualsForm = ({
     };
 
     const handleUpdateTicketListImages = async (newUrls: string[]) => {
-        if (!selectedImport?.id) {
+        if (selectedImport == null || selectedImport.id == null) {
             AppToast.error('Không tìm thấy phiếu nhập lô.');
             return;
         }
-        if (isMatchingDraft) {
+        try {
+            setIsUploadingTicketListImages(true);
             const previousUrls = selectedImportTicketListImages;
-            const removed = previousUrls.filter((url) => !newUrls.includes(url));
+            const persistable = newUrls.filter((url) => isPersistableMatchingEvidenceUrl(url));
+            const res = await attachTicketListImages(selectedImport.id, persistable);
+            if (!res.success) {
+                AppToast.error(res.message || 'Lưu ảnh danh sách vé thất bại.');
+                return;
+            }
+            const removed = previousUrls.filter((url) => !persistable.includes(url));
             await Promise.all(
                 removed.map(async (url) => {
                     try {
                         await deleteMatchingCloudinaryUrl(url);
                     } catch {
-                        // ignore
+                        // BE already hard-deletes removed URLs.
                     }
                     if (url.startsWith('blob:')) {
                         URL.revokeObjectURL(url);
@@ -1622,36 +1646,12 @@ export const MatchingActualsForm = ({
             );
             setLocalTicketListImagesById((prev) => ({
                 ...prev,
-                [selectedImport.id]: newUrls.filter((url) => isPersistableMatchingEvidenceUrl(url)),
+                [selectedImport.id]: persistable,
             }));
-            return;
-        }
-        try {
-            setIsUploadingTicketListImages(true);
-            const previousUrls = selectedImportTicketListImages;
-            const res = await attachTicketListImages(selectedImport.id, newUrls);
-            if (res.success) {
-                const removed = previousUrls.filter((url) => !newUrls.includes(url));
-                await Promise.all(
-                    removed.map(async (url) => {
-                        try {
-                            await deleteMatchingCloudinaryUrl(url);
-                        } catch {
-                            // BE already hard-deletes removed URLs.
-                        }
-                    })
-                );
-                setLocalTicketListImagesById((prev) => ({
-                    ...prev,
-                    [selectedImport.id]: newUrls,
-                }));
-                AppToast.success(
-                    `Đã cập nhật ảnh danh sách vé cho phiếu nhập ${selectedImport.batchCode || `#${selectedImport.id}`}.`
-                );
-                onReceiptUploaded?.();
-            } else {
-                AppToast.error(res.message || 'Lưu ảnh danh sách vé thất bại.');
-            }
+            AppToast.success(
+                `Đã cập nhật ảnh danh sách vé cho phiếu nhập ${selectedImport.batchCode || `#${selectedImport.id}`}.`
+            );
+            onReceiptUploaded?.();
         } catch (err: any) {
             AppToast.error(
                 err?.response?.data?.message || err?.message || 'Có lỗi xảy ra khi lưu ảnh danh sách vé nhập.'
@@ -1683,19 +1683,18 @@ export const MatchingActualsForm = ({
         if (!isMatchingDraft || !settlement?.id) {
             return;
         }
-        // 1) Station pricing drafts
-        if (pendingStationPricing.length > 0) {
-            await bulkUpdateStationPricing(pendingStationPricing);
-        }
-        // 2) NCC receipt — already on Cloudinary; attach URL to settlement
+        // NCC receipt — already on Cloudinary; attach URL to settlement
         if (isPersistableMatchingEvidenceUrl(receiptUrl)) {
             const res = await updateSupplierSettlementReceiptUrl(settlement.id, receiptUrl.trim());
             if (!res.success) {
                 throw new Error(res.message || 'Lưu biên lai NCC thất bại.');
             }
         }
-        // 3) Import batch evidence — already on Cloudinary; attach URLs
-        for (const batch of importBatches) {
+        // 3) Import batch evidence — already persisted on upload; attach leftover local URLs
+        for (const batch of effectiveImportBatches) {
+            if (batch.id == null) {
+                continue;
+            }
             const receiptUrlForBatch = localImportReceiptById[batch.id];
             if (isPersistableMatchingEvidenceUrl(receiptUrlForBatch)) {
                 const res = await attachImportBatchInvoiceEvidence(batch.id, receiptUrlForBatch.trim());
@@ -1749,8 +1748,11 @@ export const MatchingActualsForm = ({
                 reconciliationNote: noteRef.current.trim() || undefined,
                 actualPaidAmount: livePaid,
                 additionalCosts,
+                actualTicketImportPrice: actualImportPrice,
+                stationCommissions,
             });
             importQtyDirtyRef.current = false;
+            returnQtyDirtyRef.current = false;
             // Overview invalidate/refetch runs in the confirm mutation onSuccess — avoid racing mid-confirm.
         } catch (err: any) {
             // Parent already toasts confirm API failures.
@@ -1758,7 +1760,7 @@ export const MatchingActualsForm = ({
                 return;
             }
             AppToast.error(
-                err?.response?.data?.message || err?.message || 'Không lưu được chứng từ / giá đài trước khi đối chiếu.'
+                err?.response?.data?.message || err?.message || 'Không lưu được chứng từ trước khi đối chiếu.'
             );
         } finally {
             setIsFlushingDraft(false);
@@ -1929,55 +1931,24 @@ export const MatchingActualsForm = ({
                                         </Typography>
                                     </Stack>
                                     {isImportQtyEmpty ? (
-                                        <Chip
-                                            size="small"
+                                        <AdminStatusBadge
                                             label="Chưa nhập SL"
-                                            sx={{
-                                                bgcolor: '#f8fafc',
-                                                color: '#64748b',
-                                                fontWeight: 700,
-                                                fontSize: '0.725rem',
-                                                border: '1px solid #e2e8f0',
-                                            }}
+                                            modifier={getQtyDiffBadgeModifier(false, false, true)}
                                         />
                                     ) : isImportMatching ? (
-                                        <Chip
-                                            size="small"
-                                            icon={<CheckCircleOutlinedIcon style={{ fontSize: '0.95rem', color: '#16a34a' }} />}
+                                        <AdminStatusBadge
                                             label="Khớp hệ thống"
-                                            sx={{
-                                                bgcolor: '#f0fdf4',
-                                                color: '#16a34a',
-                                                fontWeight: 700,
-                                                fontSize: '0.725rem',
-                                                border: '1px solid #bbf7d0',
-                                            }}
+                                            modifier={getQtyDiffBadgeModifier(true, false)}
                                         />
                                     ) : importQtyDiff > 0 ? (
-                                        <Chip
-                                            size="small"
-                                            icon={<TrendingDownOutlinedIcon style={{ fontSize: '0.95rem', color: '#b45309' }} />}
+                                        <AdminStatusBadge
                                             label={`Thiếu nhập (+${importQtyDiff.toLocaleString('vi-VN')} vé)`}
-                                            sx={{
-                                                bgcolor: '#fffbeb',
-                                                color: '#b45309',
-                                                fontWeight: 800,
-                                                fontSize: '0.725rem',
-                                                border: '1px solid #fde68a',
-                                            }}
+                                            modifier={getQtyDiffBadgeModifier(false, true)}
                                         />
                                     ) : (
-                                        <Chip
-                                            size="small"
-                                            icon={<TrendingUpOutlinedIcon style={{ fontSize: '0.95rem', color: '#be123c' }} />}
+                                        <AdminStatusBadge
                                             label={`Thừa nhập (${importQtyDiff.toLocaleString('vi-VN')} vé)`}
-                                            sx={{
-                                                bgcolor: '#fff1f2',
-                                                color: '#be123c',
-                                                fontWeight: 800,
-                                                fontSize: '0.725rem',
-                                                border: '1px solid #fecdd3',
-                                            }}
+                                            modifier={getQtyDiffBadgeModifier(false, false)}
                                         />
                                     )}
                                 </Stack>
@@ -2029,10 +2000,22 @@ export const MatchingActualsForm = ({
                                             badgeColor: '#15803d',
                                             badgeBorder: '#86efac',
                                             badgeText: 'Khớp',
+                                            badgeModifier: 'admin-status-badge--success',
                                             icon: <CheckCircleOutlinedIcon sx={{ fontSize: '1.15rem', color: '#16a34a' }} />,
                                         }
                                         : isPositive
                                         ? {
+                                            bg: '#fef2f2',
+                                            border: '#fecaca',
+                                            textColor: '#dc2626',
+                                            subColor: '#991b1b',
+                                            badgeBg: '#fee2e2',
+                                            badgeColor: '#dc2626',
+                                            badgeBorder: '#fca5a5',
+                                            badgeText: 'Thiếu nhập (+)',
+                                            icon: <TrendingDownOutlinedIcon sx={{ fontSize: '1.2rem', color: '#dc2626' }} />,
+                                        }
+                                        : {
                                             bg: '#fffbeb',
                                             border: '#fde68a',
                                             textColor: '#b45309',
@@ -2040,19 +2023,8 @@ export const MatchingActualsForm = ({
                                             badgeBg: '#fef3c7',
                                             badgeColor: '#b45309',
                                             badgeBorder: '#fde68a',
-                                            badgeText: 'Thiếu nhập (+)',
-                                            icon: <TrendingDownOutlinedIcon sx={{ fontSize: '1.2rem', color: '#b45309' }} />,
-                                        }
-                                        : {
-                                            bg: '#fff1f2',
-                                            border: '#fecdd3',
-                                            textColor: '#be123c',
-                                            subColor: '#9f1239',
-                                            badgeBg: '#ffe4e6',
-                                            badgeColor: '#be123c',
-                                            badgeBorder: '#fecdd3',
                                             badgeText: 'Thừa nhập (-)',
-                                            icon: <TrendingUpOutlinedIcon sx={{ fontSize: '1.2rem', color: '#be123c' }} />,
+                                            icon: <TrendingUpOutlinedIcon sx={{ fontSize: '1.2rem', color: '#b45309' }} />,
                                         };
 
                                     return (
@@ -2077,17 +2049,9 @@ export const MatchingActualsForm = ({
                                                 <Typography variant="caption" fontWeight={800} color={theme.subColor} sx={{ textTransform: 'uppercase', letterSpacing: '0.4px' }}>
                                                     Chênh lệch nhập:
                                                 </Typography>
-                                                <Chip
-                                                    size="small"
+                                                <AdminStatusBadge
                                                     label={theme.badgeText}
-                                                    sx={{
-                                                        bgcolor: theme.badgeBg,
-                                                        color: theme.badgeColor,
-                                                        border: `1px solid ${theme.badgeBorder}`,
-                                                        fontWeight: 800,
-                                                        fontSize: '0.725rem',
-                                                        height: 22,
-                                                    }}
+                                                    modifier={getQtyDiffBadgeModifier(isMatching, isPositive)}
                                                 />
                                             </Stack>
                                             <Typography variant="body2" fontWeight={800} color={theme.textColor} sx={{ fontSize: '0.925rem' }}>
@@ -2124,8 +2088,10 @@ export const MatchingActualsForm = ({
                                             helperText={isImportQtyEmpty ? 'Bắt buộc nhập số lượng' : undefined}
                                             onChange={(e) => {
                                                 const raw = e.target.value.replace(/\D/g, '');
+                                                const formatted = raw ? parseInt(raw, 10).toLocaleString('vi-VN') : '';
                                                 importQtyDirtyRef.current = true;
-                                                setImportQty(raw ? parseInt(raw, 10).toLocaleString('vi-VN') : '');
+                                                importQtyRef.current = formatted;
+                                                setImportQty(formatted);
                                             }}
                                             InputProps={{
                                                 endAdornment: <InputAdornment position="end"><Typography variant="caption" fontWeight={600} color="#64748b">vé</Typography></InputAdornment>,
@@ -2230,72 +2196,33 @@ export const MatchingActualsForm = ({
                                         </Typography>
                                     </Stack>
                                     {isReturnInputsLocked ? (
-                                        <Chip
-                                            size="small"
-                                            icon={<LockOutlinedIcon style={{ fontSize: '0.95rem', color: '#64748b' }} />}
+                                        <AdminStatusBadge
                                             label={
                                                 returnLockDetails.overdue || returnLockDetails.allCancelled
                                                     ? 'Quá hạn / Đã hủy'
                                                     : 'Chưa bàn giao'
                                             }
-                                            sx={{
-                                                bgcolor: '#f1f5f9',
-                                                color: '#475569',
-                                                fontWeight: 700,
-                                                fontSize: '0.725rem',
-                                                border: '1px solid #e2e8f0',
-                                            }}
+                                            modifier="admin-status-badge--pending"
                                         />
                                     ) : isReturnQtyEmpty ? (
-                                        <Chip
-                                            size="small"
+                                        <AdminStatusBadge
                                             label="Chưa nhập SL"
-                                            sx={{
-                                                bgcolor: '#f8fafc',
-                                                color: '#64748b',
-                                                fontWeight: 700,
-                                                fontSize: '0.725rem',
-                                                border: '1px solid #e2e8f0',
-                                            }}
+                                            modifier={getQtyDiffBadgeModifier(false, false, true)}
                                         />
                                     ) : isReturnMatching ? (
-                                        <Chip
-                                            size="small"
-                                            icon={<CheckCircleOutlinedIcon style={{ fontSize: '0.95rem', color: '#16a34a' }} />}
+                                        <AdminStatusBadge
                                             label="Khớp hệ thống"
-                                            sx={{
-                                                bgcolor: '#f0fdf4',
-                                                color: '#16a34a',
-                                                fontWeight: 700,
-                                                fontSize: '0.725rem',
-                                                border: '1px solid #bbf7d0',
-                                            }}
+                                            modifier={getQtyDiffBadgeModifier(true, false)}
                                         />
                                     ) : returnQtyDiff > 0 ? (
-                                        <Chip
-                                            size="small"
-                                            icon={<TrendingUpOutlinedIcon style={{ fontSize: '0.95rem', color: '#be123c' }} />}
+                                        <AdminStatusBadge
                                             label={`Thừa trả (+${returnQtyDiff.toLocaleString('vi-VN')} vé)`}
-                                            sx={{
-                                                bgcolor: '#fff1f2',
-                                                color: '#be123c',
-                                                fontWeight: 800,
-                                                fontSize: '0.725rem',
-                                                border: '1px solid #fecdd3',
-                                            }}
+                                            modifier={getQtyDiffBadgeModifier(false, true)}
                                         />
                                     ) : (
-                                        <Chip
-                                            size="small"
-                                            icon={<TrendingDownOutlinedIcon style={{ fontSize: '0.95rem', color: '#b45309' }} />}
+                                        <AdminStatusBadge
                                             label={`Thiếu trả (${returnQtyDiff.toLocaleString('vi-VN')} vé)`}
-                                            sx={{
-                                                bgcolor: '#fffbeb',
-                                                color: '#b45309',
-                                                fontWeight: 800,
-                                                fontSize: '0.725rem',
-                                                border: '1px solid #fde68a',
-                                            }}
+                                            modifier={getQtyDiffBadgeModifier(false, false)}
                                         />
                                     )}
                                 </Stack>
@@ -2347,6 +2274,7 @@ export const MatchingActualsForm = ({
                                             badgeColor: '#15803d',
                                             badgeBorder: '#86efac',
                                             badgeText: 'Khớp',
+                                            badgeModifier: 'admin-status-badge--success',
                                             icon: <CheckCircleOutlinedIcon sx={{ fontSize: '1.15rem', color: '#16a34a' }} />,
                                         }
                                         : isPositive
@@ -2395,17 +2323,9 @@ export const MatchingActualsForm = ({
                                                 <Typography variant="caption" fontWeight={800} color={theme.subColor} sx={{ textTransform: 'uppercase', letterSpacing: '0.4px' }}>
                                                     Chênh lệch trả:
                                                 </Typography>
-                                                <Chip
-                                                    size="small"
+                                                <AdminStatusBadge
                                                     label={theme.badgeText}
-                                                    sx={{
-                                                        bgcolor: theme.badgeBg,
-                                                        color: theme.badgeColor,
-                                                        border: `1px solid ${theme.badgeBorder}`,
-                                                        fontWeight: 800,
-                                                        fontSize: '0.725rem',
-                                                        height: 22,
-                                                    }}
+                                                    modifier={getQtyDiffBadgeModifier(isMatching, isPositive)}
                                                 />
                                             </Stack>
                                             <Typography variant="body2" fontWeight={800} color={theme.textColor} sx={{ fontSize: '0.925rem' }}>
@@ -2450,7 +2370,10 @@ export const MatchingActualsForm = ({
                                             onChange={(e) => {
                                                 if (isReturnInputsLocked) return;
                                                 const raw = e.target.value.replace(/\D/g, '');
-                                                setReturnQty(raw ? parseInt(raw, 10).toLocaleString('vi-VN') : '');
+                                                const formatted = raw ? parseInt(raw, 10).toLocaleString('vi-VN') : '';
+                                                returnQtyDirtyRef.current = true;
+                                                returnQtyRef.current = formatted;
+                                                setReturnQty(formatted);
                                             }}
                                             InputProps={{
                                                 endAdornment: <InputAdornment position="end"><Typography variant="caption" fontWeight={600} color="#64748b">vé</Typography></InputAdornment>,
@@ -2618,10 +2541,10 @@ export const MatchingActualsForm = ({
                     <MatchingStationPricingTable
                         key={`station-pricing-${stationPricingHydrateKey}`}
                         rows={displayPricingRows}
-                        deferPersist
+                        disabled={Boolean(isSubmitting)}
+                        actualImportPrice={actualImportPrice}
+                        onActualImportPriceChange={setActualImportPrice}
                         onWeightedChange={handleStationWeightedChange}
-                        onPendingPricingChange={setPendingStationPricing}
-                        onStationsUpdated={onStationsUpdated}
                     />
                 </Paper>
 
@@ -2673,17 +2596,9 @@ export const MatchingActualsForm = ({
 
                         <Stack direction="row" spacing={1} alignItems="center">
                             {manualAdditionalCostTotal !== 0 && (
-                                <Chip
-                                    size="small"
+                                <AdminStatusBadge
                                     label={`Tổng chi phí: ${manualAdditionalCostTotal > 0 ? '+' : ''}${formatSettlementMoney(manualAdditionalCostTotal)} VNĐ`}
-                                    sx={{
-                                        fontWeight: 800,
-                                        fontSize: '0.75rem',
-                                        bgcolor: manualAdditionalCostTotal > 0 ? '#f0fdf4' : '#eff6ff',
-                                        color: manualAdditionalCostTotal > 0 ? '#166534' : '#1d4ed8',
-                                        border: `1px solid ${manualAdditionalCostTotal > 0 ? '#bbf7d0' : '#bfdbfe'}`,
-                                        height: 28,
-                                    }}
+                                    modifier={manualAdditionalCostTotal > 0 ? 'admin-status-badge--success' : 'admin-status-badge--active'}
                                 />
                             )}
                             <Button
@@ -2738,11 +2653,9 @@ export const MatchingActualsForm = ({
                                         </Typography>
                                     </Box>
                                 </Stack>
-                                <Chip
-                                    size="small"
+                                <AdminStatusBadge
                                     label={isPaymentCoverageMatched ? 'Đã bù đủ 100%' : `Đã giải trình ${paymentCoverageProgressPct}%`}
-                                    color={isPaymentCoverageMatched ? 'success' : 'warning'}
-                                    sx={{ fontWeight: 800, height: 26, fontSize: '0.725rem' }}
+                                    modifier={isPaymentCoverageMatched ? 'admin-status-badge--success' : 'admin-status-badge--pending'}
                                 />
                             </Stack>
 
@@ -3175,18 +3088,9 @@ export const MatchingActualsForm = ({
                                 </Typography>
                             </Box>
                         </Stack>
-                        <Chip
-                            size="small"
-                            icon={displayedDiscrepancyCount === 0 ? <CheckCircleOutlinedIcon style={{ fontSize: '0.9rem', color: '#16a34a' }} /> : <WarningAmberOutlinedIcon style={{ fontSize: '0.9rem', color: '#b45309' }} />}
+                        <AdminStatusBadge
                             label={displayedDiscrepancyCount === 0 ? 'Đã khớp toàn bộ số liệu' : `Có ${displayedDiscrepancyCount} nguồn phát hiện sai lệch`}
-                            sx={{
-                                fontWeight: 800,
-                                fontSize: '0.75rem',
-                                height: 28,
-                                bgcolor: displayedDiscrepancyCount === 0 ? '#f0fdf4' : '#fffbeb',
-                                color: displayedDiscrepancyCount === 0 ? '#16a34a' : '#b45309',
-                                border: `1px solid ${displayedDiscrepancyCount === 0 ? '#bbf7d0' : '#fde68a'}`,
-                            }}
+                            modifier={displayedDiscrepancyCount === 0 ? 'admin-status-badge--success' : 'admin-status-badge--pending'}
                         />
                     </Stack>
 
@@ -3235,20 +3139,13 @@ export const MatchingActualsForm = ({
                                     </Typography>
                                 </Box>
                             </Stack>
-                            <Chip
-                                size="small"
+                            <AdminStatusBadge
                                 label={
                                     displayedDiscrepancyCount === 0
                                         ? 'Khớp 100%'
                                         : `${displayedDiscrepancyCount}/${SUPPLIER_SETTLEMENT_DISCREPANCY_TYPES.length} loại lệch`
                                 }
-                                sx={{
-                                    fontWeight: 800,
-                                    fontSize: '0.725rem',
-                                    height: 24,
-                                    bgcolor: displayedDiscrepancyCount === 0 ? '#dcfce7' : '#ffedd5',
-                                    color: displayedDiscrepancyCount === 0 ? '#15803d' : '#9a3412',
-                                }}
+                                modifier={displayedDiscrepancyCount === 0 ? 'admin-status-badge--success' : 'admin-status-badge--pending'}
                             />
                         </Stack>
 
@@ -3323,38 +3220,14 @@ export const MatchingActualsForm = ({
                                                 )}
                                             </Box>
                                             {item ? (
-                                                <Chip
-                                                    size="small"
-                                                    icon={
-                                                        isPositive ? (
-                                                            <TrendingUpOutlinedIcon style={{ fontSize: '0.85rem' }} />
-                                                        ) : (
-                                                            <TrendingDownOutlinedIcon style={{ fontSize: '0.85rem' }} />
-                                                        )
-                                                    }
-                                                    color={isPositive ? 'error' : 'warning'}
-                                                    variant="outlined"
+                                                <AdminStatusBadge
                                                     label={getDiscrepancyItemLabel(item)}
-                                                    sx={{
-                                                        fontWeight: 700,
-                                                        fontSize: '0.725rem',
-                                                        height: 'auto',
-                                                        py: 0.35,
-                                                        bgcolor: '#ffffff',
-                                                        maxWidth: { xs: '100%', sm: 300 },
-                                                        '& .MuiChip-label': {
-                                                            whiteSpace: 'normal',
-                                                            textAlign: 'left',
-                                                        },
-                                                    }}
+                                                    modifier={getDiscrepancyItemBadgeModifier(false, item.direction)}
                                                 />
                                             ) : (
-                                                <Chip
-                                                    size="small"
-                                                    color="warning"
-                                                    variant="outlined"
+                                                <AdminStatusBadge
                                                     label="Lệch giá nhập / hoa hồng theo đài"
-                                                    sx={{ fontWeight: 700, fontSize: '0.725rem', height: 24, bgcolor: '#ffffff' }}
+                                                    modifier="admin-status-badge--pending"
                                                 />
                                             )}
                                         </Stack>
@@ -3362,6 +3235,77 @@ export const MatchingActualsForm = ({
                                 })}
                             </Stack>
                         )}
+                    </Box>
+
+                    <Box
+                        sx={{
+                            mb: 2,
+                            p: 1.75,
+                            borderRadius: '12px',
+                            bgcolor: '#f8fafc',
+                            border: '1px dashed #cbd5e1',
+                        }}
+                    >
+                        <Stack direction="row" spacing={1} alignItems="flex-start">
+                            <InfoOutlinedIcon sx={{ fontSize: '1.1rem', color: '#64748b', mt: 0.2, flexShrink: 0 }} />
+                            <Box sx={{ flex: 1, minWidth: 0 }}>
+                                <Typography
+                                    variant="caption"
+                                    fontWeight={800}
+                                    color="#334155"
+                                    sx={{ display: 'block', mb: 0.75, textTransform: 'uppercase', letterSpacing: '0.3px' }}
+                                >
+                                    Số tiền cần trả (hệ thống tạm tính)
+                                </Typography>
+                                <Typography variant="caption" color="#475569" sx={{ fontSize: '0.8rem', display: 'block', lineHeight: 1.55, mb: 1.25 }}>
+                                    (Giá nhập sau hoa hồng × tổng vé nhập HT) − tiền vé ế hoàn HT
+                                </Typography>
+                                <Stack
+                                    direction={{ xs: 'column', md: 'row' }}
+                                    spacing={1}
+                                    alignItems={{ xs: 'stretch', md: 'center' }}
+                                    divider={
+                                        <Typography
+                                            variant="caption"
+                                            fontWeight={800}
+                                            color="#64748b"
+                                            sx={{ px: { md: 0.25 }, textAlign: 'center' }}
+                                        >
+                                            −
+                                        </Typography>
+                                    }
+                                >
+                                    <Box sx={{ flex: 1, minWidth: 0, bgcolor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '10px', px: 1.25, py: 1 }}>
+                                        <Typography variant="caption" color="#64748b" fontWeight={700} sx={{ display: 'block', mb: 0.25 }}>
+                                            Tiền nhập HT (sau HH)
+                                        </Typography>
+                                        <Typography variant="caption" color="#0f172a" fontWeight={800} sx={{ display: 'block' }}>
+                                            {formatSettlementMoney(originalUnitPrice)} × {systemImportQty.toLocaleString('vi-VN')} vé
+                                            {' = '}
+                                            {formatSettlementMoney(systemImportVal)} VNĐ
+                                        </Typography>
+                                    </Box>
+                                    <Box sx={{ flex: 1, minWidth: 0, bgcolor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '10px', px: 1.25, py: 1 }}>
+                                        <Typography variant="caption" color="#64748b" fontWeight={700} sx={{ display: 'block', mb: 0.25 }}>
+                                            Tiền vé ế hoàn HT
+                                        </Typography>
+                                        <Typography variant="caption" color="#0f172a" fontWeight={800} sx={{ display: 'block' }}>
+                                            {formatSettlementMoney(originalUnitPrice)} × {systemReturnQty.toLocaleString('vi-VN')} vé
+                                            {' = '}
+                                            {formatSettlementMoney(systemReturnVal)} VNĐ
+                                        </Typography>
+                                    </Box>
+                                    <Box sx={{ flex: 1, minWidth: 0, bgcolor: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '10px', px: 1.25, py: 1 }}>
+                                        <Typography variant="caption" color="#1d4ed8" fontWeight={700} sx={{ display: 'block', mb: 0.25 }}>
+                                            = Số tiền cần trả (tạm tính)
+                                        </Typography>
+                                        <Typography variant="caption" color="#1e3a8a" fontWeight={900} sx={{ display: 'block', fontSize: '0.85rem' }}>
+                                            {formatSettlementMoney(initialEstimatedVal)} VNĐ
+                                        </Typography>
+                                    </Box>
+                                </Stack>
+                            </Box>
+                        </Stack>
                     </Box>
 
                     {/* Financial Flow: 3-Step or 4-Step Interactive Reconciliation Map */}
@@ -3385,10 +3329,9 @@ export const MatchingActualsForm = ({
                                         <Typography variant="caption" color="#475569" fontWeight={800} sx={{ textTransform: 'uppercase', letterSpacing: '0.4px', fontSize: '0.75rem' }}>
                                             1. Tạm tính ban đầu
                                         </Typography>
-                                        <Chip
-                                            size="small"
+                                        <AdminStatusBadge
                                             label="Dữ liệu gốc"
-                                            sx={{ height: 22, fontSize: '0.675rem', fontWeight: 700, bgcolor: '#ffffff', color: '#64748b', border: '1px solid #e2e8f0' }}
+                                            modifier="admin-status-badge--draft"
                                         />
                                     </Stack>
                                     <Typography variant="h5" fontWeight={900} color="#0f172a" sx={{ fontSize: '1.35rem', mb: 1.5 }}>
@@ -3398,22 +3341,21 @@ export const MatchingActualsForm = ({
                                     </Typography>
                                 </Box>
 
-                                {/* Structured Key-Value Details */}
                                 <Stack spacing={0.75} sx={{ pt: 1.5, borderTop: '1px solid #e2e8f0' }}>
                                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', bgcolor: '#ffffff', px: 1.25, py: 0.6, borderRadius: '8px', border: '1px solid #e2e8f0' }}>
                                         <Typography variant="caption" color="#64748b" fontWeight={600} sx={{ fontSize: '0.75rem' }}>
-                                            Giá vốn HT:
+                                            Tiền nhập HT:
                                         </Typography>
                                         <Typography variant="caption" color="#0f172a" fontWeight={800} sx={{ fontSize: '0.8rem' }}>
-                                            {formatSettlementMoney(originalUnitPrice)} VNĐ/vé
+                                            {formatSettlementMoney(systemImportVal)} VNĐ
                                         </Typography>
                                     </Box>
                                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', bgcolor: '#ffffff', px: 1.25, py: 0.6, borderRadius: '8px', border: '1px solid #e2e8f0' }}>
                                         <Typography variant="caption" color="#64748b" fontWeight={600} sx={{ fontSize: '0.75rem' }}>
-                                            SL thanh toán:
+                                            Vé ế hoàn HT:
                                         </Typography>
                                         <Typography variant="caption" color="#0f172a" fontWeight={800} sx={{ fontSize: '0.8rem' }}>
-                                            {(systemImportQty - systemReturnQty).toLocaleString('vi-VN')} vé
+                                            {formatSettlementMoney(systemReturnVal)} VNĐ
                                         </Typography>
                                     </Box>
                                 </Stack>
@@ -3439,17 +3381,9 @@ export const MatchingActualsForm = ({
                                         <Typography variant="caption" fontWeight={800} color={ticketVarianceTone.color} sx={{ textTransform: 'uppercase', letterSpacing: '0.4px', fontSize: '0.75rem' }}>
                                             2. Biến động vé (Δ)
                                         </Typography>
-                                        <Chip
-                                            size="small"
+                                        <AdminStatusBadge
                                             label={ticketVarianceTone.label}
-                                            sx={{
-                                                height: 22,
-                                                fontSize: '0.675rem',
-                                                fontWeight: 800,
-                                                bgcolor: '#ffffff',
-                                                color: ticketVarianceTone.color,
-                                                border: `1px solid ${ticketVarianceTone.border}`,
-                                            }}
+                                            modifier={ticketVarianceTone.badgeModifier}
                                         />
                                     </Stack>
                                     <Typography variant="h5" fontWeight={900} color={ticketVarianceTone.color} sx={{ fontSize: '1.35rem', mb: 1.5 }}>
@@ -3501,17 +3435,9 @@ export const MatchingActualsForm = ({
                                             <Typography variant="caption" color={additionalCostTone.color} fontWeight={800} sx={{ textTransform: 'uppercase', letterSpacing: '0.4px', fontSize: '0.75rem' }}>
                                                 3. Chi phí ngoài kỳ (±)
                                             </Typography>
-                                            <Chip
-                                                size="small"
+                                            <AdminStatusBadge
                                                 label={additionalCostTone.label}
-                                                sx={{
-                                                    height: 22,
-                                                    fontSize: '0.675rem',
-                                                    fontWeight: 800,
-                                                    bgcolor: '#ffffff',
-                                                    color: additionalCostTone.color,
-                                                    border: `1px solid ${additionalCostTone.border}`,
-                                                }}
+                                                modifier={additionalCostTone.badgeModifier}
                                             />
                                         </Stack>
                                         <Typography variant="h5" fontWeight={900} color={additionalCostTone.color} sx={{ fontSize: '1.35rem', mb: 1.5 }}>
@@ -3567,10 +3493,9 @@ export const MatchingActualsForm = ({
                                         <Typography variant="caption" color="#1e40af" fontWeight={800} sx={{ textTransform: 'uppercase', letterSpacing: '0.4px', fontSize: '0.75rem' }}>
                                             {additionalCostRows.length > 0 ? '4. Quyết toán sau đối soát' : '3. Quyết toán sau đối soát'}
                                         </Typography>
-                                        <Chip
-                                            size="small"
+                                        <AdminStatusBadge
                                             label="Số tiền chốt"
-                                            sx={{ height: 22, fontSize: '0.675rem', fontWeight: 800, bgcolor: '#dbeafe', color: '#1e40af', border: '1px solid #93c5fd' }}
+                                            modifier="admin-status-badge--active"
                                         />
                                     </Stack>
                                     <Typography variant="h5" fontWeight={900} color="#1d4ed8" sx={{ fontSize: '1.45rem', mb: 1.5 }}>
@@ -3706,17 +3631,9 @@ export const MatchingActualsForm = ({
                                     >
                                         Chênh lệch Thực trả / Đối soát
                                     </Typography>
-                                    <Chip
-                                        size="small"
+                                    <AdminStatusBadge
                                         label={paidDiffTone.label}
-                                        sx={{
-                                            height: 22,
-                                            fontSize: '0.725rem',
-                                            fontWeight: 800,
-                                            bgcolor: '#ffffff',
-                                            color: paidDiffTone.color,
-                                            border: `1px solid ${paidDiffTone.border}`,
-                                        }}
+                                        modifier={paidDiffTone.badgeModifier}
                                     />
                                 </Stack>
                                 <Typography variant="h5" fontWeight={900} color={paidDiffTone.color} sx={{ fontSize: '1.45rem', my: 'auto' }}>
@@ -3830,34 +3747,18 @@ export const MatchingActualsForm = ({
                                         </Typography>
                                     </Stack>
                                     {hasAllImportEvidence ? (
-                                        <Chip
-                                            size="small"
-                                            icon={<CheckCircleOutlinedIcon style={{ fontSize: '0.95rem', color: '#16a34a' }} />}
+                                        <AdminStatusBadge
                                             label={
                                                 effectiveImportBatches.length > 1
                                                     ? `Đủ chứng từ (${completeImportBatchesCount}/${effectiveImportBatches.length})`
                                                     : 'Đã đủ chứng từ'
                                             }
-                                            sx={{
-                                                bgcolor: '#f0fdf4',
-                                                color: '#16a34a',
-                                                fontWeight: 700,
-                                                fontSize: '0.725rem',
-                                                border: '1px solid #bbf7d0',
-                                            }}
+                                            modifier="admin-status-badge--success"
                                         />
                                     ) : (
-                                        <Chip
-                                            size="small"
-                                            icon={<WarningAmberOutlinedIcon style={{ fontSize: '0.95rem', color: '#dc2626' }} />}
+                                        <AdminStatusBadge
                                             label="Thiếu biên lai hoặc danh sách vé"
-                                            sx={{
-                                                bgcolor: '#fef2f2',
-                                                color: '#dc2626',
-                                                fontWeight: 700,
-                                                fontSize: '0.725rem',
-                                                border: '1px solid #fecaca',
-                                            }}
+                                            modifier="admin-status-badge--inactive"
                                         />
                                     )}
                                 </Stack>
@@ -4032,32 +3933,14 @@ export const MatchingActualsForm = ({
                                                 </Stack>
 
                                                 {isBatchCompleteEvidence(selectedImport) ? (
-                                                    <Chip
-                                                        size="small"
-                                                        icon={<CheckCircleOutlinedIcon style={{ fontSize: '0.8rem', color: '#16a34a' }} />}
+                                                    <AdminStatusBadge
                                                         label="Đủ chứng từ"
-                                                        sx={{
-                                                            height: 22,
-                                                            fontSize: '0.7rem',
-                                                            fontWeight: 700,
-                                                            bgcolor: '#f0fdf4',
-                                                            color: '#16a34a',
-                                                            border: '1px solid #bbf7d0',
-                                                        }}
+                                                        modifier="admin-status-badge--success"
                                                     />
                                                 ) : (
-                                                    <Chip
-                                                        size="small"
-                                                        icon={<WarningAmberOutlinedIcon style={{ fontSize: '0.8rem', color: '#dc2626' }} />}
+                                                    <AdminStatusBadge
                                                         label={!hasImportReceipt ? 'Thiếu biên lai' : 'Thiếu danh sách vé'}
-                                                        sx={{
-                                                            height: 22,
-                                                            fontSize: '0.7rem',
-                                                            fontWeight: 700,
-                                                            bgcolor: '#fef2f2',
-                                                            color: '#dc2626',
-                                                            border: '1px solid #fecaca',
-                                                        }}
+                                                        modifier="admin-status-badge--inactive"
                                                     />
                                                 )}
                                             </Box>
@@ -4243,18 +4126,47 @@ export const MatchingActualsForm = ({
                                                                     }}
                                                                 />
                                                             </IconButton>
+                                                            <IconButton
+                                                                size="small"
+                                                                disabled={isUploadingImportReceipt}
+                                                                onClick={handleDeleteImportReceipt}
+                                                                sx={{ color: '#f87171', p: 0.5 }}
+                                                                title="Gỡ tệp này"
+                                                            >
+                                                                <DeleteOutlineIcon fontSize="small" />
+                                                            </IconButton>
                                                         </Stack>
                                                     </Box>
                                                 ) : (
                                                     <Box
-                                                        component="label"
+                                                        onDragOver={(e) => {
+                                                            e.preventDefault();
+                                                            setIsDraggingImportReceipt(true);
+                                                        }}
+                                                        onDragLeave={() => setIsDraggingImportReceipt(false)}
+                                                        onDrop={(e) => {
+                                                            e.preventDefault();
+                                                            setIsDraggingImportReceipt(false);
+                                                            const file = e.dataTransfer.files?.[0];
+                                                            if (file && isAllowedMatchingEvidenceFile(file) && selectedImport) {
+                                                                void handleUploadImportReceipt(file);
+                                                            } else if (file) {
+                                                                AppToast.warning('Vui lòng chọn ảnh, PDF, Excel hoặc CSV.');
+                                                            }
+                                                        }}
+                                                        onClick={() => {
+                                                            if (!isUploadingImportReceipt) {
+                                                                document.getElementById('matching-import-receipt-input')?.click();
+                                                            }
+                                                        }}
                                                         sx={{
                                                             width: '100%',
                                                             flex: 1,
                                                             minHeight: 180,
                                                             borderRadius: '12px',
-                                                            border: '2px dashed #cbd5e1',
-                                                            bgcolor: '#f8fafc',
+                                                            border: '2px dashed',
+                                                            borderColor: isDraggingImportReceipt ? '#2563eb' : '#cbd5e1',
+                                                            bgcolor: isDraggingImportReceipt ? '#eff6ff' : '#f8fafc',
                                                             display: 'flex',
                                                             alignItems: 'center',
                                                             justifyContent: 'center',
@@ -4269,6 +4181,7 @@ export const MatchingActualsForm = ({
                                                         }}
                                                     >
                                                         <input
+                                                            id="matching-import-receipt-input"
                                                             type="file"
                                                             accept={MATCHING_EVIDENCE_ACCEPT}
                                                             hidden
@@ -4373,30 +4286,14 @@ export const MatchingActualsForm = ({
                                         </Typography>
                                     </Stack>
                                     {hasReceipt ? (
-                                        <Chip
-                                            size="small"
-                                            icon={<CheckCircleOutlinedIcon style={{ fontSize: '0.95rem', color: '#16a34a' }} />}
+                                        <AdminStatusBadge
                                             label="Đã đính kèm"
-                                            sx={{
-                                                bgcolor: '#f0fdf4',
-                                                color: '#16a34a',
-                                                fontWeight: 700,
-                                                fontSize: '0.725rem',
-                                                border: '1px solid #bbf7d0',
-                                            }}
+                                            modifier="admin-status-badge--success"
                                         />
                                     ) : (
-                                        <Chip
-                                            size="small"
-                                            icon={<WarningAmberOutlinedIcon style={{ fontSize: '0.95rem', color: '#dc2626' }} />}
+                                        <AdminStatusBadge
                                             label="Chưa có (Bắt buộc)"
-                                            sx={{
-                                                bgcolor: '#fef2f2',
-                                                color: '#dc2626',
-                                                fontWeight: 700,
-                                                fontSize: '0.725rem',
-                                                border: '1px solid #fecaca',
-                                            }}
+                                            modifier="admin-status-badge--inactive"
                                         />
                                     )}
                                 </Stack>
@@ -4663,17 +4560,9 @@ export const MatchingActualsForm = ({
                                         Chưa thể xác nhận đối chiếu
                                     </Typography>
                                 </Stack>
-                                <Chip
-                                    size="small"
+                                <AdminStatusBadge
                                     label={`Còn ${submitBlockers.length} điều kiện chưa hoàn tất`}
-                                    sx={{
-                                        height: 22,
-                                        fontSize: '0.7rem',
-                                        fontWeight: 800,
-                                        bgcolor: '#fef3c7',
-                                        color: '#92400e',
-                                        border: '1px solid #fcd34d',
-                                    }}
+                                    modifier="admin-status-badge--pending"
                                 />
                             </Stack>
 
@@ -4840,17 +4729,9 @@ export const MatchingActualsForm = ({
                                 Phiếu trả chưa hoàn tất bàn giao
                             </Typography>
                             <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 0.5 }}>
-                                <Chip
-                                    size="small"
+                                <AdminStatusBadge
                                     label="Chưa bàn giao (PENDING)"
-                                    sx={{
-                                        height: 22,
-                                        fontSize: '0.7rem',
-                                        fontWeight: 800,
-                                        bgcolor: '#fef3c7',
-                                        color: '#b45309',
-                                        border: '1px solid #fde68a',
-                                    }}
+                                    modifier="admin-status-badge--pending"
                                 />
                             </Stack>
                         </Box>
@@ -5340,9 +5221,9 @@ export const MatchingActualsForm = ({
                                         2. Biên lai đối soát từ NCC <Box component="span" sx={{ color: '#ef4444' }}>*</Box>
                                     </Typography>
                                     {hasReceipt ? (
-                                        <Chip size="small" label="Đã đính kèm" sx={{ bgcolor: '#f0fdf4', color: '#16a34a', fontWeight: 700, fontSize: '0.725rem', border: '1px solid #bbf7d0' }} />
+                                        <AdminStatusBadge label="Đã đính kèm" modifier="admin-status-badge--success" />
                                     ) : (
-                                        <Chip size="small" label="Chưa có (Bắt buộc)" sx={{ bgcolor: '#fef2f2', color: '#dc2626', fontWeight: 700, fontSize: '0.725rem', border: '1px solid #fecaca' }} />
+                                        <AdminStatusBadge label="Chưa có (Bắt buộc)" modifier="admin-status-badge--inactive" />
                                     )}
                                 </Stack>
 
@@ -5505,7 +5386,6 @@ export const MatchingActualsForm = ({
                                 </TableHead>
                                 <TableBody>
                                     {returnBatches.map((rb) => {
-                                        const isHandedOver = rb.status === 'HANDED_OVER' || rb.status === 'RECEIVED';
                                         return (
                                             <TableRow key={rb.id} hover>
                                                 <TableCell sx={{ fontFamily: 'monospace', fontWeight: 700, color: '#0f172a' }}>
@@ -5521,16 +5401,9 @@ export const MatchingActualsForm = ({
                                                     {formatSettlementMoney(rb.totalReturnValue ?? 0)} VNĐ
                                                 </TableCell>
                                                 <TableCell>
-                                                    <Chip
-                                                        size="small"
-                                                        label={rb.statusLabel || rb.status || '—'}
-                                                        sx={{
-                                                            fontWeight: 700,
-                                                            fontSize: '0.725rem',
-                                                            bgcolor: isHandedOver ? '#f0fdf4' : '#fff7ed',
-                                                            color: isHandedOver ? '#16a34a' : '#ea580c',
-                                                            border: `1px solid ${isHandedOver ? '#bbf7d0' : '#fed7aa'}`,
-                                                        }}
+                                                    <AdminStatusBadge
+                                                        label={getReturnBatchStatusLabel(rb.status as ReturnBatchStatus | null, rb.statusLabel)}
+                                                        modifier={getReturnBatchStatusBadgeClass(rb.status as ReturnBatchStatus | null)}
                                                     />
                                                 </TableCell>
                                                 <TableCell align="center">

@@ -88,6 +88,9 @@ export interface SupplierSettlement {
     reconciledTicketUnitPrice?: number | null;
     /** @deprecated Temporary alias of reconciledTicketUnitPrice */
     actualTicketPrice?: number | null;
+    systemTicketImportPrice?: number | null;
+    actualTicketImportPrice?: number | null;
+    stationCommissionSnapshots?: StationCommissionSnapshot[] | null;
     initialEstimatedSettlementValue?: number | null;
     finalSettlementValue?: number | null;
     actualPaidAmount?: number | null;
@@ -153,6 +156,14 @@ export interface SettlementStationPricing {
     importCost: number;
     commissionRate: number;
     netUnitPrice: number;
+    actualCommissionRate?: number | null;
+}
+
+export interface StationCommissionSnapshot {
+    lotteryStationId: number;
+    importedQuantity?: number | null;
+    systemCommissionRate?: number | null;
+    actualCommissionRate?: number | null;
 }
 
 export interface SettlementOverviewImportBatch {
@@ -268,11 +279,13 @@ export interface ConfirmSettlementMatchingPayload {
     reconciliationNote?: string;
     actualPaidAmount: number;
     additionalCosts?: SettlementMatchingAdditionalCost[];
+    actualTicketImportPrice: number;
+    stationCommissions?: Array<{ lotteryStationId: number; actualCommissionRate: number }>;
 }
 
 export interface ResolveImportDiscrepancyPayload {
     serialIds?: number[];
-    ticketCondition?: 'DAMAGED' | 'LOST' | 'VOIDED' | null;
+    ticketCondition?: 'DAMAGED' | 'LOST' | 'VOIDED' | 'UNDER_IMPORTED' | null;
     reasonCode: SettlementAdjustmentReasonCode;
     adjustmentAmount?: number | null;
     note?: string;

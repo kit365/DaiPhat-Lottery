@@ -1227,9 +1227,10 @@ public class LotteryTicketService implements LotteryTicketServicePort {
         }
         long availableSerialCount = lotteryTicketSerialService.countAvailableSerials(ticketId);
         List<LotteryTicketSerialModel> allSerials = lotteryTicketSerialService.findAllByTicketId(ticketId);
-        int totalSerialCount = allSerials.size();
+        int totalSerialCount = (int) allSerials.stream().filter(LotteryTicketSerialModel::isVisibleInventory).count();
         int soldSerialCount = (int) lotteryTicketSerialService.countByStatuses(ticketId, SOLD_SERIAL_STATUSES);
         int faultySerialCount = (int) allSerials.stream()
+                .filter(LotteryTicketSerialModel::isVisibleInventory)
                 .filter(serial -> serial.getTicketCondition() != null && serial.getTicketCondition().isIncidentReported())
                 .count();
         ticket.syncAggregateState(
@@ -1362,6 +1363,7 @@ public class LotteryTicketService implements LotteryTicketServicePort {
         }
 
         List<LotteryTicketSerialModel> unreported = serials.stream()
+                .filter(serial -> !serial.isVoided())
                 .filter(serial -> serial.getTicketCondition() == null
                         || !serial.getTicketCondition().isIncidentReported())
                 .toList();
@@ -1420,35 +1422,28 @@ public class LotteryTicketService implements LotteryTicketServicePort {
 
         List<LotteryTicketSerialModel> oldSerials = lotteryTicketSerialService.findAllByTicketId(oldTicket.getId());
         for (LotteryTicketSerialModel oldSerial : oldSerials) {
-            if (oldSerial.getTicketCondition() == null
-                    || !oldSerial.getTicketCondition().isIncidentReported()) {
-                oldSerial.markVoided(com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialFaultedBy.DATA_ENTRY_FAULT, "Hủy do nhập sai dãy số (thay bằng dãy số " + newNumbers + ")");
-                lotteryTicketSerialRepositoryPort.save(oldSerial);
+            if (oldSerial.isVoided()) {
+                continue;
             }
-
-            boolean alreadyExists = lotteryTicketSerialRepositoryPort
-                    .existsByTicketIdAndSerialNumber(savedNewTicket.getId(), oldSerial.getSerialNumber());
-
-            if (!alreadyExists) {
-                LotteryTicketSerialModel newSerial = LotteryTicketSerialModel.builder()
-                        .ticketId(savedNewTicket.getId())
-                        .importBatchId(oldSerial.getImportBatchId())
-                        .importBatchLineId(oldSerial.getImportBatchLineId())
-                        .ticketImg(request.newTicketImg() != null && !request.newTicketImg().isBlank() ? request.newTicketImg() : oldSerial.getTicketImg())
-                        .serialNumber(oldSerial.getSerialNumber())
-                        .stationId(savedNewTicket.getStationId())
-                        .drawDate(savedNewTicket.getDrawDate())
-                        .inputSource(oldSerial.getInputSource())
-                        .status(LotteryTicketSerialStatus.IN_STOCK)
-                        .replacedForTicketId(oldSerial.getId())
-                        .build();
-                newSerial.initializeImport(editorId);
-                lotteryTicketSerialRepositoryPort.save(newSerial);
+            if (oldSerial.getStatus() == LotteryTicketSerialStatus.SOLD
+                    || oldSerial.getStatus() == LotteryTicketSerialStatus.WITH_STREET_AGENT) {
+                throw new DomainException(
+                        ErrorCode.LOTTERY_TICKET_INVALID_STATUS,
+                        "Không thể đổi dãy số khi còn sê-ri " + oldSerial.getSerialNumber()
+                                + " ở trạng thái " + oldSerial.getStatus().getDisplayName() + ".");
             }
+            oldSerial.reassignToTicket(
+                    savedNewTicket.getId(),
+                    savedNewTicket.getStationId(),
+                    savedNewTicket.getDrawDate());
+            if (request.newTicketImg() != null && !request.newTicketImg().isBlank()) {
+                oldSerial.setTicketImg(request.newTicketImg());
+            }
+            lotteryTicketSerialRepositoryPort.save(oldSerial);
         }
 
-        // Cancel the mistyped lottery number via soft delete; serial VOIDED conditions keep the audit trail, and the
-        // replacement serials point back through replaced_for_ticket_id.
+        // Soft-delete the mistyped lottery number. Serials keep the same ids and serial
+        // numbers; only ticket_id (and denormalized station/draw) is updated.
         oldTicket.softDelete();
         lotteryTicketRepositoryPort.save(oldTicket);
 

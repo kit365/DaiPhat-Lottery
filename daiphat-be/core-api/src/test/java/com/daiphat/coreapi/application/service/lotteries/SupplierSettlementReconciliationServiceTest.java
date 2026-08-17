@@ -35,12 +35,18 @@ import com.daiphat.coreapi.domain.model.enums.lottery.SupplierSettlementDiscrepa
 import com.daiphat.coreapi.domain.model.enums.lottery.SupplierSettlementReconciliationPhase;
 import com.daiphat.coreapi.domain.model.enums.lottery.SupplierSettlementStatus;
 import com.daiphat.coreapi.domain.model.enums.lottery.TicketCondition;
+import com.daiphat.coreapi.domain.model.lotteries.LotteryStationModel;
+import com.daiphat.coreapi.domain.model.lotteries.LotterySupplierModel;
 import com.daiphat.coreapi.domain.model.lotteries.SettlementDiscrepancyItem;
+import com.daiphat.coreapi.domain.model.lotteries.SettlementStationInventoryRow;
+import com.daiphat.coreapi.domain.model.lotteries.StationCommissionSnapshot;
 import com.daiphat.coreapi.domain.model.lotteries.SupplierSettlementAdjustmentModel;
 import com.daiphat.coreapi.domain.model.lotteries.SupplierSettlementModel;
 import com.daiphat.coreapi.domain.model.orders.TransactionModel;
 import com.daiphat.coreapi.shared.util.SupplierPaymentCutOffCalculator;
 import com.daiphat.coreapi.shared.util.SupplierSettlementCodeGenerator;
+import com.daiphat.coreapi.shared.util.SupplierTicketIntakeWindowPolicy;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -56,6 +62,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.time.LocalTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -65,6 +72,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -92,6 +100,7 @@ class SupplierSettlementReconciliationServiceTest {
     @Mock private Clock clock;
     @Mock private SupplierSettlementDiscrepancyInventoryHelper discrepancyInventoryHelper;
     @Mock private ObjectProvider<ImportBatchFileImportServicePort> importBatchFileImportService;
+    @Mock private SupplierTicketIntakeWindowPolicy intakeWindowPolicy;
 
     @InjectMocks
     private SupplierSettlementService supplierSettlementService;
@@ -99,20 +108,83 @@ class SupplierSettlementReconciliationServiceTest {
     private static final ZoneId ZONE = ZoneId.of("Asia/Ho_Chi_Minh");
     private static final UUID ACTOR = UUID.fromString("11111111-1111-1111-1111-111111111111");
 
+    @BeforeEach
+    void stubReconciliationWindow() {
+        fixedNow();
+        lenient().when(lotterySupplierRepositoryPort.findById(any())).thenReturn(Optional.of(
+                LotterySupplierModel.builder()
+                        .id(3L)
+                        .defaultImportCost(new BigDecimal("10000"))
+                        .paymentCutOffTime(LocalTime.of(17, 0))
+                        .build()
+        ));
+        lenient().when(supplierPaymentCutOffCalculator.isReconciliationWindowOpen(any(), any(), any()))
+                .thenReturn(true);
+        lenient().when(intakeWindowPolicy.isTicketChangeLocked(any(), any(), any())).thenReturn(false);
+        lenient().when(lotteryStationRepositoryPort.findByNextDrawDate(any())).thenReturn(List.of());
+        lenient().when(lotteryStationRepositoryPort.findAll()).thenReturn(List.of());
+    }
+
     private void fixedNow() {
         Instant instant = LocalDateTime.of(2026, 8, 8, 18, 0).atZone(ZONE).toInstant();
-        when(clock.instant()).thenReturn(instant);
-        when(clock.getZone()).thenReturn(ZONE);
+        lenient().when(clock.instant()).thenReturn(instant);
+        lenient().when(clock.getZone()).thenReturn(ZONE);
     }
 
     private SupplierSettlementModel openSettlement() {
         return SupplierSettlementModel.builder()
                 .id(10L)
+                .lotterySupplierId(3L)
                 .status(SupplierSettlementStatus.OPEN)
                 .reconciliationPhase(SupplierSettlementReconciliationPhase.MATCHING)
                 .periodFrom(LocalDate.of(2026, 8, 8))
                 .periodTo(LocalDate.of(2026, 8, 8))
                 .build();
+    }
+
+    private void stubConfirmMatchingPrerequisites(SupplierSettlementModel settlement, BigDecimal defaultImportCost) {
+        settlement.setLotterySupplierId(3L);
+        fixedNow();
+        lenient().when(lotterySupplierRepositoryPort.findById(3L)).thenReturn(Optional.of(
+                LotterySupplierModel.builder()
+                        .id(3L)
+                        .defaultImportCost(defaultImportCost)
+                        .paymentCutOffTime(LocalTime.of(17, 0))
+                        .build()
+        ));
+        lenient().when(supplierPaymentCutOffCalculator.isReconciliationWindowOpen(any(), any(), any()))
+                .thenReturn(true);
+        lenient().when(importBatchRepositoryPort.findBySupplierSettlementId(10L)).thenReturn(List.of());
+        lenient().when(lotteryTicketSerialRepositoryPort.aggregateInventoryByStationForSettlement(10L))
+                .thenReturn(List.of());
+        lenient().when(supplierSettlementRepositoryPort.sumImportedCostValueBySettlementId(10L))
+                .thenReturn(BigDecimal.ZERO);
+        lenient().when(supplierSettlementRepositoryPort.sumPreparedReturnValueBySettlementId(10L))
+                .thenReturn(BigDecimal.ZERO);
+    }
+
+    private static ConfirmSettlementMatchingRequest matchingRequest(
+            int importQty,
+            BigDecimal importVal,
+            int returnQty,
+            BigDecimal returnVal,
+            BigDecimal unitPrice,
+            String note,
+            BigDecimal paid,
+            List<SettlementMatchingAdjustmentItem> costs
+    ) {
+        return new ConfirmSettlementMatchingRequest(
+                importQty,
+                importVal,
+                returnQty,
+                returnVal,
+                unitPrice,
+                note,
+                paid,
+                costs,
+                null,
+                null
+        );
     }
 
     @Test
@@ -121,9 +193,9 @@ class SupplierSettlementReconciliationServiceTest {
         SupplierSettlementModel settlement = openSettlement();
         settlement.setTotalPaidAmount(BigDecimal.ZERO);
         when(supplierSettlementRepositoryPort.findById(10L)).thenReturn(Optional.of(settlement));
-        when(supplierSettlementRepositoryPort.sumImportedCostValueBySettlementId(10L))
+        lenient().when(supplierSettlementRepositoryPort.sumImportedCostValueBySettlementId(10L))
                 .thenReturn(new BigDecimal("1000000.000"));
-        when(supplierSettlementRepositoryPort.sumPreparedReturnValueBySettlementId(10L))
+        lenient().when(supplierSettlementRepositoryPort.sumPreparedReturnValueBySettlementId(10L))
                 .thenReturn(BigDecimal.ZERO);
         when(supplierSettlementRepositoryPort.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -135,14 +207,14 @@ class SupplierSettlementReconciliationServiceTest {
     @Test
     @DisplayName("confirmMatching sets four independent flags and DISCREPANCY_DETECTED")
     void confirmMatching_detectsDiscrepancies() {
-        fixedNow();
         SupplierSettlementModel settlement = openSettlement();
+        stubConfirmMatchingPrerequisites(settlement, new BigDecimal("10000"));
         when(supplierSettlementRepositoryPort.findById(10L)).thenReturn(Optional.of(settlement));
         when(supplierSettlementRepositoryPort.countImportedTicketsBySettlementId(10L)).thenReturn(100L);
-        when(supplierSettlementRepositoryPort.sumImportedCostValueBySettlementId(10L))
+        lenient().when(supplierSettlementRepositoryPort.sumImportedCostValueBySettlementId(10L))
                 .thenReturn(new BigDecimal("1000000.000"));
         when(supplierSettlementRepositoryPort.countPreparedReturnTicketsBySettlementId(10L)).thenReturn(40L);
-        when(supplierSettlementRepositoryPort.sumPreparedReturnValueBySettlementId(10L))
+        lenient().when(supplierSettlementRepositoryPort.sumPreparedReturnValueBySettlementId(10L))
                 .thenReturn(new BigDecimal("400000.000"));
         when(supplierSettlementRepositoryPort.save(any())).thenAnswer(inv -> inv.getArgument(0));
         when(supplierSettlementApplicationMapper.toResponse(any())).thenAnswer(inv -> {
@@ -164,7 +236,7 @@ class SupplierSettlementReconciliationServiceTest {
                     .build();
         });
 
-        ConfirmSettlementMatchingRequest request = new ConfirmSettlementMatchingRequest(
+        ConfirmSettlementMatchingRequest request = matchingRequest(
                 90,
                 new BigDecimal("900000.000"),
                 40,
@@ -196,20 +268,26 @@ class SupplierSettlementReconciliationServiceTest {
     }
 
     @Test
-    @DisplayName("confirmMatching uses imported cost after station commission, not NCC defaultImportCost")
-    void confirmMatching_originalUnitPriceFromImportedCostNotSupplierDefault() {
-        fixedNow();
+    @DisplayName("confirmMatching uses NCC defaultImportCost after station commission, not station sale price")
+    void confirmMatching_originalUnitPriceFromSupplierDefaultImportCostAfterCommission() {
         SupplierSettlementModel settlement = openSettlement();
-        settlement.setLotterySupplierId(3L);
+        stubConfirmMatchingPrerequisites(settlement, new BigDecimal("10000"));
         when(supplierSettlementRepositoryPort.findById(10L)).thenReturn(Optional.of(settlement));
         when(supplierSettlementRepositoryPort.countImportedTicketsBySettlementId(10L)).thenReturn(100L);
-        when(supplierSettlementRepositoryPort.sumImportedCostValueBySettlementId(10L))
-                .thenReturn(new BigDecimal("880000.000"));
         when(supplierSettlementRepositoryPort.countPreparedReturnTicketsBySettlementId(10L)).thenReturn(20L);
-        when(supplierSettlementRepositoryPort.sumPreparedReturnValueBySettlementId(10L))
-                .thenReturn(new BigDecimal("176000.000"));
-        when(importBatchRepositoryPort.findBySupplierSettlementId(10L)).thenReturn(List.of());
-        when(supplierSettlementAdjustmentRepositoryPort.findBySettlementId(10L)).thenReturn(List.of());
+        when(lotteryTicketSerialRepositoryPort.aggregateInventoryByStationForSettlement(10L)).thenReturn(List.of(
+                new SettlementStationInventoryRow(
+                        1L, "Cà Mau", 100, 0, 0, 0, 0, 0, 0, BigDecimal.ZERO
+                )
+        ));
+        when(lotteryStationRepositoryPort.findByIds(any())).thenReturn(List.of(
+                LotteryStationModel.builder()
+                        .id(1L)
+                        .name("Cà Mau")
+                        .price(new BigDecimal("15000.000"))
+                        .commissionRate(new BigDecimal("0.12"))
+                        .build()
+        ));
         when(supplierSettlementRepositoryPort.save(any())).thenAnswer(inv -> inv.getArgument(0));
         when(supplierSettlementApplicationMapper.toResponse(any())).thenAnswer(inv -> {
             SupplierSettlementModel m = inv.getArgument(0);
@@ -218,13 +296,15 @@ class SupplierSettlementReconciliationServiceTest {
                     .reconciliationPhase(m.getReconciliationPhase())
                     .originalTicketUnitPrice(m.getOriginalTicketUnitPrice())
                     .reconciledTicketUnitPrice(m.getReconciledTicketUnitPrice())
+                    .systemTicketImportPrice(m.getSystemTicketImportPrice())
+                    .actualTicketImportPrice(m.getActualTicketImportPrice())
                     .initialEstimatedSettlementValue(m.getInitialEstimatedSettlementValue())
                     .finalSettlementValue(m.getFinalSettlementValue())
                     .discrepancyTypes(m.getDiscrepancyTypes())
                     .build();
         });
 
-        ConfirmSettlementMatchingRequest request = new ConfirmSettlementMatchingRequest(
+        ConfirmSettlementMatchingRequest request = matchingRequest(
                 100,
                 new BigDecimal("880000.000"),
                 20,
@@ -237,27 +317,152 @@ class SupplierSettlementReconciliationServiceTest {
 
         SupplierSettlementResponse response = supplierSettlementService.confirmMatching(10L, request, ACTOR);
 
+        assertThat(response.systemTicketImportPrice()).isEqualByComparingTo("10000.000");
+        assertThat(response.actualTicketImportPrice()).isEqualByComparingTo("10000.000");
         assertThat(response.originalTicketUnitPrice()).isEqualByComparingTo("8800.000");
         assertThat(response.reconciledTicketUnitPrice()).isEqualByComparingTo("8800.000");
-        // 8800 × (100 − 20) = 704000
         assertThat(response.initialEstimatedSettlementValue()).isEqualByComparingTo("704000.000");
         assertThat(response.finalSettlementValue()).isEqualByComparingTo("704000.000");
         assertThat(response.discrepancyTypes()).isEmpty();
         assertThat(response.reconciliationPhase())
                 .isEqualTo(SupplierSettlementReconciliationPhase.READY_FOR_RECALCULATION);
+        assertThat(settlement.getStationCommissionSnapshots()).hasSize(1);
+        assertThat(settlement.getStationCommissionSnapshots().get(0).getSystemCommissionRate())
+                .isEqualByComparingTo("0.12");
+    }
+
+    @Test
+    @DisplayName("getOverview after confirm keeps snapshotted import price and commission when NCC/station masters change")
+    void getOverview_afterConfirm_doesNotShiftWhenSupplierCostChanges() {
+        SupplierSettlementModel settlement = openSettlement();
+        stubConfirmMatchingPrerequisites(settlement, new BigDecimal("12000"));
+        settlement.setMatchingConfirmedAt(LocalDateTime.of(2026, 8, 8, 18, 0));
+        settlement.setSystemTicketImportPrice(new BigDecimal("10000.000"));
+        settlement.setActualTicketImportPrice(new BigDecimal("10000.000"));
+        settlement.setOriginalTicketUnitPrice(new BigDecimal("9500.000"));
+        settlement.setReconciledTicketUnitPrice(new BigDecimal("9500.000"));
+        settlement.setSystemImportQuantity(100);
+        settlement.setSystemImportValue(new BigDecimal("950000.000"));
+        settlement.setStationCommissionSnapshots(List.of(
+                StationCommissionSnapshot.builder()
+                        .lotteryStationId(1L)
+                        .importedQuantity(100)
+                        .systemCommissionRate(new BigDecimal("0.05"))
+                        .actualCommissionRate(new BigDecimal("0.05"))
+                        .build()
+        ));
+        when(supplierSettlementRepositoryPort.findById(10L)).thenReturn(Optional.of(settlement));
+        when(supplierSettlementRepositoryPort.countImportedTicketsBySettlementId(10L)).thenReturn(100L);
+        lenient().when(supplierSettlementRepositoryPort.sumImportedCostValueBySettlementId(10L))
+                .thenReturn(new BigDecimal("1500000.000"));
+        when(supplierSettlementRepositoryPort.countPreparedReturnTicketsBySettlementId(10L)).thenReturn(0L);
+        lenient().when(supplierSettlementRepositoryPort.sumPreparedReturnValueBySettlementId(10L)).thenReturn(BigDecimal.ZERO);
+        when(supplierSettlementRepositoryPort.countExpiredReturnTicketsBySettlementId(10L)).thenReturn(0L);
+        when(supplierSettlementRepositoryPort.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(returnBatchRepositoryPort.findBySupplierSettlementId(10L)).thenReturn(List.of());
+        when(supplierSettlementAdjustmentRepositoryPort.findBySettlementId(10L)).thenReturn(List.of());
+        when(lotteryTicketSerialRepositoryPort.aggregateInventoryByStationForSettlement(10L)).thenReturn(List.of(
+                new SettlementStationInventoryRow(
+                        1L, "Cà Mau", 100, 0, 0, 0, 0, 0, 0, BigDecimal.ZERO
+                )
+        ));
+        when(lotteryStationRepositoryPort.findByIds(any())).thenReturn(List.of(
+                LotteryStationModel.builder()
+                        .id(1L)
+                        .name("Cà Mau")
+                        .price(new BigDecimal("15000.000"))
+                        .commissionRate(new BigDecimal("0.20"))
+                        .build()
+        ));
+        when(supplierSettlementApplicationMapper.toResponse(any())).thenAnswer(inv -> {
+            SupplierSettlementModel m = inv.getArgument(0);
+            return SupplierSettlementResponse.builder()
+                    .id(m.getId())
+                    .systemTicketImportPrice(m.getSystemTicketImportPrice())
+                    .originalTicketUnitPrice(m.getOriginalTicketUnitPrice())
+                    .build();
+        });
+
+        var overview = supplierSettlementService.getOverview(10L);
+
+        assertThat(overview.stationPricing()).hasSize(1);
+        assertThat(overview.stationPricing().get(0).importCost()).isEqualByComparingTo("10000.000");
+        assertThat(overview.stationPricing().get(0).commissionRate()).isEqualByComparingTo("0.05");
+        assertThat(overview.stationPricing().get(0).netUnitPrice()).isEqualByComparingTo("9500.000");
+        assertThat(overview.settlement().systemTicketImportPrice()).isEqualByComparingTo("10000.000");
+        assertThat(overview.settlement().originalTicketUnitPrice()).isEqualByComparingTo("9500.000");
+        assertThat(settlement.getSystemImportValue()).isEqualByComparingTo("950000.000");
+    }
+
+    @Test
+    @DisplayName("confirmMatching keeps create-time system import price when NCC cost later changes")
+    void confirmMatching_keepsCreateTimeSystemImportPrice() {
+        SupplierSettlementModel settlement = openSettlement();
+        stubConfirmMatchingPrerequisites(settlement, new BigDecimal("12000"));
+        settlement.setSystemTicketImportPrice(new BigDecimal("10000.000"));
+        settlement.setStationCommissionSnapshots(List.of(
+                StationCommissionSnapshot.builder()
+                        .lotteryStationId(1L)
+                        .importedQuantity(100)
+                        .systemCommissionRate(new BigDecimal("0.12"))
+                        .build()
+        ));
+        when(supplierSettlementRepositoryPort.findById(10L)).thenReturn(Optional.of(settlement));
+        when(supplierSettlementRepositoryPort.countImportedTicketsBySettlementId(10L)).thenReturn(100L);
+        when(supplierSettlementRepositoryPort.countPreparedReturnTicketsBySettlementId(10L)).thenReturn(20L);
+        when(lotteryTicketSerialRepositoryPort.aggregateInventoryByStationForSettlement(10L)).thenReturn(List.of(
+                new SettlementStationInventoryRow(
+                        1L, "Cà Mau", 100, 0, 0, 0, 0, 0, 0, BigDecimal.ZERO
+                )
+        ));
+        when(lotteryStationRepositoryPort.findByIds(any())).thenReturn(List.of(
+                LotteryStationModel.builder()
+                        .id(1L)
+                        .name("Cà Mau")
+                        .price(new BigDecimal("15000.000"))
+                        .commissionRate(new BigDecimal("0.20"))
+                        .build()
+        ));
+        when(supplierSettlementRepositoryPort.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(supplierSettlementApplicationMapper.toResponse(any())).thenAnswer(inv -> {
+            SupplierSettlementModel m = inv.getArgument(0);
+            return SupplierSettlementResponse.builder()
+                    .id(m.getId())
+                    .systemTicketImportPrice(m.getSystemTicketImportPrice())
+                    .originalTicketUnitPrice(m.getOriginalTicketUnitPrice())
+                    .build();
+        });
+
+        ConfirmSettlementMatchingRequest request = matchingRequest(
+                100,
+                new BigDecimal("880000.000"),
+                20,
+                new BigDecimal("176000.000"),
+                new BigDecimal("8800.000"),
+                null,
+                new BigDecimal("704000.000"),
+                null
+        );
+
+        SupplierSettlementResponse response = supplierSettlementService.confirmMatching(10L, request, ACTOR);
+
+        assertThat(response.systemTicketImportPrice()).isEqualByComparingTo("10000.000");
+        assertThat(response.originalTicketUnitPrice()).isEqualByComparingTo("8800.000");
+        assertThat(settlement.getStationCommissionSnapshots().get(0).getSystemCommissionRate())
+                .isEqualByComparingTo("0.12");
     }
 
     @Test
     @DisplayName("confirmMatching with no mismatches goes to READY_FOR_RECALCULATION")
     void confirmMatching_noMismatch() {
-        fixedNow();
         SupplierSettlementModel settlement = openSettlement();
+        stubConfirmMatchingPrerequisites(settlement, new BigDecimal("10"));
         when(supplierSettlementRepositoryPort.findById(10L)).thenReturn(Optional.of(settlement));
         when(supplierSettlementRepositoryPort.countImportedTicketsBySettlementId(10L)).thenReturn(50L);
-        when(supplierSettlementRepositoryPort.sumImportedCostValueBySettlementId(10L))
+        lenient().when(supplierSettlementRepositoryPort.sumImportedCostValueBySettlementId(10L))
                 .thenReturn(new BigDecimal("500.000"));
         when(supplierSettlementRepositoryPort.countPreparedReturnTicketsBySettlementId(10L)).thenReturn(10L);
-        when(supplierSettlementRepositoryPort.sumPreparedReturnValueBySettlementId(10L))
+        lenient().when(supplierSettlementRepositoryPort.sumPreparedReturnValueBySettlementId(10L))
                 .thenReturn(new BigDecimal("100.000"));
         when(supplierSettlementRepositoryPort.save(any())).thenAnswer(inv -> inv.getArgument(0));
         when(supplierSettlementApplicationMapper.toResponse(any())).thenAnswer(inv -> {
@@ -274,7 +479,7 @@ class SupplierSettlementReconciliationServiceTest {
                     .build();
         });
 
-        ConfirmSettlementMatchingRequest request = new ConfirmSettlementMatchingRequest(
+        ConfirmSettlementMatchingRequest request = matchingRequest(
                 50,
                 new BigDecimal("500.000"),
                 10,
@@ -297,14 +502,14 @@ class SupplierSettlementReconciliationServiceTest {
     @Test
     @DisplayName("confirmMatching keeps ticket total when receipt amount differs and no adjustment is approved")
     void confirmMatching_receiptDifferenceDoesNotChangeFinalSettlement() {
-        fixedNow();
         SupplierSettlementModel settlement = openSettlement();
+        stubConfirmMatchingPrerequisites(settlement, new BigDecimal("10000"));
         when(supplierSettlementRepositoryPort.findById(10L)).thenReturn(Optional.of(settlement));
         when(supplierSettlementRepositoryPort.countImportedTicketsBySettlementId(10L)).thenReturn(600L);
-        when(supplierSettlementRepositoryPort.sumImportedCostValueBySettlementId(10L))
+        lenient().when(supplierSettlementRepositoryPort.sumImportedCostValueBySettlementId(10L))
                 .thenReturn(new BigDecimal("6000000.000"));
         when(supplierSettlementRepositoryPort.countPreparedReturnTicketsBySettlementId(10L)).thenReturn(0L);
-        when(supplierSettlementRepositoryPort.sumPreparedReturnValueBySettlementId(10L))
+        lenient().when(supplierSettlementRepositoryPort.sumPreparedReturnValueBySettlementId(10L))
                 .thenReturn(BigDecimal.ZERO);
         when(supplierSettlementRepositoryPort.save(any())).thenAnswer(inv -> inv.getArgument(0));
         when(supplierSettlementApplicationMapper.toResponse(any())).thenReturn(
@@ -313,7 +518,7 @@ class SupplierSettlementReconciliationServiceTest {
 
         supplierSettlementService.confirmMatching(
                 10L,
-                new ConfirmSettlementMatchingRequest(
+                matchingRequest(
                         600,
                         new BigDecimal("6000000.000"),
                         0,
@@ -333,15 +538,15 @@ class SupplierSettlementReconciliationServiceTest {
     @Test
     @DisplayName("confirmMatching freezes initial baseline and lowers final when unit price decreases")
     void confirmMatching_priceDecrease_updatesFinalKeepsInitialOnRematch() {
-        fixedNow();
         SupplierSettlementModel settlement = openSettlement();
+        stubConfirmMatchingPrerequisites(settlement, new BigDecimal("10000"));
         settlement.setInitialEstimatedSettlementValue(new BigDecimal("7200000.000"));
         when(supplierSettlementRepositoryPort.findById(10L)).thenReturn(Optional.of(settlement));
         when(supplierSettlementRepositoryPort.countImportedTicketsBySettlementId(10L)).thenReturn(1000L);
-        when(supplierSettlementRepositoryPort.sumImportedCostValueBySettlementId(10L))
+        lenient().when(supplierSettlementRepositoryPort.sumImportedCostValueBySettlementId(10L))
                 .thenReturn(new BigDecimal("9000000.000"));
         when(supplierSettlementRepositoryPort.countPreparedReturnTicketsBySettlementId(10L)).thenReturn(200L);
-        when(supplierSettlementRepositoryPort.sumPreparedReturnValueBySettlementId(10L))
+        lenient().when(supplierSettlementRepositoryPort.sumPreparedReturnValueBySettlementId(10L))
                 .thenReturn(new BigDecimal("1800000.000"));
         when(supplierSettlementRepositoryPort.save(any())).thenAnswer(inv -> inv.getArgument(0));
         when(supplierSettlementApplicationMapper.toResponse(any())).thenAnswer(inv -> {
@@ -361,7 +566,7 @@ class SupplierSettlementReconciliationServiceTest {
                     .build();
         });
 
-        ConfirmSettlementMatchingRequest request = new ConfirmSettlementMatchingRequest(
+        ConfirmSettlementMatchingRequest request = matchingRequest(
                 1000,
                 null,
                 200,
@@ -389,14 +594,14 @@ class SupplierSettlementReconciliationServiceTest {
     @Test
     @DisplayName("confirmMatching return-qty only does not require import resolution")
     void confirmMatching_returnQuantityOnly_doesNotFlagImport() {
-        fixedNow();
         SupplierSettlementModel settlement = openSettlement();
+        stubConfirmMatchingPrerequisites(settlement, new BigDecimal("10000"));
         when(supplierSettlementRepositoryPort.findById(10L)).thenReturn(Optional.of(settlement));
         when(supplierSettlementRepositoryPort.countImportedTicketsBySettlementId(10L)).thenReturn(100L);
-        when(supplierSettlementRepositoryPort.sumImportedCostValueBySettlementId(10L))
+        lenient().when(supplierSettlementRepositoryPort.sumImportedCostValueBySettlementId(10L))
                 .thenReturn(new BigDecimal("1000000.000"));
         when(supplierSettlementRepositoryPort.countPreparedReturnTicketsBySettlementId(10L)).thenReturn(40L);
-        when(supplierSettlementRepositoryPort.sumPreparedReturnValueBySettlementId(10L))
+        lenient().when(supplierSettlementRepositoryPort.sumPreparedReturnValueBySettlementId(10L))
                 .thenReturn(new BigDecimal("400000.000"));
         when(supplierSettlementRepositoryPort.save(any())).thenAnswer(inv -> inv.getArgument(0));
         when(supplierSettlementApplicationMapper.toResponse(any())).thenAnswer(inv -> {
@@ -419,7 +624,7 @@ class SupplierSettlementReconciliationServiceTest {
                     .build();
         });
 
-        ConfirmSettlementMatchingRequest request = new ConfirmSettlementMatchingRequest(
+        ConfirmSettlementMatchingRequest request = matchingRequest(
                 100,
                 new BigDecimal("1000000.000"),
                 30,
@@ -446,14 +651,14 @@ class SupplierSettlementReconciliationServiceTest {
     @Test
     @DisplayName("confirmMatching additional costs change final value but not frozen baseline")
     void confirmMatching_additionalCosts_updateFinalKeepInitial() {
-        fixedNow();
         SupplierSettlementModel settlement = openSettlement();
+        stubConfirmMatchingPrerequisites(settlement, new BigDecimal("10000"));
         when(supplierSettlementRepositoryPort.findById(10L)).thenReturn(Optional.of(settlement));
         when(supplierSettlementRepositoryPort.countImportedTicketsBySettlementId(10L)).thenReturn(100L);
-        when(supplierSettlementRepositoryPort.sumImportedCostValueBySettlementId(10L))
+        lenient().when(supplierSettlementRepositoryPort.sumImportedCostValueBySettlementId(10L))
                 .thenReturn(new BigDecimal("1000000.000"));
         when(supplierSettlementRepositoryPort.countPreparedReturnTicketsBySettlementId(10L)).thenReturn(0L);
-        when(supplierSettlementRepositoryPort.sumPreparedReturnValueBySettlementId(10L))
+        lenient().when(supplierSettlementRepositoryPort.sumPreparedReturnValueBySettlementId(10L))
                 .thenReturn(BigDecimal.ZERO);
         when(supplierSettlementRepositoryPort.save(any())).thenAnswer(inv -> inv.getArgument(0));
         when(supplierSettlementAdjustmentRepositoryPort.save(any())).thenAnswer(inv -> inv.getArgument(0));
@@ -469,7 +674,7 @@ class SupplierSettlementReconciliationServiceTest {
                     .build();
         });
 
-        ConfirmSettlementMatchingRequest request = new ConfirmSettlementMatchingRequest(
+        ConfirmSettlementMatchingRequest request = matchingRequest(
                 100,
                 new BigDecimal("1000000.000"),
                 0,
@@ -512,15 +717,16 @@ class SupplierSettlementReconciliationServiceTest {
     @DisplayName("confirmMatching manual OTHER adjustment requires a custom name")
     void confirmMatching_paymentDiffWithoutTicketDiscrepancy_requiresCustomName() {
         SupplierSettlementModel settlement = openSettlement();
+        stubConfirmMatchingPrerequisites(settlement, new BigDecimal("10"));
         when(supplierSettlementRepositoryPort.findById(10L)).thenReturn(Optional.of(settlement));
         when(supplierSettlementRepositoryPort.countImportedTicketsBySettlementId(10L)).thenReturn(50L);
-        when(supplierSettlementRepositoryPort.sumImportedCostValueBySettlementId(10L))
+        lenient().when(supplierSettlementRepositoryPort.sumImportedCostValueBySettlementId(10L))
                 .thenReturn(new BigDecimal("500.000"));
         when(supplierSettlementRepositoryPort.countPreparedReturnTicketsBySettlementId(10L)).thenReturn(10L);
-        when(supplierSettlementRepositoryPort.sumPreparedReturnValueBySettlementId(10L))
+        lenient().when(supplierSettlementRepositoryPort.sumPreparedReturnValueBySettlementId(10L))
                 .thenReturn(new BigDecimal("100.000"));
 
-        ConfirmSettlementMatchingRequest request = new ConfirmSettlementMatchingRequest(
+        ConfirmSettlementMatchingRequest request = matchingRequest(
                 50,
                 new BigDecimal("500.000"),
                 10,
@@ -547,14 +753,14 @@ class SupplierSettlementReconciliationServiceTest {
     @Test
     @DisplayName("confirmMatching persists a manual OTHER adjustment and includes it in final")
     void confirmMatching_paymentDiffWithoutTicketDiscrepancy_persistsNamedOther() {
-        fixedNow();
         SupplierSettlementModel settlement = openSettlement();
+        stubConfirmMatchingPrerequisites(settlement, new BigDecimal("10"));
         when(supplierSettlementRepositoryPort.findById(10L)).thenReturn(Optional.of(settlement));
         when(supplierSettlementRepositoryPort.countImportedTicketsBySettlementId(10L)).thenReturn(50L);
-        when(supplierSettlementRepositoryPort.sumImportedCostValueBySettlementId(10L))
+        lenient().when(supplierSettlementRepositoryPort.sumImportedCostValueBySettlementId(10L))
                 .thenReturn(new BigDecimal("500.000"));
         when(supplierSettlementRepositoryPort.countPreparedReturnTicketsBySettlementId(10L)).thenReturn(10L);
-        when(supplierSettlementRepositoryPort.sumPreparedReturnValueBySettlementId(10L))
+        lenient().when(supplierSettlementRepositoryPort.sumPreparedReturnValueBySettlementId(10L))
                 .thenReturn(new BigDecimal("100.000"));
         when(supplierSettlementRepositoryPort.save(any())).thenAnswer(inv -> inv.getArgument(0));
         when(supplierSettlementAdjustmentRepositoryPort.save(any())).thenAnswer(inv -> inv.getArgument(0));
@@ -571,7 +777,7 @@ class SupplierSettlementReconciliationServiceTest {
                     .build();
         });
 
-        ConfirmSettlementMatchingRequest request = new ConfirmSettlementMatchingRequest(
+        ConfirmSettlementMatchingRequest request = matchingRequest(
                 50,
                 new BigDecimal("500.000"),
                 10,
@@ -609,6 +815,7 @@ class SupplierSettlementReconciliationServiceTest {
         fixedNow();
         SupplierSettlementModel settlement = SupplierSettlementModel.builder()
                 .id(10L)
+                .lotterySupplierId(3L)
                 .status(SupplierSettlementStatus.OPEN)
                 .reconciliationPhase(SupplierSettlementReconciliationPhase.RECALCULATED)
                 .importDiscrepancyResolved(true)
@@ -657,6 +864,7 @@ class SupplierSettlementReconciliationServiceTest {
         fixedNow();
         SupplierSettlementModel settlement = SupplierSettlementModel.builder()
                 .id(10L)
+                .lotterySupplierId(3L)
                 .status(SupplierSettlementStatus.OPEN)
                 .reconciliationPhase(SupplierSettlementReconciliationPhase.RECALCULATED)
                 .importDiscrepancyResolved(true)
@@ -704,6 +912,7 @@ class SupplierSettlementReconciliationServiceTest {
     void complete_unequal_paymentDiscrepancy() {
         SupplierSettlementModel settlement = SupplierSettlementModel.builder()
                 .id(10L)
+                .lotterySupplierId(3L)
                 .status(SupplierSettlementStatus.OPEN)
                 .reconciliationPhase(SupplierSettlementReconciliationPhase.RECALCULATED)
                 .importDiscrepancyResolved(true)
@@ -744,6 +953,7 @@ class SupplierSettlementReconciliationServiceTest {
     void complete_rejectsUnresolvedImport() {
         SupplierSettlementModel settlement = SupplierSettlementModel.builder()
                 .id(10L)
+                .lotterySupplierId(3L)
                 .status(SupplierSettlementStatus.OPEN)
                 .reconciliationPhase(SupplierSettlementReconciliationPhase.RECALCULATED)
                 .importQuantityMismatch(true)
@@ -766,6 +976,7 @@ class SupplierSettlementReconciliationServiceTest {
     void complete_equalAmounts_requiresPaymentEvidence() {
         SupplierSettlementModel settlement = SupplierSettlementModel.builder()
                 .id(10L)
+                .lotterySupplierId(3L)
                 .status(SupplierSettlementStatus.OPEN)
                 .reconciliationPhase(SupplierSettlementReconciliationPhase.RECALCULATED)
                 .importDiscrepancyResolved(true)
@@ -791,6 +1002,7 @@ class SupplierSettlementReconciliationServiceTest {
     void recalculate_rejectsOpenReturnDiscrepancy() {
         SupplierSettlementModel settlement = SupplierSettlementModel.builder()
                 .id(10L)
+                .lotterySupplierId(3L)
                 .status(SupplierSettlementStatus.OPEN)
                 .reconciliationPhase(SupplierSettlementReconciliationPhase.READY_FOR_RECALCULATION)
                 .returnQuantityMismatch(true)
@@ -808,6 +1020,7 @@ class SupplierSettlementReconciliationServiceTest {
     void recalculate_usesActualMatchedQuantity() {
         SupplierSettlementModel settlement = SupplierSettlementModel.builder()
                 .id(10L)
+                .lotterySupplierId(3L)
                 .status(SupplierSettlementStatus.OPEN)
                 .reconciliationPhase(SupplierSettlementReconciliationPhase.READY_FOR_RECALCULATION)
                 .importDiscrepancyResolved(true)
@@ -832,9 +1045,9 @@ class SupplierSettlementReconciliationServiceTest {
     }
 
     private void stubRecalculateAmountsBasics() {
-        when(supplierSettlementRepositoryPort.sumImportedCostValueBySettlementId(10L))
+        lenient().when(supplierSettlementRepositoryPort.sumImportedCostValueBySettlementId(10L))
                 .thenReturn(new BigDecimal("1000000.000"));
-        when(supplierSettlementRepositoryPort.sumPreparedReturnValueBySettlementId(10L))
+        lenient().when(supplierSettlementRepositoryPort.sumPreparedReturnValueBySettlementId(10L))
                 .thenReturn(new BigDecimal("400000.000"));
     }
 
@@ -852,6 +1065,7 @@ class SupplierSettlementReconciliationServiceTest {
         fixedNow();
         SupplierSettlementModel settlement = SupplierSettlementModel.builder()
                 .id(10L)
+                .lotterySupplierId(3L)
                 .status(SupplierSettlementStatus.OPEN)
                 .reconciliationPhase(SupplierSettlementReconciliationPhase.DISCREPANCY_DETECTED)
                 .importQuantityMismatch(true)
@@ -907,6 +1121,7 @@ class SupplierSettlementReconciliationServiceTest {
         fixedNow();
         SupplierSettlementModel settlement = SupplierSettlementModel.builder()
                 .id(10L)
+                .lotterySupplierId(3L)
                 .status(SupplierSettlementStatus.OPEN)
                 .reconciliationPhase(SupplierSettlementReconciliationPhase.DISCREPANCY_DETECTED)
                 .importQuantityMismatch(true)
@@ -954,11 +1169,76 @@ class SupplierSettlementReconciliationServiceTest {
     }
 
     @Test
+    @DisplayName("resolveImport accepts UNDER_IMPORTED for system-missing placeholders")
+    void resolveImport_systemUnderstated_acceptsUnderImportedCondition() {
+        fixedNow();
+        SupplierSettlementModel settlement = SupplierSettlementModel.builder()
+                .id(10L)
+                .lotterySupplierId(3L)
+                .status(SupplierSettlementStatus.OPEN)
+                .reconciliationPhase(SupplierSettlementReconciliationPhase.DISCREPANCY_DETECTED)
+                .importQuantityMismatch(true)
+                .importDiscrepancyResolved(false)
+                .returnDiscrepancyResolved(true)
+                .discrepancyTypes(List.of(SupplierSettlementDiscrepancyType.IMPORT_QUANTITY))
+                .discrepancyItems(List.of(SettlementDiscrepancyItem.ofQuantity(
+                        SupplierSettlementDiscrepancyType.IMPORT_QUANTITY, 12
+                )))
+                .originalTicketUnitPrice(new BigDecimal("10000.000"))
+                .systemImportQuantity(1488)
+                .actualTicketImportQuantity(1500)
+                .build();
+        when(supplierSettlementRepositoryPort.findById(10L)).thenReturn(Optional.of(settlement));
+        when(discrepancyInventoryHelper.createLostPlaceholders(any(), any(), any(), eq(ACTOR), any(), any(), any(), any()))
+                .thenReturn(List.of(301L, 302L, 303L));
+        stubRecalculateAmountsBasics();
+        when(supplierSettlementRepositoryPort.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(supplierSettlementApplicationMapper.toResponse(any())).thenAnswer(inv -> {
+            SupplierSettlementModel m = inv.getArgument(0);
+            return SupplierSettlementResponse.builder()
+                    .id(m.getId())
+                    .reconciliationPhase(m.getReconciliationPhase())
+                    .importDiscrepancyResolved(m.isImportDiscrepancyResolved())
+                    .build();
+        });
+
+        ResolveImportDiscrepancyRequest request = new ResolveImportDiscrepancyRequest(
+                null,
+                TicketCondition.UNDER_IMPORTED,
+                SupplierSettlementAdjustmentReasonCode.INSUFFICIENT_IMPORT,
+                null,
+                "Hệ thống chưa ghi nhận hết vé đã nhận",
+                true,
+                List.of(
+                        new SettlementImportPlaceholderRequest(1L, 4),
+                        new SettlementImportPlaceholderRequest(2L, 4),
+                        new SettlementImportPlaceholderRequest(3L, 4)
+                ),
+                null,
+                null
+        );
+
+        SupplierSettlementResponse response = supplierSettlementService.resolveImportDiscrepancy(10L, request, ACTOR);
+        assertThat(response.importDiscrepancyResolved()).isTrue();
+        verify(discrepancyInventoryHelper).createLostPlaceholders(
+                any(),
+                any(),
+                any(),
+                eq(ACTOR),
+                any(),
+                eq(TicketCondition.UNDER_IMPORTED),
+                any(),
+                any()
+        );
+    }
+
+    @Test
     @DisplayName("resolveReturn excess serials create excess return receipt and mark resolved")
     void resolveReturn_excessSerials_callsHelper() {
         fixedNow();
         SupplierSettlementModel settlement = SupplierSettlementModel.builder()
                 .id(10L)
+                .lotterySupplierId(3L)
                 .status(SupplierSettlementStatus.OPEN)
                 .reconciliationPhase(SupplierSettlementReconciliationPhase.DISCREPANCY_DETECTED)
                 .returnQuantityMismatch(true)
@@ -1009,6 +1289,7 @@ class SupplierSettlementReconciliationServiceTest {
     void resolveReturn_excessWithoutEligibleSerials_marksResolvedWithoutAttachingTickets() {
         SupplierSettlementModel settlement = SupplierSettlementModel.builder()
                 .id(10L)
+                .lotterySupplierId(3L)
                 .status(SupplierSettlementStatus.OPEN)
                 .reconciliationPhase(SupplierSettlementReconciliationPhase.DISCREPANCY_DETECTED)
                 .returnQuantityMismatch(true)
@@ -1063,6 +1344,7 @@ class SupplierSettlementReconciliationServiceTest {
     void resolveReturn_systemOverstated_requiresExactReturnSerialCount() {
         SupplierSettlementModel settlement = SupplierSettlementModel.builder()
                 .id(10L)
+                .lotterySupplierId(3L)
                 .status(SupplierSettlementStatus.OPEN)
                 .reconciliationPhase(SupplierSettlementReconciliationPhase.DISCREPANCY_DETECTED)
                 .returnQuantityMismatch(true)
@@ -1094,6 +1376,7 @@ class SupplierSettlementReconciliationServiceTest {
     void addMonetary_rejectsWithoutReceipt() {
         SupplierSettlementModel settlement = SupplierSettlementModel.builder()
                 .id(10L)
+                .lotterySupplierId(3L)
                 .status(SupplierSettlementStatus.OPEN)
                 .reconciliationPhase(SupplierSettlementReconciliationPhase.PAYMENT_DISCREPANCY)
                 .supplierSettlementReceiptUrl(null)
@@ -1116,6 +1399,7 @@ class SupplierSettlementReconciliationServiceTest {
     void addMonetary_withReceipt_savesAdjustment() {
         SupplierSettlementModel settlement = SupplierSettlementModel.builder()
                 .id(10L)
+                .lotterySupplierId(3L)
                 .status(SupplierSettlementStatus.OPEN)
                 .reconciliationPhase(SupplierSettlementReconciliationPhase.PAYMENT_DISCREPANCY)
                 .supplierSettlementReceiptUrl("https://cdn.example/receipt.jpg")
@@ -1160,6 +1444,7 @@ class SupplierSettlementReconciliationServiceTest {
     void complete_paymentDiscrepancy_requiresReceipt() {
         SupplierSettlementModel settlement = SupplierSettlementModel.builder()
                 .id(10L)
+                .lotterySupplierId(3L)
                 .status(SupplierSettlementStatus.OPEN)
                 .reconciliationPhase(SupplierSettlementReconciliationPhase.PAYMENT_DISCREPANCY)
                 .importDiscrepancyResolved(true)
@@ -1184,6 +1469,7 @@ class SupplierSettlementReconciliationServiceTest {
     void resolveUnitPrice_doesNotResolveQuantityDiscrepancies() {
         SupplierSettlementModel settlement = SupplierSettlementModel.builder()
                 .id(10L)
+                .lotterySupplierId(3L)
                 .status(SupplierSettlementStatus.OPEN)
                 .reconciliationPhase(SupplierSettlementReconciliationPhase.DISCREPANCY_DETECTED)
                 .discrepancyTypes(List.of(
@@ -1235,6 +1521,7 @@ class SupplierSettlementReconciliationServiceTest {
         fixedNow();
         SupplierSettlementModel settlement = SupplierSettlementModel.builder()
                 .id(10L)
+                .lotterySupplierId(3L)
                 .status(SupplierSettlementStatus.OPEN)
                 .reconciliationPhase(SupplierSettlementReconciliationPhase.DISCREPANCY_DETECTED)
                 .discrepancyTypes(List.of(

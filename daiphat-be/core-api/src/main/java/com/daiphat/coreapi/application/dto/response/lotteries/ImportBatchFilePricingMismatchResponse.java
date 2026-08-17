@@ -16,10 +16,13 @@ import java.math.BigDecimal;
  *                           the same figure {@code ImportCostCalculator} writes
  *                           onto the import batch line
  */
-@Builder
+@Builder(toBuilder = true)
 public record ImportBatchFilePricingMismatchResponse(
         Long lotteryStationId,
         String stationName,
+
+        /** Line of the file the disagreeing figures were read from, for locating the cell. */
+        Integer rowNumber,
 
         BigDecimal salePriceInFile,
         BigDecimal salePriceInSystem,

@@ -23,6 +23,7 @@ import {
     Typography,
 } from '@mui/material';
 import AccessTimeOutlinedIcon from '@mui/icons-material/AccessTimeOutlined';
+import CancelOutlinedIcon from '@mui/icons-material/CancelOutlined';
 import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
 import CloseIcon from '@mui/icons-material/Close';
 import VisibilityIcon from '@mui/icons-material/Visibility';
@@ -47,6 +48,8 @@ import {
 import {
     canStartInspection,
     formatMinutesUntilCutoff,
+    formatReturnBatchCancelReason,
+    getReturnBatchCancelledAlertMessage,
     getReturnBatchLineStatusBadgeClass,
     getReturnBatchLineStatusLabel,
     getReturnBatchStatusChipColor,
@@ -306,15 +309,72 @@ export const ReturnBatchDetailPage = () => {
             />
 
             {/* System Status Alerts */}
-            {batch.status === 'CANCELLED' && (
-                <Alert severity="error" sx={{ mb: 2.5, borderRadius: '12px' }}>
-                    Phiếu trả vé đã bị hủy
-                    {batch.cancelReason ? `: ${batch.cancelReason}` : '.'}
-                    {batch.cancelledAt
-                        ? ` (${dayjs(batch.cancelledAt).format('DD/MM/YYYY HH:mm')})`
-                        : ''}
-                </Alert>
-            )}
+            {batch.status === 'CANCELLED' && (() => {
+                const alertInfo = getReturnBatchCancelledAlertMessage(batch.cancelReason);
+                return (
+                    <Paper
+                        elevation={0}
+                        sx={{
+                            mb: 2.5,
+                            p: { xs: 1.75, sm: 2 },
+                            borderRadius: '14px',
+                            border: '1px solid #fecaca',
+                            bgcolor: '#fef2f2',
+                            background: 'linear-gradient(135deg, #fef2f2 0%, #fff5f5 100%)',
+                            boxShadow: '0 2px 8px rgba(239, 68, 68, 0.04)',
+                            display: 'flex',
+                            alignItems: { xs: 'flex-start', sm: 'center' },
+                            justifyContent: 'space-between',
+                            flexWrap: { xs: 'wrap', md: 'nowrap' },
+                            gap: 2,
+                        }}
+                    >
+                        <Stack direction="row" spacing={1.75} alignItems="flex-start" sx={{ flex: 1 }}>
+                            <Box
+                                sx={{
+                                    width: 42,
+                                    height: 42,
+                                    borderRadius: '10px',
+                                    bgcolor: '#fee2e2',
+                                    color: '#dc2626',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    flexShrink: 0,
+                                    boxShadow: '0 1px 3px rgba(220, 38, 38, 0.1)',
+                                }}
+                            >
+                                <CancelOutlinedIcon sx={{ fontSize: '1.35rem' }} />
+                            </Box>
+
+                            <Box sx={{ flex: 1 }}>
+                                <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" sx={{ mb: 0.5 }}>
+                                    <Typography variant="subtitle2" fontWeight={800} color="#991b1b" sx={{ fontSize: '0.925rem' }}>
+                                        {alertInfo.title}
+                                    </Typography>
+                                    {batch.cancelledAt && (
+                                        <Chip
+                                            label={`Thời gian hủy: ${dayjs(batch.cancelledAt).format('HH:mm DD/MM/YYYY')}`}
+                                            size="small"
+                                            sx={{
+                                                height: 22,
+                                                fontSize: '0.725rem',
+                                                fontWeight: 700,
+                                                bgcolor: '#ffffff',
+                                                color: '#b91c1c',
+                                                border: '1px solid #fca5a5',
+                                            }}
+                                        />
+                                    )}
+                                </Stack>
+                                <Typography variant="body2" color="#7f1d1d" sx={{ fontSize: '0.835rem', lineHeight: 1.5 }}>
+                                    {alertInfo.description}
+                                </Typography>
+                            </Box>
+                        </Stack>
+                    </Paper>
+                );
+            })()}
 
             {batch.inspectionExpired && batch.status !== 'CANCELLED' && (
                 <Alert severity="warning" sx={{ mb: 2.5, borderRadius: '12px' }}>

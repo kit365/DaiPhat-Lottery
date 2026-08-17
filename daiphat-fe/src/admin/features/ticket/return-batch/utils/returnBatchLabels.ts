@@ -12,6 +12,7 @@ export const RETURN_BATCH_LINE_STATUS_LABELS: Record<ReturnBatchLineStatus, stri
     PENDING: 'Chờ kiểm tra',
     INSPECTING: 'Đang kiểm tra',
     INSPECTED: 'Đã kiểm tra',
+    CANCELLED: 'Đã hủy',
 };
 
 export const getReturnBatchStatusLabel = (
@@ -49,6 +50,8 @@ export const getReturnBatchLineStatusBadgeClass = (status?: ReturnBatchLineStatu
             return 'admin-status-badge--active';
         case 'INSPECTED':
             return 'admin-status-badge--success';
+        case 'CANCELLED':
+            return 'admin-status-badge--inactive';
         default:
             return 'admin-status-badge--draft';
     }
@@ -94,3 +97,42 @@ export const formatMinutesUntilCutoff = (minutes?: number | null): string => {
     if (m === 0) return `${h} giờ`;
     return `${h} giờ ${m} phút`;
 };
+
+export const RETURN_CUTOFF_EXCEEDED_REASON = 'Return cutoff time exceeded.';
+
+/** Human-readable cancellation reason shown in return batch detail */
+export const formatReturnBatchCancelReason = (cancelReason?: string | null) => {
+    if (!cancelReason?.trim()) return undefined;
+    if (
+        cancelReason === RETURN_CUTOFF_EXCEEDED_REASON ||
+        cancelReason.toLowerCase().includes('return cutoff time exceeded')
+    ) {
+        return 'Tự động hủy do đã quá hạn chót trả vé nhà cung cấp.';
+    }
+    return cancelReason;
+};
+
+/** User-facing alert message when a return batch is cancelled */
+export const getReturnBatchCancelledAlertMessage = (
+    cancelReason?: string | null
+) => {
+    const isCutoff =
+        cancelReason === RETURN_CUTOFF_EXCEEDED_REASON ||
+        Boolean(cancelReason?.toLowerCase().includes('return cutoff time exceeded'));
+
+    if (isCutoff) {
+        return {
+            title: 'Phiếu trả vé đã tự động bị hủy do quá hạn chót',
+            description:
+                'Phiếu trả vé đã bị hủy do đã quá hạn chót trả vé cho nhà cung cấp (sau giờ cắt chốt). Toàn bộ vé trong phiếu này không thể tiếp tục thực hiện kiểm đếm hoặc bàn giao.',
+        };
+    }
+
+    return {
+        title: 'Phiếu trả vé đã bị hủy',
+        description:
+            cancelReason ||
+            'Phiếu trả vé đã bị hủy. Không thể tiếp tục kiểm tra hoặc bàn giao vé cho phiếu này.',
+    };
+};
+
