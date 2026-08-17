@@ -166,6 +166,26 @@ const buildTicketGroups = (tickets: PurchasedTicket[]): PurchasedTicketGroup[] =
     });
 };
 
+const SERIAL_ACTION_CHIP =
+    'inline-flex items-center justify-center min-w-[124px] h-9 px-3 rounded-xl text-[12.5px] font-extrabold whitespace-nowrap no-underline box-border';
+
+const SERIAL_DETAIL_BTN =
+    'inline-flex items-center justify-center min-w-[88px] h-9 px-4 rounded-xl text-[12.5px] font-bold whitespace-nowrap bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 transition-colors cursor-pointer';
+
+const serialPayoutChipLabel = (
+    payoutDisplay: ReturnType<typeof resolveTicketPayoutDisplay>,
+): string => {
+    if (!payoutDisplay) return 'Đã đổi thưởng';
+    if (payoutDisplay.status === 'COMPLETED') return 'Đã đổi thưởng';
+    if (payoutDisplay.status === 'PENDING') return 'Đang xử lý';
+    if (payoutDisplay.status === 'IN_PERSON_ONLY' || payoutDisplay.status === 'MANUAL_RESOLUTION') {
+        return 'Đổi tại đại lý';
+    }
+    if (payoutDisplay.status === 'REJECTED') return 'Bị từ chối';
+    if (payoutDisplay.status === 'CANCELLED') return 'Đã hủy';
+    return payoutDisplay.label;
+};
+
 const getSerialRowPrizeOrStatus = (ticket: PurchasedTicket) => {
     const ui = STATUS_UI[ticket.drawResultStatus] ?? STATUS_UI.PENDING_DRAW;
 
@@ -558,33 +578,36 @@ export const TicketsTab = () => {
                                     <button
                                         type="button"
                                         onClick={() => setPayoutModalOpen(true)}
-                                        className="w-full md:w-auto px-6 py-3 bg-gradient-to-r from-amber-500 via-amber-600 to-orange-600 text-white font-black rounded-xl text-[14px] shadow-md shadow-amber-500/20 hover:shadow-lg hover:brightness-105 transition-all cursor-pointer whitespace-nowrap"
+                                        className="w-full md:w-auto min-w-[200px] justify-center px-6 py-3 bg-gradient-to-r from-amber-500 via-amber-600 to-orange-600 text-white font-black rounded-xl text-[14px] shadow-md shadow-amber-500/20 hover:shadow-lg hover:brightness-105 transition-all cursor-pointer whitespace-nowrap"
                                     >
                                         🏆 Yêu cầu trả thưởng ngay
                                     </button>
                                 ) : isPayoutInProgress && payoutRequestHref ? (
                                     <Link
                                         href={payoutRequestHref}
-                                        className="text-amber-700 font-bold text-[14px] hover:underline no-underline"
+                                        className="inline-flex items-center justify-center w-full md:w-auto min-w-[200px] px-6 py-3 bg-violet-50 text-violet-700 font-black rounded-xl text-[14px] border border-violet-200 no-underline whitespace-nowrap"
                                     >
-                                        Xem yêu cầu đang xử lý →
+                                        Đang xử lý
                                     </Link>
-                                ) : (
-                                    <div className="flex flex-col items-start md:items-end gap-1">
-                                        {isPayoutCompleted && payoutRequestHref ? (
+                                ) : isPayoutCompleted ? (
+                                    <div className="flex flex-col items-stretch md:items-end gap-1.5 w-full md:w-auto min-w-[200px]">
+                                        <span className="inline-flex items-center justify-center px-6 py-3 bg-emerald-50 text-emerald-700 font-black rounded-xl text-[14px] border border-emerald-200 whitespace-nowrap">
+                                            Đã đổi thưởng
+                                        </span>
+                                        {payoutRequestHref ? (
                                             <Link
                                                 href={payoutRequestHref}
-                                                className="text-emerald-700 font-bold text-[13px] hover:underline no-underline"
+                                                className="text-emerald-700 font-bold text-[13px] hover:underline no-underline text-center md:text-right"
                                             >
                                                 Xem yêu cầu đã hoàn tất →
                                             </Link>
-                                        ) : ineligibilityReason ? (
-                                            <span className="text-[12px] text-slate-500 font-medium">
-                                                {ineligibilityReason}
-                                            </span>
                                         ) : null}
                                     </div>
-                                )}
+                                ) : ineligibilityReason ? (
+                                    <span className="text-[12px] text-slate-500 font-medium md:text-right max-w-[240px]">
+                                        {ineligibilityReason}
+                                    </span>
+                                ) : null}
                             </div>
                             );
                         })()}
@@ -1001,7 +1024,7 @@ export const TicketsTab = () => {
                                                                 return (
                                                                     <div
                                                                         key={ticketKey(serial)}
-                                                                        className="grid grid-cols-1 md:grid-cols-[minmax(0,1.5fr)_minmax(120px,0.8fr)_minmax(110px,0.7fr)_auto] gap-3 md:gap-4 md:items-center rounded-xl border border-slate-200/80 bg-white px-3.5 py-3 shadow-xs"
+                                                                        className="grid grid-cols-1 md:grid-cols-[minmax(0,1.5fr)_minmax(120px,0.8fr)_minmax(110px,0.7fr)_minmax(228px,auto)] gap-3 md:gap-4 md:items-center rounded-xl border border-slate-200/80 bg-white px-3.5 py-3 shadow-xs"
                                                                     >
                                                                         <div className="min-w-0 flex items-center">
                                                                             <span className="text-[13px] font-bold text-red-600 font-mono tracking-tight break-all">
@@ -1026,33 +1049,56 @@ export const TicketsTab = () => {
                                                                                 : '—'}
                                                                         </div>
 
-                                                                        <div className="flex items-center justify-start md:justify-end gap-2 shrink-0">
+                                                                        <div className="flex items-center justify-start md:justify-end gap-2 shrink-0 w-full">
                                                                             {canRedeem ? (
                                                                                 <button
                                                                                     type="button"
                                                                                     onClick={(event) =>
                                                                                         openPayoutForTicket(serial, event)
                                                                                     }
-                                                                                    className="px-4 py-2 bg-gradient-to-r from-amber-500 via-amber-600 to-orange-600 text-white font-extrabold rounded-xl text-[12.5px] shadow-sm hover:brightness-105 transition-all cursor-pointer border-none whitespace-nowrap"
+                                                                                    className={`${SERIAL_ACTION_CHIP} bg-gradient-to-r from-amber-500 via-amber-600 to-orange-600 text-white shadow-sm hover:brightness-105 transition-all cursor-pointer border-none`}
                                                                                 >
                                                                                     Đổi thưởng
                                                                                 </button>
-                                                                            ) : isWon && payoutDisplay?.status === 'PENDING' && serial.activePayoutRequestId ? (
-                                                                                <Link
-                                                                                    href={`/profile/prize-payouts/${serial.activePayoutRequestId}`}
-                                                                                    onClick={(event) => event.stopPropagation()}
-                                                                                    className="px-4 py-2 bg-violet-50 text-violet-700 font-bold rounded-xl text-[12.5px] border border-violet-200 no-underline whitespace-nowrap"
-                                                                                >
-                                                                                    Đang xử lý
-                                                                                </Link>
-                                                                            ) : null}
+                                                                            ) : isWon ? (
+                                                                                serial.activePayoutRequestId && (
+                                                                                    payoutDisplay?.status === 'PENDING'
+                                                                                    || payoutDisplay?.status === 'COMPLETED'
+                                                                                ) ? (
+                                                                                    <Link
+                                                                                        href={`/profile/prize-payouts/${serial.activePayoutRequestId}`}
+                                                                                        onClick={(event) => event.stopPropagation()}
+                                                                                        className={`${SERIAL_ACTION_CHIP} border ${
+                                                                                            payoutDisplay?.status === 'COMPLETED'
+                                                                                                ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                                                                                : 'bg-violet-50 text-violet-700 border-violet-200'
+                                                                                        }`}
+                                                                                    >
+                                                                                        {serialPayoutChipLabel(payoutDisplay)}
+                                                                                    </Link>
+                                                                                ) : (
+                                                                                    <span
+                                                                                        className={`${SERIAL_ACTION_CHIP} border ${
+                                                                                            payoutDisplay?.className
+                                                                                            ?? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                                                                        }`}
+                                                                                    >
+                                                                                        {serialPayoutChipLabel(payoutDisplay)}
+                                                                                    </span>
+                                                                                )
+                                                                            ) : (
+                                                                                <span
+                                                                                    className={`${SERIAL_ACTION_CHIP} invisible pointer-events-none`}
+                                                                                    aria-hidden
+                                                                                />
+                                                                            )}
                                                                             <button
                                                                                 type="button"
                                                                                 onClick={(event) => {
                                                                                     event.stopPropagation();
                                                                                     openDetail(serial);
                                                                                 }}
-                                                                                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-[12.5px] border border-slate-200 transition-colors cursor-pointer whitespace-nowrap"
+                                                                                className={SERIAL_DETAIL_BTN}
                                                                             >
                                                                                 Chi tiết
                                                                             </button>

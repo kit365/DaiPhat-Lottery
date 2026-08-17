@@ -40,13 +40,15 @@ export const useUserStatuses = () => {
     });
 };
 
-export const useSearchCustomers = (params: { q: string; limit?: number }, options?: Partial<UseQueryOptions<ApiResponse<User[]>>>) => {
+export const useSearchCustomers = <TData = ApiResponse<User[]>>(
+    params: { q: string; limit?: number },
+    options?: Partial<UseQueryOptions<ApiResponse<User[]>, Error, TData>>,
+) => {
     return useQuery({
         queryKey: [QUERY_KEYS.SEARCH_CUSTOMERS, params.q, params.limit],
         queryFn: () => searchCustomers(params),
-        enabled: !!params.q && params.q.trim().length > 0,
         staleTime: 1000 * 60,
-        ...options
+        ...options,
     });
 };
 

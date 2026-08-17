@@ -4,11 +4,25 @@ import { useAuthStore } from '../stores/useAuthStore';
 
 const ACCESS_COOKIE = { path: "/" as const };
 const DEFAULT_TTL_SECONDS = 900;
+const BE_REFRESH_COOKIE = "refresh_token";
 
 const isUsableToken = (token: string | null | undefined): token is string => {
     if (!token) return false;
     const trimmed = token.trim();
     return trimmed.length > 0 && trimmed !== 'undefined' && trimmed !== 'null';
+};
+
+/**
+ * Local / Next rewrite: cookie HttpOnly Path=/api/v1/auth đôi khi không được set.
+ * BE đọc cookie `refresh_token` — ghi thêm bản JS path=/ để refresh vẫn gửi được.
+ */
+export const persistRefreshTokenFallback = (refreshToken?: string | null) => {
+    if (typeof window === "undefined" || !isUsableToken(refreshToken)) return;
+    Cookies.set(BE_REFRESH_COOKIE, refreshToken.trim(), {
+        expires: 7,
+        sameSite: "lax",
+        ...ACCESS_COOKIE,
+    });
 };
 
 export const readAccessTokenCookie = (): string | null => {
@@ -62,6 +76,7 @@ export const hydrateAccessTokenFromCookie = () => {
 export const clearJsAuthCookies = () => {
     Cookies.remove(STORAGE_KEYS.TOKEN, ACCESS_COOKIE);
     Cookies.remove(STORAGE_KEYS.REFRESH_TOKEN, ACCESS_COOKIE);
+    Cookies.remove(BE_REFRESH_COOKIE, ACCESS_COOKIE);
 };
 
 /** Interceptor đã gắn Bearer — helper này trùng, chỗ cũ còn spread. */

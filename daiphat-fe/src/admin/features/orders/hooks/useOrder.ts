@@ -233,7 +233,7 @@ export const usePreparingOrderCount = () => {
     return {
         /** ONLINE PREPARING — badge for "Danh sách đơn". */
         onlinePreparingCount,
-        /** DIRECT PREPARING — badge for "Đơn tại quầy". */
+        /** DIRECT PREPARING — badge for "Tạo đơn tại quầy". */
         directPreparingCount,
         /** Combined total for parent "Đơn hàng". */
         preparingCount,
