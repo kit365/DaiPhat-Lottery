@@ -103,8 +103,9 @@ BEGIN
     LIMIT 1;
 
     IF v_actor_id IS NULL THEN
-        RAISE EXCEPTION
-            'MC_SEED: no user found. Create at least one user before applying this seed.';
+        RAISE NOTICE
+            'MC_SEED: no user found. Skipping seed on fresh database.';
+        RETURN;
     END IF;
 
     IF NOT EXISTS (
@@ -113,8 +114,9 @@ BEGIN
         WHERE deleted_at IS NULL
           AND is_active = TRUE
     ) THEN
-        RAISE EXCEPTION
-            'MC_SEED: no active lottery_stations. Start the app once so SouthernLotteryStationSeedInitializer runs, then re-apply / repair this migration.';
+        RAISE NOTICE
+            'MC_SEED: no active lottery_stations. Skipping seed on fresh database.';
+        RETURN;
     END IF;
 
     -- Supplier upsert --------------------------------------------------------

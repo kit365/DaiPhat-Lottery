@@ -262,7 +262,8 @@ BEGIN
     WHERE email = v_email AND deleted_at IS NULL
     LIMIT 1;
     IF v_customer_id IS NULL THEN
-        RAISE EXCEPTION 'WIN50_SEED: user % not found.', v_email;
+        RAISE NOTICE 'WIN50_SEED: user % not found. Skipping seed on fresh database.', v_email;
+        RETURN;
     END IF;
 
     SELECT id INTO v_actor_id
@@ -270,21 +271,28 @@ BEGIN
     WHERE deleted_at IS NULL
     ORDER BY created_at NULLS LAST, id
     LIMIT 1;
+    IF v_actor_id IS NULL THEN
+        RAISE NOTICE 'WIN50_SEED: actor not found. Skipping seed on fresh database.';
+        RETURN;
+    END IF;
 
     SELECT id INTO v_supplier_id
     FROM lottery_suppliers
     WHERE code = v_supplier_code AND deleted_at IS NULL
     LIMIT 1;
     IF v_supplier_id IS NULL THEN
-        RAISE EXCEPTION 'WIN50_SEED: supplier % not found. Apply Minh Chinh seed first.', v_supplier_code;
+        RAISE NOTICE 'WIN50_SEED: supplier % not found. Skipping seed on fresh database.', v_supplier_code;
+        RETURN;
     END IF;
 
     IF NOT EXISTS (SELECT 1 FROM lottery_stations WHERE deleted_at IS NULL AND is_active) THEN
-        RAISE EXCEPTION 'WIN50_SEED: no active lottery_stations.';
+        RAISE NOTICE 'WIN50_SEED: no active lottery_stations. Skipping seed on fresh database.';
+        RETURN;
     END IF;
 
     IF (SELECT COUNT(*) FROM prize_structures WHERE deleted_at IS NULL AND prize_code = ANY (v_prizes)) < 11 THEN
-        RAISE EXCEPTION 'WIN50_SEED: missing prize_structures (need DB..G8, DB_PHU, KK).';
+        RAISE NOTICE 'WIN50_SEED: missing prize_structures. Skipping seed on fresh database.';
+        RETURN;
     END IF;
 
     -- Cleanup previous WIN50 seed so this migration is re-runnable via psql.
