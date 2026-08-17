@@ -412,9 +412,6 @@ class _HomeContentState extends ConsumerState<_HomeContent>
                 SliverToBoxAdapter(
                   child: LotoCard(
                     provinces: allProvinces,
-                    globalSel: _selectedProvinces.length == 1
-                        ? _selectedProvinces.first
-                        : null,
                     results: data.results,
                   ),
                 ),
