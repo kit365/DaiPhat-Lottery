@@ -1,7 +1,6 @@
 "use client";
 
-import { Typography } from "@mui/material";
-import { AdminConfirmDialog } from "../../../components/ui/AdminConfirmDialog";
+import { SignedContractSaveDialog as SharedSignedContractSaveDialog } from "@/admin/shared/contracts/SignedContractSaveDialog";
 
 interface SignedContractSaveDialogProps {
     open: boolean;
@@ -11,7 +10,7 @@ interface SignedContractSaveDialogProps {
     onConfirm: () => void;
 }
 
-/** Final confirmation for the only action that persists a signed contract. */
+/** Street-agent wrapper with profile-specific copy. */
 export const SignedContractSaveDialog = ({
     open,
     file,
@@ -19,20 +18,12 @@ export const SignedContractSaveDialog = ({
     onClose,
     onConfirm,
 }: SignedContractSaveDialogProps) => (
-    <AdminConfirmDialog
+    <SharedSignedContractSaveDialog
         open={open}
-        title="Lưu bản hợp đồng đã ký?"
-        maxWidth="sm"
-        loading={saving}
-        confirmDisabled={!file}
-        cancelLabel="Quay lại"
-        confirmLabel="Lưu bản ký"
-        confirmLoadingLabel="Đang lưu bản ký..."
+        file={file}
+        saving={saving}
         onClose={onClose}
         onConfirm={onConfirm}
-    >
-        <Typography variant="body2" color="text.secondary">
-            Chỉ sau khi xác nhận bước này, bản ký mới được lưu chính thức vào hồ sơ người bán vé số.
-        </Typography>
-    </AdminConfirmDialog>
+        description="Chỉ sau khi xác nhận bước này, bản ký mới được lưu chính thức vào hồ sơ người bán vé số."
+    />
 );
