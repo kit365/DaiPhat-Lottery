@@ -332,12 +332,16 @@ public interface LotteryTicketSerialRepository extends JpaRepository<LotteryTick
                            od.lotteryTicketSerial = s 
                         OR od.replacedByTicketSerial = s 
                     )
-                    AND od.status = :#{T(com.daiphat.coreapi.domain.model.enums.order.detail.OrderDetailStatus).ACTIVE}
+                    AND od.status IN (
+                          com.daiphat.coreapi.domain.model.enums.order.detail.OrderDetailStatus.PROXY_HOLDING,
+                          com.daiphat.coreapi.domain.model.enums.order.detail.OrderDetailStatus.HANDOVER_IN_PROGRESS,
+                          com.daiphat.coreapi.domain.model.enums.order.detail.OrderDetailStatus.HANDED_OVER
+                    )
                     AND o.status IN (
-                          :#{T(com.daiphat.coreapi.domain.model.enums.order.OrderStatus).PAID},
-                          :#{T(com.daiphat.coreapi.domain.model.enums.order.OrderStatus).PREPARING},
-                          :#{T(com.daiphat.coreapi.domain.model.enums.order.OrderStatus).PENDING_PICKUP},
-                          :#{T(com.daiphat.coreapi.domain.model.enums.order.OrderStatus).COMPLETED}
+                          com.daiphat.coreapi.domain.model.enums.order.OrderStatus.PAID,
+                          com.daiphat.coreapi.domain.model.enums.order.OrderStatus.PREPARING,
+                          com.daiphat.coreapi.domain.model.enums.order.OrderStatus.PENDING_PICKUP,
+                          com.daiphat.coreapi.domain.model.enums.order.OrderStatus.COMPLETED
                     )
                 ) THEN 1 ELSE 0 END),
                 SUM(CASE WHEN s.status = com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus.IN_STOCK
